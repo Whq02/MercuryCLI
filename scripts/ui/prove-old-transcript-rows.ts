@@ -57,7 +57,8 @@ function oldCrewRows(sid: string): Record<string, unknown>[] {
     result(8, 7, 'toolu_old_send', 'Message delivered to atlas'),
     relay(9, 8, 'atlas', 'auth findings ready', 'I finished mapping the auth flow; notes are in the handoff.'),
     attachment(10, 9, { type: 'teammate_mailbox', messages: [{ from: 'beacon', text: 'the manifest edit is in', timestamp: AT(10), color: 'green', summary: 'manifest edit landed' }] }),
-    relay(11, 10, 'atlas', 'shutting down', JSON.stringify({ type: 'shutdown_request', requestId: 'shutdown-old1', from: 'atlas', reason: 'the work is done', timestamp: AT(11) })),
+    attachment(16, 10, { type: 'crew_messages', messages: [{ from: 'comet', text: 'the crew kind row paints too', timestamp: AT(16), color: 'cyan', summary: 'crew kind row' }] }),
+    relay(11, 16, 'atlas', 'shutting down', JSON.stringify({ type: 'shutdown_request', requestId: 'shutdown-old1', from: 'atlas', reason: 'the work is done', timestamp: AT(11) })),
     base({ parentUuid: id(11), type: 'user', uuid: id(12), message: { role: 'user', content: 'thanks, wrap it up' }, timestamp: AT(12) }),
   ]
 }
@@ -83,10 +84,11 @@ try {
     check(`${band.cols}: nothing calls the file a retired format or fails to open it`, !/retired format|cannot be opened|Failed to load|could not be loaded/i.test(flat), frame.filter(r => /retired|cannot be opened|Failed/i.test(r)).join(' | '))
     check(`${band.cols}: the operator's own lines render`, flat.includes('charter the fixture team') && flat.includes('wrap it up'), frame.filter(r => /charter the fixture|wrap it up/.test(r)).join(' | '))
     check(`${band.cols}: the old TeamCreate row still paints`, /create team: beta-fixture|TeamCreate/.test(flat), frame.filter(r => /TeamCreate|create team/.test(r)).join(' | '))
-    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate   create team:', '❯ @atlas auth findings ready', '❯ @beacon manifest edit landed', '@atlas requested shutdown', '[sam] ❯ thanks, wrap it up'].map(needle => frame.findIndex(r => r.includes(needle)))
+    const order = ['[sam] ❯ charter the fixture team', 'TeamCreate   team_name:', '❯ @atlas auth findings ready', '❯ @beacon manifest edit landed', '❯ @comet crew kind row', '@atlas requested shutdown', '[sam] ❯ thanks, wrap it up'].map(needle => frame.findIndex(r => r.includes(needle)))
     check(`${band.cols}: the old brief and send rows break nothing — the rows after them paint, in order`, order.every(i => i >= 0) && order.every((i, k) => k === 0 || i > order[k - 1]!), order.join(','))
     check(`${band.cols}: the crewmate relay row paints its sender and summary`, /@atlas auth findings ready/.test(flat), frame.filter(r => /@atlas/.test(r)).join(' | '))
     check(`${band.cols}: the mailbox row paints its sender and summary`, /@beacon/.test(flat) && /manifest edit landed/.test(flat), frame.filter(r => /@beacon/.test(r)).join(' | '))
+    check(`${band.cols}: the crew_messages row paints its sender and summary the same way (RED on the base: an unknown kind paints nothing)`, /@comet/.test(flat) && /crew kind row/.test(flat), frame.filter(r => /@comet/.test(r)).join(' | '))
     check(`${band.cols}: the shutdown request card paints with its reason`, /@atlas requested shutdown — the work is done/.test(flat), frame.filter(r => /shutdown/.test(r)).join(' | '))
     cleanupScenario('resume-2turn')
   }

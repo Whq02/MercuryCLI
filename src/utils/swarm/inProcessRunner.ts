@@ -6,7 +6,6 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
-import { setLiveBusy } from '../../services/crew/liveComms.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { runAgent } from '../../tools/AgentTool/runAgent.js'
@@ -62,20 +61,8 @@ import { evictTaskOutput } from '../task/diskOutput.js'
 import { evictTerminalTask, STOPPED_DISPLAY_MS } from '../task/framework.js'
 import { claimTask, listTasks, onTasksUpdated, updateTask } from '../tasks.js'
 import { runWithCrewmateContext, type CrewmateContext } from '../crewmateContext.js'
-import {
-  createIdleNotification,
-  createShutdownApprovedMessage,
-  formatCrewmateMessages,
-  getLastPeerDmSummary,
-  getMailboxStore,
-  isPermissionResponse,
-  isShutdownRequest,
-  markSpecificMessageAsRead,
-  readMailbox,
-  resolveShutdownRequestSender,
-  writeToMailbox,
-  type ShutdownRequestMessage,
-} from '../crewmateMailbox.js'
+import { setLiveBusy, subscribeLiveMessagesFor, markLiveMessageRead, liveMessagesFor, sendLiveMessage } from '../../services/crew/liveComms.js'
+import { createIdleNotification, createShutdownApprovedMessage, formatCrewmateMessages, getLastPeerDmSummary, isPermissionResponse, isShutdownRequest, resolveShutdownRequestSender, type ShutdownRequestMessage } from '../../services/crew/liveMessages.js'
 import { tokenCountWithEstimation } from '../tokens.js'
 import { createContentReplacementState } from '../toolResultStorage.js'
 import { deriveRunnerAgentDefinition } from './agentLaunchPlan.js'
@@ -218,10 +205,7 @@ async function waitForNextInput(
       wakePending = true
     }
   }
-  const unsubscribeMailbox = getMailboxStore(identity.agentName, identity.teamName).subscribe(
-    () => wake(),
-    { immediate: false },
-  )
+  const unsubscribeMailbox = subscribeLiveMessagesFor(identity.teamName, identity.agentName, () => wake(), { immediate: false })
   const unsubscribeTasks = onTasksUpdated(() => wake())
   signal.addEventListener('abort', wake)
 
@@ -267,7 +251,7 @@ async function waitForNextInput(
       if (signal.aborted) return { kind: 'aborted' }
 
       try {
-        const messages = await readMailbox(identity.agentName, identity.teamName)
+        const messages = await liveMessagesFor(identity.teamName, identity.agentName)
         const unread = messages.filter(message => !message.read)
 
         for (const message of unread) {
@@ -280,13 +264,13 @@ async function waitForNextInput(
             )
             continue
           }
-          await markSpecificMessageAsRead(identity.agentName, identity.teamName, message)
+          await markLiveMessageRead(identity.teamName, identity.agentName, message)
           return { kind: 'shutdown', request: parsed, text: message.text, sender }
         }
 
         const selected = unread.find(message => message.from === CREW_LEAD_NAME) ?? unread[0]
         if (selected !== undefined) {
-          await markSpecificMessageAsRead(identity.agentName, identity.teamName, selected)
+          await markLiveMessageRead(identity.teamName, identity.agentName, selected)
           return {
             kind: 'message',
             text: selected.text,
@@ -485,7 +469,7 @@ function buildCrewmatePermissionFn(
               settle(refusal())
               return
             }
-            const messages = await readMailbox(identity.agentName, identity.teamName)
+            const messages = await liveMessagesFor(identity.teamName, identity.agentName)
             for (const message of messages) {
               if (message.read) continue
               const response = isPermissionResponse(message.text)
@@ -496,7 +480,7 @@ function buildCrewmatePermissionFn(
                 )
                 continue
               }
-              await markSpecificMessageAsRead(identity.agentName, identity.teamName, message)
+              await markLiveMessageRead(identity.teamName, identity.agentName, message)
               processMailboxPermissionResponse(
                 response.subtype === 'success'
                   ? {
@@ -541,16 +525,13 @@ async function sendIdleNotificationToLead(
         }
       : {}),
   })
-  await writeToMailbox(
-    CREW_LEAD_NAME,
-    {
-      from: identity.agentName,
-      text: JSON.stringify(notification),
-      timestamp: new Date().toISOString(),
-      ...(identity.color !== undefined ? { color: identity.color } : {}),
-    },
-    identity.teamName,
-  )
+  await sendLiveMessage(identity.teamName, {
+    to: CREW_LEAD_NAME,
+    from: identity.agentName,
+    text: JSON.stringify(notification),
+    timestamp: new Date().toISOString(),
+    ...(identity.color !== undefined ? { color: identity.color } : {}),
+  })
 }
 
 function noteMemberActive(identity: InProcessRunnerConfig['identity'], active: boolean): void {
@@ -576,16 +557,13 @@ async function approveIdleShutdown(
     paneId: member?.tmuxPaneId || undefined,
     backendType: member?.backendType || undefined,
   })
-  const delivered = await writeToMailbox(
-    CREW_LEAD_NAME,
-    {
-      from: identity.agentName,
-      text: JSON.stringify(approved),
-      timestamp: new Date().toISOString(),
-      ...(identity.color !== undefined ? { color: identity.color } : {}),
-    },
-    identity.teamName,
-  )
+  const delivered = await sendLiveMessage(identity.teamName, {
+    to: CREW_LEAD_NAME,
+    from: identity.agentName,
+    text: JSON.stringify(approved),
+    timestamp: new Date().toISOString(),
+    ...(identity.color !== undefined ? { color: identity.color } : {}),
+  })
   if (!delivered) logForDebugging(`teammate ${identity.agentName}: the shutdown approval could not be written to the lead's mailbox`)
 }
 
@@ -1084,16 +1062,13 @@ export function crewmatePausedWords(name: string, pause: AgentPauseV1, nowMs: nu
 }
 
 async function tellLeadPaused(identity: InProcessRunnerConfig['identity'], pause: AgentPauseV1): Promise<void> {
-  const delivered = await writeToMailbox(
-    CREW_LEAD_NAME,
-    {
-      from: identity.agentName,
-      text: crewmatePausedWords(identity.agentName, pause, Date.now()),
-      timestamp: new Date().toISOString(),
-      ...(identity.color !== undefined ? { color: identity.color } : {}),
-    },
-    identity.teamName,
-  ).catch(() => false)
+  const delivered = await sendLiveMessage(identity.teamName, {
+    to: CREW_LEAD_NAME,
+    from: identity.agentName,
+    text: crewmatePausedWords(identity.agentName, pause, Date.now()),
+    timestamp: new Date().toISOString(),
+    ...(identity.color !== undefined ? { color: identity.color } : {}),
+  }).catch(() => false)
   if (!delivered) logForDebugging(`teammate ${identity.agentName}: the pause notice could not be written to the lead's mailbox`)
 }
 

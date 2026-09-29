@@ -1,5 +1,5 @@
 import { parseBusEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type BusEnvelope, type DispatchEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { getMailboxStore, readUnreadMessages, markMessagesAsReadByPredicate } from '../utils/crewmateMailbox.js'
+import { subscribeLiveMessagesFor, unreadLiveMessagesFor, markLiveMessagesReadWhere } from '../services/crew/liveComms.js'
 import { dispatchDedup, type DispatchDedup } from './dispatchDedup.js'
 import { faultPoint } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -95,7 +95,7 @@ export async function drainDispatches(
 ): Promise<number> {
   let unread
   try {
-    unread = await readUnreadMessages(opts.agentName, opts.teamName)
+    unread = await unreadLiveMessagesFor(opts.teamName, opts.agentName)
   } catch (e) {
     logForDebugging(`[daemon] dispatch drain: read failed: ${e}`)
     return 0
@@ -310,18 +310,14 @@ export async function drainDispatches(
   }
   const toMarkSafe = toMark.filter(t => !t.requestId || !heldIds.has(t.requestId))
   if (toMarkSafe.length > 0) {
-    await markMessagesAsReadByPredicate(
-      opts.agentName,
-      x => {
+    await markLiveMessagesReadWhere(opts.teamName, opts.agentName, x => {
         const xid = parseBusEnvelope(x.text)?.request_id
         return toMarkSafe.some(t =>
           t.requestId && xid
             ? t.requestId === xid
             : t.text === x.text && t.timestamp === x.timestamp && t.from === x.from,
         )
-      },
-      opts.teamName,
-    ).catch(() => {})
+      }).catch(() => {})
   }
   if (delivered > 0) logForDebugging(`[daemon] dispatch drain delivered ${delivered} to ${opts.short} stdin`)
   return delivered
@@ -366,7 +362,7 @@ export function armDispatchDrain(
           await pass()
         } while (rerun && !disposed)
         if (!disposed && !retryTimer) {
-          const unread = await readUnreadMessages(opts.agentName, opts.teamName)
+          const unread = await unreadLiveMessagesFor(opts.teamName, opts.agentName)
           if (unread.length > 0) {
             retryTimer = setTimeout(() => {
               retryTimer = null
@@ -384,10 +380,7 @@ export function armDispatchDrain(
     })()
   }
 
-  const unsubscribe = getMailboxStore(opts.agentName, opts.teamName).subscribe(
-    () => drain(),
-    { immediate: true },
-  )
+  const unsubscribe = subscribeLiveMessagesFor(opts.teamName, opts.agentName, () => drain(), { immediate: true })
 
   return {
     drain,

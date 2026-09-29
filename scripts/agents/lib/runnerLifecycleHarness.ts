@@ -28,9 +28,8 @@ export const { spawnInProcessCrewmate, killInProcessCrewmate } = await import(
 )
 export const { runInProcessCrewmate } = await import('../../../src/utils/swarm/inProcessRunner.ts')
 export const { drainSdkEvents } = await import('../../../src/utils/sdkEventQueue.ts')
-export const { readMailbox, writeToMailbox, isIdleNotification } = await import(
-  '../../../src/utils/crewmateMailbox.ts'
-)
+export const { liveMessagesFor, sendLiveMessage } = await import('../../../src/services/crew/liveComms.ts')
+export const { isIdleNotification } = await import('../../../src/services/crew/liveMessages.ts')
 export const { injectUserMessageToCrewmate } = await import(
   '../../../src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx'
 )
@@ -189,7 +188,7 @@ export const bookendsFor = (taskId: string): SdkEventView[] =>
 export async function idleNotificationsFor(
   crew: string,
 ): Promise<Array<{ idleReason?: string; failureReason?: string }>> {
-  const msgs = await readMailbox('team-lead', crew)
+  const msgs = await liveMessagesFor(crew, 'team-lead')
   return msgs
     .map(m => isIdleNotification(m.text))
     .filter(Boolean) as Array<{ idleReason?: string; failureReason?: string }>

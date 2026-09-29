@@ -27,7 +27,7 @@ import {
 import { LiveCommsTool } from '../../src/tools/LiveCommsTool/LiveCommsTool.js'
 import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
 import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
-import { readMailbox, writeToMailbox } from '../../src/utils/crewmateMailbox.js'
+import { liveMessagesFor, sendLiveMessage } from '../../src/services/crew/liveComms.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -97,7 +97,7 @@ try {
     const bob = resolveCoordinationContext()!
     const clash = await claimLeases(bob, ['src/api/routes/**'])
     check('an overlapping claim by another agent conflicts (no silent double lease)', !clash.ok && clash.conflict.agentId === 'worker', JSON.stringify(clash))
-    const wrote = await writeToMailbox('worker', { from: 'bob', text: 'note for the brief', timestamp: new Date().toISOString() }, CREW)
+    const wrote = await sendLiveMessage(CREW, { to: 'worker', from: 'bob', text: 'note for the brief', timestamp: new Date().toISOString() })
     check('bob wrote worker a note', wrote)
     asWorker(CREW)
     const dm = await say(worker, 'bob', 'ping', 'a ping')
@@ -106,7 +106,7 @@ try {
     check('say broadcast reaches the other two', !('refused' in bc) && bc.broadcast === true && bc.recipients.length === 2 && bc.failed === 0)
     const unknown = await say(worker, 'nobody', 'x')
     check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on crew/.test(unknown.refused))
-    const inbox = await readMailbox('bob', CREW)
+    const inbox = await liveMessagesFor(CREW, 'bob')
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
     const brief = await crewBrief(worker)
     check('the brief names the team', brief.teamName === CREW)
@@ -143,7 +143,7 @@ try {
     const toolSrc = readFileSync(join(ROOT, 'src/tools/LiveCommsTool/LiveCommsTool.ts'), 'utf8')
     check('the MCP server imports the service', /from '\.\.\/coordination\/coordinationService\.js'/.test(serverSrc))
     check('the LiveComms tool imports the service', /from '\.\.\/\.\.\/services\/coordination\/coordinationService\.js'/.test(toolSrc))
-    const substrateReads = /\b(listTasks|readUnreadMessages|getAgentStatuses|listLeases|claimLease|releaseLease|sweepExpiredLeases|writeToMailbox|getRoomHealth|listIncomingHandoffs|listOpenQuestions|listLiveTasks|listLiveClaims|listLiveBusy|upsertLiveTask|setLiveClaim|releaseLiveClaim|setLiveBusy|postLiveMessage)\s*\(/
+    const substrateReads = /\b(listTasks|unreadLiveMessagesFor|liveMessagesFor|sendLiveMessage|getAgentStatuses|listLeases|claimLease|releaseLease|sweepExpiredLeases|writeToMailbox|getRoomHealth|listIncomingHandoffs|listOpenQuestions|listLiveTasks|listLiveClaims|listLiveBusy|upsertLiveTask|setLiveClaim|releaseLiveClaim|setLiveBusy|postLiveMessage)\s*\(/
     check('the MCP server performs no substrate read of its own', !substrateReads.test(serverSrc))
     check('the LiveComms tool performs no substrate read or write of its own', !substrateReads.test(toolSrc))
     check('no second consolidation (buildBrief) survives in the server', !/buildBrief/.test(serverSrc))

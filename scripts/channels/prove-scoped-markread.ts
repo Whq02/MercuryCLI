@@ -9,15 +9,12 @@ const sandbox = mkdtempSync(join(tmpdir(), 'scoped-markread-'))
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_CONFIG_DIR = sandbox
 
-const mod = (await import(
-  '../../src/utils/crewmateMailbox.ts'
-)) as typeof import('../../src/utils/crewmateMailbox.js')
 const {
-  readUnreadMessages,
-  markMessagesAsRead,
-  markMessagesAsReadByPredicate,
-} = mod
-const { liveCommsPath } = (await import('../../src/services/crew/liveComms.ts')) as typeof import('../../src/services/crew/liveComms.js')
+  unreadLiveMessagesFor,
+  markLiveMessagesRead,
+  markLiveMessagesReadWhere,
+  liveCommsPath,
+} = (await import('../../src/services/crew/liveComms.ts')) as typeof import('../../src/services/crew/liveComms.js')
 
 type Msg = {
   from: string
@@ -47,23 +44,23 @@ const early: Msg = { from: 'lead', text: 'task A', timestamp: '2026-06-25T00:00:
 const late: Msg = { from: 'lead', text: 'task B (arrived mid-window)', timestamp: '2026-06-25T00:00:01.000Z', read: false }
 
 seed([early])
-const snapshot = await readUnreadMessages(AGENT, CREW)
+const snapshot = await unreadLiveMessagesFor(CREW, AGENT)
 check('snapshot read exactly the one message present at poll time', snapshot.length === 1 && snapshot[0].text === early.text)
 const deliveredKeys = new Set(snapshot.map(key))
 
 seed([early, late])
 
-await markMessagesAsReadByPredicate(AGENT, m => deliveredKeys.has(key(m)), CREW)
-const afterScoped = await readUnreadMessages(AGENT, CREW)
+await markLiveMessagesReadWhere(CREW, AGENT, m => deliveredKeys.has(key(m)))
+const afterScoped = await unreadLiveMessagesFor(CREW, AGENT)
 check('scoped mark: the mid-window arrival is STILL unread (not lost)', afterScoped.length === 1 && afterScoped[0].text === late.text)
 check('scoped mark: the delivered message is now read', !afterScoped.some(m => m.text === early.text))
 
 seed([early])
-const snap2 = await readUnreadMessages(AGENT, CREW)
+const snap2 = await unreadLiveMessagesFor(CREW, AGENT)
 check('blanket scenario: snapshot is the single early message', snap2.length === 1)
 seed([early, late])
-await markMessagesAsRead(AGENT, CREW)
-const afterBlanket = await readUnreadMessages(AGENT, CREW)
+await markLiveMessagesRead(CREW, AGENT)
+const afterBlanket = await unreadLiveMessagesFor(CREW, AGENT)
 check('blanket mark LOSES the mid-window arrival (proves the bug the fix prevents)', afterBlanket.length === 0)
 
 rmSync(sandbox, { recursive: true, force: true })

@@ -38,7 +38,7 @@ import {
   carryForwardEnabled,
   lastSeenDispatchId,
 } from './carryForward.js'
-import { writeToMailbox } from '../utils/crewmateMailbox.js'
+import { sendLiveMessage } from '../services/crew/liveComms.js'
 
 export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
@@ -393,11 +393,7 @@ export class TaskRoster {
     const crew = ll.spec.teamName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
-      void writeToMailbox(
-        short,
-        { from: 'daemon', text: JSON.stringify(note), timestamp: new Date().toISOString() },
-        crew,
-      )
+      void sendLiveMessage(crew, { to: short, from: 'daemon', text: JSON.stringify(note), timestamp: new Date().toISOString() })
         .catch(() => {})
         .finally(() => this.reconfigureLongLived(short, {}))
       return true
@@ -754,11 +750,7 @@ export class TaskRoster {
           ? ' No further respawns — fix the cause, then re-engage.'
           : ' Still retrying with backoff.')
       const postStormNote = (phase: 'forming' | 'degraded'): void => {
-        void writeToMailbox(
-          'team-lead',
-          { from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() },
-          ll.spec.teamName ?? 'default',
-        ).catch(() => {})
+        void sendLiveMessage(ll.spec.teamName ?? 'default', { to: 'team-lead', from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() }).catch(() => {})
       }
       const stampCrash = (respawning: boolean, detail?: string): void => {
         if (!short.startsWith('concourse-w')) return

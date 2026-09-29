@@ -71,7 +71,7 @@ enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.ts')
+const { sendLiveMessage } = await import('../../src/services/crew/liveComms.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const crewSpawnModule = (await import('../../src/daemon/crewSpawn.ts')) as Record<string, unknown>
 
@@ -224,7 +224,7 @@ const settledSeat = async (): Promise<Job | undefined> => (await jobs()).find(j 
 const spawnSeat = async (): Promise<{ ok?: boolean; pid?: number; error?: string }> =>
   (await daemonControlRpc({ op: 'crewSpawn', name: SEAT_NAME, model: SEAT_MODEL } as never, { timeoutMs: 30_000 })) as { ok?: boolean; pid?: number; error?: string }
 const killSeat = async (): Promise<{ ok?: boolean; error?: string }> => (await daemonControlRpc({ op: 'kill', short: SEAT_NAME } as never, { timeoutMs: 5_000 })) as { ok?: boolean; error?: string }
-const message = (text: string): Promise<boolean> => writeToMailbox(SEAT_NAME, { from: 'team-lead', text, timestamp: new Date().toISOString() }, 'crew')
+const message = (text: string): Promise<boolean> => sendLiveMessage('crew', { to: SEAT_NAME, from: 'team-lead', text, timestamp: new Date().toISOString() })
 
 console.log('crew seat resume — a stopped seat keeps its history; r and a message continue it')
 console.log(`  home ${home}\n  fixture ${base}`)

@@ -143,7 +143,7 @@ import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types
 import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
-import { writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
@@ -1479,7 +1479,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             parsed.recipientName,
             parsed.message,
             crewContext,
-            writeToMailbox,
+            sendLiveMessage,
           )
           if (result.success) {
             pendingInput.clearForSubmit(submitted)

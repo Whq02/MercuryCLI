@@ -7,7 +7,8 @@ import { logForDebugging } from '../debug.js'
 import { addFunctionHook } from '../hooks/sessionHooks.js'
 import { applyPermissionUpdate } from '../permissions/PermissionUpdate.js'
 import { getAgentId, getAgentName, getCrewName, getCrewmateColor } from '../crewmate.js'
-import { createIdleNotification, getLastPeerDmSummary, writeToMailbox } from '../crewmateMailbox.js'
+import { sendLiveMessage } from '../../services/crew/liveComms.js'
+import { createIdleNotification, getLastPeerDmSummary } from '../../services/crew/liveMessages.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import { readCrewFile, setMemberActive } from './crewHelpers.js'
 
@@ -88,12 +89,13 @@ export function initializeCrewmateHooks(
         ...(summary !== undefined ? { summary } : {}),
       })
       const color = getCrewmateColor()
-      await writeToMailbox(leadName, {
-        from: identity.agentName,
-        text: JSON.stringify(notification),
-        timestamp: new Date().toISOString(),
-        ...(color !== undefined ? { color } : {}),
-      })
+      await sendLiveMessage(undefined, {
+      to: leadName,
+      from: identity.agentName,
+      text: JSON.stringify(notification),
+      timestamp: new Date().toISOString(),
+      ...(color !== undefined ? { color } : {}),
+    })
       return true
     },
     'The teammate idle notification could not be delivered',
