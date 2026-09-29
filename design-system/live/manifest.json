@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "00c570e4a5b44d67f356c509d967409e50dd22e4",
-  "buildDigest": "91b7e1b4fbed7b498a44182dddc17258da3b0cc3",
-  "generatedAt": "2026-09-29T13:40:51.744Z",
+  "sourceSha": "712fd3e823497db9d27a80414d7b6162b3741a8c",
+  "buildDigest": "3c4e26da2a543806375cdbfe53ce651ad836c555",
+  "generatedAt": "2026-09-29T13:50:56.534Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -777,8 +777,8 @@
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-      "buildDigest": "fc1bff6ba145bebe48d5f616aa40c87dd1729e2a",
+      "sourceSha": "712fd3e823497db9d27a80414d7b6162b3741a8c",
+      "buildDigest": "3c4e26da2a543806375cdbfe53ce651ad836c555",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -789,7 +789,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "ca48dcfef962ecb8108c10c9bee7d55e1261a949fba651c15c42028647f4d91b",
+      "gridDigest": "e3c543806b98b4df2751605903a64cb3c6aec4e55933e9c3ebd1cd52cf95970f",
       "styleDigest": "5f83ded0f9de5e5b6ca3baccec17fd33cf63c00b43d533eb9ee72b87a758bdd6",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -811,7 +811,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T04:20:05.139Z"
+      "generatedAt": "2026-09-29T13:50:56.420Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
@@ -1575,8 +1575,8 @@
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
-      "buildDigest": "c4daab5f3223b3d1ec2b66b34b3f3edee9b0a441",
+      "sourceSha": "712fd3e823497db9d27a80414d7b6162b3741a8c",
+      "buildDigest": "3c4e26da2a543806375cdbfe53ce651ad836c555",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1587,7 +1587,7 @@
       "stateFixture": "resume-2turn",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/resume-2turn--97x30--dark--truecolor--full.grid.json",
-      "gridDigest": "ca48dcfef962ecb8108c10c9bee7d55e1261a949fba651c15c42028647f4d91b",
+      "gridDigest": "e3c543806b98b4df2751605903a64cb3c6aec4e55933e9c3ebd1cd52cf95970f",
       "styleDigest": "5f83ded0f9de5e5b6ca3baccec17fd33cf63c00b43d533eb9ee72b87a758bdd6",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1609,7 +1609,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T11:19:02.170Z"
+      "generatedAt": "2026-09-29T13:50:56.428Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
@@ -1879,8 +1879,8 @@
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
-      "sourceSha": "00c570e4a5b44d67f356c509d967409e50dd22e4",
-      "buildDigest": "91b7e1b4fbed7b498a44182dddc17258da3b0cc3",
+      "sourceSha": "712fd3e823497db9d27a80414d7b6162b3741a8c",
+      "buildDigest": "3c4e26da2a543806375cdbfe53ce651ad836c555",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1891,7 +1891,7 @@
       "stateFixture": "tool-cards",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/tool-cards--120x40--dark--truecolor--full.grid.json",
-      "gridDigest": "8b1a0a88dce309bddcd1cc9eeb241518bbb5eb9996d107e6d1c4eb5073491010",
+      "gridDigest": "af10a1721e04f4052475a93ed33dc18ad286d2cbe0c5c5c2ede03c13565899f4",
       "styleDigest": "3df5329a52e261c784ffaab5dfddfec78ecee074630623daf4f59e6c77b6c1b7",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1913,7 +1913,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T13:40:51.588Z"
+      "generatedAt": "2026-09-29T13:50:56.496Z"
     }
   ]
 }
