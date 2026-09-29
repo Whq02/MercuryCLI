@@ -406,8 +406,8 @@ export function removeMemberFromTeam(teamName: string, paneId: string): boolean 
   })
 }
 
-export function removeMemberByAgentId(team: string, id: string): boolean {
-  return withLockedTeamFileSync(team, current => {
+export async function removeMemberByAgentId(team: string, id: string): Promise<boolean> {
+  return withLockedTeamFile(team, current => {
     if (current === null) return { next: null, result: false }
     const surviving = current.members.filter(member => member.agentId !== id)
     if (surviving.length === current.members.length) return { next: null, result: false }

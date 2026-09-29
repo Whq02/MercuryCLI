@@ -992,7 +992,9 @@ function terminalizeTeammateRun(
     }
   })
   if (wasRunning && status === 'failed') {
-    removeMemberByAgentId(identity.teamName, identity.agentId)
+    removeMemberByAgentId(identity.teamName, identity.agentId).catch((error: unknown) => {
+      logForDebugging(`teammate ${identity.agentName}: roster removal after the failure failed: ${errorMessage(error)}`)
+    })
   }
 
   void evictTaskOutput(taskId)

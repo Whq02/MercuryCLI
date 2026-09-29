@@ -53,16 +53,18 @@ const sup = await import('../../src/daemon/concourseSupervisor.ts')
 
 {
   const stored = await cap.recordCapacityDecision(false)
-  check('C3 declining answers the machine reading (spoken, not stored)', stored.allowed === false && stored.recommendedSeats === cap.machineSeatReading())
+  const held = cap.heldMachineSeatFacts()
+  check('C3 declining answers the machine reading (spoken, not stored) — the reading this process holds, the one the ceiling reads', stored.allowed === false && stored.recommendedSeats === held.seats, `spoken ${stored.recommendedSeats} · held ${held.seats}`)
+  check('C3 the held reading is its own sample through the one derivation (cores + available memory, no process scan)', held.sample !== null && held.seats === cap.machineSeatReading(held.sample.cores, held.sample.availableBytes) && ['vm_stat', 'meminfo', 'counter', 'free'].includes(held.sample.read), held.sample === null ? 'no sample' : `${held.seats} seats ← ${cap.seatReadingInputsWords(held.sample)} (${held.sample.read})`)
   const { getGlobalConfig } = await import('../../src/utils/config.ts')
   const onDisk = getGlobalConfig().switchboardCapacity
   check('C3 the declined decision stores NO number', onDisk !== undefined && onDisk.allowed === false && onDisk.recommendedSeats === undefined, JSON.stringify(onDisk))
-  check('C3 the resolved ceiling is the machine reading', cap.resolveSeatCeiling() === cap.machineSeatReading(), String(cap.resolveSeatCeiling()))
+  check('C3 the resolved ceiling is the machine reading', cap.resolveSeatCeiling() === cap.heldMachineSeatReading(), `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()}`)
   check('C3 the effective ceiling is the same one derivation', sup.effectiveSeatCeiling() === cap.resolveSeatCeiling())
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: false, recommendedSeats: 5 } }))
-  check('C3 a declined record that still carries a number reads the machine (no cap survives an upgrade)', cap.resolveSeatCeiling() === cap.machineSeatReading(), String(cap.resolveSeatCeiling()))
+  check('C3 a declined record that still carries a number reads the machine (no cap survives an upgrade)', cap.resolveSeatCeiling() === cap.heldMachineSeatReading() && cap.seatCeilingFacts().source === 'machine', `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()} · source ${cap.seatCeilingFacts().source}`)
   saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: 0, allowed: false, recommendedSeats: 1 } }))
-  check('C3 …in either direction (a declined 1 does not shrink the machine reading)', cap.resolveSeatCeiling() === cap.machineSeatReading(), String(cap.resolveSeatCeiling()))
+  check('C3 …in either direction (a declined 1 does not shrink the machine reading)', cap.resolveSeatCeiling() === cap.heldMachineSeatReading() && cap.seatCeilingFacts().source === 'machine', `${cap.resolveSeatCeiling()} · held ${cap.heldMachineSeatReading()} · source ${cap.seatCeilingFacts().source}`)
 }
 
 {

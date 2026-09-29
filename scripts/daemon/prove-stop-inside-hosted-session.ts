@@ -171,11 +171,12 @@ const supervisorPid = async (): Promise<number | null> => {
   }
 }
 const ping = async (): Promise<boolean> => (await daemonControlRpc({ op: 'ping' })).ok
-const hello = async (): Promise<{ pid?: number; live?: number; restartArmed?: boolean } | null> => {
+const hello = async (): Promise<{ pid?: number; ready?: boolean; live?: number; restartArmed?: boolean } | null> => {
   const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
-  const reply = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, { timeoutMs: 1500, protoRetry: false })) as { ok?: boolean; pid?: number; live?: number; restartArmed?: boolean }
+  const reply = (await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null } as never, { timeoutMs: 1500, protoRetry: false })) as { ok?: boolean; pid?: number; ready?: boolean; live?: number; restartArmed?: boolean }
   return reply.ok === true ? reply : null
 }
+const ready = async (): Promise<boolean> => (await hello())?.ready === true
 const transcriptOf = (work: string, sid: string): string => join(paths.getProjectDir(work), `${sid}.jsonl`)
 const transcriptText = (work: string, sid: string): string => {
   const p = transcriptOf(work, sid)
@@ -215,6 +216,7 @@ const cleanup = async (): Promise<void> => {
 
 try {
   tally.check('the scratch-home daemon serves', await until(ping, 60_000), daemonLog().slice(-600))
+  tally.check('the daemon reads ready on its handshake — its adoption done, its record published (a socket that answers ping is still adopting)', await until(ready, 60_000), `hello ${JSON.stringify(await hello())} · daemon.log tail: ${daemonLog().slice(-600)}`)
   const bootPid = await supervisorPid()
   tally.check('the supervisor record names the daemon the proof booted', bootPid === daemon.pid, `record ${bootPid} · spawned ${daemon.pid}`)
 
