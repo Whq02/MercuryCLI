@@ -27,7 +27,7 @@ const DESC: Record<string, { effect: string; risk?: string }> = {
   'File leases + lease-guard': {
     effect: 'Stops two teammate agents editing the same file at once.',
   },
-  TeamBrief: { effect: 'A shared status board for a team of agents.' },
+  LiveComms: { effect: 'The crew\'s live board: messages, tasks, file claims, who is busy.' },
   'Agent-cap posture': {
     effect: 'Caps what tools a worker-role agent may use, by risk level.',
     risk: 'Too strict and delegated agents lose tools they need.',

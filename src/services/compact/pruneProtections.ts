@@ -1,6 +1,6 @@
 
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { TEAM_BRIEF_TOOL_NAME } from '../../tools/TeamBriefTool/constants.js'
+import { LIVE_COMMS_OLD_TOOL_NAME, LIVE_COMMS_TOOL_NAME } from '../../tools/LiveCommsTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 
 export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
@@ -8,7 +8,8 @@ export const PROTECTED_TOOL_NAMES: ReadonlySet<string> = new Set([
   'ExitStrategyMode',
   'EnterStrategyMode',
   ASK_USER_QUESTION_TOOL_NAME,
-  TEAM_BRIEF_TOOL_NAME,
+  LIVE_COMMS_TOOL_NAME,
+  LIVE_COMMS_OLD_TOOL_NAME,
   TOOL_SEARCH_TOOL_NAME,
 ])
 

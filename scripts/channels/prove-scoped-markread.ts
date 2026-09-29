@@ -13,11 +13,11 @@ const mod = (await import(
   '../../src/utils/teammateMailbox.ts'
 )) as typeof import('../../src/utils/teammateMailbox.js')
 const {
-  getInboxPath,
   readUnreadMessages,
   markMessagesAsRead,
   markMessagesAsReadByPredicate,
 } = mod
+const { liveCommsPath } = (await import('../../src/services/crew/liveComms.ts')) as typeof import('../../src/services/crew/liveComms.js')
 
 type Msg = {
   from: string
@@ -31,9 +31,10 @@ const key = (m: { from: string; timestamp: string; text: string }) =>
   `${m.from} ${m.timestamp} ${m.text}`
 
 function seed(messages: Msg[]): void {
-  const path = getInboxPath(AGENT, TEAM)
+  const path = liveCommsPath(TEAM)
   mkdirSync(join(path, '..'), { recursive: true })
-  writeFileSync(path, JSON.stringify(messages), 'utf-8')
+  const rows = messages.map((m, i) => ({ ...m, to: AGENT, id: `seed-${i + 1}`, seq: i + 1 }))
+  writeFileSync(path, JSON.stringify({ schema: 1, crew: TEAM, seq: rows.length, messages: rows, tasks: {}, busy: {} }), 'utf-8')
 }
 
 let fail = 0
