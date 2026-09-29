@@ -43,7 +43,7 @@ import {
 import { assembleToolPool } from '../../tools.js'
 import { generateTaskId } from '../../Task.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
-import { asAgentId, type AgentId } from '../../types/ids.js'
+import type { AgentId } from '../../types/ids.js'
 import {
   runWithAgentContext,
   type SubagentContext,
@@ -57,10 +57,6 @@ import { subagentConcurrencyCap, subagentDefaultEffort } from '../../utils/agent
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
-import {
-  readAgentMetadata,
-  writeAgentMetadata,
-} from '../../utils/sessionStorage.js'
 import {
   buildAgentLaunchPlan,
 } from '../../utils/swarm/agentLaunchPlan.js'
@@ -81,8 +77,8 @@ import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
-  settleAgentWorktree,
 } from '../../utils/worktree.js'
+import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
@@ -787,31 +783,23 @@ export const AgentTool = buildTool({
         logForDebugging('AgentTool: worktree kept (hook-created)')
         return { worktreePath: worktreeInfo.worktreePath }
       }
-      const receipt = await settleAgentWorktree({ ...worktreeInfo })
-      if (receipt.outcome === 'settled') {
-        void readAgentMetadata(asAgentId(earlyAgentId))
-          .then(recorded => {
-            const kept = { ...recorded }
-            delete kept.worktreePath
-            return writeAgentMetadata(asAgentId(earlyAgentId), {
-              ...kept,
-              agentType: agentDef.agentType,
-              model: plan.model,
-              ...(input.description ? { description: input.description } : {}),
-            })
-          })
-          .catch(error =>
-            logForDebugging(
-              `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
-            ),
-          )
-        return {}
+      try {
+        const leftover = await crewWorktreeLeftoverOf(
+          {
+            name: input.name ?? input.description,
+            path: worktreeInfo.worktreePath,
+            ...(worktreeInfo.worktreeBranch !== undefined ? { branch: worktreeInfo.worktreeBranch } : {}),
+            ...(worktreeInfo.gitRoot !== undefined ? { gitRoot: worktreeInfo.gitRoot } : {}),
+          },
+          Date.now(),
+        )
+        noteCrewWorktreeLeftover(leftover)
+        logForDebugging(`AgentTool: worktree kept (${leftover.state}): ${leftover.detail}`)
+      } catch (error) {
+        logForDebugging(`AgentTool: the worktree's leftover could not be read: ${errorMessage(error)}`)
       }
-      logForDebugging(
-        `AgentTool: worktree kept (${receipt.outcome})${'summary' in receipt ? `: ${receipt.summary}` : ''}`,
-      )
       return {
-        worktreePath: receipt.worktreePath,
+        worktreePath: worktreeInfo.worktreePath,
         ...(worktreeInfo.worktreeBranch
           ? { worktreeBranch: worktreeInfo.worktreeBranch }
           : {}),
@@ -1144,8 +1132,9 @@ export const AgentTool = buildTool({
       }
       const trailerParts = [continuationHint(String(data.agentId ?? ''))]
       if (data.worktreePath) {
+        const leftover = crewWorktreeLeftoverNoted(data.worktreePath)
         trailerParts.push(
-          `Worktree kept: ${data.worktreePath}${data.worktreeBranch ? ` (branch ${data.worktreeBranch})` : ''}`,
+          `Worktree kept: ${data.worktreePath}${data.worktreeBranch ? ` (branch ${data.worktreeBranch})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`,
         )
       }
       trailerParts.push(usageBlock(data))

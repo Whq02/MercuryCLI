@@ -52,6 +52,7 @@ import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedW
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { crewRosterOf } from '../../../services/crew/roster.js'
+import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
 
 
 type Row =
@@ -386,6 +387,7 @@ function AgentRow({
           {stopped || failed ? ` · ${facts.stopReason !== null ? `${facts.stopReason} · ` : ''}${CREW_RESUME_HINT}` : ''}
           {paused && facts.paused !== null ? ` · ${facts.paused.words} · ${CREW_RESUME_HINT}` : ''}
           {parkedByOperator !== null ? ` · ${parkedByOperator.detail}` : ''}
+          {settled && facts.worktree !== null ? ` · ${crewWorktreeLeftWords(facts.worktree)}` : ''}
         </Text>
         {unread !== null ? <Text color={tokens.warning}> · {unread}</Text> : null}
         {holders !== null ? <Text color={tokens.warning}> · {holders}</Text> : null}

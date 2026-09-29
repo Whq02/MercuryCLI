@@ -21,6 +21,7 @@ import { emitTaskTerminatedSdk } from '../sdkEventQueue.js'
 import { writeAgentMetadata } from '../sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
 import { createTeammateContext, type TeammateContext } from '../teammateContext.js'
+import { crewWorktreeLeftWords } from '../crew/crewWorktreeReminder.js'
 import { releaseAllForAgent } from './leaseGlob.js'
 import { removeMemberByAgentId } from './teamHelpers.js'
 
@@ -188,6 +189,7 @@ export function killInProcessTeammate(
   let capturedAgentId: string | undefined
   let capturedToolUseId: string | undefined
   let capturedDescription = ''
+  let capturedWorktree: string | undefined
 
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
@@ -199,6 +201,7 @@ export function killInProcessTeammate(
     capturedAgentId = task.identity.agentId
     capturedToolUseId = task.toolUseId
     capturedDescription = task.description
+    capturedWorktree = task.worktree
 
     task.abortController?.abort()
     task.unregisterCleanup?.()
@@ -249,7 +252,7 @@ export function killInProcessTeammate(
     void evictTaskOutput(taskId)
     emitTaskTerminatedSdk(taskId, 'stopped', {
       ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
-      summary: capturedDescription,
+      summary: capturedWorktree !== undefined ? `${capturedDescription} · ${crewWorktreeLeftWords(capturedWorktree)}` : capturedDescription,
     })
     const timer = setTimeout(() => evictTerminalTask(taskId, setAppState), STOPPED_DISPLAY_MS)
     timer.unref?.()
