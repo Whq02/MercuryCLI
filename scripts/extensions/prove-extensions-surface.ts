@@ -450,8 +450,6 @@ for (const [cols, rows] of [
       ...openBoard,
       g('installed (8)', '\t'),
       g('↻ stale', DOWN),
-      g('↻ stale', DOWN),
-      g('↻ stale', DOWN),
       g('↻ stale', '\r'),
       g('spare-tool', DOWN + DOWN + DOWN + DOWN + DOWN + DOWN),
     ],
@@ -504,8 +502,6 @@ for (const [cols, rows] of [
     sends: [
       ...openBoard,
       g('installed (8)', '\t'),
-      g('↻ stale', DOWN),
-      g('↻ stale', DOWN),
       g('↻ stale', DOWN),
       g('↻ stale', '\r'),
       g('spare-tool', DOWN),
@@ -610,7 +606,7 @@ for (const [cols, rows] of [
     id: `remove-source-confirm-${sz}`,
     cols,
     rows,
-    sends: [...openBoard, g('installed (8)', '\t'), g('↻ stale', DOWN), g('↻ stale', DOWN), g('↻ stale', DOWN), g('↻ stale', 'x')],
+    sends: [...openBoard, g('installed (8)', '\t'), g('↻ stale', DOWN), g('↻ stale', 'x')],
     ready: 'remove crew-tools?',
     assert: text => {
       const id = `remove-source-confirm-${sz}`
