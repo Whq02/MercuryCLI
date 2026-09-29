@@ -50,7 +50,7 @@ export type DeepImmutable<T> = unknown extends T
         : { readonly [K in keyof T]: DeepImmutable<T[K]> }
 
 
-export type FooterItem = 'tasks' | 'bagel' | 'teams' | 'bridge'
+export type FooterItem = 'tasks' | 'bagel' | 'bridge'
 
 
 export type CompletionBoundary =

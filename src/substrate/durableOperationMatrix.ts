@@ -432,7 +432,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     operation: 'roster sync helpers (member modes / hidden panes / active flags)',
     ownerKey: 'team name',
     files: ['<teams>/<team>/config.json (locked tmp+rename)'],
-    projections: ['TeamsDialog rows', 'Team Center phases'],
+    projections: ['crew view rows', 'Team Center phases'],
     lockOwner: 'withLockedTeamFile / Sync (bounded backoff, degrades to unlocked)',
     writeOrder: 'single locked RMW → durableAtomicPublish(/Sync)',
     idempotencyKey: 'none (last-writer-wins per field)',
