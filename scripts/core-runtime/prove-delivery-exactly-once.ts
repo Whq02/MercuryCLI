@@ -8,7 +8,7 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'delivery-once-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'delivery-once-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'delivery-once-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'delivery-once-teams-'))
 for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',

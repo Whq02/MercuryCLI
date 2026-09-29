@@ -164,7 +164,7 @@ const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive
 const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
-const teammateView = await import('../../src/state/teammateViewHelpers.ts')
+const crewmateView = await import('../../src/state/crewmateViewHelpers.ts')
 const { createTaskStateBase } = await import('../../src/Task.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const { getAgentTranscriptPath } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -460,7 +460,7 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§3 ${tag('the pin on atlas while birch is viewed: every surface names the composer\'s target, esc names the viewed one')}`)
   {
-    teammateView.setMainChat(ATLAS.id, scene.setState as never)
+    crewmateView.setMainChat(ATLAS.id, scene.setState as never)
     await sleep(300)
     const click = await clickRail(scene, String((BIRCH.tokens / 1000).toFixed(1)), railCols, () => scene.state().viewingAgentTaskId === BIRCH.id)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), 6000)
@@ -514,14 +514,14 @@ async function run(cols: number, rows: number): Promise<void> {
     const leaked = resumes().slice(resumesBefore)
     check('an empty ↵ with the lead\'s prompt suggestion on record sends nothing to the pinned crewmate', leaked.length === 0 && !submits.includes(SUGGESTION), `resume calls ${JSON.stringify(leaked)} · submits ${JSON.stringify(submits)}`)
     scene.setState(prev => ({ ...prev, promptSuggestion: { text: null, promptId: null, shownAt: 0, acceptedAt: 0, generationRequestId: null } }))
-    teammateView.clearMainChat(scene.setState as never)
+    crewmateView.clearMainChat(scene.setState as never)
     await sleep(300)
     check('m on Mercury Lead hands the main chat back (the pin is gone)', scene.state().mainChatTaskId === undefined)
   }
 
   section(`§5 ${tag('esc on a crewmate that is not running: no stop sent, the view goes back to Mercury Lead')}`)
   {
-    teammateView.enterTeammateView(CEDAR.id, scene.setState as never)
+    crewmateView.enterCrewmateView(CEDAR.id, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === CEDAR.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('CEDAR-ROW')), 6000)
     await sleep(300)
@@ -554,7 +554,7 @@ async function run(cols: number, rows: number): Promise<void> {
     rmSync(file, { force: true })
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...base, status: 'completed' } } }))
     await sleep(200)
-    teammateView.enterTeammateView(LOCAL_ID, scene.setState as never)
+    crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
@@ -586,7 +586,7 @@ async function run(cols: number, rows: number): Promise<void> {
     save('06-local-delivered', cols, rows, scene.lines())
     console.log(`the crewmate's rows carrying the line: ${plated().map(line => line.trim().slice(0, 80)).join(' | ')}`)
     check('once the delivery lands on disk the line paints exactly once (the landed row, never a second copy from the live tail)', plated().length === 1, `${plated().length} rows carry the line`)
-    teammateView.exitTeammateView(scene.setState as never)
+    crewmateView.exitCrewmateView(scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
   }
 
@@ -598,9 +598,9 @@ async function run(cols: number, rows: number): Promise<void> {
   ] as const) {
     pending.edit('')
     pending.setMode('prompt')
-    teammateView.clearMainChat(scene.setState as never)
-    teammateView.enterTeammateView(entry.viewed, scene.setState as never)
-    if (entry.pinned !== undefined) teammateView.setMainChat(entry.pinned, scene.setState as never)
+    crewmateView.clearMainChat(scene.setState as never)
+    crewmateView.enterCrewmateView(entry.viewed, scene.setState as never)
+    if (entry.pinned !== undefined) crewmateView.setMainChat(entry.pinned, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === entry.viewed, 4000)
     await sleep(400)
     const targetBefore = composerTargetTaskId(scene.state() as never)
@@ -639,7 +639,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check(`${entry.label}: the viewed crewmate and pinned target are unchanged`, scene.state().viewingAgentTaskId === entry.viewed && scene.state().mainChatTaskId === entry.pinned && composerTargetTaskId(scene.state() as never) === targetBefore, `viewed=${String(scene.state().viewingAgentTaskId)} pinned=${String(scene.state().mainChatTaskId)}`)
     check(`${entry.label}: the sent shell line has left the composer`, pending.text() === '', JSON.stringify(pending.text()))
     save(`07-${entry.input}-crewmate`, cols, rows, scene.lines())
-    teammateView.exitTeammateView(scene.setState as never)
+    crewmateView.exitCrewmateView(scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
     await sleep(400)
     const lead = centreOf(scene.lines(), railCols)
@@ -647,7 +647,7 @@ async function run(cols: number, rows: number): Promise<void> {
     check(`${entry.label}: the bang row paints in the lead transcript, never under an operator-to-crewmate plate`, result !== undefined && bangRows.length === shellResults.length && bangRows.every(line => !line.includes('[you →')) && lead.some(line => /└\s+hi\s*│?$/.test(line)) && lead.some(line => line.includes('exit 0')), bangRows.map(line => line.trim()).join(' | '))
     save(`07-${entry.input}-lead`, cols, rows, scene.lines())
   }
-  teammateView.clearMainChat(scene.setState as never)
+  crewmateView.clearMainChat(scene.setState as never)
 
   await scene.close()
 }

@@ -6,6 +6,7 @@ export type FlagTier = 'display' | 'additive' | 'behavioral' | 'security' | 'inf
 
 export interface FlagSpec {
   env: string
+  formerly?: string
   kind: FlagKind
   summary: string
   off: string
@@ -106,7 +107,7 @@ export const FLAG_REGISTRY: readonly FlagSpec[] = [
   { env: 'MERCURY_DAEMON_DIR', kind: 'value', summary: 'override the daemon working dir (socket + supervisor state) — the hermetic-isolation seam; server bind and client probes all resolve through daemonDir() so the pair stays symmetric. Proof fixtures point it at scratch so a capture can never reach a real daemon', off: 'configHome()/daemon', consumer: 'src/daemon/controlSocket.ts' },
   { env: 'MERCURY_DAEMON_SUCCESSOR_OF', kind: 'value', summary: "the predecessor's pid, stamped by a daemon on the successor it spawns for restart-when-idle (the version handshake's heal): the successor waits, bounded, for the supervisor lock instead of walking away, and refuses a second restart inside the storm guard when it came back at the same version (the bundle on disk did not change)", off: 'an ordinary daemon boot — lock contention refuses at once', consumer: 'src/daemon/main.ts' },
   { env: 'MERCURY_DAEMON_HANDOVER_FROM', kind: 'value', summary: "the predecessor's pid, stamped by a screen on the successor it spawns from the DEPLOYED runtime when the running daemon is older than the deployed build and holds live workers (its restart-when-idle answered armed or refused): the successor takes the control plane — the record, the key, the socket path — while the predecessor keeps its children and its socket under its own pid, forwards the verbs those sessions need to it, counts its live sessions as its own, and takes the supervisor lock when the predecessor releases it; nothing live is signalled", off: 'an ordinary daemon boot', consumer: 'src/daemon/main.ts' },
-  { env: 'MERCURY_TEAMS_DIR', kind: 'value', summary: 'override the crew home (the roster files + mailboxes under configHome()/teams) — the hermetic-isolation seam, the daemonDir() pattern; every consumer routes through getTeamsDir() so the pair stays symmetric. Proof fixtures point it at scratch so a capture can never see the operator’s real crewmates (the ambient-@scout solo-state flip)', off: 'configHome()/teams', consumer: 'src/utils/envUtils.ts' },
+  { env: 'MERCURY_CREWS_DIR', formerly: 'MERCURY_TEAMS_DIR', kind: 'value', summary: 'override the crew home (the roster files + mailboxes under configHome()/teams) — the hermetic-isolation seam, the daemonDir() pattern; every consumer routes through getCrewsDir() so the pair stays symmetric. Proof fixtures point it at scratch so a capture can never see the operator’s real crewmates (the ambient-@scout solo-state flip)', off: 'configHome()/teams', consumer: 'src/utils/envUtils.ts' },
   { env: 'MERCURY_POINTER_SHAPE', kind: 'default-on', tier: 'additive', summary: 'OSC 22 pointer-shape honesty: while the mouse is tracked, the pointer reads text-I-beam ONLY over cells drag-copy would select (the renderer’s own noSelect bitmap is the predicate) and the arrow elsewhere; deduped per transition, reset on /mouse off · alt-screen exit · unmount. Terminals without OSC 22 (Apple_Terminal) ignore the bytes — pure best-effort, zero behavior change', off: '=0 no OSC 22 bytes ever (the terminal keeps its own pointer everywhere)', consumer: 'src/utils/cockpit/pointerShape.ts' },
   { env: 'MERCURY_DAEMON_KILL_GRACE_MS', kind: 'value', summary: 'read by headlessRun', off: 'see consumer', consumer: 'src/daemon/headlessRun.ts' },
   { env: 'MERCURY_DAEMON_MAX_INFLIGHT', kind: 'value', summary: 'read by main', off: 'see consumer', consumer: 'src/daemon/main.ts' },
@@ -279,7 +280,7 @@ export const FLAG_REGISTRY: readonly FlagSpec[] = [
   { env: 'MERCURY_STALL_DETECTOR', kind: 'mixed', summary: 'read by main', off: 'see consumer', consumer: 'src/main.tsx' },
   { env: 'MERCURY_SUBSTRATE', kind: 'value', summary: 'substrate umbrella (trace·ctx·deck)', off: 'byte-identical', consumer: 'src/utils/config.ts' },
   { env: 'MERCURY_SURFACE_DUMP', kind: 'value', summary: 'effective-surface observation seam (test-only): a file path — boot writes ONE JSON document (the effective catalogue: name · aliases · kind · category · enabled · visibility · canonicalRoute per built-in route) and exits 0 before any UI mounts. How the scripts/command-catalogue journey matrix reads REGISTRY truth from the BUILT artifact instead of trusting a source scan', off: 'unset ⇒ no write, no exit (one env read at boot)', consumer: 'src/main.tsx' },
-  { env: 'MERCURY_TEAMMATES', kind: 'value', summary: 'crewmate and crew surfaces enable (=0 turns them off; the --agent-teams opt-in and the remote kill switch then apply)', off: 'unset ⇒ the surfaces are on', consumer: 'src/utils/agentSwarmsEnabled.ts' },
+  { env: 'MERCURY_CREWMATES', formerly: 'MERCURY_TEAMMATES', kind: 'value', summary: 'crewmate and crew surfaces enable (=0 turns them off; the --agent-teams opt-in and the remote kill switch then apply)', off: 'unset ⇒ the surfaces are on', consumer: 'src/utils/agentSwarmsEnabled.ts' },
   { env: 'MERCURY_THINKING_BUDGET', kind: 'value', summary: 'the thinking-token budget of a turn: a positive integer turns thinking on with that budget, 0 turns it off; unset ⇒ the always-thinking setting and the model decide', off: 'unset ⇒ thinking follows the settings and the model', consumer: 'src/utils/thinking.ts' },
   { env: 'MERCURY_DEMO', kind: 'opt-in', tier: 'display', summary: 'screenshot mode: onboarding is skipped and the status surfaces read as a demo', off: 'byte-identical', consumer: 'src/interactiveHelpers.tsx' },
   { env: 'MERCURY_DEMO_VERSION', kind: 'value', summary: 'screenshot mode: the version the logo prints, with a placeholder working directory in place of the real one', off: 'the build version and the real working directory', consumer: 'src/utils/logoV2Utils.ts' },
@@ -555,7 +556,7 @@ export function getFlagSpec(env: string): FlagSpec | undefined {
 export function flagEnv(env: string): string | undefined {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`flagEnv: unregistered flag ${env} — add it to FLAG_REGISTRY`)
-  return process.env[spec.env]
+  return process.env[spec.env] ?? (spec.formerly === undefined ? undefined : process.env[spec.formerly])
 }
 
 export function flagEnvLoose(env: string): string | undefined {
@@ -593,7 +594,7 @@ export function setFlagEnv(env: string, value: string): void {
 export function deleteFlagEnv(env: string): void {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`deleteFlagEnv: unregistered flag ${env} — add it to FLAG_REGISTRY`)
-  delete process.env[spec.env]
+  for (const spelling of flagSpellings(env)) delete process.env[spelling]
   selfWritten.delete(spec.env)
 }
 
@@ -604,7 +605,7 @@ export function selfWrittenFlagEnv(): ReadonlyMap<string, string> {
 export function flagSpellings(env: string): string[] {
   const spec = byEnv.get(env)
   if (!spec) throw new Error(`flagSpellings: unregistered flag ${env} — add it to FLAG_REGISTRY`)
-  return [spec.env]
+  return spec.formerly === undefined ? [spec.env] : [spec.env, spec.formerly]
 }
 
 export function stampFlagOnEnv(

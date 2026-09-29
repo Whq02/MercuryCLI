@@ -4,12 +4,12 @@ import { Text } from '../../ink.js'
 import type { TaskState } from '../../tasks/types.js'
 import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
+import type { InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { LocalWorkflowTaskState } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import type { DreamTaskState } from '../../tasks/DreamTask/DreamTask.js'
 import { plural } from '../../utils/stringUtils.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
-import { describeTeammateActivity, teammateRole } from './taskStatusUtils.js'
+import { describeCrewmateActivity, crewmateRole } from './taskStatusUtils.js'
 import { ShellProgress, TaskStatusText } from './ShellProgress.js'
 
 const DEFAULT_ACTIVITY_WIDTH = 40
@@ -55,18 +55,18 @@ function AgentLine({
   )
 }
 
-function TeammateLine({
-  teammate,
+function CrewmateLine({
+  crewmate,
 }: {
-  teammate: InProcessTeammateTaskState
+  crewmate: InProcessCrewmateTaskState
 }): React.ReactNode {
   return (
     <Text wrap="truncate-end">
-      <Text color={teammateRole(teammate.identity.color)}>
-        @{teammate.identity.agentName}
+      <Text color={crewmateRole(crewmate.identity.color)}>
+        @{crewmate.identity.agentName}
       </Text>
       <Text dimColor>: </Text>
-      {describeTeammateActivity(teammate)}
+      {describeCrewmateActivity(crewmate)}
     </Text>
   )
 }
@@ -125,7 +125,7 @@ export function BackgroundTask({
     case 'local_agent':
       return <AgentLine task={task} width={maxActivityWidth} />
     case 'in_process_teammate':
-      return <TeammateLine teammate={task} />
+      return <CrewmateLine crewmate={task} />
     case 'local_workflow':
       return <WorkflowLine workflow={task} width={maxActivityWidth} />
     case 'dream':

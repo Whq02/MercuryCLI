@@ -211,7 +211,7 @@ if (process.argv[2] === '--serve') {
       TMPDIR: '.',
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'teams'),
       MERCURY_HOME: join(home, 'proof-home'),
       MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
       ANTHROPIC_API_KEY: PROBE_KEY,

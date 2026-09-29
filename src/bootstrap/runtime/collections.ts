@@ -11,7 +11,7 @@ export type InvokedSkillInfo = {
 export class CollectionsOwner {
   agentColorMap: Map<string, AgentColorName> = new Map()
   agentColorIndex = 0
-  sessionCreatedTeams: Set<string> = new Set()
+  sessionCreatedCrews: Set<string> = new Set()
   invokedSkills: Map<string, InvokedSkillInfo> = new Map()
 
   addInvokedSkill(

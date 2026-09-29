@@ -55,21 +55,21 @@ section('validateHandoff — success claims need evidence, non-claims never do')
 
 section('ledger IO (hermetic) — verdict stamping + id idempotency')
 {
-  const TEAM = 'proof-team'
+  const CREW = 'proof-team'
 
   const v1 = await recordHandoff(
     { id: 'h1', from: 'executor', to: 'bob', status: 'done', summary: 'built it', evidenceRefs: [{ kind: 'commit', ref: 'abc1234' }, { ref: '  ' }] },
-    TEAM,
+    CREW,
   )
   check('backed done records verified:true', v1.verified === true)
 
   const v2 = await recordHandoff(
     { id: 'h2', from: 'executor', to: 'bob', status: 'done', summary: 'trust me' },
-    TEAM,
+    CREW,
   )
   check('unbacked done records verified:false', v2.verified === false)
 
-  let incoming = await listIncomingHandoffs('bob', TEAM)
+  let incoming = await listIncomingHandoffs('bob', CREW)
   check('recipient sees both handoffs', incoming.length === 2)
   const h1 = incoming.find(h => h.id === 'h1')
   const h2 = incoming.find(h => h.id === 'h2')
@@ -78,45 +78,45 @@ section('ledger IO (hermetic) — verdict stamping + id idempotency')
   check('verified row carries no quarantine reason', h1?.unverifiedReason === undefined)
   check('whitespace evidence ref was filtered at persist', h1?.evidenceRefs.length === 1)
 
-  await recordHandoff({ id: 'h2', from: 'executor', to: 'bob', status: 'needs-review', summary: 'downgraded honestly' }, TEAM)
-  incoming = await listIncomingHandoffs('bob', TEAM)
+  await recordHandoff({ id: 'h2', from: 'executor', to: 'bob', status: 'needs-review', summary: 'downgraded honestly' }, CREW)
+  incoming = await listIncomingHandoffs('bob', CREW)
   check('re-recorded id refreshes (no duplicate)', incoming.length === 2)
   check('refresh updates status + verdict', incoming.find(h => h.id === 'h2')?.status === 'needs-review' && incoming.find(h => h.id === 'h2')?.verified === true)
 }
 
 section('listIncomingHandoffs — case-insensitive addressee (the shared rule)')
 {
-  const TEAM = 'case-team'
-  await recordHandoff({ id: 'hc1', from: 'lead', to: 'Bob', status: 'blocked', summary: 'cased differently' }, TEAM)
-  const seen = await listIncomingHandoffs('bob', TEAM)
+  const CREW = 'case-team'
+  await recordHandoff({ id: 'hc1', from: 'lead', to: 'Bob', status: 'blocked', summary: 'cased differently' }, CREW)
+  const seen = await listIncomingHandoffs('bob', CREW)
   check('handoff to "Bob" reaches "bob" (case-insensitive)', seen.length === 1)
-  const seenUpper = await listIncomingHandoffs('BOB', TEAM)
+  const seenUpper = await listIncomingHandoffs('BOB', CREW)
   check('lookup casing is also normalized', seenUpper.length === 1)
 }
 
 section('acknowledge filtering + junk-ledger fail-open')
 {
-  const TEAM = 'ack-team'
-  await recordHandoff({ id: 'ha1', from: 'a', to: 'bob', status: 'blocked', summary: 'open' }, TEAM)
-  await recordHandoff({ id: 'ha2', from: 'a', to: 'bob', status: 'blocked', summary: 'acked' }, TEAM)
+  const CREW = 'ack-team'
+  await recordHandoff({ id: 'ha1', from: 'a', to: 'bob', status: 'blocked', summary: 'open' }, CREW)
+  await recordHandoff({ id: 'ha2', from: 'a', to: 'bob', status: 'blocked', summary: 'acked' }, CREW)
 
-  const ledgerPath = join(TMP, 'teams', TEAM, 'handoffs.json')
+  const ledgerPath = join(TMP, 'teams', CREW, 'handoffs.json')
   const rows = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as Array<Record<string, unknown>>
   for (const r of rows) if (r.id === 'ha2') r.acknowledgedAt = new Date().toISOString()
   writeFileSync(ledgerPath, JSON.stringify(rows, null, 2), 'utf-8')
 
-  const open = await listIncomingHandoffs('bob', TEAM)
+  const open = await listIncomingHandoffs('bob', CREW)
   check('acknowledged handoffs leave the incoming list', open.length === 1 && open[0]?.id === 'ha1')
-  const all = await listAllOpenHandoffs(TEAM)
+  const all = await listAllOpenHandoffs(CREW)
   check('listAllOpenHandoffs is also unacked-only', all.length === 1)
 
-  const junkTeam = 'junk-team'
-  const junkDir = join(TMP, 'teams', junkTeam)
+  const junkCrew = 'junk-team'
+  const junkDir = join(TMP, 'teams', junkCrew)
   mkdirSync(junkDir, { recursive: true })
   writeFileSync(join(junkDir, 'handoffs.json'), '][ definitely not json', 'utf-8')
-  check('junk ledger lists as empty (fail-open)', (await listIncomingHandoffs('bob', junkTeam)).length === 0)
-  const vRecover = await recordHandoff({ id: 'hj1', from: 'a', to: 'bob', status: 'blocked', summary: 'post-junk' }, junkTeam)
-  check('junk ledger recovers on next write', vRecover.verified === true && (await listIncomingHandoffs('bob', junkTeam)).length === 1)
+  check('junk ledger lists as empty (fail-open)', (await listIncomingHandoffs('bob', junkCrew)).length === 0)
+  const vRecover = await recordHandoff({ id: 'hj1', from: 'a', to: 'bob', status: 'blocked', summary: 'post-junk' }, junkCrew)
+  check('junk ledger recovers on next write', vRecover.verified === true && (await listIncomingHandoffs('bob', junkCrew)).length === 1)
 }
 
 console.log('\n' + '='.repeat(60))

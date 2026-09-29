@@ -747,7 +747,7 @@ const KNOWN_LOGGING_CHILDREN: Record<string, string[]> = {
     'SubagentStop',
     'PreCompact',
     'PostCompact',
-    'TeammateIdle',
+    'CrewmateIdle',
     'TaskCreated',
     'TaskCompleted',
   ],

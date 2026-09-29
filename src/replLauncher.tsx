@@ -37,17 +37,17 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
       }),
     ]);
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
-    if (report?.leaderProjection && !appProps.initialState.teamContext) {
+    if (report?.leaderProjection && !appProps.initialState.crewContext) {
       const led = report.leaderProjection;
       appProps = {
         ...appProps,
         initialState: {
           ...appProps.initialState,
-          teamContext: {
+          crewContext: {
             teamName: led.teamName,
-            teamFilePath: led.teamFilePath,
+            crewFilePath: led.crewFilePath,
             leadAgentId: led.leadAgentId,
-            teammates: led.teammates,
+            crewmates: led.crewmates,
           },
         },
       };

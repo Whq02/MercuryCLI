@@ -1,7 +1,7 @@
 import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
 import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
-import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isTeamSubscriber } from './auth.js'
+import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isCrewSubscriber } from './auth.js'
 import { getGlobalConfig, saveGlobalConfig } from './config.js'
 import {
   effortVocabularyFor,
@@ -602,7 +602,7 @@ export function getDefaultEffortForModel(model: string): EffortValue | undefined
   if (isLaunchEffortPinned(model)) return getLaunchDefaultEffort(model)
   if (model.toLowerCase().includes('opus-4-6')) {
     if (isProSubscriber()) return 'medium'
-    if ((isMaxSubscriber() || isTeamSubscriber() || isEnterpriseSubscriber()) && getOpusDefaultEffortConfig().enabled) {
+    if ((isMaxSubscriber() || isCrewSubscriber() || isEnterpriseSubscriber()) && getOpusDefaultEffortConfig().enabled) {
       return 'medium'
     }
   }

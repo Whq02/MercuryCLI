@@ -1,16 +1,16 @@
 import type { ToolUseContext } from '../../Tool.js'
 import type { AppState } from '../../state/AppState.js'
-import { findTeammateTaskByAgentId } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
-import { isInProcessTeammateTask, type InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
+import { findCrewmateTaskByAgentId } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
+import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import { AGENT_RESUME_NOTE, enqueueAgentReceiptRow } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { asAgentId } from '../../types/ids.js'
 import { formatAgentId } from '../../utils/agentId.js'
 import { getAgentTranscript, readAgentMetadata, flushSessionStorage } from '../../utils/sessionStorage.js'
 import { filterOrphanedThinkingOnlyMessages, filterUnresolvedToolUses, filterWhitespaceOnlyAssistantMessages } from '../../utils/messages.js'
-import { readTeamFileAsync, removeMemberByAgentId } from '../../utils/swarm/teamHelpers.js'
+import { readCrewFileAsync, removeMemberByAgentId } from '../../utils/swarm/crewHelpers.js'
 import { reconstructForSubagentResume } from '../../utils/toolResultStorage.js'
 import { restoreBoundPrefixFromMessages } from '../providers/anthropic/boundPrefixRecord.js'
-import type { SpawnOutput, SpawnTeammateConfig } from '../../tools/shared/spawnMultiAgent.js'
+import type { SpawnOutput, SpawnCrewmateConfig } from '../../tools/shared/spawnMultiAgent.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { evictTerminalTask } from '../../utils/task/framework.js'
 import { cancelCrewmatePauseResume } from '../../utils/swarm/inProcessRunner.js'
@@ -26,7 +26,7 @@ export type OperatorResumeContext = {
 }
 
 export type OperatorRespawnPorts = {
-  spawn?: (config: SpawnTeammateConfig, context: ToolUseContext) => Promise<{ data: SpawnOutput }>
+  spawn?: (config: SpawnCrewmateConfig, context: ToolUseContext) => Promise<{ data: SpawnOutput }>
   readTranscript?: typeof getAgentTranscript
 }
 
@@ -34,11 +34,11 @@ export function operatorResumeWords(description: string): string {
   return `Agent "${description}" resumed from the crew view · it runs on under the same id`
 }
 
-export function teammateRespawnWords(name: string): string {
+export function crewmateRespawnWords(name: string): string {
   return `Crewmate "${name}" resumed from the crew view · it continues its transcript under a new row`
 }
 
-export function teammateRespawnConfig(task: InProcessTeammateTaskState): SpawnTeammateConfig {
+export function crewmateRespawnConfig(task: InProcessCrewmateTaskState): SpawnCrewmateConfig {
   const agentType = task.identity.agentType ?? task.agentDefinition?.agentType
   return {
     name: task.identity.agentName,
@@ -56,41 +56,41 @@ export function respawnContextOf(toolUseContext: ToolUseContext): ToolUseContext
   return { ...rest, abortController: new AbortController() } as ToolUseContext
 }
 
-const resumingTeammates = new Set<string>()
+const resumingCrewmates = new Set<string>()
 
-function releasePausedTeammateRow(taskId: string, toolUseContext: ToolUseContext): void {
+function releasePausedCrewmateRow(taskId: string, toolUseContext: ToolUseContext): void {
   cancelCrewmatePauseResume(taskId)
   const setAppState = toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState
   setAppState(prevState => {
     const row = prevState.tasks[taskId]
-    if (!isInProcessTeammateTask(row) || row.paused === undefined) return prevState
+    if (!isInProcessCrewmateTask(row) || row.paused === undefined) return prevState
     const { paused: _lifted, ...rest } = row
     void _lifted
-    return { ...prevState, tasks: { ...prevState.tasks, [taskId]: rest as InProcessTeammateTaskState } }
+    return { ...prevState, tasks: { ...prevState.tasks, [taskId]: rest as InProcessCrewmateTaskState } }
   })
   evictTerminalTask(taskId, setAppState)
 }
 
 async function dropStaleRosterRow(teamName: string, agentId: string): Promise<void> {
-  const roster = await readTeamFileAsync(teamName).catch(() => null)
+  const roster = await readCrewFileAsync(teamName).catch(() => null)
   const stale = roster?.members.find(member => member.agentId === agentId)
   if (stale !== undefined && stale.backendType === 'in-process') await removeMemberByAgentId(teamName, agentId)
 }
 
-export async function resumeTeammateFromTranscript(
+export async function resumeCrewmateFromTranscript(
   taskId: string,
   context: OperatorResumeContext,
   ports: OperatorRespawnPorts = {},
 ): Promise<OperatorRespawnReceipt> {
   const candidate = context.getAppState().tasks?.[taskId]
-  const task = isInProcessTeammateTask(candidate) ? candidate : undefined
+  const task = isInProcessCrewmateTask(candidate) ? candidate : undefined
   if (task?.status === 'running') return { outcome: 'refused', reason: 'the crewmate is running — nothing to resume' }
   const meta = await readAgentMetadata(asAgentId(taskId))
-  const record = meta?.teammate
+  const record = meta?.crewmate
   if (task === undefined && (record === undefined || meta?.name === undefined)) return { outcome: 'refused', reason: `${taskId} is not a crewmate row` }
-  const config: SpawnTeammateConfig =
+  const config: SpawnCrewmateConfig =
     task !== undefined
-      ? teammateRespawnConfig(task)
+      ? crewmateRespawnConfig(task)
       : {
           name: meta!.name!,
           prompt: record!.prompt,
@@ -101,10 +101,10 @@ export async function resumeTeammateFromTranscript(
         }
   const teamName = config.team_name!
   const agentId = formatAgentId(config.name, teamName)
-  if (resumingTeammates.has(agentId)) return { outcome: 'refused', reason: `Crewmate "${config.name}" is already resuming` }
-  resumingTeammates.add(agentId)
+  if (resumingCrewmates.has(agentId)) return { outcome: 'refused', reason: `Crewmate "${config.name}" is already resuming` }
+  resumingCrewmates.add(agentId)
   try {
-    const live = findTeammateTaskByAgentId(agentId, context.getAppState().tasks) as InProcessTeammateTaskState | undefined
+    const live = findCrewmateTaskByAgentId(agentId, context.getAppState().tasks) as InProcessCrewmateTaskState | undefined
     if (live?.status === 'running') return { outcome: 'refused', reason: 'the crewmate is running — nothing to resume' }
     const transcriptAgentId = task?.transcriptAgentId ?? record?.transcriptAgentId
     await flushSessionStorage()
@@ -124,11 +124,11 @@ export async function resumeTeammateFromTranscript(
     const effort = meta?.effortOverride ?? task?.effort
     if (effort !== undefined) config.effort = effort
     await dropStaleRosterRow(teamName, agentId)
-    const spawn = ports.spawn ?? (await import('../../tools/shared/spawnMultiAgent.js')).spawnTeammate
+    const spawn = ports.spawn ?? (await import('../../tools/shared/spawnMultiAgent.js')).spawnCrewmate
     const spawned = await spawn(config, respawnContextOf(context.toolUseContext))
-    const row = findTeammateTaskByAgentId(spawned.data.agent_id, context.getAppState().tasks) as InProcessTeammateTaskState | undefined
+    const row = findCrewmateTaskByAgentId(spawned.data.agent_id, context.getAppState().tasks) as InProcessCrewmateTaskState | undefined
     if (row === undefined || row.status !== 'running') return { outcome: 'refused', reason: `Crewmate "${config.name}" did not resume into a running row` }
-    if (task?.paused !== undefined) releasePausedTeammateRow(taskId, context.toolUseContext)
+    if (task?.paused !== undefined) releasePausedCrewmateRow(taskId, context.toolUseContext)
     return {
       outcome: 'applied',
       agentId: spawned.data.agent_id,
@@ -140,16 +140,16 @@ export async function resumeTeammateFromTranscript(
   } catch (error) {
     return { outcome: 'refused', reason: error instanceof Error ? error.message : String(error) }
   } finally {
-    resumingTeammates.delete(agentId)
+    resumingCrewmates.delete(agentId)
   }
 }
 
-export async function respawnTeammateByOperator(
+export async function respawnCrewmateByOperator(
   taskId: string,
   context: OperatorResumeContext,
   ports: OperatorRespawnPorts = {},
 ): Promise<OperatorRespawnReceipt> {
-  const receipt = await resumeTeammateFromTranscript(taskId, context, ports)
-  if (receipt.outcome === 'applied') enqueueAgentReceiptRow({ taskId: receipt.taskId, description: receipt.description, summary: teammateRespawnWords(receipt.name) })
+  const receipt = await resumeCrewmateFromTranscript(taskId, context, ports)
+  if (receipt.outcome === 'applied') enqueueAgentReceiptRow({ taskId: receipt.taskId, description: receipt.description, summary: crewmateRespawnWords(receipt.name) })
   return receipt
 }

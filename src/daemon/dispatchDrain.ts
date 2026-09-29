@@ -1,5 +1,5 @@
 import { parseBusEnvelope, OPERATOR_BROADCAST_LABEL, OPERATOR_NOTE_LABEL, type BusEnvelope, type DispatchEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { getMailboxStore, readUnreadMessages, markMessagesAsReadByPredicate } from '../utils/teammateMailbox.js'
+import { getMailboxStore, readUnreadMessages, markMessagesAsReadByPredicate } from '../utils/crewmateMailbox.js'
 import { dispatchDedup, type DispatchDedup } from './dispatchDedup.js'
 import { faultPoint } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'

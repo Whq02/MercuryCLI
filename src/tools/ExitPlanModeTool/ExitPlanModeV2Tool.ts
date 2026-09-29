@@ -9,17 +9,17 @@ import { getPlan, getPlanFilePath } from '../../utils/plans.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
   getAgentName,
-  getTeamName,
+  getCrewName,
   isPlanModeRequired,
   isTeammate,
-} from '../../utils/teammate.js'
-import { writeToMailbox } from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmate.js'
+import { writeToMailbox } from '../../utils/crewmateMailbox.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import {
-  findInProcessTeammateTaskId,
+  findInProcessCrewmateTaskId,
   setAwaitingPlanApproval,
-} from '../../utils/inProcessTeammateHelpers.js'
+} from '../../utils/inProcessCrewmateHelpers.js'
 import { AGENT_TOOL_NAME } from '../AgentTool/constants.js'
 import {
   EXIT_PLAN_MODE_TOOL_NAME,
@@ -148,7 +148,7 @@ export const ExitPlanModeV2Tool = buildTool({
         )
       }
       const agentName = getAgentName() ?? 'teammate'
-      const teamName = getTeamName()
+      const teamName = getCrewName()
       const requestId = `plan-approval-${agentName}-${Date.now().toString(36)}`
       await writeToMailbox(
         teamName ? `lead@${teamName}` : 'lead',
@@ -162,7 +162,7 @@ export const ExitPlanModeV2Tool = buildTool({
         } as never,
         teamName,
       )
-      const taskId = findInProcessTeammateTaskId(
+      const taskId = findInProcessCrewmateTaskId(
         agentName,
         context.getAppState(),
       )

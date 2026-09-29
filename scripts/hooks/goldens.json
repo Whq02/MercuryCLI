@@ -1,7 +1,7 @@
 {
  "getPreToolHookBlockingMessage/shape": "MyHook hook error: nope, blocked",
  "getStopHookMessage/shape": "Stop hook feedback:\nnope, blocked",
- "getTeammateIdleHookMessage/shape": "TeammateIdle hook feedback:\nnope, blocked",
+ "getCrewmateIdleHookMessage/shape": "CrewmateIdle hook feedback:\nnope, blocked",
  "getTaskCreatedHookMessage/shape": "TaskCreated hook feedback:\nnope, blocked",
  "getTaskCompletedHookMessage/shape": "TaskCompleted hook feedback:\nnope, blocked",
  "getUserPromptSubmitHookBlockingMessage/shape": "UserPromptSubmit operation blocked by hook:\nundefined",

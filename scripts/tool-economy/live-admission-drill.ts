@@ -20,7 +20,7 @@ const { pinHermeticCredentialedHome } = await import('./hermeticHome.ts')
 const HOME = pinHermeticCredentialedHome('admission-drill-home-')
 if (process.env.MERCURY_CONFIG_DIR !== HOME) throw new Error('the scratch config home did not pin')
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-teams-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'admission-drill-crew-'))
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

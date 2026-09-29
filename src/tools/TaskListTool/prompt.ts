@@ -6,7 +6,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 export const DESCRIPTION = 'Read the whole task list at a glance.'
 
 export function getPrompt(): string {
-  const teamSection = isAgentSwarmsEnabled()
+  const crewSection = isAgentSwarmsEnabled()
     ? `
 
 ## Teammate workflow
@@ -30,5 +30,5 @@ Take tasks in ID order, lowest leading — earlier tasks often set up the contex
 ## What it returns
 For each task: id, subject, status, owner (when set), and blockedBy (only the blockers that are still open).
 
-${TASK_GET_TOOL_NAME} gives the full details of one task.${teamSection}`
+${TASK_GET_TOOL_NAME} gives the full details of one task.${crewSection}`
 }

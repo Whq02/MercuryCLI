@@ -32,7 +32,7 @@ function runScene(scene: string): { reasons: Record<string, number>; frames: num
         INK_COMPOSED_TEE: composed,
         MERCURY_CONFIG_DIR: join(dir, 'config'),
         MERCURY_DAEMON_DIR: join(dir, 'daemon'),
-        MERCURY_TEAMS_DIR: join(dir, 'teams'),
+        MERCURY_CREWS_DIR: join(dir, 'teams'),
         MERCURY_CRITTER_IDLE: '0',    MERCURY_CRITTER_GAZE: '0',
         MERCURY_CRITTER_SLEEP: '0',   MERCURY_LIVE_CLOCK: '0',
         MERCURY_LIVE_GLYPHS: '0',

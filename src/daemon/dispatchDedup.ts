@@ -1,9 +1,9 @@
 
 import { join } from 'node:path'
 import { defineStore } from '../substrate/fileStore.js'
-import { getTeamsDir } from '../utils/envUtils.js'
+import { getCrewsDir } from '../utils/envUtils.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
-import { getTeamName } from '../utils/teammate.js'
+import { getCrewName } from '../utils/crewmate.js'
 
 export type DispatchConsumptionState = 'delivering' | 'delivered'
 
@@ -15,9 +15,9 @@ const MAX_ENTRIES = 500
 const dedupStore = defineStore<DedupFile, [string, string | undefined]>({
   name: 'dispatch-dedup',
   path: (agentName, teamName) => {
-    const team = sanitizePathComponent(teamName || getTeamName() || 'default')
+    const crew = sanitizePathComponent(teamName || getCrewName() || 'default')
     const agent = sanitizePathComponent(agentName)
-    return join(getTeamsDir(), team, 'dedup', `${agent}.json`)
+    return join(getCrewsDir(), crew, 'dedup', `${agent}.json`)
   },
   schemaVersion: 1,
   decode: raw => {

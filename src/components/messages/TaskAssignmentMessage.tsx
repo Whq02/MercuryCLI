@@ -4,7 +4,7 @@ import { Box, Text } from '../../ink.js'
 import {
   isTaskAssignment,
   type TaskAssignmentMessage as TaskAssignmentPayload,
-} from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmateMailbox.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 export function TaskAssignmentDisplay({

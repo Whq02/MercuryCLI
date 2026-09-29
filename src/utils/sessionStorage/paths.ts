@@ -151,7 +151,7 @@ export type AgentMetadata = {
   instructionDigest?: string
   name?: string
   launchedAt?: number
-  teammate?: {
+  crewmate?: {
     teamName: string
     prompt: string
     transcriptAgentId: string
@@ -202,7 +202,8 @@ export async function readAgentMetadata(
     throw e
   }
   try {
-    const meta = JSON.parse(raw) as AgentMetadata
+    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }
+    const meta: AgentMetadata = parsed.crewmate === undefined && parsed.teammate !== undefined ? { ...parsed, crewmate: parsed.teammate } : parsed
     const current = RETIRED_AGENT_TYPES[meta.agentType]
     return current === undefined ? meta : { ...meta, agentType: current }
   } catch {

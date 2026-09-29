@@ -77,7 +77,7 @@ function drive(leg: 'off' | 'on', tag = leg, argv: string[] = ['node', BIN]): Dr
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(OUT, `daemon-${tag}`),
-    MERCURY_TEAMS_DIR: join(OUT, `teams-${tag}`),
+    MERCURY_CREWS_DIR: join(OUT, `teams-${tag}`),
     MERCURY_HOME: join(OUT, `mhome-${tag}`),
     VSHOT_TEE: teePath,
     VISUAL: '',

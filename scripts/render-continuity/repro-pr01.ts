@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-config-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-teams-'))
 process.env.MERCURY_HOME = mkdtempSync(join(tmpdir(), 'poise-pr01-home-'))
 process.env.MERCURY_CREW_DIR = mkdtempSync(join(tmpdir(), 'poise-pr01-crew-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
@@ -31,8 +31,8 @@ const {
 const { runAsyncAgentLifecycle } = await import(
   '../../src/tools/AgentTool/agentToolUtils.ts'
 )
-const { enterTeammateView, exitTeammateView } = await import(
-  '../../src/state/teammateViewHelpers.ts'
+const { enterCrewmateView, exitCrewmateView } = await import(
+  '../../src/state/crewmateViewHelpers.ts'
 )
 const { createUserMessage, createAssistantMessage } = await import(
   '../../src/utils/messages/factories.ts'
@@ -143,7 +143,7 @@ check(
 const startTime0 = task().startTime
 
 section('§B enter view (retain) + reply appends the user row ONCE')
-enterTeammateView(AID, setAppState)
+enterCrewmateView(AID, setAppState)
 check('viewing the agent', state.viewingAgentTaskId === AID)
 check('retain=true on enter', task().retain === true)
 const reply = createUserMessage({ content: 'follow-up question' })
@@ -239,7 +239,7 @@ check('drain empties the queue', task().pendingMessages.length === 0)
 
 section('§G switch-away release returns the stub (designed); re-enter re-arms')
 const preExitCount = (task().messages ?? []).length
-exitTeammateView(setAppState)
+exitCrewmateView(setAppState)
 check('exit clears the view', state.viewingAgentTaskId === undefined)
 check('release drops retain', task().retain === false)
 check(
@@ -248,7 +248,7 @@ check(
   `pre-exit rows=${preExitCount}`,
 )
 check('terminal task gets an eviction deadline', typeof task().evictAfter === 'number')
-enterTeammateView(AID, setAppState)
+enterCrewmateView(AID, setAppState)
 check('re-enter re-arms retain', task().retain === true)
 check('re-enter clears the eviction deadline', task().evictAfter === undefined)
 check('re-enter needs disk bootstrap (diskLoaded=false)', task().diskLoaded === false)

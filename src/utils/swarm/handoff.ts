@@ -1,14 +1,14 @@
 
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { getTeamsDir } from '../envUtils.js'
+import { getCrewsDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import * as lockfile from '../lockfile.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { sanitizePathComponent } from '../tasks.js'
-import { getTeamName } from '../teammate.js'
+import { getCrewName } from '../crewmate.js'
 
 const LOCK_OPTIONS = {
   retries: {
@@ -75,9 +75,9 @@ export function validateHandoff(input: {
 
 
 function getHandoffsPath(teamName?: string): string {
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  return join(getTeamsDir(), safeTeam, 'handoffs.json')
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  return join(getCrewsDir(), safeCrew, 'handoffs.json')
 }
 
 async function readHandoffs(teamName?: string): Promise<Handoff[]> {
@@ -99,9 +99,9 @@ async function mutateHandoffs(
   mutate: (handoffs: Handoff[]) => Handoff[],
 ): Promise<void> {
   const path = getHandoffsPath(teamName)
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  const dir = join(getTeamsDir(), safeTeam)
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  const dir = join(getCrewsDir(), safeCrew)
   await mkdir(dir, { recursive: true })
 
   try {

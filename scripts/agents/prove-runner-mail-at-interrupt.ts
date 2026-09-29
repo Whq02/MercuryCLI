@@ -44,10 +44,10 @@ const { check, section, task, waitFor, settleWithin, drainInto, idleNotification
 
 section(`mail queued while working is delivered AT the interrupt; the teammate continues unnudged (${RUNTIME})`)
 {
-  const team = 'own7b-s7'
+  const crew = 'own7b-s7'
   const s = await launch({
     name: 'probe7',
-    team,
+    crew,
     turns: [
       { kind: 'hang', deltas: ['working…'] },
       { kind: 'text', text: 'S7 reply one.' },
@@ -63,11 +63,11 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
     'the turn is live (work controller present)',
     await waitFor(() => task(s.store, s.taskId)?.currentWorkAbortController !== undefined, 20_000),
   )
-  check('operator line 1 accepted mid-turn', h.injectUserMessageToTeammate(s.taskId, 'MAIL-OP-1 first operator line', s.store.setAppState as never))
-  check('operator line 2 accepted mid-turn', h.injectUserMessageToTeammate(s.taskId, 'MAIL-OP-2 second operator line', s.store.setAppState as never))
-  await h.writeToMailbox('probe7', { from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() }, team)
-  await h.writeToMailbox('probe7', { from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() }, team)
-  check('the mail is queued, unread, while the turn still hangs', (await h.readMailbox('probe7', team)).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
+  check('operator line 1 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-1 first operator line', s.store.setAppState as never))
+  check('operator line 2 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-2 second operator line', s.store.setAppState as never))
+  await h.writeToMailbox('probe7', { from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() }, crew)
+  await h.writeToMailbox('probe7', { from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() }, crew)
+  check('the mail is queued, unread, while the turn still hangs', (await h.readMailbox('probe7', crew)).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
 
   const abortedAt = Date.now()
   const pulse = setInterval(() => {
@@ -89,13 +89,13 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
     return typeof c === 'string' ? c : Array.isArray(c) ? c.map(b => (b as { text?: string }).text ?? '').join(' ') : ''
   }
   const turns = s.api.messageRequests().slice(1).map(lastUserText)
-  check('every queued message was delivered (none left unread)', (await h.readMailbox('probe7', team)).every(m => m.read) && (task(s.store, s.taskId).pendingUserMessages ?? []).length === 0)
+  check('every queued message was delivered (none left unread)', (await h.readMailbox('probe7', crew)).every(m => m.read) && (task(s.store, s.taskId).pendingUserMessages ?? []).length === 0)
   check(
     "the runner's order: operator lines first, then the lead, then peers",
     turns[0]?.includes('MAIL-OP-1') === true && turns[1]?.includes('MAIL-OP-2') === true && turns[2]?.includes('MAIL-LEAD') === true && turns[3]?.includes('MAIL-PEER') === true,
     JSON.stringify(turns.map(t => t.slice(0, 60))),
   )
-  check("the interrupt itself was reported 'interrupted' (the lead knows why the turn ended)", await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'interrupted'), 10_000))
+  check("the interrupt itself was reported 'interrupted' (the lead knows why the turn ended)", await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'interrupted'), 10_000))
   check("status stays 'running' throughout", task(s.store, s.taskId).status === 'running', task(s.store, s.taskId).status)
 
   s.lifecycle.abort()

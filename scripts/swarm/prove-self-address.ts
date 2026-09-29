@@ -9,9 +9,9 @@ process.env.MERCURY_CONFIG_DIR = TMP
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.js')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
-const { createTeammateContext, runWithTeammateContext } = await import(
-  '../../src/utils/teammateContext.js'
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { createCrewmateContext, runWithCrewmateContext } = await import(
+  '../../src/utils/crewmateContext.js'
 )
 
 let failures = 0
@@ -20,17 +20,17 @@ function check(cond: boolean, label: string, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 
-const TEAM = 'selfaddr-team'
-const teamDir = join(TMP, 'teams', TEAM)
-mkdirSync(teamDir, { recursive: true })
+const CREW = 'selfaddr-team'
+const crewDir = join(TMP, 'teams', CREW)
+mkdirSync(crewDir, { recursive: true })
 writeFileSync(
-  join(teamDir, 'config.json'),
+  join(crewDir, 'config.json'),
   JSON.stringify({
-    name: TEAM,
+    name: CREW,
     createdAt: Date.now(),
     leadAgentId: 'lead-1',
     members: [
-      { agentId: 'lead-1', name: TEAM_LEAD_NAME, joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
+      { agentId: 'lead-1', name: CREW_LEAD_NAME, joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
       { agentId: 'a-1', name: 'worker-a', joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
       { agentId: 'b-1', name: 'worker-b', joinedAt: 1, tmuxPaneId: '', cwd: TMP, subscriptions: [] },
     ],
@@ -39,7 +39,7 @@ writeFileSync(
 
 const context = {
   getAppState: () => ({
-    teamContext: { teamName: TEAM, leadAgentId: 'lead-1' },
+    crewContext: { teamName: CREW, leadAgentId: 'lead-1' },
     tasks: {},
     agentNameRegistry: new Map<string, string>(),
   }),
@@ -61,11 +61,11 @@ async function callTool(to: string, message: unknown, summary?: string): Promise
 }
 
 const asWorkerA = <T>(fn: () => Promise<T>): Promise<T> =>
-  runWithTeammateContext(
-    createTeammateContext({
+  runWithCrewmateContext(
+    createCrewmateContext({
       agentId: 'a-1',
       agentName: 'worker-a',
-      teamName: TEAM,
+      teamName: CREW,
       planModeRequired: false,
       parentSessionId: 'sess-1',
       abortController: new AbortController(),
@@ -92,12 +92,12 @@ console.log('SendMessage self-address guard — the refusal law and its bounds')
 }
 
 {
-  const r = await asWorkerA(() => callTool(TEAM_LEAD_NAME, 'report', 's'))
+  const r = await asWorkerA(() => callTool(CREW_LEAD_NAME, 'report', 's'))
   check(r.success === true, 'teammate send to the lead still delivers', r.message)
 }
 
 {
-  const r = await callTool(TEAM_LEAD_NAME, 'lead note to self', 's')
+  const r = await callTool(CREW_LEAD_NAME, 'lead note to self', 's')
   check(!r.success && /own address/.test(r.message), 'the lead messaging the lead name is refused as self', r.message)
 }
 

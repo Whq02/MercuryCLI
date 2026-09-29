@@ -4,32 +4,32 @@ import type { ToolUseConfirm } from '../components/permissions/PermissionRequest
 import { useTerminalNotification } from '../ink/useTerminalNotification.js'
 import { sendNotification } from '../services/notifier.js'
 import type { AppState } from '../state/AppStateStore.js'
-import { isInProcessTeammateTask, type InProcessTeammateTaskState } from '../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../tasks/InProcessCrewmateTask/types.js'
 import type { Tool, ToolUseContext } from '../Tool.js'
 import { getTools } from '../tools.js'
 import { generateRequestId } from '../utils/agentId.js'
 import { logForDebugging } from '../utils/debug.js'
-import { setAwaitingPlanApproval } from '../utils/inProcessTeammateHelpers.js'
+import { setAwaitingPlanApproval } from '../utils/inProcessCrewmateHelpers.js'
 import { logError } from '../utils/log.js'
 import { createAssistantMessage } from '../utils/messages.js'
 import { applyPermissionUpdate } from '../utils/permissions/PermissionUpdate.js'
 import { modeBypassesPermissions, toExternalPermissionMode } from '../utils/permissions/PermissionMode.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { setPermissionModeWithGuards } from '../utils/permissions/permissionSetup.js'
-import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js'
 import {
   sendPermissionResponseViaMailbox,
   sendSandboxPermissionResponseViaMailbox,
 } from '../utils/swarm/permissionSync.js'
 import { canDirect, resolveDirectActor } from '../utils/swarm/sendMessageGovernance.js'
-import { readTeamFileAsync, removeTeammateFromTeamFile, syncTeammateMode } from '../utils/swarm/teamHelpers.js'
+import { readCrewFileAsync, removeCrewmateFromCrewFile, syncCrewmateMode } from '../utils/swarm/crewHelpers.js'
 import { updateTaskState } from '../utils/task/framework.js'
-import { unassignTeammateTasks } from '../utils/tasks.js'
-import { getAgentName, getTeamName, isTeamLead } from '../utils/teammate.js'
-import { isInProcessTeammate } from '../utils/teammateContext.js'
+import { unassignCrewmateTasks } from '../utils/tasks.js'
+import { getAgentName, getCrewName, isCrewLead } from '../utils/crewmate.js'
+import { isInProcessCrewmate } from '../utils/crewmateContext.js'
 import {
-  formatTeammateMessages,
+  formatCrewmateMessages,
   getMailboxStore,
   markMessagesAsReadByPredicate,
   readUnreadMessages,
@@ -42,12 +42,12 @@ import {
   isSandboxPermissionResponse,
   isShutdownApproved,
   isShutdownRequest,
-  isTeamPermissionUpdate,
+  isCrewPermissionUpdate,
   resolveShutdownApprovedVictim,
   resolveShutdownRequestSender,
   writeToMailbox,
-  type TeammateMessage,
-} from '../utils/teammateMailbox.js'
+  type CrewmateMessage,
+} from '../utils/crewmateMailbox.js'
 import { processMailboxPermissionResponse, processSandboxPermissionResponse } from './useSwarmPermissionPoller.js'
 import { busEnvelopesEnabled, isBusProtocolMessage } from '../utils/swarm/busEnvelopes.js'
 
@@ -65,15 +65,15 @@ type UseInboxPollerArgs = {
   onSubmitMessage: (content: string) => boolean
 }
 
-function resolvePollingIdentity(teamContext: AppState['teamContext']): {
+function resolvePollingIdentity(crewContext: AppState['crewContext']): {
   agentName: string | undefined
   teamName: string | undefined
 } {
-  if (isInProcessTeammate()) return { agentName: undefined, teamName: undefined }
-  const teamName = getTeamName(teamContext)
+  if (isInProcessCrewmate()) return { agentName: undefined, teamName: undefined }
+  const teamName = getCrewName(crewContext)
   let agentName = getAgentName()
-  if (!agentName && isTeamLead(teamContext) && teamContext) {
-    agentName = teamContext.teammates[teamContext.leadAgentId]?.name || TEAM_LEAD_NAME
+  if (!agentName && isCrewLead(crewContext) && crewContext) {
+    agentName = crewContext.crewmates[crewContext.leadAgentId]?.name || CREW_LEAD_NAME
   }
   return { agentName, teamName }
 }
@@ -83,7 +83,7 @@ function findInProcessTaskIdIn(
   agentName: string,
 ): string | undefined {
   for (const [taskId, task] of Object.entries(tasks ?? {})) {
-    if (isInProcessTeammateTask(task) && task.identity.agentName === agentName) return taskId
+    if (isInProcessCrewmateTask(task) && task.identity.agentName === agentName) return taskId
   }
   return undefined
 }
@@ -121,13 +121,13 @@ export function useInboxPoller({
   onSubmitMessage,
 }: UseInboxPollerArgs): void {
   const setAppState = useSetAppState()
-  const teamContext = useAppState(state => state.teamContext)
+  const crewContext = useAppState(state => state.crewContext)
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
   const inboxMessages = useAppState(state => state.inbox.messages)
   const tasks = useAppState(state => state.tasks)
   const terminal = useTerminalNotification()
 
-  const { agentName, teamName } = resolvePollingIdentity(teamContext)
+  const { agentName, teamName } = resolvePollingIdentity(crewContext)
 
   const isLoadingRef = useRef(isLoading)
   isLoadingRef.current = isLoading
@@ -135,8 +135,8 @@ export function useInboxPoller({
   focusedInputDialogRef.current = focusedInputDialog
   const onSubmitMessageRef = useRef(onSubmitMessage)
   onSubmitMessageRef.current = onSubmitMessage
-  const teamContextRef = useRef(teamContext)
-  teamContextRef.current = teamContext
+  const crewContextRef = useRef(crewContext)
+  crewContextRef.current = crewContext
   const toolPermissionContextRef = useRef(toolPermissionContext)
   toolPermissionContextRef.current = toolPermissionContext
   const tasksRef = useRef(tasks)
@@ -146,7 +146,7 @@ export function useInboxPoller({
   const pollAgainRef = useRef(false)
 
   const queuePendingMessages = (
-    messages: TeammateMessage[],
+    messages: CrewmateMessage[],
     status: 'pending' | 'held' = 'pending',
   ): Set<string> => {
     let refusedKeys = new Set<string>()
@@ -180,7 +180,7 @@ export function useInboxPoller({
     return refusedKeys
   }
 
-  const deliverOrQueue = (regular: TeammateMessage[]): Set<string> => {
+  const deliverOrQueue = (regular: CrewmateMessage[]): Set<string> => {
     if (regular.length === 0) return new Set()
     const idle = !isLoadingRef.current && !focusedInputDialogRef.current
     const verdict = classifyInboundDelivery({
@@ -192,22 +192,22 @@ export function useInboxPoller({
       return queuePendingMessages(regular, 'held')
     }
     if (verdict === 'submit') {
-      const accepted = onSubmitMessageRef.current(formatTeammateMessages(regular))
+      const accepted = onSubmitMessageRef.current(formatCrewmateMessages(regular))
       if (accepted) return new Set()
     }
     return queuePendingMessages(regular)
   }
 
-  const pollOnce = async (agent: string, team: string | undefined): Promise<void> => {
-    const snapshot = await readUnreadMessages(agent, team)
+  const pollOnce = async (agent: string, crew: string | undefined): Promise<void> => {
+    const snapshot = await readUnreadMessages(agent, crew)
     if (snapshot.length === 0) return
     const deliveredKeys = new Set(snapshot.map(messageKey))
 
-    if (!isTeamLead(teamContextRef.current) && toolPermissionContextRef.current.mode === 'strategy') {
+    if (!isCrewLead(crewContextRef.current) && toolPermissionContextRef.current.mode === 'strategy') {
       for (const m of snapshot) {
         const response = isPlanApprovalResponse(m.text)
         if (!response) continue
-        if (m.from !== TEAM_LEAD_NAME) continue
+        if (m.from !== CREW_LEAD_NAME) continue
         if (!response.approved) {
           logForDebugging(`[InboxPoller] plan approval rejected by ${m.from}`)
           continue
@@ -227,17 +227,17 @@ export function useInboxPoller({
       }
     }
 
-    const permissionRequests: TeammateMessage[] = []
-    const permissionResponses: TeammateMessage[] = []
-    const sandboxRequests: TeammateMessage[] = []
-    const sandboxResponses: TeammateMessage[] = []
-    const shutdownRequests: TeammateMessage[] = []
-    const shutdownApprovals: TeammateMessage[] = []
-    const teamPermissionUpdates: TeammateMessage[] = []
-    const modeSetRequests: TeammateMessage[] = []
-    const planApprovalRequests: TeammateMessage[] = []
-    const busEnvelopes: TeammateMessage[] = []
-    const regular: TeammateMessage[] = []
+    const permissionRequests: CrewmateMessage[] = []
+    const permissionResponses: CrewmateMessage[] = []
+    const sandboxRequests: CrewmateMessage[] = []
+    const sandboxResponses: CrewmateMessage[] = []
+    const shutdownRequests: CrewmateMessage[] = []
+    const shutdownApprovals: CrewmateMessage[] = []
+    const crewPermissionUpdates: CrewmateMessage[] = []
+    const modeSetRequests: CrewmateMessage[] = []
+    const planApprovalRequests: CrewmateMessage[] = []
+    const busEnvelopes: CrewmateMessage[] = []
+    const regular: CrewmateMessage[] = []
     for (const m of snapshot) {
       if (isPermissionRequest(m.text)) permissionRequests.push(m)
       else if (isPermissionResponse(m.text)) permissionResponses.push(m)
@@ -245,7 +245,7 @@ export function useInboxPoller({
       else if (isSandboxPermissionResponse(m.text)) sandboxResponses.push(m)
       else if (isShutdownRequest(m.text)) shutdownRequests.push(m)
       else if (isShutdownApproved(m.text)) shutdownApprovals.push(m)
-      else if (isTeamPermissionUpdate(m.text)) teamPermissionUpdates.push(m)
+      else if (isCrewPermissionUpdate(m.text)) crewPermissionUpdates.push(m)
       else if (isModeSetRequest(m.text)) modeSetRequests.push(m)
       else if (isPlanApprovalRequest(m.text)) planApprovalRequests.push(m)
       else if (busEnvelopesEnabled() && isBusProtocolMessage(m.text)) busEnvelopes.push(m)
@@ -286,7 +286,7 @@ export function useInboxPoller({
             request.agent_id,
             resolution,
             request.request_id,
-            team,
+            crew,
           ).catch((error: unknown) => logError(error))
         }
         const entry: ToolUseConfirm = {
@@ -323,7 +323,7 @@ export function useInboxPoller({
     }
 
     for (const m of permissionResponses) {
-      if (m.from !== TEAM_LEAD_NAME) continue
+      if (m.from !== CREW_LEAD_NAME) continue
       const response = isPermissionResponse(m.text)
       if (!response) continue
       if (response.subtype === 'success') {
@@ -348,7 +348,7 @@ export function useInboxPoller({
 
 
     for (const m of sandboxResponses) {
-      if (m.from !== TEAM_LEAD_NAME) continue
+      if (m.from !== CREW_LEAD_NAME) continue
       const response = isSandboxPermissionResponse(m.text)
       if (!response) continue
       processSandboxPermissionResponse({
@@ -358,9 +358,9 @@ export function useInboxPoller({
       })
     }
 
-    for (const m of teamPermissionUpdates) {
-      if (m.from !== TEAM_LEAD_NAME) continue
-      const update = isTeamPermissionUpdate(m.text)
+    for (const m of crewPermissionUpdates) {
+      if (m.from !== CREW_LEAD_NAME) continue
+      const update = isCrewPermissionUpdate(m.text)
       if (!update || !Array.isArray(update.permissionUpdate?.rules) || !update.permissionUpdate?.behavior) {
         logForDebugging('[InboxPoller] malformed team permission update skipped')
         continue
@@ -377,7 +377,7 @@ export function useInboxPoller({
     }
 
     for (const m of modeSetRequests) {
-      if (m.from !== TEAM_LEAD_NAME) continue
+      if (m.from !== CREW_LEAD_NAME) continue
       const request = isModeSetRequest(m.text)
       if (!request) continue
       const outcome = setPermissionModeWithGuards(
@@ -394,7 +394,7 @@ export function useInboxPoller({
         logForDebugging(`[InboxPoller] mode-set refused: ${outcome.error}`)
         continue
       }
-      syncTeammateMode(request.mode, team)
+      syncCrewmateMode(request.mode, crew)
     }
 
     for (const m of planApprovalRequests) {
@@ -412,7 +412,7 @@ export function useInboxPoller({
       void writeToMailbox(
         request.from,
         { from: agent, text: JSON.stringify(response), timestamp: new Date().toISOString() },
-        team,
+        crew,
       ).catch((error: unknown) => logError(error))
       const taskId = findInProcessTaskIdIn(tasksRef.current, request.from)
       if (taskId) setAwaitingPlanApproval(taskId, setAppState, false)
@@ -420,9 +420,9 @@ export function useInboxPoller({
     }
 
     if (shutdownRequests.length > 0) {
-      const sdTeamFile = team ? await readTeamFileAsync(team).catch(() => null) : null
+      const sdCrewFile = crew ? await readCrewFileAsync(crew).catch(() => null) : null
       const sdSelf = agent
-      const sdLeadId = teamContextRef.current?.leadAgentId
+      const sdLeadId = crewContextRef.current?.leadAgentId
       for (const m of shutdownRequests) {
         const request = isShutdownRequest(m.text)
         const verifiedFrom = resolveShutdownRequestSender(m.from, request)
@@ -432,8 +432,8 @@ export function useInboxPoller({
         }
         if (sdSelf) {
           const verdict = canDirect(
-            resolveDirectActor(sdTeamFile, verifiedFrom, sdLeadId),
-            resolveDirectActor(sdTeamFile, sdSelf, sdLeadId),
+            resolveDirectActor(sdCrewFile, verifiedFrom, sdLeadId),
+            resolveDirectActor(sdCrewFile, sdSelf, sdLeadId),
           )
           if (!verdict.allowed) {
             logForDebugging(`[InboxPoller] shutdown request from ${verifiedFrom} dropped: no authority`)
@@ -451,12 +451,12 @@ export function useInboxPoller({
         logForDebugging('[InboxPoller] shutdown approval ignored: in-body sender disagrees with the envelope')
         continue
       }
-      const roster = teamContextRef.current?.teammates ?? {}
-      const victimEntry = Object.entries(roster).find(([, teammate]) => teammate.name === victim)
+      const roster = crewContextRef.current?.crewmates ?? {}
+      const victimEntry = Object.entries(roster).find(([, crewmate]) => crewmate.name === victim)
       const victimId = victimEntry?.[0]
-      if (victimId && team) {
-        removeTeammateFromTeamFile(team, { agentId: victimId, name: victim })
-        const unassigned = await unassignTeammateTasks(team, victimId, victim, 'shutdown').catch(
+      if (victimId && crew) {
+        removeCrewmateFromCrewFile(crew, { agentId: victimId, name: victim })
+        const unassigned = await unassignCrewmateTasks(crew, victimId, victim, 'shutdown').catch(
           (error: unknown) => {
             logError(error)
             return null
@@ -467,9 +467,9 @@ export function useInboxPoller({
           `${victim} has shut down`
         setAppState(previous => {
           let next = previous
-          if (next.teamContext?.teammates && victimId in next.teamContext.teammates) {
-            const { [victimId]: _removed, ...remaining } = next.teamContext.teammates
-            next = { ...next, teamContext: { ...next.teamContext, teammates: remaining } }
+          if (next.crewContext?.crewmates && victimId in next.crewContext.crewmates) {
+            const { [victimId]: _removed, ...remaining } = next.crewContext.crewmates
+            next = { ...next, crewContext: { ...next.crewContext, crewmates: remaining } }
           }
           const appended = [
             ...next.inbox.messages,
@@ -491,7 +491,7 @@ export function useInboxPoller({
         })
         const completedTaskId = findInProcessTaskIdIn(tasksRef.current, victim)
         if (completedTaskId) {
-          updateTaskState<InProcessTeammateTaskState>(completedTaskId, setAppState, task => ({
+          updateTaskState<InProcessCrewmateTaskState>(completedTaskId, setAppState, task => ({
             ...task,
             status: 'completed',
             endTime: Date.now(),
@@ -508,12 +508,12 @@ export function useInboxPoller({
         const key = messageKey(message)
         return deliveredKeys.has(key) && !refusedKeys.has(key)
       },
-      team,
+      crew,
     )
   }
 
   const poll = async (): Promise<void> => {
-    const identity = resolvePollingIdentity(teamContextRef.current)
+    const identity = resolvePollingIdentity(crewContextRef.current)
     if (!identity.agentName) return
     if (pollInFlightRef.current) {
       pollAgainRef.current = true
@@ -579,7 +579,7 @@ export function useInboxPoller({
     }
     const pending = inboxMessages.filter(message => message.status === 'pending')
     if (pending.length === 0) return
-    const wrapped = formatTeammateMessages(
+    const wrapped = formatCrewmateMessages(
       pending.map(message => ({
         from: message.from,
         text: message.text,

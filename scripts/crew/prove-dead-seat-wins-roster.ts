@@ -8,13 +8,13 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
-const th = await import('../../src/utils/swarm/teamHelpers.ts')
+const th = await import('../../src/utils/swarm/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
 
-const TEAM = 'dead-seat'
+const CREW = 'dead-seat'
 const LEAD_ID = 'team-lead@dead-seat'
 const SEAT = 'ghost'
-const SEAT_ID = `${SEAT}@${TEAM}`
+const SEAT_ID = `${SEAT}@${CREW}`
 const SLEEP = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 let failures = 0
@@ -25,19 +25,19 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void { console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76)) }
 
 const member = (name: string, agentId: string, role: string) => ({ agentId, name, role, joinedAt: Date.now(), tmuxPaneId: '', cwd: scratch, subscriptions: [] as string[] })
-async function freshTeam(): Promise<void> {
-  await th.writeTeamFileAsync(TEAM, {
-    name: TEAM,
+async function freshCrew(): Promise<void> {
+  await th.writeCrewFileAsync(CREW, {
+    name: CREW,
     description: 'a seat that fails at its spawn',
     createdAt: Date.now(),
     leadAgentId: LEAD_ID,
     members: [member('team-lead', LEAD_ID, 'lead'), { ...member(SEAT, SEAT_ID, 'teammate'), agentType: 'mercury-general', backendType: 'in-process' }],
   })
 }
-const rosterNames = async (): Promise<string[]> => ((await th.readTeamFileAsync(TEAM))?.members ?? []).map(m => `${m.name}${m.isActive === undefined ? '' : `:${m.isActive ? 'live' : 'off'}`}`)
-const teamPath = th.getTeamFilePath(TEAM)
-const lockDir = `${teamPath}.lock`
-const publishing = (): string | undefined => readdirSync(dirname(teamPath)).find(name => name.startsWith(`.${basename(teamPath)}.`) && name.endsWith('.tmp'))
+const rosterNames = async (): Promise<string[]> => ((await th.readCrewFileAsync(CREW))?.members ?? []).map(m => `${m.name}${m.isActive === undefined ? '' : `:${m.isActive ? 'live' : 'off'}`}`)
+const crewPath = th.getCrewFilePath(CREW)
+const lockDir = `${crewPath}.lock`
+const publishing = (): string | undefined => readdirSync(dirname(crewPath)).find(name => name.startsWith(`.${basename(crewPath)}.`) && name.endsWith('.tmp'))
 const untilPublishing = async (ms: number): Promise<string | undefined> => {
   const t0 = Date.now()
   while (Date.now() - t0 < ms) {
@@ -55,10 +55,10 @@ console.log('============================================================')
 
 section('the seam: the runner writes the live flag through the roster lane and removes a failed seat by the same lane')
 {
-  const helpers = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'teamHelpers.ts'), 'utf8')
+  const helpers = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'crewHelpers.ts'), 'utf8')
   const removalAt = helpers.indexOf('export async function removeMemberByAgentId(')
   const removalBody = removalAt === -1 ? '' : helpers.slice(removalAt, helpers.indexOf('\n}\n', removalAt))
-  check('removeMemberByAgentId is the lane\'s (async, serialised behind the flag writes), never the sync lock whose backoff spins the event loop the lane needs', removalAt !== -1 && removalBody.includes('withLockedTeamFile(') && !removalBody.includes('withLockedTeamFileSync('), removalAt === -1 ? 'no async removeMemberByAgentId' : removalBody.split('\n')[1] ?? '')
+  check('removeMemberByAgentId is the lane\'s (async, serialised behind the flag writes), never the sync lock whose backoff spins the event loop the lane needs', removalAt !== -1 && removalBody.includes('withLockedCrewFile(') && !removalBody.includes('withLockedCrewFileSync('), removalAt === -1 ? 'no async removeMemberByAgentId' : removalBody.split('\n')[1] ?? '')
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
   const failedAt = runner.indexOf("if (wasRunning && status === 'failed') {")
   const failedBlock = failedAt === -1 ? '' : runner.slice(failedAt, failedAt + 400)
@@ -73,17 +73,17 @@ section('the interleaving: the removal lands while the lane holds the roster for
   const listed: string[] = []
   let leadLost = false
   for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-    await freshTeam()
-    const flagInFlight = th.setMemberActive(TEAM, SEAT, true)
+    await freshCrew()
+    const flagInFlight = th.setMemberActive(CREW, SEAT, true)
     const tmp = await untilPublishing(5_000)
     if (tmp !== undefined) caught.push(attempt)
-    const removed = await Promise.resolve(th.removeMemberByAgentId(TEAM, SEAT_ID))
+    const removed = await Promise.resolve(th.removeMemberByAgentId(CREW, SEAT_ID))
     await flagInFlight
     await SLEEP(50)
     const after = await rosterNames()
     if (removed !== true) notRemoved.push(attempt)
     if (after.some(name => name === SEAT || name.startsWith(`${SEAT}:`))) cameBack.push(`#${attempt} ${after.join(', ')}`)
-    const ghost = (await getAgentStatuses(TEAM))?.find(s => s.name === SEAT)
+    const ghost = (await getAgentStatuses(CREW))?.find(s => s.name === SEAT)
     if (ghost !== undefined) listed.push(`#${attempt} ${ghost.status}`)
     if (!after.includes('team-lead')) leadLost = true
   }
@@ -96,10 +96,10 @@ section('the interleaving: the removal lands while the lane holds the roster for
 
 section('the other order: a flag write that lands after the removal never brings the seat back')
 {
-  await freshTeam()
-  await Promise.resolve(th.removeMemberByAgentId(TEAM, SEAT_ID))
-  await th.setMemberActive(TEAM, SEAT, false)
-  await th.setMemberActive(TEAM, SEAT, true)
+  await freshCrew()
+  await Promise.resolve(th.removeMemberByAgentId(CREW, SEAT_ID))
+  await th.setMemberActive(CREW, SEAT, false)
+  await th.setMemberActive(CREW, SEAT, true)
   const after = await rosterNames()
   check('a late flag write on a removed seat writes nothing', !after.includes(SEAT), after.join(', '))
 }

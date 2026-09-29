@@ -45,7 +45,7 @@ async function drivePty(argv: string[], seconds: number, extraEnv: Record<string
         MERCURY_CONFIG_DIR: join(home, '.claude'),
         ANTHROPIC_API_KEY: 'fixture-key-000',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
-        MERCURY_TEAMS_DIR: join(home, 'teams'),
+        MERCURY_CREWS_DIR: join(home, 'teams'),
         MERCURY_ALT_HELD: '1',
         ...extraEnv,
       },

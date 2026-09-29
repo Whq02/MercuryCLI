@@ -17,7 +17,7 @@ export type SubagentContext = InvocationEdge & {
   isBuiltIn?: boolean
 }
 
-export type TeammateAgentContext = InvocationEdge & {
+export type CrewmateAgentContext = InvocationEdge & {
   agentType: 'teammate'
   agentId: string
   agentName: string
@@ -25,10 +25,10 @@ export type TeammateAgentContext = InvocationEdge & {
   agentColor?: string
   planModeRequired: boolean
   parentSessionId: string
-  isTeamLead: boolean
+  isCrewLead: boolean
 }
 
-export type AgentContext = SubagentContext | TeammateAgentContext
+export type AgentContext = SubagentContext | CrewmateAgentContext
 
 const storage = new AsyncLocalStorage<AgentContext>()
 
@@ -44,7 +44,7 @@ export function isSubagentContext(context: AgentContext | undefined): context is
   return context !== undefined && context.agentType === 'subagent'
 }
 
-export function isTeammateAgentContext(context: AgentContext | undefined): context is TeammateAgentContext {
+export function isCrewmateAgentContext(context: AgentContext | undefined): context is CrewmateAgentContext {
   if (!isAgentSwarmsEnabled()) return false
   return context !== undefined && context.agentType === 'teammate'
 }

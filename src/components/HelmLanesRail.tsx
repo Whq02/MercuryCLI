@@ -11,7 +11,7 @@ import { Box, Text } from '../ink.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { isTerminalTaskStatus, type TaskStatus } from '../Task.js'
 import { useAppState } from '../state/AppState.js'
-import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { useSessionCrew } from './tasks/useCrewLedger.js'
 import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
@@ -501,7 +501,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const crewMore = crewEntries.length - crewShown.length
 
   const localRuns: RunRow[] = Object.values(tasks)
-    .filter(t => !isLocalAgentTask(t) && !isInProcessTeammateTask(t))
+    .filter(t => !isLocalAgentTask(t) && !isInProcessCrewmateTask(t))
     .filter(t => !isTerminalTaskStatus(t.status))
     .map(t => ({
       id: t.id,

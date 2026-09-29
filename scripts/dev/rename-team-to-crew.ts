@@ -561,6 +561,7 @@ class Planner {
     const hits = [...this.renameMap].filter(([from]) => basename(from).replace(/\.(ts|tsx|mts)$/, '') === stem)
     if (hits.length !== 1) return null
     const toStem = basename(hits[0]![1]).replace(/\.(ts|tsx|mts)$/, '')
+    if (toStem === stem) return null
     return path.slice(0, path.length - name.length) + name.replace(stem, toStem)
   }
 

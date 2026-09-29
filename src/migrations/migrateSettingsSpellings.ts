@@ -8,6 +8,7 @@ type KeyRename = {
 }
 
 export const RETIRED_SETTINGS_KEYS: readonly KeyRename[] = [
+  { from: ['hooks', 'TeammateIdle'], to: ['hooks', 'CrewmateIdle'], value: 'same' },
   { from: ['permissions', 'disableBypassPermissionsMode'], to: ['permissions', 'disableSovereignMode'], value: 'disableWord' },
   { from: ['permissions', 'disableAutoMode'], to: ['permissions', 'disableFlowMode'], value: 'disableWord' },
   { from: ['disableAutoMode'], to: ['permissions', 'disableFlowMode'], value: 'disableWord' },

@@ -53,7 +53,7 @@ const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: numb
 
 t.section('§1 the projection is exhaustive and honest')
 {
-  const teammate = {
+  const crewmate = {
     type: 'in_process_teammate',
     id: 'tm-1',
     identity: { agentName: 'scout', color: 'blue' },
@@ -81,7 +81,7 @@ t.section('§1 the projection is exhaustive and honest')
   const registry = new Map([['probe-name', 'la-1']])
   const empty = new Map<string, string>()
 
-  const pt = projectViewedAgent(teammate, empty as never)
+  const pt = projectViewedAgent(crewmate, empty as never)
   t.check(
     'teammate projects kind/name/color/subtitle/state',
     pt?.kind === 'in_process_teammate' &&
@@ -109,10 +109,10 @@ t.section('§1 the projection is exhaustive and honest')
     projectViewedAgent(mainSession, registry as never) === undefined,
   )
 
-  const idleTeammate = { ...(teammate as object), isIdle: true } as never
+  const idleCrewmate = { ...(crewmate as object), isIdle: true } as never
   t.check(
     'idle teammate label is honest',
-    projectViewedAgent(idleTeammate, empty as never)?.statusLabel === 'idle',
+    projectViewedAgent(idleCrewmate, empty as never)?.statusLabel === 'idle',
   )
   const doneAgent = { ...(localAgent as object), status: 'completed' } as never
   const pd = projectViewedAgent(doneAgent, registry as never)
@@ -136,7 +136,7 @@ t.section('§1 the projection is exhaustive and honest')
       agentNameRegistry: registry,
     }) as never
   for (const [label, task, viewable] of [
-    ['teammate', teammate, true],
+    ['teammate', crewmate, true],
     ['local agent', localAgent, true],
     ['main-session', mainSession, false],
   ] as [string, { id: string }, boolean][]) {
@@ -332,12 +332,12 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
   const src = (p: string): string => readFileSync(join(HERE, '..', '..', p), 'utf8')
   const prompt = src('src/components/PromptInput/PromptInput.tsx')
   t.check(
-    "the composer's esc on a viewed crewmate consumes interruptCrewmate and, on idle, exitTeammateView (esc back to Mercury Lead)",
-    /key\.escape[\s\S]{0,900}?interruptCrewmate\(viewed/.test(prompt) && /road === 'idle'\)\s*\{\s*exitTeammateView\(/.test(prompt),
+    "the composer's esc on a viewed crewmate consumes interruptCrewmate and, on idle, exitCrewmateView (esc back to Mercury Lead)",
+    /key\.escape[\s\S]{0,900}?interruptCrewmate\(viewed/.test(prompt) && /road === 'idle'\)\s*\{\s*exitCrewmateView\(/.test(prompt),
   )
   t.check(
-    'dialog f/m routes local_agent rows through enterTeammateView',
-    /local_agent'\s*\)\s*\{[^}]*enterTeammateView/s.test(src('src/components/tasks/BackgroundTasksDialog.tsx')),
+    'dialog f/m routes local_agent rows through enterCrewmateView',
+    /local_agent'\s*\)\s*\{[^}]*enterCrewmateView/s.test(src('src/components/tasks/BackgroundTasksDialog.tsx')),
   )
   t.check(
     'agent detail card owns the f/m → onForeground pair',

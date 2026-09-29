@@ -7,10 +7,10 @@ import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
 import {
-  isInProcessTeammateTask,
-  type InProcessTeammateTaskState,
-} from '../tasks/InProcessTeammateTask/types.js'
-import { describeTeammateActivity } from './tasks/taskStatusUtils.js'
+  isInProcessCrewmateTask,
+  type InProcessCrewmateTaskState,
+} from '../tasks/InProcessCrewmateTask/types.js'
+import { describeCrewmateActivity } from './tasks/taskStatusUtils.js'
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
 import { toInkColor } from '../utils/ink.js'
 import { isTaskToolsEnabled } from '../utils/tasks.js'
@@ -94,20 +94,20 @@ export function TaskListV2({
   const ownerColors = new Map<string, string>()
   const ownerActivities = new Map<string, string>()
   const runningOwners = new Set<string>()
-  const teammateTasks = Object.values(appTasks ?? {}).filter(
-    isInProcessTeammateTask,
-  ) as InProcessTeammateTaskState[]
-  for (const teammate of teammateTasks) {
-    const name = teammate.identity.agentName
-    if (swarmOn && teammate.identity.color) {
-      ownerColors.set(name, toInkColor(teammate.identity.color) as string)
+  const crewmateTasks = Object.values(appTasks ?? {}).filter(
+    isInProcessCrewmateTask,
+  ) as InProcessCrewmateTaskState[]
+  for (const crewmate of crewmateTasks) {
+    const name = crewmate.identity.agentName
+    if (swarmOn && crewmate.identity.color) {
+      ownerColors.set(name, toInkColor(crewmate.identity.color) as string)
     }
-    if (!teammate.isIdle) {
-      const activity = describeTeammateActivity(teammate)
+    if (!crewmate.isIdle) {
+      const activity = describeCrewmateActivity(crewmate)
       ownerActivities.set(name, activity)
-      ownerActivities.set(teammate.identity.agentId, activity)
+      ownerActivities.set(crewmate.identity.agentId, activity)
       runningOwners.add(name)
-      runningOwners.add(teammate.identity.agentId)
+      runningOwners.add(crewmate.identity.agentId)
     }
   }
 

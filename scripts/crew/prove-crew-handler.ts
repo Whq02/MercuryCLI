@@ -14,7 +14,7 @@ const setStamp = (on: boolean) => { if (on) (globalThis as Record<string, unknow
 setStamp(true)
 
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
-const { readTeamFileAsync } = await import('../../src/utils/swarm/teamHelpers.js')
+const { readCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
 type ChildSpec = import('../../src/daemon/headlessRun.js').StreamJsonChildSpec
 
 let failures = 0
@@ -112,8 +112,8 @@ section('SPEND CAP — 6 live crew, crew-scoped, kill frees a slot')
   }
   const seventh = await handler('c-seven', 'sonnet')
   check('7th refused at the cap', !seventh.ok && /crew cap reached \(6 live/.test(seventh.error ?? ''))
-  const teamAtCap = await readTeamFileAsync('crew')
-  check('cap-refused name never reached the team file', !(teamAtCap?.members ?? []).some(m => m.name === 'c-seven'))
+  const crewAtCap = await readCrewFileAsync('crew')
+  check('cap-refused name never reached the team file', !(crewAtCap?.members ?? []).some(m => m.name === 'c-seven'))
   rig.live.get('c-three')!.outcome = 'killed'
   const after = await handler('c-seven', 'sonnet')
   check('after a kill the 7th spawns', after.ok === true)
@@ -128,19 +128,19 @@ section('SPEND CAP — 6 live crew, crew-scoped, kill frees a slot')
 
 section('durable team-file identity — governance OFF, members persist, no dupes')
 {
-  const team = await readTeamFileAsync('crew')
-  check('team file exists after spawns', team !== null && team !== undefined)
-  check('governance: broadcasts OFF (a teammate can never spam the bus)', team?.governance?.broadcastEnabled === false)
-  check("lead is team-lead@crew", team?.leadAgentId === 'team-lead@crew')
-  const c1 = (team?.members ?? []).filter(m => m.name === 'c-one')
+  const crew = await readCrewFileAsync('crew')
+  check('team file exists after spawns', crew !== null && crew !== undefined)
+  check('governance: broadcasts OFF (a teammate can never spam the bus)', crew?.governance?.broadcastEnabled === false)
+  check("lead is team-lead@crew", crew?.leadAgentId === 'team-lead@crew')
+  const c1 = (crew?.members ?? []).filter(m => m.name === 'c-one')
   check('spawned member present exactly once', c1.length === 1)
   check("member carries the picked model (sonnet → claude-sonnet-5-5, the family's head)", c1[0]?.model === 'claude-sonnet-5-5', String(c1[0]?.model))
   const rig = makePort()
   const handler = cs.makeCrewSpawnHandler({ roster: () => rig.port, dir: scratch, onSpawned: () => {} })
   const re = await handler('c-one', 'sonnet')
   check('respawn of a killed name succeeds (fresh handler/daemon)', re.ok === true)
-  const team2 = await readTeamFileAsync('crew')
-  check('respawn did NOT duplicate the member (durable chat identity)', (team2?.members ?? []).filter(m => m.name === 'c-one').length === 1)
+  const crew2 = await readCrewFileAsync('crew')
+  check('respawn did NOT duplicate the member (durable chat identity)', (crew2?.members ?? []).filter(m => m.name === 'c-one').length === 1)
 }
 
 rmSync(scratch, { recursive: true, force: true })

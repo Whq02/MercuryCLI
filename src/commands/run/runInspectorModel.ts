@@ -150,9 +150,9 @@ export function buildBootRecoveryRow(recovery: BootRecoveryState): RunRow | null
   if (r) {
     detail.push(`scope: ${r.scope} · started ${r.startedAt} · ${r.durationMs}ms`)
     detail.push(`orphan temps: ${r.orphanTemps.removed} removed across ${r.orphanTemps.dirsSwept} dir(s)`)
-    if (r.teamJournal) {
+    if (r.crewJournal) {
       detail.push(
-        `team journal: ${r.teamJournal.scanned} scanned · ${r.teamJournal.rolledForward.length} rolled forward · ${r.teamJournal.compensated.length} compensated · ${r.teamJournal.waiting.length} waiting · ${r.teamJournal.unrecoverable.length} unrecoverable`,
+        `team journal: ${r.crewJournal.scanned} scanned · ${r.crewJournal.rolledForward.length} rolled forward · ${r.crewJournal.compensated.length} compensated · ${r.crewJournal.waiting.length} waiting · ${r.crewJournal.unrecoverable.length} unrecoverable`,
       )
     }
     if (r.runJournal) {

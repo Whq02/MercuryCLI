@@ -173,8 +173,8 @@ if (!existsSync(DIST)) {
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const leadReady = await runner.waitFor('the lead is ready', f => f.type === 'result' && resultText(f).includes(LEAD_READY), bound(60_000))
   const leadWire = wire.filter(w => w.ask.trim() === LEAD_ASK)
-  const teamMade = leadWire.some(w => w.teamCreate) ? leadWire.some(w => w.step === 1 && w.results.some(text => /hold-crew/.test(text) && !/error/i.test(text))) : true
-  check('the session is a crew lead (born as one, or made one by the team tool the bundle still offers)', leadReady !== null && teamMade, `${j(leadWire.map(w => [w.step, w.teamCreate, w.results.slice(-1)]))} ${brief()}`)
+  const crewMade = leadWire.some(w => w.teamCreate) ? leadWire.some(w => w.step === 1 && w.results.some(text => /hold-crew/.test(text) && !/error/i.test(text))) : true
+  check('the session is a crew lead (born as one, or made one by the team tool the bundle still offers)', leadReady !== null && crewMade, `${j(leadWire.map(w => [w.step, w.teamCreate, w.results.slice(-1)]))} ${brief()}`)
 
   runner.send(user(ARM_ASK, 'u-arm'))
   const armed = await runner.waitFor('the shell is armed', f => f.type === 'result' && resultText(f).includes(ARMED), bound(60_000))

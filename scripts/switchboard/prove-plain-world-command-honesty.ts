@@ -72,7 +72,7 @@ const child = spawn(
       ANTHROPIC_BASE_URL: api.url,
       ANTHROPIC_API_KEY: API_KEY,
       MERCURY_DAEMON_DIR: daemonDir,
-      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'teams'),
       MERCURY_TERMINAL_TITLE: '0',
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_LIVE_GLYPHS: '0',

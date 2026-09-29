@@ -56,7 +56,7 @@ export function PromptInputFooter({
   ideSelection,
   mcpClients,
   hintsEnabled = true,
-  teammateFooterIndex,
+  crewmateFooterIndex,
   onOpenTasksDialog,
   compact = false,
   maxRows,
@@ -84,7 +84,7 @@ export function PromptInputFooter({
   ideSelection: IDESelection | undefined
   mcpClients?: MCPServerConnection[]
   hintsEnabled?: boolean
-  teammateFooterIndex?: number
+  crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
   maxRows?: number
@@ -141,7 +141,7 @@ export function PromptInputFooter({
       mode={mode}
       isLoading={isLoading}
       hintsEnabled={hintsEnabled}
-      teammateFooterIndex={teammateFooterIndex}
+      crewmateFooterIndex={crewmateFooterIndex}
       onOpenTasksDialog={onOpenTasksDialog}
     />
   )

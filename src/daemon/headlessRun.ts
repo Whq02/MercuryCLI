@@ -240,7 +240,7 @@ export function buildStreamJsonInvocation(
     ...(spec.extraEnv ?? {}),
     MERCURY_MODEL: model,
     MERCURY_EFFORT_LEVEL: spec.effort,
-    ...flagPair('MERCURY_TEAMMATES', '1'),
+    ...flagPair('MERCURY_CREWMATES', '1'),
   }
   for (const v of sweptRoleSpellings()) {
     delete env[v]
@@ -253,7 +253,7 @@ export function buildStreamJsonInvocation(
     ...Object.keys(spec.extraEnv ?? {}),
     'MERCURY_MODEL',
     'MERCURY_EFFORT_LEVEL',
-    ...flagSpellings('MERCURY_TEAMMATES'),
+    ...flagSpellings('MERCURY_CREWMATES'),
     ...flagSpellings(spec.role),
   ])
   return { node, script, argv, env }

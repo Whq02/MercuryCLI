@@ -8,9 +8,9 @@ import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
-  enterTeammateView,
-  exitTeammateView,
-} from '../../state/teammateViewHelpers.js'
+  enterCrewmateView,
+  exitCrewmateView,
+} from '../../state/crewmateViewHelpers.js'
 import { useTelemetry } from '../../state/telemetryBus.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useOpenEventGate } from '../mercury-ui/useOpenEventGate.js'
@@ -35,11 +35,11 @@ import {
   killAllRunningAgentTasks,
   type LocalAgentTaskState,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { InProcessTeammateTask } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import { InProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import {
-  isInProcessTeammateTask,
-  type InProcessTeammateTaskState,
-} from '../../tasks/InProcessTeammateTask/types.js'
+  isInProcessCrewmateTask,
+  type InProcessCrewmateTaskState,
+} from '../../tasks/InProcessCrewmateTask/types.js'
 import {
   isLocalWorkflowTask,
   killWorkflowTask,
@@ -47,7 +47,7 @@ import {
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isDreamTask, type DreamTaskState } from '../../tasks/DreamTask/DreamTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { TEAM_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
@@ -82,7 +82,7 @@ import {
 import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
 import { DreamDetailDialog } from './DreamDetailDialog.js'
-import { InProcessTeammateDetailDialog } from './InProcessTeammateDetailDialog.js'
+import { InProcessCrewmateDetailDialog } from './InProcessCrewmateDetailDialog.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { cellCardOf } from '../../tools/WorkshopTool/cellCards.js'
 import { WorkshopCellCard } from '../../tools/WorkshopTool/WorkshopCellCard.js'
@@ -129,7 +129,7 @@ function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
   if (isLocalAgentTask(task)) return 'agent'
-  if (isInProcessTeammateTask(task)) return 'teammate'
+  if (isInProcessCrewmateTask(task)) return 'teammate'
   if (isLocalWorkflowTask(task)) return 'workflow'
   if (isDreamTask(task)) return 'dream'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
@@ -231,7 +231,7 @@ export function RosterWorkDetail({
     const phase = crewPhaseWords(crew, now)
     if (phase !== null) rows.push({ k: 'phase', v: phase, tone: tokens.textSecondary })
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
-    if (crew.team !== null) rows.push({ k: 'team', v: crew.team, tone: tokens.textPrimary })
+    if (crew.crew !== null) rows.push({ k: 'team', v: crew.crew, tone: tokens.textPrimary })
     const crewTokens = crewTokensLabel(crew)
     if (crewTokens !== null) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}`, tone: tokens.textPrimary })
     const crewSpend = crewSpendLabel(crew)
@@ -318,7 +318,7 @@ export function BackgroundTasksDialog({
     .filter(isManageableTask)
     .filter(task => {
       if (isLocalAgentTask(task) && task.id === viewingAgentTaskId) return false
-      if (isInProcessTeammateTask(task) && treeShowing && !summaryEntry) return false
+      if (isInProcessCrewmateTask(task) && treeShowing && !summaryEntry) return false
       return true
     })
     .sort((a, b) => {
@@ -333,7 +333,7 @@ export function BackgroundTasksDialog({
     const kind = kindOf(task)
     byKind.set(kind, [...(byKind.get(kind) ?? []), task])
   }
-  const teammateTasks = (byKind.get('teammate') ?? []) as InProcessTeammateTaskState[]
+  const crewmateTasks = (byKind.get('teammate') ?? []) as InProcessCrewmateTaskState[]
   const shellTasks = byKind.get('shell') ?? []
   const monitorTasks = byKind.get('monitor') ?? []
   const agentTasks = byKind.get('agent') ?? []
@@ -341,7 +341,7 @@ export function BackgroundTasksDialog({
   const dreamTasks = byKind.get('dream') ?? []
 
   const leaderItem: BoardItem | null =
-    teammateTasks.length > 0 ? { id: LEADER_ROW_ID, kind: 'leader' } : null
+    crewmateTasks.length > 0 ? { id: LEADER_ROW_ID, kind: 'leader' } : null
   const screenIds = new Set(manageable.map(task => task.id))
   const rosterOf = (kind: WorkRowV1['kind']): BoardItem[] =>
     rosterRowsOf(roster.rows, kind, screenIds).map(
@@ -349,7 +349,7 @@ export function BackgroundTasksDialog({
     )
   const flat: BoardItem[] = [
     ...(leaderItem ? [leaderItem] : []),
-    ...teammateTasks.map((task): BoardItem => ({ id: task.id, kind: 'teammate', task })),
+    ...crewmateTasks.map((task): BoardItem => ({ id: task.id, kind: 'teammate', task })),
     ...rosterOf('teammate'),
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
@@ -408,7 +408,7 @@ export function BackgroundTasksDialog({
   if (compactControls !== undefined) { compactControls.detailState.selectedId = selectedIdRef.current; compactControls.detailState.detailTaskId = detailTaskId }
 
   const returnToLeader = (): void => {
-    exitTeammateView(setAppState)
+    exitCrewmateView(setAppState)
     onDone()
   }
 
@@ -476,7 +476,7 @@ export function BackgroundTasksDialog({
         killAsyncAgent(task.id, setAppState)
         return
       case 'teammate':
-        void InProcessTeammateTask.kill(task.id, setAppState)
+        void InProcessCrewmateTask.kill(task.id, setAppState)
         return
       case 'workflow':
         killWorkflowTask(task.id, setAppState)
@@ -546,12 +546,12 @@ export function BackgroundTasksDialog({
       const task = selected.task
       if (task === undefined) return
       if (task.type === 'local_agent') {
-        enterTeammateView(task.id, setAppState)
+        enterCrewmateView(task.id, setAppState)
         onDone()
         return
       }
-      if (isInProcessTeammateTask(task) && task.status === 'running') {
-        enterTeammateView(task.id, setAppState)
+      if (isInProcessCrewmateTask(task) && task.status === 'running') {
+        enterCrewmateView(task.id, setAppState)
         onDone()
       }
     }
@@ -578,28 +578,28 @@ export function BackgroundTasksDialog({
             onBack={backFromDetail}
             onKillAgent={() => killAsyncAgent(agent.id, setAppState)}
             onForeground={() => {
-              enterTeammateView(agent.id, setAppState)
+              enterCrewmateView(agent.id, setAppState)
               onDone()
             }}
           />
         </CommandCenter>
       )
     }
-    if (isInProcessTeammateTask(detailTask)) {
-      const teammate = detailTask
+    if (isInProcessCrewmateTask(detailTask)) {
+      const crewmate = detailTask
       return (
         <CommandCenter elevated
-          view={`named agent › @${teammate.identity.agentName}`}
+          view={`named agent › @${crewmate.identity.agentName}`}
           onClose={onDone}
           captureInput={false}
         >
-          <InProcessTeammateDetailDialog
-            teammate={teammate}
+          <InProcessCrewmateDetailDialog
+            crewmate={crewmate}
             onDone={onDone}
             onBack={backFromDetail}
-            onKill={() => void InProcessTeammateTask.kill(teammate.id, setAppState)}
+            onKill={() => void InProcessCrewmateTask.kill(crewmate.id, setAppState)}
             onForeground={() => {
-              enterTeammateView(teammate.id, setAppState)
+              enterCrewmateView(crewmate.id, setAppState)
               onDone()
             }}
           />
@@ -710,7 +710,7 @@ export function BackgroundTasksDialog({
         </Text>
         <Box flexGrow={1} minWidth={0}>
           {item.kind === 'leader' ? (
-            <Text bold={isSelected}>@{TEAM_LEAD_NAME}</Text>
+            <Text bold={isSelected}>@{CREW_LEAD_NAME}</Text>
           ) : item.task !== undefined ? (
             <BackgroundTaskComponent
               task={item.task}
@@ -725,17 +725,17 @@ export function BackgroundTasksDialog({
     )
   }
 
-  const teamGroups = new Map<string, InProcessTeammateTaskState[]>()
-  for (const teammate of teammateTasks) {
-    const team = teammate.identity.teamName
-    teamGroups.set(team, [...(teamGroups.get(team) ?? []), teammate])
+  const crewGroups = new Map<string, InProcessCrewmateTaskState[]>()
+  for (const crewmate of crewmateTasks) {
+    const team = crewmate.identity.teamName
+    crewGroups.set(team, [...(crewGroups.get(team) ?? []), crewmate])
   }
-  const teammateItems = flat.filter(item => item.kind === 'teammate')
-  const rosterTeamGroups = new Map<string, BoardItem[]>()
-  for (const item of teammateItems) {
+  const crewmateItems = flat.filter(item => item.kind === 'teammate')
+  const rosterCrewGroups = new Map<string, BoardItem[]>()
+  for (const item of crewmateItems) {
     if (item.work === undefined) continue
-    const team = item.work.team ?? 'team'
-    rosterTeamGroups.set(team, [...(rosterTeamGroups.get(team) ?? []), item])
+    const team = item.work.crew ?? 'team'
+    rosterCrewGroups.set(team, [...(rosterCrewGroups.get(team) ?? []), item])
   }
   const shellItems = flat.filter(item => item.kind === 'shell')
   const monitorItems = flat.filter(item => item.kind === 'monitor')
@@ -745,7 +745,7 @@ export function BackgroundTasksDialog({
   const sampleItems = flat.filter(item => item.kind === 'sample')
   const processItems = flat.filter(item => item.kind !== 'sample')
 
-  const selectedTeammateRunning =
+  const selectedCrewmateRunning =
     selected?.kind === 'teammate' && selected.task?.status === 'running'
   const selectedStoppable =
     (selected?.task !== undefined && selected.task.status === 'running') ||
@@ -832,20 +832,20 @@ export function BackgroundTasksDialog({
             {winStart > 0 ? (
               <Text dimColor>↑ {winStart} more above</Text>
             ) : null}
-            {teammateItems.length > 0 || leaderItem !== null ? (
+            {crewmateItems.length > 0 || leaderItem !== null ? (
               <Box flexDirection="column">
-                <SectionHeader count={teammateItems.length}>
+                <SectionHeader count={crewmateItems.length}>
                   Named agents
                 </SectionHeader>
                 {leaderItem !== null && inWin(leaderItem)
                   ? rowFor(leaderItem)
                   : null}
-                {[...teamGroups.entries()].map(([team, members]) => (
+                {[...crewGroups.entries()].map(([team, members]) => (
                   <Box key={team} flexDirection="column">
                     <Text dimColor>
                       {team} · {members.length + 1} named
                     </Text>
-                    {teammateItems
+                    {crewmateItems
                       .filter(item =>
                         members.some(member => member.id === item.id),
                       )
@@ -853,7 +853,7 @@ export function BackgroundTasksDialog({
                       .map(rowFor)}
                   </Box>
                 ))}
-                {[...rosterTeamGroups.entries()].map(([team, items]) => (
+                {[...rosterCrewGroups.entries()].map(([team, items]) => (
                   <Box key={`roster-${team}`} flexDirection="column">
                     <Text dimColor>
                       {team} · {items.length} named
@@ -927,7 +927,7 @@ export function BackgroundTasksDialog({
                 {' · '}
               </>
             ) : null}
-            {selectedTeammateRunning ? (
+            {selectedCrewmateRunning ? (
               <>
                 <KeyboardShortcutHint shortcut="f" action="foreground" />
                 {' · '}

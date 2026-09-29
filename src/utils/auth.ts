@@ -865,7 +865,7 @@ export function isClaudeAISubscriber(): boolean {
 export function isMaxSubscriber(): boolean {
   return getSubscriptionType() === 'max'
 }
-export function isTeamSubscriber(): boolean {
+export function isCrewSubscriber(): boolean {
   return getSubscriptionType() === 'team'
 }
 export function isEnterpriseSubscriber(): boolean {
@@ -875,7 +875,7 @@ export function isProSubscriber(): boolean {
   return getSubscriptionType() === 'pro'
 }
 
-export function isTeamPremiumSubscriber(): boolean {
+export function isCrewPremiumSubscriber(): boolean {
   return getSubscriptionType() === 'team' && getRateLimitTier() === 'default_claude_max_5x'
 }
 

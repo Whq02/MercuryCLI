@@ -6,8 +6,8 @@ import {
   relScope,
 } from '../../src/utils/swarm/leaseGlob.js'
 import { getCurrentLeaseAgentId } from '../../src/utils/swarm/leaseGuard.js'
-import { resolveCoordAgentId } from '../../src/utils/teammate.js'
-import { TEAM_LEAD_NAME } from '../../src/utils/swarm/constants.js'
+import { resolveCoordAgentId } from '../../src/utils/crewmate.js'
+import { CREW_LEAD_NAME } from '../../src/utils/swarm/constants.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -24,8 +24,8 @@ console.log('============================================================')
 
 section('#6 — leader claim id === guard id (no self-conflict)')
 check('getCurrentLeaseAgentId() === resolveCoordAgentId() (one source)', getCurrentLeaseAgentId() === resolveCoordAgentId())
-check('leader (no teammate ctx) resolves to TEAM_LEAD_NAME', resolveCoordAgentId() === TEAM_LEAD_NAME)
-check('guard id is also TEAM_LEAD_NAME (was a session UUID → self-conflict)', getCurrentLeaseAgentId() === TEAM_LEAD_NAME)
+check('leader (no teammate ctx) resolves to CREW_LEAD_NAME', resolveCoordAgentId() === CREW_LEAD_NAME)
+check('guard id is also CREW_LEAD_NAME (was a session UUID → self-conflict)', getCurrentLeaseAgentId() === CREW_LEAD_NAME)
 
 section('#7 — `**` matches zero or more segments (no guard false-ALLOW)')
 const G = 'src/' + '**' + '/api.ts'
@@ -70,7 +70,7 @@ section('#7 audit-r1 — the guard needs no team; the lead cannot fail open past
   const lg = readFileSync(here + '../../src/utils/swarm/leaseGuard.ts', 'utf8')
   const { readdirSync } = await import('node:fs')
   const hk = readFileSync(here + '../../src/utils/hooks.ts', 'utf8') + readdirSync(here + '../../src/utils/hooks').filter(f => f.endsWith('.ts')).map(f => readFileSync(here + '../../src/utils/hooks/' + f, 'utf8')).join('\n')
-  check('checkLeaseGuard resolves the crewmate holder and never reads a team name', /resolveClaimHolder\(\)/.test(lg) && !/getTeamName\(/.test(lg))
+  check('checkLeaseGuard resolves the crewmate holder and never reads a team name', /resolveClaimHolder\(\)/.test(lg) && !/getCrewName\(/.test(lg))
   check('the PreToolUse hook calls checkLeaseGuard with the tool and its input only', /checkLeaseGuard\(\s*toolName,\s*toolInput as Record<string, unknown>,?\s*\)/.test(hk))
 }
 

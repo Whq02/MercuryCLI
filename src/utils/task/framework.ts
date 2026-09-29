@@ -119,12 +119,12 @@ export type LiveWorkCounts = {
   shells: number
   agents: number
   workflows: number
-  teammates: number
+  crewmates: number
   other: number
 }
 
 export function liveBackgroundCounts(tasks: Record<string, TaskState> | undefined): LiveWorkCounts {
-  const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, workflows: 0, teammates: 0, other: 0 }
+  const counts: LiveWorkCounts = { total: 0, shells: 0, agents: 0, workflows: 0, crewmates: 0, other: 0 }
   for (const task of Object.values(tasks ?? {})) {
     if (!isBackgroundTask(task) || isTerminalTaskStatus(task.status as TaskStatus)) continue
     if (taskOwnerGone(task) !== null) continue
@@ -132,7 +132,7 @@ export function liveBackgroundCounts(tasks: Record<string, TaskState> | undefine
     if (task.type === 'local_bash') counts.shells++
     else if (task.type === 'local_agent') counts.agents++
     else if (task.type === 'local_workflow') counts.workflows++
-    else if (task.type === 'in_process_teammate') counts.teammates++
+    else if (task.type === 'in_process_teammate') counts.crewmates++
     else counts.other++
   }
   return counts
@@ -146,7 +146,7 @@ export function liveWorkWords(counts: LiveWorkCounts): string {
   say(counts.shells, 'shell command', 'shell commands')
   say(counts.agents, 'agent', 'agents')
   say(counts.workflows, 'workflow', 'workflows')
-  say(counts.teammates, 'teammate', 'teammates')
+  say(counts.crewmates, 'teammate', 'teammates')
   say(counts.other, 'background task', 'background tasks')
   if (parts.length === 0) return 'nothing'
   if (parts.length === 1) return parts[0]!

@@ -1978,31 +1978,31 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { existsSync, readdirSync, readFileSync } = await import('node:fs')
             const { join } = await import('node:path')
             const { getMercuryHome } = await import('./envUtils.js')
-            const teamsDir = join(getMercuryHome(), 'teams')
-            if (!existsSync(teamsDir)) {
+            const crewsDir = join(getMercuryHome(), 'teams')
+            if (!existsSync(crewsDir)) {
               return { status: 'off' as const, evidence: 'no crew home — nothing spawns' }
             }
             const dead: string[] = []
-            let teams = 0
-            for (const team of readdirSync(teamsDir)) {
-              const cfg = join(teamsDir, team, 'config.json')
+            let crews = 0
+            for (const crew of readdirSync(crewsDir)) {
+              const cfg = join(crewsDir, crew, 'config.json')
               if (!existsSync(cfg)) continue
-              teams++
+              crews++
               try {
                 const parsed = JSON.parse(readFileSync(cfg, 'utf8')) as {
                   members?: { agentId?: string; cwd?: string }[]
                 }
                 for (const m of parsed.members ?? []) {
-                  if (m.cwd && !existsSync(m.cwd)) dead.push(`${team}/${m.agentId ?? '?'} → ${m.cwd}`)
+                  if (m.cwd && !existsSync(m.cwd)) dead.push(`${crew}/${m.agentId ?? '?'} → ${m.cwd}`)
                 }
               } catch {
-                dead.push(`${team}: config.json unreadable`)
+                dead.push(`${crew}: config.json unreadable`)
               }
             }
             if (dead.length === 0) {
               return {
                 status: 'ok' as const,
-                evidence: `${teams} crew roster(s) — every member cwd exists`,
+                evidence: `${crews} crew roster(s) — every member cwd exists`,
               }
             }
             return {
@@ -3366,7 +3366,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Operation journals',
           run: async () => {
             const { listJournalOperations } = await import('../substrate/operationJournal.js')
-            const { teamJournalDir } = await import('./swarm/teamOperations.js')
+            const { crewJournalDir } = await import('./swarm/crewOperations.js')
             const alive = (pid: number): boolean => {
               try {
                 process.kill(pid, 0)
@@ -3378,7 +3378,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             let terminal = 0
             let inFlight = 0
             let awaitingRecovery = 0
-            for (const dir of [teamJournalDir()]) {
+            for (const dir of [crewJournalDir()]) {
               for (const op of await listJournalOperations(dir)) {
                 if (op.state === 'committed' || op.state === 'aborted') terminal++
                 else if (alive(op.writerPid)) inFlight++
@@ -3521,7 +3521,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: line?.tone === 'warn' ? ('warn' as const) : ('ok' as const),
               evidence: line
                 ? `${line.text} (${r.durationMs}ms)${notes}`
-                : `clean boot — nothing to reconcile (${r.orphanTemps.dirsSwept} dir(s) swept, ${r.teamJournal?.scanned ?? 0} journal op(s) scanned, ${r.durationMs}ms)${notes}`,
+                : `clean boot — nothing to reconcile (${r.orphanTemps.dirsSwept} dir(s) swept, ${r.crewJournal?.scanned ?? 0} journal op(s) scanned, ${r.durationMs}ms)${notes}`,
             }
           },
         },

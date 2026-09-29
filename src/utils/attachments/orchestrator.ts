@@ -67,9 +67,9 @@ import {
   getUnifiedTaskAttachments,
 } from './taskStatus.js'
 import {
-  getTeamContextAttachment,
-  getTeammateMailboxAttachments,
-} from './teammates.js'
+  getCrewContextAttachment,
+  getCrewmateMailboxAttachments,
+} from './crewmates.js'
 import type { Attachment } from './types.js'
 import { rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { getUserContextAttachment } from './userContext.js'
@@ -248,12 +248,12 @@ export async function getAttachments(
             : [
                 maybe(
                   'teammate_mailbox',
-                  async () => getTeammateMailboxAttachments(toolUseContext),
+                  async () => getCrewmateMailboxAttachments(toolUseContext),
                   { priority: true },
                 ),
               ]),
           maybe('team_context', async () =>
-            getTeamContextAttachment(messages ?? []),
+            getCrewContextAttachment(messages ?? []),
           ),
         ]
       : []),

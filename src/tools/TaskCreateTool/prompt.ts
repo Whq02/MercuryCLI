@@ -6,7 +6,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 export const DESCRIPTION = 'Add a task to the shared list.'
 
 export function getPrompt(): string {
-  const teamSection = isAgentSwarmsEnabled()
+  const crewSection = isAgentSwarmsEnabled()
     ? `
 
 ## Working in a team
@@ -44,5 +44,5 @@ Every task is created with status pending.
 ## Tips
 - Keep subjects clear and specific.
 - Set dependencies afterwards with ${TASK_UPDATE_TOOL_NAME} (addBlocks / addBlockedBy).
-- Check ${TASK_LIST_TOOL_NAME} first so you do not create duplicates.${teamSection}`
+- Check ${TASK_LIST_TOOL_NAME} first so you do not create duplicates.${crewSection}`
 }

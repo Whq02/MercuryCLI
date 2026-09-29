@@ -4,7 +4,7 @@ import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import type { Theme } from '../../utils/theme.js'
 import { useAppState, useAppStateStore } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppStateStore.js'
-import { getViewedAgent, getViewedTeammateTask } from '../../state/selectors.js'
+import { getViewedAgent, getViewedCrewmateTask } from '../../state/selectors.js'
 import {
   AGENT_COLORS,
   AGENT_COLOR_TO_THEME_COLOR,
@@ -27,7 +27,7 @@ function themeColorOf(
 export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null {
   const cockpit = useContext(CockpitActiveContext)
   const store = useAppStateStore()
-  const teamContext = useAppState((state: AppState) => state.teamContext)
+  const crewContext = useAppState((state: AppState) => state.crewContext)
   const standalone = useAppState(
     (state: AppState) => state.standaloneAgentContext,
   )
@@ -39,18 +39,18 @@ export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null 
   const state = store.getState()
 
   if (
-    teamContext &&
-    teamContext.teamName &&
-    Object.keys(teamContext.teammates).length > 0
+    crewContext &&
+    crewContext.teamName &&
+    Object.keys(crewContext.crewmates).length > 0
   ) {
-    const viewedTeammate = getViewedTeammateTask(state)
+    const viewedCrewmate = getViewedCrewmateTask(state)
     const viewedColor = themeColorOf(
-      (viewedTeammate as { identity?: { color?: string } } | undefined)
+      (viewedCrewmate as { identity?: { color?: string } } | undefined)
         ?.identity?.color,
     )
-    if (viewedTeammate) {
+    if (viewedCrewmate) {
       const name =
-        (viewedTeammate as { identity?: { agentName?: string } }).identity
+        (viewedCrewmate as { identity?: { agentName?: string } }).identity
           ?.agentName ?? ''
       if (name !== '') return { text: name, bgColor: viewedColor }
     }

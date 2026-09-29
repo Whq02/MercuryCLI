@@ -137,7 +137,7 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
       description:
         'Payload: a trigger of init or maintenance. Stdout is shown to Mercury; blocking errors are ignored.',
     },
-    TeammateIdle: {
+    CrewmateIdle: {
       summary: 'Runs when a crewmate is about to go idle',
       description:
         'Payload: the crewmate name and crew name. Exit 2 shows stderr to the crewmate and prevents it going idle.',

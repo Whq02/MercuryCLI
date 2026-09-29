@@ -69,7 +69,7 @@ function makeStore(): Store {
 }
 function makeCtx(store: Store, messages: Message[], team?: { teamName: string; leadAgentId: string }): never {
   return {
-    getAppState: () => (team ? { ...store.get(), teamContext: team } : store.get()),
+    getAppState: () => (team ? { ...store.get(), crewContext: team } : store.get()),
     setAppState: store.set,
     setAppStateForTasks: store.set,
     options: { tools: [] },
@@ -294,16 +294,16 @@ section('§7 A STRUCTURED MESSAGE to a finished agent\'s name outside a team —
 
 section('§8 THE TEAM ROAD UNTOUCHED — in a team the roster keeps its rules: a roster name is delivered to its inbox even when a finished launch carried it, a name nobody carried keeps the roster refusal, and only a finished launch no roster row names is resumed')
 {
-  const TEAM = 'resume-fixture-team'
-  const teamDir = join(home, 'teams', TEAM)
-  mkdirSync(teamDir, { recursive: true })
-  writeFileSync(join(teamDir, 'config.json'), JSON.stringify({ name: TEAM, createdAt: Date.now(), leadAgentId: 'lead-fixture', members: [
+  const CREW = 'resume-fixture-team'
+  const crewDir = join(home, 'teams', CREW)
+  mkdirSync(crewDir, { recursive: true })
+  writeFileSync(join(crewDir, 'config.json'), JSON.stringify({ name: CREW, createdAt: Date.now(), leadAgentId: 'lead-fixture', members: [
     { agentId: 'lead-fixture', name: 'team-lead', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
     { agentId: 'seat-1', name: 'harbour-count', joinedAt: 1, tmuxPaneId: '', cwd: home, subscriptions: [] },
   ] }))
   const crew = makeStore()
   const crewTranscript: Message[] = []
-  const crewCtx = makeCtx(crew, crewTranscript, { teamName: TEAM, leadAgentId: 'lead-fixture' })
+  const crewCtx = makeCtx(crew, crewTranscript, { teamName: CREW, leadAgentId: 'lead-fixture' })
   const seat = launchNamed(crew, crewTranscript, 'harbour-count', 'count the harbour for the crew')
   finishAndEvict(crew, seat, 'count the harbour for the crew')
   const lone = launchNamed(crew, crewTranscript, 'lone-scout', 'scout alone')
@@ -362,8 +362,8 @@ section('§11 THE SEAMS IN SOURCE')
   const lookupAt = sendSrc.indexOf('launchesNamed(context.messages', roadAt)
   const giveUpAt = sendSrc.indexOf('if (agentId === undefined) return undefined', roadAt)
   check('the local-agent road reads the launch receipts by name before it gives up', roadAt > 0 && lookupAt > roadAt && giveUpAt > lookupAt)
-  const noTeam = sendSrc.indexOf('if (!teamName) {')
-  check('the no-team refusal is minted only after the session\'s launched agents are read', noTeam > 0 && /noTeamRefusal\(rawTo, context\)/.test(sendSrc.slice(noTeam, noTeam + 200)) && /function noTeamRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc))
+  const noCrew = sendSrc.indexOf('if (!teamName) {')
+  check('the no-team refusal is minted only after the session\'s launched agents are read', noCrew > 0 && /noCrewRefusal\(rawTo, context\)/.test(sendSrc.slice(noCrew, noCrew + 200)) && /function noCrewRefusal[\s\S]{0,200}knownLaunchedAgents\(context\)/.test(sendSrc))
   const receipts = src('src/tasks/LocalAgentTask/launchReceipts.ts')
   const helperAt = receipts.indexOf('export interface NamedLaunchReceipt')
   const helperEnd = receipts.indexOf('export function settledLaunchIds')

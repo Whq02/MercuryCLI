@@ -7,13 +7,13 @@
 # gate-watch: src/utils/**
 # gate-watch: src/cli/print.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/handlers/agents.ts
-# gate-watch: src/components/messages/UserTeammateMessage.tsx src/components/tasks/AsyncAgentDetailDialog.tsx
+# gate-watch: src/components/messages/UserCrewmateMessage.tsx src/components/tasks/AsyncAgentDetailDialog.tsx
 # gate-watch: src/components/tasks/taskStatusUtils.tsx src/constants/prompts.ts
 # gate-watch: src/constants/subagentDoctrine.ts src/extensions/load/contributions.ts src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/main.tsx src/services/agentResults/lifecycle.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
 # gate-watch: src/services/resources/adapters/transcript.ts src/state/AppStateStore.ts
-# gate-watch: src/tasks/InProcessTeammateTask/InProcessTeammateTask.tsx src/tasks/stopTask.ts
+# gate-watch: src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx src/tasks/stopTask.ts
 # gate-watch: src/tools/AgentTool/* src/tools/BashTool/BashTool.tsx src/tools/FileEditTool/FileEditTool.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TaskStopTool/TaskStopTool.ts
 # gate-watch: src/tools/WorkflowTool/agentTranscriptReader.ts src/tools/WorkflowTool/structuredOutputTool.ts

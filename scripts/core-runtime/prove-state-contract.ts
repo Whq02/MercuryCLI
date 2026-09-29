@@ -18,7 +18,7 @@ process.env.NODE_ENV = 'test'
 const hermeticHome = mkdtempSync(join(tmpdir(), 't17-state-home-'))
 process.env.MERCURY_CONFIG_DIR = join(hermeticHome, 'config')
 process.env.MERCURY_DAEMON_DIR = join(hermeticHome, 'daemon')
-process.env.MERCURY_TEAMS_DIR = join(hermeticHome, 'teams')
+process.env.MERCURY_CREWS_DIR = join(hermeticHome, 'teams')
 delete process.env.MERCURY_ASSISTANT_DISABLE
 
 import * as state from '../../src/bootstrap/state.js'
@@ -169,7 +169,7 @@ const OBSERVABLES: Array<{
   { key: 'initJsonSchema', family: 'sdkInit', scope: 'session', read: () => state.getInitJsonSchema() },
   { key: 'registeredHooks', family: 'sdkInit', scope: 'session', read: () => state.getRegisteredHooks() },
   { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
-  { key: 'sessionCreatedTeams', family: 'collections', scope: 'session', read: () => state.getSessionCreatedTeams() },
+  { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
   { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkills() },
 ]
 
@@ -282,7 +282,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getPromptCache1hEligible', 'getPromptId',
     'getQuestionPreviewFormat', 'getRegisteredHooks',
     'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionBypassPermissionsMode',
-    'getSessionCreatedTeams', 'getSessionId',
+    'getSessionCreatedCrews', 'getSessionId',
     'getSessionIngressToken', 'getSessionProjectDir', 'getSessionSource',
     'getSessionTrustAccepted', 'getStatsStore',
     'getStrictToolResultPairing', 'getSystemPromptSectionCache',
@@ -1205,7 +1205,7 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.clearRegisteredHooks()
     state.registerHookCallbacks({ PreToolUse: [cbHook], Stop: [extHook] } as never)
     state.getAgentColorMap().set('agent-a', 'blue' as never)
-    state.getSessionCreatedTeams().add('team-populate')
+    state.getSessionCreatedCrews().add('team-populate')
     state.addInvokedSkill('pop-skill', '/skills/pop', 'content', null)
     state.setMainLoopModelOverride('claude-opus-4-8' as never)
     state.setInitialMainLoopModel('claude-sonnet-5' as never)

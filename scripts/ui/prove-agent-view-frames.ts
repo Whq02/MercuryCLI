@@ -176,7 +176,7 @@ const { default: instances } = await import('../../src/ink/instances.ts')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
-const teammatesCommand = await import('../../src/commands/teammates/teammates.tsx')
+const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
 const swapModule = (await import('../../src/components/CrewmateTranscript.tsx').catch(() => null)) as null | { TranscriptSwap: React.ComponentType<Record<string, unknown>> }
 const transcriptModule = (await import('../../src/components/tasks/useCrewmateTranscript.ts').catch(() => null)) as null | { crewmateTranscriptFile: (crewmate: { taskId: string; local: undefined }, hosted: { sessionId: string; originalCwd: string }) => string | null }
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -341,7 +341,7 @@ const describe = (window: Window | null): string => (window === null ? 'no close
 const wholeBottom = (window: Window): boolean => cells(window.rows[window.height - 1]!).at(-1) === '╯'
 
 async function crewHeightRows(view: Scene, size: Size, mark: string): Promise<void> {
-  await teammatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
+  await crewmatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
   const opened = await until(() => view.lines().some(line => line.includes(CREW_TITLE)), 8000)
   check(`the crew view painted over ${SWOLLEN} sub-agents at ${size.columns}x${size.rows}`, opened, view.lines().slice(-12).join(' | ').slice(0, 300))
   await sleep(400)
@@ -459,7 +459,7 @@ check('the composer target went back to the lead (no main chat pinned)', scene.s
 
 section('§3 screen 3: /teammates opens the crew view as a floating pop-up')
 let done = 0
-const element = await teammatesCommand.call(() => { done++ }, { messages: [], options: {} } as never, '')
+const element = await crewmatesCommand.call(() => { done++ }, { messages: [], options: {} } as never, '')
 if (element !== null && element !== undefined) scene.setModal(element)
 const opened = await until(() => scene.lines().some(line => line.includes(CREW_TITLE)), 8000)
 check('the crew view painted', opened, scene.lines().slice(-12).join(' | ').slice(0, 300))

@@ -40,7 +40,7 @@ export interface TelemetrySnapshots {
   sessions: SessionGlanceSnapshot
   git: GitRepoState | null
   tasks: readonly MissionRowV1[]
-  fleet: { state: string; team?: string | null; conflicts: number; drifting: number }
+  fleet: { state: string; crew?: string | null; conflicts: number; drifting: number }
   fleetFull: Awaited<ReturnType<typeof fleetGauge>> | null
   trace: Awaited<ReturnType<typeof traceSnapshot>> | null
   workflowsDisk: Array<WorkflowRunManifest & { mtimeMs: number }>
@@ -115,7 +115,7 @@ async function refreshOnce(): Promise<void> {
         next.fleetFull = s
         next.fleet = {
           state: s.state,
-          team: s.data.teamName,
+          crew: s.data.teamName,
           conflicts: s.data.conflicts.length,
           drifting: s.data.health.filter(h => h.state === 'drifting').length,
         }

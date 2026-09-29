@@ -64,7 +64,7 @@
     "src/utils/sessionStorage/resumeSnapshot.ts",
     "src/utils/settings/localSchema.ts",
     "src/utils/settings/settings.ts",
-    "src/utils/swarm/teamHelpers.ts",
+    "src/utils/swarm/crewHelpers.ts",
     "src/utils/verification/verificationState.ts"
   ],
   "lock": [
@@ -78,9 +78,9 @@
     "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
     "src/utils/settings/settings.ts",
+    "src/utils/swarm/crewHelpers.ts",
     "src/utils/swarm/handoff.ts",
     "src/utils/swarm/permissionSync.ts",
-    "src/utils/swarm/sendMessageGovernance.ts",
-    "src/utils/swarm/teamHelpers.ts"
+    "src/utils/swarm/sendMessageGovernance.ts"
   ]
 }

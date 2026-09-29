@@ -915,7 +915,7 @@ export function extractAgentIdsFromMessages(messages: Message[]): string[] {
   return uniq(agentIds)
 }
 
-export function extractTeammateTranscriptsFromTasks(tasks: {
+export function extractCrewmateTranscriptsFromTasks(tasks: {
   [taskId: string]: {
     type: string
     identity?: { agentId: string }

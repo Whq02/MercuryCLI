@@ -4,16 +4,16 @@ import {
   bookendsFor,
   bootstrap,
   check,
-  deriveTeamCharter,
+  deriveCrewCharter,
   drainInto,
   failureCount,
   getBuiltInAgents,
   idleNotificationsFor,
-  killInProcessTeammate,
+  killInProcessCrewmate,
   launch,
   makeCtx,
   makeStore,
-  resolveTeammateRole,
+  resolveCrewmateRole,
   section,
   settleWithin,
   task,
@@ -33,15 +33,15 @@ section('§1 — harness preconditions')
 
 section('§2 — launch composite on the wire · happy completion · abort-exit terminal')
 {
-  const team = 'own7-s1'
-  const charter = deriveTeamCharter({
-    teamName: team,
+  const crew = 'own7-s1'
+  const charter = deriveCrewCharter({
+    teamName: crew,
     description: 'Probe the runner lifecycle end to end',
     createdAt: 1,
   })
   const agents = getBuiltInAgents()
-  const role = resolveTeammateRole({
-    teammateName: 'probe1',
+  const role = resolveCrewmateRole({
+    crewmateName: 'probe1',
     requestedAgentType: 'mercury-scout',
     agents: agents as never,
     prompt: 'Report one line and stop.',
@@ -52,7 +52,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   })
   const s = await launch({
     name: 'probe1',
-    team,
+    crew,
     turns: [{ kind: 'text', text: 'S1 probe reply.' }],
     prompt: 'Report one line and stop.',
     description: 'probe recon',
@@ -67,13 +67,13 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   check('exactly ONE model call for one prompt (the idle loop is API-silent)', reqs.length === 1, `${reqs.length}`)
   const system = JSON.stringify((reqs[0]?.body as { system?: unknown })?.system ?? '')
   check('the wire system prompt carries the ROLE CONTRACT', system.includes('# Role contract (mercury-scout)'))
-  check('the wire system prompt carries the TEAM CHARTER', system.includes(`# Team charter — ${team}`))
+  check('the wire system prompt carries the TEAM CHARTER', system.includes(`# Team charter — ${crew}`))
   check('the wire system prompt carries the ROLE PACKET assignment', system.includes('# Your assignment — probe1 (mercury-scout)') && system.includes('Mission: probe recon'))
   check('the wire system prompt carries the HANDOFF PACKET addendum', system.includes('Outcome: what changed or what was learned'))
 
   check(
     "the lead receives an 'available' idle notification",
-    await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'available'), 10_000),
+    await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'available'), 10_000),
   )
 
   s.lifecycle.abort()
@@ -98,7 +98,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   check("EXACTLY-ONCE: one 'completed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'completed', JSON.stringify(bookends))
   check('the bookend carries the spawning toolUseId', bookends[0]?.tool_use_id === 'toolu_probe1', bookends[0]?.tool_use_id)
 
-  await writeToMailbox('probe1', { from: 'team-lead', text: 'anyone home?', timestamp: new Date().toISOString() }, team)
+  await writeToMailbox('probe1', { from: 'team-lead', text: 'anyone home?', timestamp: new Date().toISOString() }, crew)
   await new Promise(r => setTimeout(r, 700))
   check('no revival after terminal: status unchanged', task(s.store, s.taskId).status === 'completed')
   check('no revival after terminal: no new model calls', s.api.messageRequests().length === 1)
@@ -107,11 +107,11 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
 
 section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED exactly once')
 {
-  const team = 'own7-s2'
+  const crew = 'own7-s2'
   process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE = '0.001'
   const s = await launch({
     name: 'probe2',
-    team,
+    crew,
     turns: [
       { kind: 'text', text: 'S2 summary.' },
       { kind: 'text', text: 'S2 first reply.' },
@@ -123,7 +123,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
   })
 
   check('turn 1 completes', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000))
-  await writeToMailbox('probe2', { from: 'team-lead', text: 'keep going', timestamp: new Date().toISOString() }, team)
+  await writeToMailbox('probe2', { from: 'team-lead', text: 'keep going', timestamp: new Date().toISOString() }, crew)
 
   const result = await settleWithin(s.runPromise, s, '§3')
   drainInto()
@@ -143,7 +143,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
   check('no-orphan sweep on failure: controllers + cleanup cleared', t.abortController === undefined && t.currentWorkAbortController === undefined && t.unregisterCleanup === undefined)
   const bookends = bookendsFor(s.taskId)
   check("EXACTLY-ONCE: one 'failed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'failed', JSON.stringify(bookends))
-  const idles = await idleNotificationsFor(team)
+  const idles = await idleNotificationsFor(crew)
   const failedNote = idles.find(n => n.idleReason === 'failed')
   check("the lead is told: idleReason 'failed' + the cause", !!failedNote && !!failedNote.failureReason, JSON.stringify(idles))
   check(
@@ -156,19 +156,19 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
 
 section('§4 — killed while idle: the runner never overwrites; double-kill refused')
 {
-  const team = 'own7-s3'
+  const crew = 'own7-s3'
   const s = await launch({
     name: 'probe3',
-    team,
+    crew,
     turns: [{ kind: 'text', text: 'S3 reply.' }],
     prompt: 'Reply once.',
     replacePrompt: 'You are a lifecycle probe. Reply tersely.',
   })
   check('turn 1 completes', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000))
 
-  const killed = killInProcessTeammate(s.taskId, s.store.setAppState as never)
+  const killed = killInProcessCrewmate(s.taskId, s.store.setAppState as never)
   check('kill succeeds on a running teammate', killed === true)
-  check('a second kill is REFUSED (terminal already owned)', killInProcessTeammate(s.taskId, s.store.setAppState as never) === false)
+  check('a second kill is REFUSED (terminal already owned)', killInProcessCrewmate(s.taskId, s.store.setAppState as never) === false)
 
   const result = await settleWithin(s.runPromise, s, '§4')
   drainInto()
@@ -182,17 +182,17 @@ section('§4 — killed while idle: the runner never overwrites; double-kill ref
 
 section('§5 — REGRESSION FIXTURE (D1): kill mid-turn cancels the in-flight turn')
 {
-  const team = 'own7-s4'
+  const crew = 'own7-s4'
   const s = await launch({
     name: 'probe4',
-    team,
+    crew,
     turns: [{ kind: 'hang', deltas: ['thinking…'] }],
     prompt: 'Reply once.',
     replacePrompt: 'You are a lifecycle probe. Reply tersely.',
   })
   await s.api.messageRequestStarted(1)
 
-  const killed = killInProcessTeammate(s.taskId, s.store.setAppState as never)
+  const killed = killInProcessCrewmate(s.taskId, s.store.setAppState as never)
   check('kill mid-turn succeeds at the state layer', killed === true)
   check("task shows 'killed' immediately", task(s.store, s.taskId).status === 'killed')
 
@@ -208,10 +208,10 @@ section('§5 — REGRESSION FIXTURE (D1): kill mid-turn cancels the in-flight tu
 
 section('§6 — REGRESSION FIXTURE (D2): a launch-composition throw terminalizes FAILED')
 {
-  const team = 'own7-s5'
+  const crew = 'own7-s5'
   const s = await launch({
     name: 'probe5',
-    team,
+    crew,
     turns: [],
     prompt: 'Reply once.',
     poisonCtx: ctx => {
@@ -229,24 +229,24 @@ section('§6 — REGRESSION FIXTURE (D2): a launch-composition throw terminalize
     '§6',
   )
   drainInto()
-  check('D2: runInProcessTeammate RESOLVES failure (never rejects)', rejection === undefined && result.success === false, String(rejection ?? result.error))
+  check('D2: runInProcessCrewmate RESOLVES failure (never rejects)', rejection === undefined && result.success === false, String(rejection ?? result.error))
   const t = task(s.store, s.taskId)
   check("D2: terminal status is 'failed' with the cause kept", t?.status === 'failed' && !!t.error, `${t?.status} ${t?.error ?? ''}`)
   const bookends = bookendsFor(s.taskId)
   check("D2: one 'failed' bookend", bookends.length === 1 && bookends[0]?.status === 'failed', JSON.stringify(bookends))
   check(
     "D2: the lead is told 'failed'",
-    await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'failed'), 10_000),
+    await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'failed'), 10_000),
   )
   await s.api.close()
 }
 
 section('§7 — work abort interrupts the TURN, not the teammate; revival works')
 {
-  const team = 'own7-s6'
+  const crew = 'own7-s6'
   const s = await launch({
     name: 'probe6',
-    team,
+    crew,
     turns: [
       { kind: 'hang', deltas: ['thinking…'] },
       { kind: 'text', text: 'S6 revived reply.' },
@@ -267,10 +267,10 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
   check('the interrupt is visible in the transcript mirror', JSON.stringify(t1.messages ?? []).includes(ERROR_MESSAGE_USER_ABORT))
   check(
     "the lead is told: idleReason 'interrupted'",
-    await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'interrupted'), 10_000),
+    await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'interrupted'), 10_000),
   )
 
-  await writeToMailbox('probe6', { from: 'team-lead', text: 'go again', timestamp: new Date().toISOString() }, team)
+  await writeToMailbox('probe6', { from: 'team-lead', text: 'go again', timestamp: new Date().toISOString() }, crew)
   check(
     'the teammate revives and completes the next turn',
     await waitFor(
@@ -280,7 +280,7 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
   )
   check(
     "the revived turn reports 'available' again",
-    await waitFor(async () => (await idleNotificationsFor(team)).some(n => n.idleReason === 'available'), 10_000),
+    await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'available'), 10_000),
   )
 
   s.lifecycle.abort()

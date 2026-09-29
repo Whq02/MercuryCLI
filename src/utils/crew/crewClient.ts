@@ -8,18 +8,18 @@ import {
 import { spawnOwnedDaemon } from '../../daemon/ownedDaemon.js'
 import { clearDaemonHaltStanddown } from '../daemonStanddown.js'
 import {
-  CREW_TEAM,
+  CREW,
   crewEnabled,
   isValidCrewName,
 } from '../../daemon/crewSpawn.js'
-import { readTeamFileAsync } from '../swarm/teamHelpers.js'
+import { readCrewFileAsync } from '../swarm/crewHelpers.js'
 import {
   getMailboxStore,
   markMessagesFromAsRead,
   readMailbox,
   writeToMailbox,
-  type TeammateMessage,
-} from '../teammateMailbox.js'
+  type CrewmateMessage,
+} from '../crewmateMailbox.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'
 
@@ -85,7 +85,7 @@ export interface CrewSpawnResult {
   error?: string
 }
 
-export async function spawnCrewTeammate(
+export async function spawnCrewmate(
   name: string,
   modelKey: string,
   projectDir: string,
@@ -143,12 +143,12 @@ export function crewMessageWakesWords(name: string): string {
   return `@${name} was stopped — the message wakes it from its transcript`
 }
 
-export async function resumeCrewTeammate(name: string, model: string | undefined, projectDir: string): Promise<CrewSpawnResult> {
+export async function resumeCrewmate(name: string, model: string | undefined, projectDir: string): Promise<CrewSpawnResult> {
   if (model === undefined || model.trim() === '') return { ok: false, error: crewResumeNoModelWords(name) }
-  return spawnCrewTeammate(name, model, projectDir)
+  return spawnCrewmate(name, model, projectDir)
 }
 
-export async function killCrewTeammate(name: string): Promise<{ ok: boolean; error?: string }> {
+export async function killCrewmate(name: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const reply = await daemonControlRpc({ op: 'kill', short: name } as DaemonRequest, { timeoutMs: 3000 })
     if (reply.ok) return { ok: true }
@@ -183,9 +183,9 @@ export interface CrewMemberInfo {
 }
 
 export async function listCrewMembers(): Promise<CrewMemberInfo[]> {
-  const team = await readTeamFileAsync(CREW_TEAM)
-  if (!team) return []
-  return team.members
+  const crew = await readCrewFileAsync(CREW)
+  if (!crew) return []
+  return crew.members
     .filter(m => m.name !== CREW_LEAD_INBOX)
     .map(m => ({
       name: m.name,
@@ -226,15 +226,15 @@ export interface CrewChatRow {
   read: boolean
 }
 
-const toTs = (m: TeammateMessage): number => {
+const toTs = (m: CrewmateMessage): number => {
   const t = Date.parse(m.timestamp ?? '')
   return Number.isFinite(t) ? t : 0
 }
 
 export async function readCrewChat(name: string): Promise<CrewChatRow[]> {
   const [outbox, leadInbox] = await Promise.all([
-    readMailbox(name, CREW_TEAM),
-    readMailbox(CREW_LEAD_INBOX, CREW_TEAM),
+    readMailbox(name, CREW),
+    readMailbox(CREW_LEAD_INBOX, CREW),
   ])
   const rows: CrewChatRow[] = []
   for (const m of outbox) {
@@ -249,7 +249,7 @@ export async function readCrewChat(name: string): Promise<CrewChatRow[]> {
 
 export async function crewUnreadCounts(): Promise<Map<string, number>> {
   const out = new Map<string, number>()
-  const leadInbox = await readMailbox(CREW_LEAD_INBOX, CREW_TEAM)
+  const leadInbox = await readMailbox(CREW_LEAD_INBOX, CREW)
   for (const m of leadInbox) {
     if (!m.read && m.from) out.set(m.from, (out.get(m.from) ?? 0) + 1)
   }
@@ -262,17 +262,17 @@ export async function sendCrewMessage(name: string, text: string): Promise<boole
   return writeToMailbox(
     name,
     { from: CREW_LEAD_INBOX, text: trimmed, timestamp: new Date().toISOString() },
-    CREW_TEAM,
+    CREW,
   )
 }
 
 export async function markCrewChatRead(name: string): Promise<void> {
-  await markMessagesFromAsRead(CREW_LEAD_INBOX, name, CREW_TEAM)
+  await markMessagesFromAsRead(CREW_LEAD_INBOX, name, CREW)
 }
 
 export function crewChatStores(name: string): { outbox: { subscribe: (fn: () => void) => () => void }; leadInbox: { subscribe: (fn: () => void) => () => void } } {
   return {
-    outbox: getMailboxStore(name, CREW_TEAM),
-    leadInbox: getMailboxStore(CREW_LEAD_INBOX, CREW_TEAM),
+    outbox: getMailboxStore(name, CREW),
+    leadInbox: getMailboxStore(CREW_LEAD_INBOX, CREW),
   }
 }

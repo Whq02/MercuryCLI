@@ -72,8 +72,8 @@ export function ensurePrivateConfigHome(): void {
   }
 }
 
-export function getTeamsDir(): string {
-  const override = flagEnv('MERCURY_TEAMS_DIR')
+export function getCrewsDir(): string {
+  const override = flagEnv('MERCURY_CREWS_DIR')
   if (override !== undefined && override.trim() !== '') return override
   return join(getMercuryHome(), 'teams')
 }

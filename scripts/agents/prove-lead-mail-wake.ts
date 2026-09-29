@@ -20,22 +20,22 @@ const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'nod
 const world = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'lead-mail-wake-'))
 const config = join(world, 'config')
 const project = join(world, 'project')
-const teams = join(world, 'teams')
+const crews = join(world, 'teams')
 mkdirSync(project)
 seedFirstRun(config, [project])
 process.env.MERCURY_CONFIG_DIR = config
-process.env.MERCURY_TEAMS_DIR = teams
+process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const WAKE_WINDOW_MS = 8_000
 const model = 'claude-fable-5-1'
-const teammateModel = 'claude-opus-4-6'
+const crewmateModel = 'claude-opus-4-6'
 const sessionId = randomUUID()
-const team = sessionId
+const crew = sessionId
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model, whenModel: 'fable-5-1' } as ScriptedTurn)
-const water = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: teammateModel, whenModel: 'opus-4-6' } as ScriptedTurn)
+const water = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: crewmateModel, whenModel: 'opus-4-6' } as ScriptedTurn)
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: teammateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once, after a pause.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: crewmateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once, after a pause.' } }),
   lead({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 120', run_in_background: true, description: 'A pool that outlives the window' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   lead({ kind: 'paced_tool_use', whenBody: 'MIDTURN-CHECK', preDeltas: ['Working', '.', '.'], gapMs: 1000, tools: [{ name: 'Bash', input: { command: 'pwd', description: 'Reach a tool boundary' } }] }),
@@ -53,7 +53,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const fixture = await startFixtureApi(script)
 const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'Bash', '--session-id', sessionId], {
   cwd: project,
-  env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
+  env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_CREWS_DIR: crews, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],
 })
 let stdout = ''
@@ -72,7 +72,7 @@ async function waitFor(predicate: () => boolean, label: string, limitMs = 60_000
   return true
 }
 const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
-const inboxPath = join(config, 'crew', 'livecomms', `${team}.json`)
+const inboxPath = join(config, 'crew', 'livecomms', `${crew}.json`)
 type Row = { to?: string; text: string; read?: boolean; from: string; timestamp: string; delivery?: { id: string } }
 const readInbox = (): Row[] | null => {
   if (!existsSync(inboxPath)) return null
@@ -125,9 +125,9 @@ try {
   const idleWoke = await waitFor(() => leadRequests().some(request => openingOf(request).includes('idle_notification') && openingOf(request).includes('"water"')), "water's idle notification did not wake the lead", WAKE_WINDOW_MS + 4_000)
   check("water's idle notification reaches the lead as a turn too (its own, or folded into the report's)", idleWoke, `lead requests ${leadRequests().length}`)
 
-  const { writeToMailbox } = await import('../../src/utils/teammateMailbox.ts')
+  const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.ts')
   const outsideAt = Date.now()
-  const written = await writeToMailbox('team-lead', { from: 'outside', text: 'HELLO-FROM-OUTSIDE', timestamp: new Date().toISOString(), summary: 'HELLO-FROM-OUTSIDE' }, team)
+  const written = await writeToMailbox('team-lead', { from: 'outside', text: 'HELLO-FROM-OUTSIDE', timestamp: new Date().toISOString(), summary: 'HELLO-FROM-OUTSIDE' }, crew)
   check('a row written from another process the way SendMessage writes it lands in the inbox', written && (readInbox() ?? []).some(row => row.text === 'HELLO-FROM-OUTSIDE'))
   const outsideWoke = await waitFor(() => turnOpenedWith('HELLO-FROM-OUTSIDE') !== undefined, 'the outside row did not wake the lead', WAKE_WINDOW_MS)
   check(`a cross-process row reaches the parked lead as a turn within ${WAKE_WINDOW_MS / 1000} s`, outsideWoke, outsideWoke ? `${Date.now() - outsideAt} ms after the write` : `no such request; inbox ${JSON.stringify((readInbox() ?? []).map(candidate => ({ text: candidate.text.slice(0, 40), read: candidate.read })))}`)
@@ -136,7 +136,7 @@ try {
   submit('MIDTURN-CHECK')
   const midturnStarted = await waitFor(() => leadRequests().some(request => openingOf(request).includes('MIDTURN-CHECK')), 'the mid-turn fixture did not start')
   check('the lead enters a paced request before the mid-turn report arrives', midturnStarted)
-  await writeToMailbox('team-lead', { from: 'outside', text: 'REPORT-AT-BOUNDARY', timestamp: new Date().toISOString() }, team)
+  await writeToMailbox('team-lead', { from: 'outside', text: 'REPORT-AT-BOUNDARY', timestamp: new Date().toISOString() }, crew)
   const atBoundary = await waitFor(() => leadRequests().some(request => JSON.stringify(request.body.messages).includes('REPORT-AT-BOUNDARY')), 'the report missed the tool boundary', WAKE_WINDOW_MS)
   check('a report arriving mid-turn is consumed at the next tool boundary', atBoundary)
   const boundaryRead = await waitFor(() => (readInbox() ?? []).some(row => row.text === 'REPORT-AT-BOUNDARY' && row.read === true), 'the boundary report was not acknowledged', WAKE_WINDOW_MS)

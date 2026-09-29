@@ -1,5 +1,5 @@
 
-import { getTeamName } from './teammate.js'
+import { getCrewName } from './crewmate.js'
 import {
   computeAgentHealth,
   type AgentHealth,
@@ -62,7 +62,7 @@ export async function readLiveSessions(): Promise<{ liveSessions: number; sessio
 }
 
 export async function readRunningWorkflows(): Promise<{ runningWorkflows: number; bridgeConnected: boolean }> {
-  const teamName = getTeamName() ?? null
+  const teamName = getCrewName() ?? null
   if (!teamName) return { runningWorkflows: 0, bridgeConnected: false }
   try {
     const nowMs = Date.now()

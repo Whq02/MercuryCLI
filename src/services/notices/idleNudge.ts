@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { agentWaitElapsed } from '../../tasks/LocalAgentTask/agentWait.js'
 import type { TaskState } from '../../tasks/types.js'
 import { taskOwnerGone } from '../../utils/task/framework.js'
@@ -44,7 +44,7 @@ export function noticeRecipientTask(tasks: Record<string, TaskState> | undefined
   if (own !== undefined) return own
   let first: TaskState | undefined
   for (const task of Object.values(tasks ?? {})) {
-    if (!isInProcessTeammateTask(task) || task.identity.agentId !== agentId) continue
+    if (!isInProcessCrewmateTask(task) || task.identity.agentId !== agentId) continue
     if (task.status === 'running') return task
     first ??= task
   }
@@ -54,7 +54,7 @@ export function noticeRecipientTask(tasks: Record<string, TaskState> | undefined
 export function agentRecipientState(tasks: Record<string, TaskState> | undefined, agentId: string): NoticeRecipientState {
   const task = noticeRecipientTask(tasks, agentId)
   if (task === undefined) return { state: 'gone', why: 'no agent by that id in this session' }
-  if (isInProcessTeammateTask(task)) {
+  if (isInProcessCrewmateTask(task)) {
     if (task.status !== 'running') return { state: 'gone', why: endedWords(task.status) }
     return task.isIdle ? { state: 'idle' } : { state: 'busy' }
   }

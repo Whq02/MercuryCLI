@@ -11,7 +11,7 @@ import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
 import { getGlobalConfig, isCopyOnSelectEnabled } from '../../utils/config.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { useSelection } from '../../ink.js'
 import { useHasSelection } from '../../ink/hooks/use-selection.js'
@@ -51,7 +51,7 @@ export function PromptInputFooterLeftSide({
   mode,
   isLoading,
   hintsEnabled = true,
-  teammateFooterIndex,
+  crewmateFooterIndex,
   onOpenTasksDialog,
   compact = false,
 }: {
@@ -63,7 +63,7 @@ export function PromptInputFooterLeftSide({
   mode: PromptInputMode
   isLoading: boolean
   hintsEnabled?: boolean
-  teammateFooterIndex?: number
+  crewmateFooterIndex?: number
   onOpenTasksDialog?: () => void
   compact?: boolean
 }): React.ReactNode {
@@ -166,18 +166,18 @@ export function PromptInputFooterLeftSide({
 
   const taskList = Object.values(tasks)
   const manageable = taskList.filter(isManageableTask)
-  const viewingTeammate = viewingAgentTaskId !== undefined
+  const viewingCrewmate = viewingAgentTaskId !== undefined
   const viewedTask =
     viewingAgentTaskId !== undefined ? tasks[viewingAgentTaskId] : undefined
-  const viewedTeammateCompleted =
+  const viewedCrewmateCompleted =
     (viewedTask !== undefined &&
-      (isInProcessTeammateTask(viewedTask) || isLocalAgentTask(viewedTask)) &&
+      (isInProcessCrewmateTask(viewedTask) || isLocalAgentTask(viewedTask)) &&
       viewedTask.status !== 'running' &&
       viewedTask.status !== 'pending') ||
-    (viewingTeammate && !crewmateLive(viewedCrewmate))
+    (viewingCrewmate && !crewmateLive(viewedCrewmate))
 
   const nonDefaultMode = !isDefaultMode(permissionMode) ? 1 : 0
-  const tasksPresent = manageable.length > 0 || viewingTeammate
+  const tasksPresent = manageable.length > 0 || viewingCrewmate
   const primaryItems = nonDefaultMode + (tasksPresent ? 1 : 0)
 
   const showPrBadge =
@@ -191,10 +191,10 @@ export function PromptInputFooterLeftSide({
   const pillHidden = shouldHideTasksFooter(taskList, treeShowing)
   const showTasksPill = tasksPresent && !pillHidden
 
-  const inProcessTeammates = taskList.filter(isInProcessTeammateTask)
-  const teammatePillsPresent =
-    (inProcessTeammates.some(isManageableTask) && !treeShowing) ||
-    (viewingTeammate && !treeShowing)
+  const inProcessCrewmates = taskList.filter(isInProcessCrewmateTask)
+  const crewmatePillsPresent =
+    (inProcessCrewmates.some(isManageableTask) && !treeShowing) ||
+    (viewingCrewmate && !treeShowing)
 
   const parts: React.ReactNode[] = []
   if (mode === 'bash') {
@@ -212,11 +212,11 @@ export function PromptInputFooterLeftSide({
   const runningAgents = taskList.filter(
     task => isLocalAgentTask(task) && task.status === 'running',
   )
-  if (viewingTeammate && viewedTeammateCompleted) {
+  if (viewingCrewmate && viewedCrewmateCompleted) {
     parts.push(
       <KeyboardShortcutHint key="return" shortcut="esc" action={`back to ${LEAD_ROW_NAME}`} />,
     )
-  } else if (viewingTeammate) {
+  } else if (viewingCrewmate) {
     parts.push(
       <KeyboardShortcutHint key="interrupt" shortcut="esc" action={`interrupt ${viewedCrewmate?.name ?? 'the crewmate'}`} />,
     )
@@ -235,11 +235,11 @@ export function PromptInputFooterLeftSide({
         <KeyboardShortcutHint key="stop-agents" shortcut={killChord} action="stop agents" />,
       )
     }
-    const runningTeammates = inProcessTeammates.filter(
+    const runningCrewmates = inProcessCrewmates.filter(
       task => task.status === 'running',
     )
-    if (inProcessTeammates.length > 0) {
-      const action = runningTeammates.length > 0
+    if (inProcessCrewmates.length > 0) {
+      const action = runningCrewmates.length > 0
         ? 'cycle tasks'
         : treeShowing
           ? 'hide tasks'
@@ -304,8 +304,8 @@ export function PromptInputFooterLeftSide({
         <Box flexShrink={0} marginRight={1}>
           <BackgroundTaskStatus
             tasksSelected={footerSelection === 'tasks'}
-            isViewingTeammate={viewingTeammate}
-            teammateFooterIndex={teammateFooterIndex}
+            isViewingCrewmate={viewingCrewmate}
+            crewmateFooterIndex={crewmateFooterIndex}
             isLeaderIdle={!isLoading}
             onOpenDialog={onOpenTasksDialog}
           />
@@ -377,13 +377,13 @@ export function PromptInputFooterLeftSide({
     </Box>
   )
 
-  if (teammatePillsPresent && !showTasksPill) {
+  if (crewmatePillsPresent && !showTasksPill) {
     return (
       <Box flexDirection="column">
         <BackgroundTaskStatus
           tasksSelected={footerSelection === 'tasks'}
-          isViewingTeammate={viewingTeammate}
-          teammateFooterIndex={teammateFooterIndex}
+          isViewingCrewmate={viewingCrewmate}
+          crewmateFooterIndex={crewmateFooterIndex}
           isLeaderIdle={!isLoading}
           onOpenDialog={onOpenTasksDialog}
         />

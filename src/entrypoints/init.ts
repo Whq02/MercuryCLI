@@ -76,8 +76,8 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
     registerCleanup(() => shutdownLspServerManager())
 
     registerCleanup(async () => {
-      const { cleanupSessionTeams } = await import('../utils/swarm/teamHelpers.js')
-      await cleanupSessionTeams()
+      const { cleanupSessionCrews } = await import('../utils/swarm/crewHelpers.js')
+      await cleanupSessionCrews()
     })
 
     profileCheckpoint('init_function_end')

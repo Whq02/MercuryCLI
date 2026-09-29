@@ -415,8 +415,8 @@ export type Attachment =
       type: 'structured_output'
       data: unknown
     }
-  | TeammateMailboxAttachment
-  | TeamContextAttachment
+  | CrewmateMailboxAttachment
+  | CrewContextAttachment
   | HookAttachment
   | BypassedAskAttachment
   | {
@@ -534,7 +534,7 @@ export type Attachment =
       omitted: number
     }
 
-export type TeammateMailboxAttachment = {
+export type CrewmateMailboxAttachment = {
   type: 'teammate_mailbox'
   messages: Array<{
     from: string
@@ -545,7 +545,7 @@ export type TeammateMailboxAttachment = {
   }>
 }
 
-export type TeamContextAttachment = {
+export type CrewContextAttachment = {
   type: 'team_context'
   agentId: string
   agentName: string

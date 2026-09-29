@@ -11,7 +11,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-delete process.env.MERCURY_TEAMMATES
+delete process.env.MERCURY_CREWMATES
 const { scenario, cleanupScenario, encodeFixtureTranscript, RUNTIME_CWD, SID } = await import('./renderScenarios.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const frameIndex = process.argv.indexOf('--frames')
@@ -25,10 +25,10 @@ function check(label: string, ok: boolean, detail: string): void {
 type Capture = { grid: { c: string }[][]; marks?: Array<{ label: string; grid: { c: string }[][] }> }
 const rowsOf = (grid: { c: string }[][]): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').trimEnd())
 
-const TEAM = 'beta-fixture'
+const CREW = 'beta-fixture'
 const AT = (n: number): string => `2026-06-19T12:00:${String(n).padStart(2, '0')}.000Z`
 const id = (n: number): string => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
-function oldTeamRows(sid: string): Record<string, unknown>[] {
+function oldCrewRows(sid: string): Record<string, unknown>[] {
   const base = (extra: Record<string, unknown>): Record<string, unknown> => ({
     isSidechain: false, entrypoint: 'cli', cwd: RUNTIME_CWD, sessionId: sid, version: '1.0.0-beta.23', gitBranch: 'main', ...extra,
   })
@@ -48,11 +48,11 @@ function oldTeamRows(sid: string): Record<string, unknown>[] {
     base({ parentUuid: id(parent), type: 'attachment', uuid: id(n), attachment: attachmentBody, timestamp: AT(n) })
   return [
     base({ parentUuid: null, type: 'user', uuid: id(1), message: { role: 'user', content: 'charter the fixture team and brief me' }, timestamp: AT(1) }),
-    assistant(2, 1, [{ type: 'tool_use', id: 'toolu_old_create', name: 'TeamCreate', input: { team_name: TEAM, description: 'the fixture team', objective: 'render an old transcript' } }]),
-    result(3, 2, 'toolu_old_create', `team ${TEAM} ready`),
-    attachment(4, 3, { type: 'team_context', agentId: `lead@${TEAM}`, agentName: 'team-lead', teamName: TEAM, teamConfigPath: join(home, 'teams', TEAM, 'config.json'), taskListPath: join(home, 'tasks', TEAM) }),
+    assistant(2, 1, [{ type: 'tool_use', id: 'toolu_old_create', name: 'TeamCreate', input: { team_name: CREW, description: 'the fixture team', objective: 'render an old transcript' } }]),
+    result(3, 2, 'toolu_old_create', `team ${CREW} ready`),
+    attachment(4, 3, { type: 'team_context', agentId: `lead@${CREW}`, agentName: 'team-lead', teamName: CREW, teamConfigPath: join(home, 'teams', CREW, 'config.json'), taskListPath: join(home, 'tasks', CREW) }),
     assistant(5, 4, [{ type: 'tool_use', id: 'toolu_old_brief', name: 'TeamBrief', input: {} }]),
-    result(6, 5, 'toolu_old_brief', `# Team: ${TEAM}\n\nOpen tasks: none\nRoster: team-lead, atlas`),
+    result(6, 5, 'toolu_old_brief', `# Team: ${CREW}\n\nOpen tasks: none\nRoster: team-lead, atlas`),
     assistant(7, 6, [{ type: 'tool_use', id: 'toolu_old_send', name: 'SendMessage', input: { to: 'atlas', summary: 'map the auth flow', message: 'map the auth flow and report' } }]),
     result(8, 7, 'toolu_old_send', 'Message delivered to atlas'),
     relay(9, 8, 'atlas', 'auth findings ready', 'I finished mapping the auth flow; notes are in the handoff.'),
@@ -66,7 +66,7 @@ try {
   for (const band of [{ cols: 120, rows: 40 }, { cols: 80, rows: 24 }]) {
     const cfg = scenario('resume-2turn', band.cols, band.rows)
     const path = join(getProjectDir(RUNTIME_CWD), `${SID}.jsonl`)
-    writeFileSync(path, encodeFixtureTranscript(oldTeamRows(SID), SID))
+    writeFileSync(path, encodeFixtureTranscript(oldCrewRows(SID), SID))
     const sends = [{ awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 4, data: '', mark: 'opened' }]
     const out = join(home, `${band.cols}.json`)
     const config = `${out}.cfg.json`

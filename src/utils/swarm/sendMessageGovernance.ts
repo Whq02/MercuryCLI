@@ -1,16 +1,16 @@
 
 import { mkdir, readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { getTeamsDir } from '../envUtils.js'
+import { getCrewsDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import * as lockfile from '../lockfile.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { sanitizePathComponent } from '../tasks.js'
-import { getTeamName } from '../teammate.js'
-import { TEAM_LEAD_NAME } from './constants.js'
-import type { TeamFile } from './teamHelpers.js'
+import { getCrewName } from '../crewmate.js'
+import { CREW_LEAD_NAME } from './constants.js'
+import type { CrewFile } from './crewHelpers.js'
 
 const LOCK_OPTIONS = {
   retries: {
@@ -34,9 +34,9 @@ export type OpenQuestion = {
 }
 
 function getQuestionsPath(teamName?: string): string {
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  return join(getTeamsDir(), safeTeam, 'questions.json')
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  return join(getCrewsDir(), safeCrew, 'questions.json')
 }
 
 async function readQuestions(teamName?: string): Promise<OpenQuestion[]> {
@@ -58,9 +58,9 @@ async function mutateQuestions(
   mutate: (questions: OpenQuestion[]) => OpenQuestion[],
 ): Promise<void> {
   const path = getQuestionsPath(teamName)
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  const dir = join(getTeamsDir(), safeTeam)
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  const dir = join(getCrewsDir(), safeCrew)
   await mkdir(dir, { recursive: true })
 
   try {
@@ -177,7 +177,7 @@ export async function listOpenQuestions(
 }
 
 
-export type TeamGovernance = {
+export type CrewGovernance = {
   broadcastEnabled?: boolean
   broadcastFairness?: {
     repostCooldownMs?: number
@@ -185,15 +185,15 @@ export type TeamGovernance = {
   }
 }
 
-export type TeamFileWithGovernance = TeamFile & {
-  governance?: TeamGovernance
+export type CrewFileWithGovernance = CrewFile & {
+  governance?: CrewGovernance
 }
 
 export function checkBroadcastAllowed(
-  teamFile: TeamFileWithGovernance | null,
+  crewFile: CrewFileWithGovernance | null,
   isLead: boolean,
 ): string | null {
-  if (!teamFile || teamFile.governance?.broadcastEnabled !== false) {
+  if (!crewFile || crewFile.governance?.broadcastEnabled !== false) {
     return null
   }
   if (isLead) return null
@@ -323,14 +323,14 @@ export function decideBroadcastTurn(
 }
 
 function getBroadcastTurnsPath(teamName?: string): string {
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  return join(getTeamsDir(), safeTeam, 'broadcast-turns.json')
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  return join(getCrewsDir(), safeCrew, 'broadcast-turns.json')
 }
 
 export async function checkBroadcastFairness(
   actor: string,
-  governance: TeamGovernance | undefined,
+  governance: CrewGovernance | undefined,
   teamName: string | undefined,
 ): Promise<string | null> {
   const cooldownMs =
@@ -342,9 +342,9 @@ export async function checkBroadcastFairness(
     governance?.broadcastFairness?.activeWindowMs ??
     DEFAULT_BROADCAST_ACTIVE_WINDOW_MS
   const path = getBroadcastTurnsPath(teamName)
-  const team = teamName || getTeamName() || 'default'
-  const safeTeam = sanitizePathComponent(team)
-  await mkdir(join(getTeamsDir(), safeTeam), { recursive: true })
+  const crew = teamName || getCrewName() || 'default'
+  const safeCrew = sanitizePathComponent(crew)
+  await mkdir(join(getCrewsDir(), safeCrew), { recursive: true })
 
   try {
     await writeFile(path, '{}', { encoding: 'utf-8', flag: 'wx' })
@@ -430,15 +430,15 @@ export type DirectActor = {
 }
 
 export function resolveDirectActor(
-  teamFile: TeamFile | null,
+  crewFile: CrewFile | null,
   name: string,
   leadAgentId: string | undefined,
 ): DirectActor {
-  const member = teamFile?.members.find(
+  const member = crewFile?.members.find(
     m => m.name.toLowerCase() === name.toLowerCase(),
   )
   const isLead =
-    name.toLowerCase() === TEAM_LEAD_NAME.toLowerCase() ||
+    name.toLowerCase() === CREW_LEAD_NAME.toLowerCase() ||
     (!!leadAgentId && member?.agentId === leadAgentId)
   return { name, isLead, role: member?.role }
 }

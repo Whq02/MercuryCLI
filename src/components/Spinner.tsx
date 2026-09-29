@@ -12,8 +12,8 @@ import { Box, Text } from '../ink.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { useAppState } from '../state/AppState.js'
-import { getViewedTeammateTask } from '../state/selectors.js'
-import type { InProcessTeammateTaskState } from '../tasks/InProcessTeammateTask/types.js'
+import { getViewedCrewmateTask } from '../state/selectors.js'
+import type { InProcessCrewmateTaskState } from '../tasks/InProcessCrewmateTask/types.js'
 import { activityManager } from '../utils/activityManager.js'
 import { getEffortSuffix } from '../utils/effort.js'
 import { formatDuration } from '../utils/format.js'
@@ -33,7 +33,7 @@ import { useNowTick } from './mercury-ui/components.js'
 import { SpinnerAnimationRow } from './Spinner/SpinnerAnimationRow.js'
 import { liveCounterLine, liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './Spinner/liveCounterWords.js'
 import type { LiveTurnFactsV1 } from '../services/engine-connector/seatLive.js'
-import { TeammateSpinnerTree } from './Spinner/TeammateSpinnerTree.js'
+import { CrewmateSpinnerTree } from './Spinner/CrewmateSpinnerTree.js'
 import { TaskListV2 } from './TaskListV2.js'
 import type { SpinnerMode } from './Spinner/types.js'
 import { useFocusedMission } from './tasks/useFocusedWork.js'
@@ -128,15 +128,15 @@ export function SpinnerWithVerb({
 
   const effectiveMode: SpinnerMode = mode
 
-  const runningTeammateCount = useAppState(state =>
+  const runningCrewmateCount = useAppState(state =>
     Object.values(state.tasks).filter(
       task =>
         (task as { type?: string }).type === 'in_process_teammate' &&
         (task as { status?: string }).status === 'running',
     ).length,
   )
-  const hasRunningTeammates = runningTeammateCount > 0
-  const teammateTokens = useAppState(state =>
+  const hasRunningCrewmates = runningCrewmateCount > 0
+  const crewmateTokens = useAppState(state =>
     Object.values(state.tasks).reduce(
       (sum, task) =>
         (task as { type?: string }).type === 'in_process_teammate'
@@ -145,12 +145,12 @@ export function SpinnerWithVerb({
       0,
     ),
   )
-  const foregroundedTeammate = useAppState(state =>
-    getViewedTeammateTask(state),
-  ) as InProcessTeammateTaskState | undefined
+  const foregroundedCrewmate = useAppState(state =>
+    getViewedCrewmateTask(state),
+  ) as InProcessCrewmateTaskState | undefined
   const foregroundedIdle =
-    foregroundedTeammate !== undefined &&
-    (foregroundedTeammate as { status?: string }).status !== 'running'
+    foregroundedCrewmate !== undefined &&
+    (foregroundedCrewmate as { status?: string }).status !== 'running'
 
   const [whimsyVerb, setWhimsyVerb] = useState(() => sampleSpinnerVerb())
   useEffect(() => {
@@ -161,17 +161,17 @@ export function SpinnerWithVerb({
     return () => clearInterval(timer)
   }, [])
 
-  const teammateVerbRaw = foregroundedTeammate
-    ? (foregroundedTeammate as Record<string, unknown>)['verb']
+  const crewmateVerbRaw = foregroundedCrewmate
+    ? (foregroundedCrewmate as Record<string, unknown>)['verb']
     : undefined
-  const teammateVerb =
-    typeof teammateVerbRaw === 'string' && teammateVerbRaw !== ''
-      ? teammateVerbRaw
+  const crewmateVerb =
+    typeof crewmateVerbRaw === 'string' && crewmateVerbRaw !== ''
+      ? crewmateVerbRaw
       : null
 
   let chosenVerb: string
-  if (foregroundedTeammate && !foregroundedIdle) {
-    chosenVerb = teammateVerb ?? whimsyVerb
+  if (foregroundedCrewmate && !foregroundedIdle) {
+    chosenVerb = crewmateVerb ?? whimsyVerb
   } else if (overrideMessage != null && overrideMessage !== '') {
     chosenVerb = overrideMessage
   } else if (hasActiveTools && activeToolLabel) {
@@ -225,8 +225,8 @@ export function SpinnerWithVerb({
   const treeExpanded = expandedView === 'teammates'
   const ledgerExpanded = expandedView === 'tasks'
   const tail =
-    treeExpanded && hasRunningTeammates ? (
-      <TeammateSpinnerTree />
+    treeExpanded && hasRunningCrewmates ? (
+      <CrewmateSpinnerTree />
     ) : ledgerExpanded && mission.length > 0 ? (
       <TaskListV2 tasks={mission} />
     ) : pendingNext ? (
@@ -250,25 +250,25 @@ export function SpinnerWithVerb({
     return <Box height={1} width="100%" overflow="hidden"><Text wrap="truncate-end"><Text color={messageColor}>{GLYPH.spark} {head}</Text><Text dimColor>{detail ? `${head ? ' · ' : ''}${detail}` : ''}</Text></Text></Box>
   }
 
-  if (leaderIsIdle && hasRunningTeammates && !foregroundedTeammate) {
-    const allIdle = runningTeammateCount === 0
+  if (leaderIsIdle && hasRunningCrewmates && !foregroundedCrewmate) {
+    const allIdle = runningCrewmateCount === 0
     return (
       <Box flexDirection="column" width="100%">
         <Box width="100%">
           <Text dimColor>
             ✶ idle
             {!allIdle
-              ? ` · ${runningTeammateCount} ${plural(runningTeammateCount, 'crewmate')} running`
+              ? ` · ${runningCrewmateCount} ${plural(runningCrewmateCount, 'crewmate')} running`
               : ''}
           </Text>
         </Box>
-        {treeExpanded ? <TeammateSpinnerTree /> : null}
+        {treeExpanded ? <CrewmateSpinnerTree /> : null}
       </Box>
     )
   }
-  if (foregroundedTeammate && foregroundedIdle) {
-    const startedAt = (foregroundedTeammate as { startedAt?: number }).startedAt
-    const everythingIdle = leaderIsIdle && runningTeammateCount === 0
+  if (foregroundedCrewmate && foregroundedIdle) {
+    const startedAt = (foregroundedCrewmate as { startedAt?: number }).startedAt
+    const everythingIdle = leaderIsIdle && runningCrewmateCount === 0
     return (
       <Box flexDirection="column" width="100%">
         <Box width="100%">
@@ -279,7 +279,7 @@ export function SpinnerWithVerb({
               : 'idle'}
           </Text>
         </Box>
-        {treeExpanded && hasRunningTeammates ? <TeammateSpinnerTree /> : null}
+        {treeExpanded && hasRunningCrewmates ? <CrewmateSpinnerTree /> : null}
       </Box>
     )
   }
@@ -303,9 +303,9 @@ export function SpinnerWithVerb({
       spinnerSuffix={spinnerSuffix}
       verbose={verbose}
       columns={columns}
-      hasRunningTeammates={hasRunningTeammates}
-      teammateTokens={teammateTokens}
-      foregroundedTeammate={foregroundedTeammate}
+      hasRunningCrewmates={hasRunningCrewmates}
+      crewmateTokens={crewmateTokens}
+      foregroundedCrewmate={foregroundedCrewmate}
       leaderIsIdle={leaderIsIdle}
       effortSuffix={getEffortSuffix(mainLoopModel, appEffort)}
       ttftText={ttftText}

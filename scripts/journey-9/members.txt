@@ -5,4 +5,4 @@
 # this runner. This slice: the agent-seat switch journey (two windows) and
 # the teammate mail abort journey.
 prove-switch-agents-live.ts
-prove-teammate-mail-abort-drive.ts
+prove-crewmate-mail-abort-drive.ts

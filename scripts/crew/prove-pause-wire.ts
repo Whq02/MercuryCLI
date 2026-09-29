@@ -14,12 +14,12 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 const daemonDir = join(scratch, 'daemon')
 mkdirSync(daemonDir, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = daemonDir
-process.env.MERCURY_TEAMS_DIR = join(scratch, 'teams')
-mkdirSync(process.env.MERCURY_TEAMS_DIR, { recursive: true })
+process.env.MERCURY_CREWS_DIR = join(scratch, 'teams')
+mkdirSync(process.env.MERCURY_CREWS_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 delete process.env.MERCURY_HOME
-for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_RELEVANT_RECALL', 'CLAUDE_TEAM_NAME', 'CLAUDE_AGENT_NAME', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_SCRIPTED_STREAM']) {
+for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_BLOCKING_LIMIT_OVERRIDE', 'MERCURY_RELEVANT_RECALL', 'CLAUDE_CREW_NAME', 'CLAUDE_AGENT_NAME', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'NODE_ENV', 'MERCURY_SCRIPTED_STREAM']) {
   delete process.env[k]
 }
 

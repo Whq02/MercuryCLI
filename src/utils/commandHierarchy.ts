@@ -1,6 +1,6 @@
 
-import { getTeamName } from './teammate.js'
-import { readTeamFile } from './swarm/teamHelpers.js'
+import { getCrewName } from './crewmate.js'
+import { readCrewFile } from './swarm/crewHelpers.js'
 
 export interface CommandSeat {
   room: string
@@ -56,20 +56,20 @@ function worktreeId(p: string | null): string | null {
 
 export function deriveCommandHierarchy(
   teamName: string,
-  team: {
+  crew: {
     leadAgentId?: unknown
     leadSessionId?: unknown
     members?: unknown
   } | null,
 ): CommandHierarchy | null {
-  if (!team) return null
+  if (!crew) return null
 
   const fcRoom = teamName
   const rows: CommandSeat[] = []
   const knownRooms: string[] = [fcRoom]
 
   const leadId =
-    typeof team.leadAgentId === 'string' ? team.leadAgentId : 'team-lead'
+    typeof crew.leadAgentId === 'string' ? crew.leadAgentId : 'team-lead'
   rows.push({
     room: fcRoom,
     name: 'team-lead',
@@ -79,12 +79,12 @@ export function deriveCommandHierarchy(
     role: 'field-commander',
     actorId: leadId,
     sessionId:
-      typeof team.leadSessionId === 'string' ? team.leadSessionId : null,
+      typeof crew.leadSessionId === 'string' ? crew.leadSessionId : null,
     running: true,
   })
 
-  const members = Array.isArray(team.members)
-    ? (team.members as LadderMember[])
+  const members = Array.isArray(crew.members)
+    ? (crew.members as LadderMember[])
     : []
   for (const m of members) {
     const name = typeof m.name === 'string' ? m.name : null
@@ -141,10 +141,10 @@ export function deriveCommandHierarchy(
 
 export async function fetchCommandHierarchy(): Promise<CommandHierarchy | null> {
   try {
-    const teamName = getTeamName()
+    const teamName = getCrewName()
     if (!teamName) return null
-    const team = readTeamFile(teamName)
-    return deriveCommandHierarchy(teamName, team)
+    const crew = readCrewFile(teamName)
+    return deriveCommandHierarchy(teamName, crew)
   } catch {
     return null
   }

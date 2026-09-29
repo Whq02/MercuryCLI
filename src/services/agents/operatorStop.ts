@@ -1,11 +1,11 @@
 import type { SetAppState } from '../../Task.js'
 import type { AppState } from '../../state/AppState.js'
-import { stopOrDismissAgent } from '../../state/teammateViewHelpers.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { AGENT_STOP_BY_OPERATOR, enqueueAgentReceiptRow, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { StopTaskError, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
-import { killInProcessTeammate } from '../../utils/swarm/spawnInProcess.js'
+import { killInProcessCrewmate } from '../../utils/swarm/spawnInProcess.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50
@@ -41,7 +41,7 @@ export function unsettledWords(name: string, settleMs: number): string {
   return `the stop reached ${name} but it has not ended within ${Math.round(settleMs / 1000)} s — its tool may be ignoring the stop; the row follows when it ends`
 }
 
-export function teammateStopWords(name: string): string {
+export function crewmateStopWords(name: string): string {
   return `Crewmate "${name}" stopped from the crew view · r on its row resumes its transcript`
 }
 
@@ -56,10 +56,10 @@ export async function stopAgentByOperator(
   if (task === undefined) return { outcome: 'refused', reason: await taskNotFoundWords(taskId) }
   const name = nameOf(task)
   if (task.status !== 'running') return { outcome: 'refused', reason: notRunningWords(name, task.status) }
-  if (isInProcessTeammateTask(task)) {
-    const killed = killInProcessTeammate(taskId, context.setAppState)
+  if (isInProcessCrewmateTask(task)) {
+    const killed = killInProcessCrewmate(taskId, context.setAppState)
     if (!killed) return { outcome: 'refused', reason: notRunningWords(name, context.getAppState().tasks?.[taskId]?.status ?? 'gone') }
-    enqueueAgentReceiptRow({ taskId, description: name, status: 'killed', summary: teammateStopWords(task.identity.agentName) })
+    enqueueAgentReceiptRow({ taskId, description: name, status: 'killed', summary: crewmateStopWords(task.identity.agentName) })
     return { outcome: 'applied', kind: 'teammate', status: context.getAppState().tasks?.[taskId]?.status ?? 'killed' }
   }
   if (isLocalWorkflowTask(task)) {

@@ -4,7 +4,7 @@ import { isAutopilotEnabled } from '../autopilot/autopilotGates.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { isAutoModeGateEnabled, transitionPermissionMode } from './permissionSetup.js'
 
-type TeamContext = { leadAgentId?: string } | undefined
+type CrewContext = { leadAgentId?: string } | undefined
 
 function bypassAvailable(context: ToolPermissionContext): boolean {
   return (context as { isBypassPermissionsModeAvailable?: boolean }).isBypassPermissionsModeAvailable === true
@@ -17,7 +17,7 @@ function canCycleToAuto(_context: ToolPermissionContext): boolean {
 
 export function getNextPermissionMode(
   toolPermissionContext: ToolPermissionContext,
-  _teamContext?: TeamContext,
+  _teamContext?: CrewContext,
 ): PermissionMode {
   const mode = toolPermissionContext.mode
   switch (mode) {
@@ -47,9 +47,9 @@ export function getNextPermissionMode(
 
 export function cyclePermissionMode(
   context: ToolPermissionContext,
-  teamContext?: TeamContext,
+  crewContext?: CrewContext,
 ): { nextMode: PermissionMode; context: ToolPermissionContext } {
-  const nextMode = getNextPermissionMode(context, teamContext)
+  const nextMode = getNextPermissionMode(context, crewContext)
   let nextContext = context
   try {
     nextContext = transitionPermissionMode(context.mode, nextMode, context)

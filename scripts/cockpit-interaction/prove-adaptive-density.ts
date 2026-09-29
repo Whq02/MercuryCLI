@@ -375,7 +375,7 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         MERCURY_CRITTER_GAZE: '0',
         MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor-live'),
         MERCURY_DAEMON_DIR: join(scratch, 'daemon-live'),
-        MERCURY_TEAMS_DIR: join(scratch, 'teams-live'),
+        MERCURY_CREWS_DIR: join(scratch, 'teams-live'),
       },
     })
     let driverOut = ''

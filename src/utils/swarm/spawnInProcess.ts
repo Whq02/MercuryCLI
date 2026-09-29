@@ -6,10 +6,10 @@ import { TURN_COMPLETION_VERBS } from '../../constants/turnCompletionVerbs.js'
 import type { AppState } from '../../state/AppState.js'
 import { createTaskStateBase, generateTaskId } from '../../Task.js'
 import {
-  isInProcessTeammateTask,
-  type InProcessTeammateTaskState,
-  type TeammateIdentity,
-} from '../../tasks/InProcessTeammateTask/types.js'
+  isInProcessCrewmateTask,
+  type InProcessCrewmateTaskState,
+  type CrewmateIdentity,
+} from '../../tasks/InProcessCrewmateTask/types.js'
 import { formatAgentId } from '../agentId.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
@@ -20,10 +20,10 @@ import { evictTerminalTask, registerTask, STOPPED_DISPLAY_MS } from '../task/fra
 import { emitTaskTerminatedSdk } from '../sdkEventQueue.js'
 import { writeAgentMetadata } from '../sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
-import { createTeammateContext, type TeammateContext } from '../teammateContext.js'
+import { createCrewmateContext, type CrewmateContext } from '../crewmateContext.js'
 import { crewWorktreeLeftWords } from '../crew/crewWorktreeReminder.js'
 import { releaseAllForAgent } from './leaseGlob.js'
-import { removeMemberByAgentId } from './teamHelpers.js'
+import { removeMemberByAgentId } from './crewHelpers.js'
 
 
 export type SpawnContext = {
@@ -43,7 +43,7 @@ export type InProcessSpawnConfig = {
   agentType?: string
   transcriptAgentId?: string
   effort?: string
-  instructionAtSpawn?: InProcessTeammateTaskState['instructionAtSpawn']
+  instructionAtSpawn?: InProcessCrewmateTaskState['instructionAtSpawn']
 }
 
 export type InProcessSpawnOutput = {
@@ -52,11 +52,11 @@ export type InProcessSpawnOutput = {
   taskId?: string
   transcriptAgentId?: string
   abortController?: AbortController
-  teammateContext?: TeammateContext
+  crewmateContext?: CrewmateContext
   error?: string
 }
 
-export async function spawnInProcessTeammate(
+export async function spawnInProcessCrewmate(
   config: InProcessSpawnConfig,
   context: SpawnContext,
 ): Promise<InProcessSpawnOutput> {
@@ -67,7 +67,7 @@ export async function spawnInProcessTeammate(
     const abortController = new AbortController()
     const parentSessionId = String(getSessionId())
 
-    const identity: TeammateIdentity = {
+    const identity: CrewmateIdentity = {
       agentId,
       agentName: config.name,
       teamName: config.teamName,
@@ -76,7 +76,7 @@ export async function spawnInProcessTeammate(
       ...(config.planModeRequired ? { planModeRequired: true } : { planModeRequired: false }),
       parentSessionId,
     }
-    const teammateContext = createTeammateContext({
+    const crewmateContext = createCrewmateContext({
       agentId,
       agentName: config.name,
       teamName: config.teamName,
@@ -99,7 +99,7 @@ export async function spawnInProcessTeammate(
       }
     })
 
-    const task: InProcessTeammateTaskState = {
+    const task: InProcessCrewmateTaskState = {
       ...createTaskStateBase(taskId, 'in_process_teammate', description, context.toolUseId),
       type: 'in_process_teammate',
       status: 'running',
@@ -134,7 +134,7 @@ export async function spawnInProcessTeammate(
       ...(config.cwd !== undefined ? { cwd: config.cwd } : {}),
       ...(config.worktree !== undefined ? { worktreePath: config.worktree } : {}),
       ...(config.effort !== undefined ? { effortOverride: config.effort } : {}),
-      teammate: {
+      crewmate: {
         teamName: config.teamName,
         prompt: config.prompt,
         transcriptAgentId,
@@ -145,7 +145,7 @@ export async function spawnInProcessTeammate(
       logForDebugging(`teammate ${agentId}: the resume record was not written: ${errorMessage(error)}`)
     })
     registerTask(task, context.setAppState)
-    return { success: true, agentId, taskId, transcriptAgentId, abortController, teammateContext }
+    return { success: true, agentId, taskId, transcriptAgentId, abortController, crewmateContext }
   } catch (error) {
     logError(error)
     return {
@@ -156,12 +156,12 @@ export async function spawnInProcessTeammate(
   }
 }
 
-export function unwindTeammateSpawn(taskId: string, setAppState: SpawnContext['setAppState'], cause: string): boolean {
+export function unwindCrewmateSpawn(taskId: string, setAppState: SpawnContext['setAppState'], cause: string): boolean {
   let unwound = false
   let capturedToolUseId: string | undefined
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
-    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') return prevState
+    if (!task || !isInProcessCrewmateTask(task) || task.status !== 'running') return prevState
     unwound = true
     capturedToolUseId = task.toolUseId
     task.abortController?.abort()
@@ -180,12 +180,12 @@ export function unwindTeammateSpawn(taskId: string, setAppState: SpawnContext['s
   return unwound
 }
 
-export function killInProcessTeammate(
+export function killInProcessCrewmate(
   taskId: string,
   setAppState: SpawnContext['setAppState'],
 ): boolean {
   let killed = false
-  let capturedTeamName: string | undefined
+  let capturedCrewName: string | undefined
   let capturedAgentId: string | undefined
   let capturedToolUseId: string | undefined
   let capturedDescription = ''
@@ -193,11 +193,11 @@ export function killInProcessTeammate(
 
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
-    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') {
+    if (!task || !isInProcessCrewmateTask(task) || task.status !== 'running') {
       return prevState
     }
     killed = true
-    capturedTeamName = task.identity.teamName
+    capturedCrewName = task.identity.teamName
     capturedAgentId = task.identity.agentId
     capturedToolUseId = task.toolUseId
     capturedDescription = task.description
@@ -213,7 +213,7 @@ export function killInProcessTeammate(
     }
 
     const lastMessage = task.messages?.[task.messages.length - 1]
-    const nextTask: InProcessTeammateTaskState = {
+    const nextTask: InProcessCrewmateTaskState = {
       ...task,
       status: 'killed',
       notified: true,
@@ -227,24 +227,24 @@ export function killInProcessTeammate(
       unregisterCleanup: undefined,
     }
 
-    const teamContext = prevState.teamContext
-    const teammates = teamContext?.teammates
-    let nextTeamContext = teamContext
-    if (teamContext && teammates && task.identity.agentName in teammates) {
-      const remaining = { ...teammates }
+    const crewContext = prevState.crewContext
+    const crewmates = crewContext?.crewmates
+    let nextCrewContext = crewContext
+    if (crewContext && crewmates && task.identity.agentName in crewmates) {
+      const remaining = { ...crewmates }
       delete remaining[task.identity.agentName]
-      nextTeamContext = { ...teamContext, teammates: remaining }
+      nextCrewContext = { ...crewContext, crewmates: remaining }
     }
 
     return {
       ...prevState,
       tasks: { ...prevState.tasks, [taskId]: nextTask },
-      ...(nextTeamContext !== teamContext ? { teamContext: nextTeamContext } : {}),
+      ...(nextCrewContext !== crewContext ? { crewContext: nextCrewContext } : {}),
     }
   })
 
-  if (capturedTeamName !== undefined && capturedAgentId !== undefined) {
-    removeMemberByAgentId(capturedTeamName, capturedAgentId).catch((error: unknown) => {
+  if (capturedCrewName !== undefined && capturedAgentId !== undefined) {
+    removeMemberByAgentId(capturedCrewName, capturedAgentId).catch((error: unknown) => {
       logForDebugging(`teammate ${capturedAgentId}: roster removal at the kill failed: ${errorMessage(error)}`)
     })
   }

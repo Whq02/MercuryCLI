@@ -7,7 +7,7 @@ import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import {
   executeStopHooks,
   executeTaskCompletedHooks,
-  executeTeammateIdleHooks,
+  executeCrewmateIdleHooks,
 } from '../utils/hooks/events.js'
 import {
   createCacheSafeParams,
@@ -44,7 +44,7 @@ async function* consumeHookStream(
   options: {
     formatBlockingError: (error: { blockingError: string; command: string }) => string
     defaultStopReason: string
-    attachmentEvent: 'Stop' | 'TaskCompleted' | 'TeammateIdle'
+    attachmentEvent: 'Stop' | 'TaskCompleted' | 'CrewmateIdle'
     yieldInterruptionOnAbort: boolean
     signal: AbortSignal | undefined
     track: {
@@ -305,16 +305,16 @@ export async function* handleStopHooks(
     }
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const teammate = require('../utils/teammate.js') as {
+    const crewmate = require('../utils/crewmate.js') as {
       isTeammate: () => boolean
       getAgentName: () => string | undefined
-      getTeamName: () => string | undefined
+      getCrewName: () => string | undefined
     }
-    if (teammate.isTeammate()) {
-      const teammateName = teammate.getAgentName() ?? ''
-      const teamName = teammate.getTeamName() ?? ''
-      const teammateToolUseID = { value: undefined as string | undefined }
-      const teammateBlockingErrors: UserMessage[] = []
+    if (crewmate.isTeammate()) {
+      const crewmateName = crewmate.getAgentName() ?? ''
+      const teamName = crewmate.getCrewName() ?? ''
+      const crewmateToolUseID = { value: undefined as string | undefined }
+      const crewmateBlockingErrors: UserMessage[] = []
 
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const taskList = require('../utils/tasks.js') as {
@@ -323,7 +323,7 @@ export async function* handleStopHooks(
       const taskListId = getParentSessionId() ?? String(getSessionId())
       const tasks = await taskList.listTasks(taskListId).catch(() => [])
       const mine = tasks.filter(
-        task => task.status === 'in_progress' && task.owner === teammateName,
+        task => task.status === 'in_progress' && task.owner === crewmateName,
       )
       for (const task of mine) {
         const outcome = yield* consumeHookStream(
@@ -331,7 +331,7 @@ export async function* handleStopHooks(
             task.id,
             task.subject,
             task.description,
-            teammateName,
+            crewmateName,
             teamName,
             permissionMode,
             signal,
@@ -349,22 +349,22 @@ export async function* handleStopHooks(
               hookInfos: [],
               hookErrors: [],
               hasOutput: { value: false },
-              toolUseID: teammateToolUseID,
+              toolUseID: crewmateToolUseID,
             },
           },
         )
         if (outcome?.preventContinuation) {
           return { blockingErrors: [], preventContinuation: true }
         }
-        if (outcome) teammateBlockingErrors.push(...outcome.blockingErrors)
+        if (outcome) crewmateBlockingErrors.push(...outcome.blockingErrors)
       }
 
       const idleOutcome = yield* consumeHookStream(
-        executeTeammateIdleHooks(teammateName, teamName, permissionMode, signal),
+        executeCrewmateIdleHooks(crewmateName, teamName, permissionMode, signal),
         {
           formatBlockingError: error => `Teammate-idle hook feedback:\n- ${error.blockingError}`,
           defaultStopReason: 'A teammate-idle hook prevented continuation',
-          attachmentEvent: 'TeammateIdle',
+          attachmentEvent: 'CrewmateIdle',
           yieldInterruptionOnAbort: false,
           signal,
           track: {
@@ -372,18 +372,18 @@ export async function* handleStopHooks(
             hookInfos: [],
             hookErrors: [],
             hasOutput: { value: false },
-            toolUseID: teammateToolUseID,
+            toolUseID: crewmateToolUseID,
           },
         },
       )
       if (idleOutcome?.preventContinuation) {
         return { blockingErrors: [], preventContinuation: true }
       }
-      if (idleOutcome) teammateBlockingErrors.push(...idleOutcome.blockingErrors)
+      if (idleOutcome) crewmateBlockingErrors.push(...idleOutcome.blockingErrors)
 
-      if (teammateBlockingErrors.length > 0) {
+      if (crewmateBlockingErrors.length > 0) {
         return {
-          blockingErrors: [...settlementBlocks, ...teammateBlockingErrors],
+          blockingErrors: [...settlementBlocks, ...crewmateBlockingErrors],
           preventContinuation: false,
         }
       }

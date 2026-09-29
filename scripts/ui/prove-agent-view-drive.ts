@@ -75,7 +75,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -93,7 +93,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
     MERCURY_OASIS_BG: '0',
     BROWSER: '/usr/bin/true',
   }
-  for (const stamp of ['MERCURY_TEAMMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI']) delete process.env[stamp]
+  for (const stamp of ['MERCURY_CREWMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_SKIP_PERMISSIONS', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI']) delete process.env[stamp]
   return env
 }
 

@@ -146,8 +146,8 @@ type SubMenu =
   | typeof LOCAL_SERVER_APPLY_MENU
 
 const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
-const TEAMMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Crewmate', choice: 'a choice, not a model — a crewmate runs the session default model' }
-const TEAMMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Crewmate', choice: "a choice, not a model — a crewmate runs the lead's model" }
+const CREWMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Crewmate', choice: 'a choice, not a model — a crewmate runs the session default model' }
+const CREWMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Crewmate', choice: "a choice, not a model — a crewmate runs the lead's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -1029,15 +1029,15 @@ export function Config({
   }
   if (isAgentSwarmsEnabled()) {
     items.push({
-      id: 'defaultTeammateModel',
+      id: 'defaultCrewmateModel',
       label: 'Default crewmate model',
       kind: 'managed-enum',
       value: (
         <Text>
           {(() => {
-            const value = config.teammateDefaultModel
-            if (value === undefined || value === TEAMMATE_DEFAULT_ROW.id) return TEAMMATE_DEFAULT_ROW.name
-            if (value === null || value === TEAMMATE_LEADER_ROW.id) return TEAMMATE_LEADER_ROW.name
+            const value = config.crewmateDefaultModel
+            if (value === undefined || value === CREWMATE_DEFAULT_ROW.id) return CREWMATE_DEFAULT_ROW.name
+            if (value === null || value === CREWMATE_LEADER_ROW.id) return CREWMATE_LEADER_ROW.name
             return modelChoiceLabel(value)
           })()}
         </Text>
@@ -1398,22 +1398,22 @@ export function Config({
     )
   }
   if (subMenu === 'teammate-model') {
-    const current = config.teammateDefaultModel
+    const current = config.crewmateDefaultModel
     return (
       <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>
       <MercuryModelChoicePicker
-        leading={[TEAMMATE_DEFAULT_ROW, TEAMMATE_LEADER_ROW]}
-        current={current === undefined || current === TEAMMATE_DEFAULT_ROW.id ? TEAMMATE_DEFAULT_ROW.id : current === null || current === TEAMMATE_LEADER_ROW.id ? TEAMMATE_LEADER_ROW.id : modelChoiceRow(current)}
+        leading={[CREWMATE_DEFAULT_ROW, CREWMATE_LEADER_ROW]}
+        current={current === undefined || current === CREWMATE_DEFAULT_ROW.id ? CREWMATE_DEFAULT_ROW.id : current === null || current === CREWMATE_LEADER_ROW.id ? CREWMATE_LEADER_ROW.id : modelChoiceRow(current)}
         onSelect={id => {
-          if (id === TEAMMATE_DEFAULT_ROW.id && current === undefined) {
+          if (id === CREWMATE_DEFAULT_ROW.id && current === undefined) {
             setSubMenu(null)
             return
           }
-          const next = id === TEAMMATE_LEADER_ROW.id ? null : id === TEAMMATE_DEFAULT_ROW.id ? undefined : parseUserSpecifiedModel(id)
-          writeGlobal(c => ({ ...c, teammateDefaultModel: next }))
+          const next = id === CREWMATE_LEADER_ROW.id ? null : id === CREWMATE_DEFAULT_ROW.id ? undefined : parseUserSpecifiedModel(id)
+          writeGlobal(c => ({ ...c, crewmateDefaultModel: next }))
           recordSet(
-            'teammateDefaultModel',
-            `set default crewmate model to ${next === null ? TEAMMATE_LEADER_ROW.name : next === undefined ? TEAMMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
+            'crewmateDefaultModel',
+            `set default crewmate model to ${next === null ? CREWMATE_LEADER_ROW.name : next === undefined ? CREWMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
           )
           setSubMenu(null)
         }}

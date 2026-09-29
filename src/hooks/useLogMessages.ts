@@ -10,7 +10,7 @@ import {
 } from '../utils/sessionStorage/chain.js'
 import { isChainParticipant } from '../utils/sessionStorage/paths.js'
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
-import { getAgentName, getTeamName } from '../utils/teammate.js'
+import { getAgentName, getCrewName } from '../utils/crewmate.js'
 
 const FLUSH_MAX_LATENCY_MS = 5000
 
@@ -80,8 +80,8 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
     }
 
     const replIds = replIdsRef.current
-    const teamInfo = isAgentSwarmsEnabled()
-      ? { teamName: getTeamName(), agentName: getAgentName() }
+    const crewInfo = isAgentSwarmsEnabled()
+      ? { teamName: getCrewName(), agentName: getAgentName() }
       : undefined
     const hint = incremental ? parentHintRef.current : undefined
     const seq = ++seqRef.current
@@ -96,7 +96,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
 
     void recordTranscript(
       slice,
-      teamInfo,
+      crewInfo,
       hint,
       messages,
       replIds,

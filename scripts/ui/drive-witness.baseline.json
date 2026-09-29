@@ -108,7 +108,7 @@
     "scripts/journey/prove-switch-cold-ingest.ts": 6,
     "scripts/journey/prove-switch-pickup-live.ts": 6,
     "scripts/journey/prove-switch-window-drive.ts": 7,
-    "scripts/journey/prove-teammate-mail-abort-drive.ts": 7,
+    "scripts/journey/prove-crewmate-mail-abort-drive.ts": 7,
     "scripts/journey/prove-token-ring-drive.ts": 3,
     "scripts/journey/prove-wire-prefix-holds.ts": 21,
     "scripts/journey/prove-workflow-truth-drive.ts": 23,

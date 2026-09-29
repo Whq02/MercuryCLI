@@ -7,7 +7,7 @@ import { defineStore } from '../../substrate/fileStore.js'
 import { getAgentContext, isSubagentContext } from '../agentContext.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { logForDebugging } from '../debug.js'
-import { crewChildName, getDynamicTeamContext, getTeammateContext, resolveCoordAgentId } from '../teammate.js'
+import { crewChildName, getDynamicCrewContext, getCrewmateContext, resolveCoordAgentId } from '../crewmate.js'
 import { isCrewRole } from '../workerRole.js'
 
 export const DEFAULT_LEASE_TTL_MS = 30 * 60 * 1000
@@ -39,9 +39,9 @@ export function resolveClaimHolder(): CrewClaimHolder {
   const name = resolveCoordAgentId()
   const agent = getAgentContext()
   if (isSubagentContext(agent) && agent.agentId === name) return { name, kind: 'subagent', id: agent.agentId }
-  const inProcess = getTeammateContext()
+  const inProcess = getCrewmateContext()
   if (inProcess && inProcess.agentName === name) return { name, kind: 'crewmate', id: inProcess.agentId }
-  const dynamic = getDynamicTeamContext()
+  const dynamic = getDynamicCrewContext()
   if (dynamic && dynamic.agentName === name) return { name, kind: isCrewRole() ? 'seat' : 'crewmate', id: dynamic.agentId }
   if (crewChildName() === name) return { name, kind: 'seat' }
   return { name, kind: 'lead' }
@@ -140,8 +140,8 @@ export function crewClaimStoreKey(projectRoot: string = getProjectRoot()): strin
   return createHash('sha256').update(projectRoot).digest('hex').slice(0, 16)
 }
 
-export function getLeaseStorePath(team: string): string {
-  void team
+export function getLeaseStorePath(crew: string): string {
+  void crew
   return join(crewStoreRoot(), `claims-${crewClaimStoreKey()}.json`)
 }
 
@@ -154,7 +154,7 @@ function decodeHolder(raw: unknown, agentId: string): CrewClaimHolder {
 
 const leaseStoreFor = defineStore<LeaseStore, [string]>({
   name: 'leaseGlob',
-  path: team => getLeaseStorePath(team),
+  path: crew => getLeaseStorePath(crew),
   schemaVersion: 1,
   decode: raw => {
     const parsed = raw as Partial<LeaseStore> | null
@@ -179,12 +179,12 @@ const leaseStoreFor = defineStore<LeaseStore, [string]>({
 
 const releaseAtEnd = new Set<string>()
 
-function releaseWhenThisProcessEnds(team: string, holder: CrewClaimHolder): void {
+function releaseWhenThisProcessEnds(crew: string, holder: CrewClaimHolder): void {
   if (holder.name !== resolveClaimHolder().name || releaseAtEnd.has(holder.name)) return
   releaseAtEnd.add(holder.name)
   registerCleanup(async () => {
     try {
-      await releaseLease(team, holder.name)
+      await releaseLease(crew, holder.name)
     } catch (error) {
       logForDebugging(`crew claim release for ${holder.name} at process end failed: ${String(error)}`)
     }
@@ -192,10 +192,10 @@ function releaseWhenThisProcessEnds(team: string, holder: CrewClaimHolder): void
 }
 
 async function withLockedStore<T>(
-  team: string,
+  crew: string,
   fn: (store: LeaseStore) => Promise<{ store: LeaseStore; result: T }> | { store: LeaseStore; result: T },
 ): Promise<T> {
-  return leaseStoreFor(team).update(async store => {
+  return leaseStoreFor(crew).update(async store => {
     const { store: next, result } = await fn(store)
     return { next, result }
   })
@@ -208,7 +208,7 @@ function pruneExpired(store: LeaseStore, nowMs: number): LeaseStore {
 
 
 export async function claimLease(
-  team: string,
+  crew: string,
   agentId: string,
   globs: string[],
   opts: { base?: string; ttlMs?: number; holder?: CrewClaimHolder } = {},
@@ -224,7 +224,7 @@ export async function claimLease(
     ),
   )
 
-  const result = await withLockedStore<ClaimLeaseResult>(team, store => {
+  const result = await withLockedStore<ClaimLeaseResult>(crew, store => {
     const now = Date.now()
     const live = pruneExpired(store, now)
 
@@ -267,24 +267,24 @@ export async function claimLease(
       result: { ok: true as const, lease },
     }
   })
-  if (result.ok && result.lease.globs.length > 0) releaseWhenThisProcessEnds(team, holder)
+  if (result.ok && result.lease.globs.length > 0) releaseWhenThisProcessEnds(crew, holder)
   return result
 }
 
-export async function releaseLease(team: string, agentId: string): Promise<boolean> {
-  return withLockedStore(team, store => {
+export async function releaseLease(crew: string, agentId: string): Promise<boolean> {
+  return withLockedStore(crew, store => {
     const before = store.leases.length
     const leases = store.leases.filter(l => l.agentId !== agentId)
     return { store: { leases }, result: leases.length !== before }
   })
 }
 
-export async function releaseAllForAgent(team: string, agentId: string): Promise<boolean> {
-  return releaseLease(team, agentId)
+export async function releaseAllForAgent(crew: string, agentId: string): Promise<boolean> {
+  return releaseLease(crew, agentId)
 }
 
 export async function getLeaseConflict(
-  team: string,
+  crew: string,
   agentId: string,
   filePath: string,
   opts: { base?: string; nowMs?: number } = {},
@@ -294,7 +294,7 @@ export async function getLeaseConflict(
   const rel = relScope(filePath, base)
   if (rel === '..' || rel.startsWith('../')) return null
 
-  const store = await leaseStoreFor(team).read()
+  const store = await leaseStoreFor(crew).read()
   for (const lease of store.leases) {
     if (lease.agentId === agentId) continue
     if (isLeaseExpired(lease, now)) continue
@@ -308,7 +308,7 @@ export async function getLeaseConflict(
 }
 
 export async function getLeaseScopeConflict(
-  team: string,
+  crew: string,
   agentId: string,
   scopePath: string,
   opts: { base?: string; nowMs?: number } = {},
@@ -318,7 +318,7 @@ export async function getLeaseScopeConflict(
   const rel = relScope(scopePath, base)
   if (rel === '..' || rel.startsWith('../')) return null
   const scope = rel === '' ? '**' : `${rel}/**`
-  const store = await leaseStoreFor(team).read()
+  const store = await leaseStoreFor(crew).read()
   for (const lease of store.leases) {
     if (lease.agentId === agentId) continue
     if (isLeaseExpired(lease, now)) continue
@@ -331,25 +331,25 @@ export async function getLeaseScopeConflict(
   return null
 }
 
-export function subscribeLeases(team: string, listener: () => void): () => void {
-  return leaseStoreFor(team).subscribe(() => listener(), { immediate: false })
+export function subscribeLeases(crew: string, listener: () => void): () => void {
+  return leaseStoreFor(crew).subscribe(() => listener(), { immediate: false })
 }
 
 export async function listLeases(
-  team: string,
+  crew: string,
   opts: { nowMs?: number } = {},
 ): Promise<Lease[]> {
   const now = opts.nowMs ?? Date.now()
-  const store = await leaseStoreFor(team).read()
+  const store = await leaseStoreFor(crew).read()
   return store.leases.filter(l => !isLeaseExpired(l, now))
 }
 
 export async function sweepExpiredLeases(
-  team: string,
+  crew: string,
   opts: { nowMs?: number } = {},
 ): Promise<number> {
   const now = opts.nowMs ?? Date.now()
-  return withLockedStore(team, store => {
+  return withLockedStore(crew, store => {
     const pruned = pruneExpired(store, now)
     return {
       store: pruned,

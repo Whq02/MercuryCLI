@@ -4,10 +4,10 @@ import { Box, Text } from '../../ink.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppState, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
-  enterTeammateView,
-  exitTeammateView,
-} from '../../state/teammateViewHelpers.js'
-import { isInProcessTeammateTask, type InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
+  enterCrewmateView,
+  exitCrewmateView,
+} from '../../state/crewmateViewHelpers.js'
+import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import { getPillLabel, pillNeedsCta } from '../../tasks/pillLabel.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { calculateHorizontalScrollWindow } from '../../utils/horizontalScroll.js'
@@ -25,9 +25,9 @@ const EXPAND_CHORD = 'shift + ↓'
 const ARROW_WIDTH = 2
 
 function themeColorOf(
-  teammate: InProcessTeammateTaskState,
+  crewmate: InProcessCrewmateTaskState,
 ): keyof Theme | undefined {
-  const raw = teammate.identity.color
+  const raw = crewmate.identity.color
   if (raw === undefined) return undefined
   return (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[raw]
 }
@@ -85,14 +85,14 @@ function Pill({
 
 export function BackgroundTaskStatus({
   tasksSelected,
-  isViewingTeammate = false,
-  teammateFooterIndex,
+  isViewingCrewmate = false,
+  crewmateFooterIndex,
   isLeaderIdle = false,
   onOpenDialog,
 }: {
   tasksSelected: boolean
-  isViewingTeammate?: boolean
-  teammateFooterIndex?: number
+  isViewingCrewmate?: boolean
+  crewmateFooterIndex?: number
   isLeaderIdle?: boolean
   onOpenDialog?: () => void
 }): React.ReactNode {
@@ -108,21 +108,21 @@ export function BackgroundTaskStatus({
   const setAppState = useSetAppState()
 
   const manageable = Object.values(tasks).filter(isManageableTask)
-  const allTeammates =
-    manageable.length > 0 && manageable.every(isInProcessTeammateTask)
+  const allCrewmates =
+    manageable.length > 0 && manageable.every(isInProcessCrewmateTask)
   const agentPillMode =
-    (allTeammates && !treeShowing) || (isViewingTeammate && !treeShowing)
+    (allCrewmates && !treeShowing) || (isViewingCrewmate && !treeShowing)
 
   if (agentPillMode) {
-    const teammates = Object.values(tasks)
-      .filter(isInProcessTeammateTask)
+    const crewmates = Object.values(tasks)
+      .filter(isInProcessCrewmateTask)
       .filter(isManageableTask)
       .sort((a, b) =>
         (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
       )
     const displayed = tasksSelected
-      ? teammates
-      : [...teammates].sort(
+      ? crewmates
+      : [...crewmates].sort(
           (a, b) => Number(a.isIdle === true) - Number(b.isIdle === true),
         )
     const viewedIndex =
@@ -130,7 +130,7 @@ export function BackgroundTaskStatus({
         ? displayed.findIndex(t => t.id === viewingAgentTaskId) + 1
         : 0
     const selectedIndex = tasksSelected
-      ? (teammateFooterIndex ?? 0)
+      ? (crewmateFooterIndex ?? 0)
       : Math.max(0, viewedIndex)
 
     type PillModel = {
@@ -148,15 +148,15 @@ export function BackgroundTaskStatus({
         color: undefined,
         busy: !isLeaderIdle,
         idle: isLeaderIdle,
-        onActivate: () => exitTeammateView(setAppState),
+        onActivate: () => exitCrewmateView(setAppState),
       },
-      ...displayed.map(teammate => ({
-        id: `footer:tasks:pill:${teammate.id}`,
-        label: `@${teammate.identity.agentName}`,
-        color: themeColorOf(teammate),
-        busy: teammate.status === 'running' && teammate.isIdle !== true,
-        idle: teammate.isIdle === true,
-        onActivate: () => enterTeammateView(teammate.id, setAppState),
+      ...displayed.map(crewmate => ({
+        id: `footer:tasks:pill:${crewmate.id}`,
+        label: `@${crewmate.identity.agentName}`,
+        color: themeColorOf(crewmate),
+        busy: crewmate.status === 'running' && crewmate.isIdle !== true,
+        idle: crewmate.isIdle === true,
+        onActivate: () => enterCrewmateView(crewmate.id, setAppState),
       })),
     ]
 

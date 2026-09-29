@@ -151,7 +151,7 @@ section('(1) pure derivation — one root + three live children, owner-true rows
     agent?.changedPaths.length === 2 && agent?.verification === 'verified',
   )
   const mate = snap.threads.find(t => t.id === 'task-mate')
-  check('teammate phase from teamPhases (blocked, not invented)', mate?.kind === 'teammate' && mate?.phase === 'blocked')
+  check('teammate phase from crewPhases (blocked, not invented)', mate?.kind === 'teammate' && mate?.phase === 'blocked')
   check('teammate blocker surfaces', mate?.blocker === 'awaiting plan approval')
   const wf = snap.threads.find(t => t.id === 'task-wf')
   check('workflow row: kind workflow', wf?.kind === 'workflow')

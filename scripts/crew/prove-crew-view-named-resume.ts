@@ -20,7 +20,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_LIVE_CLOCK', 'MERCURY_LIVE_GLYPHS']) process.env[k] = '0'
 delete process.env.MERCURY_CREW
-delete process.env.MERCURY_TEAMS_DIR
+delete process.env.MERCURY_CREWS_DIR
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
@@ -50,7 +50,7 @@ async function main(): Promise<void> {
   const { getDefaultAppState } = await import(src('state/AppStateStore.ts'))
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
 
-  await cs.ensureCrewTeamMember(SEAT, MODEL, scratch)
+  await cs.ensureCrewMember(SEAT, MODEL, scratch)
   const settle = async (ms = 5): Promise<void> => {
     for (let index = 0; index < 6; index++) {
       ink.flushPendingSyncWork()
@@ -127,7 +127,7 @@ async function main(): Promise<void> {
 
   section('the words: one owner in the crew client')
   const client = await import(src('utils/crew/crewClient.ts'))
-  check('a seat with no recorded model is refused, never handed a default', typeof client.resumeCrewTeammate === 'function' && (await client.resumeCrewTeammate(SEAT, undefined, scratch)).error === client.crewResumeNoModelWords(SEAT))
+  check('a seat with no recorded model is refused, never handed a default', typeof client.resumeCrewmate === 'function' && (await client.resumeCrewmate(SEAT, undefined, scratch)).error === client.crewResumeNoModelWords(SEAT))
   rmSync(scratch, { recursive: true, force: true })
 }
 

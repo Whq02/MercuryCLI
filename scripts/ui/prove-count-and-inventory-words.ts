@@ -66,7 +66,7 @@ for (const [cols, rows] of geometries) {
       ZAI_BASE_URL: 'http://127.0.0.1:1',
       MERCURY_CONFIG_DIR: config,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'teams'),
       MERCURY_HOME: join(home, 'product-home'),
       MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
       MERCURY_CREDENTIAL_STORE: 'file',

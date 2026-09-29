@@ -8,7 +8,7 @@ import { getPlatform } from './platform.js'
 import { getMercuryHome } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { isProcessRunning } from './genericProcessUtils.js'
-import { getAgentId } from './teammate.js'
+import { getAgentId } from './crewmate.js'
 
 
 export type SessionKind = 'interactive' | 'bg' | 'daemon'
