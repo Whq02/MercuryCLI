@@ -6,6 +6,7 @@ import { formatSessionCost } from '../../utils/spendSpelling.js'
 import { agentWaitWords, type AgentWaitV1 } from '../../tasks/LocalAgentTask/agentWait.js'
 import { decodeAgentPause, pauseLineWords, pauseStatusWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
 import { operatorPauseWaitParts, pauseGateChipWords } from '../../run-core/pauseGate.js'
+import { CREW_VIEW_DOOR } from '../../utils/cockpit/crewmateWords.js'
 
 export type CrewAgentKind = 'agent' | 'named'
 
@@ -258,7 +259,7 @@ export function crewStillRunningLine(
   const agents = typeof running === 'number' ? running : running.agents + running.teammates
   const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
-  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (/teammates) and press x twice on its row to stop one`)
+  if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
   if (workflows > 0) parts.push(`${workflows} workflow run${workflows === 1 ? '' : 's'} still running — see /workflows`)
   return parts.length === 0 ? null : parts.join(' · ')
 }

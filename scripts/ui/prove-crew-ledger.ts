@@ -706,7 +706,7 @@ async function run(cols: number, rows: number): Promise<void> {
     save('07-local-landed-viewed', cols, rows, scene.lines())
     const localFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
     console.log(`the footer on the landed local crewmate: ${localFooter.slice(0, 200)} · composer row "${composerText(scene.lines()).slice(0, 80)}" · header "${headerOf(scene.lines(), railCols).slice(0, 80)}"`)
-    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/teammates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
+    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door — never "↵ sends to local"', /↵ refused — r in \/crewmates resumes local/.test(localFooter) && !/↵ sends to local/.test(localFooter) && /esc back to Mercury Lead/.test(localFooter), localFooter.slice(0, 240))
     await clickRail(scene, LEAD_ROW, railCols)
     await until(() => scene.state().viewingAgentTaskId === undefined, 4000)
     await sleep(900)

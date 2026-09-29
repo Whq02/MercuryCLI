@@ -184,6 +184,7 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'TaskList',
   'TaskStop',
   'TaskUpdate',
+  'LiveComms',
   'TeamBrief',
   'TeamDelete',
   'ToolSearch',

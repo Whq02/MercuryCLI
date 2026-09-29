@@ -22,8 +22,10 @@ import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../.
 import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
 import { ModalContext } from '../../../context/modalContext.js'
 import {
+  crewMessageWakesWords,
   crewRosterStatus,
   crewUnreadCounts,
+  ensureCrewDaemon,
   killCrewTeammate,
   listCrewMembers,
   markCrewChatRead,
@@ -33,6 +35,7 @@ import {
   type CrewChatRow,
   type CrewMemberInfo,
 } from '../../../utils/crew/crewClient.js'
+import { CREW_CHATS_HINT } from '../../../utils/cockpit/crewmateWords.js'
 
 
 const HUES = [TERRA, AMBER, TEAL, SECOND] as const
@@ -137,13 +140,11 @@ export function TeammateChatsView({
     const v = draft.trim()
     const name = cur?.member.name
     if (!v || !name) return
-    if (!cur?.online) {
-      setNote(`@${name} is offline — respawn it (r) before sending`)
-      return
-    }
+    const wakes = !cur?.online
+    if (wakes) ensureCrewDaemon(cwd)
     setDraft('')
     const ok = await sendCrewMessage(name, v)
-    setNote(ok ? '' : 'send failed — see /health')
+    setNote(ok ? (wakes ? crewMessageWakesWords(name) : '') : 'send failed — see /health')
     bump()
   }, [draft, cur, bump])
 
@@ -262,7 +263,7 @@ export function TeammateChatsView({
           <Text color={FAINT}> · {rows.length} named agent{rows.length === 1 ? '' : 's'} · one chat each</Text>
         </Text>
         <Box borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1}>
-          <Text color={FAINT}>/teammates · n new</Text>
+          <Text color={FAINT}>{CREW_CHATS_HINT}</Text>
         </Box>
       </Box>
 

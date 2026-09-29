@@ -68,7 +68,7 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   }
 }
 const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
-const inboxPath = join(teams, team, 'inboxes/team-lead.json')
+const inboxPath = join(config, 'crew', 'livecomms', `${team}.json`)
 let lockHeld = false
 let lockReleased = false
 let lockRefresh: ReturnType<typeof setInterval> | undefined
@@ -76,7 +76,8 @@ let lockRelease: ReturnType<typeof setTimeout> | undefined
 const readInbox = (): Array<{ text: string; read?: boolean; from: string }> | null => {
   if (!existsSync(inboxPath)) return null
   try {
-    return JSON.parse(readFileSync(inboxPath, 'utf8')) as Array<{ text: string; read?: boolean; from: string }>
+    const file = JSON.parse(readFileSync(inboxPath, 'utf8')) as { messages?: Array<{ to: string; text: string; read?: boolean; from: string }> }
+    return (file.messages ?? []).filter(row => row.to === 'team-lead')
   } catch {
     return null
   }

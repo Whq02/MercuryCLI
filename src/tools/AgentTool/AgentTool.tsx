@@ -585,7 +585,7 @@ export const AgentTool = buildTool({
           status: 'teammate_spawned',
           agentId: record.agent_id,
           agentName: input.name,
-          teamName,
+          teamName: record.team_name ?? teamName,
           prompt: input.prompt,
           description: input.description,
         } as never,

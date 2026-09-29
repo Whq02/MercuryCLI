@@ -63,15 +63,15 @@ check('relScope(abs, worktree-cwd) escapes (../src/api.ts) — the old false-all
 check('an escaped path can never match an in-namespace lease (guard would allow)', globMatchesFile('src/api.ts', escaped) === false)
 check('relScope(src/api.ts, root) stable === src/api.ts', relScope('src/api.ts', ROOT) === 'src/api.ts')
 
-section('#7 audit-r1 — leader teamContext threaded into checkLeaseGuard (no leader fail-open)')
+section('#7 audit-r1 — the guard needs no team; the lead cannot fail open past a claim')
 {
   const { readFileSync } = await import('node:fs')
   const here = new URL('.', import.meta.url).pathname
   const lg = readFileSync(here + '../../src/utils/swarm/leaseGuard.ts', 'utf8')
   const { readdirSync } = await import('node:fs')
   const hk = readFileSync(here + '../../src/utils/hooks.ts', 'utf8') + readdirSync(here + '../../src/utils/hooks').filter(f => f.endsWith('.ts')).map(f => readFileSync(here + '../../src/utils/hooks/' + f, 'utf8')).join('\n')
-  check('checkLeaseGuard takes a leaderTeamContext + resolves getTeamName(it)', /leaderTeamContext/.test(lg) && /getTeamName\(\s*\n?\s*leaderTeamContext/.test(lg))
-  check('the PreToolUse hook passes appState.teamContext to checkLeaseGuard', /checkLeaseGuard\([\s\S]{0,120}appState\.teamContext/.test(hk))
+  check('checkLeaseGuard resolves the crewmate holder and never reads a team name', /resolveClaimHolder\(\)/.test(lg) && !/getTeamName\(/.test(lg))
+  check('the PreToolUse hook calls checkLeaseGuard with the tool and its input only', /checkLeaseGuard\(\s*toolName,\s*toolInput as Record<string, unknown>,?\s*\)/.test(hk))
 }
 
 console.log('\n' + '═'.repeat(76))

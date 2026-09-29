@@ -112,7 +112,7 @@ async function main(): Promise<void> {
     check('the roster entry carries the seat\'s start folder and worktree (RosterEntry.cwd / worktree)', /cwd\?: string\n\s+worktree\?: string/.test(source), 'RosterEntry has no cwd/worktree')
     check('registerLongLived takes the start beside the spec', /registerLongLived\(\n\s+short: string,\n\s+spec: StreamJsonChildSpec,\n\s+opts\?: Partial<LongLivedSupervisorConfig>,\n\s+start\?: \{ cwd: string; worktree\?: string \}/.test(source), 'registerLongLived has no start parameter')
     const handler = (await import('node:fs')).readFileSync(join(ROOT, 'src/daemon/crewSpawn.ts'), 'utf8')
-    check('the seat door hands the plan\'s folder and worktree to the roster', handler.includes("{ cwd: plan.cwd, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) }"), 'crewSpawn.ts registers the seat without its start')
+    check('the seat door hands the plan\'s folder and worktree to the roster', handler.includes("{ cwd: folder, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) }"), 'crewSpawn.ts registers the seat without its start')
   }
 
   section('R3 the view: with a daemon seat up and a session crewmate up, the crew view lists both in ONE list')

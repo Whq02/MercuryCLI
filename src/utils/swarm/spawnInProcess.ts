@@ -93,7 +93,7 @@ export async function spawnInProcessTeammate(
     const unregisterCleanup = registerCleanup(async () => {
       abortController.abort()
       try {
-        await releaseAllForAgent(config.teamName, agentId)
+        await releaseAllForAgent(config.teamName, config.name)
       } catch (error) {
         logForDebugging(`lease release for ${agentId} failed: ${errorMessage(error)}`)
       }

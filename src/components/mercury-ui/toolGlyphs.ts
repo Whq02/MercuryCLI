@@ -73,6 +73,7 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Agent: 'agent',
   Contract: 'agent',
   SendMessage: 'agent',
+  LiveComms: 'agent',
   TeamBrief: 'agent',
   TeamCreate: 'agent',
   TeamDelete: 'agent',

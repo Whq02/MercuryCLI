@@ -15,6 +15,7 @@ import { getVulcanHarnessMapLine } from '../vulcan/vulcanGates.js'
 import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { CREW_VIEW_DOOR } from './crewmateWords.js'
 
 export function harnessMapEnabled(): boolean {
   if (flagEnv('MERCURY_HARNESS_MAP') === '0') return false
@@ -134,7 +135,7 @@ export function computeHarnessMapLines(): string[] {
     mnemeEnabled()
       ? '- Topic memory (MNEME) is ARMED: the mneme_* tools maintain long-term topic documents beside auto-memory — prefer them for durable facts/decisions. Record with mneme_observe (findable IMMEDIATELY via mneme_grep, even before consolidation); when a fact CHANGES, use mneme_correct (supersede by seq — never record a contradicting duplicate); mneme_retire marks a fact no longer current.'
       : null,
-    crewEnabled() ? '- Crews: /teammates manages named crew workers.' : null,
+    crewEnabled() ? `- Crews: ${CREW_VIEW_DOOR} manages named crew workers.` : null,
   ]
   return lines.filter((l): l is string => l !== null)
 }

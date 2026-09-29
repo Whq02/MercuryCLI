@@ -3,7 +3,7 @@
  "note": "contract journey 1 — one simple single-choice question, standard width",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-29T02:07:47.008Z",
+ "capturedAt": "2026-09-29T04:20:20.679Z",
  "screens": [
   {
    "atMs": 12000,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:07:40 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:20:13 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:07:40 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:20:13 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -30,7 +30,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -47,7 +47,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-QrfYOj                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-A4G1Pg                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,9 +62,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:07:40 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:20:13 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:07:40 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:20:13 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -75,7 +75,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        ────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -92,22 +92,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-QrfYOj                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-A4G1Pg                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 13889,
-   "frame-recommit": 25
+   "patches": 14167,
+   "frame-recommit": 23
   },
   "frames": {
-   "total": 40,
-   "window": 40,
-   "p50": 1.4568750000003092,
-   "p95": 12.370584000000235,
-   "p99": 85.1825839999999,
-   "maxMs": 85.1825839999999
+   "total": 39,
+   "window": 39,
+   "p50": 1.7167500000014115,
+   "p95": 10.419000000000324,
+   "p99": 42.15504199999987,
+   "maxMs": 42.15504199999987
   }
  },
  "requests": [
@@ -119,7 +119,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 7517.455339431763,
+   "atMs": 7205.478191375732,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 8317.455339431763,
+   "atMs": 8005.478191375732,
    "b64": "DQ=="
   }
  ]

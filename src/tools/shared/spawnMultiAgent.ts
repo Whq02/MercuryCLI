@@ -52,7 +52,7 @@ import {
   sendCommandToPane,
 } from '../../utils/swarm/teammateLayoutManager.js'
 import { getHardcodedTeammateModelFallback } from '../../utils/swarm/teammateModel.js'
-import { getTeamName } from '../../utils/teammate.js'
+import { crewContextFor, resolveSpawnCrew } from '../../utils/crew/crewBirth.js'
 import { crewWorktreeSlug, resolveCrewStart } from '../../utils/crew/crewStart.js'
 import { registerTask } from '../../utils/task/framework.js'
 import { sanitizeName } from '../../utils/swarm/teamHelpers.js'
@@ -155,12 +155,7 @@ async function prepareSpawn(
     throw new Error('Teammate spawns require both a name and a prompt.')
   }
   const teamContext = context.getAppState().teamContext as { teamName: string } | undefined
-  const teamName = config.team_name ?? getTeamName(teamContext)
-  if (!teamName) {
-    throw new Error(
-      'No team to spawn into: pass a team name, or create the team first with the team-create tool.',
-    )
-  }
+  const teamName = resolveSpawnCrew(teamContext)
   const uniqueName = await generateUniqueTeammateName(config.name, teamName)
   const teammateName = uniqueName.replaceAll('@', '-')
   const teammateId = formatAgentId(teammateName, teamName)
@@ -280,12 +275,7 @@ function registerTeammateInState(
     const existing = prevState.teamContext as
       | { teamName: string; teamFilePath: string; leadAgentId: string; teammates: Record<string, unknown> }
       | undefined
-    const teamContext = existing ?? {
-      teamName: prepared.teamName,
-      teamFilePath: '',
-      leadAgentId: '',
-      teammates: {},
-    }
+    const teamContext = existing ?? crewContextFor(prepared.teamName)
     return {
       ...prevState,
       teamContext: {
@@ -701,12 +691,7 @@ async function spawnInProcessStrategy(
           teammates: Record<string, unknown>
         }
       | undefined
-    const teamContext = existing ?? {
-      teamName,
-      teamFilePath: '',
-      leadAgentId: '',
-      teammates: {},
-    }
+    const teamContext = existing ?? crewContextFor(teamName)
     const teammates: Record<string, unknown> = { ...teamContext.teammates }
     let leadAgentId = teamContext.leadAgentId
     if (!leadAgentId) {
