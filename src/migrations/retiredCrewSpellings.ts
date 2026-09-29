@@ -105,12 +105,28 @@ function readRetiredNoticeJson(text: unknown): unknown {
   return out
 }
 
-export function readRetiredAttachment(attachment: unknown): unknown {
+function readRetiredPrompt(prompt: unknown, currentTag: string, currentIdAttribute: string): unknown {
+  if (typeof prompt === 'string') return readRetiredMessageText(prompt, currentTag, currentIdAttribute)
+  if (!Array.isArray(prompt)) return prompt
+  const blocks: unknown[] = prompt
+  const out = blocks.map(block =>
+    isRecord(block) && block.type === 'text' && typeof block.text === 'string' && block.text.includes(`<${RETIRED_MESSAGE_TAG}`)
+      ? { ...block, text: readRetiredMessageText(block.text, currentTag, currentIdAttribute) }
+      : block,
+  )
+  return out.some((block, i) => block !== blocks[i]) ? out : prompt
+}
+
+export function readRetiredAttachment(attachment: unknown, currentMessageTag = 'crewmate-message', currentMessageIdAttribute = 'crewmate_id'): unknown {
   if (!isRecord(attachment)) return attachment
   let out = attachment
   const type = RETIRED_TRANSCRIPT_ATTACHMENT_TYPES[String(out.type)]
   if (type !== undefined) out = { ...out, type }
   if (carriesRetiredKeys(out, RETIRED_TRANSCRIPT_ROW_KEYS)) out = renameKeys(out, RETIRED_TRANSCRIPT_ROW_KEYS)
+  if (out.type === 'queued_command' && 'prompt' in out) {
+    const prompt = readRetiredPrompt(out.prompt, currentMessageTag, currentMessageIdAttribute)
+    if (prompt !== out.prompt) out = { ...out, prompt }
+  }
   if (Array.isArray(out.messages)) {
     let changed = false
     const messages = out.messages.map(message => {
@@ -145,7 +161,7 @@ export function readRetiredTranscriptRow<T>(row: T, currentMessageTag = 'crewmat
   let out: Rec = row
   if (carriesRetiredKeys(out, RETIRED_TRANSCRIPT_ROW_KEYS)) out = renameKeys(out, RETIRED_TRANSCRIPT_ROW_KEYS)
   if (out.type === 'attachment' && isRecord(out.attachment)) {
-    const attachment = readRetiredAttachment(out.attachment)
+    const attachment = readRetiredAttachment(out.attachment, currentMessageTag, currentMessageIdAttribute)
     if (attachment !== out.attachment) out = { ...out, attachment }
   }
   if ('toolUseResult' in out && isRecord(out.toolUseResult)) {
