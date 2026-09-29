@@ -66,6 +66,7 @@ const storeJson = (): Record<string, unknown> => (existsSync(storeFile) ? (JSON.
 try {
   tally.section('the lead spawns bob and alice; alice writes a message, a task, a claim and her busy flag in one LiveComms call')
   session.submit(`${FIRST}: create the crew, spawn bob and alice, and park.`)
+  await session.waitFor('the lead never parked after the spawns', () => session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const written = await until(() => toolResultOf(world, ALICE_WRITE) !== null, TURN_MS)
   const aliceAnswer = toolResultOf(world, ALICE_WRITE)
   const aliceText = aliceAnswer?.text ?? ''

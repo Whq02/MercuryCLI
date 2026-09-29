@@ -51,7 +51,8 @@ const stored = (): Stored => (existsSync(storeFile) ? (JSON.parse(readFileSync(s
 try {
   tally.section('the lead spawns a worker whose turn holds a long command; the lead messages it mid-turn')
   session.submit(`${FIRST}: create the crew, spawn the worker, and park.`)
-  const started = await until(() => requests().length >= 1 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
+  await session.waitFor('the lead never parked after the spawn', () => session.stdout().includes('LEAD-PARKED'), TURN_MS)
+  const started = await until(() => requests().length >= 1, TURN_MS)
   tally.check('the worker started its turn and the lead parked', started, session.stdout().slice(-300))
   await sleep(1500)
   const requestsBefore = requests().length
