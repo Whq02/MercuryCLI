@@ -28,7 +28,7 @@ export async function call(
   }
 
   if (isSwarmWorker()) {
-    return done('Teammate colours are assigned by the team leader — /color is unavailable in a teammate session.')
+    return done('Crewmate colours are assigned by the lead — /color is unavailable in a crewmate session.')
   }
 
   const raw = args.trim()

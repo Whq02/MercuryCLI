@@ -29,7 +29,7 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
       const teams = new Set(
         tasks.map(task => (task as { identity?: { teamName?: string } }).identity?.teamName),
       ).size
-      return `${teams} ${plural(teams, 'team')}`
+      return `${teams} ${plural(teams, 'crew')}`
     }
     case 'local_agent':
       return `${tasks.length} local ${plural(tasks.length, 'agent')}`
