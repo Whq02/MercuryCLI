@@ -93,7 +93,7 @@ const worldEnv: Record<string, string> = {
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 const daemon = spawn('node', [BIN, 'daemon', 'run', CWD], { cwd: CWD, env: { ...process.env, ...worldEnv }, stdio: ['ignore', logFd, logFd] })
 
-type Rec = { runnerId: string; sessionId: string; pid?: number; parkedAt?: number; parkReason?: string; stoppedAt?: number; crash?: { reason: string }; endedAt?: number; isolation?: string }
+type Rec = { runnerId: string; sessionId: string; pid?: number; parkedAt?: number; parkedBy?: string; parkReason?: string; stoppedAt?: number; crash?: { reason: string }; endedAt?: number; isolation?: string }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const records = (): Rec[] => {
   try {
@@ -250,6 +250,12 @@ await sleep(300)
 const heldHandle = await has(runnerId)
 console.log(`  [ladder] ${ladder.join(' · ')}`)
 check('H the roster keeps the runner\'s handle through the respawn backoff (present and unsettled) while the record\'s pid is dead', heldHandle.present && heldHandle.alive && !isAlive(recordOf(sessionId)?.pid), JSON.stringify({ ...heldHandle, pid: recordOf(sessionId)?.pid }))
+let recAtLive: Rec | undefined
+const liveEdge = until(() => {
+  if (!existsSync(transcript) || !readFileSync(transcript, 'utf8').includes(REPLY2)) return false
+  recAtLive = recordOf(sessionId)
+  return true
+}, vshotBudgetMs(90_000))
 const h = await capture({
   id: 'held-continue',
   sends: [
@@ -271,8 +277,10 @@ printFrame('H 120×40 after Continue Last Session', continued)
 check('H Continue Last Session landed in the chat: its words and the resume card are on screen', continued.includes(WORDS) && /resumed/.test(continued), footerLines(continued))
 check('H the footer never says the session has no live runner while the daemon holds its runner (poison: the old red footer)', continued !== '' && !continued.includes(NO_RUNNER) && !continued.includes('already holds this id'), footerLines(continued))
 check('H one receipt row says a live runner still holds the session and the chat re-attached to it', continued.includes(HELD_ROW), footerLines(continued))
+await liveEdge
+check('H the daemon never parked the held record while the chat was live on it (poison: parked with the already-holds sentence)', recAtLive !== undefined && recAtLive.parkedAt === undefined, JSON.stringify({ parkedAt: recAtLive?.parkedAt, parkedBy: recAtLive?.parkedBy, parkReason: recAtLive?.parkReason }))
 const recAfter = recordOf(sessionId)
-check('H the daemon never parked the held record (poison: parked with the already-holds sentence)', recAfter !== undefined && recAfter.parkedAt === undefined, JSON.stringify({ parkedAt: recAfter?.parkedAt, parkReason: recAfter?.parkReason }))
+console.log(`  [after-quit] the record once the screen hung up: ${JSON.stringify({ parkedAt: recAfter?.parkedAt, parkedBy: recAfter?.parkedBy, parkReason: recAfter?.parkReason })} (a quitting screen parks the chats it ran)`)
 for (const [cols, rows] of SIZES) {
   const frame = stageOf(h, cols, rows)
   check(`H at ${cols}×${rows} the chat stands with its words and no no-live-runner footer`, frame.includes(WORDS) && !frame.includes(NO_RUNNER) && !frame.includes('already holds'), footerLines(frame) || frame.split('\n').slice(0, 2).join(' | '))
