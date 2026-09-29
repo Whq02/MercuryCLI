@@ -2,8 +2,8 @@
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
   "sourceSha": "00c570e4a5b44d67f356c509d967409e50dd22e4",
-  "buildDigest": "da508860e6b1ea523d0bcfa980a958de323adbab",
-  "generatedAt": "2026-09-29T13:24:55.940Z",
+  "buildDigest": "91b7e1b4fbed7b498a44182dddc17258da3b0cc3",
+  "generatedAt": "2026-09-29T13:40:51.744Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -1880,7 +1880,7 @@
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
       "sourceSha": "00c570e4a5b44d67f356c509d967409e50dd22e4",
-      "buildDigest": "e33b5832dbd7d598ab2880d2edd8b4a7afa051ea",
+      "buildDigest": "91b7e1b4fbed7b498a44182dddc17258da3b0cc3",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1891,8 +1891,8 @@
       "stateFixture": "tool-cards",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/tool-cards--120x40--dark--truecolor--full.grid.json",
-      "gridDigest": "d1660d20bf59e6921a0d839064f0e3929e7feb0966eec78b28340ce647803f81",
-      "styleDigest": "0074a631d6e72fda269fde1cff4378bcab56d798971e69bba3ee1a737e397654",
+      "gridDigest": "8b1a0a88dce309bddcd1cc9eeb241518bbb5eb9996d107e6d1c4eb5073491010",
+      "styleDigest": "3df5329a52e261c784ffaab5dfddfec78ecee074630623daf4f59e6c77b6c1b7",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
         "\\b\\d+[smhd] ago\\b",
@@ -1913,7 +1913,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T13:08:23.527Z"
+      "generatedAt": "2026-09-29T13:40:51.588Z"
     }
   ]
 }
