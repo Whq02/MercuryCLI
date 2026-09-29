@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-  "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
-  "generatedAt": "2026-09-29T00:59:04.374Z",
+  "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+  "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
+  "generatedAt": "2026-09-29T01:00:19.525Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -701,8 +701,8 @@
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -735,12 +735,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.297Z"
+      "generatedAt": "2026-09-29T01:00:19.465Z"
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "frame",
       "cols": 80,
       "rows": 24,
@@ -773,12 +773,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.299Z"
+      "generatedAt": "2026-09-29T01:00:19.467Z"
     },
     {
       "id": "frame--97x30--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "frame",
       "cols": 97,
       "rows": 30,
@@ -811,12 +811,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.300Z"
+      "generatedAt": "2026-09-29T01:00:19.470Z"
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -849,7 +849,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.303Z"
+      "generatedAt": "2026-09-29T01:00:19.473Z"
     },
     {
       "id": "help--120x40--dark--truecolor--full",
@@ -1499,8 +1499,8 @@
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1533,12 +1533,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.298Z"
+      "generatedAt": "2026-09-29T01:00:19.466Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "resume-2turn",
       "cols": 80,
       "rows": 24,
@@ -1571,12 +1571,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.299Z"
+      "generatedAt": "2026-09-29T01:00:19.467Z"
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1609,12 +1609,12 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.301Z"
+      "generatedAt": "2026-09-29T01:00:19.472Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
-      "sourceSha": "3e1cbb667f7a84cdbbb17fcfb0a41b7c3921afce",
-      "buildDigest": "5040c94348d2fb5152ccb561a9d25490a462ead2",
+      "sourceSha": "0f23b16246767cadee8b9b0b4f99d559e6dd1f1d",
+      "buildDigest": "79de3af77749fc5d3a1a5b73350988afef57566a",
       "scenario": "resume-2turn",
       "cols": 99,
       "rows": 30,
@@ -1647,7 +1647,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T00:59:04.304Z"
+      "generatedAt": "2026-09-29T01:00:19.474Z"
     },
     {
       "id": "sessions--120x40--dark--truecolor--full",
