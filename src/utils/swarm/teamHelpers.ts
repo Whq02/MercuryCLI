@@ -326,16 +326,17 @@ function withLockedTeamFileSync<R>(
 const MAX_TEAM_MEMBERS = 16
 
 export async function appendTeamMember(teamName: string, member: TeamMember): Promise<void> {
-  await withLockedTeamFile(teamName, current => {
-    if (current === null) {
-      throw new Error(`Team "${teamName}" does not exist — create the team first`)
+  await withLockedTeamFile(teamName, async current => {
+    const roster = current ?? (await import('../crew/crewBirth.js')).foundingRosterFor(teamName)
+    if (roster === null) {
+      throw new Error(`Team "${teamName}" does not exist`)
     }
-    if (current.members.length >= MAX_TEAM_MEMBERS) {
+    if (roster.members.length >= MAX_TEAM_MEMBERS) {
       throw new Error(
-        `Team "${teamName}" already has ${current.members.length} members (max ${MAX_TEAM_MEMBERS}) — shut down an idle teammate before spawning another`,
+        `Team "${teamName}" already has ${roster.members.length} members (max ${MAX_TEAM_MEMBERS}) — shut down an idle teammate before spawning another`,
       )
     }
-    return { next: { ...current, members: [...current.members, member] }, result: undefined }
+    return { next: { ...roster, members: [...roster.members, member] }, result: undefined }
   })
 }
 
