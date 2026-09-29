@@ -68,7 +68,7 @@ section('a stopped crewmate: r resumes it from its transcript with its identity,
 {
   const store = makeStore()
   resetCommandQueue()
-  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false, model: 'claude-sonnet-5', agentType: 'mercury-general' }, { setAppState: store.set as never })
+  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false, model: 'claude-sonnet-5', agentType: 'mercury-general', cwd: '/place/of/work', worktree: '/place/of/work/.worktrees/ping' }, { setAppState: store.set as never })
   const id = spawned.taskId!
   const stopped = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
   check('the crewmate is stopped first', stopped.outcome === 'applied' && store.state.tasks[id]?.status === 'killed', JSON.stringify(stopped))
@@ -79,7 +79,7 @@ section('a stopped crewmate: r resumes it from its transcript with its identity,
     configs.push(config)
     contexts.push(context)
     const again = await spawnInProcessCrewmate(
-      { name: config.name, crewName: config.crew_name!, prompt: config.prompt, planModeRequired: config.plan_mode_required === true, ...(config.model !== undefined ? { model: config.model } : {}), ...(config.agent_type !== undefined ? { agentType: config.agent_type } : {}) },
+      { name: config.name, crewName: config.crew_name!, prompt: config.prompt, planModeRequired: config.plan_mode_required === true, ...(config.model !== undefined ? { model: config.model } : {}), ...(config.agent_type !== undefined ? { agentType: config.agent_type } : {}), ...(config.cwd !== undefined ? { cwd: config.cwd } : {}), ...(config.resume?.worktree !== undefined ? { worktree: config.resume.worktree } : {}) },
       { setAppState: store.set as never },
     )
     return { data: { crewmate_id: again.agentId, agent_id: again.agentId, model: config.model ?? '', name: config.name, color: 'blue', tmux_session_name: 'in-process', tmux_window_name: 'in-process', tmux_pane_id: 'in-process', crew_name: config.crew_name, is_splitpane: false, plan_mode_required: false } }
@@ -90,6 +90,7 @@ section('a stopped crewmate: r resumes it from its transcript with its identity,
   check('one new crewmate row runs under a new id with the same agent id; the stopped row stays killed', receipt.outcome === 'applied' && running.length === 1 && running[0]!.id === receipt.taskId && receipt.taskId !== id && running[0]!.identity?.agentId === AGENT_ID && receipt.agentId === AGENT_ID && store.state.tasks[id]?.status === 'killed', JSON.stringify({ receipt, running }))
   check('the respawn carries the row\'s name, crew, prompt, model, type and plan mode', configs.length === 1 && configs[0]!.name === 'sonnet-ping' && configs[0]!.crew_name === 'ping-crew' && configs[0]!.prompt === 'reply ping' && configs[0]!.model === 'claude-sonnet-5' && configs[0]!.agent_type === 'mercury-general' && configs[0]!.plan_mode_required === false, JSON.stringify(configs))
   check('the respawn restores history and the operator note through the same transcript id', configs[0]?.resume?.messages[0]?.uuid === savedMessages[0]?.uuid && configs[0]?.resume?.prompt === 'Continue with the saved work' && configs[0]?.resume?.transcriptAgentId === spawned.transcriptAgentId)
+  check('the respawn carries the row\'s working folder and its worktree to keep, never the lead\'s folder (RED on the base: no cwd, no worktree)', configs[0]?.cwd === '/place/of/work' && configs[0]?.resume?.worktree === '/place/of/work/.worktrees/ping', JSON.stringify({ cwd: configs[0]?.cwd, worktree: configs[0]?.resume?.worktree }))
   check('the respawn rides the last turn\'s context with a fresh controller and no stale tool-use id', contexts.length === 1 && (contexts[0] as { toolUseId?: string }).toolUseId === undefined && contexts[0]!.abortController !== undefined && !contexts[0]!.abortController.signal.aborted)
   const told = notices()
   check('the main agent is told once, at the next priority, naming the new row and the door', told.length === 1 && told[0]!.priority === 'next' && receipt.outcome === 'applied' && told[0]!.value.includes(`<task-id>${receipt.taskId}</task-id>`) && told[0]!.value.includes(`<summary>${crewmateRespawnWords('sonnet-ping')}</summary>`), JSON.stringify(told))
@@ -101,6 +102,7 @@ section('a stopped crewmate: r resumes it from its transcript with its identity,
   resetCommandQueue()
   const evicted = await respawnCrewmateByOperator(id, { getAppState: store.get, toolUseContext: contextOf(store) }, { spawn, readTranscript })
   check('once both rows are evicted, r on the original id still resumes from the spawn record: the same identity, prompt, model, type and plan mode, the same transcript', evicted.outcome === 'applied' && evicted.agentId === AGENT_ID && configs.length === 2 && configs[1]!.name === 'sonnet-ping' && configs[1]!.crew_name === 'ping-crew' && configs[1]!.prompt === 'reply ping' && configs[1]!.model === 'claude-sonnet-5' && configs[1]!.agent_type === 'mercury-general' && configs[1]!.plan_mode_required === false && configs[1]!.resume?.transcriptAgentId === spawned.transcriptAgentId && configs[1]!.resume?.prompt.startsWith('The operator resumed you from the crew view'), JSON.stringify({ evicted, config: configs[1] }))
+  check('…and from the record alone the resume still carries the folder and the worktree (RED on the base)', configs[1]?.cwd === '/place/of/work' && configs[1]?.resume?.worktree === '/place/of/work/.worktrees/ping', JSON.stringify({ cwd: configs[1]?.cwd, worktree: configs[1]?.resume?.worktree }))
   check('the evicted-row resume runs under a new row and tells the main agent once more', evicted.outcome === 'applied' && crewmateRows(store).filter(t => t.status === 'running').length === 1 && notices().length === 1 && notices()[0]!.value.includes(`<task-id>${evicted.taskId}</task-id>`), JSON.stringify(notices()))
 }
 

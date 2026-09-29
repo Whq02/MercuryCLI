@@ -167,7 +167,7 @@ export async function crewBrief(ctx: CoordinationContext | null): Promise<CrewBr
   const busyByName = new Map(liveBusy.map(b => [b.name, b] as const))
   const roster: CrewBrief['roster'] = (statuses ?? []).map(s => {
     const word = busyByName.get(s.name)
-    if (word === undefined) return { name: s.name, agentType: s.agentType, status: s.status, currentTasks: s.currentTasks }
+    if (word === undefined || s.status === 'stopped') return { name: s.name, agentType: s.agentType, status: s.status, currentTasks: s.currentTasks }
     return {
       name: s.name,
       agentType: s.agentType,
@@ -176,9 +176,10 @@ export async function crewBrief(ctx: CoordinationContext | null): Promise<CrewBr
       ...(word.busy && word.doing !== undefined ? { doing: word.doing } : {}),
     }
   })
+  const stoppedNames = new Set((statuses ?? []).filter(s => s.status === 'stopped').map(s => s.name))
   const health: CrewBrief['health'] = roomHealth.agents.map(a => {
     const word = busyByName.get(a.name)
-    if (word === undefined || a.state === 'drifting') {
+    if (word === undefined || a.state === 'drifting' || stoppedNames.has(a.name)) {
       return { name: a.name, agentType: a.agentType, state: a.state, currentTasks: a.currentTasks, leaseAgeMs: a.leaseAgeMs, why: a.why }
     }
     if (word.busy) {

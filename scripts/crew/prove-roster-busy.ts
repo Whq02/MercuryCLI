@@ -137,7 +137,31 @@ section('§3 a member the file has never marked — a pane seat before its first
   check('an unmarked member reads busy', (await statusOf('fresh')) === 'busy', `status=${String(await statusOf('fresh'))}`)
 }
 
-spawned.abortController.abort()
+section('§4 the operator stops the seat: its roster record stays, marked stopped, and reads stopped on the statuses and the brief — over a stale busy word — until the crew view\'s clear removes it')
+{
+  const { stopAgentByOperator } = await import('../../src/services/agents/operatorStop.ts')
+  const { setLiveBusy } = await import('../../src/services/crew/liveComms.ts')
+  const { clearCrewmate, foldCrewLedger, seenCrewOf } = await import('../../src/state/crewLedger.ts')
+  const memberOf = async (name: string): Promise<{ isActive?: boolean; stoppedAt?: number; cwd?: string } | undefined> => (await readCrewFileAsync(CREW))?.members.find(candidate => candidate.name === name) as { isActive?: boolean; stoppedAt?: number; cwd?: string } | undefined
+  const stopped = await stopAgentByOperator(spawned.taskId, { getAppState: () => state, setAppState: setAppState as never }, { settleMs: 300, sleep: (ms: number) => sleep(Math.min(ms, 10)) })
+  check('rig: the crew view\'s stop kills the seat', stopped.outcome === 'applied' && taskOf(spawned.taskId)?.status === 'killed', JSON.stringify(stopped))
+  const marked = await until(async () => (await memberOf(SEAT))?.stoppedAt !== undefined, 4000)
+  const record = await memberOf(SEAT)
+  check('the roster record stays after the stop, marked stopped and not active (RED on the base: removed at the kill)', marked && record !== undefined && typeof record.stoppedAt === 'number' && record.isActive === false, JSON.stringify(record ?? null))
+  check('the agent statuses read the stopped seat stopped (RED on the base: no row)', (await statusOf(SEAT)) === 'stopped', `status=${String(await statusOf(SEAT))}`)
+  await setLiveBusy(CREW, SEAT, true, 'a stale word')
+  const briefStopped = await crewBrief(ctx)
+  check('the brief reads it stopped even over a stale busy word in the live store (RED on the base: no row)', briefStopped.roster.find(row => row.name === SEAT)?.status === 'stopped', JSON.stringify(briefStopped.roster))
+  const stoppedHealth = (await getRoomHealth(CREW)).agents.find(row => row.name === SEAT)
+  check('the health never counts a stopped seat as working', stoppedHealth?.state === 'idle' && /stopped/.test(stoppedHealth.why), JSON.stringify(stoppedHealth))
+  const sessionId = String(getSessionId())
+  const seen = seenCrewOf(state.tasks, { rows: [] }, sessionId)
+  state = { ...state, crewLedger: foldCrewLedger(state.crewLedger ?? {}, seen, sessionId, false, Date.now()) } as AppState
+  const cleared = clearCrewmate(spawned.taskId, setAppState)
+  const removed = await until(async () => (await memberOf(SEAT)) === undefined, 4000)
+  check('the crew view\'s clear (the operator\'s word) removes the record from the roster (RED on the base: nothing to remove)', cleared && removed, JSON.stringify(await memberOf(SEAT) ?? null))
+}
+
 await Promise.race([done, sleep(5000)])
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nroster-busy: ${checks} checks, ${failures} failed`)

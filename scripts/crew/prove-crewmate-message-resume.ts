@@ -92,7 +92,7 @@ const control = async (id: string, request: Frame): Promise<Frame> => {
   return response(id)!.response as Frame
 }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
-type Roster = { members: Array<{ name: string; agentId: string }> }
+type Roster = { members: Array<{ name: string; agentId: string; stoppedAt?: number }> }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const projects = join(world.config, 'projects')
 const transcripts = (): string[] => treeOf(projects).filter(path => /subagents\/agent-a[0-9a-z]{8}\.jsonl$/.test(path))
@@ -192,7 +192,7 @@ try {
   tally.check('the resumed worker is stopped again on its new row, while its tool runs', stoppedAgain.subtype === 'success', JSON.stringify(stoppedAgain))
   await sleep(3500)
   const before = transcripts()
-  tally.check('after the eviction the roster holds no row for the worker, and its one transcript stands on disk', workerRows().length === 0 && before.length === 1, JSON.stringify({ members: workerRows(), before }))
+  tally.check('after the eviction the roster still holds the worker\'s record, marked stopped, and its one transcript stands on disk', workerRows().length === 1 && workerRows()[0]!.stoppedAt !== undefined && before.length === 1, JSON.stringify({ members: workerRows(), before }))
   const requestsBeforeSecond = requests().length
   session.submit(`${THIRD}: message the worker again.`)
   const answered2 = await until(() => session.stdout().includes('LEAD-SENT-2'), TURN_MS * 2 / 3)
@@ -201,7 +201,7 @@ try {
   record('send-after-eviction.txt', `${text2}\nis_error=${String(answer2?.isError)}\n`)
   tally.check('the lead\'s message after the eviction was answered', answered2 && answer2 !== null, session.stdout().slice(-600))
   tally.check('the message is not refused as an unknown member (RED on the base: "no such member on crew")', answer2 !== null && !refused(text2), text2.slice(0, 300))
-  tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text2), text2.slice(0, 300))
+  tally.check('the answer says the worker was resumed from its transcript with the message, and names the stop from its kept record', resumedWords(text2) && /was stopped/.test(text2), text2.slice(0, 300))
   await until(() => nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) !== undefined, TURN_MS / 3)
   const continued2 = nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) ?? requests()[requestsBeforeSecond]
   record('continued-request-2.json', JSON.stringify(continued2?.body ?? null, null, 2))

@@ -70,7 +70,7 @@ import {
   type CrewFileWithGovernance,
 } from '../../utils/swarm/sendMessageGovernance.js'
 import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/swarm/handoff.js'
-import { readCrewFileAsync, type CrewFile } from '../../utils/swarm/crewHelpers.js'
+import { crewmateStopped, readCrewFileAsync, type CrewFile } from '../../utils/swarm/crewHelpers.js'
 import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import {
   getAgentId,
@@ -362,7 +362,9 @@ async function endedCrewmateSeat(rawTo: string, crewName: string, context: ToolU
     const launchedAt = metadata.launchedAt ?? 0
     if (newest === undefined || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
   }
-  return newest === undefined ? null : { taskId: newest.taskId, name: newest.name, ended: 'had ended and its row had left the list' }
+  if (newest === undefined) return null
+  const ended = member !== undefined && crewmateStopped(member) ? 'was stopped' : 'had ended and its row had left the list'
+  return { taskId: newest.taskId, name: newest.name, ended }
 }
 
 async function resumeEndedCrewmate(
