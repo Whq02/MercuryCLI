@@ -24,7 +24,8 @@
 # gate-watch: src/services/engine-connector/* src/services/notices/idleNudge.ts
 # gate-watch: src/services/notices/unreadLedger.ts src/services/resources/adapters/agent.ts
 # gate-watch: src/services/resources/adapters/transcript.ts src/services/resources/contracts.ts
-# gate-watch: src/state/AppStateStore.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
+# gate-watch: src/services/resources/adapters/crew.ts
+# gate-watch: src/state/AppStateStore.ts src/state/crewLedger.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
 # gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tasks/stopTask.ts src/tools/AgentTool/*
 # gate-watch: src/tools/AgentTool/built-in/generalPurposeAgent.ts

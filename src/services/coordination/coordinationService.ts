@@ -19,7 +19,7 @@ import {
   listOpenQuestions,
 } from '../../utils/swarm/sendMessageGovernance.js'
 import { readCrewFileAsync } from '../../utils/swarm/crewHelpers.js'
-import { getAgentStatuses, listTasks } from '../../utils/tasks.js'
+import { getAgentStatuses, listTasks, type AgentStatus } from '../../utils/tasks.js'
 import { getCrewmateColor, resolveCoordAgentId, resolveLeadAwareCrewName } from '../../utils/crewmate.js'
 import { unreadLiveMessagesFor, sendLiveMessage } from '../crew/liveComms.js'
 import { isStructuredProtocolMessage } from '../crew/liveMessages.js'
@@ -79,6 +79,26 @@ export async function listCrewLeases(ctx: CoordinationContext): Promise<LeaseRow
   return leases.map(l => ({ agentId: l.agentId, globs: l.globs, ts: l.ts }))
 }
 
+
+export type CoordinationRosterRow = AgentStatus & { doing?: string }
+
+export function coordinationRosterOf(statuses: readonly AgentStatus[], liveBusy: readonly LiveCommsBusyV1[]): CoordinationRosterRow[] {
+  const busyByName = new Map(liveBusy.map(b => [b.name, b] as const))
+  return statuses.map(s => {
+    const word = busyByName.get(s.name)
+    if (word === undefined || s.status === 'stopped') return { ...s }
+    return {
+      ...s,
+      status: word.busy || s.currentTasks.length > 0 ? 'busy' : 'idle',
+      ...(word.busy && word.doing !== undefined ? { doing: word.doing } : {}),
+    }
+  })
+}
+
+export async function readCoordinationRoster(crew: string): Promise<CoordinationRosterRow[] | null> {
+  const [statuses, busy] = await Promise.all([getAgentStatuses(crew), listLiveBusy(crew)])
+  return statuses === null ? null : coordinationRosterOf(statuses, busy)
+}
 
 export interface CrewBrief {
   crewName: string | null
@@ -165,17 +185,7 @@ export async function crewBrief(ctx: CoordinationContext | null): Promise<CrewBr
     .map(m => ({ from: m.from, text: m.text, timestamp: m.timestamp, summary: m.summary }))
 
   const busyByName = new Map(liveBusy.map(b => [b.name, b] as const))
-  const roster: CrewBrief['roster'] = (statuses ?? []).map(s => {
-    const word = busyByName.get(s.name)
-    if (word === undefined || s.status === 'stopped') return { name: s.name, agentType: s.agentType, status: s.status, currentTasks: s.currentTasks }
-    return {
-      name: s.name,
-      agentType: s.agentType,
-      status: word.busy ? 'busy' : s.currentTasks.length > 0 ? 'busy' : 'idle',
-      currentTasks: s.currentTasks,
-      ...(word.busy && word.doing !== undefined ? { doing: word.doing } : {}),
-    }
-  })
+  const roster = coordinationRosterOf(statuses ?? [], liveBusy)
   const stoppedNames = new Set((statuses ?? []).filter(s => s.status === 'stopped').map(s => s.name))
   const health: CrewBrief['health'] = roomHealth.agents.map(a => {
     const word = busyByName.get(a.name)

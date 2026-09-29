@@ -555,15 +555,21 @@ export type AgentStatus = {
   agentType?: string
   status: 'busy' | 'idle' | 'stopped'
   currentTasks: string[]
+  cwd?: string
+  worktree?: string
+  model?: string
 }
 
 export async function getAgentStatuses(crewName: string): Promise<AgentStatus[] | null> {
   const crewFile = await readCrewFileAsync(crewName)
   if (!crewFile) return null
-  const members: CrewMember[] = (crewFile.members ?? []).map(member => ({
+  const members = (crewFile.members ?? []).map(member => ({
     agentId: String(member.agentId),
     name: String(member.name),
     agentType: member.agentType,
+    cwd: member.cwd,
+    worktree: member.worktreePath,
+    model: member.model,
   }))
   const stopped = new Set((crewFile.members ?? []).filter(crewmateStopped).map(member => String(member.agentId)))
   const working = new Set(
