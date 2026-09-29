@@ -672,7 +672,7 @@ async function routeToLocalAgent(
   const launches: NamedLaunch[] =
     unresolved && receipts.length === 0 ? await recordedLaunchesNamed(rawTo).catch((): NamedLaunch[] => []) : receipts
   const launch = launches[launches.length - 1]
-  if (launch !== undefined && (await rosterHolds(rawTo, context))) return undefined
+  if (minted === undefined && (await crewmateWinsName(rawTo, registered, context))) return undefined
   const agentId = registered ?? minted ?? launch?.agentId
   if (agentId === undefined) return undefined
   const who =
@@ -780,12 +780,16 @@ async function routeToLocalAgent(
   }
 }
 
-async function rosterHolds(rawTo: string, context: ToolUseContext): Promise<boolean> {
+async function crewmateWinsName(rawTo: string, registered: string | undefined, context: ToolUseContext): Promise<boolean> {
   const crewName = getCrewName(crewContextOf(context))
   if (!crewName) return false
   if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) return true
   const roster = await readRoster(crewName)
-  return (roster?.members ?? []).some(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
+  const member = (roster?.members ?? []).find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
+  if (member === undefined) return false
+  const registeredTask = registered === undefined ? undefined : context.getAppState().tasks?.[registered]
+  if (registeredTask === undefined || registeredTask.status !== 'running') return true
+  return (registeredTask.startTime ?? 0) <= member.joinedAt
 }
 
 async function messageWorkflowWorker(
