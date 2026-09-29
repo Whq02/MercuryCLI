@@ -12,9 +12,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) process.env[base] = 'http://127.0.0.1:1'
-for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_TEAMS_DIR', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
+for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_CREWS_DIR', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
-const TEAM = 'roster-truth'
+const CREW = 'roster-truth'
 const LEAD = 'team-lead'
 const SEAT = 'mapper'
 const MODEL = 'claude-opus-4-6'
@@ -55,28 +55,28 @@ mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule,
 
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { spawnInProcessTeammate } = await import('../../src/utils/swarm/spawnInProcess.ts')
-const { runInProcessTeammate } = await import('../../src/utils/swarm/inProcessRunner.ts')
-const { isInProcessTeammateTask } = await import('../../src/tasks/InProcessTeammateTask/types.ts')
-const { writeTeamFileAsync, readTeamFileAsync, getTeamFilePath } = await import('../../src/utils/swarm/teamHelpers.ts')
+const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.ts')
+const { runInProcessCrewmate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { isInProcessCrewmateTask } = await import('../../src/tasks/InProcessCrewmateTask/types.ts')
+const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/swarm/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
 const { getRoomHealth } = await import('../../src/utils/swarm/roomHealth.ts')
-const { teamBrief } = await import('../../src/services/coordination/coordinationService.ts')
+const { crewBrief } = await import('../../src/services/coordination/coordinationService.ts')
 const { formatAgentId } = await import('../../src/utils/agentId.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState
-type InProcessTeammateTaskState = import('../../src/tasks/InProcessTeammateTask/types.ts').InProcessTeammateTaskState
+type InProcessCrewmateTaskState = import('../../src/tasks/InProcessCrewmateTask/types.ts').InProcessCrewmateTaskState
 
-const LEAD_ID = formatAgentId(LEAD, TEAM)
-const SEAT_ID = formatAgentId(SEAT, TEAM)
+const LEAD_ID = formatAgentId(LEAD, CREW)
+const SEAT_ID = formatAgentId(SEAT, CREW)
 let state: AppState = {
   ...getDefaultAppState(),
-  teamContext: { teamName: TEAM, teamFilePath: getTeamFilePath(TEAM), leadAgentId: LEAD_ID, teammates: {} },
+  crewContext: { teamName: CREW, crewFilePath: getCrewFilePath(CREW), leadAgentId: LEAD_ID, crewmates: {} },
 } as AppState
 const setAppState = (updater: (prev: AppState) => AppState): void => {
   state = updater(state)
 }
 const member = (agentId: string, name: string, paneId: string): Record<string, unknown> => ({ agentId, name, agentType: 'mercury-general', model: MODEL, joinedAt: Date.now(), tmuxPaneId: paneId, cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
-await writeTeamFileAsync(TEAM, { name: TEAM, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD, 'leader'), member(SEAT_ID, SEAT, 'in-process')] } as never)
+await writeCrewFileAsync(CREW, { name: CREW, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD, 'leader'), member(SEAT_ID, SEAT, 'in-process')] } as never)
 
 const context = {
   options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
@@ -89,22 +89,22 @@ const context = {
   toolUseId: 'toolu_fixture_spawn',
 } as never
 
-const taskOf = (taskId: string): InProcessTeammateTaskState | undefined => {
+const taskOf = (taskId: string): InProcessCrewmateTaskState | undefined => {
   const task = state.tasks[taskId]
-  return task !== undefined && isInProcessTeammateTask(task) ? task : undefined
+  return task !== undefined && isInProcessCrewmateTask(task) ? task : undefined
 }
-const statusOf = async (name: string): Promise<string | undefined> => (await getAgentStatuses(TEAM))?.find(row => row.name === name)?.status
-const flagOf = async (name: string): Promise<boolean | undefined> => ((await readTeamFileAsync(TEAM))?.members.find(candidate => candidate.name === name) as { isActive?: boolean } | undefined)?.isActive
-const ctx = { team: TEAM, agentId: LEAD_ID }
+const statusOf = async (name: string): Promise<string | undefined> => (await getAgentStatuses(CREW))?.find(row => row.name === name)?.status
+const flagOf = async (name: string): Promise<boolean | undefined> => ((await readCrewFileAsync(CREW))?.members.find(candidate => candidate.name === name) as { isActive?: boolean } | undefined)?.isActive
+const ctx = { crew: CREW, agentId: LEAD_ID }
 
 section('§1 a teammate whose turn is in flight reads busy on the roster — the brief, the statuses and the health agree; the lead reads idle')
-const spawned = await spawnInProcessTeammate({ name: SEAT, teamName: TEAM, prompt: `${SEAT}: draw the map.`, planModeRequired: false, model: MODEL }, { setAppState })
-if (!spawned.success || spawned.taskId === undefined || spawned.teammateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
-const done = runInProcessTeammate({
-  identity: { agentId: SEAT_ID, agentName: SEAT, teamName: TEAM, planModeRequired: false, parentSessionId: String(getSessionId()) },
+const spawned = await spawnInProcessCrewmate({ name: SEAT, teamName: CREW, prompt: `${SEAT}: draw the map.`, planModeRequired: false, model: MODEL }, { setAppState })
+if (!spawned.success || spawned.taskId === undefined || spawned.crewmateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
+const done = runInProcessCrewmate({
+  identity: { agentId: SEAT_ID, agentName: SEAT, teamName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
   taskId: spawned.taskId,
   prompt: `${SEAT}: draw the map.`,
-  teammateContext: spawned.teammateContext,
+  crewmateContext: spawned.crewmateContext,
   abortController: spawned.abortController,
   toolUseContext: context,
   model: MODEL,
@@ -117,9 +117,9 @@ check('rig: the seat is mid-turn — its model call is in flight and the roster 
 const busy = await until(async () => (await statusOf(SEAT)) === 'busy', 4000)
 check('the agent statuses read the working seat busy (RED on the base: idle, because it owns no task-list item)', busy, `status=${String(await statusOf(SEAT))}`)
 check('…and the lead, which never writes the live flag, reads idle', (await statusOf(LEAD)) === 'idle', `status=${String(await statusOf(LEAD))}`)
-const brief = await teamBrief(ctx)
+const brief = await crewBrief(ctx)
 check('the brief\'s roster line reads the seat busy and the lead idle (RED on the base)', brief.roster.find(row => row.name === SEAT)?.status === 'busy' && brief.roster.find(row => row.name === LEAD)?.status === 'idle', JSON.stringify(brief.roster))
-const health = await getRoomHealth(TEAM)
+const health = await getRoomHealth(CREW)
 const seatHealth = health.agents.find(row => row.name === SEAT)
 check('the health reads the seat busy with the honest reason — its turn is in flight, no task-list item owned (RED on the base)', seatHealth?.state === 'busy' && seatHealth.why === 'working — its turn is in flight' && seatHealth.currentTasks.length === 0, JSON.stringify(seatHealth))
 
@@ -128,12 +128,12 @@ releaseTurn()
 const wentIdle = await until(async () => taskOf(spawned.taskId)?.isIdle === true && (await flagOf(SEAT)) === false)
 check('the seat delivered its turn and waits on its inbox (isIdle, isActive: false)', wentIdle, `isIdle=${String(taskOf(spawned.taskId)?.isIdle)} isActive=${String(await flagOf(SEAT))}`)
 check('the agent statuses read the idle seat idle', (await statusOf(SEAT)) === 'idle', `status=${String(await statusOf(SEAT))}`)
-check('the brief agrees', (await teamBrief(ctx)).roster.find(row => row.name === SEAT)?.status === 'idle')
+check('the brief agrees', (await crewBrief(ctx)).roster.find(row => row.name === SEAT)?.status === 'idle')
 
 section('§3 a member the file has never marked — a pane seat before its first turn ends — reads busy, as the crew roster already reads it (running unless explicitly deactivated)')
 {
-  const file = await readTeamFileAsync(TEAM)
-  await writeTeamFileAsync(TEAM, { ...file, members: [...(file?.members ?? []), member(formatAgentId('fresh', TEAM), 'fresh', '%9')] } as never)
+  const file = await readCrewFileAsync(CREW)
+  await writeCrewFileAsync(CREW, { ...file, members: [...(file?.members ?? []), member(formatAgentId('fresh', CREW), 'fresh', '%9')] } as never)
   check('an unmarked member reads busy', (await statusOf('fresh')) === 'busy', `status=${String(await statusOf('fresh'))}`)
 }
 

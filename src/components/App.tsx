@@ -24,13 +24,13 @@ function LateBootProjectionSeed(): React.ReactNode {
       if (projection && !appliedRef.current) {
         appliedRef.current = true
         store.setState((prev: AppState) =>
-          prev.teamContext && !isBornCrewWithoutCrewmates(prev.teamContext) ? prev : {
+          prev.crewContext && !isBornCrewWithoutCrewmates(prev.crewContext) ? prev : {
             ...prev,
-            teamContext: {
+            crewContext: {
               teamName: projection.teamName,
-              teamFilePath: projection.teamFilePath,
+              crewFilePath: projection.crewFilePath,
               leadAgentId: projection.leadAgentId,
-              teammates: projection.teammates,
+              crewmates: projection.crewmates,
             },
           },
         )

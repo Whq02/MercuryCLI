@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 import { permissionUpdateSchema } from '../utils/permissions/PermissionUpdateSchema.js'
 import type { ContentBlockParam } from '../types/wire.js'
 import type { PermissionUpdate } from '../types/permissions.js'
-import { getAgentName, getTeamName } from '../utils/teammate.js'
+import { getAgentName, getCrewName } from '../utils/crewmate.js'
 import {
   isSwarmWorker,
   pollForResponse,
@@ -138,7 +138,7 @@ export function useSwarmPermissionPoller(): void {
       inFlightRef.current = true
       try {
         const agentName = getAgentName()
-        const teamName = getTeamName()
+        const teamName = getCrewName()
         if (!agentName || !teamName) return
         for (const requestId of [...permissionCallbacks.keys()]) {
           try {

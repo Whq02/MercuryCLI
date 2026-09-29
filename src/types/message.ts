@@ -431,7 +431,7 @@ export type SystemMemorySavedMessage = {
   uuid: UUID
   timestamp: string
   isMeta?: boolean
-  teamCount?: number
+  crewCount?: number
   verb?: string
 }
 

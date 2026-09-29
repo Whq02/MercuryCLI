@@ -9,7 +9,7 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runsurface-laws-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runsurface-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runsurface-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'runsurface-teams-'))
 const ENGINE_CWD = mkdtempSync(join(tmpdir(), 'runsurface-cwd-'))
 for (const k of [
   'MERCURY_BARE',
@@ -20,7 +20,7 @@ for (const k of [
   'MERCURY_STRUCTURED_OUTPUT_RETRIES',
   'MERCURY_RELEVANT_RECALL',
   'MERCURY_FORCE_READ_FILES',
-  'CLAUDE_TEAM_NAME',
+  'CLAUDE_CREW_NAME',
   'CLAUDE_AGENT_NAME',
   'MERCURY_COMPACT',
   'MERCURY_AUTO_COMPACT',

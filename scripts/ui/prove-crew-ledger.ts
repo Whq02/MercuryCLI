@@ -180,7 +180,7 @@ const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive
 const { createStreamingTailStore } = await import('../../src/utils/messages/streamingTailStore.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
-const teammateView = await import('../../src/state/teammateViewHelpers.ts')
+const crewmateView = await import('../../src/state/crewmateViewHelpers.ts')
 const crewmateQueue = await import('../../src/components/tasks/crewmateQueue.ts')
 const crewViewStore = await import('../../src/utils/cockpit/crewView.ts')
 const { createTaskStateBase } = await import('../../src/Task.ts')
@@ -439,7 +439,7 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§1b ${tag('esc on a landed crewmate the runner still lists goes back to Mercury Lead')}`)
   {
-    teammateView.enterTeammateView(DELTA.id, scene.setState as never)
+    crewmateView.enterCrewmateView(DELTA.id, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === DELTA.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('DELTA-ROW')), 6000)
     await sleep(400)
@@ -535,7 +535,7 @@ async function run(cols: number, rows: number): Promise<void> {
 
   section(`§4 ${tag('esc on a crewmate that is not running goes back to Mercury Lead; esc on a running one still interrupts it alone')}`)
   {
-    teammateView.enterTeammateView(BIRCH.id, scene.setState as never)
+    crewmateView.enterCrewmateView(BIRCH.id, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === BIRCH.id, 4000)
     await until(() => centreOf(scene.lines(), railCols).some(line => line.includes('BIRCH-ROW')), 6000)
     await sleep(400)
@@ -676,7 +676,7 @@ async function run(cols: number, rows: number): Promise<void> {
     rmSync(file, { force: true })
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: base } }))
     await sleep(300)
-    teammateView.enterTeammateView(LOCAL_ID, scene.setState as never)
+    crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
     await sleep(400)
     await typeWords(scene, LINE)
@@ -700,7 +700,7 @@ async function run(cols: number, rows: number): Promise<void> {
     scene.setState(prev => ({ ...prev, tasks: { ...(prev.tasks as Record<string, unknown>), [LOCAL_ID]: { ...(prev.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID], status: 'completed', endTime: Date.now() } } }))
     await sleep(400)
     check('the local crewmate that landed reads landed in the CREW box', boxRow(LOCAL_NAME).includes('landed'), boxRow(LOCAL_NAME))
-    teammateView.enterTeammateView(LOCAL_ID, scene.setState as never)
+    crewmateView.enterCrewmateView(LOCAL_ID, scene.setState as never)
     await until(() => scene.state().viewingAgentTaskId === LOCAL_ID, 4000)
     await sleep(400)
     save('07-local-landed-viewed', cols, rows, scene.lines())

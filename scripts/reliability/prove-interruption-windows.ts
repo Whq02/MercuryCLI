@@ -24,19 +24,19 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-relia-'))
 const home = join(tmp, 'home')
-const teams = join(tmp, 'teams')
+const crews = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
-mkdirSync(teams, { recursive: true })
+mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_TEAMS_DIR = teams
+process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_DAEMON_DIR = daemon
 
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_TEAMS_DIR: teams,
+  MERCURY_CREWS_DIR: crews,
   MERCURY_DAEMON_DIR: daemon,
   MERCURY_SESSION_ROOM: '',
   MERCURY_ROOM_TOKEN: '',
@@ -63,14 +63,14 @@ const runChild = (
   })
   const crewBefore = readFileSync(crewOut, 'utf8').trim()
   ok(before.signal === 'SIGKILL', 'FC1 child died abruptly before the roster rename')
-  ok(!existsSync(join(teams, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made team file')
-  ok(!existsSync(join(teams, '.journal')), 'FC1: no journal record — there is no create step to track')
+  ok(!existsSync(join(crews, crewBefore, 'config.json')), 'FC1: no roster is visible — the founding is all or nothing, never a half-made team file')
+  ok(!existsSync(join(crews, '.journal')), 'FC1: no journal record — there is no create step to track')
   const after = runChild('crewFoundingKillChild.ts', {
     RELIA_OUT: crewOut,
     MERCURY_FAULT_INJECT: 'flush-dir@config.json:kill',
   })
   const crewAfter = readFileSync(crewOut, 'utf8').trim()
-  const rosterPath = join(teams, crewAfter, 'config.json')
+  const rosterPath = join(crews, crewAfter, 'config.json')
   let members: string[] = []
   try {
     members = (JSON.parse(readFileSync(rosterPath, 'utf8')) as { members: Array<{ name: string }> }).members.map(m => m.name)
@@ -78,7 +78,7 @@ const runChild = (
     members = []
   }
   ok(after.signal === 'SIGKILL' && members.join(',') === 'team-lead,alpha', `FC1: a kill after the rename leaves the WHOLE roster — the lead and the member (${members.join(',') || 'none'})`)
-  const rec = runChild('teamRecoverChild.ts', {})
+  const rec = runChild('crewRecoverChild.ts', {})
   ok(rec.status === 0 && existsSync(rosterPath), 'FC1: recovery has nothing to do and removes nothing')
 }
 

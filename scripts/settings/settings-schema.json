@@ -281,7 +281,7 @@
           "PermissionRequest",
           "PermissionDenied",
           "Setup",
-          "TeammateIdle",
+          "CrewmateIdle",
           "TaskCreated",
           "TaskCompleted",
           "Elicitation",

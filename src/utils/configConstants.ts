@@ -11,4 +11,4 @@ export const NOTIFICATION_CHANNELS = [
 
 export const EDITOR_MODES = ['normal', 'vim'] as const
 
-export const TEAMMATE_MODES = ['auto', 'tmux', 'in-process'] as const
+export const CREWMATE_MODES = ['auto', 'tmux', 'in-process'] as const

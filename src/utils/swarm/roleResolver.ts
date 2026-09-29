@@ -7,11 +7,11 @@ import {
   type MercuryBehaviorProfile,
 } from '../profile/mercuryProfile.js'
 import {
-  TEAM_CHARTER_VERSION,
-  type TeamCharter,
-  type TeamRolePacket,
-} from './teamCharter.js'
-import { TEAM_LEAD_NAME } from './constants.js'
+  CREW_CHARTER_VERSION,
+  type CrewCharter,
+  type CrewRolePacket,
+} from './crewCharter.js'
+import { CREW_LEAD_NAME } from './constants.js'
 
 export function decodeAgentType(requested: string): string
 export function decodeAgentType(requested: string | undefined): string | undefined
@@ -62,32 +62,32 @@ function ownedByCrewmate(crewmate: CrewmateRoleRecord | undefined): string[] {
 }
 
 export function deriveRolePacket(i: {
-  teammateName?: string
+  crewmateName?: string
   crewmate?: CrewmateRoleRecord
   agentType: string
   prompt: string
   description?: string
-  charter?: TeamCharter | null
-}): TeamRolePacket {
+  charter?: CrewCharter | null
+}): CrewRolePacket {
   const firstLine = i.prompt.split('\n', 1)[0] ?? ''
   const mission =
     i.description?.trim() ||
     (firstLine.length > 140 ? `${firstLine.slice(0, 137)}…` : firstLine) ||
     'as assigned by the lead'
   return {
-    teammateName: i.crewmate?.name ?? i.teammateName ?? '',
+    crewmateName: i.crewmate?.name ?? i.crewmateName ?? '',
     agentType: i.agentType,
     mission,
     owns: ownedByCrewmate(i.crewmate),
     dependsOn: [],
     deliverable: 'what your task message specifies, with evidence',
     doneWhen: [],
-    handoffTo: i.charter?.synthesisOwner ?? TEAM_LEAD_NAME,
-    charterVersion: TEAM_CHARTER_VERSION,
+    handoffTo: i.charter?.synthesisOwner ?? CREW_LEAD_NAME,
+    charterVersion: CREW_CHARTER_VERSION,
   }
 }
 
-export type ResolvedTeammateRole = {
+export type ResolvedCrewmateRole = {
   agentType: string
   displayLabel: string
   definition?: AgentDefinition
@@ -95,21 +95,21 @@ export type ResolvedTeammateRole = {
   disallowedTools?: readonly string[]
   model?: string
   behavior: MercuryBehaviorProfile
-  charter?: TeamCharter | null
-  rolePacket: TeamRolePacket
+  charter?: CrewCharter | null
+  rolePacket: CrewRolePacket
 }
 
-export function resolveTeammateRole(i: {
-  teammateName?: string
+export function resolveCrewmateRole(i: {
+  crewmateName?: string
   crewmate?: CrewmateRoleRecord
   requestedAgentType?: string
   agents: readonly AgentDefinition[]
   prompt: string
   description?: string
-  charter?: TeamCharter | null
-}): ResolvedTeammateRole {
+  charter?: CrewCharter | null
+}): ResolvedCrewmateRole {
   const definition = findRoleDefinition(i.requestedAgentType, i.agents)
-  const crewmateName = i.crewmate?.name ?? i.teammateName ?? ''
+  const crewmateName = i.crewmate?.name ?? i.crewmateName ?? ''
   const agentType =
     definition?.agentType ?? decodeAgentType(i.requestedAgentType) ?? crewmateName
   return {
@@ -122,7 +122,7 @@ export function resolveTeammateRole(i: {
     behavior: MERCURY_BEHAVIOR_PROFILE,
     charter: i.charter ?? null,
     rolePacket: deriveRolePacket({
-      teammateName: crewmateName,
+      crewmateName: crewmateName,
       crewmate: i.crewmate,
       agentType,
       prompt: i.prompt,

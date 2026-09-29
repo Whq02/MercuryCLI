@@ -299,7 +299,7 @@ function driveEnv(home: string, fixtureBase: string, tee: string): Record<string
     TERM_PROGRAM_VERSION: '3.6.6',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,

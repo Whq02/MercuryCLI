@@ -14,7 +14,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { getCwd } from '../../utils/cwd.js'
 import { pidAlive } from '../../utils/pidAlive.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
-import { findTeammateTaskByAgentId, getAllInProcessTeammateTasks } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import { findCrewmateTaskByAgentId, getAllInProcessCrewmateTasks } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import {
   agentMessageNotice,
   agentMessageSummary,
@@ -59,7 +59,7 @@ import { isCrewRole } from '../../utils/workerRole.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { routerStoreWriters } from '../../substrate/routerRunStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { TEAM_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
 import {
   answerQuestion,
   canDirect,
@@ -67,29 +67,29 @@ import {
   checkBroadcastFairness,
   openQuestion,
   resolveDirectActor,
-  type TeamFileWithGovernance,
+  type CrewFileWithGovernance,
 } from '../../utils/swarm/sendMessageGovernance.js'
 import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/swarm/handoff.js'
-import { readTeamFileAsync, type TeamFile } from '../../utils/swarm/teamHelpers.js'
-import { assignTeammateColor } from '../../utils/crew/crewmateColors.js'
+import { readCrewFileAsync, type CrewFile } from '../../utils/swarm/crewHelpers.js'
+import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import {
   getAgentId,
   getAgentName,
-  getTeamName,
-  getTeammateColor,
-  isTeamLead,
+  getCrewName,
+  getCrewmateColor,
+  isCrewLead,
   isTeammate,
-} from '../../utils/teammate.js'
-import { isInProcessTeammate } from '../../utils/teammateContext.js'
+} from '../../utils/crewmate.js'
+import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import {
   createShutdownApprovedMessage,
   createShutdownRejectedMessage,
   createShutdownRequestMessage,
-  formatTeammateMessages,
+  formatCrewmateMessages,
   isIdleNotification,
   readMailbox,
   writeToMailbox,
-} from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmateMailbox.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { plainMessageSummary } from './summary.js'
@@ -299,11 +299,11 @@ type OutputSchema = ReturnType<typeof outputSchema>
 
 
 function senderName(): string {
-  return getAgentName() ?? (isTeammate() ? 'teammate' : TEAM_LEAD_NAME)
+  return getAgentName() ?? (isTeammate() ? 'teammate' : CREW_LEAD_NAME)
 }
 
 function selfAddressRefusalText(rawTo: string): string | null {
-  const selfName = getAgentName() ?? (isTeammate() ? null : TEAM_LEAD_NAME)
+  const selfName = getAgentName() ?? (isTeammate() ? null : CREW_LEAD_NAME)
   if (selfName === null || rawTo.toLowerCase() !== selfName.toLowerCase()) {
     return null
   }
@@ -314,7 +314,7 @@ function selfAddressRefusalText(rawTo: string): string | null {
 }
 
 function senderColor(name: string): string | undefined {
-  return getTeammateColor() ?? assignTeammateColor(name)
+  return getCrewmateColor() ?? assignCrewmateColor(name)
 }
 
 function nowIso(): string {
@@ -322,14 +322,14 @@ function nowIso(): string {
 }
 
 
-function teamContextOf(context: ToolUseContext): { teamName: string; leadAgentId: string; teammates?: Record<string, { color?: string }> } | undefined {
-  return context.getAppState().teamContext as
-    | { teamName: string; leadAgentId: string; teammates?: Record<string, { color?: string }> }
+function crewContextOf(context: ToolUseContext): { teamName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> } | undefined {
+  return context.getAppState().crewContext as
+    | { teamName: string; leadAgentId: string; crewmates?: Record<string, { color?: string }> }
     | undefined
 }
 
 function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseContext): string | null {
-  const seats = getAllInProcessTeammateTasks(context.getAppState().tasks ?? {}).filter(
+  const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
     task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === rawTo.toLowerCase(),
   )
   if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
@@ -342,12 +342,12 @@ function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseCont
 
 export const PAUSED_SEAT_ENDED_WORDS = 'was paused on a usage limit'
 
-type EndedTeammateSeat = { taskId: string; name: string; ended: string }
+type EndedCrewmateSeat = { taskId: string; name: string; ended: string }
 
-async function endedTeammateSeat(rawTo: string, teamName: string, context: ToolUseContext): Promise<EndedTeammateSeat | null> {
+async function endedCrewmateSeat(rawTo: string, teamName: string, context: ToolUseContext): Promise<EndedCrewmateSeat | null> {
   const wanted = rawTo.toLowerCase()
-  if (wanted === TEAM_LEAD_NAME.toLowerCase()) return null
-  const seats = getAllInProcessTeammateTasks(context.getAppState().tasks ?? {}).filter(
+  if (wanted === CREW_LEAD_NAME.toLowerCase()) return null
+  const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
     task => task.identity.teamName === teamName && task.identity.agentName.toLowerCase() === wanted,
   )
   if (seats.some(task => task.status === 'running')) return null
@@ -364,26 +364,26 @@ async function endedTeammateSeat(rawTo: string, teamName: string, context: ToolU
   if ((await failedSeatNotice(rawTo, teamName)) !== null) return null
   let newest: { taskId: string; name: string; launchedAt: number } | undefined
   for (const { agentId, metadata } of await listAgentMetadata().catch(() => [])) {
-    if (metadata.teammate?.teamName !== teamName || metadata.name?.toLowerCase() !== wanted) continue
+    if (metadata.crewmate?.teamName !== teamName || metadata.name?.toLowerCase() !== wanted) continue
     const launchedAt = metadata.launchedAt ?? 0
     if (newest === undefined || launchedAt >= newest.launchedAt) newest = { taskId: agentId, name: metadata.name, launchedAt }
   }
   return newest === undefined ? null : { taskId: newest.taskId, name: newest.name, ended: 'had ended and its row had left the list' }
 }
 
-async function resumeEndedTeammate(
-  seat: EndedTeammateSeat,
+async function resumeEndedCrewmate(
+  seat: EndedCrewmateSeat,
   content: string,
   summary: string | undefined,
   context: ToolUseContext,
 ): Promise<MessageOutput> {
   const from = senderName()
   const color = senderColor(from)
-  const prompt = formatTeammateMessages([
+  const prompt = formatCrewmateMessages([
     { from, text: content, timestamp: nowIso(), ...(color ? { color } : {}), ...(summary !== undefined ? { summary } : {}) },
   ])
-  const { resumeTeammateFromTranscript } = await import('../../services/agents/operatorResume.js')
-  const resumed = await resumeTeammateFromTranscript(seat.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
+  const { resumeCrewmateFromTranscript } = await import('../../services/agents/operatorResume.js')
+  const resumed = await resumeCrewmateFromTranscript(seat.taskId, { getAppState: context.getAppState, toolUseContext: context, prompt })
   if (resumed.outcome === 'refused') {
     return { success: false, message: `Teammate ${seat.name} ${seat.ended} and could not be resumed with your message: ${resumed.reason}` }
   }
@@ -405,7 +405,7 @@ async function resumeEndedTeammate(
 async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
   let rows: Awaited<ReturnType<typeof readMailbox>>
   try {
-    rows = await readMailbox(TEAM_LEAD_NAME, teamName)
+    rows = await readMailbox(CREW_LEAD_NAME, teamName)
   } catch {
     return null
   }
@@ -422,10 +422,10 @@ async function failedSeatNotice(rawTo: string, teamName: string): Promise<string
   return null
 }
 
-async function readRoster(teamName: string | undefined): Promise<TeamFile | null> {
+async function readRoster(teamName: string | undefined): Promise<CrewFile | null> {
   if (!teamName) return null
   try {
-    return await readTeamFileAsync(teamName)
+    return await readCrewFileAsync(teamName)
   } catch {
     return null
   }
@@ -458,7 +458,7 @@ async function knownLaunchedAgents(context: ToolUseContext): Promise<KnownLaunch
   return [...byName.values()]
 }
 
-async function noTeamRefusal(rawTo: string, context: ToolUseContext): Promise<string> {
+async function noCrewRefusal(rawTo: string, context: ToolUseContext): Promise<string> {
   const known = await knownLaunchedAgents(context)
   const folded = rawTo.toLowerCase()
   const own =
@@ -491,9 +491,9 @@ async function resolveDeliverableRecipient(
   rawTo: string,
   context: ToolUseContext,
 ): Promise<RecipientResolution> {
-  const teamName = getTeamName(teamContextOf(context))
+  const teamName = getCrewName(crewContextOf(context))
   if (!teamName) {
-    return { ok: false, refusal: await noTeamRefusal(rawTo, context) }
+    return { ok: false, refusal: await noCrewRefusal(rawTo, context) }
   }
   const selfRefusal = selfAddressRefusalText(rawTo)
   if (selfRefusal !== null) {
@@ -508,8 +508,8 @@ async function resolveDeliverableRecipient(
         (others.length > 0 ? ` Teammates you can address: ${others.join(', ')}.` : ''),
     }
   }
-  if (rawTo.toLowerCase() === TEAM_LEAD_NAME.toLowerCase()) {
-    return { ok: true, name: TEAM_LEAD_NAME, teamName }
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) {
+    return { ok: true, name: CREW_LEAD_NAME, teamName }
   }
   const roster = await readRoster(teamName)
   const member = roster?.members.find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
@@ -539,7 +539,7 @@ async function resolveDeliverableRecipient(
 }
 
 function workerReplyTarget(addressed: string): string {
-  if (isCrewRole()) return TEAM_LEAD_NAME
+  if (isCrewRole()) return CREW_LEAD_NAME
   return addressed
 }
 
@@ -564,14 +564,14 @@ async function sendBusEnvelope(
   envelope: BusEnvelope,
   context: ToolUseContext,
 ): Promise<{ data: RequestOutput }> {
-  const teamName = getTeamName(teamContextOf(context))
+  const teamName = getCrewName(crewContextOf(context))
   const resolvedTarget = { name: targetName.trim() }
   const isDirective =
     envelope.kind === 'dispatch' || envelope.kind === 'control' || envelope.kind === 'note'
 
   if (isDirective) {
     const roster = await readRoster(teamName)
-    const leadAgentId = teamContextOf(context)?.leadAgentId
+    const leadAgentId = crewContextOf(context)?.leadAgentId
     const verdict = canDirect(
       resolveDirectActor(roster, envelope.from, leadAgentId),
       resolveDirectActor(roster, resolvedTarget.name, leadAgentId),
@@ -591,7 +591,7 @@ async function sendBusEnvelope(
       const reply = await daemonControlRpc({
         op: 'envelope',
         to: resolvedTarget.name,
-        ...(teamName ? { team: teamName } : {}),
+        ...(teamName ? { crew: teamName } : {}),
         env: envelope,
         ...(color ? { color } : {}),
       } as never)
@@ -654,12 +654,12 @@ function routeToMainAgent(rawTo: string, content: string, context: ToolUseContex
   if (rawTo.toLowerCase() !== MAIN_THREAD_AGENT) return undefined
   const sender = senderAgentTask(context)
   if (sender === undefined) {
-    const team = getTeamName(teamContextOf(context))
+    const crew = getCrewName(crewContextOf(context))
     return {
       success: false,
       message:
         `Cannot deliver to "${rawTo}": that address names this session's own main agent, and only a background sub-agent reaches its main agent there. ` +
-        `Address a sub-agent by the id its launch receipt names or by its name${team ? `, or a teammate by name (the lead is "${TEAM_LEAD_NAME}")` : ''}.`,
+        `Address a sub-agent by the id its launch receipt names or by its name${crew ? `, or a teammate by name (the lead is "${CREW_LEAD_NAME}")` : ''}.`,
     }
   }
   enqueueMessageToMainAgent({ fromTaskId: sender.id, description: sender.description, text: content })
@@ -748,7 +748,7 @@ async function routeToLocalAgent(
 
   const transcriptPath = agentTranscriptPathOf(String(agentId))
   if (transcriptPath === null || !existsSync(transcriptPath)) {
-    if (registered === undefined && launch === undefined && getTeamName(teamContextOf(context))) {
+    if (registered === undefined && launch === undefined && getCrewName(crewContextOf(context))) {
       return undefined
     }
     return {
@@ -790,9 +790,9 @@ async function routeToLocalAgent(
 }
 
 async function rosterHolds(rawTo: string, context: ToolUseContext): Promise<boolean> {
-  const teamName = getTeamName(teamContextOf(context))
+  const teamName = getCrewName(crewContextOf(context))
   if (!teamName) return false
-  if (rawTo.toLowerCase() === TEAM_LEAD_NAME.toLowerCase()) return true
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) return true
   const roster = await readRoster(teamName)
   return (roster?.members ?? []).some(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
 }
@@ -853,9 +853,9 @@ async function sendDirectedPlainMessage(
   summary: string | undefined,
   context: ToolUseContext,
 ): Promise<MessageOutput> {
-  const teamName = getTeamName(teamContextOf(context))
-  const ended = teamName ? await endedTeammateSeat(rawTo, teamName, context) : null
-  if (ended !== null) return resumeEndedTeammate(ended, content, summary, context)
+  const teamName = getCrewName(crewContextOf(context))
+  const ended = teamName ? await endedCrewmateSeat(rawTo, teamName, context) : null
+  if (ended !== null) return resumeEndedCrewmate(ended, content, summary, context)
   const resolution = await resolveDeliverableRecipient(rawTo, context)
   if (!resolution.ok) return { success: false, message: resolution.refusal }
 
@@ -889,7 +889,7 @@ async function sendDirectedPlainMessage(
       message: `The message could NOT be delivered to ${resolution.name} — the mailbox write failed.`,
     }
   }
-  const targetColor = teamContextOf(context)?.teammates?.[resolution.name]?.color
+  const targetColor = crewContextOf(context)?.crewmates?.[resolution.name]?.color
   return {
     success: true,
     message: `Message delivered to ${resolution.name}'s inbox`,
@@ -909,8 +909,8 @@ async function sendBroadcast(
   summary: string | undefined,
   context: ToolUseContext,
 ): Promise<BroadcastOutput> {
-  const teamContext = teamContextOf(context)
-  const teamName = getTeamName(teamContext)
+  const crewContext = crewContextOf(context)
+  const teamName = getCrewName(crewContext)
   if (!teamName) {
     throw new Error(
       `Cannot broadcast: this session is not in a team. Create one with the team-spawn tool, or launch with ` +
@@ -926,13 +926,13 @@ async function sendBroadcast(
     throw new Error('Cannot broadcast: no sender name. Launch with the --agent-name identity argument.')
   }
 
-  const leadDenial = checkBroadcastAllowed(roster as TeamFileWithGovernance, isTeamLead(teamContext))
+  const leadDenial = checkBroadcastAllowed(roster as CrewFileWithGovernance, isCrewLead(crewContext))
   if (leadDenial !== null) {
     return { success: false, message: leadDenial, recipients: [] }
   }
   const fairnessDenial = await checkBroadcastFairness(
     from,
-    (roster as TeamFileWithGovernance).governance,
+    (roster as CrewFileWithGovernance).governance,
     teamName,
   )
   if (fairnessDenial !== null) {
@@ -976,7 +976,7 @@ async function sendBroadcast(
       recipients: [],
     }
   }
-  let message = `Broadcast delivered to ${deliveredNames.length} teammate(s): ${deliveredNames.join(', ')}`
+  let message = `Broadcast delivered to ${deliveredNames.length} crewmate(s): ${deliveredNames.join(', ')}`
   if (failedNames.length > 0) {
     message += `. Delivery FAILED for: ${failedNames.join(', ')}`
   }
@@ -1000,13 +1000,13 @@ async function sendShutdownRequest(
   reason: string | undefined,
   context: ToolUseContext,
 ): Promise<RequestOutput> {
-  const teamContext = teamContextOf(context)
-  const teamName = getTeamName(teamContext)
+  const crewContext = crewContextOf(context)
+  const teamName = getCrewName(crewContext)
   const roster = await readRoster(teamName)
   const from = senderName()
   const verdict = canDirect(
-    resolveDirectActor(roster, from, teamContext?.leadAgentId),
-    resolveDirectActor(roster, rawTo, teamContext?.leadAgentId),
+    resolveDirectActor(roster, from, crewContext?.leadAgentId),
+    resolveDirectActor(roster, rawTo, crewContext?.leadAgentId),
   )
   if (!verdict.allowed) {
     return { success: false, message: verdict.reason, request_id: '', target: rawTo }
@@ -1039,14 +1039,14 @@ async function sendShutdownResponse(
   message: Extract<StructuredMessageInput, { type: 'shutdown_response' }>,
   context: ToolUseContext,
 ): Promise<ResponseOutput> {
-  const teamContext = teamContextOf(context)
-  const teamName = getTeamName(teamContext)
+  const crewContext = crewContextOf(context)
+  const teamName = getCrewName(crewContext)
   const agentId = getAgentId()
   const from = senderName()
 
   if (!message.approve) {
     void (await writeToMailbox(
-      TEAM_LEAD_NAME,
+      CREW_LEAD_NAME,
       {
         from,
         text: JSON.stringify(
@@ -1078,7 +1078,7 @@ async function sendShutdownResponse(
     backendType = member?.backendType || undefined
   }
   void (await writeToMailbox(
-    TEAM_LEAD_NAME,
+    CREW_LEAD_NAME,
     {
       from,
       text: JSON.stringify(
@@ -1090,7 +1090,7 @@ async function sendShutdownResponse(
   ))
 
   const abortOwnTask = (): boolean => {
-    const task = findTeammateTaskByAgentId(agentId, context.getAppState().tasks ?? {})
+    const task = findCrewmateTaskByAgentId(agentId, context.getAppState().tasks ?? {})
     if (task?.abortController) {
       task.abortController.abort()
       return true
@@ -1099,7 +1099,7 @@ async function sendShutdownResponse(
     return false
   }
 
-  if (isInProcessTeammate()) {
+  if (isInProcessCrewmate()) {
     abortOwnTask()
     return {
       success: true,
@@ -1128,11 +1128,11 @@ async function sendPlanApprovalResponse(
   message: Extract<StructuredMessageInput, { type: 'plan_approval_response' }>,
   context: ToolUseContext,
 ): Promise<ResponseOutput> {
-  const teamContext = teamContextOf(context)
-  if (!isTeamLead(teamContext)) {
+  const crewContext = crewContextOf(context)
+  if (!isCrewLead(crewContext)) {
     throw new Error('Only the team lead can approve or reject plans.')
   }
-  const teamName = teamContext?.teamName
+  const teamName = crewContext?.teamName
   const approve = message.approve
   const currentMode = context.getAppState().toolPermissionContext.mode
   const permissionMode = currentMode === 'strategy' ? 'default' : currentMode
@@ -1148,7 +1148,7 @@ async function sendPlanApprovalResponse(
   }
   const delivered = await writeToMailbox(
     rawTo,
-    { from: TEAM_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() },
+    { from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() },
     teamName,
   )
   if (!delivered) {
@@ -1223,7 +1223,7 @@ async function sendAnswer(
   message: Extract<StructuredMessageInput, { type: 'answer' }>,
   context: ToolUseContext,
 ): Promise<ResponseOutput> {
-  const teamName = getTeamName(teamContextOf(context))
+  const teamName = getCrewName(crewContextOf(context))
   const from = senderName()
   const closed = await answerQuestion(
     { request_id: message.request_id, answeredBy: from, answerText: message.content },
@@ -1360,10 +1360,10 @@ export const SendMessageTool = buildTool({
     if (to === '*') {
       return { result: false, message: 'Structured messages cannot be broadcast.', errorCode: 9 }
     }
-    if (input.message.type === 'shutdown_response' && to !== TEAM_LEAD_NAME) {
+    if (input.message.type === 'shutdown_response' && to !== CREW_LEAD_NAME) {
       return {
         result: false,
-        message: `A shutdown_response must be addressed to "${TEAM_LEAD_NAME}".`,
+        message: `A shutdown_response must be addressed to "${CREW_LEAD_NAME}".`,
         errorCode: 9,
       }
     }

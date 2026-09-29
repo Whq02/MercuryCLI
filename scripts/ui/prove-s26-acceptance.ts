@@ -188,10 +188,10 @@ section('structural pins — transcript renderers')
     'the reject path falls back to the shared element and never renders empty',
     (reject.match(/FallbackToolUseRejectedMessage/g) ?? []).length >= 4,
   )
-  const teammate = src('src/components/messages/UserTeammateMessage.tsx')
+  const crewmate = src('src/components/messages/UserCrewmateMessage.tsx')
   check(
     'LooseMsg calls spell the content member (never text)',
-    /tryRender\w+Message\(\s*message\.content/.test(teammate) && !teammate.includes('message.text') && !teammate.includes('({ text: message.content })'),
+    /tryRender\w+Message\(\s*message\.content/.test(crewmate) && !crewmate.includes('message.text') && !crewmate.includes('({ text: message.content })'),
   )
 }
 

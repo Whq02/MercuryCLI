@@ -49,7 +49,7 @@ export function proseLines(markdown: string): Array<{ line: number; text: string
   return out
 }
 
-function saysTeam(text: string): boolean {
+function saysCrew(text: string): boolean {
   let rest = text
   for (const re of NOT_THE_CREW) rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
   return WORD.test(rest) || DOOR.test(rest)
@@ -76,10 +76,10 @@ console.log('— §0 the scanner bites (poison control) —')
     'the payload carries `team_name` and `teammate_name`',
     'Open the crew view (/teammates) and press x.',
     'The Claude Team plan and the red-team verifier.',
-    'See [TEAMS.md](TEAMS.md) for the crew.',
+    'See [CREW.md](CREW.md) for the crew.',
     'A team of agents working one project.',
   ].join('\n')
-  const lines = proseLines(poison).filter(l => saysTeam(l.text)).map(l => l.line)
+  const lines = proseLines(poison).filter(l => saysCrew(l.text)).map(l => l.line)
   check('the sentences are caught (1,7,10)', [1, 7, 10].every(l => lines.includes(l)), lines.join(','))
   check('a code span, a fenced block, the plan name, the verb and a link target never count', lines.every(l => [1, 7, 10].includes(l)), lines.filter(l => ![1, 7, 10].includes(l)).join(','))
 }
@@ -93,7 +93,7 @@ for (const rel of pages()) {
   const source = readFileSync(join(ROOT, rel), 'utf8')
   if (!/team/i.test(source)) continue
   for (const l of proseLines(source)) {
-    if (!saysTeam(l.text)) continue
+    if (!saysCrew(l.text)) continue
     const row = ALLOW.find(r => (rel === r.path || rel.startsWith(r.path)) && (r.fragment === null || l.text.includes(r.fragment))) ?? null
     hits.push({ rel, line: l.line, text: l.text.trim(), allowed: row })
   }
@@ -114,7 +114,7 @@ if (REPORT) {
   }
 }
 const index = readFileSync(join(ROOT, 'docs/README.md'), 'utf8')
-check('the docs index names the crew page', /\bcrew\b/i.test(index.split('\n').find(l => /TEAMS\.md|CREW\.md/.test(l)) ?? ''), (index.split('\n').find(l => /TEAMS\.md|CREW\.md/.test(l)) ?? '(no row)').trim())
+check('the docs index names the crew page', /\bcrew\b/i.test(index.split('\n').find(l => /CREWS\.md|CREW\.md/.test(l)) ?? ''), (index.split('\n').find(l => /CREWS\.md|CREW\.md/.test(l)) ?? '(no row)').trim())
 check('every allow row carries its reason', ALLOW.every(r => r.why.trim().length > 0))
 
 console.log(failures === 0 ? '\nprove-crew-docs-words: green' : `\nprove-crew-docs-words: ${failures} failed`)

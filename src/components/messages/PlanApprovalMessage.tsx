@@ -7,7 +7,7 @@ import {
   isPlanApprovalResponse,
   type PlanApprovalRequestMessage,
   type PlanApprovalResponseMessage,
-} from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmateMailbox.js'
 import { Markdown } from '../Markdown.js'
 import { getShutdownMessageSummary } from './ShutdownMessage.js'
 import { getTaskAssignmentSummary } from './TaskAssignmentMessage.js'
@@ -115,7 +115,7 @@ function idleNotificationSummary(content: string): string | null {
   return parts.join(' · ')
 }
 
-export function formatTeammateMessageContent(content: string): string {
+export function formatCrewmateMessageContent(content: string): string {
   const plan = planApprovalSummary(content)
   if (plan !== null) return plan
   const shutdown = getShutdownMessageSummary(content)

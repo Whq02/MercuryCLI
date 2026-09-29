@@ -10,14 +10,14 @@ import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
   isIdleNotification,
   isShutdownApproved,
-} from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmateMailbox.js'
 import { toInkColor } from '../../utils/ink.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js'
 import { MessageResponse } from '../MessageResponse.js'
 import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
-import { TeammateMessageContent } from './UserTeammateMessage.js'
+import { CrewmateMessageContent } from './UserCrewmateMessage.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 import { UserImageMessage } from './UserImageMessage.js'
@@ -122,10 +122,10 @@ export function AttachmentMessage({
           const plan = tryRenderPlanApprovalMessage(message.text, senderName)
           if (plan) return <React.Fragment key={index}>{plan}</React.Fragment>
           return (
-            <TeammateMessageContent
+            <CrewmateMessageContent
               key={index}
               message={{
-                teammateId: message.from,
+                crewmateId: message.from,
                 color: message.color,
                 summary: message.summary,
                 content: message.text,

@@ -30,20 +30,20 @@ guard.unref?.()
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
 const { DERIVED_SUMMARY_MAX_CHARS, derivedMessageSummary, plainMessageSummary } = await import('../../src/tools/SendMessageTool/summary.ts')
 const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
-const { readMailbox } = await import('../../src/utils/teammateMailbox.ts')
-const { setDynamicTeamContext } = await import('../../src/utils/teammate.ts')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.ts')
+const { readMailbox } = await import('../../src/utils/crewmateMailbox.ts')
+const { setDynamicCrewContext } = await import('../../src/utils/crewmate.ts')
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Verdict = { result: boolean; message?: string; errorCode?: number }
 const validate = (input: Record<string, unknown>): Promise<Verdict> => (SendMessageTool as { validateInput: (i: unknown) => Promise<Verdict> }).validateInput(input)
-const TEAM = 'plain-string-fixture-team'
+const CREW = 'plain-string-fixture-team'
 const makeContext = (): unknown => ({
   options: { tools: [], commands: [], mcpClients: [], mainLoopModel: 'fixture-model' },
   abortController: new AbortController(),
   readFileState: new Map(),
   messages: [],
-  getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, teamContext: { teamName: TEAM, leadAgentId: 'lead-fixture' } }),
+  getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), tasks: {}, crewContext: { teamName: CREW, leadAgentId: 'lead-fixture' } }),
   setAppState: () => {},
 })
 const LONG_WORDS = 'A decision that changes the second and the fourth part of the plan — read the new last section of the notes before you cut the size switch; in short the switch stays and gains a slash form and the pictures add two states'
@@ -77,18 +77,18 @@ section('§2 THE DERIVED SUMMARY — the first non-empty line, cut at the previe
 
 section('§3 DELIVERY — a plain string to a teammate lands in the mailbox with the derived summary (RED on the base: validation refused it first)')
 {
-  setDynamicTeamContext({ agentId: 'critter-fixture', agentName: 'critter', teamName: TEAM, planModeRequired: false })
+  setDynamicCrewContext({ agentId: 'critter-fixture', agentName: 'critter', teamName: CREW, planModeRequired: false })
   const ctx = makeContext()
-  const verdict = await validate({ to: TEAM_LEAD_NAME, message: THREE_LINES })
+  const verdict = await validate({ to: CREW_LEAD_NAME, message: THREE_LINES })
   check('the send validates', verdict.result === true, verdict.message ?? '')
   const call = (SendMessageTool as { call: (i: unknown, c: unknown, u: unknown, m: unknown) => Promise<{ data: { success: boolean; message: string; routing?: { summary?: string; content?: string } } }> }).call
-  const sent = await call({ to: TEAM_LEAD_NAME, message: THREE_LINES }, ctx, undefined, { requestId: 'req_plain' })
+  const sent = await call({ to: CREW_LEAD_NAME, message: THREE_LINES }, ctx, undefined, { requestId: 'req_plain' })
   check('the message is delivered to the team lead inbox', sent.data.success === true && /delivered/.test(sent.data.message), sent.data.message)
   check('the routing receipt carries the derived summary', sent.data.routing?.summary === 'first line of the message' && sent.data.routing?.content === THREE_LINES, JSON.stringify(sent.data.routing))
-  const inbox = await readMailbox(TEAM_LEAD_NAME, TEAM)
+  const inbox = await readMailbox(CREW_LEAD_NAME, CREW)
   const landed = inbox.find(message => message.text === THREE_LINES)
   check('the mailbox row carries the derived summary', landed !== undefined && landed.summary === 'first line of the message', JSON.stringify(landed))
-  const explicit = await call({ to: TEAM_LEAD_NAME, message: THREE_LINES, summary: 'the owner ruling' }, ctx, undefined, { requestId: 'req_explicit' })
+  const explicit = await call({ to: CREW_LEAD_NAME, message: THREE_LINES, summary: 'the owner ruling' }, ctx, undefined, { requestId: 'req_explicit' })
   check('an explicit summary still rides as given', explicit.data.success === true && explicit.data.routing?.summary === 'the owner ruling', JSON.stringify(explicit.data.routing))
 }
 

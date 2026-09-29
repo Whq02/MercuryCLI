@@ -3,7 +3,7 @@
 import {
   resolveShutdownApprovedVictim,
   resolveShutdownRequestSender,
-} from '../../src/utils/teammateMailbox.js'
+} from '../../src/utils/crewmateMailbox.js'
 import { canAnswerCloseQuestion, canDirect, resolveDirectActor } from '../../src/utils/swarm/sendMessageGovernance.js'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -61,7 +61,7 @@ check('peer → me: shutdown_request DENIED (the coord_say-injected bypass is ga
 check('me → me: self-shutdown ALLOWED (an agent may request its own shutdown)', canDirect(actor('me'), actor('me')).allowed === true)
 const poller = readFileSync(join(import.meta.dir, '..', '..', 'src', 'hooks', 'useInboxPoller.ts'), 'utf-8')
 check('useInboxPoller imports canDirect + resolveDirectActor from sendMessageGovernance', /import \{ canDirect, resolveDirectActor \} from '\.\.\/utils\/swarm\/sendMessageGovernance\.js'/.test(poller))
-check('useInboxPoller gates received shutdown_requests on canDirect(verifiedFrom, self)', /canDirect\(\s*resolveDirectActor\(sdTeamFile, verifiedFrom, sdLeadId\),\s*resolveDirectActor\(sdTeamFile, sdSelf, sdLeadId\),\s*\)/.test(poller))
+check('useInboxPoller gates received shutdown_requests on canDirect(verifiedFrom, self)', /canDirect\(\s*resolveDirectActor\(sdCrewFile, verifiedFrom, sdLeadId\),\s*resolveDirectActor\(sdCrewFile, sdSelf, sdLeadId\),\s*\)/.test(poller))
 const sendTool = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'SendMessageTool', 'SendMessageTool.ts'), 'utf-8')
 check('SendMessageTool imports the SHARED resolveDirectActor (no local duplicate)', /resolveDirectActor,/.test(sendTool) && !/function resolveDirectActor\(/.test(sendTool))
 

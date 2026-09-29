@@ -17,15 +17,15 @@ import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import {
-  setDynamicTeamContext,
-  clearDynamicTeamContext,
-} from '../../src/utils/teammate.js'
+  setDynamicCrewContext,
+  clearDynamicCrewContext,
+} from '../../src/utils/crewmate.js'
 import {
-  writeTeamFileAsync,
-  type TeamFile,
-} from '../../src/utils/swarm/teamHelpers.js'
-import { readMailbox } from '../../src/utils/teammateMailbox.js'
-import { getTeamsDir } from '../../src/utils/envUtils.js'
+  writeCrewFileAsync,
+  type CrewFile,
+} from '../../src/utils/swarm/crewHelpers.js'
+import { readMailbox } from '../../src/utils/crewmateMailbox.js'
+import { getCrewsDir } from '../../src/utils/envUtils.js'
 import { sanitizePathComponent } from '../../src/utils/tasks.js'
 import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
 
@@ -73,10 +73,10 @@ function textOf(r: { content?: Array<{ text?: string }> }): string {
   return r.content?.[0]?.text ?? ''
 }
 
-function teamWith(
+function crewWith(
   name: string,
-  governance: TeamFile['governance'],
-): TeamFile {
+  governance: CrewFile['governance'],
+): CrewFile {
   return {
     name,
     createdAt: Date.now(),
@@ -171,7 +171,7 @@ try {
   }
 
   section('SOLO (no team): project leases work; team-only verbs stay benign')
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
   {
     const client = await connect()
     for (const name of ['lease_claim']) {
@@ -182,8 +182,8 @@ try {
         !isError(r),
       )
       check(
-        `${name} solo returns {ok:false, reason:'NOT_IN_TEAM'}`,
-        jsonOf(r).ok === false && jsonOf(r).reason === 'NOT_IN_TEAM',
+        `${name} solo returns {ok:false, reason:'NOT_IN_CREW'}`,
+        jsonOf(r).ok === false && jsonOf(r).reason === 'NOT_IN_CREW',
       )
     }
     const taken = await client.callTool({ name: 'lease_take', arguments: { paths: ['probe.gd'] } })
@@ -198,8 +198,8 @@ try {
     })
     check('coord_say solo is not a tool error', !isError(say))
     check(
-      "coord_say solo returns {ok:false, reason:'NOT_IN_TEAM'}",
-      jsonOf(say).ok === false && jsonOf(say).reason === 'NOT_IN_TEAM',
+      "coord_say solo returns {ok:false, reason:'NOT_IN_CREW'}",
+      jsonOf(say).ok === false && jsonOf(say).reason === 'NOT_IN_CREW',
     )
     const brief = await client.callTool({ name: 'brief', arguments: {} })
     check('brief solo is not a tool error (already benign)', !isError(brief))
@@ -207,12 +207,12 @@ try {
   }
 
   section('IN-TEAM: leases + coord_say round-trip (default governance)')
-  const TEAM = 'mcp-proof'
-  await writeTeamFileAsync(TEAM, teamWith(TEAM, undefined))
-  setDynamicTeamContext({
-    agentId: `w@${TEAM}`,
+  const CREW = 'mcp-proof'
+  await writeCrewFileAsync(CREW, crewWith(CREW, undefined))
+  setDynamicCrewContext({
+    agentId: `w@${CREW}`,
     agentName: 'worker',
-    teamName: TEAM,
+    teamName: CREW,
     color: 'blue',
     planModeRequired: false,
   })
@@ -247,7 +247,7 @@ try {
 
   section("coord_say stamps the sender's color on every write (DM + broadcast)")
   {
-    const inbox = await readMailbox('bob', TEAM)
+    const inbox = await readMailbox('bob', CREW)
     check('bob received the DM + the broadcast', inbox.length === 2)
     check(
       'every message carries the sender color (blue) — no dropped band',
@@ -256,15 +256,15 @@ try {
   }
 
   section('broadcast governance 13a: broadcastEnabled=false gates non-leads')
-  await writeTeamFileAsync(
-    TEAM,
-    teamWith(TEAM, { broadcastEnabled: false }),
+  await writeCrewFileAsync(
+    CREW,
+    crewWith(CREW, { broadcastEnabled: false }),
   )
   {
-    setDynamicTeamContext({
-      agentId: `w@${TEAM}`,
+    setDynamicCrewContext({
+      agentId: `w@${CREW}`,
       agentName: 'worker',
-      teamName: TEAM,
+      teamName: CREW,
       color: 'blue',
       planModeRequired: false,
     })
@@ -278,10 +278,10 @@ try {
     )
   }
   {
-    setDynamicTeamContext({
-      agentId: `lead@${TEAM}`,
+    setDynamicCrewContext({
+      agentId: `lead@${CREW}`,
       agentName: 'team-lead',
-      teamName: TEAM,
+      teamName: CREW,
       color: 'red',
       planModeRequired: false,
     })
@@ -296,14 +296,14 @@ try {
   }
 
   section('broadcast governance 13b: a repeat broadcaster yields while others active')
-  await writeTeamFileAsync(
-    TEAM,
-    teamWith(TEAM, {
+  await writeCrewFileAsync(
+    CREW,
+    crewWith(CREW, {
       broadcastFairness: { repostCooldownMs: 60_000, activeWindowMs: 600_000 },
     }),
   )
   {
-    const turnsDir = join(getTeamsDir(), sanitizePathComponent(TEAM))
+    const turnsDir = join(getCrewsDir(), sanitizePathComponent(CREW))
     mkdirSync(turnsDir, { recursive: true })
     const recent = new Date(Date.now() - 1_000).toISOString()
     writeFileSync(
@@ -313,10 +313,10 @@ try {
         lastSpokeAt: { worker: recent, bob: recent },
       }),
     )
-    setDynamicTeamContext({
-      agentId: `w@${TEAM}`,
+    setDynamicCrewContext({
+      agentId: `w@${CREW}`,
       agentName: 'worker',
-      teamName: TEAM,
+      teamName: CREW,
       color: 'blue',
       planModeRequired: false,
     })
@@ -330,7 +330,7 @@ try {
     )
   }
 } finally {
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
   if (prevConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = prevConfigDir
 }

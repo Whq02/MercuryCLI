@@ -34,7 +34,7 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-delete process.env.MERCURY_TEAMS_DIR
+delete process.env.MERCURY_CREWS_DIR
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const k of [
@@ -71,7 +71,7 @@ enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-const { writeToMailbox } = await import('../../src/utils/teammateMailbox.ts')
+const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const crewSpawnModule = (await import('../../src/daemon/crewSpawn.ts')) as Record<string, unknown>
 
@@ -287,7 +287,7 @@ try {
   section('§5 the crew view: r on an offline named row takes the same road (source pin)')
   {
     const view = readFileSync(join(REPO, 'src/components/mercury-ui/screens/CrewView.tsx'), 'utf8')
-    check("the crew view's r resumes an offline named seat through the crew spawn road", /input === 'r'[\s\S]{0,400}kind === 'named'[\s\S]{0,400}resumeCrewTeammate\(/.test(view), 'no named-row branch on the r key')
+    check("the crew view's r resumes an offline named seat through the crew spawn road", /input === 'r'[\s\S]{0,400}kind === 'named'[\s\S]{0,400}resumeCrewmate\(/.test(view), 'no named-row branch on the r key')
     check('the footer offers r resume on an offline named row', /offlineNamed \? \['r resume'\]/.test(view) && /!selectedRow\.member\.online/.test(view), 'no r resume for an offline named row')
   }
 } finally {

@@ -40,7 +40,7 @@ import {
 import { getModelStrings } from './modelStrings.js'
 import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
-import { isClaudeAISubscriber, isMaxSubscriber, isTeamPremiumSubscriber } from '../auth.js'
+import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../auth.js'
 import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
 import type { AnthropicLiveRow } from '../../services/providers/anthropic/anthropicCatalogue.js'
 
@@ -236,7 +236,7 @@ function standardShapeTierRows(): ModelOption[] {
 }
 
 function baseTierRows(): ModelOption[] {
-  return isClaudeAISubscriber() && (isMaxSubscriber() || isTeamPremiumSubscriber())
+  return isClaudeAISubscriber() && (isMaxSubscriber() || isCrewPremiumSubscriber())
     ? premiumSubscriberTierRows()
     : standardShapeTierRows()
 }

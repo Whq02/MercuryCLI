@@ -13,7 +13,7 @@ import {
 import { applyGrouping } from '../../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../../utils/collapseReadSearch.js'
 import { collapseHookSummaries } from '../../utils/collapseHookSummaries.js'
-import { collapseTeammateShutdowns } from '../../utils/collapseTeammateShutdowns.js'
+import { collapseCrewmateShutdowns } from '../../utils/collapseCrewmateShutdowns.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts } from '../../utils/cockpit/turnReceipt.js'
 import { getMercuryTempDir } from '../../utils/permissions/filesystem.js'
@@ -273,7 +273,7 @@ export function deriveTranscriptRows(
   }
   const { messages: grouped } = applyGrouping(prepared, tools, false)
   const collapsed = collapseBackgroundBashNotifications(
-    collapseHookSummaries(collapseTeammateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress))),
+    collapseHookSummaries(collapseCrewmateShutdowns(collapseReadSearchGroups(injectTurnReceipts(grouped, getMercuryTempDir()), tools, inProgress))),
     false,
   )
   return { collapsed, lookups, inProgress }

@@ -12,7 +12,7 @@ import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from './hooks/missionHook.js'
 import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
-import { initializeTeammateContextFromSession } from './swarm/reconnection.js'
+import { initializeCrewmateContextFromSession } from './swarm/reconnection.js'
 import { isTaskToolsEnabled } from './tasks.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 
@@ -69,7 +69,7 @@ export async function restoreSessionStateFromLog(
   if (adopted === getSessionId()) await restoreCostStateForSession(adopted, result.fullPath)
 
   if (result.teamName && result.agentName) {
-    initializeTeammateContextFromSession(setAppState, result.teamName, result.agentName)
+    initializeCrewmateContextFromSession(setAppState, result.teamName, result.agentName)
   }
 
   restoreMissionContinuity(result, setAppState)

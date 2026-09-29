@@ -216,8 +216,8 @@ import { isHeldNotice, isOperatorLine, subscribeQueueConsumption } from '../inpu
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { agentRecipientState, MAIN_THREAD_AGENT, noticeDeadlineMs, noticeRecipientTask, nudgeWords, startIdleNudge } from '../services/notices/idleNudge.js'
 import { noticeRows, type NoticeRecord } from '../services/notices/unreadLedger.js'
-import { injectUserMessageToTeammate } from '../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
-import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
+import { injectUserMessageToCrewmate } from '../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
+import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
@@ -281,20 +281,20 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
-import { getTeamName, isTeamLead, isTeammate } from '../utils/teammate.js'
+import { getCrewName, isCrewLead, isTeammate } from '../utils/crewmate.js'
 import {
   acknowledgeMailboxDelivery,
-  formatTeammateMessages,
+  formatCrewmateMessages,
   getMailboxStore,
   isShutdownApproved,
   prepareMailboxDelivery,
   resolveShutdownApprovedVictim,
   wasMailboxDeliveryHandled,
   type MailboxDelivery,
-  type TeammateMessage,
-} from '../utils/teammateMailbox.js'
-import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
-import { removeTeammateFromTeamFile } from '../utils/swarm/teamHelpers.js'
+  type CrewmateMessage,
+} from '../utils/crewmateMailbox.js'
+import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
+import { removeCrewmateFromCrewFile } from '../utils/swarm/crewHelpers.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -601,7 +601,7 @@ export async function runHeadless(
   }
 
   try {
-    const { initializeSwarmSession } = await import('../utils/swarm/teammateInit.js')
+    const { initializeSwarmSession } = await import('../utils/swarm/crewmateInit.js')
     initializeSwarmSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ teamName?: string; agentName?: string }>)
   } catch (error) {
     logForDebugging(`[session-runner] swarm init failed (non-blocking): ${error}`)
@@ -631,15 +631,15 @@ export async function runHeadless(
       const led = recovered.leaderProjection
       if (led) {
         setAppState(prev =>
-          prev.teamContext
+          prev.crewContext
             ? prev
             : {
                 ...prev,
-                teamContext: {
+                crewContext: {
                   teamName: led.teamName,
-                  teamFilePath: led.teamFilePath,
+                  crewFilePath: led.crewFilePath,
                   leadAgentId: led.leadAgentId,
-                  teammates: led.teammates,
+                  crewmates: led.crewmates,
                 },
               },
         )
@@ -1403,10 +1403,10 @@ export async function runHeadless(
     return minutesKnobToMs(flagEnv('MERCURY_HEADLESS_IDLE_MINUTES'), DEFAULT_HEADLESS_IDLE_MINUTES)
   }
 
-  const teamShutdownPromptInjected = { value: false }
-  const injectTeamShutdownPrompt = (): void => {
-    if (teamShutdownPromptInjected.value) return
-    teamShutdownPromptInjected.value = true
+  const crewShutdownPromptInjected = { value: false }
+  const injectCrewShutdownPrompt = (): void => {
+    if (crewShutdownPromptInjected.value) return
+    crewShutdownPromptInjected.value = true
     enqueue({
       value: `<system-reminder>You are running non-interactively and your final answer is blocked while a crewmate is still running. Ask each crewmate to shut down gracefully and wait for their shutdown approvals. Only after every crewmate has shut down may you produce your final answer.</system-reminder>\nShut your crewmates down now and prepare your final answer.`,
       mode: 'prompt',
@@ -1421,34 +1421,34 @@ export async function runHeadless(
     await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(() => undefined)))
   }
 
-  const leadTeamName = (): string | null => {
-    const teamContext = getAppState().teamContext
-    if (!teamContext || !isTeamLead(teamContext) || isTeammate()) return null
-    return teamContext.teamName
+  const leadCrewName = (): string | null => {
+    const crewContext = getAppState().crewContext
+    if (!crewContext || !isCrewLead(crewContext) || isTeammate()) return null
+    return crewContext.teamName
   }
 
-  const applyShutdownApprovals = (teamName: string, unread: TeammateMessage[]): void => {
+  const applyShutdownApprovals = (teamName: string, unread: CrewmateMessage[]): void => {
     for (const message of unread) {
       const approval = isShutdownApproved(message.text)
       if (!approval) continue
       const victim = resolveShutdownApprovedVictim(message.from, approval)
       if (!victim) continue
-      const roster = getAppState().teamContext?.teammates ?? {}
+      const roster = getAppState().crewContext?.crewmates ?? {}
       const victimId = Object.entries(roster).find(
-        ([, teammate]) => teammate.name === victim,
+        ([, crewmate]) => crewmate.name === victim,
       )?.[0]
-      removeTeammateFromTeamFile(teamName, { agentId: victimId, name: victim })
+      removeCrewmateFromCrewFile(teamName, { agentId: victimId, name: victim })
       setAppState(previous => {
-        const teammates = previous.teamContext?.teammates
-        if (!previous.teamContext || !teammates) return previous
+        const crewmates = previous.crewContext?.crewmates
+        if (!previous.crewContext || !crewmates) return previous
         const remaining = Object.fromEntries(
-          Object.entries(teammates).filter(
-            ([id, teammate]) => id !== victimId && teammate.name !== victim,
+          Object.entries(crewmates).filter(
+            ([id, crewmate]) => id !== victimId && crewmate.name !== victim,
           ),
         )
         return {
           ...previous,
-          teamContext: { ...previous.teamContext, teammates: remaining },
+          crewContext: { ...previous.crewContext, crewmates: remaining },
         }
       })
     }
@@ -1458,14 +1458,14 @@ export async function runHeadless(
   let enqueuedLeadDelivery: string | null = null
   const deliverLeadMailOnce = async (): Promise<'queued' | 'none'> => {
     for (;;) {
-      const teamName = leadTeamName()
+      const teamName = leadCrewName()
       if (teamName === null) return 'none'
       let delivery: MailboxDelivery | null
       try {
-        delivery = await prepareMailboxDelivery(TEAM_LEAD_NAME, teamName, getSessionId())
+        delivery = await prepareMailboxDelivery(CREW_LEAD_NAME, teamName, getSessionId())
         if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
           await flushSessionStorage()
-          await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)
+          await acknowledgeMailboxDelivery(CREW_LEAD_NAME, teamName, delivery.id)
           refusedAcknowledgements = 0
           if (enqueuedLeadDelivery === delivery.id) enqueuedLeadDelivery = null
           continue
@@ -1482,7 +1482,7 @@ export async function runHeadless(
       if (enqueuedLeadDelivery === delivery.id || getCommandQueue().some(command => command.uuid === delivery.id)) return 'queued'
       applyShutdownApprovals(teamName, delivery.messages)
       enqueuedLeadDelivery = delivery.id
-      enqueue({ value: formatTeammateMessages(delivery.messages), mode: 'prompt', uuid: delivery.id as UUID })
+      enqueue({ value: formatCrewmateMessages(delivery.messages), mode: 'prompt', uuid: delivery.id as UUID })
       return 'queued'
     }
   }
@@ -1512,12 +1512,12 @@ export async function runHeadless(
   const leadContext = AsyncLocalStorage.snapshot()
   let leadMailboxWake: { teamName: string; unsubscribe: () => void } | null = null
   const syncLeadMailboxWake = (): void => leadContext(() => {
-    const teamName = leadTeamName()
+    const teamName = leadCrewName()
     if (teamName === (leadMailboxWake?.teamName ?? null)) return
     leadMailboxWake?.unsubscribe()
     leadMailboxWake = null
     if (teamName === null) return
-    const unsubscribe = getMailboxStore(TEAM_LEAD_NAME, teamName).subscribe(() => {
+    const unsubscribe = getMailboxStore(CREW_LEAD_NAME, teamName).subscribe(() => {
       void leadContext(deliverLeadMail)
     }, { immediate: true })
     leadMailboxWake = { teamName, unsubscribe }
@@ -1538,13 +1538,13 @@ export async function runHeadless(
         resolve()
       }
       leadSettle.wake = done
-      if (teamName !== null) unsubscribes.push(getMailboxStore(TEAM_LEAD_NAME, teamName).subscribe(done, { immediate: false }))
+      if (teamName !== null) unsubscribes.push(getMailboxStore(CREW_LEAD_NAME, teamName).subscribe(done, { immediate: false }))
       if (options.subscribeAppState) unsubscribes.push(options.subscribeAppState(done))
       unsubscribes.push(subscribeToCommandQueue(done), onTasksUpdated(done))
     })
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    for (let teamName = leadTeamName(); teamName !== null; teamName = leadTeamName()) {
+    for (let teamName = leadCrewName(); teamName !== null; teamName = leadCrewName()) {
       const changed = leadEvent(teamName)
       try {
         const next = peek()
@@ -1552,10 +1552,10 @@ export async function runHeadless(
         if ((await deliverLeadMail()) === 'queued') return 'reenter'
         const current = getAppState()
         const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_teammate')
-        const listed = Boolean(Object.keys(current.teamContext?.teammates ?? {}).length)
+        const listed = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
         if (!inProcessActive && !listed) break
-        if (inputClosed && !teamShutdownPromptInjected.value) {
-          injectTeamShutdownPrompt()
+        if (inputClosed && !crewShutdownPromptInjected.value) {
+          injectCrewShutdownPrompt()
           return 'reenter'
         }
         await changed
@@ -1576,10 +1576,10 @@ export async function runHeadless(
       }
       const current = getAppState()
       const swarmRemains =
-        Boolean(Object.keys(current.teamContext?.teammates ?? {}).length) ||
+        Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length) ||
         getRunningTasks(current).some(task => task.type === 'in_process_teammate')
       if (swarmRemains) {
-        injectTeamShutdownPrompt()
+        injectCrewShutdownPrompt()
         return 'reenter'
       }
       await stopShellsForClose()
@@ -1869,7 +1869,7 @@ export async function runHeadless(
       if (task === undefined) return false
       const carriers = carriersOf(notices)
       const bodies = carriers.map(command => (typeof command.value === 'string' ? command.value : '')).filter(body => body !== '')
-      if (!injectUserMessageToTeammate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)) return false
+      if (!injectUserMessageToCrewmate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)) return false
       if (carriers.length > 0) retireQueuedCommands(carriers)
       return true
     },
@@ -2973,9 +2973,9 @@ export async function runHeadless(
           }
           try {
             const { readAgentMetadata } = await import('../utils/sessionStorage.js')
-            if (isInProcessTeammateTask(target) || (await readAgentMetadata(asAgentId(request.task_id)))?.teammate !== undefined) {
-              const { respawnTeammateByOperator } = await import('../services/agents/operatorResume.js')
-              const respawned = await respawnTeammateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext, prompt: request.note })
+            if (isInProcessCrewmateTask(target) || (await readAgentMetadata(asAgentId(request.task_id)))?.crewmate !== undefined) {
+              const { respawnCrewmateByOperator } = await import('../services/agents/operatorResume.js')
+              const respawned = await respawnCrewmateByOperator(request.task_id, { getAppState, toolUseContext: params.toolUseContext, prompt: request.note })
               if (respawned.outcome === 'applied') respondSuccess(requestId, { agent_id: respawned.agentId, task_id: respawned.taskId, output_file: respawned.outputFile })
               else respondError(requestId, respawned.reason)
               for (const event of drainSdkEvents()) io.outbound.enqueue(event)

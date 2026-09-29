@@ -1,7 +1,7 @@
 
-type StructuralTeamContext = {
+type StructuralCrewContext = {
   teamName: string
-  teammates: Record<string, { name: string }>
+  crewmates: Record<string, { name: string }>
 }
 
 type MailboxWriter = (
@@ -35,14 +35,14 @@ export function parseDirectMemberMessage(
 export async function sendDirectMemberMessage(
   recipientName: string,
   message: string,
-  teamContext: StructuralTeamContext | null | undefined,
+  crewContext: StructuralCrewContext | null | undefined,
   writeToMailbox?: MailboxWriter,
 ): Promise<DirectMessageResult> {
-  if (!teamContext || !writeToMailbox) {
+  if (!crewContext || !writeToMailbox) {
     return { success: false, error: 'no_team_context' }
   }
-  const recipient = Object.values(teamContext.teammates).find(
-    teammate => teammate.name === recipientName,
+  const recipient = Object.values(crewContext.crewmates).find(
+    crewmate => crewmate.name === recipientName,
   )
   if (!recipient) {
     return { success: false, error: 'unknown_recipient', recipientName }
@@ -50,7 +50,7 @@ export async function sendDirectMemberMessage(
   await writeToMailbox(
     recipientName,
     { from: 'user', text: message, timestamp: new Date().toISOString() },
-    teamContext.teamName,
+    crewContext.teamName,
   )
   return { success: true, recipientName }
 }

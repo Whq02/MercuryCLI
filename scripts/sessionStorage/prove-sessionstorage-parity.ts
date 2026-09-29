@@ -141,8 +141,8 @@ add('isLiteLog', 'lite-vs-full', () =>
     { messages: [user(U1, null, 'z')] } as never,
   ].map(l => S.isLiteLog(l as never)),
 )
-add('extractTeammateTranscriptsFromTasks', 'empty', () =>
-  S.extractTeammateTranscriptsFromTasks({} as never),
+add('extractCrewmateTranscriptsFromTasks', 'empty', () =>
+  S.extractCrewmateTranscriptsFromTasks({} as never),
 )
 
 const IO = 'filesystem/session-state IO — pinned by the standing resume/forensics suites; gains fixture cases as the R5 extraction reaches its family'

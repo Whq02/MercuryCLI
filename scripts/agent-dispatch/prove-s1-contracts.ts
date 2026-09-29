@@ -7,7 +7,7 @@ import { zaiProviderAdapter } from '../../src/utils/router/providers/zai.js'
 import {
   buildAgentLaunchPlan,
   deriveRunnerAgentDefinition,
-  TEAM_ESSENTIAL_TOOLS,
+  CREW_ESSENTIAL_TOOLS,
   type AgentLaunchPlanInput,
 } from '../../src/utils/swarm/agentLaunchPlan.js'
 import { decodeAgentType } from '../../src/utils/swarm/roleResolver.js'
@@ -160,8 +160,8 @@ section('3 · deriveRunnerAgentDefinition — teammate product laws')
   })
   check('agentType prefers the definition over displayName', derived.agentType === 'orbit-role-def')
   check(
-    'explicit tools gain every TEAM_ESSENTIAL_TOOL',
-    TEAM_ESSENTIAL_TOOLS.every(t => derived.tools!.includes(t)) && derived.tools!.includes('Read'),
+    'explicit tools gain every CREW_ESSENTIAL_TOOL',
+    CREW_ESSENTIAL_TOOLS.every(t => derived.tools!.includes(t)) && derived.tools!.includes('Read'),
     derived.tools!.join(','),
   )
   check("permissionMode is 'default' (runner overlays live mode per turn)", derived.permissionMode === 'default')

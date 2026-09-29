@@ -38,7 +38,7 @@ import {
   carryForwardEnabled,
   lastSeenDispatchId,
 } from './carryForward.js'
-import { writeToMailbox } from '../utils/teammateMailbox.js'
+import { writeToMailbox } from '../utils/crewmateMailbox.js'
 
 export const AUTO_CLEAR_CONTEXT_PCT = 85
 import { currentVersion } from './controlSocket.js'
@@ -390,13 +390,13 @@ export class TaskRoster {
     logForDebugging(
       `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
-    const team = ll.spec.teamName ?? 'default'
+    const crew = ll.spec.teamName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
       void writeToMailbox(
         short,
         { from: 'daemon', text: JSON.stringify(note), timestamp: new Date().toISOString() },
-        team,
+        crew,
       )
         .catch(() => {})
         .finally(() => this.reconfigureLongLived(short, {}))

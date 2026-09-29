@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { useEffect, useState } from 'react'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
@@ -47,8 +47,8 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
   }, [file, startedAt])
   if (crewmate === null) return null
   const local = crewmate.local
-  const launchModel = local !== undefined && (isLocalAgentTask(local) || isInProcessTeammateTask(local)) ? word(local.model) : null
-  const launchEffort = local !== undefined && isInProcessTeammateTask(local) ? word(local.effort) : null
+  const launchModel = local !== undefined && (isLocalAgentTask(local) || isInProcessCrewmateTask(local)) ? word(local.model) : null
+  const launchEffort = local !== undefined && isInProcessCrewmateTask(local) ? word(local.effort) : null
   const identity = recorded?.file === file ? recorded.identity : null
   return { model: identity?.model ?? launchModel ?? crewmate.facts?.model ?? null, effort: identity?.effort ?? launchEffort ?? crewmate.facts?.effort ?? null }
 }

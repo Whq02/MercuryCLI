@@ -98,15 +98,15 @@ console.log('============================================================')
   )
   check(
     'REPL derives no teammate-running truth of its own (the runner owns its teammates)',
-    !repl.includes('getRunningTeammatesSorted') && !repl.includes('anyTaskRunning'),
+    !repl.includes('getRunningCrewmatesSorted') && !repl.includes('anyTaskRunning'),
   )
   const spinner = src('src', 'components', 'Spinner.tsx')
   check(
     'Spinner subscribes to primitives + the viewed teammate object only',
     !/useAppState\(state => state\.tasks\)/.test(spinner) &&
       !/useAppState\(state => state\)/.test(spinner) &&
-      /const foregroundedTeammate = useAppState\(state =>\s*getViewedTeammateTask\(state\),?\s*\)/.test(spinner) &&
-      /const runningTeammateCount = useAppState\(state =>/.test(spinner),
+      /const foregroundedCrewmate = useAppState\(state =>\s*getViewedCrewmateTask\(state\),?\s*\)/.test(spinner) &&
+      /const runningCrewmateCount = useAppState\(state =>/.test(spinner),
   )
   const pi = src('src', 'components', 'PromptInput', 'PromptInput.tsx')
   check(

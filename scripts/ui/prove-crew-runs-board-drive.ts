@@ -57,7 +57,7 @@ function driveEnv(home: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_TASK_LIST_ID: CREW,
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_BOOT_PREFLIGHT: '0',

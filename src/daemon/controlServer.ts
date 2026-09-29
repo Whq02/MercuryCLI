@@ -31,7 +31,7 @@ import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { writeToMailbox } from '../utils/teammateMailbox.js'
+import { writeToMailbox } from '../utils/crewmateMailbox.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
@@ -639,7 +639,7 @@ async function routeControlRequest(
     case 'envelope': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       const rawTo = String(raw.to ?? '')
-      const team = typeof raw.team === 'string' && raw.team ? raw.team : 'default'
+      const crew = typeof raw.crew === 'string' && raw.crew ? raw.crew : 'default'
       const to = rawTo.trim()
       let env: ReturnType<typeof parseBusEnvelope> = null
       try {
@@ -664,7 +664,7 @@ async function routeControlRequest(
           timestamp: new Date().toISOString(),
           ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}),
         },
-        team,
+        crew,
       )
       if (!journaled) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope journal write failed' })

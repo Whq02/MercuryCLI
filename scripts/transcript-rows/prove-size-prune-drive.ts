@@ -20,7 +20,7 @@ mkdirSync(cwd)
 mkdirSync(config)
 process.env.MERCURY_CONFIG_DIR = config
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
-process.env.MERCURY_TEAMS_DIR = join(home, 'teams')
+process.env.MERCURY_CREWS_DIR = join(home, 'teams')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const { seedFirstRun } = await import(join(root, 'scripts/lib/firstRunSeed.ts'))
@@ -70,7 +70,7 @@ const env: NodeJS.ProcessEnv = {
   ...fixture.env,
   MERCURY_CONFIG_DIR: config,
   MERCURY_DAEMON_DIR: join(home, 'daemon'),
-  MERCURY_TEAMS_DIR: join(home, 'teams'),
+  MERCURY_CREWS_DIR: join(home, 'teams'),
   MERCURY_HOME: join(home, 'product-home'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',

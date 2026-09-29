@@ -74,7 +74,7 @@ export function seatFactsOf(seat: CrewSeatGlanceV1): CrewAgentFacts {
     startedAt,
     endedAt: live ? null : startedAt,
     agentType: null,
-    team: 'crew',
+    crew: 'crew',
     effort: null,
     transcriptAgentId: null,
     description: null,

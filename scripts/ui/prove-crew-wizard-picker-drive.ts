@@ -43,7 +43,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_CREDENTIAL_STORE: 'file',
@@ -99,8 +99,8 @@ type Payload = { grid: Grid; marks?: { label: string; grid: Grid }[]; sendReceip
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? ' ').join('').trimEnd()).join('\n')
 const rowWith = (frame: string, needle: string): string => frame.split('\n').find(l => l.includes(needle))?.trim() ?? ''
 
-function crewTeamModels(home: string): string[] {
-  const teamsDir = join(home, 'teams')
+function crewModels(home: string): string[] {
+  const crewsDir = join(home, 'teams')
   const out: string[] = []
   const walk = (dir: string): void => {
     if (!existsSync(dir)) return
@@ -117,7 +117,7 @@ function crewTeamModels(home: string): string[] {
       }
     }
   }
-  walk(teamsDir)
+  walk(crewsDir)
   return out
 }
 
@@ -188,7 +188,7 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: the picker lists the live rows by provider group (more than one provider heading)`, cols < 100 || picker.split('\n').filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.split('\n').filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
     check(`${tag}: no generation-key chips remain (no opus · sonnet · fable · fable51 chip row)`, !/│\s*opus\s+.*│\s*sonnet\s+/.test(picker) && !picker.includes('you pick the model per agent'), rowWith(picker, 'opus'))
     check(`${tag}: the footer names the picker's keys`, picker.includes('↑↓ move · ↵ spawn · esc back'), rowWith(picker, 'esc back'))
-    const models = crewTeamModels(home)
+    const models = crewModels(home)
     check(`${tag}: the pick spawns the row's exact id (the team file records it, never a family word)`, models.length > 0 && models.every(m => /[-/]/.test(m) && !['fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(m)), models.join(','))
     check(`${tag}: the board reports the spawn with the row's own words and the picker is gone`, /spawning @atlas|@atlas spawned|spawn refused/.test(after) && !frameOf('settled').includes('pick a model'), rowWith(after, '@atlas'))
     void focused

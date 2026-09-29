@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runner-life-config-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runner-life-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'runner-life-teams-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
@@ -23,24 +23,24 @@ const projDir = mkdtempSync(join(tmpdir(), 'runner-life-proj-'))
 bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
-export const { spawnInProcessTeammate, killInProcessTeammate } = await import(
+export const { spawnInProcessCrewmate, killInProcessCrewmate } = await import(
   '../../../src/utils/swarm/spawnInProcess.ts'
 )
-export const { runInProcessTeammate } = await import('../../../src/utils/swarm/inProcessRunner.ts')
+export const { runInProcessCrewmate } = await import('../../../src/utils/swarm/inProcessRunner.ts')
 export const { drainSdkEvents } = await import('../../../src/utils/sdkEventQueue.ts')
 export const { readMailbox, writeToMailbox, isIdleNotification } = await import(
-  '../../../src/utils/teammateMailbox.ts'
+  '../../../src/utils/crewmateMailbox.ts'
 )
-export const { injectUserMessageToTeammate } = await import(
-  '../../../src/tasks/InProcessTeammateTask/InProcessTeammateTask.tsx'
+export const { injectUserMessageToCrewmate } = await import(
+  '../../../src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx'
 )
 export const { getEmptyToolPermissionContext } = await import('../../../src/Tool.ts')
 export const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
   '../../../src/utils/fileStateCache.ts'
 )
 export const { getBuiltInAgents } = await import('../../../src/tools/AgentTool/builtInAgents.ts')
-export const { resolveTeammateRole } = await import('../../../src/utils/swarm/roleResolver.ts')
-export const { deriveTeamCharter } = await import('../../../src/utils/swarm/teamCharter.ts')
+export const { resolveCrewmateRole } = await import('../../../src/utils/swarm/roleResolver.ts')
+export const { deriveCrewCharter } = await import('../../../src/utils/swarm/crewCharter.ts')
 export const { ERROR_MESSAGE_USER_ABORT } = await import('../../../src/services/compact/compact.ts')
 
 
@@ -187,9 +187,9 @@ export const bookendsFor = (taskId: string): SdkEventView[] =>
   allDrained.filter(e => e.subtype === 'task_notification' && e.task_id === taskId)
 
 export async function idleNotificationsFor(
-  team: string,
+  crew: string,
 ): Promise<Array<{ idleReason?: string; failureReason?: string }>> {
-  const msgs = await readMailbox('team-lead', team)
+  const msgs = await readMailbox('team-lead', crew)
   return msgs
     .map(m => isIdleNotification(m.text))
     .filter(Boolean) as Array<{ idleReason?: string; failureReason?: string }>
@@ -200,7 +200,7 @@ export type Spawned = {
   store: Store
   ctx: Record<string, unknown>
   taskId: string
-  team: string
+  crew: string
   lifecycle: AbortController
   runPromise: Promise<{ success: boolean; error?: string; messages: unknown[] }>
   settled: () => boolean
@@ -210,7 +210,7 @@ export type Spawned = {
 
 export async function launch(opts: {
   name: string
-  team: string
+  crew: string
   turns: ScriptedTurn[]
   prompt: string
   description?: string
@@ -225,10 +225,10 @@ export async function launch(opts: {
   const ctx = makeCtx(store)
   opts.poisonCtx?.(ctx)
 
-  const spawned = await spawnInProcessTeammate(
+  const spawned = await spawnInProcessCrewmate(
     {
       name: opts.name,
-      teamName: opts.team,
+      teamName: opts.crew,
       prompt: opts.prompt,
       planModeRequired: false,
     },
@@ -260,14 +260,14 @@ export async function launch(opts: {
 
   let settled = false
   let rejection: unknown
-  const runPromise = runInProcessTeammate({
+  const runPromise = runInProcessCrewmate({
     identity: task(store, taskId).identity as never,
     taskId,
     prompt: opts.prompt,
     description: opts.description,
     role: opts.role as never,
     agentDefinition: opts.agentDefinition as never,
-    teammateContext: spawned.teammateContext as never,
+    crewmateContext: spawned.crewmateContext as never,
     toolUseContext: ctx as never,
     abortController: spawned.abortController!,
     allowPermissionPrompts: false,
@@ -290,7 +290,7 @@ export async function launch(opts: {
     store,
     ctx,
     taskId,
-    team: opts.team,
+    crew: opts.crew,
     lifecycle: spawned.abortController!,
     runPromise,
     settled: () => settled,

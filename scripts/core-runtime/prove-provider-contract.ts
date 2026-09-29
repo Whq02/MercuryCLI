@@ -455,7 +455,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
   )
   withEnv({ MERCURY_EXTRA_METADATA: '{"team":"t16"}' }, () => {
     const withExtra = JSON.parse((rp.getAPIMetadata() as { user_id: string }).user_id) as Record<string, unknown>
-    check('assembly: extra metadata merges into user_id', withExtra.team === 't16')
+    check('assembly: extra metadata merges into user_id', withExtra.crew === 't16')
   })
 
   check('assembly: prompt caching defaults ON', rp.getPromptCachingEnabled('claude-opus-4-8'))

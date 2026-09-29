@@ -113,7 +113,7 @@ import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/
 import { getLastSessionLog, getLogByIndex, searchSessionsByCustomTitle, fetchLogs, sessionIdExists } from './utils/sessionStorage.js'
 import { getSessionIdFromLog } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
-import { computeInitialTeamContext } from './utils/swarm/reconnection.js'
+import { computeInitialCrewContext } from './utils/swarm/reconnection.js'
 import { findRoleDefinition, getRoleSystemPrompt } from './utils/swarm/roleResolver.js'
 import { getTipToShowOnSpinner } from './services/tips/tipScheduler.js'
 import { getSlashCommandToolSkills } from './commands.js'
@@ -1598,7 +1598,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       allAgents,
       sessionTitle,
       setupTrigger,
-      teammateContext: { agentId, agentName, teamName, agentColor, planModeRequired, parentSessionId },
+      crewmateContext: { agentId, agentName, teamName, agentColor, planModeRequired, parentSessionId },
     })
     return
   }
@@ -1707,7 +1707,7 @@ async function interactiveLaunch(args: {
   allAgents: AgentDefinition[]
   sessionTitle: string | undefined
   setupTrigger: 'init' | 'maintenance' | undefined
-  teammateContext: {
+  crewmateContext: {
     agentId?: string
     agentName?: string
     teamName?: string
@@ -1838,7 +1838,7 @@ async function interactiveLaunch(args: {
 
   const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
   let effectiveContext = args.toolPermissionContext
-  if (isAgentSwarmsEnabled() && args.teammateContext.planModeRequired) {
+  if (isAgentSwarmsEnabled() && args.crewmateContext.planModeRequired) {
     effectiveContext = { ...effectiveContext, mode: 'strategy' }
   }
 
@@ -1847,22 +1847,22 @@ async function interactiveLaunch(args: {
   const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().supercodeEffort)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
-  const { setDynamicTeamContext } = await import('./utils/teammate.js')
-  const hasTeammateIdentity = Boolean(
-    args.teammateContext.agentId && args.teammateContext.agentName && args.teammateContext.teamName,
+  const { setDynamicCrewContext } = await import('./utils/crewmate.js')
+  const hasCrewmateIdentity = Boolean(
+    args.crewmateContext.agentId && args.crewmateContext.agentName && args.crewmateContext.teamName,
   )
-  const teamContext = hasTeammateIdentity
+  const crewContext = hasCrewmateIdentity
     ? {
-        agentId: args.teammateContext.agentId!,
-        agentName: args.teammateContext.agentName!,
-        teamName: args.teammateContext.teamName!,
-        color: args.teammateContext.agentColor,
-        planModeRequired: Boolean(args.teammateContext.planModeRequired),
-        parentSessionId: args.teammateContext.parentSessionId,
+        agentId: args.crewmateContext.agentId!,
+        agentName: args.crewmateContext.agentName!,
+        teamName: args.crewmateContext.teamName!,
+        color: args.crewmateContext.agentColor,
+        planModeRequired: Boolean(args.crewmateContext.planModeRequired),
+        parentSessionId: args.crewmateContext.parentSessionId,
       }
     : undefined
-  if (teamContext) setDynamicTeamContext(teamContext)
-  const initialTeamContext = computeInitialTeamContext()
+  if (crewContext) setDynamicCrewContext(crewContext)
+  const initialCrewContext = computeInitialCrewContext()
   const initialState: AppState = {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
@@ -1872,7 +1872,7 @@ async function interactiveLaunch(args: {
     ...(supercodeArmed ? { supercode: true } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
-    ...(initialTeamContext ? { teamContext: initialTeamContext } : {}),
+    ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
     replBridgeEnabled: getRemoteControlAtStartup() || assistantBridgeSeed(),
     promptSuggestionEnabled: false,
     ...(inputPrompt

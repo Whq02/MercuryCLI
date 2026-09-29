@@ -12,10 +12,10 @@ export function getStopHookMessage(blockingError: HookBlockingError): string {
   return `Stop hook feedback:\n${blockingError.blockingError}`
 }
 
-export function getTeammateIdleHookMessage(
+export function getCrewmateIdleHookMessage(
   blockingError: HookBlockingError,
 ): string {
-  return `TeammateIdle hook feedback:\n${blockingError.blockingError}`
+  return `CrewmateIdle hook feedback:\n${blockingError.blockingError}`
 }
 
 export function getTaskCreatedHookMessage(

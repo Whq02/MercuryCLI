@@ -74,13 +74,13 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     ],
   }
 
-  const teamHint = 'in a crew'
+  const crewHint = 'in a crew'
   const coordination: SubstrateSection = {
     title: 'Coordination',
     rows: [
-      { name: 'File leases + lease-guard', on: swarms, hint: teamHint },
-      { name: 'LiveComms', on: swarms, hint: teamHint },
-      { name: 'SendMessage governance', on: swarms, hint: teamHint },
+      { name: 'File leases + lease-guard', on: swarms, hint: crewHint },
+      { name: 'LiveComms', on: swarms, hint: crewHint },
+      { name: 'SendMessage governance', on: swarms, hint: crewHint },
       { name: 'Coordination MCP server (mercury)', on: isCoordinationServerEnabled(), hint: isCoordinationServerEnabled() ? 'live (opt out =0) · mcp__mercury__* coord verbs' : 'MERCURY_COORDINATION_MCP=0 set' },
     ],
   }

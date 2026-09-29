@@ -166,7 +166,7 @@ const fullRow = (turn: (typeof rowFacts)[keyof typeof rowFacts], startedMs: numb
   h(SpinnerAnimationRow, {
     mode: 'thinking', reducedMotion: true, hasActiveTools: false, activeToolCount: 0, responseLengthRef: ref(turn.thinkingChars + turn.replyChars), outputTokensRef: ref<number | null>(turn.wireOutputTokens), liveTurnFactsRef: ref(turn),
     message: 'Thinking', messageColor: 'claude', shimmerColor: 'claudeShimmer', overrideColor: null, loadingStartTimeRef: ref(startedMs), totalPausedMsRef: ref(0), pauseStartTimeRef: ref<number | null>(null),
-    spinnerSuffix: null, verbose: true, columns, hasRunningTeammates: false, teammateTokens: 0, foregroundedTeammate: undefined, leaderIsIdle: false, effortSuffix: ' (max)',
+    spinnerSuffix: null, verbose: true, columns, hasRunningCrewmates: false, crewmateTokens: 0, foregroundedCrewmate: undefined, leaderIsIdle: false, effortSuffix: ' (max)',
   } as never)
 
 const frames: string[] = []

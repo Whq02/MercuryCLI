@@ -8,7 +8,7 @@ import {
   FORK_BOILERPLATE_TAG,
   LOCAL_COMMAND_CAVEAT_TAG,
   TASK_NOTIFICATION_TAG,
-  TEAMMATE_MESSAGE_TAG,
+  CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../../constants/xml.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
@@ -31,7 +31,7 @@ import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { UserPlanMessage } from './UserPlanMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
-import { UserTeammateMessage } from './UserTeammateMessage.js'
+import { UserCrewmateMessage } from './UserCrewmateMessage.js'
 import { formatClock, useMessageMeta } from './TranscriptNameplate.js'
 
 function noticeDeliveryClock(sentAt?: string, deliveredAt?: string): string | null {
@@ -135,10 +135,10 @@ export function UserTextMessage({
 
   if (
     isAgentSwarmsEnabled() &&
-    head.startsWith(`<${TEAMMATE_MESSAGE_TAG}`)
+    head.startsWith(`<${CREWMATE_MESSAGE_TAG}`)
   ) {
     return (
-      <UserTeammateMessage
+      <UserCrewmateMessage
         addMargin={addMargin}
         param={param}
         isTranscriptMode={isTranscriptMode}

@@ -210,7 +210,7 @@ export function getTranscriptMessagesVisited(): number {
 
 export async function recordTranscript(
   messages: Message[],
-  teamInfo?: TeamInfo,
+  crewInfo?: CrewInfo,
   startingParentUuidHint?: UUID,
   allMessages?: readonly Message[],
   replIds?: Set<string>,
@@ -239,7 +239,7 @@ export async function recordTranscript(
       false,
       undefined,
       startingParentUuid,
-      teamInfo,
+      crewInfo,
       preferLiveLeaf,
     )
   }
@@ -833,7 +833,7 @@ class Project {
     isSidechain: boolean = false,
     agentId?: string,
     startingParentUuid?: UUID | null,
-    teamInfo?: { teamName?: string; agentName?: string },
+    crewInfo?: { teamName?: string; agentName?: string },
     preferLiveLeaf: boolean = false,
   ) {
     return this.trackWrite(() => this.serializeInsert(async () => {
@@ -878,8 +878,8 @@ class Project {
             ? (parentUuid ?? undefined)
             : undefined,
           isSidechain,
-          teamName: teamInfo?.teamName,
-          agentName: teamInfo?.agentName,
+          teamName: crewInfo?.teamName,
+          agentName: crewInfo?.agentName,
           promptId:
             message.type === 'user' ? (getPromptId() ?? undefined) : undefined,
           workload: message.type === 'assistant' ? getWorkload() : undefined,
@@ -1174,7 +1174,7 @@ class Project {
   }
 }
 
-export type TeamInfo = {
+export type CrewInfo = {
   teamName?: string
   agentName?: string
 }

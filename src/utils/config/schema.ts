@@ -309,7 +309,7 @@ export type GlobalConfig = {
 
   permissionExplainerEnabled?: boolean
 
-  teammateDefaultModel?: string | null
+  crewmateDefaultModel?: string | null
 
   agents?: {
     defaultEffort?: EffortLevel

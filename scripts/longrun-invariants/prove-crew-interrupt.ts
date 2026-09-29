@@ -27,7 +27,7 @@ const { enqueueWorkflowNotification, killWorkflowTask, registerWorkflowTask } = 
   '../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 )
 const { crewStillRunningLine } = await import('../../src/services/engine-connector/crewFacts.js')
-const { stopOrDismissAgent } = await import('../../src/state/teammateViewHelpers.js')
+const { stopOrDismissAgent } = await import('../../src/state/crewmateViewHelpers.js')
 
 import type { Message as MessageType } from '../../src/types/message.js'
 
@@ -254,7 +254,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   const stopArm = runner.slice(stopArmAt, runner.indexOf("case 'resume_task': {"))
   check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(request.task_id, { getAppState, setAppState }, request.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("respondError(requestId, receipt.reason)") && !stopArm.includes('respondSuccess(requestId, {})'))
   const owner = src('src/services/agents/operatorStop.ts')
-  check('the owner routes a workflow row to killWorkflowTask, a named teammate to killInProcessTeammate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessTeammate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
+  check('the owner routes a workflow row to killWorkflowTask, a named teammate to killInProcessCrewmate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessCrewmate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
   resetCommandQueue()
 }
 
@@ -417,7 +417,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   await conn.attach()
   const shape = (): string => conn.records().map(m => (m.type === 'system' ? `system:${String((m as { content?: unknown }).content)}` : m.type)).join(' | ')
   check('K11 the chain paints its four rows', conn.records().length === 4, shape())
-  const receipt = crewStillRunningLine({ agents: 1, teammates: 0, workflows: 1 })!
+  const receipt = crewStillRunningLine({ agents: 1, crewmates: 0, workflows: 1 })!
   conn.addDisplayRow(createSystemMessage(receipt, 'warning'))
   check('K11 the receipt paints after the rows it followed', shape() === `user | assistant | user | assistant | system:${receipt}`, shape())
   const s = uid()
@@ -425,7 +425,7 @@ section('§K4b the resumed agent\'s pool is the launch\'s — one derivation')
   appendFileSync(file, line(s, null, 5, 'user', 'summary of the folded turns', { isCompactSummary: true }) + line(u3, s, 6, 'user', 'after'))
   await seam.tick()
   check('K11 the folded chain paints the summary and the post-fold row only — the pre-fold receipt left with the rows it followed', shape() === 'user | user', shape())
-  const after = crewStillRunningLine({ agents: 0, teammates: 0, workflows: 1 })!
+  const after = crewStillRunningLine({ agents: 0, crewmates: 0, workflows: 1 })!
   conn.addDisplayRow(createSystemMessage(after, 'warning'))
   const a3 = uid()
   appendFileSync(file, line(a3, u3, 7, 'assistant', 'noted'))

@@ -414,7 +414,7 @@ switched into silently — the chat still opens, and the note says where the
 view stayed.
 
 The coordinator that sits behind the board — launching, watching, messaging
-and queueing sessions — is [TEAMS.md](TEAMS.md)'s.
+and queueing sessions — is [CREW.md](CREW.md)'s.
 
 ## The folder is the project
 
@@ -867,7 +867,7 @@ word: a message ends nothing.
 
 ## Where the pieces live
 
-- The coordinator, crewmates and live communication are [TEAMS.md](TEAMS.md)'s.
+- The coordinator, crewmates and live communication are [CREW.md](CREW.md)'s.
 - What a session loads — its kit, the menu, presets, the in-session dials —
   is [KIT.md](KIT.md)'s.
 - Schedules that wake a session or birth one on the clock are

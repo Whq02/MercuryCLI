@@ -6,7 +6,7 @@
 # gate-watch: src/daemon/concourseDispatch.ts src/daemon/permissionAsks.ts src/services/switchboard/attachedSession.ts
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
-# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/TEAMS.md
+# gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs docs/CREW.md
 # gate-watch: scripts/compact/overflowFixture.ts scripts/engine-durability/harness.ts scripts/lib/*
 # gate-watch: scripts/ops/launcher-mercury.sh
 # gate-watch: docs/ENGINES.md

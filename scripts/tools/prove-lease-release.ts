@@ -33,16 +33,16 @@ console.log(' lease release + sweep — wired (HB-0081)')
 console.log('============================================================')
 
 section('LIVE: releaseAllForAgent frees a dead agent’s leases (cleanup path)')
-const team = 'proveteam'
-await L.claimLease(team, 'agentA@t', ['src/**'])
-await L.claimLease(team, 'agentB@t', ['docs/**'])
-check('two agents hold leases', (await L.listLeases(team)).length === 2)
-const dropped = await L.releaseAllForAgent(team, 'agentA@t')
+const crew = 'proveteam'
+await L.claimLease(crew, 'agentA@t', ['src/**'])
+await L.claimLease(crew, 'agentB@t', ['docs/**'])
+check('two agents hold leases', (await L.listLeases(crew)).length === 2)
+const dropped = await L.releaseAllForAgent(crew, 'agentA@t')
 check('releaseAllForAgent(agentA) returns true (a lease was dropped)', dropped === true)
-const after = await L.listLeases(team)
+const after = await L.listLeases(crew)
 check('agentA’s lease is gone, agentB’s survives', after.length === 1 && after[0]!.agentId === 'agentB@t')
-check('releaseAllForAgent is idempotent (second call drops nothing)', (await L.releaseAllForAgent(team, 'agentA@t')) === false)
-check('the crew has one claim store: agentB released, the store reads empty', (await L.releaseAllForAgent(team, 'agentB@t')) === true && (await L.listLeases(team)).length === 0)
+check('releaseAllForAgent is idempotent (second call drops nothing)', (await L.releaseAllForAgent(crew, 'agentA@t')) === false)
+check('the crew has one claim store: agentB released, the store reads empty', (await L.releaseAllForAgent(crew, 'agentB@t')) === true && (await L.listLeases(crew)).length === 0)
 
 section('LIVE: sweepExpiredLeases prunes stale records (list path)')
 const t2 = 'proveteam2'
@@ -57,7 +57,7 @@ section('source: the two call sites are wired (no longer 0-caller dead code)')
 const spawn = readFileSync(join(ROOT, 'src', 'utils', 'swarm', 'spawnInProcess.ts'), 'utf-8')
 check('spawnInProcess cleanup calls releaseAllForAgent(teamName, config.name) — the crewmate name the claim is filed under', /await releaseAllForAgent\(config\.teamName, config\.name\)/.test(spawn))
 const service = readFileSync(join(ROOT, 'src', 'services', 'coordination', 'coordinationService.ts'), 'utf-8')
-check('lease_list opportunistically calls sweepExpiredLeases(ctx.team)', /await sweepExpiredLeases\(ctx\.team\)\.catch/.test(service))
+check('lease_list opportunistically calls sweepExpiredLeases(ctx.crew)', /await sweepExpiredLeases\(ctx\.crew\)\.catch/.test(service))
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) console.log('✅ ALL LEASE-RELEASE PROOFS PASS')

@@ -39,7 +39,7 @@ export interface CrewAgentFacts {
   startedAt: number
   endedAt: number | null
   agentType: string | null
-  team: string | null
+  crew: string | null
   effort: string | null
   transcriptAgentId: string | null
   description: string | null
@@ -113,7 +113,7 @@ export function crewAgentFactsOf(row: WorkRowV1, sessionId: string | null): Crew
     startedAt: row.startTime,
     endedAt: typeof row.endTime === 'number' && Number.isFinite(row.endTime) ? row.endTime : null,
     agentType: row.agentType ?? null,
-    team: row.team ?? null,
+    crew: row.crew ?? null,
     effort: typeof row.effort === 'string' && row.effort !== '' ? row.effort : null,
     transcriptAgentId: typeof row.transcriptAgentId === 'string' && row.transcriptAgentId !== '' ? row.transcriptAgentId : null,
     description: row.description ?? null,
@@ -254,9 +254,9 @@ export function crewWaitingLine(agents: readonly CrewAgentFacts[]): string | nul
 }
 
 export function crewStillRunningLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents' | 'crewmates' | 'workflows'>,
 ): string | null {
-  const agents = typeof running === 'number' ? running : running.agents + running.teammates
+  const agents = typeof running === 'number' ? running : running.agents + running.crewmates
   const workflows = typeof running === 'number' ? 0 : running.workflows
   const parts: string[] = []
   if (agents > 0) parts.push(`${agents} sub-agent${agents === 1 ? '' : 's'} still running — open the crew view (${CREW_VIEW_DOOR}) and press x twice on its row to stop one`)
@@ -267,7 +267,7 @@ export function crewStillRunningLine(
 export type InterruptPressFacts = { interrupting: boolean } | null
 
 export function interruptReceiptLine(
-  running: number | Pick<WorkCountsV1, 'agents' | 'teammates' | 'workflows'>,
+  running: number | Pick<WorkCountsV1, 'agents' | 'crewmates' | 'workflows'>,
   press: InterruptPressFacts,
 ): string | null {
   if (press?.interrupting === true) return null

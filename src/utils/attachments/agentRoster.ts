@@ -4,7 +4,7 @@ import type { TaskState } from '../../tasks/types.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { crewAgentFactsOf, crewStateLabel, crewWaitLine } from '../../services/engine-connector/crewFacts.js'
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
   buildResumePrompt,
@@ -57,7 +57,7 @@ function pendingFor(task: TaskState | undefined): string | null {
     const n = task.pendingMessages?.length ?? 0
     return n > 0 ? `${plural(n, 'message')} queued for its next tool round` : null
   }
-  if (isInProcessTeammateTask(task)) {
+  if (isInProcessCrewmateTask(task)) {
     const n = task.pendingUserMessages?.length ?? 0
     return n > 0 ? `${plural(n, 'message')} pending delivery` : null
   }

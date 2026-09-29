@@ -22,10 +22,10 @@ console.log('============================================================')
 const drainMod = (await import('../../src/daemon/dispatchDrain.js')) as typeof import('../../src/daemon/dispatchDrain.js')
 const bus = (await import('../../src/utils/swarm/busEnvelopes.js')) as typeof import('../../src/utils/swarm/busEnvelopes.js')
 
-const TEAM = 'crew'
+const CREW = 'crew'
 const WORKER = 'scout'
 const LEAD = 'team-lead'
-const drainOpts = { short: WORKER, agentName: WORKER, teamName: TEAM, durableDedup: false as const }
+const drainOpts = { short: WORKER, agentName: WORKER, teamName: CREW, durableDedup: false as const }
 
 section('buildBackAgentUserFrame: total over every kind')
 const disp = bus.buildDispatch(LEAD, 'refactor the tokenizer with TDD', { title: 'Tokenizer' })
@@ -53,9 +53,9 @@ const freshHome = (): void => {
   process.env.MERCURY_CONFIG_DIR = h
 }
 try {
-  const mailbox = await import('../../src/utils/teammateMailbox.js')
+  const mailbox = await import('../../src/utils/crewmateMailbox.js')
   const seed = (from: string, env: ReturnType<typeof bus.buildDispatch> | ReturnType<typeof bus.buildEscalate> | ReturnType<typeof bus.buildControl> | ReturnType<typeof bus.buildNote> | ReturnType<typeof bus.buildProgress>) =>
-    mailbox.writeToMailbox(WORKER, { from, text: bus.serializeBusEnvelope(env), timestamp: new Date().toISOString() }, TEAM)
+    mailbox.writeToMailbox(WORKER, { from, text: bus.serializeBusEnvelope(env), timestamp: new Date().toISOString() }, CREW)
   const recorder = () => {
     const replies: Array<{ short: string; text: string }> = []
     return { replies, roster: { reply: async (short: string, text: string) => { replies.push({ short, text }); return true } } }
@@ -79,7 +79,7 @@ try {
   {
     const d0 = await drainMod.drainDispatches({ reply: async () => false }, drainOpts)
     check('reply-fail ⇒ delivered 0', d0 === 0)
-    const stillUnread = await mailbox.readUnreadMessages(WORKER, TEAM)
+    const stillUnread = await mailbox.readUnreadMessages(WORKER, CREW)
     check('reply-fail ⇒ dispatch LEFT UNREAD for retry (not lost)', stillUnread.some(m => bus.parseBusEnvelope(m.text)?.kind === 'dispatch'))
     const d1 = await drainMod.drainDispatches({ reply: async () => true }, drainOpts)
     check('retry after recovery ⇒ delivered 1 (at-least-once held)', d1 === 1)
@@ -109,8 +109,8 @@ try {
 
   freshHome()
   await seed(LEAD, bus.buildNote(LEAD, 'read the spec first'))
-  await mailbox.writeToMailbox(WORKER, { from: LEAD, text: 'plain human reply', timestamp: new Date().toISOString() }, TEAM)
-  await mailbox.writeToMailbox(WORKER, { from: WORKER, text: 'my own echo', timestamp: new Date().toISOString() }, TEAM)
+  await mailbox.writeToMailbox(WORKER, { from: LEAD, text: 'plain human reply', timestamp: new Date().toISOString() }, CREW)
+  await mailbox.writeToMailbox(WORKER, { from: WORKER, text: 'my own echo', timestamp: new Date().toISOString() }, CREW)
   {
     const { replies, roster } = recorder()
     const d = await drainMod.drainDispatches(roster, { ...drainOpts, isBusy: () => true })
@@ -151,18 +151,18 @@ try {
     const { replies, roster } = recorder()
     const d = await drainMod.drainDispatches(roster, { ...drainOpts, hasSeen: id => id === seenOnce.request_id, markSeen: () => {} })
     check('a dispatch the roster already saw is consumed without a stdin write', d === 0 && replies.length === 0)
-    const unread = await mailbox.readUnreadMessages(WORKER, TEAM)
+    const unread = await mailbox.readUnreadMessages(WORKER, CREW)
     check('…and marked read (no retry loop)', !unread.some(m => bus.parseBusEnvelope(m.text)?.request_id === seenOnce.request_id))
   }
 } catch (e) {
-  check('drain test ran (teammateMailbox loadable)', false, String(e).split('\n')[0])
+  check('drain test ran (crewmateMailbox loadable)', false, String(e).split('\n')[0])
 } finally {
   delete process.env.MERCURY_CONFIG_DIR
 }
 
 section('daemon wiring (structural, src)')
 const main = src('daemon', 'main.ts')
-check('main arms the drain for every crew teammate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,200}armCrewDrain\(name\)/.test(main) && /const armCrewDrain = \(name: string\): void => \{[\s\S]{0,600}armDispatchDrain\([\s\S]{0,400}teamName: CREW_TEAM/.test(main))
+check('main arms the drain for every crew teammate it spawns', /onSpawned: \(name, spec, pid\) => \{[\s\S]{0,200}armCrewDrain\(name\)/.test(main) && /const armCrewDrain = \(name: string\): void => \{[\s\S]{0,600}armDispatchDrain\([\s\S]{0,400}teamName: CREW/.test(main))
 check('one drain per crew name for the daemon\'s life: a respawn never arms a second drain on the same inbox', /if \(!r \|\| crewDrains\.has\(name\)\) return/.test(main))
 check('a message to a stopped seat wakes it: the drain replies through the crew wake roster', /armDispatchDrain\(\s*makeCrewWakeRoster\(r,/.test(main))
 check('offline crew members are armed at boot, so a message wakes a seat the daemon was restarted under', /void armOfflineCrewDrains\(\)/.test(main))

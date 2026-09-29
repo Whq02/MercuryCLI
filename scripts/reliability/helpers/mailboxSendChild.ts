@@ -1,4 +1,4 @@
-import { writeToMailbox } from '../../../src/utils/teammateMailbox.ts'
+import { writeToMailbox } from '../../../src/utils/crewmateMailbox.ts'
 import { BUS_PROTOCOL_TYPE } from '../../../src/utils/swarm/busEnvelopes.ts'
 
 const teamName = process.env.RELIA_TEAMNAME

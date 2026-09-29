@@ -9,6 +9,7 @@
 # gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts
 # gate-watch: scripts/lib/platformPath.ts
+# gate-watch: src/utils/sessionClass.ts src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -38,6 +39,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-cleared-mark
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-failure-surfaces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-store-failure-surfaces.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-degradation-stated.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-degradation-stated.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-tail-reader.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-tail-reader.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-old-transcript-kinds-parse.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-transcript-kinds-parse.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-consumers-owned.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-transcript-consumers-owned.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drain-fault-isolation.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-drain-fault-isolation.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-resume-snapshot-honesty.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-resume-snapshot-honesty.ts" "$__t" "$__rc"

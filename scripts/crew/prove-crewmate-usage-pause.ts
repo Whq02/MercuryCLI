@@ -6,7 +6,7 @@ import { bootLead, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally,
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const sessionId = randomUUID()
-const team = sessionId
+const crew = sessionId
 const worker = 'worker'
 const scout = 'scout the window'
 const peerModel = 'claude-opus-4-6'
@@ -62,7 +62,7 @@ const script: ScriptedTurn[] = [
 const tally = makeTally('prove-crewmate-usage-pause')
 const world = await makeWorld('crewmate-usage-pause', script)
 const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
-const rosterPath = join(world.teams, team, 'config.json')
+const rosterPath = join(world.crews, crew, 'config.json')
 let seq = 0
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (request: Frame): Promise<Frame> => {
@@ -90,7 +90,7 @@ const rowsNamed = (rows: WorkRow[], name: string): WorkRow[] => rows.filter(row 
 const pausedRow = async (name: string): Promise<WorkRow | undefined> => rowsNamed(await facts(), name).find(row => row.paused?.why === 'usage limit' || row.paused?.why === 'provider busy')
 const rowsOf = (kind: string): Array<{ id: string; description: string }> =>
   session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === kind).map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
-const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, team, 'team-lead').filter(row => row.from === name).map(row => row.text)
+const leadInboxFrom = (name: string): string[] => crewMessagesTo(world, crew, 'team-lead').filter(row => row.from === name).map(row => row.text)
 const rosterHolds = (name: string): boolean => (readJson<Roster>(rosterPath)?.members ?? []).some(member => member.name === name)
 const until = async (test: () => boolean | Promise<boolean>, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms

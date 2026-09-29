@@ -43,7 +43,7 @@ import type { StreamingTailStore } from '../utils/messages/streamingTailStore.js
 import { applyGrouping } from '../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../utils/collapseReadSearch.js'
 import { RowErrorBoundary } from './RowErrorBoundary.js'
-import { collapseTeammateShutdowns } from '../utils/collapseTeammateShutdowns.js'
+import { collapseCrewmateShutdowns } from '../utils/collapseCrewmateShutdowns.js'
 import { collapseHookSummaries } from '../utils/collapseHookSummaries.js'
 import { collapseBackgroundBashNotifications } from '../utils/collapseBackgroundBashNotifications.js'
 import { injectTurnReceipts, isTurnBoundary } from '../utils/cockpit/turnReceipt.js'
@@ -300,8 +300,8 @@ function composeTranscript(input: {
     tools,
     inProgressToolUseIDs,
   ) as RenderableMessage[]
-  collapsed = collapseTeammateShutdowns(
-    collapsed as Parameters<typeof collapseTeammateShutdowns>[0],
+  collapsed = collapseCrewmateShutdowns(
+    collapsed as Parameters<typeof collapseCrewmateShutdowns>[0],
   ) as RenderableMessage[]
   collapsed = collapseHookSummaries(
     collapsed as Parameters<typeof collapseHookSummaries>[0],

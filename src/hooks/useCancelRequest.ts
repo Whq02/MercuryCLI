@@ -118,7 +118,7 @@ export function CancelRequestHandler({
   void streamMode
 
   const taskRunning = focusedTurnActive ?? (abortSignal !== undefined && !abortSignal.aborted)
-  const viewingTeammate = store.getState().viewingAgentTaskId !== undefined
+  const viewingCrewmate = store.getState().viewingAgentTaskId !== undefined
 
   const settleAsksAndCancel = (): void => {
     interruptFocusedTurn()
@@ -141,7 +141,7 @@ export function CancelRequestHandler({
     contextGuardsPass &&
     !isElicitationFocused &&
     !isInterviewFocused &&
-    !viewingTeammate &&
+    !viewingCrewmate &&
     taskRunning
 
   useKeybinding(
@@ -191,7 +191,7 @@ export function CancelRequestHandler({
   )
 
   const interruptActive =
-    contextGuardsPass && (taskRunning || viewingTeammate)
+    contextGuardsPass && (taskRunning || viewingCrewmate)
   useKeybinding(
     'app:interrupt',
     () => {
@@ -199,14 +199,14 @@ export function CancelRequestHandler({
       if (compactWork?.read() === 'summary') compactWork.set('composer')
       const freshState = store.getState() as AppState
       const viewedCrewmate = freshState.viewingAgentTaskId
-      const viewingTeammateNow = viewedCrewmate !== undefined
+      const viewingCrewmateNow = viewedCrewmate !== undefined
       if (viewedCrewmate !== undefined) {
         interruptCrewmate(viewedCrewmate, freshState, setAppState)
         return
       }
       if (taskRunning) {
         settleAsksAndCancel()
-        if (!viewingTeammateNow && !isInputDialogFocused) return false
+        if (!viewingCrewmateNow && !isInputDialogFocused) return false
       }
     },
     { context: 'Global', isActive: interruptActive },

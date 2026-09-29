@@ -7,7 +7,7 @@ import {
   isShutdownRequest,
   type ShutdownRejectedMessage,
   type ShutdownRequestMessage,
-} from '../../utils/teammateMailbox.js'
+} from '../../utils/crewmateMailbox.js'
 
 export function ShutdownRequestDisplay({
   request,

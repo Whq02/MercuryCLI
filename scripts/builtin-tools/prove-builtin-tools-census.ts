@@ -135,7 +135,7 @@ const RETIRED_TOOLS: RetiredTool[] = [
     references: [
       /\bSendUserMessage\b/,
       /(?<!Team)BriefTool\b/,
-      /(?<!TEAM_)BRIEF_TOOL_NAME\b/,
+      /(?<!CREW_)BRIEF_TOOL_NAME\b/,
       /['"`]Brief['"`]/,
       /^\s*(?:Brief|SendUserMessage)\s*:/m,
       /^\| SendUserMessage \|/m,
@@ -191,7 +191,7 @@ check(
 )
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { findToolByName } = await import('../../src/Tool.ts')
-const { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, IN_PROCESS_TEAMMATE_ALLOWED_TOOLS } = await import(
+const { ALL_AGENT_DISALLOWED_TOOLS, ASYNC_AGENT_ALLOWED_TOOLS, IN_PROCESS_CREWMATE_ALLOWED_TOOLS } = await import(
   '../../src/constants/tools.ts'
 )
 const catalogue = getAllBaseTools()
@@ -202,7 +202,7 @@ check(
   `resolved: ${offered.join(', ')}`,
 )
 const inAgentSets = [...retiredNames].filter(
-  n => ALL_AGENT_DISALLOWED_TOOLS.has(n) || ASYNC_AGENT_ALLOWED_TOOLS.has(n) || IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(n),
+  n => ALL_AGENT_DISALLOWED_TOOLS.has(n) || ASYNC_AGENT_ALLOWED_TOOLS.has(n) || IN_PROCESS_CREWMATE_ALLOWED_TOOLS.has(n),
 )
 check('the agent allow and deny sets name no retired tool', inAgentSets.length === 0, inAgentSets.join(', '))
 const { getTools } = await import('../../src/tools.ts')

@@ -26,7 +26,7 @@ export const HOOK_EVENTS = [
   'PermissionRequest',
   'PermissionDenied',
   'Setup',
-  'TeammateIdle',
+  'CrewmateIdle',
   'TaskCreated',
   'TaskCompleted',
   'Elicitation',

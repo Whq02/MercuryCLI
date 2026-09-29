@@ -4,7 +4,7 @@ import { buildTool, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { executeTaskCreatedHooks, getTaskCreatedHookMessage } from '../../utils/hooks.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { createTask, deleteTask, getTaskListId, isTaskToolsEnabled } from '../../utils/tasks.js'
-import { getAgentName, getTeamName } from '../../utils/teammate.js'
+import { getAgentName, getCrewName } from '../../utils/crewmate.js'
 import { TASK_CREATE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 
@@ -75,7 +75,7 @@ export const TaskCreateTool = buildTool({
       input.subject,
       input.description,
       getAgentName(),
-      getTeamName(),
+      getCrewName(),
       undefined,
       context.abortController.signal,
       undefined,

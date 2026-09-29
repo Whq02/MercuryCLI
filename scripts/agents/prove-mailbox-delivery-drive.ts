@@ -15,12 +15,12 @@ const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'nod
 const world = mkdtempSync(join(tmpdir(), 'mail-delivery-drive-'))
 const config = join(world, 'config')
 const project = join(world, 'project')
-const teams = join(world, 'teams')
+const crews = join(world, 'teams')
 mkdirSync(project)
 seedFirstRun(config, [project])
 const model = 'claude-fable-5-1'
 const sessionId = randomUUID()
-const team = sessionId
+const crew = sessionId
 const script: ScriptedTurn[] = []
 const main = (turn: Record<string, unknown>, whenBody?: string) => ({ ...turn, model, whenModel: 'fable-5-1', ...(whenBody ? { whenBody } : {}) })
 const send = (id: string, to: string, message: string) => ({ kind: 'tool_use', name: 'SendMessage', id, input: { to, message, summary: message } })
@@ -46,7 +46,7 @@ script.push(...[
 const fixture = await startFixtureApi(script)
 const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'Workflow', '--session-id', sessionId], {
   cwd: project,
-  env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
+  env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_CREWS_DIR: crews, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],
 })
 let stdout = ''
@@ -68,7 +68,7 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   }
 }
 const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
-const inboxPath = join(config, 'crew', 'livecomms', `${team}.json`)
+const inboxPath = join(config, 'crew', 'livecomms', `${crew}.json`)
 let lockHeld = false
 let lockReleased = false
 let lockRefresh: ReturnType<typeof setInterval> | undefined

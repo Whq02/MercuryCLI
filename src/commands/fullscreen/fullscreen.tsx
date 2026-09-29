@@ -1,13 +1,13 @@
 import { pathTailLabel } from '../../utils/pathLabel.js'
 import * as React from 'react'
 import { useEffect, useState } from 'react'
-import { MercuryFleetChat, type Teammate } from '../../components/MercuryFleetChat.js'
+import { MercuryFleetChat, type Crewmate } from '../../components/MercuryFleetChat.js'
 import { MercuryFullscreen } from '../../components/MercuryFullscreen.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getCwd } from '../../utils/cwd.js'
 import { TEAL } from '../../components/mercuryPalette.js'
-import { writeToMailbox } from '../../utils/teammateMailbox.js'
-import { getAgentName, getTeammateColor } from '../../utils/teammate.js'
+import { writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { getAgentName, getCrewmateColor } from '../../utils/crewmate.js'
 import {
   fleetGauge,
   gitSnapshot,
@@ -44,7 +44,7 @@ function FullscreenLive({
   const fiveHour = quotaWindows().fiveHour
 
   const health = fleet?.state === 'live' ? fleet.data.health : []
-  const team: Teammate[] = health.map(h => ({
+  const crew: Crewmate[] = health.map(h => ({
     name: h.name,
     role: h.agentType ?? 'agent',
     state: h.state === 'drifting' ? 'drift' : h.state,
@@ -63,7 +63,7 @@ function FullscreenLive({
         from: getAgentName() ?? 'user',
         text,
         timestamp: new Date().toISOString(),
-        color: getTeammateColor(),
+        color: getCrewmateColor(),
       },
       teamName,
     )
@@ -83,7 +83,7 @@ function FullscreenLive({
       substrateOn={substrate.data.active}
       substrateTotal={substrate.data.total}
     >
-      <MercuryFleetChat team={team} onSend={handleSend} onClose={onClose} />
+      <MercuryFleetChat crew={crew} onSend={handleSend} onClose={onClose} />
     </MercuryFullscreen>
   )
 }

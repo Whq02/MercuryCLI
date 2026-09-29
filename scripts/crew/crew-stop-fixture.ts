@@ -5,7 +5,7 @@ export const LEAD_ASK_SLEEPER = 'crew-stop: launch the sleeper'
 export const LEAD_ASK_HELD = 'crew-stop: hold on the sleeper'
 export const LEAD_DONE = 'crew-stop: done.'
 export const MATE_NAME = 'sonnet-ping'
-export const MATE_TEAM = 'ping-team'
+export const MATE_CREW = 'ping-team'
 export const MATE_PROMPT = 'crew-mate: reply with the word ping and nothing else'
 export const MATE_REPLY = 'ping'
 export const SEAT_NAME = 'sleeper'
@@ -124,7 +124,7 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
         return {
           blocks: [
             { type: 'text', text: 'spawning the ping mate' },
-            { type: 'tool_use', name: 'Agent', input: { name: MATE_NAME, team_name: MATE_TEAM, description: MATE_NAME, prompt: MATE_PROMPT, subagent_type: 'mercury-general' } },
+            { type: 'tool_use', name: 'Agent', input: { name: MATE_NAME, team_name: MATE_CREW, description: MATE_NAME, prompt: MATE_PROMPT, subagent_type: 'mercury-general' } },
           ],
           usage: { input: 1200, output: 80 },
         }

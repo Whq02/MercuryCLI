@@ -23,7 +23,7 @@ export const HOOK_EVENTS_SCHEMA_TUPLE = [
   'PermissionRequest',
   'PermissionDenied',
   'Setup',
-  'TeammateIdle',
+  'CrewmateIdle',
   'TaskCreated',
   'TaskCompleted',
   'Elicitation',
@@ -414,10 +414,10 @@ export const PostCompactHookInputSchema = lazySchema(() =>
     compact_summary: z.string().optional().describe('The summary the compaction produced'),
   }),
 )
-export const TeammateIdleHookInputSchema = lazySchema(() =>
+export const CrewmateIdleHookInputSchema = lazySchema(() =>
   z.object({
     ...baseHookFields,
-    hook_event_name: z.literal('TeammateIdle'),
+    hook_event_name: z.literal('CrewmateIdle'),
     teammate_name: z.string().optional().describe('The teammate about to go idle'),
     team_name: z.string().optional().describe('The team it belongs to'),
   }),
@@ -577,7 +577,7 @@ export const HookInputSchema = lazySchema(() =>
     SubagentStopHookInputSchema(),
     PreCompactHookInputSchema(),
     PostCompactHookInputSchema(),
-    TeammateIdleHookInputSchema(),
+    CrewmateIdleHookInputSchema(),
     TaskCreatedHookInputSchema(),
     TaskCompletedHookInputSchema(),
     ElicitationHookInputSchema(),

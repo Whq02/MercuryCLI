@@ -9,9 +9,9 @@ const TMP = mkdtempSync(join(tmpdir(), 'mercury-livecomms-aggregation-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 
 const { LiveCommsTool } = await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')
-const { setDynamicTeamContext } = await import('../../src/utils/teammate.js')
+const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
 const { createTask } = await import('../../src/utils/tasks.js')
-const { writeToMailbox } = await import('../../src/utils/teammateMailbox.js')
+const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.js')
 const { openQuestion } = await import('../../src/utils/swarm/sendMessageGovernance.js')
 const { recordHandoff } = await import('../../src/utils/swarm/handoff.js')
 const { claimLease } = await import('../../src/utils/swarm/leaseGlob.js')
@@ -23,7 +23,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-const TEAM = 'brief-team'
+const CREW = 'brief-team'
 const ME = 'bob'
 
 console.log('============================================================')
@@ -32,7 +32,7 @@ console.log('============================================================')
 
 section('no team ⇒ the honest empty brief')
 {
-  setDynamicTeamContext(null)
+  setDynamicCrewContext(null)
   const res = await LiveCommsTool.call({} as never, { getAppState: () => ({}) } as never)
   const data = (res as { data: { teamName: string | null; openTasks: unknown[] } }).data
   check('teamName is null outside a team', data.teamName === null)
@@ -46,14 +46,14 @@ section('no team ⇒ the honest empty brief')
 
 section('fixture team — every reader feeds the one brief')
 {
-  setDynamicTeamContext({
+  setDynamicCrewContext({
     agentId: 'bob-1',
     agentName: ME,
-    teamName: TEAM,
+    teamName: CREW,
     planModeRequired: false,
   })
 
-  const taskId = await createTask(TEAM, {
+  const taskId = await createTask(CREW, {
     subject: 'wire the flux capacitor',
     description: 'route 1.21GW through the substrate',
     status: 'pending',
@@ -64,17 +64,17 @@ section('fixture team — every reader feeds the one brief')
   await writeToMailbox(
     ME,
     { from: 'alice', text: 'heads up: capacitor parts arrived', timestamp: new Date().toISOString() },
-    TEAM,
+    CREW,
   )
   await openQuestion(
     { request_id: 'q-1', from: 'alice', to: ME, text: 'which lane do you want?', summary: 'lane pick' },
-    TEAM,
+    CREW,
   )
   await recordHandoff(
     { id: 'h-brief', from: 'alice', to: 'Bob', status: 'done', summary: 'says done, shows nothing', evidenceRefs: [] },
-    TEAM,
+    CREW,
   )
-  const lease = await claimLease(TEAM, 'alice', ['src/flux/**'], { base: TMP })
+  const lease = await claimLease(CREW, 'alice', ['src/flux/**'], { base: TMP })
   check('fixture lease claimed', lease.ok === true, JSON.stringify(lease).slice(0, 80))
 
   const res = await LiveCommsTool.call({} as never, { getAppState: () => ({}) } as never)
@@ -87,7 +87,7 @@ section('fixture team — every reader feeds the one brief')
     leases: { agentId: string; globs: string[] }[]
   }
 
-  check('brief carries the team name', data.teamName === TEAM)
+  check('brief carries the team name', data.teamName === CREW)
   check(
     'open task aggregated',
     data.openTasks.some(t => t.id === taskId && t.subject === 'wire the flux capacitor'),
@@ -102,7 +102,7 @@ section('fixture team — every reader feeds the one brief')
 
   const block = LiveCommsTool.mapToolResultToToolResultBlockParam!(data as never, 'tu2')
   const text = typeof block.content === 'string' ? block.content : ''
-  check('rendered brief names the team', text.includes(`# Crew: ${TEAM}`))
+  check('rendered brief names the team', text.includes(`# Crew: ${CREW}`))
   check('rendered brief lists the open task', /## Open tasks \(1\)/.test(text))
   check('rendered brief lists the unread message', /## Unread messages \(1\)/.test(text))
   check('rendered brief lists the open question + answer protocol', /## Open questions \(1\)/.test(text) && /"type":"answer"/.test(text))
@@ -119,14 +119,14 @@ section('a completed task drops out of the brief (open-only contract)')
   if (!target) {
     check('precondition: an open task exists', false)
   } else {
-    await updateTask(TEAM, target.id, { status: 'completed' })
+    await updateTask(CREW, target.id, { status: 'completed' })
     const res1 = await LiveCommsTool.call({} as never, { getAppState: () => ({}) } as never)
     const after = (res1 as { data: { openTasks: { id: string }[] } }).data.openTasks
     check('completed task no longer aggregated', !after.some(t => t.id === target.id))
   }
 }
 
-setDynamicTeamContext(null)
+setDynamicCrewContext(null)
 try {
   rmSync(TMP, { recursive: true, force: true })
 } catch {

@@ -3,7 +3,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { useNotifications } from '../context/notifications.js'
 import { useKeybinding, useKeybindings } from '../keybindings/useKeybinding.js'
 import { useAppStateStore, useSetAppState, type AppState } from '../state/AppState.js'
-import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { cycleSurface, enterConcourse } from '../context/surfaceRoute.js'
 import { invokeConcourseCloseChord } from '../services/concourse/closeChordSlot.js'
 import { useLayoutChrome } from '../context/layoutChromeContext.js'
@@ -59,10 +59,10 @@ export function GlobalKeybindingHandlers({
           return
         }
         setAppState(prev => {
-          const teammatesPresent = Object.values(prev.tasks).some(
-            task => isInProcessTeammateTask(task) && task.status === 'running',
+          const crewmatesPresent = Object.values(prev.tasks).some(
+            task => isInProcessCrewmateTask(task) && task.status === 'running',
           )
-          if (teammatesPresent) {
+          if (crewmatesPresent) {
             const next: AppState['expandedView'] =
               prev.expandedView === 'none'
                 ? 'tasks'
@@ -95,7 +95,7 @@ export function GlobalKeybindingHandlers({
       'app:toggleTeammatePreview': () => {
         setAppState(prev => ({
           ...prev,
-          showTeammateMessagePreview: prev.showTeammateMessagePreview !== true,
+          showCrewmateMessagePreview: prev.showCrewmateMessagePreview !== true,
         }))
       },
       'app:redraw': () => {

@@ -41,15 +41,15 @@ if (!existsSync(DIST)) {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-artifact-faults-'))
 const home = join(tmp, 'home')
-const teams = join(tmp, 'teams')
+const crews = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')
 const project = join(tmp, 'project')
-for (const d of [home, teams, daemon, project]) mkdirSync(d, { recursive: true })
+for (const d of [home, crews, daemon, project]) mkdirSync(d, { recursive: true })
 
 const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   ...process.env,
   MERCURY_CONFIG_DIR: home,
-  MERCURY_TEAMS_DIR: teams,
+  MERCURY_CREWS_DIR: crews,
   MERCURY_DAEMON_DIR: daemon,
   MERCURY_PARTY: '0',
   MERCURY_CREW: '0',
@@ -86,13 +86,13 @@ function checksOf(cert: unknown, sectionId: string): Check[] {
   return sections.find(s => s.id === sectionId)?.checks ?? []
 }
 
-const journalDir = join(teams, '.journal')
+const journalDir = join(crews, '.journal')
 const deadPid = spawnSync('node', ['-e', ''], { timeout: 10_000 }).pid ?? 999_999
 
 function seedDeadOp(opId: string, teamName: string): void {
-  mkdirSync(join(teams, teamName), { recursive: true })
+  mkdirSync(join(crews, teamName), { recursive: true })
   writeFileSync(
-    join(teams, teamName, 'config.json'),
+    join(crews, teamName, 'config.json'),
     JSON.stringify({
       name: teamName,
       createdAt: Date.now(),
@@ -113,7 +113,7 @@ function seedDeadOp(opId: string, teamName: string): void {
       idempotencyKey: `team-create:${teamName}`,
       state: 'applying',
       steps: [
-        { id: 'team-file', target: join(teams, teamName, 'config.json'), state: 'applied' },
+        { id: 'team-file', target: join(crews, teamName, 'config.json'), state: 'applied' },
         { id: 'task-epoch', target: teamName, state: 'pending' },
       ],
       createdAt: new Date().toISOString(),
@@ -206,7 +206,7 @@ const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(unde
   ok(row?.status === 'warn', `durable-journals warns beside an undecodable journal file (${row?.status})`)
   ok(row?.evidence.includes('1 interrupted awaiting recovery') === true, `evidence counts the op (${row?.evidence})`)
   ok(opState('af-b') === 'applying', 'doctor did NOT touch the op (diagnose-only)')
-  ok(existsSync(join(teams, 'af-team-b', 'config.json')), 'doctor did NOT touch the half-team')
+  ok(existsSync(join(crews, 'af-team-b', 'config.json')), 'doctor did NOT touch the half-team')
   ok(undecodableIntact(), 'doctor did NOT touch the undecodable file')
   const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
   ok(
@@ -221,7 +221,7 @@ console.log('— C. daemon boot recovery on the artifact —')
   const r = await bootDaemon({ until: () => terminal(opState('af-b')), timeoutMs: 30_000 })
   ok(r.converged, `daemon boot terminal-ized the op beside the undecodable file (state ${opState('af-b')})`)
   ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
-  ok(existsSync(join(teams, 'af-team-b', 'config.json')), 'the half-team is left in place by the artifact boot (nothing is removed by itself)')
+  ok(existsSync(join(crews, 'af-team-b', 'config.json')), 'the half-team is left in place by the artifact boot (nothing is removed by itself)')
   ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
@@ -253,7 +253,7 @@ for (const [i, phase] of BOUNDARIES.entries()) {
   const reboot = await bootDaemon({ until: () => terminal(opState(opId)), timeoutMs: 60_000 })
   const convergedState = opState(opId)
   ok(
-    died && reboot.converged && convergedState === 'aborted' && existsSync(join(teams, teamName, 'config.json')),
+    died && reboot.converged && convergedState === 'aborted' && existsSync(join(crews, teamName, 'config.json')),
     `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, the team left in place) in ${reboot.waitedMs}ms`,
   )
 }

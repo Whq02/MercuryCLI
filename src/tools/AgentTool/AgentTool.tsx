@@ -70,10 +70,10 @@ import { decodeAgentType } from '../../utils/swarm/roleResolver.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   getParentSessionId,
-  getTeamName,
+  getCrewName,
   isTeammate,
-} from '../../utils/teammate.js'
-import { isInProcessTeammate } from '../../utils/teammateContext.js'
+} from '../../utils/crewmate.js'
+import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
@@ -84,7 +84,7 @@ import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
-import { spawnTeammate } from '../shared/spawnMultiAgent.js'
+import { spawnCrewmate } from '../shared/spawnMultiAgent.js'
 import { recordCrewStart } from '../../utils/crew/crewStart.js'
 import {
   runForegroundAgentExecution,
@@ -408,7 +408,7 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
-function isTeammateSpawn(input: AgentToolInput, teamName = isAgentSwarmsEnabled() ? (input.team_name ?? getTeamName()) : undefined): input is AgentToolInput & { name: string } {
+function isCrewmateSpawn(input: AgentToolInput, teamName = isAgentSwarmsEnabled() ? (input.team_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
   return Boolean(teamName && input.name)
 }
 
@@ -519,7 +519,7 @@ export const AgentTool = buildTool({
     }
 
     const teamName = isAgentSwarmsEnabled()
-      ? (input.team_name ?? getTeamName())
+      ? (input.team_name ?? getCrewName())
       : undefined
 
     if (isTeammate() && teamName && input.name) {
@@ -528,7 +528,7 @@ export const AgentTool = buildTool({
       )
     }
 
-    if (isInProcessTeammate() && input.run_in_background && teamName) {
+    if (isInProcessCrewmate() && input.run_in_background && teamName) {
       throw new Error(
         'An in-process teammate cannot spawn a background agent — its lifecycle is bound to the leader process. Launch the agent synchronously instead.',
       )
@@ -541,7 +541,7 @@ export const AgentTool = buildTool({
       if (unrecognised !== null) throw new Error(unrecognised)
     }
 
-    if (isTeammateSpawn(input, teamName)) {
+    if (isCrewmateSpawn(input, teamName)) {
       const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
       if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
         throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
@@ -549,15 +549,15 @@ export const AgentTool = buildTool({
       const requestedType = decodeAgentType(input.subagent_type)
       if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
-      const teammateDefinition = definitions.find(
+      const crewmateDefinition = definitions.find(
         agent => agent.agentType === requestedType,
       )
-      if (teammateDefinition?.color) {
-        setAgentColor(teammateDefinition.agentType, teammateDefinition.color)
+      if (crewmateDefinition?.color) {
+        setAgentColor(crewmateDefinition.agentType, crewmateDefinition.color)
       }
-      const teammateModel =
-        engineDispatch?.model ?? modelParam ?? teammateDefinition?.model
-      const spawned = await spawnTeammate(
+      const crewmateModel =
+        engineDispatch?.model ?? modelParam ?? crewmateDefinition?.model
+      const spawned = await spawnCrewmate(
         {
           name: input.name,
           prompt: input.prompt,
@@ -567,7 +567,7 @@ export const AgentTool = buildTool({
             ? { worktree: { ...(input.worktree_at !== undefined ? { at: input.worktree_at } : {}) } }
             : {}),
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
-          ...(teammateModel ? { model: teammateModel } : {}),
+          ...(crewmateModel ? { model: crewmateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),
           plan_mode_required:
             input.mode !== undefined && decodePermissionModeSpelling(input.mode) === 'strategy',
@@ -645,7 +645,7 @@ export const AgentTool = buildTool({
       )
     }
 
-    if (agentDef.background === true && isInProcessTeammate() && teamName) {
+    if (agentDef.background === true && isInProcessCrewmate() && teamName) {
       throw new Error(
         `Agent type '${agentDef.agentType}' always runs in the background, and an in-process teammate cannot spawn background agents.`,
       )

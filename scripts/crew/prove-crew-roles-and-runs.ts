@@ -20,7 +20,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_TEAMS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
+for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_CREWS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PROJECT = join(HOME, 'project')
@@ -45,12 +45,12 @@ console.log('============================================================')
 const { getSessionId } = await import('../../src/bootstrap/state.js')
 const tasks = (await import('../../src/utils/tasks.js')) as typeof import('../../src/utils/tasks.js')
 const roles = (await import('../../src/utils/swarm/roleResolver.js')) as typeof import('../../src/utils/swarm/roleResolver.js')
-const charter = (await import('../../src/utils/swarm/teamCharter.js')) as typeof import('../../src/utils/swarm/teamCharter.js')
-const addendum = (await import('../../src/utils/swarm/teammatePromptAddendum.js')) as typeof import('../../src/utils/swarm/teammatePromptAddendum.js')
+const charter = (await import('../../src/utils/swarm/crewCharter.js')) as typeof import('../../src/utils/swarm/crewCharter.js')
+const addendum = (await import('../../src/utils/swarm/crewmatePromptAddendum.js')) as typeof import('../../src/utils/swarm/crewmatePromptAddendum.js')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.js')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
 const { crewStoreRoot } = await import('../../src/services/crew/identity.js')
-const { sanitizeName } = await import('../../src/utils/swarm/teamHelpers.js')
+const { sanitizeName } = await import('../../src/utils/swarm/crewHelpers.js')
 
 section('§1 the runs board lists a crewmate\'s task written through the live comms store')
 {
@@ -109,7 +109,7 @@ section('§3 the runs board keeps its rows: it reads the focused mission ledger,
 {
   const board = readFileSync(join(ROOT, 'src', 'components', 'tasks', 'BackgroundTasksDialog.tsx'), 'utf8')
   check('the board\'s mission rows are the focused roster\'s mission (no second source)', /missionTasks[^\n]*=\s*roster\.mission/.test(board))
-  check('the board reads no team file and no live comms file itself', !/readTeamFile|teamHelpers|livecomms|liveComms/.test(board))
+  check('the board reads no team file and no live comms file itself', !/readCrewFile|crewHelpers|livecomms|liveComms/.test(board))
   const command = readFileSync(join(ROOT, 'src', 'commands', 'tasks', 'index.ts'), 'utf8')
   check('the /runs command and its /tasks alias are unchanged', /name: 'runs'/.test(command) && /aliases: \['tasks'\]/.test(command))
 }
@@ -118,21 +118,21 @@ section('§4 a crewmate with a role acts in it: the role resolves from the crew 
 {
   const agents = getBuiltInAgents()
   const crewmate = { id: 'task-alpha', name: 'alpha', kind: 'crewmate' as const, model: 'claude-sonnet-5', cwd: PROJECT, worktree: join(PROJECT, '.worktrees', 'alpha') }
-  const resolved = roles.resolveTeammateRole({
+  const resolved = roles.resolveCrewmateRole({
     crewmate,
     requestedAgentType: 'mercury-scout',
     agents,
     prompt: 'Map the claim guard\'s call sites and report file:line for each.',
   } as never)
   check('the role is the requested agent type', resolved.agentType === 'mercury-scout', resolved.agentType)
-  check('the role packet names the crewmate from the crew record', resolved.rolePacket.teammateName === 'alpha', JSON.stringify(resolved.rolePacket))
+  check('the role packet names the crewmate from the crew record', resolved.rolePacket.crewmateName === 'alpha', JSON.stringify(resolved.rolePacket))
   check('the packet\'s mission is the first line of the prompt', resolved.rolePacket.mission.startsWith('Map the claim guard'), resolved.rolePacket.mission)
   check('the packet says what the crewmate owns: its worktree (a stated start fact, nothing invented)', resolved.rolePacket.owns.includes(crewmate.worktree), JSON.stringify(resolved.rolePacket.owns))
-  check('the packet hands off to the lead with no charter', resolved.rolePacket.handoffTo === TEAM_LEAD_NAME && resolved.charter === null, JSON.stringify(resolved.rolePacket))
-  const prompt = [addendum.buildTeammateAddendum(), `# Role contract (${resolved.agentType})`, roles.getRoleSystemPrompt(resolved.definition!) ?? '', charter.formatRolePacketForContext(resolved.rolePacket)].join('\n')
+  check('the packet hands off to the lead with no charter', resolved.rolePacket.handoffTo === CREW_LEAD_NAME && resolved.charter === null, JSON.stringify(resolved.rolePacket))
+  const prompt = [addendum.buildCrewmateAddendum(), `# Role contract (${resolved.agentType})`, roles.getRoleSystemPrompt(resolved.definition!) ?? '', charter.formatRolePacketForContext(resolved.rolePacket)].join('\n')
   check('the composed prompt carries the role words for alpha', prompt.includes('# Your assignment — alpha (mercury-scout)'), prompt.split('\n').filter(l => l.startsWith('# ')).join(' | '))
   check('the composed prompt carries the scout\'s own contract', /scout/i.test(roles.getRoleSystemPrompt(resolved.definition!) ?? ''))
-  const seat = roles.resolveTeammateRole({
+  const seat = roles.resolveCrewmateRole({
     crewmate: { id: 'seat:beta', name: 'beta', kind: 'seat' as const, model: 'claude-sonnet-5', cwd: PROJECT, worktree: null },
     agents,
     prompt: 'Review the guard.',

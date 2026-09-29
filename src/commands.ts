@@ -109,7 +109,7 @@ import seats from './commands/seats/index.js'
 import realms from './commands/realms/index.js'
 import accounts from './commands/accounts/index.js'
 import agentForm from './commands/agent-form/index.js'
-import teammates from './commands/teammates/index.js'
+import crewmates from './commands/crewmates/index.js'
 import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
 import supercode from './commands/supercode/index.js'
@@ -303,7 +303,7 @@ const COMMANDS = memoize((): Command[] => [
   realms,
   accounts,
   agentForm,
-  teammates,
+  crewmates,
   consoleCommand,
   submodels,
   supercode,

@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/constants/** src/tools/AgentTool/built-in/** src/tools/AgentTool/loadAgentsDir*
 # gate-watch: src/tools/WorkflowTool/agentHooks*
-# gate-watch: src/utils/swarm/teammatePromptAddendum*
+# gate-watch: src/utils/swarm/crewmatePromptAddendum*
 # gate-watch: src/prompt/mercuryContract.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
@@ -18,7 +18,7 @@ echo "# Subagent/agent doctrine — proof harness"
 echo "############################################################"
 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-subagent-doctrine.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-subagent-doctrine.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-teammate-addendum.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-teammate-addendum.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-crewmate-addendum.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crewmate-addendum.ts" "$__t" "$__rc"
 
 echo ""
 echo "── dist-grep: the doctrine ships in the built product (string literals) ──"

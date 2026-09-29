@@ -8,13 +8,13 @@ import { join } from 'node:path'
 
 const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-lease-words-'))
 process.env.MERCURY_CONFIG_DIR = tmpHome
-process.env.MERCURY_TEAMS_DIR = join(tmpHome, 'teams')
+process.env.MERCURY_CREWS_DIR = join(tmpHome, 'teams')
 
 import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
-import { clearDynamicTeamContext, setDynamicTeamContext } from '../../src/utils/teammate.js'
-import { writeTeamFileAsync, type TeamFile } from '../../src/utils/swarm/teamHelpers.js'
+import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
 import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
 import { makeTally } from '../daemon/dupline-world.ts'
 
@@ -45,19 +45,19 @@ async function connect(): Promise<Client> {
   return client
 }
 
-const TEAM = 'lease-words'
-const team: TeamFile = {
-  name: TEAM,
+const CREW = 'lease-words'
+const crew: CrewFile = {
+  name: CREW,
   createdAt: Date.now(),
-  leadAgentId: `lead@${TEAM}`,
+  leadAgentId: `lead@${CREW}`,
   governance: undefined,
   members: [
-    { agentId: `lead@${TEAM}`, name: 'team-lead', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
-    { agentId: `w@${TEAM}`, name: 'worker', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
+    { agentId: `lead@${CREW}`, name: 'team-lead', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
+    { agentId: `w@${CREW}`, name: 'worker', joinedAt: Date.now(), tmuxPaneId: '', cwd: work, subscriptions: [] },
   ],
 }
-await writeTeamFileAsync(TEAM, team)
-setDynamicTeamContext({ agentId: `w@${TEAM}`, agentName: 'worker', teamName: TEAM, planModeRequired: false })
+await writeCrewFileAsync(CREW, crew)
+setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', teamName: CREW, planModeRequired: false })
 
 try {
   const client = await connect()
@@ -103,11 +103,11 @@ try {
   const listAfter = (await client.callTool({ name: 'lease_list', arguments: {} })) as Result
   const leases = (jsonOf(listAfter).leases as Array<{ agentId?: string; globs?: string[] }>) ?? []
   tally.check('C6 the team lease was not the one released', leases.some(l => l.agentId === 'worker' && JSON.stringify(l.globs) === JSON.stringify(['src/e.ts'])), textOf(listAfter).slice(0, 400))
-  const releaseTeam = (await client.callTool({ name: 'lease_release', arguments: {} })) as Result
-  tally.check('C7 a release with no list still drops the team lease', !releaseTeam.isError && jsonOf(releaseTeam).ok === true && jsonOf(releaseTeam).released === true, textOf(releaseTeam).slice(0, 300))
+  const releaseCrew = (await client.callTool({ name: 'lease_release', arguments: {} })) as Result
+  tally.check('C7 a release with no list still drops the team lease', !releaseCrew.isError && jsonOf(releaseCrew).ok === true && jsonOf(releaseCrew).released === true, textOf(releaseCrew).slice(0, 300))
   await client.close()
 } finally {
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
 }
 
 if (tally.failed() === 0) rmSync(tmpHome, { recursive: true, force: true })

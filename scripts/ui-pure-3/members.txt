@@ -63,7 +63,7 @@ prove-spinner-tips.ts
 prove-status-spine-unity.ts
 prove-submit-while-landing.ts
 prove-tab-cells-frames.ts
-prove-team-center.ts
+prove-crew-center.ts
 prove-token-completeness.ts
 prove-tool-verb.ts
 prove-tui-weight.ts
@@ -79,5 +79,5 @@ prove-crew-composer-click-after-focus.ts
 prove-crew-look-frames.ts
 prove-crew-ledger.ts
 prove-silent-command-surface.ts
-prove-teammate-transcript.ts
+prove-crewmate-transcript.ts
 prove-teams-dialog-gone.ts

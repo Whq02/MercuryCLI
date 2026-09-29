@@ -120,7 +120,7 @@ export async function logContextMetrics(
 
 
 const SWARM_ONLY_FIELDS: Record<string, string[]> = {
-  [EXIT_PLAN_MODE_V2_TOOL_NAME]: ['launchSwarm', 'teammateCount'],
+  [EXIT_PLAN_MODE_V2_TOOL_NAME]: ['launchSwarm', 'crewmateCount'],
   [AGENT_TOOL_NAME]: ['name', 'team_name', 'mode'],
 }
 

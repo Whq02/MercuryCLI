@@ -16,9 +16,9 @@ import {
   type TaskStatus,
   TASK_STATUSES,
 } from '../../utils/tasks.js'
-import { getAgentName, getTeamName, getTeammateColor, isTeammate } from '../../utils/teammate.js'
-import { writeToMailbox } from '../../utils/teammateMailbox.js'
-import { TEAM_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { getAgentName, getCrewName, getCrewmateColor, isTeammate } from '../../utils/crewmate.js'
+import { writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { DESCRIPTION, getPrompt, getVerificationNudgeNote, TASK_UPDATE_TOOL_NAME } from './prompt.js'
 
@@ -136,7 +136,7 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
         task.subject,
         task.description,
         getAgentName(),
-        getTeamName(),
+        getCrewName(),
         undefined,
         context.abortController.signal,
         undefined,
@@ -166,7 +166,7 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   }
 
   if (updates.owner && isAgentSwarmsEnabled()) {
-    const sender = getAgentName() || TEAM_LEAD_NAME
+    const sender = getAgentName() || CREW_LEAD_NAME
     await writeToMailbox(
       updates.owner,
       {
@@ -180,7 +180,7 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
           assignedBy: sender,
           timestamp: new Date().toISOString(),
         }),
-        color: getTeammateColor(),
+        color: getCrewmateColor(),
       },
       taskListId,
     )

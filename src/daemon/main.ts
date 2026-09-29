@@ -18,11 +18,11 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
-import { CREW_TEAM, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
+import { CREW, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
 import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeFrame, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
 import { isTurnResultParsedFrame, parseStreamJsonFrame } from './longLivedSupervisor.js'
-import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
-import { readTeamFileAsync } from '../utils/swarm/teamHelpers.js'
+import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
+import { readCrewFileAsync } from '../utils/swarm/crewHelpers.js'
 import {
   concourseWorkersPath,
   listConcourseWorkers,
@@ -271,10 +271,10 @@ async function daemonRun(args: string[]): Promise<void> {
   {
     const { runBootRecovery } = await import('../substrate/recoveryOrchestrator.js')
     const rec = await runBootRecovery({ scope: 'daemon', projectDir: dir })
-    const team = rec.teamJournal
-    if (team && team.rolledForward.length + team.compensated.length > 0) {
+    const crew = rec.crewJournal
+    if (crew && crew.rolledForward.length + crew.compensated.length > 0) {
       logForDebugging(
-        `[daemon] team journal recovery: ${team.rolledForward.length} rolled forward, ${team.compensated.length} compensated`,
+        `[daemon] team journal recovery: ${crew.rolledForward.length} rolled forward, ${crew.compensated.length} compensated`,
       )
     }
     for (const err of rec.errors) logForDebugging(`[daemon] boot recovery: ${err}`)
@@ -531,7 +531,7 @@ async function daemonRun(args: string[]): Promise<void> {
           {
             short: name,
             agentName: name,
-            teamName: CREW_TEAM,
+            teamName: CREW,
             hasSeen: id => r.hasSeenDispatch(name, id),
             markSeen: id => r.markSeenDispatch(name, id),
           },
@@ -553,9 +553,9 @@ async function daemonRun(args: string[]): Promise<void> {
       const armOfflineCrewDrains = async (): Promise<void> => {
         const r = roster
         if (!r || !crewEnabled()) return
-        const team = await readTeamFileAsync(CREW_TEAM).catch(() => null)
-        for (const member of team?.members ?? []) {
-          if (member.name === TEAM_LEAD_NAME || crewDrains.has(member.name) || r.has(member.name).alive) continue
+        const crew = await readCrewFileAsync(CREW).catch(() => null)
+        for (const member of crew?.members ?? []) {
+          if (member.name === CREW_LEAD_NAME || crewDrains.has(member.name) || r.has(member.name).alive) continue
           armCrewDrain(member.name)
         }
       }

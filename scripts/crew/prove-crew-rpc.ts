@@ -107,7 +107,7 @@ section('server C — not ready: the work door HOLDS for the adoption budget, th
   const t0 = Date.now()
   const r = await daemonControlRpc({ op: 'crewSpawn', name: 'atlas', model: 'sonnet' } as DaemonRequest, { timeoutMs: 3000 })
   const waited = Date.now() - t0
-  check('an adoption that outlives the hold ⇒ ESTARTING, typed, naming the wait (spawnCrewTeammate retries on exactly this)', !r.ok && 'code' in r && r.code === 'ESTARTING' && /held 200ms for readiness/.test(r.error ?? ''), JSON.stringify(r))
+  check('an adoption that outlives the hold ⇒ ESTARTING, typed, naming the wait (spawnCrewmate retries on exactly this)', !r.ok && 'code' in r && r.code === 'ESTARTING' && /held 200ms for readiness/.test(r.error ?? ''), JSON.stringify(r))
   check('…answered after the hold, never on the spot', waited >= 180, `${waited}ms`)
   await server.close()
 }

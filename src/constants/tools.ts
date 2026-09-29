@@ -79,7 +79,7 @@ export const ASYNC_AGENT_ALLOWED_TOOLS: Set<string> = new Set([
   ASK_ADVISOR_TOOL_NAME,
 ])
 
-export const IN_PROCESS_TEAMMATE_ALLOWED_TOOLS: Set<string> = new Set([
+export const IN_PROCESS_CREWMATE_ALLOWED_TOOLS: Set<string> = new Set([
   TASK_CREATE_TOOL_NAME,
   TASK_UPDATE_TOOL_NAME,
   TASK_LIST_TOOL_NAME,

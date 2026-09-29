@@ -24,9 +24,9 @@ console.log('\n§2 the composer mounts no dialog and its footer has no teams doo
 const composer = read('src/components/PromptInput/PromptInput.tsx')
 const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
 check('the composer imports no dialog from a teams folder', !/from '\.\.\/teams\//.test(composer), (composer.match(/from '\.\.\/teams\/[^']*'/) ?? [''])[0])
-check('the composer keeps no dialog flag', !/showTeamsDialog/.test(composer), 'showTeamsDialog is still declared')
+check('the composer keeps no dialog flag', !/showCrewsDialog/.test(composer), 'showCrewsDialog is still declared')
 check("the footer's enter road has no teams branch", !/footerSelection === 'teams'/.test(composer), "footerSelection === 'teams' is still a branch")
-check('the footer renders no teams pill', !/TeamStatus/.test(footer) && !/teamsPresent/.test(footer), 'TeamStatus/teamsPresent still in the footer')
+check('the footer renders no teams pill', !/CrewStatus/.test(footer) && !/crewsPresent/.test(footer), 'CrewStatus/crewsPresent still in the footer')
 const store = read('src/state/AppStateStore.ts')
 const footerItem = /export type FooterItem = ([^\n]+)/.exec(store)?.[1] ?? ''
 check("the footer selection vocabulary no longer names 'teams'", footerItem !== '' && !/'teams'/.test(footerItem), footerItem)
