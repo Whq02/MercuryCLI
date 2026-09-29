@@ -55,7 +55,7 @@ export function getPrompt(agents: AgentDefinition[] = [], offered: ReadonlySet<s
       ]
   const board = tasks
     ? '- Use the STRUCTURED state you already have: TaskList is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn.'
-    : '- Use the STRUCTURED state you already have: TeamBrief is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn.'
+    : '- Use the STRUCTURED state you already have: LiveComms is the shared board, and the roster arrives with your team context. Do not re-read team/task files each turn.'
   const ownership = tasks
     ? '\n- Task ownership: TaskUpdate lets any agent take or hand it over; with several open, take them in ID order.'
     : ''
