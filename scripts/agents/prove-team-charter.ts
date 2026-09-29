@@ -21,6 +21,8 @@ console.log('============================================================')
 
 const TEAMS_DIR = mkdtempSync(join(tmpdir(), 'charter-teams-'))
 process.env.MERCURY_TEAMS_DIR = TEAMS_DIR
+process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'charter-home-'))
+;(await import('../../src/utils/config/globalConfig.js')).enableConfigs()
 
 const charter = await import('../../src/utils/swarm/teamCharter.js')
 
@@ -83,73 +85,42 @@ section('§3 — legacy team files still read')
   check('parseTeamCharter on the absent field ⇒ null', charter.parseTeamCharter(read?.charter) === null)
 }
 
-section('§4 — atomic creation: the unwind leaves nothing behind')
+section('§4 — the crew is born with the session and founded in ONE publish: nothing is half-made, nothing is unwound')
 {
   const helpers = await import('../../src/utils/swarm/teamHelpers.js')
-  const tasks = await import('../../src/utils/tasks.js')
   const teammate = await import('../../src/utils/teammate.js')
-  const tool = await import('../../src/tools/TeamCreateTool/TeamCreateTool.js')
-
-  const name = 'doomed-team'
-  await helpers.writeTeamFileAsync(name, {
-    name,
-    createdAt: 1,
-    leadAgentId: `team-lead@${name}`,
-    members: [],
-  } as never)
-  helpers.registerTeamForSessionCleanup(name)
-  tasks.setLeaderTeamName(name)
-  teammate.setLeadTeamFallback(name)
-  let appState: { teamContext?: { teamName: string } } = { teamContext: { teamName: name } }
-  check('precondition: team dir exists', existsSync(join(TEAMS_DIR, name, 'config.json')))
-
-  await tool.unwindTeamCreation(name, (f: (p: typeof appState) => typeof appState) => {
-    appState = f(appState)
-  })
-  check('team directory removed', !existsSync(join(TEAMS_DIR, name)))
-  check('lead-team fallback cleared', teammate.getLeadTeamFallback() === null)
-  check('teamContext cleared from app state', appState.teamContext === undefined)
-  check('unwind clears the leader task-list registration (structural)', /clearLeaderTeamName\(\)/.test(src('tools', 'TeamCreateTool', 'TeamCreateTool.ts')))
-  void tasks
-
-  const toolSrc = src('tools', 'TeamCreateTool', 'TeamCreateTool.ts')
-  check('call() unwinds on post-file failure', /catch \(e\) \{\s*\n\s*await unwindTeamCreation\(finalTeamName, setAppState\)/.test(toolSrc))
-  check('failure message names the unwound state', /The team was unwound/.test(toolSrc))
+  const state = await import('../../src/bootstrap/state.js')
+  const birth = await import('../../src/utils/crew/crewBirth.js')
+  const sid = String(state.getSessionId())
+  const crew = birth.sessionCrewName(sid)
+  check('a lead session registers its crew at birth (the brief and the coordination server resolve it)', birth.birthSessionCrew(sid) === crew && teammate.getLeadTeamFallback() === crew)
+  check('precondition: no roster file before the first join', !existsSync(join(TEAMS_DIR, crew, 'config.json')))
+  await helpers.appendTeamMember(crew, { agentId: `alpha@${crew}`, name: 'alpha', joinedAt: 1, tmuxPaneId: 'in-process', cwd: '/', subscriptions: [] } as never)
+  const founded = await helpers.readTeamFileAsync(crew)
+  check('the first join founds the whole roster at once: the lead and the member, led by this session', founded !== null && founded.leadSessionId === sid && founded.members.map(m => m.name).join(',') === 'team-lead,alpha')
+  check('the founding is one atomic publish: no journal, no temp left beside the roster', !existsSync(join(TEAMS_DIR, '.journal')) && !existsSync(join(TEAMS_DIR, crew, 'inboxes')))
+  const helpersSrc = src('utils', 'swarm', 'teamHelpers.ts')
+  check('nothing in the roster owner removes a team directory or a worktree any more (structural)', !/cleanupTeamDirectories|destroyWorktree|'worktree', 'remove'/.test(helpersSrc))
+  const operations = src('utils', 'swarm', 'teamOperations.ts')
+  check('the teams journal keeps parsing an older build\'s create/delete records and removes nothing (structural)', /'team-create'/.test(operations) && /'team-delete'/.test(operations) && !/cleanupTeamDirectories|rm\(/.test(operations))
 }
 
-section('§5 — prompt doctrine + generated roster')
+section('§5 — the delegation doctrine names crewmates, not a create step')
 {
-  const { getPrompt } = await import('../../src/tools/TeamCreateTool/prompt.js')
-  const fakeAgents = [
-    { agentType: 'mercury-scout', whenToUse: 'Read-only search agent for broad fan-out searches. Long tail here.', tools: ['Read', 'Grep', 'Glob'], source: 'built-in' },
-    { agentType: 'mercury-general', whenToUse: 'General-purpose agent for complex tasks.', source: 'built-in' },
-  ] as never[]
-  const p = getPrompt(fakeAgents as never)
-  check('two-independent-lanes rule present', p.includes('TWO OR MORE genuinely independent lanes'))
-  check('"when in doubt, prefer a team" is GONE', !/when in doubt/i.test(p))
-  check('anti-default: do not create a team just in case', p.includes('Do not create a team "just in case"'))
-  check('roster generated from the registry (scout line)', p.includes('**mercury-scout** (read-only)'))
-  check('roster capability derived from tool contract', p.includes('**mercury-general** (full-capability)'))
-  check('charter-before-spawn: synthesis owner + owned surface + deliverable', p.includes('synthesis owner') && p.includes('owned surface') && p.includes('deliverable'))
-  check('decomposition by ownership, not job titles', p.includes('not by vague job titles'))
-  check('no periodic file re-reading doctrine', p.includes('Do not re-read team/task files each turn'))
-  check('atomicity promised where taught', p.includes('Creation is atomic'))
-  check('stale generic examples gone ("researcher", "test-runner")', !p.includes('"researcher"') && !p.includes('"test-runner"'))
-
-  const toolSrc = src('tools', 'TeamCreateTool', 'TeamCreateTool.ts')
-  check('schema no longer teaches generic role names', !toolSrc.includes('"researcher", "test-runner"'))
-  check('schema carries objective/success_criteria', /objective:/.test(toolSrc) && /success_criteria:/.test(toolSrc))
+  const doctrine = src('utils', 'messages', 'attachmentText.ts')
+  check('the doctrine names the crewmate road (the Agent tool with a name and a team_name)', doctrine.includes('the Agent tool with a name and a team_name'))
+  check('the doctrine says every session has a crew from the moment it starts', doctrine.includes('every session has a crew from the moment it starts'))
+  check('the doctrine names no TeamCreate tool', !doctrine.includes('TeamCreate'))
 }
 
 section('§6 — tool surface')
 {
-  const tool = await import('../../src/tools/TeamCreateTool/TeamCreateTool.js')
-  check('userFacingName is real', tool.TeamCreateTool.userFacingName(undefined) === 'TeamCreate')
-  const ui = src('tools', 'TeamCreateTool', 'UI.tsx')
-  check('use line carries the objective', /input\.objective \?\? input\.description/.test(ui))
-  check('result card: team + lead + backend', /lead \$\{output\.lead_agent_id\}/.test(ui) && /getResolvedTeammateMode\(\)/.test(ui))
-  check('result card names the next useful action', /next: TaskCreate the work lanes/.test(ui))
-  check('search text extracts the objective', /objective: \$\{output\.objective\}/.test(ui))
+  const { getAllBaseTools } = await import('../../src/tools.js')
+  const names = getAllBaseTools().map(t => t.name)
+  check('no TeamCreate or TeamDelete tool is registered', !names.includes('TeamCreate') && !names.includes('TeamDelete'))
+  check('the tool folders are gone', !existsSync(join(ROOT, 'src', 'tools', 'TeamCreateTool')) && !existsSync(join(ROOT, 'src', 'tools', 'TeamDeleteTool')))
+  const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.js')
+  check('an old transcript\'s TeamCreate row still resolves a render shim under its name', findToolForRender(getAllBaseTools(), 'TeamCreate').name === 'TeamCreate')
 }
 
 rmSync(TEAMS_DIR, { recursive: true, force: true })

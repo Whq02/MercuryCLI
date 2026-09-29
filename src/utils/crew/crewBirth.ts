@@ -68,8 +68,15 @@ export function resolveSpawnCrew(teamContext: { teamName: string } | undefined):
   return getTeamName(teamContext) ?? sessionCrewName(String(getSessionId()))
 }
 
-export function birthSessionCrew(sessionId: string): string | null {
+type SetAppState = (updater: (prev: AppState) => AppState) => void
+
+export function isBornCrewWithoutCrewmates(teamContext: AppState['teamContext']): boolean {
+  return teamContext !== undefined && teamContext.isLeader === true && Object.keys(teamContext.teammates).length === 0
+}
+
+export function birthSessionCrew(sessionId: string, setAppState?: SetAppState): string | null {
   if (isTeammate()) return null
   if (getLeadTeamFallback() === null) setLeadTeamFallback(sessionCrewName(sessionId))
+  setAppState?.(prev => (prev.teamContext !== undefined ? prev : { ...prev, teamContext: bornCrewContext(sessionId) }))
   return getLeadTeamFallback()
 }

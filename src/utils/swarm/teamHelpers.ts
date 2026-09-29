@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -11,13 +11,10 @@ import { recordRefusedDurableFile } from '../../substrate/storeRecovery.js'
 import { logForDebugging } from '../debug.js'
 import { getTeamsDir } from '../envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../errors.js'
-import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
-import { gitExe } from '../git.js'
 import { lazySchema } from '../lazySchema.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
-import { getTasksDir, notifyTasksUpdated } from '../tasks.js'
 import { getAgentName, getTeamName, isTeammate } from '../teammate.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { TEAM_LEAD_NAME } from './constants.js'
@@ -535,56 +532,6 @@ async function killTeamPanes(teamName: string): Promise<void> {
         `session cleanup: kill pane ${member.tmuxPaneId} failed: ${errorMessage(error)}`,
       )
     }
-  }
-}
-
-async function destroyWorktree(worktreePath: string): Promise<void> {
-  try {
-    let repoRoot: string | null = null
-    try {
-      const pointer = await readFile(join(worktreePath, '.git'), 'utf-8')
-      const match = pointer.match(/^gitdir:\s*(.+)$/m)
-      if (match?.[1]) {
-        const worktreeGitDir = match[1].trim()
-        repoRoot = dirname(dirname(dirname(worktreeGitDir)))
-      }
-    } catch {
-      repoRoot = null
-    }
-    if (repoRoot !== null) {
-      const outcome = await execFileNoThrowWithCwd(
-        gitExe(),
-        ['worktree', 'remove', '--force', worktreePath],
-        { cwd: repoRoot },
-      )
-      if (outcome.code === 0) return
-      if (outcome.stderr.includes('not a working tree')) return
-      logForDebugging(`worktree remove failed for ${worktreePath}: ${outcome.stderr}`)
-    }
-    await rm(worktreePath, { recursive: true, force: true })
-  } catch (error) {
-    logForDebugging(`worktree destruction failed for ${worktreePath}: ${errorMessage(error)}`)
-  }
-}
-
-export async function cleanupTeamDirectories(teamName: string): Promise<void> {
-  const roster = readTeamFile(teamName)
-  const worktreePaths = (roster?.members ?? [])
-    .map(member => member.worktreePath)
-    .filter((path): path is string => typeof path === 'string' && path.length > 0)
-  for (const worktreePath of worktreePaths) {
-    await destroyWorktree(worktreePath)
-  }
-  try {
-    await rm(getTeamDir(teamName), { recursive: true, force: true })
-  } catch (error) {
-    logForDebugging(`team directory removal failed for ${teamName}: ${errorMessage(error)}`)
-  }
-  try {
-    await rm(getTasksDir(sanitizeName(teamName)), { recursive: true, force: true })
-    notifyTasksUpdated()
-  } catch (error) {
-    logForDebugging(`team task directory removal failed for ${teamName}: ${errorMessage(error)}`)
   }
 }
 

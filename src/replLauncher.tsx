@@ -53,7 +53,9 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
       };
     }
     const { birthSessionCrew } = await import('./utils/crew/crewBirth.js');
-    birthSessionCrew(String(getSessionId()));
+    birthSessionCrew(String(getSessionId()), update => {
+      appProps = { ...appProps, initialState: update(appProps.initialState) };
+    });
   } catch {
   }
   try {

@@ -64,8 +64,6 @@
       "TaskStop",
       "TaskUpdate",
       "TeamBrief",
-      "TeamCreate",
-      "TeamDelete",
       "Test",
       "ToolSearch",
       "Transaction",

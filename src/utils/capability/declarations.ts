@@ -431,22 +431,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     cancellation: 'not-applicable',
     latency: 'fast',
   },
-  TeamCreate: {
-    intents: ['charter a team of teammates'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['team'],
-    cancellation: 'cooperative',
-    latency: 'interactive',
-  },
-  TeamDelete: {
-    intents: ['dissolve a chartered team'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['team'],
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
   Test: {
     intents: [
       'run the test suite structurally',

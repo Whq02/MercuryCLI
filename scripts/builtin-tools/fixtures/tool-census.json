@@ -2061,58 +2061,6 @@
       }
     },
     {
-      "name": "TeamCreate",
-      "category": "coord",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "charter a team of teammates"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "resources": [
-          "team"
-        ],
-        "cancellation": "cooperative",
-        "latency": "interactive"
-      }
-    },
-    {
-      "name": "TeamDelete",
-      "category": "coord",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "dissolve a chartered team"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "resources": [
-          "team"
-        ],
-        "cancellation": "not-applicable",
-        "latency": "fast"
-      }
-    },
-    {
       "name": "Test",
       "category": "other",
       "risk": "medium",
