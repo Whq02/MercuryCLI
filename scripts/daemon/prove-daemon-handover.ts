@@ -56,7 +56,8 @@ const OWNER_WORDS = `model refused (unknown-model) · pick one of: claude-opus-5
 const sock = await import('../../src/daemon/controlSocket.ts')
 const protocol = await import('../../src/daemon/protocol.ts')
 const supervisor = await import('../../src/daemon/concourseSupervisor.ts')
-const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { isProcessAlive, getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
+const { supervisorRecordIdentity } = await import('../../src/daemon/verbs.ts')
 const handoverModule = await import('../../src/daemon/handover.ts').catch(() => null)
 const rawFrame = (sockPath: string, payload: unknown, timeoutMs: number): Promise<{ ok: boolean }> =>
   new Promise(resolve => {
@@ -246,6 +247,8 @@ check('the successor answers on the plane path, ready, on its own (new) tree', m
 check("the successor names its predecessor and counts its live session as its own (a restart would wait on it)", afterHello !== null && afterHello.predecessorPid === process.pid && Number(afterHello.live) >= 1 && Number(afterHello.liveSessions) >= 1, text(afterHello))
 const record = await sock.readSupervisorState()
 check('the supervisor record names the successor', record !== null && record.pid === successorPid, text(record))
+const successorToken = await getProcessStartTokenAsync(successorPid)
+check("the successor's record-first write stamps its own identity baseline, and the one identity owner reads the record as the successor's, never a stranger's", record !== null && typeof record.startToken === 'string' && record.startToken !== '' && supervisorRecordIdentity(record, successorToken) === 'same-process', text({ startToken: record?.startToken, successorToken }))
 check('the control key is the one the screens already hold (the predecessor accepts the same stamp)', readFileSync(sock.controlKeyPath(), 'utf8').trim() === oldKey)
 check("the predecessor's socket serves on under its own pid", existsSync(predecessorSockPathOf(process.pid)) && predecessorSockPathOf(process.pid) !== oldSockPath && (await rawFrame(predecessorSockPathOf(process.pid), { op: 'ping' }, 2000)).ok)
 check('nothing live was signalled: the held runner and the predecessor are alive after the move', child.pid !== undefined && isProcessAlive(child.pid) && child.exitCode === null)
