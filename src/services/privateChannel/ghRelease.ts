@@ -1,5 +1,6 @@
 import { execFile, type ChildProcess } from 'node:child_process'
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
+import { isProofShapeRun, proofShapeReason } from '../../utils/privacyLevel.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { projectReleases, type ChannelRelease } from './channelCore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -9,6 +10,7 @@ const DOWNLOAD_TIMEOUT_MS = 15 * 60_000
 const MAX_GH_BYTES = 20 * 1024 * 1024
 export const GH_DEADLINE_EXIT = 124
 const GH_SPAWN_FAILED_EXIT = 127
+export const GH_FENCED_PREFIX = 'the GitHub CLI is not consulted: '
 
 const GH_DEADLINE_HOLDER = [
   "const { spawn } = require('node:child_process')",
@@ -80,7 +82,12 @@ export interface GhSpawnOptions {
   maxBuffer?: number
 }
 
+export function ghFenced(): boolean {
+  return isProofShapeRun() && flagEnv('MERCURY_GH_CMD') === undefined
+}
+
 export function gh(args: string[], opts: GhSpawnOptions = {}): Promise<GhResult> {
+  if (ghFenced()) return Promise.resolve({ state: 'error', enoent: true, stderr: `${GH_FENCED_PREFIX}${proofShapeReason()}; pin MERCURY_GH_CMD to a fixture transport for a proof of the gh road` })
   const deadlineMs = ghDeadlineMs(opts.timeoutMs ?? GH_TIMEOUT_MS)
   const argv = ghSpawnArgv(ghArgv(), args, deadlineMs)
   const maxBuffer = opts.maxBuffer ?? MAX_GH_BYTES
@@ -109,10 +116,11 @@ export async function ghSignIn(): Promise<GhSignIn> {
   const auth = await gh(['auth', 'status'])
   if (auth.state === 'ok') return { state: 'ok' }
   if (auth.enoent) {
+    const fenced = auth.stderr.startsWith(GH_FENCED_PREFIX)
     return {
       state: 'gh-missing',
-      note: 'the GitHub CLI (gh) is not installed or not on PATH',
-      remedy: 'install it from https://cli.github.com and run `gh auth login`',
+      note: fenced ? auth.stderr : 'the GitHub CLI (gh) is not installed or not on PATH',
+      remedy: fenced ? 'unset MERCURY_LOCAL_PROBE_TARGETS outside a proof' : 'install it from https://cli.github.com and run `gh auth login`',
     }
   }
   return {
