@@ -36,7 +36,7 @@ if sys.platform == "win32":
     print("SKIP  gh-child-deadline: POSIX process semantics only")
     sys.exit(0)
 
-scratch = tempfile.mkdtemp(prefix="gh-deadline-")
+scratch = os.path.realpath(tempfile.mkdtemp(prefix="gh-deadline-"))
 HANG_GH = os.path.join(scratch, "hang-gh.mjs")
 with open(HANG_GH, "w") as f:
     f.write("const a=process.argv.slice(2)\nif(a[0]==='auth'){process.exit(0)}\nsetInterval(()=>{}, 1<<30)\n")

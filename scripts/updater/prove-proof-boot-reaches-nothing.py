@@ -30,7 +30,7 @@ if shutil.which("lsof") is None:
     print("SKIP  proof-boot-reaches-nothing: lsof is needed for the socket census")
     sys.exit(0)
 
-scratch = tempfile.mkdtemp(prefix="proof-boot-reach-")
+scratch = os.path.realpath(tempfile.mkdtemp(prefix="proof-boot-reach-"))
 home = os.path.join(scratch, "home")
 work = os.path.join(scratch, "work")
 os.makedirs(home); os.makedirs(work)
