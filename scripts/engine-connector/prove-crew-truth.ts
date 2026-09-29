@@ -226,7 +226,7 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
     boardFacts.length === agents.length &&
       boardFacts.every(f => f !== null && JSON.stringify(f) === JSON.stringify(agents.find(a => a.id === f.id))),
   )
-  check('T3 the count label matches the rows', crew.crewCountLabel(agents) === '4 running · 5 sub-agents', crew.crewCountLabel(agents))
+  check('T3 the count label carries the running count of the rows (the list header carries the total)', crew.crewCountLabel(agents) === '4 running', crew.crewCountLabel(agents))
   check(
     'T3 the rail lists exactly the running ones',
     crew.crewRunning(agents).map(a => a.id).join(',') === 'tm1,ag3,ag2,ag1',
