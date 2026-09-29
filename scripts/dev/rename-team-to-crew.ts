@@ -35,10 +35,12 @@ const PINNED_PATHS: Array<{ path: string } & Why> = [
   { path: 'scripts/crew/team-world.ts', why: 'a workflow proof imports it by this path and workflow proofs do not change' },
   { path: 'src/commands/team/', why: 'the /team command is a public door beside /crew; its file keeps the command name' },
   { path: 'src/services/resources/adapters/team.ts', why: 'the mercury://team resource kind keeps its file beside the crew adapter that already exists' },
+  { path: 'scripts/ui/prove-teams-dialog-gone.ts', why: 'the law names the thing that is gone' },
 ]
 
 const PROTECTED_PATTERNS: Array<{ re: RegExp } & Why> = [
   { re: /formerly: '[^']*'/g, why: 'a flag row names the spelling an older build wrote' },
+  { re: /parsed\.teammate\b|\bteammate\?: AgentMetadata\['crewmate'\]/g, why: 'the sidecar reader names the key an older build wrote' },
 ]
 
 const TEXT_EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs', '.jsx', '.json', '.jsonl', '.md', '.txt', '.tsv', '.csv', '.sh', '.bash', '.py', '.yml', '.yaml', '.toml', '.sed', '.html', '.css', '.svg', '.xml', '.plist', '.ps1', '.cfg', '.ini'])
@@ -76,6 +78,7 @@ const FILE_RULES: FileRule[] = [
   { path: 'src/utils/auth.ts', protect: ['team'], why: 'the Claude Team plan tier keyed by its wire value' },
   { path: 'src/utils/cockpit/fleetGauge.ts', protect: ['teamRows'], why: 'the team-file rows beside the crew rows the gauge already lists' },
   { path: 'src/components/PromptInput/PromptInput.tsx', map: { viewedTeammate: 'viewedCrewmateTask' }, why: 'the viewed in-process task beside the viewed crewmate of the crew view' },
+  { path: 'src/main.tsx', protect: ['teammateMode'], why: 'the command line still spells --teammate-mode, and the option parser derives teammateMode from it' },
 ]
 
 const explicit = (from: string, to: string, re: string, why: string): Explicit => ({ from, to, re: new RegExp(re, 'g'), why })
@@ -143,6 +146,13 @@ const ALIAS_PATCHES: AliasPatch[] = [
     already: "  { env: 'MERCURY_CREWMATE_COMMAND', formerly: 'MERCURY_TEAMMATE_COMMAND',",
   },
   {
+    file: 'src/utils/sessionStorage/paths.ts',
+    why: 'an agent sidecar written under the old teammate key still resumes as a crewmate',
+    find: "    const meta = JSON.parse(raw) as AgentMetadata\n    const current = RETIRED_AGENT_TYPES[meta.agentType]\n",
+    replace: "    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }\n    const meta: AgentMetadata = parsed.crewmate === undefined && parsed.teammate !== undefined ? { ...parsed, crewmate: parsed.teammate } : parsed\n    const current = RETIRED_AGENT_TYPES[meta.agentType]\n",
+    already: "    const parsed = JSON.parse(raw) as AgentMetadata & { teammate?: AgentMetadata['crewmate'] }\n",
+  },
+  {
     file: 'src/migrations/migrateConfigSpellings.ts',
     why: 'a saved global config written under the old keys is read as the current keys',
     find: 'export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {\n',
@@ -181,7 +191,7 @@ const TOKEN_TO: Record<string, string> = {
   team: 'crew',
 }
 
-type Context = 'identifier' | 'string' | 'prose' | 'filename'
+type Context = 'identifier' | 'property' | 'string' | 'path' | 'prose' | 'filename'
 
 const isLower = (c: string): boolean => c >= 'a' && c <= 'z'
 const isUpper = (c: string): boolean => c >= 'A' && c <= 'Z'
@@ -261,7 +271,7 @@ class Renamer {
       if (m.index < last) continue
       const [lo, hi] = runAround(text, m.index, m.index + m[0].length, isRunChar)
       const run = text.slice(lo, hi)
-      const newRun = this.rewriteRun(run, ctx, t)
+      const newRun = this.rewriteRun(run, ctx, t, { before: text.slice(Math.max(0, lo - 2), lo), after: text.slice(hi, hi + 3) })
       out += text.slice(last, lo) + newRun
       last = hi
       re.lastIndex = hi
@@ -269,9 +279,9 @@ class Renamer {
     return out + text.slice(last)
   }
 
-  private rewriteRun(run: string, ctx: Context, t: Tally): string {
+  private rewriteRun(run: string, ctx: Context, t: Tally, outer: { before: string; after: string }): string {
     const mapped = this.fileMap[run]
-    if (mapped !== undefined && ctx === 'identifier') {
+    if (mapped !== undefined && (ctx === 'identifier' || ctx === 'property')) {
       bump(t.renamed, `${run}→${mapped}`)
       return mapped
     }
@@ -284,7 +294,7 @@ class Renamer {
       const token = m[0]
       const start = m.index
       const end = start + token.length
-      const verdict = this.decide(run, start, end, token, ctx)
+      const verdict = this.decide(run, start, end, token, ctx, outer)
       if (verdict.to === null) {
         bump(t.skipped, token)
         t.skips.push({ reason: verdict.reason, token, run })
@@ -299,9 +309,11 @@ class Renamer {
     return collapse(out + run.slice(last))
   }
 
-  private decide(run: string, start: number, end: number, token: string, ctx: Context): { to: string | null; reason: string } {
+  private decide(run: string, start: number, end: number, token: string, ctx: Context, outer: { before: string; after: string }): { to: string | null; reason: string } {
     const prev = start > 0 ? run[start - 1]! : ''
     const next = end < run.length ? run[end]! : ''
+    const before = start > 0 ? '' : outer.before
+    const after = end < run.length ? '' : outer.after
     const form = token === token.toUpperCase() ? 'upper' : token[0] === 'T' ? 'cap' : 'lower'
     const no = (reason: string): { to: null; reason: string } => ({ to: null, reason })
     if (form === 'lower' && (isLetter(prev) || isLower(next))) return no('inside another word')
@@ -311,18 +323,27 @@ class Renamer {
     const word = run.slice(wlo, whi)
     if (this.fileProtect.has(word)) return no(`protected in this file: ${word}`)
     if (this.protectedIdentifiers.has(word)) return no(`protected identifier ${word}`)
-    if (this.protectedWords.has(word)) return no(`protected word ${word}`)
+    if (this.protectedWords.has(word) && ctx !== 'identifier') return no(`protected word ${word}`)
     for (const p of this.protectedPrefixes) if (word.startsWith(p)) return no(`protected prefix ${p}`)
     if (ctx === 'filename') return { to: TOKEN_TO[token]!, reason: '' }
     if (form !== 'upper' && (prev === '_' || next === '_')) return no('a snake_case key stays')
-    if (ctx === 'identifier') return { to: TOKEN_TO[token]!, reason: '' }
+    if (ctx === 'identifier' || ctx === 'property') return { to: TOKEN_TO[token]!, reason: '' }
     if (prev === '-' || next === '-' || run.includes('-')) {
       if (this.kebabNames.has(run)) return { to: TOKEN_TO[token]!, reason: '' }
       return no('a dashed name that is not a renamed file')
     }
     const compound = isAlnum(prev) || isAlnum(next) || (form === 'upper' && (prev === '_' || next === '_'))
-    if (!compound) return no(ctx === 'string' ? 'a bare word in a string' : 'a bare word in prose')
-    return { to: TOKEN_TO[token]!, reason: '' }
+    if (compound) return { to: TOKEN_TO[token]!, reason: '' }
+    const codeShaped =
+      before.endsWith('.') ||
+      before.endsWith('${') ||
+      /^\.[A-Za-z_$]/.test(after) ||
+      /^\\\.[A-Za-z_$]/.test(after) ||
+      after.startsWith('(') ||
+      after.startsWith('?.') ||
+      after.startsWith('[')
+    if (codeShaped && ctx !== 'path') return { to: TOKEN_TO[token]!, reason: '' }
+    return no(ctx === 'path' ? 'a bare segment of a path that is not a renamed file' : ctx === 'string' ? 'a bare word in a string' : 'a bare word in prose')
   }
 }
 
@@ -376,6 +397,15 @@ type Leaf = { start: number; end: number; ctx: Context }
 
 const KEY_TYPES = new Set(['Pick', 'Omit', 'Extract', 'Exclude'])
 
+function propertyName(node: ts.Node): boolean {
+  const p = node.parent
+  if (p === undefined) return false
+  if ((ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isMethodSignature(p) || ts.isEnumMember(p) || ts.isShorthandPropertyAssignment(p) || ts.isJsxAttribute(p)) && p.name === node) return true
+  if (ts.isPropertyAccessExpression(p) && p.name === node) return true
+  if (ts.isBindingElement(p) && p.propertyName === node) return true
+  return false
+}
+
 function keyPosition(node: ts.Node): boolean {
   const p = node.parent
   if (p === undefined) return false
@@ -407,8 +437,8 @@ function leavesOf(sf: ts.SourceFile): Leaf[] {
     if (hasChild) return
     const k = node.kind
     let ctx: Context | null = null
-    if (k === ts.SyntaxKind.Identifier || k === ts.SyntaxKind.PrivateIdentifier) ctx = 'identifier'
-    else if (k === ts.SyntaxKind.StringLiteral && keyPosition(node)) ctx = 'identifier'
+    if (k === ts.SyntaxKind.Identifier || k === ts.SyntaxKind.PrivateIdentifier) ctx = propertyName(node) ? 'property' : 'identifier'
+    else if (k === ts.SyntaxKind.StringLiteral && keyPosition(node)) ctx = 'property'
     else if (
       k === ts.SyntaxKind.StringLiteral ||
       k === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
@@ -519,7 +549,8 @@ class Planner {
   private resolvesToPinned(raw: string, fromRel: string): boolean {
     if (!raw.includes('/')) return false
     const target = raw.startsWith('.') ? posix.normalize(posix.join(posix.dirname(fromRel), raw)) : raw
-    return pinned(target) !== null
+    const stem = target.replace(/\.(js|mjs|ts|tsx|mts)$/, '')
+    return pinned(target) !== null || pinned(`${stem}.ts`) !== null || pinned(`${stem}.tsx`) !== null || pinned(`${stem}.mts`) !== null
   }
 
   private rewriteString(literal: string, fromRel: string, t: Tally): string {
@@ -536,7 +567,8 @@ class Planner {
       return literal
     }
     const mapped = this.mapPathString(body, fromRel)
-    const rewritten = this.renamer.rewrite(applyExplicit(mapped, t), 'string', t)
+    const pathLike = body.includes('/') && REPO_PATH_RE.test(body)
+    const rewritten = this.renamer.rewrite(applyExplicit(mapped, t), pathLike ? 'path' : 'string', t)
     return quoted ? q + rewritten + literal[literal.length - 1]! : rewritten
   }
 

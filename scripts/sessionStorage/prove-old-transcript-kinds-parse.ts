@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { appendFileSync, mkdirSync, mkdtempSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -12,6 +12,7 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
+const paths = await import('../../src/utils/sessionStorage/paths.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
 const sessionClass = await import('../../src/utils/sessionClass.ts')
 const attachmentText = await import('../../src/utils/messages/attachmentText.ts')
@@ -137,6 +138,20 @@ const contextMessage = messages.find(m => m.type === 'attachment' && (m.attachme
 const mailboxMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')
 check('team_context stays a null-rendering kind on screen', contextMessage !== undefined && nullRendering.isNullRenderingAttachment(contextMessage as never) === true)
 check('teammate_mailbox is not a null-rendering kind on screen', mailboxMessage !== undefined && nullRendering.isNullRenderingAttachment(mailboxMessage as never) === false)
+
+console.log('§4 an agent sidecar written under the old teammate key still reads as a crewmate record')
+{
+  const agentId = 'agent-old-sidecar-0001'
+  const sidecarPath = paths.getAgentMetadataPath(agentId as never)
+  mkdirSync(join(sidecarPath, '..'), { recursive: true })
+  const old = { agentType: 'general-purpose', name: AGENT, launchedAt: 1, teammate: { teamName: TEAM, prompt: 'work the docs', transcriptAgentId: 'agent-old-sidecar-0001', planModeRequired: false } }
+  writeFileSync(sidecarPath, JSON.stringify(old))
+  const meta = (await paths.readAgentMetadata(agentId as never)) as Record<string, unknown> | null
+  const record = (meta?.crewmate ?? null) as Record<string, unknown> | null
+  check('the sidecar reads', meta !== null)
+  check('the old teammate record reads as the crewmate record', record !== null && record.teamName === TEAM && record.prompt === 'work the docs', JSON.stringify(meta))
+  check('the rest of the sidecar still reads', typeof meta?.agentType === 'string' && meta?.name === AGENT)
+}
 
 console.log(failures === 0 ? '\nold transcript kinds: ALL GREEN' : `\nold transcript kinds: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
