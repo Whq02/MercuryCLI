@@ -3,66 +3,20 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-29T13:09:05.457Z",
+ "capturedAt": "2026-09-29T13:25:33.690Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-PYjCZf · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-FaKNRR · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "14:09:03 [sam] ❯ design the cache layer",
+    "14:25:30 [sam] ❯ design the cache layer",
     "",
-    "14:09:04 [Mercury] Let me confirm the open",
+    "14:25:31 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "✶ Wind-carvin… · ↓ ~99 tokens · writing · 0s",
-    "╭──────────────────────────────────────────╮",
-    "│❯ Type a prompt, or start a slash command │",
-    "╰──────────────────────────────────────────╯",
-    "the session …  esc interrupts · ⇧← concourse"
-   ]
-  },
-  {
-   "atMs": -1,
-   "rows": [
-    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-PYjCZf · ⤳1",
-    "  ▀▀▀▀▀▀▀▀▀",
-    "────────────────────────────────────────────",
-    "",
-    "14:09:03 [sam] ❯ design the cache layer",
-    "",
-    "14:09:04 [Mercury] Let me confirm the open",
-    "decisions before proceeding.",
-    "",
     "",
     "",
     "",
@@ -92,23 +46,69 @@
     "  5. Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · Esc to",
-    "cancel"
+    "cancel",
+    "⚑ 1 needs you · ctrl+x c board"
+   ]
+  },
+  {
+   "atMs": -1,
+   "rows": [
+    "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-FaKNRR · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀",
+    "────────────────────────────────────────────",
+    "",
+    "14:25:30 [sam] ❯ design the cache layer",
+    "",
+    "14:25:31 [Mercury] Let me confirm the open",
+    "decisions before proceeding.",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "────────────────────────────────────────────",
+    " ☐ Cache",
+    "",
+    "⦿ Which storage engine should the cache use?",
+    "",
+    "❯ 1.Redis",
+    "      A shared network cache; adds an infra",
+    "      dependency.",
+    "  2.In-memory",
+    "      Process-local; zero infra but not",
+    "      shared.",
+    "  3.File-based",
+    "      Durable and shared on one host;",
+    "      slowest.",
+    "  4.  Type something.",
+    "────────────────────────────────────────────",
+    "  5. Chat about this",
+    "",
+    "Enter to select · ↑/↓ to navigate · Esc to",
+    "cancel",
+    "⚑ 1 needs you · ctrl+x c board"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 4022,
-   "frame-recommit": 37,
+   "patches": 5417,
+   "frame-recommit": 32,
    "tail-publish": 2
   },
   "frames": {
-   "total": 51,
-   "window": 51,
-   "p50": 1.8861249999999927,
-   "p95": 72.59791700000005,
-   "p99": 129.7542080000003,
-   "maxMs": 129.7542080000003
+   "total": 45,
+   "window": 45,
+   "p50": 0.8857090000001335,
+   "p95": 25.212541000000783,
+   "p99": 65.09404200000063,
+   "maxMs": 65.09404200000063
   }
  },
  "requests": [
@@ -143,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 11977.832078933716,
+   "atMs": 9773.11396598816,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 12777.832078933716,
+   "atMs": 10573.11396598816,
    "b64": "DQ=="
   }
  ]
