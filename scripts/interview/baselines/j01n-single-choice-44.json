@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-29T16:57:29.781Z",
+ "capturedAt": "2026-09-29T18:08:53.257Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-OylE9a · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-wUS8fx · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "17:57:20 [sam] ❯ design the cache layer",
+    "19:08:45 [sam] ❯ design the cache layer",
     "",
-    "17:57:20 [Mercury] Let me confirm the open",
+    "19:08:45 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -27,7 +27,7 @@
     "",
     "",
     "",
-    "",
+    "────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-OylE9a · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-wUS8fx · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "17:57:20 [sam] ❯ design the cache layer",
+    "19:08:45 [sam] ❯ design the cache layer",
     "",
-    "17:57:20 [Mercury] Let me confirm the open",
+    "19:08:45 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -72,7 +72,7 @@
     "",
     "",
     "",
-    "",
+    "────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -98,16 +98,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5397,
-   "frame-recommit": 14
+   "patches": 5419,
+   "frame-recommit": 16,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 28,
-   "window": 28,
-   "p50": 0.6198750000003201,
-   "p95": 6.881124999999884,
-   "p99": 13.308416999999963,
-   "maxMs": 13.308416999999963
+   "total": 30,
+   "window": 30,
+   "p50": 0.8381660000004558,
+   "p95": 3.483165999999983,
+   "p99": 7.701415999999995,
+   "maxMs": 7.701415999999995
   }
  },
  "requests": [
@@ -142,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 6787.997007369995,
+   "atMs": 6533.890008926392,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7587.997007369995,
+   "atMs": 7333.890008926392,
    "b64": "DQ=="
   }
  ]
