@@ -48,10 +48,43 @@ const STALE_SOCKET_CODES = new Set([
   'UND_ERR_SOCKET',
   'UND_ERR_CLOSED',
   'UND_ERR_DESTROYED',
+  'ERR_HTTP2_STREAM_ERROR',
+  'ERR_HTTP2_STREAM_CANCEL',
+  'ERR_HTTP2_GOAWAY_SESSION',
+  'ERR_HTTP2_SESSION_ERROR',
+  'ERR_HTTP2_INVALID_SESSION',
 ])
 
 export function isStaleSocketCode(code: string | undefined): boolean {
   return code !== undefined && STALE_SOCKET_CODES.has(code)
+}
+
+export const TRANSPORT_CUT_MESSAGE = 'terminated'
+
+export interface TransportCut {
+  code: string
+  words: string
+}
+
+export function transportCutOf(error: unknown): TransportCut | null {
+  if (!(error instanceof Error) || error.name !== 'TypeError' || error.message !== TRANSPORT_CUT_MESSAGE) return null
+  const seen = new Set<unknown>()
+  let node: unknown = error.cause
+  let hops = 0
+  while (node && typeof node === 'object' && hops < MAX_CAUSE_HOPS && !seen.has(node)) {
+    seen.add(node)
+    const n = node as { code?: unknown; message?: unknown; cause?: unknown }
+    if (typeof n.code === 'string' && isStaleSocketCode(n.code)) {
+      return { code: n.code, words: typeof n.message === 'string' && n.message !== '' ? n.message : n.code }
+    }
+    node = n.cause
+    hops++
+  }
+  return null
+}
+
+export function transportCutWords(road: string, cut: TransportCut): string {
+  return `${road} cut the connection mid-response — ${cut.words} (${cut.code})`
 }
 
 export function recordTransportFailure(err: unknown, url?: string): void {

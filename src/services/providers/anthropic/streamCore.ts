@@ -86,6 +86,7 @@ import type {
   Message,
   StreamEvent,
   SystemAPIErrorMessage,
+  SystemStreamCutMessage,
 } from '../../../types/message.js'
 import type {
   ApiToolUnion,
@@ -111,6 +112,7 @@ import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
+  createStreamCutMessage,
   createSystemAPIErrorMessage,
   createUserMessage,
   ensureToolResultPairing,
@@ -150,6 +152,7 @@ import {
 import { withStreamingVCR, withVCR } from '../../vcr.js'
 import { CLIENT_REQUEST_ID_HEADER, getAnthropicClient } from '../../api/client.js'
 import { clientContractMoveOf } from '../../api/clientContractLearned.js'
+import { transportCutOf, transportCutWords } from '../../api/transportEvidence.js'
 import { captureModelRefusalRequest, clearModelRefusal, type ModelRefusalRequest } from './modelRefusal.js'
 import {
   API_ERROR_MESSAGE_PREFIX,
@@ -318,7 +321,7 @@ export async function* queryModelWithStreaming({
   signal: AbortSignal
   options: Options
 }): AsyncGenerator<
-  StreamEvent | AssistantMessage | SystemAPIErrorMessage,
+  StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
   void
 > {
   return yield* withStreamingVCR(messages, async function* () {
@@ -465,7 +468,7 @@ async function* queryModel(
   signal: AbortSignal,
   options: Options,
 ): AsyncGenerator<
-  StreamEvent | AssistantMessage | SystemAPIErrorMessage,
+  StreamEvent | AssistantMessage | SystemAPIErrorMessage | SystemStreamCutMessage,
   void
 > {
   const previousRequestId = getPreviousRequestIdFromMessages(messages)
@@ -863,6 +866,7 @@ async function* queryModel(
   let fallbackMessage: AssistantMessage | undefined
   let maxOutputTokens = 0
   let preFirstEventStreamRetryUsed = false
+  let streamCutRetryUsed = false
 
   const mintAssistantMessage = (
     base: BetaMessage,
@@ -1540,11 +1544,34 @@ async function* queryModel(
         continue streamingPass
       }
 
+      const cut = signal.aborted ? null : transportCutOf(streamingError)
+      if (cut !== null && !streamedToolUse && !streamCutRetryUsed) {
+        streamCutRetryUsed = true
+        resetApiConnectionPool()
+        if (options.onStreamingFallback) {
+          options.onStreamingFallback()
+        }
+        logForDiagnosticsNoPII('warn', 'cli_stream_cut_streaming_retry')
+        logForDebugging(
+          `${transportCutWords('Anthropic', cut)} — reissuing the stream on a fresh connection (pass 2)`,
+          { level: 'warn' },
+        )
+        yield createStreamCutMessage({
+          count: 1,
+          content: `${transportCutWords('Anthropic', cut)}; the request was sent again on a fresh connection (reissue 1 of 1)`,
+          road: 'Anthropic',
+          sent: cut.words,
+          code: cut.code,
+        })
+        continue streamingPass
+      }
+
       logForDebugging(
         `Error streaming, falling back to non-streaming mode: ${errorMessage(streamingError)}`,
         { level: 'error' },
       )
       if (streamIdleAborted) resetApiConnectionPool()
+      if (cut !== null) resetApiConnectionPool()
       didFallBackToNonStreaming = true
       if (options.onStreamingFallback) {
         options.onStreamingFallback()
@@ -1561,7 +1588,12 @@ async function* queryModel(
             ),
             { cause: streamingError },
           )
-        : (streamingError as APIError)
+        : cut !== null
+          ? Object.assign(
+              new Error(`${transportCutWords('Anthropic', cut)}${streamCutRetryUsed ? ', twice' : ''} — ${fallbackWaitWords}`),
+              { cause: streamingError },
+            )
+          : (streamingError as APIError)
       yield createSystemAPIErrorMessage(noticeError, 0, 1, 1, {
         recoveryTimeoutMs: getNonstreamingFallbackTimeoutMs(),
       })

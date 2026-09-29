@@ -29,7 +29,7 @@ import { NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, 
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
 import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
-import { deepestErrorDetail, isStaleSocketCode } from './transportEvidence.js'
+import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 
 
 export const BASE_DELAY_MS = 500
@@ -125,6 +125,7 @@ function isConnectionErrorLike(error: unknown): boolean {
 }
 
 export function isStaleConnectionError(error: unknown): boolean {
+  if (transportCutOf(error) !== null) return true
   if (!isConnectionErrorLike(error)) return false
   return isStaleSocketCode(deepestErrorDetail(error).code)
 }
@@ -148,6 +149,7 @@ export function isRetryableError(error: unknown): boolean {
   if (shouldRetry === 'false') return false
   if (shouldRetry === 'true' && (!isClaudeAISubscriber() || isEnterpriseSubscriber())) return true
   if (isConnectionErrorLike(error)) return true
+  if (transportCutOf(error) !== null) return true
   if (status === 408 || status === 409) return true
   if (status !== undefined && status >= 500) return true
   if (status === 429) {
@@ -379,8 +381,11 @@ export async function* withRetry<T>(
       }
 
       const delayMs = getRetryDelay(attempt, retryAfterOf(error))
+      const cut = transportCutOf(error)
       yield createSystemAPIErrorMessage(
-        error instanceof Error ? error : new Error(errorMessage(error)),
+        cut !== null
+          ? Object.assign(new Error(`${transportCutWords('The provider', cut)}; retrying on a fresh connection`), { cause: error })
+          : error instanceof Error ? error : new Error(errorMessage(error)),
         delayMs,
         attempt,
         maxRetries,
