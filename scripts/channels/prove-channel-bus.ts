@@ -249,8 +249,9 @@ check(
 section('(e) render leg — UserTextMessage → UserChannelMessage')
 const userText = src('components', 'messages', 'UserTextMessage.tsx')
 check(
-  'UserTextMessage dispatches `<channel source="` text to UserChannelMessage',
-  /param\.text\.includes\(`<\$\{CHANNEL_TAG\} source="`\)/.test(userText) &&
+  'UserTextMessage dispatches text that OPENS with `<channel source="` to UserChannelMessage (anchored at the head; a prompt quoting the tag mid-way is the operator\'s row)',
+  /head\.startsWith\(`<\$\{CHANNEL_TAG\} source="`\)/.test(userText) &&
+    !/param\.text\.includes\(`<\$\{CHANNEL_TAG\} source="`\)/.test(userText) &&
     /<UserChannelMessage addMargin=\{addMargin\} param=\{param\} \/>/.test(userText),
 )
 check(
