@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-29T03:12:24.357Z",
+ "capturedAt": "2026-09-29T03:19:27.555Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-84qc4e · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Z7McaA · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "04:12:16 [sam] ❯ design the cache layer",
+    "04:19:19 [sam] ❯ design the cache layer",
     "",
-    "04:12:16 [Mercury] Let me confirm the open",
+    "04:19:19 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-84qc4e · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-Z7McaA · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "04:12:16 [sam] ❯ design the cache layer",
+    "04:19:19 [sam] ❯ design the cache layer",
     "",
-    "04:12:16 [Mercury] Let me confirm the open",
+    "04:19:19 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5388,
-   "frame-recommit": 21
+   "patches": 5409,
+   "frame-recommit": 16,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 35,
-   "window": 35,
-   "p50": 0.7790000000004511,
-   "p95": 5.601040999999896,
-   "p99": 30.921249999999986,
-   "maxMs": 30.921249999999986
+   "total": 30,
+   "window": 30,
+   "p50": 0.8367499999994834,
+   "p95": 4.77495799999997,
+   "p99": 7.813916000000063,
+   "maxMs": 7.813916000000063
   }
  },
  "requests": [
@@ -142,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 6786.463022232056,
+   "atMs": 6555.0501346588135,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7586.463022232056,
+   "atMs": 7355.0501346588135,
    "b64": "DQ=="
   }
  ]
