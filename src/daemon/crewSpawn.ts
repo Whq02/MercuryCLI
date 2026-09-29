@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { logForDebugging } from '../utils/debug.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
@@ -17,6 +18,18 @@ function seatOwner(): typeof import('../services/concourse/workerModels.js') {
 
 export const CREW_TEAM = 'crew' as const
 export const CREW_LEAD_AGENT_ID = 'team-lead@crew' as const
+
+export function crewSeatSessionId(name: string, dir: string): string {
+  const hex = createHash('sha256').update(`mercury crew seat ${name}@${dir}`).digest('hex')
+  const variant = ((parseInt(hex.slice(16, 17), 16) & 0x3) | 0x8).toString(16)
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-${variant}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+}
+
+export const CREW_SEAT_STOPPED_OUTCOME = 'killed'
+
+export function crewSeatWakeWords(name: string, model: string): string {
+  return `[daemon] crew seat @${name} was stopped and a message arrived — waking it on ${model} from its transcript`
+}
 
 export const MAX_CREW_TEAMMATES = 6
 
@@ -136,12 +149,13 @@ export async function ensureCrewTeamMember(
 }
 
 export interface CrewRosterPort {
-  has(short: string): { present: boolean }
+  has(short: string): { present: boolean; alive?: boolean }
   list(): ReadonlyArray<{ short: string; outcome?: unknown }>
   registerLongLived(
     short: string,
     spec: StreamJsonChildSpec,
   ): { ok: boolean; pid?: number; error?: string }
+  currentLongLivedModel?(short: string): string | undefined
 }
 
 export interface CrewSpawnDeps {
@@ -163,7 +177,8 @@ export function makeCrewSpawnHandler(
     }
     const r = deps.roster()
     if (!r) return { ok: false, error: 'daemon roster not ready' }
-    if (r.has(name).present) {
+    const standing = r.has(name)
+    if (standing.alive ?? standing.present) {
       return { ok: false, error: `'${name}' is already live on this daemon — kill it first or pick another name` }
     }
     const liveCrew = r.list().filter(j => !j.outcome && crewShorts.has(j.short)).length
@@ -184,6 +199,59 @@ export function makeCrewSpawnHandler(
     deps.onSpawned(name, spec, reg.pid)
     return { ok: true, pid: reg.pid }
   }
+}
+
+export type CrewWakeRoster = {
+  reply: (short: string, text: string) => Promise<boolean>
+}
+
+export function stoppedCrewSeat(roster: CrewRosterPort, short: string): boolean {
+  const rows = roster.list().filter(job => job.short === short)
+  if (rows.length === 0) return !roster.has(short).present
+  return rows.every(job => job.outcome === CREW_SEAT_STOPPED_OUTCOME)
+}
+
+export function makeCrewWakeRoster(
+  roster: CrewWakeRoster,
+  deps: {
+    port: () => CrewRosterPort | undefined
+    spawn: (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }>
+    modelOf?: (name: string) => Promise<string | undefined>
+  },
+): CrewWakeRoster {
+  const waking = new Set<string>()
+  return {
+    async reply(short, text) {
+      const delivered = await roster.reply(short, text)
+      if (delivered) return true
+      const port = deps.port()
+      if (port === undefined || waking.has(short) || !stoppedCrewSeat(port, short)) return false
+      waking.add(short)
+      void (async () => {
+        try {
+          const model = port.currentLongLivedModel?.(short) ?? (await deps.modelOf?.(short))
+          if (model === undefined) {
+            logForDebugging(`[daemon] crew seat @${short} was stopped and a message arrived, but no model is recorded for it — it stays stopped`)
+            return
+          }
+          logForDebugging(crewSeatWakeWords(short, model))
+          const woke = await deps.spawn(short, model)
+          if (!woke.ok) logForDebugging(`[daemon] crew seat @${short} could not be woken: ${woke.error ?? 'refused'}`)
+        } catch (e) {
+          logForDebugging(`[daemon] crew seat @${short} wake threw: ${e}`)
+        } finally {
+          waking.delete(short)
+        }
+      })()
+      return false
+    },
+  }
+}
+
+export async function crewMemberModel(name: string): Promise<string | undefined> {
+  const team = await readTeamFileAsync(CREW_TEAM).catch(() => null)
+  const member = team?.members.find(m => m.name === name)
+  return member?.model !== undefined && member.model !== '' ? member.model : undefined
 }
 
 export function buildCrewSpec(
@@ -207,5 +275,6 @@ export function buildCrewSpec(
     permissionMode: 'flow',
     allowedTools: resolveWorkerReconAllow(),
     stripEnv: flagSpellings('MERCURY_SESSION_KIT'),
+    sessionPin: { sessionId: crewSeatSessionId(name, dir), cwd: dir },
   }
 }

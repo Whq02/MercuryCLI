@@ -22,8 +22,10 @@ import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../.
 import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
 import { ModalContext } from '../../../context/modalContext.js'
 import {
+  crewMessageWakesWords,
   crewRosterStatus,
   crewUnreadCounts,
+  ensureCrewDaemon,
   killCrewTeammate,
   listCrewMembers,
   markCrewChatRead,
@@ -137,13 +139,11 @@ export function TeammateChatsView({
     const v = draft.trim()
     const name = cur?.member.name
     if (!v || !name) return
-    if (!cur?.online) {
-      setNote(`@${name} is offline — respawn it (r) before sending`)
-      return
-    }
+    const wakes = !cur?.online
+    if (wakes) ensureCrewDaemon(cwd)
     setDraft('')
     const ok = await sendCrewMessage(name, v)
-    setNote(ok ? '' : 'send failed — see /health')
+    setNote(ok ? (wakes ? crewMessageWakesWords(name) : '') : 'send failed — see /health')
     bump()
   }, [draft, cur, bump])
 

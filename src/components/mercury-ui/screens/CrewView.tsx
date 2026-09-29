@@ -51,6 +51,8 @@ import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
 import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
+import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewTeammate } from '../../../utils/crew/crewClient.js'
+import { getCwd } from '../../../utils/cwd.js'
 
 
 type Row =
@@ -170,6 +172,16 @@ export function CrewView({
       setDoorNote(cleared ? { tone: 'muted', text: crewClearedWords(target.name) } : { tone: 'warning', text: crewClearRefusedWords(target) })
       return
     }
+    if (input === 'r' && target !== null && !target.running && target.id.startsWith(CREW_SEAT_ID_PREFIX)) {
+      const name = target.id.slice(CREW_SEAT_ID_PREFIX.length)
+      setStopArm(null)
+      setDoorNote({ tone: 'muted', text: crewResumingWords(name) })
+      void resumeCrewTeammate(name, target.model ?? undefined, getCwd()).then(receipt => {
+        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(name) } : { tone: 'warning', text: crewResumeRefusedWords(name, receipt.error) })
+        pokeTelemetry()
+      })
+      return
+    }
     if (input === 'r' && target !== null && !target.running) {
       setDoorNote({ tone: 'muted', text: `resuming ${target.name} from its transcript…` })
       void getFocusedSessionConnector()
@@ -181,6 +193,16 @@ export function CrewView({
               : { tone: 'warning', text: `the resume of ${target.name} was refused: ${receipt.detail ?? 'no reason given'}` },
           )
         })
+      return
+    }
+    if (input === 'r' && target === null && selected?.kind === 'named' && !selected.member.online) {
+      const member = selected.member
+      setStopArm(null)
+      setDoorNote({ tone: 'muted', text: crewResumingWords(member.name) })
+      void resumeCrewTeammate(member.name, member.model, getCwd()).then(receipt => {
+        setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(member.name) } : { tone: 'warning', text: crewResumeRefusedWords(member.name, receipt.error) })
+        pokeTelemetry()
+      })
       return
     }
     if (!listMode) return
@@ -250,8 +272,8 @@ export function CrewView({
     )
   }
 
-  const doorKeys = (target: CrewAgentFacts | null): string[] =>
-    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? [] : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
+  const doorKeys = (target: CrewAgentFacts | null, offlineNamed = false): string[] =>
+    armedTarget !== null ? [crewStopHint(armedTarget.name)] : [...(target === null ? (offlineNamed ? ['r resume'] : []) : target.running ? ['x x stop'] : crewSettled(target) ? ['r resume', CREW_CLEAR_KEY] : ['r resume']), pauseDoor]
 
   if (mode.view === 'card' && !listMode) {
     const work = workById.get(mode.id)!
@@ -279,7 +301,7 @@ export function CrewView({
         '↑↓ move',
         rows.length > 0 ? (popup ? CREW_OPEN_IN_VIEW_KEY : '↵ open') : undefined,
         selectedRow?.kind === 'agent' ? (mainChatTaskId === selectedRow.facts.id ? `${CREW_MAIN_CHAT_KEY} (this one)` : CREW_MAIN_CHAT_KEY) : undefined,
-        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null),
+        ...doorKeys(selectedRow?.kind === 'agent' ? selectedRow.facts : null, selectedRow?.kind === 'named' && !selectedRow.member.online),
         namedOn ? 'n new named agent' : undefined,
         'esc close',
       ])
