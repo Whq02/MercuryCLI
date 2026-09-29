@@ -105,7 +105,7 @@ try {
     const bc = await say(worker, '*', 'all hands')
     check('say broadcast reaches the other two', !('refused' in bc) && bc.broadcast === true && bc.recipients.length === 2 && bc.failed === 0)
     const unknown = await say(worker, 'nobody', 'x')
-    check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on team/.test(unknown.refused))
+    check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on crew/.test(unknown.refused))
     const inbox = await readMailbox('bob', TEAM)
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
     const brief = await teamBrief(worker)

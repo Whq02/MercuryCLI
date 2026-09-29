@@ -24,8 +24,8 @@ import { getTeammateColor, resolveCoordAgentId, resolveLeadAwareTeamName } from 
 import { isStructuredProtocolMessage, readUnreadMessages, writeToMailbox } from '../../utils/teammateMailbox.js'
 
 export const NOT_IN_TEAM =
-  'Not part of a team — the coordination tools have nothing to act on. ' +
-  'Start or join a team first (or launch with the --team-name identity arguments).'
+  'Not part of a crew — the coordination tools have nothing to act on. ' +
+  'Start or join a crew first (or launch with the --team-name identity arguments).'
 
 export interface CoordinationContext {
   team: string
@@ -238,7 +238,7 @@ export async function say(
 ): Promise<SayResult> {
   const { team, agentId: sender } = ctx
   const teamFile = await readTeamFileAsync(team)
-  if (!teamFile) return { ok: false, refused: `Team "${team}" does not exist.` }
+  if (!teamFile) return { ok: false, refused: `Crew "${team}" does not exist.` }
   const envelope = () => ({
     from: sender,
     text: message,
@@ -267,14 +267,14 @@ export async function say(
       failed,
       message:
         recipients.length === 0
-          ? 'No teammates to broadcast to.'
+          ? 'No crewmates to broadcast to.'
           : failed === 0
-            ? `Broadcast to ${recipients.length} teammate(s).`
-            : `Broadcast reached ${recipients.length - failed}/${recipients.length} teammate(s); ${failed} write(s) failed.`,
+            ? `Broadcast to ${recipients.length} crewmate(s).`
+            : `Broadcast reached ${recipients.length - failed}/${recipients.length} crewmate(s); ${failed} write(s) failed.`,
     }
   }
   const isMember = teamFile.members.some(m => m.name.toLowerCase() === to.toLowerCase())
-  if (!isMember) return { ok: false, refused: `"${to}" is not on team "${team}" — not sent (no dead-inbox write).` }
+  if (!isMember) return { ok: false, refused: `"${to}" is not on crew "${team}" — not sent (no dead-inbox write).` }
   const delivered = await writeToMailbox(to, envelope(), team)
   return {
     ok: delivered,
