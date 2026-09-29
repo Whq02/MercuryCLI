@@ -6,9 +6,14 @@ import {
   type SubModelResolution,
 } from '../../utils/model/subModelSlots.js'
 import type { EffortLevel } from '../../utils/effort.js'
+import { isCrewmate } from '../../utils/crewmate.js'
+import { isCrewRole } from '../../utils/workerRole.js'
+
+export type AdvisorSeat = 'main' | 'crewmate' | 'workflow'
 
 export interface AdvisorSettings {
   enabled: boolean
+  crewmates: boolean
   seats: number
 }
 
@@ -20,6 +25,7 @@ export const ADVISOR_ENV_VAR = subModelEnvVar(ADVISOR_CONTAINER)
 
 export const ADVISOR_DEFAULT_SETTINGS: Readonly<AdvisorSettings> = Object.freeze({
   enabled: false,
+  crewmates: false,
   seats: ADVISOR_DEFAULT_SEATS,
 })
 
@@ -32,6 +38,7 @@ function seatsOf(value: unknown): number | undefined {
 export function advisorSettingsFromStored(stored: StoredAdvisor | undefined): AdvisorSettings {
   return {
     enabled: stored?.enabled === true,
+    crewmates: stored?.crewmates === true,
     seats: seatsOf(stored?.seats) ?? ADVISOR_DEFAULT_SEATS,
   }
 }
@@ -41,8 +48,19 @@ export function readAdvisorSettings(): AdvisorSettings {
   return advisorSettingsFromStored(getGlobalConfig().advisor)
 }
 
+export function advisorSessionSeat(): AdvisorSeat {
+  return isCrewRole() || isCrewmate() ? 'crewmate' : 'main'
+}
+
 export function advisorEnabled(): boolean {
-  return readAdvisorSettings().enabled
+  return advisorSeatRefusal(advisorSessionSeat()) === undefined
+}
+
+export function advisorSeatRefusal(seat: AdvisorSeat, settings: AdvisorSettings = readAdvisorSettings()): string | undefined {
+  if (seat === 'workflow') return 'the advisor is not available to workflow agents'
+  if (!settings.enabled) return 'the advisor is off — /config turns it on'
+  if (seat === 'crewmate' && !settings.crewmates) return 'the advisor is off for crewmates — /config → Advisor for crewmates turns it on separately'
+  return undefined
 }
 
 function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): AdvisorSettings {
@@ -51,6 +69,7 @@ function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): Advisor
     const next = mutate({ ...(config.advisor ?? {}) })
     const trimmed: StoredAdvisor = {}
     if (next.enabled === true) trimmed.enabled = true
+    if (next.crewmates === true) trimmed.crewmates = true
     if (seatsOf(next.seats) !== undefined && next.seats !== ADVISOR_DEFAULT_SEATS) trimmed.seats = next.seats
     out = advisorSettingsFromStored(trimmed)
     const rest = { ...config }
@@ -63,6 +82,10 @@ function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): Advisor
 
 export function setAdvisorEnabled(next: boolean): AdvisorSettings {
   return writeAdvisor(stored => ({ ...stored, enabled: next }))
+}
+
+export function setAdvisorCrewmates(next: boolean): AdvisorSettings {
+  return writeAdvisor(stored => ({ ...stored, crewmates: next }))
 }
 
 export function setAdvisorSeats(next: number): AdvisorSettings {

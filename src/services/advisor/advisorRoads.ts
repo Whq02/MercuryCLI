@@ -4,7 +4,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
 import { advanceAdvisorTurn, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
 import { loadAdvisorContext } from './advisorContext.js'
-import { readAdvisorSettings } from './advisorSettings.js'
+import { advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings } from './advisorSettings.js'
 
 const inFlight = new Set<string>()
 const pendingNotes = new Map<string, AdvisorNote[]>()
@@ -24,7 +24,7 @@ export async function advisorRound(
   road: AdvisorRoad = {},
 ): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (!settings.enabled) return 'off'
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return 'off'
   const context = await loadAdvisorContext(agentId, {
     ...(road.dir !== undefined ? { dir: road.dir } : {}),
     ...(road.persist !== undefined ? { persist: road.persist } : {}),
@@ -84,7 +84,7 @@ export function peekAdvisorNotes(agentId: string): readonly AdvisorNote[] {
 }
 
 export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {
-  return advisorRound(agentId, rows, note => stashAdvisorNote(agentId, note), road)
+  return advisorRound(agentId, rows, note => stashAdvisorNote(agentId, note), { ...road, seat: road.seat ?? 'crewmate' })
 }
 
 export function resetAdvisorRoadsForTests(): void {

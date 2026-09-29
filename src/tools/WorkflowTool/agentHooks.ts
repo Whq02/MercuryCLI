@@ -402,6 +402,7 @@ async function* adapterSpawnStream(
     toolUseContext: args.toolUseContext as unknown as RunAgentOpts['toolUseContext'],
     canUseTool: args.canUseTool as RunAgentOpts['canUseTool'],
     isAsync: false,
+    agentKind: 'workflow',
     querySource: getQuerySourceForAgent(
       def.agentType,
       isBuiltInAgent(args.agentDefinition as Parameters<typeof isBuiltInAgent>[0]),

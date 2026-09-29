@@ -1,6 +1,8 @@
 
 import { getProjectRoot } from '../../bootstrap/state.js'
 import { advisorAgentRound } from '../../services/advisor/advisorRoads.js'
+import { advisorSeatRefusal } from '../../services/advisor/advisorSettings.js'
+import { ASK_ADVISOR_TOOL_NAME } from '../AskAdvisorTool/constants.js'
 import { COMPUTER_TOOL_NAME } from '../../services/desktop/toolName.js'
 import { getSkillToolCommands } from '../../commands.js'
 import type { Command, PromptCommand } from '../../types/command.js'
@@ -145,6 +147,7 @@ export type RunAgentParams = {
   toolUseContext: ToolUseContext
   canUseTool: CanUseToolFn
   isAsync: boolean
+  agentKind?: 'crewmate' | 'workflow'
   canShowPermissionPrompts?: boolean
   forkContextMessages?: Message[]
   querySource: QuerySource
@@ -553,6 +556,7 @@ export async function* runAgent(
     toolUseContext,
     canUseTool,
     isAsync,
+    agentKind = 'crewmate',
     canShowPermissionPrompts,
     forkContextMessages,
     querySource,
@@ -880,6 +884,7 @@ export async function* runAgent(
     }
 
     if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
+    if (advisorSeatRefusal(agentKind) !== undefined) tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)
 
     const enabledToolNames = new Set(tools.map(tool => tool.name))
     const systemPrompt: string[] =
@@ -942,6 +947,7 @@ export async function* runAgent(
         : {}),
       ...(contentReplacementState ? { contentReplacementState } : {}),
     })
+    childContext.agentKind = agentKind
     childContext.seatHolder = seatHolder ?? description ?? agentDefinition.agentType
     if (onWait !== undefined) childContext.onSeatWait = onWait
     if (preserveToolUseResults) {
@@ -1053,7 +1059,7 @@ export async function* runAgent(
           }
           if (atRequestBoundary && roundSettled) {
             roundSettled = false
-            void advisorAgentRound(agentId, advisedRows)
+            if (agentKind === 'crewmate') void advisorAgentRound(agentId, advisedRows)
           }
           const next = await stream.next()
           if (next.done) return

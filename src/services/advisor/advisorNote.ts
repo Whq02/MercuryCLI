@@ -14,8 +14,11 @@ import {
 } from './advisorContext.js'
 import {
   advisorDispatchEffort,
+  advisorSeatRefusal,
+  advisorSessionSeat,
   readAdvisorSettings,
   resolveAdvisorModel,
+  type AdvisorSeat,
   type AdvisorSettings,
 } from './advisorSettings.js'
 
@@ -182,6 +185,7 @@ export function advisorNoteQueueCommand(note: AdvisorNote, uuid: string): Queued
 }
 
 export interface AdvisorRoad {
+  seat?: AdvisorSeat
   call?: AdvisorCall
   summarize?: AdvisorSummarizer
   settings?: AdvisorSettings
@@ -199,6 +203,7 @@ export async function composeAdvisorNote(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
   let model = road.model
   if (model === undefined) {
     const resolved = resolveAdvisorModel()
@@ -243,7 +248,7 @@ export async function advisorTurnSettled(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (!settings.enabled) return null
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
   const context = await loadAdvisorContext(agentId, {
     ...(road.dir !== undefined ? { dir: road.dir } : {}),
     ...(road.persist !== undefined ? { persist: road.persist } : {}),

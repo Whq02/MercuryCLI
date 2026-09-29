@@ -9,7 +9,7 @@ import {
   renderAgentDigest,
   type AdvisorRoad,
 } from './advisorNote.js'
-import { advisorDispatchEffort, readAdvisorSettings, resolveAdvisorModel } from './advisorSettings.js'
+import { advisorDispatchEffort, advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings, resolveAdvisorModel } from './advisorSettings.js'
 
 export const ADVISOR_QUESTION_MAX_CHARS = 4000
 
@@ -42,7 +42,8 @@ export async function askAdvisor(
   road: AdvisorRoad = {},
 ): Promise<AskAdvisorResult> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (!settings.enabled) return { ok: false, reason: 'the advisor is off — /config turns it on' }
+  const refusal = advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings)
+  if (refusal !== undefined) return { ok: false, reason: refusal }
   const trimmed = question.trim()
   if (trimmed === '') return { ok: false, reason: 'the question is empty' }
   let model = road.model

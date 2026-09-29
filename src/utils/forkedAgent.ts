@@ -234,6 +234,7 @@ export function createSubagentContext(parentContext: ToolUseContext, overrides: 
     messages: overrides.messages ?? parentContext.messages,
     agentId: overrides.agentId ?? createAgentId(),
     agentType: overrides.agentType,
+    agentKind: parentContext.agentKind,
     queryTracking: {
       chainId: randomUUID(),
       depth: (parentContext.queryTracking?.depth ?? -1) + 1,

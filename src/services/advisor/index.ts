@@ -10,12 +10,16 @@ export {
   advisorEnabled,
   advisorIntervalWords,
   advisorReceiptWords,
+  advisorSeatRefusal,
+  advisorSessionSeat,
   advisorSettingsFromStored,
   advisorValueWords,
   readAdvisorSettings,
   resolveAdvisorModel,
   setAdvisorEnabled,
+  setAdvisorCrewmates,
   setAdvisorSeats,
+  type AdvisorSeat,
   type AdvisorSettings,
 } from './advisorSettings.js'
 export {

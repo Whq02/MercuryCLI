@@ -125,7 +125,7 @@ const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/utils/model/capab
 const ADVISOR_MODEL = 'claude-opus-4-8'
 const AGENT = 'agent-fixture-1'
 const DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-context-'))
-const ON5 = { enabled: true, seats: 5 }
+const ON5 = { enabled: true, crewmates: true, seats: 5 }
 
 type CallRecord = { model: string; system: string; prompt: string; effort?: string }
 const makeCall = (answers: string[] | ((n: number) => string)): { call: (args: CallRecord) => Promise<Raw>; calls: CallRecord[] } => {
@@ -153,10 +153,12 @@ const metaRow = (n: number, words: string): Raw => createUserMessage({ content: 
 section('§0 the settings: off by default, ten turns, a trim-to-defaults writer beside the JEV row, the model through the /submodels store')
 {
   const fresh = advisor.readAdvisorSettings()
-  check('off by default, every 10 turns', fresh.enabled === false && fresh.seats === 10 && advisor.ADVISOR_DEFAULT_SEATS === 10, j(fresh))
+  check('both switches off by default, every 10 turns', fresh.enabled === false && fresh.crewmates === false && fresh.seats === 10 && advisor.ADVISOR_DEFAULT_SEATS === 10, j(fresh))
   check('nothing stored for the defaults', config.getGlobalConfig().advisor === undefined)
   const on = advisor.setAdvisorEnabled(true)
-  check('advisor:on lands as the one key', on.enabled && j(config.getGlobalConfig().advisor) === j({ enabled: true }), j(config.getGlobalConfig().advisor))
+  check('advisor:on lands as the one key and leaves crewmates off', on.enabled && !on.crewmates && j(config.getGlobalConfig().advisor) === j({ enabled: true }), j(config.getGlobalConfig().advisor))
+  check('old settings with only enabled true do not opt crewmates in', !advisor.advisorSettingsFromStored({ enabled: true }).crewmates)
+  check('only an explicit boolean true opts crewmates in', !advisor.advisorSettingsFromStored({ enabled: true, crewmates: 'true' } as never).crewmates && !advisor.advisorSettingsFromStored({ enabled: true, crewmates: 1 } as never).crewmates)
   const twenty = advisor.setAdvisorSeats(20)
   check('advisorseats:20 lands beside it', twenty.seats === 20 && j(config.getGlobalConfig().advisor) === j({ enabled: true, seats: 20 }), j(config.getGlobalConfig().advisor))
   const ten = advisor.setAdvisorSeats(10)
@@ -189,7 +191,35 @@ section('§0 the settings: off by default, ten turns, a trim-to-defaults writer 
   check("the console's identity line is untouched", consoleIdentity.includes('the Console, the side-question assistant'))
   check("the advisor's effort context says its calls run with thinking off; the console's stays the session's", j(slots.subModelEffortContext('advisor')) === j({ thinkingEnabled: false }) && j(slots.subModelEffortContext('console')) === j({}))
   check('the workload vocabulary carries the advisor beside cron', workload.WORKLOAD_ADVISOR === 'advisor' && workload.WORKLOAD_CRON === 'cron')
-  check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, seats: 5 }).includes('every 5 turns') && advisor.advisorReceiptWords({ enabled: false, seats: 10 }).startsWith('Advisor off'))
+  check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, crewmates: false, seats: 5 }).includes('every 5 turns') && advisor.advisorReceiptWords({ enabled: false, crewmates: false, seats: 10 }).startsWith('Advisor off'))
+}
+
+section('§0b seat admission: main follows Advisor, crewmates require a second opt-in, workflows never run')
+{
+  for (const enabled of [false, true]) for (const crewmates of [false, true]) {
+    const settings = { enabled, crewmates, seats: 1 }
+    for (const seat of ['main', 'crewmate', 'workflow'] as const) {
+      const allowed = enabled && (seat === 'main' || (seat === 'crewmate' && crewmates))
+      const id = `scope-${seat}-${enabled}-${crewmates}`
+      const { call, calls } = makeCall(['Check the base before the next edit.'])
+      const road = { seat, settings, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false }
+      const transcript = [operatorRow(1, 'which seam?')] as never
+      const note = await advisor.advisorTurnSettled(id, transcript, road)
+      const ask = await advisor.askAdvisor(id, 'which seam?', transcript, road)
+      check(`${seat}, master=${enabled}, crewmates=${crewmates}: notes and asks share admission`, allowed ? note !== null && ask.ok && calls.length === 2 : note === null && !ask.ok && calls.length === 0, j({ note, ask, calls: calls.length }))
+      if (!allowed) check(`${id}: refusal opens no advisor context`, advisor.peekAdvisorContext(id) === undefined)
+    }
+  }
+  advisor.setAdvisorCrewmates(true)
+  check('opting crewmates in while master is off does not enable the master', !advisor.readAdvisorSettings().enabled && advisor.readAdvisorSettings().crewmates && advisor.advisorSeatRefusal('crewmate') !== undefined && j(config.getGlobalConfig().advisor) === j({ crewmates: true }))
+  advisor.setAdvisorEnabled(true)
+  advisor.setAdvisorSeats(20)
+  check('both explicitly enabled persist beside the cadence', j(config.getGlobalConfig().advisor) === j({ enabled: true, crewmates: true, seats: 20 }))
+  advisor.setAdvisorEnabled(false)
+  check('master off keeps the explicit preference but closes crewmate admission', advisor.readAdvisorSettings().crewmates && advisor.advisorSeatRefusal('crewmate') !== undefined)
+  advisor.setAdvisorCrewmates(false)
+  advisor.setAdvisorSeats(10)
+  check('returning both switches and interval to defaults trims the whole block', config.getGlobalConfig().advisor === undefined)
 }
 
 section("§1 off by default: with advisor.enabled false nothing runs — no context, no call, no note")
@@ -335,7 +365,7 @@ section('§5 THE ASK ROAD: the agent\'s question plus the digest since the last 
   advisor.resetAdvisorContextsForTests()
   const { call, calls } = makeCall(['Check the base first: run the pin on 89017923b before you edit.'])
   const transcript = [operatorRow(1, 'fix the flaky pin'), replyRow(2, 'I will start with the seam')]
-  const off = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: { enabled: false, seats: 10 }, model: ADVISOR_MODEL, dir: DIR })
+  const off = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: { enabled: false, crewmates: false, seats: 10 }, model: ADVISOR_MODEL, dir: DIR })
   check('with the advisor off the ask answers a typed refusal and spends nothing', !off.ok && off.reason.includes('off') && calls.length === 0, j(off))
   const empty = await advisor.askAdvisor('agent-ask', '   ', transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
   check('an empty question is refused typed', !empty.ok && empty.reason.includes('empty'))
