@@ -6,11 +6,11 @@ const tmp = mkdtempSync(join(tmpdir(), 'mercury-reaper-'))
 process.env.MERCURY_CONFIG_DIR = tmp
 
 const {
-  writeToMailbox,
-  readMailbox,
-  markMessagesAsRead,
-  markSpecificMessageAsRead,
-} = await import('../../src/utils/crewmateMailbox.ts')
+  sendLiveMessage,
+  liveMessagesFor,
+  markLiveMessagesRead,
+  markLiveMessageRead,
+} = await import('../../src/services/crew/liveComms.ts')
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
@@ -21,13 +21,13 @@ const CREW = 'reaper-team'
 
 {
   for (let i = 0; i < 210; i++) {
-    await writeToMailbox('worker', { from: 'lead', text: `old ${i}`, timestamp: `t${i}` }, CREW)
+    await sendLiveMessage(CREW, { to: 'worker', from: 'lead', text: `old ${i}`, timestamp: `t${i}` })
   }
-  await markMessagesAsRead('worker', CREW)
+  await markLiveMessagesRead(CREW, 'worker')
   for (let i = 0; i < 40; i++) {
-    await writeToMailbox('worker', { from: 'lead', text: `fresh ${i}`, timestamp: `f${i}` }, CREW)
+    await sendLiveMessage(CREW, { to: 'worker', from: 'lead', text: `fresh ${i}`, timestamp: `f${i}` })
   }
-  const box = await readMailbox('worker', CREW)
+  const box = await liveMessagesFor(CREW, 'worker')
   const unread = box.filter(m => !m.read)
   const read = box.filter(m => m.read)
   ok(unread.length === 40, `§1 all 40 unread survive compaction (got ${unread.length})`)
@@ -43,10 +43,10 @@ const CREW = 'reaper-team'
 }
 
 {
-  await writeToMailbox('solo', { from: 'a', text: 'one', timestamp: 'ts1' }, CREW)
-  await writeToMailbox('solo', { from: 'a', text: 'two', timestamp: 'ts2' }, CREW)
-  await markSpecificMessageAsRead('solo', CREW, { from: 'a', text: 'two', timestamp: 'ts2' })
-  const box = await readMailbox('solo', CREW)
+  await sendLiveMessage(CREW, { to: 'solo', from: 'a', text: 'one', timestamp: 'ts1' })
+  await sendLiveMessage(CREW, { to: 'solo', from: 'a', text: 'two', timestamp: 'ts2' })
+  await markLiveMessageRead(CREW, 'solo', { from: 'a', text: 'two', timestamp: 'ts2' })
+  const box = await liveMessagesFor(CREW, 'solo')
   ok(
     box.find(m => m.text === 'two')?.read === true &&
       box.find(m => m.text === 'one')?.read === false,

@@ -425,14 +425,14 @@ async function landLeg(dialect: Dialect): Promise<void> {
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(
     `${tag}: the Crew view while running — both rows, the served model, the running glyph with the seat's live phase, tokens > 0, the count label`,
-    agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'),
+    agentRow(crewRunning, SEAT_ONE, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && agentRow(crewRunning, SEAT_TWO, servedModel, /◐/, /Sleeping for \d+s|\brunning\b/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Sub-agents (2)'),
   )
   const landed = marks['landed'] ?? ''
   check(`${tag}: the card landed both (its landed header) and no seat is still running`, landed.includes('agents finished') && !/\bstopped\b/.test(landed))
   const crewLanded = crewPopup(marks['crew-landed'] ?? '')
   check(
     `${tag}: the Crew view after landing — landed twice, the tokens kept, never the runner's word`,
-    agentRow(crewLanded, SEAT_ONE, /\blanded\b/) && agentRow(crewLanded, SEAT_TWO, /\blanded\b/) && rowTokens(crewLanded, SEAT_ONE) && rowTokens(crewLanded, SEAT_TWO) && !crewLanded.includes('completed') && crewLanded.includes('0 running · 2 sub-agents'),
+    agentRow(crewLanded, SEAT_ONE, /\blanded\b/) && agentRow(crewLanded, SEAT_TWO, /\blanded\b/) && rowTokens(crewLanded, SEAT_ONE) && rowTokens(crewLanded, SEAT_TWO) && !crewLanded.includes('completed') && crewLanded.includes('crew · 0 running') && crewLanded.includes('Sub-agents (2)'),
   )
   const card = marks['card'] ?? ''
   const viewed = [SEAT_ONE, SEAT_TWO].find(name => card.includes(`viewing ${name}`))
@@ -485,7 +485,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   const interrupted = marks['interrupted'] ?? ''
   check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 sub-agents still running — open the crew view \(\/crewmates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
-  check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'))
+  check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('crew · 2 running') && crewRunning.includes('Sub-agents (2)'))
   const crewStopped = marks['crew-stopped'] ?? ''
   check(`${tag}: x twice on the selected row stops that one seat through the runner — the receipt names the stop, never killed`, new RegExp(`Agent "${SEAT_TWO}" was stopped from the crew view`).test(flat(crewStopped)) && !crewStopped.includes('killed'))
   check(`${tag}: the other seat is never stopped — it runs on, or lands by its own door once its tracked sibling ends (the Sleep redirect), never stopped, never killed`, (agentRow(crewStopped, SEAT_ONE, /◐|\blanded\b/) || new RegExp(`Agent "${SEAT_ONE}" completed`).test(flat(crewStopped))) && !new RegExp(`"${SEAT_ONE}" was stopped`).test(flat(crewStopped)))

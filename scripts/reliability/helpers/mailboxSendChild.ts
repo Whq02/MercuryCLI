@@ -1,4 +1,4 @@
-import { writeToMailbox } from '../../../src/utils/crewmateMailbox.ts'
+import { sendLiveMessage } from '../../../src/services/crew/liveComms.ts'
 import { BUS_PROTOCOL_TYPE } from '../../../src/utils/swarm/busEnvelopes.ts'
 
 const teamName = process.env.RELIA_TEAMNAME
@@ -13,9 +13,5 @@ const envelope = {
   timestamp,
   task: 'apply the one-line fix and report back',
 }
-const okWrite = await writeToMailbox(
-  'worker',
-  { from: 'team-lead', text: JSON.stringify(envelope), timestamp },
-  teamName,
-)
+const okWrite = await sendLiveMessage(teamName, { to: 'worker', from: 'team-lead', text: JSON.stringify(envelope), timestamp })
 process.exit(okWrite ? 0 : 1)

@@ -21,7 +21,8 @@ import {
 import { readCrewFileAsync } from '../../utils/swarm/crewHelpers.js'
 import { getAgentStatuses, listTasks } from '../../utils/tasks.js'
 import { getCrewmateColor, resolveCoordAgentId, resolveLeadAwareCrewName } from '../../utils/crewmate.js'
-import { isStructuredProtocolMessage, readUnreadMessages, writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { unreadLiveMessagesFor, sendLiveMessage } from '../crew/liveComms.js'
+import { isStructuredProtocolMessage } from '../crew/liveMessages.js'
 
 export const NOT_IN_CREW =
   'Not part of a crew — the coordination tools have nothing to act on. ' +
@@ -125,7 +126,7 @@ export async function crewBrief(ctx: CoordinationContext | null): Promise<CrewBr
   const [allTasks, liveTasks, unread, statuses, leases, liveBusy, openQs, roomHealth, incomingHandoffs] = await Promise.all([
     listTasks(crew).catch(() => []),
     listLiveTasks(crew).catch((): LiveCommsTaskV1[] => []),
-    readUnreadMessages(agentId, crew).catch(() => []),
+    unreadLiveMessagesFor(crew, agentId).catch(() => []),
     getAgentStatuses(crew).catch(() => null),
     listLeases(crew).catch(() => []),
     listLiveBusy(crew).catch((): LiveCommsBusyV1[] => []),
@@ -257,7 +258,7 @@ export async function say(
     const recipients = crewFile.members.map(m => m.name).filter(n => n.toLowerCase() !== sender.toLowerCase())
     let failed = 0
     for (const recipient of recipients) {
-      const delivered = await writeToMailbox(recipient, envelope(), crew)
+      const delivered = await sendLiveMessage(crew, { to: recipient, ...envelope() })
       if (!delivered) failed++
     }
     return {
@@ -275,7 +276,7 @@ export async function say(
   }
   const isMember = crewFile.members.some(m => m.name.toLowerCase() === to.toLowerCase())
   if (!isMember) return { ok: false, refused: `"${to}" is not on crew "${crew}" — not sent (no dead-inbox write).` }
-  const delivered = await writeToMailbox(to, envelope(), crew)
+  const delivered = await sendLiveMessage(crew, { to: to, ...envelope() })
   return {
     ok: delivered,
     broadcast: false,

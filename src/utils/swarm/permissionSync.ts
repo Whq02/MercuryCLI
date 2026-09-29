@@ -11,13 +11,8 @@ import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
 import { getAgentId, getAgentName, getCrewName, getCrewmateColor } from '../crewmate.js'
-import {
-  createPermissionRequestMessage,
-  createPermissionResponseMessage,
-  createSandboxPermissionRequestMessage,
-  createSandboxPermissionResponseMessage,
-  writeToMailbox,
-} from '../crewmateMailbox.js'
+import { sendLiveMessage } from '../../services/crew/liveComms.js'
+import { createPermissionRequestMessage, createPermissionResponseMessage, createSandboxPermissionRequestMessage, createSandboxPermissionResponseMessage } from '../../services/crew/liveMessages.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import { readCrewFileAsync, sanitizeName } from './crewHelpers.js'
 
@@ -386,16 +381,13 @@ export async function sendPermissionRequestViaMailbox(
       input: request.input,
       permission_suggestions: request.permissionSuggestions,
     })
-    return await writeToMailbox(
-      leaderName,
-      {
-        from: request.workerName,
-        text: JSON.stringify(message),
-        timestamp: new Date().toISOString(),
-        ...(request.workerColor !== undefined ? { color: request.workerColor } : {}),
-      },
-      request.teamName,
-    )
+    return await sendLiveMessage(request.teamName, {
+      to: leaderName,
+      from: request.workerName,
+      text: JSON.stringify(message),
+      timestamp: new Date().toISOString(),
+      ...(request.workerColor !== undefined ? { color: request.workerColor } : {}),
+    })
   } catch (error) {
     logError(error)
     return false
@@ -423,15 +415,12 @@ export async function sendPermissionResponseViaMailbox(
         ? { permission_updates: resolution.permissionUpdates }
         : {}),
     })
-    return await writeToMailbox(
-      workerName,
-      {
-        from: getAgentName() ?? CREW_LEAD_NAME,
-        text: JSON.stringify(message),
-        timestamp: new Date().toISOString(),
-      },
-      crew,
-    )
+    return await sendLiveMessage(crew, {
+      to: workerName,
+      from: getAgentName() ?? CREW_LEAD_NAME,
+      text: JSON.stringify(message),
+      timestamp: new Date().toISOString(),
+    })
   } catch (error) {
     logError(error)
     return false
@@ -472,16 +461,13 @@ export async function sendSandboxPermissionRequestViaMailbox(
       ...(workerColor !== undefined ? { workerColor } : {}),
       host,
     })
-    return await writeToMailbox(
-      leaderName,
-      {
-        from: workerName,
-        text: JSON.stringify(message),
-        timestamp: new Date().toISOString(),
-        ...(workerColor !== undefined ? { color: workerColor } : {}),
-      },
-      crew,
-    )
+    return await sendLiveMessage(crew, {
+      to: leaderName,
+      from: workerName,
+      text: JSON.stringify(message),
+      timestamp: new Date().toISOString(),
+      ...(workerColor !== undefined ? { color: workerColor } : {}),
+    })
   } catch (error) {
     logError(error)
     return false
@@ -502,15 +488,12 @@ export async function sendSandboxPermissionResponseViaMailbox(
       return false
     }
     const message = createSandboxPermissionResponseMessage({ requestId, host, allow })
-    return await writeToMailbox(
-      workerName,
-      {
-        from: getAgentName() ?? CREW_LEAD_NAME,
-        text: JSON.stringify(message),
-        timestamp: new Date().toISOString(),
-      },
-      crew,
-    )
+    return await sendLiveMessage(crew, {
+      to: workerName,
+      from: getAgentName() ?? CREW_LEAD_NAME,
+      text: JSON.stringify(message),
+      timestamp: new Date().toISOString(),
+    })
   } catch (error) {
     logError(error)
     return false

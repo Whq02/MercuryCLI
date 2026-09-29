@@ -13,7 +13,7 @@ import {
   isPlanModeRequired,
   isTeammate,
 } from '../../utils/crewmate.js'
-import { writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import {
@@ -150,18 +150,19 @@ export const ExitPlanModeV2Tool = buildTool({
       const agentName = getAgentName() ?? 'teammate'
       const teamName = getCrewName()
       const requestId = `plan-approval-${agentName}-${Date.now().toString(36)}`
-      await writeToMailbox(
-        teamName ? `lead@${teamName}` : 'lead',
-        {
+      await sendLiveMessage(teamName, {
+        to: teamName ? `lead@${teamName}` : 'lead',
+        from: agentName,
+        timestamp: new Date().toISOString(),
+        text: JSON.stringify({
           type: 'plan_approval_request',
           from: agentName,
           timestamp: new Date().toISOString(),
           planFilePath: filePath,
           planContent: plan,
           requestId,
-        } as never,
-        teamName,
-      )
+        }),
+      })
       const taskId = findInProcessCrewmateTaskId(
         agentName,
         context.getAppState(),

@@ -53,9 +53,9 @@ const freshHome = (): void => {
   process.env.MERCURY_CONFIG_DIR = h
 }
 try {
-  const mailbox = await import('../../src/utils/crewmateMailbox.js')
+  const { sendLiveMessage, unreadLiveMessagesFor } = await import('../../src/services/crew/liveComms.js')
   const seed = (from: string, env: ReturnType<typeof bus.buildDispatch> | ReturnType<typeof bus.buildEscalate> | ReturnType<typeof bus.buildControl> | ReturnType<typeof bus.buildNote> | ReturnType<typeof bus.buildProgress>) =>
-    mailbox.writeToMailbox(WORKER, { from, text: bus.serializeBusEnvelope(env), timestamp: new Date().toISOString() }, CREW)
+    sendLiveMessage(CREW, { to: WORKER, from, text: bus.serializeBusEnvelope(env), timestamp: new Date().toISOString() })
   const recorder = () => {
     const replies: Array<{ short: string; text: string }> = []
     return { replies, roster: { reply: async (short: string, text: string) => { replies.push({ short, text }); return true } } }
@@ -79,7 +79,7 @@ try {
   {
     const d0 = await drainMod.drainDispatches({ reply: async () => false }, drainOpts)
     check('reply-fail ⇒ delivered 0', d0 === 0)
-    const stillUnread = await mailbox.readUnreadMessages(WORKER, CREW)
+    const stillUnread = await unreadLiveMessagesFor(CREW, WORKER)
     check('reply-fail ⇒ dispatch LEFT UNREAD for retry (not lost)', stillUnread.some(m => bus.parseBusEnvelope(m.text)?.kind === 'dispatch'))
     const d1 = await drainMod.drainDispatches({ reply: async () => true }, drainOpts)
     check('retry after recovery ⇒ delivered 1 (at-least-once held)', d1 === 1)
@@ -109,8 +109,8 @@ try {
 
   freshHome()
   await seed(LEAD, bus.buildNote(LEAD, 'read the spec first'))
-  await mailbox.writeToMailbox(WORKER, { from: LEAD, text: 'plain human reply', timestamp: new Date().toISOString() }, CREW)
-  await mailbox.writeToMailbox(WORKER, { from: WORKER, text: 'my own echo', timestamp: new Date().toISOString() }, CREW)
+  await sendLiveMessage(CREW, { to: WORKER, from: LEAD, text: 'plain human reply', timestamp: new Date().toISOString() })
+  await sendLiveMessage(CREW, { to: WORKER, from: WORKER, text: 'my own echo', timestamp: new Date().toISOString() })
   {
     const { replies, roster } = recorder()
     const d = await drainMod.drainDispatches(roster, { ...drainOpts, isBusy: () => true })
@@ -151,11 +151,11 @@ try {
     const { replies, roster } = recorder()
     const d = await drainMod.drainDispatches(roster, { ...drainOpts, hasSeen: id => id === seenOnce.request_id, markSeen: () => {} })
     check('a dispatch the roster already saw is consumed without a stdin write', d === 0 && replies.length === 0)
-    const unread = await mailbox.readUnreadMessages(WORKER, CREW)
+    const unread = await unreadLiveMessagesFor(CREW, WORKER)
     check('…and marked read (no retry loop)', !unread.some(m => bus.parseBusEnvelope(m.text)?.request_id === seenOnce.request_id))
   }
 } catch (e) {
-  check('drain test ran (crewmateMailbox loadable)', false, String(e).split('\n')[0])
+  check('drain test ran (liveComms loadable)', false, String(e).split('\n')[0])
 } finally {
   delete process.env.MERCURY_CONFIG_DIR
 }

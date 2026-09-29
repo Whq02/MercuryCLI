@@ -309,7 +309,7 @@ check('the crew ran and landed on the wire (parent → two seats → the ack)', 
 const landed = marks['landed'] ?? ''
 check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('agents finished') && attributesCrew(landed))
 const crewLanded = marks['crew-landed'] ?? ''
-check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running · 2 sub-agents'))
+check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Sub-agents (2)'))
 const fresh = marks['fresh'] ?? ''
 check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('agents finished'))
 check('the born session names no seat of the previous session (the CREW lane, the transcript)', !namesSeat(fresh), fresh.split('\n').filter(l => namesSeat(l)).join(' | '))

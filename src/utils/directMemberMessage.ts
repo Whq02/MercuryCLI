@@ -4,16 +4,16 @@ type StructuralCrewContext = {
   crewmates: Record<string, { name: string }>
 }
 
-type MailboxWriter = (
-  recipient: string,
+type LiveMessageSender = (
+  crew: string | undefined,
   message: {
+    to: string
     from: string
     text: string
     timestamp: string
     color?: string
     summary?: string
   },
-  teamName?: string,
 ) => Promise<boolean | void>
 
 export type DirectMessageResult =
@@ -36,9 +36,9 @@ export async function sendDirectMemberMessage(
   recipientName: string,
   message: string,
   crewContext: StructuralCrewContext | null | undefined,
-  writeToMailbox?: MailboxWriter,
+  send?: LiveMessageSender,
 ): Promise<DirectMessageResult> {
-  if (!crewContext || !writeToMailbox) {
+  if (!crewContext || !send) {
     return { success: false, error: 'no_team_context' }
   }
   const recipient = Object.values(crewContext.crewmates).find(
@@ -47,10 +47,6 @@ export async function sendDirectMemberMessage(
   if (!recipient) {
     return { success: false, error: 'unknown_recipient', recipientName }
   }
-  await writeToMailbox(
-    recipientName,
-    { from: 'user', text: message, timestamp: new Date().toISOString() },
-    crewContext.teamName,
-  )
+  await send(crewContext.teamName, { to: recipientName, from: 'user', text: message, timestamp: new Date().toISOString() })
   return { success: true, recipientName }
 }

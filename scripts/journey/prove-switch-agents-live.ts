@@ -417,7 +417,7 @@ async function switchLeg(): Promise<void> {
   }
   for (const label of ['crew-launched', 'crew-opus', 'crew-fable']) {
     const frame = marks[label] ?? ''
-    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\bRunning\b/) && agentRow(frame, SEAT_TWO, /\bRunning\b/) && frame.includes('2 running · 2 sub-agents'))
+    check(`${tag}: the Crew view at '${label}' — both rows running, the count label`, agentRow(frame, SEAT_ONE, /\bRunning\b/) && agentRow(frame, SEAT_TWO, /\bRunning\b/) && frame.includes('crew · 2 running') && frame.includes('Sub-agents (2)'))
   }
   check(`${tag}: the transcript carries the registry's own words after each switch`, (marks['after-opus'] ?? '').includes('check 1: registry says 2 task(s) · 2 running') && (marks['after-fable'] ?? '').includes('check 2: registry says 2 task(s) · 2 running'))
   if (failures > before && !KEEP) for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame, COLS)
@@ -478,7 +478,7 @@ async function restartLeg(): Promise<void> {
   check(`${tag}: the Inspect answer landed within ${INSPECT_BOUND_MS} ms at ${COLS}×${ROWS}`, ack !== undefined && (ack.inspectMs ?? Infinity) < INSPECT_BOUND_MS, `${ack?.inspectMs}ms`)
   const crew = marks['crew-restart'] ?? ''
   const crewRows = crew.split('\n').filter(line => line.includes(SEAT_ONE) || line.includes(SEAT_TWO) || line.includes('sub-agents'))
-  check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('2 running · 2 sub-agents'), crewRows.map(flat).join(' | ').slice(0, 300))
+  check(`${tag}: the Crew view reads both agents running again — never stopped, never the store's word`, agentRow(crew, SEAT_ONE, /\bRunning\b/) && agentRow(crew, SEAT_TWO, /\bRunning\b/) && !crewRows.some(line => /\b(killed|stopped)\b/.test(line)) && crew.includes('crew · 2 running') && crew.includes('Sub-agents (2)'), crewRows.map(flat).join(' | ').slice(0, 300))
   check(`${tag}: the registry's own rows read running, never the store's word`, /\(running · harbour/.test(flat(marks['after-restart'] ?? '')) && /\(running · lantern/.test(flat(marks['after-restart'] ?? '')) && !(marks['after-restart'] ?? '').includes('killed'), flat(marks['after-restart'] ?? '').slice(0, 300))
   const afterRestart = flat((marks['after-restart'] ?? '').replace(/^│ ?/gm, ''))
   check(`${tag}: the transcript carries the registry's words and the notice count`, afterRestart.includes('check 1: registry says 2 task(s) · 2 running') && afterRestart.includes('notices 0'), afterRestart.slice(0, 300))

@@ -65,9 +65,9 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
   )
   check('operator line 1 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-1 first operator line', s.store.setAppState as never))
   check('operator line 2 accepted mid-turn', h.injectUserMessageToCrewmate(s.taskId, 'MAIL-OP-2 second operator line', s.store.setAppState as never))
-  await h.writeToMailbox('probe7', { from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() }, crew)
-  await h.writeToMailbox('probe7', { from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() }, crew)
-  check('the mail is queued, unread, while the turn still hangs', (await h.readMailbox('probe7', crew)).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
+  await h.sendLiveMessage(crew, { to: 'probe7', from: 'peer-b', text: 'MAIL-PEER a peer note', timestamp: new Date().toISOString() })
+  await h.sendLiveMessage(crew, { to: 'probe7', from: 'team-lead', text: 'MAIL-LEAD the lead speaks', timestamp: new Date().toISOString() })
+  check('the mail is queued, unread, while the turn still hangs', (await h.liveMessagesFor(crew, 'probe7')).filter(m => !m.read).length === 2 && s.api.messageRequests().length === 1)
 
   const abortedAt = Date.now()
   const pulse = setInterval(() => {
@@ -89,7 +89,7 @@ section(`mail queued while working is delivered AT the interrupt; the teammate c
     return typeof c === 'string' ? c : Array.isArray(c) ? c.map(b => (b as { text?: string }).text ?? '').join(' ') : ''
   }
   const turns = s.api.messageRequests().slice(1).map(lastUserText)
-  check('every queued message was delivered (none left unread)', (await h.readMailbox('probe7', crew)).every(m => m.read) && (task(s.store, s.taskId).pendingUserMessages ?? []).length === 0)
+  check('every queued message was delivered (none left unread)', (await h.liveMessagesFor(crew, 'probe7')).every(m => m.read) && (task(s.store, s.taskId).pendingUserMessages ?? []).length === 0)
   check(
     "the runner's order: operator lines first, then the lead, then peers",
     turns[0]?.includes('MAIL-OP-1') === true && turns[1]?.includes('MAIL-OP-2') === true && turns[2]?.includes('MAIL-LEAD') === true && turns[3]?.includes('MAIL-PEER') === true,

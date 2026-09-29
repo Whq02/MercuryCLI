@@ -10,7 +10,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
 const cc = (await import('../../src/utils/crew/crewClient.js')) as typeof import('../../src/utils/crew/crewClient.js')
-const { writeToMailbox, readMailbox } = await import('../../src/utils/crewmateMailbox.js')
+const { sendLiveMessage, liveMessagesFor } = await import('../../src/services/crew/liveComms.js')
 process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 ;(await import('../../src/utils/config.js')).enableConfigs()
 ;(await import('../../src/utils/accounts/signInLedger.js')).recordSignIn('anthropic', 'api-key')
@@ -39,12 +39,12 @@ check('member models are the seat-resolved ids (sonnet → claude-sonnet-5-5, op
 
 check('sendCrewMessage writes the operator frame', (await cc.sendCrewMessage('atlas', '  hi atlas  ')) === true)
 check('blank message refused (no ghost writes)', (await cc.sendCrewMessage('atlas', '   ')) === false)
-const atlasInbox = await readMailbox('atlas', 'crew')
+const atlasInbox = await liveMessagesFor('crew', 'atlas')
 check('teammate inbox: one frame, from team-lead, trimmed', atlasInbox.length === 1 && atlasInbox[0]!.from === 'team-lead' && atlasInbox[0]!.text === 'hi atlas')
 
 const later = (ms: number) => new Date(Date.now() + ms).toISOString()
-await writeToMailbox('team-lead', { from: 'atlas', text: 'reply from atlas', timestamp: later(5000) }, 'crew')
-await writeToMailbox('team-lead', { from: 'beacon', text: 'reply from beacon', timestamp: later(6000) }, 'crew')
+await sendLiveMessage('crew', { to: 'team-lead', from: 'atlas', text: 'reply from atlas', timestamp: later(5000) })
+await sendLiveMessage('crew', { to: 'team-lead', from: 'beacon', text: 'reply from beacon', timestamp: later(6000) })
 
 section('readCrewChat — the merged, time-ordered transcript')
 const chat = await cc.readCrewChat('atlas')
@@ -60,7 +60,7 @@ await cc.markCrewChatRead('atlas')
 const after = await cc.crewUnreadCounts()
 check('after viewing atlas: atlas 0', (after.get('atlas') ?? 0) === 0)
 check("beacon's badge SURVIVES (the isolation contract)", (after.get('beacon') ?? 0) === 1)
-const leadInbox = await readMailbox('team-lead', 'crew')
+const leadInbox = await liveMessagesFor('crew', 'team-lead')
 check('underlying flags: atlas read, beacon unread', leadInbox.find(m => m.from === 'atlas')?.read === true && !leadInbox.find(m => m.from === 'beacon')?.read)
 const chatAfter = await cc.readCrewChat('atlas')
 check('transcript reflects the read flag', chatAfter[1]?.read === true)

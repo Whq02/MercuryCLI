@@ -247,7 +247,7 @@ export async function getAttachments(
             ? []
             : [
                 maybe(
-                  'teammate_mailbox',
+                  'crew_messages',
                   async () => getCrewmateMailboxAttachments(toolUseContext),
                   { priority: true },
                 ),

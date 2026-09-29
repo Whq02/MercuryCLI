@@ -18,7 +18,7 @@
 # gate-watch: src/components/mercury-ui/components.tsx
 # gate-watch: src/components/mercury-ui/parity/DaemonSupervisorView.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/context/stats.tsx src/entrypoints/mcp.ts
-# gate-watch: src/hooks/useInboxPoller.ts src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
+# gate-watch: src/prompt/behaviourContract.ts src/prompt/mercuryContract.ts
 # gate-watch: src/screens/REPL.tsx src/services/compact/* src/services/coordination/coordinationService.ts
 # gate-watch: src/services/gitGraph/observe.ts src/services/primitives/executionPlane.ts
 # gate-watch: src/services/projectIntel/snapshot.ts src/services/providers/anthropic/requestParams.ts
@@ -29,6 +29,7 @@
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
 # gate-watch: src/utils/crew/crewBirth.ts src/replLauncher.tsx
+# gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/types/command.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

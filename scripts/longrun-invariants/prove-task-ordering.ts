@@ -111,7 +111,7 @@ section('§D the guard and the mail sit where the laws say')
     'utf8',
   )
   check('assignment mail sits AFTER the applied-update check (no mail for a lost write)',
-    upd.indexOf('nothing was applied') !== -1 && upd.indexOf('nothing was applied') < upd.indexOf('await writeToMailbox('))
+    upd.indexOf('nothing was applied') !== -1 && upd.indexOf('nothing was applied') < upd.indexOf('await sendLiveMessage('))
 }
 
 await resetTaskList(LIST)

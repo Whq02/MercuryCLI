@@ -2,15 +2,12 @@
 import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import Link from '../../ink/components/Link.js'
-import type { Attachment } from '../../utils/attachments/types.js'
+import { isCrewMessagesAttachment, type Attachment } from '../../utils/attachments/types.js'
 import { stoppedContinuationMessage } from '../../utils/attachments/stoppedContinuation.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import {
-  isIdleNotification,
-  isShutdownApproved,
-} from '../../utils/crewmateMailbox.js'
+import { isIdleNotification, isShutdownApproved } from '../../services/crew/liveMessages.js'
 import { toInkColor } from '../../utils/ink.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
@@ -91,7 +88,7 @@ export function AttachmentMessage({
   isTranscriptMode?: boolean
 }): React.ReactNode {
   const selectedBg = useSelectedMessageBg()
-  if (attachment.type === 'teammate_mailbox') {
+  if (isCrewMessagesAttachment(attachment)) {
     if (!isAgentSwarmsEnabled()) return null
     const surviving = attachment.messages.filter(message => {
       if (isIdleNotification(message.text)) return false

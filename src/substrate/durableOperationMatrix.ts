@@ -220,7 +220,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     domain: 'mailbox',
     stateClass: 'authority',
     migrated: true,
-    operation: 'writeToMailbox — locked append + inline compaction',
+    operation: 'sendLiveMessage — locked append + inline compaction',
     ownerKey: 'recipient agent name + team',
     files: ['<config home>/crew/livecomms/<crew>.json — the recipient rows in the one crew file (FileStore locked mutate)'],
     projections: [],
@@ -229,12 +229,12 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'durable per-message id + per-inbox monotonic seq (Slice 4b), assigned under the append lock',
     publication: 'inbox rename + 1s poll floor; revisionOf = max seq (revision-aware subscribers)',
     recovery:
-      'Slice 4b: every message carries a durable id + seq (legacy readers ignore the additive fields; legacy messages stay readable); markSpecificMessageAsRead keys on the exact id (content key = legacy fallback). Slice 2 closed the FC5 half: a damaged inbox is QUARANTINED before the next send can republish; compaction still only drops READ messages.',
+      'Slice 4b: every message carries a durable id + seq (legacy readers ignore the additive fields; legacy messages stay readable); markLiveMessageRead keys on the exact id (content key = legacy fallback). Slice 2 closed the FC5 half: a damaged inbox is QUARANTINED before the next send can republish; compaction still only drops READ messages.',
     interruptionWindows: [
       'W2 (closed, Slice 2): damaged inbox + send — quarantined + ledgered before any republish',
     ],
     failureClass: ['FC4-mailbox-act-before-ack', 'FC5-corrupt-store-empty-overwrite'],
-    source: ['src/utils/crewmateMailbox.ts:66', 'src/services/crew/liveComms.ts:200'],
+    source: ['src/services/crew/liveComms.ts:320'],
   },
   {
     id: 'mailbox-consume',
@@ -269,7 +269,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     domain: 'mailbox',
     stateClass: 'authority',
     migrated: true,
-    operation: 'markMessagesAsRead family (markMessagesFromAsRead, markSpecificMessageAsRead, markMessagesAsReadByPredicate)',
+    operation: 'markLiveMessagesRead family (markLiveMessagesFromRead, markLiveMessageRead, markLiveMessagesReadWhere)',
     ownerKey: 'agent name + team',
     files: ['<config home>/crew/livecomms/<crew>.json'],
     projections: ['unread badges (UI)'],
@@ -281,7 +281,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'single-record atomic — safe per write; the content-key mark can still mis-target one of two byte-identical messages (no id).',
     interruptionWindows: ['W1: none beyond the kernel windows (single record)'],
     failureClass: ['FC4-mailbox-act-before-ack'],
-    source: ['src/utils/crewmateMailbox.ts:170', 'src/services/crew/liveComms.ts:232'],
+    source: ['src/services/crew/liveComms.ts:410', 'src/services/crew/liveComms.ts:232'],
   },
   {
     id: 'run-sidecar-save',

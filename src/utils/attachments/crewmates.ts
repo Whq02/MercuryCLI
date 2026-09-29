@@ -14,14 +14,8 @@ import {
   isCrewLead,
 } from '../crewmate.js'
 import { isInProcessCrewmate } from '../crewmateContext.js'
-import {
-  isIdleNotification,
-  isShutdownApproved,
-  isStructuredProtocolMessage,
-  markMessagesAsReadByPredicate,
-  readUnreadMessages,
-  resolveShutdownApprovedVictim,
-} from '../crewmateMailbox.js'
+import { markLiveMessagesReadWhere, unreadLiveMessagesFor } from '../../services/crew/liveComms.js'
+import { isIdleNotification, isShutdownApproved, isStructuredProtocolMessage, resolveShutdownApprovedVictim } from '../../services/crew/liveMessages.js'
 import type { Attachment } from './types.js'
 
 export async function getCrewmateMailboxAttachments(
@@ -62,7 +56,7 @@ export async function getCrewmateMailboxAttachments(
     `[SwarmMailbox] Checking inbox for agent="${agentName}" team="${teamName || 'default'}"`,
   )
 
-  const allUnreadMessages = await readUnreadMessages(agentName!, teamName)
+  const allUnreadMessages = await unreadLiveMessagesFor(teamName, agentName!)
   const unreadMessages = allUnreadMessages.filter(
     m => !isStructuredProtocolMessage(m.text),
   )
@@ -133,7 +127,7 @@ export async function getCrewmateMailboxAttachments(
 
   const attachment: Attachment[] = [
     {
-      type: 'teammate_mailbox',
+      type: 'crew_messages',
       messages: allMessages,
     },
   ]
@@ -142,13 +136,9 @@ export async function getCrewmateMailboxAttachments(
     const deliveredKeys = new Set(
       unreadMessages.map(m => `${m.from} ${m.timestamp} ${m.text}`),
     )
-    await markMessagesAsReadByPredicate(
-      agentName!,
-      m =>
+    await markLiveMessagesReadWhere(teamName, agentName!, m =>
         !isStructuredProtocolMessage(m.text) &&
-        deliveredKeys.has(`${m.from} ${m.timestamp} ${m.text}`),
-      teamName,
-    )
+        deliveredKeys.has(`${m.from} ${m.timestamp} ${m.text}`))
     logForDebugging(
       `[MailboxBridge] marked ${unreadMessages.length} non-structured message(s) as read for agent="${agentName}" team="${teamName || 'default'}"`,
     )

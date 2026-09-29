@@ -18,7 +18,7 @@ import {
   settleWithin,
   task,
   waitFor,
-  writeToMailbox,
+  sendLiveMessage,
   allDrained,
 } from './lib/runnerLifecycleHarness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
@@ -98,7 +98,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   check("EXACTLY-ONCE: one 'completed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'completed', JSON.stringify(bookends))
   check('the bookend carries the spawning toolUseId', bookends[0]?.tool_use_id === 'toolu_probe1', bookends[0]?.tool_use_id)
 
-  await writeToMailbox('probe1', { from: 'team-lead', text: 'anyone home?', timestamp: new Date().toISOString() }, crew)
+  await sendLiveMessage(crew, { to: 'probe1', from: 'team-lead', text: 'anyone home?', timestamp: new Date().toISOString() })
   await new Promise(r => setTimeout(r, 700))
   check('no revival after terminal: status unchanged', task(s.store, s.taskId).status === 'completed')
   check('no revival after terminal: no new model calls', s.api.messageRequests().length === 1)
@@ -123,7 +123,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
   })
 
   check('turn 1 completes', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000))
-  await writeToMailbox('probe2', { from: 'team-lead', text: 'keep going', timestamp: new Date().toISOString() }, crew)
+  await sendLiveMessage(crew, { to: 'probe2', from: 'team-lead', text: 'keep going', timestamp: new Date().toISOString() })
 
   const result = await settleWithin(s.runPromise, s, '§3')
   drainInto()
@@ -270,7 +270,7 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
     await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'interrupted'), 10_000),
   )
 
-  await writeToMailbox('probe6', { from: 'team-lead', text: 'go again', timestamp: new Date().toISOString() }, crew)
+  await sendLiveMessage(crew, { to: 'probe6', from: 'team-lead', text: 'go again', timestamp: new Date().toISOString() })
   check(
     'the teammate revives and completes the next turn',
     await waitFor(

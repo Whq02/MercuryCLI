@@ -169,11 +169,6 @@ addressed by name), its tasks and who is busy. There is no file per member.
 Every row is validated on read and unknown fields are tolerated, so a build of
 another vintage reads the same file.
 
-One delivery rule guards permission posture: inbound crewmate messages
-arriving while the session runs in a bypass-permissions mode are held,
-visibly, until the operator returns to a prompting mode
-(`MERCURY_INBOX_HOLD_BYPASS`); in prompting modes messages deliver as always.
-
 ## File claims
 
 A file claim marks a file as one crewmate's, visible live to every crewmate

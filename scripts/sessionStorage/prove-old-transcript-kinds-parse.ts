@@ -169,6 +169,10 @@ check('the old message row still composes its messages for the model', mailboxTe
 const crewMessagesRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')?.attachment
 const crewMessagesText = crewMessagesRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(crewMessagesRow as never)
 check('the crew kind written now composes the same envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
+check('the shutdown row composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI({ type: 'crewmate_shutdown_batch', count: 2 } as never)))
+const mailboxMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')
+const crewMessagesMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')
+check('the old message row and the crew kind written now both paint on screen (neither is a null-rendering kind)', mailboxMessage !== undefined && nullRendering.isNullRenderingAttachment(mailboxMessage as never) === false && crewMessagesMessage !== undefined && nullRendering.isNullRenderingAttachment(crewMessagesMessage as never) === false)
 const createRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_teamcreate'))
 const createInput = ((createRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
 check('the recorded row of a removed tool keeps its input as recorded (it paints; it never runs)', createInput.team_name === TEAM && !('crew_name' in createInput), JSON.stringify(createInput))
