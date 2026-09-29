@@ -48,7 +48,7 @@ export MERCURY_CONFIG_DIR="$scratch_home"
 unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_WORKER_RECON_ALLOW 2>/dev/null || true
 trap 'rm -rf "$scratch_home"; suite_home_cleanup' EXIT
 echo "############################################################"
-echo "# Crew teammates — proof harness"
+echo "# Crewmates — proof harness"
 echo "############################################################"
 shopt -s nullglob
 globs=("$here"/prove-*.ts)
