@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the preview layout at 44 columns (raw 30-col left panel + 4 gap ⇒ 10 cells for preview)",
  "cols": 44,
  "rows": 44,
- "capturedAt": "2026-09-29T02:09:09.580Z",
+ "capturedAt": "2026-09-29T13:26:58.546Z",
  "screens": [
   {
    "atMs": 12500,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-5D7Zjz · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-CCoryM · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:09:01 [sam] ❯ design the cache layer",
+    "14:26:56 [sam] ❯ design the cache layer",
     "",
-    "03:09:02 [Mercury] Let me confirm the open",
+    "14:26:56 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -58,13 +58,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-5D7Zjz · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-CCoryM · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:09:01 [sam] ❯ design the cache layer",
+    "14:26:56 [sam] ❯ design the cache layer",
     "",
-    "03:09:02 [Mercury] Let me confirm the open",
+    "14:26:56 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -106,17 +106,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 6207,
-   "frame-recommit": 14,
+   "patches": 6294,
+   "frame-recommit": 29,
    "tail-publish": 2
   },
   "frames": {
-   "total": 28,
-   "window": 28,
-   "p50": 1.1421669999999722,
-   "p95": 9.734000000000037,
-   "p99": 10.039708000000246,
-   "maxMs": 10.039708000000246
+   "total": 43,
+   "window": 43,
+   "p50": 3.6818330000005517,
+   "p95": 25.24645799999962,
+   "p99": 82.43262500000037,
+   "maxMs": 82.43262500000037
   }
  },
  "requests": [
@@ -128,7 +128,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -151,11 +151,11 @@
  ],
  "sends": [
   {
-   "atMs": 6605.509996414185,
+   "atMs": 11245.512008666992,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7405.509996414185,
+   "atMs": 12045.512008666992,
    "b64": "DQ=="
   }
  ]

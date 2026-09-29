@@ -1,7 +1,10 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import { killProcessGroup } from '../utils/processGroup.js'
+import { getProjectDir } from '../utils/sessionStoragePortable.js'
 import {
   assertSpawnCwd,
   recordSpawn,
@@ -179,6 +182,16 @@ export interface StreamJsonChildSpec {
   respawnExtraArgv?: readonly string[]
   plainIdentity?: boolean
   stripEnv?: readonly string[]
+  sessionPin?: { sessionId: string; cwd: string }
+}
+
+export function crewSeatTranscriptPath(pin: { sessionId: string; cwd: string }): string {
+  return join(getProjectDir(pin.cwd), `${pin.sessionId}.jsonl`)
+}
+
+export function sessionPinArgv(pin: { sessionId: string; cwd: string } | undefined): string[] {
+  if (pin === undefined) return []
+  return existsSync(crewSeatTranscriptPath(pin)) ? ['--resume', pin.sessionId] : ['--session-id', pin.sessionId]
 }
 
 export function buildStreamJsonInvocation(
@@ -216,6 +229,7 @@ export function buildStreamJsonInvocation(
           spec.agentId,
         ]),
     ...((opts?.respawn ? (spec.respawnExtraArgv ?? spec.extraArgv) : spec.extraArgv) ?? []),
+    ...sessionPinArgv(spec.sessionPin),
   ]
   const inherited: NodeJS.ProcessEnv = { ...process.env }
   for (const v of spec.stripEnv ?? []) {

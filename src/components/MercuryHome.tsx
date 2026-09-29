@@ -30,6 +30,7 @@ import { deckPaintsDock } from './DeckPane.js'
 import { cycleSessionCritter, useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { branchChip } from './mercury-ui/glyphs.js'
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
+import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 
 
 export function PinnedCritterBerth(): React.ReactNode {
@@ -270,7 +271,7 @@ function MercuryHomeBody(): React.ReactNode {
           <Text color={tok.textSecondary}> sends</Text>
           {
 }
-          <Text color={tok.textMuted}>{'  ·  /workflows /teammates /saturn /health /cockpit /trace'}</Text>
+          <Text color={tok.textMuted}>{`  ·  /workflows ${CREW_VIEW_DOOR} /saturn /health /cockpit /trace`}</Text>
         </Text>
       </Box>
     </Box>

@@ -67,6 +67,8 @@ export interface RosterEntry {
   cliVersion: string
   outcome?: string
   via?: string
+  cwd?: string
+  worktree?: string
 }
 
 const DELIVERED_ID_CAP = 500
@@ -292,6 +294,7 @@ export class TaskRoster {
     short: string,
     spec: StreamJsonChildSpec,
     opts?: Partial<LongLivedSupervisorConfig>,
+    start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string } {
     const existing = this.handles.get(short)
     if (existing && !existing.entry.outcome) {
@@ -315,6 +318,8 @@ export class TaskRoster {
       startedAt: Date.now(),
       cliVersion: currentVersion(),
       via: 'stream-json',
+      ...(start !== undefined ? { cwd: start.cwd } : spec.cwd !== undefined ? { cwd: spec.cwd } : {}),
+      ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
     }
     this.handles.set(short, { entry, done: Promise.resolve(), longLived: ll })
     const pid = this.spawnLongLived(short)

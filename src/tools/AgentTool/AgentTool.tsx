@@ -43,7 +43,7 @@ import {
 import { assembleToolPool } from '../../tools.js'
 import { generateTaskId } from '../../Task.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
-import { asAgentId, type AgentId } from '../../types/ids.js'
+import type { AgentId } from '../../types/ids.js'
 import {
   runWithAgentContext,
   type SubagentContext,
@@ -57,10 +57,6 @@ import { subagentConcurrencyCap, subagentDefaultEffort } from '../../utils/agent
 import { filterDeniedAgents } from '../../utils/permissions/decision/rules.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
-import {
-  readAgentMetadata,
-  writeAgentMetadata,
-} from '../../utils/sessionStorage.js'
 import {
   buildAgentLaunchPlan,
 } from '../../utils/swarm/agentLaunchPlan.js'
@@ -81,14 +77,15 @@ import { isInProcessTeammate } from '../../utils/teammateContext.js'
 import {
   createAgentWorktree,
   preflightWorktreeCapability,
-  settleAgentWorktree,
 } from '../../utils/worktree.js'
+import { crewWorktreeLeftoverNoted, crewWorktreeLeftoverOf, crewWorktreeReminderTail, noteCrewWorktreeLeftover } from '../../utils/crew/crewWorktreeReminder.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { createUserMessage } from '../../utils/messages.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { spawnTeammate } from '../shared/spawnMultiAgent.js'
+import { recordCrewStart } from '../../utils/crew/crewStart.js'
 import {
   runForegroundAgentExecution,
   type ForegroundAgentMetadata,
@@ -465,7 +462,7 @@ export const AgentTool = buildTool({
   },
   async checkPermissions(input: AgentToolInput, context: ToolUseContext) {
     const question =
-      input.cwd !== undefined && !isTeammateSpawn(input)
+      input.cwd !== undefined
         ? agentCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
         : null
     if (question !== null) return question
@@ -545,7 +542,10 @@ export const AgentTool = buildTool({
     }
 
     if (isTeammateSpawn(input, teamName)) {
-      if (input.cwd !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
+      const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
+      if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
+        throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
+      }
       const requestedType = decodeAgentType(input.subagent_type)
       if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
@@ -562,6 +562,10 @@ export const AgentTool = buildTool({
           name: input.name,
           prompt: input.prompt,
           team_name: teamName,
+          ...(crewmateCwd !== undefined ? { cwd: crewmateCwd } : {}),
+          ...(input.isolation === 'worktree'
+            ? { worktree: { ...(input.worktree_at !== undefined ? { at: input.worktree_at } : {}) } }
+            : {}),
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(teammateModel ? { model: teammateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),
@@ -581,7 +585,7 @@ export const AgentTool = buildTool({
           status: 'teammate_spawned',
           agentId: record.agent_id,
           agentName: input.name,
-          teamName,
+          teamName: record.team_name ?? teamName,
           prompt: input.prompt,
           description: input.description,
         } as never,
@@ -761,6 +765,12 @@ export const AgentTool = buildTool({
     } else if (input.worktree_at !== undefined) {
       throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
     }
+    recordCrewStart(earlyAgentId, {
+      name: input.name ?? input.description,
+      cwd: cwdParam ?? getCwd(),
+      worktree: worktreeInfo?.worktreePath ?? null,
+      model: plan.model,
+    })
 
     let cleanupDone = false
     const cleanupWorktreeIfNeeded = async (): Promise<{
@@ -773,31 +783,23 @@ export const AgentTool = buildTool({
         logForDebugging('AgentTool: worktree kept (hook-created)')
         return { worktreePath: worktreeInfo.worktreePath }
       }
-      const receipt = await settleAgentWorktree({ ...worktreeInfo })
-      if (receipt.outcome === 'settled') {
-        void readAgentMetadata(asAgentId(earlyAgentId))
-          .then(recorded => {
-            const kept = { ...recorded }
-            delete kept.worktreePath
-            return writeAgentMetadata(asAgentId(earlyAgentId), {
-              ...kept,
-              agentType: agentDef.agentType,
-              model: plan.model,
-              ...(input.description ? { description: input.description } : {}),
-            })
-          })
-          .catch(error =>
-            logForDebugging(
-              `AgentTool: settled-worktree metadata write failed: ${errorMessage(error)}`,
-            ),
-          )
-        return {}
+      try {
+        const leftover = await crewWorktreeLeftoverOf(
+          {
+            name: input.name ?? input.description,
+            path: worktreeInfo.worktreePath,
+            ...(worktreeInfo.worktreeBranch !== undefined ? { branch: worktreeInfo.worktreeBranch } : {}),
+            ...(worktreeInfo.gitRoot !== undefined ? { gitRoot: worktreeInfo.gitRoot } : {}),
+          },
+          Date.now(),
+        )
+        noteCrewWorktreeLeftover(leftover)
+        logForDebugging(`AgentTool: worktree kept (${leftover.state}): ${leftover.detail}`)
+      } catch (error) {
+        logForDebugging(`AgentTool: the worktree's leftover could not be read: ${errorMessage(error)}`)
       }
-      logForDebugging(
-        `AgentTool: worktree kept (${receipt.outcome})${'summary' in receipt ? `: ${receipt.summary}` : ''}`,
-      )
       return {
-        worktreePath: receipt.worktreePath,
+        worktreePath: worktreeInfo.worktreePath,
         ...(worktreeInfo.worktreeBranch
           ? { worktreeBranch: worktreeInfo.worktreeBranch }
           : {}),
@@ -1130,8 +1132,9 @@ export const AgentTool = buildTool({
       }
       const trailerParts = [continuationHint(String(data.agentId ?? ''))]
       if (data.worktreePath) {
+        const leftover = crewWorktreeLeftoverNoted(data.worktreePath)
         trailerParts.push(
-          `Worktree kept: ${data.worktreePath}${data.worktreeBranch ? ` (branch ${data.worktreeBranch})` : ''}`,
+          `Worktree kept: ${data.worktreePath}${data.worktreeBranch ? ` (branch ${data.worktreeBranch})` : ''}${leftover !== null ? ` — ${crewWorktreeReminderTail(leftover, Date.now())}` : ''}`,
         )
       }
       trailerParts.push(usageBlock(data))

@@ -7,6 +7,7 @@ import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { displayWidth, GLYPH } from './mercury-ui/glyphs.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
+import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 
 export type Teammate = { name: string; role: string; state: 'busy' | 'idle' | 'drift'; glyph: string }
 type Msg = { who: 'you' | 'agent'; at: string; text: string }
@@ -41,7 +42,7 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
     return (
       <Box flexDirection="column" paddingX={1}>
         <Text bold color={TERRA}>fleet</Text>
-        <Text color={FAINT}>{'· no named agents yet — spawn one from /teammates to chat'}</Text>
+        <Text color={FAINT}>{`· no named agents yet — spawn one from ${CREW_VIEW_DOOR} to chat`}</Text>
         <Text color={FAINT}>esc exit</Text>
       </Box>
     )

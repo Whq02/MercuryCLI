@@ -444,7 +444,7 @@ Available commands include:
 - **MCPs & Skills.** Per-repository configuration for what sessions load,
   with named presets and controls you can change during a session. See
   [docs/KIT.md](docs/KIT.md).
-- **Agents and teams.** Chat with named agents, create agent definitions in
+- **Agents and the crew.** Chat with named crewmates, create agent definitions in
   the agent studio, and follow agents and workflow runs in their status
   views. See [docs/TEAMS.md](docs/TEAMS.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
@@ -505,7 +505,7 @@ the live list can also include skills and extension commands.
 | Domain | Commands |
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` `/supervisor` |
-| crew & delegation | `/agents` `/subagents` `/teammates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
+| crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/team` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/add-dir` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |

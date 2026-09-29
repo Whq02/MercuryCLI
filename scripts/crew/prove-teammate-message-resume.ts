@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
+import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { apiRefusalOf, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, TURN_MS, type Frame } from './team-world.ts'
+import { bootLead, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, TURN_MS, type Frame } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
-const team = 'message-resume-team'
+const sessionId = randomUUID()
+const team = sessionId
 const worker = 'worker'
 const workerAgentId = `${worker}@${team}`
 const peerModel = 'claude-opus-4-6'
@@ -32,8 +34,7 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when?: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', ...(when !== undefined ? { whenBody: when } : {}) }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: team, description: 'Message continuation' } }, FIRST),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: team, model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead(
     {
@@ -82,8 +83,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-teammate-message-resume')
 const world = await makeWorld('teammate-message-resume', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash', 'TeamCreate', 'SendMessage', 'TaskStop'])
-const inboxPath = join(world.teams, team, 'inboxes', 'team-lead.json')
+const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'TaskStop'])
 const rosterPath = join(world.teams, team, 'config.json')
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (id: string, request: Frame): Promise<Frame> => {
@@ -92,7 +92,6 @@ const control = async (id: string, request: Frame): Promise<Frame> => {
   return response(id)!.response as Frame
 }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
-type InboxRow = { from: string; text: string }
 type Roster = { members: Array<{ name: string; agentId: string }> }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const projects = join(world.config, 'projects')
@@ -101,7 +100,7 @@ const rowsOf = (): Array<{ id: string; description: string }> =>
   session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate').map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
 const workerRows = (): Roster['members'] => (readJson<Roster>(rosterPath)?.members ?? []).filter(member => member.name.toLowerCase().startsWith(worker))
 const sameRow = (): boolean => workerRows().length === 1 && workerRows()[0]!.name === worker && workerRows()[0]!.agentId === workerAgentId
-const availableNotices = (): number => (readJson<InboxRow[]>(inboxPath) ?? []).filter(row => row.from === worker && row.text.includes('idle_notification') && row.text.includes('"available"')).length
+const availableNotices = (): number => crewMessagesTo(world, team, 'team-lead').filter(row => row.from === worker && row.text.includes('idle_notification') && row.text.includes('"available"')).length
 const lastUser = (request: Request): string => {
   const last = request.body.messages?.at(-1)
   return last?.role === 'user' ? JSON.stringify(last.content) : ''
@@ -119,7 +118,7 @@ const refused = (text: string): boolean => /"success":false/.test(text) || /Cann
 
 try {
   tally.section('the lead spawns a worker that lands a tool result; the operator stops it from the crew view mid-turn')
-  session.submit(`${FIRST}: create the team, spawn the worker, and park.`)
+  session.submit(`${FIRST}: spawn the worker and park.`)
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const first = rowsOf()[0]
   tally.check('a real in-process teammate runs with a history-bearing tool result', first !== undefined && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))

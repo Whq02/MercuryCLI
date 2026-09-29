@@ -319,7 +319,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
   },
   SendMessage: {
-    intents: ['message a teammate or team', 'relay work between agents'],
+    intents: ['message a crewmate or the crew', 'relay work between agents'],
     units: ['task-coordination'],
     class: 'coordination',
     resources: ['team'],
@@ -423,24 +423,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_TASKS',
     conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
-  TeamBrief: {
-    intents: ['brief a chartered team'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['team'],
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
-  TeamCreate: {
-    intents: ['charter a team of teammates'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    resources: ['team'],
-    cancellation: 'cooperative',
-    latency: 'interactive',
-  },
-  TeamDelete: {
-    intents: ['dissolve a chartered team'],
+  LiveComms: {
+    intents: ['read and write the crew\'s live state'],
     units: ['task-coordination'],
     class: 'coordination',
     resources: ['team'],

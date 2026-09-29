@@ -74,7 +74,7 @@ section('R1 three esc presses in one turn: the first paints the still-running re
   const third = interruptFocusedTurn()
   const texts = fx.rows.map(textOfRow)
   check('every press reports a running turn (the connector took each)', first && second && third)
-  check('the first press paints the still-running receipt, in its words', texts[0] === '3 sub-agents still running — open the crew view (/teammates) and press x twice on its row to stop one', j(texts))
+  check('the first press paints the still-running receipt, in its words', texts[0] === '3 sub-agents still running — open the crew view (/crewmates) and press x twice on its row to stop one', j(texts))
   check('the second press paints nothing new (no second row, no cut words anywhere)', texts.length === 1 && !texts.some(t => /cut|hard stop/.test(t)), j(texts))
   check('a third press paints nothing either: one row for the whole turn', texts.length === 1, j(texts))
 }
@@ -97,7 +97,7 @@ section('R3 the words, pure')
 {
   check('no cut receipt exists: the crew owner spells no hard-stop line', !('crewHardStopLine' in crew))
   check('the receipt chooser: first press ⇒ still-running line, a press over a turn already interrupting ⇒ nothing, no seat facts ⇒ still-running line', crew.interruptReceiptLine(2, null) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: false }) === crew.crewStillRunningLine(2) && crew.interruptReceiptLine(2, { interrupting: true }) === null)
-  check('the still-running words are byte-identical', crew.crewStillRunningLine(3) === '3 sub-agents still running — open the crew view (/teammates) and press x twice on its row to stop one')
+  check('the still-running words are byte-identical', crew.crewStillRunningLine(3) === '3 sub-agents still running — open the crew view (/crewmates) and press x twice on its row to stop one')
 }
 
 section('R4 no crew running: no receipt on either press (byte-identical to today)')

@@ -31,7 +31,7 @@ addon: a Godot 4 executable is enough (the running editor's own binary,
 
 ## What the engine job service is for
 
-A team of agents working one Godot project cannot share the operator's
+A crew of agents working one Godot project cannot share the operator's
 editor, and a single hand-rolled runner with a machine-wide lock queues
 every check behind every other one while any half-finished edit in the
 live tree breaks everyone else's gate. The service replaces the lock with
@@ -277,7 +277,7 @@ and signal queries are read-only by default.
 Returns the signal name and wait duration when it fires, or a timeout
 naming the signal and its wait. A timeout is not a successful observation.
 
-## Project file leases without a team
+## Project file leases without a crew
 
 A directly launched agent uses the same Godot tool. Its trusted session
 and agent identity supply the holder; operation arguments cannot choose
@@ -295,7 +295,7 @@ symbolic links.
 { "op": "lease_list", "args": {} }
 ```
 
-Lists live holders and their paths; it needs no team membership.
+Lists live holders and their paths; it needs no crew membership.
 
 ```json
 { "op": "lease_release", "args": {} }

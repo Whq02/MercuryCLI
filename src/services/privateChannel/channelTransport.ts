@@ -5,6 +5,7 @@ import { pipeline } from 'node:stream/promises'
 import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { armInactivityDeadline, isDeadlineExceeded, type InactivityDeadline } from '../../utils/deadline.js'
+import { isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../utils/privacyLevel.js'
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { projectReleases, rateLimitResetMinutes, resolveChannelRepo, type ChannelRelease } from './channelCore.js'
 import { downloadReleaseAssets, ghRepoAccess, ghSignIn, listReleases as ghListReleases, type DownloadResult } from './ghRelease.js'
@@ -140,7 +141,12 @@ interface AnonymousGet {
   accept: string
 }
 
+export function anonymousRoadFenced(url: string): boolean {
+  return isProofShapeRun() && !isLoopbackUrl(url)
+}
+
 async function anonymousGet(url: string, opts: AnonymousGet): Promise<{ response: Response; deadline: InactivityDeadline }> {
+  if (anonymousRoadFenced(url)) throw new Error(`${proofShapeReason()}; pin MERCURY_UPDATE_API_BASE_URL to a loopback fixture for a proof of the anonymous road`)
   const controller = new AbortController()
   const deadline = armInactivityDeadline({
     seam: opts.seam,

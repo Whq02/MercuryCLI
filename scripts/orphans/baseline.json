@@ -192,6 +192,11 @@
    "file": "src/utils/undercover.ts",
    "class": "archive",
    "reason": "Attribution-suppression mode, inert by in-file ruling: 'Documented intent, kept for a future re-enablement' — every entry point returns its constant, and constants/prompts.ts records the fold to always-emit. The file IS the documented intent; deleting it erases the recorded re-enablement contract."
+  },
+  {
+   "file": "src/utils/teamDiscovery.ts",
+   "class": "superseded-unreachable",
+   "reason": "The team roster's per-member status projection; its one reader was the teams dialog, removed because the crew view lists the same crewmates. No user is left; the code-level rename of the team system, or a later queue row, decides its fate."
   }
  ]
 }

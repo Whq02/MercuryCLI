@@ -221,7 +221,7 @@ console.log('— C. daemon boot recovery on the artifact —')
   const r = await bootDaemon({ until: () => terminal(opState('af-b')), timeoutMs: 30_000 })
   ok(r.converged, `daemon boot terminal-ized the op beside the undecodable file (state ${opState('af-b')})`)
   ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
-  ok(!existsSync(join(teams, 'af-team-b')), 'half-team compensated away by the artifact boot')
+  ok(existsSync(join(teams, 'af-team-b', 'config.json')), 'the half-team is left in place by the artifact boot (nothing is removed by itself)')
   ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
   const { cert } = runDoctor(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
@@ -253,8 +253,8 @@ for (const [i, phase] of BOUNDARIES.entries()) {
   const reboot = await bootDaemon({ until: () => terminal(opState(opId)), timeoutMs: 60_000 })
   const convergedState = opState(opId)
   ok(
-    died && reboot.converged && convergedState === 'aborted' && !existsSync(join(teams, teamName)),
-    `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, team compensated) in ${reboot.waitedMs}ms`,
+    died && reboot.converged && convergedState === 'aborted' && existsSync(join(teams, teamName, 'config.json')),
+    `${phase}: killed at the boundary (mid-kill state ${stateAfterKill ?? 'unreadable'}) → clean reboot converged (${convergedState}, the team left in place) in ${reboot.waitedMs}ms`,
   )
 }
 

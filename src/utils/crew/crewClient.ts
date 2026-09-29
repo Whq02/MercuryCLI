@@ -21,6 +21,7 @@ import {
   type TeammateMessage,
 } from '../teammateMailbox.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
+import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'
 
 export const CREW_LEAD_INBOX = 'team-lead'
 
@@ -101,7 +102,7 @@ export async function spawnCrewTeammate(
   for (let attempt = 0; attempt < 15; attempt++) {
     try {
       const reply = await daemonControlRpc(
-        { op: 'crewSpawn', name, model: String(modelKey) } as DaemonRequest,
+        { op: 'crewSpawn', name, model: String(modelKey), cwd: projectDir } as DaemonRequest,
         { timeoutMs: 3000 },
       )
       if (reply.ok && reply.op === 'crewSpawn') return { ok: true, pid: reply.pid }
@@ -118,6 +119,33 @@ export async function spawnCrewTeammate(
     await new Promise(r => setTimeout(r, 400))
   }
   return { ok: false, error: `spawn timed out: ${lastError}` }
+}
+
+export const CREW_SEAT_ID_PREFIX = 'seat:'
+
+export function crewResumeNoModelWords(name: string): string {
+  return `no model is recorded for @${name} — spawn it again with n and name its model`
+}
+
+export function crewResumingWords(name: string): string {
+  return `resuming @${name} from its transcript…`
+}
+
+export function crewResumedWords(name: string): string {
+  return `@${name} resumed from its transcript — it continues under the same name and model`
+}
+
+export function crewResumeRefusedWords(name: string, reason: string | undefined): string {
+  return `the resume of @${name} was refused: ${reason ?? 'no reason given'}`
+}
+
+export function crewMessageWakesWords(name: string): string {
+  return `@${name} was stopped — the message wakes it from its transcript`
+}
+
+export async function resumeCrewTeammate(name: string, model: string | undefined, projectDir: string): Promise<CrewSpawnResult> {
+  if (model === undefined || model.trim() === '') return { ok: false, error: crewResumeNoModelWords(name) }
+  return spawnCrewTeammate(name, model, projectDir)
 }
 
 export async function killCrewTeammate(name: string): Promise<{ ok: boolean; error?: string }> {
@@ -150,6 +178,8 @@ export interface CrewMemberInfo {
   name: string
   model?: string
   joinedAt: number
+  cwd?: string
+  worktree?: string
 }
 
 export async function listCrewMembers(): Promise<CrewMemberInfo[]> {
@@ -157,7 +187,35 @@ export async function listCrewMembers(): Promise<CrewMemberInfo[]> {
   if (!team) return []
   return team.members
     .filter(m => m.name !== CREW_LEAD_INBOX)
-    .map(m => ({ name: m.name, model: m.model, joinedAt: m.joinedAt }))
+    .map(m => ({
+      name: m.name,
+      model: m.model,
+      joinedAt: m.joinedAt,
+      ...(typeof m.cwd === 'string' && m.cwd !== '' ? { cwd: m.cwd } : {}),
+      ...(typeof m.worktreePath === 'string' && m.worktreePath !== '' ? { worktree: m.worktreePath } : {}),
+    }))
+}
+
+export async function crewSeatGlances(): Promise<CrewSeatGlanceV1[]> {
+  const members = await listCrewMembers()
+  if (members.length === 0) return []
+  const [status, unread] = await Promise.all([crewRosterStatus(members.map(m => m.name)), crewUnreadCounts()])
+  return members.map(m => {
+    const live = status.get(m.name)
+    return {
+      name: m.name,
+      ...(live?.model !== undefined && live.model !== '' ? { model: live.model } : m.model !== undefined ? { model: m.model } : {}),
+      online: live !== undefined,
+      unread: unread.get(m.name) ?? 0,
+      ...(live?.busy !== undefined ? { busy: live.busy } : {}),
+      ...(live?.pid !== undefined ? { pid: live.pid } : {}),
+      ...(live !== undefined ? { startedAt: live.startedAt } : {}),
+      joinedAt: m.joinedAt,
+      ...(live?.turnStartedAt !== undefined ? { turnStartedAt: live.turnStartedAt } : {}),
+      ...(live?.cwd !== undefined ? { cwd: live.cwd } : m.cwd !== undefined ? { cwd: m.cwd } : {}),
+      ...(live?.worktree !== undefined ? { worktree: live.worktree } : m.worktree !== undefined ? { worktree: m.worktree } : {}),
+    }
+  })
 }
 
 export interface CrewChatRow {

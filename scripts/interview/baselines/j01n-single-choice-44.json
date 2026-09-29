@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-29T02:08:02.460Z",
+ "capturedAt": "2026-09-29T13:25:33.690Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-1vCUzb · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-FaKNRR · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:07:54 [sam] ❯ design the cache layer",
+    "14:25:30 [sam] ❯ design the cache layer",
     "",
-    "03:07:54 [Mercury] Let me confirm the open",
+    "14:25:31 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -27,7 +27,7 @@
     "",
     "",
     "",
-    "",
+    "────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-1vCUzb · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-FaKNRR · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "03:07:54 [sam] ❯ design the cache layer",
+    "14:25:30 [sam] ❯ design the cache layer",
     "",
-    "03:07:54 [Mercury] Let me confirm the open",
+    "14:25:31 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -72,7 +72,7 @@
     "",
     "",
     "",
-    "",
+    "────────────────────────────────────────────",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -98,17 +98,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5484,
-   "frame-recommit": 13,
+   "patches": 5417,
+   "frame-recommit": 32,
    "tail-publish": 2
   },
   "frames": {
-   "total": 29,
-   "window": 29,
-   "p50": 0.8457499999999527,
-   "p95": 5.906958999999915,
-   "p99": 9.81066599999997,
-   "maxMs": 9.81066599999997
+   "total": 45,
+   "window": 45,
+   "p50": 0.8857090000001335,
+   "p95": 25.212541000000783,
+   "p99": 65.09404200000063,
+   "maxMs": 65.09404200000063
   }
  },
  "requests": [
@@ -120,7 +120,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -143,11 +143,11 @@
  ],
  "sends": [
   {
-   "atMs": 6636.235952377319,
+   "atMs": 9773.11396598816,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7436.235952377319,
+   "atMs": 10573.11396598816,
    "b64": "DQ=="
   }
  ]

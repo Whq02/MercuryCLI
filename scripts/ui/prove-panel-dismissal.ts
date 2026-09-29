@@ -34,7 +34,6 @@ const panels: Record<string, [string, string]> = {
   'board': ['mercury-ui/useNavigablePanes.ts', 'hosted navigation, modal slot or route'],
   'files-menu': ['MercuryFilesMenu.tsx', 'FilesMenuSlot'],
   'list': ['mercury-ui/useInteractiveList.ts', 'hosted navigation, modal slot or route'],
-  'teams-dialog': ['teams/TeamsDialog.tsx', 'Dialog'],
   'content-search': ['MercuryContentSearch.tsx', 'elevated CommandCenter'],
   'feedback-review': ['Feedback.tsx', 'own surface through useElevatedSurface'],
 }

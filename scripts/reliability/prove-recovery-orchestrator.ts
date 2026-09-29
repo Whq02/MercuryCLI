@@ -140,7 +140,7 @@ console.log('— boot 1: reconciliation over seeded damage —')
     `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.teamJournal?.unrecoverable ?? report.errors)})`,
   )
   ok(readFileSync(join(journalDir, undecodableName), 'utf8') === undecodableBytes, 'the undecodable file is left in place, byte for byte')
-  ok(!existsSync(join(teams, deadTeam)), 'half-created team REMOVED by compensation')
+  ok(existsSync(join(teams, deadTeam, 'config.json')), 'the older build\'s half-created team is LEFT IN PLACE (nothing is removed by itself)')
   ok(existsSync(join(teams, foreignTeam, 'config.json')), 'foreign team UNTOUCHED (guarded unwind)')
   const ops = await listJournalOperations(journalDir)
   ok(ops.every(o => o.state === 'aborted' || o.state === 'committed'), 'journal fully terminal after recovery')

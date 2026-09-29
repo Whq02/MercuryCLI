@@ -52,7 +52,8 @@ import {
   sendCommandToPane,
 } from '../../utils/swarm/teammateLayoutManager.js'
 import { getHardcodedTeammateModelFallback } from '../../utils/swarm/teammateModel.js'
-import { getTeamName } from '../../utils/teammate.js'
+import { crewContextFor, resolveSpawnCrew } from '../../utils/crew/crewBirth.js'
+import { crewWorktreeSlug, resolveCrewStart } from '../../utils/crew/crewStart.js'
 import { registerTask } from '../../utils/task/framework.js'
 import { sanitizeName } from '../../utils/swarm/teamHelpers.js'
 import { writeToMailbox } from '../../utils/teammateMailbox.js'
@@ -65,6 +66,7 @@ export type SpawnTeammateConfig = {
   prompt: string
   team_name?: string
   cwd?: string
+  worktree?: { at?: string }
   use_splitpane?: boolean
   plan_mode_required?: boolean
   model?: string
@@ -153,12 +155,7 @@ async function prepareSpawn(
     throw new Error('Teammate spawns require both a name and a prompt.')
   }
   const teamContext = context.getAppState().teamContext as { teamName: string } | undefined
-  const teamName = config.team_name ?? getTeamName(teamContext)
-  if (!teamName) {
-    throw new Error(
-      'No team to spawn into: pass a team name, or create the team first with the team-create tool.',
-    )
-  }
+  const teamName = resolveSpawnCrew(teamContext)
   const uniqueName = await generateUniqueTeammateName(config.name, teamName)
   const teammateName = uniqueName.replaceAll('@', '-')
   const teammateId = formatAgentId(teammateName, teamName)
@@ -278,12 +275,7 @@ function registerTeammateInState(
     const existing = prevState.teamContext as
       | { teamName: string; teamFilePath: string; leadAgentId: string; teammates: Record<string, unknown> }
       | undefined
-    const teamContext = existing ?? {
-      teamName: prepared.teamName,
-      teamFilePath: '',
-      leadAgentId: '',
-      teammates: {},
-    }
+    const teamContext = existing ?? crewContextFor(prepared.teamName)
     return {
       ...prevState,
       teamContext: {
@@ -590,6 +582,17 @@ async function spawnInProcessStrategy(
   const bundle = await getInstructionBundle()
   const instructionAtSpawn = { profile: bundle.resolution.resolved, digest: bundle.bundleDigest }
 
+  const transcriptAgentId = config.resume?.transcriptAgentId ?? generateTaskId('local_agent')
+  const start = await resolveCrewStart(
+    {
+      name: teammateName,
+      cwd: config.cwd ?? getCwd(),
+      ...(config.worktree !== undefined ? { worktree: config.worktree } : {}),
+      model: prepared.model,
+    },
+    { slug: crewWorktreeSlug(transcriptAgentId) },
+  )
+
   const spawnResult = await spawnInProcessTeammate(
     {
       name: teammateName,
@@ -597,9 +600,11 @@ async function spawnInProcessStrategy(
       prompt: prepared.prompt,
       color: prepared.color,
       planModeRequired: prepared.planModeRequired,
-      model: prepared.model,
+      model: start.model,
+      cwd: start.cwd,
+      ...(start.worktree !== null ? { worktree: start.worktree.path } : {}),
       ...(prepared.effort !== undefined ? { effort: prepared.effort } : {}),
-      ...(config.resume !== undefined ? { transcriptAgentId: config.resume.transcriptAgentId } : {}),
+      transcriptAgentId,
       ...(resolvedRole.definition ? { agentType: resolvedRole.agentType } : {}),
       instructionAtSpawn,
     },
@@ -623,7 +628,8 @@ async function spawnInProcessStrategy(
       planModeRequired: prepared.planModeRequired,
       joinedAt: Date.now(),
       tmuxPaneId: 'in-process',
-      cwd: getCwd(),
+      cwd: start.runDir,
+      ...(start.worktree !== null ? { worktreePath: start.worktree.path } : {}),
       subscriptions: [],
       backendType: 'in-process',
     } as never)
@@ -650,7 +656,8 @@ async function spawnInProcessStrategy(
       taskId: spawnResult.taskId,
       prompt: prepared.prompt,
       description: config.description,
-      model: prepared.model,
+      model: start.model,
+      cwd: start.runDir,
       ...(prepared.effort !== undefined ? { effortOverride: prepared.effort } : {}),
       ...(spawnResult.transcriptAgentId !== undefined ? { transcriptAgentId: spawnResult.transcriptAgentId } : {}),
       ...(config.resume !== undefined ? { resume: config.resume } : {}),
@@ -684,12 +691,7 @@ async function spawnInProcessStrategy(
           teammates: Record<string, unknown>
         }
       | undefined
-    const teamContext = existing ?? {
-      teamName,
-      teamFilePath: '',
-      leadAgentId: '',
-      teammates: {},
-    }
+    const teamContext = existing ?? crewContextFor(teamName)
     const teammates: Record<string, unknown> = { ...teamContext.teammates }
     let leadAgentId = teamContext.leadAgentId
     if (!leadAgentId) {
@@ -710,7 +712,7 @@ async function spawnInProcessStrategy(
       color: prepared.color,
       tmuxSessionName: 'in-process',
       tmuxPaneId: 'in-process',
-      cwd: getCwd(),
+      cwd: start.runDir,
       spawnedAt: Date.now(),
     }
     return {

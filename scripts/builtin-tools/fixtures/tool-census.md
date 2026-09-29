@@ -6,13 +6,13 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 71 built-in production tools · 186 operations · 71 with a declared capability contract.
+Census version 1 — 69 built-in production tools · 184 operations · 69 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 44 available · 12 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 21 mutation · 11 execution · 17 coordination · 0 unclassified
-- integrations: 10 declare transactions · 13 declare executions · 30 declare mercury:// outputs · 40 name a focused proof
+- support (at generation time): 42 available · 12 conditional · 0 degraded · 15 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 21 mutation · 11 execution · 15 coordination · 0 unclassified
+- integrations: 10 declare transactions · 13 declare executions · 28 declare mercury:// outputs · 40 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
@@ -54,6 +54,7 @@ Census version 1 — 71 built-in production tools · 186 operations · 71 with a
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
+| LiveComms | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | LSP | mutation | code-intelligence | — | block | yes | lsp.rename +receipts | — | mercury://file, mercury://receipt | scripts/lsp/run-all.sh |
 | Monitor | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | NotebookEdit | mutation | text-mutation | — | block | yes | notebook +receipts | — | mercury://file, mercury://receipt | NAMED GAP |
@@ -80,9 +81,6 @@ Census version 1 — 71 built-in production tools · 186 operations · 71 with a
 | TaskList | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskStop | coordination | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | TaskUpdate | mutation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
-| TeamBrief | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
-| TeamCreate | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
-| TeamDelete | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
 | Test | execution | application-verification | 5 | block | yes | — | background-job (external-projection) | mercury://test | scripts/ide/prove-python-tests.ts |
 | ToolSearch | observation | capability-discovery | — | block | no | — | — | — | scripts/builtin-tools/prove-toolsearch-capability.ts |
 | Transaction | coordination | application-verification | 6 | block | yes | — | — | mercury://ide | scripts/ide/prove-closed-loop.ts |

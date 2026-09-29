@@ -1984,7 +1984,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { getMercuryHome } = await import('./envUtils.js')
             const teamsDir = join(getMercuryHome(), 'teams')
             if (!existsSync(teamsDir)) {
-              return { status: 'off' as const, evidence: 'no teams directory — nothing spawns' }
+              return { status: 'off' as const, evidence: 'no crew home — nothing spawns' }
             }
             const dead: string[] = []
             let teams = 0
@@ -2006,13 +2006,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (dead.length === 0) {
               return {
                 status: 'ok' as const,
-                evidence: `${teams} team roster(s) — every member cwd exists`,
+                evidence: `${teams} crew roster(s) — every member cwd exists`,
               }
             }
             return {
               status: 'warn' as const,
               evidence: `${dead.length} roster member(s) point at a DEAD cwd: ${dead.slice(0, 3).join(' · ')}${dead.length > 3 ? ' · …' : ''}`,
-              fix: 'Fix the cwd or archive the team directory — spawn paths refuse dead-cwd rosters.',
+              fix: 'Fix the cwd or archive the crew directory — spawn paths refuse dead-cwd rosters.',
             }
           },
         },
@@ -2022,14 +2022,14 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const fleet = await fleetGauge()
             if (fleet.state === 'off') {
-              return { status: 'off', evidence: fleet.reason ?? 'not in a team — solo session' }
+              return { status: 'off', evidence: fleet.reason ?? 'not in a crew — solo session' }
             }
             if (fleet.state !== 'live') {
               return { status: 'unknown', evidence: fleet.reason ?? 'coordination read failed' }
             }
             const live = fleet.data.health.filter(a => a.state !== 'idle').length
             const conflicts = fleet.data.conflicts.length
-            const evidence = `team "${fleet.data.teamName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
+            const evidence = `crew "${fleet.data.teamName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
             if (conflicts > 0) {
               return {
                 status: 'warn',

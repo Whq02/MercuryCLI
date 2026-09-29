@@ -149,9 +149,9 @@ export function LiveCountView({ onClose }: { onClose: () => void }): React.React
         : 'an agent is working (a turn is in flight)'
 
   const wfDetail = !counts.bridgeConnected
-    ? 'swarm bridge idle — not in a team (no fan-out possible)'
+    ? 'swarm bridge idle — not in a crew (no fan-out possible)'
     : wfCount === 0
-      ? 'in a team — no fan-out is running'
+      ? 'in a crew — no fan-out is running'
       : 'swarm fan-out running'
 
   return (
