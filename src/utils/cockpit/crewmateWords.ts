@@ -10,7 +10,14 @@ export const BACK_HINT = `${LEAD_ROW_NAME} in the rail goes back`
 export const ESC_INTERRUPT_HINT = 'esc interrupts'
 export const ESC_BACK_HINT = `esc back to ${LEAD_ROW_NAME}`
 export const CREW_CLEAR_KEY = 'c clear'
-export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in /teammates`
+export const CREW_VIEW_DOOR = '/crewmates'
+export const CREW_SPAWN_DOOR = `${CREW_VIEW_DOOR} +new`
+export const CREW_CHATS_HINT = `${CREW_VIEW_DOOR} · n new`
+export const CREW_CLEAR_DOOR = `${CREW_CLEAR_KEY} in ${CREW_VIEW_DOOR}`
+
+export function crewChatDoor(name: string): string {
+  return `${CREW_VIEW_DOOR} ${name}`
+}
 
 export type CrewmateWordsState = { name: string; pinned: boolean; live?: boolean; local?: boolean }
 
@@ -55,7 +62,7 @@ export function crewmateStatusWords(viewed: CrewmateViewedState, target: Crewmat
 
 export function crewmateSendClause(target: CrewmateWordsState): string {
   if (target.live !== false) return `↵ sends to ${target.name}`
-  return target.local === true ? `↵ refused — r in /teammates resumes ${target.name}` : `↵ resumes ${target.name} with your line`
+  return target.local === true ? `↵ refused — r in ${CREW_VIEW_DOOR} resumes ${target.name}` : `↵ resumes ${target.name} with your line`
 }
 
 export function crewmateComposerHint(target: CrewmateWordsState, viewed: CrewmateViewedState): string {
@@ -63,7 +70,7 @@ export function crewmateComposerHint(target: CrewmateWordsState, viewed: Crewmat
   return `${crewmateSendClause(target)}${esc} · ${target.pinned ? MAIN_CHAT_RETURN_HINT : BACK_HINT}`
 }
 
-export const CREWMATE_BETWEEN_TURNS_DETAIL = 'it is between turns and nothing drains a queued line — r in /teammates resumes it from its transcript'
+export const CREWMATE_BETWEEN_TURNS_DETAIL = `it is between turns and nothing drains a queued line — r in ${CREW_VIEW_DOOR} resumes it from its transcript`
 
 export function crewmateInterruptRefusedWords(name: string, detail: string): string {
   return `${name} did not take the interrupt: ${detail}`
@@ -75,7 +82,7 @@ export function crewmateEscHint(name: string): string {
 
 export function crewmateStatusRightHint(pinned: boolean, live = true): string {
   const esc = live ? ESC_INTERRUPT_HINT : ESC_BACK_HINT
-  return pinned ? esc : `${esc} · ${CREW_MAIN_CHAT_KEY} in /teammates · ${BACK_HINT}`
+  return pinned ? esc : `${esc} · ${CREW_MAIN_CHAT_KEY} in ${CREW_VIEW_DOOR} · ${BACK_HINT}`
 }
 
 export function crewmatePlaceholder(name: string): string {

@@ -48,7 +48,7 @@ import { TeammateChatsView } from './TeammateChatsView.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
 import { enterTeammateView, setMainChat } from '../../../state/teammateViewHelpers.js'
 import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
-import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
+import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, CREW_SPAWN_DOOR, crewChatDoor, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 
@@ -215,7 +215,7 @@ export function CrewView({
         return
       }
       onClose()
-      requestCommandDispatch(`/teammates ${row.member.name}`)
+      requestCommandDispatch(crewChatDoor(row.member.name))
       return
     }
     if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
@@ -233,7 +233,7 @@ export function CrewView({
       }
       if (popup) {
         onClose()
-        requestCommandDispatch('/teammates +new')
+        requestCommandDispatch(CREW_SPAWN_DOOR)
         return
       }
       setMode({ view: 'chat', spawn: true, fromDoor: false })

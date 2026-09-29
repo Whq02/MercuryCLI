@@ -25,6 +25,7 @@ import { useLayoutTier } from '../hooks/useLayoutTier.js'
 import { decodeNavKey } from './mercury-ui/navSemantics.js'
 import { useOpenEventGate } from './mercury-ui/useOpenEventGate.js'
 import { useStableSelection } from './mercury-ui/useStableSelection.js'
+import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 
 
 const BAR_WIDTH = 14
@@ -164,7 +165,7 @@ export function FleetMonitor({ onClose }: { onClose: () => void }): React.ReactN
         <Box marginTop={1}>
           <EmptyState
             title={snap.reason ?? 'not in an agent group'}
-            hint="/fleet follows a shared agent group; this session's own sub-agents are on /teammates."
+            hint={`/fleet follows a shared agent group; this session's own sub-agents are on ${CREW_VIEW_DOOR}.`}
           />
         </Box>
       </CommandCenter>
