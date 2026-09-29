@@ -495,7 +495,7 @@ section("R8f · the interrupt receipt counts what the crew view lists: a running
   const line = crew.crewStillRunningLine(counts) as string | null
   check('the receipt counts by kind: a running workflow is named as one, with its own door, never as a sub-agent', line !== null && /1 workflow run still running/.test(line) && /\/workflows/.test(line) && !/sub-agent/.test(line), String(line))
   const both = crew.crewStillRunningLine({ ...counts, agents: 2 }) as string | null
-  check('…and sub-agents keep their words and the crew-view door', both !== null && /2 sub-agents still running/.test(both) && /crew view \(\/teammates\)/.test(both) && /1 workflow run/.test(both), String(both))
+  check('…and sub-agents keep their words and the crew-view door', both !== null && /2 sub-agents still running/.test(both) && /crew view \(\/crewmates\)/.test(both) && /1 workflow run/.test(both), String(both))
   check('…nothing running, no line', crew.crewStillRunningLine({ workflows: 0, agents: 0, teammates: 0, shells: 0, asks: 0 }) === null)
   const cancel = src('src/hooks/useCancelRequest.ts')
   check('the interrupt receipt reads the one counting law (workCounts over the roster), never its own filter', /const running = workCounts\(focused\.workRoster\(\)\.rows\)/.test(cancel) && /crewStillRunningLine\(running\)/.test(cancel) && !/row\.kind === 'agent' \|\| row\.kind === 'workflow'/.test(cancel))

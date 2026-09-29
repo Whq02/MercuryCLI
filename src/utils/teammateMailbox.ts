@@ -1,24 +1,26 @@
-import { existsSync } from 'node:fs'
 import { randomUUID, type UUID } from 'node:crypto'
-import { join } from 'node:path'
 
 import { z } from 'zod/v4'
 
 import { TEAMMATE_MESSAGE_TAG } from '../constants/xml.js'
 import { PermissionModeSchema } from '../entrypoints/sdk/coreSchemas.js'
-import { defineStore } from '../substrate/fileStore.js'
+import {
+  liveMessageKey,
+  liveMessagesFor,
+  mutateLiveMessages,
+  postLiveMessage,
+  subscribeLiveComms,
+  type LiveCommsMessageV1,
+} from '../services/crew/liveComms.js'
 import type { Message } from '../types/message.js'
 import { PERMISSION_MODES, type InternalPermissionMode } from '../types/permissions.js'
 import { generateRequestId } from './agentId.js'
 import { logForDebugging } from './debug.js'
-import { getTeamsDir } from './envUtils.js'
 import { lazySchema } from './lazySchema.js'
 import { logError } from './log.js'
 import { TEAM_LEAD_NAME } from './swarm/constants.js'
-import { sanitizePathComponent } from './tasks.js'
 import { getAgentName, getTeammateColor, getTeamName } from './teammate.js'
 import { escapeXml, escapeXmlAttr } from './xml.js'
-
 
 export type TeammateMessage = {
   from: string
@@ -32,69 +34,31 @@ export type TeammateMessage = {
   delivery?: { id: string; sessionId: string }
 }
 
-function isValidMessage(candidate: unknown): candidate is TeammateMessage {
-  if (typeof candidate !== 'object' || candidate === null) return false
-  const record = candidate as Record<string, unknown>
-  return (
-    typeof record.from === 'string' &&
-    typeof record.text === 'string' &&
-    typeof record.timestamp === 'string'
-  )
-}
-
 function resolveTeamName(teamName: string | undefined): string {
   return teamName ?? getTeamName() ?? 'default'
 }
 
-export function getInboxPath(agentName: string, teamName?: string): string {
-  const team = resolveTeamName(teamName)
-  const path = join(getTeamsDir(), sanitizePathComponent(team), 'inboxes', `${sanitizePathComponent(agentName)}.json`)
-  logForDebugging(`mailbox: inbox for ${agentName} in team ${team} at ${path}`)
-  return path
+export interface MailboxHandle {
+  subscribe(listener: (messages: TeammateMessage[]) => void, opts?: { immediate?: boolean }): () => void
 }
 
-const mailboxStore = defineStore<TeammateMessage[], [string, (string | undefined)?]>({
-  name: 'teammate-mailbox',
-  path: (agentName: string, teamName?: string) => getInboxPath(agentName, teamName),
-  schemaVersion: 1,
-  decode: raw => {
-    if (!Array.isArray(raw)) return null
-    return raw.filter(isValidMessage).map(message => {
-      const delivery = message.delivery
-      if (delivery === undefined) return message
-      const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i
-      if (delivery !== null && typeof delivery.id === 'string' && typeof delivery.sessionId === 'string' && uuid.test(delivery.id) && uuid.test(delivery.sessionId)) return message
-      const { delivery: invalid, ...content } = message
-      return content
-    })
-  },
-  empty: () => [],
-  onReadFailure: 'empty',
-  pollFloorMs: 1000,
-  revisionOf: messages => messages.reduce((max, message) => Math.max(max, message.seq ?? 0), 0),
-})
-
-export function getMailboxStore(agentName: string, teamName?: string): ReturnType<typeof mailboxStore> {
-  return mailboxStore(agentName, teamName)
-}
-
-const COMPACTION_TRIGGER = 200
-const COMPACTION_READ_KEEP = 100
-
-function compactInbox(messages: TeammateMessage[]): TeammateMessage[] {
-  if (messages.length <= COMPACTION_TRIGGER) return messages
-  const readCount = messages.reduce((count, message) => count + (message.read ? 1 : 0), 0)
-  let excess = readCount - COMPACTION_READ_KEEP
-  if (excess <= 0) return messages
-  const kept: TeammateMessage[] = []
-  for (const message of messages) {
-    if (excess > 0 && message.read) {
-      excess--
-      continue
-    }
-    kept.push(message)
+export function getMailboxStore(agentName: string, teamName?: string): MailboxHandle {
+  const crew = resolveTeamName(teamName)
+  return {
+    subscribe(listener, opts) {
+      let lastKey: string | null = null
+      return subscribeLiveComms(
+        crew,
+        file => {
+          const key = liveMessageKey(file, agentName)
+          if (key === lastKey) return
+          lastKey = key
+          listener(file.messages.filter(m => m.to === agentName))
+        },
+        { immediate: opts?.immediate ?? true },
+      )
+    },
   }
-  return kept
 }
 
 export async function writeToMailbox(
@@ -103,15 +67,14 @@ export async function writeToMailbox(
   teamName?: string,
 ): Promise<boolean> {
   try {
-    await getMailboxStore(recipientName, teamName).mutate(current => {
-      const maxSeq = current.reduce((max, existing) => Math.max(max, existing.seq ?? 0), 0)
-      const stamped: TeammateMessage = {
-        ...message,
-        read: false,
-        id: message.id ?? generateRequestId('msg', recipientName),
-        seq: maxSeq + 1,
-      }
-      return compactInbox([...current, stamped])
+    await postLiveMessage(resolveTeamName(teamName), {
+      to: recipientName,
+      from: message.from,
+      text: message.text,
+      timestamp: message.timestamp,
+      ...(message.color !== undefined ? { color: message.color } : {}),
+      ...(message.summary !== undefined ? { summary: message.summary } : {}),
+      ...(message.id !== undefined ? { id: message.id } : {}),
     })
     logForDebugging(`mailbox: delivered to ${recipientName} from ${message.from}`)
     return true
@@ -123,14 +86,22 @@ export async function writeToMailbox(
 }
 
 export async function readMailbox(agentName: string, teamName?: string): Promise<TeammateMessage[]> {
-  return getMailboxStore(agentName, teamName).read()
+  return liveMessagesFor(resolveTeamName(teamName), agentName)
 }
 
 export async function readUnreadMessages(agentName: string, teamName?: string): Promise<TeammateMessage[]> {
-  const all = await getMailboxStore(agentName, teamName).read()
+  const all = await readMailbox(agentName, teamName)
   const unread = all.filter(message => !message.read)
   logForDebugging(`mailbox: ${agentName} has ${unread.length} unread of ${all.length}`)
   return unread
+}
+
+function mutateMine<R>(
+  agentName: string,
+  teamName: string | undefined,
+  fn: (mine: LiveCommsMessageV1[]) => { next: LiveCommsMessageV1[]; result: R },
+): Promise<R> {
+  return mutateLiveMessages(resolveTeamName(teamName), agentName, fn)
 }
 
 export interface MailboxDelivery {
@@ -145,9 +116,8 @@ export async function prepareMailboxDelivery(
   teamName: string,
   sessionId: string,
 ): Promise<MailboxDelivery | null> {
-  const store = getMailboxStore(agentName, teamName)
-  if (!(await store.read()).some(message => !message.read)) return null
-  return store.update<MailboxDelivery | null>(current => {
+  if (!(await readMailbox(agentName, teamName)).some(message => !message.read)) return null
+  return mutateMine<MailboxDelivery | null>(agentName, teamName, current => {
     const unread = current.filter(message => !message.read)
     if (unread.length === 0) return { next: current, result: null }
     const pending = unread.find(message => message.delivery !== undefined)?.delivery
@@ -155,7 +125,7 @@ export async function prepareMailboxDelivery(
       return { next: current, result: { ...pending, recovered: true, messages: unread.filter(message => message.delivery?.id === pending.id) } }
     }
     const delivery = { id: randomUUID(), sessionId }
-    const next = current.map(message => message.read ? message : { ...message, delivery })
+    const next = current.map(message => (message.read ? message : { ...message, delivery }))
     return { next, result: { ...delivery, recovered: false, messages: next.filter(message => !message.read) } }
   })
 }
@@ -174,17 +144,17 @@ export async function wasMailboxDeliveryHandled(delivery: MailboxDelivery, messa
 }
 
 export async function acknowledgeMailboxDelivery(agentName: string, teamName: string, id: string): Promise<void> {
-  await getMailboxStore(agentName, teamName).mutate(current => {
-    if (!current.some(message => !message.read && message.delivery?.id === id)) return current
-    return current.map(message => !message.read && message.delivery?.id === id ? { ...message, read: true } : message)
+  await mutateMine<void>(agentName, teamName, current => {
+    if (!current.some(message => !message.read && message.delivery?.id === id)) return { next: current, result: undefined }
+    return { next: current.map(message => (!message.read && message.delivery?.id === id ? { ...message, read: true } : message)), result: undefined }
   })
 }
 
 export async function markMessagesAsRead(agentName: string, teamName?: string): Promise<void> {
   try {
-    await getMailboxStore(agentName, teamName).mutate(current => {
-      if (current.length === 0 || current.every(message => message.read)) return current
-      return current.map(message => (message.read ? message : { ...message, read: true }))
+    await mutateMine<void>(agentName, teamName, current => {
+      if (current.length === 0 || current.every(message => message.read)) return { next: current, result: undefined }
+      return { next: current.map(message => (message.read ? message : { ...message, read: true })), result: undefined }
     })
   } catch (error) {
     logForDebugging(`mailbox: mark-all-read failed for ${agentName}: ${String(error)}`)
@@ -194,11 +164,12 @@ export async function markMessagesAsRead(agentName: string, teamName?: string): 
 
 export async function markMessagesFromAsRead(agentName: string, from: string, teamName?: string): Promise<void> {
   try {
-    await getMailboxStore(agentName, teamName).mutate(current => {
-      if (!current.some(message => !message.read && message.from === from)) return current
-      return current.map(message =>
-        !message.read && message.from === from ? { ...message, read: true } : message,
-      )
+    await mutateMine<void>(agentName, teamName, current => {
+      if (!current.some(message => !message.read && message.from === from)) return { next: current, result: undefined }
+      return {
+        next: current.map(message => (!message.read && message.from === from ? { ...message, read: true } : message)),
+        result: undefined,
+      }
     })
   } catch (error) {
     logForDebugging(`mailbox: mark-from-read failed for ${agentName}: ${String(error)}`)
@@ -211,7 +182,7 @@ export async function markSpecificMessageAsRead(
   teamName: string | undefined,
   msg: { from: string; text: string; timestamp: string; id?: string },
 ): Promise<void> {
-  await getMailboxStore(agentName, teamName).mutate(current => {
+  await mutateMine<void>(agentName, teamName, current => {
     const index = current.findIndex(candidate => {
       if (candidate.read) return false
       if (candidate.id !== undefined && msg.id !== undefined) return candidate.id === msg.id
@@ -219,8 +190,8 @@ export async function markSpecificMessageAsRead(
         candidate.from === msg.from && candidate.text === msg.text && candidate.timestamp === msg.timestamp
       )
     })
-    if (index === -1) return current
-    return current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate))
+    if (index === -1) return { next: current, result: undefined }
+    return { next: current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate)), result: undefined }
   })
 }
 
@@ -230,26 +201,15 @@ export async function markMessagesAsReadByPredicate(
   teamName?: string,
 ): Promise<void> {
   try {
-    await getMailboxStore(agentName, teamName).mutate(current => {
-      if (!current.some(message => !message.read && predicate(message))) return current
-      return current.map(message =>
-        !message.read && predicate(message) ? { ...message, read: true } : message,
-      )
+    await mutateMine<void>(agentName, teamName, current => {
+      if (!current.some(message => !message.read && predicate(message))) return { next: current, result: undefined }
+      return {
+        next: current.map(message => (!message.read && predicate(message) ? { ...message, read: true } : message)),
+        result: undefined,
+      }
     })
   } catch (error) {
     logForDebugging(`mailbox: predicate mark-read failed for ${agentName}: ${String(error)}`)
-    logError(error)
-  }
-}
-
-export async function clearMailbox(agentName: string, teamName?: string): Promise<void> {
-  try {
-    const store = getMailboxStore(agentName, teamName)
-    if (!existsSync(store.path)) return
-    await store.write([])
-    logForDebugging(`mailbox: cleared inbox for ${agentName}`)
-  } catch (error) {
-    logForDebugging(`mailbox: clear failed for ${agentName}: ${String(error)}`)
     logError(error)
   }
 }

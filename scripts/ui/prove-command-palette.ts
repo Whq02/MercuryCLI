@@ -45,7 +45,7 @@ check('has showCommandPalette state', /const \[showCommandPalette, setShowComman
 check("useKeybinding('app:commandPalette', …) opens it", /useKeybinding\('app:commandPalette'/.test(pi))
 check('the open handler is wired', /useKeybinding\('app:commandPalette',[\s\S]{0,80}setShowCommandPalette\(true\)/.test(pi))
 check('render branch keys on showCommandPalette (unconditional)', /if \(showCommandPalette\)/.test(pi))
-check('palette is in the modal-overlay suppression guard', /showTeamsDialog \|\|\s*showCommandPalette/.test(pi))
+check('palette is in the modal-overlay suppression guard', /overlay !== null \|\|\s*showCommandPalette/.test(pi))
 const help = read('src', 'components', 'PromptInput', 'PromptInputHelpMenu.tsx')
 check('the ? help menu lists the palette chord', /for command palette/.test(help))
 check('the help menu is de-_c (plain) so the line is not a hand-patched cache slot', !/const \$ = _c\(/.test(help))

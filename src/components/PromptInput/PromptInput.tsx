@@ -137,7 +137,6 @@ import { MercuryFileOpen } from '../MercuryFileOpen.js'
 import { setComposerInsert } from './composerInsert.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { MercurySupercodeKeywordHint } from '../MercurySupercodeKeywordHint.js'
-import { TeamsDialog } from '../teams/TeamsDialog.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
@@ -605,7 +604,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const stashPeakRef = useRef(0)
 
   const [overlay, setOverlay] = useState<OverlaySurface>(null)
-  const [showTeamsDialog, setShowTeamsDialog] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showFileOpen, setShowFileOpen] = useState(false)
   const [showContentSearch, setShowContentSearch] = useState(false)
@@ -616,7 +614,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const popupUp = useSyncExternalStore(subscribePopupOwnsKeys, popupOwnsKeys, popupOwnsKeys)
   const modalOverlayUp =
     overlay !== null ||
-    showTeamsDialog ||
     showCommandPalette ||
     showFileOpen ||
     showContentSearch ||
@@ -1422,10 +1419,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           fresh.footerSelection === 'tasks'
             ? Object.values(fresh.tasks).some(isManageableTask) ||
               fresh.viewingAgentTaskId !== undefined
-            : fresh.footerSelection === 'teams'
-              ? fresh.teamContext !== undefined &&
-                Object.values(fresh.teamContext.teammates).length > 0
-              : fresh.footerSelection === 'bagel'
+            : fresh.footerSelection === 'bagel'
                 ? fresh.bagelActive === true
                 : fresh.replBridgeEnabled
         if (stillVisible) return
@@ -1907,34 +1901,19 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         if (footerSelection === 'tasks' && runningTeammateCount === 0) {
           setOverlay('tasks-dialog')
           setAppState(prev => ({ ...prev, footerSelection: null }))
-          return
         }
-        setAppState(prev => ({
-          ...prev,
-          footerSelection: prev.footerSelection === 'tasks' ? 'teams' : prev.footerSelection,
-        }))
       },
       'footer:next': () => {
         if (runningTeammateCount > 0 && footerSelection === 'tasks') {
           setTeammateFooterIndex(prev => (prev + 1) % (1 + runningTeammateCount))
-          return
         }
-        setAppState(prev => ({
-          ...prev,
-          footerSelection: prev.footerSelection === 'tasks' ? 'teams' : prev.footerSelection,
-        }))
       },
       'footer:previous': () => {
         if (runningTeammateCount > 0 && footerSelection === 'tasks') {
           setTeammateFooterIndex(
             prev => (prev + runningTeammateCount) % (1 + runningTeammateCount),
           )
-          return
         }
-        setAppState(prev => ({
-          ...prev,
-          footerSelection: prev.footerSelection === 'teams' ? 'tasks' : prev.footerSelection,
-        }))
       },
       'footer:openSelected': () => {
         const fresh = appStateStore.getState() as AppState
@@ -1956,11 +1935,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
           }
           setOverlay('tasks-dialog')
           setTeammateFooterIndex(0)
-          setAppState(prev => ({ ...prev, footerSelection: null }))
-          return
-        }
-        if (footerSelection === 'teams') {
-          setShowTeamsDialog(true)
           setAppState(prev => ({ ...prev, footerSelection: null }))
         }
       },
@@ -2592,27 +2566,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       />
     )
   }
-  if (showTeamsDialog) {
-    const teammateEntries =
-      teamContext !== undefined ? Object.values(teamContext.teammates) : []
-    const initialTeams =
-      teamContext !== undefined
-        ? [
-            {
-              name: teamContext.teamName,
-              memberCount: teammateEntries.length,
-              runningCount: teammateEntries.length,
-              idleCount: 0,
-            },
-          ]
-        : undefined
-    return (
-      <TeamsDialog
-        initialTeams={initialTeams}
-        onDone={() => setShowTeamsDialog(false)}
-      />
-    )
-  }
   if (showCommandPalette) {
     return (
       <MercuryCommandPalette
@@ -2820,7 +2773,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const helmOnPrompt = getHelmFocus() === 'prompt'
   const keyboardOwnedByOverlay =
     overlay !== null ||
-    showTeamsDialog ||
     showCommandPalette ||
     showFileOpen ||
     showContentSearch ||

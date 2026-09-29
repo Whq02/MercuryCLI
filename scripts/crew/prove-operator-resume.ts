@@ -123,29 +123,35 @@ section('the refusals: a running teammate, a row that is not a teammate, and a s
   const refused = await respawnTeammateByOperator(spawned.taskId!, { getAppState: store.get, toolUseContext: contextOf(store) }, {
     readTranscript,
     spawn: async () => {
-      throw new Error('Team "ping-team" does not exist — create the team first')
+      throw new Error('Team "ping-team" does not exist')
     },
   })
   check('a spawn the road refuses answers refused with its words, and the main agent hears nothing', refused.outcome === 'refused' && refused.reason.includes('does not exist') && notices().length === 0, JSON.stringify(refused))
 }
 
-section('the spawn road: a teammate row registered against a team that does not exist is unwound at the refusal, never left running')
+section('the spawn road: a team word that names nothing names the session\'s crew, and a row whose first dispatch fails is bookended failed, never left running')
 {
   const store = makeStore()
   drainSdkEvents()
+  const { sessionCrewName } = await import('../../src/utils/crew/crewBirth.js')
+  const { getSessionId } = await import('../../src/bootstrap/state.js')
+  const { readTeamFile } = await import('../../src/utils/swarm/teamHelpers.js')
+  const crew = sessionCrewName(String(getSessionId()))
   let thrown: unknown = null
   try {
     await spawnTeammate({ name: 'ghost', prompt: 'haunt', team_name: 'no-such-team' }, contextOf(store))
   } catch (error) {
     thrown = error
   }
-  check('the spawn is refused because the team does not exist', thrown instanceof Error && /does not exist/.test(thrown.message), String(thrown))
+  check('the spawn is not refused for a missing team: the row is registered against the session\'s crew and fails only at its first dispatch (this harness carries no tools)', thrown instanceof Error && !/does not exist/.test(thrown.message) && /first dispatch/.test(thrown.message), String(thrown))
   const rows = teammateRows(store)
-  check('no teammate row stands after the refusal', rows.length === 0, JSON.stringify(rows.map(r => ({ id: r.id, status: r.status }))))
+  check('no running teammate row stands after the failed dispatch', rows.every(r => r.status !== 'running'), JSON.stringify(rows.map(r => ({ id: r.id, status: r.status }))))
   const events = drainSdkEvents() as Array<{ subtype?: string; task_id?: string; status?: string; summary?: string }>
   const started = events.find(e => e.subtype === 'task_started')
   const ended = events.find(e => e.subtype === 'task_notification' && e.task_id === started?.task_id)
-  check('the row that was registered is bookended failed with the refusal, so a reader of the frames sees no running teammate', started !== undefined && ended !== undefined && ended.status === 'failed' && String(ended.summary).includes('does not exist'), JSON.stringify(events))
+  check('the row that was registered is bookended failed under the crew\'s agent id, so a reader of the frames sees no running teammate', started !== undefined && ended !== undefined && ended.status === 'failed' && String(ended.summary) === `ghost@${crew}`, JSON.stringify(events))
+  const roster = readTeamFile(crew)
+  check('the crew roster on disk no longer lists the ghost after its failed dispatch', roster !== null && roster.members.every(m => m.name !== 'ghost'), JSON.stringify(roster?.members.map(m => m.name)))
 }
 
 section('the unwind itself: a running teammate row is removed and bookended failed; a settled or missing row is left alone')

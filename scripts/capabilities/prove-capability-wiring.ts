@@ -53,7 +53,7 @@ const WIRING: Array<{ cap: string; symbol: string }> = [
   { cap: 'FullscreenLayout / no-flicker', symbol: 'FullscreenLayout' },
   { cap: '/cockpit (CockpitView)', symbol: 'CockpitView' },
   { cap: 'Warm background paint', symbol: 'applyWarmBackground' },
-  { cap: 'TeamBrief tool', symbol: 'TeamBriefTool' },
+  { cap: 'LiveComms tool', symbol: 'LiveCommsTool' },
   { cap: 'SendMessage governance', symbol: 'canDirect' },
   { cap: 'Honesty-gated handoff', symbol: 'recordHandoff' },
   { cap: 'Skill discovery (getSkillToolCommands)', symbol: 'getSkillToolCommands' },

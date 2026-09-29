@@ -24,7 +24,7 @@ import {
   say,
   teamBrief,
 } from '../../src/services/coordination/coordinationService.js'
-import { TeamBriefTool } from '../../src/tools/TeamBriefTool/TeamBriefTool.js'
+import { LiveCommsTool } from '../../src/tools/LiveCommsTool/LiveCommsTool.js'
 import { clearDynamicTeamContext, setDynamicTeamContext } from '../../src/utils/teammate.js'
 import { writeTeamFileAsync, type TeamFile } from '../../src/utils/swarm/teamHelpers.js'
 import { readMailbox, writeToMailbox } from '../../src/utils/teammateMailbox.js'
@@ -105,7 +105,7 @@ try {
     const bc = await say(worker, '*', 'all hands')
     check('say broadcast reaches the other two', !('refused' in bc) && bc.broadcast === true && bc.recipients.length === 2 && bc.failed === 0)
     const unknown = await say(worker, 'nobody', 'x')
-    check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on team/.test(unknown.refused))
+    check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on crew/.test(unknown.refused))
     const inbox = await readMailbox('bob', TEAM)
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
     const brief = await teamBrief(worker)
@@ -132,20 +132,20 @@ try {
     await client.connect(clientTransport)
     const mcpBrief = await client.callTool({ name: 'brief', arguments: {} })
     const mcpJson = JSON.parse((mcpBrief as { content?: Array<{ text?: string }> }).content?.[0]?.text ?? '{}')
-    const toolResult = await TeamBriefTool.call({} as never, { getAppState: () => ({ teamContext: undefined }) } as never)
+    const toolResult = await LiveCommsTool.call({} as never, { getAppState: () => ({ teamContext: undefined }) } as never)
     const toolJson = JSON.parse(JSON.stringify((toolResult as { data: unknown }).data))
-    check('the MCP brief and the TeamBrief tool return the SAME brief (JSON-equal)', JSON.stringify(mcpJson) === JSON.stringify(toolJson))
+    check('the MCP brief and the LiveComms tool return the SAME brief (JSON-equal)', JSON.stringify(mcpJson) === JSON.stringify(toolJson))
     check('that brief names the team', mcpJson.teamName === TEAM && toolJson.teamName === TEAM)
     await client.close()
     await server.close()
 
     const serverSrc = readFileSync(join(ROOT, 'src/services/mcp/coordinationServer.ts'), 'utf8')
-    const toolSrc = readFileSync(join(ROOT, 'src/tools/TeamBriefTool/TeamBriefTool.ts'), 'utf8')
+    const toolSrc = readFileSync(join(ROOT, 'src/tools/LiveCommsTool/LiveCommsTool.ts'), 'utf8')
     check('the MCP server imports the service', /from '\.\.\/coordination\/coordinationService\.js'/.test(serverSrc))
-    check('the TeamBrief tool imports the service', /from '\.\.\/\.\.\/services\/coordination\/coordinationService\.js'/.test(toolSrc))
-    const substrateReads = /\b(listTasks|readUnreadMessages|getAgentStatuses|listLeases|claimLease|releaseLease|sweepExpiredLeases|writeToMailbox|getRoomHealth|listIncomingHandoffs|listOpenQuestions)\s*\(/
+    check('the LiveComms tool imports the service', /from '\.\.\/\.\.\/services\/coordination\/coordinationService\.js'/.test(toolSrc))
+    const substrateReads = /\b(listTasks|readUnreadMessages|getAgentStatuses|listLeases|claimLease|releaseLease|sweepExpiredLeases|writeToMailbox|getRoomHealth|listIncomingHandoffs|listOpenQuestions|listLiveTasks|listLiveClaims|listLiveBusy|upsertLiveTask|setLiveClaim|releaseLiveClaim|setLiveBusy|postLiveMessage)\s*\(/
     check('the MCP server performs no substrate read of its own', !substrateReads.test(serverSrc))
-    check('the TeamBrief tool performs no substrate read of its own', !substrateReads.test(toolSrc))
+    check('the LiveComms tool performs no substrate read or write of its own', !substrateReads.test(toolSrc))
     check('no second consolidation (buildBrief) survives in the server', !/buildBrief/.test(serverSrc))
     const serviceSrc = readFileSync(join(ROOT, 'src/services/coordination/coordinationService.ts'), 'utf8')
     check('the service owns the solo contract text', /NOT_IN_TEAM/.test(serviceSrc) && !/Not part of a team — the coordination tools/.test(serverSrc))

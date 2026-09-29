@@ -3,7 +3,7 @@
  "note": "contract journey 9 — answer q1..q2, tab BACK to q1, change the answer, tab forward; review shows the revision",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-29T02:10:19.747Z",
+ "capturedAt": "2026-09-29T04:23:22.558Z",
  "screens": [
   {
    "atMs": 13400,
@@ -17,37 +17,37 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:10:08 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:23:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:10:08 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:23:16 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
-    "←  ☒ Cache  ☒ Eviction  ✓ Submit  →",
     "",
-    "⦿ Which eviction policy fits the workload?",
+    "←  ☒ Cache  ☐ Eviction  ✓ Submit  →",
     "",
-    "❯ 1.LRU ✓",
-    "      Recency-based.",
-    "  2.LFU",
-    "      Frequency-based.",
-    "  3.  Type something.",
-    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
-    "  4. Chat about this",
+    "⦿ Review your answers",
     "",
-    "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+    "▲ Not every question is answered — select one to answer it, or submit deliberately",
+    "",
+    "Select a decision to revise it, or submit:",
+    "",
+    "❯ 1. ✓ Cache         → Redis",
+    "  2. ▲ Eviction      → (unanswered — select to answer)",
+    "  3. Submit answers",
+    "  4. Cancel",
     "",
     "",
     "",
-    " flux-arena-cwd-MlAHtL                                                                         esc interrupts · ⇧← back"
+    "",
+    "",
+    " ± implement mode on (shift+tab to cycle)",
+    " flux-arena-cwd-pYWMud                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,37 +62,37 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:10:08 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:23:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:10:08 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:23:16 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
-    "                        │                                                                                              │",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
+    "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
-    "←  ☒ Cache  ☒ Eviction  ✓ Submit  →",
     "",
-    "⦿ Which storage engine should the cache use?",
+    "←  ☒ Cache  ☐ Eviction  ✓ Submit  →",
     "",
-    "  1.Redis ✓",
-    "      A shared network cache; adds an infra dependency.",
-    "❯ 2.In-memory",
-    "      Process-local; zero infra but not shared.",
-    "  3.File-based",
-    "      Durable and shared on one host; slowest.",
-    "  4.  Type something.",
-    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
-    "  5. Chat about this",
+    "⦿ Review your answers",
     "",
-    "Enter to select · Tab/Arrow keys to navigate · Esc to cancel",
+    "▲ Not every question is answered — select one to answer it, or submit deliberately",
     "",
-    " flux-arena-cwd-MlAHtL                                                                         esc interrupts · ⇧← back"
+    "Select a decision to revise it, or submit:",
+    "",
+    "❯ 1. ✓ Cache         → Redis",
+    "  2. ▲ Eviction      → (unanswered — select to answer)",
+    "  3. Submit answers",
+    "  4. Cancel",
+    "",
+    "",
+    "",
+    "",
+    "",
+    " ± implement mode on (shift+tab to cycle)",
+    " flux-arena-cwd-pYWMud                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -107,12 +107,11 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:10:08 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:23:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:10:08 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:23:16 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
-    "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -120,14 +119,16 @@
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "",
-    "←  ☒ Cache  ☒ Eviction  ✓ Submit  →",
+    "←  ☒ Cache  ☐ Eviction  ✓ Submit  →",
     "",
     "⦿ Review your answers",
     "",
+    "▲ Not every question is answered — select one to answer it, or submit deliberately",
+    "",
     "Select a decision to revise it, or submit:",
     "",
-    "❯ 1. ✓ Cache         → In-memory",
-    "  2. ✓ Eviction      → LRU",
+    "❯ 1. ✓ Cache         → Redis",
+    "  2. ▲ Eviction      → (unanswered — select to answer)",
     "  3. Submit answers",
     "  4. Cancel",
     "",
@@ -135,9 +136,8 @@
     "",
     "",
     "",
-    "",
-    "",
-    " flux-arena-cwd-MlAHtL                                                                         esc interrupts · ⇧← back"
+    " ± implement mode on (shift+tab to cycle)",
+    " flux-arena-cwd-pYWMud                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -152,12 +152,11 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:10:08 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:23:15 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:10:08 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:23:16 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
-    "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -165,14 +164,16 @@
     "",
     "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
     "",
-    "←  ☒ Cache  ☒ Eviction  ✓ Submit  →",
+    "←  ☒ Cache  ☐ Eviction  ✓ Submit  →",
     "",
     "⦿ Review your answers",
     "",
+    "▲ Not every question is answered — select one to answer it, or submit deliberately",
+    "",
     "Select a decision to revise it, or submit:",
     "",
-    "❯ 1. ✓ Cache         → In-memory",
-    "  2. ✓ Eviction      → LRU",
+    "❯ 1. ✓ Cache         → Redis",
+    "  2. ▲ Eviction      → (unanswered — select to answer)",
     "  3. Submit answers",
     "  4. Cancel",
     "",
@@ -180,24 +181,23 @@
     "",
     "",
     "",
-    "",
-    "",
-    " flux-arena-cwd-MlAHtL                                                                         esc interrupts · ⇧← back"
+    " ± implement mode on (shift+tab to cycle)",
+    " flux-arena-cwd-pYWMud                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 23642,
-   "frame-recommit": 24
+   "patches": 21697,
+   "frame-recommit": 41
   },
   "frames": {
-   "total": 45,
-   "window": 45,
-   "p50": 1.0860830000001442,
-   "p95": 8.523000000000138,
-   "p99": 21.60070900000005,
-   "maxMs": 21.60070900000005
+   "total": 63,
+   "window": 63,
+   "p50": 1.8428329999997004,
+   "p95": 69.90237499999785,
+   "p99": 207.42858400000023,
+   "maxMs": 207.42858400000023
   }
  },
  "requests": [
@@ -209,7 +209,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -232,39 +232,39 @@
  ],
  "sends": [
   {
-   "atMs": 6764.062166213989,
+   "atMs": 11720.291137695312,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7564.062166213989,
+   "atMs": 12520.291137695312,
    "b64": "DQ=="
   },
   {
-   "atMs": 11264.06216621399,
+   "atMs": 16220.291137695312,
    "b64": "DQ=="
   },
   {
-   "atMs": 11864.06216621399,
+   "atMs": 16820.291137695312,
    "b64": "DQ=="
   },
   {
-   "atMs": 12464.06216621399,
+   "atMs": 17420.291137695312,
    "b64": "G1ta"
   },
   {
-   "atMs": 12864.06216621399,
+   "atMs": 17820.291137695312,
    "b64": "G1ta"
   },
   {
-   "atMs": 13364.06216621399,
+   "atMs": 18320.291137695312,
    "b64": "G1tC"
   },
   {
-   "atMs": 13764.06216621399,
+   "atMs": 18720.291137695312,
    "b64": "DQ=="
   },
   {
-   "atMs": 14364.06216621399,
+   "atMs": 19320.291137695312,
    "b64": "CQ=="
   }
  ]

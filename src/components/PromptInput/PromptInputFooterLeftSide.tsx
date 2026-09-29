@@ -9,9 +9,6 @@ import { useAppState, useSetAppState, type AppState } from '../../state/AppState
 import { usePrStatus } from '../../hooks/usePrStatus.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { getTeammateModeFromSnapshot } from '../../utils/swarm/backends/teammateModeSnapshot.js'
-import { TEAM_LEAD_NAME } from '../../utils/swarm/constants.js'
 import { getGlobalConfig, isCopyOnSelectEnabled } from '../../utils/config.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
 import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
@@ -27,7 +24,6 @@ import { env } from '../../utils/env.js'
 import { getPlatform } from '../../utils/platform.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { PrBadge } from '../PrBadge.js'
-import { TeamStatus } from '../teams/TeamStatus.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { BackgroundTaskStatus } from '../tasks/BackgroundTaskStatus.js'
 import { CompactFooterNoticeContext } from '../../context/layoutChromeContext.js'
@@ -85,7 +81,6 @@ export function PromptInputFooterLeftSide({
   )
   const shellRunning = useFocusedShellRunning()
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
-  const teamContext = useAppState((state: AppState) => state.teamContext)
   const permissionMode = useAppState(
     (state: AppState) => state.toolPermissionContext.mode,
   )
@@ -183,15 +178,7 @@ export function PromptInputFooterLeftSide({
 
   const nonDefaultMode = !isDefaultMode(permissionMode) ? 1 : 0
   const tasksPresent = manageable.length > 0 || viewingTeammate
-  const inProcessMode = getTeammateModeFromSnapshot() === 'in-process'
-  const teamsPresent =
-    isAgentSwarmsEnabled() &&
-    !inProcessMode &&
-    teamContext !== undefined &&
-    Object.values(teamContext.teammates).some(
-      member => member.name !== TEAM_LEAD_NAME,
-    )
-  const primaryItems = nonDefaultMode + (tasksPresent ? 1 : 0) + (teamsPresent ? 1 : 0)
+  const primaryItems = nonDefaultMode + (tasksPresent ? 1 : 0)
 
   const showPrBadge =
     primaryItems < 2 &&
@@ -283,7 +270,7 @@ export function PromptInputFooterLeftSide({
       )
     }
   }
-  if (showTasksPill && hintsEnabled && !teamsPresent) {
+  if (showTasksPill && hintsEnabled) {
     parts.push(
       footerSelection === 'tasks' ? (
         <KeyboardShortcutHint key="manage" shortcut="Enter" action="view" />
@@ -298,7 +285,7 @@ export function PromptInputFooterLeftSide({
   const idleHintShows =
     parts.length === 0 && !showTasksPill && hintsEnabled && !showPrBadge && !noticeStands
   const rowHasContent =
-    searchField !== undefined || vimInsert || showTasksPill || teamsPresent || showPrBadge
+    searchField !== undefined || vimInsert || showTasksPill || showPrBadge
   const cluster = (
     <Box
       flexDirection="row"
@@ -322,11 +309,6 @@ export function PromptInputFooterLeftSide({
             isLeaderIdle={!isLoading}
             onOpenDialog={onOpenTasksDialog}
           />
-        </Box>
-      ) : null}
-      {teamsPresent ? (
-        <Box flexShrink={0} marginRight={1}>
-          <TeamStatus teamsSelected={footerSelection === 'teams'} showHint={hintsEnabled} />
         </Box>
       ) : null}
       {showPrBadge ? (
