@@ -352,7 +352,7 @@ the account holds a credential for, every tier included; a family with no
 credential refuses typed (`no-credential:<family>`) with the one action that fixes
 it riding the refusal — except the account-less local family, whose miss is a gone
 server, not a missing credential: it refuses `unreachable:local` with the probe
-route. The **crew** arm carries the same verdict row for row: a crew teammate is
+route. The **crew** arm carries the same verdict row for row: a crewmate is
 the same product child a session runs, so every row a session may run, a crew
 seat may run. Every refusal names its class and
 carries one machine-readable action line — a coordinator or operator relays the
@@ -555,7 +555,7 @@ catalogues, and the local servers' discovery. The `/logins` card asks for the
 lists its readiness rows read when it opens and repaints them as they land,
 so an OpenAI sign-in on a Claude session reads its catalogue's own state
 there within one refresh instead of "not fetched yet" until `/model` opens. The
-sub-agent and teammate model choices in `/config` refresh the same lists
+sub-agent and crewmate model choices in `/config` refresh the same lists
 when their pickers open. A changed
 list replaces the rows in place, keeps the highlighted model and adds a notice
 naming the family; an unchanged list stays quiet. A family with no credential,

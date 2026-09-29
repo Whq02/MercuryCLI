@@ -717,7 +717,7 @@ async function routeControlRequest(
     case 'crewSpawn': {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.crewSpawn) {
-        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host crew teammates' })
+        return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host crewmates' })
       }
       const name = String(raw.name ?? '')
       const modelKey = String(raw.model ?? '')

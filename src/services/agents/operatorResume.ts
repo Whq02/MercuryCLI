@@ -33,7 +33,7 @@ export function operatorResumeWords(description: string): string {
 }
 
 export function teammateRespawnWords(name: string): string {
-  return `Teammate "${name}" resumed from the crew view · it continues its transcript under a new row`
+  return `Crewmate "${name}" resumed from the crew view · it continues its transcript under a new row`
 }
 
 export function teammateRespawnConfig(task: InProcessTeammateTaskState): SpawnTeammateConfig {
@@ -69,10 +69,10 @@ export async function resumeTeammateFromTranscript(
 ): Promise<OperatorRespawnReceipt> {
   const candidate = context.getAppState().tasks?.[taskId]
   const task = isInProcessTeammateTask(candidate) ? candidate : undefined
-  if (task?.status === 'running') return { outcome: 'refused', reason: 'the teammate is running — nothing to resume' }
+  if (task?.status === 'running') return { outcome: 'refused', reason: 'the crewmate is running — nothing to resume' }
   const meta = await readAgentMetadata(asAgentId(taskId))
   const record = meta?.teammate
-  if (task === undefined && (record === undefined || meta?.name === undefined)) return { outcome: 'refused', reason: `${taskId} is not a teammate row` }
+  if (task === undefined && (record === undefined || meta?.name === undefined)) return { outcome: 'refused', reason: `${taskId} is not a crewmate row` }
   const config: SpawnTeammateConfig =
     task !== undefined
       ? teammateRespawnConfig(task)
@@ -86,16 +86,16 @@ export async function resumeTeammateFromTranscript(
         }
   const teamName = config.team_name!
   const agentId = formatAgentId(config.name, teamName)
-  if (resumingTeammates.has(agentId)) return { outcome: 'refused', reason: `Teammate "${config.name}" is already resuming` }
+  if (resumingTeammates.has(agentId)) return { outcome: 'refused', reason: `Crewmate "${config.name}" is already resuming` }
   resumingTeammates.add(agentId)
   try {
     const live = findTeammateTaskByAgentId(agentId, context.getAppState().tasks) as InProcessTeammateTaskState | undefined
-    if (live?.status === 'running') return { outcome: 'refused', reason: 'the teammate is running — nothing to resume' }
+    if (live?.status === 'running') return { outcome: 'refused', reason: 'the crewmate is running — nothing to resume' }
     const transcriptAgentId = task?.transcriptAgentId ?? record?.transcriptAgentId
     await flushSessionStorage()
     const transcript = transcriptAgentId === undefined ? null : await (ports.readTranscript ?? getAgentTranscript)(asAgentId(transcriptAgentId))
     if (transcript === null || transcript.messages.length === 0) {
-      return { outcome: 'refused', reason: `No transcript found for teammate "${config.name}" (${transcriptAgentId ?? taskId}) — nothing to resume from` }
+      return { outcome: 'refused', reason: `No transcript found for crewmate "${config.name}" (${transcriptAgentId ?? taskId}) — nothing to resume from` }
     }
     restoreBoundPrefixFromMessages(transcript.messages, { rosterOnly: true })
     const messages = filterWhitespaceOnlyAssistantMessages(filterOrphanedThinkingOnlyMessages(filterUnresolvedToolUses(transcript.messages)))
@@ -112,7 +112,7 @@ export async function resumeTeammateFromTranscript(
     const spawn = ports.spawn ?? (await import('../../tools/shared/spawnMultiAgent.js')).spawnTeammate
     const spawned = await spawn(config, respawnContextOf(context.toolUseContext))
     const row = findTeammateTaskByAgentId(spawned.data.agent_id, context.getAppState().tasks) as InProcessTeammateTaskState | undefined
-    if (row === undefined || row.status !== 'running') return { outcome: 'refused', reason: `Teammate "${config.name}" did not resume into a running row` }
+    if (row === undefined || row.status !== 'running') return { outcome: 'refused', reason: `Crewmate "${config.name}" did not resume into a running row` }
     return {
       outcome: 'applied',
       agentId: spawned.data.agent_id,

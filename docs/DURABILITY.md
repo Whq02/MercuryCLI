@@ -1,6 +1,6 @@
 # Durability
 
-Mercury's durable state — teams, tasks, mailboxes, run records, daemon
+Mercury's durable state — the crew, tasks, messages, run records, daemon
 schedules, stores, change sets — is written so that an abrupt process death
 (kill, crash, power loss) never leaves torn bytes, silently lost commits, or
 views that disagree with disk.
@@ -23,7 +23,7 @@ writer's live temp is never touched.
 
 ## Multi-record operations
 
-A durable operation spanning more than one record (a team plus its task
+A durable operation spanning more than one record (a crew plus its task
 root; a run outcome plus its artifact) is journaled with an idempotency
 key: the operation is durably prepared before its first external step,
 every step is idempotent, and completion is durably marked before the
