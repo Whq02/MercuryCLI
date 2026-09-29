@@ -55,7 +55,7 @@ check('the store no longer carries the stale lease', (await L.listLeases(t2, { n
 
 section('source: the two call sites are wired (no longer 0-caller dead code)')
 const spawn = readFileSync(join(ROOT, 'src', 'utils', 'swarm', 'spawnInProcess.ts'), 'utf-8')
-check('spawnInProcess cleanup calls releaseAllForAgent(teamName, agentId)', /await releaseAllForAgent\(config\.teamName, agentId\)/.test(spawn))
+check('spawnInProcess cleanup calls releaseAllForAgent(teamName, config.name) — the crewmate name the claim is filed under', /await releaseAllForAgent\(config\.teamName, config\.name\)/.test(spawn))
 const service = readFileSync(join(ROOT, 'src', 'services', 'coordination', 'coordinationService.ts'), 'utf-8')
 check('lease_list opportunistically calls sweepExpiredLeases(ctx.team)', /await sweepExpiredLeases\(ctx\.team\)\.catch/.test(service))
 

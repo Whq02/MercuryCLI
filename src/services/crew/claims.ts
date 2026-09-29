@@ -3,6 +3,7 @@ import {
   claimLease,
   DEFAULT_LEASE_TTL_MS,
   getLeaseConflict,
+  getLeaseScopeConflict,
   getLeaseStorePath,
   listLeases,
   releaseLease,
@@ -83,6 +84,15 @@ export async function crewClaimConflict(
   opts: { base?: string; nowMs?: number } = {},
 ): Promise<CrewClaimConflict | null> {
   const conflict = await getLeaseConflict(CREW_CLAIMS_SCOPE, holder.name, filePath, opts)
+  return conflict ? { holder: conflict.holder, glob: conflict.glob } : null
+}
+
+export async function crewClaimScopeConflict(
+  scopePath: string,
+  holder: CrewClaimHolder = resolveClaimHolder(),
+  opts: { base?: string; nowMs?: number } = {},
+): Promise<CrewClaimConflict | null> {
+  const conflict = await getLeaseScopeConflict(CREW_CLAIMS_SCOPE, holder.name, scopePath, opts)
   return conflict ? { holder: conflict.holder, glob: conflict.glob } : null
 }
 
