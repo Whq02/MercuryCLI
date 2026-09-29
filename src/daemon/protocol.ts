@@ -354,6 +354,7 @@ export interface DaemonHelloFacts {
   liveSessions: number
   warm: number
   restartArmed: boolean
+  predecessorPid?: number | null
 }
 
 export interface WireRosterEntry {
