@@ -125,6 +125,7 @@ writeFileSync(
 chmodSync(join(shimDir, 'gh'), 0o755)
 const REAL_PATH = process.env.PATH ?? ''
 process.env.PATH = `${shimDir}:${REAL_PATH}`
+process.env.MERCURY_GH_CMD = JSON.stringify([join(shimDir, 'gh')])
 
 section('S. host search (deterministic shim)')
 {

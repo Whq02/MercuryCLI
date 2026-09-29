@@ -268,8 +268,9 @@ section('1 · the yield contract + the turn record')
   check('instructions carry the system prompt', body?.instructions === 'You are a specialist.')
   check('mercury prompt_cache_key rides as the STABLE domain digest', typeof body?.prompt_cache_key === 'string' && body.prompt_cache_key.startsWith('mercury-domain:'))
   {
-    const { registerComposedContract, contractFromSegments } = await import('../../src/prompt/behaviourContract.js')
-    registerComposedContract(contractFromSegments(['You are a specialist.']))
+    const { composeSystemPrompt } = await import('../../src/prompt/composer.js')
+    const composedBase = (intro: string): string[] =>
+      composeSystemPrompt({ staticSections: [intro], dynamicBoundary: [], dynamicSpecs: [], dynamicResolved: [], wrapperSections: [], modeSections: [], antiSycSections: [], reconcileTailSections: [] })
     const keyOf = async (systemPrompt: string[]): Promise<string | undefined> => {
       patchWire()
       makeResponses = () => sseResponse(HAPPY_STREAM)
@@ -277,9 +278,9 @@ section('1 · the yield contract + the turn record')
       restoreWire()
       return (lastResponsesBody as { prompt_cache_key?: string } | undefined)?.prompt_cache_key
     }
-    const tailOne = await keyOf(['You are a specialist.', 'git status snapshot: one file changed'])
-    const tailTwo = await keyOf(['You are a specialist.', 'git status snapshot: two files changed'])
-    const otherBase = await keyOf(['You are a different specialist.', 'git status snapshot: one file changed'])
+    const tailOne = await keyOf([...composedBase('You are a specialist.'), 'git status snapshot: one file changed'])
+    const tailTwo = await keyOf([...composedBase('You are a specialist.'), 'git status snapshot: two files changed'])
+    const otherBase = await keyOf([...composedBase('You are a different specialist.'), 'git status snapshot: one file changed'])
     check('the key stays put when only the appended context tail moves (the git status snapshot)', tailOne !== undefined && tailOne === tailTwo, `${tailOne} vs ${tailTwo}`)
     check('the key moves with the base contract', otherBase !== undefined && otherBase !== tailOne, `${otherBase} vs ${tailOne}`)
     check('…and the two tails still render into the instructions (delivery, not the key)', typeof (lastResponsesBody as { instructions?: string } | undefined)?.instructions === 'string' && ((lastResponsesBody as { instructions?: string }).instructions ?? '').includes('git status snapshot: one file changed'))

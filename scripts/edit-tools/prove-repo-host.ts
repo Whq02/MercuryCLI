@@ -111,6 +111,7 @@ section('L. local truth without any host')
 section('H. host reads (deterministic shim)')
 {
   process.env.PATH = withShim
+  process.env.MERCURY_GH_CMD = JSON.stringify([join(shimDir, 'gh')])
   _resetRepoHostCacheForTesting()
   const pr = await fetchPr(repo, 7)
   check('H1 pr view parsed + bounded', pr.state === 'ok' && pr.pr.number === 7 && pr.pr.files.length === 2)
@@ -122,11 +123,13 @@ section('H. host reads (deterministic shim)')
   check('H4 mercury://repo/pr/<n> stable URI + body', prRes.state === 'ok' && prRes.state === 'ok' && (prRes.resource.text ?? '').includes('Seeded body.'))
 
   process.env.PATH = withBroken
+  process.env.MERCURY_GH_CMD = JSON.stringify([join(brokenShimDir, 'gh')])
   _resetRepoHostCacheForTesting()
   const malformed = await fetchPr(repo, 7)
   check('H5 malformed CLI output ⇒ typed unavailable', malformed.state === 'unavailable' && malformed.note.includes('unparseable'))
 
   process.env.PATH = noGh
+  delete process.env.MERCURY_GH_CMD
   _resetRepoHostCacheForTesting()
   const missing = await fetchPr(repo, 7)
   check('H6 missing gh ⇒ exact remedy', missing.state === 'unavailable' && missing.remedy.includes('gh auth login'))
