@@ -120,6 +120,33 @@ export async function spawnCrewTeammate(
   return { ok: false, error: `spawn timed out: ${lastError}` }
 }
 
+export const CREW_SEAT_ID_PREFIX = 'seat:'
+
+export function crewResumeNoModelWords(name: string): string {
+  return `no model is recorded for @${name} — spawn it again with n and name its model`
+}
+
+export function crewResumingWords(name: string): string {
+  return `resuming @${name} from its transcript…`
+}
+
+export function crewResumedWords(name: string): string {
+  return `@${name} resumed from its transcript — it continues under the same name and model`
+}
+
+export function crewResumeRefusedWords(name: string, reason: string | undefined): string {
+  return `the resume of @${name} was refused: ${reason ?? 'no reason given'}`
+}
+
+export function crewMessageWakesWords(name: string): string {
+  return `@${name} was stopped — the message wakes it from its transcript`
+}
+
+export async function resumeCrewTeammate(name: string, model: string | undefined, projectDir: string): Promise<CrewSpawnResult> {
+  if (model === undefined || model.trim() === '') return { ok: false, error: crewResumeNoModelWords(name) }
+  return spawnCrewTeammate(name, model, projectDir)
+}
+
 export async function killCrewTeammate(name: string): Promise<{ ok: boolean; error?: string }> {
   try {
     const reply = await daemonControlRpc({ op: 'kill', short: name } as DaemonRequest, { timeoutMs: 3000 })

@@ -18,7 +18,9 @@ import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
-import { CREW_TEAM, makeCrewSpawnHandler } from './crewSpawn.js'
+import { CREW_TEAM, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
+import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
+import { readTeamFileAsync } from '../utils/swarm/teamHelpers.js'
 import {
   concourseWorkersPath,
   listConcourseWorkers,
@@ -467,6 +469,43 @@ async function daemonRun(args: string[]): Promise<void> {
             : { ok: false, error: out.detail ?? out.reason, reason: out.reason }
         },
       })
+      const crewDrains = new Map<string, DispatchDrainHandle>()
+      const armCrewDrain = (name: string): void => {
+        const r = roster
+        if (!r || crewDrains.has(name)) return
+        const handle = armDispatchDrain(
+          makeCrewWakeRoster(r, { port: () => roster ?? undefined, spawn: (short, modelKey) => crewSpawnHandler(short, modelKey), modelOf: crewMemberModel }),
+          {
+            short: name,
+            agentName: name,
+            teamName: CREW_TEAM,
+            hasSeen: id => r.hasSeenDispatch(name, id),
+            markSeen: id => r.markSeenDispatch(name, id),
+          },
+        )
+        crewDrains.set(name, handle)
+        dispatchDrains.push(handle)
+        idleNudges.set(name, () => handle.drain())
+      }
+      const crewSpawnHandler = makeCrewSpawnHandler({
+        roster: () => roster ?? undefined,
+        dir,
+        onSpawned: (name, spec, pid) => {
+          armCrewDrain(name)
+          crewDrains.get(name)?.drain()
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] crew teammate spawned: @${name} (pid ${pid}) — ${spec.model}@${spec.effort}, team crew, auto+recon posture`)
+        },
+      })
+      const armOfflineCrewDrains = async (): Promise<void> => {
+        const r = roster
+        if (!r || !crewEnabled()) return
+        const team = await readTeamFileAsync(CREW_TEAM).catch(() => null)
+        for (const member of team?.members ?? []) {
+          if (member.name === TEAM_LEAD_NAME || crewDrains.has(member.name) || r.has(member.name).alive) continue
+          armCrewDrain(member.name)
+        }
+      }
       const liveWorkers = (): { live: number; liveSessions: number } => {
         if (!roster) return { live: 0, liveSessions: 0 }
         const warm = new Set(warmRunnerShorts())
@@ -529,25 +568,7 @@ async function daemonRun(args: string[]): Promise<void> {
         isReady: () => ready,
         whenReady: () => readyPromise,
         nudgeAgent: agentName => idleNudges.get(agentName)?.(),
-        crewSpawn: makeCrewSpawnHandler({
-          roster: () => roster ?? undefined,
-          dir,
-          onSpawned: (name, spec, pid) => {
-            const r = roster
-            if (!r) return
-            const handle = armDispatchDrain(r, {
-              short: name,
-              agentName: name,
-              teamName: CREW_TEAM,
-              hasSeen: id => r.hasSeenDispatch(name, id),
-              markSeen: id => r.markSeenDispatch(name, id),
-            })
-            dispatchDrains.push(handle)
-            idleNudges.set(name, () => handle.drain())
-            // eslint-disable-next-line no-console
-            console.error(`[daemon] crew teammate spawned: @${name} (pid ${pid}) — ${spec.model}@${spec.effort}, team crew, auto+recon posture`)
-          },
-        }),
+        crewSpawn: crewSpawnHandler,
         concourseAdmit: makeConcourseAdmitHandler({
           roster: () => roster ?? undefined,
           ...warmAdmitDoors,
@@ -1111,6 +1132,7 @@ async function daemonRun(args: string[]): Promise<void> {
       }
       ready = true
       wakeReady()
+      void armOfflineCrewDrains()
       // eslint-disable-next-line no-console
       console.error('[daemon] control socket up — RPC: list/has/status/dispatch/reply/kill/shutdown')
       stopSaturnTicker = startSaturnTicker(
