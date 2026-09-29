@@ -309,7 +309,7 @@ export function publishDesktopIdle(): void {
 }
 
 export const TEAMMATE_COMPUTER_REFUSAL =
-  "the Computer tool drives the operator's own screen; a teammate never drives it in this release — the main session does"
+  "the Computer tool drives the operator's own screen; a crewmate never drives it in this release — the main session does"
 export const AGENT_COMPUTER_REFUSAL =
   "the Computer tool drives the operator's own screen; a sub-agent never carries it in this release — the main session does"
 export const HEADLESS_COMPUTER_REFUSAL =

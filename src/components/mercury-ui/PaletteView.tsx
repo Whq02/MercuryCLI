@@ -193,7 +193,7 @@ function LadderHeader({ ladder }: { ladder: CommandHierarchy | null }): React.Re
     return (
       <Box marginTop={1}>
         <Text color={FAINT}>
-          {GLYPH.handoff} command ladder · no active team — run any command directly
+          {GLYPH.handoff} command ladder · no active crew — run any command directly
         </Text>
       </Box>
     )

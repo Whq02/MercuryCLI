@@ -21,7 +21,7 @@ const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
 const AGENT_ROW = 'Sub-agent default model'
-const TEAMMATE_ROW = 'Default teammate model'
+const TEAMMATE_ROW = 'Default crewmate model'
 const SIZES: Array<[number, number]> = [[178, 51], [120, 40], [80, 21], [82, 17], [80, 14]]
 
 let failures = 0
@@ -207,7 +207,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   const home = seededHome(`teammate-${cols}x${rows}`)
   const c = capture(`teammate-${cols}x${rows}`, home, cols, rows, [
     ...openConfig(cols),
-    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Default teammate model' },
+    { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Default crewmate model' },
     { requireAwait: true, awaitText: TEAMMATE_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
     { afterPrevTicks: 3, data: '', mark: 'row-before' },
     { afterPrevTicks: 1, data: RIGHT },

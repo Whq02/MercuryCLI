@@ -100,8 +100,6 @@ import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
 import { LiveCommsTool } from './tools/LiveCommsTool/LiveCommsTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { TaskUpdateTool } from './tools/TaskUpdateTool/TaskUpdateTool.js'
-import { TeamCreateTool } from './tools/TeamCreateTool/TeamCreateTool.js'
-import { TeamDeleteTool } from './tools/TeamDeleteTool/TeamDeleteTool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
 import { TestTool } from './tools/TestTool/TestTool.js'
 import { ToolSearchTool } from './tools/ToolSearchTool/ToolSearchTool.js'
@@ -168,8 +166,6 @@ export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
   const includeSearchTools = search.available && search.mode !== 'embedded'
 
-  const teamCreate = cycleTolerant(() => TeamCreateTool)
-  const teamDelete = cycleTolerant(() => TeamDeleteTool)
   const liveComms = cycleTolerant(() => LiveCommsTool)
   const artifactsList = cycleTolerant(() => ArtifactsListTool)
   const sendMessage = cycleTolerant(() => SendMessageTool)
@@ -219,8 +215,8 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
-    ...(isAgentSwarmsEnabled() && teamCreate && teamDelete && liveComms
-      ? [teamCreate, teamDelete, liveComms, ...(artifactsList ? [artifactsList] : [])]
+    ...(isAgentSwarmsEnabled() && liveComms
+      ? [liveComms, ...(artifactsList ? [artifactsList] : [])]
       : []),
     WORKFLOW_TOOL,
     SLEEP_TOOL,

@@ -25,7 +25,6 @@ import {
   LEAD_ASK_MATE,
   LEAD_ASK_SLEEPER,
   MATE_NAME,
-  MATE_TEAM,
   SEAT_NAME,
   SEAT_SLEEP_SECONDS,
   startCrewStopFixture,
@@ -235,7 +234,7 @@ if (!existsSync(DIST)) {
       const before = w.runner.frames.length
       const resumed = await control(w, { subtype: 'resume_task', task_id: row.id }, bound(30_000))
       const rr = responseOf(resumed)
-      check('S5 the runner answers the resume applied, naming a new row under the same agent id', rr.subtype === 'success' && typeof rr.response?.task_id === 'string' && rr.response.task_id !== row.id && rr.response.agent_id === `${MATE_NAME}@${MATE_TEAM}`, j(rr))
+      check('S5 the runner answers the resume applied, naming a new row under the same agent id', rr.subtype === 'success' && typeof rr.response?.task_id === 'string' && rr.response.task_id !== row.id && rr.response.agent_id === (row as { agentId?: string }).agentId && String(rr.response.agent_id).startsWith(`${MATE_NAME}@`), j(rr))
       const again = await waitRow(w, 'the respawned teammate row', x => x.kind === 'teammate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))
       check('S5 a new teammate row runs under a new id', again !== null && again.id === rr.response?.task_id, j(again))
       const untilAsk = Date.now() + bound(20_000)

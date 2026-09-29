@@ -147,8 +147,8 @@ type SubMenu =
   | typeof LOCAL_SERVER_APPLY_MENU
 
 const AGENT_INHERIT_ROW: ModelChoice = { id: 'inherit', name: 'Inherit', tag: "the parent's model", ctx: '', group: 'Sub-agent', choice: "a choice, not a model — the spawned agent runs its parent's model" }
-const TEAMMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Teammate', choice: 'a choice, not a model — a teammate runs the session default model' }
-const TEAMMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Teammate', choice: "a choice, not a model — a teammate runs the leader's model" }
+const TEAMMATE_DEFAULT_ROW: ModelChoice = { id: 'default', name: 'Default', tag: 'the session default model', ctx: '', group: 'Crewmate', choice: 'a choice, not a model — a crewmate runs the session default model' }
+const TEAMMATE_LEADER_ROW: ModelChoice = { id: 'leader', name: "Leader's model", tag: "the leader's own model at spawn", ctx: '', group: 'Crewmate', choice: "a choice, not a model — a crewmate runs the lead's model" }
 
 type ItemKind = 'boolean' | 'enum' | 'managed-enum' | 'info'
 
@@ -1045,7 +1045,7 @@ export function Config({
     })
     items.push({
       id: 'defaultTeammateModel',
-      label: 'Default teammate model',
+      label: 'Default crewmate model',
       kind: 'managed-enum',
       value: (
         <Text>
@@ -1428,7 +1428,7 @@ export function Config({
           writeGlobal(c => ({ ...c, teammateDefaultModel: next }))
           recordSet(
             'teammateDefaultModel',
-            `set default teammate model to ${next === null ? TEAMMATE_LEADER_ROW.name : next === undefined ? TEAMMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
+            `set default crewmate model to ${next === null ? TEAMMATE_LEADER_ROW.name : next === undefined ? TEAMMATE_DEFAULT_ROW.name : modelChoiceLabel(next)}`,
           )
           setSubMenu(null)
         }}

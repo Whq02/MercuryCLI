@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
+import { randomUUID } from 'node:crypto'
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, toolResultOf, treeOf, TURN_MS } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
-const crew = 'message-crew'
+const sessionId = randomUUID()
+const crew = sessionId
 const worker = 'worker'
 const peerModel = 'claude-opus-4-6'
 const FIRST = 'FIRST-TURN'
@@ -18,7 +20,6 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: crew, description: 'Messages ride LiveComms' } }, FIRST),
   lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Runs a long command', prompt: `${WORKER_PROMPT}: run the long command.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: SEND_MID, name: 'SendMessage', input: { to: worker, message: NOTE, summary: 'a note' } }, SECOND),
@@ -31,7 +32,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-livecomms-messages')
 const world = await makeWorld('livecomms-messages', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash', 'TeamCreate', 'SendMessage'])
+const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage'])
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const lastUser = (request: Request): string => {
@@ -50,7 +51,7 @@ const stored = (): Stored => (existsSync(storeFile) ? (JSON.parse(readFileSync(s
 
 try {
   tally.section('the lead spawns a worker whose turn holds a long command; the lead messages it mid-turn')
-  session.submit(`${FIRST}: create the crew, spawn the worker, and park.`)
+  session.submit(`${FIRST}: spawn the worker, and park.`)
   const started = await until(() => requests().length >= 1 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   tally.check('the worker started its turn and the lead parked', started, session.stdout().slice(-300))
   await sleep(1500)

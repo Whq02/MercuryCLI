@@ -675,9 +675,12 @@ function staticImports(src: string): {
     (routed?.children?.props as { __t15repl?: boolean })?.__t15repl === true,
   )
   check('launch: root forwarded untouched', (calls[0]?.root as { __t15root?: boolean })?.__t15root === true)
+  const forwarded = (el?.props?.initialState ?? {}) as Record<string, unknown> & { teamContext?: { teamName?: string; isLeader?: boolean; teammates?: Record<string, unknown> } }
   check(
-    'launch: empty home ⇒ initialState forwarded by REFERENCE (no fabricated projection)',
-    el?.props?.initialState === initialState,
+    'launch: empty home ⇒ every field of initialState is forwarded by REFERENCE and no led-team projection is fabricated — only the session\'s born crew (no crewmates) is added',
+    Object.keys(initialState as Record<string, unknown>).every(key => key === 'teamContext' || forwarded[key] === (initialState as Record<string, unknown>)[key]) &&
+      forwarded.teamContext?.isLeader === true &&
+      Object.keys(forwarded.teamContext?.teammates ?? { x: 1 }).length === 0,
   )
 
   const preset = { teamContext: { teamName: '__t15-preset' }, __t15: 'state-2' }
@@ -726,8 +729,8 @@ function staticImports(src: string): {
       appSrc.includes("if (s.phase !== 'done') return false"),
   )
   check(
-    'recovery: the late seed keeps the never-override guard',
-    appSrc.includes('prev.teamContext ? prev :'),
+    'recovery: the late seed keeps the never-override guard — only a born crew with no crewmates yields to a late led-team projection',
+    appSrc.includes('prev.teamContext && !isBornCrewWithoutCrewmates(prev.teamContext) ? prev :'),
   )
 }
 

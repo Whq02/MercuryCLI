@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-  "buildDigest": "fc1bff6ba145bebe48d5f616aa40c87dd1729e2a",
-  "generatedAt": "2026-09-29T04:20:05.219Z",
+  "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
+  "buildDigest": "3a69873f9249fd741d6237038e3404ef36b88a4d",
+  "generatedAt": "2026-09-29T11:36:28.642Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -815,8 +815,8 @@
     },
     {
       "id": "frame--99x30--dark--truecolor--full",
-      "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-      "buildDigest": "fc1bff6ba145bebe48d5f616aa40c87dd1729e2a",
+      "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
+      "buildDigest": "c4daab5f3223b3d1ec2b66b34b3f3edee9b0a441",
       "scenario": "frame",
       "cols": 99,
       "rows": 30,
@@ -849,7 +849,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T04:20:05.142Z"
+      "generatedAt": "2026-09-29T11:19:02.171Z"
     },
     {
       "id": "help--120x40--dark--truecolor--full",
@@ -1499,8 +1499,8 @@
     },
     {
       "id": "resume-2turn--60x18--dark--truecolor--full",
-      "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-      "buildDigest": "fc1bff6ba145bebe48d5f616aa40c87dd1729e2a",
+      "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
+      "buildDigest": "c4daab5f3223b3d1ec2b66b34b3f3edee9b0a441",
       "scenario": "resume-2turn",
       "cols": 60,
       "rows": 18,
@@ -1533,7 +1533,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T04:20:05.131Z"
+      "generatedAt": "2026-09-29T11:19:02.167Z"
     },
     {
       "id": "resume-2turn--80x24--dark--truecolor--full",
@@ -1575,8 +1575,8 @@
     },
     {
       "id": "resume-2turn--97x30--dark--truecolor--full",
-      "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-      "buildDigest": "fc1bff6ba145bebe48d5f616aa40c87dd1729e2a",
+      "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
+      "buildDigest": "c4daab5f3223b3d1ec2b66b34b3f3edee9b0a441",
       "scenario": "resume-2turn",
       "cols": 97,
       "rows": 30,
@@ -1609,7 +1609,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T04:20:05.141Z"
+      "generatedAt": "2026-09-29T11:19:02.170Z"
     },
     {
       "id": "resume-2turn--99x30--dark--truecolor--full",
@@ -1879,8 +1879,8 @@
     },
     {
       "id": "tool-cards--120x40--dark--truecolor--full",
-      "sourceSha": "13341b56ec2d3fe51f8639f9fbb26b230a7ca280",
-      "buildDigest": "cafe9706e3f2cb1ce74ac525da61619a630dd88f",
+      "sourceSha": "7bc689195ae7553a1cbf60ef423d18d9f069a17e",
+      "buildDigest": "c4daab5f3223b3d1ec2b66b34b3f3edee9b0a441",
       "scenario": "tool-cards",
       "cols": 120,
       "rows": 40,
@@ -1891,7 +1891,7 @@
       "stateFixture": "tool-cards",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/tool-cards--120x40--dark--truecolor--full.grid.json",
-      "gridDigest": "af10a1721e04f4052475a93ed33dc18ad286d2cbe0c5c5c2ede03c13565899f4",
+      "gridDigest": "8b1a0a88dce309bddcd1cc9eeb241518bbb5eb9996d107e6d1c4eb5073491010",
       "styleDigest": "3df5329a52e261c784ffaab5dfddfec78ecee074630623daf4f59e6c77b6c1b7",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -1913,7 +1913,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T03:53:44.232Z"
+      "generatedAt": "2026-09-29T11:19:02.363Z"
     }
   ]
 }

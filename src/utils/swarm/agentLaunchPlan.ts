@@ -12,8 +12,6 @@ import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
-import { TEAM_CREATE_TOOL_NAME } from '../../tools/TeamCreateTool/constants.js'
-import { TEAM_DELETE_TOOL_NAME } from '../../tools/TeamDeleteTool/constants.js'
 import { getAgentModel } from '../model/agent.js'
 import type { ModelAlias } from '../model/aliases.js'
 import type { PermissionMode } from '../permissions/PermissionMode.js'
@@ -146,8 +144,6 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
 
 export const TEAM_ESSENTIAL_TOOLS: readonly string[] = [
   SEND_MESSAGE_TOOL_NAME,
-  TEAM_CREATE_TOOL_NAME,
-  TEAM_DELETE_TOOL_NAME,
   TASK_CREATE_TOOL_NAME,
   TASK_GET_TOOL_NAME,
   TASK_LIST_TOOL_NAME,

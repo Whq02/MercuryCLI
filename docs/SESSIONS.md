@@ -778,7 +778,7 @@ ledger from the moment it is delivered until a turn of that agent takes it.
 The session facts carry the ledger (`notices`: each row names its agent, its
 kind, the notice in a line, the clock it arrived at and what became of it),
 and every sub-agent's work row carries the count of its own unread notices;
-the Crew view (`/teammates`) paints that count on the agent's row — "2
+the Crew view (`/crewmates`) paints that count on the agent's row — "2
 unread" — and nothing when there is none.
 
 A monitor's ticks that land while the session's provider has refused its
@@ -867,7 +867,7 @@ word: a message ends nothing.
 
 ## Where the pieces live
 
-- The coordinator, teammates and the mailbox are [TEAMS.md](TEAMS.md)'s.
+- The coordinator, crewmates and live communication are [TEAMS.md](TEAMS.md)'s.
 - What a session loads — its kit, the menu, presets, the in-session dials —
   is [KIT.md](KIT.md)'s.
 - Schedules that wake a session or birth one on the clock are

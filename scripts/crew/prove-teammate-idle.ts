@@ -68,7 +68,7 @@ const { projectWorkRoster } = await import('../../src/utils/task/workRoster.ts')
 const { crewAgentFactsOf, crewStateLabel, crewStatusWords } = await import('../../src/services/engine-connector/crewFacts.ts')
 const { writeTeamFileAsync, readTeamFileAsync, getTeamFilePath } = await import('../../src/utils/swarm/teamHelpers.ts')
 const { writeToMailbox, readMailbox, createShutdownRequestMessage, isShutdownApproved } = await import('../../src/utils/teammateMailbox.ts')
-const { TeamDeleteTool } = await import('../../src/tools/TeamDeleteTool/TeamDeleteTool.ts')
+const { hasActiveInProcessTeammates, hasWorkingInProcessTeammates } = await import('../../src/utils/teammate.ts')
 const { formatAgentId } = await import('../../src/utils/agentId.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState
 type TaskState = import('../../src/tasks/types.ts').TaskState
@@ -155,17 +155,16 @@ section('§2 a shutdown request to an idle teammate ends it at once: the approva
   check("the seat's task settled completed (not failed, not still running)", taskOf(seat.taskId)?.status === 'completed', String(taskOf(seat.taskId)?.status))
 }
 
-section('§3 TeamDelete succeeds with a live idle teammate and ends it, never "still active"')
+section('§3 an idle crewmate counts as done: the session\'s wait laws read it active but not working, and ending it settles its loop without a model call')
 {
   const second = await startSeat(SECOND_SEAT)
   const idle = await until(() => taskOf(second.taskId)?.isIdle === true)
   check('rig: a second seat ran its turn and waits idle on its inbox', idle && modelCalls.length === 2, `isIdle=${String(taskOf(second.taskId)?.isIdle)} · model calls ${modelCalls.length}`)
-  const result = (await TeamDeleteTool.call({}, context)) as { data: { success: boolean; message: string } }
-  check('TeamDelete succeeds while the idle seat is still a running task (idle counts as done)', result.data.success === true, result.data.message)
-  check('the refusal words "still active" never appear', !/still active/.test(result.data.message), result.data.message)
+  check('the idle seat is active but not working — the close law never waits on it (idle counts as done)', hasActiveInProcessTeammates(context.getAppState() as never) && !hasWorkingInProcessTeammates(context.getAppState() as never), `active=${String(hasActiveInProcessTeammates(context.getAppState() as never))} working=${String(hasWorkingInProcessTeammates(context.getAppState() as never))}`)
+  taskOf(second.taskId)?.abortController?.abort()
   const ended = await Promise.race([second.done, sleep(8000).then(() => null)])
-  check('the idle seat ended with the team (its loop settled completed) — no zombie waiting on a deleted inbox', ended !== null && ended.success === true && taskOf(second.taskId)?.status === 'completed', `${ended === null ? 'still running' : `success=${String(ended.success)}`} · status ${String(taskOf(second.taskId)?.status)}`)
-  check('no model call was made for the delete either', modelCalls.length === 2 && modelFault === null, `${modelCalls.length} calls`)
+  check('the idle seat ends when its crew ends it (its loop settled completed) — no zombie waiting on its inbox', ended !== null && ended.success === true && taskOf(second.taskId)?.status === 'completed', `${ended === null ? 'still running' : `success=${String(ended.success)}`} · status ${String(taskOf(second.taskId)?.status)}`)
+  check('no model call was made for the end either', modelCalls.length === 2 && modelFault === null, `${modelCalls.length} calls`)
 }
 
 clearTimeout(deadline)
