@@ -1,9 +1,27 @@
-import { flagEnabled } from '../substrate/flagRegistry.js'
+import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
 
 
 type PrivacyLevel = 'default' | 'no-telemetry' | 'essential-traffic'
 
 const NONESSENTIAL_TRAFFIC_VAR = 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC'
+const PROOF_SHAPE_VAR = 'MERCURY_LOCAL_PROBE_TARGETS'
+
+export function isProofShapeRun(): boolean {
+  return flagEnv(PROOF_SHAPE_VAR) !== undefined
+}
+
+export function proofShapeReason(): string {
+  return `${PROOF_SHAPE_VAR} is set — a proof run reaches no host off the box`
+}
+
+export function isLoopbackUrl(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.replace(/^\[|\]$/g, '')
+    return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host.startsWith('127.')
+  } catch {
+    return false
+  }
+}
 
 export function getPrivacyLevel(): PrivacyLevel {
   if (process.env[NONESSENTIAL_TRAFFIC_VAR]) return 'essential-traffic'

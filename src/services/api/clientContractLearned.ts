@@ -6,7 +6,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { registerExitCliffSeam, type ExitCliffSeam } from '../../utils/exitCliffDrain.js'
 import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
-import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
+import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../utils/privacyLevel.js'
 import { sleep } from '../../utils/sleep.js'
 import { getMercuryUserAgent } from '../../utils/userAgent.js'
 
@@ -312,6 +312,7 @@ async function readAnswerText(response: Response): Promise<string | null> {
 }
 
 export async function readClientContractFromRegistry(signal?: AbortSignal): Promise<RegistryAnswer> {
+  if (isProofShapeRun() && !isLoopbackUrl(clientContractRegistryUrl())) return { ok: false, failure: { kind: 'network', words: proofShapeReason() } }
   const controller = new AbortController()
   let timedOut = false
   const timer = setTimeout(() => {
@@ -374,6 +375,7 @@ function hasAnthropicCredential(): boolean {
 }
 
 function peekLaneOpen(): boolean {
+  if (isProofShapeRun() && !isLoopbackUrl(npmRegistryBase())) return false
   if (namedRegistryBase() !== undefined) return true
   if (flagEnv('MERCURY_SCRIPTED_STREAM')) return false
   return isFirstPartyAnthropicBaseUrl()
