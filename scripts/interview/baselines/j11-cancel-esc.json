@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-29T02:40:30.695Z",
+ "capturedAt": "2026-09-29T03:00:46.086Z",
  "screens": [
   {
    "atMs": 12500,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:40:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:00:36 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend —             │ 03:40:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 04:00:36 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -30,7 +30,7 @@
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
-    "────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────",
+    "                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯",
     " ☐ Cache",
     "",
     "⦿ Which storage engine should the cache use?",
@@ -47,7 +47,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · Esc to cancel",
     "",
-    " flux-arena-cwd-Ttl90w                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-g9dp8V                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -62,15 +62,15 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 03:40:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:00:36 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 03:40:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 04:00:36 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "TELEMETRY               │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · spend $0.00         │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "  · ctx 0% · 1000k      │ │     then wait for the operator.                                                            │",
     "  · health — run /health│                                                                                              │",
-    "                        │ 03:40:25 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │ 04:00:40 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -107,15 +107,15 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 03:40:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:00:36 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 03:40:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 04:00:36 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "TELEMETRY               │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · spend $0.00         │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "  · ctx 0% · 1000k      │ │     then wait for the operator.                                                            │",
     "  · health — run /health│                                                                                              │",
-    "                        │ 03:40:25 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │ 04:00:40 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -143,17 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 19251,
-   "frame-recommit": 38,
-   "tail-publish": 2
+   "patches": 18677,
+   "frame-recommit": 38
   },
   "frames": {
-   "total": 58,
-   "window": 58,
-   "p50": 1.668041999999332,
-   "p95": 21.423624999999447,
-   "p99": 39.24866600000041,
-   "maxMs": 39.24866600000041
+   "total": 56,
+   "window": 56,
+   "p50": 0.6224159999999301,
+   "p95": 19.283500000000004,
+   "p99": 34.249667000000045,
+   "maxMs": 34.249667000000045
   }
  },
  "requests": [
@@ -206,15 +205,15 @@
  ],
  "sends": [
   {
-   "atMs": 6895.628213882446,
+   "atMs": 6929.351329803467,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7695.628213882446,
+   "atMs": 7729.351329803467,
    "b64": "DQ=="
   },
   {
-   "atMs": 11895.628213882446,
+   "atMs": 11929.351329803467,
    "b64": "Gw=="
   }
  ]
