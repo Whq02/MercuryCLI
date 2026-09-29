@@ -49,6 +49,7 @@ import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
+import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
 import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.js'
@@ -2581,6 +2582,7 @@ export async function runHeadless(
           resetLimitsForCredentialSwitch()
           dropCredentialMemos()
           readOpenaiAccountAgain()
+          noteCrewAccountChange()
           respondSuccess(requestId)
           return
         }

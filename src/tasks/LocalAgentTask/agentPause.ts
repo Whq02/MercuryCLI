@@ -23,6 +23,12 @@ export function pauseCountdownWords(ms: number): string {
 
 export const AGENT_PAUSE_DOORS = 'a message resumes it now (/model first runs it on another model); the crew view stops it'
 
+export const AGENT_WINDOW_RESUME_NOTE =
+  'The usage window reset and you were resumed by yourself after it paused you. Continue from where your transcript ends — the work before the pause stands; do not redo it.'
+
+export const CREW_ACCOUNT_RESUME_NOTE =
+  'The operator signed in on another account and you were resumed by yourself after a usage limit paused you. Continue from where your transcript ends — the work before the pause stands; do not redo it.'
+
 export function pauseResumeWords(pause: Pick<AgentPauseV1, 'why' | 'resumesAtMs'>, nowMs: number): string {
   if (pause.resumesAtMs === undefined) return pause.why === 'provider overloaded' ? 'resumes by itself when the provider answers' : 'no reset stated — a message resumes it'
   const left = pause.resumesAtMs - nowMs

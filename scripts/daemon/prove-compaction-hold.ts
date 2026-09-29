@@ -156,7 +156,7 @@ section('F4 the wiring — the seat, the roster, the daemon, the hint row, the c
   const roster = read('daemon/roster.ts')
   check('the roster fires the relaunch hook after the first life, once the child is wired', roster.includes('onChildRelaunched?: (short: string, pid: number) => void') && /ll\.spawnGeneration > 1 && this\.opts\.onChildRelaunched/.test(roster))
   const main = read('daemon/main.ts')
-  check('the daemon routes a session runner relaunch to the seat spawn hook', /onChildRelaunched: short => \{\s*if \(!short\.startsWith\('concourse-w'\) \|\| roster === null\) return\s*onSeatSpawned\(short, roster\)/.test(main))
+  check('the daemon routes a session runner relaunch to the seat spawn hook', /onChildRelaunched: short => \{[\s\S]{0,120}if \(!short\.startsWith\('concourse-w'\) \|\| roster === null\) return\s*onSeatSpawned\(short, roster\)/.test(main))
   const projections = read('services/engine-connector/seatProjections.ts')
   check('the facts carry the count as an optional field (the mixed-version law)', projections.includes('runnerGeneration?: number'))
   const repl = read('screens/REPL.tsx')

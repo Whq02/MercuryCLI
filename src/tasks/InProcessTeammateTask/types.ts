@@ -3,6 +3,7 @@ import type { PermissionMode } from '../../types/permissions.js'
 import type { Message } from '../../types/message.js'
 import type { TaskStateBase } from '../../Task.js'
 import type { AgentProgress } from '../LocalAgentTask/LocalAgentTask.js'
+import type { AgentPauseV1 } from '../LocalAgentTask/agentPause.js'
 
 
 export type TeammateIdentity = {
@@ -40,6 +41,7 @@ export type InProcessTeammateTaskState = TaskStateBase & {
   pastTenseVerb?: string
   isIdle: boolean
   shutdownRequested: boolean
+  paused?: AgentPauseV1
   onIdleCallbacks?: Array<() => void>
   lastReportedToolCount?: number
   lastReportedTokenCount?: number

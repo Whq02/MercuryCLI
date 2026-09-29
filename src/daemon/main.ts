@@ -19,6 +19,8 @@ import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
 import { CREW_TEAM, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
+import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeFrame, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
+import { isTurnResultParsedFrame, parseStreamJsonFrame } from './longLivedSupervisor.js'
 import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
 import { readTeamFileAsync } from '../utils/swarm/teamHelpers.js'
 import {
@@ -365,11 +367,13 @@ async function daemonRun(args: string[]): Promise<void> {
           }
         },
         onChildLine: (short, line) => {
+          if (roster !== null && crewDrains.has(short)) onCrewSeatLine(short, line)
           if (!short.startsWith('concourse-w') || roster === null) return
           onWarmRunnerLine(line)
           onSeatLine(short, line, roster)
         },
         onChildRelaunched: short => {
+          if (crewDrains.has(short)) liftCrewSeatPause(short)
           if (!short.startsWith('concourse-w') || roster === null) return
           onSeatSpawned(short, roster)
         },
@@ -442,6 +446,55 @@ async function daemonRun(args: string[]): Promise<void> {
         },
       })
       const crewDrains = new Map<string, DispatchDrainHandle>()
+      const crewWindows = new Map<string, CrewSeatWindow>()
+      const crewPauseTimers = new Map<string, ReturnType<typeof setTimeout>>()
+      const liftCrewSeatPause = (short: string): void => {
+        const timer = crewPauseTimers.get(short)
+        if (timer !== undefined) clearTimeout(timer)
+        crewPauseTimers.delete(short)
+        crewWindows.delete(short)
+        roster?.setSeatPause(short, undefined)
+      }
+      const resumeCrewSeat = async (short: string, accountChanged: boolean): Promise<void> => {
+        const r = roster
+        if (!r || r.seatPause(short) === undefined) return
+        liftCrewSeatPause(short)
+        const delivered = await r.reply(short, crewSeatResumeFrame(accountChanged))
+        if (delivered) logForDebugging(crewSeatResumedLine(short, accountChanged))
+        else logForDebugging(`[daemon] crew seat @${short} was paused but is not live — nothing to resume`)
+      }
+      const onCrewSeatLine = (short: string, line: string): void => {
+        const r = roster
+        if (!r) return
+        const frame = parseStreamJsonFrame(line)
+        const window = crewSeatWindowOf(frame)
+        if (window !== null) {
+          if (window.rejected) crewWindows.set(short, window)
+          else crewWindows.delete(short)
+          return
+        }
+        if (!isTurnResultParsedFrame(frame)) return
+        const pause = crewSeatPauseOf(frame, crewWindows.get(short), r.currentLongLivedModel(short) ?? 'the seat')
+        crewWindows.delete(short)
+        if (pause === null) return
+        liftCrewSeatPause(short)
+        r.setSeatPause(short, pause)
+        logForDebugging(crewSeatPausedLine(short, pause))
+        if (pause.resumesAtMs !== undefined) {
+          const timer = setTimeout(() => {
+            void resumeCrewSeat(short, false)
+          }, Math.max(1_000, pause.resumesAtMs - Date.now() + 1_000))
+          timer.unref?.()
+          crewPauseTimers.set(short, timer)
+        }
+      }
+      const resumePausedCrewSeatsOnSignIn = (): void => {
+        const r = roster
+        if (!r) return
+        for (const job of r.list()) {
+          if (job.outcome === undefined && crewDrains.has(job.short) && r.seatPause(job.short) !== undefined) void resumeCrewSeat(job.short, true)
+        }
+      }
       const armCrewDrain = (name: string): void => {
         const r = roster
         if (!r || crewDrains.has(name)) return
@@ -878,6 +931,7 @@ async function daemonRun(args: string[]): Promise<void> {
             const told = relayCredentialChange(roster)
             for (const short of told) requestSessionFacts(short, roster, { immediate: true })
             if (told.length > 0) logForDebugging(`[daemon] a credential moved in the screen: told ${told.length} runner(s) to read the account again — ${told.join(', ')}`)
+            resumePausedCrewSeatsOnSignIn()
           }
           return view
         },

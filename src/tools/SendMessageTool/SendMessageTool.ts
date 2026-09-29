@@ -334,10 +334,13 @@ function deadInProcessSeat(rawTo: string, teamName: string, context: ToolUseCont
   )
   if (seats.length === 0 || seats.some(task => task.status === 'running')) return null
   const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+  if (last.paused !== undefined) return null
   if (last.status === 'failed') return `failed${last.error ? ` (${last.error})` : ''}`
   if (last.status === 'completed') return 'completed'
   return `was ${agentStatusWord(last.status)}`
 }
+
+export const PAUSED_SEAT_ENDED_WORDS = 'was paused on a usage limit'
 
 type EndedTeammateSeat = { taskId: string; name: string; ended: string }
 
@@ -353,6 +356,7 @@ async function endedTeammateSeat(rawTo: string, teamName: string, context: ToolU
   if (member !== undefined && member.backendType !== 'in-process') return null
   if (seats.length > 0) {
     const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
+    if (last.paused !== undefined) return { taskId: last.id, name: last.identity.agentName, ended: PAUSED_SEAT_ENDED_WORDS }
     if (last.status === 'failed') return null
     const ended = last.status === 'completed' ? 'had completed' : `was ${agentStatusWord(last.status)}`
     return { taskId: last.id, name: last.identity.agentName, ended }

@@ -53,6 +53,7 @@ import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewTeammate } from '../../../utils/crew/crewClient.js'
 import { getCwd } from '../../../utils/cwd.js'
+import { decodeAgentPause, pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
 
 type Row =
@@ -342,7 +343,7 @@ export function CrewView({
               {row.kind === 'agent' ? (
                 <AgentRow facts={row.facts} on={on} now={now} width={width} billed={billed} />
               ) : (
-                <NamedRow member={row.member} on={on} width={width} />
+                <NamedRow member={row.member} on={on} now={now} width={width} />
               )}
             </React.Fragment>
           )
@@ -424,26 +425,29 @@ function AgentRow({
 function NamedRow({
   member,
   on,
+  now,
   width,
 }: {
   member: CrewGlanceMember
   on: boolean
+  now: number
   width: number
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const paused = member.online && member.paused !== undefined ? decodeAgentPause(member.paused) : null
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
         <Text color={on ? tokens.textPrimary : tokens.textMuted}>{on ? `${GLYPH.cursor} ` : '  '}</Text>
-        <Text color={member.online ? tokens.success : tokens.textMuted}>{member.online ? GLYPH.busy : GLYPH.idle}</Text>
+        <Text color={paused !== null ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>{paused !== null ? GLYPH.pending : member.online ? GLYPH.busy : GLYPH.idle}</Text>
         <Text bold={on} color={on ? tokens.textPrimary : tokens.textSecondary}>
           {' '}
           {padTo(truncateToWidth(`@${member.name}`, NAME_W), NAME_W)}
         </Text>
         <Text color={tokens.textSecondary}> {padTo(truncateToWidth(member.model ?? CREW_MODEL_UNKNOWN, MODEL_W), MODEL_W)}</Text>
-        <Text color={member.online ? tokens.success : tokens.textMuted}>
+        <Text color={paused !== null ? tokens.warning : member.online ? tokens.success : tokens.textMuted}>
           {' '}
-          {padTo(member.online ? 'online' : 'offline', STATUS_W)}
+          {padTo(truncateToWidth(paused !== null ? pauseStatusWords(paused, now) : member.online ? 'online' : 'offline', STATUS_W), STATUS_W)}
         </Text>
         <Text color={member.unread > 0 ? tokens.warning : tokens.textMuted}>
           {' '}

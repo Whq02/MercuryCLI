@@ -9,7 +9,7 @@ if (!captureFile) {
   process.exit(2)
 }
 const RESET_SECONDS = Number.parseInt(process.env.FIXTURE_RESET_SECONDS ?? '8', 10)
-const SPEND_ONCE = process.env.FIXTURE_SPEND_ONCE === '1'
+const SPEND_TIMES = Number.parseInt(process.env.FIXTURE_SPEND_TIMES ?? '0', 10)
 let spent = 0
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
@@ -69,7 +69,7 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const model = String(body.model ?? '')
     if (req.method === 'POST' && url.endsWith('/v1/messages')) {
       const { asks, replies, last } = asksOf(body)
-      const spend = last.includes(SEAT_SPEND_ASK) && (!SPEND_ONCE || spent === 0)
+      const spend = last.includes(SEAT_SPEND_ASK) && (SPEND_TIMES <= 0 || spent < SPEND_TIMES)
       if (spend) {
         spent += 1
         const resetAt = Math.floor(Date.now() / 1000) + RESET_SECONDS

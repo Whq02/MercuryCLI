@@ -15,11 +15,16 @@ import {
   type InProcessTeammateTaskState,
 } from '../../tasks/InProcessTeammateTask/types.js'
 import {
+  AGENT_WINDOW_RESUME_NOTE,
   createActivityDescriptionResolver,
   createProgressTracker,
+  enqueueAgentReceiptRow,
   getProgressUpdate,
   updateProgressFromMessage,
+  usageWindowPauseOf,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
+import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../crew/crewAccountChange.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
 import type { PermissionDecision, PermissionMode } from '../../types/permissions.js'
@@ -781,7 +786,7 @@ export async function runInProcessTeammate(
               break
             }
             if (!firstDispatchSettled && message.type === 'assistant') {
-              if (isSyntheticApiErrorMessage(message)) {
+              if (isSyntheticApiErrorMessage(message) && usageWindowPauseOf([message], config.model ?? effectiveModel) === null) {
                 const failedContent = message.message.content
                 settleFirstDispatch({
                   ok: false,
@@ -864,6 +869,15 @@ export async function runInProcessTeammate(
       } else {
         const lastAssistant = getLastAssistantMessage(turnMessages)
         const summary = getLastPeerDmSummary(allMessages)
+        const windowPause = !turnInterrupted && lastAssistant !== undefined && isSyntheticApiErrorMessage(lastAssistant) ? usageWindowPauseOf(turnMessages, config.model ?? effectiveModel) : null
+        if (windowPause !== null) {
+          const refusal = lastAssistant!.message.content
+          const cause = new Error((typeof refusal === 'string' ? refusal : extractTextContent(refusal)) || 'API error')
+          pauseTeammateRun(config, setAppState, windowPause, cause)
+          await tellLeadPaused(identity, windowPause)
+          armCrewmatePauseResume(config, windowPause)
+          return { success: false, error: cause, messages: allMessages }
+        }
         if (turnInterrupted) {
           await sendIdleNotificationToLead(identity, 'interrupted', {
             ...(summary !== undefined ? { summary } : {}),
@@ -1007,6 +1021,132 @@ function terminalizeTeammateRun(
       summary: identity.agentId,
     })
   }
+}
+
+function pauseTeammateRun(
+  config: InProcessRunnerConfig,
+  setAppState: SetAppState,
+  pause: AgentPauseV1,
+  cause: Error,
+): void {
+  const { taskId } = config
+  let wasRunning = false
+  let capturedToolUseId: string | undefined
+  setAppState(prevState => {
+    const task = prevState.tasks[taskId]
+    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') return prevState
+    wasRunning = true
+    capturedToolUseId = task.toolUseId
+    for (const callback of task.onIdleCallbacks ?? []) {
+      try {
+        callback()
+      } catch {
+        continue
+      }
+    }
+    task.unregisterCleanup?.()
+    const lastMessage = task.messages?.[task.messages.length - 1]
+    const nextTask: InProcessTeammateTaskState = {
+      ...task,
+      status: 'failed',
+      notified: true,
+      endTime: Date.now(),
+      error: cause.message,
+      isIdle: true,
+      paused: pause,
+      ...(lastMessage !== undefined ? { messages: [lastMessage] } : { messages: undefined }),
+      pendingUserMessages: [],
+      inProgressToolUseIDs: undefined,
+      abortController: undefined,
+      currentWorkAbortController: undefined,
+      unregisterCleanup: undefined,
+      onIdleCallbacks: [],
+    }
+    return { ...prevState, tasks: { ...prevState.tasks, [taskId]: nextTask } }
+  })
+  void evictTaskOutput(taskId)
+  if (wasRunning) {
+    emitTaskTerminatedSdk(taskId, 'failed', {
+      ...(capturedToolUseId !== undefined ? { toolUseId: capturedToolUseId } : {}),
+      summary: `${config.identity.agentId} ${pauseLineWords(pause, Date.now())}`,
+    })
+  }
+}
+
+export function crewmatePausedWords(name: string, pause: AgentPauseV1, nowMs: number): string {
+  return `Crewmate "${name}" ${pauseLineWords(pause, nowMs)}`
+}
+
+async function tellLeadPaused(identity: InProcessRunnerConfig['identity'], pause: AgentPauseV1): Promise<void> {
+  const delivered = await writeToMailbox(
+    TEAM_LEAD_NAME,
+    {
+      from: identity.agentName,
+      text: crewmatePausedWords(identity.agentName, pause, Date.now()),
+      timestamp: new Date().toISOString(),
+      ...(identity.color !== undefined ? { color: identity.color } : {}),
+    },
+    identity.teamName,
+  ).catch(() => false)
+  if (!delivered) logForDebugging(`teammate ${identity.agentName}: the pause notice could not be written to the lead's mailbox`)
+}
+
+const armedCrewmateResumes = new Map<string, () => void>()
+
+export function cancelCrewmatePauseResume(taskId: string): boolean {
+  const cancel = armedCrewmateResumes.get(taskId)
+  if (cancel === undefined) return false
+  cancel()
+  return true
+}
+
+function armCrewmatePauseResume(config: InProcessRunnerConfig, pause: AgentPauseV1): void {
+  const { taskId, identity, toolUseContext } = config
+  cancelCrewmatePauseResume(taskId)
+  let timer: ReturnType<typeof setTimeout> | undefined
+  let unsubscribe: (() => void) | undefined
+  const disarm = (): void => {
+    if (timer !== undefined) clearTimeout(timer)
+    timer = undefined
+    unsubscribe?.()
+    unsubscribe = undefined
+    armedCrewmateResumes.delete(taskId)
+  }
+  const stillPaused = (): boolean => {
+    const row = toolUseContext.getAppState().tasks[taskId]
+    return isInProcessTeammateTask(row) && row.status !== 'running' && row.paused !== undefined
+  }
+  const fire = async (accountChanged: boolean): Promise<void> => {
+    disarm()
+    if (!stillPaused()) return
+    const { resumeTeammateFromTranscript } = await import('../../services/agents/operatorResume.js')
+    const receipt = await resumeTeammateFromTranscript(taskId, {
+      getAppState: toolUseContext.getAppState,
+      toolUseContext,
+      prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : AGENT_WINDOW_RESUME_NOTE,
+    })
+    if (receipt.outcome === 'refused') {
+      logForDebugging(`teammate ${identity.agentName}: the automatic resume after the pause was refused: ${receipt.reason}`)
+      return
+    }
+    enqueueAgentReceiptRow({
+      taskId: receipt.taskId,
+      description: receipt.description,
+      summary: accountChanged
+        ? crewAccountResumeSummary(`Crewmate "${identity.agentName}"`)
+        : `Crewmate "${identity.agentName}" resumed by itself — the usage window reset; its partial work carried forward`,
+    })
+  }
+  if (pause.resumesAtMs !== undefined) {
+    timer = setTimeout(() => {
+      void fire(false)
+    }, Math.max(1_000, pause.resumesAtMs - Date.now() + 1_000))
+    timer.unref?.()
+  }
+  unsubscribe = subscribeCrewAccountChange(() => {
+    void fire(true)
+  })
+  armedCrewmateResumes.set(taskId, disarm)
 }
 
 export function startInProcessTeammate(config: InProcessRunnerConfig): void {

@@ -377,6 +377,7 @@ export interface WireRosterEntry {
   busy?: boolean
   turnActive?: boolean
   turnElapsedMs?: number
+  paused?: { why: string; words: string; resumesAtMs?: number }
 }
 
 export interface LeaseClient {

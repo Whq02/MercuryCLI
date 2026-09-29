@@ -38,6 +38,7 @@ export interface CrewGlanceMember {
   model?: string
   online: boolean
   unread: number
+  paused?: { why: string; words: string; resumesAtMs?: number }
 }
 
 export type SessionGlanceSnapshot =
@@ -154,6 +155,7 @@ async function refreshOnce(): Promise<void> {
             model: m.model,
             online: status.has(m.name),
             unread: unread.get(m.name) ?? 0,
+            ...(status.get(m.name)?.paused !== undefined ? { paused: status.get(m.name)!.paused } : {}),
           }))
         })().catch(() => {})
       : Promise.resolve(),

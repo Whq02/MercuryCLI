@@ -79,7 +79,8 @@ for (const [start, end] of [['export function armBudgetCutResume(', 'const overl
   const at = lifecycle.indexOf(start)
   const body = lifecycle.slice(at, lifecycle.indexOf(end, at))
   check(`${start}: the resume receipt carries the returned note`, at >= 0 && body.includes('enqueueAgentReceiptRow(') && /resumed\??\.note/.test(body))
-  if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, body.includes('runWithCwdOverride(getCwdState(), fire)'))
+  if (start.startsWith('export function arm')) check(`${start}: the timer fires on the session directory`, /runWithCwdOverride\(getCwdState\(\), (fire|\(\) => fire\(\))\)/.test(body))
+  if (start === 'export function armBudgetCutResume(') check(`${start}: the sign-in on another account fires the same resume on the session directory`, /subscribeCrewAccountChange\([\s\S]{0,400}runWithCwdOverride\(getCwdState\(\), \(\) => fire\(true\)\)/.test(body))
 }
 const print = src('cli', 'print.ts')
 check('the crew resume answer carries the note and recorded directory', print.includes('recorded_cwd: resumed.recordedCwd') && print.includes('note: resumed.note'))
