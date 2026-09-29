@@ -10,6 +10,7 @@ import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
@@ -142,6 +143,8 @@ export interface CrewRosterPort {
   registerLongLived(
     short: string,
     spec: StreamJsonChildSpec,
+    opts?: Partial<LongLivedSupervisorConfig>,
+    start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string }
 }
 
@@ -192,7 +195,7 @@ export function makeCrewSpawnHandler(
       return { ok: false, error: `team-file update failed: ${e}` }
     }
     const spec = buildCrewSpec(name, { model: plan.model, effort: seat.effort }, plan.runDir)
-    const reg = r.registerLongLived(name, spec)
+    const reg = r.registerLongLived(name, spec, undefined, { cwd: plan.cwd, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) })
     if (!reg.ok) return { ok: false, error: reg.error ?? 'registerLongLived refused' }
     crewShorts.add(name)
     deps.onSpawned(name, spec, reg.pid)

@@ -89,6 +89,7 @@ import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { spawnTeammate } from '../shared/spawnMultiAgent.js'
+import { recordCrewStart } from '../../utils/crew/crewStart.js'
 import {
   runForegroundAgentExecution,
   type ForegroundAgentMetadata,
@@ -768,6 +769,12 @@ export const AgentTool = buildTool({
     } else if (input.worktree_at !== undefined) {
       throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
     }
+    recordCrewStart(earlyAgentId, {
+      name: input.name ?? input.description,
+      cwd: cwdParam ?? getCwd(),
+      worktree: worktreeInfo?.worktreePath ?? null,
+      model: plan.model,
+    })
 
     let cleanupDone = false
     const cleanupWorktreeIfNeeded = async (): Promise<{

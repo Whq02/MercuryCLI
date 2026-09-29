@@ -379,6 +379,8 @@ export interface WireRosterEntry {
   busy?: boolean
   turnActive?: boolean
   turnElapsedMs?: number
+  cwd?: string
+  worktree?: string
 }
 
 export interface LeaseClient {
