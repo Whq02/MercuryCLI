@@ -59,7 +59,6 @@ const FILES = [
 ]
 
 const ALLOW: Array<[string, string, string]> = [
-  ['src/components/PromptInput/useSwarmBanner.ts', 'attach: tmux -L', "the pane backend's own attach line — names the real tmux socket the operator's pane mode created"],
   ['src/utils/healthReport.ts', 'clamped for tmux', 'the colour clamp names the real terminal the session runs inside'],
   ['src/utils/healthReport.ts', 'terminal-overrides', "the same row's remedy for that real terminal"],
   ['src/daemon/crewSpawn.ts', 'You are @${name}, a Mercury crew teammate', "the named agent's own system prompt — model-facing bytes, not operator copy"],

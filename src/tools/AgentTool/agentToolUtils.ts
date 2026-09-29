@@ -53,6 +53,7 @@ import { getMarketingNameForModel } from '../../utils/model/model.js'
 import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
+import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../../utils/crew/crewAccountChange.js'
 import {
   AGENT_OVERLOAD_RESUME_NOTE,
   nextOverloadProbeDelayMs,
@@ -676,7 +677,12 @@ export function armBudgetCutResume(args: {
   if (pendingAutomaticResumes.has(args.taskId)) return null
   if (cutsAlreadyResumed.has(args.registration)) return null
   if (args.pause !== undefined) pauseAgentTask(args.taskId, args.pause, args.rootSetAppState, args.registration)
-  const fire = async (): Promise<void> => {
+  let unsubscribeAccount: (() => void) | undefined
+  const fire = async (accountChanged = false): Promise<void> => {
+    unsubscribeAccount?.()
+    unsubscribeAccount = undefined
+    const armed = pendingAutomaticResumes.get(args.taskId)
+    if (armed !== undefined) clearTimeout(armed)
     pendingAutomaticResumes.delete(args.taskId)
     cutsAlreadyResumed.add(args.registration)
     let tasksNow: Record<string, unknown> | undefined
@@ -693,7 +699,7 @@ export function armBudgetCutResume(args: {
     try {
       resumed = await resume({
         agentId: args.taskId,
-        prompt: args.prompt ?? AGENT_BUDGET_RESUME_NOTE,
+        prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : (args.prompt ?? AGENT_BUDGET_RESUME_NOTE),
         toolUseContext: args.toolUseContext,
         canUseTool: args.canUseTool,
         invokingRequestId: args.invokingRequestId,
@@ -706,15 +712,27 @@ export function armBudgetCutResume(args: {
     enqueueAgentReceiptRow({
       taskId: args.taskId,
       description: args.description,
-      summary: (args.summary ??
-        `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
+      summary: (accountChanged
+        ? crewAccountResumeSummary(`Agent "${args.description}"`)
+        : args.summary ??
+          `Agent "${args.description}" resumed by itself — the recovery budget's allowance is back after it was spent waiting on the provider; its partial work carried forward`) + (resumed?.note ?? ''),
     })
   }
   const timer = setTimeout(() => {
-    void runWithCwdOverride(getCwdState(), fire)
+    void runWithCwdOverride(getCwdState(), () => fire())
   }, args.delayMs ?? recoveryBudgetMs())
   timer.unref?.()
   pendingAutomaticResumes.set(args.taskId, timer)
+  if (args.pause !== undefined && args.pause.why !== 'provider overloaded') {
+    unsubscribeAccount = subscribeCrewAccountChange(() => {
+      if (pendingAutomaticResumes.get(args.taskId) !== timer) {
+        unsubscribeAccount?.()
+        unsubscribeAccount = undefined
+        return
+      }
+      void runWithCwdOverride(getCwdState(), () => fire(true))
+    })
+  }
   return timer
 }
 

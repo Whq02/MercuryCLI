@@ -1,4 +1,5 @@
 import type { CrewAgentFacts, CrewAgentState } from '../engine-connector/crewFacts.js'
+import { decodeAgentPause } from '../../tasks/LocalAgentTask/agentPause.js'
 
 export type CrewRosterKind = 'crewmate' | 'seat'
 
@@ -32,6 +33,7 @@ export interface CrewSeatGlanceV1 {
   turnStartedAt?: number
   cwd?: string
   worktree?: string
+  paused?: { why: string; words: string; resumesAtMs?: number }
 }
 
 export const CREW_SEAT_ID_PREFIX = 'seat:'
@@ -47,18 +49,20 @@ export function isCrewSeatId(id: string): boolean {
 export const CREW_SEAT_BUSY_WORD = 'busy'
 export const CREW_SEAT_ONLINE_WORD = 'online'
 export const CREW_SEAT_OFFLINE_WORD = 'offline'
+export const CREW_SEAT_PAUSED_WORD = 'paused'
 
 export function seatFactsOf(seat: CrewSeatGlanceV1): CrewAgentFacts {
   const live = seat.online
-  const busy = live && seat.busy === true
+  const paused = live ? decodeAgentPause(seat.paused) : null
+  const busy = live && paused === null && seat.busy === true
   const startedAt = seat.startedAt ?? seat.joinedAt ?? 0
   return {
     id: crewSeatId(seat.name),
     name: seat.name,
     kind: 'named',
-    status: busy ? CREW_SEAT_BUSY_WORD : live ? CREW_SEAT_ONLINE_WORD : CREW_SEAT_OFFLINE_WORD,
-    state: busy ? 'running' : live ? 'idle' : 'stopped',
-    running: live,
+    status: paused !== null ? CREW_SEAT_PAUSED_WORD : busy ? CREW_SEAT_BUSY_WORD : live ? CREW_SEAT_ONLINE_WORD : CREW_SEAT_OFFLINE_WORD,
+    state: paused !== null ? 'paused' : busy ? 'running' : live ? 'idle' : 'stopped',
+    running: live && paused === null,
     model: typeof seat.model === 'string' && seat.model !== '' ? seat.model : null,
     tokens: null,
     costUSD: null,
@@ -77,7 +81,7 @@ export function seatFactsOf(seat: CrewSeatGlanceV1): CrewAgentFacts {
     error: null,
     stopReason: null,
     phase: null,
-    paused: null,
+    paused,
     pendingAsks: 0,
     unreadNotices: seat.unread > 0 ? Math.floor(seat.unread) : 0,
     sessionId: null,

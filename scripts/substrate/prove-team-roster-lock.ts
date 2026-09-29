@@ -120,7 +120,7 @@ section('(d) source — lock infra present + spawn appends routed through append
   check('appendTeamMember locks the member-append', /appendTeamMember[\s\S]{0,300}withLockedTeamFile/.test(th))
   const sm = read('../../src/tools/shared/spawnMultiAgent.ts')
   const appendCalls = (sm.match(/await appendTeamMember\(teamName, \{/g) || []).length
-  check('all 3 spawn member-appends routed through appendTeamMember', appendCalls === 3, `found ${appendCalls}`)
+  check('every spawn member-append is routed through appendTeamMember (the one in-process strategy)', appendCalls === 1 && !/writeTeamFile\(/.test(sm), `found ${appendCalls}`)
   const inProcess = sm.slice(sm.indexOf('spawnInProcessStrategy'))
   const appendAt = inProcess.indexOf('await appendTeamMember(teamName, {')
   const startAt = inProcess.indexOf('startInProcessTeammate({')

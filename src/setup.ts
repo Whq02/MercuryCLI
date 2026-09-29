@@ -39,7 +39,6 @@ import { setCwd } from './utils/Shell.js'
 import { getCwd } from './utils/cwd.js'
 import { initSinks } from './utils/sinks.js'
 import { profileCheckpoint } from './utils/startupProfiler.js'
-import { captureTeammateModeSnapshot } from './utils/swarm/backends/teammateModeSnapshot.js'
 import {
   createTmuxSessionForWorktree,
   createWorktreeForSession,
@@ -86,9 +85,6 @@ export async function setup(
   }
 
   if (!isBareMode() || messagingSocketPath) {
-  }
-  if (isAgentSwarmsEnabled() && !isBareMode()) {
-    captureTeammateModeSnapshot()
   }
 
   if (getIsInteractive()) {

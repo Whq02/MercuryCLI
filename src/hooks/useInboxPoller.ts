@@ -16,7 +16,6 @@ import { applyPermissionUpdate } from '../utils/permissions/PermissionUpdate.js'
 import { modeBypassesPermissions, toExternalPermissionMode } from '../utils/permissions/PermissionMode.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { setPermissionModeWithGuards } from '../utils/permissions/permissionSetup.js'
-import { detectAndGetBackend } from '../utils/swarm/backends/registry.js'
 import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
 import { getLeaderToolUseConfirmQueue } from '../utils/swarm/leaderPermissionBridge.js'
 import {
@@ -455,15 +454,6 @@ export function useInboxPoller({
       const roster = teamContextRef.current?.teammates ?? {}
       const victimEntry = Object.entries(roster).find(([, teammate]) => teammate.name === victim)
       const victimId = victimEntry?.[0]
-      const paneId = victimEntry?.[1]?.tmuxPaneId
-      if (paneId) {
-        void (async () => {
-          const detection = await detectAndGetBackend()
-          await detection.backend.killPane(paneId, !detection.isNative)
-        })().catch((error: unknown) => {
-          logForDebugging(`[InboxPoller] pane kill for ${victim} failed: ${String(error)}`)
-        })
-      }
       if (victimId && team) {
         removeTeammateFromTeamFile(team, { agentId: victimId, name: victim })
         const unassigned = await unassignTeammateTasks(team, victimId, victim, 'shutdown').catch(

@@ -51,7 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const fixture = await startFixtureApi(script)
-const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'Bash', '--teammate-mode', 'in-process', '--session-id', sessionId], {
+const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'Bash', '--session-id', sessionId], {
   cwd: project,
   env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],

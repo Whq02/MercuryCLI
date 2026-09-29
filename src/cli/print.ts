@@ -49,6 +49,7 @@ import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
 import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
+import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
 import { hasClaudeAiBillingAccess, hasConsoleBillingAccess } from '../utils/billing.js'
 import { anthropicSignInEmail } from '../services/providers/providerUsage.js'
 import { getCurrentProjectConfig, readGlobalConfigAgain } from '../utils/config.js'
@@ -1547,7 +1548,7 @@ export async function runHeadless(
       const changed = leadEvent(teamName)
       try {
         const next = peek()
-        if (next && isMainThreadCommand(next)) return 'reenter'
+        if (next && isMainThreadCommand(next) && driver.hasDueQueued()) return 'reenter'
         if ((await deliverLeadMail()) === 'queued') return 'reenter'
         const current = getAppState()
         const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_teammate')
@@ -1787,6 +1788,7 @@ export async function runHeadless(
       return suggestion
     },
     settleIdle,
+    wakeSettle: () => leadSettle.wake?.(),
     closeOutput: async () => {
       if (suggestionInFlight) {
         await Promise.race([
@@ -2583,6 +2585,7 @@ export async function runHeadless(
           resetLimitsForCredentialSwitch()
           dropCredentialMemos()
           readOpenaiAccountAgain()
+          noteCrewAccountChange()
           respondSuccess(requestId)
           return
         }

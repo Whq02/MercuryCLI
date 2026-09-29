@@ -20,7 +20,6 @@ import type { PermissionMode } from '../../types/permissions.js'
 import { TEAM_LEAD_NAME } from './constants.js'
 import type { TeamCharter } from './teamCharter.js'
 import type { BackendType } from './backends/types.js'
-import { isPaneBackend } from './backends/types.js'
 
 
 export type TeamAllowedPath = {
@@ -492,47 +491,7 @@ export function unregisterTeamForSessionCleanup(teamName: string): void {
 }
 
 export async function cleanupSessionTeams(): Promise<void> {
-  const teams = [...getSessionCreatedTeams()]
-  if (teams.length === 0) return
-  await Promise.all(
-    teams.map(teamName =>
-      killTeamPanes(teamName).catch(error => {
-        logForDebugging(`session cleanup: pane kill for ${teamName} failed: ${errorMessage(error)}`)
-      }),
-    ),
-  )
   getSessionCreatedTeams().clear()
-}
-
-async function killTeamPanes(teamName: string): Promise<void> {
-  const roster = readTeamFile(teamName)
-  if (roster === null) return
-  const paneMembers = roster.members.filter(
-    member =>
-      member.name !== TEAM_LEAD_NAME &&
-      member.tmuxPaneId !== '' &&
-      member.backendType !== undefined &&
-      isPaneBackend(member.backendType),
-  )
-  if (paneMembers.length === 0) return
-
-  const registry = await import('./backends/registry.js')
-  const detection = await import('./backends/detection.js')
-  await registry.ensureBackendsRegistered()
-  const useExternalSocket = !detection.isInsideTmuxSync()
-  for (const member of paneMembers) {
-    try {
-      const backend = registry.getBackendByType(member.backendType as 'tmux' | 'iterm2')
-      const killed = await backend.killPane(member.tmuxPaneId, useExternalSocket)
-      logForDebugging(
-        `session cleanup: kill pane ${member.tmuxPaneId} (${member.name}) → ${killed}`,
-      )
-    } catch (error) {
-      logForDebugging(
-        `session cleanup: kill pane ${member.tmuxPaneId} failed: ${errorMessage(error)}`,
-      )
-    }
-  }
 }
 
 
