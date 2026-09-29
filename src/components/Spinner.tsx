@@ -258,7 +258,7 @@ export function SpinnerWithVerb({
           <Text dimColor>
             ✶ idle
             {!allIdle
-              ? ` · ${runningTeammateCount} ${plural(runningTeammateCount, 'teammate')} running`
+              ? ` · ${runningTeammateCount} ${plural(runningTeammateCount, 'crewmate')} running`
               : ''}
           </Text>
         </Box>

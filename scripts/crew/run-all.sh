@@ -38,6 +38,7 @@
 # gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
 # gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/teamOperations.ts
+# gate-watch: src/utils/hooks/events.ts src/utils/swarm/constants.ts src/utils/swarm/leaseGlob.ts src/utils/swarm/leaseGuard.ts src/services/crew/claims.ts src/services/oauth/client.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -51,7 +52,7 @@ export MERCURY_CONFIG_DIR="$scratch_home"
 unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_WORKER_RECON_ALLOW 2>/dev/null || true
 trap 'rm -rf "$scratch_home"; suite_home_cleanup' EXIT
 echo "############################################################"
-echo "# Crew teammates — proof harness"
+echo "# Crewmates — proof harness"
 echo "############################################################"
 shopt -s nullglob
 globs=("$here"/prove-*.ts)

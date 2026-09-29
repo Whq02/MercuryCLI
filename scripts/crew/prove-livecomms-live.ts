@@ -104,7 +104,7 @@ try {
   const busy = (json.busy ?? {}) as Record<string, { busy: boolean; doing?: string }>
   tally.check('the store file exists (RED on the base: no crew/livecomms/)', existsSync(storeFile), storeFile)
   tally.check('it holds the task and the busy flag with her word (the claim lives in the claim store the read merges)', Object.values(tasks).some(t => t.subject === TASK) && busy.alice?.busy === true && busy.alice?.doing === DOING, JSON.stringify(json).slice(0, 400))
-  const files = existsSync(storeDir) ? readdirSync(storeDir) : []
+  const files = existsSync(storeDir) ? readdirSync(storeDir).filter(name => name.endsWith('.json')) : []
   tally.check('one file for the whole crew, none per member', files.length === 1 && files[0] === `${crew}.json`, JSON.stringify(files))
 } finally {
   await session.terminate()

@@ -319,7 +319,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
   },
   SendMessage: {
-    intents: ['message a teammate or team', 'relay work between agents'],
+    intents: ['message a crewmate or the crew', 'relay work between agents'],
     units: ['task-coordination'],
     class: 'coordination',
     resources: ['team'],

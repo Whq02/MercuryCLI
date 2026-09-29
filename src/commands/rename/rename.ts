@@ -13,7 +13,7 @@ export async function call(
   args?: string,
 ): Promise<null> {
   if (getTeammateContext() !== undefined) {
-    onDone('This session cannot be renamed — teammate names are set by the team leader.', {
+    onDone('This session cannot be renamed — crewmate names are set by the lead.', {
       display: 'system',
     })
     return null

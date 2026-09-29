@@ -205,7 +205,7 @@ exits.
 
 ## Not in this release
 
-Sub-agents, teammates and clients of the MCP serve surface never carry the
+Sub-agents, crewmates and clients of the MCP serve surface never carry the
 Computer tool. A bare headless run without an approval channel cannot
 drive. The interactive cockpit runs its turn in a background worker whose
 approval channel sends the consent card back to the cockpit. A non-interactive

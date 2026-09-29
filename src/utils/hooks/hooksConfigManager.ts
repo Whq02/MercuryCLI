@@ -138,19 +138,19 @@ function buildHookEventMetadata(toolNames: string[]): Record<HookEvent, HookEven
         'Payload: a trigger of init or maintenance. Stdout is shown to Mercury; blocking errors are ignored.',
     },
     TeammateIdle: {
-      summary: 'Runs when a teammate is about to go idle',
+      summary: 'Runs when a crewmate is about to go idle',
       description:
-        'Payload: the teammate name and team name. Exit 2 shows stderr to the teammate and prevents it going idle.',
+        'Payload: the crewmate name and crew name. Exit 2 shows stderr to the crewmate and prevents it going idle.',
     },
     TaskCreated: {
       summary: 'Runs when a task is created',
       description:
-        'Payload: task id, subject, description, teammate name, team name. Exit 2 shows stderr to the model and prevents the creation.',
+        'Payload: task id, subject, description, crewmate name, crew name. Exit 2 shows stderr to the model and prevents the creation.',
     },
     TaskCompleted: {
       summary: 'Runs when a task is completed',
       description:
-        'Payload: task id, subject, description, teammate name, team name. Exit 2 shows stderr to the model and prevents the completion.',
+        'Payload: task id, subject, description, crewmate name, crew name. Exit 2 shows stderr to the model and prevents the completion.',
     },
     Elicitation: {
       summary: 'Runs when an MCP server requests user input',
