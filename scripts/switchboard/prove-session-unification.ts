@@ -39,7 +39,7 @@ const { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudg
 const PACE = vshotBudgetScale()
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
-const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
+const { readSessionWorkers, workerPidAlive } = await import('../../src/daemon/concourseSupervisor.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 
 let failures = 0
@@ -257,6 +257,7 @@ for (const [cols, rows] of [
   [120, 40],
   [100, 30],
 ] as const) {
+  let firstReplyRunner: { runnerId: string; sessionId: string; pid?: number; alive: boolean } | null = null
   drives.push({
     id: `u1-create-on-enter-${cols}x${rows}`,
     cols,
@@ -280,6 +281,31 @@ for (const [cols, rows] of [
     id: `u2-first-message-${cols}x${rows}`,
     cols,
     rows,
+    during: async home => {
+      const born = Object.values(await waitForBirthRecords(home))
+      if (born.length !== 1) return
+      const sessionId = born[0]!.sessionId
+      const transcript = join(home, 'projects', basename(getProjectDir(CWD)), `${sessionId}.jsonl`)
+      await new Promise<void>(resolve => {
+        let settled = false
+        const finish = (): void => {
+          if (settled) return
+          settled = true
+          clearTimeout(deadline)
+          unwatchFile(transcript, observe)
+          resolve()
+        }
+        const observe = (): void => {
+          if (settled || !existsSync(transcript) || !readFileSync(transcript, 'utf8').includes(REPLY_1)) return
+          const rec = Object.values(liveRecords(home)).find(row => row.sessionId === sessionId)
+          if (rec) firstReplyRunner = { runnerId: rec.runnerId, sessionId: rec.sessionId, pid: rec.pid, alive: workerPidAlive(rec) }
+          finish()
+        }
+        const deadline = setTimeout(finish, vshotBudgetMs(60_000))
+        watchFile(transcript, { interval: 25 }, observe)
+        observe()
+      })
+    },
     sends: [...enterNewChat, { afterPrevTicks: 2, data: 'hello from the boot chat', mark: 'typed' }, { afterPrevTicks: 4, data: '\r', mark: 'sent' }],
     ready: REPLY_1,
     total: 500,
@@ -290,7 +316,7 @@ for (const [cols, rows] of [
       const recs = Object.values(live)
       check(`u2 ${cols}x${rows}: the words landed in the session ↵ created — still exactly ONE managed session (one live worker record)`, recs.length === 1, JSON.stringify(recs.map(x => x.runnerId)))
       const rec = recs[0]
-      check(`u2 ${cols}x${rows}: the session's runner is alive`, rec?.pid !== undefined && (() => { try { process.kill(rec.pid!, 0); return true } catch { return false } })())
+      check(`u2 ${cols}x${rows}: the session's runner is alive when it records the reply, before capture teardown`, firstReplyRunner?.alive === true && firstReplyRunner.runnerId === rec?.runnerId && firstReplyRunner.sessionId === rec?.sessionId && firstReplyRunner.pid === rec?.pid, JSON.stringify({ during: firstReplyRunner, afterCaptureAlive: rec ? workerPidAlive(rec) : false }))
       check(`u2 ${cols}x${rows}: the session runs on the model the boot chat showed`, rec?.modelKey === 'claude-sonnet-5', rec?.modelKey)
       const transcripts = transcriptsOf(r.home)
       check(`u2 ${cols}x${rows}: exactly one transcript exists — the session's own`, transcripts.length === 1 && rec !== undefined && transcripts[0]!.endsWith(`${rec.sessionId}.jsonl`), transcripts.join(','))
