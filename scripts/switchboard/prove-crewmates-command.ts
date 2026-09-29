@@ -22,7 +22,10 @@ seedFirstRun(HOME, [CWD])
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { builtinCommands, builtInCommandNames, findCommand, getCommandName } = await import('../../src/commands.ts')
+const { unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
 const words = await import('../../src/utils/cockpit/crewmateWords.ts')
+const { readFileSync } = await import('node:fs')
+const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -31,7 +34,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' /crewmates opens the crew view; /teammates still does as the old name')
+console.log(' /crewmates opens the crew view; /teammates is no command and no hidden alias')
 console.log('============================================================')
 
 const registry = [...builtinCommands()]
@@ -39,13 +42,21 @@ const crewmates = findCommand('crewmates', registry)
 const teammates = findCommand('teammates', registry)
 check('/crewmates is a built-in command', crewmates !== undefined, crewmates === undefined ? 'findCommand("crewmates") is undefined — the name is unknown' : getCommandName(crewmates))
 check('/crewmates is the command\'s own name, not an alias', crewmates !== undefined && crewmates.name === 'crewmates', crewmates === undefined ? 'no command' : `name ${crewmates.name}`)
-check('/teammates resolves to the very same command (the old name keeps working)', crewmates !== undefined && teammates !== undefined && teammates === crewmates, teammates === undefined ? 'findCommand("teammates") is undefined' : `resolves to ${getCommandName(teammates)}`)
-check('teammates is carried as an alias row, in the register of runs/tasks', crewmates !== undefined && (crewmates.aliases ?? []).includes('teammates'), crewmates === undefined ? 'no command' : `aliases ${JSON.stringify(crewmates.aliases ?? [])}`)
-check('the command-name catalogue carries both spellings', builtInCommandNames().has('crewmates') && builtInCommandNames().has('teammates'), [...builtInCommandNames()].filter(n => /mates$/.test(n)).join(' '))
+check('/teammates is no command: the old name resolves to nothing', teammates === undefined, teammates === undefined ? '' : `resolves to ${getCommandName(teammates)}`)
+check('the command carries no alias row at all (no hidden spelling)', crewmates !== undefined && (crewmates.aliases ?? []).length === 0, crewmates === undefined ? 'no command' : `aliases ${JSON.stringify(crewmates.aliases ?? [])}`)
+check('the command-name catalogue carries crewmates and not teammates', builtInCommandNames().has('crewmates') && !builtInCommandNames().has('teammates'), [...builtInCommandNames()].filter(n => /mates$/.test(n)).join(' '))
+const unknown = unknownCommandLine('teammates', registry)
+check('the palette answers /teammates with its unknown-command sentence, pointing at /help', unknown === 'Unknown command: /teammates · /help lists commands', unknown)
+check('…and never names /crewmates as the command that ran, nor the crew view\'s foreground refusal', !unknown.includes('/crewmates command') && !/interactive surface/.test(unknown), unknown)
+const retired = readFileSync(join(ROOT, 'src', 'migrations', 'retiredCrewSpellings.ts'), 'utf8')
+check('the read-side spelling table carries no command row (nothing maps the old command name to the new)', !/RETIRED_COMMAND_NAMES|RETIRED_CREWMATES_COMMAND_NAME/.test(retired) && !/\bteammates: 'crewmates'\b/.test(retired.replace(/expandedView: \{ teammates: 'crewmates' \}/, '')))
+check('the saved expanded-view value under the old word still reads (a saved setting, not the command)', /expandedView: \{ teammates: 'crewmates' \}/.test(retired))
 check('the crew view stays a concourse surface under the new name', crewmates !== undefined && crewmates.needsConcourse === true)
 check('the command speaks of the crew, not the team', crewmates !== undefined && /\bcrew/i.test(crewmates.description) && !/\bteam(mate)?s?\b/i.test(crewmates.description), crewmates === undefined ? 'no command' : crewmates.description)
 const registered = registry.filter(c => c.name === 'crewmates' || c.name === 'teammates')
-check('exactly one registry row serves both names', registered.length === 1, registered.map(c => c.name).join(', '))
+check('exactly one registry row, and it is named crewmates', registered.length === 1 && registered[0]?.name === 'crewmates', registered.map(c => c.name).join(', '))
+const commandSource = readFileSync(join(ROOT, 'src', 'commands', 'crewmates', 'crewmates.tsx'), 'utf8')
+check('/crewmates opens the crew view (the bare command opens it; a name opens that crewmate\'s chat)', /openCrewView\(\)/.test(commandSource) && /<CrewView/.test(commandSource))
 
 console.log('\n the doors the crew words print name /crewmates')
 const doors = [

@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: src/components/messages/TurnReceiptRow.tsx src/components/KitMenuScreen.tsx src/services/kitMenu/** src/utils/cockpit/turnReceipt.ts src/ink/** src/services/engine-connector/daemonConnector.ts src/services/engine-connector/queuedNotices.ts src/components/Messages.tsx src/components/LiveStreamingTail.tsx src/screens/REPL.tsx
 # gate-watch: src/components/StructuredDiff.tsx src/components/StructuredDiff/** src/components/StructuredDiffList.tsx src/components/FileEditToolUpdatedMessage.tsx src/native-ts/color-diff/** src/tools/FileWriteTool/UI.tsx
-# gate-watch: scripts/computer/computerDriveKit.ts scripts/crew/crew-stop-fixture.ts scripts/crew/crew-look-fixture.ts scripts/crew/team-world.ts
+# gate-watch: scripts/computer/computerDriveKit.ts scripts/crew/crew-stop-fixture.ts scripts/crew/crew-look-fixture.ts scripts/crew/crew-world.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/journey/cap-offer-fixture-server.ts scripts/lib/*
 # gate-watch: scripts/stop-policy/prove-no-stagnation-governor.ts scripts/ui/* src/commands/login/login.tsx
 # gate-watch: src/components/MercurySetupFrame.tsx src/components/Onboarding.tsx

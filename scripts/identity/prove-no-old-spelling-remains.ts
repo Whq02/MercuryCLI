@@ -19,7 +19,6 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
   ['scripts/dev/rename-team-to-crew.ts', 'the rename script carries both spellings'],
-  ['scripts/crew/team-world.ts', 'the one file name kept: a workflow proof imports it by this path'],
 ]
 
 const ALIAS_TABLES: Array<[string, string]> = [
@@ -33,11 +32,11 @@ const ALIAS_PINS: Array<[string, string]> = [
   ['scripts/settings/prove-old-settings-keys-read.ts', 'writes the old settings keys by design'],
   ['scripts/substrate/prove-old-env-spellings-read.ts', 'sets the old env spellings by design'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
-  ['scripts/switchboard/prove-crewmates-command.ts', 'pins the old command name still opening the crew view'],
+  ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
   ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
   ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
-  ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words and drives the old command name on the real screen'],
+  ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words'],
   ['scripts/identity/prove-no-old-spelling-remains.ts', 'this census composes the word it hunts'],
   ['scripts/identity/prove-crew-words.ts', 'composes the word it hunts'],
   ['scripts/identity/prove-crew-docs-words.ts', 'composes the word it hunts'],
@@ -60,7 +59,6 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('The ', 'team', ' scope'), ''), 'the memory scope of the people who share a repository'],
   [new RegExp(J("'max'/'pro'/'", 'team', "'"), ''), 'the plan tiers'],
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],
-  [new RegExp(J('team', '-world'), ''), 'the one file name kept for the workflow law, imported by its path'],
   [new RegExp(J("['\"]", 'Team', "(?:Create|Delete)['\"]"), ''), 'the quoted name of a removed tool: the old row a pin drives or refuses'],
   [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
 ]

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
-import { makeTally, ROOT } from './team-world.ts'
+import { makeTally, ROOT } from './crew-world.ts'
 
 const home = mkdtempSync(join(tmpdir(), 'saved-teams-convert-home-'))
 process.env.MERCURY_CONFIG_DIR = home
@@ -130,7 +130,7 @@ if (convert !== null) {
 
 tally.section('§2 the drive: the built bundle carries the saved teams into the crew store at a session\'s birth')
 if (existsSync(join(ROOT, 'dist', 'mercury.mjs'))) {
-  const { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeWorld, TURN_MS } = await import('./team-world.ts')
+  const { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeWorld, TURN_MS } = await import('./crew-world.ts')
   const world = await makeWorld('saved-teams-convert-drive', [{ kind: 'text', text: 'BORN-DONE', model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: 'BORN' } as never])
   cpSync(crewsDir, world.crews, { recursive: true })
   const driveBefore = Object.fromEntries(filesOf(world.crews).map(path => [relative(world.crews, path), digestOf(path)]))

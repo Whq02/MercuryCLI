@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
-import { DIST, LEAD_GATE, LEAD_MODEL, NODE, RECORD, record } from '../crew/team-world.ts'
+import { DIST, LEAD_GATE, LEAD_MODEL, NODE, RECORD, record } from '../crew/crew-world.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' }).stdout.trim()

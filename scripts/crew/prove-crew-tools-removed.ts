@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, ROOT, TURN_MS } from './team-world.ts'
+import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, ROOT, TURN_MS } from './crew-world.ts'
 
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'team-tools-removed-home-'))
 process.env.MERCURY_CREWS_DIR ??= join(process.env.MERCURY_CONFIG_DIR, 'teams')

@@ -304,10 +304,12 @@ console.log('§10 the old journal kinds and keys find their crew handlers')
   check('an old idempotency key still yields its crew name', spellings.readRetiredJournalKey('team-create:party:12') === 'crew-create:party:12')
 }
 
-console.log('§11 the old command name still opens the crew view, as the one alias')
+console.log('§11 the old command name is not carried: /crewmates has no alias, and the spelling table maps no command')
 {
   const crewmates = (await import('../../src/commands/crewmates/index.ts')).default as { name: string; aliases?: string[] }
-  check('the command is /crewmates with the old name as its one alias', crewmates.name === 'crewmates' && JSON.stringify(crewmates.aliases) === JSON.stringify(['teammates']), JSON.stringify(crewmates))
+  check('the command is /crewmates and carries no alias (no hidden old spelling)', crewmates.name === 'crewmates' && (crewmates.aliases ?? []).length === 0, JSON.stringify(crewmates))
+  const spellings = await import('../../src/migrations/retiredCrewSpellings.ts')
+  check('the read-side table exports no command-name row', !('RETIRED_COMMAND_NAMES' in spellings) && !('RETIRED_CREWMATES_COMMAND_NAME' in spellings), Object.keys(spellings).filter(k => /COMMAND/.test(k)).join(','))
 }
 
 console.log(failures === 0 ? '\nold transcript kinds: ALL GREEN' : `\nold transcript kinds: ${failures} FAILURE(S)`)
