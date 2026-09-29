@@ -133,8 +133,8 @@ section('C3 — the paused row says PAUSED with why and the countdown')
   check('a running row is never paused, whatever it carries', running !== null && running.state === 'running' && crew.crewPauseLine(running, now) === null)
   check('a failed row without a pause keeps its word', failed !== null && failed.state === 'failed' && failed.paused === null && crew.crewStatusWords(failed, now) === 'failed')
   const all = [running!, paused!, busy!, failed!]
-  check('the count line counts the paused rows', crew.crewCountLabel(all) === '1 running · 2 paused · 4 sub-agents' && crew.crewPaused(all).length === 2, crew.crewCountLabel(all))
-  check('a crew with no pause keeps the old count line', crew.crewCountLabel([running!, failed!]) === '1 running · 2 sub-agents')
+  check('the count line counts the running and the paused rows (the list header beneath carries the total)', crew.crewCountLabel(all) === '1 running · 2 paused' && crew.crewPaused(all).length === 2, crew.crewCountLabel(all))
+  check('a crew with no pause keeps the running count alone', crew.crewCountLabel([running!, failed!]) === '1 running', crew.crewCountLabel([running!, failed!]))
   check('a malformed pause on the wire is no pause', crew.crewStateOf({ status: 'failed', paused: { why: 'tired' } } as never) === 'failed' && pause.decodeAgentPause({ why: 'usage limit' }) === null)
 }
 

@@ -14,6 +14,11 @@ const argAfter = (flag: string): string | undefined => {
 }
 const DIST_BEFORE = argAfter('--dist') ?? join(ROOT, 'dist', 'mercury.mjs')
 const DIST_AFTER = argAfter('--dist-after') ?? DIST_BEFORE
+const TWO_BUNDLES = argAfter('--dist-after') !== undefined
+const PIN = process.argv.includes('--pin')
+const STORED_DIR = join(ROOT, 'scripts', 'ui')
+const storedPath = (cols: number, rows: number): string => join(STORED_DIR, `crew-screens-frames-${cols}x${rows}.json`)
+const STORED_LABEL = 'the stored frames (scripts/ui/crew-screens-frames-<cols>x<rows>.json)'
 const FRAMES = argAfter('--frames')
 const PAGE = argAfter('--page')
 const SIZES = (argAfter('--sizes') ?? '80x24,120x40,178x51').split(',').map(s => s.split('x').map(Number) as [number, number])
@@ -320,6 +325,36 @@ function sceneSends(cols: number): Send[] {
 
 type SizeRun = { cols: number; rows: number; frames: Map<string, Frame>; faults: string[]; hits: string[]; capture: Capture | null; attempts: number; firstFaults: string[] }
 
+function storedRun(cols: number, rows: number): SizeRun {
+  const run: SizeRun = { cols, rows, frames: new Map(), faults: [], hits: [], capture: null, attempts: 1, firstFaults: [] }
+  const path = storedPath(cols, rows)
+  if (!existsSync(path)) {
+    run.faults.push(`no stored frames at ${path} — pin them from a ruled bundle with --pin`)
+    return run
+  }
+  const stored = JSON.parse(readFileSync(path, 'utf8')) as Record<string, string[]>
+  for (const scene of SCENES) {
+    const lines = stored[scene.id]
+    if (!Array.isArray(lines)) {
+      run.faults.push(`${scene.id}: no stored frame in ${path}`)
+      continue
+    }
+    run.frames.set(scene.id, { rows: lines, grid: [] })
+  }
+  return run
+}
+
+function pinFrames(run: SizeRun): string {
+  const path = storedPath(run.cols, run.rows)
+  const stored: Record<string, string[]> = {}
+  for (const scene of SCENES) {
+    const frame = run.frames.get(scene.id)
+    if (frame !== undefined) stored[scene.id] = frame.rows.map(r => r.trimEnd())
+  }
+  writeFileSync(path, JSON.stringify(stored, null, 1) + '\n')
+  return path
+}
+
 async function driveBundle(dist: string, tag: string, cols: number, rows: number, root: string): Promise<SizeRun> {
   const first = await driveBundleOnce(dist, tag, cols, rows, root, 1)
   if (first.faults.length === 0) return first
@@ -573,11 +608,11 @@ ${sections.join('\n')}
 async function main(): Promise<void> {
   console.log('============================================================')
   console.log(' the crew screens, before and after: every cell the same but the words')
-  console.log(`   before: ${DIST_BEFORE}`)
-  console.log(`   after:  ${DIST_AFTER}${DIST_AFTER === DIST_BEFORE ? ' (the same bundle — the self-test)' : ''}`)
+  console.log(`   before: ${TWO_BUNDLES ? DIST_BEFORE : PIN ? `${STORED_LABEL}, pinned from the bundle below` : STORED_LABEL}`)
+  console.log(`   after:  ${DIST_AFTER}${TWO_BUNDLES && DIST_AFTER === DIST_BEFORE ? ' (the same bundle — the self-test)' : ''}`)
   console.log('============================================================')
   selfTest()
-  for (const dist of new Set([DIST_BEFORE, DIST_AFTER])) {
+  for (const dist of new Set(TWO_BUNDLES ? [DIST_BEFORE, DIST_AFTER] : [DIST_AFTER])) {
     if (!existsSync(dist)) {
       console.log(`  [SKIP] ${dist} absent — build first, or name a bundle with --dist / --dist-after`)
       process.exit(0)
@@ -594,8 +629,9 @@ async function main(): Promise<void> {
       const size = `${cols}x${rows}`
       const sizeRoot = join(root, size)
       mkdirSync(sizeRoot, { recursive: true })
-      const before = await driveBundle(DIST_BEFORE, 'before', cols, rows, sizeRoot)
-      const after = DIST_AFTER === DIST_BEFORE ? await driveBundle(DIST_BEFORE, 'after', cols, rows, sizeRoot) : await driveBundle(DIST_AFTER, 'after', cols, rows, sizeRoot)
+      const after = await driveBundle(DIST_AFTER, 'after', cols, rows, sizeRoot)
+      if (PIN && after.faults.length === 0) console.log(`  pinned ${size}: ${pinFrames(after)}`)
+      const before = TWO_BUNDLES ? await driveBundle(DIST_BEFORE, 'before', cols, rows, sizeRoot) : storedRun(cols, rows)
       runs.set(size, { before, after })
     }
   }
@@ -604,8 +640,9 @@ async function main(): Promise<void> {
     const size = `${cols}x${rows}`
     const { before, after } = runs.get(size)!
     console.log(`\n— ${size} —`)
-    console.log(`  fixture: before ${before.hits.join(',')} · after ${after.hits.join(',')}`)
-    for (const [tag, run] of [['before', before], ['after', after]] as const) {
+    console.log(`  fixture: ${TWO_BUNDLES ? `before ${before.hits.join(',')} · ` : ''}after ${after.hits.join(',')}`)
+    if (!TWO_BUNDLES) check(`${size} before: the stored frames carry every scene (${before.frames.size}/${SCENES.length})`, before.faults.length === 0, before.faults.join(' · '))
+    for (const [tag, run] of (TWO_BUNDLES ? [['before', before], ['after', after]] : [['after', after]]) as ReadonlyArray<readonly ['before' | 'after', SizeRun]>) {
       check(`${size} ${tag}: every send became due and every scene painted still (${run.capture?.receipts ?? 0}/${run.capture?.sends ?? 0} sends · end ${run.capture?.endReason ?? '?'}${run.attempts > 1 ? ` · attempt ${run.attempts}, the first: ${run.firstFaults.join(' · ').slice(0, 200)}` : ''})`, run.faults.length === 0, run.faults.join(' · '))
       if (FRAMES !== undefined) for (const [id, frame] of run.frames) keep(join(FRAMES, tag), `${id}-${size}`, frame)
       if (DUMP || run.faults.length > 0) {
@@ -623,12 +660,12 @@ async function main(): Promise<void> {
   }
   if (FRAMES !== undefined) {
     mkdirSync(FRAMES, { recursive: true })
-    writeFileSync(join(FRAMES, 'verdict.json'), JSON.stringify({ before: DIST_BEFORE, after: DIST_AFTER, substitutions: SUBSTITUTIONS, volatile: VOLATILE.map(([name, re]) => ({ name, pattern: re.source })), scenes: verdicts.map(v => ({ ...v, rows: v.rows.map(r => ({ before: r.before.trimEnd(), after: r.after.trimEnd(), cells: r.cells.map(c => c === 'same' ? '=' : c === 'substitution' ? 's' : c === 'volatile' ? 'v' : c === 'shifted' ? '~' : 'x').join(''), firstDifferent: r.firstDifferent })) })), failures }, null, 1) + '\n')
+    writeFileSync(join(FRAMES, 'verdict.json'), JSON.stringify({ before: TWO_BUNDLES ? DIST_BEFORE : STORED_LABEL, after: DIST_AFTER, substitutions: SUBSTITUTIONS, volatile: VOLATILE.map(([name, re]) => ({ name, pattern: re.source })), scenes: verdicts.map(v => ({ ...v, rows: v.rows.map(r => ({ before: r.before.trimEnd(), after: r.after.trimEnd(), cells: r.cells.map(c => c === 'same' ? '=' : c === 'substitution' ? 's' : c === 'volatile' ? 'v' : c === 'shifted' ? '~' : 'x').join(''), firstDifferent: r.firstDifferent })) })), failures }, null, 1) + '\n')
     console.log(`\n  frames and verdict.json under ${FRAMES}`)
   }
   if (PAGE !== undefined) {
     mkdirSync(join(PAGE, '..'), { recursive: true })
-    writeFileSync(PAGE, renderPage(verdicts, { before: DIST_BEFORE, after: DIST_AFTER, failures }))
+    writeFileSync(PAGE, renderPage(verdicts, { before: TWO_BUNDLES ? DIST_BEFORE : STORED_LABEL, after: DIST_AFTER, failures }))
     console.log(`  the side-by-side page: ${PAGE}`)
   }
   if (!KEEP) rmSync(root, { recursive: true, force: true })

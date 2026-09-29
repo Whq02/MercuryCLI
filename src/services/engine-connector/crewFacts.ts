@@ -304,8 +304,7 @@ export function crewCountLabel(agents: readonly CrewAgentFacts[]): string {
   if (agents.length === 0) return CREW_EMPTY_LINE
   const running = crewRunning(agents).length
   const paused = crewPaused(agents).length
-  const n = agents.length
-  return `${running} running · ${paused > 0 ? `${paused} paused · ` : ''}${n} sub-agent${n === 1 ? '' : 's'}`
+  return `${running} running${paused > 0 ? ` · ${paused} paused` : ''}`
 }
 
 export function crewUsageLine(agents: readonly CrewAgentFacts[]): string | null {

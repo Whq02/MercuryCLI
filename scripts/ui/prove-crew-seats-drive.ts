@@ -435,7 +435,7 @@ async function leg(mainDialect: Dialect): Promise<void> {
   check(`${tag}: S3 the Crew view rows name the seats' model`, SEATS.every(s => (rowOf(mid, s) ?? '').includes(seatModel)), flat(mid).slice(0, 400))
 
   const landed = marks['crew-landed'] ?? ''
-  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('0 running · 4 sub-agents'), flat(landed).slice(0, 400))
+  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('crew · 0 running') && landed.includes('Sub-agents (4)'), flat(landed).slice(0, 400))
 
   if (failures > before && process.env.CREW_SEATS_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > before || process.env.CREW_SEATS_KEEP === '1') dump(`${tag} · final grid`, cap.text)
