@@ -250,7 +250,7 @@ export type WorkRowV1 = {
   pendingAsks?: number
   pausedBy?: string
   agentType?: string
-  team?: string
+  crew?: string
   effort?: string
   transcriptAgentId?: string
   idle?: boolean

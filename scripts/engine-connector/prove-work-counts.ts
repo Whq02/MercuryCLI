@@ -80,7 +80,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 
   const boardAgentsRunning = rosterRowsOf(rows, 'agent').filter(workRowRuns).length
   const boardWorkflowsRunning = rosterRowsOf(rows, 'workflow').filter(workRowRuns).length
-  const boardTeammatesRunning = rosterRowsOf(rows, 'teammate').filter(workRowRuns).length
+  const boardCrewmatesRunning = rosterRowsOf(rows, 'teammate').filter(workRowRuns).length
 
   const agentsViewRows = rosterRowsOf(rows, 'agent').filter(workRowRuns)
 
@@ -88,7 +88,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   check('C2 chip == /tasks (agents)', counts.agents === boardAgentsRunning, `${counts.agents} vs ${boardAgentsRunning}`)
   check('C2 chip == agents view', counts.agents === agentsViewRows.length, `${counts.agents} vs ${agentsViewRows.length}`)
   check('C2 chip == /tasks (workflows) — the paused run never counts', counts.workflows === 1 && counts.workflows === boardWorkflowsRunning, `${counts.workflows} vs ${boardWorkflowsRunning}`)
-  check('C2 chip == /tasks (teammates)', counts.teammates === 1 && counts.teammates === boardTeammatesRunning, `${counts.teammates} vs ${boardTeammatesRunning}`)
+  check('C2 chip == /tasks (teammates)', counts.crewmates === 1 && counts.crewmates === boardCrewmatesRunning, `${counts.crewmates} vs ${boardCrewmatesRunning}`)
   check('C2 the shells count', counts.shells === 1, `shells=${counts.shells}`)
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(
@@ -102,7 +102,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 console.log('— C4 zero-work honesty —')
 {
   const counts = workCounts([])
-  check('C4 an idle roster counts zero everywhere', counts.workflows === 0 && counts.agents === 0 && counts.teammates === 0 && counts.shells === 0 && counts.asks === 0)
+  check('C4 an idle roster counts zero everywhere', counts.workflows === 0 && counts.agents === 0 && counts.crewmates === 0 && counts.shells === 0 && counts.asks === 0)
   check('C4 the idle chip is NULL — no chip, no noise', workChipLine(counts) === null)
 }
 
@@ -126,7 +126,7 @@ console.log('— C6 one spelling —')
 
 console.log('\nC7 the held turn\'s wait words name the KINDS over the same counts')
 {
-  const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ workflows: 0, agents: 0, teammates: 0, shells: 0, asks: 0, ...over })
+  const counts = (over: Partial<ReturnType<typeof workCounts>>): ReturnType<typeof workCounts> => ({ workflows: 0, agents: 0, crewmates: 0, shells: 0, asks: 0, ...over })
   check('C7 a workflow is a workflow, never an agent', workWaitingWords(counts({ workflows: 1 })) === 'waiting on 1 workflow')
   check('C7 a workflow beside two agents', workWaitingWords(counts({ workflows: 1, agents: 2 })) === 'waiting on 1 workflow · 2 agents')
   check('C7 a background shell is a shell', workWaitingWords(counts({ shells: 1 })) === 'waiting on 1 shell')

@@ -2,7 +2,7 @@ import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 import { useAnimationValue } from '../../ink/hooks/use-animation-value.js'
-import type { InProcessTeammateTaskState } from '../../tasks/InProcessTeammateTask/types.js'
+import type { InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { Theme } from '../../utils/theme.js'
 import { getTheme } from '../../utils/theme.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
@@ -19,7 +19,7 @@ import { useStalledAnimation } from './useStalledAnimation.js'
 import { THINKING_COLOR, THINKING_WORD } from '../messages/thinkingGrammar.js'
 import { isQuicksilverLine } from '../../constants/spinnerVerbs.js'
 import type { SpinnerMode } from './types.js'
-import { teammateRole } from '../tasks/taskStatusUtils.js'
+import { crewmateRole } from '../tasks/taskStatusUtils.js'
 import type { LiveTurnFactsV1 } from '../../services/engine-connector/seatLive.js'
 import { liveCounterPhaseOf, liveCounterWords, turnFactsOfRefs } from './liveCounterWords.js'
 import { turnStripLines } from './stripHeight.js'
@@ -60,9 +60,9 @@ export type SpinnerAnimationRowProps = {
   spinnerSuffix?: string | null
   verbose: boolean
   columns: number
-  hasRunningTeammates: boolean
-  teammateTokens: number
-  foregroundedTeammate: InProcessTeammateTaskState | undefined
+  hasRunningCrewmates: boolean
+  crewmateTokens: number
+  foregroundedCrewmate: InProcessCrewmateTaskState | undefined
   leaderIsIdle?: boolean
   effortSuffix?: string
   ttftText?: string | null
@@ -91,9 +91,9 @@ export function SpinnerAnimationRow(
     spinnerSuffix,
     verbose,
     columns,
-    hasRunningTeammates,
-    teammateTokens,
-    foregroundedTeammate,
+    hasRunningCrewmates,
+    crewmateTokens,
+    foregroundedCrewmate,
     leaderIsIdle,
     effortSuffix,
     ttftText,
@@ -147,11 +147,11 @@ export function SpinnerAnimationRow(
     () => responseLengthRef.current ?? 0,
   )
   const foregroundedActive =
-    foregroundedTeammate !== undefined &&
-    (foregroundedTeammate as { status?: string }).status === 'running' &&
-    foregroundedTeammate.isIdle !== true
-  const teammateOnlyTokens = foregroundedActive
-    ? ((foregroundedTeammate.progress as { totalTokens?: number } | undefined)
+    foregroundedCrewmate !== undefined &&
+    (foregroundedCrewmate as { status?: string }).status === 'running' &&
+    foregroundedCrewmate.isIdle !== true
+  const crewmateOnlyTokens = foregroundedActive
+    ? ((foregroundedCrewmate.progress as { totalTokens?: number } | undefined)
         ?.totalTokens ?? 0)
     : null
   const liveWords = liveCounterWords(
@@ -160,10 +160,10 @@ export function SpinnerAnimationRow(
   )
   const liveFigure = liveWords.figure
   const displayedTokens =
-    teammateOnlyTokens !== null
-      ? teammateOnlyTokens
-      : liveFigure.total + teammateTokens
-  const tokensEstimated = teammateOnlyTokens === null && liveFigure.estimated
+    crewmateOnlyTokens !== null
+      ? crewmateOnlyTokens
+      : liveFigure.total + crewmateTokens
+  const tokensEstimated = crewmateOnlyTokens === null && liveFigure.estimated
 
   const rateSampleRef = useRef({ at: 0, len: 0 })
   const smoothedOtpsRef = useRef(0)
@@ -195,10 +195,10 @@ export function SpinnerAnimationRow(
     suffixText === '' ? 0 : stringWidth(suffixText) + separatorWidth
 
   const interruptHint = foregroundedActive
-    ? `esc interrupts @${foregroundedTeammate.identity.agentName}`
+    ? `esc interrupts @${foregroundedCrewmate.identity.agentName}`
     : null
   const foregroundedIdleQuiet =
-    foregroundedTeammate !== undefined && !foregroundedActive
+    foregroundedCrewmate !== undefined && !foregroundedActive
 
   const waitPhaseText = liveWords.reading || liveWords.phase !== liveCounterPhaseOf(mode) ? liveWords.phase : null
   const thinkingText = inThinking && waitPhaseText === null ? thinkingLabelFull : null
@@ -207,9 +207,9 @@ export function SpinnerAnimationRow(
   const timerText = formatDuration(effectiveElapsedMs, { mostSignificantOnly: true })
   const tokensAfterMs = 0
   void tokensAfterMs
-  const metaGate = verbose || hasRunningTeammates || effectiveElapsedMs > 0
+  const metaGate = verbose || hasRunningCrewmates || effectiveElapsedMs > 0
   const tokensText: string | null =
-    teammateOnlyTokens !== null || hasRunningTeammates
+    crewmateOnlyTokens !== null || hasRunningCrewmates
       ? displayedTokens > 0
         ? `${tokensEstimated ? '~' : ''}${formatNumber(displayedTokens)} tokens`
         : null
@@ -421,7 +421,7 @@ export function SpinnerAnimationRow(
   )
   const segBTail =
     interruptHint !== null ? (
-      <Text color={teammateRole(foregroundedTeammate?.identity.color)}>
+      <Text color={crewmateRole(foregroundedCrewmate?.identity.color)}>
         ({interruptHint})
       </Text>
     ) : foregroundedIdleQuiet ? null : (

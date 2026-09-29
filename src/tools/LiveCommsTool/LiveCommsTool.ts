@@ -5,7 +5,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import {
   resolveCoordinationContext,
-  teamBrief,
+  crewBrief,
   writeLiveComms,
   type LiveCommsReceipt,
   type LiveCommsWrites,
@@ -209,10 +209,10 @@ export const LiveCommsTool = buildTool({
     return writeWords(input)
   },
   async call(input, context) {
-    const ctx = resolveCoordinationContext(context.getAppState().teamContext ?? undefined)
+    const ctx = resolveCoordinationContext(context.getAppState().crewContext ?? undefined)
     const writes = writesOf(input)
     const wrote: LiveCommsReceipt[] | undefined = ctx !== null && writes !== null ? await writeLiveComms(ctx, writes) : undefined
-    const brief = await teamBrief(ctx)
+    const brief = await crewBrief(ctx)
     return { data: wrote === undefined ? brief : { ...brief, wrote } }
   },
   mapToolResultToToolResultBlockParam(content, toolUseID) {

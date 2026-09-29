@@ -86,7 +86,7 @@ if (!existsSync(DIST)) {
   check('the populated home: extension installed + approved', installed.ok && install.approve('kitchen-sink@fixture-source').ok)
   records.updateSources(current => ({
     ...current,
-    'stale-remote': { kind: 'archive', where: 'http://203.0.113.7/team.zip', ref: null, addedAt: '2026-01-01T00:00:00Z', checkedAt: '2026-01-01T00:00:00Z', commit: null, lastError: null },
+    'stale-remote': { kind: 'archive', where: 'http://203.0.113.7/crew.zip', ref: null, addedAt: '2026-01-01T00:00:00Z', checkedAt: '2026-01-01T00:00:00Z', commit: null, lastError: null },
   }))
 
   const netlog = join(scratch, 'net.log')

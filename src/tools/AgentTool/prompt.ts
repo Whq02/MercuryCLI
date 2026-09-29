@@ -4,8 +4,8 @@ import {
   isEnvDefinedFalsy,
   isEnvTruthy,
 } from '../../utils/envUtils.js'
-import { isInProcessTeammate } from '../../utils/teammateContext.js'
-import { isTeammate } from '../../utils/teammate.js'
+import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
+import { isTeammate } from '../../utils/crewmate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
@@ -80,7 +80,7 @@ ${typeSelection}`
   }
 
   const backgroundEnabled = true
-  const inProcess = isInProcessTeammate()
+  const inProcess = isInProcessCrewmate()
   const usage: string[] = [
     'Always include a short (3–5 word) `description` of the task.',
   ]

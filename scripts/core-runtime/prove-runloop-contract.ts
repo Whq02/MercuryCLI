@@ -8,14 +8,14 @@ import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runloop-laws-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'runloop-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'runloop-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'runloop-teams-'))
 for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
   'MERCURY_MAX_OUTPUT_TOKENS',
   'MERCURY_BLOCKING_LIMIT_OVERRIDE',
   'MERCURY_RELEVANT_RECALL',
-  'CLAUDE_TEAM_NAME',
+  'CLAUDE_CREW_NAME',
   'CLAUDE_AGENT_NAME',
   'MERCURY_COMPACT',
   'MERCURY_AUTO_COMPACT',

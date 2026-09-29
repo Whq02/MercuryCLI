@@ -20,7 +20,7 @@ import {
   getDenyRuleForAgent,
 } from '../permissions/permissions.js'
 import { reasonForRule, refusalWithReason } from '../permissions/ruleReason.js'
-import { decodeAgentType, type ResolvedTeammateRole } from './roleResolver.js'
+import { decodeAgentType, type ResolvedCrewmateRole } from './roleResolver.js'
 
 
 export type AgentLaunchPlanInput = {
@@ -142,7 +142,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
   }
 }
 
-export const TEAM_ESSENTIAL_TOOLS: readonly string[] = [
+export const CREW_ESSENTIAL_TOOLS: readonly string[] = [
   SEND_MESSAGE_TOOL_NAME,
   TASK_CREATE_TOOL_NAME,
   TASK_GET_TOOL_NAME,
@@ -151,7 +151,7 @@ export const TEAM_ESSENTIAL_TOOLS: readonly string[] = [
 ]
 
 export function deriveRunnerAgentDefinition(i: {
-  role?: ResolvedTeammateRole
+  role?: ResolvedCrewmateRole
   agentDefinition?: AgentDefinition
   displayName: string
   systemPrompt: string
@@ -162,7 +162,7 @@ export function deriveRunnerAgentDefinition(i: {
     whenToUse: `In-process teammate: ${i.displayName}`,
     getSystemPrompt: () => i.systemPrompt,
     tools: i.agentDefinition?.tools
-      ? [...new Set([...i.agentDefinition.tools, ...TEAM_ESSENTIAL_TOOLS])]
+      ? [...new Set([...i.agentDefinition.tools, ...CREW_ESSENTIAL_TOOLS])]
       : ['*'],
     source: 'projectSettings',
     permissionMode: 'default',

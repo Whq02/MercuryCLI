@@ -74,7 +74,7 @@ function world(tag: string): { home: string; cwd: string; config: string; env: N
     TERM: 'xterm-256color',
     MERCURY_CONFIG_DIR: config,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'product-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',

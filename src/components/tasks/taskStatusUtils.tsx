@@ -5,13 +5,13 @@ import {
   isLocalAgentTask,
   isPanelAgentTask,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { summarizeRecentActivities } from '../../utils/collapseReadSearch.js'
 import {
-  deriveTeammatePhase,
+  deriveCrewmatePhase,
   lastActionWasLeadHandoff,
-  teammatePhaseLabel,
-} from '../../utils/swarm/teamPhases.js'
+  crewmatePhaseLabel,
+} from '../../utils/swarm/crewPhases.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import {
   deriveAgentLifecycle,
@@ -20,7 +20,7 @@ import {
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import type { Theme } from '../../utils/theme.js'
 
-export function teammateRole(color: string | undefined): keyof Theme | undefined {
+export function crewmateRole(color: string | undefined): keyof Theme | undefined {
   if (color === undefined) return undefined
   return (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[color]
 }
@@ -81,8 +81,8 @@ export function getTaskStatusColor(
   return 'background'
 }
 
-export function describeTeammateActivity(task: TaskState): string {
-  if (!isInProcessTeammateTask(task)) return ''
+export function describeCrewmateActivity(task: TaskState): string {
+  if (!isInProcessCrewmateTask(task)) return ''
   const progress = task.progress as
     | {
         recentActivitySummary?: string
@@ -94,7 +94,7 @@ export function describeTeammateActivity(task: TaskState): string {
         }>
       }
     | undefined
-  const phase = deriveTeammatePhase({
+  const phase = deriveCrewmatePhase({
     status: task.status,
     isIdle: task.isIdle === true,
     shutdownRequested: task.shutdownRequested === true,
@@ -116,7 +116,7 @@ export function describeTeammateActivity(task: TaskState): string {
       'working'
     )
   }
-  return teammatePhaseLabel(phase)
+  return crewmatePhaseLabel(phase)
 }
 
 export function shouldHideTasksFooter(
@@ -126,7 +126,7 @@ export function shouldHideTasksFooter(
   if (!spinnerTreeShowing) return false
   const manageable = tasks.filter(task => isManageableTask(task))
   if (manageable.length === 0) return false
-  return manageable.every(task => isInProcessTeammateTask(task))
+  return manageable.every(task => isInProcessCrewmateTask(task))
 }
 
 export function agentLifecycleOf(task: TaskState): AgentLifecycle | undefined {

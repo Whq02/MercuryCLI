@@ -18,13 +18,13 @@ const NOT_THE_CREW: Array<[RegExp, string]> = [
 
 const WORKFLOW_HOME = 'src/tools/WorkflowTool/'
 const OLD_TRANSCRIPT_RENDERERS = [
-  'src/components/messages/UserTeammateMessage.tsx',
+  'src/components/messages/UserCrewmateMessage.tsx',
   'src/components/messages/AttachmentMessage.tsx',
   'src/components/messages/PlanApprovalMessage.tsx',
   'src/components/messages/nullRenderingAttachments.ts',
   'src/components/prompts-panel/rows.ts',
   'src/components/messages/ShutdownMessage.tsx',
-  'src/utils/collapseTeammateShutdowns.ts',
+  'src/utils/collapseCrewmateShutdowns.ts',
 ]
 const LOG_CALLEE = /^(?:logForDebugging|logError|logEvent|logWarn|logInfo|debugLog|console\.(?:log|error|warn|info|debug|trace))$/
 
@@ -110,7 +110,7 @@ function isCopy(text: string, node?: ts.Node): boolean {
   return /\s/.test(text) || CAPITAL_LABEL.test(text.trim())
 }
 
-function saysTeam(text: string): boolean {
+function saysCrew(text: string): boolean {
   if (!(WORD.test(text) || DOOR.test(text))) return false
   let rest = text
   for (const [re] of NOT_THE_CREW) rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
@@ -121,7 +121,7 @@ export function scanSource(rel: string, source: string): Array<{ line: number; t
   const sf = ts.createSourceFile(rel, source, ts.ScriptTarget.Latest, true, rel.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
   const out: Array<{ line: number; text: string }> = []
   const note = (node: ts.Node, text: string): void => {
-    if (!isCopy(text, node) || !saysTeam(text)) return
+    if (!isCopy(text, node) || !saysCrew(text)) return
     if (insideLog(node)) return
     out.push({ line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: text.replace(/\s+/g, ' ').trim() })
   }
@@ -164,12 +164,12 @@ console.log('— §0 the scanner bites (poison control) —')
     "logForDebugging(`teammate ${name}: poll failed`);",
     "const i = 'Claude Team';",
     "const j = 'the red-team verifier';",
-    "import x from './teamHelpers.js';",
+    "import x from './crewHelpers.js';",
     "const k = 'Payload: the teammate name and team name.';",
     "const l = 'the team-lead requested it';",
     "const m = plural(n, 'teammate');",
     "const o = 'reassign them to idle teammates.';",
-    "const q = 'read src/utils/team.ts and teamHelpers.ts';",
+    "const q = 'read src/utils/team.ts and crewHelpers.ts';",
     "const r = 'brief a chartered team';",
   ].join('\n')
   const lines = scanSource('poison.tsx', poison).map(h => h.line)

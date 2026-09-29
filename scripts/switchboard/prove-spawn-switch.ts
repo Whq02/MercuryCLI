@@ -372,7 +372,7 @@ if (!existsSync(DIST)) {
         ANTHROPIC_BASE_URL: baseUrl,
         ANTHROPIC_API_KEY: 'fixture-key-000',
         MERCURY_DAEMON_DIR: join(home, 'daemon'),
-        MERCURY_TEAMS_DIR: join(home, 'teams'),
+        MERCURY_CREWS_DIR: join(home, 'teams'),
         MERCURY_THINKING_BINDING: 'drop_block',
         ...extraEnv,
       },
@@ -568,7 +568,7 @@ section('§10 the commands — /subagents and /workflows on|off, the grammar, th
   check('no chat open ⇒ the one sentence naming the focused session and the menu', noChat.includes('no chat is open') && noChat.includes("the boot menu's Agents section"), noChat)
   check('the workflows board branches on the argument through the same body', src('src/commands/workflows/workflows.tsx').includes("runSpawnSwitchCommand('workflows'") && src('src/commands/workflows/workflows.tsx').includes('parseSpawnSwitchArg(args'))
   check('the toggle receipts read the daemon\'s vocabulary', sw.spawnSwitchToggleReceipt('workflows', false, 'refused', 'no live channel') === 'workflows off refused — no live channel' && sw.spawnSwitchToggleReceipt('workflows', true, 'applied').includes('the Workflow tool rejoins the roster from the next turn'))
-  check("the changelog and the agents page carry the switches", src('src/constants/changelog.ts').includes('/subagents on|off') && src('docs/TEAMS.md').includes('## The two spawn switches'))
+  check("the changelog and the agents page carry the switches", src('src/constants/changelog.ts').includes('/subagents on|off') && src('docs/CREW.md').includes('## The two spawn switches'))
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-spawn-switch — ${checks - failures}/${checks} checks passed`)

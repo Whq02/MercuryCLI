@@ -215,7 +215,7 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -240,7 +240,7 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     TERM_PROGRAM: 'kitty',
     BROWSER: '/usr/bin/true',
   }
-  for (const stamp of ['MERCURY_TEAMMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DEMO', 'TERMINAL_EMULATOR', '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete env[stamp]
+  for (const stamp of ['MERCURY_CREWMATES', 'MERCURY_DAEMON_PERMISSION_MODE', 'MERCURY_DAEMON_CREW', 'MERCURY_CREW', 'NODE_ENV', 'CI', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_DEMO', 'TERMINAL_EMULATOR', '__CFBundleIdentifier', 'MERCURY_MODEL', 'MERCURY_DEFAULT_FABLE_MODEL', 'MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete env[stamp]
   return env
 }
 
@@ -272,9 +272,8 @@ async function capture(label: string, cfg: Record<string, unknown>, env: NodeJS.
 }
 
 const see = (needle: string, mark: string, settle = 4, pattern?: string): Send => ({ data: '', atTick: 3000, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: settle, awaitPattern: settledPattern(pattern), mark })
-const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
-const still = (mark: string): Send => ({ data: '', afterPrevTicks: STILL_TICKS, mark: `${mark}~still` })
-const stillPair = (needle: string, mark: string, settle = 4, pattern?: string): Send[] => [see(needle, `${mark}~first`, settle, pattern), still(mark)]
+const still = (needle: string, mark: string, pattern?: string): Send => see(needle, `${mark}~still`, STILL_TICKS, pattern)
+const stillPair = (needle: string, mark: string, settle = 4, pattern?: string): Send[] => [see(needle, `${mark}~first`, settle, pattern), still(needle, mark, pattern)]
 const when = (needle: string, data: string, settle = 4, pattern?: string): Send => ({ data, atTick: 3000, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: settle, awaitPattern: settledPattern(pattern) })
 
 function sceneSends(cols: number): Send[] {
@@ -282,38 +281,38 @@ function sceneSends(cols: number): Send[] {
   const focused = narrow ? FOCUSED_NARROW_PATTERN : FOCUSED_WIDE_PATTERN
   return [
     { data: '', atTick: 3000, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 6, awaitPattern: settledPattern(FACE_PATTERN), mark: 'face~first' },
-    still('face'),
-    type('m', 2),
+    still('↑↓ choose', 'face', FACE_PATTERN),
+    when('↑↓ choose', 'm', 2, FACE_PATTERN),
     ...stillPair(MODEL_TITLE, 'model-picker', 4),
-    type(ESC, 2),
+    when(MODEL_TITLE, ESC, 2),
     when('↑↓ choose', '\r', 3, FACE_PATTERN),
     when('ype a prompt', '/teammates', 4, focused),
-    type('\r', 3),
+    when('/teammates', '\r', 3),
     ...stillPair(CREW_EMPTY_NEEDLE, 'crew-empty', 5, focused),
-    type(ESC, 2),
+    when(CREW_EMPTY_NEEDLE, ESC, 2, focused),
     ...stillPair('ype a prompt', 'chat', 6, narrow ? COUNTS_PATTERN : focused),
-    type('?', 2),
+    when('ype a prompt', '?', 2, narrow ? COUNTS_PATTERN : focused),
     ...stillPair('ype a prompt', 'help', 4, focused),
-    type('?', 2),
+    when('ype a prompt', '?', 2, focused),
     when('ype a prompt', LEAD_ASK, 3, focused),
-    type('\r', 3),
+    when(LEAD_ASK, '\r', 3),
     ...stillPair(LEAD_NOTED, 'chat-crew', 8, NOTICE_PATTERN),
-    type('/teammates', 3),
-    type('\r', 3),
+    when('ype a prompt', '/teammates', 3, NOTICE_PATTERN),
+    when('/teammates', '\r', 3),
     ...stillPair('x x stop', 'crew-two', 5),
-    type(DOWN, 2),
+    when('x x stop', DOWN, 2),
     ...stillPair('r resume', 'crew-settled', 5),
-    type('\r', 3),
+    when('r resume', '\r', 3),
     ...stillPair(SETTLED_LINE, 'view-panel', 6),
-    type(ESC, 3),
+    when(SETTLED_LINE, ESC, 3),
     when('ype a prompt', '/runs', 4),
-    type('\r', 3),
+    when('/runs', '\r', 3),
     ...stillPair('Mercury — runs', 'runs', 5),
-    type(ESC, 3),
+    when('Mercury — runs', ESC, 3),
     when('ype a prompt', '/sessions', 4),
-    type('\r', 3),
+    when('/sessions', '\r', 3),
     ...stillPair(SESSIONS_NEEDLE, 'sessions', 5, SESSIONS_PATTERN),
-    type(ESC, 3),
+    when(SESSIONS_NEEDLE, ESC, 3, SESSIONS_PATTERN),
     when('ype a prompt', SHIFT_LEFT, 4),
     ...stillPair('crew-screens: launc', 'board', 6, BOARD_PATTERN),
   ]

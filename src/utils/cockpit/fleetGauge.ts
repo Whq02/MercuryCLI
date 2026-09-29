@@ -13,7 +13,7 @@ import {
   type TreeConflict,
 } from '../swarm/roomHealth.js'
 import { listLeases, type Lease } from '../swarm/leaseGlob.js'
-import { getTeamName } from '../teammate.js'
+import { getCrewName } from '../crewmate.js'
 import { withState, type Snapshot } from './types.js'
 
 export type FleetRosterSource = 'team' | 'crew' | 'concourse' | 'execution'
@@ -109,10 +109,10 @@ async function rosterRows(nowMs: number, health: AgentHealth[]): Promise<FleetRo
 
 export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
   const nowMs = Date.now()
-  const teamName = getTeamName() ?? null
+  const teamName = getCrewName() ?? null
   if (!teamName) {
     const roster = await rosterRows(nowMs, [])
-    return withState('off', empty(null, roster), 'not in an agent group — /fleet reads a shared group', 'getTeamName')
+    return withState('off', empty(null, roster), 'not in an agent group — /fleet reads a shared group', 'getCrewName')
   }
   try {
     const [tasks, statuses, leases] = await Promise.all([

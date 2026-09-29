@@ -21,8 +21,8 @@ import {
   TURN_MS,
 } from './team-world.ts'
 
-const scratchTeams = mkdtempSync(join(tmpdir(), 'crew-from-birth-teams-'))
-process.env.MERCURY_TEAMS_DIR = scratchTeams
+const scratchCrews = mkdtempSync(join(tmpdir(), 'crew-from-birth-teams-'))
+process.env.MERCURY_CREWS_DIR = scratchCrews
 process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'crew-from-birth-home-'))
 
 const tally = makeTally('prove-crew-from-birth')
@@ -39,7 +39,7 @@ const GAMMA_ID = 'toolu_birth_gamma'
 tally.section('§0 the birth module: a crew is named by its session and founded on the first join')
 type BirthModule = {
   sessionCrewName: (sessionId: string) => string
-  bornCrewContext: (sessionId: string, cwd: string) => { teamName: string; teamFilePath: string; leadAgentId: string; teammates: Record<string, unknown> }
+  bornCrewContext: (sessionId: string, cwd: string) => { teamName: string; crewFilePath: string; leadAgentId: string; crewmates: Record<string, unknown> }
   bornCrewRoster: (sessionId: string, cwd: string) => { name: string; leadSessionId?: string; leadAgentId: string; members: Array<{ name: string; agentId: string; cwd: string }> }
 }
 let birth: BirthModule | null = null
@@ -53,30 +53,30 @@ if (birth !== null) {
   const name = birth.sessionCrewName(sid)
   tally.check('the crew is named by its session', name === sid, name)
   const context = birth.bornCrewContext(sid, '/tmp/somewhere')
-  tally.check('the born context names the crew, its roster path and the lead agent id', context.teamName === sid && context.leadAgentId === `team-lead@${sid}` && context.teamFilePath.endsWith(join(sid, 'config.json')), JSON.stringify(context))
-  tally.check('the born context lists no crewmate yet (the lead is not its own crewmate)', Object.keys(context.teammates).length === 0, JSON.stringify(context.teammates))
+  tally.check('the born context names the crew, its roster path and the lead agent id', context.teamName === sid && context.leadAgentId === `team-lead@${sid}` && context.crewFilePath.endsWith(join(sid, 'config.json')), JSON.stringify(context))
+  tally.check('the born context lists no crewmate yet (the lead is not its own crewmate)', Object.keys(context.crewmates).length === 0, JSON.stringify(context.crewmates))
   const roster = birth.bornCrewRoster(sid, '/tmp/somewhere')
   tally.check('the founding roster carries the lead alone, led by this session', roster.name === sid && roster.leadSessionId === sid && roster.leadAgentId === `team-lead@${sid}` && roster.members.length === 1 && roster.members[0]!.name === 'team-lead' && roster.members[0]!.cwd === '/tmp/somewhere', JSON.stringify(roster))
   const state = await import('../../src/bootstrap/state.ts')
   const ownSid = String(state.getSessionId())
-  const helpers = await import('../../src/utils/swarm/teamHelpers.ts')
+  const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
   const ownCrew = birth.sessionCrewName(ownSid)
-  const ownPath = helpers.getTeamFilePath(ownCrew)
+  const ownPath = helpers.getCrewFilePath(ownCrew)
   tally.check('before the first join the crew has no roster file (nothing is written at birth)', !existsSync(ownPath), ownPath)
   let joined = true
   let joinError = ''
   try {
-    await helpers.appendTeamMember(ownCrew, { agentId: `alpha@${ownCrew}`, name: 'alpha', model: 'claude-opus-4-6', joinedAt: Date.now(), tmuxPaneId: 'in-process', cwd: '/tmp/somewhere', subscriptions: [] } as never)
+    await helpers.appendCrewMember(ownCrew, { agentId: `alpha@${ownCrew}`, name: 'alpha', model: 'claude-opus-4-6', joinedAt: Date.now(), tmuxPaneId: 'in-process', cwd: '/tmp/somewhere', subscriptions: [] } as never)
   } catch (error) {
     joined = false
     joinError = error instanceof Error ? error.message : String(error)
   }
   tally.check('the first join founds the crew roster instead of demanding a create step', joined, joinError)
-  const founded = helpers.readTeamFile(ownCrew)
+  const founded = helpers.readCrewFile(ownCrew)
   tally.check('the founded roster lists the lead and the crewmate, with the model as named', founded !== null && founded.members.map(m => m.name).join(',') === 'team-lead,alpha' && founded.members[1]!.model === 'claude-opus-4-6' && founded.leadSessionId === ownSid, JSON.stringify(founded?.members.map(m => [m.name, m.model])))
   let foreign = ''
   try {
-    await helpers.appendTeamMember('nonesuch-team', { agentId: 'x@nonesuch-team', name: 'x', joinedAt: Date.now(), tmuxPaneId: '', cwd: '/tmp', subscriptions: [] } as never)
+    await helpers.appendCrewMember('nonesuch-team', { agentId: 'x@nonesuch-team', name: 'x', joinedAt: Date.now(), tmuxPaneId: '', cwd: '/tmp', subscriptions: [] } as never)
   } catch (error) {
     foreign = error instanceof Error ? error.message : String(error)
   }
@@ -117,7 +117,7 @@ const script: ScriptedTurn[] = [
 ]
 const world = await makeWorld('crew-from-birth', script)
 const sessionId = randomUUID()
-const crewDir = join(world.teams, sessionId)
+const crewDir = join(world.crews, sessionId)
 const configPath = join(crewDir, 'config.json')
 type Roster = { name: string; leadSessionId?: string; leadAgentId: string; members: Array<{ name: string; model?: string }> }
 type InboxRow = { from: string; text: string }
@@ -158,7 +158,7 @@ try {
   const seatRequests = (): number => world.fixture.messageRequests().filter(request => (request.body as { model?: string } | null)?.model === SEAT_MODEL).length
   tally.check('the crewmate is on the roster and ran its first turn (an in-process crewmate task started, a request on its model)', started !== undefined && seatRequests() >= 1, `${JSON.stringify(first.frames.filter(frame => frame.subtype === 'task_started').map(frame => frame.task_type))} seat requests=${seatRequests()}`)
   const roster = readJson<Roster>(configPath)
-  tally.check('the crew roster on disk is the session\'s: led by this session, the lead and scout on it, the model as named', roster !== null && roster.name === sessionId && roster.leadSessionId === sessionId && roster.leadAgentId === `team-lead@${sessionId}` && roster.members.map(m => m.name).join(',') === 'team-lead,scout' && roster.members[1]!.model === SEAT_MODEL, JSON.stringify(roster?.members.map(m => [m.name, m.model]) ?? treeOf(world.teams)))
+  tally.check('the crew roster on disk is the session\'s: led by this session, the lead and scout on it, the model as named', roster !== null && roster.name === sessionId && roster.leadSessionId === sessionId && roster.leadAgentId === `team-lead@${sessionId}` && roster.members.map(m => m.name).join(',') === 'team-lead,scout' && roster.members[1]!.model === SEAT_MODEL, JSON.stringify(roster?.members.map(m => [m.name, m.model]) ?? treeOf(world.crews)))
   const note = toolResultOf(world, NOTE_ID)
   tally.check('the first message to the crewmate is delivered to its inbox', note !== null && note.isError === false && inbox('scout').some(row => row.text.includes('NOTE-FOR-SCOUT')), `${note?.text.slice(0, 200) ?? '(no result)'} inbox=${JSON.stringify(inbox('scout').map(row => row.text.slice(0, 40)))}`)
   const brief = toolResultOf(world, BRIEF_ID)

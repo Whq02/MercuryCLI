@@ -26,10 +26,10 @@ const read = (relative: string): string => (existsSync(src(relative)) ? readFile
 
 section('the pane road is gone from the tree: its files, its backend, its setting rows, its spawn options')
 for (const file of [
-  'utils/swarm/teammateLayoutManager.ts',
+  'utils/swarm/crewmateLayoutManager.ts',
   'utils/swarm/It2SetupPrompt.tsx',
   'utils/swarm/backends/PaneBackendExecutor.ts',
-  'utils/swarm/backends/teammateModeSnapshot.ts',
+  'utils/swarm/backends/crewmateModeSnapshot.ts',
   'utils/swarm/backends/TmuxBackend.ts',
   'utils/swarm/backends/ITermBackend.ts',
   'utils/swarm/backends/it2Setup.ts',
@@ -39,28 +39,28 @@ for (const file of [
   check(`${file} is deleted`, !existsSync(src(file)))
 }
 const spawnSource = read('tools/shared/spawnMultiAgent.ts')
-check('the spawn road has one strategy: in-process (no split pane, no separate window, no backend detection)', spawnSource !== '' && !/spawnSplitPane|spawnSeparateWindow|detectAndGetBackend|createTeammatePaneInSwarmView|sendCommandToPane|use_splitpane/.test(spawnSource))
+check('the spawn road has one strategy: in-process (no split pane, no separate window, no backend detection)', spawnSource !== '' && !/spawnSplitPane|spawnSeparateWindow|detectAndGetBackend|createCrewmatePaneInSwarmView|sendCommandToPane|use_splitpane/.test(spawnSource))
 check('the teammate spawn config carries no pane option', !/use_splitpane\?: boolean/.test(spawnSource))
 const main = read('main.tsx')
-check('the CLI has no --teammate-mode option', !/--teammate-mode/.test(main) && !/setCliTeammateModeOverride/.test(main))
+check('the CLI has no --teammate-mode option', !/--teammate-mode/.test(main) && !/setCliCrewmateModeOverride/.test(main))
 const config = read('components/Settings/Config.tsx')
-check('the settings screen has no teammate mode row', !/teammateMode/.test(config) && !/teammate mode\b/i.test(config))
+check('the settings screen has no teammate mode row', !/crewmateMode/.test(config) && !/teammate mode\b/i.test(config))
 const schema = read('utils/config/schema.ts')
-check('the config schema names no pane mode (the old key is read and ignored, never a word)', !/teammateMode\?:/.test(schema) && !/preferTmuxOverIterm2/.test(schema))
+check('the config schema names no pane mode (the old key is read and ignored, never a word)', !/crewmateMode\?:/.test(schema) && !/preferTmuxOverIterm2/.test(schema))
 const setup = read('setup.ts')
-check('the boot captures no teammate mode snapshot', !/captureTeammateModeSnapshot/.test(setup))
+check('the boot captures no teammate mode snapshot', !/captureCrewmateModeSnapshot/.test(setup))
 const agentTool = read('tools/AgentTool/AgentTool.tsx')
 check('the Agent tool names no pane option', !/splitpane|tmux/i.test(agentTool))
-const helpers = read('utils/swarm/teamHelpers.ts')
+const helpers = read('utils/swarm/crewHelpers.ts')
 check('the team helpers kill no panes', !/killPane|isPaneBackend/.test(helpers))
 const registryRows = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-check('no flag row names the teammate mode', !/TEAMMATE_MODE/.test(registryRows))
-for (const doc of ['docs/TEAMS.md', 'docs/ENGINES.md', 'README.md']) {
+check('no flag row names the teammate mode', !/CREWMATE_MODE/.test(registryRows))
+for (const doc of ['docs/CREW.md', 'docs/ENGINES.md', 'README.md']) {
   const text = existsSync(join(ROOT, doc)) ? readFileSync(join(ROOT, doc), 'utf8') : ''
-  check(`${doc} has no row for the tmux/iTerm pane option`, !/teammateMode|--teammate-mode|split[- ]pane|iTerm2 pane|tmux pane/i.test(text))
+  check(`${doc} has no row for the tmux/iTerm pane option`, !/crewmateMode|--teammate-mode|split[- ]pane|iTerm2 pane|tmux pane/i.test(text))
 }
 
-section('a saved teammateMode: tmux setting boots the built product without a word')
+section('a saved crewmateMode: tmux setting boots the built product without a word')
 const scratch = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'pane-removed-'))
 const home = join(scratch, 'home')
 const project = join(scratch, 'project')
@@ -69,7 +69,7 @@ writeFileSync(join(project, 'README.md'), '# fixture\n')
 seedFirstRun(home, [project])
 const configPath = join(home, '.mercury.json')
 const saved = existsSync(configPath) ? (JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>) : {}
-writeFileSync(configPath, JSON.stringify({ ...saved, teammateMode: 'tmux', preferTmuxOverIterm2: true }, null, 2))
+writeFileSync(configPath, JSON.stringify({ ...saved, crewmateMode: 'tmux', preferTmuxOverIterm2: true }, null, 2))
 const lead = 'claude-fable-5-1'
 const script: ScriptedTurn[] = [
   { kind: 'text', text: 'LEAD-DONE', model: lead, whenModel: 'fable-5-1' } as ScriptedTurn,
@@ -86,7 +86,7 @@ const run = await new Promise<{ status: number | null; out: string }>(resolveRun
       PATH: process.env.PATH ?? '/usr/bin:/bin',
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: home,
-      MERCURY_TEAMS_DIR: join(scratch, 'teams'),
+      MERCURY_CREWS_DIR: join(scratch, 'teams'),
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -112,9 +112,9 @@ const run = await new Promise<{ status: number | null; out: string }>(resolveRun
 await fixture.close()
 const out = run.out
 check('the product boots and answers with the saved pane setting in place', run.status === 0 && out.includes('LEAD-DONE'), `rc=${run.status} ${out.slice(-600)}`)
-check('not a word about the pane mode, tmux or iTerm on the way', !/teammateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(out), out.split('\n').filter(l => /teammateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(l)).slice(0, 3).join(' | '))
+check('not a word about the pane mode, tmux or iTerm on the way', !/crewmateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(out), out.split('\n').filter(l => /crewmateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(l)).slice(0, 3).join(' | '))
 const stillSaved = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
-check('the saved setting is untouched (read and ignored, never rewritten away)', stillSaved.teammateMode === 'tmux')
+check('the saved setting is untouched (read and ignored, never rewritten away)', stillSaved.crewmateMode === 'tmux')
 rmSync(scratch, { recursive: true, force: true })
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} prove-pane-option-removed: ${failures} failure(s)`)

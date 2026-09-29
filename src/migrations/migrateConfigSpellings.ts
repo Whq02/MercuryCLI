@@ -1,5 +1,7 @@
 
 export const RETIRED_GLOBAL_CONFIG_KEYS: Readonly<Record<string, string>> = {
+  teammateMode: 'crewmateMode',
+  teammateDefaultModel: 'crewmateDefaultModel',
   lastPlanModeUse: 'lastStrategyModeUse',
   showExpandedTodos: 'showExpandedTasks',
 }

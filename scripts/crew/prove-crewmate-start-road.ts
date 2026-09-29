@@ -16,7 +16,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 const tally = makeTally('prove-crewmate-start-road')
-const TEAM = 'start-road'
+const CREW = 'start-road'
 const SEAT_ONE = 'folder-mate'
 const SEAT_TWO = 'tree-mate'
 const SEAT_MODEL = 'claude-opus-4-6'
@@ -130,12 +130,12 @@ mkdirSync(folderOne)
 const repoTwo = join(world.project, 'repo-two')
 initRepo(repoTwo)
 const script: ScriptedTurn[] = [
-  ...(hasTeamCreate ? [lead({ kind: 'tool_use', id: 'toolu_start_team', name: 'TeamCreate', input: { team_name: TEAM, description: 'the start-road team' } }, FIRST)] : []),
-  lead({ kind: 'tool_use', id: SPAWN_ONE, name: 'Agent', input: { name: SEAT_ONE, team_name: TEAM, model: SEAT_MODEL, cwd: folderOne, subagent_type: 'mercury-general', description: 'the folder mate', prompt: WORK_ONE } }, FIRST),
+  ...(hasTeamCreate ? [lead({ kind: 'tool_use', id: 'toolu_start_team', name: 'TeamCreate', input: { team_name: CREW, description: 'the start-road team' } }, FIRST)] : []),
+  lead({ kind: 'tool_use', id: SPAWN_ONE, name: 'Agent', input: { name: SEAT_ONE, team_name: CREW, model: SEAT_MODEL, cwd: folderOne, subagent_type: 'mercury-general', description: 'the folder mate', prompt: WORK_ONE } }, FIRST),
   lead({ kind: 'text', text: 'SPAWN-ONE-REPORTED' }, FIRST),
   { kind: 'tool_use', id: PWD_ONE, name: 'Bash', input: { command: 'pwd' }, whenModel: SEAT_GATE, whenBody: 'WORK-ONE' },
   { kind: 'text', text: DONE_ONE, whenModel: SEAT_GATE, whenBody: 'WORK-ONE' },
-  lead({ kind: 'tool_use', id: SPAWN_TWO, name: 'Agent', input: { name: SEAT_TWO, team_name: TEAM, model: SEAT_MODEL, cwd: repoTwo, isolation: 'worktree', subagent_type: 'mercury-general', description: 'the tree mate', prompt: WORK_TWO } }, SECOND),
+  lead({ kind: 'tool_use', id: SPAWN_TWO, name: 'Agent', input: { name: SEAT_TWO, team_name: CREW, model: SEAT_MODEL, cwd: repoTwo, isolation: 'worktree', subagent_type: 'mercury-general', description: 'the tree mate', prompt: WORK_TWO } }, SECOND),
   lead({ kind: 'text', text: 'SPAWN-TWO-REPORTED' }, SECOND),
   { kind: 'tool_use', id: PWD_TWO, name: 'Bash', input: { command: 'pwd' }, whenModel: SEAT_GATE, whenBody: 'WORK-TWO' },
   { kind: 'text', text: DONE_TWO, whenModel: SEAT_GATE, whenBody: 'WORK-TWO' },

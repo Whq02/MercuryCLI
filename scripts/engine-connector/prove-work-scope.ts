@@ -162,7 +162,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
     JSON.stringify(wf?.pulse),
   )
   const tm = rows.find(r => r.id === 'tm1')
-  check('P1 the teammate row names its team', tm?.kind === 'teammate' && tm.name === 'scout' && tm.team === 'crew')
+  check('P1 the teammate row names its team', tm?.kind === 'teammate' && tm.name === 'scout' && tm.crew === 'crew')
 
   const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
   const hosted = {

@@ -72,7 +72,7 @@ function capture(cols: number, tag: string, extraEnv: Record<string, string>): s
       ...process.env,
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'teams'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_OPERATOR: 'sam',
       MERCURY_TERMINAL_TITLE: '0',

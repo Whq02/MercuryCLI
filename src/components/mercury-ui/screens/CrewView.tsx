@@ -44,16 +44,16 @@ import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { CREW_RESUME_HINT, crewStopArmed, crewStopHint, pressCrewStop, type CrewStopArm } from './crewStopChord.js'
 import { crewPauseDoorKey, crewPauseDoorNote, pressCrewPause } from './crewPauseDoor.js'
-import { TeammateChatsView } from './TeammateChatsView.js'
+import { CrewmateChatsView } from './CrewmateChatsView.js'
 import { useAppStateMaybeOutsideOfProvider, useSetAppStateMaybe, type AppState } from '../../../state/AppState.js'
-import { enterTeammateView, setMainChat } from '../../../state/teammateViewHelpers.js'
+import { enterCrewmateView, setMainChat } from '../../../state/crewmateViewHelpers.js'
 import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
 import { CREW_CLEAR_KEY, CREW_MAIN_CHAT_KEY, CREW_OPEN_IN_VIEW_KEY, CREW_SPAWN_DOOR, crewChatDoor, crewClearedWords, crewClearRefusedWords } from '../../../utils/cockpit/crewmateWords.js'
 import { clearCrewmate } from '../../../state/crewLedger.js'
 import { useSessionCrew } from '../../tasks/useCrewLedger.js'
 import { crewRosterOf } from '../../../services/crew/roster.js'
 import { crewWorktreeLeftWords } from '../../../utils/crew/crewWorktreeReminder.js'
-import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewTeammate } from '../../../utils/crew/crewClient.js'
+import { CREW_SEAT_ID_PREFIX, crewResumedWords, crewResumeRefusedWords, crewResumingWords, resumeCrewmate } from '../../../utils/crew/crewClient.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { pauseStatusWords } from '../../../tasks/LocalAgentTask/agentPause.js'
 
@@ -184,7 +184,7 @@ export function CrewView({
       const name = target.id.slice(CREW_SEAT_ID_PREFIX.length)
       setStopArm(null)
       setDoorNote({ tone: 'muted', text: crewResumingWords(name) })
-      void resumeCrewTeammate(name, target.model ?? undefined, getCwd()).then(receipt => {
+      void resumeCrewmate(name, target.model ?? undefined, getCwd()).then(receipt => {
         setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(name) } : { tone: 'warning', text: crewResumeRefusedWords(name, receipt.error) })
         pokeTelemetry()
       })
@@ -207,7 +207,7 @@ export function CrewView({
       const member = selected.member
       setStopArm(null)
       setDoorNote({ tone: 'muted', text: crewResumingWords(member.name) })
-      void resumeCrewTeammate(member.name, member.model, getCwd()).then(receipt => {
+      void resumeCrewmate(member.name, member.model, getCwd()).then(receipt => {
         setDoorNote(receipt.ok ? { tone: 'muted', text: crewResumedWords(member.name) } : { tone: 'warning', text: crewResumeRefusedWords(member.name, receipt.error) })
         pokeTelemetry()
       })
@@ -236,7 +236,7 @@ export function CrewView({
           setMode({ view: 'card', id: row.facts.id })
           return
         }
-        enterTeammateView(row.facts.id, setAppState)
+        enterCrewmateView(row.facts.id, setAppState)
         onClose()
         return
       }
@@ -251,7 +251,7 @@ export function CrewView({
     if (input === 'm' && selected?.kind === 'agent' && setAppState !== null) {
       if (!pastMount()) return
       setMainChat(selected.facts.id, setAppState)
-      enterTeammateView(selected.facts.id, setAppState)
+      enterCrewmateView(selected.facts.id, setAppState)
       onClose()
       return
     }
@@ -272,7 +272,7 @@ export function CrewView({
 
   if (mode.view === 'chat') {
     return (
-      <TeammateChatsView
+      <CrewmateChatsView
         onClose={mode.fromDoor ? onClose : () => setMode({ view: 'list' })}
         {...(mode.name !== undefined ? { initialName: mode.name } : {})}
         {...(mode.spawn === true ? { initialSpawn: true } : {})}

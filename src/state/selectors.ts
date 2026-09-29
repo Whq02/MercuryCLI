@@ -5,18 +5,18 @@ import {
   type LocalAgentTaskState,
 } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import {
-  isInProcessTeammateTask,
-  type InProcessTeammateTaskState,
-} from '../tasks/InProcessTeammateTask/types.js'
+  isInProcessCrewmateTask,
+  type InProcessCrewmateTaskState,
+} from '../tasks/InProcessCrewmateTask/types.js'
 import type { AppState } from './AppStateStore.js'
 
-export function getViewedTeammateTask(
+export function getViewedCrewmateTask(
   appState: Pick<AppState, 'viewingAgentTaskId' | 'tasks'>,
-): InProcessTeammateTaskState | undefined {
+): InProcessCrewmateTaskState | undefined {
   const taskId = appState.viewingAgentTaskId
   if (!taskId) return undefined
   const task = appState.tasks[taskId]
-  if (!task || !isInProcessTeammateTask(task)) return undefined
+  if (!task || !isInProcessCrewmateTask(task)) return undefined
   return task
 }
 
@@ -34,7 +34,7 @@ export function composerTargetPinned(
 
 export type ActiveAgentForInput =
   | { type: 'leader' }
-  | { type: 'viewed'; task: InProcessTeammateTaskState }
+  | { type: 'viewed'; task: InProcessCrewmateTaskState }
   | { type: 'named_agent'; task: LocalAgentTaskState }
 
 export function getActiveAgentForInput(
@@ -44,7 +44,7 @@ export function getActiveAgentForInput(
   if (!taskId) return { type: 'leader' }
   const task = appState.tasks[taskId]
   if (!task) return { type: 'leader' }
-  if (isInProcessTeammateTask(task)) return { type: 'viewed', task }
+  if (isInProcessCrewmateTask(task)) return { type: 'viewed', task }
   if (isPanelAgentTask(task)) return { type: 'named_agent', task }
   return { type: 'leader' }
 }
@@ -85,7 +85,7 @@ export type ViewedAgent = {
 
 export function getViewedEscAction(task: TaskState): 'interrupt' | 'main' {
   if (
-    isInProcessTeammateTask(task) &&
+    isInProcessCrewmateTask(task) &&
     task.status === 'running' &&
     task.currentWorkAbortController !== undefined
   ) {
@@ -106,7 +106,7 @@ export function projectViewedAgent(
   task: TaskState,
   agentNameRegistry: ReadonlyMap<string, string>,
 ): ViewedAgent | undefined {
-  if (isInProcessTeammateTask(task)) {
+  if (isInProcessCrewmateTask(task)) {
     const running = task.status === 'running'
     return {
       kind: 'in_process_teammate',

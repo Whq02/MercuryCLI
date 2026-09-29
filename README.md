@@ -446,7 +446,7 @@ Available commands include:
   [docs/KIT.md](docs/KIT.md).
 - **Agents and the crew.** Chat with named crewmates, create agent definitions in
   the agent studio, and follow agents and workflow runs in their status
-  views. See [docs/TEAMS.md](docs/TEAMS.md).
+  views. See [docs/CREW.md](docs/CREW.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See
   [docs/SATURN.md](docs/SATURN.md).

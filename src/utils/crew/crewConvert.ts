@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { crewStoreRoot } from '../../services/crew/identity.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../debug.js'
-import { getTeamsDir } from '../envUtils.js'
-import { TEAM_LEAD_NAME } from '../swarm/constants.js'
+import { getCrewsDir } from '../envUtils.js'
+import { CREW_LEAD_NAME } from '../swarm/constants.js'
 
 export const CREW_RECORD_SCHEMA = 1 as const
 
@@ -61,7 +61,7 @@ export interface CrewRecordV1 {
 
 export interface CrewConversionReceiptV1 {
   schema: typeof CREW_RECORD_SCHEMA
-  teamsDir: string
+  crewsDir: string
   crews: string[]
   convertedAt: number
 }
@@ -72,8 +72,8 @@ interface CrewsFileV1 {
   conversion?: CrewConversionReceiptV1
 }
 
-export interface ConvertSavedTeamsOutcome {
-  teamsDir: string
+export interface ConvertSavedCrewsOutcome {
+  crewsDir: string
   converted: string[]
   unchanged: string[]
   skipped: string[]
@@ -138,7 +138,7 @@ function parseJson(bytes: Buffer): unknown {
 function crewmateOf(member: Record<string, unknown>, leadAgentId: string): CrewmateRecordV1 {
   const name = String(member.name ?? '')
   const agentId = String(member.agentId ?? '')
-  const kind: CrewmateRecordV1['kind'] = agentId === leadAgentId || name === TEAM_LEAD_NAME ? 'lead' : 'crewmate'
+  const kind: CrewmateRecordV1['kind'] = agentId === leadAgentId || name === CREW_LEAD_NAME ? 'lead' : 'crewmate'
   const pick = <T>(key: string, holds: (value: unknown) => value is T): T | undefined => (holds(member[key]) ? (member[key] as T) : undefined)
   const isString = (value: unknown): value is string => typeof value === 'string'
   const isNumber = (value: unknown): value is number => typeof value === 'number'
@@ -174,8 +174,8 @@ function crewmateOf(member: Record<string, unknown>, leadAgentId: string): Crewm
   }
 }
 
-export async function readSavedTeam(teamsDir: string, name: string): Promise<Omit<CrewRecordV1, 'convertedAt'> | null> {
-  const dir = join(teamsDir, name)
+export async function readSavedCrew(crewsDir: string, name: string): Promise<Omit<CrewRecordV1, 'convertedAt'> | null> {
+  const dir = join(crewsDir, name)
   const files = await filesUnder(dir)
   if (files.length === 0) return null
   const bytes = new Map<string, Buffer>()
@@ -187,7 +187,7 @@ export async function readSavedTeam(teamsDir: string, name: string): Promise<Omi
   }
   const config = bytes.has('config.json') ? parseJson(bytes.get('config.json')!) : undefined
   const roster = isRecord(config) ? config : {}
-  const leadAgentId = typeof roster.leadAgentId === 'string' ? roster.leadAgentId : `${TEAM_LEAD_NAME}@${name}`
+  const leadAgentId = typeof roster.leadAgentId === 'string' ? roster.leadAgentId : `${CREW_LEAD_NAME}@${name}`
   const members = Array.isArray(roster.members) ? roster.members.filter(isRecord).map(member => crewmateOf(member, leadAgentId)) : []
   const handoffsRaw = bytes.has('handoffs.json') ? parseJson(bytes.get('handoffs.json')!) : undefined
   const questionsRaw = bytes.has('questions.json') ? parseJson(bytes.get('questions.json')!) : undefined
@@ -230,12 +230,12 @@ function sameSource(a: Record<string, string>, b: Record<string, string>): boole
   return keysA.length === keysB.length && keysA.every((key, index) => key === keysB[index] && a[key] === b[key])
 }
 
-export async function convertSavedTeams(opts?: { teamsDir?: string; crewDir?: string }): Promise<ConvertSavedTeamsOutcome> {
-  const teamsDir = opts?.teamsDir ?? getTeamsDir()
-  const outcome: ConvertSavedTeamsOutcome = { teamsDir, converted: [], unchanged: [], skipped: [] }
+export async function convertSavedCrews(opts?: { crewsDir?: string; crewDir?: string }): Promise<ConvertSavedCrewsOutcome> {
+  const crewsDir = opts?.crewsDir ?? getCrewsDir()
+  const outcome: ConvertSavedCrewsOutcome = { crewsDir, converted: [], unchanged: [], skipped: [] }
   let names: string[]
   try {
-    names = (await readdir(teamsDir)).filter(name => !name.startsWith('.')).sort()
+    names = (await readdir(crewsDir)).filter(name => !name.startsWith('.')).sort()
   } catch {
     return outcome
   }
@@ -243,7 +243,7 @@ export async function convertSavedTeams(opts?: { teamsDir?: string; crewDir?: st
   for (const name of names) {
     let isDir = false
     try {
-      isDir = (await stat(join(teamsDir, name))).isDirectory()
+      isDir = (await stat(join(crewsDir, name))).isDirectory()
     } catch {
       isDir = false
     }
@@ -251,7 +251,7 @@ export async function convertSavedTeams(opts?: { teamsDir?: string; crewDir?: st
       outcome.skipped.push(name)
       continue
     }
-    const record = await readSavedTeam(teamsDir, name)
+    const record = await readSavedCrew(crewsDir, name)
     if (record === null) {
       outcome.skipped.push(name)
       continue
@@ -274,7 +274,7 @@ export async function convertSavedTeams(opts?: { teamsDir?: string; crewDir?: st
       changed = true
     }
     if (!changed) return { next: current, result: undefined }
-    const conversion: CrewConversionReceiptV1 = { schema: CREW_RECORD_SCHEMA, teamsDir, crews: read.map(record => record.name), convertedAt: now }
+    const conversion: CrewConversionReceiptV1 = { schema: CREW_RECORD_SCHEMA, crewsDir, crews: read.map(record => record.name), convertedAt: now }
     return { next: { ...current, crews, conversion }, result: undefined }
   })
   return outcome
@@ -294,9 +294,9 @@ let bootConversion: Promise<void> | null = null
 
 export function bootCrewConversion(): Promise<void> {
   if (bootConversion !== null) return bootConversion
-  bootConversion = convertSavedTeams()
+  bootConversion = convertSavedCrews()
     .then(outcome => {
-      if (outcome.converted.length > 0) logForDebugging(`[crew] ${outcome.converted.length} saved team(s) carried into the crew store: ${outcome.converted.join(', ')}`)
+      if (outcome.converted.length > 0) logForDebugging(`[crew] ${outcome.converted.length} saved crew(s) carried into the crew store: ${outcome.converted.join(', ')}`)
     })
     .catch(error => {
       logForDebugging(`[crew] saved-team conversion failed (non-blocking, retried on the next boot): ${error instanceof Error ? error.message : String(error)}`)

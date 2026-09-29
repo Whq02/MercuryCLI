@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/components/PromptInput/** src/state/selectors* src/state/teammateViewHelpers*
+# gate-watch: src/components/PromptInput/** src/state/selectors* src/state/crewmateViewHelpers*
 # gate-watch: src/components/LiveStreamingTail* src/components/Messages* src/ink/** assets/splash/**
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/* scripts/ui/vshot.py src/commands.ts
 # gate-watch: src/components/SurfaceRouter.tsx src/components/concourse/SessionMirror.tsx

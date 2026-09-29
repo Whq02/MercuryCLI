@@ -80,7 +80,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
   const tasks: readonly MissionRowV1[] | null = vitals.version === 0 ? null : vitals.tasks
   const fleet = {
     state: vitals.fleet.state as SnapshotState,
-    team: vitals.fleet.team ?? null,
+    crew: vitals.fleet.crew ?? null,
     conflicts: vitals.fleet.conflicts,
     drifting: vitals.fleet.drifting,
   }
@@ -169,7 +169,7 @@ export const DeckPane = React.memo(function DeckPane(): React.ReactNode {
       ) : null}
       <Text color={tok.textMuted}> · fleet </Text>
       <Text color={STATE_STYLE[fleet.state].color}>{STATE_STYLE[fleet.state].glyph}</Text>
-      <Text color={tok.textSecondary}>{fleet.team ? ` ${fleet.team}` : ''}</Text>
+      <Text color={tok.textSecondary}>{fleet.crew ? ` ${fleet.crew}` : ''}</Text>
       {fleet.conflicts > 0 ? <Text color={tok.failure}>{` ${GLYPH.conflict}${fleet.conflicts}`}</Text> : null}
       {fleet.drifting > 0 ? <Text color={tok.warning}>{` ${GLYPH.drifting}${fleet.drifting}`}</Text> : null}
       <Text color={tok.textMuted}> · trace </Text>

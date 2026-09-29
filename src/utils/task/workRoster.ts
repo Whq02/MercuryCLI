@@ -6,7 +6,7 @@ import {
   type WorkflowProgressEvent,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
 import { isDreamTask } from '../../tasks/DreamTask/DreamTask.js'
 import {
@@ -192,11 +192,11 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
             }
           : {}),
       })
-    } else if (isInProcessTeammateTask(task)) {
+    } else if (isInProcessCrewmateTask(task)) {
       rows.push({
         ...plainRow(task, 'teammate', task.identity.agentName),
         agentId: task.identity.agentId,
-        team: clip(task.identity.teamName, MAX_NAME),
+        crew: clip(task.identity.teamName, MAX_NAME),
         ...(typeof task.effort === 'string' && task.effort !== '' ? { effort: task.effort } : {}),
         ...(typeof task.transcriptAgentId === 'string' && task.transcriptAgentId !== '' ? { transcriptAgentId: task.transcriptAgentId } : {}),
         ...(task.status === 'running' && task.isIdle === true ? { idle: true } : {}),

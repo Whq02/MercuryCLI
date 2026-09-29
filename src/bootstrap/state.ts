@@ -799,8 +799,8 @@ export function getAgentColorMap(): Map<string, AgentColorName> {
   return collections.agentColorMap
 }
 
-export function getSessionCreatedTeams(): Set<string> {
-  return collections.sessionCreatedTeams
+export function getSessionCreatedCrews(): Set<string> {
+  return collections.sessionCreatedCrews
 }
 
 export function addInvokedSkill(

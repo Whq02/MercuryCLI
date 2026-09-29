@@ -9,13 +9,13 @@ import { join } from 'node:path'
 const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-coordination-livecomms-'))
 const prevConfigDir = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = tmpHome
-process.env.MERCURY_TEAMS_DIR = join(tmpHome, 'teams')
+process.env.MERCURY_CREWS_DIR = join(tmpHome, 'teams')
 
 import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
-import { clearDynamicTeamContext, setDynamicTeamContext } from '../../src/utils/teammate.js'
-import { writeTeamFileAsync, type TeamFile } from '../../src/utils/swarm/teamHelpers.js'
+import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
 
 type AnyTool = { call: (input: unknown, context: unknown) => Promise<{ data: unknown }> }
 let liveTool: AnyTool
@@ -37,12 +37,12 @@ function section(t: string): void {
 }
 
 const CREW = 'live-crew'
-function crewFile(): TeamFile {
+function crewFile(): CrewFile {
   const member = (id: string, name: string) => ({ agentId: id, name, joinedAt: Date.now(), tmuxPaneId: '', cwd: tmpHome, subscriptions: [] })
   return { name: CREW, createdAt: Date.now(), leadAgentId: `lead@${CREW}`, members: [member(`lead@${CREW}`, 'team-lead'), member(`a@${CREW}`, 'alice'), member(`b@${CREW}`, 'bob')] }
 }
 const asCrewmate = (name: string): void =>
-  setDynamicTeamContext({ agentId: `${name[0]}@${CREW}`, agentName: name, teamName: CREW, color: name === 'alice' ? 'green' : 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `${name[0]}@${CREW}`, agentName: name, teamName: CREW, color: name === 'alice' ? 'green' : 'blue', planModeRequired: false })
 
 async function connect(): Promise<{ client: Client; close: () => Promise<void> }> {
   const server = await createCoordinationServer()
@@ -78,7 +78,7 @@ console.log('============================================================')
 console.log(`  write road: ${toolHome}`)
 
 try {
-  await writeTeamFileAsync(CREW, crewFile())
+  await writeCrewFileAsync(CREW, crewFile())
 
   section('§1 the words: every coordination verb speaks of the crew, never the team')
   {
@@ -87,8 +87,8 @@ try {
     const listed = await client.listTools()
     const verbs = listed.tools.filter(t => ['lease_claim', 'lease_release', 'lease_list', 'lease_take', 'brief', 'coord_say'].includes(t.name))
     check('the six coordination verbs register under their names (the schema stays)', verbs.length === 6, verbs.map(t => t.name).join(','))
-    const teamWords = verbs.filter(t => /\bteam\b|teammate|TEAM-ONLY|TeamBrief/i.test(t.description ?? ''))
-    check('no verb description says team, teammate or TeamBrief (RED on the base: TEAM-ONLY, teammates, "the TeamBrief tool")', teamWords.length === 0, teamWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))
+    const crewWords = verbs.filter(t => /\bteam\b|teammate|TEAM-ONLY|TeamBrief/i.test(t.description ?? ''))
+    check('no verb description says team, teammate or TeamBrief (RED on the base: TEAM-ONLY, teammates, "the TeamBrief tool")', crewWords.length === 0, crewWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))
     check('the brief verb names LiveComms as the same read', /LiveComms/.test(verbs.find(t => t.name === 'brief')?.description ?? ''), verbs.find(t => t.name === 'brief')?.description ?? '')
     const instructions = client.getInstructions() ?? ''
     check('the server instructions speak of the crew and LiveComms, not the team mailbox (RED on the base: "team brief", "team-mailbox")', /crew/.test(instructions) && /LiveComms/.test(instructions) && !/\bteam\b|team-mailbox/i.test(instructions), instructions)
@@ -138,7 +138,7 @@ try {
     await close()
   }
 } finally {
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
   if (prevConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = prevConfigDir
 }

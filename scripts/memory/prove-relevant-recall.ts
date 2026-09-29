@@ -38,13 +38,13 @@ console.log('============================================================')
 type F = { type: string; path: string; content: string }
 const files: F[] = [
   { type: 'AutoMem', path: '/m/MEMORY.md', content: 'auto' },
-  { type: 'TeamMem', path: '/m/TEAM.md', content: 'team' },
+  { type: 'TeamMem', path: '/m/CREW.md', content: 'team' },
   { type: 'Project', path: '/p/MERCURY.md', content: 'proj' },
   { type: 'User', path: '/u/USER.md', content: 'user' },
   { type: 'Local', path: '/p/MERCURY.local.md', content: 'local' },
 ]
 const allTypes = files.map(f => f.type).sort().join(',')
-const noAutoTeam = files
+const noAutoCrew = files
   .filter(f => f.type !== 'AutoMem' && f.type !== 'TeamMem')
   .map(f => f.type)
   .sort()
@@ -93,7 +93,7 @@ process.env.MERCURY_RELEVANT_RECALL = '1'
 const setOn = injectedSet()
 check(
   'ON ⇒ AutoMem + TeamMem DROPPED from the injected set',
-  setOn === noAutoTeam,
+  setOn === noAutoCrew,
   setOn,
 )
 check(

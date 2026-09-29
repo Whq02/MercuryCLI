@@ -9,14 +9,14 @@ import { displayWidth, GLYPH } from './mercury-ui/glyphs.js'
 import { AMBER, FAINT, IVORY, SAND, TEAL } from './mercuryPalette.js'
 import { CREW_VIEW_DOOR } from '../utils/cockpit/crewmateWords.js'
 
-export type Teammate = { name: string; role: string; state: 'busy' | 'idle' | 'drift'; glyph: string }
+export type Crewmate = { name: string; role: string; state: 'busy' | 'idle' | 'drift'; glyph: string }
 type Msg = { who: 'you' | 'agent'; at: string; text: string }
-type Props = { team?: Teammate[]; onSend?: (target: string, text: string) => void; onClose?: () => void }
+type Props = { crew?: Crewmate[]; onSend?: (target: string, text: string) => void; onClose?: () => void }
 
-export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.ReactNode {
+export function MercuryFleetChat({ crew = [], onSend, onClose }: Props): React.ReactNode {
   const TERRA = useSessionAccent().accent
   const tokens = useMercuryTokens()
-  const fleetSel = useStableSelection(team, t => t.name)
+  const fleetSel = useStableSelection(crew, t => t.name)
   const sel = fleetSel.index
   const [draft, setDraft] = useState('')
   const [log, setLog] = useState<Msg[]>([])
@@ -24,12 +24,12 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
   useInput((input, key) => {
     if (key.upArrow) fleetSel.select(sel - 1)
     else if (key.downArrow) fleetSel.select(sel + 1)
-    else if (key.return) { if (!pastMount()) return; const v = draft.trim(); const tm = team[sel]; if (v && tm) { const at = tm.name; setLog(l => [...l, { who: 'you', at, text: v }]); onSend?.(at, v); setDraft('') } }
+    else if (key.return) { if (!pastMount()) return; const v = draft.trim(); const tm = crew[sel]; if (v && tm) { const at = tm.name; setLog(l => [...l, { who: 'you', at, text: v }]); onSend?.(at, v); setDraft('') } }
     else if (key.escape) onClose?.()
     else if (key.backspace || key.delete) setDraft(d => d.slice(0, -1))
     else if (input && !key.ctrl && !key.meta) setDraft(d => d + input)
   })
-  const target = team[sel]
+  const target = crew[sel]
   const draftTail = (s: string, budget: number): string => {
     if (budget <= 0) return ''
     if (displayWidth(s) <= budget) return s
@@ -51,7 +51,7 @@ export function MercuryFleetChat({ team = [], onSend, onClose }: Props): React.R
     <Box flexDirection="row">
       <Box flexDirection="column" borderStyle="round" borderColor={FAINT} paddingX={1} width={28}>
         <Text bold color={TERRA}>fleet  ↑↓</Text>
-        {team.map((a, idx) => {
+        {crew.map((a, idx) => {
           const on = idx === sel
           return (
             <Text key={a.name}>

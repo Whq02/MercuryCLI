@@ -6,7 +6,7 @@ import { join } from 'node:path'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const TMP = mkdtempSync(join(tmpdir(), 'mercury-livecomms-store-'))
 process.env.MERCURY_CONFIG_DIR = TMP
-process.env.MERCURY_TEAMS_DIR = join(TMP, 'teams')
+process.env.MERCURY_CREWS_DIR = join(TMP, 'teams')
 
 type AnyTool = {
   name: string
@@ -24,9 +24,9 @@ try {
   toolHome = 'src/tools/TeamBriefTool/TeamBriefTool.js'
   tool = (await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')).TeamBriefTool as unknown as AnyTool
 }
-const { setDynamicTeamContext } = await import('../../src/utils/teammate.js')
-const { writeTeamFileAsync } = await import('../../src/utils/swarm/teamHelpers.js')
-const { readMailbox } = await import('../../src/utils/teammateMailbox.js')
+const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
+const { writeCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
+const { readMailbox } = await import('../../src/utils/crewmateMailbox.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -38,7 +38,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const CREW = 'live-crew'
 const LEAD_ID = `lead@${CREW}`
 const member = (id: string, name: string) => ({ agentId: id, name, joinedAt: Date.now(), tmuxPaneId: '', cwd: TMP, subscriptions: [] })
-await writeTeamFileAsync(CREW, {
+await writeCrewFileAsync(CREW, {
   name: CREW,
   createdAt: Date.now(),
   leadAgentId: LEAD_ID,
@@ -46,9 +46,9 @@ await writeTeamFileAsync(CREW, {
 })
 
 const asCrewmate = (name: string): void =>
-  setDynamicTeamContext({ agentId: `${name}@${CREW}`, agentName: name, teamName: CREW, color: 'blue', planModeRequired: false })
-const asLead = (): void => setDynamicTeamContext(null)
-const leadContext = { getAppState: () => ({ teamContext: { teamName: CREW, leadAgentId: LEAD_ID } }) }
+  setDynamicCrewContext({ agentId: `${name}@${CREW}`, agentName: name, teamName: CREW, color: 'blue', planModeRequired: false })
+const asLead = (): void => setDynamicCrewContext(null)
+const leadContext = { getAppState: () => ({ crewContext: { teamName: CREW, leadAgentId: LEAD_ID } }) }
 const crewmateContext = { getAppState: () => ({}) }
 
 type Brief = {
@@ -147,7 +147,7 @@ section('§5 the words: a message to nobody is refused, a read outside a crew sa
   check('and the rendered words say so in crew words', /Not part of a crew/.test(rendered(solo)), rendered(solo))
 }
 
-setDynamicTeamContext(null)
+setDynamicCrewContext(null)
 try {
   rmSync(TMP, { recursive: true, force: true })
 } catch {

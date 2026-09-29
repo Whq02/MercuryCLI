@@ -55,9 +55,9 @@ import {
   wrapMessagesInSystemReminder,
 } from './text.js'
 
-function getTeammateMailbox(): typeof import('../teammateMailbox.js') {
+function getCrewmateMailbox(): typeof import('../crewmateMailbox.js') {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- the cycle-breaking lazy load above
-  return require('../teammateMailbox.js')
+  return require('../crewmateMailbox.js')
 }
 
 function getPlanModeInstructions(attachment: {
@@ -362,7 +362,7 @@ export function normalizeAttachmentForAPI(
       }))
       return [
         createUserMessage({
-          content: getTeammateMailbox().formatTeammateMessages(boundedMessages),
+          content: getCrewmateMailbox().formatCrewmateMessages(boundedMessages),
           isMeta: true,
         }),
       ]

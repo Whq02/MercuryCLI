@@ -21,7 +21,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_TEAMS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
+for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_CREWS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CHILD_HOLDER = 'gamma'
@@ -51,10 +51,10 @@ console.log('============================================================')
 
 const { getProjectRoot } = await import('../../src/bootstrap/state.js')
 const leaseGlob = (await import('../../src/utils/swarm/leaseGlob.js')) as typeof import('../../src/utils/swarm/leaseGlob.js')
-const teammate = (await import('../../src/utils/teammate.js')) as typeof import('../../src/utils/teammate.js')
+const crewmate = (await import('../../src/utils/crewmate.js')) as typeof import('../../src/utils/crewmate.js')
 const agentContext = (await import('../../src/utils/agentContext.js')) as typeof import('../../src/utils/agentContext.js')
 const guard = (await import('../../src/utils/swarm/leaseGuard.js')) as typeof import('../../src/utils/swarm/leaseGuard.js')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
 
 type ClaimsModule = typeof import('../../src/services/crew/claims.js')
 let crew: ClaimsModule | null = null
@@ -74,11 +74,11 @@ check('the crew claim module exists (src/services/crew/claims.ts)', crew !== nul
 section('§2 the lead claims with no team at all')
 if (crew) {
   const lead = crew.resolveClaimHolder()
-  check(`the lead's claim identity is ${TEAM_LEAD_NAME}, kind lead`, lead.name === TEAM_LEAD_NAME && lead.kind === 'lead', JSON.stringify(lead))
+  check(`the lead's claim identity is ${CREW_LEAD_NAME}, kind lead`, lead.name === CREW_LEAD_NAME && lead.kind === 'lead', JSON.stringify(lead))
   const claimed = await crew.claimCrewFiles(['src/claims/lead.ts'])
   check('claimCrewFiles by the lead answers ok with no team context', claimed.ok === true, JSON.stringify(claimed))
   const rows = await crew.listCrewClaims()
-  const mine = rows.find(r => r.holder.name === TEAM_LEAD_NAME)
+  const mine = rows.find(r => r.holder.name === CREW_LEAD_NAME)
   check('the record names the lead as holder with kind lead', mine !== undefined && mine.holder.kind === 'lead' && mine.globs.includes('src/claims/lead.ts'), JSON.stringify(rows))
   check('the record file is on disk under the crew root', existsSync(storePath) && readFileSync(storePath, 'utf8').includes('"kind"'), storePath)
 } else {
@@ -87,7 +87,7 @@ if (crew) {
 
 section('§3 crewmate alpha claims src/a.ts; its own edit passes')
 {
-  const alpha = teammate.createTeammateContext({
+  const alpha = crewmate.createCrewmateContext({
     agentId: 'alpha@crew',
     agentName: 'alpha',
     teamName: 'crew',
@@ -95,7 +95,7 @@ section('§3 crewmate alpha claims src/a.ts; its own edit passes')
     parentSessionId: 'parent',
     abortController: new AbortController(),
   })
-  const inAlpha = <T,>(fn: () => T): T => teammate.runWithTeammateContext(alpha, fn)
+  const inAlpha = <T,>(fn: () => T): T => crewmate.runWithCrewmateContext(alpha, fn)
   if (crew) {
     const holder = inAlpha(() => crew!.resolveClaimHolder())
     check('alpha resolves as holder {alpha, crewmate}', holder.name === 'alpha' && holder.kind === 'crewmate', JSON.stringify(holder))
@@ -113,7 +113,7 @@ section('§4 a sub-agent claims under its own identity (not the lead\'s)')
 {
   const sub = { agentType: 'subagent' as const, agentId: 'a1b2c3d4e', subagentName: 'general-purpose', isBuiltIn: true }
   const inSub = <T,>(fn: () => T): T => agentContext.runWithAgentContext(sub, fn)
-  const coordId = inSub(() => teammate.resolveCoordAgentId())
+  const coordId = inSub(() => crewmate.resolveCoordAgentId())
   check('resolveCoordAgentId inside a sub-agent context is the sub-agent\'s id, not the lead\'s', coordId === 'a1b2c3d4e', `got ${JSON.stringify(coordId)}`)
   if (crew) {
     const holder = inSub(() => crew!.resolveClaimHolder())
@@ -121,7 +121,7 @@ section('§4 a sub-agent claims under its own identity (not the lead\'s)')
     const claimed = await inSub(() => crew!.claimCrewFiles(['src/b.ts']))
     check('the sub-agent claims src/b.ts', claimed.ok === true, JSON.stringify(claimed))
     const rows = await crew.listCrewClaims()
-    check('the record names the sub-agent, and the lead\'s own record is untouched', rows.some(r => r.holder.name === 'a1b2c3d4e' && r.holder.kind === 'subagent') && rows.some(r => r.holder.name === TEAM_LEAD_NAME && r.globs.includes('src/claims/lead.ts')), JSON.stringify(rows))
+    check('the record names the sub-agent, and the lead\'s own record is untouched', rows.some(r => r.holder.name === 'a1b2c3d4e' && r.holder.kind === 'subagent') && rows.some(r => r.holder.name === CREW_LEAD_NAME && r.globs.includes('src/claims/lead.ts')), JSON.stringify(rows))
   }
   const ownEdit = await inSub(() => guard.checkLeaseGuard('Edit', { file_path: join(getProjectRoot(), 'src/b.ts') }, { teamName: 'crew' }))
   check('the sub-agent\'s own Edit of src/b.ts passes the guard', ownEdit === null, String(ownEdit))
@@ -131,7 +131,7 @@ section('§5 a daemon seat claims under its name with kind seat')
 {
   process.env.MERCURY_CREW = '1'
   process.env.MERCURY_CREW_AGENT = 'beta'
-  const stamped = teammate.resolveCoordAgentId()
+  const stamped = crewmate.resolveCoordAgentId()
   check('a crew child with only the daemon\'s env stamp (the print road\'s shape) resolves its own name', stamped === 'beta', `got ${JSON.stringify(stamped)}`)
   if (crew) {
     const holder = crew.resolveClaimHolder()
@@ -139,14 +139,14 @@ section('§5 a daemon seat claims under its name with kind seat')
     const claimed = await crew.claimCrewFiles(['src/seat/**'])
     check('the seat claims src/seat/**', claimed.ok === true, JSON.stringify(claimed))
   }
-  teammate.setDynamicTeamContext({ agentId: 'beta@crew', agentName: 'beta', teamName: 'crew', planModeRequired: false })
+  crewmate.setDynamicCrewContext({ agentId: 'beta@crew', agentName: 'beta', teamName: 'crew', planModeRequired: false })
   if (crew) {
     const holder = crew.resolveClaimHolder()
     check('with the identity args published too, the seat is still {beta, seat, beta@crew}', holder.name === 'beta' && holder.kind === 'seat' && holder.id === 'beta@crew', JSON.stringify(holder))
   }
   delete process.env.MERCURY_CREW
   delete process.env.MERCURY_CREW_AGENT
-  teammate.clearDynamicTeamContext()
+  crewmate.clearDynamicCrewContext()
 }
 
 section('§6 a claim written by another process is read live')

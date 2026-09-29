@@ -21,7 +21,7 @@ const ESC = '\x1b'
 const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
 const AGENT_ROW = 'Sub-agent default model'
-const TEAMMATE_ROW = 'Default crewmate model'
+const CREWMATE_ROW = 'Default crewmate model'
 const SIZES: Array<[number, number]> = [[178, 51], [120, 40], [80, 21], [82, 17], [80, 14]]
 
 let failures = 0
@@ -60,7 +60,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'proof-home'),
     ANTHROPIC_BASE_URL: DEAD,
     MERCURY_OPENAI_API_BASE: DEAD,
@@ -141,8 +141,8 @@ const valueOf = (lines: string[], label: string): string => {
   const border = rest.indexOf('│')
   return (border < 0 ? rest : rest.slice(0, border)).trim()
 }
-const configOf = (home: string): { agents?: { defaultModel?: string }; teammateDefaultModel?: string | null } =>
-  JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { agents?: { defaultModel?: string }; teammateDefaultModel?: string | null }
+const configOf = (home: string): { agents?: { defaultModel?: string }; crewmateDefaultModel?: string | null } =>
+  JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { agents?: { defaultModel?: string }; crewmateDefaultModel?: string | null }
 
 console.log('============================================================')
 console.log(' the two /config model doors open the live-list picker')
@@ -208,7 +208,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
   const c = capture(`teammate-${cols}x${rows}`, home, cols, rows, [
     ...openConfig(cols),
     { requireAwait: true, awaitText: 'Auto-compact', awaitSettleTicks: 4, data: 'Default crewmate model' },
-    { requireAwait: true, awaitText: TEAMMATE_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
+    { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 3, awaitStableTicks: 3, data: '\r' },
     { afterPrevTicks: 3, data: '', mark: 'row-before' },
     { afterPrevTicks: 1, data: RIGHT },
     { requireAwait: true, awaitText: "Leader's model", awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'picker', data: DOWN },
@@ -218,18 +218,18 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
     { afterPrevTicks: 2, data: DOWN },
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
-    { requireAwait: true, awaitText: TEAMMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
+    { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
   ], { total: 420, ready: READY })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const before = c.marks.get('row-before') ?? []
   const picker = c.marks.get('picker') ?? []
   const after = c.marks.get('row-after') ?? []
-  check('the row reads Default before any pick', valueOf(before, TEAMMATE_ROW).startsWith('Default'), valueOf(before, TEAMMATE_ROW))
+  check('the row reads Default before any pick', valueOf(before, CREWMATE_ROW).startsWith('Default'), valueOf(before, CREWMATE_ROW))
   check("the door opens the model picker with Default and Leader's model leading", rowWith(picker, 'Default') !== '' && rowWith(picker, "Leader's model") !== '' && rowWith(picker, 'Mercury · model') !== '', picker.slice(0, 12).join(' | '))
   check('the picker lists more than one provider group', picker.filter(l => /[▾▸❯] [A-Z][A-Z0-9. ]* · /.test(l)).length >= 2, picker.filter(l => /[▾▸❯] [A-Z]/.test(l)).join(' | '))
   const saved = configOf(home)
-  check("a pick writes teammateDefaultModel as the picked row's exact id, never a family word", typeof saved.teammateDefaultModel === 'string' && /[-/]/.test(saved.teammateDefaultModel) && !['default', 'leader', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.teammateDefaultModel), JSON.stringify(saved.teammateDefaultModel))
-  const label = valueOf(after, TEAMMATE_ROW)
+  check("a pick writes crewmateDefaultModel as the picked row's exact id, never a family word", typeof saved.crewmateDefaultModel === 'string' && /[-/]/.test(saved.crewmateDefaultModel) && !['default', 'leader', 'fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(saved.crewmateDefaultModel), JSON.stringify(saved.crewmateDefaultModel))
+  const label = valueOf(after, CREWMATE_ROW)
   const focused = c.marks.get('focused') ?? []
   check("the row's value words are the picker's own row name for the pick (the row focused when ↵ was pressed)", label.length > 0 && !label.startsWith('Default') && !label.startsWith("Leader") && !/^claude-/.test(label) && focused.some(l => l.includes(label)), label)
   writeFileSync(join(ROOT, `frame-teammate-${cols}x${rows}-focused.txt`), (c.marks.get('focused') ?? []).join('\n'))
@@ -242,7 +242,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
 
 if (CASE === undefined || CASE === 'cold-catalogue') {
   section('a cold Config model door requests its live GPT list without a model turn')
-  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['teammate', TEAMMATE_ROW, "Leader's model"]]) {
+  for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['teammate', CREWMATE_ROW, "Leader's model"]]) {
     const home = seededHome(`cold-${tag}`)
     writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: 'opus', prefersReducedMotion: true, spinnerTipsEnabled: false }))
     writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })

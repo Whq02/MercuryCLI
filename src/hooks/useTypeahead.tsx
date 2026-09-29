@@ -47,7 +47,7 @@ import {
   hasSlackMcpServer,
 } from '../utils/suggestions/slackChannelSuggestions.js'
 import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
-import { TEAM_LEAD_NAME } from '../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
 import {
   findLongestCommonPrefix,
   generateFileSuggestions,
@@ -500,9 +500,9 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
         const state = appStateStore.getState()
         const members: Suggestion[] = []
         const seen = new Set<string>()
-        if (isAgentSwarmsEnabled() && state.teamContext) {
-          for (const name of Object.keys(state.teamContext.teammates ?? {})) {
-            if (name === TEAM_LEAD_NAME) continue
+        if (isAgentSwarmsEnabled() && state.crewContext) {
+          for (const name of Object.keys(state.crewContext.crewmates ?? {})) {
+            if (name === CREW_LEAD_NAME) continue
             if (!name.toLowerCase().startsWith(fragment)) continue
             if (seen.has(name)) continue
             seen.add(name)
@@ -1111,12 +1111,12 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
   const handleKeyboardEvent = useCallback(
     (event: KeyboardEvent): void => {
       const state = appStateStore.getState()
-      const viewingTeammate = Boolean(state.viewingAgentTaskId)
+      const viewingCrewmate = Boolean(state.viewingAgentTaskId)
       const promptSuggestion = state.promptSuggestion
 
       if (
         event.key === 'right' &&
-        !viewingTeammate &&
+        !viewingCrewmate &&
         promptSuggestion?.text &&
         (promptSuggestion.shownAt ?? 0) > 0 &&
         inputRef.current === ''
@@ -1134,7 +1134,7 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
           return
         }
         if (
-          !viewingTeammate &&
+          !viewingCrewmate &&
           promptSuggestion?.text &&
           inputRef.current === ''
         ) {

@@ -38,7 +38,7 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_HOME
-delete process.env.MERCURY_TEAMS_DIR
+delete process.env.MERCURY_CREWS_DIR
 delete process.env.NODE_ENV
 delete process.env.CI
 for (const k of [
@@ -75,7 +75,7 @@ enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
-const { writeToMailbox } = await import('../../src/utils/teammateMailbox.ts')
+const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.ts')
 
 const reapTargets: Array<{ kill: (signal: NodeJS.Signals) => boolean }> = []
 const reapNow = (): void => {

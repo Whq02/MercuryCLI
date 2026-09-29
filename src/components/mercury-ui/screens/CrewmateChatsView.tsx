@@ -1,0 +1,406 @@
+import { pathTailLabel } from '../../../utils/pathLabel.js'
+import * as React from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Box, Text, useInput } from '../../../ink.js'
+import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
+import { paneWindow } from '../paneWindow.js'
+import { padTo } from '../glyphs.js'
+import { AMBER, DUNE, FAINT, IVORY, SECOND, TEAL, TERRA } from '../../mercuryPalette.js'
+import { CommandCenter } from '../components.js'
+import { GLYPH, displayWidth, truncateToWidth } from '../glyphs.js'
+import { decodeNavKey } from '../navSemantics.js'
+import { useSessionAccent } from '../sessionAccent.js'
+import { useMercuryTokens } from '../useMercuryTokens.js'
+import { useStableSelection } from '../useStableSelection.js'
+import { getCwd } from '../../../utils/cwd.js'
+import {
+  crewEnabled,
+  crewSeatDefault,
+  isValidCrewName,
+} from '../../../daemon/crewSpawn.js'
+import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../../commands/model/mercuryModel.js'
+import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
+import { ModalContext } from '../../../context/modalContext.js'
+import {
+  crewMessageWakesWords,
+  crewRosterStatus,
+  crewUnreadCounts,
+  ensureCrewDaemon,
+  killCrewmate,
+  listCrewMembers,
+  markCrewChatRead,
+  readCrewChat,
+  sendCrewMessage,
+  spawnCrewmate,
+  type CrewChatRow,
+  type CrewMemberInfo,
+} from '../../../utils/crew/crewClient.js'
+import { CREW_CHATS_HINT } from '../../../utils/cockpit/crewmateWords.js'
+
+
+const HUES = [TERRA, AMBER, TEAL, SECOND] as const
+const hueFor = (i: number): string => HUES[i % HUES.length]!
+
+type Mode = 'browse' | 'compose' | 'spawn-name' | 'spawn-model' | 'kill-confirm'
+
+interface Row {
+  member: CrewMemberInfo
+  online: boolean
+  unread: number
+}
+
+export function CrewmateChatsView({
+  onClose,
+  initialName,
+  initialSpawn = false,
+}: {
+  onClose: () => void
+  initialName?: string
+  initialSpawn?: boolean
+}): React.ReactNode {
+  const accent = useSessionAccent().accent
+  const tokens = useMercuryTokens()
+  const enabled = crewEnabled()
+  const cwd = getCwd()
+
+  const [rows, setRows] = useState<Row[]>([])
+  const roster = useStableSelection(rows, r => r.member.name)
+  const sel = roster.index
+  const [chat, setChat] = useState<CrewChatRow[]>([])
+  const [mode, setMode] = useState<Mode>(initialSpawn ? 'spawn-name' : 'browse')
+  const [draft, setDraft] = useState('')
+  const [nameDraft, setNameDraft] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [tick, setTick] = useState(0)
+  const { columns, rows: termRows } = useTerminalSize()
+  const W = Math.max(48, Math.min((columns || 80) - 6, 120))
+  const [chatSel, setChatSel] = useState<number | null>(null)
+  const chatAnchor = useRef(0)
+  const bump = useCallback(() => setTick(t => t + 1), [])
+
+  const cur = rows[Math.min(sel, Math.max(0, rows.length - 1))]
+
+  useEffect(() => {
+    if (!enabled) return
+    let alive = true
+    void (async () => {
+      const members = await listCrewMembers()
+      const [status, unread] = await Promise.all([
+        crewRosterStatus(members.map(m => m.name)),
+        crewUnreadCounts(),
+      ])
+      if (!alive) return
+      setRows(
+        members.map(m => ({
+          member: m,
+          online: status.has(m.name),
+          unread: unread.get(m.name) ?? 0,
+        })),
+      )
+    })()
+    return () => {
+      alive = false
+    }
+  }, [enabled, tick])
+
+  const landedRef = useRef(false)
+  useEffect(() => {
+    if (landedRef.current || initialName === undefined) return
+    if (!rows.some(r => r.member.name === initialName)) return
+    landedRef.current = true
+    roster.selectId(initialName)
+  }, [rows, initialName, roster])
+
+  useEffect(() => {
+    if (!enabled) return
+    const h = setInterval(bump, 2000)
+    return () => clearInterval(h)
+  }, [enabled, bump])
+
+  useEffect(() => {
+    if (!enabled || !cur) {
+      setChat([])
+      return
+    }
+    let alive = true
+    const name = cur.member.name
+    void (async () => {
+      const rowsC = await readCrewChat(name)
+      if (!alive) return
+      setChat(rowsC)
+      void markCrewChatRead(name)
+    })()
+    return () => {
+      alive = false
+    }
+  }, [enabled, cur?.member.name, tick])
+
+  const doSend = useCallback(async () => {
+    const v = draft.trim()
+    const name = cur?.member.name
+    if (!v || !name) return
+    const wakes = !cur?.online
+    if (wakes) ensureCrewDaemon(cwd)
+    setDraft('')
+    const ok = await sendCrewMessage(name, v)
+    setNote(ok ? (wakes ? crewMessageWakesWords(name) : '') : 'send failed — see /health')
+    bump()
+  }, [draft, cur, bump])
+
+  const doSpawn = useCallback(
+    async (name: string, modelKey: string, modelWords: string) => {
+      setBusy(true)
+      setNote(`spawning @${name} (${modelWords})…`)
+      const r = await spawnCrewmate(name, modelKey, cwd)
+      setBusy(false)
+      if (r.ok) {
+        setNote(`@${name} spawned — say hello`)
+        setNameDraft('')
+        bump()
+      } else {
+        setNote(`spawn refused: ${r.error ?? 'unknown'}`)
+      }
+    },
+    [cwd, bump],
+  )
+
+  const doKill = useCallback(async () => {
+    const name = cur?.member.name
+    if (!name) return
+    setBusy(true)
+    const r = await killCrewmate(name)
+    setBusy(false)
+    setNote(r.ok ? `@${name} stopped (chat kept — respawn to resume)` : `stop failed: ${r.error ?? 'unknown'}`)
+    bump()
+  }, [cur, bump])
+
+  useInput((input, key) => {
+    if (busy) {
+      if (key.escape) onClose()
+      return
+    }
+    if (mode === 'spawn-name') {
+      if (key.escape) { setMode('browse'); setNameDraft(''); setNote('') }
+      else if (key.return) {
+        if (isValidCrewName(nameDraft.trim())) setMode('spawn-model')
+        else setNote('name must be [a-z][a-z0-9-]{1,15} (letter-first, not reserved)')
+      } else if (key.backspace || key.delete) setNameDraft(d => d.slice(0, -1))
+      else if (input && !key.ctrl && !key.meta) setNameDraft(d => (d + input).toLowerCase())
+      return
+    }
+    if (mode === 'spawn-model') return
+    if (mode === 'kill-confirm') {
+      if (key.escape || input === 'n') { setMode('browse'); setNote('') }
+      else if (input === 'y' || key.return) { setMode('browse'); void doKill() }
+      return
+    }
+    if (mode === 'compose') {
+      if (key.escape) { setMode('browse'); setNote('') }
+      else if (key.return) void doSend()
+      else if (key.backspace || key.delete) setDraft(d => d.slice(0, -1))
+      else if (input && !key.ctrl && !key.meta) setDraft(d => d + input)
+      return
+    }
+    const tabAxis = decodeNavKey(input, key, { orientation: 'horizontal' })
+    const scrollAxis = decodeNavKey(input, key, { orientation: 'vertical' })
+    if (tabAxis === 'cancel') { onClose(); return }
+    if (tabAxis === 'moveLeft') { setChatSel(null); roster.select(sel - 1) }
+    else if (tabAxis === 'moveRight') { setChatSel(null); roster.select(sel + 1) }
+    else if (scrollAxis === 'movePrevious') {
+      setChatSel(c => {
+        if (c === null) chatAnchor.current = chat.length
+        return Math.max(0, (c ?? chat.length - 1) - 1)
+      })
+    }
+    else if (scrollAxis === 'moveNext') {
+      setChatSel(c => (c === null ? null : c + 1 >= chat.length - 1 ? null : c + 1))
+    }
+    else if (input === 'n') { setMode('spawn-name'); setNameDraft(''); setNote('') }
+    else if (input === 'i' && cur) { setMode('compose'); setNote('') }
+    else if (key.return && cur) { setMode('compose'); setNote('') }
+    else if (input === 'r' && cur && !cur.online) {
+      const again = cur.member.model !== undefined && cur.member.model !== '' ? cur.member.model : crewSeatDefault()
+      if (again === undefined) setNote('no provider is signed in — /logins signs one in before a respawn')
+      else void doSpawn(cur.member.name, again, again)
+    }
+    else if (input === 'k' && cur && cur.online) { setMode('kill-confirm'); setNote('') }
+  })
+
+  const cur0 = rows[sel]
+  const browseVerbs = [
+    rows.length > 0 ? '←→ chat · ↑↓ scrollback · ↵/i message' : undefined,
+    'n new',
+    cur0 && !cur0.online ? 'r respawn' : undefined,
+    cur0 && cur0.online ? 'k stop' : undefined,
+    'esc close',
+  ].filter(Boolean).join(' · ')
+  const footer =
+    busy ? 'working… · esc close (the spawn/stop finishes in the daemon)'
+    : mode === 'compose' ? 'type · ↵ send · esc back'
+    : mode === 'spawn-name' ? 'type a name · ↵ next · esc cancel'
+    : mode === 'spawn-model' ? '↑↓ move · ↵ spawn · esc back'
+    : mode === 'kill-confirm' ? 'y stop · n keep · esc cancel'
+    : browseVerbs
+
+  if (!enabled) {
+    return (
+      <CommandCenter elevated view="named agents" onClose={onClose} footer="esc close" captureInput={false}>
+        <Box marginTop={1} flexDirection="column">
+          <Text bold color={accent}>named agents</Text>
+          <Text color={FAINT}>crew is disabled (MERCURY_CREW=0) — no named agents can spawn</Text>
+        </Box>
+      </CommandCenter>
+    )
+  }
+
+  return (
+    <CommandCenter elevated view="named agents" onClose={onClose} footer={footer} captureInput={false}>
+      <Box marginTop={1} justifyContent="space-between" flexWrap="wrap">
+        <Text>
+          <Text color={FAINT}>repo </Text>
+          <Text bold color={IVORY}>{truncateToWidth(pathTailLabel(cwd) || 'repo', 28)}</Text>
+          <Text color={FAINT}> · {rows.length} named agent{rows.length === 1 ? '' : 's'} · one chat each</Text>
+        </Text>
+        <Box borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1}>
+          <Text color={FAINT}>{CREW_CHATS_HINT}</Text>
+        </Box>
+      </Box>
+
+      {}
+      {rows.length > 0 ? (
+        <Box marginTop={1} flexDirection="row" flexWrap="wrap">
+          {rows.map((r, i) => {
+            const on = i === sel
+            const hue = hueFor(i)
+            return (
+              <Box key={r.member.name} borderStyle="round" borderColor={on ? hue : DUNE} paddingX={1} marginRight={1}>
+                <Text color={r.online ? hue : FAINT}>{r.online ? '◐' : '○'} </Text>
+                <Text bold={on} color={on ? IVORY : hue}>@{r.member.name}</Text>
+                {r.unread > 0 ? <Text color={AMBER}> ({r.unread})</Text> : null}
+              </Box>
+            )
+          })}
+        </Box>
+      ) : (
+        <Box marginTop={1}>
+          <Text color={FAINT}>no named agents yet — press </Text>
+          <Text color={accent}>n</Text>
+          <Text color={FAINT}> to spawn one</Text>
+        </Box>
+      )}
+
+      {}
+      {cur ? (
+        <Box marginTop={1} borderStyle="round" borderColor={hueFor(sel)} paddingX={1} flexDirection="column">
+          <Text>
+            <Text bold color={hueFor(sel)}>@{cur.member.name}</Text>
+            <Text color={FAINT}> · {cur.online ? 'online' : 'offline'}{cur.member.model ? ` · ${cur.member.model}` : ''}</Text>
+          </Text>
+          {chat.length === 0 ? (
+            <Text color={FAINT}>· no messages yet — {cur.online ? 'press ↵ or i to say hello' : 'offline; press r to respawn'}</Text>
+          ) : (
+            (() => {
+              const visible = Math.max(4, Math.min(chat.length, (termRows || 24) - 16))
+              const effSel = chatSel === null ? Math.max(0, chat.length - 1) : Math.min(chatSel, chat.length - 1)
+              const win = paneWindow(chat.length, effSel, visible)
+              const newSince = chatSel !== null ? Math.max(0, chat.length - chatAnchor.current) : 0
+              const NAME_W = 12
+              return (
+                <>
+                  {win.above > 0 ? <Text color={FAINT}>  ↑ {win.above} earlier</Text> : null}
+                  {chat.slice(win.start, win.end).map((m, wi) => {
+                    const gi = win.start + wi
+                    const on = gi === effSel && chatSel !== null
+                    const name = padTo(truncateToWidth(m.dir === 'out' ? 'you' : `@${cur.member.name}`, NAME_W), NAME_W)
+                    const tone = m.dir === 'out' ? accent : hueFor(sel)
+                    return on ? (
+                      <Box key={gi} flexDirection="column">
+                        <Text>
+                          <Text color={tone}>{'▸ '}</Text>
+                          <Text bold color={tone}>{name}</Text>
+                        </Text>
+                        <Box paddingLeft={2} width={W - 4}>
+                          <Text color={IVORY} wrap="wrap">{m.text}</Text>
+                        </Box>
+                      </Box>
+                    ) : (
+                      <Text key={gi} wrap="truncate-end">
+                        <Text color={tone}>{gi === effSel ? '▸ ' : '  '}{name}</Text>
+                        <Text color={m.dir === 'out' ? IVORY : SECOND}> {truncateToWidth(m.text.replace(/\s+/g, ' '), Math.max(10, W - NAME_W - 6))}</Text>
+                      </Text>
+                    )
+                  })}
+                  {win.below > 0 || newSince > 0 ? (
+                    <Text color={newSince > 0 ? AMBER : FAINT}>
+                      {'  '}↓ {win.below} later{newSince > 0 ? ` · ${newSince} new — ↓ to follow` : ''}
+                    </Text>
+                  ) : null}
+                </>
+              )
+            })()
+          )}
+          {mode === 'compose' ? (
+            <Box marginTop={1}>
+              <Text color={accent}>{GLYPH.prompt} </Text>
+              <Text color={IVORY}>{draftTail(draft, W - 4)}</Text>
+              <Text color={accent}>▏</Text>
+            </Box>
+          ) : null}
+        </Box>
+      ) : null}
+
+      {}
+      {mode === 'spawn-name' ? (
+        <Box marginTop={1} borderStyle="round" borderColor={tokens.borderStrong} paddingX={1} flexDirection="column">
+          <Text bold color={accent}>new named agent</Text>
+          <Text>
+            <Text color={FAINT}>name  </Text>
+            <Text color={IVORY}>{nameDraft}</Text>
+            <Text color={accent}>▏</Text>
+          </Text>
+        </Box>
+      ) : null}
+      {mode === 'spawn-model' ? (
+        <Box marginTop={1} flexDirection="column">
+          <Text bold color={accent}>@{nameDraft.trim()} · pick a model</Text>
+          <ModalContext.Provider value={{ rows: Math.max(12, (termRows || 24) - 8), columns: W, scrollRef: null }}>
+            <MercuryModelChoicePicker
+              current={modelChoiceRow(crewSeatDefault() ?? '')}
+              onSelect={id => {
+                const exact = parseUserSpecifiedModel(id)
+                const nm = nameDraft.trim()
+                setMode('browse')
+                void doSpawn(nm, exact, modelChoiceLabel(exact))
+              }}
+              onClose={() => { setMode('spawn-name'); setNote('') }}
+            />
+          </ModalContext.Provider>
+        </Box>
+      ) : null}
+
+      {}
+      {mode === 'kill-confirm' && cur ? (
+        <Box marginTop={1} borderStyle="round" borderColor={AMBER} paddingX={1}>
+          <Text color={AMBER}>stop @{cur.member.name}? its chat is kept — respawn (r) resumes it. </Text>
+          <Text color={FAINT}>y / n</Text>
+        </Box>
+      ) : null}
+
+      {note ? (
+        <Box marginTop={1}>
+          <Text color={busy ? TEAL : AMBER}>{truncateToWidth(note, W)}</Text>
+        </Box>
+      ) : null}
+    </CommandCenter>
+  )
+}
+
+function draftTail(s: string, budget: number): string {
+  if (budget <= 0) return ''
+  if (displayWidth(s) <= budget) return s
+  const chars = [...s]
+  let i = 0
+  while (i < chars.length && displayWidth(chars.slice(i).join('')) > budget) i++
+  return chars.slice(i).join('')
+}

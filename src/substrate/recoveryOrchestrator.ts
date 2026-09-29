@@ -3,7 +3,7 @@ import { readdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { mapWithConcurrency } from '../utils/concurrency.js'
 import { logForDebugging } from '../utils/debug.js'
-import { getMercuryHome, getTeamsDir } from '../utils/envUtils.js'
+import { getMercuryHome, getCrewsDir } from '../utils/envUtils.js'
 import { cleanupOrphanDurableTemps } from './durablePublish.js'
 import type { JournalRecoverySummary } from './operationJournal.js'
 import { readStoreRecoveryEvents } from './storeRecovery.js'
@@ -18,9 +18,9 @@ export type BootRecoveryPhase = 'pending' | 'running' | 'done'
 
 export interface LeaderProjectionSeed {
   teamName: string
-  teamFilePath: string
+  crewFilePath: string
   leadAgentId: string
-  teammates: Record<
+  crewmates: Record<
     string,
     {
       name: string
@@ -41,7 +41,7 @@ export interface BootRecoveryReport {
   startedAt: string
   durationMs: number
   orphanTemps: { dirsSwept: number; removed: number }
-  teamJournal: JournalRecoverySummary | null
+  crewJournal: JournalRecoverySummary | null
   runJournal: JournalRecoverySummary | null
   changeSetJournal: JournalRecoverySummary | null
   deadEpochTasks: { listsChecked: number; removed: number }
@@ -89,13 +89,13 @@ export function bootRecoveryStatusLine(
   if (s.phase !== 'done' || !s.report) return null
   const r = s.report
   const journalWork =
-    (r.teamJournal ? r.teamJournal.rolledForward.length + r.teamJournal.compensated.length : 0) +
+    (r.crewJournal ? r.crewJournal.rolledForward.length + r.crewJournal.compensated.length : 0) +
     (r.runJournal ? r.runJournal.rolledForward.length + r.runJournal.compensated.length : 0) +
     (r.changeSetJournal
       ? r.changeSetJournal.rolledForward.length + r.changeSetJournal.compensated.length
       : 0)
   const unrecoverable =
-    (r.teamJournal?.unrecoverable.length ?? 0) +
+    (r.crewJournal?.unrecoverable.length ?? 0) +
     (r.runJournal?.unrecoverable.length ?? 0) +
     (r.changeSetJournal?.unrecoverable.length ?? 0)
   const parts: string[] = []
@@ -127,11 +127,11 @@ async function collectSweepDirs(
     if (dirs.length < SWEEP_DIR_CAP) dirs.push(d)
   }
   const home = getMercuryHome()
-  const teams = getTeamsDir()
+  const crews = getCrewsDir()
   push(home)
   push(join(home, 'recovery'))
-  push(teams)
-  push(join(teams, '.journal'))
+  push(crews)
+  push(join(crews, '.journal'))
   try {
     const { changeSetJournalDir } = await import(
       '../services/changeTransaction/changeSetContracts.js'
@@ -140,13 +140,13 @@ async function collectSweepDirs(
   } catch {
   }
   try {
-    for (const name of await readdir(teams)) {
+    for (const name of await readdir(crews)) {
       if (name.startsWith('.')) continue
-      const teamDir = join(teams, name)
-      push(teamDir)
-      push(join(teamDir, 'inboxes'))
-      push(join(teamDir, 'dedup'))
-      push(join(teamDir, 'leases'))
+      const crewDir = join(crews, name)
+      push(crewDir)
+      push(join(crewDir, 'inboxes'))
+      push(join(crewDir, 'dedup'))
+      push(join(crewDir, 'leases'))
     }
   } catch {
   }
@@ -237,19 +237,19 @@ async function rebuildLeaderProjection(
   errors: string[],
 ): Promise<LeaderProjectionSeed | null> {
   try {
-    const { rebuildTeamProjection } = await import('../utils/swarm/teamOperations.js')
-    const led = await rebuildTeamProjection(sessionId)
+    const { rebuildCrewProjection } = await import('../utils/swarm/crewOperations.js')
+    const led = await rebuildCrewProjection(sessionId)
     if (!led) return null
-    const helpers = await import('../utils/swarm/teamHelpers.js')
-    const { setLeaderTeamName } = await import('../utils/tasks.js')
-    const { setLeadTeamFallback } = await import('../utils/teammate.js')
-    setLeaderTeamName(helpers.sanitizeName(led.teamName))
-    setLeadTeamFallback(led.teamName)
-    helpers.registerTeamForSessionCleanup(led.teamName)
-    const teammates: LeaderProjectionSeed['teammates'] = {}
-    const tf = await helpers.readTeamFileAsync(led.teamName)
+    const helpers = await import('../utils/swarm/crewHelpers.js')
+    const { setLeaderCrewName } = await import('../utils/tasks.js')
+    const { setLeadCrewFallback } = await import('../utils/crewmate.js')
+    setLeaderCrewName(helpers.sanitizeName(led.teamName))
+    setLeadCrewFallback(led.teamName)
+    helpers.registerCrewForSessionCleanup(led.teamName)
+    const crewmates: LeaderProjectionSeed['crewmates'] = {}
+    const tf = await helpers.readCrewFileAsync(led.teamName)
     for (const m of tf?.members ?? []) {
-      teammates[m.agentId] = {
+      crewmates[m.agentId] = {
         name: m.name,
         agentType: m.agentType,
         color: m.color,
@@ -262,9 +262,9 @@ async function rebuildLeaderProjection(
     }
     return {
       teamName: led.teamName,
-      teamFilePath: led.teamFilePath,
+      crewFilePath: led.crewFilePath,
       leadAgentId: led.leadAgentId,
-      teammates,
+      crewmates,
     }
   } catch (e) {
     errors.push(`leader projection rebuild failed: ${e instanceof Error ? e.message : String(e)}`)
@@ -288,7 +288,7 @@ export async function runBootRecovery(opts: {
       startedAt: new Date(startedMs).toISOString(),
       durationMs: 0,
       orphanTemps: { dirsSwept: 0, removed: 0 },
-      teamJournal: null,
+      crewJournal: null,
       runJournal: null,
       changeSetJournal: null,
       deadEpochTasks: { listsChecked: 0, removed: 0 },
@@ -307,12 +307,12 @@ export async function runBootRecovery(opts: {
     }
 
     const describe = (reason: unknown): string => (reason instanceof Error ? reason.message : String(reason))
-    const [teamSettled, changeSetSettled] = await Promise.allSettled([
-      import('../utils/swarm/teamOperations.js').then(m => m.recoverTeamJournal()),
+    const [crewSettled, changeSetSettled] = await Promise.allSettled([
+      import('../utils/swarm/crewOperations.js').then(m => m.recoverCrewJournal()),
       import('../services/changeTransaction/changeSetCommit.js').then(m => m.recoverChangeSetJournal()),
     ])
-    if (teamSettled.status === 'fulfilled') report.teamJournal = teamSettled.value
-    else errors.push(`team journal recovery failed: ${describe(teamSettled.reason)}`)
+    if (crewSettled.status === 'fulfilled') report.crewJournal = crewSettled.value
+    else errors.push(`team journal recovery failed: ${describe(crewSettled.reason)}`)
     if (changeSetSettled.status === 'fulfilled') report.changeSetJournal = changeSetSettled.value
     else errors.push(`change-set journal recovery failed: ${describe(changeSetSettled.reason)}`)
 

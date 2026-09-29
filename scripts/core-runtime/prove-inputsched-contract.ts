@@ -13,7 +13,7 @@ if (process.env.NODE_ENV === 'test') {
 const HERMETIC_HOME = mkdtempSync(join(tmpdir(), 'native-core-inputsched-'))
 process.env.MERCURY_CONFIG_DIR = HERMETIC_HOME
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC_HOME, 'daemon')
-process.env.MERCURY_TEAMS_DIR = join(HERMETIC_HOME, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HERMETIC_HOME, 'teams')
 
 const q = await import('../../src/input-core/command-queue.js')
 const draft = await import('../../src/utils/promptDraft.js')

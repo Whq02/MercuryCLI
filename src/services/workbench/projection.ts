@@ -9,7 +9,7 @@ import {
   readAgentMetadata,
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
-import { lastActionWasLeadHandoff } from '../../utils/swarm/teamPhases.js'
+import { lastActionWasLeadHandoff } from '../../utils/swarm/crewPhases.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../../utils/artifacts/reviewStore.js'
 import { lanesEnabled, listLanesSource } from '../contextLanes/lanes.js'
@@ -91,8 +91,8 @@ function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
     if (agentType !== undefined) fact.agentType = agentType
     const model = str(t.model)
     if (model !== undefined) fact.model = model
-    const teammateName = str(t.name)
-    if (teammateName !== undefined) fact.teammateName = teammateName
+    const crewmateName = str(t.name)
+    if (crewmateName !== undefined) fact.crewmateName = crewmateName
     const isIdle = bool(t.isIdle)
     if (isIdle !== undefined) fact.isIdle = isIdle
     const shutdownRequested = bool(t.shutdownRequested)

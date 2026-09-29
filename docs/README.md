@@ -81,7 +81,7 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [EXTENSIONS.md](EXTENSIONS.md): extensions, the manifest, sources,
   approval, health, the maker's loop and policy boundaries, liveness, and
   validation.
-- [TEAMS.md](TEAMS.md): the crew — crewmates and agent sessions, starting them,
+- [CREW.md](CREW.md): the crew — crewmates and agent sessions, starting them,
   stop and resume, live communication, file claims, roles, boards, and the
   coordinator behind the concourse.
 - [SATURN.md](SATURN.md): Saturn scheduling, schedules as session facts, the

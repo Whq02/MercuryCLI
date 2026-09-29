@@ -31,7 +31,7 @@ for (const ambient of [
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'overflow-signal-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'overflow-signal-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'overflow-signal-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'overflow-signal-teams-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 const { startOverflowFixture, OVERFLOW_LANES, OVERFLOW_WIRE_SHAPES } = await import('./overflowFixture.ts')

@@ -653,8 +653,8 @@
    "src/utils/swarm/inProcessRunner.ts": [
     "cancelCrewmatePauseResume",
     "crewmatePausedWords",
-    "runInProcessTeammate",
-    "startInProcessTeammate",
+    "runInProcessCrewmate",
+    "startInProcessCrewmate",
     "type:FirstDispatchOutcome",
     "type:InProcessRunnerConfig",
     "type:InProcessRunnerResult"
@@ -664,19 +664,19 @@
     "deriveRolePacket",
     "findRoleDefinition",
     "getRoleSystemPrompt",
-    "resolveTeammateRole",
+    "resolveCrewmateRole",
     "type:CrewmateRoleRecord",
-    "type:ResolvedTeammateRole"
+    "type:ResolvedCrewmateRole"
    ],
-   "src/utils/swarm/teamCharter.ts": [
-    "TEAM_CHARTER_VERSION",
-    "deriveTeamCharter",
+   "src/utils/swarm/crewCharter.ts": [
+    "CREW_CHARTER_VERSION",
+    "deriveCrewCharter",
     "formatCharterForContext",
     "formatRolePacketForContext",
-    "parseTeamCharter",
-    "type:DeriveCharterInputs",
-    "type:TeamCharter",
-    "type:TeamRolePacket"
+    "parseCrewCharter",
+    "type:CrewCharter",
+    "type:CrewRolePacket",
+    "type:DeriveCharterInputs"
    ],
    "src/utils/swarm/handoff.ts": [
     "HANDOFF_STATUSES",

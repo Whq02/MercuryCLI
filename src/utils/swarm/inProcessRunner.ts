@@ -12,9 +12,9 @@ import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { runAgent } from '../../tools/AgentTool/runAgent.js'
 import {
   appendCappedMessage,
-  isInProcessTeammateTask,
-  type InProcessTeammateTaskState,
-} from '../../tasks/InProcessTeammateTask/types.js'
+  isInProcessCrewmateTask,
+  type InProcessCrewmateTaskState,
+} from '../../tasks/InProcessCrewmateTask/types.js'
 import {
   AGENT_WINDOW_RESUME_NOTE,
   createActivityDescriptionResolver,
@@ -35,7 +35,7 @@ import {
   registerPermissionCallback,
   unregisterPermissionCallback,
 } from '../../hooks/useSwarmPermissionPoller.js'
-import { runWithAgentContext, type TeammateAgentContext } from '../agentContext.js'
+import { runWithAgentContext, type CrewmateAgentContext } from '../agentContext.js'
 import { createChildAbortController } from '../abortController.js'
 import { runWithCwdOverride } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
@@ -61,11 +61,11 @@ import { asSystemPrompt } from '../systemPromptType.js'
 import { evictTaskOutput } from '../task/diskOutput.js'
 import { evictTerminalTask, STOPPED_DISPLAY_MS } from '../task/framework.js'
 import { claimTask, listTasks, onTasksUpdated, updateTask } from '../tasks.js'
-import { runWithTeammateContext, type TeammateContext } from '../teammateContext.js'
+import { runWithCrewmateContext, type CrewmateContext } from '../crewmateContext.js'
 import {
   createIdleNotification,
   createShutdownApprovedMessage,
-  formatTeammateMessages,
+  formatCrewmateMessages,
   getLastPeerDmSummary,
   getMailboxStore,
   isPermissionResponse,
@@ -75,20 +75,20 @@ import {
   resolveShutdownRequestSender,
   writeToMailbox,
   type ShutdownRequestMessage,
-} from '../teammateMailbox.js'
+} from '../crewmateMailbox.js'
 import { tokenCountWithEstimation } from '../tokens.js'
 import { createContentReplacementState } from '../toolResultStorage.js'
 import { deriveRunnerAgentDefinition } from './agentLaunchPlan.js'
-import { TEAM_LEAD_NAME } from './constants.js'
+import { CREW_LEAD_NAME } from './constants.js'
 import {
   getLeaderSetToolPermissionContext,
   getLeaderToolUseConfirmQueue,
 } from './leaderPermissionBridge.js'
 import { createPermissionRequest, sendPermissionRequestViaMailbox } from './permissionSync.js'
-import { getRoleSystemPrompt, type ResolvedTeammateRole } from './roleResolver.js'
-import { readTeamFileAsync, removeMemberByAgentId, setMemberActive } from './teamHelpers.js'
-import { formatCharterForContext, formatRolePacketForContext } from './teamCharter.js'
-import { buildTeammateAddendum } from './teammatePromptAddendum.js'
+import { getRoleSystemPrompt, type ResolvedCrewmateRole } from './roleResolver.js'
+import { readCrewFileAsync, removeMemberByAgentId, setMemberActive } from './crewHelpers.js'
+import { formatCharterForContext, formatRolePacketForContext } from './crewCharter.js'
+import { buildCrewmateAddendum } from './crewmatePromptAddendum.js'
 
 
 export type FirstDispatchOutcome = { ok: true } | { ok: false; cause: string }
@@ -105,8 +105,8 @@ export type InProcessRunnerConfig = {
   taskId: string
   prompt: string
   agentDefinition?: AgentDefinition
-  role?: ResolvedTeammateRole
-  teammateContext: TeammateContext
+  role?: ResolvedCrewmateRole
+  crewmateContext: CrewmateContext
   toolUseContext: ToolUseContext
   abortController: AbortController
   model?: string
@@ -140,25 +140,25 @@ function setAppStateOf(context: ToolUseContext): SetAppState {
   return context.setAppStateForTasks ?? context.setAppState
 }
 
-function updateTeammateTask(
+function updateCrewmateTask(
   taskId: string,
   setAppState: SetAppState,
-  mutate: (task: InProcessTeammateTaskState) => InProcessTeammateTaskState,
+  mutate: (task: InProcessCrewmateTaskState) => InProcessCrewmateTaskState,
 ): void {
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
-    if (!task || !isInProcessTeammateTask(task)) return prevState
+    if (!task || !isInProcessCrewmateTask(task)) return prevState
     return { ...prevState, tasks: { ...prevState.tasks, [taskId]: mutate(task) } }
   })
 }
 
-function wrapAsTeammateMessage(
+function wrapAsCrewmateMessage(
   from: string,
   text: string,
   color?: string,
   summary?: string,
 ): string {
-  return formatTeammateMessages([
+  return formatCrewmateMessages([
     {
       from,
       text,
@@ -231,7 +231,7 @@ async function waitForNextInput(
       let pendingUserMessage: string | undefined
       setAppState(prevState => {
         const task = prevState.tasks[taskId]
-        if (!task || !isInProcessTeammateTask(task)) return prevState
+        if (!task || !isInProcessCrewmateTask(task)) return prevState
         const queue = task.pendingUserMessages ?? []
         const head = queue[0]
         if (head === undefined) return prevState
@@ -284,7 +284,7 @@ async function waitForNextInput(
           return { kind: 'shutdown', request: parsed, text: message.text, sender }
         }
 
-        const selected = unread.find(message => message.from === TEAM_LEAD_NAME) ?? unread[0]
+        const selected = unread.find(message => message.from === CREW_LEAD_NAME) ?? unread[0]
         if (selected !== undefined) {
           await markSpecificMessageAsRead(identity.agentName, identity.teamName, selected)
           return {
@@ -314,7 +314,7 @@ async function waitForNextInput(
 }
 
 
-function buildTeammatePermissionFn(
+function buildCrewmatePermissionFn(
   identity: InProcessRunnerConfig['identity'],
   turnController: AbortController,
   reportPermissionWait: (elapsedMs: number) => void,
@@ -490,7 +490,7 @@ function buildTeammatePermissionFn(
               if (message.read) continue
               const response = isPermissionResponse(message.text)
               if (!response || response.request_id !== request.id) continue
-              if (message.from !== TEAM_LEAD_NAME) {
+              if (message.from !== CREW_LEAD_NAME) {
                 logForDebugging(
                   `teammate ${identity.agentName}: ignored a permission response from non-lead sender ${message.from}`,
                 )
@@ -542,7 +542,7 @@ async function sendIdleNotificationToLead(
       : {}),
   })
   await writeToMailbox(
-    TEAM_LEAD_NAME,
+    CREW_LEAD_NAME,
     {
       from: identity.agentName,
       text: JSON.stringify(notification),
@@ -566,7 +566,7 @@ async function approveIdleShutdown(
   identity: InProcessRunnerConfig['identity'],
   request: ShutdownRequestMessage,
 ): Promise<void> {
-  const roster = await readTeamFileAsync(identity.teamName).catch(() => null)
+  const roster = await readCrewFileAsync(identity.teamName).catch(() => null)
   const member = roster?.members.find(candidate => candidate.agentId === identity.agentId) as
     | { tmuxPaneId?: string; backendType?: string }
     | undefined
@@ -577,7 +577,7 @@ async function approveIdleShutdown(
     backendType: member?.backendType || undefined,
   })
   const delivered = await writeToMailbox(
-    TEAM_LEAD_NAME,
+    CREW_LEAD_NAME,
     {
       from: identity.agentName,
       text: JSON.stringify(approved),
@@ -590,7 +590,7 @@ async function approveIdleShutdown(
 }
 
 
-export async function runInProcessTeammate(
+export async function runInProcessCrewmate(
   config: InProcessRunnerConfig,
 ): Promise<InProcessRunnerResult> {
   const { identity, taskId, toolUseContext } = config
@@ -609,7 +609,7 @@ export async function runInProcessTeammate(
     }
   }
 
-  const agentContext: TeammateAgentContext = {
+  const agentContext: CrewmateAgentContext = {
     agentType: 'teammate',
     agentId: identity.agentId,
     agentName: identity.agentName,
@@ -617,7 +617,7 @@ export async function runInProcessTeammate(
     ...(identity.color !== undefined ? { agentColor: identity.color } : {}),
     planModeRequired: identity.planModeRequired,
     parentSessionId: identity.parentSessionId,
-    isTeamLead: false,
+    isCrewLead: false,
     ...(config.invokingRequestId !== undefined
       ? { invokingRequestId: config.invokingRequestId }
       : {}),
@@ -626,7 +626,7 @@ export async function runInProcessTeammate(
   }
   let currentPrompt =
     config.resume?.prompt ??
-    wrapAsTeammateMessage(TEAM_LEAD_NAME, config.prompt, undefined, config.description)
+    wrapAsCrewmateMessage(CREW_LEAD_NAME, config.prompt, undefined, config.description)
   await claimNextAvailableTask(identity)
 
   try {
@@ -642,7 +642,7 @@ export async function runInProcessTeammate(
         undefined,
         options.mcpClients,
       )
-      const parts: string[] = [base.join('\n'), buildTeammateAddendum()]
+      const parts: string[] = [base.join('\n'), buildCrewmateAddendum()]
       const agentDefinition = config.agentDefinition
       if (agentDefinition) {
         const rolePrompt = getRoleSystemPrompt(agentDefinition, {
@@ -674,7 +674,7 @@ export async function runInProcessTeammate(
     const effectiveModel = getAgentModel(derivedDefinition.model, options.mainLoopModel, config.model)
     const compactThreshold = getAutoCompactThreshold(effectiveModel)
 
-    updateTeammateTask(taskId, setAppState, task => ({
+    updateCrewmateTask(taskId, setAppState, task => ({
       ...task,
       messages: appendCappedMessage(task.messages, createUserMessage({ content: currentPrompt })),
     }))
@@ -690,7 +690,7 @@ export async function runInProcessTeammate(
 
     while (!config.abortController.signal.aborted && !exitRequested) {
       const turnController = createChildAbortController(config.abortController)
-      updateTeammateTask(taskId, setAppState, task => ({
+      updateCrewmateTask(taskId, setAppState, task => ({
         ...task,
         currentWorkAbortController: turnController,
       }))
@@ -726,7 +726,7 @@ export async function runInProcessTeammate(
         if (contentReplacementState !== undefined) {
           contentReplacementState = { ...createContentReplacementState(), budgetChars: contentReplacementState.budgetChars }
         }
-        updateTeammateTask(taskId, setAppState, task => ({
+        updateCrewmateTask(taskId, setAppState, task => ({
           ...task,
           messages: [...compacted, userMessage],
         }))
@@ -742,22 +742,22 @@ export async function runInProcessTeammate(
       const stateNow = toolUseContext.getAppState()
       const taskNow = stateNow.tasks[taskId]
       const liveMode: PermissionMode =
-        taskNow && isInProcessTeammateTask(taskNow) && taskNow.permissionMode
+        taskNow && isInProcessCrewmateTask(taskNow) && taskNow.permissionMode
           ? taskNow.permissionMode
           : 'default'
       const perTurnDefinition = { ...derivedDefinition, permissionMode: liveMode }
 
       let turnInterrupted = false
-      await runWithTeammateContext(config.teammateContext, () =>
+      await runWithCrewmateContext(config.crewmateContext, () =>
         runWithAgentContext(agentContext, async () => {
-          updateTeammateTask(taskId, setAppState, task => ({
+          updateCrewmateTask(taskId, setAppState, task => ({
             ...task,
             status: 'running',
             isIdle: false,
           }))
           noteMemberActive(identity, true)
-          const permissionFn = buildTeammatePermissionFn(identity, turnController, elapsedMs => {
-            updateTeammateTask(taskId, setAppState, task => ({
+          const permissionFn = buildCrewmatePermissionFn(identity, turnController, elapsedMs => {
+            updateCrewmateTask(taskId, setAppState, task => ({
               ...task,
               totalPausedMs: (task.totalPausedMs ?? 0) + elapsedMs,
             }))
@@ -779,7 +779,7 @@ export async function runInProcessTeammate(
             ...(config.effortOverride !== undefined ? { effortOverride: config.effortOverride } : {}),
             onResolvedIdentity: identity => {
               if (identity.effort === undefined) return
-              updateTeammateTask(taskId, setAppState, task => (task.effort === identity.effort ? task : { ...task, effort: identity.effort }))
+              updateCrewmateTask(taskId, setAppState, task => (task.effort === identity.effort ? task : { ...task, effort: identity.effort }))
             },
             preserveToolUseResults: true,
             availableTools: options.tools,
@@ -806,7 +806,7 @@ export async function runInProcessTeammate(
             turnMessages.push(message)
             allMessages.push(message)
             updateProgressFromMessage(progressTracker, message, resolveActivity, options.tools)
-            updateTeammateTask(taskId, setAppState, task => {
+            updateCrewmateTask(taskId, setAppState, task => {
               const inProgress = new Set(task.inProgressToolUseIDs ?? [])
               if (message.type === 'assistant' && Array.isArray(message.message.content)) {
                 for (const block of message.message.content) {
@@ -829,7 +829,7 @@ export async function runInProcessTeammate(
         }),
       )
 
-      updateTeammateTask(taskId, setAppState, task => ({
+      updateCrewmateTask(taskId, setAppState, task => ({
         ...task,
         currentWorkAbortController: undefined,
       }))
@@ -840,7 +840,7 @@ export async function runInProcessTeammate(
       settleFirstDispatch({ ok: true })
 
       if (turnInterrupted) {
-        updateTeammateTask(taskId, setAppState, task => ({
+        updateCrewmateTask(taskId, setAppState, task => ({
           ...task,
           messages: appendCappedMessage(
             task.messages,
@@ -852,7 +852,7 @@ export async function runInProcessTeammate(
       let wasAlreadyIdle = false
       setAppState(prevState => {
         const task = prevState.tasks[taskId]
-        if (!task || !isInProcessTeammateTask(task)) return prevState
+        if (!task || !isInProcessCrewmateTask(task)) return prevState
         wasAlreadyIdle = task.isIdle
         for (const callback of task.onIdleCallbacks ?? []) {
           try {
@@ -879,7 +879,7 @@ export async function runInProcessTeammate(
         if (windowPause !== null) {
           const refusal = lastAssistant!.message.content
           const cause = new Error((typeof refusal === 'string' ? refusal : extractTextContent(refusal)) || 'API error')
-          pauseTeammateRun(config, setAppState, windowPause, cause)
+          pauseCrewmateRun(config, setAppState, windowPause, cause)
           await tellLeadPaused(identity, windowPause)
           armCrewmatePauseResume(config, windowPause)
           return { success: false, error: cause, messages: allMessages }
@@ -898,7 +898,7 @@ export async function runInProcessTeammate(
           })
           if (firstDispatch !== undefined && !firstDispatch.ok) {
             const cause = new Error(failureReason)
-            terminalizeTeammateRun(config, setAppState, 'failed', cause)
+            terminalizeCrewmateRun(config, setAppState, 'failed', cause)
             return { success: false, error: cause, messages: allMessages }
           }
         } else {
@@ -917,9 +917,9 @@ export async function runInProcessTeammate(
       if (next.kind === 'aborted') {
         exitRequested = true
       } else if (next.kind === 'shutdown') {
-        const sender = next.sender || next.request.from || TEAM_LEAD_NAME
-        const wrapped = wrapAsTeammateMessage(sender, next.text)
-        updateTeammateTask(taskId, setAppState, task => ({
+        const sender = next.sender || next.request.from || CREW_LEAD_NAME
+        const wrapped = wrapAsCrewmateMessage(sender, next.text)
+        updateCrewmateTask(taskId, setAppState, task => ({
           ...task,
           shutdownRequested: true,
           messages: appendCappedMessage(task.messages, createUserMessage({ content: wrapped })),
@@ -929,8 +929,8 @@ export async function runInProcessTeammate(
       } else if (next.from === 'user') {
         currentPrompt = next.text
       } else {
-        const wrapped = wrapAsTeammateMessage(next.from, next.text, next.color, next.summary)
-        updateTeammateTask(taskId, setAppState, task => ({
+        const wrapped = wrapAsCrewmateMessage(next.from, next.text, next.color, next.summary)
+        updateCrewmateTask(taskId, setAppState, task => ({
           ...task,
           messages: appendCappedMessage(task.messages, createUserMessage({ content: wrapped })),
         }))
@@ -938,13 +938,13 @@ export async function runInProcessTeammate(
       }
     }
 
-    terminalizeTeammateRun(config, setAppState, 'completed', undefined)
+    terminalizeCrewmateRun(config, setAppState, 'completed', undefined)
     return { success: true, messages: allMessages }
   } catch (error) {
     const cause = error instanceof Error ? error : new Error('unknown error')
     logError(error)
     settleFirstDispatch({ ok: false, cause: cause.message })
-    terminalizeTeammateRun(config, setAppState, 'failed', cause)
+    terminalizeCrewmateRun(config, setAppState, 'failed', cause)
     const summary = undefined
     void summary
     await sendIdleNotificationToLead(identity, 'failed', {
@@ -958,7 +958,7 @@ export async function runInProcessTeammate(
   }
 }
 
-function terminalizeTeammateRun(
+function terminalizeCrewmateRun(
   config: InProcessRunnerConfig,
   setAppState: SetAppState,
   status: 'completed' | 'failed',
@@ -969,7 +969,7 @@ function terminalizeTeammateRun(
   let capturedToolUseId: string | undefined
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
-    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') return prevState
+    if (!task || !isInProcessCrewmateTask(task) || task.status !== 'running') return prevState
     wasRunning = true
     capturedToolUseId = task.toolUseId
     for (const callback of task.onIdleCallbacks ?? []) {
@@ -980,7 +980,7 @@ function terminalizeTeammateRun(
     }
     task.unregisterCleanup?.()
     const lastMessage = task.messages?.[task.messages.length - 1]
-    const nextTask: InProcessTeammateTaskState = {
+    const nextTask: InProcessCrewmateTaskState = {
       ...task,
       status,
       notified: true,
@@ -996,19 +996,19 @@ function terminalizeTeammateRun(
       unregisterCleanup: undefined,
       onIdleCallbacks: [],
     }
-    const teamContext = prevState.teamContext
-    const teammates = teamContext?.teammates
-    let nextTeamContext = teamContext
-    if (status === 'failed' && teamContext && teammates && (identity.agentName in teammates || identity.agentId in teammates)) {
-      const remaining = { ...teammates }
+    const crewContext = prevState.crewContext
+    const crewmates = crewContext?.crewmates
+    let nextCrewContext = crewContext
+    if (status === 'failed' && crewContext && crewmates && (identity.agentName in crewmates || identity.agentId in crewmates)) {
+      const remaining = { ...crewmates }
       delete remaining[identity.agentName]
       delete remaining[identity.agentId]
-      nextTeamContext = { ...teamContext, teammates: remaining }
+      nextCrewContext = { ...crewContext, crewmates: remaining }
     }
     return {
       ...prevState,
       tasks: { ...prevState.tasks, [taskId]: nextTask },
-      ...(nextTeamContext !== teamContext ? { teamContext: nextTeamContext } : {}),
+      ...(nextCrewContext !== crewContext ? { crewContext: nextCrewContext } : {}),
     }
   })
   if (wasRunning && status === 'failed') {
@@ -1029,7 +1029,7 @@ function terminalizeTeammateRun(
   }
 }
 
-function pauseTeammateRun(
+function pauseCrewmateRun(
   config: InProcessRunnerConfig,
   setAppState: SetAppState,
   pause: AgentPauseV1,
@@ -1040,7 +1040,7 @@ function pauseTeammateRun(
   let capturedToolUseId: string | undefined
   setAppState(prevState => {
     const task = prevState.tasks[taskId]
-    if (!task || !isInProcessTeammateTask(task) || task.status !== 'running') return prevState
+    if (!task || !isInProcessCrewmateTask(task) || task.status !== 'running') return prevState
     wasRunning = true
     capturedToolUseId = task.toolUseId
     for (const callback of task.onIdleCallbacks ?? []) {
@@ -1052,7 +1052,7 @@ function pauseTeammateRun(
     }
     task.unregisterCleanup?.()
     const lastMessage = task.messages?.[task.messages.length - 1]
-    const nextTask: InProcessTeammateTaskState = {
+    const nextTask: InProcessCrewmateTaskState = {
       ...task,
       status: 'failed',
       notified: true,
@@ -1085,7 +1085,7 @@ export function crewmatePausedWords(name: string, pause: AgentPauseV1, nowMs: nu
 
 async function tellLeadPaused(identity: InProcessRunnerConfig['identity'], pause: AgentPauseV1): Promise<void> {
   const delivered = await writeToMailbox(
-    TEAM_LEAD_NAME,
+    CREW_LEAD_NAME,
     {
       from: identity.agentName,
       text: crewmatePausedWords(identity.agentName, pause, Date.now()),
@@ -1120,13 +1120,13 @@ function armCrewmatePauseResume(config: InProcessRunnerConfig, pause: AgentPause
   }
   const stillPaused = (): boolean => {
     const row = toolUseContext.getAppState().tasks[taskId]
-    return isInProcessTeammateTask(row) && row.status !== 'running' && row.paused !== undefined
+    return isInProcessCrewmateTask(row) && row.status !== 'running' && row.paused !== undefined
   }
   const fire = async (accountChanged: boolean): Promise<void> => {
     disarm()
     if (!stillPaused()) return
-    const { resumeTeammateFromTranscript } = await import('../../services/agents/operatorResume.js')
-    const receipt = await resumeTeammateFromTranscript(taskId, {
+    const { resumeCrewmateFromTranscript } = await import('../../services/agents/operatorResume.js')
+    const receipt = await resumeCrewmateFromTranscript(taskId, {
       getAppState: toolUseContext.getAppState,
       toolUseContext,
       prompt: accountChanged ? CREW_ACCOUNT_RESUME_NOTE : AGENT_WINDOW_RESUME_NOTE,
@@ -1155,9 +1155,9 @@ function armCrewmatePauseResume(config: InProcessRunnerConfig, pause: AgentPause
   armedCrewmateResumes.set(taskId, disarm)
 }
 
-export function startInProcessTeammate(config: InProcessRunnerConfig): void {
+export function startInProcessCrewmate(config: InProcessRunnerConfig): void {
   const agentId = config.identity.agentId
-  const life = (): Promise<InProcessRunnerResult> => runInProcessTeammate(config)
+  const life = (): Promise<InProcessRunnerResult> => runInProcessCrewmate(config)
   ;(config.cwd !== undefined ? runWithCwdOverride(config.cwd, life) : life()).catch((error: unknown) => {
     logError(error)
     logForDebugging(`in-process teammate ${agentId} rejected: ${errorMessage(toError(error))}`)

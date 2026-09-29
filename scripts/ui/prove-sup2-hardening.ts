@@ -309,7 +309,7 @@ console.log('§18 login mint — the spinner is bounded into a keyed state')
 
 console.log('§19 teammates board — esc lives while busy, the footer says so')
 {
-  const board = read('src/components/mercury-ui/screens/TeammateChatsView.tsx')
+  const board = read('src/components/mercury-ui/screens/CrewmateChatsView.tsx')
   check('poison gone: the busy arm no longer swallows every key', !/if \(busy\) return/.test(board))
   check('esc closes while busy', /if \(busy\) \{[\s\S]{0,700}if \(key\.escape\) onClose\(\)[\s\S]{0,40}return/.test(board))
   check('the busy footer stops advertising a dead board', board.includes("busy ? 'working… · esc close (the spawn/stop finishes in the daemon)'"))

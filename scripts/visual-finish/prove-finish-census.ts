@@ -103,8 +103,8 @@ t.section('§3 — the crew estate adds no raw animation clocks')
     }
   }
   t.check(
-    "exactly the ONE allowlisted interval (TeammateChatsView's enabled-gated 2s data poll)",
-    found.length === 1 && (found[0] ?? '').includes('TeammateChatsView'),
+    "exactly the ONE allowlisted interval (CrewmateChatsView's enabled-gated 2s data poll)",
+    found.length === 1 && (found[0] ?? '').includes('CrewmateChatsView'),
     found.join(', ') || 'none',
   )
 }

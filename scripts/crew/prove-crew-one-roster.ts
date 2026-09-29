@@ -19,8 +19,8 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-process.env.MERCURY_TEAMS_DIR = join(scratch, 'teams')
-mkdirSync(process.env.MERCURY_TEAMS_DIR, { recursive: true })
+process.env.MERCURY_CREWS_DIR = join(scratch, 'teams')
+mkdirSync(process.env.MERCURY_CREWS_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -119,9 +119,9 @@ async function main(): Promise<void> {
   const { startControlServer } = await import(src('daemon/controlServer.ts'))
   const { mintControlKey } = await import(src('daemon/controlSocket.ts'))
   const { DaemonBreaker } = await import(src('utils/daemonBreaker.ts'))
-  const th = await import(src('utils/swarm/teamHelpers.ts'))
+  const th = await import(src('utils/swarm/crewHelpers.ts'))
   const member = (name: string, agentId: string, role: string, extra: Record<string, unknown> = {}) => ({ agentId, name, role, joinedAt: t0, tmuxPaneId: '', cwd: scratch, subscriptions: [] as string[], ...extra })
-  await th.writeTeamFileAsync('crew', {
+  await th.writeCrewFileAsync('crew', {
     name: 'crew',
     description: 'the crew',
     createdAt: t0,

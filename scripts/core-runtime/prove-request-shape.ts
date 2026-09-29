@@ -8,7 +8,7 @@ import { join } from 'node:path'
 const HERMETIC_HOME = mkdtempSync(join(tmpdir(), 'reqshape-'))
 process.env.MERCURY_CONFIG_DIR = HERMETIC_HOME
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC_HOME, 'daemon')
-process.env.MERCURY_TEAMS_DIR = join(HERMETIC_HOME, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HERMETIC_HOME, 'teams')
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL

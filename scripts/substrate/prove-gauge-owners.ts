@@ -13,7 +13,7 @@ writeFileSync(
 )
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_DAEMON_DIR = join(home, 'daemon')
-process.env.MERCURY_TEAMS_DIR = join(home, 'teams')
+process.env.MERCURY_CREWS_DIR = join(home, 'teams')
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0

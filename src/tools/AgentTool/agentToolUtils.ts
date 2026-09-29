@@ -4,7 +4,7 @@ import {
   ALL_AGENT_DISALLOWED_TOOLS,
   ASYNC_AGENT_ALLOWED_TOOLS,
   CUSTOM_AGENT_DISALLOWED_TOOLS,
-  IN_PROCESS_TEAMMATE_ALLOWED_TOOLS,
+  IN_PROCESS_CREWMATE_ALLOWED_TOOLS,
 } from '../../constants/tools.js'
 import type { Message } from '../../types/message.js'
 import type { SetAppState } from '../../Task.js'
@@ -84,7 +84,7 @@ import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitBackgroundAgentFrames } from '../../utils/task/sdkAgentFrames.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { isInProcessTeammate } from '../../utils/teammateContext.js'
+import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
@@ -102,8 +102,8 @@ export function filterToolsForAgent(args: {
   permissionMode?: PermissionMode
 }): Tools {
   const { tools, isBuiltIn, isAsync, permissionMode } = args
-  const teammateKeeps =
-    isInProcessTeammate() && isAgentSwarmsEnabled()
+  const crewmateKeeps =
+    isInProcessCrewmate() && isAgentSwarmsEnabled()
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
     if (permissionMode === 'strategy' && tool.name === EXIT_PLAN_MODE_NAME) {
@@ -117,9 +117,9 @@ export function filterToolsForAgent(args: {
     if (isAsync) {
       if (ASYNC_AGENT_ALLOWED_TOOLS.has(tool.name)) return true
       if (
-        teammateKeeps &&
+        crewmateKeeps &&
         (tool.name === AGENT_TOOL_NAME ||
-          IN_PROCESS_TEAMMATE_ALLOWED_TOOLS.has(tool.name))
+          IN_PROCESS_CREWMATE_ALLOWED_TOOLS.has(tool.name))
       ) {
         return true
       }

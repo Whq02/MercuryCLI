@@ -182,7 +182,7 @@ const { noSessionConnector } = await import('../../src/services/engine-connector
 const { setFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { resetHelmFocusForTest } = await import('../../src/utils/cockpit/helmFocus.ts')
 const { closeSettingsPopup, isSettingsPopupOpen } = await import('../../src/utils/cockpit/settingsPopup.ts')
-const teammatesCommand = await import('../../src/commands/teammates/teammates.tsx')
+const crewmatesCommand = await import('../../src/commands/crewmates/crewmates.tsx')
 const usageCommand = await import('../../src/commands/usage/usage.tsx')
 const configCommand = await import('../../src/commands/config/config.tsx')
 const { TranscriptSwap } = await import('../../src/components/CrewmateTranscript.tsx')
@@ -544,7 +544,7 @@ for (const [cols, rows] of sizes) {
   }
 
   section(`§5 ${size}: the main chat pinned on a landed crewmate keeps its ★ row and the crew pop-up hands the view back`)
-  const crewElement = await teammatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
+  const crewElement = await crewmatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
   if (crewElement !== null && crewElement !== undefined) scene.setModal(crewElement)
   await until(() => scene.lines().some(line => line.includes(CREW_TITLE)), 6000)
   await sleep(300)
@@ -563,7 +563,7 @@ for (const [cols, rows] of sizes) {
   check(`${size}: m pins the landed crewmate — its ★ row stands in the rail, the header says main chat`, starRow >= 0 && railText(frame[starRow]!, cockpit).includes(target.slice(0, 5)) && new RegExp(`★ VIEW · ${target} · main chat`).test(headerRow(frame)), `${headerRow(frame)} · ${starRow >= 0 ? flat(railText(frame[starRow]!, cockpit)) : 'no ★ row'}`)
   const pinnedRows = transcriptOf(frame, cockpit)
   const pinnedHeader = headerRow(frame)
-  const crewAgain = await teammatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
+  const crewAgain = await crewmatesCommand.call(() => {}, { messages: [], options: {} } as never, '')
   if (crewAgain !== null && crewAgain !== undefined) scene.setModal(crewAgain)
   await until(() => scene.lines().some(line => line.includes(CREW_TITLE)), 6000)
   await sleep(300)

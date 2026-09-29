@@ -27,7 +27,7 @@ import type {
   SubagentStopHookInput,
   TaskCompletedHookInput,
   TaskCreatedHookInput,
-  TeammateIdleHookInput,
+  CrewmateIdleHookInput,
   UserPromptExpansionHookInput,
   UserPromptSubmitHookInput,
   PermissionUpdate,
@@ -358,17 +358,17 @@ export async function* executeStopHooks(
   })
 }
 
-export async function* executeTeammateIdleHooks(
-  teammateName: string,
+export async function* executeCrewmateIdleHooks(
+  crewmateName: string,
   teamName: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
 ): AsyncGenerator<AggregatedHookResult> {
-  const hookInput: TeammateIdleHookInput = {
+  const hookInput: CrewmateIdleHookInput = {
     ...createBaseHookInput(permissionMode),
-    hook_event_name: 'TeammateIdle',
-    teammate_name: teammateName,
+    hook_event_name: 'CrewmateIdle',
+    teammate_name: crewmateName,
     team_name: teamName,
   }
 
@@ -384,7 +384,7 @@ export async function* executeTaskCreatedHooks(
   taskId: string,
   taskSubject: string,
   taskDescription?: string,
-  teammateName?: string,
+  crewmateName?: string,
   teamName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
@@ -397,7 +397,7 @@ export async function* executeTaskCreatedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    teammate_name: teammateName,
+    teammate_name: crewmateName,
     team_name: teamName,
   }
 
@@ -414,7 +414,7 @@ export async function* executeTaskCompletedHooks(
   taskId: string,
   taskSubject: string,
   taskDescription?: string,
-  teammateName?: string,
+  crewmateName?: string,
   teamName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
@@ -427,7 +427,7 @@ export async function* executeTaskCompletedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    teammate_name: teammateName,
+    teammate_name: crewmateName,
     team_name: teamName,
   }
 

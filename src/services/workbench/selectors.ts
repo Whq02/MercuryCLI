@@ -1,8 +1,8 @@
 
 import {
-  deriveTeammatePhase,
-  type TeammatePhaseInputs,
-} from '../../utils/swarm/teamPhases.js'
+  deriveCrewmatePhase,
+  type CrewmatePhaseInputs,
+} from '../../utils/swarm/crewPhases.js'
 import type {
   WorkbenchLaneRow,
   WorkbenchMissionRow,
@@ -32,7 +32,7 @@ export interface RichTaskFact {
   agentId?: string
   agentType?: string
   model?: string
-  teammateName?: string
+  crewmateName?: string
   isIdle?: boolean
   shutdownRequested?: boolean
   awaitingPlanApproval?: boolean
@@ -139,9 +139,9 @@ function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): Work
   return 'job'
 }
 
-function teammatePhaseFrom(rich: RichTaskFact): string {
-  const inputs: TeammatePhaseInputs = {
-    status: (rich.status ?? 'running') as TeammatePhaseInputs['status'],
+function crewmatePhaseFrom(rich: RichTaskFact): string {
+  const inputs: CrewmatePhaseInputs = {
+    status: (rich.status ?? 'running') as CrewmatePhaseInputs['status'],
     isIdle: rich.isIdle === true,
     shutdownRequested: rich.shutdownRequested === true,
     awaitingPlanApproval: rich.awaitingPlanApproval === true,
@@ -150,7 +150,7 @@ function teammatePhaseFrom(rich: RichTaskFact): string {
       lastActionWasLeadHandoff: rich.lastActionWasLeadHandoff,
     }),
   }
-  return deriveTeammatePhase(inputs)
+  return deriveCrewmatePhase(inputs)
 }
 
 export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThreadRow[] {
@@ -163,7 +163,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     const run = inputs.laneRuns.get(exec.id)
     const phase =
       kind === 'teammate' && rich
-        ? teammatePhaseFrom(rich)
+        ? crewmatePhaseFrom(rich)
         : (run?.phase ?? exec.state)
     const refs: string[] = []
     if (exec.outputRef) refs.push(exec.outputRef)

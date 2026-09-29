@@ -9,7 +9,7 @@ const homeRoot = process.env.MERCURY_CONFIG_DIR ?? tmpdir()
 mkdirSync(homeRoot, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(homeRoot, 'loop-guard-chant-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'loop-guard-chant-daemon-'))
-process.env.MERCURY_TEAMS_DIR = mkdtempSync(join(tmpdir(), 'loop-guard-chant-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'loop-guard-chant-teams-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const k of [

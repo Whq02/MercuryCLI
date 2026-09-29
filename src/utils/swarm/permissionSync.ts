@@ -4,22 +4,22 @@ import { join } from 'node:path'
 import { z } from 'zod/v4'
 
 import { logForDebugging } from '../debug.js'
-import { getTeamsDir } from '../envUtils.js'
+import { getCrewsDir } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { lazySchema } from '../lazySchema.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
-import { getAgentId, getAgentName, getTeamName, getTeammateColor } from '../teammate.js'
+import { getAgentId, getAgentName, getCrewName, getCrewmateColor } from '../crewmate.js'
 import {
   createPermissionRequestMessage,
   createPermissionResponseMessage,
   createSandboxPermissionRequestMessage,
   createSandboxPermissionResponseMessage,
   writeToMailbox,
-} from '../teammateMailbox.js'
-import { TEAM_LEAD_NAME } from './constants.js'
-import { readTeamFileAsync, sanitizeName } from './teamHelpers.js'
+} from '../crewmateMailbox.js'
+import { CREW_LEAD_NAME } from './constants.js'
+import { readCrewFileAsync, sanitizeName } from './crewHelpers.js'
 
 
 export const SwarmPermissionRequestSchema = lazySchema(() =>
@@ -65,7 +65,7 @@ export type PermissionResponse = {
 
 
 export function getPermissionDir(teamName: string): string {
-  return join(getTeamsDir(), sanitizeName(teamName), 'permissions')
+  return join(getCrewsDir(), sanitizeName(teamName), 'permissions')
 }
 
 function getPendingDir(teamName: string): string {
@@ -88,8 +88,8 @@ export function generateSandboxRequestId(): string {
   return `sandbox-${Date.now()}-${randomSuffix()}`
 }
 
-function resolveTeam(teamName: string | undefined): string | undefined {
-  return teamName ?? getTeamName()
+function resolveCrew(teamName: string | undefined): string | undefined {
+  return teamName ?? getCrewName()
 }
 
 
@@ -104,7 +104,7 @@ export function createPermissionRequest(params: {
   workerColor?: string
   teamName?: string
 }): SwarmPermissionRequest {
-  const teamName = params.teamName ?? getTeamName()
+  const teamName = params.teamName ?? getCrewName()
   if (!teamName) {
     throw new Error('Cannot create a permission request: no team name could be determined')
   }
@@ -116,7 +116,7 @@ export function createPermissionRequest(params: {
   if (!workerName) {
     throw new Error('Cannot create a permission request: no worker name could be determined')
   }
-  const workerColor = params.workerColor ?? getTeammateColor()
+  const workerColor = params.workerColor ?? getCrewmateColor()
   return {
     id: generateRequestId(),
     workerId,
@@ -170,14 +170,14 @@ export async function writePermissionRequest(
 export const submitPermissionRequest = writePermissionRequest
 
 export async function readPendingPermissions(teamName?: string): Promise<SwarmPermissionRequest[]> {
-  const team = resolveTeam(teamName)
-  if (!team) {
+  const crew = resolveCrew(teamName)
+  if (!crew) {
     logForDebugging('permission sync: no team — pending read answers empty')
     return []
   }
   let entries: string[]
   try {
-    entries = await readdir(getPendingDir(team))
+    entries = await readdir(getPendingDir(crew))
   } catch (error) {
     if (!isENOENT(error)) {
       logForDebugging(`permission sync: pending read failed: ${errorMessage(error)}`)
@@ -188,7 +188,7 @@ export async function readPendingPermissions(teamName?: string): Promise<SwarmPe
   for (const entry of entries) {
     if (!entry.endsWith('.json') || entry === '.lock') continue
     try {
-      const raw = await readFile(join(getPendingDir(team), entry), 'utf-8')
+      const raw = await readFile(join(getPendingDir(crew), entry), 'utf-8')
       const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(raw))
       if (!parsed.success) {
         logForDebugging(`permission sync: dropping invalid pending record ${entry}`)
@@ -206,10 +206,10 @@ export async function readResolvedPermission(
   requestId: string,
   teamName?: string,
 ): Promise<SwarmPermissionRequest | null> {
-  const team = resolveTeam(teamName)
-  if (!team) return null
+  const crew = resolveCrew(teamName)
+  if (!crew) return null
   try {
-    const raw = await readFile(join(getResolvedDir(team), `${requestId}.json`), 'utf-8')
+    const raw = await readFile(join(getResolvedDir(crew), `${requestId}.json`), 'utf-8')
     const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(raw))
     if (!parsed.success) {
       logForDebugging(`permission sync: resolved record ${requestId} is invalid`)
@@ -229,12 +229,12 @@ export async function resolvePermission(
   resolution: PermissionResolution,
   teamName?: string,
 ): Promise<boolean> {
-  const team = resolveTeam(teamName)
-  if (!team) return false
+  const crew = resolveCrew(teamName)
+  if (!crew) return false
   try {
-    await ensurePermissionDirs(team)
-    return await withPendingLock(team, async () => {
-      const pendingPath = join(getPendingDir(team), `${requestId}.json`)
+    await ensurePermissionDirs(crew)
+    return await withPendingLock(crew, async () => {
+      const pendingPath = join(getPendingDir(crew), `${requestId}.json`)
       let pending: SwarmPermissionRequest
       try {
         const parsed = SwarmPermissionRequestSchema().safeParse(
@@ -256,7 +256,7 @@ export async function resolvePermission(
           ? { permissionUpdates: resolution.permissionUpdates }
           : {}),
       }
-      await writeFile(join(getResolvedDir(team), `${requestId}.json`), jsonStringify(resolved, null, 2))
+      await writeFile(join(getResolvedDir(crew), `${requestId}.json`), jsonStringify(resolved, null, 2))
       await unlink(pendingPath)
       return true
     })
@@ -267,10 +267,10 @@ export async function resolvePermission(
 }
 
 export async function deleteResolvedPermission(requestId: string, teamName?: string): Promise<boolean> {
-  const team = resolveTeam(teamName)
-  if (!team) return false
+  const crew = resolveCrew(teamName)
+  if (!crew) return false
   try {
-    await unlink(join(getResolvedDir(team), `${requestId}.json`))
+    await unlink(join(getResolvedDir(crew), `${requestId}.json`))
     return true
   } catch (error) {
     if (isENOENT(error)) return false
@@ -280,11 +280,11 @@ export async function deleteResolvedPermission(requestId: string, teamName?: str
 }
 
 export async function cleanupOldResolutions(teamName?: string, maxAgeMs = 3_600_000): Promise<number> {
-  const team = resolveTeam(teamName)
-  if (!team) return 0
+  const crew = resolveCrew(teamName)
+  if (!crew) return 0
   let entries: string[]
   try {
-    entries = await readdir(getResolvedDir(team))
+    entries = await readdir(getResolvedDir(crew))
   } catch {
     return 0
   }
@@ -292,7 +292,7 @@ export async function cleanupOldResolutions(teamName?: string, maxAgeMs = 3_600_
   let deleted = 0
   for (const entry of entries) {
     if (!entry.endsWith('.json')) continue
-    const path = join(getResolvedDir(team), entry)
+    const path = join(getResolvedDir(crew), entry)
     let shouldDelete = false
     try {
       const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(await readFile(path, 'utf-8')))
@@ -343,28 +343,28 @@ export async function removeWorkerResponse(
 }
 
 
-export function isTeamLeader(teamName?: string): boolean {
-  const team = resolveTeam(teamName)
-  if (!team) return false
+export function isCrewLeader(teamName?: string): boolean {
+  const crew = resolveCrew(teamName)
+  if (!crew) return false
   const agentId = getAgentId()
-  return agentId === undefined || agentId === TEAM_LEAD_NAME
+  return agentId === undefined || agentId === CREW_LEAD_NAME
 }
 
 export function isSwarmWorker(): boolean {
-  const team = getTeamName()
+  const crew = getCrewName()
   const agentId = getAgentId()
-  return Boolean(team) && agentId !== undefined && !isTeamLeader()
+  return Boolean(crew) && agentId !== undefined && !isCrewLeader()
 }
 
 export async function getLeaderName(teamName?: string): Promise<string | null> {
-  const team = resolveTeam(teamName)
-  if (!team) return null
-  const roster = await readTeamFileAsync(team)
+  const crew = resolveCrew(teamName)
+  if (!crew) return null
+  const roster = await readCrewFileAsync(crew)
   if (roster === null) {
-    logForDebugging(`permission sync: no roster for ${team} — cannot resolve the leader`)
+    logForDebugging(`permission sync: no roster for ${crew} — cannot resolve the leader`)
     return null
   }
-  return roster.members.find(member => member.agentId === roster.leadAgentId)?.name ?? TEAM_LEAD_NAME
+  return roster.members.find(member => member.agentId === roster.leadAgentId)?.name ?? CREW_LEAD_NAME
 }
 
 
@@ -409,8 +409,8 @@ export async function sendPermissionResponseViaMailbox(
   teamName?: string,
 ): Promise<boolean> {
   try {
-    const team = resolveTeam(teamName)
-    if (!team) {
+    const crew = resolveCrew(teamName)
+    if (!crew) {
       logForDebugging('permission sync: no team — permission response not sent')
       return false
     }
@@ -426,11 +426,11 @@ export async function sendPermissionResponseViaMailbox(
     return await writeToMailbox(
       workerName,
       {
-        from: getAgentName() ?? TEAM_LEAD_NAME,
+        from: getAgentName() ?? CREW_LEAD_NAME,
         text: JSON.stringify(message),
         timestamp: new Date().toISOString(),
       },
-      team,
+      crew,
     )
   } catch (error) {
     logError(error)
@@ -444,14 +444,14 @@ export async function sendSandboxPermissionRequestViaMailbox(
   teamName?: string,
 ): Promise<boolean> {
   try {
-    const team = resolveTeam(teamName)
-    if (!team) {
+    const crew = resolveCrew(teamName)
+    if (!crew) {
       logForDebugging('permission sync: no team — sandbox request not sent')
       return false
     }
-    const leaderName = await getLeaderName(team)
+    const leaderName = await getLeaderName(crew)
     if (leaderName === null) {
-      logForDebugging(`permission sync: no leader for ${team} — sandbox request not sent`)
+      logForDebugging(`permission sync: no leader for ${crew} — sandbox request not sent`)
       return false
     }
     const workerId = getAgentId()
@@ -464,7 +464,7 @@ export async function sendSandboxPermissionRequestViaMailbox(
       logForDebugging('permission sync: no worker name — sandbox request not sent')
       return false
     }
-    const workerColor = getTeammateColor()
+    const workerColor = getCrewmateColor()
     const message = createSandboxPermissionRequestMessage({
       requestId,
       workerId,
@@ -480,7 +480,7 @@ export async function sendSandboxPermissionRequestViaMailbox(
         timestamp: new Date().toISOString(),
         ...(workerColor !== undefined ? { color: workerColor } : {}),
       },
-      team,
+      crew,
     )
   } catch (error) {
     logError(error)
@@ -496,8 +496,8 @@ export async function sendSandboxPermissionResponseViaMailbox(
   teamName?: string,
 ): Promise<boolean> {
   try {
-    const team = resolveTeam(teamName)
-    if (!team) {
+    const crew = resolveCrew(teamName)
+    if (!crew) {
       logForDebugging('permission sync: no team — sandbox response not sent')
       return false
     }
@@ -505,11 +505,11 @@ export async function sendSandboxPermissionResponseViaMailbox(
     return await writeToMailbox(
       workerName,
       {
-        from: getAgentName() ?? TEAM_LEAD_NAME,
+        from: getAgentName() ?? CREW_LEAD_NAME,
         text: JSON.stringify(message),
         timestamp: new Date().toISOString(),
       },
-      team,
+      crew,
     )
   } catch (error) {
     logError(error)

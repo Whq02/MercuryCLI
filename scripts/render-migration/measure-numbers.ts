@@ -112,7 +112,7 @@ function captureLeg(leg: 'off' | 'on'): LegResult {
     '--env', `ANTHROPIC_API_KEY=${FIXTURE_KEY}`,
     '--env', `MERCURY_CONFIG_DIR=${home}`,
     '--env', `MERCURY_DAEMON_DIR=${join(OUT, `daemon-${leg}`)}`,
-    '--env', `MERCURY_TEAMS_DIR=${join(OUT, `teams-${leg}`)}`,
+    '--env', `MERCURY_CREWS_DIR=${join(OUT, `teams-${leg}`)}`,
     '--env', `MERCURY_HOME=${join(OUT, `mhome-${leg}`)}`,
     '--env', 'MERCURY_LIVE_GLYPHS=0',
     '--env', 'MERCURY_CRITTER_GAZE=0',

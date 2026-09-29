@@ -92,7 +92,7 @@ export {
   clearSessionMetadata,
   doesMessageExistInSession,
   extractAgentIdsFromMessages,
-  extractTeammateTranscriptsFromTasks,
+  extractCrewmateTranscriptsFromTasks,
   fetchLogs,
   findUnresolvedToolUse,
   getAgentTranscript,

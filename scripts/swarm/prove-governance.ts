@@ -20,7 +20,7 @@ const {
   listOpenQuestions,
   DEFAULT_ROLE_LADDER,
 } = await import('../../src/utils/swarm/sendMessageGovernance.js')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -126,50 +126,50 @@ section('command-rank ladder — rankOf / outranks / canDirect / resolveDirectAc
   const flatDeny = canDirect({ name: 'a', isLead: false }, { name: 'b', isLead: false })
   check('flat: non-lead denied with escalate-to-lead reason', flatDeny.allowed === false && /only the lead/.test(flatDeny.reason))
 
-  const teamFile = {
+  const crewFile = {
     members: [
       { name: 'Alice', agentId: 'id-alice', role: 'specialist' },
       { name: 'bob', agentId: 'id-bob' },
     ],
   } as never
-  const alice = resolveDirectActor(teamFile, 'alice', undefined)
+  const alice = resolveDirectActor(crewFile, 'alice', undefined)
   check('member lookup is case-insensitive (role found)', alice.role === 'specialist')
   check('non-lead member resolves isLead=false', alice.isLead === false)
-  const leadById = resolveDirectActor(teamFile, 'bob', 'id-bob')
+  const leadById = resolveDirectActor(crewFile, 'bob', 'id-bob')
   check('leadAgentId match ⇒ isLead', leadById.isLead === true)
-  const leadByName = resolveDirectActor(null, TEAM_LEAD_NAME.toUpperCase(), undefined)
-  check('TEAM_LEAD_NAME resolves isLead case-insensitively (no team file)', leadByName.isLead === true)
+  const leadByName = resolveDirectActor(null, CREW_LEAD_NAME.toUpperCase(), undefined)
+  check('CREW_LEAD_NAME resolves isLead case-insensitively (no team file)', leadByName.isLead === true)
   const flat = resolveDirectActor(null, 'nobody', undefined)
   check('missing team file ⇒ flat role-less actor', flat.isLead === false && flat.role === undefined)
 }
 
 section('Q&A ledger IO (hermetic) — open → answer lifecycle')
 {
-  const TEAM = 'proof-team'
+  const CREW = 'proof-team'
 
-  await openQuestion({ request_id: 'q1', from: 'lead', to: 'Bob', text: 'first?' }, TEAM)
-  let open = await listOpenQuestions('bob', TEAM)
+  await openQuestion({ request_id: 'q1', from: 'lead', to: 'Bob', text: 'first?' }, CREW)
+  let open = await listOpenQuestions('bob', CREW)
   check('directed question lists for its addressee case-insensitively', open.length === 1 && open[0]?.text === 'first?')
 
-  await openQuestion({ request_id: 'q1', from: 'lead', to: 'Bob', text: 'refreshed?' }, TEAM)
-  open = await listOpenQuestions('bob', TEAM)
+  await openQuestion({ request_id: 'q1', from: 'lead', to: 'Bob', text: 'refreshed?' }, CREW)
+  open = await listOpenQuestions('bob', CREW)
   check('re-sent request_id refreshes (no duplicate)', open.length === 1 && open[0]?.text === 'refreshed?')
 
-  check('non-addressee answer does not close', (await answerQuestion({ request_id: 'q1', answeredBy: 'alice' }, TEAM)) === false)
-  check('question still open after spoof-answer', (await listOpenQuestions('bob', TEAM)).length === 1)
+  check('non-addressee answer does not close', (await answerQuestion({ request_id: 'q1', answeredBy: 'alice' }, CREW)) === false)
+  check('question still open after spoof-answer', (await listOpenQuestions('bob', CREW)).length === 1)
 
-  check('addressee answer closes (case-insensitive)', (await answerQuestion({ request_id: 'q1', answeredBy: 'BOB' }, TEAM)) === true)
-  check('closed question leaves the open list', (await listOpenQuestions('bob', TEAM)).length === 0)
-  check('answered question never re-closes', (await answerQuestion({ request_id: 'q1', answeredBy: 'bob' }, TEAM)) === false)
-  check('unknown request_id is a no-op', (await answerQuestion({ request_id: 'zz', answeredBy: 'bob' }, TEAM)) === false)
+  check('addressee answer closes (case-insensitive)', (await answerQuestion({ request_id: 'q1', answeredBy: 'BOB' }, CREW)) === true)
+  check('closed question leaves the open list', (await listOpenQuestions('bob', CREW)).length === 0)
+  check('answered question never re-closes', (await answerQuestion({ request_id: 'q1', answeredBy: 'bob' }, CREW)) === false)
+  check('unknown request_id is a no-op', (await answerQuestion({ request_id: 'zz', answeredBy: 'bob' }, CREW)) === false)
 
-  const junkTeam = 'junk-team'
-  const junkDir = join(TMP, 'teams', junkTeam)
+  const junkCrew = 'junk-team'
+  const junkDir = join(TMP, 'teams', junkCrew)
   mkdirSync(junkDir, { recursive: true })
   writeFileSync(join(junkDir, 'questions.json'), '{{{not json', 'utf-8')
-  check('junk ledger lists as empty (fail-open)', (await listOpenQuestions('bob', junkTeam)).length === 0)
-  await openQuestion({ request_id: 'q2', from: 'lead', to: 'bob', text: 'post-junk?' }, junkTeam)
-  check('junk ledger recovers on next write', (await listOpenQuestions('bob', junkTeam)).length === 1)
+  check('junk ledger lists as empty (fail-open)', (await listOpenQuestions('bob', junkCrew)).length === 0)
+  await openQuestion({ request_id: 'q2', from: 'lead', to: 'bob', text: 'post-junk?' }, junkCrew)
+  check('junk ledger recovers on next write', (await listOpenQuestions('bob', junkCrew)).length === 1)
 }
 
 console.log('\n' + '='.repeat(60))

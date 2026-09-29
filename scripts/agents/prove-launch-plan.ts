@@ -16,9 +16,9 @@ function section(t: string): void {
 const ROOT = join(import.meta.dir, '..', '..')
 const src = (...p: string[]) => readFileSync(join(ROOT, 'src', ...p), 'utf-8')
 
-const { buildAgentLaunchPlan, deriveRunnerAgentDefinition, TEAM_ESSENTIAL_TOOLS } =
+const { buildAgentLaunchPlan, deriveRunnerAgentDefinition, CREW_ESSENTIAL_TOOLS } =
   await import('../../src/utils/swarm/agentLaunchPlan.ts')
-const { resolveTeammateRole } = await import('../../src/utils/swarm/roleResolver.ts')
+const { resolveCrewmateRole } = await import('../../src/utils/swarm/roleResolver.ts')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
@@ -84,13 +84,13 @@ section('§1 — canonical decode: ONE truth with the teammate resolver')
 {
   const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
-  const teammate = resolveTeammateRole({
-    teammateName: 'x',
+  const crewmate = resolveCrewmateRole({
+    crewmateName: 'x',
     requestedAgentType: 'mercury-scout',
     agents: getBuiltInAgents() as never,
     prompt: 'p',
   })
-  check('the subagent plan and the teammate resolver agree on the decode', plan.agentType === teammate.agentType)
+  check('the subagent plan and the teammate resolver agree on the decode', plan.agentType === crewmate.agentType)
   check('explicit canonical type resolves to its definition', buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' })).definition === (SCOUT as never))
 }
 
@@ -176,8 +176,8 @@ section('§4 — isolation · the async decision law · worker permission mode')
 
 section("§5 — the runner's definition product")
 {
-  const role = resolveTeammateRole({
-    teammateName: 'scout-7',
+  const role = resolveCrewmateRole({
+    crewmateName: 'scout-7',
     requestedAgentType: 'mercury-scout',
     agents: getBuiltInAgents() as never,
     prompt: 'p',
@@ -197,7 +197,7 @@ section("§5 — the runner's definition product")
     displayName: 'listed',
     systemPrompt: 's',
   })
-  check('team-essential tools ride explicit role tool lists', TEAM_ESSENTIAL_TOOLS.every(t => explicitDef.tools?.includes(t)))
+  check('team-essential tools ride explicit role tool lists', CREW_ESSENTIAL_TOOLS.every(t => explicitDef.tools?.includes(t)))
   check('the role tool contract survives beside them', ['Read', 'Grep'].every(t => explicitDef.tools?.includes(t)))
   check("the base permission mode is 'default' (full tool access; live task mode overlays per turn)", def.permissionMode === 'default')
   check("the role's model pin propagates", typeof def.model === 'string' && def.model !== 'haiku')

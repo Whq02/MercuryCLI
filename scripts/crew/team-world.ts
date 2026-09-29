@@ -25,7 +25,7 @@ export type World = {
   dir: string
   config: string
   project: string
-  teams: string
+  crews: string
   fixture: FixtureApi
   env: NodeJS.ProcessEnv
 }
@@ -35,7 +35,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
   const dir = mkdtempSync(join(tmpdir(), `${label}-`))
   const config = join(dir, 'config')
   const project = join(dir, 'project')
-  const teams = join(dir, 'teams')
+  const crews = join(dir, 'teams')
   mkdirSync(project)
   writeFileSync(join(project, 'README.md'), '# fixture\n')
   seedFirstRun(config, [project])
@@ -45,7 +45,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
     PATH: '/usr/bin:/bin:' + dirname(NODE),
     TERM: 'dumb',
     MERCURY_CONFIG_DIR: config,
-    MERCURY_TEAMS_DIR: teams,
+    MERCURY_CREWS_DIR: crews,
     MERCURY_DAEMON_DIR: join(dir, 'daemon'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -54,7 +54,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     ANTHROPIC_BASE_URL: fixture.url,
   }
-  return { dir, config, project, teams, fixture, env }
+  return { dir, config, project, crews, fixture, env }
 }
 
 export type Frame = Record<string, unknown>

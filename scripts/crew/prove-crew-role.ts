@@ -69,7 +69,7 @@ check(
 )
 const replyFn = smt.match(/function workerReplyTarget\(addressed: string\): string \{[\s\S]*?\n\}/)?.[0] ?? ''
 check('workerReplyTarget exists (reply routing seam)', replyFn.length > 0)
-check('crew branch routes to TEAM_LEAD_NAME (the operator inbox)', /if \(isCrewRole\(\)\) return TEAM_LEAD_NAME/.test(replyFn))
+check('crew branch routes to CREW_LEAD_NAME (the operator inbox)', /if \(isCrewRole\(\)\) return CREW_LEAD_NAME/.test(replyFn))
 check('the reply seam carries no retired seat markers', !replyFn.includes('MERCURY_DPS1'))
 
 console.log('\n' + '═'.repeat(76))

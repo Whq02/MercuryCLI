@@ -122,14 +122,14 @@ export function MercuryResume({
       <SectionHeader count={all.length}>Resume</SectionHeader>
       {shown.map((s, i) => {
         const here = i === sel
-        const teammate = s.isTeammate || s.isSidechain
+        const crewmate = s.isTeammate || s.isSidechain
         return (
           <Text key={`${s.value}-${s.sessionId ?? i}`}>
             <Text color={here ? accent : FAINT}>{here ? `${GLYPH.prompt} ` : '  '}</Text>
             <Text color={FAINT}>{padTo(truncateToWidth(s.date, DATE_WIDTH), DATE_WIDTH)}</Text>
             <Text color={here ? IVORY : SECOND}>{padTo(truncateToWidth(sessionTitle(s), TITLE_WIDTH), TITLE_WIDTH)}</Text>
             <Text color={FAINT}>{padTo(s.messageCount !== undefined ? `${s.messageCount} msgs` : formatFileSize(s.fileSize ?? 0), 9)}</Text>
-            {teammate ? <Text color={TEAL}> {GLYPH.handoff} crewmate</Text> : null}
+            {crewmate ? <Text color={TEAL}> {GLYPH.handoff} crewmate</Text> : null}
           </Text>
         )
       })}

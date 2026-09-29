@@ -18,10 +18,10 @@ import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
 import { listLiveCommsTasks, subscribeLiveCommsTasks, type LiveCommsTaskV1 } from '../services/crew/liveTasks.js'
-import { getTeamName } from './teammate.js'
-import { getTeammateContext, isInProcessTeammate } from './teammateContext.js'
-import { TEAM_LEAD_NAME } from './swarm/constants.js'
-import { readTeamFileAsync } from './swarm/teamHelpers.js'
+import { getCrewName } from './crewmate.js'
+import { getCrewmateContext, isInProcessCrewmate } from './crewmateContext.js'
+import { CREW_LEAD_NAME } from './swarm/constants.js'
+import { readCrewFileAsync } from './swarm/crewHelpers.js'
 
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
@@ -51,16 +51,16 @@ export function isTaskToolsEnabled(): boolean {
   return isEnvTruthy(process.env.MERCURY_TASKS) || !getIsNonInteractiveSession()
 }
 
-let leaderTeamName: string | undefined
+let leaderCrewName: string | undefined
 
 export function getTaskListId(): string {
   const override = process.env.MERCURY_TASK_LIST_ID
   if (override) return override
-  if (isInProcessTeammate()) {
-    const teamName = getTeammateContext()?.teamName
+  if (isInProcessCrewmate()) {
+    const teamName = getCrewmateContext()?.teamName
     if (teamName) return teamName
   }
-  return getTeamName() || leaderTeamName || getSessionId()
+  return getCrewName() || leaderCrewName || getSessionId()
 }
 
 const liveLedgerWatched = new Set<string>()
@@ -135,15 +135,15 @@ export async function listSessionMission(): Promise<Task[]> {
   return rows
 }
 
-export function setLeaderTeamName(teamName: string): void {
-  if (leaderTeamName === teamName) return
-  leaderTeamName = teamName
+export function setLeaderCrewName(teamName: string): void {
+  if (leaderCrewName === teamName) return
+  leaderCrewName = teamName
   notifyTasksUpdated()
 }
 
-export function clearLeaderTeamName(): void {
-  if (leaderTeamName === undefined) return
-  leaderTeamName = undefined
+export function clearLeaderCrewName(): void {
+  if (leaderCrewName === undefined) return
+  leaderCrewName = undefined
   notifyTasksUpdated()
 }
 
@@ -151,7 +151,7 @@ export function sanitizePathComponent(input: string): string {
   return input.replace(/[^A-Za-z0-9_-]/g, '-')
 }
 
-function sanitizeTeamNameForListId(teamName: string): string {
+function sanitizeCrewNameForListId(teamName: string): string {
   return teamName.replace(/[^A-Za-z0-9]/g, '-').toLowerCase()
 }
 
@@ -547,7 +547,7 @@ export async function claimTask(
 }
 
 
-export type TeamMember = { agentId: string; name: string; agentType?: string }
+export type CrewMember = { agentId: string; name: string; agentType?: string }
 
 export type AgentStatus = {
   agentId: string
@@ -558,19 +558,19 @@ export type AgentStatus = {
 }
 
 export async function getAgentStatuses(teamName: string): Promise<AgentStatus[] | null> {
-  const teamFile = await readTeamFileAsync(teamName)
-  if (!teamFile) return null
-  const members: TeamMember[] = (teamFile.members ?? []).map(member => ({
+  const crewFile = await readCrewFileAsync(teamName)
+  if (!crewFile) return null
+  const members: CrewMember[] = (crewFile.members ?? []).map(member => ({
     agentId: String(member.agentId),
     name: String(member.name),
     agentType: member.agentType,
   }))
   const working = new Set(
-    (teamFile.members ?? [])
-      .filter(member => member.agentId !== teamFile.leadAgentId && member.name !== TEAM_LEAD_NAME && member.isActive !== false)
+    (crewFile.members ?? [])
+      .filter(member => member.agentId !== crewFile.leadAgentId && member.name !== CREW_LEAD_NAME && member.isActive !== false)
       .map(member => String(member.agentId)),
   )
-  const tasks = await listTasks(sanitizeTeamNameForListId(teamName))
+  const tasks = await listTasks(sanitizeCrewNameForListId(teamName))
   const open = tasks.filter(task => task.status !== 'completed' && task.owner)
   return members.map(member => {
     const ownedIds = uniq(
@@ -589,15 +589,15 @@ export type UnassignTasksResult = {
   notificationMessage: string
 }
 
-export async function unassignTeammateTasks(
+export async function unassignCrewmateTasks(
   teamName: string,
-  teammateId: string,
-  teammateName: string,
+  crewmateId: string,
+  crewmateName: string,
   reason: 'terminated' | 'shutdown',
 ): Promise<UnassignTasksResult> {
   const tasks = await listTasks(teamName)
   const owned = tasks.filter(
-    task => task.status !== 'completed' && (task.owner === teammateId || task.owner === teammateName),
+    task => task.status !== 'completed' && (task.owner === crewmateId || task.owner === crewmateName),
   )
   const unassignedTasks: Array<{ id: string; subject: string }> = []
   for (const task of owned) {
@@ -605,10 +605,10 @@ export async function unassignTeammateTasks(
     unassignedTasks.push({ id: task.id, subject: task.subject })
   }
   if (unassignedTasks.length > 0) {
-    logForDebugging(`unassigned ${unassignedTasks.length} task(s) from ${teammateName} (${reason})`)
+    logForDebugging(`unassigned ${unassignedTasks.length} task(s) from ${crewmateName} (${reason})`)
   }
   const departed =
-    reason === 'terminated' ? `${teammateName} was terminated.` : `${teammateName} has shut down.`
+    reason === 'terminated' ? `${crewmateName} was terminated.` : `${crewmateName} has shut down.`
   const notificationMessage =
     unassignedTasks.length === 0
       ? departed

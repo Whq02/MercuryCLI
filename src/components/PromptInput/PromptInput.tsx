@@ -54,10 +54,10 @@ import { cancelVoiceCapture, subscribeVoice, voiceSnapshot } from '../../service
 import { useAppState, useAppStateStore, useSetAppState, type AppState } from '../../state/AppState.js'
 import {
   clearMainChat,
-  enterTeammateView,
-  exitTeammateView,
+  enterCrewmateView,
+  exitCrewmateView,
   setMainChat,
-} from '../../state/teammateViewHelpers.js'
+} from '../../state/crewmateViewHelpers.js'
 import { composerTargetTaskId } from '../../state/selectors.js'
 import { useComposerCrewmate, useViewedCrewmate } from '../tasks/useCrewmateView.js'
 import { CREWMATE_BETWEEN_TURNS_DETAIL, crewClearedWords, crewClearRefusedWords, crewmateEscBackWords, crewmateInterruptedWords, crewmateInterruptRefusedWords, crewmateQueuedWords, crewmateRefusedWords, crewmateResumedWords, operatorLinePlate } from '../../utils/cockpit/crewmateWords.js'
@@ -139,11 +139,11 @@ import { MercuryContentSearch } from '../MercuryContentSearch.js'
 import { MercurySupercodeKeywordHint } from '../MercurySupercodeKeywordHint.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
-import { isInProcessTeammateTask } from '../../tasks/InProcessTeammateTask/types.js'
-import { injectUserMessageToTeammate } from '../../tasks/InProcessTeammateTask/InProcessTeammateTask.js'
+import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
+import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/InProcessCrewmateTask.js'
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
-import { getViewedTeammateTask } from '../../state/selectors.js'
-import { writeToMailbox } from '../../utils/teammateMailbox.js'
+import { getViewedCrewmateTask } from '../../state/selectors.js'
+import { writeToMailbox } from '../../utils/crewmateMailbox.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
@@ -167,7 +167,7 @@ import {
   cyclePermissionMode,
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
-import { syncTeammateMode } from '../../utils/swarm/teamHelpers.js'
+import { syncCrewmateMode } from '../../utils/swarm/crewHelpers.js'
 import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
@@ -408,7 +408,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const footerSelection = useAppState((s: AppState) => s.footerSelection)
   const viewSelectionMode = useAppState((s: AppState) => s.viewSelectionMode)
   const viewingAgentTaskId = useAppState((s: AppState) => s.viewingAgentTaskId)
-  const teamContext = useAppState((s: AppState) => s.teamContext)
+  const crewContext = useAppState((s: AppState) => s.crewContext)
   const promptSuggestionEnabled = useAppState(
     (s: AppState) => s.promptSuggestionEnabled,
   )
@@ -466,7 +466,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     footerSelection,
     viewSelectionMode,
     viewingAgentTaskId,
-    teamContext,
+    crewContext,
     promptSuggestionEnabled,
     speculationActive,
     cockpitActive,
@@ -950,7 +950,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
   })
 
-  const viewedTeammate = getViewedTeammateTask(
+  const viewedCrewmateTask = getViewedCrewmateTask(
     appStateStore.getState(),
   )
   const composerCrewmate = useComposerCrewmate()
@@ -961,13 +961,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   viewedCrewmateRef.current = viewedCrewmate
   const viewedAgentName =
     composerCrewmate?.name ??
-    viewedTeammate?.identity?.agentName ??
+    viewedCrewmateTask?.identity?.agentName ??
     (viewedTask !== undefined && isLocalAgentTask(viewedTask)
       ? viewedTask.description !== ''
         ? viewedTask.description
         : viewedTask.agentType
       : undefined)
-  const viewedAgentColor = viewedTeammate?.identity?.color
+  const viewedAgentColor = viewedCrewmateTask?.identity?.color
 
   useEffect(() => {
     setPromptEmpty(input.trim() === '')
@@ -1472,13 +1472,13 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         })
       }
 
-      if (isAgentSwarmsEnabled() && teamContext !== undefined && submitted.startsWith('@')) {
+      if (isAgentSwarmsEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
         const parsed = parseDirectMemberMessage(submitted)
         if (parsed !== null) {
           const result = await sendDirectMemberMessage(
             parsed.recipientName,
             parsed.message,
-            teamContext,
+            crewContext,
             writeToMailbox,
           )
           if (result.success) {
@@ -1570,8 +1570,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             return true
           }
           const task = fresh.tasks[targetId]
-          if (task !== undefined && isInProcessTeammateTask(task)) {
-            injectUserMessageToTeammate(task.id, text, setAppState)
+          if (task !== undefined && isInProcessCrewmateTask(task)) {
+            injectUserMessageToCrewmate(task.id, text, setAppState)
             return true
           }
           if (task !== undefined && isLocalAgentTask(task)) {
@@ -1628,7 +1628,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         fromKeybinding: options.fromKeybinding === true,
       })
     },
-    [appStateStore, suggestionApi, teamContext, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification],
+    [appStateStore, suggestionApi, crewContext, commands, helpers, buffer, history, onSubmit, onAgentSubmit, setAppState, setCursorOffset, addNotification, removeNotification],
   )
 
   const helmVersion = useSyncExternalStore(
@@ -1652,11 +1652,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (activation !== null) {
       switch (activation.type) {
         case 'teammate':
-          enterTeammateView(activation.id, setAppState)
+          enterCrewmateView(activation.id, setAppState)
           setHelmFocus('prompt')
           break
         case 'main':
-          exitTeammateView(setAppState)
+          exitCrewmateView(setAppState)
           setHelmFocus('prompt')
           break
         case 'command':
@@ -1758,12 +1758,12 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       isAgentSwarmsEnabled() &&
       fresh.viewingAgentTaskId !== undefined &&
       fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
-      isInProcessTeammateTask(fresh.tasks[fresh.viewingAgentTaskId])
+      isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
     ) {
       const taskId = fresh.viewingAgentTaskId
       setAppState(prev => {
         const task = prev.tasks[taskId]
-        if (task === undefined || !isInProcessTeammateTask(task)) return prev
+        if (task === undefined || !isInProcessCrewmateTask(task)) return prev
         const next = getNextPermissionMode({
           ...getEmptyToolPermissionContext(),
           mode: task.permissionMode ?? 'default',
@@ -1782,15 +1782,15 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     }
     const { nextMode, context: nextContext } = cyclePermissionMode(
       toolPermissionContext,
-      teamContext,
+      crewContext,
     )
     if (nextMode === 'strategy') {
       saveGlobalConfig(config => ({ ...config, lastStrategyModeUse: Date.now() }))
     }
     setToolPermissionContext({ ...nextContext, mode: nextMode })
-    syncTeammateMode(nextMode, teamContext?.teamName)
+    syncCrewmateMode(nextMode, crewContext?.teamName)
     setHelpOpen(false)
-  }, [appStateStore, toolPermissionContext, teamContext, setToolPermissionContext, setAppState, setHelpOpen])
+  }, [appStateStore, toolPermissionContext, crewContext, setToolPermissionContext, setAppState, setHelpOpen])
 
   useKeybindings(
     {
@@ -1885,11 +1885,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     { context: 'Global', isActive: !isLoading && speculationActive },
   )
 
-  const [teammateFooterIndex, setTeammateFooterIndex] = useState(0)
-  const runningTeammateCount = useAppState(
+  const [crewmateFooterIndex, setCrewmateFooterIndex] = useState(0)
+  const runningCrewmateCount = useAppState(
     (s: AppState) =>
       Object.values(s.tasks).filter(
-        task => isInProcessTeammateTask(task) && task.status === 'running',
+        task => isInProcessCrewmateTask(task) && task.status === 'running',
       ).length,
   )
   useKeybindings(
@@ -1898,20 +1898,20 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setAppState(prev => ({ ...prev, footerSelection: null }))
       },
       'footer:down': () => {
-        if (footerSelection === 'tasks' && runningTeammateCount === 0) {
+        if (footerSelection === 'tasks' && runningCrewmateCount === 0) {
           setOverlay('tasks-dialog')
           setAppState(prev => ({ ...prev, footerSelection: null }))
         }
       },
       'footer:next': () => {
-        if (runningTeammateCount > 0 && footerSelection === 'tasks') {
-          setTeammateFooterIndex(prev => (prev + 1) % (1 + runningTeammateCount))
+        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
+          setCrewmateFooterIndex(prev => (prev + 1) % (1 + runningCrewmateCount))
         }
       },
       'footer:previous': () => {
-        if (runningTeammateCount > 0 && footerSelection === 'tasks') {
-          setTeammateFooterIndex(
-            prev => (prev + runningTeammateCount) % (1 + runningTeammateCount),
+        if (runningCrewmateCount > 0 && footerSelection === 'tasks') {
+          setCrewmateFooterIndex(
+            prev => (prev + runningCrewmateCount) % (1 + runningCrewmateCount),
           )
         }
       },
@@ -1919,22 +1919,22 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         const fresh = appStateStore.getState() as AppState
         if (fresh.viewSelectionMode === 'selecting-agent') return
         if (footerSelection === 'tasks') {
-          if (runningTeammateCount > 0) {
-            if (teammateFooterIndex === 0) exitTeammateView(setAppState)
+          if (runningCrewmateCount > 0) {
+            if (crewmateFooterIndex === 0) exitCrewmateView(setAppState)
             else {
               const sorted = Object.values(fresh.tasks)
-                .filter(isInProcessTeammateTask)
+                .filter(isInProcessCrewmateTask)
                 .filter(task => task.status === 'running')
                 .sort((a, b) =>
                   (a.identity.agentName ?? '').localeCompare(b.identity.agentName ?? ''),
                 )
-              const target = sorted[teammateFooterIndex - 1]
-              if (target !== undefined) enterTeammateView(target.id, setAppState)
+              const target = sorted[crewmateFooterIndex - 1]
+              if (target !== undefined) enterCrewmateView(target.id, setAppState)
             }
             return
           }
           setOverlay('tasks-dialog')
-          setTeammateFooterIndex(0)
+          setCrewmateFooterIndex(0)
           setAppState(prev => ({ ...prev, footerSelection: null }))
         }
       },
@@ -2079,7 +2079,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             if (row.kind === 'main') clearMainChat(setAppState)
             else {
               setMainChat(row.id, setAppState)
-              enterTeammateView(row.id, setAppState)
+              enterCrewmateView(row.id, setAppState)
             }
             setHelmFocus('prompt')
             return
@@ -2134,7 +2134,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             onRefused: detail => say(crewmateInterruptRefusedWords(name, detail)),
           })
           if (road === 'idle') {
-            exitTeammateView(setAppState)
+            exitCrewmateView(setAppState)
             say(crewmateEscBackWords(name, crewmate?.facts != null ? crewStateLabel(crewmate.facts) : 'between turns'))
             return
           }
@@ -2288,11 +2288,11 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
       }
     }
-    if (isAgentSwarmsEnabled() && teamContext !== undefined) {
+    if (isAgentSwarmsEnabled() && crewContext !== undefined) {
       const memberPattern = /(^|\s)@([\w-]+)/g
       for (const match of displayedValue.matchAll(memberPattern)) {
         const name = match[2] as string
-        const member = Object.values(teamContext.teammates).find(entry => entry.name === name)
+        const member = Object.values(crewContext.crewmates).find(entry => entry.name === name)
         const mapped = member?.color !== undefined
           ? (AGENT_COLOR_TO_THEME_COLOR as Record<string, keyof Theme>)[member.color]
           : undefined
@@ -2303,7 +2303,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
     }
     return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, teamContext, tokens.accent, tokens.accentSoft])
+  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext, tokens.accent, tokens.accentSoft])
 
   const deepthinkPresent =
     isDeepthinkEnabled() && findThinkingTriggerPositions(input).length > 0
@@ -3015,7 +3015,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         messages={messages}
         ideSelection={ideSelection}
         mcpClients={mcpClients}
-        teammateFooterIndex={teammateFooterIndex}
+        crewmateFooterIndex={crewmateFooterIndex}
         onOpenTasksDialog={() => setOverlay('tasks-dialog')}
       />
     </Box>

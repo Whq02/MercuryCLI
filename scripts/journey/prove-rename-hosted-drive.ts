@@ -98,7 +98,7 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
 function bannerLaws(): void {
   const source = readFileSync(join(REPO, 'src/components/PromptInput/useSwarmBanner.ts'), 'utf8')
   const body = new Bun.Transpiler({ loader: 'ts' }).transformSync(source.replace(/^import[\s\S]*?from ['"][^'"]+['"];?\n/gm, '')).replaceAll('export ', '')
-  const run = (state: Record<string, unknown>, cockpit: boolean, insideTmux: boolean | null = null, teammateMode = 'in-process'): unknown => {
+  const run = (state: Record<string, unknown>, cockpit: boolean, insideTmux: boolean | null = null, crewmateMode = 'in-process'): unknown => {
     const bindings = {
       useContext: () => cockpit,
       CockpitActiveContext: {},
@@ -107,13 +107,13 @@ function bannerLaws(): void {
       useAppStateStore: () => ({ getState: () => state }),
       useAppState: (select: (value: unknown) => unknown) => select(state),
       getViewedAgent: () => state.viewedAgent,
-      getViewedTeammateTask: () => state.viewedTeammate,
+      getViewedCrewmateTask: () => state.viewedCrewmate,
       AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR,
       getAgentColor: () => AGENT_COLOR_TO_THEME_COLOR.green,
-      TEAMMATE_COLOR_ENV_VAR: 'agent-color',
+      CREWMATE_COLOR_ENV_VAR: 'agent-color',
       getSwarmSocketName: () => 'fixture-socket',
       isInsideTmux: async () => insideTmux,
-      getTeammateModeFromSnapshot: () => teammateMode,
+      getCrewmateModeFromSnapshot: () => crewmateMode,
       process: { env: {} },
     }
     return new Function(...Object.keys(bindings), `${body}\nreturn useSwarmBanner()`)(...Object.values(bindings))
@@ -122,10 +122,10 @@ function bannerLaws(): void {
   check('a renamed cockpit has no destination banner', run(renamed, true) === null)
   check('a renamed inline session keeps its name and custom colour', same(run(renamed, false), { text: 'roomie', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
   check('a renamed inline session without a colour keeps its fallback', same(run({ standaloneAgentContext: { name: 'roomie' } }, false), { text: 'roomie', bgColor: 'suggestion' }))
-  const teammate = { ...renamed, teamContext: { isLeader: false, selfAgentName: 'helper', teamName: 'project', selfAgentColor: 'blue' } }
-  const leader = { ...renamed, teamContext: { isLeader: true, teamName: 'project', teammates: { helper: {} } }, viewedTeammate: { identity: { agentName: 'helper', color: 'blue' } } }
+  const crewmate = { ...renamed, crewContext: { isLeader: false, selfAgentName: 'helper', teamName: 'project', selfAgentColor: 'blue' } }
+  const leader = { ...renamed, crewContext: { isLeader: true, teamName: 'project', crewmates: { helper: {} } }, viewedCrewmate: { identity: { agentName: 'helper', color: 'blue' } } }
   for (const cockpit of [false, true]) {
-    check(`teammate process banner survives with cockpit=${cockpit}`, same(run(teammate, cockpit, false, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
+    check(`teammate process banner survives with cockpit=${cockpit}`, same(run(crewmate, cockpit, false, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`leader attach banner survives with cockpit=${cockpit}`, same(run(leader, cockpit, false, 'tmux'), { text: 'attach: tmux -L fixture-socket attach', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`leader viewed-teammate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit, true, 'tmux'), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))
     check(`in-process viewed-teammate banner survives with cockpit=${cockpit}`, same(run(leader, cockpit), { text: 'helper', bgColor: AGENT_COLOR_TO_THEME_COLOR.blue }))

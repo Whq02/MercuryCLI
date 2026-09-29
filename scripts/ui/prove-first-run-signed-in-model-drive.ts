@@ -41,7 +41,7 @@ function childEnv(home: string, base: string): NodeJS.ProcessEnv {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_TEAMS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'teams'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_CREDENTIAL_STORE: 'file',

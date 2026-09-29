@@ -44,7 +44,7 @@ const until = async (test: () => boolean, ms: number): Promise<boolean> => {
   while (!test() && Date.now() < deadline) await sleep(100)
   return test()
 }
-const inboxDir = join(world.teams, crew, 'inboxes')
+const inboxDir = join(world.crews, crew, 'inboxes')
 const storeFile = join(world.config, 'crew', 'livecomms', `${crew}.json`)
 type Stored = { messages?: Array<{ to: string; from: string; text: string; read?: boolean }> }
 const stored = (): Stored => (existsSync(storeFile) ? (JSON.parse(readFileSync(storeFile, 'utf8')) as Stored) : {})
@@ -72,7 +72,7 @@ try {
   tally.check('it rides in the same user turn as the long command\'s tool result — the tool boundary, not the turn\'s end', boundary !== undefined && lastUser(boundary).includes('"tool_result"') && lastUser(boundary).includes('teammate_id=\\"team-lead\\"'), boundary === undefined ? '' : lastUser(boundary).slice(-400))
   const heard = await until(() => session.stdout().includes('LEAD-HEARD'), TURN_MS / 2)
   tally.check('the worker\'s reply wakes the parked lead as a turn (the lead\'s wake reads LiveComms)', heard, session.stdout().slice(-400))
-  const tree = treeOf(world.teams)
+  const tree = treeOf(world.crews)
   record('teams-tree.txt', tree.join('\n') + '\n')
   tally.check('no inboxes/ directory or file under the teams home (RED on the base: inboxes/worker.json and team-lead.json are written)', !existsSync(inboxDir) && !tree.some(path => path.includes('inboxes')), tree.join(' '))
   const rows = stored().messages ?? []

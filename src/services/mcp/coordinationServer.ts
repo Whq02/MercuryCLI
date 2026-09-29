@@ -8,12 +8,12 @@ import { errorMessage } from '../../utils/errors.js'
 import { logMCPDebug } from '../../utils/log.js'
 import {
   claimLeases,
-  listTeamLeases,
-  notInTeam,
+  listCrewLeases,
+  notInCrew,
   releaseLeases,
   resolveCoordinationContext,
   say,
-  teamBrief,
+  crewBrief,
 } from '../coordination/coordinationService.js'
 import type { McpServerConfig } from './types.js'
 import { renderTui } from './renderTuiTool.js'
@@ -71,8 +71,8 @@ function leaseList(paths: string[] | undefined, globs: string[] | undefined): st
   return Array.from(new Set([...(paths ?? []), ...(globs ?? [])]))
 }
 
-function notInTeamResult(): CallToolResult {
-  return structuredJsonResult({ ...notInTeam() })
+function notInCrewResult(): CallToolResult {
+  return structuredJsonResult({ ...notInCrew() })
 }
 
 
@@ -184,7 +184,7 @@ export async function createCoordinationServer(): Promise<{
     async ({ paths, globs }): Promise<CallToolResult> => {
       if (paths === undefined && globs === undefined) return errorResult(LEASE_LIST_MISSING)
       const ctx = resolveCoordinationContext()
-      if (!ctx) return notInTeamResult()
+      if (!ctx) return notInCrewResult()
       try {
         return structuredJsonResult({ ...(await claimLeases(ctx, leaseList(paths, globs))) })
       } catch (e) {
@@ -252,7 +252,7 @@ export async function createCoordinationServer(): Promise<{
       try {
         const root = getSessionProjectDir() ?? getOriginalCwd()
         if (!ctx || project === true) return structuredJsonResult({ ok: true, leases: await listProjectLeases(root) })
-        const leases = await listTeamLeases(ctx)
+        const leases = await listCrewLeases(ctx)
         try {
           return structuredJsonResult({ ok: true, leases, projectLeases: await listProjectLeases(root) })
         } catch (error) {
@@ -279,7 +279,7 @@ export async function createCoordinationServer(): Promise<{
     },
     async (): Promise<CallToolResult> => {
       try {
-        return jsonResult(await teamBrief(resolveCoordinationContext()))
+        return jsonResult(await crewBrief(resolveCoordinationContext()))
       } catch (e) {
         return errorResult(`brief failed: ${errorMessage(e)}`)
       }
@@ -309,7 +309,7 @@ export async function createCoordinationServer(): Promise<{
     },
     async ({ to, message, summary }): Promise<CallToolResult> => {
       const ctx = resolveCoordinationContext()
-      if (!ctx) return notInTeamResult()
+      if (!ctx) return notInCrewResult()
       try {
         const result = await say(ctx, to, message, summary)
         if ('refused' in result) return errorResult(to === '*' ? result.refused : `coord_say: ${result.refused}`)

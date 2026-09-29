@@ -444,8 +444,8 @@ function readableInternalCategory(path: string): string | null {
   if (folded.startsWith(sessionMemory)) return 'session memory directory'
   const tasksDir = normalizeCaseForComparison(joinWithSep(getMercuryHome(), 'tasks'))
   if (pathHasSegmentContainment(folded, tasksDir)) return 'tasks directory'
-  const teamsDir = normalizeCaseForComparison(joinWithSep(getMercuryHome(), 'teams'))
-  if (pathHasSegmentContainment(folded, teamsDir)) return 'teams directory'
+  const crewsDir = normalizeCaseForComparison(joinWithSep(getMercuryHome(), 'teams'))
+  if (pathHasSegmentContainment(folded, crewsDir)) return 'teams directory'
   const bundledRoot = normalizeCaseForComparison(getBundledSkillsRoot())
   if (folded.startsWith(bundledRoot)) return 'bundled-skill extraction root'
   try {

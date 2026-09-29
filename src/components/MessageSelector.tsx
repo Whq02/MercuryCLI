@@ -31,7 +31,7 @@ import {
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
   TASK_NOTIFICATION_TAG,
-  TEAMMATE_MESSAGE_TAG,
+  CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../constants/xml.js'
 import { isSyntheticMessage } from '../utils/messages.js'
@@ -69,7 +69,7 @@ const COMPLETE_TAG_MARKERS = [
   `<${TASK_NOTIFICATION_TAG}>`,
   `<${TICK_TAG}>`,
 ]
-const TEAMMATE_PREFIX = `<${TEAMMATE_MESSAGE_TAG}`
+const CREWMATE_PREFIX = `<${CREWMATE_MESSAGE_TAG}`
 
 function messageText(message: UserMessage): string {
   const content = message.message.content
@@ -93,7 +93,7 @@ export function selectableUserMessagesFilter(
   if (message.isVisibleInTranscriptOnly) return false
   const text = messageText(message)
   if (COMPLETE_TAG_MARKERS.some(marker => text.includes(marker))) return false
-  if (text.includes(TEAMMATE_PREFIX)) return false
+  if (text.includes(CREWMATE_PREFIX)) return false
   return true
 }
 

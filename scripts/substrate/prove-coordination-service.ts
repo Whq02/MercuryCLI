@@ -18,16 +18,16 @@ import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTrans
 import {
   claimLeases,
   EMPTY_BRIEF,
-  listTeamLeases,
+  listCrewLeases,
   releaseLeases,
   resolveCoordinationContext,
   say,
-  teamBrief,
+  crewBrief,
 } from '../../src/services/coordination/coordinationService.js'
 import { LiveCommsTool } from '../../src/tools/LiveCommsTool/LiveCommsTool.js'
-import { clearDynamicTeamContext, setDynamicTeamContext } from '../../src/utils/teammate.js'
-import { writeTeamFileAsync, type TeamFile } from '../../src/utils/swarm/teamHelpers.js'
-import { readMailbox, writeToMailbox } from '../../src/utils/teammateMailbox.js'
+import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
+import { readMailbox, writeToMailbox } from '../../src/utils/crewmateMailbox.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -38,7 +38,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-function teamWith(name: string): TeamFile {
+function crewWith(name: string): CrewFile {
   const member = (id: string, memberName: string) => ({
     agentId: id,
     name: memberName,
@@ -56,10 +56,10 @@ function teamWith(name: string): TeamFile {
   }
 }
 
-const asWorker = (team: string): void =>
-  setDynamicTeamContext({ agentId: `w@${team}`, agentName: 'worker', teamName: team, color: 'blue', planModeRequired: false })
-const asBob = (team: string): void =>
-  setDynamicTeamContext({ agentId: `b@${team}`, agentName: 'bob', teamName: team, color: 'green', planModeRequired: false })
+const asWorker = (crew: string): void =>
+  setDynamicCrewContext({ agentId: `w@${crew}`, agentName: 'worker', teamName: crew, color: 'blue', planModeRequired: false })
+const asBob = (crew: string): void =>
+  setDynamicCrewContext({ agentId: `b@${crew}`, agentName: 'bob', teamName: crew, color: 'green', planModeRequired: false })
 
 console.log('============================================================')
 console.log(' the coordination service — one owner, two projections')
@@ -67,10 +67,10 @@ console.log('============================================================')
 
 try {
   section('§1 SOLO: no context; the empty brief')
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
   {
     check('no team ⇒ no coordination context', resolveCoordinationContext() === null)
-    const brief = await teamBrief(null)
+    const brief = await crewBrief(null)
     check('the solo brief is the empty brief (teamName null)', brief.teamName === null)
     check(
       'every section is present and empty',
@@ -83,33 +83,33 @@ try {
   }
 
   section('§2 IN-TEAM: leases · messaging · the consolidated brief')
-  const TEAM = 'service-proof'
-  await writeTeamFileAsync(TEAM, teamWith(TEAM))
-  asWorker(TEAM)
+  const CREW = 'service-proof'
+  await writeCrewFileAsync(CREW, crewWith(CREW))
+  asWorker(CREW)
   const worker = resolveCoordinationContext()
-  check('in a team the context names the team and the agent', worker?.team === TEAM && worker?.agentId === 'worker', JSON.stringify(worker))
+  check('in a team the context names the team and the agent', worker?.crew === CREW && worker?.agentId === 'worker', JSON.stringify(worker))
   if (worker) {
     const claim = await claimLeases(worker, ['src/api/**'])
     check('claimLeases grants the glob', claim.ok && claim.globs.join(',') === 'src/api/**' && claim.agentId === 'worker')
-    const rows = await listTeamLeases(worker)
-    check('listTeamLeases shows the claim', rows.some(r => r.agentId === 'worker' && r.globs.includes('src/api/**')))
-    asBob(TEAM)
+    const rows = await listCrewLeases(worker)
+    check('listCrewLeases shows the claim', rows.some(r => r.agentId === 'worker' && r.globs.includes('src/api/**')))
+    asBob(CREW)
     const bob = resolveCoordinationContext()!
     const clash = await claimLeases(bob, ['src/api/routes/**'])
     check('an overlapping claim by another agent conflicts (no silent double lease)', !clash.ok && clash.conflict.agentId === 'worker', JSON.stringify(clash))
-    const wrote = await writeToMailbox('worker', { from: 'bob', text: 'note for the brief', timestamp: new Date().toISOString() }, TEAM)
+    const wrote = await writeToMailbox('worker', { from: 'bob', text: 'note for the brief', timestamp: new Date().toISOString() }, CREW)
     check('bob wrote worker a note', wrote)
-    asWorker(TEAM)
+    asWorker(CREW)
     const dm = await say(worker, 'bob', 'ping', 'a ping')
     check('say DM delivers', !('refused' in dm) && dm.ok === true && dm.broadcast === false)
     const bc = await say(worker, '*', 'all hands')
     check('say broadcast reaches the other two', !('refused' in bc) && bc.broadcast === true && bc.recipients.length === 2 && bc.failed === 0)
     const unknown = await say(worker, 'nobody', 'x')
     check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on crew/.test(unknown.refused))
-    const inbox = await readMailbox('bob', TEAM)
+    const inbox = await readMailbox('bob', CREW)
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
-    const brief = await teamBrief(worker)
-    check('the brief names the team', brief.teamName === TEAM)
+    const brief = await crewBrief(worker)
+    check('the brief names the team', brief.teamName === CREW)
     check('the brief lists the lease', brief.leases.some(l => l.agentId === 'worker' && l.globs.includes('src/api/**')))
     check("the brief carries worker's unread note", brief.unreadMessages.some(m => m.from === 'bob' && m.text === 'note for the brief'))
     check(
@@ -119,12 +119,12 @@ try {
     check('a non-party team has no party facet', brief.party === undefined)
     const rel = await releaseLeases(worker)
     check('releaseLeases drops the lease', rel.ok && rel.released === true)
-    check('after the release the list is empty of worker', !(await listTeamLeases(worker)).some(r => r.agentId === 'worker'))
+    check('after the release the list is empty of worker', !(await listCrewLeases(worker)).some(r => r.agentId === 'worker'))
   }
 
   section('§3 THE PROJECTIONS: one brief, two faces; no consolidation outside the service')
   {
-    asWorker(TEAM)
+    asWorker(CREW)
     const server = await createCoordinationServer()
     const [clientTransport, serverTransport] = createLinkedTransportPair()
     await server.connect(serverTransport)
@@ -132,10 +132,10 @@ try {
     await client.connect(clientTransport)
     const mcpBrief = await client.callTool({ name: 'brief', arguments: {} })
     const mcpJson = JSON.parse((mcpBrief as { content?: Array<{ text?: string }> }).content?.[0]?.text ?? '{}')
-    const toolResult = await LiveCommsTool.call({} as never, { getAppState: () => ({ teamContext: undefined }) } as never)
+    const toolResult = await LiveCommsTool.call({} as never, { getAppState: () => ({ crewContext: undefined }) } as never)
     const toolJson = JSON.parse(JSON.stringify((toolResult as { data: unknown }).data))
     check('the MCP brief and the LiveComms tool return the SAME brief (JSON-equal)', JSON.stringify(mcpJson) === JSON.stringify(toolJson))
-    check('that brief names the team', mcpJson.teamName === TEAM && toolJson.teamName === TEAM)
+    check('that brief names the team', mcpJson.teamName === CREW && toolJson.teamName === CREW)
     await client.close()
     await server.close()
 
@@ -148,10 +148,10 @@ try {
     check('the LiveComms tool performs no substrate read or write of its own', !substrateReads.test(toolSrc))
     check('no second consolidation (buildBrief) survives in the server', !/buildBrief/.test(serverSrc))
     const serviceSrc = readFileSync(join(ROOT, 'src/services/coordination/coordinationService.ts'), 'utf8')
-    check('the service owns the solo contract text', /NOT_IN_TEAM/.test(serviceSrc) && !/Not part of a team — the coordination tools/.test(serverSrc))
+    check('the service owns the solo contract text', /NOT_IN_CREW/.test(serviceSrc) && !/Not part of a team — the coordination tools/.test(serverSrc))
   }
 } finally {
-  clearDynamicTeamContext()
+  clearDynamicCrewContext()
   if (prevConfigDir === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = prevConfigDir
 }

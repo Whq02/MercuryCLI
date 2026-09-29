@@ -21,21 +21,21 @@ const ok = (cond: boolean, label: string) => {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-orch-'))
 const home = join(tmp, 'home')
-const teams = join(tmp, 'teams')
+const crews = join(tmp, 'teams')
 const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
-mkdirSync(teams, { recursive: true })
+mkdirSync(crews, { recursive: true })
 mkdirSync(daemon, { recursive: true })
 
 process.env.MERCURY_CONFIG_DIR = home
-process.env.MERCURY_TEAMS_DIR = teams
+process.env.MERCURY_CREWS_DIR = crews
 process.env.MERCURY_DAEMON_DIR = daemon
 delete process.env.MERCURY_TASK_LIST_ID
 
 const orch = await import('../../src/substrate/recoveryOrchestrator.ts')
-const helpers = await import('../../src/utils/swarm/teamHelpers.ts')
+const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
 const { getTaskListId } = await import('../../src/utils/tasks.ts')
-const { getLeadTeamFallback } = await import('../../src/utils/teammate.ts')
+const { getLeadCrewFallback } = await import('../../src/utils/crewmate.ts')
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')
 const { buildBootRecoveryRow } = await import('../../src/commands/run/runInspectorModel.ts')
 
@@ -49,21 +49,21 @@ const backdate = (path: string, ms: number) => {
 
 console.log('— seeding damage —')
 
-const staleTemp = join(teams, '.config.json.12345.deadbeef.tmp')
-const freshTemp = join(teams, '.config.json.12346.cafebabe.tmp')
+const staleTemp = join(crews, '.config.json.12345.deadbeef.tmp')
+const freshTemp = join(crews, '.config.json.12346.cafebabe.tmp')
 writeFileSync(staleTemp, 'stale', 'utf8')
 writeFileSync(freshTemp, 'fresh', 'utf8')
 backdate(staleTemp, TEN_MIN + 60_000)
 
-const deadTeam = 'orch-dead'
-await helpers.writeTeamFileAsync(deadTeam, {
-  name: deadTeam,
+const deadCrew = 'orch-dead'
+await helpers.writeCrewFileAsync(deadCrew, {
+  name: deadCrew,
   createdAt: Date.now(),
-  leadAgentId: `team-lead@${deadTeam}`,
+  leadAgentId: `team-lead@${deadCrew}`,
   leadSessionId: 'dead-owner-session',
   members: [],
 })
-const journalDir = join(teams, '.journal')
+const journalDir = join(crews, '.journal')
 mkdirSync(journalDir, { recursive: true })
 const opFile = (id: string, kind: string, key: string, owner: string) =>
   JSON.stringify({
@@ -81,17 +81,17 @@ const opFile = (id: string, kind: string, key: string, owner: string) =>
     updatedAt: new Date().toISOString(),
     writerPid: deadPid,
   })
-writeFileSync(join(journalDir, 'op-dead1.json'), opFile('dead1', 'team-create', `team-create:${deadTeam}`, 'dead-owner-session'), 'utf8')
+writeFileSync(join(journalDir, 'op-dead1.json'), opFile('dead1', 'team-create', `team-create:${deadCrew}`, 'dead-owner-session'), 'utf8')
 
-const foreignTeam = 'orch-foreign'
-await helpers.writeTeamFileAsync(foreignTeam, {
-  name: foreignTeam,
+const foreignCrew = 'orch-foreign'
+await helpers.writeCrewFileAsync(foreignCrew, {
+  name: foreignCrew,
   createdAt: Date.now(),
-  leadAgentId: `team-lead@${foreignTeam}`,
+  leadAgentId: `team-lead@${foreignCrew}`,
   leadSessionId: 'somebody-else-entirely',
   members: [],
 })
-writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'team-create', `team-create:${foreignTeam}`, 'dead-owner-session'), 'utf8')
+writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'team-create', `team-create:${foreignCrew}`, 'dead-owner-session'), 'utf8')
 
 const undecodableName = 'op-undecodable.json'
 const undecodableBytes = JSON.stringify({
@@ -134,14 +134,14 @@ console.log('— boot 1: reconciliation over seeded damage —')
   ok(!existsSync(staleTemp), 'stale orphan temp swept')
   ok(existsSync(freshTemp), 'fresh temp PRESERVED (live-writer guard)')
   ok(report.orphanTemps.removed >= 1, `orphan sweep counted (${report.orphanTemps.removed} across ${report.orphanTemps.dirsSwept} dirs)`)
-  ok(report.teamJournal !== null && report.teamJournal.compensated.length === 2, `both dead ops compensated (${report.teamJournal?.compensated.length})`)
+  ok(report.crewJournal !== null && report.crewJournal.compensated.length === 2, `both dead ops compensated (${report.crewJournal?.compensated.length})`)
   ok(
-    report.teamJournal !== null && report.teamJournal.unrecoverable.length === 1 && report.teamJournal.unrecoverable[0] === undecodableName,
-    `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.teamJournal?.unrecoverable ?? report.errors)})`,
+    report.crewJournal !== null && report.crewJournal.unrecoverable.length === 1 && report.crewJournal.unrecoverable[0] === undecodableName,
+    `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.crewJournal?.unrecoverable ?? report.errors)})`,
   )
   ok(readFileSync(join(journalDir, undecodableName), 'utf8') === undecodableBytes, 'the undecodable file is left in place, byte for byte')
-  ok(existsSync(join(teams, deadTeam, 'config.json')), 'the older build\'s half-created team is LEFT IN PLACE (nothing is removed by itself)')
-  ok(existsSync(join(teams, foreignTeam, 'config.json')), 'foreign team UNTOUCHED (guarded unwind)')
+  ok(existsSync(join(crews, deadCrew, 'config.json')), 'the older build\'s half-created team is LEFT IN PLACE (nothing is removed by itself)')
+  ok(existsSync(join(crews, foreignCrew, 'config.json')), 'foreign team UNTOUCHED (guarded unwind)')
   const ops = await listJournalOperations(journalDir)
   ok(ops.every(o => o.state === 'aborted' || o.state === 'committed'), 'journal fully terminal after recovery')
   ok(!existsSync(join(listDir, '1.json')), 'dead-epoch task body reclaimed')
@@ -176,34 +176,34 @@ console.log('— boot 2: idempotent re-run —')
   orch._resetBootRecoveryForTests()
   const report = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
   ok(report.orphanTemps.removed === 0, 'no temps left to sweep')
-  ok(report.teamJournal !== null && report.teamJournal.compensated.length === 0 && report.teamJournal.rolledForward.length === 0, 'journal recovery is a no-op')
+  ok(report.crewJournal !== null && report.crewJournal.compensated.length === 0 && report.crewJournal.rolledForward.length === 0, 'journal recovery is a no-op')
   ok(report.deadEpochTasks.removed === 0, 'dead-epoch GC is a no-op')
   ok(report.errors.length === 0, 'still no errors')
   const named = orch.bootRecoveryStatusLine(orch.getBootRecovery())
   ok(
-    report.teamJournal !== null && report.teamJournal.unrecoverable[0] === undecodableName && named !== null && named.tone === 'warn',
+    report.crewJournal !== null && report.crewJournal.unrecoverable[0] === undecodableName && named !== null && named.tone === 'warn',
     `the undecodable file is named on every boot until it is removed (${named?.text})`,
   )
   ok(report.quarantine.total === 2 && readFileSync(ledger, 'utf8').split('\n').filter(Boolean).length === 2, 'the second boot in the same process appends no second refused row for the same file (the per-process latch); the count still reads 2')
   rmSync(join(journalDir, undecodableName))
   orch._resetBootRecoveryForTests()
   const quiet = await orch.runBootRecovery({ scope: 'session', sessionId: 'unrelated-session' })
-  ok(quiet.teamJournal !== null && quiet.teamJournal.unrecoverable.length === 0 && quiet.errors.length === 0, 'once the file is removed nothing is left to name')
+  ok(quiet.crewJournal !== null && quiet.crewJournal.unrecoverable.length === 0 && quiet.errors.length === 0, 'once the file is removed nothing is left to name')
   ok(orch.bootRecoveryStatusLine(orch.getBootRecovery()) === null, 'a quiet boot earns NO status line')
   ok(buildBootRecoveryRow(orch.getBootRecovery()) === null, 'a quiet boot earns NO /run row')
 }
 
 console.log('— boot 3: leader projection rebuild —')
 {
-  const ledTeam = 'orch-led'
-  await helpers.writeTeamFileAsync(ledTeam, {
-    name: ledTeam,
+  const ledCrew = 'orch-led'
+  await helpers.writeCrewFileAsync(ledCrew, {
+    name: ledCrew,
     createdAt: Date.now(),
-    leadAgentId: `team-lead@${ledTeam}`,
+    leadAgentId: `team-lead@${ledCrew}`,
     leadSessionId: 'lead-session-S',
     members: [
       {
-        agentId: `team-lead@${ledTeam}`,
+        agentId: `team-lead@${ledCrew}`,
         name: 'team-lead',
         joinedAt: 111,
         tmuxPaneId: '',
@@ -211,7 +211,7 @@ console.log('— boot 3: leader projection rebuild —')
         subscriptions: [],
       },
       {
-        agentId: `scout@${ledTeam}`,
+        agentId: `scout@${ledCrew}`,
         name: 'scout',
         agentType: 'mercury-general',
         color: 'blue',
@@ -225,13 +225,13 @@ console.log('— boot 3: leader projection rebuild —')
   orch._resetBootRecoveryForTests()
   const report = await orch.runBootRecovery({ scope: 'session', sessionId: 'lead-session-S' })
   const led = report.leaderProjection
-  ok(led !== null && led.teamName === ledTeam, 'led team found on disk for the resumed session')
-  ok(led !== null && Object.keys(led.teammates).length === 2, 'AppState seed carries the full roster')
-  ok(led !== null && led.teammates[`scout@${ledTeam}`]?.spawnedAt === 222, 'roster fields mapped (joinedAt → spawnedAt)')
-  ok(getTaskListId() === helpers.sanitizeName(ledTeam), 'leader task-list registration rebuilt (getTaskListId → team)')
-  ok(getLeadTeamFallback() === ledTeam, 'lead-aware tool identity rebuilt (leadTeamFallback)')
+  ok(led !== null && led.teamName === ledCrew, 'led team found on disk for the resumed session')
+  ok(led !== null && Object.keys(led.crewmates).length === 2, 'AppState seed carries the full roster')
+  ok(led !== null && led.crewmates[`scout@${ledCrew}`]?.spawnedAt === 222, 'roster fields mapped (joinedAt → spawnedAt)')
+  ok(getTaskListId() === helpers.sanitizeName(ledCrew), 'leader task-list registration rebuilt (getTaskListId → team)')
+  ok(getLeadCrewFallback() === ledCrew, 'lead-aware tool identity rebuilt (leadCrewFallback)')
   const line = orch.bootRecoveryStatusLine(orch.getBootRecovery())
-  ok(line !== null && line.text.includes(`team "${ledTeam}" projection rebuilt`), 'status line reports the rebuild')
+  ok(line !== null && line.text.includes(`team "${ledCrew}" projection rebuilt`), 'status line reports the rebuild')
 }
 
 console.log('— boot 4: bounded epoch GC stays quiet —')

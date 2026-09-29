@@ -151,13 +151,13 @@ section('rewind: selectable filter + only-synthetic predicate')
   const meta = { ...plain, uuid: 'u3', isMeta: true }
   const compact = { ...plain, uuid: 'u4', isCompactSummary: true }
   const marker = { type: 'user', uuid: 'u5', timestamp: 't', message: { role: 'user', content: '<local-command-stdout>x</local-command-stdout>' } }
-  const teammate = { type: 'user', uuid: 'u6', timestamp: 't', message: { role: 'user', content: '<teammate-message from="a">hey' } }
+  const crewmate = { type: 'user', uuid: 'u6', timestamp: 't', message: { role: 'user', content: '<teammate-message from="a">hey' } }
   check('a plain user message is selectable', selectableUserMessagesFilter(plain as never))
   check('a tool-result-first message is not', !selectableUserMessagesFilter(toolResult as never))
   check('a meta message is not', !selectableUserMessagesFilter(meta as never))
   check('a compact summary is not', !selectableUserMessagesFilter(compact as never))
   check('a machine-marker message is not', !selectableUserMessagesFilter(marker as never))
-  check('a teammate-tag PREFIX (attributes, no closing bracket) is caught', !selectableUserMessagesFilter(teammate as never))
+  check('a teammate-tag PREFIX (attributes, no closing bracket) is caught', !selectableUserMessagesFilter(crewmate as never))
   const tail = [plain, { type: 'assistant', uuid: 'a1', timestamp: 't', message: { content: [{ type: 'text', text: '' }] } }, toolResult] as never[]
   check('empty-text assistant + tool results after index 0 are only-synthetic', messagesAfterAreOnlySynthetic(tail, 0))
   const meaningful = [plain, { type: 'assistant', uuid: 'a2', timestamp: 't', message: { content: [{ type: 'text', text: 'answer' }] } }] as never[]

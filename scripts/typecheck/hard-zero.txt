@@ -49,7 +49,7 @@ src/utils/attachments/sessionContext.ts
 src/utils/attachments/shared.ts
 src/utils/attachments/skillListing.ts
 src/utils/attachments/taskStatus.ts
-src/utils/attachments/teammates.ts
+src/utils/attachments/crewmates.ts
 src/utils/attachments/types.ts
 # The hooks-engine submodules — zero tolerance:
 src/utils/hooks.ts

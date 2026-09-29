@@ -2,11 +2,11 @@ import { createHash } from 'node:crypto'
 import { logForDebugging } from '../utils/debug.js'
 import { flagEnv, flagPair, flagSpellings } from '../substrate/flagRegistry.js'
 import {
-  appendTeamMember,
-  readTeamFileAsync,
-  writeTeamFileAsync,
-  type TeamFile,
-} from '../utils/swarm/teamHelpers.js'
+  appendCrewMember,
+  readCrewFileAsync,
+  writeCrewFileAsync,
+  type CrewFile,
+} from '../utils/swarm/crewHelpers.js'
 import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
@@ -18,7 +18,7 @@ function seatOwner(): typeof import('../services/concourse/workerModels.js') {
   return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
 }
 
-export const CREW_TEAM = 'crew' as const
+export const CREW = 'crew' as const
 export const CREW_LEAD_AGENT_ID = 'team-lead@crew' as const
 
 export function crewSeatSessionId(name: string, dir: string): string {
@@ -33,7 +33,7 @@ export function crewSeatWakeWords(name: string, model: string): string {
   return `[daemon] crew seat @${name} was stopped and a message arrived — waking it on ${model} from its transcript`
 }
 
-export const MAX_CREW_TEAMMATES = 6
+export const MAX_CREWMATES = 6
 
 export function crewEnabled(): boolean {
   if (flagEnv('MERCURY_CREW') === '0') return false
@@ -101,13 +101,13 @@ export function buildCrewPack(name: string, dir?: string): string {
   ].join('\n')
 }
 
-export async function ensureCrewTeamMember(
+export async function ensureCrewMember(
   name: string,
   model: string,
   projectDir: string,
 ): Promise<void> {
   const member = {
-    agentId: `${name}@${CREW_TEAM}`,
+    agentId: `${name}@${CREW}`,
     name,
     model,
     role: 'teammate',
@@ -116,10 +116,10 @@ export async function ensureCrewTeamMember(
     cwd: projectDir,
     subscriptions: [] as string[],
   }
-  const existing = await readTeamFileAsync(CREW_TEAM)
+  const existing = await readCrewFileAsync(CREW)
   if (!existing) {
-    const teamFile: TeamFile = {
-      name: CREW_TEAM,
+    const crewFile: CrewFile = {
+      name: CREW,
       description:
         'Mercury named agents — /teammates chats (daemon-bridged; members are durable chat identities)',
       createdAt: Date.now(),
@@ -138,14 +138,14 @@ export async function ensureCrewTeamMember(
         member,
       ],
     }
-    await writeTeamFileAsync(CREW_TEAM, teamFile)
+    await writeCrewFileAsync(CREW, crewFile)
     return
   }
   if (existing.members.some(m => m.name === name)) return
   try {
-    await appendTeamMember(CREW_TEAM, member)
+    await appendCrewMember(CREW, member)
   } catch (e) {
-    logForDebugging(`[crew] appendTeamMember(${name}) failed: ${e}`)
+    logForDebugging(`[crew] appendCrewMember(${name}) failed: ${e}`)
     throw e
   }
 }
@@ -188,8 +188,8 @@ export function makeCrewSpawnHandler(
       return { ok: false, error: `'${name}' is already live on this daemon — kill it first or pick another name` }
     }
     const liveCrew = r.list().filter(j => !j.outcome && crewShorts.has(j.short)).length
-    if (liveCrew >= MAX_CREW_TEAMMATES) {
-      return { ok: false, error: `crew cap reached (${MAX_CREW_TEAMMATES} live named agents) — stop an idle one before spawning another` }
+    if (liveCrew >= MAX_CREWMATES) {
+      return { ok: false, error: `crew cap reached (${MAX_CREWMATES} live named agents) — stop an idle one before spawning another` }
     }
     const seat = await resolveCrewSeatModel(modelKey)
     if (!seat.ok) return { ok: false, error: seat.error }
@@ -207,7 +207,7 @@ export function makeCrewSpawnHandler(
     }
     const runDir = plan.worktree !== null ? plan.worktree.path : folder
     try {
-      await ensureCrewTeamMember(name, plan.model, runDir)
+      await ensureCrewMember(name, plan.model, runDir)
     } catch (e) {
       return { ok: false, error: `team-file update failed: ${e}` }
     }
@@ -268,8 +268,8 @@ export function makeCrewWakeRoster(
 }
 
 export async function crewMemberModel(name: string): Promise<string | undefined> {
-  const team = await readTeamFileAsync(CREW_TEAM).catch(() => null)
-  const member = team?.members.find(m => m.name === name)
+  const crew = await readCrewFileAsync(CREW).catch(() => null)
+  const member = crew?.members.find(m => m.name === name)
   return member?.model !== undefined && member.model !== '' ? member.model : undefined
 }
 
@@ -284,8 +284,8 @@ export function buildCrewSpec(
     appendSystemPrompt: buildCrewPack(name, dir),
     role: 'MERCURY_CREW',
     agentName: name,
-    agentId: `${name}@${CREW_TEAM}`,
-    teamName: CREW_TEAM,
+    agentId: `${name}@${CREW}`,
+    teamName: CREW,
     cwd: dir,
     extraEnv: {
       ...flagPair('MERCURY_WORKFLOWS', '0'),

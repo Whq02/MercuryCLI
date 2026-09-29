@@ -196,7 +196,7 @@ const byId = new Map(rows.map(r => [r.id, r]))
   )
   check(
     'T2 a named agent rides the same counters under its team',
-    tm1.kind === 'teammate' && tm1.model === ANTHROPIC_ID && tm1.inputTokens === 800 && tm1.totalTokens === 900 && tm1.team === 'crew',
+    tm1.kind === 'teammate' && tm1.model === ANTHROPIC_ID && tm1.inputTokens === 800 && tm1.totalTokens === 900 && tm1.crew === 'crew',
     JSON.stringify(tm1),
   )
   check("T2 the session's own main-thread row never rides the roster", !byId.has('main1'))
@@ -389,7 +389,7 @@ console.log('— T6 the source pins —')
   )
   check(
     'T6 /teammates mounts the Crew view',
-    src('src/commands/teammates/teammates.tsx').includes('<CrewView'),
+    src('src/commands/crewmates/crewmates.tsx').includes('<CrewView'),
   )
 }
 

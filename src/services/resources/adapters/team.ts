@@ -1,7 +1,7 @@
 
 import { readdirSync } from 'node:fs'
 import * as path from 'node:path'
-import { getTeamDir, readTeamFile } from '../../../utils/swarm/teamHelpers.js'
+import { getCrewDir, readCrewFile } from '../../../utils/swarm/crewHelpers.js'
 import {
   formatRef,
   type ParsedRef,
@@ -14,7 +14,7 @@ export const teamAdapter: ResourceAdapter = {
   describe: 'chartered teams, members, charters — incl. daemon crews (mercury://team/<name>)',
   async resolve(ref: ParsedRef): Promise<ResourceResult> {
     if (ref.id === '') {
-      const home = path.dirname(getTeamDir('probe'))
+      const home = path.dirname(getCrewDir('probe'))
       let names: string[] = []
       try {
         names = readdirSync(home, { withFileTypes: true })
@@ -25,7 +25,7 @@ export const teamAdapter: ResourceAdapter = {
         return { state: 'ok', resource: emptyListing() }
       }
       const rows = names
-        .map(n => ({ name: n, file: readTeamFile(n) }))
+        .map(n => ({ name: n, file: readCrewFile(n) }))
         .filter(r => r.file !== null)
       return {
         state: 'ok',
@@ -33,7 +33,7 @@ export const teamAdapter: ResourceAdapter = {
           ref: 'mercury://team',
           kind: 'team',
           title: 'teams',
-          summary: `${rows.length} team(s) with a roster file`,
+          summary: `${rows.length} crew(s) with a roster file`,
           mutable: true,
           children: rows.slice(0, 50).map(r => ({
             ref: formatRef('team', r.name),
@@ -43,11 +43,11 @@ export const teamAdapter: ResourceAdapter = {
         },
       }
     }
-    const team = readTeamFile(ref.id)
-    if (!team) {
+    const crew = readCrewFile(ref.id)
+    if (!crew) {
       return { state: 'absent', note: `no team '${ref.id}' (no roster file)` }
     }
-    const charter = team.charter as
+    const charter = crew.charter as
       | { objective?: string; successCriteria?: string[] }
       | undefined
     return {
@@ -55,30 +55,30 @@ export const teamAdapter: ResourceAdapter = {
       resource: {
         ref: ref.canonical,
         kind: 'team',
-        title: `team ${team.name}`,
-        summary: `${team.members.length} member(s) · lead ${team.leadAgentId}${charter ? ' · chartered' : ''}`,
-        version: `m${team.members.length}`,
+        title: `team ${crew.name}`,
+        summary: `${crew.members.length} member(s) · lead ${crew.leadAgentId}${charter ? ' · chartered' : ''}`,
+        version: `m${crew.members.length}`,
         mutable: true,
         text: [
-          `name: ${team.name}`,
-          ...(team.description ? [`description: ${team.description}`] : []),
-          `lead: ${team.leadAgentId}`,
-          `created: ${new Date(team.createdAt).toISOString()}`,
+          `name: ${crew.name}`,
+          ...(crew.description ? [`description: ${crew.description}`] : []),
+          `lead: ${crew.leadAgentId}`,
+          `created: ${new Date(crew.createdAt).toISOString()}`,
           ...(charter?.objective ? ['', `charter objective: ${charter.objective}`] : []),
           ...(charter?.successCriteria?.length
             ? ['success criteria:', ...charter.successCriteria.map(c => `  · ${c}`)]
             : []),
           '',
-          `members (${team.members.length}):`,
-          ...team.members.map(
+          `members (${crew.members.length}):`,
+          ...crew.members.map(
             m =>
               `  ${(m as { name?: string }).name ?? '?'} — ${(m as { agentType?: string }).agentType ?? '?'}`,
           ),
         ].join('\n'),
         structured: {
-          name: team.name,
-          members: team.members.length,
-          chartered: !!team.charter,
+          name: crew.name,
+          members: crew.members.length,
+          chartered: !!crew.charter,
         },
       },
     }

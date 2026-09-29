@@ -152,7 +152,7 @@ try {
       SHELL: '/bin/bash',
       MERCURY_CONFIG_DIR: configDir,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_TEAMS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'teams'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_OPERATOR: 'sam',
       MERCURY_VERIFY_EVIDENCE: '0',

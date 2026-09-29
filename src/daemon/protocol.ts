@@ -156,7 +156,7 @@ export type DaemonRequest =
       proto: number
       auth?: string
       to: string
-      team?: string
+      crew?: string
       env: unknown
       color?: string
     }

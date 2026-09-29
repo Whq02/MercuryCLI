@@ -77,7 +77,7 @@ for (const file of ['FullscreenLayout.tsx', 'FilesMenuSlot.tsx', 'MercuryModelPi
 }
 const ownFrames = [
   ['src/components/mercury-ui/screens/CrewView.tsx', 'CommandCenter'],
-  ['src/components/mercury-ui/screens/TeammateChatsView.tsx', 'CommandCenter'],
+  ['src/components/mercury-ui/screens/CrewmateChatsView.tsx', 'CommandCenter'],
   ['src/components/MercuryConfig.tsx', 'CommandCenter'],
   ['src/components/MercurySearch.tsx', 'CommandCenter'],
   ['src/components/MercuryResume.tsx', 'CommandCenter'],

@@ -16,10 +16,10 @@ export function isCrewSession(log: LogOption): boolean {
 }
 
 export function crewTagOf(log: LogOption): string {
-  const team = (log.teamName ?? '').trim()
+  const crew = (log.teamName ?? '').trim()
   const agent = (log.agentName ?? '').trim()
-  if (team && agent) return `${team} · ${agent}`
-  if (team) return team
+  if (crew && agent) return `${crew} · ${agent}`
+  if (crew) return crew
   if (agent) return agent
   return 'crew'
 }

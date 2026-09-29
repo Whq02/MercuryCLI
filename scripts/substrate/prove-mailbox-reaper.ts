@@ -10,24 +10,24 @@ const {
   readMailbox,
   markMessagesAsRead,
   markSpecificMessageAsRead,
-} = await import('../../src/utils/teammateMailbox.ts')
+} = await import('../../src/utils/crewmateMailbox.ts')
 
 let failures = 0
 const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) failures++
 }
-const TEAM = 'reaper-team'
+const CREW = 'reaper-team'
 
 {
   for (let i = 0; i < 210; i++) {
-    await writeToMailbox('worker', { from: 'lead', text: `old ${i}`, timestamp: `t${i}` }, TEAM)
+    await writeToMailbox('worker', { from: 'lead', text: `old ${i}`, timestamp: `t${i}` }, CREW)
   }
-  await markMessagesAsRead('worker', TEAM)
+  await markMessagesAsRead('worker', CREW)
   for (let i = 0; i < 40; i++) {
-    await writeToMailbox('worker', { from: 'lead', text: `fresh ${i}`, timestamp: `f${i}` }, TEAM)
+    await writeToMailbox('worker', { from: 'lead', text: `fresh ${i}`, timestamp: `f${i}` }, CREW)
   }
-  const box = await readMailbox('worker', TEAM)
+  const box = await readMailbox('worker', CREW)
   const unread = box.filter(m => !m.read)
   const read = box.filter(m => m.read)
   ok(unread.length === 40, `§1 all 40 unread survive compaction (got ${unread.length})`)
@@ -43,10 +43,10 @@ const TEAM = 'reaper-team'
 }
 
 {
-  await writeToMailbox('solo', { from: 'a', text: 'one', timestamp: 'ts1' }, TEAM)
-  await writeToMailbox('solo', { from: 'a', text: 'two', timestamp: 'ts2' }, TEAM)
-  await markSpecificMessageAsRead('solo', TEAM, { from: 'a', text: 'two', timestamp: 'ts2' })
-  const box = await readMailbox('solo', TEAM)
+  await writeToMailbox('solo', { from: 'a', text: 'one', timestamp: 'ts1' }, CREW)
+  await writeToMailbox('solo', { from: 'a', text: 'two', timestamp: 'ts2' }, CREW)
+  await markSpecificMessageAsRead('solo', CREW, { from: 'a', text: 'two', timestamp: 'ts2' })
+  const box = await readMailbox('solo', CREW)
   ok(
     box.find(m => m.text === 'two')?.read === true &&
       box.find(m => m.text === 'one')?.read === false,

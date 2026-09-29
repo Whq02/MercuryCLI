@@ -102,7 +102,7 @@ export type InboxMessage = {
 }
 
 
-export type TeammateRecord = {
+export type CrewmateRecord = {
   name: string
   agentType?: string
   color?: string
@@ -113,15 +113,15 @@ export type TeammateRecord = {
   spawnedAt: number
 }
 
-export type TeamContext = {
+export type CrewContext = {
   teamName: string
-  teamFilePath: string
+  crewFilePath: string
   leadAgentId: string
   selfAgentId?: string
   selfAgentName?: string
   selfAgentColor?: string
   isLeader?: boolean
-  teammates: Record<string, TeammateRecord>
+  crewmates: Record<string, CrewmateRecord>
 }
 
 
@@ -139,7 +139,7 @@ type AppStateImmutableHalf = {
   verbose: boolean
   expandedView: 'none' | 'tasks' | 'teammates'
   spinnerTip?: string
-  showTeammateMessagePreview?: boolean
+  showCrewmateMessagePreview?: boolean
   isAssistantMode: boolean
   agent?: string
   footerSelection: FooterItem | null
@@ -181,7 +181,7 @@ type AppStateMutableHalf = {
   crewLedger: CrewLedger
   selectedIPAgentIndex: number
   viewSelectionMode: 'none' | 'selecting-agent' | 'viewing-agent'
-  teamContext?: TeamContext
+  crewContext?: CrewContext
   standaloneAgentContext?: { name: string; color?: string }
 
   mcp: {
@@ -331,7 +331,7 @@ export function getDefaultAppState(): AppState {
     authVersion: 0,
     initialMessage: null,
     thinkingEnabled: shouldEnableThinkingByDefault(),
-    showTeammateMessagePreview: false,
+    showCrewmateMessagePreview: false,
   }
 }
 
@@ -350,11 +350,11 @@ function computeAssistantMode(): boolean {
 function computeInitialPermissionMode(): InternalPermissionMode {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const teammate = require('../utils/teammate.js') as {
+    const crewmate = require('../utils/crewmate.js') as {
       isTeammate?: () => boolean
       isPlanModeRequired?: () => boolean
     }
-    if (teammate.isTeammate?.() && teammate.isPlanModeRequired?.()) return 'strategy'
+    if (crewmate.isTeammate?.() && crewmate.isPlanModeRequired?.()) return 'strategy'
   } catch {
   }
   return 'default'

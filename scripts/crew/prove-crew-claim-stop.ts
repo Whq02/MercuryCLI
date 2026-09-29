@@ -20,7 +20,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
-for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_TEAMS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
+for (const key of ['MERCURY_CREW', 'MERCURY_CREW_AGENT', 'MERCURY_CREW_DIR', 'MERCURY_CREWS_DIR', 'MERCURY_TASK_LIST_ID']) delete process.env[key]
 
 const ROOT = join(import.meta.dir, '..', '..')
 const PROJECT = join(HOME, 'project')
@@ -43,11 +43,11 @@ console.log('============================================================')
 
 const { getProjectRoot } = await import('../../src/bootstrap/state.js')
 const leaseGlob = (await import('../../src/utils/swarm/leaseGlob.js')) as typeof import('../../src/utils/swarm/leaseGlob.js')
-const teammate = (await import('../../src/utils/teammate.js')) as typeof import('../../src/utils/teammate.js')
+const crewmate = (await import('../../src/utils/crewmate.js')) as typeof import('../../src/utils/crewmate.js')
 const agentContext = (await import('../../src/utils/agentContext.js')) as typeof import('../../src/utils/agentContext.js')
 const guard = (await import('../../src/utils/swarm/leaseGuard.js')) as typeof import('../../src/utils/swarm/leaseGuard.js')
 const events = (await import('../../src/utils/hooks/events.js')) as typeof import('../../src/utils/hooks/events.js')
-const { TEAM_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
 
 check('the project root is the scratch project (the claim namespace is anchored there)', getProjectRoot() === PROJECT, `${getProjectRoot()} vs ${PROJECT}`)
@@ -60,7 +60,7 @@ const ORIGINAL = readFileSync(CLAIMED_ABS, 'utf8')
 const WORDS = `${CLAIMED_REL} is claimed by alpha; ask alpha or wait for the release.`
 
 const ctxOf = (name: string) =>
-  teammate.createTeammateContext({
+  crewmate.createCrewmateContext({
     agentId: `${name}@crew`,
     agentName: name,
     teamName: 'crew',
@@ -70,7 +70,7 @@ const ctxOf = (name: string) =>
   })
 const alpha = ctxOf('alpha')
 const beta = ctxOf('beta')
-const as = <T,>(ctx: ReturnType<typeof ctxOf>, fn: () => T): T => teammate.runWithTeammateContext(ctx, fn)
+const as = <T,>(ctx: ReturnType<typeof ctxOf>, fn: () => T): T => crewmate.runWithCrewmateContext(ctx, fn)
 const editInput = { file_path: CLAIMED_ABS, old_string: 'alpha', new_string: 'beta' }
 
 const fakeToolUseContext = {
@@ -109,7 +109,7 @@ const alphaOwn = await as(alpha, () => guard.checkLeaseGuard('Edit', editInput, 
 check('alpha\'s own Edit passes', alphaOwn === null, String(alphaOwn))
 
 section('§2 the lead follows the same law with no team at all')
-teammate.clearDynamicTeamContext()
+crewmate.clearDynamicCrewContext()
 const leadGuard = await guard.checkLeaseGuard('Edit', editInput)
 check('the lead\'s Edit of alpha\'s file is refused with no team context', leadGuard === WORDS, `got ${JSON.stringify(leadGuard)}`)
 const leadDecision = await preToolDecision(null, 'Edit', editInput)
@@ -123,12 +123,12 @@ check('a sub-agent\'s Edit of alpha\'s file is refused, naming alpha', subGuard 
 
 section('§4 the lead\'s own claim binds the crewmates and not the lead')
 const leadFile = join(scratchDir, 'lead.ts').slice(PROJECT.length + 1)
-const leadClaim = await leaseGlob.claimLease('crew', TEAM_LEAD_NAME, [leadFile])
+const leadClaim = await leaseGlob.claimLease('crew', CREW_LEAD_NAME, [leadFile])
 check('the lead claims lead.ts with no team', leadClaim.ok === true, JSON.stringify(leadClaim))
 const leadOwn = await guard.checkLeaseGuard('Edit', { file_path: join(PROJECT, leadFile) })
 check('the lead\'s own Edit of lead.ts passes', leadOwn === null, String(leadOwn))
 const betaOnLead = await as(beta, () => guard.checkLeaseGuard('Edit', { file_path: join(PROJECT, leadFile) }, { teamName: 'crew' }))
-check(`beta's Edit of lead.ts is refused naming ${TEAM_LEAD_NAME}`, betaOnLead === `${leadFile} is claimed by ${TEAM_LEAD_NAME}; ask ${TEAM_LEAD_NAME} or wait for the release.`, `got ${JSON.stringify(betaOnLead)}`)
+check(`beta's Edit of lead.ts is refused naming ${CREW_LEAD_NAME}`, betaOnLead === `${leadFile} is claimed by ${CREW_LEAD_NAME}; ask ${CREW_LEAD_NAME} or wait for the release.`, `got ${JSON.stringify(betaOnLead)}`)
 
 section('§5 a release by alpha frees x.ts')
 check('alpha releases', (await leaseGlob.releaseLease('crew', 'alpha')) === true)

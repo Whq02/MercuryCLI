@@ -42,7 +42,7 @@ import { MercuryTeleport } from './MercuryTeleport.js'
 import { MercuryBridge } from './MercuryBridge.js'
 import { MercuryKeybindings } from './MercuryKeybindings.js'
 import { MercurySpinnerLine } from './MercurySpinnerLine.js'
-import { MercuryTeammateTree } from './MercuryTeammateTree.js'
+import { MercuryCrewmateTree } from './MercuryCrewmateTree.js'
 import { MercuryChannelsNotice } from './MercuryChannelsNotice.js'
 import { MercuryEmergencyTip } from './MercuryEmergencyTip.js'
 import { MercuryInterrupted } from './MercuryInterrupted.js'
@@ -170,7 +170,7 @@ const ITEMS: GalleryItem[] = [
   ...group(
     'Coordination & remote',
     item('bridge', 'Bridge', <MercuryBridge />),
-    item('teammate-tree', 'Crewmate tree', <MercuryTeammateTree />),
+    item('teammate-tree', 'Crewmate tree', <MercuryCrewmateTree />),
     item('channels', 'Channels notice', <MercuryChannelsNotice />),
     item('remote', 'Remote callout', <MercuryRemoteCallout />),
     item('emergency-tip', 'Emergency tip', <MercuryEmergencyTip />),

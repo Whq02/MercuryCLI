@@ -4,7 +4,7 @@ import {
   COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
   COMMAND_NAME_TAG,
-  TEAMMATE_MESSAGE_TAG,
+  CREWMATE_MESSAGE_TAG,
 } from '../../constants/xml.js'
 import type { Message, UserMessage } from '../../types/message.js'
 import { stripDisplayTagsAllowEmpty } from '../../utils/displayTags.js'
@@ -137,7 +137,7 @@ export function promptRows(records: readonly Message[]): PromptRow[] {
 }
 
 
-const TEAMMATE_OPEN = new RegExp(`<${TEAMMATE_MESSAGE_TAG}\\b([^>]*)>([\\s\\S]*?)</${TEAMMATE_MESSAGE_TAG}>`, 'g')
+const CREWMATE_OPEN = new RegExp(`<${CREWMATE_MESSAGE_TAG}\\b([^>]*)>([\\s\\S]*?)</${CREWMATE_MESSAGE_TAG}>`, 'g')
 
 function attr(attrs: string, name: string): string | undefined {
   const m = attrs.match(new RegExp(`\\b${name}="([^"]*)"`))
@@ -218,11 +218,11 @@ export function crewTrafficMessages(records: readonly Message[]): CrewRow[] {
     if (m.type === 'user') {
       if (m.isMeta) continue
       const text = textOf(m.message.content)
-      if (!text.includes(`<${TEAMMATE_MESSAGE_TAG}`)) continue
-      TEAMMATE_OPEN.lastIndex = 0
+      if (!text.includes(`<${CREWMATE_MESSAGE_TAG}`)) continue
+      CREWMATE_OPEN.lastIndex = 0
       let match: RegExpExecArray | null
       let i = 0
-      while ((match = TEAMMATE_OPEN.exec(text)) !== null) {
+      while ((match = CREWMATE_OPEN.exec(text)) !== null) {
         const attrs = match[1] ?? ''
         const body = unescapeAttr((match[2] ?? '').trim())
         const agent = attr(attrs, 'teammate_id') ?? 'agent'

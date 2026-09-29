@@ -12,11 +12,11 @@ t.section('§1 — the re-pointed eight (the config popup paints the design page
     ['src/components/MessageSelector.tsx', 'focused ? `${figures.pointer} `'],
     ['src/components/tasks/BackgroundTasksDialog.tsx', 'isSelected ? `${figures.pointer} `'],
     ['src/components/mcp/ElicitationDialog.tsx', 'focused ? `${figures.pointer} `'],
-    ['src/components/Spinner/TeammateSpinnerLine.tsx', 'isSelected ? `${figures.pointer} `'],
-    ['src/components/MercuryTeammateTree.tsx', 'i===sel?`${figures.pointer} `'],
+    ['src/components/Spinner/CrewmateSpinnerLine.tsx', 'isSelected ? `${figures.pointer} `'],
+    ['src/components/MercuryCrewmateTree.tsx', 'i===sel?`${figures.pointer} `'],
     ['src/components/MercuryModelPicker.tsx', 'on ? `${figures.pointer} `'],
     ['src/components/MercuryExport.tsx', 'i===sel?`${figures.pointer} `'],
-    ['src/components/Spinner/TeammateSpinnerTree.tsx', 'leaderSelected ? `${figures.pointer} `'],
+    ['src/components/Spinner/CrewmateSpinnerTree.tsx', 'leaderSelected ? `${figures.pointer} `'],
   ]
   for (const [file, needle] of sites) {
     const body = await Bun.file(file).text()
