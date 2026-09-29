@@ -159,7 +159,7 @@ function childEnv(home: string, netlog: string, extra: Record<string, string> = 
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
-    MERCURY_CREWS_DIR: join(scratch, 'teams'),
+    MERCURY_CREWS_DIR: join(scratch, 'crews'),
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_GAZE: '0',

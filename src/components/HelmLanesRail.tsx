@@ -512,7 +512,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     }))
   const localRunIds = new Set(localRuns.map(r => r.id))
   const hostedRuns: RunRow[] = roster.rows
-    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'teammate' && workRowRuns(row))
+    .filter(row => !localRunIds.has(row.id) && row.kind !== 'agent' && row.kind !== 'crewmate' && workRowRuns(row))
     .map(row => ({
       id: row.id,
       title: row.name,
@@ -778,7 +778,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         directActivate
         verb={verbLabel}
         verbColor={greyed ? tok.textMuted : base.tone}
-        {...railRowProps(isOn, sel, { kind: 'teammate', id: c.id, label: c.hosted ? `crew:h:${c.id}` : c.label })}
+        {...railRowProps(isOn, sel, { kind: 'crewmate', id: c.id, label: c.hosted ? `crew:h:${c.id}` : c.label })}
       />
     )
   })
@@ -789,7 +789,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         key="crew:more"
         n={crewMore}
         width={rowW}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/teammates', label: 'crew:more' })}
+        {...railRowProps(isOn, sel, { kind: 'command', command: '/crewmates', label: 'crew:more' })}
       />,
     )
 
@@ -1111,7 +1111,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             'CREW',
             `${crewEntries.length} ${crewWord}`,
             crewNodes,
-            { open: '/teammates' },
+            { open: '/crewmates' },
           )}
 
           {}

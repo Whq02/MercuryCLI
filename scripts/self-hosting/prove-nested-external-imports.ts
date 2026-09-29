@@ -19,8 +19,8 @@ function section(t: string): void {
 
 const project = mkdtempSync(join(tmpdir(), 'nested-ext-project-'))
 const outside = mkdtempSync(join(tmpdir(), 'nested-ext-outside-'))
-const guide = join(outside, 'team-guide.md')
-writeFileSync(guide, '# Team guide\n\nOUTSIDE-GUIDE-MARKER: land every change behind a prover.\n')
+const guide = join(outside, 'crew-guide.md')
+writeFileSync(guide, '# Crew guide\n\nOUTSIDE-GUIDE-MARKER: land every change behind a prover.\n')
 const nested = join(project, 'packages', 'core')
 mkdirSync(nested, { recursive: true })
 writeFileSync(join(nested, 'MERCURY.md'), `# Core package rules\n\nNESTED-MARKER: this package has its own rules.\n\n@${guide}\n`)
@@ -41,7 +41,7 @@ section('§1 no approval: the outside guide is dropped and the diagnostic says s
   const composed = entries.map(e => e.content).join('\n')
   check('the nested file itself composes (the fixture is meaningful)', composed.includes('NESTED-MARKER'), composed.slice(0, 120))
   check('the outside guide is NOT composed without approval', !composed.includes('OUTSIDE-GUIDE-MARKER'))
-  check('THE DROP IS RECORDED: an external-import-blocked diagnostic names the guide', diagnostics.some(d => d.kind === 'external-import-blocked' && (d.path ?? '').endsWith('team-guide.md')), JSON.stringify(diagnostics))
+  check('THE DROP IS RECORDED: an external-import-blocked diagnostic names the guide', diagnostics.some(d => d.kind === 'external-import-blocked' && (d.path ?? '').endsWith('crew-guide.md')), JSON.stringify(diagnostics))
 }
 
 section('§2 approved: the outside guide composes through the nested road')

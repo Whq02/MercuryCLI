@@ -22,8 +22,8 @@ const CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F]/
 const { sourceWhereWords, plainRowText } = await import('../../src/components/extensions/rowWords.ts')
 const lastError = 'remote: \u001b[31mpre-receive hook declined\u001b[0m\u0007 \u001b]0;title\u0007\r\nfatal: \u0085the remote hung up'
 const base = {
-  label: 'team-tools',
-  record: { kind: 'git', where: 'https://git.example.invalid/team/tools.git', ref: null, addedAt: '2026-01-01T00:00:00.000Z', checkedAt: null, commit: null, lastError },
+  label: 'crew-tools',
+  record: { kind: 'git', where: 'https://git.example.invalid/crew/tools.git', ref: null, addedAt: '2026-01-01T00:00:00.000Z', checkedAt: null, commit: null, lastError },
   state: 'unreachable',
   reason: null,
   offered: 0,

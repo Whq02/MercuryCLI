@@ -193,7 +193,7 @@ async function startFixture(port: number): Promise<Fixture> {
               name: 'Agent',
               input: {
                 name: CREWMATE,
-                team_name: CREW,
+                crew_name: CREW,
                 description: 'mail probe',
                 prompt: `${SEAT_MARK} hold the line until told otherwise`,
                 subagent_type: 'mercury-general',
@@ -253,7 +253,7 @@ const gridText = (grid: Grid): string =>
 type Capture = { text: string; marks: Record<string, string>; markTicks: Record<string, number>; receipts: Array<{ atTick: number; ts: number }>; endReason: string; endedAt: number; stderr: string }
 
 async function capture(cfg: Record<string, unknown>, env: Record<string, string>, budgetMs: number): Promise<Capture> {
-  const dir = mkdtempSync(join(tmpdir(), 'teammate-mail-cfg-'))
+  const dir = mkdtempSync(join(tmpdir(), 'crewmate-mail-cfg-'))
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
@@ -299,8 +299,8 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
 }
 
 function seedWorld(): { home: string; cwd: string } {
-  const home = realpathSync(mkdtempSync(join(tmpdir(), 'teammate-mail-home-')))
-  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'teammate-mail-cwd-')))
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'crewmate-mail-home-')))
+  const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'crewmate-mail-cwd-')))
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
   seedFirstRun(home, [cwd])
   return { home, cwd }
@@ -310,7 +310,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -350,7 +350,7 @@ function dump(label: string, frame: string | undefined): void {
 }
 
 console.log('============================================================')
-console.log(' a teammate mid-turn, mail queued at it, esc, the exit — nothing blocks, nothing survives — real bundle, PTY')
+console.log(' a crewmate mid-turn, mail queued at it, esc, the exit — nothing blocks, nothing survives — real bundle, PTY')
 console.log('============================================================')
 const KEEP = process.env.CREWMATE_MAIL_KEEP === '1'
 const { home, cwd } = seedWorld()
@@ -414,20 +414,20 @@ if (cap !== null) {
   const seatHitsBefore = (untilMs: number): number => seatHits.filter(h => h.atMs <= untilMs).length
   const mailed = fixture.hits.find(h => h.route === 'mailed')
 
-  console.log('\n— M1 the mail queues at the running teammate —')
-  check('the teammate spawned on the product\'s own road with no create step', fixture.hits.some(h => h.route === 'launch') && fixture.hits.some(h => h.route === 'spawned'))
+  console.log('\n— M1 the mail queues at the running crewmate —')
+  check('the crewmate spawned on the product\'s own road with no create step', fixture.hits.some(h => h.route === 'launch') && fixture.hits.some(h => h.route === 'spawned'))
   const seatFirst = fixture.hits.find(h => h.route === 'seat-first')
-  check('M1 the teammate held its seat (its first call answered, its second call held until the exit)', seatFirst !== undefined && fixture.hits.some(h => h.route === 'seat-hold') && seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
-  check('M1 both messages were sent to the teammate while its turn ran (the tool answered for each, after the seat\'s first call)', mailed !== undefined && seatFirst !== undefined && mailed.atMs >= seatFirst.atMs && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')
+  check('M1 the crewmate held its seat (its first call answered, its second call held until the exit)', seatFirst !== undefined && fixture.hits.some(h => h.route === 'seat-hold') && seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
+  check('M1 both messages were sent to the crewmate while its turn ran (the tool answered for each, after the seat\'s first call)', mailed !== undefined && seatFirst !== undefined && mailed.atMs >= seatFirst.atMs && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')
 
   console.log('\n— M2 esc ends the chat\'s turn alone; the loop is live —')
   check('M2 the chat\'s Bash sleep was running when esc landed', rowsWith(m['tool-running'], 'unning 1 bash command').length > 0, rowsWith(m['tool-running'], /Bash|running|bash command/).map(flat).join(' | ').slice(0, 200))
   check('M2 after esc the composer is back (the chat\'s turn ended)', rowsWith(m['after-esc'], 'ype a prompt').length > 0, rowsWith(m['after-esc'], /prompt|interrupt/).map(flat).join(' | ').slice(0, 200))
-  check('M2 the teammate\'s held connection stood through esc', holdClosedAt === null || holdClosedAt > exitAt - 500, holdClosedAt === null ? 'never closed' : `closed ${holdClosedAt - escAt} ms after esc`)
-  check('M2 no third seat call before the exit (esc did not touch the teammate; its mail waited)', seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
+  check('M2 the crewmate\'s held connection stood through esc', holdClosedAt === null || holdClosedAt > exitAt - 500, holdClosedAt === null ? 'never closed' : `closed ${holdClosedAt - escAt} ms after esc`)
+  check('M2 no third seat call before the exit (esc did not touch the crewmate; its mail waited)', seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
   check('M2 the chat answered the line typed after esc', rowsWith(m['alive'], ALIVE).length > 0, rowsWith(m['alive'], /ALIVE|alive/).map(flat).join(' | ').slice(0, 200))
 
-  console.log('\n— M3 the exit aborts the teammate with its mail queued; nothing blocks, nothing survives —')
+  console.log('\n— M3 the exit aborts the crewmate with its mail queued; nothing blocks, nothing survives —')
   check('M3 the cockpit exited on /exit (the capture ended at its end of file)', cap.endReason === 'eof', `end=${cap.endReason}`)
   console.log(`  [record] the held seat connection: ${holdClosedAt === null ? 'the fixture never saw its close' : `closed ${holdClosedAt - exitAt} ms after /exit`}`)
   check('M3 the bundle ran as more than one process during the journey (the census has teeth)', mostAlive >= 2, `${mostAlive} at most`)
@@ -446,5 +446,5 @@ if (!KEEP) {
 } else {
   console.log(`[kept] home=${home} cwd=${cwd}`)
 }
-console.log(failures === 0 ? '\n✅ teammate-mail-abort drive GREEN' : `\n❌ teammate-mail-abort drive RED — ${failures} failure(s)`)
+console.log(failures === 0 ? '\n✅ crewmate-mail-abort drive GREEN' : `\n❌ crewmate-mail-abort drive RED — ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

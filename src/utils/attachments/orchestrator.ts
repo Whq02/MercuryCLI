@@ -252,7 +252,7 @@ export async function getAttachments(
                   { priority: true },
                 ),
               ]),
-          maybe('team_context', async () =>
+          maybe('crew_context', async () =>
             getCrewContextAttachment(messages ?? []),
           ),
         ]

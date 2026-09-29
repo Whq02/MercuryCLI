@@ -9,8 +9,8 @@ export function getPrompt(): string {
   const crewSection = isAgentSwarmsEnabled()
     ? `
 
-## Working in a team
-- Tasks can be assigned to teammates. Write the description with enough detail that another agent can pick the task up without your context.
+## Working in a crew
+- Tasks can be assigned to crewmates. Write the description with enough detail that another agent can pick the task up without your context.
 - Assign a task by setting its owner through ${TASK_UPDATE_TOOL_NAME}'s owner parameter.`
     : ''
 

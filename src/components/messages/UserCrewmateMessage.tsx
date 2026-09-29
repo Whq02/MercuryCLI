@@ -26,12 +26,12 @@ function attribute(tag: string, name: string): string | undefined {
 
 function parseCrewmateMessages(text: string): RelayedMessage[] {
   const out: RelayedMessage[] = []
-  const re = /<teammate-message\b([^>]*)>([\s\S]*?)<\/teammate-message>/g
+  const re = /<crewmate-message\b([^>]*)>([\s\S]*?)<\/crewmate-message>/g
   let match: RegExpExecArray | null
   while ((match = re.exec(text)) !== null) {
     const attrs = match[1] ?? ''
     out.push({
-      crewmateId: attribute(attrs, 'teammate_id') ?? 'teammate',
+      crewmateId: attribute(attrs, 'crewmate_id') ?? 'crewmate',
       color: attribute(attrs, 'color'),
       summary: attribute(attrs, 'summary'),
       content: (match[2] ?? '').trim(),
@@ -43,7 +43,7 @@ function parseCrewmateMessages(text: string): RelayedMessage[] {
 function isTerminated(content: string): boolean {
   try {
     const parsed = JSON.parse(content) as { type?: string }
-    return parsed?.type === 'teammate_terminated'
+    return parsed?.type === 'crewmate_terminated'
   } catch {
     return false
   }

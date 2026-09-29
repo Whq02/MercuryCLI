@@ -97,7 +97,7 @@ const WORKFLOW_DETAIL_GRACE_MS = 5000
 
 type RowKind =
   | 'leader'
-  | 'teammate'
+  | 'crewmate'
   | 'shell'
   | 'monitor'
   | 'agent'
@@ -129,7 +129,7 @@ function SampleRowLine({ sample }: { sample: SampleRowV1 }): React.ReactNode {
 function kindOf(task: TaskState): RowKind {
   if (isLocalShellTask(task)) return task.kind === 'monitor' ? 'monitor' : 'shell'
   if (isLocalAgentTask(task)) return 'agent'
-  if (isInProcessCrewmateTask(task)) return 'teammate'
+  if (isInProcessCrewmateTask(task)) return 'crewmate'
   if (isLocalWorkflowTask(task)) return 'workflow'
   if (isDreamTask(task)) return 'dream'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
@@ -231,7 +231,7 @@ export function RosterWorkDetail({
     const phase = crewPhaseWords(crew, now)
     if (phase !== null) rows.push({ k: 'phase', v: phase, tone: tokens.textSecondary })
     if (crew.agentType !== null) rows.push({ k: 'agent', v: crew.agentType, tone: tokens.textPrimary })
-    if (crew.crew !== null) rows.push({ k: 'team', v: crew.crew, tone: tokens.textPrimary })
+    if (crew.crew !== null) rows.push({ k: 'crew', v: crew.crew, tone: tokens.textPrimary })
     const crewTokens = crewTokensLabel(crew)
     if (crewTokens !== null) rows.push({ k: 'tokens', v: `${GLYPH.tokens} ${crewTokens}`, tone: tokens.textPrimary })
     const crewSpend = crewSpendLabel(crew)
@@ -301,7 +301,7 @@ export function BackgroundTasksDialog({
   const roster = useFocusedWorkRoster()
   const presence = React.useMemo(() => focusedRunnerPresence(), [roster])
   const treeShowing = useAppState(
-    (state: AppState) => state.expandedView === 'teammates',
+    (state: AppState) => state.expandedView === 'crewmates',
   )
   const viewingAgentTaskId = useAppState(
     (state: AppState) => state.viewingAgentTaskId,
@@ -333,7 +333,7 @@ export function BackgroundTasksDialog({
     const kind = kindOf(task)
     byKind.set(kind, [...(byKind.get(kind) ?? []), task])
   }
-  const crewmateTasks = (byKind.get('teammate') ?? []) as InProcessCrewmateTaskState[]
+  const crewmateTasks = (byKind.get('crewmate') ?? []) as InProcessCrewmateTaskState[]
   const shellTasks = byKind.get('shell') ?? []
   const monitorTasks = byKind.get('monitor') ?? []
   const agentTasks = byKind.get('agent') ?? []
@@ -349,8 +349,8 @@ export function BackgroundTasksDialog({
     )
   const flat: BoardItem[] = [
     ...(leaderItem ? [leaderItem] : []),
-    ...crewmateTasks.map((task): BoardItem => ({ id: task.id, kind: 'teammate', task })),
-    ...rosterOf('teammate'),
+    ...crewmateTasks.map((task): BoardItem => ({ id: task.id, kind: 'crewmate', task })),
+    ...rosterOf('crewmate'),
     ...shellTasks.map((task): BoardItem => ({ id: task.id, kind: 'shell', task })),
     ...rosterOf('shell'),
     ...monitorTasks.map((task): BoardItem => ({ id: task.id, kind: 'monitor', task })),
@@ -475,7 +475,7 @@ export function BackgroundTasksDialog({
       case 'agent':
         killAsyncAgent(task.id, setAppState)
         return
-      case 'teammate':
+      case 'crewmate':
         void InProcessCrewmateTask.kill(task.id, setAppState)
         return
       case 'workflow':
@@ -727,15 +727,15 @@ export function BackgroundTasksDialog({
 
   const crewGroups = new Map<string, InProcessCrewmateTaskState[]>()
   for (const crewmate of crewmateTasks) {
-    const team = crewmate.identity.teamName
-    crewGroups.set(team, [...(crewGroups.get(team) ?? []), crewmate])
+    const group = crewmate.identity.crewName
+    crewGroups.set(group, [...(crewGroups.get(group) ?? []), crewmate])
   }
-  const crewmateItems = flat.filter(item => item.kind === 'teammate')
+  const crewmateItems = flat.filter(item => item.kind === 'crewmate')
   const rosterCrewGroups = new Map<string, BoardItem[]>()
   for (const item of crewmateItems) {
     if (item.work === undefined) continue
-    const team = item.work.crew ?? 'team'
-    rosterCrewGroups.set(team, [...(rosterCrewGroups.get(team) ?? []), item])
+    const group = item.work.crew ?? 'crew'
+    rosterCrewGroups.set(group, [...(rosterCrewGroups.get(group) ?? []), item])
   }
   const shellItems = flat.filter(item => item.kind === 'shell')
   const monitorItems = flat.filter(item => item.kind === 'monitor')
@@ -746,7 +746,7 @@ export function BackgroundTasksDialog({
   const processItems = flat.filter(item => item.kind !== 'sample')
 
   const selectedCrewmateRunning =
-    selected?.kind === 'teammate' && selected.task?.status === 'running'
+    selected?.kind === 'crewmate' && selected.task?.status === 'running'
   const selectedStoppable =
     (selected?.task !== undefined && selected.task.status === 'running') ||
     (selected?.work !== undefined && workRowRuns(selected.work))
@@ -840,10 +840,10 @@ export function BackgroundTasksDialog({
                 {leaderItem !== null && inWin(leaderItem)
                   ? rowFor(leaderItem)
                   : null}
-                {[...crewGroups.entries()].map(([team, members]) => (
-                  <Box key={team} flexDirection="column">
+                {[...crewGroups.entries()].map(([group, members]) => (
+                  <Box key={group} flexDirection="column">
                     <Text dimColor>
-                      {team} · {members.length + 1} named
+                      {group} · {members.length + 1} named
                     </Text>
                     {crewmateItems
                       .filter(item =>
@@ -853,10 +853,10 @@ export function BackgroundTasksDialog({
                       .map(rowFor)}
                   </Box>
                 ))}
-                {[...rosterCrewGroups.entries()].map(([team, items]) => (
-                  <Box key={`roster-${team}`} flexDirection="column">
+                {[...rosterCrewGroups.entries()].map(([group, items]) => (
+                  <Box key={`roster-${group}`} flexDirection="column">
                     <Text dimColor>
-                      {team} · {items.length} named
+                      {group} · {items.length} named
                     </Text>
                     {items.filter(inWin).map(rowFor)}
                   </Box>

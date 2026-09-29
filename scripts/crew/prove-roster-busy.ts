@@ -15,7 +15,7 @@ for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OP
 for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'MERCURY_CREWS_DIR', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'NODE_ENV']) delete process.env[key]
 
 const CREW = 'roster-truth'
-const LEAD = 'team-lead'
+const LEAD = 'crew-lead'
 const SEAT = 'mapper'
 const MODEL = 'claude-opus-4-6'
 
@@ -70,7 +70,7 @@ const LEAD_ID = formatAgentId(LEAD, CREW)
 const SEAT_ID = formatAgentId(SEAT, CREW)
 let state: AppState = {
   ...getDefaultAppState(),
-  crewContext: { teamName: CREW, crewFilePath: getCrewFilePath(CREW), leadAgentId: LEAD_ID, crewmates: {} },
+  crewContext: { crewName: CREW, crewFilePath: getCrewFilePath(CREW), leadAgentId: LEAD_ID, crewmates: {} },
 } as AppState
 const setAppState = (updater: (prev: AppState) => AppState): void => {
   state = updater(state)
@@ -97,11 +97,11 @@ const statusOf = async (name: string): Promise<string | undefined> => (await get
 const flagOf = async (name: string): Promise<boolean | undefined> => ((await readCrewFileAsync(CREW))?.members.find(candidate => candidate.name === name) as { isActive?: boolean } | undefined)?.isActive
 const ctx = { crew: CREW, agentId: LEAD_ID }
 
-section('§1 a teammate whose turn is in flight reads busy on the roster — the brief, the statuses and the health agree; the lead reads idle')
-const spawned = await spawnInProcessCrewmate({ name: SEAT, teamName: CREW, prompt: `${SEAT}: draw the map.`, planModeRequired: false, model: MODEL }, { setAppState })
+section('§1 a crewmate whose turn is in flight reads busy on the roster — the brief, the statuses and the health agree; the lead reads idle')
+const spawned = await spawnInProcessCrewmate({ name: SEAT, crewName: CREW, prompt: `${SEAT}: draw the map.`, planModeRequired: false, model: MODEL }, { setAppState })
 if (!spawned.success || spawned.taskId === undefined || spawned.crewmateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
 const done = runInProcessCrewmate({
-  identity: { agentId: SEAT_ID, agentName: SEAT, teamName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
+  identity: { agentId: SEAT_ID, agentName: SEAT, crewName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
   taskId: spawned.taskId,
   prompt: `${SEAT}: draw the map.`,
   crewmateContext: spawned.crewmateContext,

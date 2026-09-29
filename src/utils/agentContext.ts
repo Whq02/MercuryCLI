@@ -18,10 +18,10 @@ export type SubagentContext = InvocationEdge & {
 }
 
 export type CrewmateAgentContext = InvocationEdge & {
-  agentType: 'teammate'
+  agentType: 'crewmate'
   agentId: string
   agentName: string
-  teamName: string
+  crewName: string
   agentColor?: string
   planModeRequired: boolean
   parentSessionId: string
@@ -46,7 +46,7 @@ export function isSubagentContext(context: AgentContext | undefined): context is
 
 export function isCrewmateAgentContext(context: AgentContext | undefined): context is CrewmateAgentContext {
   if (!isAgentSwarmsEnabled()) return false
-  return context !== undefined && context.agentType === 'teammate'
+  return context !== undefined && context.agentType === 'crewmate'
 }
 
 export function getSubagentLogName(): string | undefined {

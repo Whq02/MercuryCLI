@@ -47,7 +47,7 @@ check('the continuation re-persists the directory', resume.includes('...(cwdPath
 check('the continuation hands the directory to the run loop', resume.includes('...(cwdPath ? { cwd: cwdPath } : {}),\n          description,'))
 check('a gone directory is surfaced to the sender as a fallback, never a silent shift', resume.includes("cwdFallback?: 'parent-checkout' | 'parent-directory'") && resume.includes("? { cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
 const crewsDoc = readFileSync(join(ROOT, 'docs/CREW.md'), 'utf8').replace(/\s+/g, ' ')
-check('the teams page says a continued sub-agent wakes in its launch directory', crewsDoc.includes('continued by a later message wakes in the directory it was launched in'))
+check('the crews page says a continued sub-agent wakes in its launch directory', crewsDoc.includes('continued by a later message wakes in the directory it was launched in'))
 
 section("§4 the message's receipt names a recorded directory that is gone, once, with the directory the continuation runs in")
 const noteLeaf = await import('../../src/tools/AgentTool/continuationNote.ts').catch(() => null)
@@ -69,7 +69,7 @@ if (noteLeaf !== null) {
 const send = src('tools', 'SendMessageTool', 'SendMessageTool.ts')
 check('BOTH resume arms of the message tool paint the note from its owner', send.split("(resumed.note ?? '')").length - 1 === 2 && resume.includes("from './continuationNote.js'"))
 check('the resume result names the recorded directory beside the parent-directory fallback', resume.includes("{ cwdFallback: 'parent-directory' as const, recordedCwd: meta.cwd }"))
-check('the teams page says the receipt names the gone directory', crewsDoc.includes('naming the directory that is gone'))
+check('the crews page says the receipt names the gone directory', crewsDoc.includes('naming the directory that is gone'))
 
 section('§5 the resume owner carries the note into every continuation')
 check('the result carries the note', resume.includes('note?: string'))

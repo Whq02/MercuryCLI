@@ -9,7 +9,7 @@ communication carries its messages, tasks, file claims and who is busy.
 
 ## The crew view
 
-`/crewmates` is the Crew view (`/teammates` still opens it, as the old name):
+`/crewmates` is the Crew view (`/crewmates` still opens it, as the old name):
 the focused session's sub-agents live — name, model, status, tokens,
 elapsed — and the named, long-lived crewmates the daemon keeps for the
 repository, one color-coded chat each, side by side. It is the one roster
@@ -204,7 +204,7 @@ restart never mints a duplicate.
 
 ## Boards
 
-`/team` opens the crew board on `/runs` (`/tasks` still opens the same board)
+`/crew` opens the crew board on `/runs` (`/tasks` still opens the same board)
 — the crewmates, their phases and handoffs. `/crewmates` is the Crew view:
 the session's sub-agents live, and the named crewmates' chats; each sub-agent
 row carries the count of notices delivered to it that no turn of its own has

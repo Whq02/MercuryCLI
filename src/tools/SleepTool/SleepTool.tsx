@@ -25,7 +25,7 @@ export const TRACKED_ARM_GRACE_TICKS = 4
 
 export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
   'local_agent',
-  'in_process_teammate',
+  'in_process_crewmate',
   'remote_agent',
   'local_workflow',
 ])

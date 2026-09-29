@@ -47,7 +47,6 @@ const FILES = [
   'src/components/PromptInput/useSwarmBanner.ts',
   'src/commands/crewmates/index.ts',
   'src/commands/crewmates/crewmates.tsx',
-  'src/commands/team/index.ts',
   'src/commands/crew/index.ts',
   'src/services/engine-connector/workCounts.ts',
   'src/services/engine-connector/crewFacts.ts',
@@ -61,9 +60,6 @@ const FILES = [
 const ALLOW: Array<[string, string, string]> = [
   ['src/utils/healthReport.ts', 'clamped for tmux', 'the colour clamp names the real terminal the session runs inside'],
   ['src/utils/healthReport.ts', 'terminal-overrides', "the same row's remedy for that real terminal"],
-  ['src/daemon/crewSpawn.ts', 'You are @${name}, a Mercury crew teammate', "the named agent's own system prompt — model-facing bytes, not operator copy"],
-  ['src/daemon/crewSpawn.ts', 'Other teammates may be working', 'the same prompt'],
-  ['src/daemon/crewSpawn.ts', "role: 'teammate'", "the team-file member record's role value — a wire spelling"],
 ]
 
 type Hit = { line: number; text: string; needle: string }

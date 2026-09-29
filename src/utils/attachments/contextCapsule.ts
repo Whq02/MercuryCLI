@@ -37,7 +37,7 @@ const CARRIER_PREFIXES = [
   '<command-name',
   '<command-message',
   '<task-notification',
-  '<teammate-message',
+  '<crewmate-message',
 ]
 
 export function latestUserTaskText(messages: readonly Message[] | undefined): string | null {

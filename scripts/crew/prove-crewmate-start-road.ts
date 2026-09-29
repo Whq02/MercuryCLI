@@ -121,7 +121,7 @@ tally.section('§2 the doors: the Agent tool with a name maps cwd, isolation and
 }
 
 tally.section('§3 the drive: a named crewmate started with a cwd runs there; with a worktree it runs in the worktree cut from that folder; its model is the one named')
-const hasTeamCreate = existsSync(join(ROOT, 'src/tools/TeamCreateTool'))
+const hasCrewCreate = existsSync(join(ROOT, 'src/tools/CrewCreateTool'))
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn =>
   ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
 const world = await makeWorld('crewmate-start-road', [])
@@ -130,12 +130,12 @@ mkdirSync(folderOne)
 const repoTwo = join(world.project, 'repo-two')
 initRepo(repoTwo)
 const script: ScriptedTurn[] = [
-  ...(hasTeamCreate ? [lead({ kind: 'tool_use', id: 'toolu_start_team', name: 'TeamCreate', input: { team_name: CREW, description: 'the start-road team' } }, FIRST)] : []),
-  lead({ kind: 'tool_use', id: SPAWN_ONE, name: 'Agent', input: { name: SEAT_ONE, team_name: CREW, model: SEAT_MODEL, cwd: folderOne, subagent_type: 'mercury-general', description: 'the folder mate', prompt: WORK_ONE } }, FIRST),
+  ...(hasCrewCreate ? [lead({ kind: 'tool_use', id: 'toolu_start_crew', name: 'TeamCreate', input: { crew_name: CREW, description: 'the start-road crew' } }, FIRST)] : []),
+  lead({ kind: 'tool_use', id: SPAWN_ONE, name: 'Agent', input: { name: SEAT_ONE, crew_name: CREW, model: SEAT_MODEL, cwd: folderOne, subagent_type: 'mercury-general', description: 'the folder mate', prompt: WORK_ONE } }, FIRST),
   lead({ kind: 'text', text: 'SPAWN-ONE-REPORTED' }, FIRST),
   { kind: 'tool_use', id: PWD_ONE, name: 'Bash', input: { command: 'pwd' }, whenModel: SEAT_GATE, whenBody: 'WORK-ONE' },
   { kind: 'text', text: DONE_ONE, whenModel: SEAT_GATE, whenBody: 'WORK-ONE' },
-  lead({ kind: 'tool_use', id: SPAWN_TWO, name: 'Agent', input: { name: SEAT_TWO, team_name: CREW, model: SEAT_MODEL, cwd: repoTwo, isolation: 'worktree', subagent_type: 'mercury-general', description: 'the tree mate', prompt: WORK_TWO } }, SECOND),
+  lead({ kind: 'tool_use', id: SPAWN_TWO, name: 'Agent', input: { name: SEAT_TWO, crew_name: CREW, model: SEAT_MODEL, cwd: repoTwo, isolation: 'worktree', subagent_type: 'mercury-general', description: 'the tree mate', prompt: WORK_TWO } }, SECOND),
   lead({ kind: 'text', text: 'SPAWN-TWO-REPORTED' }, SECOND),
   { kind: 'tool_use', id: PWD_TWO, name: 'Bash', input: { command: 'pwd' }, whenModel: SEAT_GATE, whenBody: 'WORK-TWO' },
   { kind: 'text', text: DONE_TWO, whenModel: SEAT_GATE, whenBody: 'WORK-TWO' },
@@ -143,7 +143,7 @@ const script: ScriptedTurn[] = [
 await world.fixture.close()
 world.fixture = await startFixtureApi(script)
 world.env.ANTHROPIC_BASE_URL = world.fixture.url
-const session = bootLead(world, [], ['Agent', 'SendMessage', 'Bash', ...(hasTeamCreate ? ['TeamCreate'] : [])])
+const session = bootLead(world, [], ['Agent', 'SendMessage', 'Bash', ...(hasCrewCreate ? ['TeamCreate'] : [])])
 const projects = join(world.config, 'projects')
 try {
   session.submit(`${FIRST}: start the folder mate.`)

@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
-import { DIST, LEAD_GATE, LEAD_MODEL, NODE, RECORD, record } from './team-world.ts'
+import { DIST, LEAD_GATE, LEAD_MODEL, NODE, RECORD, record } from '../crew/team-world.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' }).stdout.trim()
@@ -25,11 +25,11 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reports to the lead', prompt: `${WORKER_PROMPT}: report to team-lead.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reports to the lead', prompt: `${WORKER_PROMPT}: report to crew-lead.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-DONE' }, FIRST),
   lead({ kind: 'text', text: 'LEAD-SECOND' }, SECOND),
   ...Array.from({ length: 6 }, ack),
-  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', message: REPLY, summary: 'the report' } }, WORKER_PROMPT),
+  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', message: REPLY, summary: 'the report' } }, WORKER_PROMPT),
   peer({ kind: 'text', text: 'WORKER-DONE' }, WORKER_PROMPT),
 ]
 
@@ -54,13 +54,13 @@ type Send = Record<string, unknown>
 const awaits = (needle: string, data: string, extra: Send = {}): Send => ({ requireAwait: true, awaitText: needle, awaitSettleTicks: 3, minTick: 5, data, ...extra })
 const sends: Send[] = [
   { atTick: 300, awaitText: '↵ start', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'face' },
-  { afterPrevTicks: 5, data: '\r', mark: 'enter' },
+  awaits('↵ start', '\r', { mark: 'enter' }),
   awaits('Type a prompt', `${FIRST}: spawn the worker and stop.\r`),
   awaits('LEAD-DONE', '', { mark: 'lead-done' }),
   { atTick: 500, awaitText: 'LEAD-ACK', minTick: 3, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'after-worker' },
-  { afterPrevTicks: 2, data: `${SECOND}: anything from the worker?\r` },
+  awaits('LEAD-ACK', `${SECOND}: anything from the worker?\r`),
   awaits('LEAD-SECOND', '', { mark: 'second' }),
-  { afterPrevTicks: 4, data: '', mark: 'final' },
+  awaits('LEAD-SECOND', '', { mark: 'final' }),
 ]
 writeFileSync(cfgPath, JSON.stringify({
   argv: [NODE, DIST, '--model', LEAD_MODEL, '--permission-mode', 'sovereign', '--session-id', sessionId],
@@ -80,7 +80,7 @@ const env: NodeJS.ProcessEnv = {
   PYTHONPATH: PYTHON_USER_SITE,
   TERM: 'xterm-256color',
   MERCURY_CONFIG_DIR: config,
-  MERCURY_CREWS_DIR: join(dir, 'teams'),
+  MERCURY_CREWS_DIR: join(dir, 'crews'),
   MERCURY_DAEMON_DIR: join(dir, 'daemon'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -135,17 +135,17 @@ for (const label of ['face', 'enter', 'lead-done', 'after-worker', 'second', 'fi
 record('lead-requests.json', JSON.stringify(leadRequests.map(r => ({ last: lastUser(r).slice(0, 600) })), null, 2))
 record('peer-requests.json', JSON.stringify(peerRequests.map(r => ({ last: lastUser(r).slice(0, 300) })), null, 2))
 
-section('an interactive lead (a real PTY) spawns a crewmate that reports to team-lead by SendMessage; the lead sits at its prompt')
+section('an interactive lead (a real PTY) spawns a crewmate that reports to crew-lead by SendMessage; the lead sits at its prompt')
 check('the product booted to the composer, the lead finished its first turn and answered the second prompt', status === 0 && marks.has('lead-done') && marks.has('second'), `vshot ${status} end=${endReason}; ${driverOut.split('\n').filter(Boolean).slice(-3).join(' | ')}`)
 check('the crewmate ran and called SendMessage to the lead (the wire shows its tool result)', peerRequests.some(r => lastUser(r).includes('tool_result') && lastUser(r).includes('delivered')), peerRequests.map(r => lastUser(r).slice(0, 160)).join(' || '))
 section('the crewmate\'s message opens the lead\'s next turn by itself: no tool call, no prompt from the owner')
-const block = `<teammate-message teammate_id=\\"${worker}\\" color=\\"red\\" summary=\\"the report\\">\\n${REPLY}\\n</teammate-message>`
+const block = `<crewmate-message crewmate_id=\\"${worker}\\" color=\\"red\\" summary=\\"the report\\">\\n${REPLY}\\n</crewmate-message>`
 check('a lead request opens with the crewmate\'s message alone, before the owner\'s second prompt', wakeBeforeSecond !== undefined, leadRequests.map(r => lastUser(r).slice(0, 120)).join(' || '))
-check('that turn carries the crewmate-message block in the wire\'s own words: teammate_id, color, summary, the text', wakeBeforeSecond !== undefined && lastUser(wakeBeforeSecond).includes(block), wakeBeforeSecond === undefined ? '' : lastUser(wakeBeforeSecond).slice(0, 400))
+check('that turn carries the crewmate-message block in the wire\'s own words: crewmate_id, color, summary, the text', wakeBeforeSecond !== undefined && lastUser(wakeBeforeSecond).includes(block), wakeBeforeSecond === undefined ? '' : lastUser(wakeBeforeSecond).slice(0, 400))
 check('the message and the lead\'s answer are painted in the chat before the owner types again', /@worker the report/.test(frame('after-worker')) && /LEAD-ACK/.test(frame('after-worker')), frame('after-worker').split('\n').filter(r => r.trim() !== '').slice(-8).join(' | '))
 check('the owner\'s next prompt does not carry the message again: delivered once', secondIndex >= 0 && !secondCarries, secondIndex < 0 ? `no SECOND request among ${leadRequests.length}` : lastUser(leadRequests[secondIndex]!).slice(0, 300))
-const teams = join(dir, 'teams')
-const inboxFiles = existsSync(teams) ? spawnSync('/usr/bin/find', [teams, '-path', '*inboxes*'], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean) : []
+const crews = join(dir, 'crews')
+const inboxFiles = existsSync(crews) ? spawnSync('/usr/bin/find', [crews, '-path', '*inboxes*'], { encoding: 'utf8' }).stdout.split('\n').filter(Boolean) : []
 check('no per-member inbox file was written: the message rode the crew\'s live store', inboxFiles.length === 0, inboxFiles.join(', '))
 
 if (failures === 0 && RECORD === undefined) rmSync(dir, { recursive: true, force: true })

@@ -307,7 +307,7 @@ console.log('§18 login mint — the spinner is bounded into a keyed state')
   check("the error state keeps esc live (the bounded wedge's landing)", flow.includes("state.name === 'error'"))
 }
 
-console.log('§19 teammates board — esc lives while busy, the footer says so')
+console.log('§19 crewmates board — esc lives while busy, the footer says so')
 {
   const board = read('src/components/mercury-ui/screens/CrewmateChatsView.tsx')
   check('poison gone: the busy arm no longer swallows every key', !/if \(busy\) return/.test(board))

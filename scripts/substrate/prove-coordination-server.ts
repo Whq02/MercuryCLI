@@ -56,7 +56,7 @@ async function connect(): Promise<Client> {
 function jsonOf(r: { content?: Array<{ text?: string }> }): {
   ok?: boolean
   reason?: string
-  teamName?: string | null
+  crewName?: string | null
   recipients?: string[]
   broadcast?: boolean
 } {
@@ -85,7 +85,7 @@ function crewWith(
     members: [
       {
         agentId: `lead@${name}`,
-        name: 'team-lead',
+        name: 'crew-lead',
         joinedAt: Date.now(),
         tmuxPaneId: '',
         cwd: tmpHome,
@@ -121,7 +121,7 @@ try {
     const client = await connect()
     const names = (await client.listTools()).tools.map(t => t.name).sort()
     check(
-      'registers the team and project lease verbs plus render_tui',
+      'registers the crew and project lease verbs plus render_tui',
       names.join(',') ===
         'brief,coord_say,lease_claim,lease_list,lease_release,lease_take,render_tui',
       names.join(','),
@@ -170,7 +170,7 @@ try {
     }
   }
 
-  section('SOLO (no team): project leases work; team-only verbs stay benign')
+  section('SOLO (no crew): project leases work; crew-only verbs stay benign')
   clearDynamicCrewContext()
   {
     const client = await connect()
@@ -203,16 +203,16 @@ try {
     )
     const brief = await client.callTool({ name: 'brief', arguments: {} })
     check('brief solo is not a tool error (already benign)', !isError(brief))
-    check('brief solo returns teamName:null', jsonOf(brief).teamName === null)
+    check('brief solo returns crewName:null', jsonOf(brief).crewName === null)
   }
 
-  section('IN-TEAM: leases + coord_say round-trip (default governance)')
+  section('IN-CREW: leases + coord_say round-trip (default governance)')
   const CREW = 'mcp-proof'
   await writeCrewFileAsync(CREW, crewWith(CREW, undefined))
   setDynamicCrewContext({
     agentId: `w@${CREW}`,
     agentName: 'worker',
-    teamName: CREW,
+    crewName: CREW,
     color: 'blue',
     planModeRequired: false,
   })
@@ -222,7 +222,7 @@ try {
       name: 'lease_claim',
       arguments: { globs: ['src/api/**'] },
     })
-    check('lease_claim in-team succeeds', jsonOf(claim).ok === true)
+    check('lease_claim in-crew succeeds', jsonOf(claim).ok === true)
     const list = await client.callTool({ name: 'lease_list', arguments: {} })
     check(
       'lease_list shows the claimed glob',
@@ -264,7 +264,7 @@ try {
     setDynamicCrewContext({
       agentId: `w@${CREW}`,
       agentName: 'worker',
-      teamName: CREW,
+      crewName: CREW,
       color: 'blue',
       planModeRequired: false,
     })
@@ -280,8 +280,8 @@ try {
   {
     setDynamicCrewContext({
       agentId: `lead@${CREW}`,
-      agentName: 'team-lead',
-      teamName: CREW,
+      agentName: 'crew-lead',
+      crewName: CREW,
       color: 'red',
       planModeRequired: false,
     })
@@ -316,7 +316,7 @@ try {
     setDynamicCrewContext({
       agentId: `w@${CREW}`,
       agentName: 'worker',
-      teamName: CREW,
+      crewName: CREW,
       color: 'blue',
       planModeRequired: false,
     })

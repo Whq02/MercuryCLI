@@ -12,7 +12,7 @@ import { appendCappedMessage, isInProcessCrewmateTask } from '../InProcessCrewma
 
 export const InProcessCrewmateTask: Task = {
   name: 'InProcessCrewmateTask',
-  type: 'in_process_teammate',
+  type: 'in_process_crewmate',
   async kill(taskId, setAppState) {
     return killInProcessCrewmate(taskId, setAppState)
   },
@@ -46,7 +46,7 @@ export function injectUserMessageToCrewmate(
   updateTaskState<InProcessCrewmateTaskState>(taskId, setAppState, task => {
     if (isTerminalTaskStatus(task.status)) {
       logForDebugging(
-        `dropped user message for teammate task ${taskId} in terminal status ${task.status}`,
+        `dropped user message for crewmate task ${taskId} in terminal status ${task.status}`,
       )
       return task
     }

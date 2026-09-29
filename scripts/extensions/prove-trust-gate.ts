@@ -191,7 +191,7 @@ console.log('[5] a wanted proposal is shown, never fetched')
   await swap()
   check('NOTHING was fetched across roster + reload (request log empty)', requestLog.length === 0, requestLog.join(' | '))
   check('a committed enabled switch for an unapproved extension is ignored', (() => {
-    writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'proposed-tools@team': true }, wanted: [{ name: 'proposed-tools', source: 'http://127.0.0.1:34311/crew.git' }] } }, null, 2))
+    writeFileSync(join(cwd, '.mercury', 'settings.json'), JSON.stringify({ extensions: { enabled: { 'proposed-tools@crew': true }, wanted: [{ name: 'proposed-tools', source: 'http://127.0.0.1:34311/crew.git' }] } }, null, 2))
     settingsChangeDetector.notifyChange()
     const again = rosterMod.computeRoster({ cwd }).entries.find(e => e.name === 'proposed-tools')
     return again !== undefined && rosterMod.trustStateOf(again) === 'found'

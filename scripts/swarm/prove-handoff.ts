@@ -55,7 +55,7 @@ section('validateHandoff — success claims need evidence, non-claims never do')
 
 section('ledger IO (hermetic) — verdict stamping + id idempotency')
 {
-  const CREW = 'proof-team'
+  const CREW = 'proof-crew'
 
   const v1 = await recordHandoff(
     { id: 'h1', from: 'executor', to: 'bob', status: 'done', summary: 'built it', evidenceRefs: [{ kind: 'commit', ref: 'abc1234' }, { ref: '  ' }] },
@@ -86,7 +86,7 @@ section('ledger IO (hermetic) — verdict stamping + id idempotency')
 
 section('listIncomingHandoffs — case-insensitive addressee (the shared rule)')
 {
-  const CREW = 'case-team'
+  const CREW = 'case-crew'
   await recordHandoff({ id: 'hc1', from: 'lead', to: 'Bob', status: 'blocked', summary: 'cased differently' }, CREW)
   const seen = await listIncomingHandoffs('bob', CREW)
   check('handoff to "Bob" reaches "bob" (case-insensitive)', seen.length === 1)
@@ -96,11 +96,11 @@ section('listIncomingHandoffs — case-insensitive addressee (the shared rule)')
 
 section('acknowledge filtering + junk-ledger fail-open')
 {
-  const CREW = 'ack-team'
+  const CREW = 'ack-crew'
   await recordHandoff({ id: 'ha1', from: 'a', to: 'bob', status: 'blocked', summary: 'open' }, CREW)
   await recordHandoff({ id: 'ha2', from: 'a', to: 'bob', status: 'blocked', summary: 'acked' }, CREW)
 
-  const ledgerPath = join(TMP, 'teams', CREW, 'handoffs.json')
+  const ledgerPath = join(TMP, 'crews', CREW, 'handoffs.json')
   const rows = JSON.parse(readFileSync(ledgerPath, 'utf-8')) as Array<Record<string, unknown>>
   for (const r of rows) if (r.id === 'ha2') r.acknowledgedAt = new Date().toISOString()
   writeFileSync(ledgerPath, JSON.stringify(rows, null, 2), 'utf-8')
@@ -110,8 +110,8 @@ section('acknowledge filtering + junk-ledger fail-open')
   const all = await listAllOpenHandoffs(CREW)
   check('listAllOpenHandoffs is also unacked-only', all.length === 1)
 
-  const junkCrew = 'junk-team'
-  const junkDir = join(TMP, 'teams', junkCrew)
+  const junkCrew = 'junk-crew'
+  const junkDir = join(TMP, 'crews', junkCrew)
   mkdirSync(junkDir, { recursive: true })
   writeFileSync(join(junkDir, 'handoffs.json'), '][ definitely not json', 'utf-8')
   check('junk ledger lists as empty (fail-open)', (await listIncomingHandoffs('bob', junkCrew)).length === 0)

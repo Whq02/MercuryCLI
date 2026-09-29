@@ -55,7 +55,7 @@ type Input = z.infer<InputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
-    teamName: z.string().nullable(),
+    crewName: z.string().nullable(),
     openTasks: z.array(
       z.object({
         id: z.string(),
@@ -217,7 +217,7 @@ export const LiveCommsTool = buildTool({
   },
   mapToolResultToToolResultBlockParam(content, toolUseID) {
     const {
-      teamName,
+      crewName,
       openTasks,
       unreadMessages,
       openQuestions,
@@ -229,7 +229,7 @@ export const LiveCommsTool = buildTool({
       wrote,
     } = content as Output
 
-    if (!teamName) {
+    if (!crewName) {
       return {
         tool_use_id: toolUseID,
         type: 'tool_result',
@@ -239,7 +239,7 @@ export const LiveCommsTool = buildTool({
     }
 
     const sections: string[] = []
-    sections.push(`# Crew: ${teamName}`)
+    sections.push(`# Crew: ${crewName}`)
 
     if (wrote && wrote.length > 0) {
       const lines = wrote.map(w => `- ${w.kind}: ${w.ok ? 'ok' : 'REFUSED'} — ${w.detail}`)

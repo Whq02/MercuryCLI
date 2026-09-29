@@ -144,8 +144,8 @@ export function getRuntimePostureSection(): string | null {
 
   lines.push(
     isAgentSwarmsEnabled()
-      ? '- Team tooling (swarms) available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew\'s live state.'
-      : '- Team tooling (swarms): off for this process.',
+      ? '- Crew tooling (swarms) available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew\'s live state.'
+      : '- Crew tooling (swarms): off for this process.',
   )
 
   memo = lines.join('\n')

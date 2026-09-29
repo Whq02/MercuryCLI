@@ -35,7 +35,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
 {
   const crew = 'own7-s1'
   const charter = deriveCrewCharter({
-    teamName: crew,
+    crewName: crew,
     description: 'Probe the runner lifecycle end to end',
     createdAt: 1,
   })
@@ -61,13 +61,13 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   })
 
   const wentIdle = await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000)
-  check('the teammate completes its turn and goes idle', wentIdle)
+  check('the crewmate completes its turn and goes idle', wentIdle)
 
   const reqs = s.api.messageRequests()
   check('exactly ONE model call for one prompt (the idle loop is API-silent)', reqs.length === 1, `${reqs.length}`)
   const system = JSON.stringify((reqs[0]?.body as { system?: unknown })?.system ?? '')
   check('the wire system prompt carries the ROLE CONTRACT', system.includes('# Role contract (mercury-scout)'))
-  check('the wire system prompt carries the TEAM CHARTER', system.includes(`# Team charter — ${crew}`))
+  check('the wire system prompt carries the CREW CHARTER', system.includes(`# Crew charter — ${crew}`))
   check('the wire system prompt carries the ROLE PACKET assignment', system.includes('# Your assignment — probe1 (mercury-scout)') && system.includes('Mission: probe recon'))
   check('the wire system prompt carries the HANDOFF PACKET addendum', system.includes('Outcome: what changed or what was learned'))
 
@@ -98,7 +98,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
   check("EXACTLY-ONCE: one 'completed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'completed', JSON.stringify(bookends))
   check('the bookend carries the spawning toolUseId', bookends[0]?.tool_use_id === 'toolu_probe1', bookends[0]?.tool_use_id)
 
-  await sendLiveMessage(crew, { to: 'probe1', from: 'team-lead', text: 'anyone home?', timestamp: new Date().toISOString() })
+  await sendLiveMessage(crew, { to: 'probe1', from: 'crew-lead', text: 'anyone home?', timestamp: new Date().toISOString() })
   await new Promise(r => setTimeout(r, 700))
   check('no revival after terminal: status unchanged', task(s.store, s.taskId).status === 'completed')
   check('no revival after terminal: no new model calls', s.api.messageRequests().length === 1)
@@ -123,7 +123,7 @@ section('§3 — a mid-loop throw (failing auto-compaction) terminalizes FAILED 
   })
 
   check('turn 1 completes', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000))
-  await sendLiveMessage(crew, { to: 'probe2', from: 'team-lead', text: 'keep going', timestamp: new Date().toISOString() })
+  await sendLiveMessage(crew, { to: 'probe2', from: 'crew-lead', text: 'keep going', timestamp: new Date().toISOString() })
 
   const result = await settleWithin(s.runPromise, s, '§3')
   drainInto()
@@ -167,7 +167,7 @@ section('§4 — killed while idle: the runner never overwrites; double-kill ref
   check('turn 1 completes', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 90_000))
 
   const killed = killInProcessCrewmate(s.taskId, s.store.setAppState as never)
-  check('kill succeeds on a running teammate', killed === true)
+  check('kill succeeds on a running crewmate', killed === true)
   check('a second kill is REFUSED (terminal already owned)', killInProcessCrewmate(s.taskId, s.store.setAppState as never) === false)
 
   const result = await settleWithin(s.runPromise, s, '§4')
@@ -241,7 +241,7 @@ section('§6 — REGRESSION FIXTURE (D2): a launch-composition throw terminalize
   await s.api.close()
 }
 
-section('§7 — work abort interrupts the TURN, not the teammate; revival works')
+section('§7 — work abort interrupts the TURN, not the crewmate; revival works')
 {
   const crew = 'own7-s6'
   const s = await launch({
@@ -261,7 +261,7 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
   )
 
   task(s.store, s.taskId).currentWorkAbortController!.abort()
-  check('the interrupted teammate returns to IDLE (not failed, not dead)', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 30_000))
+  check('the interrupted crewmate returns to IDLE (not failed, not dead)', await waitFor(() => task(s.store, s.taskId)?.isIdle === true, 30_000))
   const t1 = task(s.store, s.taskId)
   check("status stays 'running' after the interrupt", t1.status === 'running', t1.status)
   check('the interrupt is visible in the transcript mirror', JSON.stringify(t1.messages ?? []).includes(ERROR_MESSAGE_USER_ABORT))
@@ -270,9 +270,9 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
     await waitFor(async () => (await idleNotificationsFor(crew)).some(n => n.idleReason === 'interrupted'), 10_000),
   )
 
-  await sendLiveMessage(crew, { to: 'probe6', from: 'team-lead', text: 'go again', timestamp: new Date().toISOString() })
+  await sendLiveMessage(crew, { to: 'probe6', from: 'crew-lead', text: 'go again', timestamp: new Date().toISOString() })
   check(
-    'the teammate revives and completes the next turn',
+    'the crewmate revives and completes the next turn',
     await waitFor(
       () => s.api.messageRequests().length === 2 && task(s.store, s.taskId)?.isIdle === true,
       60_000,
@@ -286,7 +286,7 @@ section('§7 — work abort interrupts the TURN, not the teammate; revival works
   s.lifecycle.abort()
   const result = await settleWithin(s.runPromise, s, '§7')
   drainInto()
-  check('the interrupted-then-revived teammate still terminalizes cleanly', result.success === true && task(s.store, s.taskId).status === 'completed')
+  check('the interrupted-then-revived crewmate still terminalizes cleanly', result.success === true && task(s.store, s.taskId).status === 'completed')
   check('the revived reply made it into the conversation', JSON.stringify(result.messages).includes('S6 revived reply.'))
   const bookends = bookendsFor(s.taskId)
   check("EXACTLY-ONCE: one 'completed' bookend", bookends.length === 1 && bookends[0]?.status === 'completed', JSON.stringify(bookends))

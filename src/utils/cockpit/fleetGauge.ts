@@ -16,7 +16,7 @@ import { listLeases, type Lease } from '../swarm/leaseGlob.js'
 import { getCrewName } from '../crewmate.js'
 import { withState, type Snapshot } from './types.js'
 
-export type FleetRosterSource = 'team' | 'crew' | 'concourse' | 'execution'
+export type FleetRosterSource = 'crew' | 'crew' | 'concourse' | 'execution'
 
 export interface FleetRosterEntry {
   id: string
@@ -28,7 +28,7 @@ export interface FleetRosterEntry {
 }
 
 export type FleetData = {
-  teamName: string | null
+  crewName: string | null
   tasks: Task[]
   health: AgentHealth[]
   leases: Lease[]
@@ -38,8 +38,8 @@ export type FleetData = {
 
 const CONCOURSE_STALE_MS = 60_000
 
-const empty = (teamName: string | null, roster: FleetRosterEntry[]): FleetData => ({
-  teamName,
+const empty = (crewName: string | null, roster: FleetRosterEntry[]): FleetData => ({
+  crewName,
   tasks: [],
   health: [],
   leases: [],
@@ -92,11 +92,11 @@ function executionRows(): FleetRosterEntry[] {
   }
 }
 
-function teamRows(health: AgentHealth[]): FleetRosterEntry[] {
+function savedRows(health: AgentHealth[]): FleetRosterEntry[] {
   return health.map(h => ({
-    id: `team:${h.name}`,
+    id: `crew:${h.name}`,
     name: h.name,
-    source: 'team' as const,
+    source: 'crew' as const,
     state: h.state,
     detail: h.why,
   }))
@@ -104,21 +104,21 @@ function teamRows(health: AgentHealth[]): FleetRosterEntry[] {
 
 async function rosterRows(nowMs: number, health: AgentHealth[]): Promise<FleetRosterEntry[]> {
   const crew = await crewRows()
-  return [...teamRows(health), ...crew, ...concourseRows(nowMs), ...executionRows()]
+  return [...savedRows(health), ...crew, ...concourseRows(nowMs), ...executionRows()]
 }
 
 export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
   const nowMs = Date.now()
-  const teamName = getCrewName() ?? null
-  if (!teamName) {
+  const crewName = getCrewName() ?? null
+  if (!crewName) {
     const roster = await rosterRows(nowMs, [])
     return withState('off', empty(null, roster), 'not in an agent group — /fleet reads a shared group', 'getCrewName')
   }
   try {
     const [tasks, statuses, leases] = await Promise.all([
-      listTasks(teamName).catch(() => [] as Task[]),
-      getAgentStatuses(teamName).catch(() => null),
-      listLeases(teamName, { nowMs }).catch(() => [] as Lease[]),
+      listTasks(crewName).catch(() => [] as Task[]),
+      getAgentStatuses(crewName).catch(() => null),
+      listLeases(crewName, { nowMs }).catch(() => [] as Lease[]),
     ])
     const health = computeAgentHealth(statuses ?? [], leases, { nowMs })
     const roster = await rosterRows(nowMs, health)
@@ -126,7 +126,7 @@ export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
       state: 'live',
       source: 'roomHealth ⊕ crew · concourse · execution plane',
       data: {
-        teamName,
+        crewName,
         tasks: tasks.filter(t => !t.metadata?._internal),
         health,
         leases,
@@ -136,6 +136,6 @@ export async function fleetGauge(): Promise<Snapshot<{ data: FleetData }>> {
     }
   } catch {
     const roster = await rosterRows(nowMs, []).catch(() => [] as FleetRosterEntry[])
-    return withState('failed', empty(teamName, roster), 'fleet read failed')
+    return withState('failed', empty(crewName, roster), 'fleet read failed')
   }
 }

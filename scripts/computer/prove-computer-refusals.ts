@@ -63,12 +63,12 @@ section('§2 a headless run is refused by name; a seat that can answer asks is n
   check('an interactive session is accepted again', back.result === true, JSON.stringify(back))
 }
 
-section('§3 a teammate is refused by name')
+section('§3 a crewmate is refused by name')
 {
-  crewmate.setDynamicCrewContext({ agentId: 'mate-1', teamName: 'crew', planModeRequired: false } as never)
-  check('the seam reads as a teammate', crewmate.isTeammate() === true)
+  crewmate.setDynamicCrewContext({ agentId: 'mate-1', crewName: 'crew', planModeRequired: false } as never)
+  check('the seam reads as a crewmate', crewmate.isCrewmate() === true)
   const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
-  check('validateInput refuses with the teammate text', verdict.result === false && verdict.message === 'the Computer tool drives the operator\'s own screen; a crewmate never drives it in this release — the main session does', JSON.stringify(verdict))
+  check('validateInput refuses with the crewmate text', verdict.result === false && verdict.message === 'the Computer tool drives the operator\'s own screen; a crewmate never drives it in this release — the main session does', JSON.stringify(verdict))
   crewmate.clearDynamicCrewContext()
   const back = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
   check('the main session is accepted again', back.result === true, JSON.stringify(back))

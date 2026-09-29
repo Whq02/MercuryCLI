@@ -85,7 +85,7 @@ export async function drainDispatches(
   opts: {
     short: string
     agentName: string
-    teamName: string
+    crewName: string
     isBusy?: () => boolean
     onClear?: () => void
     hasSeen?: (requestId: string) => boolean
@@ -95,7 +95,7 @@ export async function drainDispatches(
 ): Promise<number> {
   let unread
   try {
-    unread = await unreadLiveMessagesFor(opts.teamName, opts.agentName)
+    unread = await unreadLiveMessagesFor(opts.crewName, opts.agentName)
   } catch (e) {
     logForDebugging(`[daemon] dispatch drain: read failed: ${e}`)
     return 0
@@ -249,7 +249,7 @@ export async function drainDispatches(
     const dedup =
       opts.durableDedup === false
         ? null
-        : (opts.durableDedup ?? dispatchDedup(opts.agentName, opts.teamName))
+        : (opts.durableDedup ?? dispatchDedup(opts.agentName, opts.crewName))
     const deliverOne = async (d: (typeof ordered)[number]): Promise<boolean> => {
       const id = d.env.request_id
       if (opts.hasSeen?.(id)) {
@@ -310,7 +310,7 @@ export async function drainDispatches(
   }
   const toMarkSafe = toMark.filter(t => !t.requestId || !heldIds.has(t.requestId))
   if (toMarkSafe.length > 0) {
-    await markLiveMessagesReadWhere(opts.teamName, opts.agentName, x => {
+    await markLiveMessagesReadWhere(opts.crewName, opts.agentName, x => {
         const xid = parseBusEnvelope(x.text)?.request_id
         return toMarkSafe.some(t =>
           t.requestId && xid
@@ -362,7 +362,7 @@ export function armDispatchDrain(
           await pass()
         } while (rerun && !disposed)
         if (!disposed && !retryTimer) {
-          const unread = await unreadLiveMessagesFor(opts.teamName, opts.agentName)
+          const unread = await unreadLiveMessagesFor(opts.crewName, opts.agentName)
           if (unread.length > 0) {
             retryTimer = setTimeout(() => {
               retryTimer = null
@@ -380,7 +380,7 @@ export function armDispatchDrain(
     })()
   }
 
-  const unsubscribe = subscribeLiveMessagesFor(opts.teamName, opts.agentName, () => drain(), { immediate: true })
+  const unsubscribe = subscribeLiveMessagesFor(opts.crewName, opts.agentName, () => drain(), { immediate: true })
 
   return {
     drain,

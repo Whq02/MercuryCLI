@@ -1,6 +1,6 @@
 
 type StructuralCrewContext = {
-  teamName: string
+  crewName: string
   crewmates: Record<string, { name: string }>
 }
 
@@ -18,7 +18,7 @@ type LiveMessageSender = (
 
 export type DirectMessageResult =
   | { success: true; recipientName: string }
-  | { success: false; error: 'no_team_context' }
+  | { success: false; error: 'no_crew_context' }
   | { success: false; error: 'unknown_recipient'; recipientName: string }
 
 export function parseDirectMemberMessage(
@@ -39,7 +39,7 @@ export async function sendDirectMemberMessage(
   send?: LiveMessageSender,
 ): Promise<DirectMessageResult> {
   if (!crewContext || !send) {
-    return { success: false, error: 'no_team_context' }
+    return { success: false, error: 'no_crew_context' }
   }
   const recipient = Object.values(crewContext.crewmates).find(
     crewmate => crewmate.name === recipientName,
@@ -47,6 +47,6 @@ export async function sendDirectMemberMessage(
   if (!recipient) {
     return { success: false, error: 'unknown_recipient', recipientName }
   }
-  await send(crewContext.teamName, { to: recipientName, from: 'user', text: message, timestamp: new Date().toISOString() })
+  await send(crewContext.crewName, { to: recipientName, from: 'user', text: message, timestamp: new Date().toISOString() })
   return { success: true, recipientName }
 }

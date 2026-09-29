@@ -91,7 +91,6 @@ import { fileAdapter } from './adapters/file.js'
 import { runAdapter } from './adapters/run.js'
 import { receiptAdapter } from './adapters/receipt.js'
 import { taskAdapter } from './adapters/task.js'
-import { teamAdapter } from './adapters/team.js'
 import { workflowAdapter } from './adapters/workflow.js'
 import { artifactAdapter } from './adapters/artifact.js'
 import { healthAdapter, doctorAliasAdapter } from './adapters/health.js'
@@ -107,7 +106,6 @@ for (const adapter of [
   runAdapter,
   receiptAdapter,
   taskAdapter,
-  teamAdapter,
   workflowAdapter,
   artifactAdapter,
   healthAdapter,

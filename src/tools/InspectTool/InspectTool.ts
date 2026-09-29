@@ -50,7 +50,7 @@ export const InspectTool = buildTool({
   shouldDefer: true,
   name: INSPECT_TOOL_NAME,
   searchHint:
-    'inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, teams, workflows, artifacts, agents, health)',
+    'inspect Mercury work-graph objects by mercury:// ref (runs, receipts, tasks, crews, workflows, artifacts, agents, health)',
   maxResultSizeChars: 100_000,
   strict: true,
   isEnabled() {
@@ -69,7 +69,7 @@ Selectors (append as ?key=value&…): lines=A-B (text range) · q=substring (fil
 
 mercury://<kind> with no id lists that kind's objects. Answers are honest: absent (never existed) / expired (retention dropped it) / unavailable (subsystem off) are distinct — an empty listing means genuinely empty. Full payloads stay behind refs: results are bounded pages; follow the cursor rather than raising the limit.
 
-Use Inspect when a tool result or teammate hands you a mercury:// ref, or to check run/receipt/workflow/service state without replaying transcripts. For plain file content, Read remains the primary tool (Inspect's file kind exists for uniformity and directory listings).`
+Use Inspect when a tool result or crewmate hands you a mercury:// ref, or to check run/receipt/workflow/service state without replaying transcripts. For plain file content, Read remains the primary tool (Inspect's file kind exists for uniformity and directory listings).`
   },
   userFacingName() {
     return 'Inspect'

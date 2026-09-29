@@ -40,24 +40,24 @@ for (const file of [
 }
 const spawnSource = read('tools/shared/spawnMultiAgent.ts')
 check('the spawn road has one strategy: in-process (no split pane, no separate window, no backend detection)', spawnSource !== '' && !/spawnSplitPane|spawnSeparateWindow|detectAndGetBackend|createCrewmatePaneInSwarmView|sendCommandToPane|use_splitpane/.test(spawnSource))
-check('the teammate spawn config carries no pane option', !/use_splitpane\?: boolean/.test(spawnSource))
+check('the crewmate spawn config carries no pane option', !/use_splitpane\?: boolean/.test(spawnSource))
 const main = read('main.tsx')
-check('the CLI has no --teammate-mode option', !/--teammate-mode/.test(main) && !/setCliCrewmateModeOverride/.test(main))
+check('the CLI has no --crewmate-mode option', !/--crewmate-mode/.test(main) && !/setCliCrewmateModeOverride/.test(main))
 const config = read('components/Settings/Config.tsx')
-check('the settings screen has no teammate mode row', !/crewmateMode/.test(config) && !/teammate mode\b/i.test(config))
+check('the settings screen has no crewmate mode row', !/crewmateMode/.test(config) && !/crewmate mode\b/i.test(config))
 const schema = read('utils/config/schema.ts')
 check('the config schema names no pane mode (the old key is read and ignored, never a word)', !/crewmateMode\?:/.test(schema) && !/preferTmuxOverIterm2/.test(schema))
 const setup = read('setup.ts')
-check('the boot captures no teammate mode snapshot', !/captureCrewmateModeSnapshot/.test(setup))
+check('the boot captures no crewmate mode snapshot', !/captureCrewmateModeSnapshot/.test(setup))
 const agentTool = read('tools/AgentTool/AgentTool.tsx')
 check('the Agent tool names no pane option', !/splitpane|tmux/i.test(agentTool))
 const helpers = read('utils/swarm/crewHelpers.ts')
-check('the team helpers kill no panes', !/killPane|isPaneBackend/.test(helpers))
+check('the crew helpers kill no panes', !/killPane|isPaneBackend/.test(helpers))
 const registryRows = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
-check('no flag row names the teammate mode', !/CREWMATE_MODE/.test(registryRows))
+check('no flag row names the crewmate mode', !/CREWMATE_MODE/.test(registryRows))
 for (const doc of ['docs/CREW.md', 'docs/ENGINES.md', 'README.md']) {
   const text = existsSync(join(ROOT, doc)) ? readFileSync(join(ROOT, doc), 'utf8') : ''
-  check(`${doc} has no row for the tmux/iTerm pane option`, !/crewmateMode|--teammate-mode|split[- ]pane|iTerm2 pane|tmux pane/i.test(text))
+  check(`${doc} has no row for the tmux/iTerm pane option`, !/crewmateMode|--crewmate-mode|split[- ]pane|iTerm2 pane|tmux pane/i.test(text))
 }
 
 section('a saved crewmateMode: tmux setting boots the built product without a word')
@@ -86,7 +86,7 @@ const run = await new Promise<{ status: number | null; out: string }>(resolveRun
       PATH: process.env.PATH ?? '/usr/bin:/bin',
       TERM: 'dumb',
       MERCURY_CONFIG_DIR: home,
-      MERCURY_CREWS_DIR: join(scratch, 'teams'),
+      MERCURY_CREWS_DIR: join(scratch, 'crews'),
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
@@ -112,7 +112,7 @@ const run = await new Promise<{ status: number | null; out: string }>(resolveRun
 await fixture.close()
 const out = run.out
 check('the product boots and answers with the saved pane setting in place', run.status === 0 && out.includes('LEAD-DONE'), `rc=${run.status} ${out.slice(-600)}`)
-check('not a word about the pane mode, tmux or iTerm on the way', !/crewmateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(out), out.split('\n').filter(l => /crewmateMode|teammate mode\b|tmux|iTerm|\bit2\b/i.test(l)).slice(0, 3).join(' | '))
+check('not a word about the pane mode, tmux or iTerm on the way', !/crewmateMode|crewmate mode\b|tmux|iTerm|\bit2\b/i.test(out), out.split('\n').filter(l => /crewmateMode|crewmate mode\b|tmux|iTerm|\bit2\b/i.test(l)).slice(0, 3).join(' | '))
 const stillSaved = JSON.parse(readFileSync(configPath, 'utf8')) as Record<string, unknown>
 check('the saved setting is untouched (read and ignored, never rewritten away)', stillSaved.crewmateMode === 'tmux')
 rmSync(scratch, { recursive: true, force: true })

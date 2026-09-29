@@ -143,7 +143,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
   check('fork path resolves the injected fork definition', forkPlan.isForkPath && forkPlan.agentType === 'orbit-fork')
 }
 
-section('3 · deriveRunnerAgentDefinition — teammate product laws')
+section('3 · deriveRunnerAgentDefinition — crewmate product laws')
 {
   const baseDef: AgentDefinition = {
     agentType: 'orbit-role-def',

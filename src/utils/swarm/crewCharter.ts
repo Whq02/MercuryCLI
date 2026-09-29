@@ -5,7 +5,7 @@ export const CREW_CHARTER_VERSION = 1 as const
 
 export type CrewCharter = {
   version: typeof CREW_CHARTER_VERSION
-  teamName: string
+  crewName: string
   objective: string
   successCriteria: readonly string[]
   synthesisOwner: string
@@ -25,7 +25,7 @@ export type CrewRolePacket = {
 }
 
 export type DeriveCharterInputs = {
-  teamName: string
+  crewName: string
   description?: string
   objective?: string
   successCriteria?: readonly string[]
@@ -36,10 +36,10 @@ export function deriveCrewCharter(i: DeriveCharterInputs): CrewCharter {
   const objective =
     i.objective?.trim() ||
     i.description?.trim() ||
-    `Complete the operator's task that created team ${i.teamName} (no objective was stated — the lead should set one before spawning).`
+    `Complete the operator's task that created crew ${i.crewName} (no objective was stated — the lead should set one before spawning).`
   return {
     version: CREW_CHARTER_VERSION,
-    teamName: i.teamName,
+    crewName: i.crewName,
     objective,
     successCriteria: [...(i.successCriteria ?? [])],
     synthesisOwner: CREW_LEAD_NAME,
@@ -51,7 +51,7 @@ export function parseCrewCharter(raw: unknown): CrewCharter | null {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
   const o = raw as Record<string, unknown>
   if (o.version !== CREW_CHARTER_VERSION) return null
-  if (typeof o.teamName !== 'string' || typeof o.objective !== 'string') return null
+  if (typeof o.crewName !== 'string' || typeof o.objective !== 'string') return null
   if (typeof o.synthesisOwner !== 'string') return null
   if (typeof o.createdAt !== 'number') return null
   const criteria = Array.isArray(o.successCriteria)
@@ -59,7 +59,7 @@ export function parseCrewCharter(raw: unknown): CrewCharter | null {
     : []
   return {
     version: CREW_CHARTER_VERSION,
-    teamName: o.teamName,
+    crewName: o.crewName,
     objective: o.objective,
     successCriteria: criteria,
     synthesisOwner: o.synthesisOwner,
@@ -73,7 +73,7 @@ export function formatCharterForContext(c: CrewCharter): string {
       ? c.successCriteria.map(s => `  - ${s}`).join('\n')
       : '  - (none stated — report evidence of completion to the lead)'
   return [
-    `# Team charter — ${c.teamName} (v${c.version})`,
+    `# Crew charter — ${c.crewName} (v${c.version})`,
     `Objective: ${c.objective}`,
     `Success criteria:`,
     criteria,

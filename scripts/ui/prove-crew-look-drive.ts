@@ -97,7 +97,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -130,7 +130,7 @@ const see = (needle: string, mark: string, settle = 4, extra: Send = {}): Send =
 const clickOn = (needle: string, extra: Send = {}): Send => ({ data: CLICK, targetText: needle, atTick: 1500, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, ...extra })
 const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 const later = (ticks: number, mark: string): Send => ({ data: '', afterPrevTicks: ticks, mark })
-const popupTitles = { '/usage': USAGE_TITLE, '/config': CONFIG_TITLE, '/model': MODEL_TITLE, '/files': FILES_TITLE, '/teammates': CREW_TITLE }
+const popupTitles = { '/usage': USAGE_TITLE, '/config': CONFIG_TITLE, '/model': MODEL_TITLE, '/files': FILES_TITLE, '/crewmates': CREW_TITLE }
 const regexLiteral = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const seePopup = (title: string, needle: string, mark: string): Send => see(needle, mark, 6, {
   awaitPattern: String.raw`\A[^\n]*╭─+╮(?=[\s\S]*${regexLiteral(title)})(?=[\s\S]*${regexLiteral(needle)})(?=[\s\S]*\n│[❯›][^\n]*│(?: *\n| *\Z))`,
@@ -325,7 +325,7 @@ async function leg(cols: number, rows: number): Promise<void> {
     ...popup('/config', CONFIG_HINT, 'config'),
     ...popup('/model', '↑↓ select · ↵ switch', 'model'),
     ...popup('/files', '↑↓ move · ↵ open', 'files'),
-    ...popup('/teammates', CREW_TITLE, 'crew'),
+    ...popup('/crewmates', CREW_TITLE, 'crew'),
     type(PAGE_UP, 3),
     type(PAGE_UP, 3),
     later(3, 'atlas-scrolled'),
@@ -341,13 +341,13 @@ async function leg(cols: number, rows: number): Promise<void> {
     swap(FJORD_RUNNING, 'VIEW · atlas'),
     swap(LEAD_ROW, 'VIEW · fjord'),
     later(10, 'rapid'),
-    type('/teammates', 3),
+    type('/crewmates', 3),
     type('\r', 3),
     seePopup(CREW_TITLE, 'm main chat', 'crew-over-lead'),
     type('m', 3),
     see('★ VIEW · ', 'pinned', 6),
     ...popup('/usage', USAGE_HINT, 'usage-pinned'),
-    ...popup('/teammates', CREW_TITLE, 'crew-pinned'),
+    ...popup('/crewmates', CREW_TITLE, 'crew-pinned'),
     clickOn(LEAD_ROW),
     later(8, 'lead-pinned'),
     type(TAB, 3),

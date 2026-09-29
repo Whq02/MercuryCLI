@@ -281,7 +281,7 @@ function missionLedgerOf(metadata: Record<string, unknown> | undefined): string 
 import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
-import { getCrewName, isCrewLead, isTeammate } from '../utils/crewmate.js'
+import { getCrewName, isCrewLead, isCrewmate } from '../utils/crewmate.js'
 import { acknowledgeLiveDelivery, subscribeLiveMessagesFor, prepareLiveDelivery, wasLiveDeliveryHandled, type LiveDelivery, type LiveCommsMessageV1 } from '../services/crew/liveComms.js'
 import { formatCrewmateMessages, isShutdownApproved, resolveShutdownApprovedVictim } from '../services/crew/liveMessages.js'
 import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
@@ -593,7 +593,7 @@ export async function runHeadless(
 
   try {
     const { initializeSwarmSession } = await import('../utils/swarm/crewmateInit.js')
-    initializeSwarmSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ teamName?: string; agentName?: string }>)
+    initializeSwarmSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ crewName?: string; agentName?: string }>)
   } catch (error) {
     logForDebugging(`[session-runner] swarm init failed (non-blocking): ${error}`)
   }
@@ -627,7 +627,7 @@ export async function runHeadless(
             : {
                 ...prev,
                 crewContext: {
-                  teamName: led.teamName,
+                  crewName: led.crewName,
                   crewFilePath: led.crewFilePath,
                   leadAgentId: led.leadAgentId,
                   crewmates: led.crewmates,
@@ -1414,11 +1414,11 @@ export async function runHeadless(
 
   const leadCrewName = (): string | null => {
     const crewContext = getAppState().crewContext
-    if (!crewContext || !isCrewLead(crewContext) || isTeammate()) return null
-    return crewContext.teamName
+    if (!crewContext || !isCrewLead(crewContext) || isCrewmate()) return null
+    return crewContext.crewName
   }
 
-  const applyShutdownApprovals = (teamName: string, unread: LiveCommsMessageV1[]): void => {
+  const applyShutdownApprovals = (crewName: string, unread: LiveCommsMessageV1[]): void => {
     for (const message of unread) {
       const approval = isShutdownApproved(message.text)
       if (!approval) continue
@@ -1428,7 +1428,7 @@ export async function runHeadless(
       const victimId = Object.entries(roster).find(
         ([, crewmate]) => crewmate.name === victim,
       )?.[0]
-      removeCrewmateFromCrewFile(teamName, { agentId: victimId, name: victim })
+      removeCrewmateFromCrewFile(crewName, { agentId: victimId, name: victim })
       setAppState(previous => {
         const crewmates = previous.crewContext?.crewmates
         if (!previous.crewContext || !crewmates) return previous
@@ -1449,14 +1449,14 @@ export async function runHeadless(
   let enqueuedLeadDelivery: string | null = null
   const deliverLeadMailOnce = async (): Promise<'queued' | 'none'> => {
     for (;;) {
-      const teamName = leadCrewName()
-      if (teamName === null) return 'none'
+      const crewName = leadCrewName()
+      if (crewName === null) return 'none'
       let delivery: LiveDelivery | null
       try {
-        delivery = await prepareLiveDelivery(teamName, CREW_LEAD_NAME, getSessionId())
+        delivery = await prepareLiveDelivery(crewName, CREW_LEAD_NAME, getSessionId())
         if (delivery !== null && await wasLiveDeliveryHandled(delivery, messages)) {
           await flushSessionStorage()
-          await acknowledgeLiveDelivery(teamName, CREW_LEAD_NAME, delivery.id)
+          await acknowledgeLiveDelivery(crewName, CREW_LEAD_NAME, delivery.id)
           refusedAcknowledgements = 0
           if (enqueuedLeadDelivery === delivery.id) enqueuedLeadDelivery = null
           continue
@@ -1465,13 +1465,13 @@ export async function runHeadless(
         refusedAcknowledgements += 1
         logForDebugging(`mailbox: delivery awaits durable state: ${errorMessage(error)}`)
         if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {
-          logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later teammate reports wait until the team state can be written (${errorMessage(error)})`))
+          logError(new Error(`mailbox: ${refusedAcknowledgements} consecutive acknowledgements refused — later crewmate reports wait until the crew state can be written (${errorMessage(error)})`))
         }
         return 'none'
       }
       if (delivery === null) return 'none'
       if (enqueuedLeadDelivery === delivery.id || getCommandQueue().some(command => command.uuid === delivery.id)) return 'queued'
-      applyShutdownApprovals(teamName, delivery.messages)
+      applyShutdownApprovals(crewName, delivery.messages)
       enqueuedLeadDelivery = delivery.id
       enqueue({ value: formatCrewmateMessages(delivery.messages), mode: 'prompt', uuid: delivery.id as UUID })
       return 'queued'
@@ -1501,23 +1501,23 @@ export async function runHeadless(
   }
 
   const leadContext = AsyncLocalStorage.snapshot()
-  let leadMailboxWake: { teamName: string; unsubscribe: () => void } | null = null
+  let leadMailboxWake: { crewName: string; unsubscribe: () => void } | null = null
   const syncLeadMailboxWake = (): void => leadContext(() => {
-    const teamName = leadCrewName()
-    if (teamName === (leadMailboxWake?.teamName ?? null)) return
+    const crewName = leadCrewName()
+    if (crewName === (leadMailboxWake?.crewName ?? null)) return
     leadMailboxWake?.unsubscribe()
     leadMailboxWake = null
-    if (teamName === null) return
-    const unsubscribe = subscribeLiveMessagesFor(teamName, CREW_LEAD_NAME, () => {
+    if (crewName === null) return
+    const unsubscribe = subscribeLiveMessagesFor(crewName, CREW_LEAD_NAME, () => {
       void leadContext(deliverLeadMail)
     }, { immediate: true })
-    leadMailboxWake = { teamName, unsubscribe }
+    leadMailboxWake = { crewName, unsubscribe }
   })
   const stopLeadStateWake = options.subscribeAppState?.(syncLeadMailboxWake)
   syncLeadMailboxWake()
 
   const leadSettle: { wake: (() => void) | null } = { wake: null }
-  const leadEvent = (teamName: string | null): Promise<void> =>
+  const leadEvent = (crewName: string | null): Promise<void> =>
     new Promise<void>(resolve => {
       let settled = false
       const unsubscribes: Array<() => void> = []
@@ -1529,20 +1529,20 @@ export async function runHeadless(
         resolve()
       }
       leadSettle.wake = done
-      if (teamName !== null) unsubscribes.push(subscribeLiveMessagesFor(teamName, CREW_LEAD_NAME, done, { immediate: false }))
+      if (crewName !== null) unsubscribes.push(subscribeLiveMessagesFor(crewName, CREW_LEAD_NAME, done, { immediate: false }))
       if (options.subscribeAppState) unsubscribes.push(options.subscribeAppState(done))
       unsubscribes.push(subscribeToCommandQueue(done), onTasksUpdated(done))
     })
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {
-    for (let teamName = leadCrewName(); teamName !== null; teamName = leadCrewName()) {
-      const changed = leadEvent(teamName)
+    for (let crewName = leadCrewName(); crewName !== null; crewName = leadCrewName()) {
+      const changed = leadEvent(crewName)
       try {
         const next = peek()
         if (next && isMainThreadCommand(next) && driver.hasDueQueued()) return 'reenter'
         if ((await deliverLeadMail()) === 'queued') return 'reenter'
         const current = getAppState()
-        const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_teammate')
+        const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_crewmate')
         const listed = Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length)
         if (!inProcessActive && !listed) break
         if (inputClosed && !crewShutdownPromptInjected.value) {
@@ -1558,7 +1558,7 @@ export async function runHeadless(
       for (;;) {
         const changed = leadEvent(null)
         try {
-          const running = getRunningTasks(getAppState()).some(task => task.type === 'in_process_teammate' && !task.isIdle)
+          const running = getRunningTasks(getAppState()).some(task => task.type === 'in_process_crewmate' && !task.isIdle)
           if (!running) break
           await changed
         } finally {
@@ -1568,7 +1568,7 @@ export async function runHeadless(
       const current = getAppState()
       const swarmRemains =
         Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length) ||
-        getRunningTasks(current).some(task => task.type === 'in_process_teammate')
+        getRunningTasks(current).some(task => task.type === 'in_process_crewmate')
       if (swarmRemains) {
         injectCrewShutdownPrompt()
         return 'reenter'
@@ -1585,7 +1585,7 @@ export async function runHeadless(
     refusal: () => {
       if (driver.isRunning()) return 'a turn is running'
       if (getCommandQueue().some(isMainThreadCommand)) return 'a prompt is queued'
-      const busy = getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate')
+      const busy = getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_crewmate')
       if (busy.length > 0) return `${busy.length} background task(s) still running`
       return capabilityHoldWords(runnerCapabilityHolds(io))
     },
@@ -1754,13 +1754,13 @@ export async function runHeadless(
       })
     },
     hasWaitableBackgroundTasks: () =>
-      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_teammate' && !(inputClosed && isLocalShellTask(task))),
+      getRunningTasks(getAppState()).some(task => task.type !== 'in_process_crewmate' && !(inputClosed && isLocalShellTask(task))),
     hasHoldableBackgroundAgents: () =>
       getRunningTasks(getAppState()).some(
         task => task.type === 'local_agent' || task.type === 'local_workflow',
       ),
     waitableBackgroundTaskCount: () =>
-      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_teammate' && !(inputClosed && isLocalShellTask(task))).length,
+      getRunningTasks(getAppState()).filter(task => task.type !== 'in_process_crewmate' && !(inputClosed && isLocalShellTask(task))).length,
     onAgentWait: count => {
       io.outbound.enqueue({
         type: 'system',

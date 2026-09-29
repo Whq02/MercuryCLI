@@ -194,9 +194,9 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
       })
     } else if (isInProcessCrewmateTask(task)) {
       rows.push({
-        ...plainRow(task, 'teammate', task.identity.agentName),
+        ...plainRow(task, 'crewmate', task.identity.agentName),
         agentId: task.identity.agentId,
-        crew: clip(task.identity.teamName, MAX_NAME),
+        crew: clip(task.identity.crewName, MAX_NAME),
         ...(typeof task.effort === 'string' && task.effort !== '' ? { effort: task.effort } : {}),
         ...(typeof task.transcriptAgentId === 'string' && task.transcriptAgentId !== '' ? { transcriptAgentId: task.transcriptAgentId } : {}),
         ...(task.status === 'running' && task.isIdle === true ? { idle: true } : {}),

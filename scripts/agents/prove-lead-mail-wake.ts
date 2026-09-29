@@ -20,7 +20,7 @@ const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'nod
 const world = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'lead-mail-wake-'))
 const config = join(world, 'config')
 const project = join(world, 'project')
-const crews = join(world, 'teams')
+const crews = join(world, 'crews')
 mkdirSync(project)
 seedFirstRun(config, [project])
 process.env.MERCURY_CONFIG_DIR = config
@@ -35,12 +35,12 @@ const crew = sessionId
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model, whenModel: 'fable-5-1' } as ScriptedTurn)
 const water = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: crewmateModel, whenModel: 'opus-4-6' } as ScriptedTurn)
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: crewmateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once, after a pause.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: crewmateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to crew-lead once, after a pause.' } }),
   lead({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 120', run_in_background: true, description: 'A pool that outlives the window' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   lead({ kind: 'paced_tool_use', whenBody: 'MIDTURN-CHECK', preDeltas: ['Working', '.', '.'], gapMs: 1000, tools: [{ name: 'Bash', input: { command: 'pwd', description: 'Reach a tool boundary' } }] }),
   ...Array.from({ length: 12 }, (_, i) => lead({ kind: 'text', text: 'LEAD-ACK-' + i })),
-  water({ kind: 'paced_tool_use', preDeltas: ['Working', '.', '.', '.'], gapMs: 2000, tools: [{ name: 'SendMessage', input: { to: 'team-lead', message: 'READY-WATER', summary: 'READY-WATER' } }] }),
+  water({ kind: 'paced_tool_use', preDeltas: ['Working', '.', '.', '.'], gapMs: 2000, tools: [{ name: 'SendMessage', input: { to: 'crew-lead', message: 'READY-WATER', summary: 'READY-WATER' } }] }),
   water({ kind: 'text', text: 'Water done.' }),
 ]
 
@@ -78,7 +78,7 @@ const readInbox = (): Row[] | null => {
   if (!existsSync(inboxPath)) return null
   try {
     const file = JSON.parse(readFileSync(inboxPath, 'utf8')) as { messages?: Row[] }
-    return (file.messages ?? []).filter(row => row.to === 'team-lead')
+    return (file.messages ?? []).filter(row => row.to === 'crew-lead')
   } catch {
     return null
   }
@@ -93,10 +93,10 @@ const openingOf = (request: Request): string => {
   return last === undefined ? '' : textOf(last)
 }
 const turnOpenedWith = (needle: string): Request | undefined =>
-  leadRequests().find(request => openingOf(request).includes(needle) && openingOf(request).trimStart().startsWith('<teammate-message'))
+  leadRequests().find(request => openingOf(request).includes(needle) && openingOf(request).trimStart().startsWith('<crewmate-message'))
 const blocksIn = (request: Request | undefined, needle: string): number => {
   if (request === undefined) return 0
-  return (request.body.messages ?? []).filter(message => message.role === 'user').flatMap(message => [...textOf(message).matchAll(/<teammate-message\b[^>]*>([\s\S]*?)<\/teammate-message>/g)].map(match => match[1]!)).filter(text => text.includes(needle)).length
+  return (request.body.messages ?? []).filter(message => message.role === 'user').flatMap(message => [...textOf(message).matchAll(/<crewmate-message\b[^>]*>([\s\S]*?)<\/crewmate-message>/g)].map(match => match[1]!)).filter(text => text.includes(needle)).length
 }
 
 console.log(`lead mail wake: world ${world} · bundle ${dist}`)
@@ -111,12 +111,12 @@ try {
   const landed = await waitFor(() => (readInbox() ?? []).some(row => row.text === 'READY-WATER'), "water's report did not land", 40_000)
   const landedAt = Date.now()
   const row = (readInbox() ?? []).find(candidate => candidate.text === 'READY-WATER')
-  check("water's report landed in the lead's inbox (an in-process teammate's SendMessage) after the lead parked", landed && row !== undefined && landedAt >= parkedAt, JSON.stringify(row))
+  check("water's report landed in the lead's inbox (an in-process crewmate's SendMessage) after the lead parked", landed && row !== undefined && landedAt >= parkedAt, JSON.stringify(row))
 
   const woke = await waitFor(() => turnOpenedWith('READY-WATER') !== undefined, 'the report did not wake the lead', WAKE_WINDOW_MS)
   const wakeMs = Date.now() - landedAt
   const wakeRequest = turnOpenedWith('READY-WATER')
-  check(`the report reaches the parked lead as a turn within ${WAKE_WINDOW_MS / 1000} s — a request whose opening user content is the teammate-message`, woke, woke ? `${wakeMs} ms after the row landed` : `no such request in ${WAKE_WINDOW_MS / 1000} s; lead requests ${leadRequests().length}; inbox ${JSON.stringify((readInbox() ?? []).map(candidate => ({ text: candidate.text.slice(0, 40), read: candidate.read, delivery: candidate.delivery !== undefined })))}`)
+  check(`the report reaches the parked lead as a turn within ${WAKE_WINDOW_MS / 1000} s — a request whose opening user content is the crewmate-message`, woke, woke ? `${wakeMs} ms after the row landed` : `no such request in ${WAKE_WINDOW_MS / 1000} s; lead requests ${leadRequests().length}; inbox ${JSON.stringify((readInbox() ?? []).map(candidate => ({ text: candidate.text.slice(0, 40), read: candidate.read, delivery: candidate.delivery !== undefined })))}`)
   check('the report is delivered exactly once', blocksIn(wakeRequest, 'READY-WATER') === 1 && leadRequests().filter(request => openingOf(request).includes('READY-WATER')).length <= 1, `blocks ${blocksIn(wakeRequest, 'READY-WATER')}`)
 
   const acknowledged = await waitFor(() => (readInbox() ?? []).some(row => row.text === 'READY-WATER' && row.read === true), 'the report was not marked read', WAKE_WINDOW_MS)
@@ -127,7 +127,7 @@ try {
 
   const { sendLiveMessage } = await import('../../src/services/crew/liveComms.ts')
   const outsideAt = Date.now()
-  const written = await sendLiveMessage(crew, { to: 'team-lead', from: 'outside', text: 'HELLO-FROM-OUTSIDE', timestamp: new Date().toISOString(), summary: 'HELLO-FROM-OUTSIDE' })
+  const written = await sendLiveMessage(crew, { to: 'crew-lead', from: 'outside', text: 'HELLO-FROM-OUTSIDE', timestamp: new Date().toISOString(), summary: 'HELLO-FROM-OUTSIDE' })
   check('a row written from another process the way SendMessage writes it lands in the inbox', written && (readInbox() ?? []).some(row => row.text === 'HELLO-FROM-OUTSIDE'))
   const outsideWoke = await waitFor(() => turnOpenedWith('HELLO-FROM-OUTSIDE') !== undefined, 'the outside row did not wake the lead', WAKE_WINDOW_MS)
   check(`a cross-process row reaches the parked lead as a turn within ${WAKE_WINDOW_MS / 1000} s`, outsideWoke, outsideWoke ? `${Date.now() - outsideAt} ms after the write` : `no such request; inbox ${JSON.stringify((readInbox() ?? []).map(candidate => ({ text: candidate.text.slice(0, 40), read: candidate.read })))}`)
@@ -136,7 +136,7 @@ try {
   submit('MIDTURN-CHECK')
   const midturnStarted = await waitFor(() => leadRequests().some(request => openingOf(request).includes('MIDTURN-CHECK')), 'the mid-turn fixture did not start')
   check('the lead enters a paced request before the mid-turn report arrives', midturnStarted)
-  await sendLiveMessage(crew, { to: 'team-lead', from: 'outside', text: 'REPORT-AT-BOUNDARY', timestamp: new Date().toISOString() })
+  await sendLiveMessage(crew, { to: 'crew-lead', from: 'outside', text: 'REPORT-AT-BOUNDARY', timestamp: new Date().toISOString() })
   const atBoundary = await waitFor(() => leadRequests().some(request => JSON.stringify(request.body.messages).includes('REPORT-AT-BOUNDARY')), 'the report missed the tool boundary', WAKE_WINDOW_MS)
   check('a report arriving mid-turn is consumed at the next tool boundary', atBoundary)
   const boundaryRead = await waitFor(() => (readInbox() ?? []).some(row => row.text === 'REPORT-AT-BOUNDARY' && row.read === true), 'the boundary report was not acknowledged', WAKE_WINDOW_MS)
@@ -156,4 +156,4 @@ if (failures > 0) {
   console.log(`FAIL prove-lead-mail-wake: ${failures} failure(s)`)
   process.exit(1)
 }
-console.log("PASS lead-mail-wake: teammate reports reach a parked headless lead as turns, in-process and across processes, and mid-turn reports land once at the next tool boundary")
+console.log("PASS lead-mail-wake: crewmate reports reach a parked headless lead as turns, in-process and across processes, and mid-turn reports land once at the next tool boundary")

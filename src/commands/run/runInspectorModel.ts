@@ -152,7 +152,7 @@ export function buildBootRecoveryRow(recovery: BootRecoveryState): RunRow | null
     detail.push(`orphan temps: ${r.orphanTemps.removed} removed across ${r.orphanTemps.dirsSwept} dir(s)`)
     if (r.crewJournal) {
       detail.push(
-        `team journal: ${r.crewJournal.scanned} scanned · ${r.crewJournal.rolledForward.length} rolled forward · ${r.crewJournal.compensated.length} compensated · ${r.crewJournal.waiting.length} waiting · ${r.crewJournal.unrecoverable.length} unrecoverable`,
+        `crew journal: ${r.crewJournal.scanned} scanned · ${r.crewJournal.rolledForward.length} rolled forward · ${r.crewJournal.compensated.length} compensated · ${r.crewJournal.waiting.length} waiting · ${r.crewJournal.unrecoverable.length} unrecoverable`,
       )
     }
     if (r.runJournal) {
@@ -161,7 +161,7 @@ export function buildBootRecoveryRow(recovery: BootRecoveryState): RunRow | null
       )
     }
     detail.push(`dead-epoch tasks: ${r.deadEpochTasks.removed} reclaimed across ${r.deadEpochTasks.listsChecked} list(s)`)
-    if (r.leaderProjection) detail.push(`leader projection rebuilt: "${r.leaderProjection.teamName}"`)
+    if (r.leaderProjection) detail.push(`leader projection rebuilt: "${r.leaderProjection.crewName}"`)
     if (r.quarantine.recent > 0) {
       detail.push(`store quarantines: ${r.quarantine.recent} in the last 24h (${r.quarantine.total} on the ledger)`)
     }

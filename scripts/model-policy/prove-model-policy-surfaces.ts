@@ -130,7 +130,7 @@ console.log('\n§6 role-boundary repairs (recon findings)')
 {
   const crewmate = src('src/utils/swarm/crewmateModel.ts')
   check(
-    'teammate fallback follows the foreground default, never a fixed Opus row',
+    'crewmate fallback follows the foreground default, never a fixed Opus row',
     crewmate.includes('getDefaultMainLoopModel()') && !crewmate.includes('CLAUDE_OPUS_4_6_CONFIG'),
   )
   const caps = src('src/utils/model/capabilities.ts')

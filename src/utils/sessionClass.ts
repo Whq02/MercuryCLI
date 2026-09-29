@@ -8,15 +8,15 @@ const FRAMED_DISPATCH_HEAD =
   'Dispatched work, relayed over the bus with the dispatcher'
 
 export function isCrewSession(log: LogOption): boolean {
-  if (log.isTeammate) return true
-  if (log.teamName && log.teamName.trim() !== '') return true
+  if (log.isCrewmate) return true
+  if (log.crewName && log.crewName.trim() !== '') return true
   const fp = (log.firstPrompt ?? '').trim()
   if (fp.includes(FRAMED_DISPATCH_HEAD)) return true
   return BRIDGE_FIRST_PROMPT.test(fp)
 }
 
 export function crewTagOf(log: LogOption): string {
-  const crew = (log.teamName ?? '').trim()
+  const crew = (log.crewName ?? '').trim()
   const agent = (log.agentName ?? '').trim()
   if (crew && agent) return `${crew} · ${agent}`
   if (crew) return crew

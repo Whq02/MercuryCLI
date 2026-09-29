@@ -1,14 +1,14 @@
 
-export function formatAgentId(agentName: string, teamName: string): string {
-  return `${agentName}@${teamName}`
+export function formatAgentId(agentName: string, crewName: string): string {
+  return `${agentName}@${crewName}`
 }
 
-export function parseAgentId(agentId: string): { agentName: string; teamName: string } | null {
+export function parseAgentId(agentId: string): { agentName: string; crewName: string } | null {
   const separator = agentId.indexOf('@')
   if (separator === -1) return null
   return {
     agentName: agentId.slice(0, separator),
-    teamName: agentId.slice(separator + 1),
+    crewName: agentId.slice(separator + 1),
   }
 }
 

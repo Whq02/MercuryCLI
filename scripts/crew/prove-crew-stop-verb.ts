@@ -129,15 +129,15 @@ if (!existsSync(DIST)) {
   console.log(`bundle: ${DIST}`)
 
   if (runs('mate')) {
-    section('S1 the operator stops a named teammate (the crew view\'s x x on its row): the runner ends it and says so')
+    section('S1 the operator stops a named crewmate (the crew view\'s x x on its row): the runner ends it and says so')
     const w = await openWorld('mate')
     w.runner.send(user(LEAD_ASK_MATE, U1))
-    const row = await waitRow(w, 'the teammate row', r => r.kind === 'teammate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
-    check('S1 the teammate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
+    const row = await waitRow(w, 'the crewmate row', r => r.kind === 'crewmate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
+    check('S1 the crewmate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     if (row !== null) {
       const until = Date.now() + bound(20_000)
       while (hitsOf(w.fx, 'mate', 'mate-ack') === 0 && Date.now() < until) await sleep(200)
-      check('S1 the teammate asked the model once and idles on its mailbox', hitsOf(w.fx, 'mate', 'mate-ack') >= 1, j(w.fx.hits.map(h => h.route)))
+      check('S1 the crewmate asked the model once and idles on its mailbox', hitsOf(w.fx, 'mate', 'mate-ack') >= 1, j(w.fx.hits.map(h => h.route)))
       await sleep(1_000)
       const askedAtStop = hitsOf(w.fx, 'mate', 'mate-ack')
       const before = w.runner.frames.length
@@ -147,12 +147,12 @@ if (!existsSync(DIST)) {
       const after = await facts(w)
       const same = after.find(x => x.id === row.id)
       const stillRunning = same !== undefined && same.status === 'running'
-      check('S1 the receipt is true: a success answer means the teammate is no longer running at the next facts read', r.subtype === 'success' ? !stillRunning : r.subtype === 'error', `${j(r)} · row ${j(same)}`)
+      check('S1 the receipt is true: a success answer means the crewmate is no longer running at the next facts read', r.subtype === 'success' ? !stillRunning : r.subtype === 'error', `${j(r)} · row ${j(same)}`)
       check('S1 the row leaves running (killed) or is gone within the facts\' next beat', same === undefined || same.status === 'killed', j(same))
       const notice = await w.runner.waitFor('the stop notice frame', notificationFor(row.id), bound(8_000), before)
       check('S1 the stop notice frame names the row with the status stopped', notice !== null && notice.status === 'stopped', j(notice))
       await sleep(2_000)
-      check('S1 the teammate asks the model no more after the stop', hitsOf(w.fx, 'mate', 'mate-ack') === askedAtStop, j(w.fx.hits.map(h => h.route)))
+      check('S1 the crewmate asks the model no more after the stop', hitsOf(w.fx, 'mate', 'mate-ack') === askedAtStop, j(w.fx.hits.map(h => h.route)))
       const later = await facts(w)
       check('S1 the row never returns to running', !later.some(x => x.id === row.id && x.status === 'running'), j(later.map(x => `${x.kind}:${x.name}:${x.status}`)))
     }
@@ -220,11 +220,11 @@ if (!existsSync(DIST)) {
   }
 
   if (runs('resume')) {
-    section('S5 the operator resumes a stopped named teammate (the crew view\'s r on its row): the runner continues its transcript under a new row and says so')
+    section('S5 the operator resumes a stopped named crewmate (the crew view\'s r on its row): the runner continues its transcript under a new row and says so')
     const w = await openWorld('resume')
     w.runner.send(user(LEAD_ASK_MATE, U1))
-    const row = await waitRow(w, 'the teammate row', r => r.kind === 'teammate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
-    check('S5 the teammate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
+    const row = await waitRow(w, 'the crewmate row', r => r.kind === 'crewmate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
+    check('S5 the crewmate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     if (row !== null) {
       const until = Date.now() + bound(20_000)
       while (hitsOf(w.fx, 'mate', 'mate-ack') === 0 && Date.now() < until) await sleep(200)
@@ -235,14 +235,14 @@ if (!existsSync(DIST)) {
       const resumed = await control(w, { subtype: 'resume_task', task_id: row.id }, bound(30_000))
       const rr = responseOf(resumed)
       check('S5 the runner answers the resume applied, naming a new row under the same agent id', rr.subtype === 'success' && typeof rr.response?.task_id === 'string' && rr.response.task_id !== row.id && rr.response.agent_id === (row as { agentId?: string }).agentId && String(rr.response.agent_id).startsWith(`${MATE_NAME}@`), j(rr))
-      const again = await waitRow(w, 'the respawned teammate row', x => x.kind === 'teammate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))
-      check('S5 a new teammate row runs under a new id', again !== null && again.id === rr.response?.task_id, j(again))
+      const again = await waitRow(w, 'the respawned crewmate row', x => x.kind === 'crewmate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))
+      check('S5 a new crewmate row runs under a new id', again !== null && again.id === rr.response?.task_id, j(again))
       const untilAsk = Date.now() + bound(20_000)
       const resumeAsk = (): boolean => w.fx.hits.some(h => h.ask.includes('The operator resumed you from the crew view'))
       while (!resumeAsk() && Date.now() < untilAsk) await sleep(200)
-      check('S5 the resumed teammate asks the model again with the resume note as its next turn, never its prompt over again', resumeAsk() && hitsOf(w.fx, 'mate', 'mate-ack') === asksAtStop, j(w.fx.hits.map(h => `${h.route}:${h.ask.slice(0, 40)}`)))
+      check('S5 the resumed crewmate asks the model again with the resume note as its next turn, never its prompt over again', resumeAsk() && hitsOf(w.fx, 'mate', 'mate-ack') === asksAtStop, j(w.fx.hits.map(h => `${h.route}:${h.ask.slice(0, 40)}`)))
       const told = await w.runner.waitFor('the resume notice frame', f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('resumed from the crew view'), bound(15_000), before)
-      check('S5 the main agent is told the teammate was resumed from the crew view', told !== null, j(told))
+      check('S5 the main agent is told the crewmate was resumed from the crew view', told !== null, j(told))
       const stopTold = w.runner.frames.slice(before).find(f => f.type === 'system' && f.subtype === 'task_notification' && String(f.summary ?? '').includes('stopped from the crew view'))
       check('S5 the main agent was told of the stop too, with the door that stopped it', stopTold !== undefined, j(w.runner.frames.slice(before).filter(f => f.type === 'system' && f.subtype === 'task_notification').map(f => f.summary)))
       const later = await facts(w)

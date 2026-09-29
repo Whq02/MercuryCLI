@@ -9,7 +9,7 @@ export function getPrompt(): string {
   const crewSection = isAgentSwarmsEnabled()
     ? `
 
-## Teammate workflow
+## Crewmate workflow
 - When you finish a task, call this tool to find your next piece of work.
 - Look for tasks that are pending, unowned, and unblocked.
 - Prefer them in ID order (lowest first).

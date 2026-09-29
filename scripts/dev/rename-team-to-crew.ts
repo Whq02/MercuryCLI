@@ -28,6 +28,7 @@ const EXCLUDED_PATHS: Array<{ prefix: string } & Why> = [
 ]
 
 const FROZEN_FILES: Array<{ path: string } & Why> = [
+  { path: 'scripts/ui/prove-crew-screens-unchanged.ts', why: 'reads the stored frames of the earlier screens through a table of the old words and drives the old command name on the real screen' },
   { path: 'src/migrations/migrateConfigSpellings.ts', why: 'the table of retired global-config spellings names old keys by design' },
   { path: 'src/migrations/migrateSettingsSpellings.ts', why: 'the table of retired settings spellings names old keys by design' },
   { path: 'src/migrations/retiredCrewSpellings.ts', why: 'the read-side alias tables: every old spelling a saved file or an old caller may still carry' },
@@ -87,7 +88,7 @@ const FILE_RULES: FileRule[] = [
   { path: 'src/components/tasks/BackgroundTasksDialog.tsx', map: { team: 'group' }, why: 'the grouping key beside the crew the board already names' },
   { path: 'src/utils/crewmateMailbox.ts', map: { team: 'targetCrew' }, why: 'the addressed crew beside the crew the mailbox already names' },
   { path: 'src/utils/crew/crewBirth.ts', allow: ['teamName'], why: 'crewName is a parameter of another function in the file, not this scope' },
-  ...['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts'].map(path => ({ path, protect: ['teammate_mailbox'], why: 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it' })),
+  ...['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts', 'scripts/attachments/goldens.json'].map(path => ({ path, protect: ['teammate_mailbox'], why: 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it' })),
 ]
 
 const explicit = (from: string, to: string, re: string, why: string): Explicit => ({ from, to, re: new RegExp(re, 'g'), why })
@@ -213,10 +214,10 @@ const ALIAS_PATCHES: AliasPatch[] = [
   },
   {
     file: 'src/tools/AgentTool/AgentTool.tsx',
-    why: 'the input is read through the table before validation; the schema the model sees is unchanged',
-    find: '  return z.object(base)\n})\n',
-    replace: '  return z.preprocess(readRetiredAgentToolInput, z.object(base))\n})\n',
-    already: '  return z.preprocess(readRetiredAgentToolInput, z.object(base))\n',
+    why: 'the tool reads its input through the table before validation; the exported schema keeps its shape and the schema the model sees is unchanged',
+    find: "  get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {\n    return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>\n  },\n",
+    replace: "  get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {\n    const schema = inputSchema()\n    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>\n  },\n",
+    already: '    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>\n',
   },
   {
     file: 'src/utils/envUtils.ts',
@@ -595,6 +596,13 @@ const PRE_PATCHES: PrePatch[] = [
     replace: "  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && new RegExp(`# Crew: ${sessionId}`)",
     why: 'the brief header has one spelling now',
   },
+  { file: 'src/components/HelpV2/commandDomains.ts', find: "      'team', 'router', 'invite', 'handoff',\n", replace: "      'router', 'invite', 'handoff',\n", why: 'the /team door goes from the help domains' },
+  {
+    file: 'scripts/ui/prove-crew-center.ts',
+    find: "section('§3 — /team deep link')\n{\n  const crew = (await import('../../src/commands/team/index.js')).default\n  check('command name is team', crew.name === 'team')\n  check('description names the crew board', crew.description.includes('Crew board'))\n  check('not hidden', crew.isHidden !== true)\n  const crewSrc = src('commands', 'team', 'index.ts')\n  check('routes into the CANONICAL surface (no competing dashboard)', crewSrc.includes(\"import('../tasks/tasks.js')\"))\n}\n",
+    replace: "section('§3 — the crew board\\'s deep link is /runs')\n{\n  const runs = (await import('../../src/commands/tasks/index.js')).default\n  check('command name is runs', runs.name === 'runs')\n  check('description names the runs board', runs.description.includes('runs board'))\n  check('not hidden', runs.isHidden !== true)\n  const runsSrc = src('commands', 'tasks', 'index.ts')\n  check('routes into the CANONICAL surface (no competing dashboard)', runsSrc.includes(\"import('./tasks.js')\"))\n}\n",
+    why: 'the /team door went; the board it opened is /runs',
+  },
   { file: 'src/commands.ts', find: "import team from './commands/team/index.js'\n", replace: '', why: 'the /team door goes' },
   { file: 'src/commands.ts', find: '  team,\n', replace: '', why: 'the /team door goes' },
   { file: 'src/services/resources/registry.ts', find: "import { teamAdapter } from './adapters/team.js'\n", replace: '', why: 'the mercury://team kind goes' },
@@ -645,6 +653,8 @@ const GENERATORS: Generator[] = [
   { command: ['scripts/settings/gen-settings-schema.ts', '--out', 'scripts/settings/settings-schema.json'], touches: ['scripts/settings/settings-schema.json'], why: 'the settings schema follows the hook event key' },
   { command: ['scripts/engine-durability/prove-write-route-ratchet.ts', '--regen'], touches: ['scripts/engine-durability/write-routes.baseline.json'], why: 'the write-route baseline is keyed by file path' },
   { command: ['scripts/vulcan/regen-optable.mjs'], touches: ['src/utils/vulcan/optable.generated.ts', 'assets/vulcan/addon/core/op_classes.gd'], why: 'the op table is generated from its JSON source, which the rename touches' },
+  { command: ['scripts/consistency-census/gen-shellstring-census.ts'], touches: ['scripts/consistency-census/shellstring-census.json'], why: 'the shell-string census records the strings the rename touches' },
+  { command: ['scripts/orphans/prove-no-orphans.ts', '--regen'], touches: ['scripts/orphans/baseline.json'], why: 'the orphan baseline names files the rename removes or renames' },
 ]
 
 const TOKEN_RE = /TEAMMATES|TEAMMATE|TEAMNAME|TEAMS|TEAM|Teammates|Teammate|Teams|Team|proofteam|proveteam|teammates|teammate|teamcreate|teamdelete|teamname|teams|team/g

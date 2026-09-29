@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'reasoning-only-nudge-crews-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-not-a-real-key'
 for (const k of ['MERCURY_BARE', 'MERCURY_EFFORT_LEVEL', 'MERCURY_MAX_OUTPUT_TOKENS', 'MERCURY_TIME_BASED_MC', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_LOCAL_API_KEY', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_THINKING_BINDING', 'MERCURY_PREFIX_INDUCE_EDIT', 'NODE_ENV', 'ANTHROPIC_BASE_URL']) {

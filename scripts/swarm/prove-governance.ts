@@ -94,7 +94,7 @@ section('decideBroadcastTurn — permissive default, honest deny, fail-open stat
 
 section('checkBroadcastAllowed — unchanged default, explicit lead gate')
 {
-  check('no team file ⇒ allowed', checkBroadcastAllowed(null, false) === null)
+  check('no crew file ⇒ allowed', checkBroadcastAllowed(null, false) === null)
   check('no governance block ⇒ allowed', checkBroadcastAllowed({ members: [] } as never, false) === null)
   check('broadcastEnabled true ⇒ allowed', checkBroadcastAllowed({ members: [], governance: { broadcastEnabled: true } } as never, false) === null)
   const denied = checkBroadcastAllowed({ members: [], governance: { broadcastEnabled: false } } as never, false)
@@ -104,7 +104,7 @@ section('checkBroadcastAllowed — unchanged default, explicit lead gate')
 
 section('command-rank ladder — rankOf / outranks / canDirect / resolveDirectActor')
 {
-  check('rankOf: ladder order (lead above teammate)', rankOf('lead') < rankOf('teammate'))
+  check('rankOf: ladder order (lead above crewmate)', rankOf('lead') < rankOf('crewmate'))
   check('rankOf: unknown role ⇒ +Infinity', rankOf('wizard') === Number.POSITIVE_INFINITY)
   check('rankOf: undefined ⇒ +Infinity', rankOf(undefined) === Number.POSITIVE_INFINITY)
   check('outranks: unknown never outranks', outranks('wizard', 'scout') === false)
@@ -138,14 +138,14 @@ section('command-rank ladder — rankOf / outranks / canDirect / resolveDirectAc
   const leadById = resolveDirectActor(crewFile, 'bob', 'id-bob')
   check('leadAgentId match ⇒ isLead', leadById.isLead === true)
   const leadByName = resolveDirectActor(null, CREW_LEAD_NAME.toUpperCase(), undefined)
-  check('CREW_LEAD_NAME resolves isLead case-insensitively (no team file)', leadByName.isLead === true)
+  check('CREW_LEAD_NAME resolves isLead case-insensitively (no crew file)', leadByName.isLead === true)
   const flat = resolveDirectActor(null, 'nobody', undefined)
-  check('missing team file ⇒ flat role-less actor', flat.isLead === false && flat.role === undefined)
+  check('missing crew file ⇒ flat role-less actor', flat.isLead === false && flat.role === undefined)
 }
 
 section('Q&A ledger IO (hermetic) — open → answer lifecycle')
 {
-  const CREW = 'proof-team'
+  const CREW = 'proof-crew'
 
   await openQuestion({ request_id: 'q1', from: 'lead', to: 'Bob', text: 'first?' }, CREW)
   let open = await listOpenQuestions('bob', CREW)
@@ -163,8 +163,8 @@ section('Q&A ledger IO (hermetic) — open → answer lifecycle')
   check('answered question never re-closes', (await answerQuestion({ request_id: 'q1', answeredBy: 'bob' }, CREW)) === false)
   check('unknown request_id is a no-op', (await answerQuestion({ request_id: 'zz', answeredBy: 'bob' }, CREW)) === false)
 
-  const junkCrew = 'junk-team'
-  const junkDir = join(TMP, 'teams', junkCrew)
+  const junkCrew = 'junk-crew'
+  const junkDir = join(TMP, 'crews', junkCrew)
   mkdirSync(junkDir, { recursive: true })
   writeFileSync(join(junkDir, 'questions.json'), '{{{not json', 'utf-8')
   check('junk ledger lists as empty (fail-open)', (await listOpenQuestions('bob', junkCrew)).length === 0)

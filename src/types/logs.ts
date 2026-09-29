@@ -19,7 +19,7 @@ export type TranscriptMessage = SerializedMessage & {
   logicalParentUuid?: UUID
   isSidechain: boolean
   agentId?: string
-  teamName?: string
+  crewName?: string
   agentName?: string
   agentColor?: string
   promptId?: string
@@ -213,11 +213,11 @@ export type LogOption = {
   isSidechain: boolean
   isLite?: boolean
   sessionId?: string
-  teamName?: string
+  crewName?: string
   agentName?: string
   agentColor?: string
   agentSetting?: string
-  isTeammate?: boolean
+  isCrewmate?: boolean
   leafUuid?: UUID
   summary?: string
   customTitle?: string

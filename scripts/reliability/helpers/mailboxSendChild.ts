@@ -1,17 +1,17 @@
 import { sendLiveMessage } from '../../../src/services/crew/liveComms.ts'
 import { BUS_PROTOCOL_TYPE } from '../../../src/utils/swarm/busEnvelopes.ts'
 
-const teamName = process.env.RELIA_TEAMNAME
+const crewName = process.env.RELIA_CREWNAME
 const requestId = process.env.RELIA_REQ
-if (!teamName || !requestId) throw new Error('RELIA_TEAMNAME + RELIA_REQ required')
+if (!crewName || !requestId) throw new Error('RELIA_CREWNAME + RELIA_REQ required')
 const timestamp = new Date().toISOString()
 const envelope = {
   type: BUS_PROTOCOL_TYPE,
   kind: 'dispatch',
   request_id: requestId,
-  from: 'team-lead',
+  from: 'crew-lead',
   timestamp,
   task: 'apply the one-line fix and report back',
 }
-const okWrite = await sendLiveMessage(teamName, { to: 'worker', from: 'team-lead', text: JSON.stringify(envelope), timestamp })
+const okWrite = await sendLiveMessage(crewName, { to: 'worker', from: 'crew-lead', text: JSON.stringify(envelope), timestamp })
 process.exit(okWrite ? 0 : 1)

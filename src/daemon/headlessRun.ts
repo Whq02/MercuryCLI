@@ -172,7 +172,7 @@ export interface StreamJsonChildSpec {
     | 'MERCURY_CONCOURSE_WORKER'
   agentName: string
   agentId: string
-  teamName?: string
+  crewName?: string
   cwd?: string
   extraEnv?: Readonly<Record<string, string>>
   permissionMode?: SeatPermissionMode
@@ -205,7 +205,7 @@ export function buildStreamJsonInvocation(
 } {
   const { node, script } = getSelfInvocation()
   const model = spec.model
-  const teamName = spec.teamName ?? 'default'
+  const crewName = spec.crewName ?? 'default'
   const argv = [
     script,
     '-p',
@@ -221,8 +221,8 @@ export function buildStreamJsonInvocation(
     ...(spec.plainIdentity
       ? []
       : [
-          '--team-name',
-          teamName,
+          '--crew-name',
+          crewName,
           '--agent-name',
           spec.agentName,
           '--agent-id',

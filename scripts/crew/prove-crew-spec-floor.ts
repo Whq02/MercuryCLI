@@ -73,7 +73,7 @@ const badNames: Array<[string, string]> = [
   ['../x', 'traversal'], ['ätlas', 'unicode'],
 ]
 for (const [bad, why] of badNames) check(`refused: ${JSON.stringify(bad)} (${why})`, cs.isValidCrewName(bad) === false)
-for (const reserved of ['team-lead', 'crew', 'daemon']) {
+for (const reserved of ['crew-lead', 'crew', 'daemon']) {
   check(`reserved refused: '${reserved}'`, cs.isValidCrewName(reserved) === false)
 }
 
@@ -88,11 +88,11 @@ check('recon set is non-empty', (spec.allowedTools?.length ?? 0) > 0)
 check("extraEnv floor: MERCURY_WORKFLOWS='0' (no agent DAGs)", spec.extraEnv?.MERCURY_WORKFLOWS === '0')
 check('extraEnv identity: MERCURY_CREW_AGENT = name', spec.extraEnv?.MERCURY_CREW_AGENT === 'atlas')
 check("role 'MERCURY_CREW'", spec.role === 'MERCURY_CREW')
-check('identity triplet atlas / atlas@crew / crew', spec.agentName === 'atlas' && spec.agentId === 'atlas@crew' && spec.teamName === 'crew')
+check('identity triplet atlas / atlas@crew / crew', spec.agentName === 'atlas' && spec.agentId === 'atlas@crew' && spec.crewName === 'crew')
 check('cwd threaded', spec.cwd === '/proj')
 const pack = spec.appendSystemPrompt
 check('pack names @atlas', pack.includes('@atlas'))
-check('pack carries the SendMessage→team-lead reply contract', pack.includes('SendMessage') && pack.includes('team-lead'))
+check('pack carries the SendMessage→crew-lead reply contract', pack.includes('SendMessage') && pack.includes('crew-lead'))
 check('pack forbids gate bypass', /Never bypass a permission/.test(pack))
 check('pack forbids daemons/fan-out', pack.includes('no daemons, no agent fan-out'))
 const opusSeat = await cs.resolveCrewSeatModel('opus')
@@ -130,7 +130,7 @@ const nonCrewSpec = () => ({
   role: 'MERCURY_CONCOURSE_WORKER' as const,
   agentName: 'runner',
   agentId: 'runner@sessions',
-  teamName: 'sessions',
+  crewName: 'sessions',
   cwd: '/proj',
 })
 {

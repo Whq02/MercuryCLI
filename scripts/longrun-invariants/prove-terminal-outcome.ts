@@ -339,7 +339,7 @@ section('§D wiring pins (source locks on the threaded surfaces)')
   check("the hand-over's declined end reads the overload verdict, arms the probe and gates its notice on the episode; its thrown end reads the 529 budget cut before the blind resume; its stop closes the episode",
     detached.includes('const overload = declined ? overloadPauseOf(agentMessages, metadata.resolvedAgentModel) : null') && detached.includes('const overload = overloadBudgetCutOf(error, metadata.resolvedAgentModel)') && detached.split('armOverloadProbe({').length === 3 && detached.split('overloadDeathNotifies(overloadEpisode)').length === 3 && detached.includes('closeOverloadEpisode(backgroundedTaskId)') && detached.indexOf('armOverloadProbe({', detached.indexOf('const budgetCut = recoveryBudgetCutOf(error)')) === -1)
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
-  check("in-process teammate: a declined tail reports idleReason 'failed'",
+  check("in-process crewmate: a declined tail reports idleReason 'failed'",
     runner.includes('isSyntheticApiErrorMessage(lastAssistant)') && runner.includes("sendIdleNotificationToLead(identity, 'failed'"))
   const ui = readFileSync(join(import.meta.dir, '..', '..', 'src', 'tools', 'AgentTool', 'UI.tsx'), 'utf8')
   check('transcript row renders Failed for the failed status (no silent blank)',

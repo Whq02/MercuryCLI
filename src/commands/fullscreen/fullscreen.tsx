@@ -53,11 +53,11 @@ function FullscreenLive({
 
   const repo = pathTailLabel(getCwd())
   const branch = git?.data.git?.branchName ?? 'main'
-  const teamName = fleet?.state === 'live' ? fleet.data.teamName : null
+  const crewName = fleet?.state === 'live' ? fleet.data.crewName : null
 
   function handleSend(target: string, text: string): void {
-    if (!teamName) return
-    void sendLiveMessage(teamName, {
+    if (!crewName) return
+    void sendLiveMessage(crewName, {
       to: target,
       from: getAgentName() ?? 'user',
       text,

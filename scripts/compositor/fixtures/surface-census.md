@@ -105,7 +105,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /substrate | — | `src/commands/substrate` |
 | /supercode | ilist irow | `src/commands/supercode` |
 | /surfaces | ilist irow | `src/commands/manager` |
-| /team | — | `src/commands/team` |
+| /crew | — | `src/commands/crew` |
 | /terminal-setup | — | `src/commands/terminalSetup` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |

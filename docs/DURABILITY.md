@@ -39,7 +39,7 @@ One reconciliation pass runs at interactive and daemon boot, before any
 view is built: stale temps swept, incomplete journal operations rolled
 forward or compensated, dead task bodies reclaimed, leader projections
 rebuilt, and damaged-store quarantine counts surfaced. The pass never
-throws — per-domain failures land in a typed report that `/run`, `/team`,
+throws — per-domain failures land in a typed report that `/run`, `/crew`,
 and `/health` read — it is idempotent, and its sweeps are bounded: a
 pathological home degrades to partial coverage, recorded, never a hang.
 

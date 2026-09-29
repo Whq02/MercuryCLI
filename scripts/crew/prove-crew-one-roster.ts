@@ -19,7 +19,7 @@ process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
-process.env.MERCURY_CREWS_DIR = join(scratch, 'teams')
+process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
 mkdirSync(process.env.MERCURY_CREWS_DIR, { recursive: true })
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
@@ -61,10 +61,10 @@ async function main(): Promise<void> {
 
   section('R1 the record: a session crewmate row carries the four start inputs; the roster module joins seats and crewmates into ONE list')
   const mateTask = {
-    ...createTaskStateBase('t1atlas000', 'in_process_teammate', `${MATE}: the mate`),
-    type: 'in_process_teammate',
+    ...createTaskStateBase('t1atlas000', 'in_process_crewmate', `${MATE}: the mate`),
+    type: 'in_process_crewmate',
     status: 'running',
-    identity: { agentId: `${MATE}@crew`, agentName: MATE, teamName: 'crew', planModeRequired: false, parentSessionId: 'lead' },
+    identity: { agentId: `${MATE}@crew`, agentName: MATE, crewName: 'crew', planModeRequired: false, parentSessionId: 'lead' },
     prompt: 'the mate',
     model: MATE_MODEL,
     cwd: MATE_CWD,
@@ -125,9 +125,9 @@ async function main(): Promise<void> {
     name: 'crew',
     description: 'the crew',
     createdAt: t0,
-    leadAgentId: 'team-lead@crew',
+    leadAgentId: 'crew-lead@crew',
     governance: { broadcastEnabled: false },
-    members: [member('team-lead', 'team-lead@crew', 'lead'), member(SEAT, `${SEAT}@crew`, 'teammate', { model: SEAT_MODEL, cwd: SEAT_CWD, worktreePath: SEAT_WORKTREE })],
+    members: [member('crew-lead', 'crew-lead@crew', 'lead'), member(SEAT, `${SEAT}@crew`, 'crewmate', { model: SEAT_MODEL, cwd: SEAT_CWD, worktreePath: SEAT_WORKTREE })],
   } as never)
   const seatEntry: WireRosterEntry & { cwd?: string; worktree?: string } = {
     short: SEAT,

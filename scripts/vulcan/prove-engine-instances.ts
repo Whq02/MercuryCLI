@@ -144,11 +144,11 @@ const other = projectLeaseHolder('second')
 const holder = { sessionId: 'first-session', agentId: 'first', pid: leaseChild.pid! }
 try {
   const taken = await takeProjectLeases(leasedRoot, ['tests/runtime_checks.gd'], holder)
-  check('a session without a team takes a project lease', taken.ok, taken)
+  check('a session without a crew takes a project lease', taken.ok, taken)
   const refused = await takeProjectLeases(leasedRoot, ['tests/runtime_checks.gd'], other)
   check('another holder is refused with session and agent named', !refused.ok && refused.conflict.holder.sessionId === holder.sessionId && refused.conflict.holder.agentId === holder.agentId, refused)
   const listed = await op(leasedRoot, 'lease_list', {})
-  check('lease_list exposes the live project holder without a team', JSON.stringify(listed).includes(holder.sessionId), listed)
+  check('lease_list exposes the live project holder without a crew', JSON.stringify(listed).includes(holder.sessionId), listed)
   const wrongRelease = await releaseProjectLeases(leasedRoot, other)
   check('another holder cannot release the lease', wrongRelease.released.length === 0 && (await listProjectLeases(leasedRoot)).length === 1)
   let escaped = false

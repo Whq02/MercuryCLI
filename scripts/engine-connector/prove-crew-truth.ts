@@ -152,10 +152,10 @@ const store = {
   main1: agentTask('main1', 'the session itself', { agentType: 'main-session', startTime: t0 + 5 }),
   tm1: {
     id: 'tm1',
-    type: 'in_process_teammate',
+    type: 'in_process_crewmate',
     status: 'running',
     description: 't',
-    identity: { agentId: 'scout@crew', agentName: 'scout', teamName: 'crew' },
+    identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
     prompt: 'p',
     awaitingPlanApproval: false,
     progress: fold(ANTHROPIC_ID, 800, 100),
@@ -195,8 +195,8 @@ const byId = new Map(rows.map(r => [r.id, r]))
     JSON.stringify(ag3),
   )
   check(
-    'T2 a named agent rides the same counters under its team',
-    tm1.kind === 'teammate' && tm1.model === ANTHROPIC_ID && tm1.inputTokens === 800 && tm1.totalTokens === 900 && tm1.crew === 'crew',
+    'T2 a named agent rides the same counters under its crew',
+    tm1.kind === 'crewmate' && tm1.model === ANTHROPIC_ID && tm1.inputTokens === 800 && tm1.totalTokens === 900 && tm1.crew === 'crew',
     JSON.stringify(tm1),
   )
   check("T2 the session's own main-thread row never rides the roster", !byId.has('main1'))
@@ -218,7 +218,7 @@ const agents = crew.crewAgentsOf(rows, 'fx-session')
     agents.map(a => a.id).join(',') === 'tm1,ag3,ag2,ag1,ag4',
     agents.map(a => a.id).join(','),
   )
-  const boardFacts = [...rosterRowsOf(rows, 'agent'), ...rosterRowsOf(rows, 'teammate')].map(w =>
+  const boardFacts = [...rosterRowsOf(rows, 'agent'), ...rosterRowsOf(rows, 'crewmate')].map(w =>
     crew.crewAgentFactsOf(w, 'fx-session'),
   )
   check(
@@ -375,7 +375,7 @@ console.log('— T6 the source pins —')
       ledger.includes('crewAgentsOf(projectWorkRoster(kept), sessionId)') &&
       rail.includes('crewTokensLabel(c.facts)'),
   )
-  check("T6 the rail's overflow row opens the crew surface", rail.includes("command: '/teammates', label: 'crew:more'"))
+  check("T6 the rail's overflow row opens the crew surface", rail.includes("command: '/crewmates', label: 'crew:more'"))
   const board = src('src/components/tasks/BackgroundTasksDialog.tsx')
   check('T6 the /tasks row and card read the owner', (board.match(/crewAgentFactsOf\(work, null\)/g) ?? []).length === 2)
   check(
@@ -388,7 +388,7 @@ console.log('— T6 the source pins —')
     view.includes('useSessionCrew()') && view.includes('<RosterWorkDetail'),
   )
   check(
-    'T6 /teammates mounts the Crew view',
+    'T6 /crewmates mounts the Crew view',
     src('src/commands/crewmates/crewmates.tsx').includes('<CrewView'),
   )
 }

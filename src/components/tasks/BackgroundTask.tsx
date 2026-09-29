@@ -124,7 +124,7 @@ export function BackgroundTask({
       return <ShellLine shell={task} width={maxActivityWidth} />
     case 'local_agent':
       return <AgentLine task={task} width={maxActivityWidth} />
-    case 'in_process_teammate':
+    case 'in_process_crewmate':
       return <CrewmateLine crewmate={task} />
     case 'local_workflow':
       return <WorkflowLine workflow={task} width={maxActivityWidth} />

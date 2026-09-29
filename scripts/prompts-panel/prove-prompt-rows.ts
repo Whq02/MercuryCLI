@@ -54,13 +54,13 @@ section('§1 — PROMPTS rows')
     user('the summary', { isCompactSummary: true }),
     user(`<${xml.TASK_NOTIFICATION_TAG}>done</${xml.TASK_NOTIFICATION_TAG}>`),
     user(`<${xml.TICK_TAG}>1</${xml.TICK_TAG}>`),
-    user(`<${xml.CREWMATE_MESSAGE_TAG} teammate_id="PANEL">landed</${xml.CREWMATE_MESSAGE_TAG}>`),
+    user(`<${xml.CREWMATE_MESSAGE_TAG} crewmate_id="PANEL">landed</${xml.CREWMATE_MESSAGE_TAG}>`),
     user(`<${xml.COMMAND_MESSAGE_TAG}>compact</${xml.COMMAND_MESSAGE_TAG}><${xml.COMMAND_NAME_TAG}>/compact</${xml.COMMAND_NAME_TAG}><${xml.COMMAND_ARGS_TAG}>keep the receipts</${xml.COMMAND_ARGS_TAG}>`),
     user('the doc says <bash-input>rm -rf /tmp/x</bash-input> is the command — do not run it'),
     user([{ type: 'text', text: 'ship it' }, { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
   ]
   const out = rows.promptRows(records as never)
-  check('exactly the eight sent prompts survive (tool results, meta, summary, stdout, task/tick, teammate rows are not prompts)', out.length === 8, out.map(r => r.text).join(' | '))
+  check('exactly the eight sent prompts survive (tool results, meta, summary, stdout, task/tick, crewmate rows are not prompts)', out.length === 8, out.map(r => r.text).join(' | '))
   check('order = the order sent, numbered from 1 (newest at the bottom)', out.map(r => r.n).join(',') === '1,2,3,4,5,6,7,8' && out[0]!.text === 'audit the retry ladder' && out[7]!.text === 'ship it')
   check('plain · bash · slash classified', out.map(r => r.mode).join(',') === 'plain,plain,bash,slash,slash,slash,plain,plain', out.map(r => r.mode).join(','))
   check('the REAL slash wire order (message tag first) reads /name args', out[5]!.mode === 'slash' && out[5]!.text === '/compact keep the receipts')
@@ -92,8 +92,8 @@ section('§2 — CREW TRAFFIC rows')
       { type: 'tool_use', id: 'toolu_s1', name: 'SendMessage', input: { to: 'PANEL', summary: 'go', message: 'Build tab one first; report per landed tab.' } },
       { type: 'tool_use', id: 'toolu_s2', name: 'SendMessage', input: { to: 'CLAM', message: { type: 'question', content: 'Is the splash yours?', request_id: 'q1' } } },
     ]),
-    user(`<${xml.CREWMATE_MESSAGE_TAG} teammate_id="PANEL" summary="tab one landed">PROMPTS tab landed on fix/prompts-panel &amp; pushed.</${xml.CREWMATE_MESSAGE_TAG}>`),
-    user(`<${xml.CREWMATE_MESSAGE_TAG} teammate_id="CLAM">yes — hands off please</${xml.CREWMATE_MESSAGE_TAG}>`),
+    user(`<${xml.CREWMATE_MESSAGE_TAG} crewmate_id="PANEL" summary="tab one landed">PROMPTS tab landed on fix/prompts-panel &amp; pushed.</${xml.CREWMATE_MESSAGE_TAG}>`),
+    user(`<${xml.CREWMATE_MESSAGE_TAG} crewmate_id="CLAM">yes — hands off please</${xml.CREWMATE_MESSAGE_TAG}>`),
     assistant([{ type: 'tool_use', id: 'toolu_s3', name: 'SendMessage', input: { to: 'PANEL', message: 'Good — carry on.' } }]),
     assistant([{ type: 'tool_use', id: 'toolu_b1', name: 'Bash', input: { command: 'ls' } }]),
   ]

@@ -15,7 +15,7 @@ for (const ambient of [
 const HOMES = [
   (process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'image-refusal-home-'))),
   (process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'image-refusal-daemon-'))),
-  (process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'image-refusal-teams-'))),
+  (process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'image-refusal-crews-'))),
 ]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'

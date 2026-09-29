@@ -31,32 +31,32 @@ export async function getCrewmateMailboxAttachments(
   const appState = toolUseContext.getAppState()
 
   const envAgentName = getAgentName()
-  const teamName = getCrewName(appState.crewContext)
+  const crewName = getCrewName(appState.crewContext)
   const crewLeadStatus = isCrewLead(appState.crewContext)
   const viewedCrewmate = getViewedCrewmateTask(appState)
 
   let agentName = viewedCrewmate?.identity.agentName ?? envAgentName
   if (!agentName && crewLeadStatus && appState.crewContext) {
     const leadAgentId = appState.crewContext!.leadAgentId
-    agentName = appState.crewContext!.crewmates[leadAgentId]?.name || 'team-lead'
+    agentName = appState.crewContext!.crewmates[leadAgentId]?.name || 'crew-lead'
   }
 
   logForDebugging(
-    `[SwarmMailbox] getCrewmateMailboxAttachments called: envAgentName=${envAgentName}, isCrewLead=${crewLeadStatus}, resolved agentName=${agentName}, teamName=${teamName}`,
+    `[SwarmMailbox] getCrewmateMailboxAttachments called: envAgentName=${envAgentName}, isCrewLead=${crewLeadStatus}, resolved agentName=${agentName}, crewName=${crewName}`,
   )
 
   if (!agentName) {
     logForDebugging(
-      `[SwarmMailbox] Not checking inbox - not in a swarm or team lead`,
+      `[SwarmMailbox] Not checking inbox - not in a swarm or crew lead`,
     )
     return []
   }
 
   logForDebugging(
-    `[SwarmMailbox] Checking inbox for agent="${agentName}" team="${teamName || 'default'}"`,
+    `[SwarmMailbox] Checking inbox for agent="${agentName}" crew="${crewName || 'default'}"`,
   )
 
-  const allUnreadMessages = await unreadLiveMessagesFor(teamName, agentName!)
+  const allUnreadMessages = await unreadLiveMessagesFor(crewName, agentName!)
   const unreadMessages = allUnreadMessages.filter(
     m => !isStructuredProtocolMessage(m.text),
   )
@@ -136,15 +136,15 @@ export async function getCrewmateMailboxAttachments(
     const deliveredKeys = new Set(
       unreadMessages.map(m => `${m.from} ${m.timestamp} ${m.text}`),
     )
-    await markLiveMessagesReadWhere(teamName, agentName!, m =>
+    await markLiveMessagesReadWhere(crewName, agentName!, m =>
         !isStructuredProtocolMessage(m.text) &&
         deliveredKeys.has(`${m.from} ${m.timestamp} ${m.text}`))
     logForDebugging(
-      `[MailboxBridge] marked ${unreadMessages.length} non-structured message(s) as read for agent="${agentName}" team="${teamName || 'default'}"`,
+      `[MailboxBridge] marked ${unreadMessages.length} non-structured message(s) as read for agent="${agentName}" crew="${crewName || 'default'}"`,
     )
   }
 
-  if (crewLeadStatus && teamName) {
+  if (crewLeadStatus && crewName) {
     for (const m of allMessages) {
       const shutdownApproval = isShutdownApproved(m.text)
       if (shutdownApproval) {
@@ -166,16 +166,16 @@ export async function getCrewmateMailboxAttachments(
           : undefined
 
         if (crewmateId) {
-          removeCrewmateFromCrewFile(teamName!, {
+          removeCrewmateFromCrewFile(crewName!, {
             agentId: crewmateId,
             name: crewmateToRemove!,
           })
           logForDebugging(
-            `[SwarmMailbox] Removed ${crewmateToRemove} from team file`,
+            `[SwarmMailbox] Removed ${crewmateToRemove} from crew file`,
           )
 
           await unassignCrewmateTasks(
-            teamName!,
+            crewName!,
             crewmateId!,
             crewmateToRemove!,
             'shutdown',
@@ -215,11 +215,11 @@ export async function getCrewmateMailboxAttachments(
 }
 
 export function getCrewContextAttachment(messages: Message[]): Attachment[] {
-  const teamName = getCrewName()
+  const crewName = getCrewName()
   const agentId = getAgentId()
   const agentName = getAgentName()
 
-  if (!teamName || !agentId) {
+  if (!crewName || !agentId) {
     return []
   }
 
@@ -229,16 +229,16 @@ export function getCrewContextAttachment(messages: Message[]): Attachment[] {
   }
 
   const configDir = getMercuryHome()
-  const teamConfigPath = `${configDir}/teams/${teamName}/config.json`
-  const taskListPath = `${configDir}/tasks/${teamName}/`
+  const crewConfigPath = `${configDir}/crews/${crewName}/config.json`
+  const taskListPath = `${configDir}/tasks/${crewName}/`
 
   return [
     {
-      type: 'team_context',
+      type: 'crew_context',
       agentId,
       agentName: agentName || agentId,
-      teamName,
-      teamConfigPath,
+      crewName,
+      crewConfigPath,
       taskListPath,
     },
   ]

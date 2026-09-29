@@ -297,7 +297,7 @@ function driveEnv(home: string, fixtureBase: string, dialect: Dialect): Record<s
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: dialect === 'anthropic' ? FIXTURE_API_KEY : '',
@@ -382,10 +382,10 @@ async function landLeg(dialect: Dialect): Promise<void> {
         argv: argvFor(dialect),
         sends: [
           ...bootSends(ASK),
-          { data: '/teammates', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
+          { data: '/crewmates', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\x1b', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
-          { data: '/teammates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
+          { data: '/crewmates', atTick: 999, awaitText: 'agents finished', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'landed' },
           { data: '\r', afterPrevTicks: 4 },
           { data: '\r', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-landed' },
           { data: '\x1b', atTick: 999, awaitText: '· viewing ', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'card' },
@@ -463,7 +463,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
         sends: [
           ...bootSends(ASK),
           { data: '\x1b', atTick: 999, awaitText: 'Running 2 agents', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'running' },
-          { data: '/teammates', atTick: 999, awaitText: 'still running', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'interrupted' },
+          { data: '/crewmates', atTick: 999, awaitText: 'still running', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'interrupted' },
           { data: '\r', afterPrevTicks: 4 },
           { data: 'x', atTick: 999, awaitText: 'Sub-agents', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'crew-running' },
           { data: 'x', afterPrevTicks: 3 },

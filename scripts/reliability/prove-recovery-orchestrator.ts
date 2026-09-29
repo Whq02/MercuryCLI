@@ -21,7 +21,7 @@ const ok = (cond: boolean, label: string) => {
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-orch-'))
 const home = join(tmp, 'home')
-const crews = join(tmp, 'teams')
+const crews = join(tmp, 'crews')
 const daemon = join(tmp, 'daemon')
 mkdirSync(home, { recursive: true })
 mkdirSync(crews, { recursive: true })
@@ -59,7 +59,7 @@ const deadCrew = 'orch-dead'
 await helpers.writeCrewFileAsync(deadCrew, {
   name: deadCrew,
   createdAt: Date.now(),
-  leadAgentId: `team-lead@${deadCrew}`,
+  leadAgentId: `crew-lead@${deadCrew}`,
   leadSessionId: 'dead-owner-session',
   members: [],
 })
@@ -74,34 +74,34 @@ const opFile = (id: string, kind: string, key: string, owner: string) =>
     idempotencyKey: key,
     state: 'applying',
     steps: [
-      { id: 'team-file', target: 'x', state: 'applied' },
+      { id: 'crew-file', target: 'x', state: 'applied' },
       { id: 'task-epoch', target: 'y', state: 'pending' },
     ],
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     writerPid: deadPid,
   })
-writeFileSync(join(journalDir, 'op-dead1.json'), opFile('dead1', 'team-create', `team-create:${deadCrew}`, 'dead-owner-session'), 'utf8')
+writeFileSync(join(journalDir, 'op-dead1.json'), opFile('dead1', 'crew-create', `crew-create:${deadCrew}`, 'dead-owner-session'), 'utf8')
 
 const foreignCrew = 'orch-foreign'
 await helpers.writeCrewFileAsync(foreignCrew, {
   name: foreignCrew,
   createdAt: Date.now(),
-  leadAgentId: `team-lead@${foreignCrew}`,
+  leadAgentId: `crew-lead@${foreignCrew}`,
   leadSessionId: 'somebody-else-entirely',
   members: [],
 })
-writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'team-create', `team-create:${foreignCrew}`, 'dead-owner-session'), 'utf8')
+writeFileSync(join(journalDir, 'op-dead2.json'), opFile('dead2', 'crew-create', `crew-create:${foreignCrew}`, 'dead-owner-session'), 'utf8')
 
 const undecodableName = 'op-undecodable.json'
 const undecodableBytes = JSON.stringify({
   schema: 1,
   operationId: 'undecodable',
   ownerKey: 'dead-owner-session',
-  kind: 'team-create',
-  idempotencyKey: 'team-create:orch-ghost',
+  kind: 'crew-create',
+  idempotencyKey: 'crew-create:orch-ghost',
   state: 'applying',
-  steps: [{ id: 'team-file', target: 'x', state: 'applied' }],
+  steps: [{ id: 'crew-file', target: 'x', state: 'applied' }],
   updatedAt: new Date().toISOString(),
   writerPid: deadPid,
 })
@@ -140,8 +140,8 @@ console.log('— boot 1: reconciliation over seeded damage —')
     `the undecodable journal file is named by file beside the reconciled ops (${JSON.stringify(report.crewJournal?.unrecoverable ?? report.errors)})`,
   )
   ok(readFileSync(join(journalDir, undecodableName), 'utf8') === undecodableBytes, 'the undecodable file is left in place, byte for byte')
-  ok(existsSync(join(crews, deadCrew, 'config.json')), 'the older build\'s half-created team is LEFT IN PLACE (nothing is removed by itself)')
-  ok(existsSync(join(crews, foreignCrew, 'config.json')), 'foreign team UNTOUCHED (guarded unwind)')
+  ok(existsSync(join(crews, deadCrew, 'config.json')), 'the older build\'s half-created crew is LEFT IN PLACE (nothing is removed by itself)')
+  ok(existsSync(join(crews, foreignCrew, 'config.json')), 'foreign crew UNTOUCHED (guarded unwind)')
   const ops = await listJournalOperations(journalDir)
   ok(ops.every(o => o.state === 'aborted' || o.state === 'committed'), 'journal fully terminal after recovery')
   ok(!existsSync(join(listDir, '1.json')), 'dead-epoch task body reclaimed')
@@ -199,12 +199,12 @@ console.log('— boot 3: leader projection rebuild —')
   await helpers.writeCrewFileAsync(ledCrew, {
     name: ledCrew,
     createdAt: Date.now(),
-    leadAgentId: `team-lead@${ledCrew}`,
+    leadAgentId: `crew-lead@${ledCrew}`,
     leadSessionId: 'lead-session-S',
     members: [
       {
-        agentId: `team-lead@${ledCrew}`,
-        name: 'team-lead',
+        agentId: `crew-lead@${ledCrew}`,
+        name: 'crew-lead',
         joinedAt: 111,
         tmuxPaneId: '',
         cwd: '/w',
@@ -225,13 +225,13 @@ console.log('— boot 3: leader projection rebuild —')
   orch._resetBootRecoveryForTests()
   const report = await orch.runBootRecovery({ scope: 'session', sessionId: 'lead-session-S' })
   const led = report.leaderProjection
-  ok(led !== null && led.teamName === ledCrew, 'led team found on disk for the resumed session')
+  ok(led !== null && led.crewName === ledCrew, 'led crew found on disk for the resumed session')
   ok(led !== null && Object.keys(led.crewmates).length === 2, 'AppState seed carries the full roster')
   ok(led !== null && led.crewmates[`scout@${ledCrew}`]?.spawnedAt === 222, 'roster fields mapped (joinedAt → spawnedAt)')
-  ok(getTaskListId() === helpers.sanitizeName(ledCrew), 'leader task-list registration rebuilt (getTaskListId → team)')
+  ok(getTaskListId() === helpers.sanitizeName(ledCrew), 'leader task-list registration rebuilt (getTaskListId → crew)')
   ok(getLeadCrewFallback() === ledCrew, 'lead-aware tool identity rebuilt (leadCrewFallback)')
   const line = orch.bootRecoveryStatusLine(orch.getBootRecovery())
-  ok(line !== null && line.text.includes(`team "${ledCrew}" projection rebuilt`), 'status line reports the rebuild')
+  ok(line !== null && line.text.includes(`crew "${ledCrew}" projection rebuilt`), 'status line reports the rebuild')
 }
 
 console.log('— boot 4: bounded epoch GC stays quiet —')

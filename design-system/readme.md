@@ -65,7 +65,7 @@ How Mercury writes — match this voice in every label, hint, and panel.
 - **Roll-ups lead.** A panel opens with a one-line summary before detail:
   *"14 of 19 capabilities active"*, *"24 calls · 2 high-risk · 1 denied"*.
 - **Imperatively name the next move.** Command hints are bare slash-commands
-  with a short gloss: `❯ /team   background agents`.
+  with a short gloss: `❯ /crew   background agents`.
 - **Env flags are UPPER_SNAKE, verbatim.** `MERCURY_SUBSTRATE`,
   `MERCURY_FULLSCREEN` — exactly as the operator would type them.
 - **Voice.** Operational, calm, second-person-implicit. No marketing, no

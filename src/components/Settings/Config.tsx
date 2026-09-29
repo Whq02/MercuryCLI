@@ -139,7 +139,7 @@ export function configListWindow(selected: number, offset: number, total: number
 
 type SubMenu =
   | 'theme'
-  | 'teammate-model'
+  | 'crewmate-model'
   | 'agent-model'
   | 'external-includes'
   | 'language'
@@ -1042,7 +1042,7 @@ export function Config({
           })()}
         </Text>
       ),
-      open: 'teammate-model',
+      open: 'crewmate-model',
     })
   }
   const externalIncludes = (
@@ -1397,7 +1397,7 @@ export function Config({
       />
     )
   }
-  if (subMenu === 'teammate-model') {
+  if (subMenu === 'crewmate-model') {
     const current = config.crewmateDefaultModel
     return (
       <ModalContext.Provider value={{ rows: contentHeight, columns: width, scrollRef: null }}>

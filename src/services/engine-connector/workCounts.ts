@@ -24,7 +24,7 @@ export function workCounts(rows: readonly WorkRowV1[]): WorkCountsV1 {
       case 'agent':
         counts.agents += 1
         break
-      case 'teammate':
+      case 'crewmate':
         counts.crewmates += 1
         break
       case 'shell':

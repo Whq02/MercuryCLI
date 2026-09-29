@@ -34,7 +34,7 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when?: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', ...(when !== undefined ? { whenBody: when } : {}) }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead(
     {
@@ -74,15 +74,15 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'paced', deltas: ['STILL-WORKING', '.', '.', '.', '.', '.'], gapMs: 5000 }),
   peer({ kind: 'text', text: 'CONTINUED-3' }, MESSAGE_3),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 20', description: 'A long command' } }, MESSAGE_4),
-  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', message: `${REPLY_2}: continuing after the cut.`, summary: 'third reply' } }, MESSAGE_2),
+  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', message: `${REPLY_2}: continuing after the cut.`, summary: 'third reply' } }, MESSAGE_2),
   peer({ kind: 'text', text: 'CONTINUED-2' }, MESSAGE_2),
-  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', message: `${REPLY_1}: continuing after HISTORY-WITNESS.`, summary: 'first reply' } }),
+  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', message: `${REPLY_1}: continuing after HISTORY-WITNESS.`, summary: 'first reply' } }),
   peer({ kind: 'text', text: 'CONTINUED-1' }),
-  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', message: `${REPLY_1B}: the second note landed.`, summary: 'second reply' } }),
+  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', message: `${REPLY_1B}: the second note landed.`, summary: 'second reply' } }),
   peer({ kind: 'text', text: 'CONTINUED-1B' }),
 ]
 const tally = makeTally('prove-crewmate-message-resume')
-const world = await makeWorld('teammate-message-resume', script)
+const world = await makeWorld('crewmate-message-resume', script)
 const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'TaskStop'])
 const rosterPath = join(world.crews, crew, 'config.json')
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
@@ -97,15 +97,15 @@ const requests = (): Request[] => (world.fixture.messageRequests() as Request[])
 const projects = join(world.config, 'projects')
 const transcripts = (): string[] => treeOf(projects).filter(path => /subagents\/agent-a[0-9a-z]{8}\.jsonl$/.test(path))
 const rowsOf = (): Array<{ id: string; description: string }> =>
-  session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate').map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
+  session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
 const workerRows = (): Roster['members'] => (readJson<Roster>(rosterPath)?.members ?? []).filter(member => member.name.toLowerCase().startsWith(worker))
 const sameRow = (): boolean => workerRows().length === 1 && workerRows()[0]!.name === worker && workerRows()[0]!.agentId === workerAgentId
-const availableNotices = (): number => crewMessagesTo(world, crew, 'team-lead').filter(row => row.from === worker && row.text.includes('idle_notification') && row.text.includes('"available"')).length
+const availableNotices = (): number => crewMessagesTo(world, crew, 'crew-lead').filter(row => row.from === worker && row.text.includes('idle_notification') && row.text.includes('"available"')).length
 const lastUser = (request: Request): string => {
   const last = request.body.messages?.at(-1)
   return last?.role === 'user' ? JSON.stringify(last.content) : ''
 }
-const envelope = (request: Request | undefined, text: string): boolean => request !== undefined && lastUser(request).includes(text) && lastUser(request).includes('teammate_id=\\"team-lead\\"')
+const envelope = (request: Request | undefined, text: string): boolean => request !== undefined && lastUser(request).includes(text) && lastUser(request).includes('crewmate_id=\\"crew-lead\\"')
 const nextTurnCarrying = (from: number, text: string): Request | undefined => requests().slice(from).find(request => lastUser(request).includes(text))
 const until = async (test: () => boolean, ms: number): Promise<boolean> => {
   const deadline = Date.now() + ms
@@ -121,11 +121,11 @@ try {
   session.submit(`${FIRST}: spawn the worker and park.`)
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const first = rowsOf()[0]
-  tally.check('a real in-process teammate runs with a history-bearing tool result', first !== undefined && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
-  if (first === undefined) throw new Error('the fixture has no teammate task id')
+  tally.check('a real in-process crewmate runs with a history-bearing tool result', first !== undefined && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
+  if (first === undefined) throw new Error('the fixture has no crewmate task id')
   const requestsBeforeStop = requests().length
   const stopped = await control('stop-worker', { subtype: 'stop_task', task_id: first.id })
-  tally.check('the crew stop road stops the working teammate', stopped.subtype === 'success', JSON.stringify(stopped))
+  tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
 
   tally.section('THE PIN: the stop notice wakes the lead, whose two messages to the stopped worker both land — one resumes it with the message as its next turn, the other is its turn after — same name, same row, and each reply comes back')
   const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), TURN_MS * 2 / 3)
@@ -145,7 +145,7 @@ try {
   const history1 = JSON.stringify(continued1?.body.messages ?? [])
   tally.check('the worker makes a new request (RED on the base: none)', continued1 !== undefined, String(requests().length))
   tally.check('its history keeps the tool result from before the stop', history1.includes('"tool_result"') && history1.includes('HISTORY-WITNESS'))
-  tally.check('the message rides as its next turn, in the teammate-message envelope from the lead', envelope(continued1, MESSAGE_1), continued1 === undefined ? '' : lastUser(continued1).slice(-400))
+  tally.check('the message rides as its next turn, in the crewmate-message envelope from the lead', envelope(continued1, MESSAGE_1), continued1 === undefined ? '' : lastUser(continued1).slice(-400))
   tally.check('the worker keeps its model', continued1?.body.model === peerModel)
   const resumedRow = (await until(() => rowsOf().length >= 2, TURN_MS / 3)) ? rowsOf()[1] : undefined
   tally.check('the same row: the roster keeps the name and the agent id, and the new row carries the name (RED on the base: no row)', sameRow() && resumedRow !== undefined && resumedRow.description.startsWith(`${worker}:`), JSON.stringify({ roster: workerRows(), rows: rowsOf() }))
@@ -170,7 +170,7 @@ try {
   const text3 = answer3?.text ?? ''
   record('stop-standing-row.txt', `${stop3?.text ?? ''}\nis_error=${String(stop3?.isError)}\n`)
   record('send-standing-row.txt', `${text3}\nis_error=${String(answer3?.isError)}\n`)
-  tally.check('the lead\'s stop reached the running worker', answered3 && stop3 !== null && /Stopped task/.test(stop3.text) && stop3.text.includes('in_process_teammate'), stop3?.text.slice(0, 200) ?? '')
+  tally.check('the lead\'s stop reached the running worker', answered3 && stop3 !== null && /Stopped task/.test(stop3.text) && stop3.text.includes('in_process_crewmate'), stop3?.text.slice(0, 200) ?? '')
   tally.check('the message that follows the stop within its turn meets the row that still stands: the seat "was stopped", not "had left the list", and is resumed', answer3 !== null && resumedWords(text3) && /was stopped/.test(text3) && !/left the list/.test(text3), text3.slice(0, 300))
   await until(() => nextTurnCarrying(requestsBeforeStanding, MESSAGE_3) !== undefined, TURN_MS / 3)
   const continued3 = nextTurnCarrying(requestsBeforeStanding, MESSAGE_3) ?? requests()[requestsBeforeStanding]
@@ -200,7 +200,7 @@ try {
   const text2 = answer2?.text ?? ''
   record('send-after-eviction.txt', `${text2}\nis_error=${String(answer2?.isError)}\n`)
   tally.check('the lead\'s message after the eviction was answered', answered2 && answer2 !== null, session.stdout().slice(-600))
-  tally.check('the message is not refused as an unknown member (RED on the base: "no such member on team")', answer2 !== null && !refused(text2), text2.slice(0, 300))
+  tally.check('the message is not refused as an unknown member (RED on the base: "no such member on crew")', answer2 !== null && !refused(text2), text2.slice(0, 300))
   tally.check('the answer says the worker was resumed from its transcript with the message', resumedWords(text2), text2.slice(0, 300))
   await until(() => nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) !== undefined, TURN_MS / 3)
   const continued2 = nextTurnCarrying(requestsBeforeSecond, MESSAGE_2) ?? requests()[requestsBeforeSecond]

@@ -36,7 +36,7 @@ export const WORKTREE_TAG = 'worktree'
 export const WORKTREE_PATH_TAG = 'worktreePath'
 export const WORKTREE_BRANCH_TAG = 'worktreeBranch'
 
-export const CREWMATE_MESSAGE_TAG = 'teammate-message'
+export const CREWMATE_MESSAGE_TAG = 'crewmate-message'
 export const CHANNEL_TAG = 'channel'
 export const FORK_BOILERPLATE_TAG = 'fork-boilerplate'
 export const FORK_DIRECTIVE_PREFIX = 'Your directive: '

@@ -11,7 +11,7 @@ import {
   getAgentName,
   getCrewName,
   isPlanModeRequired,
-  isTeammate,
+  isCrewmate,
 } from '../../utils/crewmate.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
@@ -95,10 +95,10 @@ export const ExitPlanModeV2Tool = buildTool({
     return ''
   },
   requiresUserInteraction(): boolean {
-    return !isTeammate()
+    return !isCrewmate()
   },
   async checkPermissions(input: Input, context) {
-    if (isTeammate()) {
+    if (isCrewmate()) {
       return { behavior: 'allow' as const, updatedInput: input }
     }
     void context
@@ -109,7 +109,7 @@ export const ExitPlanModeV2Tool = buildTool({
     }
   },
   async validateInput(_input: Input, context) {
-    if (isTeammate()) return { result: true as const }
+    if (isCrewmate()) return { result: true as const }
     const mode = context.getAppState().toolPermissionContext.mode
     if (mode !== 'strategy') {
       return {
@@ -141,17 +141,17 @@ export const ExitPlanModeV2Tool = buildTool({
       }
     }
 
-    if (isTeammate() && isPlanModeRequired()) {
+    if (isCrewmate() && isPlanModeRequired()) {
       if (!plan || plan.trim() === '') {
         throw new Error(
           `A plan is required for lead approval and none was found at ${filePath}. Write the plan there first.`,
         )
       }
-      const agentName = getAgentName() ?? 'teammate'
-      const teamName = getCrewName()
+      const agentName = getAgentName() ?? 'crewmate'
+      const crewName = getCrewName()
       const requestId = `plan-approval-${agentName}-${Date.now().toString(36)}`
-      await sendLiveMessage(teamName, {
-        to: teamName ? `lead@${teamName}` : 'lead',
+      await sendLiveMessage(crewName, {
+        to: crewName ? `lead@${crewName}` : 'lead',
         from: agentName,
         timestamp: new Date().toISOString(),
         text: JSON.stringify({
@@ -230,7 +230,7 @@ export const ExitPlanModeV2Tool = buildTool({
     let content: string
     if (output.awaitingLeaderApproval) {
       content = [
-        `Plan submitted to the team lead for approval. Plan file: ${output.filePath}.`,
+        `Plan submitted to the crew lead for approval. Plan file: ${output.filePath}.`,
         'What happens next: wait for the lead\'s review; an inbox message will carry the approval or rejection; proceed on approval; refine the plan on rejection.',
         'Do NOT proceed until the approval arrives — check your inbox.',
         `Request id: ${output.requestId}`,
@@ -247,7 +247,7 @@ export const ExitPlanModeV2Tool = buildTool({
       ]
       if (output.hasTaskTool) {
         parts.push(
-          'If the plan decomposes into independent tasks, consider the team-creation tool to parallelise them.',
+          'If the plan decomposes into independent tasks, consider the crew-creation tool to parallelise them.',
         )
       }
       if (output.autopilotDownshiftNudge) {

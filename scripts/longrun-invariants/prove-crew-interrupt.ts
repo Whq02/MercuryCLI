@@ -254,7 +254,7 @@ async function lifecycleWith(name: string, drive: (controller: AbortController) 
   const stopArm = runner.slice(stopArmAt, runner.indexOf("case 'resume_task': {"))
   check('the runner\'s stop_task rides the one operator-stop owner and answers applied or refused with its reason', stopArmAt !== -1 && stopArm.includes('stopAgentByOperator(request.task_id, { getAppState, setAppState }, request.note === AGENT_INTERRUPT_BY_OPERATOR ? { reason: AGENT_INTERRUPT_BY_OPERATOR } : {})') && stopArm.includes("respondError(requestId, receipt.reason)") && !stopArm.includes('respondSuccess(requestId, {})'))
   const owner = src('src/services/agents/operatorStop.ts')
-  check('the owner routes a workflow row to killWorkflowTask, a named teammate to killInProcessCrewmate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessCrewmate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
+  check('the owner routes a workflow row to killWorkflowTask, a named crewmate to killInProcessCrewmate and an agent to the reasoned abort', owner.includes('killWorkflowTask(taskId, context.setAppState)') && owner.includes('killInProcessCrewmate(taskId, context.setAppState)') && owner.includes('stopOrDismissAgent(taskId, context.setAppState, options.reason ?? AGENT_STOP_BY_OPERATOR)'))
   resetCommandQueue()
 }
 

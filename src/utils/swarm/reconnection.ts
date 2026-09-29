@@ -7,18 +7,18 @@ import { getCrewFilePath, readCrewFile } from './crewHelpers.js'
 
 export function computeInitialCrewContext(): AppState['crewContext'] | undefined {
   const dynamic = getDynamicCrewContext()
-  if (!dynamic || !dynamic.teamName || !dynamic.agentName) {
-    logForDebugging('team context: no dynamic teammate identity — not a teammate session')
+  if (!dynamic || !dynamic.crewName || !dynamic.agentName) {
+    logForDebugging('crew context: no dynamic crewmate identity — not a crewmate session')
     return undefined
   }
-  const roster = readCrewFile(dynamic.teamName)
+  const roster = readCrewFile(dynamic.crewName)
   if (roster === null) {
-    logError(new Error(`team context: the roster for ${dynamic.teamName} is unreadable`))
+    logError(new Error(`crew context: the roster for ${dynamic.crewName} is unreadable`))
     return undefined
   }
   return {
-    teamName: dynamic.teamName,
-    crewFilePath: getCrewFilePath(dynamic.teamName),
+    crewName: dynamic.crewName,
+    crewFilePath: getCrewFilePath(dynamic.crewName),
     leadAgentId: roster.leadAgentId,
     ...(dynamic.agentId ? { selfAgentId: dynamic.agentId } : {}),
     selfAgentName: dynamic.agentName,
@@ -29,25 +29,25 @@ export function computeInitialCrewContext(): AppState['crewContext'] | undefined
 
 export function initializeCrewmateContextFromSession(
   setAppState: (updater: (prevState: AppState) => AppState) => void,
-  teamName: string,
+  crewName: string,
   agentName: string,
 ): void {
-  const roster = readCrewFile(teamName)
+  const roster = readCrewFile(crewName)
   if (roster === null) {
     logError(
-      new Error(`team context: the roster for ${teamName} is missing — resumed team context not restored`),
+      new Error(`crew context: the roster for ${crewName} is missing — resumed crew context not restored`),
     )
     return
   }
   const member = roster.members.find(candidate => candidate.name === agentName)
   if (member === undefined) {
-    logForDebugging(`team context: resumed member ${agentName} not found in ${teamName}`)
+    logForDebugging(`crew context: resumed member ${agentName} not found in ${crewName}`)
   }
   setAppState(prevState => ({
     ...prevState,
     crewContext: {
-      teamName,
-      crewFilePath: getCrewFilePath(teamName),
+      crewName,
+      crewFilePath: getCrewFilePath(crewName),
       leadAgentId: roster.leadAgentId,
       ...(member?.agentId ? { selfAgentId: member.agentId } : {}),
       selfAgentName: agentName,

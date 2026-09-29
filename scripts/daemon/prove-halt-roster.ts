@@ -103,7 +103,7 @@ const spawned = (await daemonControlRpc({ op: 'crewSpawn', name: 'scout', model:
   pid?: number
   error?: string
 }
-check('a crew teammate spawn is accepted', spawned.ok === true, JSON.stringify(spawned))
+check('a crew crewmate spawn is accepted', spawned.ok === true, JSON.stringify(spawned))
 check(
   'the crew seat comes up on the roster',
   await untilAsync(async () => (await liveShorts()).includes('scout'), 90_000),

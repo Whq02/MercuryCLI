@@ -52,14 +52,14 @@ function crewWith(name: string): CrewFile {
     createdAt: Date.now(),
     leadAgentId: `lead@${name}`,
     governance: undefined,
-    members: [member(`lead@${name}`, 'team-lead'), member(`w@${name}`, 'worker'), member(`b@${name}`, 'bob')],
+    members: [member(`lead@${name}`, 'crew-lead'), member(`w@${name}`, 'worker'), member(`b@${name}`, 'bob')],
   }
 }
 
 const asWorker = (crew: string): void =>
-  setDynamicCrewContext({ agentId: `w@${crew}`, agentName: 'worker', teamName: crew, color: 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `w@${crew}`, agentName: 'worker', crewName: crew, color: 'blue', planModeRequired: false })
 const asBob = (crew: string): void =>
-  setDynamicCrewContext({ agentId: `b@${crew}`, agentName: 'bob', teamName: crew, color: 'green', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `b@${crew}`, agentName: 'bob', crewName: crew, color: 'green', planModeRequired: false })
 
 console.log('============================================================')
 console.log(' the coordination service — one owner, two projections')
@@ -69,9 +69,9 @@ try {
   section('§1 SOLO: no context; the empty brief')
   clearDynamicCrewContext()
   {
-    check('no team ⇒ no coordination context', resolveCoordinationContext() === null)
+    check('no crew ⇒ no coordination context', resolveCoordinationContext() === null)
     const brief = await crewBrief(null)
-    check('the solo brief is the empty brief (teamName null)', brief.teamName === null)
+    check('the solo brief is the empty brief (crewName null)', brief.crewName === null)
     check(
       'every section is present and empty',
       (['openTasks', 'unreadMessages', 'openQuestions', 'roster', 'leases', 'health', 'conflicts', 'handoffs'] as const).every(
@@ -82,12 +82,12 @@ try {
     check('EMPTY_BRIEF is the same shape', JSON.stringify(brief) === JSON.stringify(EMPTY_BRIEF))
   }
 
-  section('§2 IN-TEAM: leases · messaging · the consolidated brief')
+  section('§2 IN-CREW: leases · messaging · the consolidated brief')
   const CREW = 'service-proof'
   await writeCrewFileAsync(CREW, crewWith(CREW))
   asWorker(CREW)
   const worker = resolveCoordinationContext()
-  check('in a team the context names the team and the agent', worker?.crew === CREW && worker?.agentId === 'worker', JSON.stringify(worker))
+  check('in a crew the context names the crew and the agent', worker?.crew === CREW && worker?.agentId === 'worker', JSON.stringify(worker))
   if (worker) {
     const claim = await claimLeases(worker, ['src/api/**'])
     check('claimLeases grants the glob', claim.ok && claim.globs.join(',') === 'src/api/**' && claim.agentId === 'worker')
@@ -109,14 +109,14 @@ try {
     const inbox = await liveMessagesFor(CREW, 'bob')
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
     const brief = await crewBrief(worker)
-    check('the brief names the team', brief.teamName === CREW)
+    check('the brief names the crew', brief.crewName === CREW)
     check('the brief lists the lease', brief.leases.some(l => l.agentId === 'worker' && l.globs.includes('src/api/**')))
     check("the brief carries worker's unread note", brief.unreadMessages.some(m => m.from === 'bob' && m.text === 'note for the brief'))
     check(
       'the brief carries every consolidated section',
       (['openTasks', 'openQuestions', 'roster', 'health', 'conflicts', 'handoffs'] as const).every(k => Array.isArray(brief[k])),
     )
-    check('a non-party team has no party facet', brief.party === undefined)
+    check('a non-party crew has no party facet', brief.party === undefined)
     const rel = await releaseLeases(worker)
     check('releaseLeases drops the lease', rel.ok && rel.released === true)
     check('after the release the list is empty of worker', !(await listCrewLeases(worker)).some(r => r.agentId === 'worker'))
@@ -135,7 +135,7 @@ try {
     const toolResult = await LiveCommsTool.call({} as never, { getAppState: () => ({ crewContext: undefined }) } as never)
     const toolJson = JSON.parse(JSON.stringify((toolResult as { data: unknown }).data))
     check('the MCP brief and the LiveComms tool return the SAME brief (JSON-equal)', JSON.stringify(mcpJson) === JSON.stringify(toolJson))
-    check('that brief names the team', mcpJson.teamName === CREW && toolJson.teamName === CREW)
+    check('that brief names the crew', mcpJson.crewName === CREW && toolJson.crewName === CREW)
     await client.close()
     await server.close()
 
@@ -148,7 +148,7 @@ try {
     check('the LiveComms tool performs no substrate read or write of its own', !substrateReads.test(toolSrc))
     check('no second consolidation (buildBrief) survives in the server', !/buildBrief/.test(serverSrc))
     const serviceSrc = readFileSync(join(ROOT, 'src/services/coordination/coordinationService.ts'), 'utf8')
-    check('the service owns the solo contract text', /NOT_IN_CREW/.test(serviceSrc) && !/Not part of a team — the coordination tools/.test(serverSrc))
+    check('the service owns the solo contract text', /NOT_IN_CREW/.test(serviceSrc) && !/Not part of a crew — the coordination tools/.test(serverSrc))
   }
 } finally {
   clearDynamicCrewContext()

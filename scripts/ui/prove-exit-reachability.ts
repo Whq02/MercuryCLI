@@ -110,7 +110,7 @@ const EXIT_TABLE: Record<string, Exit> = {
     kind: 'binding',
     action: 'footer:clearSelection',
     hints: [],
-    hintExempt: 'the footer indicators are a focus mode of the composer (↑ into the task/team rows); esc clears it and the composer keeps the frame',
+    hintExempt: 'the footer indicators are a focus mode of the composer (↑ into the task/crew rows); esc clears it and the composer keeps the frame',
   },
   MessageSelector: {
     kind: 'binding',

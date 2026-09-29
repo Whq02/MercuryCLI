@@ -309,7 +309,7 @@ section('§P4 — THE COORDINATOR DOOR: the preset derivation, the closed-roster
 section('§P5 — THE SWEEP: vocabulary lane-wide · both-directions isolation · one grammar at both doors · no world checks')
 {
   const LAW_SENTENCES = /"pack" is reserved for extensions|"pack" is the extensions estate's word|"pack" is RESERVED for extensions/g
-  const PREEXISTING = /no wrapper\n?\s*(\/\/ )?pack, no teammate contract/g
+  const PREEXISTING = /no wrapper\n?\s*(\/\/ )?pack, no crewmate contract/g
   const SWEEP_FILES = [
     'src/services/mcp/presetStore.ts',
     'src/services/kitMenu/presetWear.ts',

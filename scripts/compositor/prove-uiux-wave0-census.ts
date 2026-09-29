@@ -425,7 +425,7 @@ section('UI-061..064 — authored chords classified through the live protocol; c
   const extended = buildAtlas(defaults, { defaultCount: defaults.length, platform: 'linux', extendedKeys: true })
   const shiftRow = (rows: typeof legacy) =>
     rows.find(
-      r => r.context === 'Global' && r.action === 'app:toggleTeammatePreview' && /shift/i.test(r.chord),
+      r => r.context === 'Global' && r.action === 'app:toggleCrewmatePreview' && /shift/i.test(r.chord),
     )
   const legacyShift = shiftRow(legacy)
   check(
@@ -440,7 +440,7 @@ section('UI-061..064 — authored chords classified through the live protocol; c
       shiftRow(extended)?.collidesWith === undefined,
   )
   const fallbackRow = legacy.find(
-    r => r.action === 'app:toggleTeammatePreview' && /ctrl\+x/i.test(r.chord),
+    r => r.action === 'app:toggleCrewmatePreview' && /ctrl\+x/i.test(r.chord),
   )
   check(
     'UI-064: the PORTABLE fallback (ctrl+x o) is authored and deliverable on every protocol',

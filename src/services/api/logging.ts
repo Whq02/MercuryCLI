@@ -156,7 +156,7 @@ export function logAPIError(params: LogAPIErrorParams): void {
 
   if (params.clientRequestId) {
     logForDebugging(
-      `client request id ${params.clientRequestId} — give this to the API team to look up the request in server logs`,
+      `client request id ${params.clientRequestId} — give this to the API crew to look up the request in server logs`,
       { level: 'error' },
     )
   }

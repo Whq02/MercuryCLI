@@ -8,7 +8,7 @@ process.chdir(ROOT)
 const HOME = mkdtempSync(join(tmpdir(), 'restart-carry-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = join(HOME, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HOME, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HOME, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

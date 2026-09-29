@@ -150,7 +150,7 @@ section('§4 the guarantee — a future Claude id starts from EVERY door, the wi
     const preflight = await preflightConcourseDispatch({ workspaceDir: work, modelKey: id })
     check("door · the birth door's preflight", preflight.ok === true, text(preflight))
     const seat = await resolveCrewSeatModel(id)
-    check('door · the crew and teammate seats', seat.ok && seat.model === id, text(seat))
+    check('door · the crew and crewmate seats', seat.ok && seat.model === id, text(seat))
     const crewArm = await wm.validateWorkerModelChoice(id, 'crew')
     check("door · the crew arm of the one validator", crewArm.ok && crewArm.entry.modelId === id, text(crewArm))
     check('door · the workflow seats: an explicit model stands (routing never substitutes it)', resolveWorkflowRoutedModel({ tier: 'executor', model: id }) === undefined)

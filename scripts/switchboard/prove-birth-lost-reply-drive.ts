@@ -107,7 +107,7 @@ const worldEnv: NodeJS.ProcessEnv = {
   ...(KEYLESS ? {} : { ANTHROPIC_API_KEY: PROBE_KEY }),
   MERCURY_CONFIG_DIR: configDir,
   MERCURY_DAEMON_DIR: daemonDir,
-  MERCURY_CREWS_DIR: join(world, 'teams'),
+  MERCURY_CREWS_DIR: join(world, 'crews'),
   MERCURY_CREDENTIAL_STORE: 'file',
   MERCURY_LOCAL_PROBE_TARGETS: 'none',
   MERCURY_BOOT_PREFLIGHT: '0',

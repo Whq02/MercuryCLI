@@ -63,7 +63,7 @@ const ctxOf = (name: string) =>
   crewmate.createCrewmateContext({
     agentId: `${name}@crew`,
     agentName: name,
-    teamName: 'crew',
+    crewName: 'crew',
     planModeRequired: false,
     parentSessionId: 'parent',
     abortController: new AbortController(),
@@ -93,27 +93,27 @@ async function preToolDecision(ctx: ReturnType<typeof ctxOf> | null, toolName: s
 section('§1 alpha claims x.ts; beta\'s Edit is refused before the write, and told who holds it')
 const claimed = await as(alpha, () => leaseGlob.claimLease('crew', 'alpha', [CLAIMED_REL]))
 check('alpha holds x.ts', claimed.ok === true, JSON.stringify(claimed))
-const betaGuard = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { teamName: 'crew' }))
+const betaGuard = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { crewName: 'crew' }))
 check('the guard refuses beta with exactly the crew words', betaGuard === WORDS, `got ${JSON.stringify(betaGuard)}`)
 const betaDecision = await preToolDecision(beta, 'Edit', editInput)
 check('the PreToolUse road yields a deny for beta before any tool runs, from the lease guard', betaDecision?.behavior === 'deny' && betaDecision.source === 'lease-guard', JSON.stringify(betaDecision))
 check('the deny reason names alpha in the crew words', betaDecision?.reason === WORDS, `got ${JSON.stringify(betaDecision?.reason)}`)
 check('x.ts is unchanged', readFileSync(CLAIMED_ABS, 'utf8') === ORIGINAL)
-const betaWrite = await as(beta, () => guard.checkLeaseGuard('Write', { file_path: CLAIMED_ABS, content: 'x' }, { teamName: 'crew' }))
+const betaWrite = await as(beta, () => guard.checkLeaseGuard('Write', { file_path: CLAIMED_ABS, content: 'x' }, { crewName: 'crew' }))
 check('beta\'s Write of x.ts is refused too', betaWrite === WORDS, `got ${JSON.stringify(betaWrite)}`)
-const betaAst = await as(beta, () => guard.checkLeaseGuard('AstEdit', { path: CLAIMED_ABS, pattern: 'a', rewrite: 'b' }, { teamName: 'crew' }))
+const betaAst = await as(beta, () => guard.checkLeaseGuard('AstEdit', { path: CLAIMED_ABS, pattern: 'a', rewrite: 'b' }, { crewName: 'crew' }))
 check('beta\'s AstEdit aimed at x.ts is refused too', betaAst === WORDS, `got ${JSON.stringify(betaAst)}`)
-const betaAstDir = await as(beta, () => guard.checkLeaseGuard('AstEdit', { path: scratchDir, pattern: 'a', rewrite: 'b' }, { teamName: 'crew' }))
+const betaAstDir = await as(beta, () => guard.checkLeaseGuard('AstEdit', { path: scratchDir, pattern: 'a', rewrite: 'b' }, { crewName: 'crew' }))
 check('beta\'s AstEdit over the folder holding x.ts is refused, naming alpha', typeof betaAstDir === 'string' && betaAstDir.includes('is claimed by alpha'), `got ${JSON.stringify(betaAstDir)}`)
-const alphaOwn = await as(alpha, () => guard.checkLeaseGuard('Edit', editInput, { teamName: 'crew' }))
+const alphaOwn = await as(alpha, () => guard.checkLeaseGuard('Edit', editInput, { crewName: 'crew' }))
 check('alpha\'s own Edit passes', alphaOwn === null, String(alphaOwn))
 
-section('§2 the lead follows the same law with no team at all')
+section('§2 the lead follows the same law with no crew at all')
 crewmate.clearDynamicCrewContext()
 const leadGuard = await guard.checkLeaseGuard('Edit', editInput)
-check('the lead\'s Edit of alpha\'s file is refused with no team context', leadGuard === WORDS, `got ${JSON.stringify(leadGuard)}`)
+check('the lead\'s Edit of alpha\'s file is refused with no crew context', leadGuard === WORDS, `got ${JSON.stringify(leadGuard)}`)
 const leadDecision = await preToolDecision(null, 'Edit', editInput)
-check('the PreToolUse road denies the lead too (appState carries no team)', leadDecision?.behavior === 'deny' && leadDecision.reason === WORDS, JSON.stringify(leadDecision))
+check('the PreToolUse road denies the lead too (appState carries no crew)', leadDecision?.behavior === 'deny' && leadDecision.reason === WORDS, JSON.stringify(leadDecision))
 check('x.ts is still unchanged', readFileSync(CLAIMED_ABS, 'utf8') === ORIGINAL)
 
 section('§3 a sub-agent follows the same law')
@@ -124,27 +124,27 @@ check('a sub-agent\'s Edit of alpha\'s file is refused, naming alpha', subGuard 
 section('§4 the lead\'s own claim binds the crewmates and not the lead')
 const leadFile = join(scratchDir, 'lead.ts').slice(PROJECT.length + 1)
 const leadClaim = await leaseGlob.claimLease('crew', CREW_LEAD_NAME, [leadFile])
-check('the lead claims lead.ts with no team', leadClaim.ok === true, JSON.stringify(leadClaim))
+check('the lead claims lead.ts with no crew', leadClaim.ok === true, JSON.stringify(leadClaim))
 const leadOwn = await guard.checkLeaseGuard('Edit', { file_path: join(PROJECT, leadFile) })
 check('the lead\'s own Edit of lead.ts passes', leadOwn === null, String(leadOwn))
-const betaOnLead = await as(beta, () => guard.checkLeaseGuard('Edit', { file_path: join(PROJECT, leadFile) }, { teamName: 'crew' }))
+const betaOnLead = await as(beta, () => guard.checkLeaseGuard('Edit', { file_path: join(PROJECT, leadFile) }, { crewName: 'crew' }))
 check(`beta's Edit of lead.ts is refused naming ${CREW_LEAD_NAME}`, betaOnLead === `${leadFile} is claimed by ${CREW_LEAD_NAME}; ask ${CREW_LEAD_NAME} or wait for the release.`, `got ${JSON.stringify(betaOnLead)}`)
 
 section('§5 a release by alpha frees x.ts')
 check('alpha releases', (await leaseGlob.releaseLease('crew', 'alpha')) === true)
-const betaAfterRelease = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { teamName: 'crew' }))
+const betaAfterRelease = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { crewName: 'crew' }))
 check('beta\'s Edit passes after the release', betaAfterRelease === null, String(betaAfterRelease))
 
 section('§6 alpha\'s end frees x.ts (the in-process crewmate cleanup releases under alpha\'s name)')
 const reclaimed = await as(alpha, () => leaseGlob.claimLease('crew', 'alpha', [CLAIMED_REL]))
 check('alpha holds x.ts again', reclaimed.ok === true)
 const byAgentId = await leaseGlob.releaseAllForAgent('crew', 'alpha@crew')
-check('a release under the agent id (name@team) frees nothing — the claim is under the name', byAgentId === false)
+check('a release under the agent id (name@crew) frees nothing — the claim is under the name', byAgentId === false)
 const spawnSource = readFileSync(join(ROOT, 'src', 'utils', 'swarm', 'spawnInProcess.ts'), 'utf8')
-check('the spawn cleanup releases by the crewmate\'s NAME (config.name), the identity the claim is under', /releaseAllForAgent\(config\.teamName,\s*config\.name\)/.test(spawnSource), 'spawnInProcess.ts releases by another id')
+check('the spawn cleanup releases by the crewmate\'s NAME (config.name), the identity the claim is under', /releaseAllForAgent\(config\.crewName,\s*config\.name\)/.test(spawnSource), 'spawnInProcess.ts releases by another id')
 const byName = await leaseGlob.releaseAllForAgent('crew', 'alpha')
 check('a release under alpha\'s name frees the claim', byName === true)
-const betaAfterEnd = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { teamName: 'crew' }))
+const betaAfterEnd = await as(beta, () => guard.checkLeaseGuard('Edit', editInput, { crewName: 'crew' }))
 check('beta\'s Edit passes once alpha has ended', betaAfterEnd === null, String(betaAfterEnd))
 
 console.log('\n' + '═'.repeat(76))

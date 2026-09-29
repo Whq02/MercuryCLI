@@ -23,7 +23,7 @@ const STATE_MAP: Record<string, { bucket: AttentionBucket; reason: AttentionReas
   wedged: { bucket: 'stalled', reason: 'run-wedged' },
   orphaned: { bucket: 'stalled', reason: 'run-orphaned' },
   blocked: { bucket: 'stalled', reason: 'dependency-blocked' },
-  dead: { bucket: 'stalled', reason: 'teammate-dead' },
+  dead: { bucket: 'stalled', reason: 'crewmate-dead' },
   completed: { bucket: 'completed', reason: 'run-completed' },
   done: { bucket: 'completed', reason: 'run-completed' },
   settled: { bucket: 'completed', reason: 'settled' },

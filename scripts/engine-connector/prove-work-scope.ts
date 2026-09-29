@@ -120,10 +120,10 @@ section('P1 the projector: the runner\'s task store → wire rows')
     },
     tm1: {
       id: 'tm1',
-      type: 'in_process_teammate',
+      type: 'in_process_crewmate',
       status: 'running',
-      description: 'teammate',
-      identity: { agentId: 'scout@crew', agentName: 'scout', teamName: 'crew' },
+      description: 'crewmate',
+      identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
       prompt: 'p',
       awaitingPlanApproval: false,
       startTime: t0 + 3,
@@ -162,7 +162,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
     JSON.stringify(wf?.pulse),
   )
   const tm = rows.find(r => r.id === 'tm1')
-  check('P1 the teammate row names its team', tm?.kind === 'teammate' && tm.name === 'scout' && tm.crew === 'crew')
+  check('P1 the crewmate row names its crew', tm?.kind === 'crewmate' && tm.name === 'scout' && tm.crew === 'crew')
 
   const { focusedWorkRows, runningWorkflowRows } = await import('../../src/components/tasks/useFocusedWork.ts')
   const hosted = {

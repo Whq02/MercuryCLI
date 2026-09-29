@@ -127,7 +127,7 @@ t.section('§4 — per-conversation draft identity on the ONE document owner')
   )
 }
 
-t.section('§5 — the ONE teammate target picker')
+t.section('§5 — the ONE crewmate target picker')
 {
   const snapshot = {
     v: 1 as const,

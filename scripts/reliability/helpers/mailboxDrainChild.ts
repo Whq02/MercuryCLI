@@ -1,9 +1,9 @@
 import { appendFileSync } from 'node:fs'
 import { drainDispatches } from '../../../src/daemon/dispatchDrain.ts'
 
-const teamName = process.env.RELIA_TEAMNAME
+const crewName = process.env.RELIA_CREWNAME
 const actLog = process.env.RELIA_ACT_LOG
-if (!teamName || !actLog) throw new Error('RELIA_TEAMNAME + RELIA_ACT_LOG required')
+if (!crewName || !actLog) throw new Error('RELIA_CREWNAME + RELIA_ACT_LOG required')
 
 const seen = new Set<string>()
 const roster = {
@@ -20,7 +20,7 @@ const roster = {
 await drainDispatches(roster as never, {
   short: 'worker',
   agentName: 'worker',
-  teamName,
+  crewName,
   hasSeen: id => seen.has(id),
   markSeen: id => seen.add(id),
 })

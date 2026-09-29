@@ -3,7 +3,7 @@ import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
 
-t.section('CS-05 — the teammate projection exists at its pinned owner')
+t.section('CS-05 — the crewmate projection exists at its pinned owner')
 let mod: Record<string, unknown> | null = null
 try {
   mod = (await import('../../src/services/crew/projection.ts')) as Record<string, unknown>
@@ -13,7 +13,7 @@ try {
 t.check(
   'src/services/crew/projection.ts loads',
   mod !== null,
-  mod ? 'loaded' : 'module absent — no shared teammate projection',
+  mod ? 'loaded' : 'module absent — no shared crewmate projection',
 )
 t.check('a subscribe seam exists (subscribeCrew)', typeof mod?.subscribeCrew === 'function')
 t.check('a cached snapshot read exists (cachedCrewSnapshot)', typeof mod?.cachedCrewSnapshot === 'function')

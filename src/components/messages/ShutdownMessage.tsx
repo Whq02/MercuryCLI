@@ -28,7 +28,7 @@ export function ShutdownRejectedDisplay({
     <Box flexDirection="column">
       <Text color="subtle">
         @{rejected.from} declined the shutdown
-        {reason ? ` — ${reason}` : ''}. The teammate continues and may be
+        {reason ? ` — ${reason}` : ''}. The crewmate continues and may be
         asked again.
       </Text>
     </Box>

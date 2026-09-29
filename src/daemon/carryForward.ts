@@ -17,7 +17,7 @@ export function buildCarryForwardNote(
     'daemon',
     `carry-forward: your context hit ${pct}, so you were respawned with a fresh transcript (auto-clear).` +
       `${anchor} re-read the recent conversation before continuing, finish or restate any in-flight work, ` +
-      `and report your current task state to the team-lead so nothing is silently dropped.`,
+      `and report your current task state to the crew-lead so nothing is silently dropped.`,
     lastDispatchId ? { refRequestId: lastDispatchId } : undefined,
   )
 }

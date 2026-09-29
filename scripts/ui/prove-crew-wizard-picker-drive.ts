@@ -43,7 +43,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     ANTHROPIC_API_KEY: KEY,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_CREDENTIAL_STORE: 'file',
@@ -100,7 +100,7 @@ const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c ?? '
 const rowWith = (frame: string, needle: string): string => frame.split('\n').find(l => l.includes(needle))?.trim() ?? ''
 
 function crewModels(home: string): string[] {
-  const crewsDir = join(home, 'teams')
+  const crewsDir = join(home, 'crews')
   const out: string[] = []
   const walk = (dir: string): void => {
     if (!existsSync(dir)) return
@@ -128,7 +128,7 @@ console.log('============================================================')
 
 for (const [cols, rows] of SIZES) {
   const tag = `${cols}x${rows}`
-  console.log(`\n── ${tag} · New Session → /teammates → n → a name → the model step`)
+  console.log(`\n── ${tag} · New Session → /crewmates → n → a name → the model step`)
   const home = join(SCRATCH, `home-${tag}`)
   const cwd = join(home, 'work')
   mkdirSync(join(cwd, '.mercury'), { recursive: true })
@@ -147,7 +147,7 @@ for (const [cols, rows] of SIZES) {
     const sends = [
       { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: ready, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
-      { afterPrevTicks: 1, data: '/teammates' },
+      { afterPrevTicks: 1, data: '/crewmates' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'n new', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'crew', data: 'n' },
       { requireAwait: true, awaitText: 'new named agent', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'name', data: NAME },
@@ -189,7 +189,7 @@ for (const [cols, rows] of SIZES) {
     check(`${tag}: no generation-key chips remain (no opus · sonnet · fable · fable51 chip row)`, !/│\s*opus\s+.*│\s*sonnet\s+/.test(picker) && !picker.includes('you pick the model per agent'), rowWith(picker, 'opus'))
     check(`${tag}: the footer names the picker's keys`, picker.includes('↑↓ move · ↵ spawn · esc back'), rowWith(picker, 'esc back'))
     const models = crewModels(home)
-    check(`${tag}: the pick spawns the row's exact id (the team file records it, never a family word)`, models.length > 0 && models.every(m => /[-/]/.test(m) && !['fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(m)), models.join(','))
+    check(`${tag}: the pick spawns the row's exact id (the crew file records it, never a family word)`, models.length > 0 && models.every(m => /[-/]/.test(m) && !['fable', 'opus', 'sonnet', 'haiku', 'fable51'].includes(m)), models.join(','))
     check(`${tag}: the board reports the spawn with the row's own words and the picker is gone`, /spawning @atlas|@atlas spawned|spawn refused/.test(after) && !frameOf('settled').includes('pick a model'), rowWith(after, '@atlas'))
     void focused
   } finally {

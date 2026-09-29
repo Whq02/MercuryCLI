@@ -331,7 +331,7 @@ The user opted this session into supercode: you run at max, and the answer they 
 
 What that means in practice:
 
-- **Delegate proactively when parallel agents would materially improve speed or quality** — a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for independent breadth, a single Agent-tool subagent for one focused worker, crewmates (the Agent tool with a name and a team_name) for helper fan-out — every session has a crew from the moment it starts, so there is no create step. The question is whether the work gains from running in parallel or from an independent pair of eyes, not how many parts it has. Otherwise work solo at max: a task one careful pass answers is done best by you, now. Sub-agents run at the configured sub-agent default effort, not at max — the depth is yours to spend, theirs to keep proportionate.
+- **Delegate proactively when parallel agents would materially improve speed or quality** — a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for independent breadth, a single Agent-tool subagent for one focused worker, crewmates (the Agent tool with a name and a crew_name) for helper fan-out — every session has a crew from the moment it starts, so there is no create step. The question is whether the work gains from running in parallel or from an independent pair of eyes, not how many parts it has. Otherwise work solo at max: a task one careful pass answers is done best by you, now. Sub-agents run at the configured sub-agent default effort, not at max — the depth is yours to spend, theirs to keep proportionate.
 - **Stay in the loop between phases** — multi-phase work often means several workflows in sequence (one per phase) so you review and steer between them, rather than one giant unsupervised run.
 - **Verify before you declare** — have work checked (a reviewer pass, a completeness critic, a re-derivation) before calling it done; loop until the checks come back clean.
 - **No new risk license** — thoroughness is not a license for destructive or outward-facing actions; those still need the usual confirmation.`
@@ -356,7 +356,7 @@ export function normalizeAttachmentForAPI(
     if (isCrewMessagesAttachment(attachment)) {
       const boundedMessages = attachment.messages.map(message => ({
         ...message,
-        text: boundSeamContext(message.text, `teammate-${message.from}`).text,
+        text: boundSeamContext(message.text, `crewmate-${message.from}`).text,
       }))
       return [
         createUserMessage({
@@ -365,30 +365,30 @@ export function normalizeAttachmentForAPI(
         }),
       ]
     }
-    if (attachment.type === 'team_context') {
+    if (attachment.type === 'crew_context') {
       return [
         createUserMessage({
           content: `<system-reminder>
-# Team Coordination
+# Crew Coordination
 
-You are a teammate in team "${attachment.teamName}".
+You are a crewmate in crew "${attachment.crewName}".
 
 **Your Identity:**
 - Name: ${attachment.agentName}
 
-**Team Resources:**
-- Team config: ${attachment.teamConfigPath}
+**Crew Resources:**
+- Crew config: ${attachment.crewConfigPath}
 - Task list: ${attachment.taskListPath}
 
-**Team Leader:** the lead's name is "team-lead" — updates and completion notifications go to them.
+**Crew Leader:** the lead's name is "crew-lead" — updates and completion notifications go to them.
 
-The team config lists your teammates' names. Check the task list periodically; create tasks when work should be divided, and mark yours resolved when complete.
+The crew config lists your crewmates' names. Check the task list periodically; create tasks when work should be divided, and mark yours resolved when complete.
 
-**IMPORTANT:** teammates are addressed by NAME ("team-lead", "analyzer", "researcher"), never by UUID:
+**IMPORTANT:** crewmates are addressed by NAME ("crew-lead", "analyzer", "researcher"), never by UUID:
 
 \`\`\`json
 {
-  "to": "team-lead",
+  "to": "crew-lead",
   "message": "Your message here",
   "summary": "Brief 5-10 word preview"
 }
@@ -400,7 +400,7 @@ The team config lists your teammates' names. Check the task list periodically; c
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/team_context are handled above the switch (their literals stay inside the isAgentSwarmsEnabled() guard); retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/crew_context are handled above the switch (their literals stay inside the isAgentSwarmsEnabled() guard); retired types fall through to the legacy sink below
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([

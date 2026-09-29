@@ -61,8 +61,8 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
       startTime: t0 + 5, outputFile: '/n', outputOffset: 0, notified: false,
     },
     tm1: {
-      id: 'tm1', type: 'in_process_teammate', status: 'running', description: 't',
-      identity: { agentId: 'scout@crew', agentName: 'scout', teamName: 'crew' },
+      id: 'tm1', type: 'in_process_crewmate', status: 'running', description: 't',
+      identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
       prompt: 'p', awaitingPlanApproval: false,
       startTime: t0 + 6, outputFile: '/n', outputOffset: 0, notified: false,
     },
@@ -80,7 +80,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
 
   const boardAgentsRunning = rosterRowsOf(rows, 'agent').filter(workRowRuns).length
   const boardWorkflowsRunning = rosterRowsOf(rows, 'workflow').filter(workRowRuns).length
-  const boardCrewmatesRunning = rosterRowsOf(rows, 'teammate').filter(workRowRuns).length
+  const boardCrewmatesRunning = rosterRowsOf(rows, 'crewmate').filter(workRowRuns).length
 
   const agentsViewRows = rosterRowsOf(rows, 'agent').filter(workRowRuns)
 
@@ -88,7 +88,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
   check('C2 chip == /tasks (agents)', counts.agents === boardAgentsRunning, `${counts.agents} vs ${boardAgentsRunning}`)
   check('C2 chip == agents view', counts.agents === agentsViewRows.length, `${counts.agents} vs ${agentsViewRows.length}`)
   check('C2 chip == /tasks (workflows) — the paused run never counts', counts.workflows === 1 && counts.workflows === boardWorkflowsRunning, `${counts.workflows} vs ${boardWorkflowsRunning}`)
-  check('C2 chip == /tasks (teammates)', counts.crewmates === 1 && counts.crewmates === boardCrewmatesRunning, `${counts.crewmates} vs ${boardCrewmatesRunning}`)
+  check('C2 chip == /tasks (crewmates)', counts.crewmates === 1 && counts.crewmates === boardCrewmatesRunning, `${counts.crewmates} vs ${boardCrewmatesRunning}`)
   check('C2 the shells count', counts.shells === 1, `shells=${counts.shells}`)
   check('C2 the parked ask rides the counts', counts.asks === 1, `asks=${counts.asks}`)
   check(

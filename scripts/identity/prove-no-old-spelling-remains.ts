@@ -37,6 +37,7 @@ const ALIAS_PINS: Array<[string, string]> = [
   ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
   ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
+  ['scripts/ui/prove-crew-screens-unchanged.ts', 'reads the stored frames of the earlier screens through a table of the old words and drives the old command name on the real screen'],
   ['scripts/identity/prove-no-old-spelling-remains.ts', 'this census composes the word it hunts'],
   ['scripts/identity/prove-crew-words.ts', 'composes the word it hunts'],
   ['scripts/identity/prove-crew-docs-words.ts', 'composes the word it hunts'],
@@ -44,7 +45,7 @@ const ALIAS_PINS: Array<[string, string]> = [
   ['scripts/builtin-tools/prove-builtin-tools-census.ts', 'names the retired tools it hunts'],
 ]
 
-const MESSAGE_ROW_READERS = ['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts']
+const MESSAGE_ROW_READERS = ['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts', 'scripts/attachments/goldens.json']
 
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],

@@ -81,7 +81,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
 
     const replIds = replIdsRef.current
     const crewInfo = isAgentSwarmsEnabled()
-      ? { teamName: getCrewName(), agentName: getAgentName() }
+      ? { crewName: getCrewName(), agentName: getAgentName() }
       : undefined
     const hint = incremental ? parentHintRef.current : undefined
     const seq = ++seqRef.current

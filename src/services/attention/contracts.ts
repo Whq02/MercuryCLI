@@ -33,7 +33,7 @@ export type AttentionReasonCode =
   | 'run-killed'
   | 'run-wedged'
   | 'run-orphaned'
-  | 'teammate-dead'
+  | 'crewmate-dead'
   | 'dependency-blocked'
   | 'retries-exhausted'
   | 'run-live'

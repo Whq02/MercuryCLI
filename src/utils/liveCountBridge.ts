@@ -62,13 +62,13 @@ export async function readLiveSessions(): Promise<{ liveSessions: number; sessio
 }
 
 export async function readRunningWorkflows(): Promise<{ runningWorkflows: number; bridgeConnected: boolean }> {
-  const teamName = getCrewName() ?? null
-  if (!teamName) return { runningWorkflows: 0, bridgeConnected: false }
+  const crewName = getCrewName() ?? null
+  if (!crewName) return { runningWorkflows: 0, bridgeConnected: false }
   try {
     const nowMs = Date.now()
     const [statuses, leases] = await Promise.all([
-      getAgentStatuses(teamName).catch(() => null as AgentStatus[] | null),
-      listLeases(teamName, { nowMs }).catch(() => [] as Lease[]),
+      getAgentStatuses(crewName).catch(() => null as AgentStatus[] | null),
+      listLeases(crewName, { nowMs }).catch(() => [] as Lease[]),
     ])
     const health = computeAgentHealth(statuses ?? [], leases, { nowMs })
     return { runningWorkflows: countRunningWorkflows(health), bridgeConnected: true }

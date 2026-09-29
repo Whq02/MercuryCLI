@@ -54,7 +54,7 @@ const sendsDue = (run: { sendLog: unknown[]; driverOut: string }, authored: numb
 t.section('§1 the projection is exhaustive and honest')
 {
   const crewmate = {
-    type: 'in_process_teammate',
+    type: 'in_process_crewmate',
     id: 'tm-1',
     identity: { agentName: 'scout', color: 'blue' },
     prompt: 'map the estate',
@@ -83,8 +83,8 @@ t.section('§1 the projection is exhaustive and honest')
 
   const pt = projectViewedAgent(crewmate, empty as never)
   t.check(
-    'teammate projects kind/name/color/subtitle/state',
-    pt?.kind === 'in_process_teammate' &&
+    'crewmate projects kind/name/color/subtitle/state',
+    pt?.kind === 'in_process_crewmate' &&
       pt.name === 'scout' &&
       pt.color === 'blue' &&
       pt.subtitle === 'map the estate' &&
@@ -111,7 +111,7 @@ t.section('§1 the projection is exhaustive and honest')
 
   const idleCrewmate = { ...(crewmate as object), isIdle: true } as never
   t.check(
-    'idle teammate label is honest',
+    'idle crewmate label is honest',
     projectViewedAgent(idleCrewmate, empty as never)?.statusLabel === 'idle',
   )
   const doneAgent = { ...(localAgent as object), status: 'completed' } as never
@@ -136,7 +136,7 @@ t.section('§1 the projection is exhaustive and honest')
       agentNameRegistry: registry,
     }) as never
   for (const [label, task, viewable] of [
-    ['teammate', crewmate, true],
+    ['crewmate', crewmate, true],
     ['local agent', localAgent, true],
     ['main-session', mainSession, false],
   ] as [string, { id: string }, boolean][]) {
@@ -271,7 +271,7 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     }) as never
   const tm = (over: object): never =>
     ({
-      type: 'in_process_teammate',
+      type: 'in_process_crewmate',
       id: 'tm-x',
       identity: { agentName: 'scout', color: 'blue' },
       isIdle: false,
@@ -285,14 +285,14 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
     ['completed inside the linger window', la({ status: 'completed', evictAfter: Date.now() + 30_000 }), true],
     ['completed past the linger deadline', la({ status: 'completed', evictAfter: Date.now() - 1 }), false],
     ['dismissed (evictAfter 0)', la({ status: 'completed', evictAfter: 0 }), false],
-    ['completed teammate (not a panel row)', tm({ status: 'completed' }), false],
+    ['completed crewmate (not a panel row)', tm({ status: 'completed' }), false],
     ['main-session task never manageable once terminal', la({ status: 'completed', agentType: 'main-session', evictAfter: Date.now() + 30_000 }), false],
   ]
   for (const [label, task, want] of table) {
     t.check(`manageable: ${label} → ${want}`, isManageableTask(task) === want)
   }
 
-  type Road = 'local' | 'teammate' | 'hosted' | 'idle'
+  type Road = 'local' | 'crewmate' | 'hosted' | 'idle'
   const drive = (
     task: { id?: string } | undefined,
     facts: { running: boolean } | null | undefined,
@@ -312,9 +312,9 @@ t.section('§3 manage-visibility predicate + the one esc grammar')
   const escTable: [string, { id?: string } | undefined, { running: boolean } | null | undefined, Road, unknown][] = [
     ['local agent running → interrupted with the operator reason', la({ abortController: new AbortController() }), undefined, 'local', AGENT_INTERRUPT_BY_OPERATOR],
     ['local agent completed → idle (esc goes back to Mercury Lead)', la({ status: 'completed', abortController: new AbortController() }), undefined, 'idle', undefined],
-    ['teammate mid-turn (live controller) → interrupted with the operator reason', tm({ currentWorkAbortController: new AbortController() }), undefined, 'teammate', AGENT_INTERRUPT_BY_OPERATOR],
-    ['teammate running but idle (no controller) → idle', tm({}), undefined, 'idle', undefined],
-    ['teammate completed (even with a stale controller) → idle, its controller untouched', tm({ status: 'completed', currentWorkAbortController: new AbortController() }), undefined, 'idle', undefined],
+    ['crewmate mid-turn (live controller) → interrupted with the operator reason', tm({ currentWorkAbortController: new AbortController() }), undefined, 'crewmate', AGENT_INTERRUPT_BY_OPERATOR],
+    ['crewmate running but idle (no controller) → idle', tm({}), undefined, 'idle', undefined],
+    ['crewmate completed (even with a stale controller) → idle, its controller untouched', tm({ status: 'completed', currentWorkAbortController: new AbortController() }), undefined, 'idle', undefined],
     ['hosted crewmate running → the stop door once, with the typed note', undefined, { running: true }, 'hosted', undefined],
     ['hosted crewmate not running → idle, no stop sent', undefined, { running: false }, 'idle', undefined],
     ['hosted crewmate with unknown facts → the stop door (the road assumes live)', undefined, null, 'hosted', undefined],

@@ -156,7 +156,7 @@ export function buildNote(
   opts?: { refRequestId?: string; broadcast?: boolean },
 ): NoteEnvelope {
   if (!from.trim()) {
-    throw new Error('buildNote: a note must name its sender (the operator, the team-lead or the daemon)')
+    throw new Error('buildNote: a note must name its sender (the operator, the crew-lead or the daemon)')
   }
   return {
     ...base('note', from),

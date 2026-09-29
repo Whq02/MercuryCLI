@@ -21,7 +21,7 @@ export function formatCrewmateMessages(messages: readonly LiveMessageEnvelope[])
     .map(message => {
       const colorAttr = message.color !== undefined ? ` color="${escapeXmlAttr(message.color)}"` : ''
       const summaryAttr = message.summary !== undefined ? ` summary="${escapeXmlAttr(message.summary)}"` : ''
-      return `<${CREWMATE_MESSAGE_TAG} teammate_id="${escapeXmlAttr(message.from)}"${colorAttr}${summaryAttr}>\n${escapeXml(message.text)}\n</${CREWMATE_MESSAGE_TAG}>`
+      return `<${CREWMATE_MESSAGE_TAG} crewmate_id="${escapeXmlAttr(message.from)}"${colorAttr}${summaryAttr}>\n${escapeXml(message.text)}\n</${CREWMATE_MESSAGE_TAG}>`
     })
     .join('\n\n')
 }
@@ -347,7 +347,7 @@ export function isTaskAssignment(text: string): TaskAssignmentMessage | null {
 }
 
 export type CrewPermissionUpdateMessage = {
-  type: 'team_permission_update'
+  type: 'crew_permission_update'
   permissionUpdate: {
     type: 'addRules'
     rules: Array<{ toolName: string; ruleContent?: string }>
@@ -360,7 +360,7 @@ export type CrewPermissionUpdateMessage = {
 
 export function isCrewPermissionUpdate(text: string): CrewPermissionUpdateMessage | null {
   const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'team_permission_update') return null
+  if (!parsed || parsed.type !== 'crew_permission_update') return null
   return parsed as CrewPermissionUpdateMessage
 }
 
@@ -389,7 +389,7 @@ const STRUCTURED_PROTOCOL_TYPES: ReadonlySet<string> = new Set([
   'sandbox_permission_response',
   'shutdown_request',
   'shutdown_approved',
-  'team_permission_update',
+  'crew_permission_update',
   'mode_set_request',
   'plan_approval_request',
   'plan_approval_response',

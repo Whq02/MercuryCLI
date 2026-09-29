@@ -190,7 +190,7 @@ export function sessionActivityOf(
 ): NonNullable<ConcourseWorkerRecordV1['activity']> {
   const running = (work ?? []).filter(workRowRuns)
   const subagents = running.reduce((count, row) => count + (
-    row.kind === 'agent' || row.kind === 'teammate' ? 1 :
+    row.kind === 'agent' || row.kind === 'crewmate' ? 1 :
       row.kind === 'workflow' ? row.pulse?.running ?? 0 : 0
   ), 0)
   const count = work === undefined ? waitingOnAgents : subagents

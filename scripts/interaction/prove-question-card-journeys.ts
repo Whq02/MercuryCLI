@@ -220,7 +220,7 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: API_KEY,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: process.env.MERCURY_OPERATOR?.trim() || 'sam',
     MERCURY_CRITTER_IDLE: '0',

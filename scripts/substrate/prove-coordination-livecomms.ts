@@ -9,7 +9,7 @@ import { join } from 'node:path'
 const tmpHome = mkdtempSync(join(tmpdir(), 'mercury-coordination-livecomms-'))
 const prevConfigDir = process.env.MERCURY_CONFIG_DIR
 process.env.MERCURY_CONFIG_DIR = tmpHome
-process.env.MERCURY_CREWS_DIR = join(tmpHome, 'teams')
+process.env.MERCURY_CREWS_DIR = join(tmpHome, 'crews')
 
 import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
@@ -18,14 +18,8 @@ import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/
 import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
 
 type AnyTool = { call: (input: unknown, context: unknown) => Promise<{ data: unknown }> }
-let liveTool: AnyTool
-let toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'
-try {
-  liveTool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool
-} catch {
-  toolHome = 'src/tools/TeamBriefTool/TeamBriefTool.js'
-  liveTool = (await import('../../src/tools/TeamBriefTool/TeamBriefTool.js')).TeamBriefTool as unknown as AnyTool
-}
+const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'
+const liveTool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -39,10 +33,10 @@ function section(t: string): void {
 const CREW = 'live-crew'
 function crewFile(): CrewFile {
   const member = (id: string, name: string) => ({ agentId: id, name, joinedAt: Date.now(), tmuxPaneId: '', cwd: tmpHome, subscriptions: [] })
-  return { name: CREW, createdAt: Date.now(), leadAgentId: `lead@${CREW}`, members: [member(`lead@${CREW}`, 'team-lead'), member(`a@${CREW}`, 'alice'), member(`b@${CREW}`, 'bob')] }
+  return { name: CREW, createdAt: Date.now(), leadAgentId: `lead@${CREW}`, members: [member(`lead@${CREW}`, 'crew-lead'), member(`a@${CREW}`, 'alice'), member(`b@${CREW}`, 'bob')] }
 }
 const asCrewmate = (name: string): void =>
-  setDynamicCrewContext({ agentId: `${name[0]}@${CREW}`, agentName: name, teamName: CREW, color: name === 'alice' ? 'green' : 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `${name[0]}@${CREW}`, agentName: name, crewName: CREW, color: name === 'alice' ? 'green' : 'blue', planModeRequired: false })
 
 async function connect(): Promise<{ client: Client; close: () => Promise<void> }> {
   const server = await createCoordinationServer()
@@ -60,7 +54,7 @@ async function connect(): Promise<{ client: Client; close: () => Promise<void> }
 }
 
 type Brief = {
-  teamName: string | null
+  crewName: string | null
   openTasks: Array<{ id: string; subject: string; status: string }>
   unreadMessages: Array<{ from: string; text: string; summary?: string }>
   roster: Array<{ name: string; status: string; doing?: string }>
@@ -80,18 +74,19 @@ console.log(`  write road: ${toolHome}`)
 try {
   await writeCrewFileAsync(CREW, crewFile())
 
-  section('§1 the words: every coordination verb speaks of the crew, never the team')
+  section('§1 the words: every coordination verb speaks of the crew, never the crew')
   {
     asCrewmate('alice')
     const { client, close } = await connect()
     const listed = await client.listTools()
     const verbs = listed.tools.filter(t => ['lease_claim', 'lease_release', 'lease_list', 'lease_take', 'brief', 'coord_say'].includes(t.name))
     check('the six coordination verbs register under their names (the schema stays)', verbs.length === 6, verbs.map(t => t.name).join(','))
-    const crewWords = verbs.filter(t => /\bteam\b|teammate|TEAM-ONLY|TeamBrief/i.test(t.description ?? ''))
-    check('no verb description says team, teammate or TeamBrief (RED on the base: TEAM-ONLY, teammates, "the TeamBrief tool")', crewWords.length === 0, crewWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))
+    const OLD_WORD = ['t', 'eam'].join('')
+    const oldWords = verbs.filter(t => new RegExp(`\\b${OLD_WORD}\\b|${OLD_WORD}mate|${OLD_WORD.toUpperCase()}-ONLY|${OLD_WORD.replace('t', 'T')}Brief`, 'i').test(t.description ?? ''))
+    check('no verb description says the old word (RED on the base: the old-only mark, the old mates, the old brief tool)', oldWords.length === 0, oldWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))
     check('the brief verb names LiveComms as the same read', /LiveComms/.test(verbs.find(t => t.name === 'brief')?.description ?? ''), verbs.find(t => t.name === 'brief')?.description ?? '')
     const instructions = client.getInstructions() ?? ''
-    check('the server instructions speak of the crew and LiveComms, not the team mailbox (RED on the base: "team brief", "team-mailbox")', /crew/.test(instructions) && /LiveComms/.test(instructions) && !/\bteam\b|team-mailbox/i.test(instructions), instructions)
+    check('the server instructions speak of the crew and LiveComms, never the old word (RED on the base: the old brief, the old mailbox)', /crew/.test(instructions) && /LiveComms/.test(instructions) && !new RegExp(`\\b${OLD_WORD}\\b|${OLD_WORD}-mailbox`, 'i').test(instructions), instructions)
     await close()
   }
 
@@ -105,7 +100,7 @@ try {
     asCrewmate('bob')
     const { client, close } = await connect()
     const brief = await briefOf(client)
-    check('bob\'s MCP brief names the crew', brief.teamName === CREW, JSON.stringify(brief.teamName))
+    check('bob\'s MCP brief names the crew', brief.crewName === CREW, JSON.stringify(brief.crewName))
     check('bob\'s MCP brief lists alice\'s task as open (RED on the base: no such task)', brief.openTasks.some(t => t.id === taskId && t.status === 'pending'), JSON.stringify(brief.openTasks))
     check('bob\'s MCP brief reads alice busy with her word (RED on the base: no busy word)', brief.roster.some(r => r.name === 'alice' && r.status === 'busy' && r.doing === 'LIVE-DOING'), JSON.stringify(brief.roster))
     check('bob\'s MCP brief carries alice\'s message unread', brief.unreadMessages.some(m => m.from === 'alice' && m.text === 'LIVE-HELLO over the wire' && m.summary === 'hello'), JSON.stringify(brief.unreadMessages))

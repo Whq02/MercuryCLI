@@ -262,7 +262,7 @@ async function daemonRun(args: string[]): Promise<void> {
     logForDebugging(`[daemon] scrubbed inherited role env (supervisor runs role-free): ${scrubbed.join(', ')}`)
   }
   if (isCrewDaemon()) {
-    logForDebugging('[daemon] crew-host posture (MERCURY_DAEMON_CREW=1 — spawned by a /teammates engage)')
+    logForDebugging('[daemon] crew-host posture (MERCURY_DAEMON_CREW=1 — spawned by a /crewmates engage)')
   }
   const lockIdentity = `daemon-${randomUUID()}`
 
@@ -274,7 +274,7 @@ async function daemonRun(args: string[]): Promise<void> {
     const crew = rec.crewJournal
     if (crew && crew.rolledForward.length + crew.compensated.length > 0) {
       logForDebugging(
-        `[daemon] team journal recovery: ${crew.rolledForward.length} rolled forward, ${crew.compensated.length} compensated`,
+        `[daemon] crew journal recovery: ${crew.rolledForward.length} rolled forward, ${crew.compensated.length} compensated`,
       )
     }
     for (const err of rec.errors) logForDebugging(`[daemon] boot recovery: ${err}`)
@@ -531,7 +531,7 @@ async function daemonRun(args: string[]): Promise<void> {
           {
             short: name,
             agentName: name,
-            teamName: CREW,
+            crewName: CREW,
             hasSeen: id => r.hasSeenDispatch(name, id),
             markSeen: id => r.markSeenDispatch(name, id),
           },
@@ -547,7 +547,7 @@ async function daemonRun(args: string[]): Promise<void> {
           armCrewDrain(name)
           crewDrains.get(name)?.drain()
           // eslint-disable-next-line no-console
-          console.error(`[daemon] crew teammate spawned: @${name} (pid ${pid}) — ${spec.model}@${spec.effort}, team crew, auto+recon posture`)
+          console.error(`[daemon] crew crewmate spawned: @${name} (pid ${pid}) — ${spec.model}@${spec.effort}, crew crew, auto+recon posture`)
         },
       })
       const armOfflineCrewDrains = async (): Promise<void> => {

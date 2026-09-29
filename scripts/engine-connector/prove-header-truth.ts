@@ -38,7 +38,7 @@ section('§1 the crew\'s clock')
   check('one running agent: "agent thought for 5s", active', bar.crewClockOf(one, NOW).line === 'agent thought for 5s' && bar.crewClockOf(one, NOW).active, bar.crewClockOf(one, NOW).line ?? 'null')
   const two = [row({ id: 'a1', kind: 'agent', status: 'running', startTime: NOW - 28 * M }), row({ id: 'a2', kind: 'agent', status: 'running', startTime: NOW - 20 * M })]
   check('two running agents: the clock counts from the earliest start — "agents thought for 28m"', bar.crewClockOf(two, NOW).line === 'agents thought for 28m', bar.crewClockOf(two, NOW).line ?? 'null')
-  const named = [row({ id: 'n1', kind: 'teammate', status: 'running', startTime: NOW - 3 * M })]
+  const named = [row({ id: 'n1', kind: 'crewmate', status: 'running', startTime: NOW - 3 * M })]
   check('a named agent is crew (the crew facts\' law)', bar.crewClockOf(named, NOW).line === 'agent thought for 3m' && bar.crewActiveIn(named))
   const pending = [row({ id: 'a1', kind: 'agent', status: 'pending', startTime: NOW - 2_000 })]
   check('a pending agent runs (the counting law)', bar.crewActiveIn(pending) && bar.crewClockOf(pending, NOW).line === 'agent thought for 2s')

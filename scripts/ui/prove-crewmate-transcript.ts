@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const HOME = mkdtempSync(join(tmpdir(), 'teammate-transcript-'))
+const HOME = mkdtempSync(join(tmpdir(), 'crewmate-transcript-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_FULLSCREEN = '1'
@@ -72,7 +72,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const deadline = setTimeout(() => { console.error('teammate-transcript exceeded its deadline'); process.exit(1) }, 120_000)
+const deadline = setTimeout(() => { console.error('crewmate-transcript exceeded its deadline'); process.exit(1) }, 120_000)
 deadline.unref()
 
 const React = await import('react')
@@ -130,8 +130,8 @@ const assistant = (agentId: string, n: number, content: unknown[]): Record<strin
   seedRow(agentId, n, { type: 'assistant', message: { id: `msg_${agentId}_${n}`, type: 'message', role: 'assistant', model: MODEL, content, stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
 function crewmateRows(agentId: string): Record<string, unknown>[] {
   return [
-    seedRow(agentId, 0, { type: 'system', subtype: 'informational', content: 'the teammate booted on its seat', level: 'info' }),
-    seedRow(agentId, 1, { type: 'user', message: { role: 'user', content: `<teammate-message teammate_id="team-lead" summary="the channel design">Research only: read the queued notes, then inspect the repository and name the message boundaries.</teammate-message>` } }),
+    seedRow(agentId, 0, { type: 'system', subtype: 'informational', content: 'the crewmate booted on its seat', level: 'info' }),
+    seedRow(agentId, 1, { type: 'user', message: { role: 'user', content: `<crewmate-message crewmate_id="crew-lead" summary="the channel design">Research only: read the queued notes, then inspect the repository and name the message boundaries.</crewmate-message>` } }),
     assistant(agentId, 2, [{ type: 'text', text: `${NEEDLE} 1 — the seam: the boundary is the tool result, not the message envelope.` }]),
     assistant(agentId, 3, [{ type: 'tool_use', id: `toolu_${agentId}_1`, name: 'Read', input: { file_path: '/fixture/notes.md', offset: 40 } }]),
     seedRow(agentId, 4, { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: `toolu_${agentId}_1`, content: 'the notes: six lines of the owner\'s queue' }] } }),
@@ -145,13 +145,13 @@ function seedCrewmateFile(file: string, agentId: string): void {
 }
 seedCrewmateFile(HOSTED_FILE, HOSTED_WRITER_ID)
 seedCrewmateFile(LOCAL_FILE, LOCAL_WRITER_ID)
-check('rig: the hosted fixture file is named by the writer\'s own agent id, never the team address', HOSTED_FILE.endsWith(`agent-${HOSTED_WRITER_ID}.jsonl`) && !HOSTED_FILE.includes('@'), HOSTED_FILE)
+check('rig: the hosted fixture file is named by the writer\'s own agent id, never the crew address', HOSTED_FILE.endsWith(`agent-${HOSTED_WRITER_ID}.jsonl`) && !HOSTED_FILE.includes('@'), HOSTED_FILE)
 check('rig: the in-process fixture file lies where the transcript writer names it', LOCAL_FILE.endsWith(`agent-${LOCAL_WRITER_ID}.jsonl`), LOCAL_FILE)
 
 const hostedRow = {
   id: ADDRESS,
   agentId: ADDRESS,
-  kind: 'teammate',
+  kind: 'crewmate',
   name: NAME,
   status: 'running',
   startTime: NOW - 60_000,
@@ -166,10 +166,10 @@ const hostedFacts = crewAgentFactsOf(hostedRow, SESSION_ID)
 const hostedCrewmate: CrewmateInView = { taskId: ADDRESS, name: NAME, facts: hostedFacts, local: undefined, pinned: false, running: 1 }
 
 const localTask = {
-  ...createTaskStateBase(LOCAL_TASK_ID, 'in_process_teammate', `${NAME}: research only`),
-  type: 'in_process_teammate',
+  ...createTaskStateBase(LOCAL_TASK_ID, 'in_process_crewmate', `${NAME}: research only`),
+  type: 'in_process_crewmate',
   status: 'running',
-  identity: { agentId: ADDRESS, agentName: NAME, teamName: CREW, planModeRequired: false, parentSessionId: SESSION_ID },
+  identity: { agentId: ADDRESS, agentName: NAME, crewName: CREW, planModeRequired: false, parentSessionId: SESSION_ID },
   prompt: 'research only',
   model: MODEL,
   transcriptAgentId: LOCAL_WRITER_ID,
@@ -182,18 +182,18 @@ const localRow = projectWorkRoster({ [LOCAL_TASK_ID]: localTask })[0]
 const localFacts = localRow === undefined ? null : crewAgentFactsOf(localRow, SESSION_ID)
 const localCrewmate: CrewmateInView = { taskId: LOCAL_TASK_ID, name: NAME, facts: localFacts, local: localTask, pinned: false, running: 1 }
 
-section('§1 the file name: a teammate\'s row carries the id the transcript writer uses, and the view names the file by it')
+section('§1 the file name: a crewmate\'s row carries the id the transcript writer uses, and the view names the file by it')
 {
   const factsId = (hostedFacts as (CrewAgentFacts & { transcriptAgentId?: string | null }) | null)?.transcriptAgentId ?? null
-  check('the crew facts of a hosted teammate row carry the writer\'s agent id (transcriptAgentId)', factsId === HOSTED_WRITER_ID, `facts.transcriptAgentId=${String(factsId)}`)
+  check('the crew facts of a hosted crewmate row carry the writer\'s agent id (transcriptAgentId)', factsId === HOSTED_WRITER_ID, `facts.transcriptAgentId=${String(factsId)}`)
   const projectedId = (localRow as (WorkRow & { transcriptAgentId?: string }) | undefined)?.transcriptAgentId
-  check('the roster projection of an in-process teammate task carries its transcript agent id', projectedId === LOCAL_WRITER_ID, `row.transcriptAgentId=${String(projectedId)} · row=${JSON.stringify(localRow)?.slice(0, 200)}`)
+  check('the roster projection of an in-process crewmate task carries its transcript agent id', projectedId === LOCAL_WRITER_ID, `row.transcriptAgentId=${String(projectedId)} · row=${JSON.stringify(localRow)?.slice(0, 200)}`)
   const hostedResolved = transcript.crewmateTranscriptFile(hostedCrewmate as never, HOSTED)
-  console.log(`the hosted teammate's transcript file resolves to ${String(hostedResolved)}`)
-  check(`a hosted teammate row whose task id is the team address (${ADDRESS}) resolves to the writer's file agent-${HOSTED_WRITER_ID}.jsonl`, hostedResolved === HOSTED_FILE, `resolved ${String(hostedResolved)} · expected ${HOSTED_FILE}`)
+  console.log(`the hosted crewmate's transcript file resolves to ${String(hostedResolved)}`)
+  check(`a hosted crewmate row whose task id is the crew address (${ADDRESS}) resolves to the writer's file agent-${HOSTED_WRITER_ID}.jsonl`, hostedResolved === HOSTED_FILE, `resolved ${String(hostedResolved)} · expected ${HOSTED_FILE}`)
   const localResolved = transcript.crewmateTranscriptFile(localCrewmate as never, HOSTED)
-  console.log(`the in-process teammate's transcript file resolves to ${String(localResolved)}`)
-  check(`an in-process teammate task resolves to the writer's file agent-${LOCAL_WRITER_ID}.jsonl (never null, never the in-memory mirror alone)`, localResolved === LOCAL_FILE, `resolved ${String(localResolved)} · expected ${LOCAL_FILE}`)
+  console.log(`the in-process crewmate's transcript file resolves to ${String(localResolved)}`)
+  check(`an in-process crewmate task resolves to the writer's file agent-${LOCAL_WRITER_ID}.jsonl (never null, never the in-memory mirror alone)`, localResolved === LOCAL_FILE, `resolved ${String(localResolved)} · expected ${LOCAL_FILE}`)
   const plainRow = { id: 'a-plain', agentId: 'a-plain', kind: 'agent', name: 'plain', status: 'running', startTime: NOW } as WorkRow
   const plain: CrewmateInView = { taskId: 'a-plain', name: 'plain', facts: crewAgentFactsOf(plainRow, SESSION_ID), local: undefined, pinned: false, running: 1 }
   check('a hosted crewmate row without the field still resolves by its task id (a V1 row reads as today)', transcript.crewmateTranscriptFile(plain as never, HOSTED) === join(hostedDir, 'agent-a-plain.jsonl'))
@@ -240,36 +240,36 @@ async function proveHook(label: string, crewmate: CrewmateInView, expected: read
   check(`${label}: the hook settles on the file (state ready, not empty, not reading)`, settled && result?.state === 'ready', `state ${String(result?.state)} after ${settled ? 'the read' : 'the wait'}`)
   check(`${label}: the hook's rows are the file's rows (${expected.length})`, result !== null && result.messages.length === expected.length, `${result?.messages.length ?? 0} rows`)
   const texts = result === null ? [] : textsOf(result.messages)
-  check(`${label}: the teammate's text replies paint (${TEXT_ROWS} ${NEEDLE} rows)`, texts.length === TEXT_ROWS, texts.join(' | ').slice(0, 200))
-  check(`${label}: the teammate's tool call paints (${TOOL_ROWS} tool-use row)`, result !== null && toolUsesOf(result.messages) === TOOL_ROWS, String(result === null ? 0 : toolUsesOf(result.messages)))
+  check(`${label}: the crewmate's text replies paint (${TEXT_ROWS} ${NEEDLE} rows)`, texts.length === TEXT_ROWS, texts.join(' | ').slice(0, 200))
+  check(`${label}: the crewmate's tool call paints (${TOOL_ROWS} tool-use row)`, result !== null && toolUsesOf(result.messages) === TOOL_ROWS, String(result === null ? 0 : toolUsesOf(result.messages)))
   await close()
 }
 
-section('§2 the hook: a teammate\'s rows are the file\'s rows, hosted and in-process alike')
-await proveHook('hosted teammate', hostedCrewmate, fileRows.hosted)
-await proveHook('in-process teammate', localCrewmate, fileRows.local)
+section('§2 the hook: a crewmate\'s rows are the file\'s rows, hosted and in-process alike')
+await proveHook('hosted crewmate', hostedCrewmate, fileRows.hosted)
+await proveHook('in-process crewmate', localCrewmate, fileRows.local)
 
-section('§3 the strip: the teammate\'s model and effort read from the sidecar beside that file, else the row\'s own word')
+section('§3 the strip: the crewmate\'s model and effort read from the sidecar beside that file, else the row\'s own word')
 async function proveModel(label: string, crewmate: CrewmateInView, effort: string): Promise<void> {
   latest.model = null
   const close = await mount(h(ModelProbe, { crewmate }))
   const settled = await until(() => latest.model?.effort === effort, 4000)
   console.log(`${label}: model ${String(latest.model?.model)} · effort ${String(latest.model?.effort)}`)
-  check(`${label}: the strip reads the teammate's effort (${effort}), never "effort unreported"`, settled, `effort ${String(latest.model?.effort)}`)
-  check(`${label}: the strip names the teammate's model (${MODEL})`, latest.model?.model === MODEL, String(latest.model?.model))
+  check(`${label}: the strip reads the crewmate's effort (${effort}), never "effort unreported"`, settled, `effort ${String(latest.model?.effort)}`)
+  check(`${label}: the strip names the crewmate's model (${MODEL})`, latest.model?.model === MODEL, String(latest.model?.model))
   await close()
 }
-await proveModel('hosted teammate (sidecar)', hostedCrewmate, 'max')
-await proveModel('in-process teammate (sidecar)', localCrewmate, 'max')
+await proveModel('hosted crewmate (sidecar)', hostedCrewmate, 'max')
+await proveModel('in-process crewmate (sidecar)', localCrewmate, 'max')
 {
   const wordRow = { ...hostedRow, id: `${NAME}-2@${CREW}`, agentId: `${NAME}-2@${CREW}`, name: `${NAME}-2`, transcriptAgentId: 'a0nosidecar', effort: 'max' } as WorkRow
   const wordCrewmate: CrewmateInView = { taskId: wordRow.id, name: wordRow.name, facts: crewAgentFactsOf(wordRow, SESSION_ID), local: undefined, pinned: false, running: 1 }
-  await proveModel('hosted teammate (no sidecar yet, the row carries the word)', wordCrewmate, 'max')
+  await proveModel('hosted crewmate (no sidecar yet, the row carries the word)', wordCrewmate, 'max')
 }
 
 console.error = originalError
 clearTimeout(deadline)
 check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 500))
 rmSync(HOME, { recursive: true, force: true })
-console.log(`\nteammate-transcript: ${checks} checks, ${failures} failed`)
+console.log(`\ncrewmate-transcript: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

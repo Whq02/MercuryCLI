@@ -390,7 +390,7 @@ export class TaskRoster {
     logForDebugging(
       `[daemon] auto-clear: ${short} ctx ${ll.contextPct}% >= ${AUTO_CLEAR_CONTEXT_PCT}% + idle — respawning (fresh transcript)`,
     )
-    const crew = ll.spec.teamName ?? 'default'
+    const crew = ll.spec.crewName ?? 'default'
     if (carryForwardEnabled()) {
       const note = buildCarryForwardNote(ll.contextPct, lastSeenDispatchId(ll.seenDispatchIds))
       void sendLiveMessage(crew, { to: short, from: 'daemon', text: JSON.stringify(note), timestamp: new Date().toISOString() })
@@ -750,7 +750,7 @@ export class TaskRoster {
           ? ' No further respawns — fix the cause, then re-engage.'
           : ' Still retrying with backoff.')
       const postStormNote = (phase: 'forming' | 'degraded'): void => {
-        void sendLiveMessage(ll.spec.teamName ?? 'default', { to: 'team-lead', from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() }).catch(() => {})
+        void sendLiveMessage(ll.spec.crewName ?? 'default', { to: 'crew-lead', from: 'daemon', text: composeStormNote(phase), timestamp: new Date().toISOString() }).catch(() => {})
       }
       const stampCrash = (respawning: boolean, detail?: string): void => {
         if (!short.startsWith('concourse-w')) return

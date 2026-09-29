@@ -255,12 +255,13 @@ console.log('§5 a saved roster in the old folder, with the old lead name and me
 console.log('§6 the Agent tool accepts the old field name from an old caller')
 {
   const agentTool = await import('../../src/tools/AgentTool/AgentTool.tsx')
-  const parsed = agentTool.inputSchema().safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
+  const parsed = agentTool.AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
   const data = (parsed.success ? parsed.data : {}) as Record<string, unknown>
-  check('an input carrying team_name parses', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
+  check('an input carrying team_name parses through the tool', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
   check('and reads as crew_name', data.crew_name === TEAM && !('team_name' in data), JSON.stringify(data))
-  const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.inputSchema() as never))
+  const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
   check('the schema the model sees names crew_name and not the old field', jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
+  check('the schema keeps its shape for every reader of its words', 'crew_name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'crew_name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
 console.log('§7 a saved keybinding under the old action id still binds')
@@ -269,6 +270,12 @@ console.log('§7 a saved keybinding under the old action id still binds')
   const bindings = parser.parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTeammatePreview' } }] as never)
   check('the old id reads as the crew id', bindings[0]?.action === 'app:toggleCrewmatePreview', String(bindings[0]?.action))
   check('the crew id is the registered action', src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
+  const loader = await import('../../src/keybindings/loadUserBindings.ts')
+  writeFileSync(loader.getKeybindingsPath(), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+shift+u': 'app:toggleTeammatePreview' } }] }))
+  loader.invalidateKeybindingsCache()
+  const loaded = await loader.loadKeybindings()
+  const saved = loaded.bindings.find(b => b.context === 'Global' && b.action === 'app:toggleCrewmatePreview' && JSON.stringify(b.chord).includes('"u"'))
+  check('a saved keybindings file under the old id loads through the product\'s own loader as the crew action, with no warning', saved !== undefined && loaded.warnings.length === 0, JSON.stringify({ warnings: loaded.warnings, actions: loaded.bindings.map(b => b.action).filter(a => /Preview/.test(String(a))) }))
 }
 
 console.log('§8 the old command-line spellings still read')

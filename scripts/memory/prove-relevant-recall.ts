@@ -38,7 +38,7 @@ console.log('============================================================')
 type F = { type: string; path: string; content: string }
 const files: F[] = [
   { type: 'AutoMem', path: '/m/MEMORY.md', content: 'auto' },
-  { type: 'TeamMem', path: '/m/CREW.md', content: 'team' },
+  { type: 'TeamMem', path: '/m/CREW.md', content: 'crew' },
   { type: 'Project', path: '/p/MERCURY.md', content: 'proj' },
   { type: 'User', path: '/u/USER.md', content: 'user' },
   { type: 'Local', path: '/p/MERCURY.local.md', content: 'local' },

@@ -95,8 +95,8 @@ const store: Record<string, AnyTask> = {
   smain0001: base('smain0001', 'local_agent', 'the session itself', {
     agentId: 'smain0001', prompt: 'x', agentType: 'main-session', isBackgrounded: true,
   }),
-  'harper@crew': base('harper@crew', 'in_process_teammate', 'harper', {
-    identity: { agentId: 'harper@crew', agentName: 'harper', teamName: 'crew' }, prompt: 'x', awaitingPlanApproval: false, isIdle: false, shutdownRequested: false, pendingUserMessages: ['ping'],
+  'harper@crew': base('harper@crew', 'in_process_crewmate', 'harper', {
+    identity: { agentId: 'harper@crew', agentName: 'harper', crewName: 'crew' }, prompt: 'x', awaitingPlanApproval: false, isIdle: false, shutdownRequested: false, pendingUserMessages: ['ping'],
   }),
   bshell001: base('bshell001', 'local_bash', 'roster-shell sleeps', {
     command: 'sleep 20', completionStatusSentInAttachment: false, shellCommand: null, lastReportedTotalLines: 0, isBackgrounded: true,
@@ -117,7 +117,7 @@ check('one attachment for the whole store', out.length === 1 && out[0]!.type ===
 const rows = out[0]?.rows ?? []
 const byId = new Map(rows.map(r => [r.taskId, r]))
 console.log(`  rows: ${rows.map(r => `${r.taskType}:${r.name}:${r.status}`).join(' | ')}`)
-check('every kind rides: the two workflows, six agents, the teammate, the shell, the monitor (11 rows)', rows.length === 11, String(rows.length))
+check('every kind rides: the two workflows, six agents, the crewmate, the shell, the monitor (11 rows)', rows.length === 11, String(rows.length))
 check("the compacting agent's own row never rides", !byId.has(OWN_ID))
 check("the session's own main thread never rides (the projector's law)", !byId.has('smain0001'))
 check('running rows come first', rows.findIndex(r => !['running', 'waiting', 'pending'].includes(r.status)) > rows.filter(r => ['running', 'waiting', 'pending'].includes(r.status)).length - 1)
@@ -144,7 +144,7 @@ check('a landed agent whose notice was delivered owes nothing (its output path s
 const failed = byId.get('afailed01')
 check('a failed agent reads failed with its error', failed?.status === 'failed' && failed.error === 'the seat declined')
 const harper = byId.get('harper@crew')
-check('a named agent (teammate): its name is its address, kind in_process_teammate, one pending message', harper?.taskType === 'in_process_teammate' && harper.address === 'harper' && harper.status === 'running' && harper.owed?.includes('1 message pending delivery') === true, j(harper))
+check('a named agent (crewmate): its name is its address, kind in_process_crewmate, one pending message', harper?.taskType === 'in_process_crewmate' && harper.address === 'harper' && harper.status === 'running' && harper.owed?.includes('1 message pending delivery') === true, j(harper))
 const shell = byId.get('bshell001')
 check('the background shell: kind local_bash, the command as its name, the description as what it was asked, no message address', shell?.taskType === 'local_bash' && shell.name === 'sleep 20' && shell.description === 'roster-shell sleeps' && shell.address === null && shell.status === 'running', j(shell))
 const monitor = byId.get('mmon0001')

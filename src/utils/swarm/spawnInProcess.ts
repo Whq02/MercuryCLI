@@ -33,7 +33,7 @@ export type SpawnContext = {
 
 export type InProcessSpawnConfig = {
   name: string
-  teamName: string
+  crewName: string
   prompt: string
   color?: string
   planModeRequired: boolean
@@ -60,9 +60,9 @@ export async function spawnInProcessCrewmate(
   config: InProcessSpawnConfig,
   context: SpawnContext,
 ): Promise<InProcessSpawnOutput> {
-  const agentId = formatAgentId(config.name, config.teamName)
+  const agentId = formatAgentId(config.name, config.crewName)
   try {
-    const taskId = generateTaskId('in_process_teammate')
+    const taskId = generateTaskId('in_process_crewmate')
     const transcriptAgentId = config.transcriptAgentId ?? generateTaskId('local_agent')
     const abortController = new AbortController()
     const parentSessionId = String(getSessionId())
@@ -70,7 +70,7 @@ export async function spawnInProcessCrewmate(
     const identity: CrewmateIdentity = {
       agentId,
       agentName: config.name,
-      teamName: config.teamName,
+      crewName: config.crewName,
       ...(config.agentType !== undefined ? { agentType: config.agentType } : {}),
       ...(config.color !== undefined ? { color: config.color } : {}),
       ...(config.planModeRequired ? { planModeRequired: true } : { planModeRequired: false }),
@@ -79,7 +79,7 @@ export async function spawnInProcessCrewmate(
     const crewmateContext = createCrewmateContext({
       agentId,
       agentName: config.name,
-      teamName: config.teamName,
+      crewName: config.crewName,
       ...(config.color !== undefined ? { color: config.color } : {}),
       planModeRequired: config.planModeRequired,
       parentSessionId,
@@ -93,15 +93,15 @@ export async function spawnInProcessCrewmate(
     const unregisterCleanup = registerCleanup(async () => {
       abortController.abort()
       try {
-        await releaseAllForAgent(config.teamName, config.name)
+        await releaseAllForAgent(config.crewName, config.name)
       } catch (error) {
         logForDebugging(`lease release for ${agentId} failed: ${errorMessage(error)}`)
       }
     })
 
     const task: InProcessCrewmateTaskState = {
-      ...createTaskStateBase(taskId, 'in_process_teammate', description, context.toolUseId),
-      type: 'in_process_teammate',
+      ...createTaskStateBase(taskId, 'in_process_crewmate', description, context.toolUseId),
+      type: 'in_process_crewmate',
       status: 'running',
       identity,
       prompt: config.prompt,
@@ -135,14 +135,14 @@ export async function spawnInProcessCrewmate(
       ...(config.worktree !== undefined ? { worktreePath: config.worktree } : {}),
       ...(config.effort !== undefined ? { effortOverride: config.effort } : {}),
       crewmate: {
-        teamName: config.teamName,
+        crewName: config.crewName,
         prompt: config.prompt,
         transcriptAgentId,
         planModeRequired: config.planModeRequired,
         ...(config.agentType !== undefined ? { agentType: config.agentType } : {}),
       },
     }).catch((error: unknown) => {
-      logForDebugging(`teammate ${agentId}: the resume record was not written: ${errorMessage(error)}`)
+      logForDebugging(`crewmate ${agentId}: the resume record was not written: ${errorMessage(error)}`)
     })
     registerTask(task, context.setAppState)
     return { success: true, agentId, taskId, transcriptAgentId, abortController, crewmateContext }
@@ -197,7 +197,7 @@ export function killInProcessCrewmate(
       return prevState
     }
     killed = true
-    capturedCrewName = task.identity.teamName
+    capturedCrewName = task.identity.crewName
     capturedAgentId = task.identity.agentId
     capturedToolUseId = task.toolUseId
     capturedDescription = task.description
@@ -245,7 +245,7 @@ export function killInProcessCrewmate(
 
   if (capturedCrewName !== undefined && capturedAgentId !== undefined) {
     removeMemberByAgentId(capturedCrewName, capturedAgentId).catch((error: unknown) => {
-      logForDebugging(`teammate ${capturedAgentId}: roster removal at the kill failed: ${errorMessage(error)}`)
+      logForDebugging(`crewmate ${capturedAgentId}: roster removal at the kill failed: ${errorMessage(error)}`)
     })
   }
   if (killed) {

@@ -87,9 +87,9 @@ const POPULATED = chain([
   userRow('<command-name>/model</command-name>\n<command-message>model</command-message>\n<command-args>opus</command-args>', at(6)),
   userRow('<local-command-stdout>Set model to opus</local-command-stdout>', at(6, 1)),
   assistant([{ type: 'tool_use', id: 'toolu_send_1', name: 'SendMessage', input: { to: 'PANEL', summary: 'go', message: 'Build tab one first; report per landed tab.' } }], at(7), 'p3'),
-  userRow('<teammate-message teammate_id="PANEL" summary="tab one landed">PROMPTS tab landed on fix/prompts-panel — captures at both sizes attached.</teammate-message>', at(8)),
+  userRow('<crewmate-message crewmate_id="PANEL" summary="tab one landed">PROMPTS tab landed on fix/prompts-panel — captures at both sizes attached.</crewmate-message>', at(8)),
   assistant([{ type: 'tool_use', id: 'toolu_send_2', name: 'SendMessage', input: { to: 'CLAM', message: 'Keep the splash untouched while PANEL lands.' } }], at(9), 'p4'),
-  userRow('<teammate-message teammate_id="CLAM">understood — the splash stays.</teammate-message>', at(9, 30)),
+  userRow('<crewmate-message crewmate_id="CLAM">understood — the splash stays.</crewmate-message>', at(9, 30)),
   userRow('ship it', at(10)),
   assistant([{ type: 'text', text: 'Shipping.' }], at(10, 20), 'p5'),
 ])

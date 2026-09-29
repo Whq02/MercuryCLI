@@ -80,7 +80,7 @@ console.log('============================================================')
 console.log(' Agent launch plan — one typed resolution for every dispatch')
 console.log('============================================================')
 
-section('§1 — canonical decode: ONE truth with the teammate resolver')
+section('§1 — canonical decode: ONE truth with the crewmate resolver')
 {
   const plan = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check('a registered id resolves to itself through the one seam', plan.agentType === 'mercury-scout', plan.agentType)
@@ -90,7 +90,7 @@ section('§1 — canonical decode: ONE truth with the teammate resolver')
     agents: getBuiltInAgents() as never,
     prompt: 'p',
   })
-  check('the subagent plan and the teammate resolver agree on the decode', plan.agentType === crewmate.agentType)
+  check('the subagent plan and the crewmate resolver agree on the decode', plan.agentType === crewmate.agentType)
   check('explicit canonical type resolves to its definition', buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' })).definition === (SCOUT as never))
 }
 
@@ -197,7 +197,7 @@ section("§5 — the runner's definition product")
     displayName: 'listed',
     systemPrompt: 's',
   })
-  check('team-essential tools ride explicit role tool lists', CREW_ESSENTIAL_TOOLS.every(t => explicitDef.tools?.includes(t)))
+  check('crew-essential tools ride explicit role tool lists', CREW_ESSENTIAL_TOOLS.every(t => explicitDef.tools?.includes(t)))
   check('the role tool contract survives beside them', ['Read', 'Grep'].every(t => explicitDef.tools?.includes(t)))
   check("the base permission mode is 'default' (full tool access; live task mode overlays per turn)", def.permissionMode === 'default')
   check("the role's model pin propagates", typeof def.model === 'string' && def.model !== 'haiku')
@@ -214,7 +214,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
   check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.mainLoopModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.mainLoopModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
   const runner = src('utils', 'swarm', 'inProcessRunner.ts')
   check('the runner consumes deriveRunnerAgentDefinition', runner.includes('deriveRunnerAgentDefinition({'))
-  check('the runner keeps NO inline definition literal', !runner.includes("whenToUse: `In-process teammate"))
+  check('the runner keeps NO inline definition literal', !runner.includes("whenToUse: `In-process crewmate"))
   const planSrc = src('utils', 'swarm', 'agentLaunchPlan.ts')
   check('the plan builder decodes via the ONE truth (roleResolver.decodeAgentType)', planSrc.includes('decodeAgentType(i.requestedType)'))
 

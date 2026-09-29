@@ -9,7 +9,7 @@ const peerModel = 'claude-opus-4-6'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', crew_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   ...Array.from({ length: 12 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'printf HISTORY-WITNESS', description: 'Record the history witness' } }),
@@ -17,7 +17,7 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: 'CONTINUED-FROM-HISTORY' }),
 ]
 const tally = makeTally('prove-crewmate-transcript-resume')
-const world = await makeWorld('teammate-transcript-resume', script)
+const world = await makeWorld('crewmate-transcript-resume', script)
 const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash'])
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (id: string, request: Frame): Promise<Frame> => {
@@ -39,21 +39,21 @@ const continuationAfter = (from: number): Request | undefined => requests().slic
 try {
   session.submit('Spawn the worker and park.')
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
-  const started = session.frames.find(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate')
+  const started = session.frames.find(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate')
   const taskId = started?.task_id
-  tally.check('the fixture starts a real in-process teammate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
-  if (typeof taskId !== 'string') throw new Error('the fixture has no teammate task id')
+  tally.check('the fixture starts a real in-process crewmate with a history-bearing tool result', typeof taskId === 'string' && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
+  if (typeof taskId !== 'string') throw new Error('the fixture has no crewmate task id')
   const stopped = await control('stop-worker', { subtype: 'stop_task', task_id: taskId })
-  tally.check('the crew stop road stops the working teammate', stopped.subtype === 'success', JSON.stringify(stopped))
+  tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
   await sleep(3500)
   const before = transcripts()
-  tally.check('the stopped teammate\'s transcript stands on disk after the stop and the eviction', before.length === 1 && readFileSync(join(projects, before[0]!), 'utf8').includes('HISTORY-WITNESS'), JSON.stringify(before))
+  tally.check('the stopped crewmate\'s transcript stands on disk after the stop and the eviction', before.length === 1 && readFileSync(join(projects, before[0]!), 'utf8').includes('HISTORY-WITNESS'), JSON.stringify(before))
   const beforeResume = requests().length
   const resumed = await control('resume-worker', { subtype: 'resume_task', task_id: taskId, note: `${NOTE}: use your existing conversation.` })
   record('resume-response.json', JSON.stringify(resumed, null, 2))
   tally.check('r can resume the stopped row after its ephemeral task has been evicted', resumed.subtype === 'success', JSON.stringify(resumed))
   if (resumed.subtype === 'success') {
-    await session.waitFor('the resumed teammate did not make a request carrying the note', () => continuationAfter(beforeResume) !== undefined, TURN_MS)
+    await session.waitFor('the resumed crewmate did not make a request carrying the note', () => continuationAfter(beforeResume) !== undefined, TURN_MS)
     const continued = continuationAfter(beforeResume) ?? requests()[beforeResume]!
     const history = JSON.stringify(continued.body.messages)
     record('continued-request.json', JSON.stringify(continued.body, null, 2))
@@ -65,7 +65,7 @@ try {
     const until = Date.now() + TURN_MS / 6
     while (!landed() && Date.now() < until) await sleep(100)
     const after = transcripts()
-    tally.check('the resumed turn lands on the same transcript file: one transcript for the teammate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after))
+    tally.check('the resumed turn lands on the same transcript file: one transcript for the crewmate, the note after the history', landed() && after.length === 1 && after[0] === before[0], JSON.stringify(after))
   }
 } finally {
   await session.terminate()

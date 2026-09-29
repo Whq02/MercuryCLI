@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '372a5747a55ab89b3a5e898e164bde7ee4ccd765b843afd0d4b5caa2db73a539'
+export const VULCAN_OPTABLE_DIGEST = '6da71448290688031c70d74d856fa3ed13706987c8117329d6307972b5a758b5'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2401,7 +2401,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "mutate",
     "lite": false,
     "side": "mercury",
-    "summary": "Take file leases under this project without a team; an overlapping holder is refused with its session and agent named",
+    "summary": "Take file leases under this project without a crew; an overlapping holder is refused with its session and agent named",
     "args": {
       "paths": "array of project-relative paths"
     }
@@ -2423,7 +2423,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "cls": "read",
     "lite": false,
     "side": "mercury",
-    "summary": "List live project file leases with the session and agent that holds each path; no team required",
+    "summary": "List live project file leases with the session and agent that holds each path; no crew required",
     "args": {}
   }
 ] as const

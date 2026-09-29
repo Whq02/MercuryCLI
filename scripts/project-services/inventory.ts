@@ -19,7 +19,7 @@ const taskTypes = [
   'local_bash',
   'local_agent',
   'remote_agent',
-  'in_process_teammate',
+  'in_process_crewmate',
   'local_workflow',
   'monitor_mcp',
   'dream',

@@ -67,7 +67,7 @@ export function GlobalKeybindingHandlers({
               prev.expandedView === 'none'
                 ? 'tasks'
                 : prev.expandedView === 'tasks'
-                  ? 'teammates'
+                  ? 'crewmates'
                   : 'none'
             return { ...prev, expandedView: next }
           }
@@ -92,7 +92,7 @@ export function GlobalKeybindingHandlers({
           onEnterTranscript?.()
         }
       },
-      'app:toggleTeammatePreview': () => {
+      'app:toggleCrewmatePreview': () => {
         setAppState(prev => ({
           ...prev,
           showCrewmateMessagePreview: prev.showCrewmateMessagePreview !== true,

@@ -27,7 +27,7 @@ function LateBootProjectionSeed(): React.ReactNode {
           prev.crewContext && !isBornCrewWithoutCrewmates(prev.crewContext) ? prev : {
             ...prev,
             crewContext: {
-              teamName: projection.teamName,
+              crewName: projection.crewName,
               crewFilePath: projection.crewFilePath,
               leadAgentId: projection.leadAgentId,
               crewmates: projection.crewmates,

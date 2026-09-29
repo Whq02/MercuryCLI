@@ -121,8 +121,8 @@ const EXECUTION_THREAD_KINDS = new Set(['agent', 'workflow-worker', 'background-
 function threadKindOf(exec: ExecutionFact, rich: RichTaskFact | undefined): WorkbenchThreadKind {
   const taskType = rich?.taskType ?? (exec.metadata?.taskType as string | undefined)
   switch (taskType) {
-    case 'in_process_teammate':
-      return 'teammate'
+    case 'in_process_crewmate':
+      return 'crewmate'
     case 'local_workflow':
       return 'workflow'
     case 'local_agent':
@@ -162,7 +162,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     const meta = rich?.agentId ? inputs.agentMeta.get(rich.agentId) : undefined
     const run = inputs.laneRuns.get(exec.id)
     const phase =
-      kind === 'teammate' && rich
+      kind === 'crewmate' && rich
         ? crewmatePhaseFrom(rich)
         : (run?.phase ?? exec.state)
     const refs: string[] = []
@@ -192,21 +192,21 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     if (run?.verificationState) row.verification = run.verificationState
     const blocker =
       run?.blocker ??
-      (kind === 'teammate' && rich?.awaitingPlanApproval ? 'awaiting plan approval' : undefined)
+      (kind === 'crewmate' && rich?.awaitingPlanApproval ? 'awaiting plan approval' : undefined)
     if (blocker) row.blocker = blocker
     rows.push(row)
   }
   for (const member of inputs.crew ?? []) {
     const row: WorkbenchThreadRow = {
       id: `crew:${member.name}`,
-      kind: 'teammate',
+      kind: 'crewmate',
       title: member.name,
       parentId: 'root',
       phase: member.online ? 'working' : 'stopped',
       state: member.online ? 'running' : 'stopped',
       updatedAt: inputs.now,
       changedPaths: [],
-      refs: [`mercury://team/${member.name}`],
+      refs: [`mercury://crew/${member.name}`],
     }
     if (member.model) row.model = member.model
     if (member.unread > 0) row.blocker = `${member.unread} unread message${member.unread === 1 ? '' : 's'}`

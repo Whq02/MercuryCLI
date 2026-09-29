@@ -131,7 +131,7 @@ export function SpinnerWithVerb({
   const runningCrewmateCount = useAppState(state =>
     Object.values(state.tasks).filter(
       task =>
-        (task as { type?: string }).type === 'in_process_teammate' &&
+        (task as { type?: string }).type === 'in_process_crewmate' &&
         (task as { status?: string }).status === 'running',
     ).length,
   )
@@ -139,7 +139,7 @@ export function SpinnerWithVerb({
   const crewmateTokens = useAppState(state =>
     Object.values(state.tasks).reduce(
       (sum, task) =>
-        (task as { type?: string }).type === 'in_process_teammate'
+        (task as { type?: string }).type === 'in_process_crewmate'
           ? sum + ((task as { tokens?: number }).tokens ?? 0)
           : sum,
       0,
@@ -222,7 +222,7 @@ export function SpinnerWithVerb({
       ? 'This turn has been running a while — esc interrupts it, not its agents.'
       : (spinnerTip ?? null)
 
-  const treeExpanded = expandedView === 'teammates'
+  const treeExpanded = expandedView === 'crewmates'
   const ledgerExpanded = expandedView === 'tasks'
   const tail =
     treeExpanded && hasRunningCrewmates ? (

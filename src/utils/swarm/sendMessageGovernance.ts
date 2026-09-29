@@ -11,6 +11,7 @@ import { sanitizePathComponent } from '../tasks.js'
 import { getCrewName } from '../crewmate.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import type { CrewFile } from './crewHelpers.js'
+import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'
 
 const LOCK_OPTIONS = {
   retries: {
@@ -33,14 +34,14 @@ export type OpenQuestion = {
   answerText?: string
 }
 
-function getQuestionsPath(teamName?: string): string {
-  const crew = teamName || getCrewName() || 'default'
+function getQuestionsPath(crewName?: string): string {
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   return join(getCrewsDir(), safeCrew, 'questions.json')
 }
 
-async function readQuestions(teamName?: string): Promise<OpenQuestion[]> {
-  const path = getQuestionsPath(teamName)
+async function readQuestions(crewName?: string): Promise<OpenQuestion[]> {
+  const path = getQuestionsPath(crewName)
   try {
     const content = await readFile(path, 'utf-8')
     const parsed = jsonParse(content)
@@ -54,11 +55,11 @@ async function readQuestions(teamName?: string): Promise<OpenQuestion[]> {
 }
 
 async function mutateQuestions(
-  teamName: string | undefined,
+  crewName: string | undefined,
   mutate: (questions: OpenQuestion[]) => OpenQuestion[],
 ): Promise<void> {
-  const path = getQuestionsPath(teamName)
-  const crew = teamName || getCrewName() || 'default'
+  const path = getQuestionsPath(crewName)
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   const dir = join(getCrewsDir(), safeCrew)
   await mkdir(dir, { recursive: true })
@@ -79,7 +80,7 @@ async function mutateQuestions(
       lockfilePath: lockFilePath,
       ...LOCK_OPTIONS,
     })
-    const current = await readQuestions(teamName)
+    const current = await readQuestions(crewName)
     const next = mutate(current)
     await writeFile(path, jsonStringify(next, null, 2), 'utf-8')
   } catch (error) {
@@ -103,9 +104,9 @@ export async function openQuestion(
     text: string
     summary?: string
   },
-  teamName?: string,
+  crewName?: string,
 ): Promise<void> {
-  await mutateQuestions(teamName, questions => {
+  await mutateQuestions(crewName, questions => {
     const filtered = questions.filter(x => x.request_id !== q.request_id)
     filtered.push({
       request_id: q.request_id,
@@ -134,10 +135,10 @@ export async function answerQuestion(
     answeredBy: string
     answerText?: string
   },
-  teamName?: string,
+  crewName?: string,
 ): Promise<boolean> {
   let closed = false
-  await mutateQuestions(teamName, questions => {
+  await mutateQuestions(crewName, questions => {
     const next = questions.map(x => {
       if (x.request_id === a.request_id && canAnswerCloseQuestion(x, a.answeredBy)) {
         closed = true
@@ -167,9 +168,9 @@ export async function answerQuestion(
 
 export async function listOpenQuestions(
   agentName: string,
-  teamName?: string,
+  crewName?: string,
 ): Promise<OpenQuestion[]> {
-  const questions = await readQuestions(teamName)
+  const questions = await readQuestions(crewName)
   const me = (agentName ?? '').trim().toLowerCase()
   return questions.filter(
     q => (q.to ?? '').trim().toLowerCase() === me && !q.answeredAt,
@@ -197,7 +198,7 @@ export function checkBroadcastAllowed(
     return null
   }
   if (isLead) return null
-  return 'Broadcasts (to: "*") are disabled for non-leads on this team (governance.broadcastEnabled=false). Send directed messages, or ask the team-lead to broadcast.'
+  return 'Broadcasts (to: "*") are disabled for non-leads on this crew (governance.broadcastEnabled=false). Send directed messages, or ask the crew-lead to broadcast.'
 }
 
 
@@ -322,8 +323,8 @@ export function decideBroadcastTurn(
   return { allow: true, reason: '', state: speak() }
 }
 
-function getBroadcastTurnsPath(teamName?: string): string {
-  const crew = teamName || getCrewName() || 'default'
+function getBroadcastTurnsPath(crewName?: string): string {
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   return join(getCrewsDir(), safeCrew, 'broadcast-turns.json')
 }
@@ -331,7 +332,7 @@ function getBroadcastTurnsPath(teamName?: string): string {
 export async function checkBroadcastFairness(
   actor: string,
   governance: CrewGovernance | undefined,
-  teamName: string | undefined,
+  crewName: string | undefined,
 ): Promise<string | null> {
   const cooldownMs =
     governance?.broadcastFairness?.repostCooldownMs ??
@@ -341,8 +342,8 @@ export async function checkBroadcastFairness(
   const windowMs =
     governance?.broadcastFairness?.activeWindowMs ??
     DEFAULT_BROADCAST_ACTIVE_WINDOW_MS
-  const path = getBroadcastTurnsPath(teamName)
-  const crew = teamName || getCrewName() || 'default'
+  const path = getBroadcastTurnsPath(crewName)
+  const crew = crewName || getCrewName() || 'default'
   const safeCrew = sanitizePathComponent(crew)
   await mkdir(join(getCrewsDir(), safeCrew), { recursive: true })
 
@@ -402,7 +403,7 @@ export const DEFAULT_ROLE_LADDER: readonly string[] = Object.freeze([
   'field-commander',
   'room-commander',
   'specialist',
-  'teammate',
+  'crewmate',
   'scout',
 ])
 
@@ -439,6 +440,7 @@ export function resolveDirectActor(
   )
   const isLead =
     name.toLowerCase() === CREW_LEAD_NAME.toLowerCase() ||
+    isRetiredCrewLeadName(name) ||
     (!!leadAgentId && member?.agentId === leadAgentId)
   return { name, isLead, role: member?.role }
 }
@@ -468,6 +470,6 @@ export function canDirect(
   if (actor.isLead) return { allowed: true, reason: '' }
   return {
     allowed: false,
-    reason: `${actor.name} is not the team lead and holds no command role — only the lead can issue directive messages. Send a normal message or escalate to the lead.`,
+    reason: `${actor.name} is not the crew lead and holds no command role — only the lead can issue directive messages. Send a normal message or escalate to the lead.`,
   }
 }

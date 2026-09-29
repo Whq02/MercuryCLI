@@ -94,7 +94,7 @@ t.section('§3 — SCOPE SEMANTICS (project · all · board-homed · crew · hea
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'a-cleared', modifiedMs: 6_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'homed', modifiedMs: 5_500, projectPath: '/repo/alpha' }),
-    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/alpha', isTeammate: true, teamName: 'party', agentName: 'dps1' }),
+    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/alpha', isCrewmate: true, crewName: 'party', agentName: 'dps1' }),
   ]
   const facts = (scope: SessionPickerFacts['scope']): SessionPickerFacts => ({
     scope,
@@ -143,7 +143,7 @@ t.section('§5 — THE VIEW FILTER (act two: filterDir — identity both directi
     log({ sessionId: 'a1', modifiedMs: 9_000, projectPath: '/repo/alpha' }),
     log({ sessionId: 'b1', modifiedMs: 8_000, projectPath: '/repo/beta' }),
     log({ sessionId: 'a2', modifiedMs: 7_000, projectPath: '/repo/alpha/nested' }),
-    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/beta', isTeammate: true, teamName: 'party', agentName: 'dps1' }),
+    log({ sessionId: 'crew1', modifiedMs: 5_000, projectPath: '/repo/beta', isCrewmate: true, crewName: 'party', agentName: 'dps1' }),
   ]
   const base: SessionPickerFacts = {
     scope: 'all',

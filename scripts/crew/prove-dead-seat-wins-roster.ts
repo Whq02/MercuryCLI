@@ -12,7 +12,7 @@ const th = await import('../../src/utils/swarm/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
 
 const CREW = 'dead-seat'
-const LEAD_ID = 'team-lead@dead-seat'
+const LEAD_ID = 'crew-lead@dead-seat'
 const SEAT = 'ghost'
 const SEAT_ID = `${SEAT}@${CREW}`
 const SLEEP = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
@@ -31,7 +31,7 @@ async function freshCrew(): Promise<void> {
     description: 'a seat that fails at its spawn',
     createdAt: Date.now(),
     leadAgentId: LEAD_ID,
-    members: [member('team-lead', LEAD_ID, 'lead'), { ...member(SEAT, SEAT_ID, 'teammate'), agentType: 'mercury-general', backendType: 'in-process' }],
+    members: [member('crew-lead', LEAD_ID, 'lead'), { ...member(SEAT, SEAT_ID, 'crewmate'), agentType: 'mercury-general', backendType: 'in-process' }],
   })
 }
 const rosterNames = async (): Promise<string[]> => ((await th.readCrewFileAsync(CREW))?.members ?? []).map(m => `${m.name}${m.isActive === undefined ? '' : `:${m.isActive ? 'live' : 'off'}`}`)
@@ -62,7 +62,7 @@ section('the seam: the runner writes the live flag through the roster lane and r
   const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
   const failedAt = runner.indexOf("if (wasRunning && status === 'failed') {")
   const failedBlock = failedAt === -1 ? '' : runner.slice(failedAt, failedAt + 400)
-  check('the failed terminalisation removes the member through that road and keeps the refusal of a rejected write on the debug log', failedAt !== -1 && failedBlock.includes('removeMemberByAgentId(identity.teamName, identity.agentId)') && failedBlock.includes('.catch('), failedBlock.split('\n').slice(0, 3).join(' | '))
+  check('the failed terminalisation removes the member through that road and keeps the refusal of a rejected write on the debug log', failedAt !== -1 && failedBlock.includes('removeMemberByAgentId(identity.crewName, identity.agentId)') && failedBlock.includes('.catch('), failedBlock.split('\n').slice(0, 3).join(' | '))
 }
 
 section('the interleaving: the removal lands while the lane holds the roster for the live flag the turn start wrote')
@@ -85,7 +85,7 @@ section('the interleaving: the removal lands while the lane holds the roster for
     if (after.some(name => name === SEAT || name.startsWith(`${SEAT}:`))) cameBack.push(`#${attempt} ${after.join(', ')}`)
     const ghost = (await getAgentStatuses(CREW))?.find(s => s.name === SEAT)
     if (ghost !== undefined) listed.push(`#${attempt} ${ghost.status}`)
-    if (!after.includes('team-lead')) leadLost = true
+    if (!after.includes('crew-lead')) leadLost = true
   }
   check(`the lane held the roster lock and was publishing the flag write (its temp file stood) when the removal was called, in at least one of ${ATTEMPTS} attempts`, caught.length > 0, `caught in ${caught.join(', ') || 'none'}`)
   check('the removal reported the seat gone every time', notRemoved.length === 0, notRemoved.length === 0 ? '' : `not in ${notRemoved.join(', ')}`)

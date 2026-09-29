@@ -33,7 +33,7 @@ console.log(' lease release + sweep — wired (HB-0081)')
 console.log('============================================================')
 
 section('LIVE: releaseAllForAgent frees a dead agent’s leases (cleanup path)')
-const crew = 'proveteam'
+const crew = 'provecrew'
 await L.claimLease(crew, 'agentA@t', ['src/**'])
 await L.claimLease(crew, 'agentB@t', ['docs/**'])
 check('two agents hold leases', (await L.listLeases(crew)).length === 2)
@@ -45,7 +45,7 @@ check('releaseAllForAgent is idempotent (second call drops nothing)', (await L.r
 check('the crew has one claim store: agentB released, the store reads empty', (await L.releaseAllForAgent(crew, 'agentB@t')) === true && (await L.listLeases(crew)).length === 0)
 
 section('LIVE: sweepExpiredLeases prunes stale records (list path)')
-const t2 = 'proveteam2'
+const t2 = 'provecrew2'
 await L.claimLease(t2, 'ghost@t', ['lib/**'])
 check('the lease exists now', (await L.listLeases(t2)).length === 1)
 const future = Date.now() + 31 * 60 * 1000
@@ -55,7 +55,7 @@ check('the store no longer carries the stale lease', (await L.listLeases(t2, { n
 
 section('source: the two call sites are wired (no longer 0-caller dead code)')
 const spawn = readFileSync(join(ROOT, 'src', 'utils', 'swarm', 'spawnInProcess.ts'), 'utf-8')
-check('spawnInProcess cleanup calls releaseAllForAgent(teamName, config.name) — the crewmate name the claim is filed under', /await releaseAllForAgent\(config\.teamName, config\.name\)/.test(spawn))
+check('spawnInProcess cleanup calls releaseAllForAgent(crewName, config.name) — the crewmate name the claim is filed under', /await releaseAllForAgent\(config\.crewName, config\.name\)/.test(spawn))
 const service = readFileSync(join(ROOT, 'src', 'services', 'coordination', 'coordinationService.ts'), 'utf-8')
 check('lease_list opportunistically calls sweepExpiredLeases(ctx.crew)', /await sweepExpiredLeases\(ctx\.crew\)\.catch/.test(service))
 

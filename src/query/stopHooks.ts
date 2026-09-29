@@ -306,13 +306,13 @@ export async function* handleStopHooks(
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const crewmate = require('../utils/crewmate.js') as {
-      isTeammate: () => boolean
+      isCrewmate: () => boolean
       getAgentName: () => string | undefined
       getCrewName: () => string | undefined
     }
-    if (crewmate.isTeammate()) {
+    if (crewmate.isCrewmate()) {
       const crewmateName = crewmate.getAgentName() ?? ''
-      const teamName = crewmate.getCrewName() ?? ''
+      const crewName = crewmate.getCrewName() ?? ''
       const crewmateToolUseID = { value: undefined as string | undefined }
       const crewmateBlockingErrors: UserMessage[] = []
 
@@ -332,7 +332,7 @@ export async function* handleStopHooks(
             task.subject,
             task.description,
             crewmateName,
-            teamName,
+            crewName,
             permissionMode,
             signal,
             undefined,
@@ -360,10 +360,10 @@ export async function* handleStopHooks(
       }
 
       const idleOutcome = yield* consumeHookStream(
-        executeCrewmateIdleHooks(crewmateName, teamName, permissionMode, signal),
+        executeCrewmateIdleHooks(crewmateName, crewName, permissionMode, signal),
         {
-          formatBlockingError: error => `Teammate-idle hook feedback:\n- ${error.blockingError}`,
-          defaultStopReason: 'A teammate-idle hook prevented continuation',
+          formatBlockingError: error => `Crewmate-idle hook feedback:\n- ${error.blockingError}`,
+          defaultStopReason: 'A crewmate-idle hook prevented continuation',
           attachmentEvent: 'CrewmateIdle',
           yieldInterruptionOnAbort: false,
           signal,

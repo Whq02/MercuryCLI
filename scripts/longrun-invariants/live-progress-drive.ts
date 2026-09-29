@@ -48,7 +48,7 @@ section('§1 the built runner — a real chatty bash command under the scripted 
 const CHILD_HOME = mkdtempSync(join(tmpdir(), 'live-drive-child-home-'))
 const WORKDIR = mkdtempSync(join(tmpdir(), 'live-drive-workdir-'))
 seedFirstRun(CHILD_HOME, [WORKDIR])
-for (const d of ['daemon', 'teams']) mkdirSync(join(CHILD_HOME, d), { recursive: true })
+for (const d of ['daemon', 'crews']) mkdirSync(join(CHILD_HOME, d), { recursive: true })
 
 const child = spawn(
   nodeBin,
@@ -59,7 +59,7 @@ const child = spawn(
       ...(process.env as Record<string, string>),
       MERCURY_CONFIG_DIR: CHILD_HOME,
       MERCURY_DAEMON_DIR: join(CHILD_HOME, 'daemon'),
-      MERCURY_CREWS_DIR: join(CHILD_HOME, 'teams'),
+      MERCURY_CREWS_DIR: join(CHILD_HOME, 'crews'),
       MERCURY_SCRIPTED_STREAM: CHATTY_BASH_SCRIPT,
       ANTHROPIC_API_KEY: FIXTURE_API_KEY,
       VISUAL: '',

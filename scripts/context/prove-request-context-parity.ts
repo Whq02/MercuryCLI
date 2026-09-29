@@ -231,21 +231,21 @@ async function main(): Promise<void> {
       ts.forEachChild(node, visit)
     }
     visit(source)
-    if (!initial || !resetState) throw new Error('The teammate initialization and compaction state expressions must exist')
+    if (!initial || !resetState) throw new Error('The crewmate initialization and compaction state expressions must exist')
     type ReplacementState = ReturnType<typeof createContentReplacementState>
     const make = (expression: import('typescript').Expression, parent: ReplacementState | undefined, current?: ReplacementState, resume?: { contentReplacementState?: ReplacementState }) =>
       new Function('createContentReplacementState', 'toolUseContext', 'contentReplacementState', 'config', `return (${expression.getText(source)})`)(createContentReplacementState, { contentReplacementState: parent }, current, resume === undefined ? {} : { resume })
-    check('teammates leave a disabled replacement policy disabled', make(initial, undefined) === undefined)
+    check('crewmates leave a disabled replacement policy disabled', make(initial, undefined) === undefined)
     for (const budgetChars of [Infinity, 4096]) {
       const parent = { ...createContentReplacementState(), budgetChars }
       const child = make(initial, parent)
-      check(`teammate initialization preserves budget ${budgetChars}`, child.budgetChars === budgetChars)
+      check(`crewmate initialization preserves budget ${budgetChars}`, child.budgetChars === budgetChars)
       child.seenIds.add('old-call')
       child.replacements.set('old-call', 'old-content')
       const compacted = make(resetState, parent, child)
-      check(`teammate compaction preserves budget ${budgetChars} and clears old ids`, compacted.budgetChars === budgetChars && compacted.seenIds.size === 0 && compacted.replacements.size === 0)
+      check(`crewmate compaction preserves budget ${budgetChars} and clears old ids`, compacted.budgetChars === budgetChars && compacted.seenIds.size === 0 && compacted.replacements.size === 0)
       const rebuilt = reconstructForSubagentResume(parent, messages, [{ kind: 'tool-result', toolUseId: 'tu-0', replacement: '[stale tool result recorded earlier]' }])
-      check(`a resumed teammate carries the state its transcript rebuilt at budget ${budgetChars}`, rebuilt !== undefined && make(initial, parent, undefined, { contentReplacementState: rebuilt }) === rebuilt && rebuilt.replacements.get('tu-0') === '[stale tool result recorded earlier]')
+      check(`a resumed crewmate carries the state its transcript rebuilt at budget ${budgetChars}`, rebuilt !== undefined && make(initial, parent, undefined, { contentReplacementState: rebuilt }) === rebuilt && rebuilt.replacements.get('tu-0') === '[stale tool result recorded earlier]')
       check(`a resume that rebuilt no state falls to the parent's policy at budget ${budgetChars}`, make(initial, parent, undefined, {}).budgetChars === budgetChars && make(initial, undefined, undefined, {}) === undefined)
     }
 

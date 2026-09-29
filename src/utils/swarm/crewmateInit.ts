@@ -15,41 +15,41 @@ import { readCrewFile, setMemberActive } from './crewHelpers.js'
 export function initializeSwarmSession(
   setAppState: (updater: (prevState: AppState) => AppState) => void,
   sessionId: string,
-  initialMessages: ReadonlyArray<{ teamName?: string; agentName?: string }> | undefined,
+  initialMessages: ReadonlyArray<{ crewName?: string; agentName?: string }> | undefined,
 ): void {
   if (!isAgentSwarmsEnabled()) return
   const first = initialMessages?.[0]
-  if (first?.teamName && first?.agentName) {
-    const crewFile = readCrewFile(first.teamName)
+  if (first?.crewName && first?.agentName) {
+    const crewFile = readCrewFile(first.crewName)
     const member = crewFile?.members.find(m => m.name === first.agentName)
     if (!member) {
-      logForDebugging(`swarm init: no member "${first.agentName}" in team "${first.teamName}"`)
+      logForDebugging(`swarm init: no member "${first.agentName}" in crew "${first.crewName}"`)
       return
     }
     initializeCrewmateHooks(setAppState, sessionId, {
-      teamName: first.teamName,
+      crewName: first.crewName,
       agentId: member.agentId,
       agentName: first.agentName,
     })
     return
   }
-  const teamName = getCrewName()
+  const crewName = getCrewName()
   const agentId = getAgentId()
   const agentName = getAgentName()
-  if (teamName && agentId && agentName) {
-    initializeCrewmateHooks(setAppState, sessionId, { teamName, agentId, agentName })
+  if (crewName && agentId && agentName) {
+    initializeCrewmateHooks(setAppState, sessionId, { crewName, agentId, agentName })
   }
 }
 
 export function initializeCrewmateHooks(
   setAppState: (updater: (prevState: AppState) => AppState) => void,
   sessionId: string,
-  identity: { teamName: string; agentId: string; agentName: string },
+  identity: { crewName: string; agentId: string; agentName: string },
 ): void {
-  const roster = readCrewFile(identity.teamName)
+  const roster = readCrewFile(identity.crewName)
   if (roster === null) {
     logForDebugging(
-      `teammate init: no roster for ${identity.teamName} — skipping allow rules and hooks`,
+      `crewmate init: no roster for ${identity.crewName} — skipping allow rules and hooks`,
     )
     return
   }
@@ -72,7 +72,7 @@ export function initializeCrewmateHooks(
     roster.members.find(member => member.agentId === roster.leadAgentId)?.name ?? CREW_LEAD_NAME
 
   if (identity.agentId === roster.leadAgentId) {
-    logForDebugging('teammate init: this agent IS the team lead — no Stop hook registered')
+    logForDebugging('crewmate init: this agent IS the crew lead — no Stop hook registered')
     return
   }
 
@@ -82,7 +82,7 @@ export function initializeCrewmateHooks(
     'Stop',
     '',
     async messages => {
-      void setMemberActive(identity.teamName, identity.agentName, false)
+      void setMemberActive(identity.crewName, identity.agentName, false)
       const summary = getLastPeerDmSummary(messages)
       const notification = createIdleNotification(identity.agentName, {
         idleReason: 'available',
@@ -98,7 +98,7 @@ export function initializeCrewmateHooks(
     })
       return true
     },
-    'The teammate idle notification could not be delivered',
+    'The crewmate idle notification could not be delivered',
     { timeout: 10_000, silent: true },
   )
 }

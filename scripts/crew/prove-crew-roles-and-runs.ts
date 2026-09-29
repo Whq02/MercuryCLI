@@ -55,7 +55,7 @@ const { sanitizeName } = await import('../../src/utils/swarm/crewHelpers.js')
 section('§1 the runs board lists a crewmate\'s task written through the live comms store')
 {
   const crew = tasks.getTaskListId()
-  check('with no team, the session\'s crew is keyed by its own id (the task list id)', crew === String(getSessionId()), crew)
+  check('with no crew, the session\'s crew is keyed by its own id (the task list id)', crew === String(getSessionId()), crew)
   const file = join(crewStoreRoot(), 'livecomms', `${sanitizeName(crew)}.json`)
   mkdirSync(join(crewStoreRoot(), 'livecomms'), { recursive: true })
   const now = Date.now()
@@ -66,7 +66,7 @@ section('§1 the runs board lists a crewmate\'s task written through the live co
     messages: [],
     tasks: {
       '1': { id: '1', subject: 'alpha: wire the claim guard', detail: 'the crewmate alpha wrote this through LiveComms', status: 'in_progress', owner: 'alpha', blockedBy: [], createdBy: 'alpha', createdAt: now, updatedAt: now },
-      '2': { id: '2', subject: 'beta: prove the stop', status: 'pending', owner: 'beta', blockedBy: ['1'], createdBy: 'team-lead', createdAt: now, updatedAt: now },
+      '2': { id: '2', subject: 'beta: prove the stop', status: 'pending', owner: 'beta', blockedBy: ['1'], createdBy: 'crew-lead', createdAt: now, updatedAt: now },
       '3': { id: '3', subject: 'done already', status: 'completed', blockedBy: [], createdBy: 'alpha', createdAt: now, updatedAt: now },
     },
     busy: {},
@@ -81,7 +81,7 @@ section('§1 the runs board lists a crewmate\'s task written through the live co
   const alphaRow = liveRows.find(r => r.subject === 'alpha: wire the claim guard')
   check('a live comms task keeps its subject, status and owner (the same columns)', alphaRow?.status === 'in_progress' && alphaRow.owner === 'alpha', JSON.stringify(alphaRow))
   const betaRow = liveRows.find(r => r.subject === 'beta: prove the stop')
-  check('a live comms task\'s blockedBy names the live row it waits on (keyed like the team list\'s rows)', betaRow !== undefined && betaRow.blockedBy.length === 1 && betaRow.blockedBy[0] === alphaRow?.id, JSON.stringify(betaRow))
+  check('a live comms task\'s blockedBy names the live row it waits on (keyed like the crew list\'s rows)', betaRow !== undefined && betaRow.blockedBy.length === 1 && betaRow.blockedBy[0] === alphaRow?.id, JSON.stringify(betaRow))
   check('a completed live comms task lists as completed', liveRows.some(r => r.subject === 'done already' && r.status === 'completed'))
   const detail = liveRows.find(r => r.subject === 'alpha: wire the claim guard')
   check('the task\'s detail rides as the row\'s description', detail?.description === 'the crewmate alpha wrote this through LiveComms', JSON.stringify(detail))
@@ -109,12 +109,12 @@ section('§3 the runs board keeps its rows: it reads the focused mission ledger,
 {
   const board = readFileSync(join(ROOT, 'src', 'components', 'tasks', 'BackgroundTasksDialog.tsx'), 'utf8')
   check('the board\'s mission rows are the focused roster\'s mission (no second source)', /missionTasks[^\n]*=\s*roster\.mission/.test(board))
-  check('the board reads no team file and no live comms file itself', !/readCrewFile|crewHelpers|livecomms|liveComms/.test(board))
+  check('the board reads no crew file and no live comms file itself', !/readCrewFile|crewHelpers|livecomms|liveComms/.test(board))
   const command = readFileSync(join(ROOT, 'src', 'commands', 'tasks', 'index.ts'), 'utf8')
   check('the /runs command and its /tasks alias are unchanged', /name: 'runs'/.test(command) && /aliases: \['tasks'\]/.test(command))
 }
 
-section('§4 a crewmate with a role acts in it: the role resolves from the crew record, no team file, no charter')
+section('§4 a crewmate with a role acts in it: the role resolves from the crew record, no crew file, no charter')
 {
   const agents = getBuiltInAgents()
   const crewmate = { id: 'task-alpha', name: 'alpha', kind: 'crewmate' as const, model: 'claude-sonnet-5', cwd: PROJECT, worktree: join(PROJECT, '.worktrees', 'alpha') }

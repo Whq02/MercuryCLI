@@ -17,7 +17,7 @@ const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
   if (!cond) failures++
 }
-const CREW = 'reaper-team'
+const CREW = 'reaper-crew'
 
 {
   for (let i = 0; i < 210; i++) {

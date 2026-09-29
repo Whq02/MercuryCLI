@@ -453,7 +453,7 @@ const eq = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.strin
       typeof parsed.session_id === 'string',
     meta.user_id,
   )
-  withEnv({ MERCURY_EXTRA_METADATA: '{"team":"t16"}' }, () => {
+  withEnv({ MERCURY_EXTRA_METADATA: '{"crew":"t16"}' }, () => {
     const withExtra = JSON.parse((rp.getAPIMetadata() as { user_id: string }).user_id) as Record<string, unknown>
     check('assembly: extra metadata merges into user_id', withExtra.crew === 't16')
   })

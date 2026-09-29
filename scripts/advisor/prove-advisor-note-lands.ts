@@ -225,7 +225,7 @@ function makeArena(name: string): Arena {
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_CREWS_DIR: join(home, 'teams'),
+      MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_TOOL_SEARCH: '0',
       MERCURY_ADVISOR_MODEL: ADVISOR_MODEL,
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',

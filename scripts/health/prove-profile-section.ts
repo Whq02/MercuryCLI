@@ -16,7 +16,7 @@ console.log(' Health PROFILE section — typed facts, no display scraping')
 console.log('============================================================')
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'doctor-profile-'))
-process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'teams')
+process.env.MERCURY_CREWS_DIR = join(SCRATCH, 'crews')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 process.env.MERCURY_HOME = join(SCRATCH, 'home')
 
@@ -43,14 +43,14 @@ const byId = new Map((profile?.checks ?? []).map(c => [c.id, c]))
   check('roster evidence counts roles and composable prompts', !!c && /\d+ built-in roles resolve · role prompts compose \d+\/\d+/.test(c.evidence))
 }
 {
-  const c = byId.get('team-launch')
-  check('team-launch check present', !!c)
-  check('team-launch says where named sub-agents run', !!c && c.evidence.includes('named sub-agents'))
-  check('team-launch links the crew surface', c?.link === '/teammates')
+  const c = byId.get('crew-launch')
+  check('crew-launch check present', !!c)
+  check('crew-launch says where named sub-agents run', !!c && c.evidence.includes('named sub-agents'))
+  check('crew-launch links the crew surface', c?.link === '/crewmates')
 }
 check('the health run never mutated the boot preference', JSON.stringify(menu.readBootEnvChoices()) === bootBefore)
 const { existsSync, readdirSync } = await import('node:fs')
-check('the health run never created a team', !existsSync(join(SCRATCH, 'teams')) || readdirSync(join(SCRATCH, 'teams')).length === 0)
+check('the health run never created a crew', !existsSync(join(SCRATCH, 'crews')) || readdirSync(join(SCRATCH, 'crews')).length === 0)
 
 {
   const { readFileSync } = await import('node:fs')

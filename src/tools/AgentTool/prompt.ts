@@ -5,7 +5,7 @@ import {
   isEnvTruthy,
 } from '../../utils/envUtils.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
-import { isTeammate } from '../../utils/crewmate.js'
+import { isCrewmate } from '../../utils/crewmate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
@@ -108,11 +108,11 @@ ${typeSelection}`
   )
   if (inProcess) {
     usage.push(
-      'Inside this in-process teammate session the `run_in_background`, `name`, `team_name`, and `mode` parameters do not exist — subagents run synchronously only.',
+      'Inside this in-process crewmate session the `run_in_background`, `name`, `crew_name`, and `mode` parameters do not exist — subagents run synchronously only.',
     )
-  } else if (isTeammate()) {
+  } else if (isCrewmate()) {
     usage.push(
-      'In this teammate session the `name`, `team_name`, and `mode` parameters are unavailable — teammates cannot spawn teammates.',
+      'In this crewmate session the `name`, `crew_name`, and `mode` parameters are unavailable — crewmates cannot spawn crewmates.',
     )
   }
   sections.push(`## Usage notes
@@ -120,7 +120,7 @@ ${usage.map(note => `- ${note}`).join('\n')}`)
 
   if (forkOn) {
     sections.push(`## When to fork
-Fork (omit \`subagent_type\`) when the tool traffic along the way is not worth keeping — a survey, a sweep, a lookup where only the conclusion matters. Research that reads many files forks well; implementation that needs your live judgment usually does not. Forks ride your prompt cache — that is what makes them cheap; a \`model\` override breaks the ride. A short lowercase \`name\` makes the fork steerable and visible in the teams panel.
+Fork (omit \`subagent_type\`) when the tool traffic along the way is not worth keeping — a survey, a sweep, a lookup where only the conclusion matters. Research that reads many files forks well; implementation that needs your live judgment usually does not. Forks ride your prompt cache — that is what makes them cheap; a \`model\` override breaks the ride. A short lowercase \`name\` makes the fork steerable and visible in the crews panel.
 
 No peeking: the result carries an output-file path — leave it unread and untailed unless the user asks outright, because doing so drags the fork's tool noise back into the context forking was meant to keep clean. The completion notification can be trusted.
 

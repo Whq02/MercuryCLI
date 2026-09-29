@@ -99,7 +99,7 @@ t.section('§4 — bindings: multi-bind + alias-merge refusal')
   let humanRefused = false
   try {
     await identity.ensureAgentIdentity({
-      displayName: 'Not A Teammate',
+      displayName: 'Not A Crewmate',
       binding: { bindingKind: 'principal', bindingId: 'op-1234567890ab' },
       dir,
     })

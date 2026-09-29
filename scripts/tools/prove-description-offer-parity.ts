@@ -8,7 +8,7 @@ process.chdir(ROOT)
 const scratch = mkdtempSync(join(tmpdir(), 'description-offer-parity-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'config')
 process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(scratch, 'teams')
+process.env.MERCURY_CREWS_DIR = join(scratch, 'crews')
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.BROWSER = '/usr/bin/true'
 delete process.env.MERCURY_HOME
@@ -155,7 +155,7 @@ for (const kind of kinds) {
 const interactive = rendered.get('interactive')!
 const headless = rendered.get('headless')!
 const differing = [...headless.keys()].filter(name => interactive.has(name) && interactive.get(name) !== headless.get(name))
-check('a description differs between session kinds only where the pool differs', differing.every(name => mentionedToolNames(interactive.get(name)!).join() !== mentionedToolNames(headless.get(name)!).join() || /task|team|board/i.test(interactive.get(name)!)), differing.join(','))
+check('a description differs between session kinds only where the pool differs', differing.every(name => mentionedToolNames(interactive.get(name)!).join() !== mentionedToolNames(headless.get(name)!).join() || /task|crew|board/i.test(interactive.get(name)!)), differing.join(','))
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nDESCRIPTION OFFER PARITY HOLDS' : `\n${failures} DESCRIPTION OFFER PARITY CHECK(S) FAILED`)

@@ -221,7 +221,7 @@ function drive(cols: number, rows: number): void {
     MERCURY_UPDATE_NOTICE: '0',
     MERCURY_DOCTOR_STATE_DIR: join(aux, 'doctor'),
     MERCURY_DAEMON_DIR: join(aux, 'daemon'),
-    MERCURY_CREWS_DIR: join(aux, 'teams'),
+    MERCURY_CREWS_DIR: join(aux, 'crews'),
     VSHOT_TEE: teePath,
     NODE_OPTIONS: `--require ${TRIPWIRE}`,
   }

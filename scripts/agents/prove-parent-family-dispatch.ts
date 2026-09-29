@@ -17,7 +17,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 await refreshProviderDiscovery('openai', { force: true })
 await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ models: ['gpt-5.6-sol', 'gpt-5.6-terra'].map((id, i) => ({ slug: id, display_name: id, priority: i + 1, supported_reasoning_levels: ['high'], supported_in_api: true, visibility: 'public' })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })
 const source = readFileSync(join(import.meta.dir, '../../src/tools/AgentTool/AgentTool.tsx'), 'utf8')
-const step = source.slice(source.indexOf('    const modelParam = input.model'), source.indexOf('    if (isCrewmateSpawn(input, teamName)) {'))
+const step = source.slice(source.indexOf('    const modelParam = input.model'), source.indexOf('    if (isCrewmateSpawn(input, crewName)) {'))
 const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor
 const resolve = new AsyncFunction('input', 'options', 'getAgentModel', 'resolveEngineDispatch', 'unrecognisedModelWordRefusal', `${step}\nreturn { engineDispatch, modelParam: typeof modelParam === 'undefined' ? input.model : modelParam }`) as (...args: unknown[]) => Promise<{ engineDispatch: { backend: string; model: string } | null; modelParam?: string }>
 const crewmate = /const crewmateModel =([\s\S]*?)\n\s*const spawned/.exec(source)?.[1]
@@ -40,7 +40,7 @@ try {
     const plan = buildAgentLaunchPlan({ requestedType: 'mercury-general', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), forkGateOn: false, forkAgent: definition, defaultAgentType: 'mercury-general', mainLoopModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
     const spawnModel = crewmateModel(resolved.engineDispatch, input, resolved.modelParam, undefined)
     check(`${parent} + ${word}: the plan retains the resolved model`, plan.model === expected, plan.model)
-    check(`${parent} + ${word}: the teammate receives the same exact model`, spawnModel === expected, spawnModel)
+    check(`${parent} + ${word}: the crewmate receives the same exact model`, spawnModel === expected, spawnModel)
   }
   let refusal = ''
   try { await resolve({ model: 'plainword' }, { mainLoopModel: 'gpt-5.6-terra' }, getAgentModel, resolveEngineDispatch, unrecognisedModelWordRefusal) } catch (error) { refusal = String((error as Error).message) }

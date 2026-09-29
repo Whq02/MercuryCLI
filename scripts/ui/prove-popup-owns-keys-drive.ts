@@ -139,7 +139,7 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_FULLSCREEN: '1',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_HOME: join(home, 'proof-home'),
     MERCURY_CREDENTIAL_STORE: 'file',

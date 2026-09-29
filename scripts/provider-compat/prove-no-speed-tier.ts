@@ -28,7 +28,7 @@ for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKE
 }
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'no-speed-tier-'))
 process.env.MERCURY_DAEMON_DIR = mkdtempSync(join(tmpdir(), 'no-speed-tier-daemon-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'no-speed-tier-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'no-speed-tier-crews-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 

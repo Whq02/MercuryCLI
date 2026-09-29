@@ -15,7 +15,7 @@ const node = existsSync(vendoredNode) ? vendoredNode : Bun.which('node') ?? 'nod
 const world = mkdtempSync(join(tmpdir(), 'mail-delivery-drive-'))
 const config = join(world, 'config')
 const project = join(world, 'project')
-const crews = join(world, 'teams')
+const crews = join(world, 'crews')
 mkdirSync(project)
 seedFirstRun(config, [project])
 const model = 'claude-fable-5-1'
@@ -25,8 +25,8 @@ const script: ScriptedTurn[] = []
 const main = (turn: Record<string, unknown>, whenBody?: string) => ({ ...turn, model, whenModel: 'fable-5-1', ...(whenBody ? { whenBody } : {}) })
 const send = (id: string, to: string, message: string) => ({ kind: 'tool_use', name: 'SendMessage', id, input: { to, message, summary: message } })
 script.push(...[
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: 'claude-opus-4-6', subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once.' } }, 'START-GROUP'),
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', team_name: 'crew', model: 'claude-sonnet-5', subagent_type: 'mercury-general', description: 'Dragon report', prompt: 'Send READY-DRAGON to team-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: 'claude-opus-4-6', subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to crew-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', crew_name: 'crew', model: 'claude-sonnet-5', subagent_type: 'mercury-general', description: 'Dragon report', prompt: 'Send READY-DRAGON to crew-lead once.' } }, 'START-GROUP'),
   main({ kind: 'text', text: 'GROUP-STARTED' }, 'START-GROUP'),
   main({ kind: 'text', text: 'FIRST-REPORT-RECEIVED' }, 'READY-WATER'),
   main(send('resume-water', 'water', 'RESUME-WATER: send REPORT-WATER-2 once.'), 'RESUME-GROUP'),
@@ -35,11 +35,11 @@ script.push(...[
   main({ kind: 'text', text: 'WORKFLOW-FINISHED' }, 'task-notification'),
   main({ kind: 'text', text: 'SECOND-REPORT-RECEIVED' }, 'REPORT-WATER-2'),
   ...Array.from({ length: 8 }, (_, i) => main({ kind: 'text', text: 'FINAL-' + i })),
-  { ...send('water-report-1', 'team-lead', 'READY-WATER'), model: 'claude-opus-4-6', whenModel: 'opus-4-6' },
+  { ...send('water-report-1', 'crew-lead', 'READY-WATER'), model: 'claude-opus-4-6', whenModel: 'opus-4-6' },
   { kind: 'text', text: 'Water idle.', model: 'claude-opus-4-6', whenModel: 'opus-4-6' },
-  { ...send('water-report-2', 'team-lead', 'REPORT-WATER-2'), model: 'claude-opus-4-6', whenModel: 'opus-4-6', whenBody: 'RESUME-WATER' },
+  { ...send('water-report-2', 'crew-lead', 'REPORT-WATER-2'), model: 'claude-opus-4-6', whenModel: 'opus-4-6', whenBody: 'RESUME-WATER' },
   { kind: 'text', text: 'Water done.', model: 'claude-opus-4-6', whenModel: 'opus-4-6' },
-  { ...send('dragon-report', 'team-lead', 'READY-DRAGON'), model: 'claude-sonnet-5', whenModel: 'sonnet-5' },
+  { ...send('dragon-report', 'crew-lead', 'READY-DRAGON'), model: 'claude-sonnet-5', whenModel: 'sonnet-5' },
   { kind: 'text', text: 'Dragon done.', model: 'claude-sonnet-5', whenModel: 'sonnet-5' },
   { kind: 'paced', deltas: ['Workflow test done.'], gapMs: 0, startDelayMs: 5000, whenModel: 'opus-5' },
 ] as ScriptedTurn[])
@@ -77,7 +77,7 @@ const readInbox = (): Array<{ text: string; read?: boolean; from: string }> | nu
   if (!existsSync(inboxPath)) return null
   try {
     const file = JSON.parse(readFileSync(inboxPath, 'utf8')) as { messages?: Array<{ to: string; text: string; read?: boolean; from: string }> }
-    return (file.messages ?? []).filter(row => row.to === 'team-lead')
+    return (file.messages ?? []).filter(row => row.to === 'crew-lead')
   } catch {
     return null
   }
@@ -102,7 +102,7 @@ const observe = setInterval(() => {
   }, 9000)
 }, 20)
 try {
-  submit('START-GROUP: create both teammates and receive their reports.')
+  submit('START-GROUP: create both crewmates and receive their reports.')
   await waitFor(() => stdout.includes('FIRST-REPORT-RECEIVED'), 'First report did not arrive')
   submit('RESUME-GROUP: resume water, then run a workflow while its report arrives.')
   await waitFor(() => stdout.includes('SECOND-REPORT-RECEIVED') && lockReleased, 'The resumed report did not settle across the held lock')
@@ -114,7 +114,7 @@ try {
   const last = parent.at(-1)!.body as { messages: Array<{ role: string; content: string | Array<{ type: string; text?: string }> }> }
   const reports = last.messages.filter(message => message.role === 'user').flatMap(message => {
     const text = typeof message.content === 'string' ? message.content : message.content.filter(block => block.type === 'text').map(block => block.text ?? '').join('\n')
-    return [...text.matchAll(/<teammate-message\b[^>]*>([\s\S]*?)<\/teammate-message>/g)].map(match => match[1]!)
+    return [...text.matchAll(/<crewmate-message\b[^>]*>([\s\S]*?)<\/crewmate-message>/g)].map(match => match[1]!)
   })
   const counts = ['READY-WATER', 'READY-DRAGON', 'REPORT-WATER-2'].map(name => ({ name, count: reports.filter(text => text.includes(name)).length }))
   console.log(JSON.stringify({ counts, lockHeld, lockReleased, requests: requests.length, workflowRequests: requests.filter(request => request.body.model === 'claude-opus-5').length }))

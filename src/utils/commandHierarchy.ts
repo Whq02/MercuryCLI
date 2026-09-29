@@ -55,7 +55,7 @@ function worktreeId(p: string | null): string | null {
 }
 
 export function deriveCommandHierarchy(
-  teamName: string,
+  crewName: string,
   crew: {
     leadAgentId?: unknown
     leadSessionId?: unknown
@@ -64,15 +64,15 @@ export function deriveCommandHierarchy(
 ): CommandHierarchy | null {
   if (!crew) return null
 
-  const fcRoom = teamName
+  const fcRoom = crewName
   const rows: CommandSeat[] = []
   const knownRooms: string[] = [fcRoom]
 
   const leadId =
-    typeof crew.leadAgentId === 'string' ? crew.leadAgentId : 'team-lead'
+    typeof crew.leadAgentId === 'string' ? crew.leadAgentId : 'crew-lead'
   rows.push({
     room: fcRoom,
-    name: 'team-lead',
+    name: 'crew-lead',
     posture: 'commanding',
     reportsTo: null,
     branch: null,
@@ -88,7 +88,7 @@ export function deriveCommandHierarchy(
     : []
   for (const m of members) {
     const name = typeof m.name === 'string' ? m.name : null
-    if (!name || name === 'team-lead') continue
+    if (!name || name === 'crew-lead') continue
     const actorId = typeof m.agentId === 'string' ? m.agentId : name
     const wt = typeof m.worktreePath === 'string' ? m.worktreePath : null
     knownRooms.push(name)
@@ -123,14 +123,14 @@ export function deriveCommandHierarchy(
     byKey.size > 0
       ? Array.from(byKey.entries()).map(([key, instRooms]) => ({
           key,
-          repoId: teamName,
+          repoId: crewName,
           worktreeId: key === ROOT_INSTANCE ? null : key,
           rooms: instRooms,
         }))
       : [
           {
             key: ROOT_INSTANCE,
-            repoId: teamName,
+            repoId: crewName,
             worktreeId: null,
             rooms: [],
           },
@@ -141,10 +141,10 @@ export function deriveCommandHierarchy(
 
 export async function fetchCommandHierarchy(): Promise<CommandHierarchy | null> {
   try {
-    const teamName = getCrewName()
-    if (!teamName) return null
-    const crew = readCrewFile(teamName)
-    return deriveCommandHierarchy(teamName, crew)
+    const crewName = getCrewName()
+    if (!crewName) return null
+    const crew = readCrewFile(crewName)
+    return deriveCommandHierarchy(crewName, crew)
   } catch {
     return null
   }

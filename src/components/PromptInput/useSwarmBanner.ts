@@ -40,7 +40,7 @@ export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null 
 
   if (
     crewContext &&
-    crewContext.teamName &&
+    crewContext.crewName &&
     Object.keys(crewContext.crewmates).length > 0
   ) {
     const viewedCrewmate = getViewedCrewmateTask(state)

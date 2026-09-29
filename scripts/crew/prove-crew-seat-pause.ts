@@ -216,7 +216,7 @@ const jobs = async (): Promise<Job[]> => {
 const liveSeat = async (): Promise<Job | undefined> => (await jobs()).find(j => j.short === SEAT_NAME && !j.outcome)
 const spawnSeat = async (): Promise<{ ok?: boolean; pid?: number; error?: string }> =>
   (await daemonControlRpc({ op: 'crewSpawn', name: SEAT_NAME, model: SEAT_MODEL } as never, { timeoutMs: 30_000 })) as { ok?: boolean; pid?: number; error?: string }
-const message = (text: string): Promise<boolean> => sendLiveMessage('crew', { to: SEAT_NAME, from: 'team-lead', text, timestamp: new Date().toISOString() })
+const message = (text: string): Promise<boolean> => sendLiveMessage('crew', { to: SEAT_NAME, from: 'crew-lead', text, timestamp: new Date().toISOString() })
 const near = (value: number | undefined, target: number, slackMs: number): boolean => typeof value === 'number' && Math.abs(value - target) <= slackMs
 
 console.log('crew seat pause — a usage limit pauses the seat; the reset and a sign-in on another account resume it')

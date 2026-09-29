@@ -159,7 +159,7 @@ export function deriveRunnerAgentDefinition(i: {
   return {
     agentType:
       i.role?.agentType ?? i.agentDefinition?.agentType ?? i.displayName,
-    whenToUse: `In-process teammate: ${i.displayName}`,
+    whenToUse: `In-process crewmate: ${i.displayName}`,
     getSystemPrompt: () => i.systemPrompt,
     tools: i.agentDefinition?.tools
       ? [...new Set([...i.agentDefinition.tools, ...CREW_ESSENTIAL_TOOLS])]

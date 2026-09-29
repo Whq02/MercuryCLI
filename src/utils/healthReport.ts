@@ -1972,13 +1972,13 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-          id: 'team-rosters',
+          id: 'crew-rosters',
           label: 'Agent group roster cwds',
           run: async () => {
             const { existsSync, readdirSync, readFileSync } = await import('node:fs')
             const { join } = await import('node:path')
             const { getMercuryHome } = await import('./envUtils.js')
-            const crewsDir = join(getMercuryHome(), 'teams')
+            const crewsDir = join(getMercuryHome(), 'crews')
             if (!existsSync(crewsDir)) {
               return { status: 'off' as const, evidence: 'no crew home — nothing spawns' }
             }
@@ -2025,7 +2025,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const live = fleet.data.health.filter(a => a.state !== 'idle').length
             const conflicts = fleet.data.conflicts.length
-            const evidence = `crew "${fleet.data.teamName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
+            const evidence = `crew "${fleet.data.crewName}" · ${fleet.data.health.length} agents · ${live} active · ${fleet.data.leases.length} leases · ${conflicts} conflicts`
             if (conflicts > 0) {
               return {
                 status: 'warn',
@@ -3385,7 +3385,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 else awaitingRecovery++
               }
             }
-            const evidence = `${terminal} terminal · ${inFlight} in flight (live writers) · ${awaitingRecovery} interrupted awaiting recovery (teams + daemon journals)`
+            const evidence = `${terminal} terminal · ${inFlight} in flight (live writers) · ${awaitingRecovery} interrupted awaiting recovery (crews + daemon journals)`
             if (awaitingRecovery > 0) {
               return {
                 status: 'warn' as const,
@@ -3603,10 +3603,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-          id: 'team-launch',
+          id: 'crew-launch',
           label: 'Sub-agent launch',
           run: () => {
-            return { status: 'info' as const, evidence: "in-process — named sub-agents run inside this session's runner", link: '/teammates' }
+            return { status: 'info' as const, evidence: "in-process — named sub-agents run inside this session's runner", link: '/crewmates' }
           },
         },
       ],

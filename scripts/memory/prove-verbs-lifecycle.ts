@@ -90,7 +90,7 @@ check('the OLD fact is absent from default recall', !oldRecall.hits.some(h => h.
 const docRead = superseded.ok ? readMemoryRecord(`doc:${superseded.slug}`) : { found: false, content: '' }
 check('history RETAINS the original with a superseded-by pointer', (docRead.content ?? '').includes(`[superseded-by`) && (docRead.content ?? '').includes('refreshed weekly'), (docRead.content ?? '').slice(-300))
 
-section('concurrent Retain (the teammate-clobber class): no loss')
+section('concurrent Retain (the crewmate-clobber class): no loss')
 const parallelOutcomes = await Promise.all(
   Array.from({ length: 8 }, (_, i) =>
     Promise.resolve().then(() => retainItems([{ content: `concurrent fact number ${i}` }], { session: `writer-${i}`, agent: `agent-${i}` })),

@@ -17,7 +17,7 @@ import { subscribeLiveMessagesFor, markLiveMessagesFromRead, liveMessagesFor, se
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'
 
-export const CREW_LEAD_INBOX = 'team-lead'
+export const CREW_LEAD_INBOX = 'crew-lead'
 
 export function isRetryableSpawnReplyCode(code: string | undefined, frameWritten?: boolean): boolean {
   return code === 'ESTARTING' || frameWritten === false && (code === 'ENOCONN' || code === 'ETIMEOUT')

@@ -360,7 +360,7 @@ export async function* executeStopHooks(
 
 export async function* executeCrewmateIdleHooks(
   crewmateName: string,
-  teamName: string,
+  crewName: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
@@ -368,8 +368,8 @@ export async function* executeCrewmateIdleHooks(
   const hookInput: CrewmateIdleHookInput = {
     ...createBaseHookInput(permissionMode),
     hook_event_name: 'CrewmateIdle',
-    teammate_name: crewmateName,
-    team_name: teamName,
+    crewmate_name: crewmateName,
+    crew_name: crewName,
   }
 
   yield* executeHooks({
@@ -385,7 +385,7 @@ export async function* executeTaskCreatedHooks(
   taskSubject: string,
   taskDescription?: string,
   crewmateName?: string,
-  teamName?: string,
+  crewName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
@@ -397,8 +397,8 @@ export async function* executeTaskCreatedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    teammate_name: crewmateName,
-    team_name: teamName,
+    crewmate_name: crewmateName,
+    crew_name: crewName,
   }
 
   yield* executeHooks({
@@ -415,7 +415,7 @@ export async function* executeTaskCompletedHooks(
   taskSubject: string,
   taskDescription?: string,
   crewmateName?: string,
-  teamName?: string,
+  crewName?: string,
   permissionMode?: string,
   signal?: AbortSignal,
   timeoutMs: number = TOOL_HOOK_EXECUTION_TIMEOUT_MS,
@@ -427,8 +427,8 @@ export async function* executeTaskCompletedHooks(
     task_id: taskId,
     task_subject: taskSubject,
     task_description: taskDescription,
-    teammate_name: crewmateName,
-    team_name: teamName,
+    crewmate_name: crewmateName,
+    crew_name: crewName,
   }
 
   yield* executeHooks({

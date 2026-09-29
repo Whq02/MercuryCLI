@@ -14,8 +14,8 @@ const MAX_ENTRIES = 500
 
 const dedupStore = defineStore<DedupFile, [string, string | undefined]>({
   name: 'dispatch-dedup',
-  path: (agentName, teamName) => {
-    const crew = sanitizePathComponent(teamName || getCrewName() || 'default')
+  path: (agentName, crewName) => {
+    const crew = sanitizePathComponent(crewName || getCrewName() || 'default')
     const agent = sanitizePathComponent(agentName)
     return join(getCrewsDir(), crew, 'dedup', `${agent}.json`)
   },
@@ -44,8 +44,8 @@ export interface DispatchDedup {
   complete(id: string): Promise<void>
 }
 
-export function dispatchDedup(agentName: string, teamName?: string): DispatchDedup {
-  const store = dedupStore(agentName, teamName)
+export function dispatchDedup(agentName: string, crewName?: string): DispatchDedup {
+  const store = dedupStore(agentName, crewName)
   const set = (id: string, state: DispatchConsumptionState) =>
     store.mutate(file => {
       const existing = file.entries.find(e => e.id === id)

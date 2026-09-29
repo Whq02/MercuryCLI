@@ -18,12 +18,12 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, team_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reports while the lead works', prompt: `${WORKER_PROMPT}: wait two seconds, then report to team-lead.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reports while the lead works', prompt: `${WORKER_PROMPT}: wait two seconds, then report to crew-lead.` } }, FIRST),
   lead({ kind: 'tool_use', id: LEAD_BASH, name: 'Bash', input: { command: 'sleep 6', description: 'The lead\'s own long command' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-DONE' }, FIRST),
   ...Array.from({ length: 10 }, ack),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 2', description: 'A short wait' } }, WORKER_PROMPT),
-  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'team-lead', message: REPLY, summary: 'the report' } }, WORKER_PROMPT),
+  peer({ kind: 'tool_use', name: 'SendMessage', input: { to: 'crew-lead', message: REPLY, summary: 'the report' } }, WORKER_PROMPT),
   peer({ kind: 'text', text: 'WORKER-DONE' }, WORKER_PROMPT),
 ]
 const tally = makeTally('prove-crew-messages-row')
@@ -66,7 +66,7 @@ try {
   await session.waitFor('the lead never finished its turn', () => session.stdout().includes('LEAD-DONE'), TURN_MS)
   const boundary = leadRequests().find(request => lastUser(request).includes('ROW-KIND-REPLY'))
   record('lead-boundary-request.json', JSON.stringify(boundary?.body ?? null, null, 2))
-  tally.check('the worker\'s report reaches the lead at its tool boundary, beside the command\'s result, in the crewmate-message envelope', boundary !== undefined && lastUser(boundary).includes('"tool_result"') && lastUser(boundary).includes(`teammate_id=\\"${worker}\\"`), boundary === undefined ? String(leadRequests().length) : lastUser(boundary).slice(-300))
+  tally.check('the worker\'s report reaches the lead at its tool boundary, beside the command\'s result, in the crewmate-message envelope', boundary !== undefined && lastUser(boundary).includes('"tool_result"') && lastUser(boundary).includes(`crewmate_id=\\"${worker}\\"`), boundary === undefined ? String(leadRequests().length) : lastUser(boundary).slice(-300))
 
   tally.section('the report lands in the lead\'s chat: a row of its transcript carries the words, and no row of any transcript is written under the old kind')
   const rowLanded = await until(() => leadRows().some(row => JSON.stringify(row).includes('ROW-KIND-REPLY')), TURN_MS / 3)

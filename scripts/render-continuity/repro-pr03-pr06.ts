@@ -120,7 +120,7 @@ log('')
 log('CREW main-root (D4) across all frames:')
 const railRows = [...new Set(screens.flatMap(f => f.rows.map(r => r.slice(0, 24).trim()).filter(Boolean)))]
 log(`  distinct rail row texts seen: ${railRows.join(' | ')}`)
-log(`  any MAIN/root/team-lead row in CREW:       ${railRows.some(r => /main|mercury|lead|root/i.test(r) && !/no open|no notes/.test(r))}`)
+log(`  any MAIN/root/crew-lead row in CREW:       ${railRows.some(r => /main|mercury|lead|root/i.test(r) && !/no open|no notes/.test(r))}`)
 log('')
 log('esc from the COMPLETED view:')
 log(`  back on main transcript (viewing gone):    ${!has(afterEsc, 'viewing')}`)

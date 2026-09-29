@@ -23,7 +23,7 @@ export type ResumedConversationLog = {
   fullPath?: string
   fileHistorySnapshots?: FileHistorySnapshot[]
   contentReplacements?: ContentReplacementRecord[]
-  teamName?: string
+  crewName?: string
   agentName?: string
   agentColor?: string
   agentSetting?: string
@@ -68,8 +68,8 @@ export async function restoreSessionStateFromLog(
   const adopted = adoptedSessionIdOf(result)
   if (adopted === getSessionId()) await restoreCostStateForSession(adopted, result.fullPath)
 
-  if (result.teamName && result.agentName) {
-    initializeCrewmateContextFromSession(setAppState, result.teamName, result.agentName)
+  if (result.crewName && result.agentName) {
+    initializeCrewmateContextFromSession(setAppState, result.crewName, result.agentName)
   }
 
   restoreMissionContinuity(result, setAppState)

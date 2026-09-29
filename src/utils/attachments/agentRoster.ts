@@ -88,12 +88,12 @@ function rowFor(
   const running = workRowRuns(row)
   const outputFilePath = getTaskOutputPath(row.id)
   const description = task?.description ?? row.description ?? row.name
-  if (row.kind === 'agent' || row.kind === 'teammate') {
+  if (row.kind === 'agent' || row.kind === 'crewmate') {
     const facts = crewAgentFactsOf(row, null)
     if (facts === null) return null
     return {
       taskId: row.id,
-      taskType: row.kind === 'agent' ? 'local_agent' : 'in_process_teammate',
+      taskType: row.kind === 'agent' ? 'local_agent' : 'in_process_crewmate',
       name: facts.name,
       address: row.kind === 'agent' ? (nameOfId.get(row.id) ?? row.id) : facts.name,
       status: crewStateLabel(facts),

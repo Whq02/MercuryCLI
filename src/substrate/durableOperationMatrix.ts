@@ -1,6 +1,6 @@
 
 export const FAILURE_CLASSES = [
-  'FC1-teamcreate-partial',
+  'FC1-crewcreate-partial',
   'FC2-sidecar-temp-collision',
   'FC3-runrecord-surface-split',
   'FC4-mailbox-act-before-ack',
@@ -18,7 +18,7 @@ export interface DurableOperationRow {
   id: string
   domain:
     | 'filestore'
-    | 'teams'
+    | 'crews'
     | 'tasks'
     | 'mailbox'
     | 'runs'
@@ -93,16 +93,16 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     source: ['src/substrate/fileStore.ts:317', 'src/substrate/fileStore.ts:420'],
   },
   {
-    id: 'team-spawn-member',
+    id: 'crew-spawn-member',
     schemaOrEpoch: 'the same roster v1 shape; the spawn ledger rows are an append-only v1 audit trail',
-    domain: 'teams',
+    domain: 'crews',
     stateClass: 'authority',
     migrated: true,
-    authorityArtifact: '<teams>/<team>/config.json (roster; the spawn ledger beside it is an append-only audit trail)',
-    operation: 'Teammate spawn — roster append + pane/worktree + mailbox + spawn ledger',
-    ownerKey: 'team name + agent id',
+    authorityArtifact: '<crews>/<crew>/config.json (roster; the spawn ledger beside it is an append-only audit trail)',
+    operation: 'Crewmate spawn — roster append + pane/worktree + mailbox + spawn ledger',
+    ownerKey: 'crew name + agent id',
     files: [
-      '<teams>/<team>/config.json (locked append via appendCrewMember)',
+      '<crews>/<crew>/config.json (locked append via appendCrewMember)',
       '<config home>/crew/livecomms/<crew>.json (first write)',
       '<config>/daemon/spawn-ledger.jsonl (append)',
     ],
@@ -112,12 +112,12 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'the AGENT ID is the operation id: appends are name-deduped upstream, removes key by agentId and are idempotent (remove-twice = no-op)',
     publication: 'roster file rename; the spawn ledger row is the audit record',
     recovery:
-      'an exit between backend spawn and roster append orphans the spawned process — ownerWatch/workerParentWatch reap daemon children and assertSpawnCwd refuses poisoned respawns; between append and AppState the UI re-reads the roster (Team Center). Removes recover cleanly by idempotency.',
+      'an exit between backend spawn and roster append orphans the spawned process — ownerWatch/workerParentWatch reap daemon children and assertSpawnCwd refuses poisoned respawns; between append and AppState the UI re-reads the roster (Crew Center). Removes recover cleanly by idempotency.',
     interruptionWindows: [
-      'W1: after backend spawn, before roster append — running teammate not in roster',
+      'W1: after backend spawn, before roster append — running crewmate not in roster',
       'W2: after roster append, before AppState — roster/UI disagree',
     ],
-    failureClass: ['FC1-teamcreate-partial'],
+    failureClass: ['FC1-crewcreate-partial'],
     source: ['src/utils/swarm/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
   },
   {
@@ -151,7 +151,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     stateClass: 'authority',
     migrated: true,
     operation: 'createTask — id allocation (max of files+HWM) + body publish',
-    ownerKey: 'taskListId (team or session)',
+    ownerKey: 'taskListId (crew or session)',
     files: ['<tasks>/<list>/<id>.json (tmp+rename)'],
     projections: ['tasksUpdated signal (in-process)'],
     lockOwner: 'task-list .lock (proper-lockfile)',
@@ -221,7 +221,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     stateClass: 'authority',
     migrated: true,
     operation: 'sendLiveMessage — locked append + inline compaction',
-    ownerKey: 'recipient agent name + team',
+    ownerKey: 'recipient agent name + crew',
     files: ['<config home>/crew/livecomms/<crew>.json — the recipient rows in the one crew file (FileStore locked mutate)'],
     projections: [],
     lockOwner: 'FileStore lock on the inbox path',
@@ -242,11 +242,11 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     domain: 'mailbox',
     stateClass: 'authority',
     migrated: true,
-    authorityArtifact: '<teams>/<team>/dedup/<name>.json (the durable consumption ledger — bounded 500, so compacted, NOT append-only)',
+    authorityArtifact: '<crews>/<crew>/dedup/<name>.json (the durable consumption ledger — bounded 500, so compacted, NOT append-only)',
     operation: 'drainDispatches — read unread → deliver to child stdin → mark read',
-    ownerKey: 'consumer agent name + team',
+    ownerKey: 'consumer agent name + crew',
     files: [
-      '<teams>/<team>/dedup/<name>.json (the DURABLE consumption ledger)',
+      '<crews>/<crew>/dedup/<name>.json (the DURABLE consumption ledger)',
       '<config home>/crew/livecomms/<crew>.json (mark-read mutate at drain end)',
     ],
     projections: ['roster.seenDispatchIds (in-memory fast path)', 'child transcript (the acted-on work)'],
@@ -270,7 +270,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     stateClass: 'authority',
     migrated: true,
     operation: 'markLiveMessagesRead family (markLiveMessagesFromRead, markLiveMessageRead, markLiveMessagesReadWhere)',
-    ownerKey: 'agent name + team',
+    ownerKey: 'agent name + crew',
     files: ['<config home>/crew/livecomms/<crew>.json'],
     projections: ['unread badges (UI)'],
     lockOwner: 'FileStore lock',
@@ -319,7 +319,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'run id (terminal runs never reactivate)',
     publication: 'sidecar re-publish',
     recovery:
-      'the run-level story is sound (pending tools become uncertainty markers; terminal runs are receipts). Slice 5: incomplete multi-record OPERATIONS are reconciled by the boot recovery orchestrator BEFORE the REPL mounts (teams journal, orphan temps, dead epochs) — reconcileOnResume stays the run-level fold on top of already-reconciled durable state.',
+      'the run-level story is sound (pending tools become uncertainty markers; terminal runs are receipts). Slice 5: incomplete multi-record OPERATIONS are reconciled by the boot recovery orchestrator BEFORE the REPL mounts (crews journal, orphan temps, dead epochs) — reconcileOnResume stays the run-level fold on top of already-reconciled durable state.',
     interruptionWindows: [
       'W1: exit mid-reconcile — re-runs idempotently next resume (events re-fold)',
     ],
@@ -332,9 +332,9 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     domain: 'stores',
     stateClass: 'authority',
     migrated: true,
-    operation: 'file-lease claim/release/list (per-team leases.json)',
-    ownerKey: 'team name',
-    files: ['<teams>/<team>/leases/leases.json (FileStore)'],
+    operation: 'file-lease claim/release/list (per-crew leases.json)',
+    ownerKey: 'crew name',
+    files: ['<crews>/<crew>/leases/leases.json (FileStore)'],
     projections: ['PreToolUse lease guard decisions'],
     lockOwner: 'FileStore lock',
     writeOrder: 'single locked mutate',
@@ -365,23 +365,23 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     source: ['src/utils/promptDraft.ts'],
   },
   {
-    id: 'team-roster-sync-helpers',
-    schemaOrEpoch: 'the same team config.json roster v1 (one truth, two writers)',
-    domain: 'teams',
+    id: 'crew-roster-sync-helpers',
+    schemaOrEpoch: 'the same crew config.json roster v1 (one truth, two writers)',
+    domain: 'crews',
     stateClass: 'authority',
     migrated: true,
-    authorityArtifact: '<teams>/<team>/config.json (the same roster file the crew founding owns — two writers, one truth)',
+    authorityArtifact: '<crews>/<crew>/config.json (the same roster file the crew founding owns — two writers, one truth)',
     operation: 'roster sync helpers (member modes / hidden panes / active flags)',
-    ownerKey: 'team name',
-    files: ['<teams>/<team>/config.json (locked tmp+rename)'],
-    projections: ['crew view rows', 'Team Center phases'],
+    ownerKey: 'crew name',
+    files: ['<crews>/<crew>/config.json (locked tmp+rename)'],
+    projections: ['crew view rows', 'Crew Center phases'],
     lockOwner: 'withLockedCrewFile / Sync (bounded backoff, degrades to unlocked)',
     writeOrder: 'single locked RMW → durableAtomicPublish(/Sync)',
     idempotencyKey: 'none (last-writer-wins per field)',
     publication: 'roster rename',
     recovery: 'single-record atomic through the shared durable primitive (Slice 1); sync twin can degrade to UNLOCKED best-effort on lock exhaustion (documented).',
     interruptionWindows: ['W1 (bounded): crash between tmp write and rename — orphan swept on next publish/boot'],
-    failureClass: ['FC1-teamcreate-partial'],
+    failureClass: ['FC1-crewcreate-partial'],
     source: ['src/utils/swarm/crewHelpers.ts:240', 'src/utils/swarm/crewHelpers.ts:304'],
   },
   {
@@ -398,11 +398,11 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'converging re-runs (sweeps re-derive from state)',
     publication: 'store renames',
     recovery:
-      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (replLauncher, before the REPL projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → teams journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d supervisor\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /team, and the doctor DURABILITY rows read the same state.',
+      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (replLauncher, before the REPL projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → crews journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d supervisor\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /crew, and the doctor DURABILITY rows read the same state.',
     interruptionWindows: [
       'W1: exit mid-sweep — next boot converges (per-sweep; the orchestrator itself is idempotent)',
     ],
-    failureClass: ['FC1-teamcreate-partial'],
+    failureClass: ['FC1-crewcreate-partial'],
     source: ['src/substrate/recoveryOrchestrator.ts', 'src/replLauncher.tsx'],
   },
   {
@@ -448,21 +448,21 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     schemaOrEpoch: 'n/a — disposal of in-memory owner keys (no owned durable shape)',
     domain: 'lifecycle',
     stateClass: 'projection',
-    operation: 'session switch / /clear / compaction / shutdown — owner teardown + teammate pane kill',
+    operation: 'session switch / /clear / compaction / shutdown — owner teardown + crewmate pane kill',
     ownerKey: 'OwnerKey / session id',
-    files: ['run sidecar (flush/delete)', 'teammate panes (cleanupSessionCrews kills panes; team dirs stay)', 'cleared-sessions cache'],
+    files: ['run sidecar (flush/delete)', 'crewmate panes (cleanupSessionCrews kills panes; crew dirs stay)', 'cleared-sessions cache'],
     projections: ['ownerLifecycle registries', 'context epochs'],
     lockOwner: 'per-store',
-    writeOrder: 'flush run → dispose owners → (exit) kill the session teams\' panes',
+    writeOrder: 'flush run → dispose owners → (exit) kill the session crews\' panes',
     idempotencyKey: 'owner key disposal is idempotent',
     publication: 'per-store renames',
     recovery:
       'gracefulShutdown paths are best-effort; SIGKILL skips the pane kill. A crew stays on disk across the lead\'s exits: resuming the leader session rebuilds the crew projection (rebuildCrewProjection at boot) on the interactive and headless roads alike, and nothing removes it by itself.',
     interruptionWindows: [
-      'W1: SIGKILL before the pane kill — pane teammates outlive the lead until the next resume+exit cycle',
+      'W1: SIGKILL before the pane kill — pane crewmates outlive the lead until the next resume+exit cycle',
       'W2: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
-    failureClass: ['FC1-teamcreate-partial'],
+    failureClass: ['FC1-crewcreate-partial'],
     source: ['src/utils/swarm/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
   },
   {
@@ -570,7 +570,7 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
   },
   {
     id: 'mailbox-dedup-ledger',
-    structure: '<teams>/<team>/dedup/<name>.json consumption ledger',
+    structure: '<crews>/<crew>/dedup/<name>.json consumption ledger',
     writer: 'mailbox consume (mark-read at drain end)',
     bound: 'bounded 500 (compacted, not append-only)',
     reaper: 'per-write compaction',
@@ -587,10 +587,10 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
     proof: 'scripts/engine-durability/run-all.sh',
   },
   {
-    id: 'team-compromised-locks',
+    id: 'crew-compromised-locks',
     structure: 'crewHelpers compromisedCrewLocks Set',
     writer: 'lane onCompromised',
-    bound: '≤ active team files; cleared per acquire',
+    bound: '≤ active crew files; cleared per acquire',
     reaper: 'acquire-time delete',
     preserves: 'nothing (a refuse-to-publish flag)',
     proof: 'scripts/substrate/prove-crew-roster-lock.ts',
@@ -599,7 +599,7 @@ export const RESOURCE_BOUNDS: readonly ResourceBoundRow[] = [
     id: 'serialization-lanes',
     structure: 'createLanes / crewLanes Maps (group-commit lanes per path)',
     writer: 'lane factories (first touch per path)',
-    bound: '≤ task lists / teams touched per process (session lifetime)',
+    bound: '≤ task lists / crews touched per process (session lifetime)',
     reaper: 'process lifetime (session-scoped by design)',
     preserves: 'lane identity per path',
     proof: 'scripts/formal-models/prove-task-lock-stall.ts',

@@ -344,7 +344,7 @@ function driveEnv(home: string, fixtureBase: string, openai = false): Record<str
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
@@ -504,7 +504,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     argv: [],
     sends: [
       cardSend('card'),
-      { data: '/teammates', afterPrevTicks: 6 },
+      { data: '/crewmates', afterPrevTicks: 6 },
       { data: '\r', afterPrevTicks: 4 },
       { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Sub-agents \\(1\\)', mark: 'crew-landed' },
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
@@ -529,7 +529,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     argv: ['--permission-mode', 'flow'],
     sends: [
       cardSend('card'),
-      { data: '/teammates', afterPrevTicks: 6 },
+      { data: '/crewmates', afterPrevTicks: 6 },
       { data: '\r', afterPrevTicks: 4 },
       { data: '\x1b', atTick: 999, awaitText: 'crew · 0 running', requireAwait: true, minTick: 2, awaitSettleTicks: 3, awaitPattern: 'Sub-agents \\(1\\)', mark: 'crew-landed' },
       { data: FOLLOW_UP, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },

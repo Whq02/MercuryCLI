@@ -13,13 +13,14 @@ import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
+import { RETIRED_CREW_LEAD_NAME } from '../migrations/retiredCrewSpellings.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
   return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
 }
 
 export const CREW = 'crew' as const
-export const CREW_LEAD_AGENT_ID = 'team-lead@crew' as const
+export const CREW_LEAD_AGENT_ID = 'crew-lead@crew' as const
 
 export function crewSeatSessionId(name: string, dir: string): string {
   const hex = createHash('sha256').update(`mercury crew seat ${name}@${dir}`).digest('hex')
@@ -82,7 +83,7 @@ export async function resolveCrewSeatModel(
 }
 
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
-const RESERVED_NAMES = new Set(['team-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
+const RESERVED_NAMES = new Set(['crew-lead', RETIRED_CREW_LEAD_NAME, 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
 export function isValidCrewName(name: string): boolean {
   return CREW_NAME_RE.test(name) && !RESERVED_NAMES.has(name)
 }
@@ -90,13 +91,13 @@ export function isValidCrewName(name: string): boolean {
 export function buildCrewPack(name: string, dir?: string): string {
   return [
     ...(dir !== undefined ? [isolationAwarenessNote({ isolation: 'exclusive', workspaceId: dir }), ''] : []),
-    `You are @${name}, a Mercury crew teammate — a named, persistent collaborator instance working in this repository alongside the operator and other teammates.`,
+    `You are @${name}, a Mercury crew crewmate — a named, persistent collaborator instance working in this repository alongside the operator and other crewmates.`,
     '',
     'CONTRACT:',
-    `- You converse with the OPERATOR. Messages arrive on stdin as attributed frames; reply by calling SendMessage to "team-lead" — that is the operator's inbox. Never print a reply only to stdout; if it is not sent via SendMessage, the operator never sees it.`,
+    `- You converse with the OPERATOR. Messages arrive on stdin as attributed frames; reply by calling SendMessage to "crew-lead" — that is the operator's inbox. Never print a reply only to stdout; if it is not sent via SendMessage, the operator never sees it.`,
     '- Do real work in the repo when asked (read, edit, run) — you are a full agent, not a chat bot. Report what you actually did, with file:line refs; never claim unverified results.',
     '- Blocked (a denied permission, a missing credential, an ambiguous ask)? Say so in your reply and ask — one concise question. Never bypass a permission, approval, capability, or refusal gate.',
-    '- Stay in your lane: no daemons, no agent fan-out, no engaging other Mercury modes. Other teammates may be working in this same repo — keep your edits scoped to what the operator asked YOU for, and say if you see a conflict.',
+    '- Stay in your lane: no daemons, no agent fan-out, no engaging other Mercury modes. Other crewmates may be working in this same repo — keep your edits scoped to what the operator asked YOU for, and say if you see a conflict.',
     '- Tone: a competent peer — direct, concrete, brief. Lead with the outcome.',
   ].join('\n')
 }
@@ -110,7 +111,7 @@ export async function ensureCrewMember(
     agentId: `${name}@${CREW}`,
     name,
     model,
-    role: 'teammate',
+    role: 'crewmate',
     joinedAt: Date.now(),
     tmuxPaneId: '',
     cwd: projectDir,
@@ -121,14 +122,14 @@ export async function ensureCrewMember(
     const crewFile: CrewFile = {
       name: CREW,
       description:
-        'Mercury named agents — /teammates chats (daemon-bridged; members are durable chat identities)',
+        'Mercury named agents — /crewmates chats (daemon-bridged; members are durable chat identities)',
       createdAt: Date.now(),
       leadAgentId: CREW_LEAD_AGENT_ID,
       governance: { broadcastEnabled: false },
       members: [
         {
           agentId: CREW_LEAD_AGENT_ID,
-          name: 'team-lead',
+          name: 'crew-lead',
           role: 'lead',
           joinedAt: Date.now(),
           tmuxPaneId: '',
@@ -209,7 +210,7 @@ export function makeCrewSpawnHandler(
     try {
       await ensureCrewMember(name, plan.model, runDir)
     } catch (e) {
-      return { ok: false, error: `team-file update failed: ${e}` }
+      return { ok: false, error: `crew-file update failed: ${e}` }
     }
     const spec = buildCrewSpec(name, { model: plan.model, effort: seat.effort }, runDir)
     const reg = r.registerLongLived(name, spec, undefined, { cwd: folder, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) })
@@ -285,7 +286,7 @@ export function buildCrewSpec(
     role: 'MERCURY_CREW',
     agentName: name,
     agentId: `${name}@${CREW}`,
-    teamName: CREW,
+    crewName: CREW,
     cwd: dir,
     extraEnv: {
       ...flagPair('MERCURY_WORKFLOWS', '0'),

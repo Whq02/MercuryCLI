@@ -17,7 +17,7 @@ function canCycleToAuto(_context: ToolPermissionContext): boolean {
 
 export function getNextPermissionMode(
   toolPermissionContext: ToolPermissionContext,
-  _teamContext?: CrewContext,
+  _crewContext?: CrewContext,
 ): PermissionMode {
   const mode = toolPermissionContext.mode
   switch (mode) {

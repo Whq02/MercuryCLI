@@ -54,7 +54,7 @@ Census version 1 — 69 built-in production tools · 184 operations · 69 with a
 | Journey | execution | application-verification, service-management | 3 | cancel | yes | — | journey (full-execution-owner) | mercury://journey, mercury://service, mercury://execution, mercury://evidence | scripts/builtin-tools/prove-journeys.ts |
 | Launch | execution | process-execution, debugging | 7 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-launch-profiles.ts |
 | ListMcpResources | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
-| LiveComms | coordination | task-coordination | — | block | yes | — | — | mercury://team | NAMED GAP |
+| LiveComms | coordination | task-coordination | — | block | yes | — | — | mercury://crew | NAMED GAP |
 | LSP | mutation | code-intelligence | — | block | yes | lsp.rename +receipts | — | mercury://file, mercury://receipt | scripts/lsp/run-all.sh |
 | Monitor | observation | task-coordination | — | block | yes | — | — | mercury://task | NAMED GAP |
 | NotebookEdit | mutation | text-mutation | — | block | yes | notebook +receipts | — | mercury://file, mercury://receipt | NAMED GAP |
@@ -69,7 +69,7 @@ Census version 1 — 69 built-in production tools · 184 operations · 69 with a
 | Retain | mutation | memory | — | block | yes | — | — | — | scripts/memory/prove-retain-honesty.ts |
 | Rewind | mutation | task-coordination | — | block | yes | — | — | — | scripts/run-recovery/run-all.sh |
 | ScheduleWakeup | coordination | scheduling | — | block | yes | — | — | — | NAMED GAP |
-| SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://team | scripts/crew/run-all.sh |
+| SendMessage | coordination | task-coordination | — | block | yes | — | — | mercury://crew | scripts/crew/run-all.sh |
 | SendUserFile | coordination | operator-io | — | block | no | — | — | — | NAMED GAP |
 | Service | execution | service-management | 8 | block | yes | — | service (full-execution-owner) | mercury://service, mercury://execution | scripts/project-services/prove-services.ts |
 | SetTier | coordination | task-coordination | — | block | no | — | — | — | scripts/autopilot/run-all.sh |

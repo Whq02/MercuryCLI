@@ -141,6 +141,7 @@ import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
+import { readRetiredCliFlags } from './migrations/retiredCrewSpellings.js'
 
 profileCheckpoint('main_tsx_entry')
 startMdmRawRead();
@@ -576,16 +577,16 @@ async function run(): Promise<void> {
     .option('--tmux', 'Create a tmux session for the worktree')
 
   for (const [flags, description] of [
-    ['--agent-id <id>', 'Teammate agent id'],
-    ['--agent-name <name>', 'Teammate agent name'],
-    ['--team-name <name>', 'Teammate team name'],
-    ['--agent-color <color>', 'Teammate color'],
+    ['--agent-id <id>', 'Crewmate agent id'],
+    ['--agent-name <name>', 'Crewmate agent name'],
+    ['--crew-name <name>', 'Crewmate crew name'],
+    ['--agent-color <color>', 'Crewmate color'],
     ['--parent-session-id <id>', 'Parent session id'],
-    ['--agent-type <type>', 'Teammate agent type'],
+    ['--agent-type <type>', 'Crewmate agent type'],
   ] as const) {
     program.addOption(new Option(flags, description).hideHelp())
   }
-  program.addOption(new Option('--strategy-mode-required', 'Teammate requires strategy mode').hideHelp())
+  program.addOption(new Option('--strategy-mode-required', 'Crewmate requires strategy mode').hideHelp())
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
@@ -661,7 +662,7 @@ async function run(): Promise<void> {
     if (wantsStreamJsonEnvelope()) {
       program.exitOverride()
       try {
-        await program.parseAsync(process.argv)
+        await program.parseAsync(readRetiredCliFlags(process.argv))
       } catch (error) {
         const commanderError = error as { code?: string; exitCode?: number; message?: string }
         if (
@@ -690,7 +691,7 @@ async function run(): Promise<void> {
   await registerSubcommands(program)
 
   profileCheckpoint('run_before_parse')
-  await program.parseAsync(process.argv)
+  await program.parseAsync(readRetiredCliFlags(process.argv))
   profileCheckpoint('run_after_parse')
   profileCheckpoint('run_complete')
   profileReport()
@@ -1171,16 +1172,16 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   const agentId = typedString(opts.agentId)
   const agentName = typedString(opts.agentName)
-  const teamName = typedString(opts.teamName)
+  const crewName = typedString(opts.crewName)
   const agentColor = typedString(opts.agentColor)
   const planModeRequired = typedBoolean(opts.strategyModeRequired)
   const parentSessionId = typedString(opts.parentSessionId)
   const agentTypeOpt = typedString(opts.agentType)
   const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
   if (isAgentSwarmsEnabled()) {
-    const identityCount = [agentId, agentName, teamName].filter(Boolean).length
+    const identityCount = [agentId, agentName, crewName].filter(Boolean).length
     if (identityCount > 0 && identityCount < 3) {
-      failCli('--agent-id, --agent-name and --team-name must be provided together')
+      failCli('--agent-id, --agent-name and --crew-name must be provided together')
     }
   }
 
@@ -1363,11 +1364,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   const resolvedInitialModel = getMainLoopModel()
 
-  if (agentId && agentName && teamName && agentTypeOpt) {
+  if (agentId && agentName && crewName && agentTypeOpt) {
     let rolePrompt: string | undefined
     const roleDefinition = findRoleDefinition(agentTypeOpt, activeAgents)
     if (!roleDefinition) {
-      logForDebugging(`unknown teammate role '${agentTypeOpt}'; nothing appended`)
+      logForDebugging(`unknown crewmate role '${agentTypeOpt}'; nothing appended`)
     } else {
       rolePrompt = getRoleSystemPrompt(roleDefinition) || undefined
     }
@@ -1598,7 +1599,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       allAgents,
       sessionTitle,
       setupTrigger,
-      crewmateContext: { agentId, agentName, teamName, agentColor, planModeRequired, parentSessionId },
+      crewmateContext: { agentId, agentName, crewName, agentColor, planModeRequired, parentSessionId },
     })
     return
   }
@@ -1710,7 +1711,7 @@ async function interactiveLaunch(args: {
   crewmateContext: {
     agentId?: string
     agentName?: string
-    teamName?: string
+    crewName?: string
     agentColor?: string
     planModeRequired?: boolean
     parentSessionId?: string
@@ -1849,13 +1850,13 @@ async function interactiveLaunch(args: {
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
   const { setDynamicCrewContext } = await import('./utils/crewmate.js')
   const hasCrewmateIdentity = Boolean(
-    args.crewmateContext.agentId && args.crewmateContext.agentName && args.crewmateContext.teamName,
+    args.crewmateContext.agentId && args.crewmateContext.agentName && args.crewmateContext.crewName,
   )
   const crewContext = hasCrewmateIdentity
     ? {
         agentId: args.crewmateContext.agentId!,
         agentName: args.crewmateContext.agentName!,
-        teamName: args.crewmateContext.teamName!,
+        crewName: args.crewmateContext.crewName!,
         color: args.crewmateContext.agentColor,
         planModeRequired: Boolean(args.crewmateContext.planModeRequired),
         parentSessionId: args.crewmateContext.parentSessionId,
@@ -1867,7 +1868,7 @@ async function interactiveLaunch(args: {
     ...getDefaultAppState(),
     toolPermissionContext: effectiveContext,
     verbose: config.toolOutput === 'full',
-    expandedView: config.showSpinnerTree ? 'teammates' : config.showExpandedTasks ? 'tasks' : 'none',
+    expandedView: config.showSpinnerTree ? 'crewmates' : config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
     ...(supercodeArmed ? { supercode: true } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,

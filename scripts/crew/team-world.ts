@@ -35,7 +35,7 @@ export async function makeWorld(label: string, script: ScriptedTurn[]): Promise<
   const dir = mkdtempSync(join(tmpdir(), `${label}-`))
   const config = join(dir, 'config')
   const project = join(dir, 'project')
-  const crews = join(dir, 'teams')
+  const crews = join(dir, 'crews')
   mkdirSync(project)
   writeFileSync(join(project, 'README.md'), '# fixture\n')
   seedFirstRun(config, [project])

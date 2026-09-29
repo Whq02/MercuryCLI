@@ -24,7 +24,7 @@ console.log('============================================================')
 
 section('#6 — leader claim id === guard id (no self-conflict)')
 check('getCurrentLeaseAgentId() === resolveCoordAgentId() (one source)', getCurrentLeaseAgentId() === resolveCoordAgentId())
-check('leader (no teammate ctx) resolves to CREW_LEAD_NAME', resolveCoordAgentId() === CREW_LEAD_NAME)
+check('leader (no crewmate ctx) resolves to CREW_LEAD_NAME', resolveCoordAgentId() === CREW_LEAD_NAME)
 check('guard id is also CREW_LEAD_NAME (was a session UUID → self-conflict)', getCurrentLeaseAgentId() === CREW_LEAD_NAME)
 
 section('#7 — `**` matches zero or more segments (no guard false-ALLOW)')
@@ -63,14 +63,14 @@ check('relScope(abs, worktree-cwd) escapes (../src/api.ts) — the old false-all
 check('an escaped path can never match an in-namespace lease (guard would allow)', globMatchesFile('src/api.ts', escaped) === false)
 check('relScope(src/api.ts, root) stable === src/api.ts', relScope('src/api.ts', ROOT) === 'src/api.ts')
 
-section('#7 audit-r1 — the guard needs no team; the lead cannot fail open past a claim')
+section('#7 audit-r1 — the guard needs no crew; the lead cannot fail open past a claim')
 {
   const { readFileSync } = await import('node:fs')
   const here = new URL('.', import.meta.url).pathname
   const lg = readFileSync(here + '../../src/utils/swarm/leaseGuard.ts', 'utf8')
   const { readdirSync } = await import('node:fs')
   const hk = readFileSync(here + '../../src/utils/hooks.ts', 'utf8') + readdirSync(here + '../../src/utils/hooks').filter(f => f.endsWith('.ts')).map(f => readFileSync(here + '../../src/utils/hooks/' + f, 'utf8')).join('\n')
-  check('checkLeaseGuard resolves the crewmate holder and never reads a team name', /resolveClaimHolder\(\)/.test(lg) && !/getCrewName\(/.test(lg))
+  check('checkLeaseGuard resolves the crewmate holder and never reads a crew name', /resolveClaimHolder\(\)/.test(lg) && !/getCrewName\(/.test(lg))
   check('the PreToolUse hook calls checkLeaseGuard with the tool and its input only', /checkLeaseGuard\(\s*toolName,\s*toolInput as Record<string, unknown>,?\s*\)/.test(hk))
 }
 

@@ -80,7 +80,7 @@ async function driveProtocol(): Promise<void> {
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: 'fixture-key-000',
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
   }
 
   const child = spawn(

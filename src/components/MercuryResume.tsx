@@ -122,7 +122,7 @@ export function MercuryResume({
       <SectionHeader count={all.length}>Resume</SectionHeader>
       {shown.map((s, i) => {
         const here = i === sel
-        const crewmate = s.isTeammate || s.isSidechain
+        const crewmate = s.isCrewmate || s.isSidechain
         return (
           <Text key={`${s.value}-${s.sessionId ?? i}`}>
             <Text color={here ? accent : FAINT}>{here ? `${GLYPH.prompt} ` : '  '}</Text>

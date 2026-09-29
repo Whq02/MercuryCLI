@@ -20,8 +20,8 @@ function check(cond: boolean, label: string, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 
-const CREW = 'selfaddr-team'
-const crewDir = join(TMP, 'teams', CREW)
+const CREW = 'selfaddr-crew'
+const crewDir = join(TMP, 'crews', CREW)
 mkdirSync(crewDir, { recursive: true })
 writeFileSync(
   join(crewDir, 'config.json'),
@@ -39,7 +39,7 @@ writeFileSync(
 
 const context = {
   getAppState: () => ({
-    crewContext: { teamName: CREW, leadAgentId: 'lead-1' },
+    crewContext: { crewName: CREW, leadAgentId: 'lead-1' },
     tasks: {},
     agentNameRegistry: new Map<string, string>(),
   }),
@@ -65,7 +65,7 @@ const asWorkerA = <T>(fn: () => Promise<T>): Promise<T> =>
     createCrewmateContext({
       agentId: 'a-1',
       agentName: 'worker-a',
-      teamName: CREW,
+      crewName: CREW,
       planModeRequired: false,
       parentSessionId: 'sess-1',
       abortController: new AbortController(),
@@ -77,23 +77,23 @@ console.log('SendMessage self-address guard — the refusal law and its bounds')
 
 {
   const r = await asWorkerA(() => callTool('worker-a', 'note to self', 's'))
-  check(!r.success && /own address/.test(r.message), 'teammate plain send to own name is refused by name', r.message)
+  check(!r.success && /own address/.test(r.message), 'crewmate plain send to own name is refused by name', r.message)
 }
 
 {
   const r = await asWorkerA(() => callTool('worker-a', { type: 'question', content: 'am I here?' }))
-  check(!r.success && /own address/.test(r.message), 'teammate question to own name is refused by name', r.message)
-  check(/worker-b/.test(r.message) && !/Teammates you can address:.*worker-a/.test(r.message), 'the refusal lists the OTHER teammates, never the sender', r.message)
+  check(!r.success && /own address/.test(r.message), 'crewmate question to own name is refused by name', r.message)
+  check(/worker-b/.test(r.message) && !/Crewmates you can address:.*worker-a/.test(r.message), 'the refusal lists the OTHER crewmates, never the sender', r.message)
 }
 
 {
   const r = await asWorkerA(() => callTool('worker-b', 'real work', 's'))
-  check(r.success === true, 'teammate send to a peer still delivers', r.message)
+  check(r.success === true, 'crewmate send to a peer still delivers', r.message)
 }
 
 {
   const r = await asWorkerA(() => callTool(CREW_LEAD_NAME, 'report', 's'))
-  check(r.success === true, 'teammate send to the lead still delivers', r.message)
+  check(r.success === true, 'crewmate send to the lead still delivers', r.message)
 }
 
 {

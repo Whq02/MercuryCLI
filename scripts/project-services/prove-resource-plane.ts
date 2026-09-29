@@ -333,7 +333,7 @@ section('I. the Inspect tool end-to-end')
 
   const kinds = resourceAdapterKinds().map(k => k.kind)
   check('I3 the kind census covers the built-in graph',
-    ['file', 'run', 'receipt', 'task', 'team', 'workflow', 'artifact', 'doctor', 'agent']
+    ['file', 'run', 'receipt', 'task', 'crew', 'workflow', 'artifact', 'doctor', 'agent']
       .every(k => kinds.includes(k)))
   check('I3b the retired party kind stays out of the graph (never-reappears)',
     !kinds.includes('party'))

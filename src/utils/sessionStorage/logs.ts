@@ -65,6 +65,7 @@ import {
   getTranscriptPathForSession,
 } from './paths.js'
 import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
+import { RETIRED_TRANSCRIPT_ROW_KEYS } from '../../migrations/retiredCrewSpellings.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
@@ -182,7 +183,7 @@ function convertToLogOption(
     firstPrompt: extractFirstPrompt(transcript),
     messageCount: countVisibleMessages(transcript),
     isSidechain: firstMessage.isSidechain,
-    teamName: firstMessage.teamName,
+    crewName: firstMessage.crewName,
     agentName: firstMessage.agentName,
     agentSetting,
     leafUuid: lastMessage.uuid,
@@ -454,7 +455,7 @@ export async function loadFullLog(log: LogOption): Promise<LogOption> {
         : log.summary,
       gitBranch: mostRecentLeaf?.gitBranch ?? log.gitBranch,
       isSidechain: transcript[0]?.isSidechain ?? log.isSidechain,
-      teamName: transcript[0]?.teamName ?? log.teamName,
+      crewName: transcript[0]?.crewName ?? log.crewName,
       leafUuid: mostRecentLeaf?.uuid ?? log.leafUuid,
       ...resumeFactsOf(fold, sessionId, transcript),
     }
@@ -926,7 +927,7 @@ export function extractCrewmateTranscriptsFromTasks(tasks: {
 
   for (const task of Object.values(tasks)) {
     if (
-      task.type === 'in_process_teammate' &&
+      task.type === 'in_process_crewmate' &&
       task.identity?.agentId &&
       task.messages &&
       task.messages.length > 0
@@ -1117,7 +1118,7 @@ type LiteMetadata = {
   gitBranch?: string
   isSidechain: boolean
   projectPath?: string
-  teamName?: string
+  crewName?: string
   customTitle?: string
   summary?: string
   tag?: string
@@ -1253,7 +1254,7 @@ async function readLiteMetadata(
     typeof cwdField === 'string' && cwdField
       ? cwdField
       : extractJsonStringField(head, 'cwd')
-  const teamName = extractJsonStringField(head, 'teamName')
+  const crewName = extractJsonStringField(head, 'crewName') ?? extractJsonStringField(head, Object.keys(RETIRED_TRANSCRIPT_ROW_KEYS).find(k => RETIRED_TRANSCRIPT_ROW_KEYS[k] === 'crewName')!)
   const agentSetting = extractJsonStringField(head, 'agentSetting')
 
   const firstPrompt =
@@ -1297,7 +1298,7 @@ async function readLiteMetadata(
     gitBranch,
     isSidechain,
     projectPath,
-    teamName,
+    crewName,
     customTitle,
     summary,
     tag,
@@ -1492,7 +1493,7 @@ async function enrichLog(
     firstPrompt: meta.firstPrompt,
     gitBranch: meta.gitBranch,
     isSidechain: meta.isSidechain,
-    teamName: meta.teamName,
+    crewName: meta.crewName,
     customTitle: meta.customTitle,
     summary: meta.summary,
     tag: meta.tag,
@@ -1513,9 +1514,9 @@ async function enrichLog(
     )
     return null
   }
-  if (enriched.teamName) {
+  if (enriched.crewName) {
     logForDebugging(
-      `Session ${log.sessionId} filtered from /resume: teamName=${enriched.teamName}`,
+      `Session ${log.sessionId} filtered from /resume: crewName=${enriched.crewName}`,
     )
     return null
   }

@@ -69,7 +69,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   const env: Record<string, string> = {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_CREWS_DIR: join(home, 'teams'),
+    MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
@@ -134,7 +134,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   const { home, cwd } = seedWorld()
   const target = seat ? SEAT_NAME : MATE_NAME
   const ask = seat ? LEAD_ASK_SLEEPER : LEAD_ASK_MATE
-  const openView = name === 'tasks' ? '/tasks' : '/teammates'
+  const openView = name === 'tasks' ? '/tasks' : '/crewmates'
   const listGate = name === 'tasks' ? target : '1 running'
   const sends: Array<Record<string, unknown>> = [
     ...bootSends(ask),
@@ -174,7 +174,7 @@ async function leg(name: string, cols: number, rows: number): Promise<void> {
   check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
   const running = marks['crew-running'] ?? ''
   const runningRow = rowOf(running, target)
-  check(`${tag}: the row is live before the chord (running, or idle while the teammate waits on its inbox)`, runningRow !== undefined && /\brunning\b|\bidle\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
+  check(`${tag}: the row is live before the chord (running, or idle while the crewmate waits on its inbox)`, runningRow !== undefined && /\brunning\b|\bidle\b|◐|Sleeping/.test(runningRow), runningRow ?? '(no row)')
   const armed = marks['armed'] ?? ''
   check(`${tag}: the first x arms the chord and names the row`, armed.includes(`x again within 2 s stops ${target}`) || flat(armed).includes('x again within 2 s stops'), flat(armed).slice(0, 200))
   const after = marks['crew-after'] ?? ''

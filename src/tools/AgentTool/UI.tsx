@@ -69,7 +69,7 @@ type AgentUiInput = {
   model?: string
   run_in_background?: boolean
   name?: string
-  team_name?: string
+  crew_name?: string
 }
 
 
@@ -741,7 +741,7 @@ export function renderGroupedAgentToolUse(
     const lastTool = extractLastToolInfo(progress, tools)
     const output = groupOutput(entry) as { status?: string; totalToolUseCount?: number; totalTokens?: number } | undefined
     const status = output?.status
-    const isCrewmateSpawn = Boolean(input.name && input.team_name)
+    const isCrewmateSpawn = Boolean(input.name && input.crew_name)
     const isBackground =
       input.run_in_background === true ||
       status === 'async_launched' ||

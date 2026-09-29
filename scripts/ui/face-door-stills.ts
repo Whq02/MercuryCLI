@@ -191,8 +191,8 @@ export const RESUME_FIXTURE_LOGS: LogOption[] = [
     sessionId: 'crew1',
     modifiedMs: FIXED_NOW - 40 * MIN,
     title: 'lane KITDOOR census',
-    isTeammate: true,
-    teamName: 'party',
+    isCrewmate: true,
+    crewName: 'party',
     agentName: 'dps1',
   } as Partial<LogOption> & { sessionId: string; modifiedMs: number; title: string }),
 ]

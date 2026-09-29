@@ -266,7 +266,7 @@ section('D. Task substrate floors')
 {
   const prefixes: Record<string, string> = {
     local_bash: 'b', local_agent: 'a', remote_agent: 'r',
-    in_process_teammate: 't', local_workflow: 'w', monitor_mcp: 'm', dream: 'd',
+    in_process_crewmate: 't', local_workflow: 'w', monitor_mcp: 'm', dream: 'd',
   }
   check('D1 task id prefixes stable',
     Object.entries(prefixes).every(([t, p]) => generateTaskId(t as never).startsWith(p)))

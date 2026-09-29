@@ -127,7 +127,7 @@ for (const path of trackedFiles) {
 check(`no other config-home spelling in ${trackedFiles.length} swept files`, homeHits.length === 0, homeHits.slice(0, 10).join(' · '))
 const registrySrc = readFileSync(join(ROOT, 'src', 'substrate', 'flagRegistry.ts'), 'utf-8')
 check('the flag registry carries no alias field', !/\blegacy\??:/.test(registrySrc))
-check('flagEnv reads exactly the registered spelling', /return process\.env\[spec\.env\]\n\}/.test(registrySrc))
+check('flagEnv reads the registered spelling, then the former spelling the registry names, and nothing else', /return process\.env\[spec\.env\] \?\? \(spec\.formerly === undefined \? undefined : process\.env\[spec\.formerly\]\)\n\}/.test(registrySrc))
 
 console.log('\nharness pins — one home for bun writers + dist children')
 const gateUnit = readFileSync(join(ROOT, 'scripts', 'gate', 'run-suite.sh'), 'utf-8')

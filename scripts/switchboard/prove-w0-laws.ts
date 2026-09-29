@@ -54,7 +54,7 @@ check('env scrubbed after consume', process.env.MERCURY_SESSION_HOME === undefin
 check('second consume is null (plain boot)', consumeSessionHomePin() === null)
 
 console.log('LAW 2 — identity sever:')
-for (const flag of ['--team-name', '--agent-name', '--agent-id']) {
+for (const flag of ['--crew-name', '--agent-name', '--agent-id']) {
   check(`concourse argv carries no ${flag}`, !inv.argv.includes(flag))
 }
 check(
@@ -68,11 +68,11 @@ const crewInv = buildStreamJsonInvocation({
   role: 'MERCURY_CREW',
   agentName: 'probe',
   agentId: 'probe@crew',
-  teamName: 'crew',
+  crewName: 'crew',
 })
 check(
   'crew-shaped spec still carries the triplet (control)',
-  crewInv.argv.includes('--team-name') &&
+  crewInv.argv.includes('--crew-name') &&
     crewInv.argv.includes('--agent-name') &&
     crewInv.argv.includes('--agent-id'),
 )

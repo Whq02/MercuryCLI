@@ -14,7 +14,7 @@ const HERMETIC = mkdtempSync(join(tmpdir(), 'native-core-boot-'))
 process.env.MERCURY_PROFILE_STARTUP = '1'
 process.env.MERCURY_CONFIG_DIR = join(HERMETIC, 'config')
 process.env.MERCURY_DAEMON_DIR = join(HERMETIC, 'daemon')
-process.env.MERCURY_CREWS_DIR = join(HERMETIC, 'teams')
+process.env.MERCURY_CREWS_DIR = join(HERMETIC, 'crews')
 for (const k of ['MERCURY_HOME', 'MERCURY_ENTER_MENU']) {
   delete process.env[k]
 }
@@ -675,25 +675,25 @@ function staticImports(src: string): {
     (routed?.children?.props as { __t15repl?: boolean })?.__t15repl === true,
   )
   check('launch: root forwarded untouched', (calls[0]?.root as { __t15root?: boolean })?.__t15root === true)
-  const forwarded = (el?.props?.initialState ?? {}) as Record<string, unknown> & { crewContext?: { teamName?: string; isLeader?: boolean; crewmates?: Record<string, unknown> } }
+  const forwarded = (el?.props?.initialState ?? {}) as Record<string, unknown> & { crewContext?: { crewName?: string; isLeader?: boolean; crewmates?: Record<string, unknown> } }
   check(
-    'launch: empty home ⇒ every field of initialState is forwarded by REFERENCE and no led-team projection is fabricated — only the session\'s born crew (no crewmates) is added',
+    'launch: empty home ⇒ every field of initialState is forwarded by REFERENCE and no led-crew projection is fabricated — only the session\'s born crew (no crewmates) is added',
     Object.keys(initialState as Record<string, unknown>).every(key => key === 'crewContext' || forwarded[key] === (initialState as Record<string, unknown>)[key]) &&
       forwarded.crewContext?.isLeader === true &&
       Object.keys(forwarded.crewContext?.crewmates ?? { x: 1 }).length === 0,
   )
 
-  const preset = { crewContext: { teamName: '__t15-preset' }, __t15: 'state-2' }
+  const preset = { crewContext: { crewName: '__t15-preset' }, __t15: 'state-2' }
   await launchRepl(
     root as never,
     { getFpsMetrics: () => undefined, initialState: preset as never },
     replProps as never,
     fakeRender as never,
   )
-  const el2 = calls[1]?.element as never as { props: { initialState?: { crewContext?: { teamName?: string } } } }
+  const el2 = calls[1]?.element as never as { props: { initialState?: { crewContext?: { crewName?: string } } } }
   check(
     'launch: a pre-set crewContext is forwarded unchanged',
-    el2?.props?.initialState?.crewContext?.teamName === '__t15-preset',
+    el2?.props?.initialState?.crewContext?.crewName === '__t15-preset',
   )
 }
 
@@ -729,7 +729,7 @@ function staticImports(src: string): {
       appSrc.includes("if (s.phase !== 'done') return false"),
   )
   check(
-    'recovery: the late seed keeps the never-override guard — only a born crew with no crewmates yields to a late led-team projection',
+    'recovery: the late seed keeps the never-override guard — only a born crew with no crewmates yields to a late led-crew projection',
     appSrc.includes('prev.crewContext && !isBornCrewWithoutCrewmates(prev.crewContext) ? prev :'),
   )
 }

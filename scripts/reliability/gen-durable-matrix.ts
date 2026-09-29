@@ -12,7 +12,7 @@ const DOC = join(import.meta.dir, '.out', 'DURABLE-OPERATION-MATRIX.md')
 
 const DOMAIN_TITLES: Record<DurableOperationRow['domain'], string> = {
   filestore: 'FileStore kernel',
-  crews: 'Teams',
+  crews: 'Crews',
   tasks: 'Tasks',
   mailbox: 'Mailbox',
   runs: 'Autonomous runs',

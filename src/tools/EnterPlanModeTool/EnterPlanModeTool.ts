@@ -4,7 +4,7 @@ import { enqueueNotification } from '../../context/notifications.js'
 import { buildTool } from '../../Tool.js'
 import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { getAgentContext } from '../../utils/agentContext.js'
-import { isTeammate } from '../../utils/crewmate.js'
+import { isCrewmate } from '../../utils/crewmate.js'
 import { EFFORT_LEVELS, isEffortLevel, type EffortLevel } from '../../utils/effort.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
@@ -55,7 +55,7 @@ export const EnterPlanModeTool = buildTool({
     return ''
   },
   async validateInput() {
-    if (!isTeammate() && getIsNonInteractiveSession() && !canAnswerAsks()) {
+    if (!isCrewmate() && getIsNonInteractiveSession() && !canAnswerAsks()) {
       return {
         result: false as const,
         message: 'This session runs headless with no permission channel, so no operator could approve a plan and strategy mode could never be left — not entered. Write the plan in your reply and carry it out under the session\'s permissions; a client that connects a permission channel can approve plans.',

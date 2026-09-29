@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'runner-life-config-'))
-process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'runner-life-teams-'))
+process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'runner-life-crews-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key'
 delete process.env.ANTHROPIC_BASE_URL
 delete process.env.MERCURY_EFFORT_LEVEL
@@ -167,7 +167,7 @@ export type TaskView = {
   currentWorkAbortController?: AbortController
   unregisterCleanup?: () => void
   onIdleCallbacks?: Array<() => void>
-  identity: { agentId: string; agentName: string; teamName: string; parentSessionId: string }
+  identity: { agentId: string; agentName: string; crewName: string; parentSessionId: string }
   toolUseId?: string
 }
 export const task = (store: Store, id: string): TaskView => store.getAppState().tasks[id] as TaskView
@@ -188,7 +188,7 @@ export const bookendsFor = (taskId: string): SdkEventView[] =>
 export async function idleNotificationsFor(
   crew: string,
 ): Promise<Array<{ idleReason?: string; failureReason?: string }>> {
-  const msgs = await liveMessagesFor(crew, 'team-lead')
+  const msgs = await liveMessagesFor(crew, 'crew-lead')
   return msgs
     .map(m => isIdleNotification(m.text))
     .filter(Boolean) as Array<{ idleReason?: string; failureReason?: string }>
@@ -227,7 +227,7 @@ export async function launch(opts: {
   const spawned = await spawnInProcessCrewmate(
     {
       name: opts.name,
-      teamName: opts.crew,
+      crewName: opts.crew,
       prompt: opts.prompt,
       planModeRequired: false,
     },

@@ -225,7 +225,7 @@ export function crewTrafficMessages(records: readonly Message[]): CrewRow[] {
       while ((match = CREWMATE_OPEN.exec(text)) !== null) {
         const attrs = match[1] ?? ''
         const body = unescapeAttr((match[2] ?? '').trim())
-        const agent = attr(attrs, 'teammate_id') ?? 'agent'
+        const agent = attr(attrs, 'crewmate_id') ?? 'agent'
         const summary = attr(attrs, 'summary')
         rows.push({
           kind: 'crew',

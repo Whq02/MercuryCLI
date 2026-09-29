@@ -28,8 +28,8 @@ export type CrewmateStatus = {
 
 const RECOGNISED_BACKENDS: ReadonlySet<string> = new Set(['tmux', 'iterm2'])
 
-export function getCrewmateStatuses(teamName: string): CrewmateStatus[] {
-  const crewFile = readCrewFile(teamName)
+export function getCrewmateStatuses(crewName: string): CrewmateStatus[] {
+  const crewFile = readCrewFile(crewName)
   if (!crewFile) return []
   const hiddenPanes = new Set(crewFile.hiddenPaneIds ?? [])
   return crewFile.members
