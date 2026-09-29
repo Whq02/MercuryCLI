@@ -200,7 +200,6 @@ reg(
     'src/components/extensions/ExtensionView.tsx',
     'src/components/tasks/AgentInspectorPane.tsx',
     'src/components/tasks/RunDetailPane.tsx',
-    'src/components/teams/TeamsDialog.tsx',
     'src/components/mercury-ui/PaletteView.tsx',
     'src/components/mercury-ui/SpecimenGallery.tsx',
     'src/components/mercury-ui/parity/CapabilityManagerView.tsx',

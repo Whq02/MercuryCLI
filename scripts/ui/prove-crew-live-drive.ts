@@ -483,7 +483,7 @@ async function stopLeg(dialect: Dialect): Promise<void> {
   const running = marks['running'] ?? ''
   check(`${tag}: both seats were running with tokens when the Esc fired`, rowTokens(running, SEAT_ONE) && rowTokens(running, SEAT_TWO))
   const interrupted = marks['interrupted'] ?? ''
-  check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 sub-agents still running — open the crew view \(\/teammates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
+  check(`${tag}: the esc is the turn's alone — the receipt counts the crew still running and names the crew view door`, /2 sub-agents still running — open the crew view \(\/crewmates\)/.test(flat(interrupted)) && !interrupted.includes('killed'))
   const crewRunning = crewPopup(marks['crew-running'] ?? '')
   check(`${tag}: the Crew view after the esc — both seats run on with their tokens kept`, agentRow(crewRunning, SEAT_ONE, /◐/) && agentRow(crewRunning, SEAT_TWO, /◐/) && rowTokens(crewRunning, SEAT_ONE) && rowTokens(crewRunning, SEAT_TWO) && crewRunning.includes('2 running · 2 sub-agents'))
   const crewStopped = marks['crew-stopped'] ?? ''

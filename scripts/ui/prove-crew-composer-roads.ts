@@ -559,7 +559,7 @@ async function run(cols: number, rows: number): Promise<void> {
     await sleep(400)
     const IDLE_LINE = 'to the idle local'
     const idleLocalFooter = footerOf(scene.lines()).replace(/\s+/g, ' ')
-    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door (r in /teammates), never "↵ sends to Lane local"', /↵ refused — r in \/teammates resumes Lane local/.test(idleLocalFooter) && !/↵ sends to Lane local/.test(idleLocalFooter), idleLocalFooter.slice(0, 260))
+    check('the footer on a landed LOCAL crewmate says ↵ is refused and names the resume door (r in /crewmates), never "↵ sends to Lane local"', /↵ refused — r in \/crewmates resumes Lane local/.test(idleLocalFooter) && !/↵ sends to Lane local/.test(idleLocalFooter), idleLocalFooter.slice(0, 260))
     await typeWords(scene, IDLE_LINE)
     scene.push(ENTER)
     await sleep(700)

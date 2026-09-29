@@ -69,7 +69,7 @@ import { processMainOwner } from '../services/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { lerpHex } from '../utils/theme.js'
-import { LEAD_ROW_NAME } from '../utils/cockpit/crewmateWords.js'
+import { LEAD_ROW_NAME, crewChatDoor } from '../utils/cockpit/crewmateWords.js'
 
 
 type CrewRow = { id: string; label: string; status: TaskStatus; hosted?: boolean; facts?: CrewAgentFacts }
@@ -748,7 +748,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           verb={unreadVerb}
           verbColor={entry.unread > 0 ? tok.warning : entry.online ? tok.textSecondary : tok.textMuted}
           verbPulse={entry.unread > 0}
-          {...railRowProps(isOn, sel, { kind: 'command', command: `/teammates ${entry.name}`, label: `crew:d:${entry.name}` })}
+          {...railRowProps(isOn, sel, { kind: 'command', command: crewChatDoor(entry.name), label: `crew:d:${entry.name}` })}
         />
       )
     }
