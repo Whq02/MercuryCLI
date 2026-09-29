@@ -215,7 +215,7 @@ try {
   const appendedTail = transcriptAfter.startsWith(transcriptBefore) ? transcriptAfter.slice(transcriptBytesBefore) : ''
   check('R7 the transcript grew and its pre-park bytes are its exact prefix (the revived runner appended, never rewrote)', transcriptAfter.length > transcriptBytesBefore && transcriptAfter.startsWith(transcriptBefore) && appendedTail.includes('retire-probe: second answer'), `before ${transcriptBytesBefore} bytes, after ${transcriptAfter.length}, prefix intact ${transcriptAfter.startsWith(transcriptBefore)}`)
 
-  const lost = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-4', prompt: 'retire-probe-third: a session whose transcript will be lost', workspaceDir: work, title: 'Lost probe', model: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; sessionId?: string }
+  const lost = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-4', prompt: 'retire-probe-third: a session whose transcript will be lost', workspaceDir: work, title: 'Lost probe', model: 'claude-sonnet-5', effort: 'high' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string }
   const lostSid = lost.sessionId ?? ''
   check('R8 a second session dispatched and settled', lost.ok === true && await untilAsync(() => transcriptOf(lostSid).includes('retire-probe: first answer') && readFacts(lostSid)?.busy === false, 60_000), JSON.stringify(lost))
   const lostPark = (await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId: lostSid, by: 'operator:retire-drive' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; outcome?: string }
