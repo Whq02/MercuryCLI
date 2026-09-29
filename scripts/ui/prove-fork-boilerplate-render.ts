@@ -16,8 +16,10 @@ console.log('============================================================')
 
 const userText = src('components', 'messages', 'UserTextMessage.tsx')
 check(
-  'UserTextMessage dispatches `<fork-boilerplate>` text to UserForkBoilerplateMessage',
-  /param\.text\.includes\(`<\$\{FORK_BOILERPLATE_TAG\}>`\)/.test(userText) &&
+  'UserTextMessage dispatches text that OPENS with `<fork-boilerplate>` to UserForkBoilerplateMessage (head-anchored: a prompt quoting the tag mid-text is the operator\'s row)',
+  /const head = param\.text\.trimStart\(\)/.test(userText) &&
+    /head\.startsWith\(`<\$\{FORK_BOILERPLATE_TAG\}>`\)/.test(userText) &&
+    !/param\.text\.includes\(`<\$\{FORK_BOILERPLATE_TAG\}>`\)/.test(userText) &&
     /<UserForkBoilerplateMessage addMargin=\{addMargin\} param=\{param\} \/>/.test(userText),
 )
 check(
