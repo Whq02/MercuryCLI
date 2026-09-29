@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-29T03:29:06.557Z",
+ "capturedAt": "2026-09-29T03:39:35.692Z",
  "screens": [
   {
    "atMs": 12500,
@@ -37,7 +37,7 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-1xpqhj                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-HEnCzi                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -72,22 +72,23 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-1xpqhj                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-HEnCzi                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12963,
-   "frame-recommit": 18
+   "patches": 14191,
+   "frame-recommit": 25,
+   "tail-publish": 2
   },
   "frames": {
-   "total": 32,
-   "window": 32,
-   "p50": 1.1346249999996871,
-   "p95": 17.972457999999733,
-   "p99": 21.448249999999916,
-   "maxMs": 21.448249999999916
+   "total": 44,
+   "window": 44,
+   "p50": 1.5608339999998861,
+   "p95": 49.40916599999946,
+   "p99": 100.35487499999999,
+   "maxMs": 100.35487499999999
   }
  },
  "requests": [
@@ -99,7 +100,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -122,11 +123,11 @@
  ],
  "sends": [
   {
-   "atMs": 6830.179929733276,
+   "atMs": 9511.267900466919,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7630.179929733276,
+   "atMs": 10311.267900466919,
    "b64": "DQ=="
   }
  ]

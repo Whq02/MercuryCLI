@@ -3,7 +3,7 @@
  "note": "contract journey 10 — plan mode (shift+tab ×2 pre-prompt) surfaces \"Skip interview and plan immediately\"; activating it ENDS the interview via onReject(prose)",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-29T03:30:30.423Z",
+ "capturedAt": "2026-09-29T03:40:58.901Z",
  "screens": [
   {
    "atMs": 13500,
@@ -17,14 +17,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 04:30:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:40:48 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 04:30:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 04:40:48 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 04:30:25 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 04:40:53 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -46,7 +46,7 @@
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-    "the session is landing — your line sends when it lands",
+    "? for shortcuts · ctrl+x p for commands + files",
     "backslash (\\) + ↵ for a new line · ⇧← concourse"
    ]
   },
@@ -62,14 +62,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 04:30:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:40:48 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 04:30:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 04:40:48 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 04:30:25 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 04:40:53 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -107,14 +107,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 04:30:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 04:40:48 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 04:30:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 04:40:48 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 04:30:25 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 04:40:53 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -143,17 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 24055,
-   "frame-recommit": 50,
-   "tail-publish": 2
+   "patches": 23597,
+   "frame-recommit": 44
   },
   "frames": {
-   "total": 80,
-   "window": 80,
-   "p50": 1.0790830000005371,
-   "p95": 27.46799999999712,
-   "p99": 161.9208749999998,
-   "maxMs": 161.9208749999998
+   "total": 74,
+   "window": 74,
+   "p50": 1.4744170000012673,
+   "p95": 17.957875000000058,
+   "p99": 82.34545899999966,
+   "maxMs": 82.34545899999966
   }
  },
  "requests": [
@@ -165,7 +164,7 @@
     "content": [
      {
       "type": "text",
-      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the consolidated team brief, and team-mailbox messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
+      "text": "<system-reminder>\n# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## mercury\nMercury coordination substrate: typed tools for file leases, the crew brief (the same live read LiveComms gives), and crew messaging. Prefer these over Bash for swarm coordination.\n</system-reminder>"
      },
      {
       "type": "text",
@@ -205,39 +204,39 @@
  ],
  "sends": [
   {
-   "atMs": 12141.106367111206,
+   "atMs": 9415.880918502808,
    "b64": "G1ta"
   },
   {
-   "atMs": 12541.106367111206,
+   "atMs": 9815.880918502808,
    "b64": "G1ta"
   },
   {
-   "atMs": 13141.106367111206,
+   "atMs": 10415.880918502808,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 13941.106367111206,
+   "atMs": 11215.880918502808,
    "b64": "DQ=="
   },
   {
-   "atMs": 17641.106367111206,
+   "atMs": 14915.880918502808,
    "b64": "G1tC"
   },
   {
-   "atMs": 18041.106367111206,
+   "atMs": 15315.880918502808,
    "b64": "G1tC"
   },
   {
-   "atMs": 18441.106367111206,
+   "atMs": 15715.880918502808,
    "b64": "G1tC"
   },
   {
-   "atMs": 18841.106367111206,
+   "atMs": 16115.880918502808,
    "b64": "G1tC"
   },
   {
-   "atMs": 19241.106367111206,
+   "atMs": 16515.880918502808,
    "b64": "DQ=="
   }
  ]
