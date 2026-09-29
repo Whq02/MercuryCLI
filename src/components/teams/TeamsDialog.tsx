@@ -23,13 +23,7 @@ import {
   type TeamSummary,
   type TeammateStatus,
 } from '../../utils/teamDiscovery.js'
-import { TEAM_LEAD_NAME, TMUX_COMMAND, getSwarmSocketName } from '../../utils/swarm/constants.js'
-import { isPaneBackend } from '../../utils/swarm/backends/types.js'
-import {
-  ensureBackendsRegistered,
-  getBackendByType,
-} from '../../utils/swarm/backends/registry.js'
-import { isInsideTmux } from '../../utils/swarm/backends/detection.js'
+import { TEAM_LEAD_NAME } from '../../utils/swarm/constants.js'
 import {
   createModeSetRequestMessage,
   createShutdownRequestMessage,
@@ -49,7 +43,6 @@ import {
   type AgentColorName,
 } from '../../tools/AgentTool/agentColorManager.js'
 import { truncateToWidth } from '../../utils/truncate.js'
-import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { logForDebugging } from '../../utils/debug.js'
 
 const ROSTER_TICK_MS = 1000
@@ -68,22 +61,6 @@ async function killTeammate(
   status: TeammateStatus,
   setAppState: (updater: (prev: AppState) => AppState) => void,
 ): Promise<void> {
-  try {
-    if (status.backendType && isPaneBackend(status.backendType)) {
-      await ensureBackendsRegistered()
-      const useExternalSession = !(await isInsideTmux())
-      await getBackendByType(status.backendType).killPane(
-        status.tmuxPaneId,
-        useExternalSession,
-      )
-    } else {
-      logForDebugging(
-        `teams dialog: no backend type for ${status.name} — old team file or in-process teammate; skipping the pane kill`,
-      )
-    }
-  } catch (error) {
-    logForDebugging(`teams dialog: pane kill failed for ${status.name}: ${error}`)
-  }
   try {
     removeMemberFromTeam(teamName, status.tmuxPaneId)
   } catch (error) {
@@ -156,26 +133,7 @@ async function sendModeSet(
 }
 
 async function focusPane(status: TeammateStatus): Promise<void> {
-  if (!status.backendType || !isPaneBackend(status.backendType)) return
-  try {
-    if (status.backendType === 'iterm2') {
-      await execFileNoThrow('it2', ['session', 'focus', '-s', status.tmuxPaneId])
-      return
-    }
-    if (await isInsideTmux()) {
-      await execFileNoThrow(TMUX_COMMAND, ['select-pane', '-t', status.tmuxPaneId])
-    } else {
-      await execFileNoThrow(TMUX_COMMAND, [
-        '-L',
-        getSwarmSocketName(),
-        'select-pane',
-        '-t',
-        status.tmuxPaneId,
-      ])
-    }
-  } catch (error) {
-    logForDebugging(`teams dialog: pane focus failed for ${status.name}: ${error}`)
-  }
+  void status
 }
 
 export function TeamsDialog({

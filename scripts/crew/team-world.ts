@@ -83,8 +83,6 @@ export function bootLead(world: World, extraArgv: string[], allowedTools: string
     LEAD_MODEL,
     '--allowed-tools',
     ...allowedTools,
-    '--teammate-mode',
-    'in-process',
     ...extraArgv,
   ]
   const child = spawn(NODE, argv, { cwd: world.project, env: world.env, stdio: ['pipe', 'pipe', 'pipe'] })

@@ -77,7 +77,6 @@ import { LanguagePicker } from '../LanguagePicker.js'
 import { ExternalInstructionIncludesDialog } from '../ExternalInstructionIncludesDialog.js'
 import type { ExternalInstructionInclude } from '../../services/instructions/engine.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { clearCliTeammateModeOverride } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { SEAT_DOORS, seatCeilingFactsAsync, seatCeilingValueWords, seatCostWarning, setOperatorSeats, type SeatCeilingFacts } from '../../services/switchboard/capacityCheck.js'
 import { MOTION_DOORS, MOTION_SETTINGS, motionDetailLines, motionValueWords, noteMotionSettingChanged, readMotionSetting, setMotionSetting } from '../../utils/cockpit/motionSetting.js'
@@ -1029,20 +1028,6 @@ export function Config({
     })
   }
   if (isAgentSwarmsEnabled()) {
-    const teammateModes = ['auto', 'tmux', 'in-process'] as const
-    const teammateMode = validated(teammateModes, config.teammateMode, 'auto')
-    items.push({
-      id: 'teammateMode',
-      label: 'Teammate mode',
-      kind: 'enum',
-      value: <Text>{teammateMode}</Text>,
-      change: direction => {
-        const next = cycleIn(teammateModes, teammateMode, direction)
-        clearCliTeammateModeOverride(next)
-        writeGlobal(c => ({ ...c, teammateMode: next }))
-        recordSet('teammateMode', `set teammate mode to ${next}`)
-      },
-    })
     items.push({
       id: 'defaultTeammateModel',
       label: 'Default teammate model',

@@ -68,7 +68,7 @@ const response = (id: string): Frame | undefined => session.frames.find(frame =>
 const control = async (request: Frame): Promise<Frame> => {
   const id = `req-${++seq}`
   session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined, 20_000)
+  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined, TURN_MS / 4)
   return response(id)!.response as Frame
 }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
@@ -119,14 +119,14 @@ try {
   await session.waitFor('the lead never sent the first ask', () => session.stdout().includes('LEAD-SENT-1'), TURN_MS)
   const refused1 = await until(() => requestCarrying(before1, MESSAGE_1) !== undefined, TURN_MS / 3)
   tally.check('the crewmate carried the ask to the wire and met the 429', refused1)
-  const paused1 = (await until(async () => (await pausedRow(worker)) !== undefined, 20_000)) ? await pausedRow(worker) : undefined
+  const paused1 = (await until(async () => (await pausedRow(worker)) !== undefined, TURN_MS / 4)) ? await pausedRow(worker) : undefined
   const rowsNow = rowsNamed(await facts(), worker)
   record('paused-row-1.json', JSON.stringify(rowsNow, null, 2))
   tally.check('the crewmate row reads PAUSED on the usage limit (RED on the base: the row stays running-idle or reads failed)', paused1 !== undefined, JSON.stringify(rowsNow))
   tally.check("the pause carries the provider's reset time", near(paused1?.paused?.resumes_at_ms, resetA, 2_000), JSON.stringify(paused1?.paused))
   tally.check("the paused row is settled, never a bare failure, and its words are the provider's wait", paused1 !== undefined && paused1.status !== 'running' && typeof paused1.paused?.words === 'string' && /spent|wait until/.test(paused1.paused.words), JSON.stringify(paused1))
   tally.check('the roster keeps the paused crewmate', rosterHolds(worker))
-  const told = await until(() => leadInboxFrom(worker).some(text => /paused/.test(text) && !/"failed"/.test(text)), 10_000)
+  const told = await until(() => leadInboxFrom(worker).some(text => /paused/.test(text) && !/"failed"/.test(text)), TURN_MS / 9)
   tally.check('the lead is told the crewmate paused, never that it failed (RED on the base: a failed idle notice)', told && !leadInboxFrom(worker).some(text => /idle_notification/.test(text) && /"failed"/.test(text)), JSON.stringify(leadInboxFrom(worker)).slice(0, 400))
 
   tally.section('THE PIN: the operator signs in on another account before the reset — the crewmate resumes at once, same name, same model, its history kept')
@@ -134,13 +134,13 @@ try {
   const before2 = requests().length
   const switched = await control({ subtype: 'credential_change' })
   tally.check('the credential change was taken by the session', switched.subtype === 'success', JSON.stringify(switched))
-  const resumed1 = (await until(() => requestCarrying(before2, RESUMED) !== undefined, 30_000)) ? requestCarrying(before2, RESUMED) : undefined
+  const resumed1 = (await until(() => requestCarrying(before2, RESUMED) !== undefined, TURN_MS / 3)) ? requestCarrying(before2, RESUMED) : undefined
   record('resumed-request-1.json', JSON.stringify(resumed1?.body ?? null, null, 2))
   tally.check('the crewmate makes a new request with the resume note as its next turn (RED on the base: none)', resumed1 !== undefined, String(requests().length - before2))
   tally.check('its history keeps the first answer and the refused ask', resumed1 !== undefined && bodyText(resumed1).includes('WORKER-READY') && bodyText(resumed1).includes(MESSAGE_1))
   tally.check('it keeps its model', resumed1?.body.model === peerModel)
-  tally.check('it runs on under a new row with its name', await until(() => rowsOf('in_process_teammate').length > rowsBeforeSwitch, 10_000) && rowsOf('in_process_teammate').at(-1)!.description.startsWith(`${worker}:`), JSON.stringify(rowsOf('in_process_teammate')))
-  tally.check('the paused row is gone once the resume runs', await until(async () => (await pausedRow(worker)) === undefined, 10_000), JSON.stringify(rowsNamed(await facts(), worker)))
+  tally.check('it runs on under a new row with its name', await until(() => rowsOf('in_process_teammate').length > rowsBeforeSwitch, TURN_MS / 9) && rowsOf('in_process_teammate').at(-1)!.description.startsWith(`${worker}:`), JSON.stringify(rowsOf('in_process_teammate')))
+  tally.check('the paused row is gone once the resume runs', await until(async () => (await pausedRow(worker)) === undefined, TURN_MS / 9), JSON.stringify(rowsNamed(await facts(), worker)))
   tally.check('the resumed crewmate answers and goes idle', await until(async () => rowsNamed(await facts(), worker).some(row => row.status === 'running' && row.idle === true), TURN_MS / 3))
 
   tally.section('THE PIN: the reset resumes it by itself')
@@ -152,13 +152,13 @@ try {
   await session.waitFor('the lead never sent the second ask', () => session.stdout().includes('LEAD-SENT-2'), TURN_MS)
   const refused2 = await until(() => requestCarrying(before3, MESSAGE_2) !== undefined, TURN_MS / 3)
   tally.check('the crewmate met the second 429', refused2)
-  const paused2 = (await until(async () => (await pausedRow(worker)) !== undefined, 20_000)) ? await pausedRow(worker) : undefined
+  const paused2 = (await until(async () => (await pausedRow(worker)) !== undefined, TURN_MS / 4)) ? await pausedRow(worker) : undefined
   tally.check('it reads paused again with the short reset', paused2 !== undefined && near(paused2.paused?.resumes_at_ms, resetB, 2_000), JSON.stringify(paused2))
-  const resumed2 = (await until(() => requestCarrying(before3 + 1, RESUMED) !== undefined, 40_000)) ? requestCarrying(before3 + 1, RESUMED) : undefined
+  const resumed2 = (await until(() => requestCarrying(before3 + 1, RESUMED) !== undefined, TURN_MS / 2)) ? requestCarrying(before3 + 1, RESUMED) : undefined
   record('resumed-request-2.json', JSON.stringify(resumed2?.body ?? null, null, 2))
   tally.check('at the reset the crewmate resumes by itself: a new request with the resume note (RED on the base: none)', resumed2 !== undefined && bodyText(resumed2).includes(MESSAGE_2) && bodyText(resumed2).includes('WORKER-CONTINUED-1'), String(requests().length - before3))
   tally.check('the resume waited for the reset (never before it)', resumed2 === undefined || (world.fixture.messageRequests() as Array<{ body: { model?: string }; at?: number }>).length >= 0)
-  tally.check('a new row with its name, the paused row gone', await until(() => rowsOf('in_process_teammate').length > rowsBeforeReset, 10_000) && (await until(async () => (await pausedRow(worker)) === undefined, 10_000)), JSON.stringify(rowsOf('in_process_teammate')))
+  tally.check('a new row with its name, the paused row gone', await until(() => rowsOf('in_process_teammate').length > rowsBeforeReset, TURN_MS / 9) && (await until(async () => (await pausedRow(worker)) === undefined, TURN_MS / 9)), JSON.stringify(rowsOf('in_process_teammate')))
 
   tally.section('THE PIN for the sub-agent kind: a paused sub-agent resumes on the credential change too')
   const resetC = Date.now() + 90_000
@@ -168,12 +168,12 @@ try {
   await session.waitFor('the lead never launched the scout', () => session.stdout().includes('LEAD-SCOUTED'), TURN_MS)
   const scoutRefused = await until(() => requestCarrying(before4, 'SCOUT-ASK') !== undefined, TURN_MS / 3)
   tally.check('the sub-agent carried its ask to the wire and met the 429', scoutRefused)
-  const scoutPaused = (await until(async () => (await pausedRow(scout)) !== undefined, 20_000)) ? await pausedRow(scout) : undefined
+  const scoutPaused = (await until(async () => (await pausedRow(scout)) !== undefined, TURN_MS / 4)) ? await pausedRow(scout) : undefined
   tally.check('the sub-agent row reads paused with the reset (the road that already existed)', scoutPaused !== undefined && near(scoutPaused.paused?.resumes_at_ms, resetC, 2_000), JSON.stringify(rowsNamed(await facts(), scout)))
   const before5 = requests().length
   const switched2 = await control({ subtype: 'credential_change' })
   tally.check('the second credential change was taken', switched2.subtype === 'success')
-  const scoutResumed = (await until(() => requestCarrying(before5, RESUMED) !== undefined, 30_000)) ? requestCarrying(before5, RESUMED) : undefined
+  const scoutResumed = (await until(() => requestCarrying(before5, RESUMED) !== undefined, TURN_MS / 3)) ? requestCarrying(before5, RESUMED) : undefined
   record('resumed-scout-request.json', JSON.stringify(scoutResumed?.body ?? null, null, 2))
   tally.check('the paused sub-agent resumes on the credential change with its history (RED on the base: it waits for the reset)', scoutResumed !== undefined && bodyText(scoutResumed).includes('SCOUT-ASK'), String(requests().length - before5))
 } catch (error) {

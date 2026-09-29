@@ -51,7 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const fixture = await startFixtureApi(script)
-const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'TeamCreate', 'Bash', '--teammate-mode', 'in-process', '--session-id', randomUUID()], {
+const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--permission-mode', 'sovereign', '--allowed-tools', 'Agent', 'SendMessage', 'TeamCreate', 'Bash', '--session-id', randomUUID()], {
   cwd: project,
   env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],
@@ -103,7 +103,8 @@ try {
   submit('START: create the team, spawn water, start the pool, then park.')
   const parked = await waitFor(() => stdout.includes('LEAD-PARKED'), 'the lead did not park')
   const parkedAt = Date.now()
-  check('the lead created the team, spawned water in-process, started a background shell and parked (its turn ended with the shell still running)', parked && existsSync(inboxPath), stdout.slice(-300))
+  const waterOnTheWire = (fixture.messageRequests() as Request[]).some(request => request.body.model === teammateModel)
+  check('the lead created the team, spawned water in-process, started a background shell and parked (its turn ended with the shell still running)', parked && existsSync(join(teams, team, 'config.json')) && waterOnTheWire, `team file ${existsSync(join(teams, team, 'config.json'))}, water on the wire ${waterOnTheWire}; ${stdout.slice(-200)}`)
   const waited = await waitFor(() => stdout.includes('"waiting_on_agents"'), 'the lead did not announce its wait', 5_000)
   check("the parked lead announces the background wait — the driver sits in its agent-wait loop, not idle", waited, stdout.split('\n').filter(line => line.includes('waiting_on_agents')).slice(0, 2).join(' | '))
 

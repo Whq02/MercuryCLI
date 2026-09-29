@@ -24,7 +24,7 @@ import {
   performTeamCreateOperation,
   TeamCreateConflictError,
 } from '../../utils/swarm/teamOperations.js'
-import { assignTeammateColor } from '../../utils/swarm/teammateLayoutManager.js'
+import { assignTeammateColor } from '../../utils/crew/crewmateColors.js'
 import type { SetAppState } from '../../utils/messageQueueManager.js'
 import { TEAM_CREATE_TOOL_NAME } from './constants.js'
 import { TEAM_DELETE_TOOL_NAME } from '../TeamDeleteTool/constants.js'

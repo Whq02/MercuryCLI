@@ -71,7 +71,7 @@ import {
 } from '../../utils/swarm/sendMessageGovernance.js'
 import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/swarm/handoff.js'
 import { readTeamFileAsync, type TeamFile } from '../../utils/swarm/teamHelpers.js'
-import { assignTeammateColor } from '../../utils/swarm/teammateLayoutManager.js'
+import { assignTeammateColor } from '../../utils/crew/crewmateColors.js'
 import {
   getAgentId,
   getAgentName,

@@ -1,5 +1,5 @@
 
-import { useContext, useEffect, useState } from 'react'
+import { useContext } from 'react'
 import { CockpitActiveContext } from '../../context/cockpitActiveContext.js'
 import type { Theme } from '../../utils/theme.js'
 import { useAppState, useAppStateStore } from '../../state/AppState.js'
@@ -11,12 +11,6 @@ import {
   type AgentColorName,
   getAgentColor,
 } from '../../tools/AgentTool/agentColorManager.js'
-import {
-  TEAMMATE_COLOR_ENV_VAR,
-  getSwarmSocketName,
-} from '../../utils/swarm/constants.js'
-import { isInsideTmux } from '../../utils/swarm/backends/detection.js'
-import { getTeammateModeFromSnapshot } from '../../utils/swarm/backends/teammateModeSnapshot.js'
 
 const SUBAGENT_FALLBACK: keyof Theme = 'suggestion'
 
@@ -42,35 +36,7 @@ export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null 
   )
   void viewingAgentTaskId
 
-  const [insideTmux, setInsideTmux] = useState<boolean | null>(null)
-  useEffect(() => {
-    let cancelled = false
-    void isInsideTmux()
-      .then(value => {
-        if (!cancelled) setInsideTmux(value)
-      })
-      .catch(() => {})
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
   const state = store.getState()
-  const envColor = process.env[TEAMMATE_COLOR_ENV_VAR]
-
-  const teammateMode = getTeammateModeFromSnapshot()
-  if (
-    teamContext &&
-    teamContext.isLeader !== true &&
-    teammateMode !== 'in-process' &&
-    teamContext.selfAgentName &&
-    teamContext.teamName
-  ) {
-    return {
-      text: teamContext.selfAgentName,
-      bgColor: themeColorOf(teamContext.selfAgentColor ?? envColor),
-    }
-  }
 
   if (
     teamContext &&
@@ -82,14 +48,7 @@ export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null 
       (viewedTeammate as { identity?: { color?: string } } | undefined)
         ?.identity?.color,
     )
-    const inProcessOrPanes = teammateMode === 'in-process'
-    if (insideTmux === false && !inProcessOrPanes) {
-      return {
-        text: `attach: tmux -L ${getSwarmSocketName()} attach`,
-        bgColor: viewedColor,
-      }
-    }
-    if ((insideTmux === true || inProcessOrPanes) && viewedTeammate) {
+    if (viewedTeammate) {
       const name =
         (viewedTeammate as { identity?: { agentName?: string } }).identity
           ?.agentName ?? ''

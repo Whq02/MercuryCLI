@@ -147,7 +147,7 @@ section('§6 — tool surface')
   check('userFacingName is real', tool.TeamCreateTool.userFacingName(undefined) === 'TeamCreate')
   const ui = src('tools', 'TeamCreateTool', 'UI.tsx')
   check('use line carries the objective', /input\.objective \?\? input\.description/.test(ui))
-  check('result card: team + lead + backend', /lead \$\{output\.lead_agent_id\}/.test(ui) && /getResolvedTeammateMode\(\)/.test(ui))
+  check('result card: team + lead + backend', /lead \$\{output\.lead_agent_id\}/.test(ui) && /in-process backend/.test(ui))
   check('result card names the next useful action', /next: TaskCreate the work lanes/.test(ui))
   check('search text extracts the objective', /objective: \$\{output\.objective\}/.test(ui))
 }

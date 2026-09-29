@@ -9,10 +9,6 @@ import type { EffortValue } from '../utils/effort.js'
 import { validateSeatEffort } from '../utils/model/seatSlots.js'
 import { flagEnv, flagPair } from '../substrate/flagRegistry.js'
 import {
-  getTeammateExecutor,
-  isInProcessEnabled,
-} from '../utils/swarm/backends/registry.js'
-import {
   runTaskHeadless,
   buildHeadlessPrompt,
   spawnStreamJsonChild,
@@ -896,15 +892,6 @@ export class TaskRoster {
   }
 
   private async resolveVia(): Promise<string> {
-    try {
-      if (isInProcessEnabled()) {
-        await getTeammateExecutor(true).catch(() => null)
-        return 'headless'
-      }
-      await getTeammateExecutor(false).catch(() => null)
-      return 'headless'
-    } catch {
-      return 'headless'
-    }
+    return 'headless'
   }
 }

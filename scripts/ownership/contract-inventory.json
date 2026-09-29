@@ -651,6 +651,8 @@
     "type:Progress"
    ],
    "src/utils/swarm/inProcessRunner.ts": [
+    "cancelCrewmatePauseResume",
+    "crewmatePausedWords",
     "runInProcessTeammate",
     "startInProcessTeammate",
     "type:FirstDispatchOutcome",

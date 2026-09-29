@@ -4,7 +4,6 @@ import { Box, Text } from '../../ink.js'
 import type { ToolProgressData } from '../../Tool.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { ThemeName } from '../../utils/theme.js'
-import { getResolvedTeammateMode } from '../../utils/swarm/backends/registry.js'
 import type { Input, Output } from './TeamCreateTool.js'
 
 export function renderToolUseMessage(input: Partial<Input>): React.ReactNode {
@@ -22,7 +21,7 @@ export function renderToolResultMessage(
       <Text>
         <Text color={TEAL}>{'⊞ '}</Text>
         team <Text bold>{output.team_name}</Text> ready
-        <Text color={FAINT}>{` · lead ${output.lead_agent_id} · ${getResolvedTeammateMode()} backend`}</Text>
+        <Text color={FAINT}>{` · lead ${output.lead_agent_id} · in-process backend`}</Text>
       </Text>
       <Text color={SECOND} wrap="truncate-end">
         {`  objective: ${output.objective}`}

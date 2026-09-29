@@ -124,10 +124,6 @@ import {
   findRoleDefinition,
   getRoleSystemPrompt,
 } from './swarm/roleResolver.js'
-import {
-  getResolvedTeammateMode,
-  isInProcessEnabled,
-} from './swarm/backends/registry.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
@@ -3610,12 +3606,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'team-launch',
           label: 'Sub-agent launch',
           run: () => {
-            const mode = getResolvedTeammateMode()
-            const inProc = isInProcessEnabled()
-            const evidence = inProc
-              ? "in-process — named sub-agents run inside this session's runner"
-              : `${mode} panes — named sub-agents open terminal panes (in-process if the pane backend fails)`
-            return { status: 'info' as const, evidence, link: '/teammates' }
+            return { status: 'info' as const, evidence: "in-process — named sub-agents run inside this session's runner", link: '/teammates' }
           },
         },
       ],

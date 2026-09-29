@@ -371,7 +371,7 @@ let cap: Capture | null = null
 try {
   cap = await capture(
     {
-      argv: ['node', BIN, '--chat', '--teammate-mode', 'in-process'],
+      argv: ['node', BIN, '--chat'],
       cwd,
       cols: COLS,
       rows: ROWS,
