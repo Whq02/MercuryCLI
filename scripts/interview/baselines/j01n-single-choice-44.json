@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-29T21:15:30.003Z",
+ "capturedAt": "2026-09-29T21:58:55.049Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-TctnyK · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-yzer17 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "22:15:22 [sam] ❯ design the cache layer",
+    "22:58:47 [sam] ❯ design the cache layer",
     "",
-    "22:15:22 [Mercury] Let me confirm the open",
+    "22:58:47 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-TctnyK · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-yzer17 · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "22:15:22 [sam] ❯ design the cache layer",
+    "22:58:47 [sam] ❯ design the cache layer",
     "",
-    "22:15:22 [Mercury] Let me confirm the open",
+    "22:58:47 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5376,
-   "frame-recommit": 15
+   "patches": 5449,
+   "frame-recommit": 16
   },
   "frames": {
-   "total": 30,
-   "window": 30,
-   "p50": 0.594583999999486,
-   "p95": 7.861084000000005,
-   "p99": 9.96820899999966,
-   "maxMs": 9.96820899999966
+   "total": 31,
+   "window": 31,
+   "p50": 0.7777080000005299,
+   "p95": 11.84941600000002,
+   "p99": 12.76929199999995,
+   "maxMs": 12.76929199999995
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 6588.253974914551,
+   "atMs": 6605.942010879517,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7388.253974914551,
+   "atMs": 7405.942010879517,
    "b64": "DQ=="
   }
  ]
