@@ -83,7 +83,7 @@ try {
   tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
 
   tally.section('THE PIN: the roster record stays after the stop, marked stopped, its folder kept — never removed at the kill')
-  const marked = await until(() => workerMembers()[0]?.stoppedAt !== undefined, 5_000)
+  const marked = await until(() => workerMembers()[0]?.stoppedAt !== undefined, TURN_MS / 3)
   const after = workerMembers()[0]
   record('roster-after-stop.json', JSON.stringify(members(), null, 2))
   tally.check('the crew file keeps the crewmate\'s record (RED on the base: the kill removes it)', after !== undefined, JSON.stringify(members()))
