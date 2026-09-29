@@ -174,6 +174,8 @@ export type DaemonRequest =
       auth?: string
       name: string
       model: string
+      cwd?: string
+      worktree?: true | { at?: string }
     }
   | {
       op: 'sessionAdmit'

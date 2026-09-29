@@ -6,6 +6,7 @@ import {
   writeTeamFileAsync,
   type TeamFile,
 } from '../utils/swarm/teamHelpers.js'
+import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
@@ -150,11 +151,13 @@ export interface CrewSpawnDeps {
   onSpawned: (name: string, spec: StreamJsonChildSpec, pid: number | undefined) => void
 }
 
+export type CrewSeatStart = { cwd?: string; worktree?: { at?: string } }
+
 export function makeCrewSpawnHandler(
   deps: CrewSpawnDeps,
-): (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }> {
+): (name: string, modelKey: string, start?: CrewSeatStart) => Promise<{ ok: boolean; pid?: number; error?: string }> {
   const crewShorts = new Set<string>()
-  return async (name, modelKey) => {
+  return async (name, modelKey, start) => {
     if (!crewEnabled()) {
       return { ok: false, error: 'named agents are disabled on this daemon (MERCURY_CREW=0)' }
     }
@@ -172,12 +175,23 @@ export function makeCrewSpawnHandler(
     }
     const seat = await resolveCrewSeatModel(modelKey)
     if (!seat.ok) return { ok: false, error: seat.error }
+    let plan: CrewStartPlanV1
     try {
-      await ensureCrewTeamMember(name, seat.model, deps.dir)
+      plan = await resolveCrewStart({
+        name,
+        cwd: start?.cwd ?? deps.dir,
+        ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
+        model: seat.model,
+      })
+    } catch (e) {
+      return { ok: false, error: `start refused: ${e instanceof Error ? e.message : String(e)}` }
+    }
+    try {
+      await ensureCrewTeamMember(name, plan.model, plan.runDir)
     } catch (e) {
       return { ok: false, error: `team-file update failed: ${e}` }
     }
-    const spec = buildCrewSpec(name, seat, deps.dir)
+    const spec = buildCrewSpec(name, { model: plan.model, effort: seat.effort }, plan.runDir)
     const reg = r.registerLongLived(name, spec)
     if (!reg.ok) return { ok: false, error: reg.error ?? 'registerLongLived refused' }
     crewShorts.add(name)

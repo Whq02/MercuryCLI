@@ -465,7 +465,7 @@ export const AgentTool = buildTool({
   },
   async checkPermissions(input: AgentToolInput, context: ToolUseContext) {
     const question =
-      input.cwd !== undefined && !isTeammateSpawn(input)
+      input.cwd !== undefined
         ? agentCwdQuestion(input.cwd, context.getAppState().toolPermissionContext)
         : null
     if (question !== null) return question
@@ -545,7 +545,10 @@ export const AgentTool = buildTool({
     }
 
     if (isTeammateSpawn(input, teamName)) {
-      if (input.cwd !== undefined) throw new Error('cwd applies to a sub-agent launch, not a named teammate spawn: omit cwd, or omit name so the launch is a sub-agent.')
+      const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined
+      if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
+        throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
+      }
       const requestedType = decodeAgentType(input.subagent_type)
       if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a teammate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
@@ -562,6 +565,10 @@ export const AgentTool = buildTool({
           name: input.name,
           prompt: input.prompt,
           team_name: teamName,
+          ...(crewmateCwd !== undefined ? { cwd: crewmateCwd } : {}),
+          ...(input.isolation === 'worktree'
+            ? { worktree: { ...(input.worktree_at !== undefined ? { at: input.worktree_at } : {}) } }
+            : {}),
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(teammateModel ? { model: teammateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),

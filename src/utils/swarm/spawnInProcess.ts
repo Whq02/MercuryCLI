@@ -37,6 +37,8 @@ export type InProcessSpawnConfig = {
   color?: string
   planModeRequired: boolean
   model?: string
+  cwd?: string
+  worktree?: string
   agentType?: string
   transcriptAgentId?: string
   effort?: string
@@ -103,6 +105,8 @@ export async function spawnInProcessTeammate(
       identity,
       prompt: config.prompt,
       ...(config.model !== undefined ? { model: config.model } : {}),
+      ...(config.cwd !== undefined ? { cwd: config.cwd } : {}),
+      ...(config.worktree !== undefined ? { worktree: config.worktree } : {}),
       transcriptAgentId,
       ...(config.instructionAtSpawn !== undefined
         ? { instructionAtSpawn: config.instructionAtSpawn }
@@ -126,6 +130,8 @@ export async function spawnInProcessTeammate(
       description,
       launchedAt: task.startTime,
       ...(config.model !== undefined ? { model: config.model } : {}),
+      ...(config.cwd !== undefined ? { cwd: config.cwd } : {}),
+      ...(config.worktree !== undefined ? { worktreePath: config.worktree } : {}),
       ...(config.effort !== undefined ? { effortOverride: config.effort } : {}),
       teammate: {
         teamName: config.teamName,

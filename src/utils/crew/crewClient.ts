@@ -101,7 +101,7 @@ export async function spawnCrewTeammate(
   for (let attempt = 0; attempt < 15; attempt++) {
     try {
       const reply = await daemonControlRpc(
-        { op: 'crewSpawn', name, model: String(modelKey) } as DaemonRequest,
+        { op: 'crewSpawn', name, model: String(modelKey), cwd: projectDir } as DaemonRequest,
         { timeoutMs: 3000 },
       )
       if (reply.ok && reply.op === 'crewSpawn') return { ok: true, pid: reply.pid }
