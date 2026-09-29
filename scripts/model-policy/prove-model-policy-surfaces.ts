@@ -76,19 +76,28 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
     (options.match(/rows\.push\(getFableOption\(\)\)/g) ?? []).length === 2 &&
       !/if \(isFableAvailable\(\)\) \{\s*rows\.push\(getFableOption\(\)\)/.test(options),
   )
-  const fableRowBody = ((): string => {
-    const start = options.indexOf('function getFableOption')
+  const bodyOf = (name: string): string => {
+    const start = options.indexOf(`function ${name}`)
     if (start === -1) return ''
     const end = options.indexOf('\n}', start)
     return end === -1 ? '' : options.slice(start, end)
-  })()
+  }
+  const fableRowBody = bodyOf('getFableOption')
+  const aliasRowBody = bodyOf('aliasRow')
   check(
     'the Fable option has no description and does not consult the default decision',
-    fableRowBody.includes("description: ''") && !fableRowBody.includes('isFableAvailable'),
+    fableRowBody.includes("aliasRow('fable', '')") &&
+      /description: string\)/.test(aliasRowBody) &&
+      /\bdescription \}/.test(aliasRowBody) &&
+      !fableRowBody.includes('isFableAvailable') &&
+      !options.includes('isFableAvailable'),
   )
+  const premiumArm = bodyOf('premiumSubscriberTierRows')
   check(
-    'Opus stays an immediately-available explicit choice on frontier profiles (gated on the decision)',
-    /if \(isFableAvailable\(\)\) \{\s*rows\.push\(getOpusFrontierFallbackOption\(\)\)/.test(options),
+    'Opus is an immediately-available explicit choice on premium profiles — its row rides the premium arm beside the Fable rows, never gated on the decision',
+    /rows\.push\(\.\.\.previousGenerationFableRows\(\)\)\n\s*rows\.push\(getOpusFrontierFallbackOption\(\)\)/.test(premiumArm) &&
+      !/if \(/.test(premiumArm) &&
+      bodyOf('getOpusFrontierFallbackOption').includes("aliasRow('opus', '')"),
   )
   check(
     'no synthesized frontier literal rides after the allowlist',
