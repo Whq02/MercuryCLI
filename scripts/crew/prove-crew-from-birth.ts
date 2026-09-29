@@ -81,6 +81,16 @@ if (birth !== null) {
     foreign = error instanceof Error ? error.message : String(error)
   }
   tally.check('a join into a team that is not this session\'s crew still refuses, and the words name no create tool', foreign.includes('does not exist') && !/create the team/i.test(foreign), foreign)
+  const birthModule = birth as unknown as { birthSessionCrew: (sessionId: string, setAppState?: (updater: (prev: unknown) => unknown) => void) => string | null }
+  process.env.MERCURY_CREW = '1'
+  process.env.MERCURY_CREW_AGENT = 'seat-one'
+  let seatContextSet = false
+  const seatBirth = birthModule.birthSessionCrew(randomUUID(), () => {
+    seatContextSet = true
+  })
+  delete process.env.MERCURY_CREW
+  delete process.env.MERCURY_CREW_AGENT
+  tally.check('a daemon crew seat\'s own session births no crew of its own (a crewmate is never a lead)', seatBirth === null && !seatContextSet, `${String(seatBirth)} contextSet=${String(seatContextSet)}`)
 }
 
 tally.section('§1 a fresh session: the first spawn, message and brief find the crew — no create call')

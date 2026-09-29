@@ -4,7 +4,7 @@ import { formatAgentId } from '../agentId.js'
 import { getCwd } from '../cwd.js'
 import { TEAM_LEAD_NAME } from '../swarm/constants.js'
 import { getTeamFilePath, type TeamFile } from '../swarm/teamHelpers.js'
-import { getLeadTeamFallback, getTeamName, isTeammate, setLeadTeamFallback } from '../teammate.js'
+import { crewChildName, getLeadTeamFallback, getTeamName, isTeammate, setLeadTeamFallback } from '../teammate.js'
 
 export type CrewContext = NonNullable<AppState['teamContext']>
 
@@ -75,7 +75,7 @@ export function isBornCrewWithoutCrewmates(teamContext: AppState['teamContext'])
 }
 
 export function birthSessionCrew(sessionId: string, setAppState?: SetAppState): string | null {
-  if (isTeammate()) return null
+  if (isTeammate() || crewChildName() !== undefined) return null
   if (getLeadTeamFallback() === null) setLeadTeamFallback(sessionCrewName(sessionId))
   setAppState?.(prev => (prev.teamContext !== undefined ? prev : { ...prev, teamContext: bornCrewContext(sessionId) }))
   void import('./crewConvert.js').then(convert => convert.bootCrewConversion())
