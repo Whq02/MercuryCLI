@@ -1,7 +1,10 @@
 import type { AppState } from '../state/AppStateStore.js'
 import { isInProcessTeammateTask } from '../tasks/InProcessTeammateTask/types.js'
+import { flagEnv } from '../substrate/flagRegistry.js'
+import { getAgentContext, isSubagentContext } from './agentContext.js'
 import { TEAM_LEAD_NAME } from './swarm/constants.js'
 import { getTeammateContext } from './teammateContext.js'
+import { isCrewRole } from './workerRole.js'
 
 
 export {
@@ -59,8 +62,18 @@ export function getTeammateColor(): string | undefined {
   return dynamicTeamContext?.color
 }
 
+const MAIN_SESSION_SIDECHAIN = 'main-session'
+
+export function crewChildName(): string | undefined {
+  if (!isCrewRole()) return undefined
+  const name = flagEnv('MERCURY_CREW_AGENT')
+  return name !== undefined && name.trim() !== '' ? name.trim() : undefined
+}
+
 export function resolveCoordAgentId(): string {
-  return getAgentName() ?? TEAM_LEAD_NAME
+  const context = getAgentContext()
+  if (isSubagentContext(context) && context.subagentName !== MAIN_SESSION_SIDECHAIN) return context.agentId
+  return getAgentName() ?? crewChildName() ?? TEAM_LEAD_NAME
 }
 
 export function getTeamName(teamContext?: { teamName: string }): string | undefined {

@@ -1,13 +1,29 @@
 
+import { createHash } from 'node:crypto'
 import { join, relative, resolve } from 'path'
 import { getProjectRoot } from '../../bootstrap/state.js'
+import { crewStoreRoot } from '../../services/crew/identity.js'
 import { defineStore } from '../../substrate/fileStore.js'
-import { getTeamDir, sanitizeName } from './teamHelpers.js'
+import { getAgentContext, isSubagentContext } from '../agentContext.js'
+import { registerCleanup } from '../cleanupRegistry.js'
+import { logForDebugging } from '../debug.js'
+import { crewChildName, getDynamicTeamContext, getTeammateContext, resolveCoordAgentId } from '../teammate.js'
+import { isCrewRole } from '../workerRole.js'
 
 export const DEFAULT_LEASE_TTL_MS = 30 * 60 * 1000
 
+export const CREW_CLAIM_HOLDER_KINDS = ['lead', 'crewmate', 'seat', 'subagent'] as const
+export type CrewClaimHolderKind = (typeof CREW_CLAIM_HOLDER_KINDS)[number]
+
+export type CrewClaimHolder = {
+  name: string
+  kind: CrewClaimHolderKind
+  id?: string
+}
+
 export type Lease = {
   agentId: string
+  holder: CrewClaimHolder
   globs: string[]
   ts: string
   ttlMs?: number
@@ -16,6 +32,25 @@ export type Lease = {
 export type LeaseConflict = {
   agentId: string
   glob: string
+  holder: CrewClaimHolder
+}
+
+export function resolveClaimHolder(): CrewClaimHolder {
+  const name = resolveCoordAgentId()
+  const agent = getAgentContext()
+  if (isSubagentContext(agent) && agent.agentId === name) return { name, kind: 'subagent', id: agent.agentId }
+  const inProcess = getTeammateContext()
+  if (inProcess && inProcess.agentName === name) return { name, kind: 'crewmate', id: inProcess.agentId }
+  const dynamic = getDynamicTeamContext()
+  if (dynamic && dynamic.agentName === name) return { name, kind: isCrewRole() ? 'seat' : 'crewmate', id: dynamic.agentId }
+  if (crewChildName() === name) return { name, kind: 'seat' }
+  return { name, kind: 'lead' }
+}
+
+function holderFor(agentId: string, explicit?: CrewClaimHolder): CrewClaimHolder {
+  if (explicit) return { ...explicit, name: agentId }
+  const own = resolveClaimHolder()
+  return own.name === agentId ? own : { name: agentId, kind: 'crewmate' }
 }
 
 export type ClaimLeaseResult =
@@ -101,12 +136,20 @@ export function isLeaseExpired(lease: Lease, nowMs: number): boolean {
 
 type LeaseStore = { leases: Lease[] }
 
-function getLeasesDir(team: string): string {
-  return join(getTeamDir(team), 'leases')
+export function crewClaimStoreKey(projectRoot: string = getProjectRoot()): string {
+  return createHash('sha256').update(projectRoot).digest('hex').slice(0, 16)
 }
 
 export function getLeaseStorePath(team: string): string {
-  return join(getLeasesDir(team), 'leases.json')
+  void team
+  return join(crewStoreRoot(), `claims-${crewClaimStoreKey()}.json`)
+}
+
+function decodeHolder(raw: unknown, agentId: string): CrewClaimHolder {
+  const h = raw as Partial<CrewClaimHolder> | null | undefined
+  const kind = h && typeof h === 'object' && typeof h.kind === 'string' && (CREW_CLAIM_HOLDER_KINDS as readonly string[]).includes(h.kind) ? (h.kind as CrewClaimHolderKind) : 'crewmate'
+  const name = h && typeof h === 'object' && typeof h.name === 'string' && h.name !== '' ? h.name : agentId
+  return { name, kind, ...(h && typeof h === 'object' && typeof h.id === 'string' ? { id: h.id } : {}) }
 }
 
 const leaseStoreFor = defineStore<LeaseStore, [string]>({
@@ -119,18 +162,34 @@ const leaseStoreFor = defineStore<LeaseStore, [string]>({
       return null
     }
     return {
-      leases: parsed.leases.filter(
-        (l): l is Lease =>
-          !!l &&
-          typeof l.agentId === 'string' &&
-          Array.isArray(l.globs) &&
-          typeof l.ts === 'string',
-      ),
+      leases: parsed.leases
+        .filter(
+          (l): l is Lease =>
+            !!l &&
+            typeof l.agentId === 'string' &&
+            Array.isArray(l.globs) &&
+            typeof l.ts === 'string',
+        )
+        .map(l => ({ ...l, holder: decodeHolder(l.holder, l.agentId) })),
     }
   },
   empty: () => ({ leases: [] }),
   onReadFailure: 'empty',
 })
+
+const releaseAtEnd = new Set<string>()
+
+function releaseWhenThisProcessEnds(team: string, holder: CrewClaimHolder): void {
+  if (holder.name !== resolveClaimHolder().name || releaseAtEnd.has(holder.name)) return
+  releaseAtEnd.add(holder.name)
+  registerCleanup(async () => {
+    try {
+      await releaseLease(team, holder.name)
+    } catch (error) {
+      logForDebugging(`crew claim release for ${holder.name} at process end failed: ${String(error)}`)
+    }
+  })
+}
 
 async function withLockedStore<T>(
   team: string,
@@ -152,8 +211,9 @@ export async function claimLease(
   team: string,
   agentId: string,
   globs: string[],
-  opts: { base?: string; ttlMs?: number } = {},
+  opts: { base?: string; ttlMs?: number; holder?: CrewClaimHolder } = {},
 ): Promise<ClaimLeaseResult> {
+  const holder = holderFor(agentId, opts.holder)
   const base = opts.base ?? getProjectRoot()
   const ttlMs = opts.ttlMs ?? DEFAULT_LEASE_TTL_MS
   const normalized = Array.from(
@@ -164,7 +224,7 @@ export async function claimLease(
     ),
   )
 
-  return withLockedStore<ClaimLeaseResult>(team, store => {
+  const result = await withLockedStore<ClaimLeaseResult>(team, store => {
     const now = Date.now()
     const live = pruneExpired(store, now)
 
@@ -177,7 +237,7 @@ export async function claimLease(
               store: live,
               result: {
                 ok: false as const,
-                conflict: { agentId: other.agentId, glob: og },
+                conflict: { agentId: other.agentId, glob: og, holder: other.holder },
               },
             }
           }
@@ -191,12 +251,13 @@ export async function claimLease(
         store: { leases: without },
         result: {
           ok: true as const,
-          lease: { agentId, globs: [], ts: new Date(now).toISOString(), ttlMs },
+          lease: { agentId, holder, globs: [], ts: new Date(now).toISOString(), ttlMs },
         },
       }
     }
     const lease: Lease = {
       agentId,
+      holder,
       globs: normalized,
       ts: new Date(now).toISOString(),
       ttlMs,
@@ -206,6 +267,8 @@ export async function claimLease(
       result: { ok: true as const, lease },
     }
   })
+  if (result.ok && result.lease.globs.length > 0) releaseWhenThisProcessEnds(team, holder)
+  return result
 }
 
 export async function releaseLease(team: string, agentId: string): Promise<boolean> {
@@ -237,11 +300,15 @@ export async function getLeaseConflict(
     if (isLeaseExpired(lease, now)) continue
     for (const glob of lease.globs) {
       if (globMatchesFile(glob, rel)) {
-        return { agentId: lease.agentId, glob }
+        return { agentId: lease.agentId, glob, holder: lease.holder }
       }
     }
   }
   return null
+}
+
+export function subscribeLeases(team: string, listener: () => void): () => void {
+  return leaseStoreFor(team).subscribe(() => listener(), { immediate: false })
 }
 
 export async function listLeases(
