@@ -3,7 +3,7 @@
  "note": "contract journey 10 — plan mode (shift+tab ×2 pre-prompt) surfaces \"Skip interview and plan immediately\"; activating it ENDS the interview via onReject(prose)",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-29T11:02:59.750Z",
+ "capturedAt": "2026-09-29T11:40:10.831Z",
  "screens": [
   {
    "atMs": 13500,
@@ -17,14 +17,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 12:02:49 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 12:40:00 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 12:02:49 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 12:40:00 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 12:02:54 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 12:40:05 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -62,14 +62,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 12:02:49 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 12:40:00 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 12:02:49 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 12:40:00 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 12:02:54 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 12:40:05 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -107,14 +107,14 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 12:02:49 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 12:40:00 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 12:02:49 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 12:40:00 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │                                                                                            │",
     "TELEMETRY               │ │ ● User answered Mercury's questions:                                                       │",
     "  · spend $0.00         │ │   └                                                                                        │",
     "  · ctx 0% · 1000k      │                                                                                              │",
-    "  · health — run /health│ 12:02:54 [Mercury] Understood — proceeding with the decisions.                               │",
+    "  · health — run /health│ 12:40:05 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -143,17 +143,17 @@
  ],
  "probe": {
   "counters": {
-   "patches": 24249,
+   "patches": 24055,
    "frame-recommit": 45,
    "tail-publish": 4
   },
   "frames": {
-   "total": 75,
-   "window": 75,
-   "p50": 0.9585000000001855,
-   "p95": 51.48304100000041,
-   "p99": 119.13375000000042,
-   "maxMs": 119.13375000000042
+   "total": 74,
+   "window": 74,
+   "p50": 1.0399170000000595,
+   "p95": 42.94524999999976,
+   "p99": 264.62033299999985,
+   "maxMs": 264.62033299999985
   }
  },
  "requests": [
@@ -194,7 +194,7 @@
      {
       "type": "tool_result",
       "tool_use_id": "auq_1",
-      "content": "The user wants to DISCUSS the question \"Which storage engine should the cache use?\" before answering. Talk it through with them; the interview session and its drafts are preserved and will resume at this question.",
+      "content": "The user wants to DISCUSS the question \"Which storage engine should the cache use?\" before answering. Talk it through with them; the interview session and its drafts are preserved and will resume at this question.\n\n<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- app-proof: Use when proving a web journey with Mercury's Browser and Service tools. Not for unit tests.\n- extension-maker: Use when building or repairing a Mercury extension or catalogue. Not for installing or approving one for the operator.\n- mcp-smithy: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.\n- pdf-documents: Use when inspecting, creating or changing PDFs, including forms and redaction. Not for editing an Office source document.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when writing or fixing a Mercury SKILL.md and its discovery rules. Not for /skillify session capture or extension packaging.\n- slide-decks: Use when creating or revising PowerPoint slides, layouts and notes. Not for web interfaces or prose documents.\n- spreadsheets: Use when editing Excel workbooks or turning tabular data into one without losing formulas. Not for databases or other Office files.\n- word-documents: Use when creating or revising a Word file while preserving its document structure. Not for plain-text drafting or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>",
       "cache_control": {
        "type": "ephemeral"
       }
@@ -205,39 +205,39 @@
  ],
  "sends": [
   {
-   "atMs": 9320.590019226074,
+   "atMs": 8420.707941055298,
    "b64": "G1ta"
   },
   {
-   "atMs": 9720.590019226074,
+   "atMs": 8820.707941055298,
    "b64": "G1ta"
   },
   {
-   "atMs": 10320.590019226074,
+   "atMs": 9420.707941055298,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 11120.590019226074,
+   "atMs": 10220.707941055298,
    "b64": "DQ=="
   },
   {
-   "atMs": 14820.590019226074,
+   "atMs": 13920.707941055298,
    "b64": "G1tC"
   },
   {
-   "atMs": 15220.590019226074,
+   "atMs": 14320.707941055298,
    "b64": "G1tC"
   },
   {
-   "atMs": 15620.590019226074,
+   "atMs": 14720.707941055298,
    "b64": "G1tC"
   },
   {
-   "atMs": 16020.590019226074,
+   "atMs": 15120.707941055298,
    "b64": "G1tC"
   },
   {
-   "atMs": 16420.590019226074,
+   "atMs": 15520.707941055298,
    "b64": "DQ=="
   }
  ]
