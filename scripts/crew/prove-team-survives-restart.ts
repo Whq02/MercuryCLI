@@ -108,7 +108,7 @@ try {
   record('resumed-agent-gamma.txt', `${gamma?.text ?? ''}\nis_error=${String(gamma?.isError)}\n`)
   record('lead-stderr-second.txt', second.stderr())
   const briefText = brief?.text ?? ''
-  tally.check('the resumed lead is still part of its team', briefText.includes(`# Team: ${TEAM}`), briefText.slice(0, 160))
+  tally.check('the resumed lead is still part of its team', briefText.includes(`# Crew: ${TEAM}`), briefText.slice(0, 160))
   tally.check('the brief lists both seats', /- alpha\b/.test(briefText) && /- beta\b/.test(briefText), briefText.slice(0, 300))
   const createText = createAgain?.text ?? ''
   const rosterNow = readJson<Roster>(configPath)

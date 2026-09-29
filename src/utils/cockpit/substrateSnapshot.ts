@@ -79,7 +79,7 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
     title: 'Coordination',
     rows: [
       { name: 'File leases + lease-guard', on: swarms, hint: teamHint },
-      { name: 'TeamBrief', on: swarms, hint: teamHint },
+      { name: 'LiveComms', on: swarms, hint: teamHint },
       { name: 'SendMessage governance', on: swarms, hint: teamHint },
       { name: 'Coordination MCP server (mercury)', on: isCoordinationServerEnabled(), hint: isCoordinationServerEnabled() ? 'live (opt out =0) · mcp__mercury__* coord verbs' : 'MERCURY_COORDINATION_MCP=0 set' },
     ],

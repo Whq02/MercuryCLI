@@ -23,7 +23,7 @@ A team outlives its lead's session. When the lead exits — a quit, a closed
 terminal, a signal — the team's config, inboxes and leases stay where they
 are; only its pane-backed teammates are closed. Resuming the lead's session
 finds the team on disk and the resumed session is part of it again, in the
-cockpit and headless alike: TeamBrief names the team and its roster, the
+cockpit and headless alike: LiveComms names the crew and its roster, the
 Agent tool spawns into it, and TeamCreate refuses the name as one this
 session already leads. Only TeamDelete removes a team (a headless lead
 removes its own before its final answer). A create never answers success

@@ -27,7 +27,7 @@
 # gate-watch: src/services/workbench/projection.ts src/state/telemetryBus.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/TeamBriefTool/TeamBriefTool.ts
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
 # gate-watch: src/tools/TeamCreateTool/TeamCreateTool.ts src/tools/TeamDeleteTool/TeamDeleteTool.ts
 # gate-watch: src/types/command.ts
 set -u

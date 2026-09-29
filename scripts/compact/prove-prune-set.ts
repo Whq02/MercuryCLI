@@ -30,7 +30,7 @@ const { createUserMessage, createAssistantMessage } = await import('../../src/ut
 type Message = import('../../src/types/message.ts').Message
 
 const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Workshop', 'Inspect', 'Zzz']
-const NEVER = ['AskUserQuestion', 'ToolSearch', 'TeamBrief']
+const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', 'TeamBrief']
 const PROTECTED = ['Skill', 'ExitStrategyMode', 'EnterStrategyMode']
 const PERSISTED_PATH = join(home, 'tool-results', 'agent-1.txt')
 const PERSISTED_AGENT = buildLargeToolResultMessage({ filepath: PERSISTED_PATH, originalSize: 120_000, preview: 'p'.repeat(1_500) } as never)
@@ -75,7 +75,7 @@ if (projected === null) {
   for (const name of PROTECTED) check(`${name}: protected — its result stays verbatim`, resultOf(projected.messages, `use_${name}`) === chars(4_000))
   for (const id of ['f1', 'f2', 'f3', 'f4', 'f5']) check(`${id}: inside the recent five — stays`, resultOf(projected.messages, id) === chars(9_000))
   check('the cleared ids are exactly the class results plus the persisted Agent result', JSON.stringify([...projected.clearedIds].sort()) === JSON.stringify([...CLASS.map(n => `use_${n}`), 'use_agent_persisted'].sort()), projected.clearedIds.join(','))
-  check('the never-prune set is the protection law\'s own', NEVER.every(name => law.isProtectedFromPruning(name)) && law.PROTECTED_TOOL_NAMES.has('AskUserQuestion') && law.PROTECTED_TOOL_NAMES.has('ToolSearch') && law.PROTECTED_TOOL_NAMES.has('TeamBrief'))
+  check('the never-prune set is the protection law\'s own', NEVER.every(name => law.isProtectedFromPruning(name)) && law.PROTECTED_TOOL_NAMES.has('AskUserQuestion') && law.PROTECTED_TOOL_NAMES.has('ToolSearch') && law.PROTECTED_TOOL_NAMES.has('LiveComms') && law.PROTECTED_TOOL_NAMES.has('TeamBrief'))
 }
 
 section('§B the budget arithmetic: the newest 40k tokens of tool output stay, a pass under 20k clears nothing, never a result under 50 tokens')
@@ -147,7 +147,7 @@ section('§F the seams, by their text')
   const storage = readFileSync(join(ROOT, 'src/utils/toolResultStorage.ts'), 'utf8')
   const protections = readFileSync(join(ROOT, 'src/services/compact/pruneProtections.ts'), 'utf8')
   check('the clearing path carries no list of names to prune: the candidate rule is the protection law alone', !micro.includes('COMPACTABLE_TOOL_NAMES') && micro.includes('if (!isProtectedFromPruning(record.name, record.input)) {'))
-  check('the never-prune names live in the protection law through their light name homes', protections.includes("from '../../tools/AskUserQuestionTool/prompt.js'") && protections.includes("from '../../tools/TeamBriefTool/constants.js'") && protections.includes("from '../../tools/ToolSearchTool/constants.js'"))
+  check('the never-prune names live in the protection law through their light name homes', protections.includes("from '../../tools/AskUserQuestionTool/prompt.js'") && protections.includes("from '../../tools/LiveCommsTool/constants.js'") && protections.includes("from '../../tools/ToolSearchTool/constants.js'"))
   check("the file line's phrase in the clearing path equals the storage module's own (drift guard)", micro.includes("const PERSISTED_PATH_PHRASE = 'Full output saved to: '") && storage.includes('Full output saved to: ${result.filepath}'))
   check('the three defaults are named once, in the protection law', micro.includes('PROTECT_NEWEST_TOOL_OUTPUT_TOKENS') && micro.includes('PRUNE_MINIMUM_SAVING_TOKENS') && !/40_000|20_000/.test(micro))
 }
