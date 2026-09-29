@@ -1,9 +1,9 @@
 {
   "schema": 1,
   "generator": "scripts/ui/generate-visual-baseline.ts",
-  "sourceSha": "0278abcaf5ba92105f9b6e0f487ec8434ddb1fbb",
-  "buildDigest": "61fb80a1c7ff2f17083379be7dccfe38b3f39a78",
-  "generatedAt": "2026-09-29T15:19:15.988Z",
+  "sourceSha": "c138808746eb81f8446199b45d31cd64e4f52fa6",
+  "buildDigest": "943339c226e5c3ab0e65b1f5533b5a5bc313a78c",
+  "generatedAt": "2026-09-29T16:01:35.116Z",
   "descoped": [
     "mouse on/off: identical static grids — pointer semantics live in the interaction journeys (S4–S6)",
     "provider screens: covered by the agent-dispatch journey provers, not the static baseline",
@@ -701,8 +701,8 @@
     },
     {
       "id": "frame--60x18--dark--truecolor--full",
-      "sourceSha": "e54c15b7814140502654e33c88d5c79f39ccb2ff",
-      "buildDigest": "62f3e63eac4fc8618eb0563b806e9dcb011c69ee",
+      "sourceSha": "c138808746eb81f8446199b45d31cd64e4f52fa6",
+      "buildDigest": "943339c226e5c3ab0e65b1f5533b5a5bc313a78c",
       "scenario": "frame",
       "cols": 60,
       "rows": 18,
@@ -713,7 +713,7 @@
       "stateFixture": "frame",
       "terminalProfile": "pyte-xterm",
       "gridPath": "grids/frame--60x18--dark--truecolor--full.grid.json",
-      "gridDigest": "c18e7794616ebceaa357e57e2e67e457d57a7d3399128f858ef5f3973c838ac4",
+      "gridDigest": "3711c5e748750c1efd22702b957f9ffea9bd5c10988ed36b6db00ceffcfb1438",
       "styleDigest": "02e560992b2eb4c13a2555be810ee828839a8e516080281a726f086d6fa3d45a",
       "masks": [
         "\\b\\d{2}:\\d{2}:\\d{2}\\b",
@@ -735,7 +735,7 @@
         "row:gate [✓◓✕·]",
         "│ {2,3}(?:idle|—) +(?=│)"
       ],
-      "generatedAt": "2026-09-29T04:09:47.259Z"
+      "generatedAt": "2026-09-29T16:01:35.077Z"
     },
     {
       "id": "frame--80x24--dark--truecolor--full",
