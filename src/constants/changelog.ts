@@ -53,7 +53,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed a headless session to say at boot which calls need a present operator, and a rule-allowed push to run without the permission channel
 - Changed a forked sub-agent to be told its own scratchpad folder in its own prompt
 - Changed the generated bundled modules to be recognised by name, so a published checkout refuses a hand edit too
-- Fixed the Windows reads: the leftover census spells git's pathspecs, and the estate-walk and parity proofs read native paths under the platform's semantics
 - Removed the project notepad: /note, the TABULA rail card, its journal store and fire hooks, and the MERCURY_TABULA flags; WORKBENCH stays and takes the vacated card slot, and old saved notes are left in place on disk
 - Changed JevEval to take a list of evidence items (named facts or bare paragraphs) with one question set, answered in parallel as one table; a cell under the confidence floor (0.6) reads unsure; a malformed call is refused naming the field; the description asks only what the evidence answers, whenever a closed question decides the next step; and a background sub-agent carries the tool when JEV is on
 - Changed the model chip in the bottom sessions strip to name the crewmate in view with its model and effort, and the session's own model again on return to Mercury Lead
@@ -280,7 +279,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed Grep missing anchored globs under a symlinked search root on macOS: ripgrep receives the root's real path
 - Fixed the boot-time account read using a different base address from the usage read
 - Fixed the note telling a background sub-agent its tool search was disabled while its deferred tools worked, and the picker's unavailable GPT rows showing a context figure the live rows lack
-- Added a release check that judges every hand-typed model id against the live model lists and refuses an id the lists lack
 - Fixed the process sweep on Linux reading every Mercury process as not ours: it reads the executable's name, not the main thread's
 - Fixed a stopped named teammate's row on the crew board refusing to respawn on r, and a row staying marked as running when its spawn failed because the team did not exist; the main agent is told when an agent is stopped or resumed from the board
 - Fixed a daemon that exited just after answering a new window costing the window a retry: startup repeats its daemon check once
@@ -326,7 +324,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a Moonshot sign-in's default model and picker rows coming from a typed table instead of the live model list, so a retired model became a refused chat: the default and the rows follow the fetched list, and a model the list lacks is refused before the call with the catalogue's own words; three retired GPT ids left the typed table
 - Added a Model lists row to the doctor that checks every typed model id against the live list its family served: a typed id the list lacks is a warning; Z.AI publishes no list and keeps its dated table, and the release-day check can probe its ids by one minimal completion each behind --probe-by-completion
 - Changed the DeepSeek and Moonshot model-list readers to say in one sentence when a body is not JSON or an endpoint could not be reached, with the cause's code
-- Fixed the test census on Windows reading Windows paths as POSIX, so it missed every driver
 - Fixed four things the Windows walk found: the capture config read as UTF-8, a read-only git config query cleared by the write block, the Gemini catalogue's unreachable state naming the source and the remedy, and the rail's context row read after the picker closes
 - Changed a stream cut the model continued from to paint one calm line, Continued after 1 stream cut, in place of the red error card; the red card stays only when the recovery fails; every cut writes its details to the debug log
 - Changed two lines typed in a row behind a finished background command to share one turn, with the command's notice read inside it; a shell line still ends the batch
@@ -375,7 +372,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed an edit refusal claiming the lines it refused were read: it names which check failed and what to read next
 - Fixed a filename pattern with no separator walking the whole tree: it walks only as deep as it says; an over-cap read carries its next window on every path, and a notebook names a bounded cell slice
 - Fixed the sandbox dependency check on Linux creating a process at boot, and added the sandbox's unix-socket filter helper to the Linux archive so a Linux sandbox blocks unix sockets and /sandbox no longer warns
-- Updated the release gate to keep every suite's output and count the checks it skips
 
 ## 1.0.0-beta.13
 - Removed the run governor that ended a turn for repeating a tool call with nothing written in between, and the repetition breaker that ended a turn on repeated identical results: a session is never stopped for repeating itself, and an empty provider reply is announced and the request sent again once
@@ -478,7 +474,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Changed commands run from a session to see your own environment, not Mercury's internal stamps; the proof suites refuse to start under such stamps
 - Added append and section modes to the Edit tool, and Eval cells that keep their state and report every nested call when something fails
 - Added a write scope for sibling worktrees through --add-dir, a reviewer agent that works on a frozen copy of a commit, and a held state for a message sent during a compaction
-- Improved the checks Mercury runs on itself: a map of generated files, per-proof exit codes, a preflight for terminal captures, cost accounting for agent fleets and a readable session state
 - Fixed a GPT reply cut off after a tool call breaking every later request of the session, and automatic compaction retrying a summary the provider had refused; the refusal is now reported once with the way out
 - Changed the line shown when sub-agents are still running to say how to stop one
 
