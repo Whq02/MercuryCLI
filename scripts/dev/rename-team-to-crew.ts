@@ -62,6 +62,8 @@ const PROTECTED_WORDS: Rule[] = [
   { name: 'TEAMMEM', why: 'the feature word of team memory' },
 ]
 
+const PROTECTED_SEQUENCE = /TeamBrief|TeamCreate|TeamDelete|TEAM_BRIEF|TEAM_CREATE|TEAM_DELETE|teamCreate|teamDelete/
+
 const PROTECTED_PREFIXES: Rule[] = [
   { name: 'teamMemory', why: 'team memory is the human team of a repository, not the crew' },
 ]
@@ -246,9 +248,11 @@ class Renamer {
   readonly kebabNames = new Set<string>()
   fileProtect = new Set<string>()
   fileMap: Record<string, string> = {}
+  collisionProtect = new Set<string>()
 
   forFile(rel: string): void {
     this.fileProtect = new Set()
+    this.collisionProtect = new Set()
     this.fileMap = {}
     for (const r of FILE_RULES) {
       if (r.path !== rel) continue
@@ -322,8 +326,10 @@ class Renamer {
     const [wlo, whi] = runAround(run, start, end, isWordChar)
     const word = run.slice(wlo, whi)
     if (this.fileProtect.has(word)) return no(`protected in this file: ${word}`)
+    if (ctx === 'identifier' && this.collisionProtect.has(word)) return no(`kept in this file: ${word} (its crew name is declared here)`)
     if (this.protectedIdentifiers.has(word)) return no(`protected identifier ${word}`)
     if (this.protectedWords.has(word) && ctx !== 'identifier') return no(`protected word ${word}`)
+    if (!this.protectedWords.has(word) && PROTECTED_SEQUENCE.test(word)) return no(`a name of the old tools: ${word}`)
     for (const p of this.protectedPrefixes) if (word.startsWith(p)) return no(`protected prefix ${p}`)
     if (ctx === 'filename') return { to: TOKEN_TO[token]!, reason: '' }
     if (form !== 'upper' && (prev === '_' || next === '_')) return no('a snake_case key stays')
@@ -438,7 +444,7 @@ function leavesOf(sf: ts.SourceFile): Leaf[] {
     const k = node.kind
     let ctx: Context | null = null
     if (k === ts.SyntaxKind.Identifier || k === ts.SyntaxKind.PrivateIdentifier) ctx = propertyName(node) ? 'property' : 'identifier'
-    else if (k === ts.SyntaxKind.StringLiteral && keyPosition(node)) ctx = 'property'
+    else if (k === ts.SyntaxKind.StringLiteral && keyPosition(node) && /^[A-Za-z_$][\w$]*$/.test((node as ts.StringLiteral).text)) ctx = 'property'
     else if (
       k === ts.SyntaxKind.StringLiteral ||
       k === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
@@ -466,10 +472,12 @@ class Planner {
   readonly t = tally()
   readonly perFile = new Map<string, number>()
   readonly files: string[]
+  readonly fileSet: Set<string>
   readonly collisions: string[] = []
 
   constructor(readonly root: string) {
     this.files = git(root, 'ls-files', '-z').split('\0').filter(Boolean)
+    this.fileSet = new Set(this.files)
   }
 
   planRenames(): void {
@@ -546,6 +554,29 @@ class Planner {
     return raw
   }
 
+  private basenameFallback(path: string): string | null {
+    const name = basename(path)
+    const stem = name.replace(/\.(js|mjs|ts|tsx|mts)$/, '')
+    const hits = [...this.renameMap].filter(([from]) => basename(from).replace(/\.(ts|tsx|mts)$/, '') === stem)
+    if (hits.length !== 1) return null
+    const toStem = basename(hits[0]![1]).replace(/\.(ts|tsx|mts)$/, '')
+    return path.slice(0, path.length - name.length) + name.replace(stem, toStem)
+  }
+
+  private resolvesToTracked(raw: string, fromRel: string): boolean {
+    const target = raw.startsWith('.') ? posix.normalize(posix.join(posix.dirname(fromRel), raw)) : raw
+    const star = target.indexOf('*')
+    if (star !== -1) {
+      const head = target.slice(0, star)
+      return this.files.some(f => f.startsWith(head))
+    }
+    const stem = target.replace(/\.(js|mjs|ts|tsx|mts)$/, '')
+    const candidates = [target, `${stem}.ts`, `${stem}.tsx`, `${stem}.mts`, `${stem}.js`, `${stem}.mjs`, `${target}/index.ts`, `${stem}/index.ts`]
+    if (candidates.some(c => this.fileSet.has(c))) return true
+    const dir = target.endsWith('/') ? target.slice(0, -1) : target
+    return this.files.some(f => f.startsWith(`${dir}/`))
+  }
+
   private resolvesToPinned(raw: string, fromRel: string): boolean {
     if (!raw.includes('/')) return false
     const target = raw.startsWith('.') ? posix.normalize(posix.join(posix.dirname(fromRel), raw)) : raw
@@ -562,11 +593,26 @@ class Planner {
       t.skips.push({ reason: 'protected literal', token: body, run: body })
       return literal
     }
+    if (/\s/.test(body)) {
+      const rewrittenText = this.rewriteText(fromRel, body, t)
+      return quoted ? q + rewrittenText + literal[literal.length - 1]! : rewrittenText
+    }
     if (this.resolvesToPinned(body, fromRel)) {
       t.skips.push({ reason: 'a path to a pinned file', token: body, run: body })
       return literal
     }
-    const mapped = this.mapPathString(body, fromRel)
+    const lineSuffix = /(:\d+)+$/.exec(body)?.[0] ?? ''
+    const pathBody = lineSuffix === '' ? body : body.slice(0, body.length - lineSuffix.length)
+    if (pathBody.includes('/') && REPO_PATH_RE.test(pathBody) && !this.resolvesToTracked(pathBody, fromRel)) {
+      const byBasename = this.basenameFallback(pathBody)
+      if (byBasename === null) {
+        if (/team/i.test(body)) t.skips.push({ reason: 'a path to nothing tracked', token: body, run: body })
+        return literal
+      }
+      bump(t.renamed, `${basename(pathBody)}→${basename(byBasename)}`)
+      return quoted ? q + byBasename + lineSuffix + literal[literal.length - 1]! : byBasename + lineSuffix
+    }
+    const mapped = this.mapPathString(pathBody, fromRel) + lineSuffix
     const pathLike = body.includes('/') && REPO_PATH_RE.test(body)
     const rewritten = this.renamer.rewrite(applyExplicit(mapped, t), pathLike ? 'path' : 'string', t)
     return quoted ? q + rewritten + literal[literal.length - 1]! : rewritten
@@ -582,8 +628,34 @@ class Planner {
     return out
   }
 
+  readonly collisionKept: string[] = []
+
+  private collisionProtect(rel: string, sf: ts.SourceFile): void {
+    const declared = new Set<string>()
+    const visit = (node: ts.Node): void => {
+      if (
+        (ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node) || ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node) || ts.isEnumDeclaration(node) || ts.isParameter(node) || ts.isBindingElement(node)) &&
+        node.name !== undefined &&
+        ts.isIdentifier(node.name)
+      ) declared.add(node.name.text)
+      if (ts.isImportSpecifier(node) || ts.isNamespaceImport(node)) declared.add(node.name.text)
+      if (ts.isImportClause(node) && node.name !== undefined) declared.add(node.name.text)
+      ts.forEachChild(node, visit)
+    }
+    visit(sf)
+    for (const name of declared) {
+      if (!/team/i.test(name) || this.renamer.fileProtect.has(name)) continue
+      const renamed = this.renamer.rewrite(name, 'identifier', tally())
+      if (renamed !== name && declared.has(renamed)) {
+        this.renamer.collisionProtect.add(name)
+        this.collisionKept.push(`${rel}: ${name} kept (${renamed} is declared there)`)
+      }
+    }
+  }
+
   private rewriteCode(rel: string, text: string, t: Tally): string {
     const sf = ts.createSourceFile(rel, text, ts.ScriptTarget.Latest, true, scriptKindOf(rel))
+    this.collisionProtect(rel, sf)
     const leaves = leavesOf(sf)
     const masks = this.masks(text)
     const masked = (a: number, b: number): boolean => masks.some(([lo, hi]) => a < hi && b > lo)
@@ -760,6 +832,8 @@ function main(): void {
   for (const r of PROTECTED_LITERALS) say(`  literal kept: '${r.name}' — ${r.why}`)
   for (const p of PROTECTED_PATTERNS) say(`  pattern kept: ${p.re.source} — ${p.why}`)
   for (const r of FILE_RULES) say(`  in ${r.path}: ${r.protect ? `kept ${r.protect.join(', ')}` : ''}${r.map ? Object.entries(r.map).map(([a, b]) => `${a} → ${b}`).join(', ') : ''} — ${r.why}`)
+  say(`### names kept where the crew name is already declared in the same file (${planner.collisionKept.length})`)
+  for (const c of planner.collisionKept) say(`  ${c}`)
   say('  snake_case keys (team_context, teammate_mailbox, in_process_teammate, team_name, teammate_id, …) stay: saved rows and wire fields')
   say("  bare words in strings and prose stay (kinds such as 'teammate', the plan tier 'team', docs prose): the words on screen are changed where they are spoken, not here")
   say('  dashed names in strings and prose change only when they name a renamed file (CLI flags such as --team-name stay)')
