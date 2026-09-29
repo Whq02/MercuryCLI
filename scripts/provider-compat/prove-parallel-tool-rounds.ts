@@ -498,9 +498,11 @@ for (const { lane, model, dialect } of LANES) {
   {
     const hammer = { calls: [{ id: 'call_hammer', name: 'FailTool', args: '{"text":"again"}' }] }
     const r = await drive(model, { turns: [hammer, hammer, hammer, hammer, hammer, hammer, hammer, hammer, { text: 'done' }] })
-    check("P4 eight identical failing calls run to the script's own end (never stopped, terminal completed, nine model calls)", r.terminal.reason === 'completed' && r.wire.length === 9, `terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length} threw=${r.threw ?? 'no'}`)
+    const cycle = Array.isArray(r.terminal.cycle) ? (r.terminal.cycle as unknown[]).join(',') : ''
+    check('P4 eight identical failing calls end the turn at the eighth: terminal loop_stopped naming FailTool, eight model calls, never the ninth (the headless fence)', r.threw === undefined && r.terminal.reason === 'loop_stopped' && cycle === 'FailTool' && r.wire.length === 8, `terminal=${JSON.stringify(r.terminal)} calls=${r.wire.length} threw=${r.threw ?? 'no'}`)
     check("P4 every one of the eight calls ran and answered with the tool's own error (nothing refused, no nudge)", toolResultsYielded(r.yields).filter(t => t.isError).length === 8 && toolResultsYielded(r.yields).every(t => !t.text.includes('in a row')))
-    check("P4 the operator's screen carries no stop warning", !systemNotices(r.yields).some(t => /stopped/i.test(t) && t.includes('FailTool')))
+    const stopWords = systemNotices(r.yields).filter(t => t.startsWith('stopped: the tool call'))
+    check("P4 the operator's screen carries the stop words: the tool call, the count and the tool's own first error line", stopWords.length === 1 && /^stopped: the tool call FailTool failed the same way 8 times in a row:.*FailTool exploded on again/.test(stopWords[0]!), stopWords.join(' | ').slice(0, 300))
   }
 }
 

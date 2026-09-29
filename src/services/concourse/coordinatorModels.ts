@@ -346,6 +346,16 @@ export async function validateCoordinatorModelChoice(
   const registry = await composeCoordinatorModelRegistry()
   const wanted = await canonicalCoordinatorModelId(modelId)
   const entry = registry.entries.find(e => e.modelId === wanted)
-  if (!entry) return { ok: false, reason: 'unknown-model' }
-  return { ok: true, entry }
+  if (entry) return { ok: true, entry }
+  const { declaredRouteOf } = await import('../providers/routeLaw.js')
+  const route = declaredRouteOf(wanted)
+  if (route === null) return { ok: false, reason: 'unknown-model' }
+  const sibling = registry.entries.find(e => e.source === route)
+  const label: Pick<CoordinatorModelEntryV1, 'availability' | 'detail'> =
+    sibling === undefined
+      ? { availability: 'not-in-catalogue' }
+      : sibling.availability === 'not-signed-in'
+        ? { availability: 'not-signed-in', ...(sibling.detail !== undefined ? { detail: sibling.detail } : {}) }
+        : { availability: 'ready' }
+  return { ok: true, entry: { modelId: wanted, displayName: wanted, source: route, ...label } }
 }

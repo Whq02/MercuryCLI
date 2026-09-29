@@ -209,10 +209,10 @@ try {
 
   console.log('\nD the daemon door: the named model rides, an unknown one refuses, the record\'s spelling is read; the switched turn waits cold on Opus')
   {
-    const nonesuch = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-nonesuch', prompt: 'hello', workspaceDir: work, title: 'nonesuch', model: 'claude-nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
-    check('an unknown model id refuses typed (unknown-model, the way out named) — never a substitute', nonesuch.ok === false && /unknown-model/.test(nonesuch.error ?? '') && /(did you mean|pick one of)/.test(nonesuch.error ?? ''), JSON.stringify(nonesuch))
-    const aliased = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-aliased', prompt: 'hello', workspaceDir: work, title: 'aliased', modelKey: 'claude-nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
-    check('a dispatch spelling the model as `modelKey` is READ (an unknown id under it refuses unknown-model) — never the registry default in silence', aliased.ok === false && /unknown-model/.test(aliased.error ?? ''), JSON.stringify(aliased))
+    const nonesuch = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-nonesuch', prompt: 'hello', workspaceDir: work, title: 'nonesuch', model: 'nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check('an id no family declares refuses typed (not-runnable:unrecognised, the way out named) — never a substitute', nonesuch.ok === false && /not-runnable:unrecognised/.test(nonesuch.error ?? '') && /model picker/.test(nonesuch.error ?? ''), JSON.stringify(nonesuch))
+    const aliased = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-aliased', prompt: 'hello', workspaceDir: work, title: 'aliased', modelKey: 'nonesuch-9', effort: 'high' } as never)) as { ok?: boolean; error?: string }
+    check('a dispatch spelling the model as `modelKey` is READ (an unknown id under it refuses typed) — never the registry default in silence', aliased.ok === false && /not-runnable:unrecognised/.test(aliased.error ?? ''), JSON.stringify(aliased))
     const twoSpelt = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'fb-two-spelt', prompt: 'hello', workspaceDir: work, title: 'two spelt', model: 'claude-opus-5', modelKey: 'claude-sonnet-5', effort: 'high' } as never)) as { ok?: boolean; error?: string }
     check('`model` and `modelKey` naming different models refuse typed as an ambiguity (nothing dispatched)', twoSpelt.ok === false && /name different models/.test(twoSpelt.error ?? ''), JSON.stringify(twoSpelt))
   }

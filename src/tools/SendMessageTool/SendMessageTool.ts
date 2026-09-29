@@ -353,14 +353,11 @@ async function endedTeammateSeat(rawTo: string, teamName: string, context: ToolU
   if (member !== undefined && member.backendType !== 'in-process') return null
   if (seats.length > 0) {
     const last = seats.reduce((newest, task) => ((task.endTime ?? 0) >= (newest.endTime ?? 0) ? task : newest))
-    const ended =
-      last.status === 'failed'
-        ? `had failed${last.error ? ` (${last.error})` : ''}`
-        : last.status === 'completed'
-          ? 'had completed'
-          : `was ${agentStatusWord(last.status)}`
+    if (last.status === 'failed') return null
+    const ended = last.status === 'completed' ? 'had completed' : `was ${agentStatusWord(last.status)}`
     return { taskId: last.id, name: last.identity.agentName, ended }
   }
+  if ((await failedSeatNotice(rawTo, teamName)) !== null) return null
   let newest: { taskId: string; name: string; launchedAt: number } | undefined
   for (const { agentId, metadata } of await listAgentMetadata().catch(() => [])) {
     if (metadata.teammate?.teamName !== teamName || metadata.name?.toLowerCase() !== wanted) continue

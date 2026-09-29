@@ -3,7 +3,7 @@
  "note": "contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture",
  "cols": 120,
  "rows": 40,
- "capturedAt": "2026-09-28T21:49:18.174Z",
+ "capturedAt": "2026-09-28T22:42:07.682Z",
  "screens": [
   {
    "atMs": 12500,
@@ -17,15 +17,15 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 22:49:09 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 23:42:01 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 22:49:09 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 23:42:01 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "TELEMETRY               │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · spend $0.00         │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "  · ctx 0% · 1000k      │ │     then wait for the operator.                                                            │",
     "  · health — run /health│                                                                                              │",
-    "                        │ 22:49:14 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │ 23:42:03 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -46,7 +46,7 @@
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-    "? for shortcuts · ctrl+x p for commands + files",
+    "the session is landing — your line sends when it lands",
     "backslash (\\) + ↵ for a new line · ⇧← concourse"
    ]
   },
@@ -62,15 +62,15 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 22:49:09 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 23:42:01 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 22:49:09 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 23:42:01 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "TELEMETRY               │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · spend $0.00         │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "  · ctx 0% · 1000k      │ │     then wait for the operator.                                                            │",
     "  · health — run /health│                                                                                              │",
-    "                        │ 22:49:14 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │ 23:42:03 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -91,7 +91,7 @@
     "╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮",
     "│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │",
     "╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯",
-    "? for shortcuts · ctrl+x p for commands + files",
+    "the session is landing — your line sends when it lands",
     "backslash (\\) + ↵ for a new line · ⇧← concourse"
    ]
   },
@@ -107,15 +107,15 @@
     "  · /health — health ce…│╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "  · /cards — memory     │                                                                                              │",
     "  · /mission — set a mi…│                                                                                              │",
-    "                        │ 22:49:09 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 23:42:01 [sam] ❯ design the cache layer                                                      │",
     "FILES · flux-arena-cwd-…│                                                                                              │",
-    "  ↵ or click · browse   │ 22:49:09 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  ↵ or click · browse   │ 23:42:01 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "                        │ │   └ ✕ Error: The operator declined this tool call; it was not run and nothing was changed. │",
     "TELEMETRY               │ │     Do not try to reach the same effect by another route. If the task cannot continue      │",
     "  · spend $0.00         │ │     without this action, stop and say plainly what was not run and why the task needs it,  │",
     "  · ctx 0% · 1000k      │ │     then wait for the operator.                                                            │",
     "  · health — run /health│                                                                                              │",
-    "                        │ 22:49:14 [Mercury] Understood — proceeding with the decisions.                               │",
+    "                        │ 23:42:03 [Mercury] Understood — proceeding with the decisions.                               │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
     "                        │                                                                                              │",
@@ -143,16 +143,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 18869,
-   "frame-recommit": 38
+   "patches": 22659,
+   "frame-recommit": 43
   },
   "frames": {
-   "total": 58,
-   "window": 58,
-   "p50": 0.9125420000000304,
-   "p95": 20.333542000000307,
-   "p99": 86.48700000000008,
-   "maxMs": 86.48700000000008
+   "total": 68,
+   "window": 68,
+   "p50": 1.0395419999986188,
+   "p95": 26.368207999999868,
+   "p99": 310.52000000000044,
+   "maxMs": 310.52000000000044
   }
  },
  "requests": [
@@ -193,7 +193,7 @@
      {
       "type": "tool_result",
       "tool_use_id": "auq_1",
-      "content": "<tool_use_error>The operator declined this tool call; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.</tool_use_error>",
+      "content": "<tool_use_error>The operator declined this tool call; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.</tool_use_error>\n\n<system-reminder>\nThe following skills are available for use with the Skill tool:\n\n- update-config: Use this skill for any change to Mercury settings files: permission rules (\"allow X\"), environment variables (\"set X=Y\"), MCP server enablement, extension settings, and every event-driven automation (\"whenever X, do Y\" — that is a hook, and only a h…\n- keybindings-help: Use when the user asks to change Mercury keyboard shortcuts: rebind an action, add a chord sequence, bind a slash command to a key, unbind a default, or fix keybinding errors reported by /health. Carries the file layers, the keystroke grammar, and t…\n- simplify: Use when the user asks to clean up, simplify, or tighten changed code: a quality-only pass over the working diff for reuse, shape, and cost improvements, applied directly. It does not hunt for bugs — adversarial checking is /verify.\n- app-proof: Use when proving a web journey with Mercury's Browser and Service tools. Not for unit tests.\n- extension-maker: Use when building or repairing a Mercury extension or catalogue. Not for installing or approving one for the operator.\n- mcp-smithy: Use when building an MCP server for a Mercury session and proving its tool contract. Not for configuring an existing server.\n- pdf-documents: Use when inspecting, creating or changing PDFs, including forms and redaction. Not for editing an Office source document.\n- provider-apis: Use when building against model-provider APIs or choosing request shapes, streaming, tools or caching for Mercury's providers. Not for account sign-in or unrelated SDKs.\n- skill-forge: Use when writing or fixing a Mercury SKILL.md and its discovery rules. Not for /skillify session capture or extension packaging.\n- slide-decks: Use when creating or revising PowerPoint slides, layouts and notes. Not for web interfaces or prose documents.\n- spreadsheets: Use when editing Excel workbooks or turning tabular data into one without losing formulas. Not for databases or other Office files.\n- word-documents: Use when creating or revising a Word file while preserving its document structure. Not for plain-text drafting or PDF editing.\n- loop: Run a prompt or slash command repeatedly (for example /loop 10m /health); with no interval given, the model paces itself between ticks. - Use when work should re-run on a cadence: polling a build, watching a queue, periodic upkeep. A single future r…\n- schedule: Create, update, list, or run scheduled local agents (routines) that execute on a cron schedule via the daemon - Use when the user wants a recurring agent, automated background tasks, a cron job for the harness, or management of existing scheduled ag…\n- deep-research: Multi-source research with adversarial fact-checking — angle fan-out, source extraction, majority-vote verification, cited synthesis. - For research that needs many sources and real fact-checking. Scale with honesty: full depth runs roughly 25-40 ag…\n</system-reminder>",
       "is_error": true,
       "cache_control": {
        "type": "ephemeral"
@@ -205,15 +205,15 @@
  ],
  "sends": [
   {
-   "atMs": 8569.549083709717,
+   "atMs": 11417.837858200073,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 9369.549083709717,
+   "atMs": 12217.837858200073,
    "b64": "DQ=="
   },
   {
-   "atMs": 13569.549083709717,
+   "atMs": 16417.837858200073,
    "b64": "Gw=="
   }
  ]

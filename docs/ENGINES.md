@@ -57,6 +57,18 @@ always on (a request with thinking off carries no thinking parameter and
 adaptive thinking runs) and a forced tool choice becomes `auto`, the prompt
 naming the tool.
 
+A new Anthropic model runs before its catalogue row lands: any id inside the
+first-party space (`claude-…`) starts from every door — the boot face's new
+session, `/clear`, `--model`, a saved setting, the crew and workflow seats,
+the advisor and console picks, the coordinator's assist model, `/model` in
+the REPL — the moment the account holds an Anthropic credential, and the
+wire decides whether it serves the id; no door judges a Claude id by whether
+the picker lists it. A catalogue row adds what only a row can: the display
+name, the price tier (until then the spend views say the figure is a family
+estimate), the 1M twin and the alias, and the row's wire laws (thinking
+always on, forced tool choice folded to `auto`); until it lands the id is
+served under its raw name with the family's defaults.
+
 DeepSeek's rows come from its live model list. With a DeepSeek key present,
 Mercury reads the provider's models endpoint when the picker composes its
 rows (never without a key, and never while catalogue traffic is switched

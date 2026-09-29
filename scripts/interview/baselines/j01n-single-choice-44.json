@@ -3,19 +3,19 @@
  "note": "contract journey 12 (narrow leg) — the same card at 44 columns",
  "cols": 44,
  "rows": 40,
- "capturedAt": "2026-09-28T21:46:14.370Z",
+ "capturedAt": "2026-09-28T22:38:51.455Z",
  "screens": [
   {
    "atMs": 12000,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-kmqp5y · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0Fg8lJ · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "22:46:07 [sam] ❯ design the cache layer",
+    "23:38:43 [sam] ❯ design the cache layer",
     "",
-    "22:46:07 [Mercury] Let me confirm the open",
+    "23:38:44 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -54,13 +54,13 @@
    "atMs": -1,
    "rows": [
     "  ▄▀▀▀▀▀▀▀▄   ✶ Mercury · Opus 5.5 · effort…",
-    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-kmqp5y · ⤳1",
+    "  ▀▀▀▀▀▀▀▀▀   flux-arena-cwd-0Fg8lJ · ⤳1",
     "  ▀▀▀▀▀▀▀▀▀",
     "────────────────────────────────────────────",
     "",
-    "22:46:07 [sam] ❯ design the cache layer",
+    "23:38:43 [sam] ❯ design the cache layer",
     "",
-    "22:46:07 [Mercury] Let me confirm the open",
+    "23:38:44 [Mercury] Let me confirm the open",
     "decisions before proceeding.",
     "",
     "",
@@ -98,16 +98,16 @@
  ],
  "probe": {
   "counters": {
-   "patches": 5391,
-   "frame-recommit": 21
+   "patches": 5365,
+   "frame-recommit": 15
   },
   "frames": {
-   "total": 36,
-   "window": 36,
-   "p50": 0.8772499999995489,
-   "p95": 5.515625,
-   "p99": 18.02520800000002,
-   "maxMs": 18.02520800000002
+   "total": 29,
+   "window": 29,
+   "p50": 1.1111250000003565,
+   "p95": 11.412333999999987,
+   "p99": 19.916584000000057,
+   "maxMs": 19.916584000000057
   }
  },
  "requests": [
@@ -142,11 +142,11 @@
  ],
  "sends": [
   {
-   "atMs": 7319.606065750122,
+   "atMs": 6765.314102172852,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 8119.606065750122,
+   "atMs": 7565.314102172852,
    "b64": "DQ=="
   }
  ]
