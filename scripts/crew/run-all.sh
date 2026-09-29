@@ -41,6 +41,7 @@
 # gate-watch: src/utils/hooks/events.ts src/utils/swarm/constants.ts src/utils/swarm/leaseGlob.ts src/utils/swarm/leaseGuard.ts src/services/crew/claims.ts src/services/oauth/client.ts
 # gate-watch: src/services/crew/liveTasks.ts src/utils/swarm/roleResolver.ts src/utils/swarm/teamCharter.ts src/utils/swarm/teammatePromptAddendum.ts src/utils/tasks.ts src/utils/teammate.ts src/utils/agentContext.ts
 # gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
+# gate-watch: scripts/lib/scriptedTurn.ts src/utils/crew/crewStart.ts src/utils/crew/crewWorktreeReminder.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
