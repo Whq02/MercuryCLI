@@ -72,6 +72,7 @@ export type TurnDriverPorts = {
   takePendingSuggestion(): StdoutMessage | null
 
   settleIdle(): Promise<'reenter' | 'close' | 'stay'>
+  wakeSettle?(): void
   closeOutput(): Promise<void>
 
   notifySessionState(state: 'running' | 'idle'): void
@@ -93,6 +94,7 @@ export type TurnDriver = {
   hasHeldResult(): boolean
   releaseHold(): void
   closeOutputOnce(): Promise<void>
+  hasDueQueued(): boolean
 }
 
 export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
@@ -427,6 +429,10 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   }
 
   function kick(): void {
+    if (phase === 'settling_idle') {
+      ports.wakeSettle?.()
+      return
+    }
     if (phase !== 'idle' || (noticesAwaitOperator && !dueQueued())) {
       return
     }
@@ -447,5 +453,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       wakeAgentWait?.()
     },
     closeOutputOnce,
+    hasDueQueued: dueQueued,
   }
 }

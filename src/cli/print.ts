@@ -1547,7 +1547,7 @@ export async function runHeadless(
       const changed = leadEvent(teamName)
       try {
         const next = peek()
-        if (next && isMainThreadCommand(next)) return 'reenter'
+        if (next && isMainThreadCommand(next) && driver.hasDueQueued()) return 'reenter'
         if ((await deliverLeadMail()) === 'queued') return 'reenter'
         const current = getAppState()
         const inProcessActive = getRunningTasks(current).some(task => task.type === 'in_process_teammate')
@@ -1787,6 +1787,7 @@ export async function runHeadless(
       return suggestion
     },
     settleIdle,
+    wakeSettle: () => leadSettle.wake?.(),
     closeOutput: async () => {
       if (suggestionInFlight) {
         await Promise.race([
