@@ -35,10 +35,9 @@ const LINE_1 = 'MAIL-OP-1 first queued line'
 const LINE_2 = 'MAIL-OP-2 second queued line'
 const SLEEP_SECONDS = 40
 const SEAT_SLEEP_SECONDS = 1
-const TEAM_CREATE = 'TeamCreate'
 const SEND_MESSAGE = 'SendMessage'
 
-type Route = 'launch' | 'team-made' | 'spawned' | 'mailed' | 'slept' | 'note' | 'seat-first' | 'seat-hold' | 'seat' | 'alive' | 'side'
+type Route = 'launch' | 'spawned' | 'mailed' | 'slept' | 'note' | 'seat-first' | 'seat-hold' | 'seat' | 'alive' | 'side'
 type Block = { type?: string; id?: string; name?: string; text?: string; tool_use_id?: string; content?: unknown; input?: Record<string, unknown> }
 type Item = { role?: string; content?: unknown }
 const itemsOf = (body: unknown): Item[] => {
@@ -151,11 +150,10 @@ async function startFixture(port: number): Promise<Fixture> {
       if (isSeat(items)) route = seatCalls === 0 ? 'seat-first' : seatCalls === 1 ? 'seat-hold' : 'seat'
       else if (lastUserText.includes('task-notification')) route = 'note'
       else if (lastUserText.includes('mail-drive: alive')) route = 'alive'
-      else if (answered === TEAM_CREATE) route = 'team-made'
       else if (answered === 'Agent') route = 'spawned'
       else if (answered === SEND_MESSAGE) route = 'mailed'
       else if (answered === 'Bash') route = 'slept'
-      else if (lastUserText.includes('mail-drive: launch') && offersTool(body, TEAM_CREATE)) route = 'launch'
+      else if (lastUserText.includes('mail-drive: launch') && offersTool(body, 'Agent')) route = 'launch'
       else route = 'side'
       hits.push({ route, atMs: Date.now(), lastUserText, results: resultTexts(items) })
       if (route === 'seat-hold') {
@@ -188,9 +186,6 @@ async function startFixture(port: number): Promise<Fixture> {
           blocks = [{ type: 'tool_use', id: 'toolu_mail_seat_sleep_1', name: 'Sleep', input: { seconds: SEAT_SLEEP_SECONDS } }]
           break
         case 'launch':
-          blocks = [{ type: 'tool_use', id: 'toolu_mail_team_1', name: TEAM_CREATE, input: { team_name: TEAM, description: 'the mail probe team' } }]
-          break
-        case 'team-made':
           blocks = [
             {
               type: 'tool_use',
@@ -420,7 +415,7 @@ if (cap !== null) {
   const mailed = fixture.hits.find(h => h.route === 'mailed')
 
   console.log('\n— M1 the mail queues at the running teammate —')
-  check('the team was made and the teammate spawned on the product\'s own road', fixture.hits.some(h => h.route === 'team-made') && fixture.hits.some(h => h.route === 'spawned'))
+  check('the teammate spawned on the product\'s own road with no create step', fixture.hits.some(h => h.route === 'launch') && fixture.hits.some(h => h.route === 'spawned'))
   const seatFirst = fixture.hits.find(h => h.route === 'seat-first')
   check('M1 the teammate held its seat (its first call answered, its second call held until the exit)', seatFirst !== undefined && fixture.hits.some(h => h.route === 'seat-hold') && seatHitsBefore(exitAt) === 2, `${seatHitsBefore(exitAt)} seat calls by the exit`)
   check('M1 both messages were sent to the teammate while its turn ran (the tool answered for each, after the seat\'s first call)', mailed !== undefined && seatFirst !== undefined && mailed.atMs >= seatFirst.atMs && mailed.results.length === 2 && mailed.results.every(r => /sent|delivered|queued/i.test(r) && !/error|fail/i.test(r)), mailed?.results.map(flat).join(' | ').slice(0, 300) ?? 'no request after the sends')

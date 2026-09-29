@@ -5,13 +5,11 @@ import { join } from 'node:path'
 import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, sleep, treeOf, TURN_MS, type Frame } from './team-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
-const team = 'continuation-team'
 const peerModel = 'claude-opus-4-6'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: team, description: 'Transcript continuation' } }),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', team_name: team, model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'worker', team_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Retain the conversation', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   ...Array.from({ length: 12 }, () => lead({ kind: 'text', text: 'LEAD-ACK' })),
   peer({ kind: 'tool_use', name: 'Bash', input: { command: 'printf HISTORY-WITNESS', description: 'Record the history witness' } }),
@@ -20,7 +18,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-teammate-transcript-resume')
 const world = await makeWorld('teammate-transcript-resume', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash', 'TeamCreate'])
+const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash'])
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (id: string, request: Frame): Promise<Frame> => {
   session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
@@ -39,7 +37,7 @@ const lastUser = (request: Request): string => {
 const continuationAfter = (from: number): Request | undefined => requests().slice(from).find(request => lastUser(request).includes(NOTE))
 
 try {
-  session.submit('Create a team, spawn the worker, and park.')
+  session.submit('Spawn the worker and park.')
   await session.waitFor('the worker did not start its second request', () => requests().length >= 2 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const started = session.frames.find(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate')
   const taskId = started?.task_id

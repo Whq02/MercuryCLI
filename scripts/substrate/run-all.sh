@@ -28,7 +28,7 @@
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/LSPTool/LSPTool.ts src/tools/ScheduleWakeupTool/prompt.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/tools/LiveCommsTool/LiveCommsTool.ts
-# gate-watch: src/tools/TeamCreateTool/TeamCreateTool.ts src/tools/TeamDeleteTool/TeamDeleteTool.ts
+# gate-watch: src/utils/crew/crewBirth.ts src/replLauncher.tsx
 # gate-watch: src/types/command.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

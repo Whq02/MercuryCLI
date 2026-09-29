@@ -98,13 +98,12 @@ tally.section('§3 the crew facts: the teammate row carries the resolved word an
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn =>
   ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: 'toolu_deep_team', name: 'TeamCreate', input: { team_name: TEAM, description: 'the effort-truth team' } }, FIRST),
   lead(
     {
       kind: 'tool_use',
       id: SPAWN_ID,
       name: 'Agent',
-      input: { name: SEAT, team_name: TEAM, model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-general', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
+      input: { name: SEAT, team_name: 'crew', model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-general', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
     },
     FIRST,
   ),
@@ -138,7 +137,7 @@ const seatRequests = (world: Awaited<ReturnType<typeof makeWorld>>): SeatRequest
 
 tally.section('§4 the drive: an Agent call with team_name and effort max reaches the seat\'s run, its wire and its sidecar')
 const world = await makeWorld('teammate-effort', script)
-const session = bootLead(world, [], ['Agent', 'SendMessage', 'TeamCreate'])
+const session = bootLead(world, [], ['Agent', 'SendMessage'])
 const projects = join(world.config, 'projects')
 try {
   session.submit(`${FIRST}: create the team and the deep seat.`)

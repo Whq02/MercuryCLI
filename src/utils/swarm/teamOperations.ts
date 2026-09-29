@@ -1,160 +1,40 @@
 
 import { join } from 'node:path'
-import { getSessionId } from '../../bootstrap/state.js'
 import {
   recoverJournalDir,
-  runJournaledOperation,
   type JournalRecoveryHandler,
-  type JournaledOperationOutcome,
 } from '../../substrate/operationJournal.js'
 import { getTeamsDir } from '../envUtils.js'
-import { getErrnoCode, getErrnoPath } from '../errors.js'
 import { logForDebugging } from '../debug.js'
-import { ensureTasksDir, resetTaskList } from '../tasks.js'
-import {
-  cleanupTeamDirectories,
-  getTeamFilePath,
-  readTeamFileAsync,
-  sanitizeName,
-  writeTeamFileAsync,
-  type TeamFile,
-} from './teamHelpers.js'
+import { getTeamDir, getTeamFilePath, readTeamFileAsync } from './teamHelpers.js'
 
 export function teamJournalDir(): string {
   return join(getTeamsDir(), '.journal')
 }
 
-export class TeamCreateConflictError extends Error {
-  constructor(
-    message: string,
-    public readonly conflict: 'exists' | 'in-flight',
-  ) {
-    super(message)
-    this.name = 'TeamCreateConflictError'
-  }
+function teamNameOf(idempotencyKey: string, kind: 'team-create' | 'team-delete'): string {
+  return idempotencyKey.replace(new RegExp(`^${kind}:`), '').replace(/:\d+$/, '')
 }
 
-export async function performTeamCreateOperation(args: {
-  teamName: string
-  teamFile: TeamFile
-}): Promise<JournaledOperationOutcome<{ teamFilePath: string }>> {
-  const { teamName, teamFile } = args
-  const teamFilePath = getTeamFilePath(teamName)
-  const first = await runTeamCreate(teamName, teamFile, `team-create:${sanitizeName(teamName)}`)
-  if (first.outcome === 'replayed' && (await readTeamFileAsync(teamName)) === null) {
-    const fresh = await runTeamCreate(teamName, teamFile, `team-create:${sanitizeName(teamName)}:${Date.now()}`)
-    if ((await readTeamFileAsync(teamName)) === null) {
-      throw new Error(`Team "${teamName}" was not written at ${teamFilePath} — the create did not land.`)
-    }
-    return fresh
-  }
-  if ((await readTeamFileAsync(teamName)) === null) {
-    throw new Error(`Team "${teamName}" was not written at ${teamFilePath} — the create did not land.`)
-  }
-  return first
-}
-
-async function runTeamCreate(
-  teamName: string,
-  teamFile: TeamFile,
-  idempotencyKey: string,
-): Promise<JournaledOperationOutcome<{ teamFilePath: string }>> {
-  const sessionId = getSessionId()
-  const teamFilePath = getTeamFilePath(teamName)
-  const outcome = await runJournaledOperation<{ teamFilePath: string }>({
-    journalDir: teamJournalDir(),
-    ownerKey: sessionId,
-    kind: 'team-create',
-    idempotencyKey,
-    steps: [
-      {
-        id: 'team-file',
-        target: teamFilePath,
-        run: async () => {
-          try {
-            await writeTeamFileAsync(teamName, teamFile, { exclusive: true })
-          } catch (e) {
-            if (getErrnoCode(e) === 'EEXIST' && getErrnoPath(e) === teamFilePath) {
-              const existing = await readTeamFileAsync(teamName)
-              if (existing?.leadSessionId === sessionId) return
-              throw new TeamCreateConflictError(
-                `Team "${teamName}" already exists at ${teamFilePath}.`,
-                'exists',
-              )
-            }
-            throw e
-          }
-        },
-      },
-      {
-        id: 'task-epoch',
-        target: sanitizeName(teamName),
-        run: async () => {
-          const taskListId = sanitizeName(teamName)
-          await resetTaskList(taskListId)
-          await ensureTasksDir(taskListId)
-        },
-      },
-    ],
-    compensate: () => compensateTeamCreate(teamName, sessionId),
-    result: () => ({ teamFilePath }),
-  })
-  if (outcome.outcome === 'in-flight') {
-    throw new TeamCreateConflictError(
-      `Team "${teamName}" is being created by another live Mercury process right now.`,
-      'in-flight',
-    )
-  }
-  return outcome
-}
-
-async function compensateTeamCreate(teamName: string, creatorSessionId: string): Promise<void> {
-  const tf = await readTeamFileAsync(teamName)
-  if (tf && tf.leadSessionId !== creatorSessionId) {
-    logForDebugging(
-      `[team-create] compensate: "${teamName}" belongs to another session — leaving it untouched`,
-    )
-    return
-  }
-  if (!tf) return
-  await cleanupTeamDirectories(teamName)
-}
-
-export async function performTeamDeleteOperation(teamName: string): Promise<void> {
-  await runJournaledOperation({
-    journalDir: teamJournalDir(),
-    ownerKey: getSessionId(),
-    kind: 'team-delete',
-    idempotencyKey: `team-delete:${sanitizeName(teamName)}:${Date.now()}`,
-    steps: [
-      {
-        id: 'remove',
-        target: getTeamFilePath(teamName),
-        run: async () => {
-          await cleanupTeamDirectories(teamName)
-        },
-      },
-    ],
-  })
+function leaveTeamInPlace(name: string, why: string): void {
+  logForDebugging(`[teams-journal] ${why}: "${name}" is left in place at ${getTeamDir(name)} — nothing is removed by itself`)
 }
 
 export function teamJournalRecoveryHandlers(): Record<string, JournalRecoveryHandler> {
   return {
     'team-create': {
       rollForward: async op => {
-        const name = op.idempotencyKey.replace(/^team-create:/, '').replace(/:\d+$/, '')
+        const name = teamNameOf(op.idempotencyKey, 'team-create')
         const tf = await readTeamFileAsync(name)
         if (!tf) throw new Error(`team-create roll-forward: "${name}" has no team file`)
       },
       compensate: async op => {
-        const name = op.idempotencyKey.replace(/^team-create:/, '').replace(/:\d+$/, '')
-        await compensateTeamCreate(name, op.ownerKey)
+        leaveTeamInPlace(teamNameOf(op.idempotencyKey, 'team-create'), 'an older build\'s create was interrupted')
       },
     },
     'team-delete': {
       rollForward: async op => {
-        const name = op.idempotencyKey.replace(/^team-delete:/, '').replace(/:\d+$/, '')
-        await cleanupTeamDirectories(name)
+        leaveTeamInPlace(teamNameOf(op.idempotencyKey, 'team-delete'), 'an older build\'s delete was interrupted')
       },
     },
   }

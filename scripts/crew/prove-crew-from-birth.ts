@@ -7,6 +7,8 @@ import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import {
   bootLead,
   closeWorld,
+  crewMessagesTo,
+  crewStoreFile,
   LEAD_GATE,
   LEAD_MODEL,
   makeTally,
@@ -79,6 +81,16 @@ if (birth !== null) {
     foreign = error instanceof Error ? error.message : String(error)
   }
   tally.check('a join into a team that is not this session\'s crew still refuses, and the words name no create tool', foreign.includes('does not exist') && !/create the team/i.test(foreign), foreign)
+  const birthModule = birth as unknown as { birthSessionCrew: (sessionId: string, setAppState?: (updater: (prev: unknown) => unknown) => void) => string | null }
+  process.env.MERCURY_CREW = '1'
+  process.env.MERCURY_CREW_AGENT = 'seat-one'
+  let seatContextSet = false
+  const seatBirth = birthModule.birthSessionCrew(randomUUID(), () => {
+    seatContextSet = true
+  })
+  delete process.env.MERCURY_CREW
+  delete process.env.MERCURY_CREW_AGENT
+  tally.check('a daemon crew seat\'s own session births no crew of its own (a crewmate is never a lead)', seatBirth === null && !seatContextSet, `${String(seatBirth)} contextSet=${String(seatContextSet)}`)
 }
 
 tally.section('§1 a fresh session: the first spawn, message and brief find the crew — no create call')
@@ -109,7 +121,7 @@ const crewDir = join(world.teams, sessionId)
 const configPath = join(crewDir, 'config.json')
 type Roster = { name: string; leadSessionId?: string; leadAgentId: string; members: Array<{ name: string; model?: string }> }
 type InboxRow = { from: string; text: string }
-const inbox = (name: string): InboxRow[] => readJson<InboxRow[]>(join(crewDir, 'inboxes', `${name}.json`)) ?? []
+const inbox = (name: string): InboxRow[] => crewMessagesTo(world, sessionId, name)
 const idleNotices = (): number => inbox('team-lead').filter(row => row.text.includes('idle_notification')).length
 const tools = ['Agent', 'SendMessage', 'TeamBrief']
 const transcriptsOf = (): string[] => treeOf(join(world.config, 'projects')).filter(path => path.endsWith(`${sessionId}.jsonl`))
@@ -151,10 +163,10 @@ try {
   tally.check('the first message to the crewmate is delivered to its inbox', note !== null && note.isError === false && inbox('scout').some(row => row.text.includes('NOTE-FOR-SCOUT')), `${note?.text.slice(0, 200) ?? '(no result)'} inbox=${JSON.stringify(inbox('scout').map(row => row.text.slice(0, 40)))}`)
   const brief = toolResultOf(world, BRIEF_ID)
   record('first-brief.txt', `${brief?.text ?? ''}\n`)
-  tally.check('the first brief names the session\'s crew and lists scout', brief !== null && brief.text.includes(`# Team: ${sessionId}`) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
+  tally.check('the first brief names the session\'s crew and lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`).test(brief.text) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
   const until = Date.now() + TURN_MS / 3
   while (idleNotices() < 1 && Date.now() < until) await sleep(50)
-  tally.check('the crewmate\'s idle notice reaches the lead\'s inbox of that crew', idleNotices() >= 1, `${idleNotices()} notice(s) in ${crewDir}`)
+  tally.check('the crewmate\'s idle notice reaches the lead on the crew\'s own store', idleNotices() >= 1, `${idleNotices()} notice(s) on ${crewStoreFile(world, sessionId)}`)
   const transcript = transcriptsOf()
   const toolUses = transcript.length === 1 ? toolUseNamesOf(readFileSync(join(world.config, 'projects', transcript[0]!), 'utf8')) : []
   tally.check('the transcript carries the spawn and no TeamCreate row', transcript.length === 1 && toolUses.includes('Agent') && !toolUses.includes('TeamCreate'), `${JSON.stringify(transcript)} tool_use rows=${JSON.stringify(toolUses)}`)
@@ -173,7 +185,7 @@ try {
   await second.waitFor('the resumed session never settled', () => second.stdout().includes('RESUME-DONE'), TURN_MS)
   const brief = toolResultOf(world, BRIEF_AGAIN_ID)
   record('resumed-brief.txt', `${brief?.text ?? ''}\n`)
-  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && brief.text.includes(`# Team: ${sessionId}`) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
+  tally.check('the resumed brief names the same crew and still lists scout', brief !== null && new RegExp(`# (Team|Crew): ${sessionId}`).test(brief.text) && /- scout\b/.test(brief.text), brief?.text.slice(0, 240) ?? '(no result)')
   const gamma = toolResultOf(world, GAMMA_ID)
   record('resumed-gamma-result.txt', `${gamma?.text ?? ''}\nis_error=${String(gamma?.isError)}\n`)
   tally.check('a new crewmate joins the surviving crew', gamma !== null && gamma.isError === false && !/does not exist/.test(gamma.text), `${gamma?.text.slice(0, 200) ?? '(no result)'} is_error=${String(gamma?.isError)}`)
