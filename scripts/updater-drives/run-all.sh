@@ -5,6 +5,7 @@
 # gate-watch: package.json scripts/computer/computerDriveKit.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/lib/firstRunSeed.ts scripts/release/payloadContract.mjs
 # gate-watch: scripts/updater/prove-face-update-line.ts scripts/updater/prove-orphan-terminal-close.py
+# gate-watch: scripts/updater/prove-gh-child-deadline.py src/services/privateChannel/ghRelease.ts
 # gate-watch: src/components/mercury-ui/keyHintLabel.ts
 # gate-watch: src/components/BootSplashScreen.tsx
 set -u

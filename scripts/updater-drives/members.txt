@@ -7,3 +7,4 @@
 prove-install-path.ts
 prove-orphan-terminal-close.py
 prove-face-update-line.ts
+prove-gh-child-deadline.py
