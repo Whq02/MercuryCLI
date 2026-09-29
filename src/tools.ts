@@ -97,11 +97,9 @@ import { SyntheticOutputTool } from './tools/SyntheticOutputTool/SyntheticOutput
 import { TaskCreateTool } from './tools/TaskCreateTool/TaskCreateTool.js'
 import { TaskGetTool } from './tools/TaskGetTool/TaskGetTool.js'
 import { TaskListTool } from './tools/TaskListTool/TaskListTool.js'
+import { LiveCommsTool } from './tools/LiveCommsTool/LiveCommsTool.js'
 import { TaskStopTool } from './tools/TaskStopTool/TaskStopTool.js'
 import { TaskUpdateTool } from './tools/TaskUpdateTool/TaskUpdateTool.js'
-import { TeamBriefTool } from './tools/TeamBriefTool/TeamBriefTool.js'
-import { TeamCreateTool } from './tools/TeamCreateTool/TeamCreateTool.js'
-import { TeamDeleteTool } from './tools/TeamDeleteTool/TeamDeleteTool.js'
 import { TestingPermissionTool } from './tools/testing/TestingPermissionTool.js'
 import { TestTool } from './tools/TestTool/TestTool.js'
 import { ToolSearchTool } from './tools/ToolSearchTool/ToolSearchTool.js'
@@ -168,9 +166,7 @@ export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
   const includeSearchTools = search.available && search.mode !== 'embedded'
 
-  const teamCreate = cycleTolerant(() => TeamCreateTool)
-  const teamDelete = cycleTolerant(() => TeamDeleteTool)
-  const teamBrief = cycleTolerant(() => TeamBriefTool)
+  const liveComms = cycleTolerant(() => LiveCommsTool)
   const artifactsList = cycleTolerant(() => ArtifactsListTool)
   const sendMessage = cycleTolerant(() => SendMessageTool)
   const powerShell = cycleTolerant(() => PowerShellTool)
@@ -219,8 +215,8 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
-    ...(isAgentSwarmsEnabled() && teamCreate && teamDelete && teamBrief
-      ? [teamCreate, teamDelete, teamBrief, ...(artifactsList ? [artifactsList] : [])]
+    ...(isAgentSwarmsEnabled() && liveComms
+      ? [liveComms, ...(artifactsList ? [artifactsList] : [])]
       : []),
     WORKFLOW_TOOL,
     SLEEP_TOOL,

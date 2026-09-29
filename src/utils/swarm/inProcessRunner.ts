@@ -6,6 +6,7 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
+import { setLiveBusy } from '../../services/crew/liveComms.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { runAgent } from '../../tools/AgentTool/runAgent.js'
@@ -36,6 +37,7 @@ import {
 } from '../../hooks/useSwarmPermissionPoller.js'
 import { runWithAgentContext, type TeammateAgentContext } from '../agentContext.js'
 import { createChildAbortController } from '../abortController.js'
+import { runWithCwdOverride } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage, toError } from '../errors.js'
 import { cloneFileStateCache } from '../fileStateCache.js'
@@ -108,6 +110,7 @@ export type InProcessRunnerConfig = {
   toolUseContext: ToolUseContext
   abortController: AbortController
   model?: string
+  cwd?: string
   effortOverride?: string
   transcriptAgentId?: string
   resume?: {
@@ -553,6 +556,9 @@ async function sendIdleNotificationToLead(
 function noteMemberActive(identity: InProcessRunnerConfig['identity'], active: boolean): void {
   setMemberActive(identity.teamName, identity.agentName, active).catch((error: unknown) => {
     logForDebugging(`teammate ${identity.agentName}: active flag write failed: ${errorMessage(error)}`)
+  })
+  setLiveBusy(identity.teamName, identity.agentName, active).catch((error: unknown) => {
+    logForDebugging(`teammate ${identity.agentName}: live busy write failed: ${errorMessage(error)}`)
   })
 }
 
@@ -1151,7 +1157,8 @@ function armCrewmatePauseResume(config: InProcessRunnerConfig, pause: AgentPause
 
 export function startInProcessTeammate(config: InProcessRunnerConfig): void {
   const agentId = config.identity.agentId
-  runInProcessTeammate(config).catch((error: unknown) => {
+  const life = (): Promise<InProcessRunnerResult> => runInProcessTeammate(config)
+  ;(config.cwd !== undefined ? runWithCwdOverride(config.cwd, life) : life()).catch((error: unknown) => {
     logError(error)
     logForDebugging(`in-process teammate ${agentId} rejected: ${errorMessage(toError(error))}`)
   })

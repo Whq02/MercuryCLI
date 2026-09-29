@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
@@ -19,6 +19,7 @@ const bootstrap = await import('../../src/bootstrap/state.js')
 bootstrap.setOriginalCwd(project)
 bootstrap.setProjectRoot(project)
 const mailbox = await import('../../src/utils/teammateMailbox.js')
+const { liveCommsPath } = await import('../../src/services/crew/liveComms.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')
 const { recordTranscript, flushSessionStorage, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.js')
 const { markSessionCleared } = await import('../../src/utils/sessionStorage/clearedSessions.js')
@@ -40,7 +41,7 @@ const send = (text: string, from = 'one') => mailbox.writeToMailbox(recipient, {
 }, team)
 
 try {
-  check('reading an empty inbox creates no file', await mailbox.prepareMailboxDelivery(recipient, team, sid) === null && !existsSync(mailbox.getInboxPath(recipient, team)))
+  check('reading an empty inbox creates no file', await mailbox.prepareMailboxDelivery(recipient, team, sid) === null && !existsSync(liveCommsPath(team)))
   await send('first')
   await send('second', 'two')
   const prepared = await mailbox.prepareMailboxDelivery(recipient, team, sid)
@@ -56,7 +57,7 @@ try {
   check('the live conversation recognizes the delivered prompt', await mailbox.wasMailboxDeliveryHandled(replay!, [input]))
   check('a reconstructed reader recognizes the prompt from disk', await mailbox.wasMailboxDeliveryHandled(replay!, []))
 
-  const lock = mailbox.getInboxPath(recipient, team) + '.lock'
+  const lock = liveCommsPath(team) + '.lock'
   mkdirSync(lock)
   const heartbeat = setInterval(() => { const now = new Date(); utimesSync(lock, now, now) }, 500)
   let refused = false
@@ -118,7 +119,7 @@ try {
   check('the painter unescapes the summary attribute and the transcript body for display', painter.includes('{unescapeXmlAttr(message.summary)}') && painter.includes('<Ansi>{unescapeXml(message.content)}</Ansi>'))
   const poll = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
   check('a run of refused acknowledgements is reported once through the error log, and a success resets the count', poll.includes('if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {') && poll.includes('consecutive acknowledgements refused') && poll.includes('await acknowledgeMailboxDelivery(TEAM_LEAD_NAME, teamName, delivery.id)\n          refusedAcknowledgements = 0'))
-  await mailbox.getMailboxStore(recipient, team).write([{ from: 'peer', text: 'keep content', timestamp: 't', delivery: { id: '../not-an-id', sessionId: '../../not-a-session' } }])
+  writeFileSync(liveCommsPath(team), JSON.stringify({ schema: 1, crew: team, seq: 1, messages: [{ id: 'kept-1', seq: 1, to: recipient, from: 'peer', text: 'keep content', timestamp: 't', delivery: { id: '../not-an-id', sessionId: '../../not-a-session' } }], tasks: {}, busy: {} }))
   const repaired = await mailbox.prepareMailboxDelivery(recipient, team, randomUUID())
   check('malformed delivery metadata is replaced without losing the message', repaired?.messages[0]?.text === 'keep content' && repaired.id !== '../not-an-id')
 } finally {

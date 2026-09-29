@@ -36,7 +36,7 @@ section("§1 the runner's ledger: the session's list beside the team's board")
   check('with no team the list id is the session id', tasks.getTaskListId() === own, tasks.getTaskListId())
   const before = await tasks.createTask(own, { subject: 'review next session planning doc', description: '', activeForm: 'Reviewing the planning doc', status: 'in_progress', blocks: [], blockedBy: [] })
   tasks.setLeaderTeamName('crew')
-  check("a TeamCreate moves the runner's WRITES to the team's board (the fleet's shared-board law)", tasks.getTaskListId() === 'crew')
+  check("a leader registration moves the runner's WRITES to the crew's board (the fleet's shared-board law)", tasks.getTaskListId() === 'crew')
   const afterRaw = await tasks.createTask(tasks.getTaskListId(), { subject: 'the team task', description: '', status: 'pending', blocks: [], blockedBy: [] })
   const after = `crew:${afterRaw}`
   const mission = await tasks.listSessionMission()

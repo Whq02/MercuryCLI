@@ -14,8 +14,6 @@ import { TASK_GET_TOOL_NAME } from '../../tools/TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../../tools/TaskListTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
-import { TEAM_CREATE_TOOL_NAME } from '../../tools/TeamCreateTool/constants.js'
-import { TEAM_DELETE_TOOL_NAME } from '../../tools/TeamDeleteTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 import { WORKFLOW_TOOL_NAME } from '../../tools/WorkflowTool/constants.js'
 import { YOLO_CLASSIFIER_TOOL_NAME } from './yoloClassifier.js'
@@ -36,8 +34,6 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   ASK_USER_QUESTION_TOOL_NAME,
   ENTER_PLAN_MODE_TOOL_NAME,
   EXIT_PLAN_MODE_TOOL_NAME,
-  TEAM_CREATE_TOOL_NAME,
-  TEAM_DELETE_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
   SLEEP_TOOL_NAME,

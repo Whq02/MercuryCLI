@@ -33,9 +33,15 @@
 # gate-watch: src/utils/model/configs.ts src/utils/sessionStorage/logs.ts src/utils/sessionStorage/paths.ts
 # gate-watch: src/utils/swarm/busEnvelopes.ts src/utils/swarm/spawnInProcess.ts src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/tasks/crewmateInterrupt.ts src/state/selectors.ts src/state/teammateViewHelpers.ts src/utils/attachments/queuedCommands.ts src/utils/cockpit/crewmateWords.ts
-# gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessTeammateTask/types.ts src/tools/TeamDeleteTool/TeamDeleteTool.ts src/utils/swarm/inProcessRunner.ts
+# gate-watch: src/components/tasks/useCrewmateTranscript.ts src/tasks/InProcessTeammateTask/types.ts src/utils/swarm/inProcessRunner.ts
 # gate-watch: src/services/coordination/coordinationService.ts src/utils/swarm/roomHealth.ts
-# gate-watch: src/services/oauth/client.ts src/daemon/crewSeatPause.ts src/utils/crew/crewAccountChange.ts src/utils/crew/crewmateColors.ts
+# gate-watch: src/utils/crew/crewBirth.ts src/utils/crew/crewConvert.ts package.json scripts/builtin-tools/fixtures/tool-census.json scripts/builtin-tools/fixtures/tool-census.md scripts/project-services/fixtures/inventory.json
+# gate-watch: src/components/mercury-ui/toolGlyphs.ts src/components/messages/AssistantToolUseMessage.tsx src/state/AppState.tsx src/substrate/durableOperationMatrix.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
+# gate-watch: src/utils/capability/declarations.ts src/utils/permissions/classifierDecision.ts src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/teamOperations.ts
+# gate-watch: src/utils/hooks/events.ts src/utils/swarm/constants.ts src/utils/swarm/leaseGlob.ts src/utils/swarm/leaseGuard.ts src/services/crew/claims.ts src/services/oauth/client.ts
+# gate-watch: src/services/crew/liveTasks.ts src/utils/swarm/roleResolver.ts src/utils/swarm/teamCharter.ts src/utils/swarm/teammatePromptAddendum.ts src/utils/tasks.ts src/utils/teammate.ts src/utils/agentContext.ts
+# gate-watch: src/commands/tasks/index.ts src/components/tasks/BackgroundTasksDialog.tsx src/services/crew/identity.ts
+# gate-watch: src/daemon/crewSeatPause.ts src/utils/crew/crewAccountChange.ts src/utils/crew/crewmateColors.ts
 # gate-watch: docs/TEAMS.md docs/ENGINES.md README.md src/main.tsx src/setup.ts src/components/Settings/Config.tsx src/utils/config/schema.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
@@ -50,7 +56,7 @@ export MERCURY_CONFIG_DIR="$scratch_home"
 unset MERCURY_CREW MERCURY_CREW_AGENT MERCURY_DAEMON_CREW MERCURY_DAEMON_PERMISSION_MODE MERCURY_WORKER_RECON_ALLOW 2>/dev/null || true
 trap 'rm -rf "$scratch_home"; suite_home_cleanup' EXIT
 echo "############################################################"
-echo "# Crew teammates — proof harness"
+echo "# Crewmates — proof harness"
 echo "############################################################"
 shopt -s nullglob
 globs=("$here"/prove-*.ts)

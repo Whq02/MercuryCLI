@@ -174,6 +174,8 @@ export type DaemonRequest =
       auth?: string
       name: string
       model: string
+      cwd?: string
+      worktree?: true | { at?: string }
     }
   | {
       op: 'sessionAdmit'
@@ -354,6 +356,7 @@ export interface DaemonHelloFacts {
   liveSessions: number
   warm: number
   restartArmed: boolean
+  predecessorPid?: number | null
 }
 
 export interface WireRosterEntry {
@@ -377,6 +380,8 @@ export interface WireRosterEntry {
   busy?: boolean
   turnActive?: boolean
   turnElapsedMs?: number
+  cwd?: string
+  worktree?: string
   paused?: { why: string; words: string; resumesAtMs?: number }
 }
 

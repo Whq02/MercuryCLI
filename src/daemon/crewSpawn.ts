@@ -7,9 +7,11 @@ import {
   writeTeamFileAsync,
   type TeamFile,
 } from '../utils/swarm/teamHelpers.js'
+import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
@@ -154,6 +156,8 @@ export interface CrewRosterPort {
   registerLongLived(
     short: string,
     spec: StreamJsonChildSpec,
+    opts?: Partial<LongLivedSupervisorConfig>,
+    start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string }
   currentLongLivedModel?(short: string): string | undefined
 }
@@ -164,11 +168,13 @@ export interface CrewSpawnDeps {
   onSpawned: (name: string, spec: StreamJsonChildSpec, pid: number | undefined) => void
 }
 
+export type CrewSeatStart = { cwd?: string; worktree?: { at?: string } }
+
 export function makeCrewSpawnHandler(
   deps: CrewSpawnDeps,
-): (name: string, modelKey: string) => Promise<{ ok: boolean; pid?: number; error?: string }> {
+): (name: string, modelKey: string, start?: CrewSeatStart) => Promise<{ ok: boolean; pid?: number; error?: string }> {
   const crewShorts = new Set<string>()
-  return async (name, modelKey) => {
+  return async (name, modelKey, start) => {
     if (!crewEnabled()) {
       return { ok: false, error: 'named agents are disabled on this daemon (MERCURY_CREW=0)' }
     }
@@ -187,13 +193,26 @@ export function makeCrewSpawnHandler(
     }
     const seat = await resolveCrewSeatModel(modelKey)
     if (!seat.ok) return { ok: false, error: seat.error }
+    const folder = start?.cwd ?? deps.dir
+    let plan: CrewStartPlanV1
     try {
-      await ensureCrewTeamMember(name, seat.model, deps.dir)
+      plan = await resolveCrewStart({
+        name,
+        cwd: folder,
+        ...(start?.worktree !== undefined ? { worktree: start.worktree } : {}),
+        model: seat.model,
+      })
+    } catch (e) {
+      return { ok: false, error: `start refused: ${e instanceof Error ? e.message : String(e)}` }
+    }
+    const runDir = plan.worktree !== null ? plan.worktree.path : folder
+    try {
+      await ensureCrewTeamMember(name, plan.model, runDir)
     } catch (e) {
       return { ok: false, error: `team-file update failed: ${e}` }
     }
-    const spec = buildCrewSpec(name, seat, deps.dir)
-    const reg = r.registerLongLived(name, spec)
+    const spec = buildCrewSpec(name, { model: plan.model, effort: seat.effort }, runDir)
+    const reg = r.registerLongLived(name, spec, undefined, { cwd: folder, ...(plan.worktree !== null ? { worktree: plan.worktree.path } : {}) })
     if (!reg.ok) return { ok: false, error: reg.error ?? 'registerLongLived refused' }
     crewShorts.add(name)
     deps.onSpawned(name, spec, reg.pid)

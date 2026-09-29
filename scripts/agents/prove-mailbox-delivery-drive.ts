@@ -19,14 +19,14 @@ const teams = join(world, 'teams')
 mkdirSync(project)
 seedFirstRun(config, [project])
 const model = 'claude-fable-5-1'
-const team = 'delivery-group'
+const sessionId = randomUUID()
+const team = sessionId
 const script: ScriptedTurn[] = []
 const main = (turn: Record<string, unknown>, whenBody?: string) => ({ ...turn, model, whenModel: 'fable-5-1', ...(whenBody ? { whenBody } : {}) })
 const send = (id: string, to: string, message: string) => ({ kind: 'tool_use', name: 'SendMessage', id, input: { to, message, summary: message } })
 script.push(...[
-  main({ kind: 'tool_use', name: 'TeamCreate', input: { team_name: team, description: 'Report delivery test' } }, 'START-GROUP'),
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: team, model: 'claude-opus-4-6', subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once.' } }, 'START-GROUP'),
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', team_name: team, model: 'claude-sonnet-5', subagent_type: 'mercury-general', description: 'Dragon report', prompt: 'Send READY-DRAGON to team-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', team_name: 'crew', model: 'claude-opus-4-6', subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to team-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', team_name: 'crew', model: 'claude-sonnet-5', subagent_type: 'mercury-general', description: 'Dragon report', prompt: 'Send READY-DRAGON to team-lead once.' } }, 'START-GROUP'),
   main({ kind: 'text', text: 'GROUP-STARTED' }, 'START-GROUP'),
   main({ kind: 'text', text: 'FIRST-REPORT-RECEIVED' }, 'READY-WATER'),
   main(send('resume-water', 'water', 'RESUME-WATER: send REPORT-WATER-2 once.'), 'RESUME-GROUP'),
@@ -44,7 +44,7 @@ script.push(...[
   { kind: 'paced', deltas: ['Workflow test done.'], gapMs: 0, startDelayMs: 5000, whenModel: 'opus-5' },
 ] as ScriptedTurn[])
 const fixture = await startFixtureApi(script)
-const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'TeamCreate', 'Workflow', '--session-id', randomUUID()], {
+const child = spawn(node, [dist, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--allowed-tools', 'Agent', 'SendMessage', 'Workflow', '--session-id', sessionId], {
   cwd: project,
   env: { HOME: world, PATH: '/usr/bin:/bin:' + dirname(node), TERM: 'dumb', MERCURY_CONFIG_DIR: config, MERCURY_TEAMS_DIR: teams, MERCURY_DAEMON_DIR: join(world, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: fixture.url },
   stdio: ['pipe', 'pipe', 'pipe'],
@@ -68,7 +68,7 @@ async function waitFor(predicate: () => boolean, label: string): Promise<void> {
   }
 }
 const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
-const inboxPath = join(teams, team, 'inboxes/team-lead.json')
+const inboxPath = join(config, 'crew', 'livecomms', `${team}.json`)
 let lockHeld = false
 let lockReleased = false
 let lockRefresh: ReturnType<typeof setInterval> | undefined
@@ -76,7 +76,8 @@ let lockRelease: ReturnType<typeof setTimeout> | undefined
 const readInbox = (): Array<{ text: string; read?: boolean; from: string }> | null => {
   if (!existsSync(inboxPath)) return null
   try {
-    return JSON.parse(readFileSync(inboxPath, 'utf8')) as Array<{ text: string; read?: boolean; from: string }>
+    const file = JSON.parse(readFileSync(inboxPath, 'utf8')) as { messages?: Array<{ to: string; text: string; read?: boolean; from: string }> }
+    return (file.messages ?? []).filter(row => row.to === 'team-lead')
   } catch {
     return null
   }

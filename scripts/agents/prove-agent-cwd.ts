@@ -161,7 +161,7 @@ check('…and it settles too', settledThird.outcome === 'settled', JSON.stringif
 section('§4 the launch and the prompt')
 const source = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
 check('the launch resolves cwd before any spawn', source.includes('resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true })'))
-check('a named teammate spawn refuses cwd typed', source.includes('cwd applies to a sub-agent launch'))
+check('a named crewmate spawn takes cwd through the same trust resolver (no refusal)', !source.includes('cwd applies to a sub-agent launch') && source.includes('const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined'))
 check('the worktree preflight and the cut read the named directory', source.includes('preflightWorktreeCapability(cwdParam)') && source.includes('from: cwdParam'))
 check('the helper runs in the worktree when both are named', source.includes('worktreeInfo?.worktreePath ?? cwdParam'))
 check("the session-only home-folder trust arm reads the slot the boot's trust check reads", source.includes('getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())'))

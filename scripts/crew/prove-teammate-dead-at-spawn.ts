@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
 import {
   bootLead,
   closeWorld,
+  crewMessagesTo,
   LEAD_GATE,
   LEAD_MODEL,
   makeTally,
@@ -16,7 +18,6 @@ import {
   userTextsOf,
 } from './team-world.ts'
 
-const TEAM = 'spawn-truth'
 const SEAT = 'ghost'
 const SEAT_MODEL = 'claude-opus-4-6'
 const SEAT_GATE = 'opus-4-6'
@@ -31,13 +32,12 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn =>
   ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
 
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: 'toolu_ghost_team', name: 'TeamCreate', input: { team_name: TEAM, description: 'the spawn-truth team' } }, FIRST),
   lead(
     {
       kind: 'tool_use',
       id: SPAWN_ID,
       name: 'Agent',
-      input: { name: SEAT, team_name: TEAM, model: SEAT_MODEL, subagent_type: 'mercury-general', description: 'the ghost seat', prompt: 'GHOST-WORK: reply once.' },
+      input: { name: SEAT, team_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-general', description: 'the ghost seat', prompt: 'GHOST-WORK: reply once.' },
     },
     FIRST,
   ),
@@ -50,19 +50,20 @@ const script: ScriptedTurn[] = [
 
 const tally = makeTally('prove-teammate-dead-at-spawn')
 const world = await makeWorld('teammate-dead-at-spawn', script)
-const session = bootLead(world, [], ['Agent', 'SendMessage', 'TeamCreate', 'TeamBrief'])
-const inboxPath = join(world.teams, TEAM, 'inboxes', 'team-lead.json')
-const configPath = join(world.teams, TEAM, 'config.json')
+const sessionId = randomUUID()
+const session = bootLead(world, ['--session-id', sessionId], ['Agent', 'SendMessage', 'TeamBrief'])
+const configPath = join(world.teams, sessionId, 'config.json')
 type InboxRow = { from: string; text: string; read?: boolean }
+const leadRows = (): InboxRow[] => crewMessagesTo(world, sessionId, 'team-lead')
 type Roster = { members: Array<{ name: string; isActive?: boolean }> }
 const failedNotice = (): InboxRow | undefined =>
-  (readJson<InboxRow[]>(inboxPath) ?? []).find(row => row.from === SEAT && row.text.includes('idle_notification') && row.text.includes('"failed"'))
+  leadRows().find(row => row.from === SEAT && row.text.includes('idle_notification') && row.text.includes('"failed"'))
 const seatRequests = (): number => world.fixture.messageRequests().filter(request => (request.body as { model?: string } | null)?.model === SEAT_MODEL).length
 const seatRows = (): number => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_teammate').length
 
 try {
-  tally.section('the lead creates the team and spawns a seat whose first dispatch fails')
-  session.submit(`${FIRST}: create the team and the ghost seat.`)
+  tally.section('the lead spawns a seat whose first dispatch fails')
+  session.submit(`${FIRST}: spawn the ghost seat.`)
   await session.waitFor('the lead never reported the spawn', () => session.stdout().includes('SPAWN-REPORTED'), TURN_MS)
   const spawnAnswer = toolResultOf(world, SPAWN_ID)
   tally.check('the Agent tool answered', spawnAnswer !== null)
@@ -72,8 +73,8 @@ try {
   const until = Date.now() + TURN_MS / 3
   while (failedNotice() === undefined && Date.now() < until) await sleep(50)
   const notice = failedNotice()
-  record('team-lead-inbox.json', JSON.stringify(readJson(inboxPath), null, 2) + '\n')
-  tally.check('the seat wrote its failure notice to the lead inbox', notice !== undefined, JSON.stringify(readJson(inboxPath)).slice(0, 400))
+  record('team-lead-inbox.json', JSON.stringify(leadRows(), null, 2) + '\n')
+  tally.check('the seat wrote its failure notice to the lead inbox', notice !== undefined, JSON.stringify(leadRows()).slice(0, 400))
   tally.check('the failure notice carries the cause', notice !== undefined && notice.text.includes(CAUSE))
 
   tally.section('the tool answer is the fact the notice carries')

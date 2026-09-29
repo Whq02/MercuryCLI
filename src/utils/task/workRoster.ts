@@ -17,6 +17,7 @@ import {
 import { workflowPulseFacts } from '../../tools/WorkflowTool/livePulse.js'
 import type { WorkPhaseV1, WorkRowV1 } from '../../services/engine-connector/types.js'
 import { unreadNoticeCount } from '../../services/notices/unreadLedger.js'
+import { crewStartOf } from '../crew/crewStart.js'
 
 
 const MAX_NAME = 120
@@ -102,6 +103,17 @@ function unreadNoticesOf(...ids: readonly string[]): Partial<WorkRowV1> {
   return n > 0 ? { unreadNotices: n } : {}
 }
 
+function startFoldersOf(task: TaskState): Partial<WorkRowV1> {
+  const own = task as { cwd?: unknown; worktree?: unknown }
+  const start = crewStartOf(task.id)
+  const cwd = typeof own.cwd === 'string' && own.cwd !== '' ? own.cwd : start?.cwd
+  const worktree = typeof own.worktree === 'string' && own.worktree !== '' ? own.worktree : start?.worktree ?? undefined
+  return {
+    ...(cwd !== undefined && cwd !== null ? { cwd } : {}),
+    ...(worktree !== undefined ? { worktree } : {}),
+  }
+}
+
 function agentCounters(task: TaskState): Partial<WorkRowV1> {
   const progress = (task as { progress?: unknown }).progress
   if (typeof progress !== 'object' || progress === null) return {}
@@ -165,6 +177,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...plainRow(task, 'agent', task.description || task.agentType),
         agentId: task.agentId,
         ...(task.agentType !== undefined ? { agentType: task.agentType } : {}),
+        ...startFoldersOf(task),
         ...agentCounters(task),
         ...unreadNoticesOf(task.id, String(task.agentId)),
         ...(typeof task.wait === 'string' && task.wait !== '' ? { wait: task.wait } : {}),
@@ -187,6 +200,7 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...(typeof task.effort === 'string' && task.effort !== '' ? { effort: task.effort } : {}),
         ...(typeof task.transcriptAgentId === 'string' && task.transcriptAgentId !== '' ? { transcriptAgentId: task.transcriptAgentId } : {}),
         ...(task.status === 'running' && task.isIdle === true ? { idle: true } : {}),
+        ...startFoldersOf(task),
         ...agentCounters(task),
         ...unreadNoticesOf(task.id, task.identity.agentId),
         ...(task.paused !== undefined

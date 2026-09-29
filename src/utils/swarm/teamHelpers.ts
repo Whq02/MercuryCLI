@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, rm } from 'node:fs/promises'
+import { mkdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
 import { z } from 'zod/v4'
@@ -11,13 +11,10 @@ import { recordRefusedDurableFile } from '../../substrate/storeRecovery.js'
 import { logForDebugging } from '../debug.js'
 import { getTeamsDir } from '../envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../errors.js'
-import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
-import { gitExe } from '../git.js'
 import { lazySchema } from '../lazySchema.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
-import { getTasksDir, notifyTasksUpdated } from '../tasks.js'
 import { getAgentName, getTeamName, isTeammate } from '../teammate.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { TEAM_LEAD_NAME } from './constants.js'
@@ -325,16 +322,17 @@ function withLockedTeamFileSync<R>(
 const MAX_TEAM_MEMBERS = 16
 
 export async function appendTeamMember(teamName: string, member: TeamMember): Promise<void> {
-  await withLockedTeamFile(teamName, current => {
-    if (current === null) {
-      throw new Error(`Team "${teamName}" does not exist — create the team first`)
+  await withLockedTeamFile(teamName, async current => {
+    const roster = current ?? (await import('../crew/crewBirth.js')).foundingRosterFor(teamName)
+    if (roster === null) {
+      throw new Error(`Team "${teamName}" does not exist`)
     }
-    if (current.members.length >= MAX_TEAM_MEMBERS) {
+    if (roster.members.length >= MAX_TEAM_MEMBERS) {
       throw new Error(
-        `Team "${teamName}" already has ${current.members.length} members (max ${MAX_TEAM_MEMBERS}) — shut down an idle teammate before spawning another`,
+        `Team "${teamName}" already has ${roster.members.length} members (max ${MAX_TEAM_MEMBERS}) — shut down an idle teammate before spawning another`,
       )
     }
-    return { next: { ...current, members: [...current.members, member] }, result: undefined }
+    return { next: { ...roster, members: [...roster.members, member] }, result: undefined }
   })
 }
 
@@ -494,56 +492,6 @@ export function unregisterTeamForSessionCleanup(teamName: string): void {
 
 export async function cleanupSessionTeams(): Promise<void> {
   getSessionCreatedTeams().clear()
-}
-
-async function destroyWorktree(worktreePath: string): Promise<void> {
-  try {
-    let repoRoot: string | null = null
-    try {
-      const pointer = await readFile(join(worktreePath, '.git'), 'utf-8')
-      const match = pointer.match(/^gitdir:\s*(.+)$/m)
-      if (match?.[1]) {
-        const worktreeGitDir = match[1].trim()
-        repoRoot = dirname(dirname(dirname(worktreeGitDir)))
-      }
-    } catch {
-      repoRoot = null
-    }
-    if (repoRoot !== null) {
-      const outcome = await execFileNoThrowWithCwd(
-        gitExe(),
-        ['worktree', 'remove', '--force', worktreePath],
-        { cwd: repoRoot },
-      )
-      if (outcome.code === 0) return
-      if (outcome.stderr.includes('not a working tree')) return
-      logForDebugging(`worktree remove failed for ${worktreePath}: ${outcome.stderr}`)
-    }
-    await rm(worktreePath, { recursive: true, force: true })
-  } catch (error) {
-    logForDebugging(`worktree destruction failed for ${worktreePath}: ${errorMessage(error)}`)
-  }
-}
-
-export async function cleanupTeamDirectories(teamName: string): Promise<void> {
-  const roster = readTeamFile(teamName)
-  const worktreePaths = (roster?.members ?? [])
-    .map(member => member.worktreePath)
-    .filter((path): path is string => typeof path === 'string' && path.length > 0)
-  for (const worktreePath of worktreePaths) {
-    await destroyWorktree(worktreePath)
-  }
-  try {
-    await rm(getTeamDir(teamName), { recursive: true, force: true })
-  } catch (error) {
-    logForDebugging(`team directory removal failed for ${teamName}: ${errorMessage(error)}`)
-  }
-  try {
-    await rm(getTasksDir(sanitizeName(teamName)), { recursive: true, force: true })
-    notifyTasksUpdated()
-  } catch (error) {
-    logForDebugging(`team task directory removal failed for ${teamName}: ${errorMessage(error)}`)
-  }
 }
 
 

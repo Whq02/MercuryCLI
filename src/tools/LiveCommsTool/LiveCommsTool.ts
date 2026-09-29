@@ -3,13 +3,55 @@ import { buildTool, type ToolDef } from '../../Tool.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
-import { resolveCoordinationContext, teamBrief } from '../../services/coordination/coordinationService.js'
-import { TEAM_BRIEF_TOOL_NAME } from './constants.js'
-import { DESCRIPTION, TEAM_BRIEF_TOOL_PROMPT } from './prompt.js'
+import {
+  resolveCoordinationContext,
+  teamBrief,
+  writeLiveComms,
+  type LiveCommsReceipt,
+  type LiveCommsWrites,
+} from '../../services/coordination/coordinationService.js'
+import { LIVE_COMMS_OLD_TOOL_NAME, LIVE_COMMS_TOOL_NAME } from './constants.js'
+import { DESCRIPTION, LIVE_COMMS_TOOL_PROMPT } from './prompt.js'
 
-
-const inputSchema = lazySchema(() => z.strictObject({}))
+const inputSchema = lazySchema(() =>
+  z.strictObject({
+    say: z
+      .strictObject({
+        to: z.string().describe('A crewmate name, or "*" for everyone'),
+        message: z.string().describe('The message'),
+        summary: z.string().optional().describe('A 5-10 word preview'),
+      })
+      .optional()
+      .describe('A message to write; delivered exactly as a SendMessage plain message is'),
+    task: z
+      .strictObject({
+        id: z.string().optional().describe('An existing task to move; omit to open a new one'),
+        subject: z.string().optional().describe('What the task is (required for a new task)'),
+        detail: z.string().optional(),
+        status: z.enum(['pending', 'in_progress', 'completed']).optional(),
+        owner: z.string().optional().describe('The crewmate it belongs to'),
+        blockedBy: z.array(z.string()).optional().describe('Task ids this one waits on'),
+      })
+      .optional()
+      .describe('A crew task to open or move'),
+    claim: z
+      .strictObject({
+        paths: z.array(z.string()).describe('Repo-relative paths or globs to claim for yourself'),
+      })
+      .optional()
+      .describe('A file claim; a path another crewmate holds is refused with the holder named'),
+    release: z.boolean().optional().describe('true releases every claim you hold'),
+    busy: z
+      .union([
+        z.boolean(),
+        z.strictObject({ busy: z.boolean(), doing: z.string().optional().describe('In a word, what you are doing') }),
+      ])
+      .optional()
+      .describe('Whether you are working, and on what'),
+  }),
+)
 type InputSchema = ReturnType<typeof inputSchema>
+type Input = z.infer<InputSchema>
 
 const outputSchema = lazySchema(() =>
   z.object({
@@ -46,6 +88,7 @@ const outputSchema = lazySchema(() =>
         agentType: z.string().optional(),
         status: z.string(),
         currentTasks: z.array(z.string()),
+        doing: z.string().optional(),
       }),
     ),
     leases: z.array(
@@ -90,22 +133,56 @@ const outputSchema = lazySchema(() =>
         }),
       )
       .default([]),
+    wrote: z
+      .array(
+        z.object({
+          kind: z.enum(['message', 'task', 'claim', 'release', 'busy']),
+          ok: z.boolean(),
+          detail: z.string(),
+        }),
+      )
+      .optional(),
   }),
 )
 type OutputSchema = ReturnType<typeof outputSchema>
 export type Output = z.infer<OutputSchema>
 
-export const TeamBriefTool = buildTool({
+function writesOf(input: Input | undefined): LiveCommsWrites | null {
+  if (!input) return null
+  const writes: LiveCommsWrites = {}
+  if (input.say !== undefined) writes.say = input.say
+  if (input.task !== undefined) writes.task = input.task
+  if (input.claim !== undefined) writes.claim = input.claim
+  if (input.release === true) writes.release = true
+  if (input.busy !== undefined) writes.busy = input.busy
+  return Object.keys(writes).length === 0 ? null : writes
+}
+
+function writeWords(input: Input | undefined): string {
+  const parts: string[] = []
+  if (input?.say !== undefined) parts.push(`say → ${input.say.to}`)
+  if (input?.task !== undefined) parts.push(input.task.id !== undefined ? `task #${input.task.id}` : 'task')
+  if (input?.claim !== undefined) parts.push(`claim ${input.claim.paths.join(', ')}`)
+  if (input?.release === true) parts.push('release')
+  if (input?.busy !== undefined) {
+    const busy = typeof input.busy === 'boolean' ? input.busy : input.busy.busy
+    parts.push(busy ? 'busy' : 'idle')
+  }
+  return parts.length === 0 ? 'read' : parts.join(' · ')
+}
+
+export const LiveCommsTool = buildTool({
   shouldDefer: true,
-  name: TEAM_BRIEF_TOOL_NAME,
+  name: LIVE_COMMS_TOOL_NAME,
+  aliases: [LIVE_COMMS_OLD_TOOL_NAME],
   searchHint:
-    'consolidated team brief — open tasks, unread messages, roster, file leases',
+    'live crew communication — messages, tasks, file claims, who is busy; read and write',
   maxResultSizeChars: 100_000,
   async description() {
     return DESCRIPTION
   },
   async prompt() {
-    return TEAM_BRIEF_TOOL_PROMPT
+    return LIVE_COMMS_TOOL_PROMPT
   },
   get inputSchema(): InputSchema {
     return inputSchema()
@@ -114,23 +191,29 @@ export const TeamBriefTool = buildTool({
     return outputSchema()
   },
   userFacingName() {
-    return 'TeamBrief'
+    return LIVE_COMMS_TOOL_NAME
   },
   isEnabled() {
     return isAgentSwarmsEnabled()
   },
-  isConcurrencySafe() {
-    return true
+  isConcurrencySafe(input: Input) {
+    return writesOf(input) === null
   },
-  isReadOnly() {
-    return true
+  isReadOnly(input: Input) {
+    return writesOf(input) === null
   },
-  renderToolUseMessage() {
-    return null
+  toAutoClassifierInput(input: Input) {
+    return `${LIVE_COMMS_TOOL_NAME} ${writeWords(input)}`
   },
-  async call(_input, context) {
+  renderToolUseMessage(input: Input) {
+    return writeWords(input)
+  },
+  async call(input, context) {
     const ctx = resolveCoordinationContext(context.getAppState().teamContext ?? undefined)
-    return { data: await teamBrief(ctx) }
+    const writes = writesOf(input)
+    const wrote: LiveCommsReceipt[] | undefined = ctx !== null && writes !== null ? await writeLiveComms(ctx, writes) : undefined
+    const brief = await teamBrief(ctx)
+    return { data: wrote === undefined ? brief : { ...brief, wrote } }
   },
   mapToolResultToToolResultBlockParam(content, toolUseID) {
     const {
@@ -143,6 +226,7 @@ export const TeamBriefTool = buildTool({
       health,
       conflicts,
       handoffs,
+      wrote,
     } = content as Output
 
     if (!teamName) {
@@ -150,21 +234,27 @@ export const TeamBriefTool = buildTool({
         tool_use_id: toolUseID,
         type: 'tool_result',
         content:
-          'Not part of a team. TeamBrief has nothing to report — start or join a team first.',
+          `Not part of a crew. ${LIVE_COMMS_TOOL_NAME} has nothing to report — start or join a crew first.`,
       }
     }
 
     const sections: string[] = []
-    sections.push(`# Team: ${teamName}`)
+    sections.push(`# Crew: ${teamName}`)
+
+    if (wrote && wrote.length > 0) {
+      const lines = wrote.map(w => `- ${w.kind}: ${w.ok ? 'ok' : 'REFUSED'} — ${w.detail}`)
+      sections.push(`## Written (${wrote.length})\n${lines.join('\n')}`)
+    }
 
     if (roster.length > 0) {
       const lines = roster.map(m => {
         const type = m.agentType ? ` <${m.agentType}>` : ''
+        const status = m.doing !== undefined ? `${m.status}: ${m.doing}` : m.status
         const tasks =
           m.currentTasks.length > 0
             ? ` — ${m.currentTasks.map(id => `#${id}`).join(', ')}`
             : ''
-        return `- ${m.name}${type} [${m.status}]${tasks}`
+        return `- ${m.name}${type} [${status}]${tasks}`
       })
       sections.push(`## Roster (${roster.length})\n${lines.join('\n')}`)
     } else {
@@ -211,9 +301,9 @@ export const TeamBriefTool = buildTool({
       const lines = leases.map(
         l => `- ${l.agentId}: ${l.globs.join(', ') || '(none)'}`,
       )
-      sections.push(`## File leases (${leases.length})\n${lines.join('\n')}`)
+      sections.push(`## File claims (${leases.length})\n${lines.join('\n')}`)
     } else {
-      sections.push('## File leases\n(none held — all paths open)')
+      sections.push('## File claims\n(none held — all paths open)')
     }
 
     const notableHealth = (health ?? []).filter(h => h.state !== 'idle')
@@ -230,7 +320,7 @@ export const TeamBriefTool = buildTool({
         c => `- ${c.agents.join(` ${GLYPH.conflict} `)}: ${c.detail}`,
       )
       sections.push(
-        `## ${GLYPH.warn} Tree conflicts (${conflicts.length}) — overlapping leases, coordinate before editing\n${lines.join('\n')}`,
+        `## ${GLYPH.warn} Tree conflicts (${conflicts.length}) — overlapping claims, coordinate before editing\n${lines.join('\n')}`,
       )
     }
 

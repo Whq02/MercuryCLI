@@ -35,6 +35,7 @@ import {
   type CrewChatRow,
   type CrewMemberInfo,
 } from '../../../utils/crew/crewClient.js'
+import { CREW_CHATS_HINT } from '../../../utils/cockpit/crewmateWords.js'
 
 
 const HUES = [TERRA, AMBER, TEAL, SECOND] as const
@@ -262,7 +263,7 @@ export function TeammateChatsView({
           <Text color={FAINT}> · {rows.length} named agent{rows.length === 1 ? '' : 's'} · one chat each</Text>
         </Text>
         <Box borderStyle="round" borderColor={tokens.borderSubtle} paddingX={1}>
-          <Text color={FAINT}>/teammates · n new</Text>
+          <Text color={FAINT}>{CREW_CHATS_HINT}</Text>
         </Box>
       </Box>
 

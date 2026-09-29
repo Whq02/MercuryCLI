@@ -85,7 +85,6 @@ export function routeOf(body: unknown): { route: Route; ask: string; step: numbe
   if (ask.includes('crew-mate:')) return { route: ack ? 'mate-ack' : 'mate', ask, step }
   if (ask.includes('crew-seat:')) return { route: ack ? 'seat-ack' : 'seat', ask, step }
   if (offersAgent && ask.includes('crew-stop:')) {
-    if (ask.includes(LEAD_ASK_MATE) && step === 1) return { route: 'lead', ask, step }
     return { route: ack ? 'lead-ack' : 'lead', ask, step }
   }
   return { route: 'side', ask, step }
@@ -122,15 +121,6 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
   switch (route) {
     case 'lead': {
       if (ask.includes(LEAD_ASK_MATE)) {
-        if (step === 0) {
-          return {
-            blocks: [
-              { type: 'text', text: 'making the ping team' },
-              { type: 'tool_use', name: 'TeamCreate', input: { team_name: MATE_TEAM, description: 'the ping team' } },
-            ],
-            usage: { input: 1100, output: 60 },
-          }
-        }
         return {
           blocks: [
             { type: 'text', text: 'spawning the ping mate' },

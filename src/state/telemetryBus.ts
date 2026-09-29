@@ -7,11 +7,8 @@ import {
   listWorkflowRuns,
   type WorkflowRunManifest,
 } from '../tools/WorkflowTool/runManifest.js'
-import {
-  crewRosterStatus,
-  crewUnreadCounts,
-  listCrewMembers,
-} from '../utils/crew/crewClient.js'
+import { crewSeatGlances } from '../utils/crew/crewClient.js'
+import type { CrewSeatGlanceV1 } from '../services/crew/roster.js'
 import { getCwd } from '../utils/cwd.js'
 import { logForDebugging } from '../utils/debug.js'
 import { jsonStringify } from '../utils/slowOperations.js'
@@ -33,13 +30,7 @@ const HEARTBEAT_MS = 15_000
 const subscribeFocusedWork = subscribeThroughFocused((connector, listener) => connector.subscribeWork(listener))
 const WORKFLOWS_DISK_MAX = 10
 
-export interface CrewGlanceMember {
-  name: string
-  model?: string
-  online: boolean
-  unread: number
-  paused?: { why: string; words: string; resumesAtMs?: number }
-}
+export type CrewGlanceMember = CrewSeatGlanceV1
 
 export type SessionGlanceSnapshot =
   | { state: 'unavailable' }
@@ -144,19 +135,9 @@ async function refreshOnce(): Promise<void> {
       .catch(() => {}),
     crewEnabled()
       ? (async () => {
-          const members = await listCrewMembers()
-          if (members.length === 0) return
-          const [status, unread] = await Promise.all([
-            crewRosterStatus(members.map(m => m.name)),
-            crewUnreadCounts(),
-          ])
-          next.crew = members.map(m => ({
-            name: m.name,
-            model: m.model,
-            online: status.has(m.name),
-            unread: unread.get(m.name) ?? 0,
-            ...(status.get(m.name)?.paused !== undefined ? { paused: status.get(m.name)!.paused } : {}),
-          }))
+          const seats = await crewSeatGlances()
+          if (seats.length === 0) return
+          next.crew = seats
         })().catch(() => {})
       : Promise.resolve(),
   ])

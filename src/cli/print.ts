@@ -721,6 +721,7 @@ export async function runHeadless(
     }
   }
   if (options.continue || options.resume) await hydrateResumedRun()
+  if (!awaitingSessionClaim) (await import('../utils/crew/crewBirth.js')).birthSessionCrew(String(getSessionId()), setAppState)
 
   if (!options.agent && !getMainThreadAgentType() && loaded.agentSetting) {
     const restored = restoreAgentFromSession(loaded.agentSetting, undefined, {
@@ -1407,7 +1408,7 @@ export async function runHeadless(
     if (teamShutdownPromptInjected.value) return
     teamShutdownPromptInjected.value = true
     enqueue({
-      value: `<system-reminder>You are running non-interactively and your final answer is blocked until your team is gone. Ask each teammate to shut down gracefully, wait for their shutdown approvals, then run the team cleanup operation. Only after the team is fully removed may you produce your final answer.</system-reminder>\nShut the team down now and prepare your final answer.`,
+      value: `<system-reminder>You are running non-interactively and your final answer is blocked while a crewmate is still running. Ask each crewmate to shut down gracefully and wait for their shutdown approvals. Only after every crewmate has shut down may you produce your final answer.</system-reminder>\nShut your crewmates down now and prepare your final answer.`,
       mode: 'prompt',
       uuid: randomUUID(),
     })
@@ -2209,6 +2210,7 @@ export async function runHeadless(
           await armSessionRunnerWiring(sid)
           if (typeof request.restart_reason === 'string') runnerRestartReason = request.restart_reason
           if (request.resume === true) await hydrateResumedRun()
+          ;(await import('../utils/crew/crewBirth.js')).birthSessionCrew(sid, setAppState)
           awaitingSessionClaim = false
           logForDebugging(`[session-runner] claimed: session ${sid}${claimedModel !== undefined ? ` on ${claimedModel}` : ''}`)
           respondSuccess(requestId, { session_id: sid })

@@ -10,7 +10,7 @@ export const ACTION_GRAPH = {
   'app:exit': { description: 'Exit Mercury (double-press)', contexts: ['Global'] },
   'app:toggleTasks': { description: 'Toggle the task list panel', contexts: ['Global'] },
   'app:toggleTranscript': { description: 'Toggle the transcript viewer', contexts: ['Global'] },
-  'app:toggleTeammatePreview': { description: 'Toggle the teammate preview pane', contexts: ['Global'] },
+  'app:toggleTeammatePreview': { description: 'Toggle the crewmate preview pane', contexts: ['Global'] },
   'app:toggleTerminal': {
     description: 'Toggle the integrated terminal pane',
     contexts: ['Global'],

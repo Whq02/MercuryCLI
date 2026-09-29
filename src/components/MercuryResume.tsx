@@ -129,7 +129,7 @@ export function MercuryResume({
             <Text color={FAINT}>{padTo(truncateToWidth(s.date, DATE_WIDTH), DATE_WIDTH)}</Text>
             <Text color={here ? IVORY : SECOND}>{padTo(truncateToWidth(sessionTitle(s), TITLE_WIDTH), TITLE_WIDTH)}</Text>
             <Text color={FAINT}>{padTo(s.messageCount !== undefined ? `${s.messageCount} msgs` : formatFileSize(s.fileSize ?? 0), 9)}</Text>
-            {teammate ? <Text color={TEAL}> {GLYPH.handoff} teammate</Text> : null}
+            {teammate ? <Text color={TEAL}> {GLYPH.handoff} crewmate</Text> : null}
           </Text>
         )
       })}
