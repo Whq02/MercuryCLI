@@ -140,8 +140,11 @@ if (existsSync(join(ROOT, 'dist', 'mercury.mjs'))) {
     await session.waitFor('the session never answered', () => session.stdout().includes('BORN-DONE'), TURN_MS)
     const storePath = join(world.config, 'crew', 'crews.json')
     const until = Date.now() + TURN_MS / 3
-    while (!existsSync(storePath) && Date.now() < until) await new Promise(r => setTimeout(r, 100))
-    const store = readJson<{ crews?: Record<string, { members: unknown[] }> }>(storePath)
+    let store = readJson<{ crews?: Record<string, { members: unknown[] }> }>(storePath)
+    while (Object.keys(store?.crews ?? {}).length < teamFolders.length && Date.now() < until) {
+      await new Promise(r => setTimeout(r, 100))
+      store = readJson<{ crews?: Record<string, { members: unknown[] }> }>(storePath)
+    }
     const names = Object.keys(store?.crews ?? {}).sort()
     tally.check('the built bundle wrote the crew store at the session\'s birth with every saved team', names.join(',') === teamFolders.join(','), `${storePath}: ${names.join(',') || '(absent)'}`)
     tally.check('the member counts match the saved teams', teamFolders.every(name => (store?.crews?.[name]?.members.length ?? -1) === expected[name]!.members.length), JSON.stringify(teamFolders.map(name => [name, store?.crews?.[name]?.members.length])))

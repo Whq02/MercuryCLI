@@ -108,7 +108,6 @@ export async function* executePreToolHooks<ToolInput>(
   const leaseDenial = await checkLeaseGuard(
     toolName,
     toolInput as Record<string, unknown>,
-    appState.teamContext,
   )
   if (leaseDenial) {
     yield {

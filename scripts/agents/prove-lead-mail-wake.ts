@@ -72,12 +72,13 @@ async function waitFor(predicate: () => boolean, label: string, limitMs = 60_000
   return true
 }
 const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
-const inboxPath = join(teams, team, 'inboxes/team-lead.json')
-type Row = { text: string; read?: boolean; from: string; timestamp: string; delivery?: { id: string } }
+const inboxPath = join(config, 'crew', 'livecomms', `${team}.json`)
+type Row = { to?: string; text: string; read?: boolean; from: string; timestamp: string; delivery?: { id: string } }
 const readInbox = (): Row[] | null => {
   if (!existsSync(inboxPath)) return null
   try {
-    return JSON.parse(readFileSync(inboxPath, 'utf8')) as Row[]
+    const file = JSON.parse(readFileSync(inboxPath, 'utf8')) as { messages?: Row[] }
+    return (file.messages ?? []).filter(row => row.to === 'team-lead')
   } catch {
     return null
   }

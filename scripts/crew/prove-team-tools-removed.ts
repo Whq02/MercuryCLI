@@ -44,7 +44,7 @@ tally.check('the transcript renderer keeps the marks of the old rows (TeamCreate
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
 tally.check('the tool list of a booted session names neither TeamCreate nor TeamDelete', !listed.includes('TeamCreate') && !listed.includes('TeamDelete'), listed.filter(name => /^Team/.test(name)).join(', '))
-tally.check('the crew tools that stay are still listed (SendMessage · TeamBrief · Agent)', listed.includes('SendMessage') && listed.includes('TeamBrief') && listed.includes('Agent'), listed.join(', '))
+tally.check('the crew tools that stay are still listed (SendMessage · the crew brief · Agent)', listed.includes('SendMessage') && (listed.includes('TeamBrief') || listed.includes('LiveComms')) && listed.includes('Agent'), listed.join(', '))
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
 const tools = getAllBaseTools()
 const shim = findToolForRender(tools, 'TeamCreate')
@@ -70,7 +70,7 @@ try {
   const first = toolNamesOf(requests()[0])
   record('fresh-first-request-tools.txt', first.join('\n') + '\n')
   tally.check('the first request names neither TeamCreate nor TeamDelete', first.length > 0 && !first.includes('TeamCreate') && !first.includes('TeamDelete'), first.filter(name => /^Team/.test(name)).join(', ') || `(${first.length} tools)`)
-  tally.check('the first request still names SendMessage and TeamBrief', first.includes('SendMessage') && first.includes('TeamBrief'))
+  tally.check('the first request still names SendMessage and the crew brief', first.includes('SendMessage') && (first.includes('TeamBrief') || first.includes('LiveComms')))
 } catch (error) {
   tally.check('the fresh session ran', false, error instanceof Error ? error.message : String(error))
 } finally {

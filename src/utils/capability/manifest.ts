@@ -51,6 +51,8 @@ const COORD_NAME_HINTS = [
   'agent',
   'task',
   'team',
+  'crew',
+  'livecomms',
   'cron',
   'schedule',
   'wakeup',

@@ -23,6 +23,7 @@ import {
 import { GLYPH, HEALTH_GLYPH, STATUS_GLYPH } from '../glyphs.js'
 import { STATE_STYLE } from '../theme.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
+import { CREW_VIEW_DOOR } from '../../../utils/cockpit/crewmateWords.js'
 import {
   NavigablePanes,
   type ColumnDef,
@@ -392,7 +393,7 @@ export function MonitorView({ onClose }: { onClose: () => void }): React.ReactNo
         footerHints="r refresh"
         emptyState={{
           title: snap.reason ?? 'not in an agent group',
-          hint: "/monitor follows a shared agent group; this session's own sub-agents are on /teammates.",
+          hint: `/monitor follows a shared agent group; this session's own sub-agents are on ${CREW_VIEW_DOOR}.`,
         }}
       />
     )

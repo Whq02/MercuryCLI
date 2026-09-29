@@ -423,8 +423,8 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_TASKS',
     conditions: ['an interactive session (a headless run needs MERCURY_TASKS=1)'],
   },
-  TeamBrief: {
-    intents: ['brief a chartered team'],
+  LiveComms: {
+    intents: ['read and write the crew\'s live state'],
     units: ['task-coordination'],
     class: 'coordination',
     resources: ['team'],

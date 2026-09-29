@@ -54,6 +54,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /context | — | `src/commands/context` |
 | /contract | — | `src/commands/contract` |
 | /copy | ilist irow | `src/commands/copy` |
+| /crewmates | — | `src/commands/teammates` |
 | /critter | ilist | `src/commands/critter` |
 | /daemon | — | `src/commands/daemon` |
 | /defaultprovider | — | `src/commands/defaultprovider` |
@@ -105,7 +106,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /supercode | ilist irow | `src/commands/supercode` |
 | /surfaces | ilist irow | `src/commands/manager` |
 | /team | — | `src/commands/team` |
-| /teammates | — | `src/commands/teammates` |
 | /terminal-setup | — | `src/commands/terminalSetup` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |

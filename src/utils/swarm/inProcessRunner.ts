@@ -6,6 +6,7 @@ import {
   ERROR_MESSAGE_USER_ABORT,
 } from '../../services/compact/compact.js'
 import { resetMicrocompactState } from '../../services/compact/microCompact.js'
+import { setLiveBusy } from '../../services/crew/liveComms.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
 import { runAgent } from '../../tools/AgentTool/runAgent.js'
@@ -548,6 +549,9 @@ async function sendIdleNotificationToLead(
 function noteMemberActive(identity: InProcessRunnerConfig['identity'], active: boolean): void {
   setMemberActive(identity.teamName, identity.agentName, active).catch((error: unknown) => {
     logForDebugging(`teammate ${identity.agentName}: active flag write failed: ${errorMessage(error)}`)
+  })
+  setLiveBusy(identity.teamName, identity.agentName, active).catch((error: unknown) => {
+    logForDebugging(`teammate ${identity.agentName}: live busy write failed: ${errorMessage(error)}`)
   })
 }
 

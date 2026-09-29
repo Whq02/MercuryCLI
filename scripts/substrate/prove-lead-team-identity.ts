@@ -60,9 +60,9 @@ const serviceSrc = readFileSync(join(REPO, 'src/services/coordination/coordinati
 check('the coordination service consumes resolveLeadAwareTeamName (with the caller\'s context)', serviceSrc.includes('resolveLeadAwareTeamName(teamContext ?? undefined)'))
 check('the coordination service has ZERO bare getTeamName() calls', !/[^A-Za-z]getTeamName\(\)/.test(serviceSrc))
 check('coordination server resolves through the service', mcpSrc.includes('resolveCoordinationContext()'))
-const briefSrc = readFileSync(join(REPO, 'src/tools/TeamBriefTool/TeamBriefTool.ts'), 'utf8')
+const briefSrc = readFileSync(join(REPO, 'src/tools/LiveCommsTool/LiveCommsTool.ts'), 'utf8')
 check(
-  'TeamBrief resolves lead-aware with the AppState context (through the service)',
+  'LiveComms resolves lead-aware with the AppState context (through the service)',
   briefSrc.includes('resolveCoordinationContext(context.getAppState().teamContext'),
 )
 const birthSrc = readFileSync(join(REPO, 'src/utils/crew/crewBirth.ts'), 'utf8')
