@@ -56,7 +56,7 @@ check("no source registers the 'teams-dialog' overlay", registrants.length === 0
 
 console.log('\n§4 the crew view is the roster screen: it lists the crewmates the dialog listed')
 const crewView = read('src/components/mercury-ui/screens/CrewView.tsx')
-check('the crew view exists and renders sub-agent and named-agent rows', crewView.includes('Sub-agents') && crewView.includes('Named agents'), 'CrewView.tsx lacks its two sections')
+check('the crew view exists and lists the sub-agents and the named seats in ONE list (the dialog listed both)', crewView.includes('Sub-agents') && crewView.includes('crewRosterOf(agents, named)') && crewView.includes("record.kind === 'seat'"), 'CrewView.tsx does not build its one list from the roster')
 check('its named rows carry the model the dialog showed', crewView.includes('member.model'), 'no model on the named rows')
 
 console.log(`\nprove-teams-dialog-gone: ${failures === 0 ? 'green' : `${failures} failed`}`)
