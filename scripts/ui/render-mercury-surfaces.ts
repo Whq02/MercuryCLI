@@ -76,7 +76,7 @@ expect('@120 center fleet chat honest-empty renders', /no named agents yet/.test
 console.log('\n── /fullscreen onSend wired (WI1 source smoke) ──')
 const fsSrc = readFileSync(join(REPO, 'src', 'commands', 'fullscreen', 'fullscreen.tsx'), 'utf-8')
 expect('fullscreen passes onSend to MercuryFleetChat', /onSend=\{handleSend\}/.test(fsSrc))
-expect('handleSend delivers via writeToMailbox (the SendMessage transport)', /writeToMailbox\(/.test(fsSrc))
+expect('handleSend delivers via sendLiveMessage (the SendMessage transport)', /sendLiveMessage\(/.test(fsSrc))
 
 console.log('\nHTML written to /tmp/mercury-surface-{model,fullscreen}-{80,120}.html')
 console.log(failures === 0 ? '\n✅ MERCURY-SURFACES RENDER-VERIFY PASS' : `\n❌ ${failures} CHECK(S) FAILED`)

@@ -30,6 +30,8 @@ import type { MessageOrigin, UserMessage } from '../../types/message.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
+import { isCrewMessagesAttachment } from '../attachments/types.js'
+import { formatCrewmateMessages } from '../../services/crew/liveMessages.js'
 import { quote } from '../bash/shellQuote.js'
 import { getCurrentProjectConfig } from '../config.js'
 import { hasEmbeddedSearchTools } from '../embeddedTools.js'
@@ -55,10 +57,6 @@ import {
   wrapMessagesInSystemReminder,
 } from './text.js'
 
-function getCrewmateMailbox(): typeof import('../crewmateMailbox.js') {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- the cycle-breaking lazy load above
-  return require('../crewmateMailbox.js')
-}
 
 function getPlanModeInstructions(attachment: {
   reminderType: 'full' | 'sparse'
@@ -355,14 +353,14 @@ export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
   if (isAgentSwarmsEnabled()) {
-    if (attachment.type === 'teammate_mailbox') {
+    if (isCrewMessagesAttachment(attachment)) {
       const boundedMessages = attachment.messages.map(message => ({
         ...message,
         text: boundSeamContext(message.text, `teammate-${message.from}`).text,
       }))
       return [
         createUserMessage({
-          content: getCrewmateMailbox().formatCrewmateMessages(boundedMessages),
+          content: formatCrewmateMessages(boundedMessages),
           isMeta: true,
         }),
       ]
@@ -402,7 +400,7 @@ The team config lists your teammates' names. Check the task list periodically; c
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- teammate_mailbox/team_context are handled above the switch (their literals stay inside the isAgentSwarmsEnabled() guard); retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/team_context are handled above the switch (their literals stay inside the isAgentSwarmsEnabled() guard); retired types fall through to the legacy sink below
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([

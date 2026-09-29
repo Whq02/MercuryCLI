@@ -24,7 +24,7 @@ import {
   writeCrewFileAsync,
   type CrewFile,
 } from '../../src/utils/swarm/crewHelpers.js'
-import { readMailbox } from '../../src/utils/crewmateMailbox.js'
+import { liveMessagesFor } from '../../src/services/crew/liveComms.js'
 import { getCrewsDir } from '../../src/utils/envUtils.js'
 import { sanitizePathComponent } from '../../src/utils/tasks.js'
 import { getSessionId, switchSession } from '../../src/bootstrap/state.js'
@@ -247,7 +247,7 @@ try {
 
   section("coord_say stamps the sender's color on every write (DM + broadcast)")
   {
-    const inbox = await readMailbox('bob', CREW)
+    const inbox = await liveMessagesFor(CREW, 'bob')
     check('bob received the DM + the broadcast', inbox.length === 2)
     check(
       'every message carries the sender color (blue) — no dropped band',

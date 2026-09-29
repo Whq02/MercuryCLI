@@ -1,13 +1,7 @@
 
 import React from 'react'
 import { Box, Text } from '../../ink.js'
-import {
-  isShutdownApproved,
-  isShutdownRejected,
-  isShutdownRequest,
-  type ShutdownRejectedMessage,
-  type ShutdownRequestMessage,
-} from '../../utils/crewmateMailbox.js'
+import { isShutdownApproved, isShutdownRejected, isShutdownRequest, type ShutdownRejectedMessage, type ShutdownRequestMessage } from '../../services/crew/liveMessages.js'
 
 export function ShutdownRequestDisplay({
   request,

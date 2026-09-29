@@ -282,17 +282,8 @@ import type { ThinkingConfig } from '../utils/thinking.js'
 import { createSyntheticOutputTool, isSyntheticOutputToolEnabled } from '../tools/SyntheticOutputTool/SyntheticOutputTool.js'
 import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
 import { getCrewName, isCrewLead, isTeammate } from '../utils/crewmate.js'
-import {
-  acknowledgeMailboxDelivery,
-  formatCrewmateMessages,
-  getMailboxStore,
-  isShutdownApproved,
-  prepareMailboxDelivery,
-  resolveShutdownApprovedVictim,
-  wasMailboxDeliveryHandled,
-  type MailboxDelivery,
-  type CrewmateMessage,
-} from '../utils/crewmateMailbox.js'
+import { acknowledgeLiveDelivery, subscribeLiveMessagesFor, prepareLiveDelivery, wasLiveDeliveryHandled, type LiveDelivery, type LiveCommsMessageV1 } from '../services/crew/liveComms.js'
+import { formatCrewmateMessages, isShutdownApproved, resolveShutdownApprovedVictim } from '../services/crew/liveMessages.js'
 import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
 import { removeCrewmateFromCrewFile } from '../utils/swarm/crewHelpers.js'
 import { jsonStringify } from '../utils/slowOperations.js'
@@ -1427,7 +1418,7 @@ export async function runHeadless(
     return crewContext.teamName
   }
 
-  const applyShutdownApprovals = (teamName: string, unread: CrewmateMessage[]): void => {
+  const applyShutdownApprovals = (teamName: string, unread: LiveCommsMessageV1[]): void => {
     for (const message of unread) {
       const approval = isShutdownApproved(message.text)
       if (!approval) continue
@@ -1460,12 +1451,12 @@ export async function runHeadless(
     for (;;) {
       const teamName = leadCrewName()
       if (teamName === null) return 'none'
-      let delivery: MailboxDelivery | null
+      let delivery: LiveDelivery | null
       try {
-        delivery = await prepareMailboxDelivery(CREW_LEAD_NAME, teamName, getSessionId())
-        if (delivery !== null && await wasMailboxDeliveryHandled(delivery, messages)) {
+        delivery = await prepareLiveDelivery(teamName, CREW_LEAD_NAME, getSessionId())
+        if (delivery !== null && await wasLiveDeliveryHandled(delivery, messages)) {
           await flushSessionStorage()
-          await acknowledgeMailboxDelivery(CREW_LEAD_NAME, teamName, delivery.id)
+          await acknowledgeLiveDelivery(teamName, CREW_LEAD_NAME, delivery.id)
           refusedAcknowledgements = 0
           if (enqueuedLeadDelivery === delivery.id) enqueuedLeadDelivery = null
           continue
@@ -1517,7 +1508,7 @@ export async function runHeadless(
     leadMailboxWake?.unsubscribe()
     leadMailboxWake = null
     if (teamName === null) return
-    const unsubscribe = getMailboxStore(CREW_LEAD_NAME, teamName).subscribe(() => {
+    const unsubscribe = subscribeLiveMessagesFor(teamName, CREW_LEAD_NAME, () => {
       void leadContext(deliverLeadMail)
     }, { immediate: true })
     leadMailboxWake = { teamName, unsubscribe }
@@ -1538,7 +1529,7 @@ export async function runHeadless(
         resolve()
       }
       leadSettle.wake = done
-      if (teamName !== null) unsubscribes.push(getMailboxStore(CREW_LEAD_NAME, teamName).subscribe(done, { immediate: false }))
+      if (teamName !== null) unsubscribes.push(subscribeLiveMessagesFor(teamName, CREW_LEAD_NAME, done, { immediate: false }))
       if (options.subscribeAppState) unsubscribes.push(options.subscribeAppState(done))
       unsubscribes.push(subscribeToCommandQueue(done), onTasksUpdated(done))
     })

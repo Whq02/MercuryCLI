@@ -6,7 +6,7 @@ import { MercuryFullscreen } from '../../components/MercuryFullscreen.js'
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import { getCwd } from '../../utils/cwd.js'
 import { TEAL } from '../../components/mercuryPalette.js'
-import { writeToMailbox } from '../../utils/crewmateMailbox.js'
+import { sendLiveMessage } from '../../services/crew/liveComms.js'
 import { getAgentName, getCrewmateColor } from '../../utils/crewmate.js'
 import {
   fleetGauge,
@@ -57,16 +57,13 @@ function FullscreenLive({
 
   function handleSend(target: string, text: string): void {
     if (!teamName) return
-    void writeToMailbox(
-      target,
-      {
-        from: getAgentName() ?? 'user',
-        text,
-        timestamp: new Date().toISOString(),
-        color: getCrewmateColor(),
-      },
-      teamName,
-    )
+    void sendLiveMessage(teamName, {
+      to: target,
+      from: getAgentName() ?? 'user',
+      text,
+      timestamp: new Date().toISOString(),
+      color: getCrewmateColor(),
+    })
   }
 
   return (

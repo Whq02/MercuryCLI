@@ -26,7 +26,7 @@ try {
 }
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
 const { writeCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
-const { readMailbox } = await import('../../src/utils/crewmateMailbox.js')
+const { liveMessagesFor } = await import('../../src/services/crew/liveComms.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -107,7 +107,7 @@ let taskId = ''
   asLead()
   const lead = await call({}, leadContext)
   check("the lead's read (its AppState crew context) lists the task, the claim and alice busy", lead.teamName === CREW && lead.openTasks.some(t => t.id === taskId) && lead.leases.some(l => l.agentId === 'alice') && lead.roster.some(r => r.name === 'alice' && r.status === 'busy'), JSON.stringify({ tasks: lead.openTasks, leases: lead.leases, roster: lead.roster }))
-  const inbox = await readMailbox('bob', CREW)
+  const inbox = await liveMessagesFor(CREW, 'bob')
   check("the message landed in bob's inbox by the same road SendMessage uses", inbox.some(m => m.from === 'alice' && m.text === 'LIVE-HELLO from alice'), JSON.stringify(inbox))
 }
 

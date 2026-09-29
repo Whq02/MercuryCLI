@@ -5,10 +5,7 @@ import React from 'react'
 import { Ansi, Box, Text } from '../../ink.js'
 import type { TextBlockParam } from '../../types/wire.js'
 import { toInkColor } from '../../utils/ink.js'
-import {
-  isIdleNotification,
-  isShutdownApproved,
-} from '../../utils/crewmateMailbox.js'
+import { isIdleNotification, isShutdownApproved } from '../../services/crew/liveMessages.js'
 import { parseBusEnvelope } from '../../utils/swarm/busEnvelopes.js'
 import { unescapeXml, unescapeXmlAttr } from '../../utils/xml.js'
 import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'

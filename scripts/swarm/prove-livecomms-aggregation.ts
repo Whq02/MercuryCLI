@@ -11,7 +11,7 @@ process.env.MERCURY_CONFIG_DIR = TMP
 const { LiveCommsTool } = await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
 const { createTask } = await import('../../src/utils/tasks.js')
-const { writeToMailbox } = await import('../../src/utils/crewmateMailbox.js')
+const { sendLiveMessage } = await import('../../src/services/crew/liveComms.js')
 const { openQuestion } = await import('../../src/utils/swarm/sendMessageGovernance.js')
 const { recordHandoff } = await import('../../src/utils/swarm/handoff.js')
 const { claimLease } = await import('../../src/utils/swarm/leaseGlob.js')
@@ -61,11 +61,7 @@ section('fixture team — every reader feeds the one brief')
     blocks: [],
     blockedBy: [],
   })
-  await writeToMailbox(
-    ME,
-    { from: 'alice', text: 'heads up: capacitor parts arrived', timestamp: new Date().toISOString() },
-    CREW,
-  )
+  await sendLiveMessage(CREW, { to: ME, from: 'alice', text: 'heads up: capacitor parts arrived', timestamp: new Date().toISOString() })
   await openQuestion(
     { request_id: 'q-1', from: 'alice', to: ME, text: 'which lane do you want?', summary: 'lane pick' },
     CREW,

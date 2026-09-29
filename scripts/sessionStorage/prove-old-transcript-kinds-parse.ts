@@ -58,6 +58,10 @@ const mailbox = {
   ],
 }
 const shutdownBatch = { type: 'teammate_shutdown_batch', count: 2 }
+const crewMessages = {
+  type: 'crew_messages',
+  messages: [{ from: 'team-lead', text: 'a note under the crew kind', timestamp: at(5), color: 'cyan' }],
+}
 
 let i = 0
 const u1 = uid()
@@ -101,19 +105,21 @@ const r2 = uid()
 row({ ...base(r2, t2, i++), type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_teambrief', content: 'brief' }] } })
 const a3 = uid()
 row({ ...base(a3, r2, i++), type: 'attachment', attachment: shutdownBatch })
+const a4 = uid()
+row({ ...base(a4, a3, i++), type: 'attachment', attachment: crewMessages })
 const u2 = uid()
-row({ ...base(u2, a3, i++), type: 'user', message: { role: 'user', content: 'thanks' } })
+row({ ...base(u2, a4, i++), type: 'user', message: { role: 'user', content: 'thanks' } })
 
 console.log('============================================================')
-console.log(' old transcript kinds parse: team_context, teammate_mailbox, teammate_shutdown_batch, TeamCreate, TeamBrief, teamName')
+console.log(' old transcript kinds parse: team_context, teammate_mailbox, teammate_shutdown_batch, TeamCreate, TeamBrief, teamName — and crew_messages, the kind written now')
 console.log('============================================================')
 
 console.log('§1 the transcript loads whole through the product reader')
 const log = await logs.loadTranscriptFromFile(file)
 const messages = log.messages as Array<Record<string, unknown>>
-check('every row of the chain is read', messages.length === 9, `${messages.length} rows`)
+check('every row of the chain is read', messages.length === 10, `${messages.length} rows`)
 const attachments = messages.filter(m => m.type === 'attachment').map(m => (m.attachment as { type: string }).type)
-check('the three old attachment kinds are read as themselves', JSON.stringify(attachments) === JSON.stringify(['team_context', 'teammate_mailbox', 'teammate_shutdown_batch']), JSON.stringify(attachments))
+check('the three old attachment kinds are read as themselves, and the crew kind beside them', JSON.stringify(attachments) === JSON.stringify(['team_context', 'teammate_mailbox', 'teammate_shutdown_batch', 'crew_messages']), JSON.stringify(attachments))
 const toolNames = messages
   .filter(m => m.type === 'assistant')
   .flatMap(m => ((m.message as { content: Array<{ type: string; name?: string }> }).content ?? []).filter(c => c.type === 'tool_use').map(c => c.name))
@@ -133,11 +139,15 @@ const contextText = attachmentText.normalizeAttachmentForAPI(teamContext as neve
 check('team_context still composes its context words for the model', contextText.length === 1 && JSON.stringify(contextText[0]).includes(TEAM))
 const mailboxText = attachmentText.normalizeAttachmentForAPI(mailbox as never)
 check('teammate_mailbox still composes its messages for the model', mailboxText.length === 1 && JSON.stringify(mailboxText[0]).includes('ping from the lead'))
+const crewText = attachmentText.normalizeAttachmentForAPI(crewMessages as never)
+check('crew_messages, the kind written from now on, composes the same envelope (RED on the base: nothing)', crewText.length === 1 && JSON.stringify(crewText[0]).includes('a note under the crew kind') && JSON.stringify(crewText[0]).includes('teammate_id='), JSON.stringify(crewText).slice(0, 200))
 check('teammate_shutdown_batch composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI(shutdownBatch as never)))
 const contextMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'team_context')
 const mailboxMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')
 check('team_context stays a null-rendering kind on screen', contextMessage !== undefined && nullRendering.isNullRenderingAttachment(contextMessage as never) === true)
 check('teammate_mailbox is not a null-rendering kind on screen', mailboxMessage !== undefined && nullRendering.isNullRenderingAttachment(mailboxMessage as never) === false)
+const crewMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')
+check('crew_messages is not a null-rendering kind on screen either', crewMessage !== undefined && nullRendering.isNullRenderingAttachment(crewMessage as never) === false)
 
 console.log('§4 an agent sidecar written under the old teammate key still reads as a crewmate record')
 {

@@ -13,13 +13,7 @@ import {
   isValidCrewName,
 } from '../../daemon/crewSpawn.js'
 import { readCrewFileAsync } from '../swarm/crewHelpers.js'
-import {
-  getMailboxStore,
-  markMessagesFromAsRead,
-  readMailbox,
-  writeToMailbox,
-  type CrewmateMessage,
-} from '../crewmateMailbox.js'
+import { subscribeLiveMessagesFor, markLiveMessagesFromRead, liveMessagesFor, sendLiveMessage, type LiveCommsMessageV1 } from '../../services/crew/liveComms.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import type { CrewSeatGlanceV1 } from '../../services/crew/roster.js'
 
@@ -226,15 +220,15 @@ export interface CrewChatRow {
   read: boolean
 }
 
-const toTs = (m: CrewmateMessage): number => {
+const toTs = (m: LiveCommsMessageV1): number => {
   const t = Date.parse(m.timestamp ?? '')
   return Number.isFinite(t) ? t : 0
 }
 
 export async function readCrewChat(name: string): Promise<CrewChatRow[]> {
   const [outbox, leadInbox] = await Promise.all([
-    readMailbox(name, CREW),
-    readMailbox(CREW_LEAD_INBOX, CREW),
+    liveMessagesFor(CREW, name),
+    liveMessagesFor(CREW, CREW_LEAD_INBOX),
   ])
   const rows: CrewChatRow[] = []
   for (const m of outbox) {
@@ -249,7 +243,7 @@ export async function readCrewChat(name: string): Promise<CrewChatRow[]> {
 
 export async function crewUnreadCounts(): Promise<Map<string, number>> {
   const out = new Map<string, number>()
-  const leadInbox = await readMailbox(CREW_LEAD_INBOX, CREW)
+  const leadInbox = await liveMessagesFor(CREW, CREW_LEAD_INBOX)
   for (const m of leadInbox) {
     if (!m.read && m.from) out.set(m.from, (out.get(m.from) ?? 0) + 1)
   }
@@ -259,20 +253,16 @@ export async function crewUnreadCounts(): Promise<Map<string, number>> {
 export async function sendCrewMessage(name: string, text: string): Promise<boolean> {
   const trimmed = text.trim()
   if (!trimmed) return false
-  return writeToMailbox(
-    name,
-    { from: CREW_LEAD_INBOX, text: trimmed, timestamp: new Date().toISOString() },
-    CREW,
-  )
+  return sendLiveMessage(CREW, { to: name, from: CREW_LEAD_INBOX, text: trimmed, timestamp: new Date().toISOString() })
 }
 
 export async function markCrewChatRead(name: string): Promise<void> {
-  await markMessagesFromAsRead(CREW_LEAD_INBOX, name, CREW)
+  await markLiveMessagesFromRead(CREW, CREW_LEAD_INBOX, name)
 }
 
 export function crewChatStores(name: string): { outbox: { subscribe: (fn: () => void) => () => void }; leadInbox: { subscribe: (fn: () => void) => () => void } } {
   return {
-    outbox: getMailboxStore(name, CREW),
-    leadInbox: getMailboxStore(CREW_LEAD_INBOX, CREW),
+    outbox: { subscribe: fn => subscribeLiveMessagesFor(CREW, name, fn) },
+    leadInbox: { subscribe: fn => subscribeLiveMessagesFor(CREW, CREW_LEAD_INBOX, fn) },
   }
 }

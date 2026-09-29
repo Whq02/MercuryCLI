@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact* src/services/crew/liveComms.ts
+# gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact* src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/generalPurposeAgent*
 # gate-watch: src/tools/AgentTool/builtInAgents* src/utils/crew/crewBirth.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
 # gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/built-in/mercuryReviewerAgent.ts

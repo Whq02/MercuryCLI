@@ -1,7 +1,7 @@
 import type { AppState } from '../state/AppStateStore.js'
 import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../tasks/InProcessCrewmateTask/types.js'
 import { updateTaskState } from './task/framework.js'
-import type { PlanApprovalResponseMessage } from './crewmateMailbox.js'
+import type { PlanApprovalResponseMessage } from '../services/crew/liveMessages.js'
 
 type SetAppState = (updater: (prev: AppState) => AppState) => void
 

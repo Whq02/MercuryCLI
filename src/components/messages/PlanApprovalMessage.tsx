@@ -1,13 +1,7 @@
 
 import React from 'react'
 import { Box, Text } from '../../ink.js'
-import {
-  isIdleNotification,
-  isPlanApprovalRequest,
-  isPlanApprovalResponse,
-  type PlanApprovalRequestMessage,
-  type PlanApprovalResponseMessage,
-} from '../../utils/crewmateMailbox.js'
+import { isIdleNotification, isPlanApprovalRequest, isPlanApprovalResponse, type PlanApprovalRequestMessage, type PlanApprovalResponseMessage } from '../../services/crew/liveMessages.js'
 import { Markdown } from '../Markdown.js'
 import { getShutdownMessageSummary } from './ShutdownMessage.js'
 import { getTaskAssignmentSummary } from './TaskAssignmentMessage.js'

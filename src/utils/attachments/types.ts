@@ -415,7 +415,8 @@ export type Attachment =
       type: 'structured_output'
       data: unknown
     }
-  | CrewmateMailboxAttachment
+  | CrewMessagesAttachment
+  | OldCrewMessagesAttachment
   | CrewContextAttachment
   | HookAttachment
   | BypassedAskAttachment
@@ -534,15 +535,35 @@ export type Attachment =
       omitted: number
     }
 
-export type CrewmateMailboxAttachment = {
+export const CREW_MESSAGES_KIND = 'crew_messages' as const
+
+export const OLD_ATTACHMENT_KINDS = { teammate_mailbox: CREW_MESSAGES_KIND } as const
+export type OldAttachmentKind = keyof typeof OLD_ATTACHMENT_KINDS
+
+export function currentAttachmentKind(type: string): string {
+  return (OLD_ATTACHMENT_KINDS as Record<string, string>)[type] ?? type
+}
+
+export type CrewMessageRow = {
+  from: string
+  text: string
+  timestamp: string
+  color?: string
+  summary?: string
+}
+
+export type CrewMessagesAttachment = {
+  type: 'crew_messages'
+  messages: CrewMessageRow[]
+}
+
+export type OldCrewMessagesAttachment = {
   type: 'teammate_mailbox'
-  messages: Array<{
-    from: string
-    text: string
-    timestamp: string
-    color?: string
-    summary?: string
-  }>
+  messages: CrewMessageRow[]
+}
+
+export function isCrewMessagesAttachment(attachment: { type: string }): attachment is CrewMessagesAttachment | OldCrewMessagesAttachment {
+  return currentAttachmentKind(attachment.type) === CREW_MESSAGES_KIND
 }
 
 export type CrewContextAttachment = {

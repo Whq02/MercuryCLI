@@ -178,6 +178,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   nested_memory: z.looseObject({ content: z.looseObject({}) }),
   selected_lines_in_ide: z.looseObject({ content: z.string() }),
   queued_command: z.looseObject({ prompt: z.union([z.string(), objectList]) }),
+  crew_messages: z.looseObject({ messages: z.array(z.looseObject({ text: z.string() })) }),
   teammate_mailbox: z.looseObject({ messages: z.array(z.looseObject({ text: z.string() })) }),
   agent_roster: z.looseObject({ rows: z.array(z.looseObject({ agents: objectList.nullish() })) }),
   hook_additional_context: z.looseObject({ content: list }),

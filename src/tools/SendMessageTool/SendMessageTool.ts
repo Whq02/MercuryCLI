@@ -81,15 +81,8 @@ import {
   isTeammate,
 } from '../../utils/crewmate.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
-import {
-  createShutdownApprovedMessage,
-  createShutdownRejectedMessage,
-  createShutdownRequestMessage,
-  formatCrewmateMessages,
-  isIdleNotification,
-  readMailbox,
-  writeToMailbox,
-} from '../../utils/crewmateMailbox.js'
+import { liveMessagesFor, sendLiveMessage } from '../../services/crew/liveComms.js'
+import { createShutdownApprovedMessage, createShutdownRejectedMessage, createShutdownRequestMessage, formatCrewmateMessages, isIdleNotification } from '../../services/crew/liveMessages.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { plainMessageSummary } from './summary.js'
@@ -403,9 +396,9 @@ async function resumeEndedCrewmate(
 }
 
 async function failedSeatNotice(rawTo: string, teamName: string): Promise<string | null> {
-  let rows: Awaited<ReturnType<typeof readMailbox>>
+  let rows: Awaited<ReturnType<typeof liveMessagesFor>>
   try {
-    rows = await readMailbox(CREW_LEAD_NAME, teamName)
+    rows = await liveMessagesFor(teamName, CREW_LEAD_NAME)
   } catch {
     return null
   }
@@ -602,16 +595,13 @@ async function sendBusEnvelope(
   }
 
   if (!deliveredViaRpc) {
-    const delivered = await writeToMailbox(
-      resolvedTarget.name,
-      {
-        from: envelope.from,
-        text: serializeBusEnvelope(envelope),
-        timestamp: nowIso(),
-        ...(color ? { color } : {}),
-      },
-      teamName,
-    )
+    const delivered = await sendLiveMessage(teamName, {
+      to: resolvedTarget.name,
+      from: envelope.from,
+      text: serializeBusEnvelope(envelope),
+      timestamp: nowIso(),
+      ...(color ? { color } : {}),
+    })
     if (!delivered) {
       return {
         data: {
@@ -872,17 +862,14 @@ async function sendDirectedPlainMessage(
 
   const from = senderName()
   const color = senderColor(from)
-  const delivered = await writeToMailbox(
-    resolution.name,
-    {
-      from,
-      text: content,
-      timestamp: nowIso(),
-      ...(summary !== undefined ? { summary } : {}),
-      ...(color ? { color } : {}),
-    },
-    resolution.teamName,
-  )
+  const delivered = await sendLiveMessage(resolution.teamName, {
+    to: resolution.name,
+    from,
+    text: content,
+    timestamp: nowIso(),
+    ...(summary !== undefined ? { summary } : {}),
+    ...(color ? { color } : {}),
+  })
   if (!delivered) {
     return {
       success: false,
@@ -954,17 +941,14 @@ async function sendBroadcast(
   const deliveredNames: string[] = []
   const failedNames: string[] = []
   for (const recipient of recipients) {
-    const delivered = await writeToMailbox(
-      recipient,
-      {
-        from,
-        text: content,
-        timestamp: nowIso(),
-        ...(summary !== undefined ? { summary } : {}),
-        ...(color ? { color } : {}),
-      },
-      teamName,
-    )
+    const delivered = await sendLiveMessage(teamName, {
+      to: recipient,
+      from,
+      text: content,
+      timestamp: nowIso(),
+      ...(summary !== undefined ? { summary } : {}),
+      ...(color ? { color } : {}),
+    })
     if (delivered) deliveredNames.push(recipient)
     else failedNames.push(recipient)
   }
@@ -1014,11 +998,7 @@ async function sendShutdownRequest(
   const requestId = generateRequestId('shutdown', rawTo)
   const payload = createShutdownRequestMessage({ requestId, from, ...(reason !== undefined ? { reason } : {}) })
   const color = senderColor(from)
-  const delivered = await writeToMailbox(
-    rawTo,
-    { from, text: JSON.stringify(payload), timestamp: nowIso(), ...(color ? { color } : {}) },
-    teamName,
-  )
+  const delivered = await sendLiveMessage(teamName, { to: rawTo, from, text: JSON.stringify(payload), timestamp: nowIso(), ...(color ? { color } : {}) })
   if (!delivered) {
     return {
       success: false,
@@ -1045,21 +1025,18 @@ async function sendShutdownResponse(
   const from = senderName()
 
   if (!message.approve) {
-    void (await writeToMailbox(
-      CREW_LEAD_NAME,
-      {
-        from,
-        text: JSON.stringify(
-          createShutdownRejectedMessage({
-            requestId: message.request_id,
-            from,
-            reason: message.reason ?? '',
-          }),
-        ),
-        timestamp: nowIso(),
-      },
-      teamName,
-    ))
+    void (await sendLiveMessage(teamName, {
+      to: CREW_LEAD_NAME,
+      from,
+      text: JSON.stringify(
+        createShutdownRejectedMessage({
+          requestId: message.request_id,
+          from,
+          reason: message.reason ?? '',
+        }),
+      ),
+      timestamp: nowIso(),
+    }))
     return {
       success: true,
       message: `Shutdown rejected: "${message.reason}" — continuing work.`,
@@ -1077,17 +1054,14 @@ async function sendShutdownResponse(
     paneId = member?.tmuxPaneId || undefined
     backendType = member?.backendType || undefined
   }
-  void (await writeToMailbox(
-    CREW_LEAD_NAME,
-    {
-      from,
-      text: JSON.stringify(
-        createShutdownApprovedMessage({ requestId: message.request_id, from, paneId, backendType }),
-      ),
-      timestamp: nowIso(),
-    },
-    teamName,
-  ))
+  void (await sendLiveMessage(teamName, {
+    to: CREW_LEAD_NAME,
+    from,
+    text: JSON.stringify(
+      createShutdownApprovedMessage({ requestId: message.request_id, from, paneId, backendType }),
+    ),
+    timestamp: nowIso(),
+  }))
 
   const abortOwnTask = (): boolean => {
     const task = findCrewmateTaskByAgentId(agentId, context.getAppState().tasks ?? {})
@@ -1146,11 +1120,7 @@ async function sendPlanApprovalResponse(
     timestamp: nowIso(),
     ...(approve ? { permissionMode } : { feedback }),
   }
-  const delivered = await writeToMailbox(
-    rawTo,
-    { from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() },
-    teamName,
-  )
+  const delivered = await sendLiveMessage(teamName, { to: rawTo, from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() })
   if (!delivered) {
     return {
       success: false,
@@ -1191,17 +1161,14 @@ async function sendQuestion(
     resolution.teamName,
   )
   const color = senderColor(from)
-  const delivered = await writeToMailbox(
-    resolution.name,
-    {
-      from,
-      text: message.content,
-      timestamp: nowIso(),
-      ...(message.summary !== undefined ? { summary: message.summary } : {}),
-      ...(color ? { color } : {}),
-    },
-    resolution.teamName,
-  )
+  const delivered = await sendLiveMessage(resolution.teamName, {
+    to: resolution.name,
+    from,
+    text: message.content,
+    timestamp: nowIso(),
+    ...(message.summary !== undefined ? { summary: message.summary } : {}),
+    ...(color ? { color } : {}),
+  })
   if (!delivered) {
     return {
       success: false,
@@ -1230,17 +1197,14 @@ async function sendAnswer(
     teamName,
   )
   const color = senderColor(from)
-  const delivered = await writeToMailbox(
-    rawTo,
-    {
-      from,
-      text: message.content,
-      timestamp: nowIso(),
-      ...(message.summary !== undefined ? { summary: message.summary } : {}),
-      ...(color ? { color } : {}),
-    },
-    teamName,
-  )
+  const delivered = await sendLiveMessage(teamName, {
+    to: rawTo,
+    from,
+    text: message.content,
+    timestamp: nowIso(),
+    ...(message.summary !== undefined ? { summary: message.summary } : {}),
+    ...(color ? { color } : {}),
+  })
   if (!delivered) {
     return {
       success: false,
@@ -1288,17 +1252,14 @@ async function sendHandoff(
     `Handoff (${message.status})${verdict.verified ? '' : ' [UNVERIFIED — no evidence]'}: ${message.summary}` +
     (evidenceCount > 0 ? ` (${evidenceCount} evidence ref${evidenceCount === 1 ? '' : 's'})` : '')
   const color = senderColor(from)
-  const delivered = await writeToMailbox(
-    resolution.name,
-    {
-      from,
-      text,
-      timestamp: nowIso(),
-      summary: message.summary,
-      ...(color ? { color } : {}),
-    },
-    resolution.teamName,
-  )
+  const delivered = await sendLiveMessage(resolution.teamName, {
+    to: resolution.name,
+    from,
+    text,
+    timestamp: nowIso(),
+    summary: message.summary,
+    ...(color ? { color } : {}),
+  })
   if (!delivered) {
     return {
       success: false,

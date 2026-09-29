@@ -1,220 +1,22 @@
-import { randomUUID, type UUID } from 'node:crypto'
-
 import { z } from 'zod/v4'
 
-import { CREWMATE_MESSAGE_TAG } from '../constants/xml.js'
-import { PermissionModeSchema } from '../entrypoints/sdk/coreSchemas.js'
-import {
-  liveMessageKey,
-  liveMessagesFor,
-  mutateLiveMessages,
-  postLiveMessage,
-  subscribeLiveComms,
-  type LiveCommsMessageV1,
-} from '../services/crew/liveComms.js'
-import type { Message } from '../types/message.js'
-import { PERMISSION_MODES, type InternalPermissionMode } from '../types/permissions.js'
-import { generateRequestId } from './agentId.js'
-import { logForDebugging } from './debug.js'
-import { lazySchema } from './lazySchema.js'
-import { logError } from './log.js'
-import { CREW_LEAD_NAME } from './swarm/constants.js'
-import { getAgentName, getCrewmateColor, getCrewName } from './crewmate.js'
-import { escapeXml, escapeXmlAttr } from './xml.js'
+import { CREWMATE_MESSAGE_TAG } from '../../constants/xml.js'
+import { PermissionModeSchema } from '../../entrypoints/sdk/coreSchemas.js'
+import type { Message } from '../../types/message.js'
+import { PERMISSION_MODES, type InternalPermissionMode } from '../../types/permissions.js'
+import { lazySchema } from '../../utils/lazySchema.js'
+import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { escapeXml, escapeXmlAttr } from '../../utils/xml.js'
 
-export type CrewmateMessage = {
+export type LiveMessageEnvelope = {
   from: string
   text: string
-  timestamp: string
-  read?: boolean
+  timestamp?: string
   color?: string
   summary?: string
-  id?: string
-  seq?: number
-  delivery?: { id: string; sessionId: string }
 }
 
-function resolveCrewName(teamName: string | undefined): string {
-  return teamName ?? getCrewName() ?? 'default'
-}
-
-export interface MailboxHandle {
-  subscribe(listener: (messages: CrewmateMessage[]) => void, opts?: { immediate?: boolean }): () => void
-}
-
-export function getMailboxStore(agentName: string, teamName?: string): MailboxHandle {
-  const crew = resolveCrewName(teamName)
-  return {
-    subscribe(listener, opts) {
-      let lastKey: string | null = null
-      return subscribeLiveComms(
-        crew,
-        file => {
-          const key = liveMessageKey(file, agentName)
-          if (key === lastKey) return
-          lastKey = key
-          listener(file.messages.filter(m => m.to === agentName))
-        },
-        { immediate: opts?.immediate ?? true },
-      )
-    },
-  }
-}
-
-export async function writeToMailbox(
-  recipientName: string,
-  message: Omit<CrewmateMessage, 'read'>,
-  teamName?: string,
-): Promise<boolean> {
-  try {
-    await postLiveMessage(resolveCrewName(teamName), {
-      to: recipientName,
-      from: message.from,
-      text: message.text,
-      timestamp: message.timestamp,
-      ...(message.color !== undefined ? { color: message.color } : {}),
-      ...(message.summary !== undefined ? { summary: message.summary } : {}),
-      ...(message.id !== undefined ? { id: message.id } : {}),
-    })
-    logForDebugging(`mailbox: delivered to ${recipientName} from ${message.from}`)
-    return true
-  } catch (error) {
-    logForDebugging(`mailbox: write to ${recipientName} failed: ${String(error)}`)
-    logError(error)
-    return false
-  }
-}
-
-export async function readMailbox(agentName: string, teamName?: string): Promise<CrewmateMessage[]> {
-  return liveMessagesFor(resolveCrewName(teamName), agentName)
-}
-
-export async function readUnreadMessages(agentName: string, teamName?: string): Promise<CrewmateMessage[]> {
-  const all = await readMailbox(agentName, teamName)
-  const unread = all.filter(message => !message.read)
-  logForDebugging(`mailbox: ${agentName} has ${unread.length} unread of ${all.length}`)
-  return unread
-}
-
-function mutateMine<R>(
-  agentName: string,
-  teamName: string | undefined,
-  fn: (mine: LiveCommsMessageV1[]) => { next: LiveCommsMessageV1[]; result: R },
-): Promise<R> {
-  return mutateLiveMessages(resolveCrewName(teamName), agentName, fn)
-}
-
-export interface MailboxDelivery {
-  id: string
-  sessionId: string
-  recovered: boolean
-  messages: CrewmateMessage[]
-}
-
-export async function prepareMailboxDelivery(
-  agentName: string,
-  teamName: string,
-  sessionId: string,
-): Promise<MailboxDelivery | null> {
-  if (!(await readMailbox(agentName, teamName)).some(message => !message.read)) return null
-  return mutateMine<MailboxDelivery | null>(agentName, teamName, current => {
-    const unread = current.filter(message => !message.read)
-    if (unread.length === 0) return { next: current, result: null }
-    const pending = unread.find(message => message.delivery !== undefined)?.delivery
-    if (pending !== undefined) {
-      return { next: current, result: { ...pending, recovered: true, messages: unread.filter(message => message.delivery?.id === pending.id) } }
-    }
-    const delivery = { id: randomUUID(), sessionId }
-    const next = current.map(message => (message.read ? message : { ...message, delivery }))
-    return { next, result: { ...delivery, recovered: false, messages: next.filter(message => !message.read) } }
-  })
-}
-
-export async function wasMailboxDeliveryHandled(delivery: MailboxDelivery, messages: readonly Message[]): Promise<boolean> {
-  if (!delivery.recovered) return false
-  const { isSessionCleared } = await import('./sessionStorage/clearedSessions.js')
-  if (isSessionCleared(delivery.sessionId)) return true
-  const carriesId = (message: Message): boolean => message.uuid === delivery.id ||
-    (message.type === 'user' && message.batchUuids?.includes(delivery.id) === true) ||
-    (message.type === 'attachment' && message.attachment.type === 'queued_command' && message.attachment.source_uuid === delivery.id)
-  if (messages.some(carriesId)) return true
-  const { loadSessionFile } = await import('./sessionStorage/loading.js')
-  const stored = await loadSessionFile(delivery.sessionId as UUID)
-  return [...stored.messages.values()].some(carriesId)
-}
-
-export async function acknowledgeMailboxDelivery(agentName: string, teamName: string, id: string): Promise<void> {
-  await mutateMine<void>(agentName, teamName, current => {
-    if (!current.some(message => !message.read && message.delivery?.id === id)) return { next: current, result: undefined }
-    return { next: current.map(message => (!message.read && message.delivery?.id === id ? { ...message, read: true } : message)), result: undefined }
-  })
-}
-
-export async function markMessagesAsRead(agentName: string, teamName?: string): Promise<void> {
-  try {
-    await mutateMine<void>(agentName, teamName, current => {
-      if (current.length === 0 || current.every(message => message.read)) return { next: current, result: undefined }
-      return { next: current.map(message => (message.read ? message : { ...message, read: true })), result: undefined }
-    })
-  } catch (error) {
-    logForDebugging(`mailbox: mark-all-read failed for ${agentName}: ${String(error)}`)
-    logError(error)
-  }
-}
-
-export async function markMessagesFromAsRead(agentName: string, from: string, teamName?: string): Promise<void> {
-  try {
-    await mutateMine<void>(agentName, teamName, current => {
-      if (!current.some(message => !message.read && message.from === from)) return { next: current, result: undefined }
-      return {
-        next: current.map(message => (!message.read && message.from === from ? { ...message, read: true } : message)),
-        result: undefined,
-      }
-    })
-  } catch (error) {
-    logForDebugging(`mailbox: mark-from-read failed for ${agentName}: ${String(error)}`)
-    logError(error)
-  }
-}
-
-export async function markSpecificMessageAsRead(
-  agentName: string,
-  teamName: string | undefined,
-  msg: { from: string; text: string; timestamp: string; id?: string },
-): Promise<void> {
-  await mutateMine<void>(agentName, teamName, current => {
-    const index = current.findIndex(candidate => {
-      if (candidate.read) return false
-      if (candidate.id !== undefined && msg.id !== undefined) return candidate.id === msg.id
-      return (
-        candidate.from === msg.from && candidate.text === msg.text && candidate.timestamp === msg.timestamp
-      )
-    })
-    if (index === -1) return { next: current, result: undefined }
-    return { next: current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate)), result: undefined }
-  })
-}
-
-export async function markMessagesAsReadByPredicate(
-  agentName: string,
-  predicate: (message: CrewmateMessage) => boolean,
-  teamName?: string,
-): Promise<void> {
-  try {
-    await mutateMine<void>(agentName, teamName, current => {
-      if (!current.some(message => !message.read && predicate(message))) return { next: current, result: undefined }
-      return {
-        next: current.map(message => (!message.read && predicate(message) ? { ...message, read: true } : message)),
-        result: undefined,
-      }
-    })
-  } catch (error) {
-    logForDebugging(`mailbox: predicate mark-read failed for ${agentName}: ${String(error)}`)
-    logError(error)
-  }
-}
-
-export function formatCrewmateMessages(messages: CrewmateMessage[]): string {
+export function formatCrewmateMessages(messages: readonly LiveMessageEnvelope[]): string {
   return messages
     .map(message => {
       const colorAttr = message.color !== undefined ? ` color="${escapeXmlAttr(message.color)}"` : ''
@@ -223,7 +25,6 @@ export function formatCrewmateMessages(messages: CrewmateMessage[]): string {
     })
     .join('\n\n')
 }
-
 
 function parseStructuredText(text: string): Record<string, unknown> | null {
   try {
@@ -574,13 +375,6 @@ export const ModeSetRequestMessageSchema = lazySchema(() =>
 )
 export type ModeSetRequestMessage = z.infer<ReturnType<typeof ModeSetRequestMessageSchema>>
 
-export function createModeSetRequestMessage(params: {
-  mode: ModeSetRequestMessage['mode']
-  from: string
-}): ModeSetRequestMessage {
-  return { type: 'mode_set_request', mode: params.mode, from: params.from }
-}
-
 export function isModeSetRequest(text: string): ModeSetRequestMessage | null {
   const parsed = parseStructuredText(text)
   if (!parsed || parsed.type !== 'mode_set_request') return null
@@ -605,28 +399,6 @@ export function isStructuredProtocolMessage(messageText: string): boolean {
   const parsed = parseStructuredText(messageText)
   if (!parsed || typeof parsed.type !== 'string') return false
   return STRUCTURED_PROTOCOL_TYPES.has(parsed.type)
-}
-
-export async function sendShutdownRequestToMailbox(
-  targetName: string,
-  teamName?: string,
-  reason?: string,
-): Promise<{ requestId: string; target: string }> {
-  const team = teamName ?? getCrewName()
-  const sender = getAgentName() ?? CREW_LEAD_NAME
-  const requestId = generateRequestId('shutdown', targetName)
-  const request = createShutdownRequestMessage({ requestId, from: sender, reason })
-  await writeToMailbox(
-    targetName,
-    {
-      from: sender,
-      text: JSON.stringify(request),
-      timestamp: new Date().toISOString(),
-      ...(getCrewmateColor() !== undefined ? { color: getCrewmateColor() } : {}),
-    },
-    team,
-  )
-  return { requestId, target: targetName }
 }
 
 export function resolveShutdownApprovedVictim(

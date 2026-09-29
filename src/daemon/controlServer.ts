@@ -31,7 +31,7 @@ import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
 import { parseBusEnvelope } from '../utils/swarm/busEnvelopes.js'
-import { writeToMailbox } from '../utils/crewmateMailbox.js'
+import { sendLiveMessage } from '../services/crew/liveComms.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
@@ -656,16 +656,13 @@ async function routeControlRequest(
       ) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: `a ${env.kind} envelope must carry a dispatcher 'from', never the recipient itself` })
       }
-      const journaled = await writeToMailbox(
-        to,
-        {
-          from: env.from,
-          text: JSON.stringify(env),
-          timestamp: new Date().toISOString(),
-          ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}),
-        },
-        crew,
-      )
+      const journaled = await sendLiveMessage(crew, {
+        to: to,
+        from: env.from,
+        text: JSON.stringify(env),
+        timestamp: new Date().toISOString(),
+        ...(typeof raw.color === 'string' && raw.color ? { color: raw.color } : {}),
+      })
       if (!journaled) {
         return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'envelope journal write failed' })
       }

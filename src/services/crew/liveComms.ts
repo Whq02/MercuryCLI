@@ -1,6 +1,11 @@
+import { randomUUID, type UUID } from 'node:crypto'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
+import type { Message } from '../../types/message.js'
 import { generateRequestId } from '../../utils/agentId.js'
+import { getCrewName } from '../../utils/crewmate.js'
+import { logForDebugging } from '../../utils/debug.js'
+import { logError } from '../../utils/log.js'
 import { crewStoreRoot } from './identity.js'
 
 export const LIVE_COMMS_SCHEMA = 1 as const
@@ -311,6 +316,151 @@ export function subscribeLiveComms(
   opts?: { immediate?: boolean; dir?: string },
 ): () => void {
   return liveCommsStore(crew, opts?.dir).subscribe(listener, { immediate: opts?.immediate ?? true })
+}
+
+export function liveCrewOf(crew?: string): string {
+  return crew ?? getCrewName() ?? 'default'
+}
+
+export async function sendLiveMessage(crew: string | undefined, message: PostLiveMessageArgs, opts?: { dir?: string }): Promise<boolean> {
+  try {
+    await postLiveMessage(liveCrewOf(crew), message, opts)
+    logForDebugging(`livecomms: delivered to ${message.to} from ${message.from}`)
+    return true
+  } catch (error) {
+    logForDebugging(`livecomms: the message to ${message.to} could not be written: ${String(error)}`)
+    logError(error)
+    return false
+  }
+}
+
+export async function unreadLiveMessagesFor(crew: string | undefined, name: string, opts?: { dir?: string }): Promise<LiveCommsMessageV1[]> {
+  const all = await liveMessagesFor(liveCrewOf(crew), name, opts)
+  const unread = all.filter(message => !message.read)
+  logForDebugging(`livecomms: ${name} has ${unread.length} unread of ${all.length}`)
+  return unread
+}
+
+export function subscribeLiveMessagesFor(
+  crew: string | undefined,
+  name: string,
+  listener: (rows: LiveCommsMessageV1[]) => void,
+  opts?: { immediate?: boolean; dir?: string },
+): () => void {
+  let lastKey: string | null = null
+  return liveCommsStore(liveCrewOf(crew), opts?.dir).subscribeChanges(
+    change => {
+      const key = liveMessageKey(change.value, name)
+      const baseline = lastKey === null && change.cause === 'catch-up' && change.skippedRevisions === 0
+      if (key === lastKey) return
+      lastKey = key
+      if (baseline && opts?.immediate === false) return
+      listener(change.value.messages.filter(m => m.to === name))
+    },
+    { immediate: true },
+  )
+}
+
+export interface LiveDelivery {
+  id: string
+  sessionId: string
+  recovered: boolean
+  messages: LiveCommsMessageV1[]
+}
+
+export async function prepareLiveDelivery(crew: string | undefined, name: string, sessionId: string, opts?: { dir?: string }): Promise<LiveDelivery | null> {
+  const resolved = liveCrewOf(crew)
+  if (!(await liveMessagesFor(resolved, name, opts)).some(message => !message.read)) return null
+  return mutateLiveMessages<LiveDelivery | null>(resolved, name, current => {
+    const unread = current.filter(message => !message.read)
+    if (unread.length === 0) return { next: current, result: null }
+    const pending = unread.find(message => message.delivery !== undefined)?.delivery
+    if (pending !== undefined) {
+      return { next: current, result: { ...pending, recovered: true, messages: unread.filter(message => message.delivery?.id === pending.id) } }
+    }
+    const delivery = { id: randomUUID(), sessionId }
+    const next = current.map(message => (message.read ? message : { ...message, delivery }))
+    return { next, result: { ...delivery, recovered: false, messages: next.filter(message => !message.read) } }
+  }, opts)
+}
+
+export async function wasLiveDeliveryHandled(delivery: LiveDelivery, messages: readonly Message[]): Promise<boolean> {
+  if (!delivery.recovered) return false
+  const { isSessionCleared } = await import('../../utils/sessionStorage/clearedSessions.js')
+  if (isSessionCleared(delivery.sessionId)) return true
+  const carriesId = (message: Message): boolean =>
+    message.uuid === delivery.id ||
+    (message.type === 'user' && message.batchUuids?.includes(delivery.id) === true) ||
+    (message.type === 'attachment' && message.attachment.type === 'queued_command' && message.attachment.source_uuid === delivery.id)
+  if (messages.some(carriesId)) return true
+  const { loadSessionFile } = await import('../../utils/sessionStorage/loading.js')
+  const stored = await loadSessionFile(delivery.sessionId as UUID)
+  return [...stored.messages.values()].some(carriesId)
+}
+
+export async function acknowledgeLiveDelivery(crew: string | undefined, name: string, id: string, opts?: { dir?: string }): Promise<void> {
+  await mutateLiveMessages<void>(liveCrewOf(crew), name, current => {
+    if (!current.some(message => !message.read && message.delivery?.id === id)) return { next: current, result: undefined }
+    return { next: current.map(message => (!message.read && message.delivery?.id === id ? { ...message, read: true } : message)), result: undefined }
+  }, opts)
+}
+
+export async function markLiveMessagesRead(crew: string | undefined, name: string, opts?: { dir?: string }): Promise<void> {
+  try {
+    await mutateLiveMessages<void>(liveCrewOf(crew), name, current => {
+      if (current.length === 0 || current.every(message => message.read)) return { next: current, result: undefined }
+      return { next: current.map(message => (message.read ? message : { ...message, read: true })), result: undefined }
+    }, opts)
+  } catch (error) {
+    logForDebugging(`livecomms: mark-all-read failed for ${name}: ${String(error)}`)
+    logError(error)
+  }
+}
+
+export async function markLiveMessagesFromRead(crew: string | undefined, name: string, from: string, opts?: { dir?: string }): Promise<void> {
+  try {
+    await mutateLiveMessages<void>(liveCrewOf(crew), name, current => {
+      if (!current.some(message => !message.read && message.from === from)) return { next: current, result: undefined }
+      return { next: current.map(message => (!message.read && message.from === from ? { ...message, read: true } : message)), result: undefined }
+    }, opts)
+  } catch (error) {
+    logForDebugging(`livecomms: mark-from-read failed for ${name}: ${String(error)}`)
+    logError(error)
+  }
+}
+
+export async function markLiveMessageRead(
+  crew: string | undefined,
+  name: string,
+  msg: { from: string; text: string; timestamp: string; id?: string },
+  opts?: { dir?: string },
+): Promise<void> {
+  await mutateLiveMessages<void>(liveCrewOf(crew), name, current => {
+    const index = current.findIndex(candidate => {
+      if (candidate.read) return false
+      if (candidate.id !== undefined && msg.id !== undefined) return candidate.id === msg.id
+      return candidate.from === msg.from && candidate.text === msg.text && candidate.timestamp === msg.timestamp
+    })
+    if (index === -1) return { next: current, result: undefined }
+    return { next: current.map((candidate, i) => (i === index ? { ...candidate, read: true } : candidate)), result: undefined }
+  }, opts)
+}
+
+export async function markLiveMessagesReadWhere(
+  crew: string | undefined,
+  name: string,
+  predicate: (message: LiveCommsMessageV1) => boolean,
+  opts?: { dir?: string },
+): Promise<void> {
+  try {
+    await mutateLiveMessages<void>(liveCrewOf(crew), name, current => {
+      if (!current.some(message => !message.read && predicate(message))) return { next: current, result: undefined }
+      return { next: current.map(message => (!message.read && predicate(message) ? { ...message, read: true } : message)), result: undefined }
+    }, opts)
+  } catch (error) {
+    logForDebugging(`livecomms: predicate mark-read failed for ${name}: ${String(error)}`)
+    logError(error)
+  }
 }
 
 export function liveMessageKey(file: LiveCommsFileV1, name: string): string {

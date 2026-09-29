@@ -63,6 +63,13 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'prompt is a bare object', field: 'prompt', fields: { prompt: { text: 'x' } } },
     ],
   },
+  crew_messages: {
+    good: { messages: [{ from: 'a', text: 't', timestamp: 'now' }] },
+    bad: [
+      { label: 'messages is text', field: 'messages', fields: { messages: 't' } },
+      { label: 'a message without its text', field: 'text', fields: { messages: [{ from: 'a' }] } },
+    ],
+  },
   teammate_mailbox: {
     good: { messages: [{ from: 'a', text: 't', timestamp: 'now' }] },
     bad: [
