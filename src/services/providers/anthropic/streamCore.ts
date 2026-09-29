@@ -107,6 +107,7 @@ import { validateBoundedIntEnvVar } from '../../../utils/envValidation.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { computeFingerprintFromMessages } from '../../../utils/fingerprint.js'
+import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
@@ -594,6 +595,11 @@ async function* queryModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model })
+  messagesForAPI =
+    fittedImages.firstEdited === -1
+      ? fittedImages.messages
+      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
 
   messagesForAPI = stripDeadThinking(messagesForAPI, deadThinkingMarks(messages))
   if (thinkingConfig.type === 'disabled') messagesForAPI = stripThinkingFromIndex(messagesForAPI, 0)

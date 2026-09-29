@@ -74,6 +74,8 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openaicompat.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openaicompat.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-zai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-zai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-refusal-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-image-refusal-recovery.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-cap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-cap.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-rescue.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-rescue.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-block.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-text-block.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else
   echo "❌ API SUITE RED"; exit 1; fi

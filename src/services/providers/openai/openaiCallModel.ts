@@ -125,6 +125,7 @@ import type { RefusedToolCall } from '../../../types/message.js'
 import { gateToolCalls, toolCallRefusalNote } from '../toolCallGate.js'
 import { foldAnnouncementIntoFirstUserTurn, planToolPayload, renderAdmissionRecordsAsText } from '../toolEconomy.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
+import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
 import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
 
 
@@ -592,10 +593,15 @@ export async function* openaiCallModel(
   if (params.deferralFormReissued !== undefined) settlementNotes.push(params.deferralFormReissued)
 
   const retiredScreenshots = retireOlderScreenshots(wireMessages)
-  const wireMessagesForBridge =
+  const retiredMessages =
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId })
+  const wireMessagesForBridge =
+    fittedImages.firstEdited === -1
+      ? fittedImages.messages
+      : stripThinkingFromIndex(fittedImages.messages, fittedImages.firstEdited)
   const walkable = stripImagesRefusedByStamp(healWalkableForWire(wireMessagesForBridge))
   const imagesRide = imagesSupportedForModel(candidate)
   if (imagesRide) validateImagesForAPI(walkable, modelId)
