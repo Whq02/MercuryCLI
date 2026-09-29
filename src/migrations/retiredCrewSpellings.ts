@@ -1,6 +1,5 @@
 export const RETIRED_TRANSCRIPT_ATTACHMENT_TYPES: Readonly<Record<string, string>> = {
   team_context: 'crew_context',
-  teammate_mailbox: 'crewmate_mailbox',
   teammate_shutdown_batch: 'crewmate_shutdown_batch',
 }
 
@@ -141,7 +140,7 @@ export function readRetiredToolUseResult(result: unknown): unknown {
 }
 
 function readRetiredToolUseInput(block: unknown): unknown {
-  if (!isRecord(block) || block.type !== 'tool_use' || !isRecord(block.input)) return block
+  if (!isRecord(block) || block.type !== 'tool_use' || block.name !== 'Agent' || !isRecord(block.input)) return block
   if (!carriesRetiredKeys(block.input, RETIRED_AGENT_TOOL_FIELDS)) return block
   return { ...block, input: renameKeys(block.input, RETIRED_AGENT_TOOL_FIELDS) }
 }

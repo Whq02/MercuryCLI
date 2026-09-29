@@ -34,7 +34,7 @@ const FROZEN_FILES: Array<{ path: string } & Why> = [
   { path: 'scripts/settings/prove-old-settings-keys-read.ts', why: 'the pin writes the old keys by design' },
   { path: 'scripts/substrate/prove-old-env-spellings-read.ts', why: 'the pin sets the old env spellings by design' },
   { path: 'scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', why: 'the pin holds old transcript rows by design' },
-  { path: 'scripts/identity/prove-no-team-spelling-remains.ts', why: 'the census names the spellings it hunts' },
+  { path: 'scripts/identity/prove-no-old-spelling-remains.ts', why: 'the census names the spellings it hunts' },
   { path: 'scripts/switchboard/prove-crewmates-command.ts', why: 'the pin of the old command name still opening the crew view' },
   { path: 'scripts/crew/prove-saved-crews-convert.ts', why: 'the pin converts saved rosters an older build wrote, in their old shape' },
   { path: 'scripts/crew/prove-crew-tools-removed.ts', why: 'the pin holds an old transcript row of a removed tool' },
@@ -47,6 +47,7 @@ const FROZEN_FILES: Array<{ path: string } & Why> = [
 
 const PINNED_PATHS: Array<{ path: string } & Why> = [
   { path: 'scripts/crew/team-world.ts', why: 'a workflow proof and the workflow suite runner name it by this path, and workflows do not change in any way — the one file name kept, listed for the owner' },
+  { path: 'scripts/identity/prove-no-old-spelling-remains.ts', why: 'the census names the spelling it hunts' },
 ]
 
 const REMOVED_PATHS: Array<{ path: string } & Why> = [
@@ -56,6 +57,7 @@ const REMOVED_PATHS: Array<{ path: string } & Why> = [
 
 const PROTECTED_PATTERNS: Array<{ re: RegExp } & Why> = [
   { re: /formerly: '[^']*'/g, why: 'a flag row names the spelling an older build wrote' },
+  { re: /['"]Team(?:Create|Delete)['"]/g, why: 'the quoted name of a removed tool: the old row a pin drives or refuses' },
   { re: /[Cc]laude[ _][Tt]eam|claude_team/g, why: 'the plan of that name is the provider\'s, not the crew' },
   { re: /\b[Rr]ed[- ]team(?:ed|ing|s)?\b/g, why: 'the adversarial verb, not the crew' },
   { re: /TeamMem\b|TEAMMEM\b|teamMemory[A-Za-z]*/g, why: 'team memory is the memory of the people who share a repository, not the crew' },
@@ -85,11 +87,13 @@ const FILE_RULES: FileRule[] = [
   { path: 'src/components/tasks/BackgroundTasksDialog.tsx', map: { team: 'group' }, why: 'the grouping key beside the crew the board already names' },
   { path: 'src/utils/crewmateMailbox.ts', map: { team: 'targetCrew' }, why: 'the addressed crew beside the crew the mailbox already names' },
   { path: 'src/utils/crew/crewBirth.ts', allow: ['teamName'], why: 'crewName is a parameter of another function in the file, not this scope' },
+  ...['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts'].map(path => ({ path, protect: ['teammate_mailbox'], why: 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it' })),
 ]
 
 const explicit = (from: string, to: string, re: string, why: string): Explicit => ({ from, to, re: new RegExp(re, 'g'), why })
 const EXPLICIT: Explicit[] = [
   explicit('TEAMS.md', 'CREW.md', '(?<![A-Za-z0-9])TEAMS\\.md(?![A-Za-z0-9])', 'the crew page name the brief names'),
+  explicit('TeamBrief', 'LiveComms', '(?<![A-Za-z0-9_])TeamBrief(?![A-Za-z0-9_])', 'the brief became live communication under its own name; the alias tables and the pins that drive the old name are frozen'),
 ]
 
 const COLLAPSE: Array<[string, string]> = [
@@ -406,8 +410,8 @@ const ALIAS_PATCHES: AliasPatch[] = [
   {
     file: 'src/components/mercury-ui/toolGlyphs.ts',
     why: 'the three rows of the old names go; the lookup answers them',
-    find: "  CrewBrief: 'agent',\n  CrewCreate: 'agent',\n  CrewDelete: 'agent',\n",
-    replace: '',
+    find: "  LiveComms: 'agent',\n  LiveComms: 'agent',\n  CrewCreate: 'agent',\n  CrewDelete: 'agent',\n",
+    replace: "  LiveComms: 'agent',\n",
     already: '  if (isRetiredToolName(toolName)) return \'agent\'\n',
   },
   {
@@ -420,8 +424,8 @@ const ALIAS_PATCHES: AliasPatch[] = [
   {
     file: 'src/tools/LiveCommsTool/constants.ts',
     why: 'the old tool name an old transcript row and an old call still resolve is the table\'s',
-    find: "export const LIVE_COMMS_OLD_TOOL_NAME = 'CrewBrief'\n",
-    replace: "import { RETIRED_LIVE_COMMS_TOOL_NAME } from '../../migrations/retiredCrewSpellings.js'\n\nexport const LIVE_COMMS_OLD_TOOL_NAME = RETIRED_LIVE_COMMS_TOOL_NAME\n",
+    find: "export const LIVE_COMMS_TOOL_NAME = 'LiveComms'\nexport const LIVE_COMMS_OLD_TOOL_NAME = 'LiveComms'\n",
+    replace: "import { RETIRED_LIVE_COMMS_TOOL_NAME } from '../../migrations/retiredCrewSpellings.js'\n\nexport const LIVE_COMMS_TOOL_NAME = 'LiveComms'\nexport const LIVE_COMMS_OLD_TOOL_NAME = RETIRED_LIVE_COMMS_TOOL_NAME\n",
     already: 'export const LIVE_COMMS_OLD_TOOL_NAME = RETIRED_LIVE_COMMS_TOOL_NAME\n',
   },
   {
@@ -434,8 +438,8 @@ const ALIAS_PATCHES: AliasPatch[] = [
   {
     file: 'src/utils/transcriptSearch.ts',
     why: 'the two rows of the old names come from the table',
-    find: "  'CrewBrief',\n  'CrewDelete',\n",
-    replace: '  ...Object.keys(RETIRED_TOOL_NAMES),\n',
+    find: "  'LiveComms',\n  'LiveComms',\n  'TeamDelete',\n",
+    replace: "  'LiveComms',\n  ...Object.keys(RETIRED_TOOL_NAMES),\n",
     already: '  ...Object.keys(RETIRED_TOOL_NAMES),\n',
   },
   {
@@ -485,7 +489,8 @@ const ALIAS_PATCHES: AliasPatch[] = [
     why: 'the /team door is gone',
     find: "  'src/commands/team/index.ts',\n",
     replace: '',
-    already: "  'src/commands/crew/index.ts',\n  'src/services/engine-connector/workCounts.ts',\n",
+    already: '\u0000',
+    optional: true,
   },
   {
     file: 'scripts/engine-connector/prove-crew-vocabulary.ts',
@@ -493,6 +498,55 @@ const ALIAS_PATCHES: AliasPatch[] = [
     find: "  ['src/daemon/crewSpawn.ts', 'You are @${name}, a Mercury crew teammate', \"the named agent's own system prompt — model-facing bytes, not operator copy\"],\n  ['src/daemon/crewSpawn.ts', 'Other teammates may be working', 'the same prompt'],\n  ['src/daemon/crewSpawn.ts', \"role: 'teammate'\", \"the team-file member record's role value — a wire spelling\"],\n",
     replace: '',
     already: "  ['src/utils/healthReport.ts', 'terminal-overrides', \"the same row's remedy for that real terminal\"],\n]",
+  },
+  {
+    file: 'scripts/crew/prove-crew-tools-removed.ts',
+    why: 'the old journal kinds are read through the alias table now, not carried as handler keys',
+    find: "operations.includes(\"'team-create'\") && operations.includes(\"'team-delete'\") && ",
+    replace: "src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind(op.kind)') && operations.includes(\"'crew-create'\") && operations.includes(\"'crew-delete'\") && ",
+    already: "src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind(op.kind)')",
+  },
+  {
+    file: 'scripts/crew/prove-crew-tools-removed.ts',
+    why: 'the marks of the old rows come from the alias table now',
+    find: "glyphs.includes('TeamCreate:') && glyphs.includes('TeamDelete:')",
+    replace: "glyphs.includes('isRetiredToolName(toolName)') && src('src/migrations/retiredCrewSpellings.ts').includes('TeamCreate') && src('src/migrations/retiredCrewSpellings.ts').includes('TeamDelete')",
+    already: "glyphs.includes('isRetiredToolName(toolName)')",
+  },
+  {
+    file: 'scripts/crew/run-all.sh',
+    why: 'the gate watches the two files the tools-removed pin now reads',
+    find: '# gate-watch: src/ink.ts\n',
+    replace: '# gate-watch: src/ink.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts\n',
+  },
+  {
+    file: 'scripts/swarm/prove-livecomms-store.ts',
+    why: 'the old name the tool still answers to is the table\'s',
+    find: "check('the old name LiveComms is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes('LiveComms'), JSON.stringify(tool.aliases ?? []))\n",
+    replace: "const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.js')\n  check('the old name is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME), JSON.stringify(tool.aliases ?? []))\n",
+    already: "(tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME)",
+  },
+  {
+    file: 'scripts/swarm/run-all.sh',
+    why: 'the gate watches the table the store pin now reads',
+    find: '# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts\n',
+    replace: '# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+  },
+  {
+    file: 'scripts/compact/prove-prune-set.ts',
+    why: 'the old name the prune law still protects is the table\'s',
+    find: "const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', 'LiveComms']\n",
+    replace: "const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.ts')\nconst NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]\n",
+    already: "const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]\n",
+  },
+  {
+    file: 'scripts/compact/run-all.sh',
+    why: 'the gate watches the table the prune-set pin now reads',
+    find: '# gate-watch: src/context.ts\n',
+    replace: '# gate-watch: src/context.ts\n# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
+    already: '# gate-watch: src/migrations/retiredCrewSpellings.ts\n',
   },
   {
     file: 'scripts/build-identity/prove-config-home.ts',
@@ -517,11 +571,43 @@ const PRE_PATCHES: PrePatch[] = [
     replace: "const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'\nconst liveTool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool\n",
     why: 'the fallback import of the removed tool folder was dead code',
   },
+  {
+    file: 'scripts/substrate/prove-coordination-livecomms.ts',
+    find: "    const crewWords = verbs.filter(t => /\\bteam\\b|teammate|TEAM-ONLY|TeamBrief/i.test(t.description ?? ''))\n    check('no verb description says team, teammate or TeamBrief (RED on the base: TEAM-ONLY, teammates, \"the TeamBrief tool\")', crewWords.length === 0, crewWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))\n",
+    replace: "    const OLD_WORD = ['t', 'eam'].join('')\n    const oldWords = verbs.filter(t => new RegExp(`\\\\b${OLD_WORD}\\\\b|${OLD_WORD}mate|${OLD_WORD.toUpperCase()}-ONLY|${OLD_WORD.replace('t', 'T')}Brief`, 'i').test(t.description ?? ''))\n    check('no verb description says the old word (RED on the base: the old-only mark, the old mates, the old brief tool)', oldWords.length === 0, oldWords.map(t => `${t.name}: ${(t.description ?? '').slice(0, 80)}`).join(' | '))\n",
+    why: 'the hunter of the old word in the verb descriptions composes the word it hunts, so the rename cannot turn it around',
+  },
   { file: 'src/commands.ts', find: "import team from './commands/team/index.js'\n", replace: '', why: 'the /team door goes' },
   { file: 'src/commands.ts', find: '  team,\n', replace: '', why: 'the /team door goes' },
   { file: 'src/services/resources/registry.ts', find: "import { teamAdapter } from './adapters/team.js'\n", replace: '', why: 'the mercury://team kind goes' },
   { file: 'src/services/resources/registry.ts', find: '  teamAdapter,\n', replace: '', why: 'the mercury://team kind goes' },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "import { createPermissionRequestMessage, createPermissionResponseMessage, createSandboxPermissionRequestMessage, createSandboxPermissionResponseMessage } from '../../services/crew/liveMessages.js'\n",
+    replace: "import { createPermissionRequestMessage, createSandboxPermissionRequestMessage } from '../../services/crew/liveMessages.js'\n",
+    why: 'the two response message makers leave with their senders',
+  },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "export async function sendPermissionResponseViaMailbox(\n  workerName: string,\n  resolution: PermissionResolution,\n  requestId: string,\n  teamName?: string,\n): Promise<boolean> {\n  try {\n    const crew = resolveCrew(teamName)\n    if (!crew) {\n      logForDebugging('permission sync: no team — permission response not sent')\n      return false\n    }\n    const message = createPermissionResponseMessage({\n      request_id: requestId,\n      subtype: resolution.decision === 'approved' ? 'success' : 'error',\n      ...(resolution.feedback !== undefined ? { error: resolution.feedback } : {}),\n      ...(resolution.updatedInput !== undefined ? { updated_input: resolution.updatedInput } : {}),\n      ...(resolution.permissionUpdates !== undefined\n        ? { permission_updates: resolution.permissionUpdates }\n        : {}),\n    })\n    return await sendLiveMessage(crew, {\n      to: workerName,\n      from: getAgentName() ?? CREW_LEAD_NAME,\n      text: JSON.stringify(message),\n      timestamp: new Date().toISOString(),\n    })\n  } catch (error) {\n    logError(error)\n    return false\n  }\n}\n\n",
+    replace: '',
+    why: 'the permission response sender lost its last caller when the mailbox went',
+  },
+  {
+    file: 'src/utils/swarm/permissionSync.ts',
+    find: "\nexport async function sendSandboxPermissionResponseViaMailbox(\n  workerName: string,\n  requestId: string,\n  host: string,\n  allow: boolean,\n  teamName?: string,\n): Promise<boolean> {\n  try {\n    const crew = resolveCrew(teamName)\n    if (!crew) {\n      logForDebugging('permission sync: no team — sandbox response not sent')\n      return false\n    }\n    const message = createSandboxPermissionResponseMessage({ requestId, host, allow })\n    return await sendLiveMessage(crew, {\n      to: workerName,\n      from: getAgentName() ?? CREW_LEAD_NAME,\n      text: JSON.stringify(message),\n      timestamp: new Date().toISOString(),\n    })\n  } catch (error) {\n    logError(error)\n    return false\n  }\n}\n",
+    replace: '',
+    why: 'the sandbox response sender lost its last caller when the mailbox went',
+  },
+  {
+    file: 'src/hooks/useSwarmPermissionPoller.ts',
+    find: "export function processSandboxPermissionResponse({\n  requestId,\n  host,\n  allow,\n}: {\n  requestId: string\n  host: string\n  allow: boolean\n}): boolean {\n  void host\n  const callback = sandboxCallbacks.get(requestId)\n  if (callback === undefined) {\n    logForDebugging(`sandbox response for unregistered request ${requestId}`)\n    return false\n  }\n  sandboxCallbacks.delete(requestId)\n  callback.resolve(allow)\n  return true\n}\n\n",
+    replace: '',
+    why: 'the sandbox response dispatcher lost its last caller when the mailbox went',
+  },
 ]
+
+const PRE_PATCHED: string[] = []
 
 function prePatched(rel: string, text: string): string {
   let out = text
@@ -530,6 +616,7 @@ function prePatched(rel: string, text: string): string {
     const at = out.indexOf(p.find)
     if (at === -1 || out.indexOf(p.find, at + 1) !== -1) continue
     out = out.slice(0, at) + p.replace + out.slice(at + p.find.length)
+    PRE_PATCHED.push(`${rel}: ${p.why}`)
   }
   return out
 }
@@ -539,6 +626,7 @@ const GENERATORS: Generator[] = [
   { command: ['scripts/consistency-census/gen-basename-census.ts'], touches: ['scripts/consistency-census/basename-census.json'], why: 'the basename census is sorted' },
   { command: ['scripts/settings/gen-settings-schema.ts', '--out', 'scripts/settings/settings-schema.json'], touches: ['scripts/settings/settings-schema.json'], why: 'the settings schema follows the hook event key' },
   { command: ['scripts/engine-durability/prove-write-route-ratchet.ts', '--regen'], touches: ['scripts/engine-durability/write-routes.baseline.json'], why: 'the write-route baseline is keyed by file path' },
+  { command: ['scripts/vulcan/regen-optable.mjs'], touches: ['src/utils/vulcan/optable.generated.ts', 'assets/vulcan/addon/core/op_classes.gd'], why: 'the op table is generated from its JSON source, which the rename touches' },
 ]
 
 const TOKEN_RE = /TEAMMATES|TEAMMATE|TEAMNAME|TEAMS|TEAM|Teammates|Teammate|Teams|Team|proofteam|proveteam|teammates|teammate|teamcreate|teamdelete|teamname|teams|team/g
@@ -597,7 +685,7 @@ function mergeTally(into: Tally, from: Tally, label: string): void {
 }
 
 function applyExplicit(text: string, t: Tally): string {
-  if (!text.includes('TEAMS.md')) return text
+  if (!text.includes('TEAMS.md') && !text.includes('TeamBrief')) return text
   let out = text
   for (const e of EXPLICIT) {
     out = out.replace(e.re, () => {
@@ -949,6 +1037,11 @@ class Planner {
     const q = literal[0]!
     const quoted = q === '\'' || q === '"' || q === '`'
     const body = quoted ? literal.slice(1, -1) : literal
+    const wholeLiteral = quoted ? PROTECTED_PATTERNS.find(p => new RegExp(`^(?:${p.re.source})$`).test(literal)) : undefined
+    if (wholeLiteral !== undefined) {
+      t.skips.push({ reason: `not the crew: ${wholeLiteral.why}`, token: body, run: body })
+      return literal
+    }
     if (/\s/.test(body)) {
       const rewrittenText = this.rewriteText(fromRel, body, t)
       return quoted ? q + rewrittenText + literal[literal.length - 1]! : rewrittenText
@@ -1230,6 +1323,8 @@ function main(): void {
   for (const l of patchLog) say(l)
   say(`  alias patches: ${patches.applied} applied, ${patches.already} already present, ${patches.missing.length} missing`)
   for (const m of patches.missing) say(`  MISSING ANCHOR: ${m}`)
+  say(`  pre-patches: ${PRE_PATCHED.length} applied`)
+  for (const l of PRE_PATCHED) say(`  pre-patched ${l}`)
   for (const p of ALIAS_PATCHES) touched.push(planner.renameMap.get(p.file) ?? p.file)
   if (!skipGenerators) {
     for (const g of GENERATORS) {

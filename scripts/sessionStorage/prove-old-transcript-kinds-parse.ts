@@ -71,6 +71,7 @@ const mailbox = {
   ],
 }
 const shutdownBatch = { type: 'teammate_shutdown_batch', count: 2 }
+const crewMessages = { type: 'crew_messages', messages: [{ from: 'crew-lead', text: 'a note under the crew kind', timestamp: at(5), color: 'cyan' }] }
 const OLD_MESSAGE = '<teammate-message teammate_id="water" color="cyan">\nhello from water\n</teammate-message>'
 
 let i = 0
@@ -136,8 +137,10 @@ const r3 = uid()
 row({ ...base(r3, t3, i++), type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_teambrief', content: 'brief' }] } })
 const a3 = uid()
 row({ ...base(a3, r3, i++), type: 'attachment', attachment: shutdownBatch })
+const a4 = uid()
+row({ ...base(a4, a3, i++), type: 'attachment', attachment: crewMessages })
 const u2 = uid()
-row({ ...base(u2, a3, i++), type: 'user', message: { role: 'user', content: OLD_MESSAGE } })
+row({ ...base(u2, a4, i++), type: 'user', message: { role: 'user', content: OLD_MESSAGE } })
 const u3 = uid()
 row({ ...base(u3, u2, i++), type: 'user', message: { role: 'user', content: 'thanks' } })
 
@@ -148,17 +151,27 @@ console.log('============================================================')
 console.log('§1 the transcript loads whole through the product reader, every old kind read as the current one')
 const log = await logs.loadTranscriptFromFile(file)
 const messages = log.messages as Array<Record<string, unknown>>
-check('every row of the chain is read', messages.length === 12, `${messages.length} rows`)
+check('every row of the chain is read', messages.length === 13, `${messages.length} rows`)
 const attachments = messages.filter(m => m.type === 'attachment').map(m => (m.attachment as { type: string }).type)
-check('the three old attachment kinds read as the crew kinds', JSON.stringify(attachments) === JSON.stringify(['crew_context', 'crewmate_mailbox', 'crewmate_shutdown_batch']), JSON.stringify(attachments))
+check('the old context and shutdown kinds read as the crew kinds; the old message row keeps its kind for the attachment types\' own table; the crew kind written now reads beside them', JSON.stringify(attachments) === JSON.stringify(['crew_context', 'teammate_mailbox', 'crewmate_shutdown_batch', 'crew_messages']), JSON.stringify(attachments))
 const toolNames = messages
   .filter(m => m.type === 'assistant')
   .flatMap(m => ((m.message as { content: Array<{ type: string; name?: string }> }).content ?? []).filter(c => c.type === 'tool_use').map(c => c.name))
 check('the old tool names on tool_use rows are read as themselves (the renderer resolves them through the alias table)', JSON.stringify(toolNames) === JSON.stringify(['TeamCreate', 'Agent', 'TeamBrief']), JSON.stringify(toolNames))
 const contextRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context')?.attachment as Record<string, unknown> | undefined
 check('the old context row reads with crewName and crewConfigPath, its old keys gone', contextRow !== undefined && contextRow.crewName === TEAM && typeof contextRow.crewConfigPath === 'string' && !('teamName' in contextRow) && !('teamConfigPath' in contextRow), JSON.stringify(contextRow))
-const mailboxRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crewmate_mailbox')?.attachment as { messages: Array<{ text: string }> } | undefined
-check('a terminated notice inside an old mailbox row reads as the crew notice', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"crewmate_terminated"'), JSON.stringify(mailboxRow?.messages[1]))
+const mailboxRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')?.attachment as { messages: Array<{ text: string }> } | undefined
+check('a terminated notice inside an old message row reads as the crew notice', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"crewmate_terminated"'), JSON.stringify(mailboxRow?.messages[1]))
+const types = await import('../../src/utils/attachments/types.ts')
+check('the attachment types read the old message row as the crew kind through their own table', mailboxRow !== undefined && types.currentAttachmentKind('teammate_mailbox') === 'crew_messages' && types.isCrewMessagesAttachment(mailboxRow as never) === true)
+const mailboxText = mailboxRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(mailboxRow as never)
+check('the old message row still composes its messages for the model', mailboxText.length === 1 && JSON.stringify(mailboxText[0]).includes('ping from the lead'))
+const crewMessagesRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')?.attachment
+const crewMessagesText = crewMessagesRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(crewMessagesRow as never)
+check('the crew kind written now composes the same envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
+const createRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_teamcreate'))
+const createInput = ((createRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
+check('the recorded row of a removed tool keeps its input as recorded (it paints; it never runs)', createInput.team_name === TEAM && !('crew_name' in createInput), JSON.stringify(createInput))
 const spawnRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_spawn'))
 const spawnInput = ((spawnRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
 check('an Agent call written with team_name reads with crew_name', spawnInput.crew_name === TEAM && !('team_name' in spawnInput), JSON.stringify(spawnInput))

@@ -37,14 +37,16 @@ const ALIAS_PINS: Array<[string, string]> = [
   ['scripts/crew/prove-saved-crews-convert.ts', 'converts saved rosters an older build wrote, in their old shape'],
   ['scripts/crew/prove-crew-tools-removed.ts', 'holds an old transcript row of a removed tool'],
   ['scripts/ui/prove-old-transcript-rows.ts', 'holds old transcript rows by design'],
-  ['scripts/identity/prove-no-team-spelling-remains.ts', 'this census composes the word it hunts'],
+  ['scripts/identity/prove-no-old-spelling-remains.ts', 'this census composes the word it hunts'],
   ['scripts/identity/prove-crew-words.ts', 'composes the word it hunts'],
   ['scripts/identity/prove-crew-docs-words.ts', 'composes the word it hunts'],
   ['scripts/engine-connector/prove-crew-vocabulary.ts', 'composes the word it hunts'],
   ['scripts/builtin-tools/prove-builtin-tools-census.ts', 'names the retired tools it hunts'],
 ]
 
-const NOT_THE_CREW: Array<[RegExp, string]> = [
+const MESSAGE_ROW_READERS = ['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts']
+
+const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
   [new RegExp(J('(?:\\b', 'team', ": ')?[Cc]laude[ _]", 'Team'), ''), 'the Claude Team plan, the provider\'s name for it, and the plan table row keyed by its wire value'],
   [new RegExp(J('claude_', 'team'), ''), 'the plan on the wire'],
@@ -58,6 +60,8 @@ const NOT_THE_CREW: Array<[RegExp, string]> = [
   [new RegExp(J("'max'/'pro'/'", 'team', "'"), ''), 'the plan tiers'],
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],
   [new RegExp(J('team', '-world'), ''), 'the one file name kept for the workflow law, imported by its path'],
+  [new RegExp(J("['\"]", 'Team', "(?:Create|Delete)['\"]"), ''), 'the quoted name of a removed tool: the old row a pin drives or refuses'],
+  [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
 ]
 
 let failures = 0
@@ -80,7 +84,7 @@ const namesWithOld: string[] = []
 const excusedFiles = new Map<string, number>()
 let scanned = 0
 for (const rel of scoped) {
-  if (OLD.test(rel) && !EXCLUDED_AREAS.some(([p]) => rel === p || rel.startsWith(p)) && !NOT_THE_CREW.some(([re]) => re.test(rel))) namesWithOld.push(rel)
+  if (OLD.test(rel) && !EXCLUDED_AREAS.some(([p]) => rel === p || rel.startsWith(p)) && !NOT_THE_CREW.some(([re, , where]) => re.test(rel) && (where === undefined || where(rel)))) namesWithOld.push(rel)
   if (!textual(rel)) continue
   const excluded = EXCLUDED_AREAS.find(([p]) => rel === p || rel.startsWith(p))
   const aliasTable = ALIAS_TABLES.find(([p]) => rel === p)
@@ -98,7 +102,10 @@ for (const rel of scoped) {
     if (!OLD.test(line)) continue
     if (rel === 'src/substrate/flagRegistry.ts' && /formerly: '[A-Z_]+'/.test(line) && !OLD.test(line.replace(/formerly: '[A-Z_]+'/g, ''))) continue
     let rest = line
-    for (const [re] of NOT_THE_CREW) rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
+    for (const [re, , where] of NOT_THE_CREW) {
+      if (where !== undefined && !where(rel)) continue
+      rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
+    }
     if (!OLD.test(rest)) continue
     hits.push({ file: rel, line: i + 1, text: line.trim().slice(0, 140) })
   }
