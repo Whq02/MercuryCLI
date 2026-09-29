@@ -49,6 +49,7 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     toolMarkFor,
   } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
   const { charWidth, GLYPH } = await import('../../src/components/mercury-ui/glyphs.ts')
+  const { RETIRED_TOOL_NAMES } = await import('../../src/migrations/retiredCrewSpellings.ts')
   const {
     EMPTY_FACETS,
     facetsSatisfy,
@@ -184,11 +185,25 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
       bothWays.length === 0,
       bothWays.join(', ') || 'disjoint',
     )
-    const ghosts = [...NON_INDEXING_TOOLS].filter(name => !POOL.includes(name))
+    const retired = new Set(Object.keys(RETIRED_TOOL_NAMES))
+    const ghostsIn = (names: Iterable<string>): string[] =>
+      [...names].filter(name => !POOL.includes(name) && !retired.has(name))
+    const ghosts = ghostsIn(NON_INDEXING_TOOLS)
     t.check(
-      'the non-indexing list names no tool that no longer exists',
+      'the non-indexing list names only pooled tools or retired transcript names',
       ghosts.length === 0,
       ghosts.join(', ') || 'clean',
+    )
+    t.check(
+      'the retired-tool table permits old transcript names without restoring live tools',
+      retired.size > 0 && ghostsIn(retired).length === 0 && [...retired].every(name => !POOL.includes(name)),
+      `${retired.size} retired names`,
+    )
+    const deadName = '__unregistered_projection_probe__'
+    t.check(
+      'a dead name outside the retired-tool table still fails the non-indexing pin',
+      ghostsIn([...NON_INDEXING_TOOLS, deadName]).includes(deadName),
+      'unregistered probe rejected',
     )
 
     const search = readFileSync('src/utils/transcriptSearch.ts', 'utf8')

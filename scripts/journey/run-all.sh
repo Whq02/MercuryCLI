@@ -13,7 +13,7 @@
 # gate-watch: src/services/providers/deepseek/deepseekAccounts.ts
 # gate-watch: src/services/providers/deepseek/deepseekCatalogue.ts
 # gate-watch: src/services/providers/moonshot/moonshotAccounts.ts
-# gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts src/state/AppState.tsx src/state/store.ts
+# gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts src/state/AppState.tsx src/state/AppStateStore.ts src/state/store.ts
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts
 # gate-watch: src/tools/AgentTool/agentColorManager.ts src/utils/accounts/signInLedger.ts src/utils/config.ts
 # gate-watch: src/utils/imageStore.ts src/utils/model/modelOptions.ts

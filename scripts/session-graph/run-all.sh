@@ -10,8 +10,15 @@
 # gate-watch: src/components/prompts-panel/rows.ts src/hooks/useObligationSignals.ts src/ink/stringWidth.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
 # gate-watch: src/services/crew/** src/services/notificationPolicy.ts src/services/resources/adapters/crew.ts
-# gate-watch: src/daemon/permissionAsks.ts
+# gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts src/daemon/dispatchDrain.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
+# gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/PlanApprovalMessage.tsx
+# gate-watch: src/components/messages/ShutdownMessage.tsx src/components/messages/TaskAssignmentMessage.tsx
+# gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/services/coordination/coordinationService.ts
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts
+# gate-watch: src/utils/attachments/crewmates.ts src/utils/crew/crewClient.ts src/utils/tasks.ts
+# gate-watch: src/utils/swarm/crewmateInit.ts src/utils/swarm/inProcessRunner.ts
+# gate-watch: src/utils/swarm/permissionSync.ts src/utils/swarm/leaseGuard.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
