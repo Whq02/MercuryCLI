@@ -272,12 +272,12 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
   check("the turn's end lands every held quiet row, after the spawn switches, the same way the model breadcrumb is held", turnEnd.includes('for (const quiet of quiets) landAdvisorQuiet(quiet)') && spawnSwitchesAt >= 0 && quietFlushAt > spawnSwitchesAt, `${turnEnd} · spawn switches at ${spawnSwitchesAt}, quiet flush at ${quietFlushAt}`)
   const agent = src('src/tools/AgentTool/runAgent.ts')
   const boundary = between(agent, 'const pausableQuery = async function*', 'const next = await stream.next()')
-  check("crewmates and workers: runAgent's request boundary advances the advisor with the agent's own rows after the pause seam, never inside it", boundary.includes('void advisorAgentRound(agentId, advisedRows)') && boundary.includes('beforeQueryStep()') && boundary.includes('advisorAgentRound') && boundary.indexOf('beforeQueryStep()') < boundary.indexOf('advisorAgentRound'), boundary.slice(-300))
+  check("only crewmates: runAgent's request boundary advances the advisor after the pause seam, never for workflow agents", boundary.includes("if (agentKind === 'crewmate') void advisorAgentRound(agentId, advisedRows)") && boundary.includes('beforeQueryStep()') && boundary.indexOf('beforeQueryStep()') < boundary.indexOf('advisorAgentRound'), boundary.slice(-300))
   const hooks = src('src/tools/WorkflowTool/agentHooks.ts')
   const spawn = between(hooks, 'async function* adapterSpawnStream(', 'yield* stream')
-  check("workflow workers ride the same runAgent road with the pause seam passed through (the spawn adapter, unchanged)", spawn.includes('const stream = runAgent({') && spawn.includes('beforeQueryStep: args.beforeQueryStep'), spawn.slice(-200))
+  check('the workflow spawn adapter stamps its launch kind even for custom definitions and keeps the pause seam', spawn.includes('const stream = runAgent({') && spawn.includes("agentKind: 'workflow'") && spawn.includes('beforeQueryStep: args.beforeQueryStep'), spawn.slice(-200))
   const drain = src('src/utils/attachments/queuedCommands.ts')
-  check("the pending-message drain hands the agent its stashed advisor notes as queued_command attachments with the advisor origin and no isMeta", drain.includes('takeAdvisorNotes(agentId).map(note => ({') && drain.includes('origin: note.origin,') && !between(drain, 'const advice', '}))').includes('isMeta'), between(drain, 'const advice', '}))'))
+  check("the pending-message drain hands the agent its stashed advisor notes as queued_command attachments with the advisor origin and no isMeta", drain.includes('const notes = takeAdvisorNotes(agentId)') && drain.includes("advisorSeatRefusal(toolUseContext.agentKind ?? 'crewmate')") && drain.includes('notes.map(note => ({') && drain.includes('origin: note.origin,') && !between(drain, 'const advice', '}))').includes('isMeta'), between(drain, 'const advice', '}))'))
   const framing = src('src/utils/messages/attachmentText.ts')
   check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || attachment.isMeta'))
   const painter = src('src/components/messages/AttachmentMessage.tsx')
@@ -463,10 +463,11 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
   check('the advisor turns never counted (no context opened)', advisor.peekAdvisorContext(SESSION) === undefined)
 }
 
-async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string }): Promise<{ yields: AnyMsg[]; threw?: string }> {
+async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' | 'workflow' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
   const ctx = makeCtx()
   const yields: AnyMsg[] = []
   let threw: string | undefined
+  let childContext: Raw | undefined
   try {
     const stream = runAgent({
       agentDefinition: { agentType: 'advisor-rig-worker', whenToUse: 'the advisor rig', source: 'projectSettings', getSystemPrompt: () => 'You are the rig worker. Call EchoTool each round.' } as never,
@@ -474,6 +475,8 @@ async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptS
       toolUseContext: ctx as never,
       canUseTool: allowAll,
       isAsync: opts.isAsync,
+      agentKind: opts.agentKind,
+      onCacheSafeParams: (params: { toolUseContext: unknown }) => { childContext = params.toolUseContext as Raw },
       canShowPermissionPrompts: false,
       querySource: opts.querySource as never,
       availableTools: TOOLS as never,
@@ -486,21 +489,23 @@ async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptS
     threw = error instanceof Error ? error.message : String(error)
   }
   await settle(200)
-  return { yields, threw }
+  return { yields, threw, childContext }
 }
 
 const attachmentNotes = (yields: AnyMsg[]): AnyMsg[] => yields.filter(m => m.type === 'attachment' && (m.attachment as Raw | undefined)?.type === 'queued_command' && rows.isAdvisorOrigin((m.attachment as Raw).origin))
 
 for (const leg of [
   { name: 'CREWMATE', agentId: 'a0advisor1', isAsync: true, querySource: 'agent:custom' },
-  { name: 'WORKFLOW WORKER', agentId: 'a0advisor2', isAsync: false, querySource: 'agent:custom', transcriptSubdir: 'workflows/run-fixture' },
+  { name: 'FOREGROUND CREWMATE', agentId: 'a0advisor2', isAsync: false, querySource: 'agent:custom' },
 ]) {
   section(`§3 ${leg.name}: twelve tool rounds with seats 5 — the notes arrive through the pending-message drain as painted advisor rows on the agent's own transcript`)
   resetRig()
   advisorOn(5)
+  advisor.setAdvisorCrewmates(true)
   agentDelayMs = 40
   agentScript = [...Array.from({ length: 12 }, (_, i) => ({ echo: `round ${i + 1}` })), { text: 'rounds done' }]
-  const { yields, threw } = await driveAgent(leg)
+  const { yields, threw, childContext } = await driveAgent(leg)
+  check(`${leg.name}: opted-in AskAdvisor is in the child's own catalogue`, ((childContext?.options as Raw)?.tools as Array<{ name: string }> ?? []).some(t => t.name === ASK_ADVISOR_TOOL_NAME))
   agentDelayMs = 0
   const requests = wire.filter(w => w.kind === 'agent')
   check(`${leg.name}: the run never threw and made thirteen agent requests`, threw === undefined && requests.length === 13, `threw=${threw ?? 'no'} requests=${requests.length}`)
@@ -522,6 +527,88 @@ for (const leg of [
   check(`${leg.name}: the advisor's memory for the agent sits beside the session's transcripts under advisor/<agentId>.jsonl`, existsSync(memory) && readFileSync(memory, 'utf8').includes('ADVISOR-NOTE-2'), memory)
   const share = (state.getWorkloadUsage() as Record<string, Record<string, Raw>>).advisor?.[ADVISOR_MODEL]
   check(`${leg.name}: the advisor bucket carries the two notes' tokens with their thinking — 180 in · ${2 * (THINK + NOTE_TOKENS)} out`, share !== undefined && share.inputTokens === 180 && share.outputTokens === 2 * (THINK + NOTE_TOKENS), j(share))
+}
+
+section('§4 every disallowed seat: no scheduled call, context, note, spend or AskAdvisor catalogue entry; stale direct calls refuse')
+for (const agentKind of ['crewmate', 'workflow'] as const) {
+  for (const enabled of [false, true]) for (const crewmates of [false, true]) {
+    if (agentKind === 'crewmate' && enabled && crewmates) continue
+    resetRig()
+    advisorOn(1)
+    advisor.setAdvisorEnabled(enabled)
+    advisor.setAdvisorCrewmates(crewmates)
+    const id = `denied-${agentKind}-${enabled}-${crewmates}`
+    agentScript = [{ echo: 'first tool round' }, { echo: 'second tool round' }, { text: 'done' }]
+    const { yields, threw, childContext } = await driveAgent({ agentId: id, isAsync: agentKind === 'crewmate', agentKind, querySource: 'agent:custom' })
+    check(`${id}: the custom-definition agent finishes without advice`, threw === undefined && wire.filter(w => w.kind === 'agent').length === 3 && wire.every(w => w.kind === 'agent') && attachmentNotes(yields).length === 0, j({ threw, requests: wire.map(w => w.kind) }))
+    check(`${id}: AskAdvisor is absent from the actual child catalogue`, childContext !== undefined && !((childContext.options as Raw).tools as Array<{ name: string }>).some(t => t.name === ASK_ADVISOR_TOOL_NAME))
+    const before = wire.length
+    const refused = await AskAdvisorTool.call({ question: QUESTION }, childContext as never) as { data: { status: string; text: string } }
+    check(`${id}: a stale direct tool call refuses before any network or memory`, refused.data.status === 'refused' && wire.length === before && advisor.peekAdvisorContext(id) === undefined && !existsSync(advisor.advisorContextPath(id)), j(refused))
+    check(`${id}: no advisor spend`, (state.getWorkloadUsage() as Raw).advisor === undefined)
+    if (agentKind === 'workflow') check(`${id}: refusal states the permanent workflow exclusion`, refused.data.text.includes('not available to workflow agents'), refused.data.text)
+  }
+}
+
+section('§5 opted-in crewmate asks; master-only changes never opt in; disabling blocks stale tool calls and pending notes')
+{
+  resetRig()
+  advisorOn(1)
+  advisor.setAdvisorCrewmates(true)
+  const ctx = makeCtx('crew-direct-ask')
+  ctx.agentKind = 'crewmate'
+  const answered = await AskAdvisorTool.call({ question: QUESTION }, ctx as never) as { data: { status: string; text: string } }
+  check('the explicit crewmate opt-in allows an AskAdvisor request', answered.data.status === 'ok' && answered.data.text === ADVISOR_ANSWER && wire.filter(w => w.kind === 'advisor-ask').length === 1, j(answered))
+  advisor.setAdvisorCrewmates(false)
+  const before = wire.length
+  const denied = await AskAdvisorTool.call({ question: QUESTION }, ctx as never) as { data: { status: string; text: string } }
+  check('a stale tool object obeys the new crewmate setting immediately', denied.data.status === 'refused' && wire.length === before && denied.data.text.includes('off for crewmates'), j(denied))
+  const { getAgentPendingMessageAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, seats: 1, at: new Date().toISOString() } }
+  advisor.stashAdvisorNote('crew-direct-ask', note as never)
+  check('a queued crewmate note is discarded after opt-out', getAgentPendingMessageAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
+  advisor.setAdvisorCrewmates(true)
+  ctx.agentKind = 'workflow'
+  advisor.stashAdvisorNote('crew-direct-ask', note as never)
+  check('a workflow never drains an advisor note even if one was stashed earlier', getAgentPendingMessageAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
+  const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
+  const fork = createSubagentContext(ctx as never)
+  check('a workflow context fork retains the workflow exclusion', fork.agentKind === 'workflow')
+  const forkDenied = await AskAdvisorTool.call({ question: QUESTION }, fork) as { data: { status: string; text: string } }
+  check('a workflow fork cannot call AskAdvisor through a stale tool', forkDenied.data.status === 'refused' && wire.length === before, j(forkDenied))
+}
+
+section('§6 crewmates on the session runner: daemon role and dynamic identity both need their explicit opt-in')
+{
+  const { setDynamicCrewContext, clearDynamicCrewContext } = await import(join(ROOT, 'src/utils/crewmate.ts'))
+  const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
+  const savedRole = process.env.MERCURY_CREW
+  try {
+    for (const identity of ['daemon', 'dynamic']) {
+      resetRig()
+      advisorOn(1)
+      advisor.setAdvisorCrewmates(false)
+      delete process.env.MERCURY_CREW
+      clearDynamicCrewContext()
+      if (identity === 'daemon') process.env.MERCURY_CREW = '1'
+      else setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof', planModeRequired: false })
+      check(`${identity}: the session runner is recognized as a crewmate`, advisor.advisorSessionSeat() === 'crewmate')
+      const id = `session-${identity}`
+      const messages = [createUserMessage({ content: 'crew prompt' })]
+      const notes: unknown[] = []
+      const verdict = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never, note => notes.push(note))
+      const refused = await AskAdvisorTool.call({ question: QUESTION }, makeCtx() as never) as { data: { status: string } }
+      check(`${identity}: master on alone means no scheduled advice, direct ask, context or catalogue entry`, verdict === 'off' && refused.data.status === 'refused' && wire.length === 0 && notes.length === 0 && advisor.peekAdvisorContext(id) === undefined && !AskAdvisorTool.isEnabled() && !getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME))
+      advisor.setAdvisorCrewmates(true)
+      const allowed = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never, note => notes.push(note))
+      const answered = await AskAdvisorTool.call({ question: QUESTION }, makeCtx() as never) as { data: { status: string } }
+      check(`${identity}: the separate opt-in enables scheduled advice and direct asks on the same session runner`, allowed === 'delivered' && notes.length === 1 && answered.data.status === 'ok' && AskAdvisorTool.isEnabled() && getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME), j({ allowed, notes: notes.length, answered }))
+    }
+  } finally {
+    clearDynamicCrewContext()
+    if (savedRole === undefined) delete process.env.MERCURY_CREW
+    else process.env.MERCURY_CREW = savedRole
+  }
 }
 
 server.close()

@@ -265,6 +265,7 @@ export type ToolUseContext = {
   ) => Promise<any>
   agentId?: AgentId
   agentType?: string
+  agentKind?: 'crewmate' | 'workflow'
   seatHolder?: string
   onSeatWait?: (words: string | null) => void
   pauseGate?: PauseGate

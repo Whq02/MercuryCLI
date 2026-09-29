@@ -3,6 +3,7 @@ import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../.
 import type { ToolUseContext } from '../../Tool.js'
 import { drainPendingMessages } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { takeAdvisorNotes } from '../../services/advisor/advisorRoads.js'
+import { advisorSeatRefusal } from '../../services/advisor/advisorSettings.js'
 import {
   getImagePasteIds,
   isValidImagePaste,
@@ -59,7 +60,8 @@ export function getAgentPendingMessageAttachments(
     toolUseContext.getAppState,
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState,
   )
-  const advice: Attachment[] = takeAdvisorNotes(agentId).map(note => ({
+  const notes = takeAdvisorNotes(agentId)
+  const advice: Attachment[] = advisorSeatRefusal(toolUseContext.agentKind ?? 'crewmate') !== undefined ? [] : notes.map(note => ({
     type: 'queued_command' as const,
     prompt: note.text,
     origin: note.origin,

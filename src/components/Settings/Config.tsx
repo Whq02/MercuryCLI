@@ -96,7 +96,7 @@ import { localRecordFor } from '../../services/providers/local/localCatalogue.js
 import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
-import { setAdvisorEnabled, setAdvisorSeats } from '../../services/advisor/advisorSettings.js'
+import { setAdvisorCrewmates, setAdvisorEnabled, setAdvisorSeats } from '../../services/advisor/advisorSettings.js'
 import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
 const LABEL_CELLS = 36
@@ -925,6 +925,13 @@ export function Config({
         globalTouchedRef.current.add('advisor')
         snapshots.dirty = true
         recordToggle('advisor', words)
+        bump()
+      },
+      onCrewmates: (next, words) => {
+        setAdvisorCrewmates(next)
+        globalTouchedRef.current.add('advisor')
+        snapshots.dirty = true
+        recordToggle('advisor.crewmates', words)
         bump()
       },
       onInterval: (next, words) => {

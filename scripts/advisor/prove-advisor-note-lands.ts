@@ -385,6 +385,29 @@ section(`§2 THE ADVISOR HAD NOTHING: the fixture answers thinking only, twice �
   frameScenes.push(['advisor-note-quiet', `the real runner's transcript: ${SEATS} operator turns, then the muted row that says the advisor had nothing to say`, chat])
 }
 
+section('§3 the real session runner under the daemon crewmate role: Advisor alone never opts it in')
+for (const crewmates of [false, true]) {
+  wire.length = 0
+  agentReplies = 0
+  advisorMode = 'note'
+  const arena = makeArena(`crew-${crewmates}`)
+  arena.env.MERCURY_CREW = '1'
+  arena.env.MERCURY_CREW_AGENT = 'advisor-proof-crewmate'
+  const cfgPath = join(arena.configDir, '.mercury.json')
+  const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Raw
+  cfg.advisor = { enabled: true, crewmates, seats: SEATS }
+  writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
+  const sid = crewmates ? 'c0ffee00-0000-4000-8000-00000000ad04' : 'c0ffee00-0000-4000-8000-00000000ad03'
+  const count = SEATS + (crewmates ? 1 : 0)
+  const run = await runSession(arena, sid, Array.from({ length: SEATS }, (_, i) => `crew line ${i + 1}`), { results: count, label: 'expected crewmate results' }, 30_000)
+  check(`daemon crewmate, opt-in=${crewmates}: finishes with ${count} turns`, run.exit === 0 && run.results === count, j({ exit: run.exit, results: run.results, stderr: run.stderr.slice(-300) }))
+  const requests = wire.filter(w => w.kind === 'advisor')
+  check(`daemon crewmate, opt-in=${crewmates}: ${crewmates ? 'one' : 'no'} scheduled advisor request`, requests.length === (crewmates ? 1 : 0), String(requests.length))
+  const file = transcriptFileOf(arena, sid)
+  const memory = memoryKindsOf(file, sid)
+  check(`daemon crewmate, opt-in=${crewmates}: ${crewmates ? 'the note has its memory' : 'no advisor memory is opened'}`, file !== null && (crewmates ? memory.includes('note') : memory.length === 0), j(memory))
+}
+
 if (frameDir !== null) {
   section(`frames → ${frameDir}`)
   mkdirSync(frameDir, { recursive: true })
