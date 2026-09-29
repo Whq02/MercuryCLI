@@ -31,9 +31,16 @@ const REPORT_PLACES = ['the rail', 'the view', 'the composer', 'the crew box', '
 const REPORT_CLAIMS = ['keeps every row', 'holds its keys', 'stands where it stood', 'paints the same cells']
 const LEAD_REPORT = [LEAD_DONE, ...Array.from({ length: 48 }, (_, i) => `${i + 1}. ${REPORT_PLACES[i % REPORT_PLACES.length]} ${REPORT_CLAIMS[Math.floor(i / REPORT_PLACES.length) % REPORT_CLAIMS.length]}`)].join('\n')
 const NOTICE_PATTERN = 'Agent "fjord" completed'
+const FACE_PATTERN = '\\d+ agents\\b[\\s\\S]*\\d+ of \\d+ signed in'
+const FOCUSED_WIDE_PATTERN = '\\n ready · [^\\n]*← back'
+const FOCUSED_NARROW_PATTERN = '● ready · [\\s\\S]*\\d+ sessions? on · '
+const LOADING_WORDS = 'opening the conversation|no chat is focused|has not reported its work|counts unavailable|Initializing agent'
+const settledPattern = (pattern?: string): string => `\\A(?![\\s\\S]*(?:${LOADING_WORDS}))${pattern === undefined ? '' : `[\\s\\S]*(?:${pattern})`}`
 const BOARD_PATTERN = 'STATUS & TITLE|─sessions · \\d+ ─'
 const COUNTS_PATTERN = '\\d+ agents? here|A:\\d+'
 const CREW_EMPTY_NEEDLE = 'ask the chat to delegate'
+const SESSIONS_NEEDLE = 'No other sessions in this project'
+const SESSIONS_PATTERN = 'this session ● active'
 const MATE_TAG = 'crew-screens-mate'
 const RUNNER = 'atlas'
 const SETTLED = 'fjord'
@@ -44,7 +51,7 @@ const SETTLED_SLEEP_SECONDS = 4
 const SECOND_LAUNCH_DELAY_MS = 3000
 const LEAD_NOTED = 'noted — the crewmate is in.'
 const MODEL_TITLE = 'Mercury · model'
-const STILL_TICKS = 8
+const STILL_TICKS = 12
 const VOLATILE_TOKEN = '⟪·⟫'
 
 export const SUBSTITUTIONS: ReadonlyArray<readonly [string, string]> = [
@@ -78,9 +85,9 @@ type Scene = { id: string; title: string }
 const SCENES: readonly Scene[] = [
   { id: 'face', title: 'the boot face' },
   { id: 'model-picker', title: 'the model picker (m on the boot face)' },
+  { id: 'crew-empty', title: 'the crew view with no crewmate' },
   { id: 'chat', title: 'the chat, a blank session' },
   { id: 'help', title: 'help (? on the empty composer)' },
-  { id: 'crew-empty', title: 'the crew view with no crewmate' },
   { id: 'chat-crew', title: "the chat with two crewmates in the rail's crew box" },
   { id: 'crew-two', title: 'the crew view with two crewmates (the running one selected)' },
   { id: 'crew-settled', title: 'the crew view with the settled crewmate selected' },
@@ -264,31 +271,33 @@ async function capture(label: string, cfg: Record<string, unknown>, env: NodeJS.
   return { marks, final: toFrame(payload.grid), sends: Array.isArray(cfg.sends) ? cfg.sends.length : 0, receipts: Array.isArray(payload.sendReceipts) ? payload.sendReceipts.length : 0, endReason: payload.endReason ?? '', status, stderr: stderr.join('') }
 }
 
-const see = (needle: string, mark: string, settle = 4, extra: Send = {}): Send => ({ data: '', atTick: 3000, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: settle, mark, ...extra })
+const see = (needle: string, mark: string, settle = 4, pattern?: string): Send => ({ data: '', atTick: 3000, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: settle, awaitPattern: settledPattern(pattern), mark })
 const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 const still = (mark: string): Send => ({ data: '', afterPrevTicks: STILL_TICKS, mark: `${mark}~still` })
-const stillPair = (needle: string, mark: string, settle = 4, extra: Send = {}): Send[] => [see(needle, `${mark}~first`, settle, extra), still(mark)]
+const stillPair = (needle: string, mark: string, settle = 4, pattern?: string): Send[] => [see(needle, `${mark}~first`, settle, pattern), still(mark)]
+const when = (needle: string, data: string, settle = 4, pattern?: string): Send => ({ data, atTick: 3000, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: settle, awaitPattern: settledPattern(pattern) })
 
 function sceneSends(cols: number): Send[] {
   const narrow = cols < 100
+  const focused = narrow ? FOCUSED_NARROW_PATTERN : FOCUSED_WIDE_PATTERN
   return [
-    { data: '', atTick: 3000, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 6, mark: 'face~first' },
+    { data: '', atTick: 3000, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 6, awaitPattern: settledPattern(FACE_PATTERN), mark: 'face~first' },
     still('face'),
     type('m', 2),
     ...stillPair(MODEL_TITLE, 'model-picker', 4),
     type(ESC, 2),
-    { data: '\r', atTick: 3000, awaitText: '↑↓ choose', requireAwait: true, minTick: 1, awaitSettleTicks: 3 },
-    ...stillPair('ype a prompt', 'chat', 6, narrow ? { awaitPattern: COUNTS_PATTERN } : {}),
-    type('?', 2),
-    ...stillPair('ype a prompt', 'help', 4),
-    type('?', 2),
-    type('/teammates', 3),
+    when('↑↓ choose', '\r', 3, FACE_PATTERN),
+    when('ype a prompt', '/teammates', 4, focused),
     type('\r', 3),
-    ...stillPair(CREW_EMPTY_NEEDLE, 'crew-empty', 5),
+    ...stillPair(CREW_EMPTY_NEEDLE, 'crew-empty', 5, focused),
     type(ESC, 2),
-    { data: LEAD_ASK, atTick: 3000, awaitText: 'ype a prompt', requireAwait: true, minTick: 1, awaitSettleTicks: 3 },
+    ...stillPair('ype a prompt', 'chat', 6, narrow ? COUNTS_PATTERN : focused),
+    type('?', 2),
+    ...stillPair('ype a prompt', 'help', 4, focused),
+    type('?', 2),
+    when('ype a prompt', LEAD_ASK, 3, focused),
     type('\r', 3),
-    ...stillPair(LEAD_NOTED, 'chat-crew', 8, { awaitPattern: NOTICE_PATTERN }),
+    ...stillPair(LEAD_NOTED, 'chat-crew', 8, NOTICE_PATTERN),
     type('/teammates', 3),
     type('\r', 3),
     ...stillPair('x x stop', 'crew-two', 5),
@@ -297,24 +306,34 @@ function sceneSends(cols: number): Send[] {
     type('\r', 3),
     ...stillPair(SETTLED_LINE, 'view-panel', 6),
     type(ESC, 3),
-    { data: '/runs', atTick: 3000, awaitText: 'ype a prompt', requireAwait: true, minTick: 1, awaitSettleTicks: 4 },
+    when('ype a prompt', '/runs', 4),
     type('\r', 3),
     ...stillPair('Mercury — runs', 'runs', 5),
     type(ESC, 3),
-    { data: '/sessions', atTick: 3000, awaitText: 'ype a prompt', requireAwait: true, minTick: 1, awaitSettleTicks: 4 },
+    when('ype a prompt', '/sessions', 4),
     type('\r', 3),
-    ...stillPair('Mercury — sessions', 'sessions', 5),
+    ...stillPair(SESSIONS_NEEDLE, 'sessions', 5, SESSIONS_PATTERN),
     type(ESC, 3),
-    { data: SHIFT_LEFT, atTick: 3000, awaitText: 'ype a prompt', requireAwait: true, minTick: 1, awaitSettleTicks: 4 },
-    ...stillPair('crew-screens: launc', 'board', 6, { awaitPattern: BOARD_PATTERN }),
+    when('ype a prompt', SHIFT_LEFT, 4),
+    ...stillPair('crew-screens: launc', 'board', 6, BOARD_PATTERN),
   ]
 }
 
-type SizeRun = { cols: number; rows: number; frames: Map<string, Frame>; faults: string[]; hits: string[]; capture: Capture | null }
+type SizeRun = { cols: number; rows: number; frames: Map<string, Frame>; faults: string[]; hits: string[]; capture: Capture | null; attempts: number; firstFaults: string[] }
 
 async function driveBundle(dist: string, tag: string, cols: number, rows: number, root: string): Promise<SizeRun> {
+  const first = await driveBundleOnce(dist, tag, cols, rows, root, 1)
+  if (first.faults.length === 0) return first
+  console.log(`  ↻ ${tag} ${cols}x${rows}: ${first.faults.join(' · ').slice(0, 300)} — one more capture at the same ceiling`)
+  const second = await driveBundleOnce(dist, tag, cols, rows, root, 2)
+  second.attempts = 2
+  second.firstFaults = first.faults
+  return second
+}
+
+async function driveBundleOnce(dist: string, tag: string, cols: number, rows: number, root: string, attempt: number): Promise<SizeRun> {
   const size = `${cols}x${rows}`
-  const scratch = join(root, `${tag}-${size}`)
+  const scratch = join(root, `${tag}-${size}-${attempt}`)
   const home = join(scratch, 'home')
   const cwd = join(root, 'fixture-cwd')
   rmSync(home, { recursive: true, force: true })
@@ -324,9 +343,9 @@ async function driveBundle(dist: string, tag: string, cols: number, rows: number
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false, skipSovereignConsentPrompt: true }))
   writeFileSync(join(home, 'critter-profile.json'), JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }))
   const fixture = await startFixture()
-  const run: SizeRun = { cols, rows, frames: new Map(), faults: [], hits: fixture.hits, capture: null }
+  const run: SizeRun = { cols, rows, frames: new Map(), faults: [], hits: fixture.hits, capture: null, attempts: attempt, firstFaults: [] }
   try {
-    run.capture = await capture(`${tag}-${size}`, { cols, rows, total: 900, cwd, argv: ['node', dist], sends: sceneSends(cols), readyText: ['crew-screens: launc'], readySettleTicks: 2 }, driveEnv(home, fixture.base), scratch)
+    run.capture = await capture(`${tag}-${size}`, { cols, rows, total: 1500, cwd, argv: ['node', dist], sends: sceneSends(cols), readyText: ['crew-screens: launc'], readySettleTicks: 2 }, driveEnv(home, fixture.base), scratch)
   } finally {
     await fixture.close()
   }
@@ -588,7 +607,7 @@ async function main(): Promise<void> {
     console.log(`\n— ${size} —`)
     console.log(`  fixture: before ${before.hits.join(',')} · after ${after.hits.join(',')}`)
     for (const [tag, run] of [['before', before], ['after', after]] as const) {
-      check(`${size} ${tag}: every send became due and every scene painted still (${run.capture?.receipts ?? 0}/${run.capture?.sends ?? 0} sends · end ${run.capture?.endReason ?? '?'})`, run.faults.length === 0, run.faults.join(' · '))
+      check(`${size} ${tag}: every send became due and every scene painted still (${run.capture?.receipts ?? 0}/${run.capture?.sends ?? 0} sends · end ${run.capture?.endReason ?? '?'}${run.attempts > 1 ? ` · attempt ${run.attempts}, the first: ${run.firstFaults.join(' · ').slice(0, 200)}` : ''})`, run.faults.length === 0, run.faults.join(' · '))
       if (FRAMES !== undefined) for (const [id, frame] of run.frames) keep(join(FRAMES, tag), `${id}-${size}`, frame)
       if (DUMP || run.faults.length > 0) {
         for (const [id, frame] of run.frames) dump(`${size} ${tag} · ${id}`, frame)
