@@ -3,7 +3,7 @@
  "note": "contract journey 4 — markdown/code preview comparison; focus moves between previewed options",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-29T02:08:54.293Z",
+ "capturedAt": "2026-09-29T02:38:27.889Z",
  "screens": [
   {
    "atMs": 12500,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:08:44 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 03:38:18 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:08:44 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 03:38:18 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -51,7 +51,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-62TEXC                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-s7JsSo                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -66,9 +66,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:08:44 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 03:38:18 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:08:44 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 03:38:18 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -100,7 +100,7 @@
     "",
     "",
     "",
-    " flux-arena-cwd-62TEXC                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-s7JsSo                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 03:08:44 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 03:38:18 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 03:08:44 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 03:38:18 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -149,22 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-62TEXC                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-s7JsSo                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 19193,
-   "frame-recommit": 18
+   "patches": 20305,
+   "frame-recommit": 19
   },
   "frames": {
-   "total": 35,
-   "window": 35,
-   "p50": 0.9513749999996435,
-   "p95": 15.931417000000238,
-   "p99": 18.86333300000001,
-   "maxMs": 18.86333300000001
+   "total": 36,
+   "window": 36,
+   "p50": 0.9213330000002316,
+   "p95": 14.960042000000044,
+   "p99": 18.41404199999988,
+   "maxMs": 18.41404199999988
   }
  },
  "requests": [
@@ -199,19 +199,19 @@
  ],
  "sends": [
   {
-   "atMs": 6677.109003067017,
+   "atMs": 6600.114822387695,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7477.109003067017,
+   "atMs": 7400.114822387695,
    "b64": "DQ=="
   },
   {
-   "atMs": 11677.109003067017,
+   "atMs": 11600.114822387695,
    "b64": "G1tC"
   },
   {
-   "atMs": 12477.109003067017,
+   "atMs": 12400.114822387695,
    "b64": "G1tB"
   }
  ]
