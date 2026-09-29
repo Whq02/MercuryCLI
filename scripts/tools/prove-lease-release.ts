@@ -42,6 +42,7 @@ check('releaseAllForAgent(agentA) returns true (a lease was dropped)', dropped =
 const after = await L.listLeases(team)
 check('agentA’s lease is gone, agentB’s survives', after.length === 1 && after[0]!.agentId === 'agentB@t')
 check('releaseAllForAgent is idempotent (second call drops nothing)', (await L.releaseAllForAgent(team, 'agentA@t')) === false)
+check('the crew has one claim store: agentB released, the store reads empty', (await L.releaseAllForAgent(team, 'agentB@t')) === true && (await L.listLeases(team)).length === 0)
 
 section('LIVE: sweepExpiredLeases prunes stale records (list path)')
 const t2 = 'proveteam2'
