@@ -3,7 +3,7 @@
  "note": "contract journey 4 — markdown/code preview comparison; focus moves between previewed options",
  "cols": 120,
  "rows": 44,
- "capturedAt": "2026-09-29T04:11:29.354Z",
+ "capturedAt": "2026-09-29T04:21:28.619Z",
  "screens": [
   {
    "atMs": 12500,
@@ -17,9 +17,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 05:11:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:21:19 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 05:11:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:21:19 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -31,17 +31,11 @@
     "",
     "⦿ Which config shape should ship?",
     "",
-    "❯ 1. Layered        ┌───────────────────────────────────────────────────────────┐",
-    "  2. Flat           │ Option A — layered config                                 │",
+    "  1. Layered        ┌───────────────────────────────────────────────────────────┐",
+    "❯ 2. Flat           │ Option B — flat config                                    │",
     "                    │                                                           │",
     "                    │                                                           │",
-    "                    │ export function loadConfig(root: string): Config {        │",
-    "                    │   return merge(defaults, readFile(root))                  │",
-    "                    │ }                                                         │",
-    "                    │                                                           │",
-    "                    │ | key | default |                                         │",
-    "                    │ | --- | ------- |                                         │",
-    "                    │ | ttl | 300s    |                                         │",
+    "                    │ export const CONFIG: Config = Object.freeze({ ttl: 300 }) │",
     "                    └───────────────────────────────────────────────────────────┘",
     "",
     "                    Notes: press n to add notes",
@@ -51,7 +45,13 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-HAHsoR                                                                         esc interrupts · ⇧← back"
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    " flux-arena-cwd-tCTswp                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -66,9 +66,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 05:11:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:21:19 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 05:11:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:21:19 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -100,7 +100,7 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-HAHsoR                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-tCTswp                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -115,9 +115,9 @@
     "                        │╰────────────────────────────────────────────────────────────────────────────────────────────╯│",
     "FILES · flux-arena-cwd-…│                                                                                              │",
     "  ↵ or click · browse   │                                                                                              │",
-    "                        │ 05:11:21 [sam] ❯ design the cache layer                                                      │",
+    "                        │ 05:21:19 [sam] ❯ design the cache layer                                                      │",
     "TELEMETRY               │                                                                                              │",
-    "  · spend $0.00         │ 05:11:21 [Mercury] Let me confirm the open decisions before proceeding.                      │",
+    "  · spend $0.00         │ 05:21:19 [Mercury] Let me confirm the open decisions before proceeding.                      │",
     "  · ctx 0% · 1000k      │                                                                                              │",
     "  · health — run /health│                                                                                              │",
     "                        │                                                                                              │",
@@ -149,23 +149,22 @@
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
     "",
-    " flux-arena-cwd-HAHsoR                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-tCTswp                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 20896,
-   "frame-recommit": 26,
-   "tail-publish": 2
+   "patches": 20593,
+   "frame-recommit": 26
   },
   "frames": {
-   "total": 44,
-   "window": 44,
-   "p50": 2.3775000000005093,
-   "p95": 35.818874999999025,
-   "p99": 220.72408300000006,
-   "maxMs": 220.72408300000006
+   "total": 43,
+   "window": 43,
+   "p50": 3.0740840000000844,
+   "p95": 31.885582999999315,
+   "p99": 56.32370900000001,
+   "maxMs": 56.32370900000001
   }
  },
  "requests": [
@@ -200,19 +199,19 @@
  ],
  "sends": [
   {
-   "atMs": 10001.010179519653,
+   "atMs": 7372.4658489227295,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 10801.010179519653,
+   "atMs": 8172.4658489227295,
    "b64": "DQ=="
   },
   {
-   "atMs": 15001.010179519653,
+   "atMs": 12372.46584892273,
    "b64": "G1tC"
   },
   {
-   "atMs": 15801.010179519653,
+   "atMs": 13172.46584892273,
    "b64": "G1tB"
   }
  ]
