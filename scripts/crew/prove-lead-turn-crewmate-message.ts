@@ -57,7 +57,7 @@ const sends: Send[] = [
   { afterPrevTicks: 5, data: '\r', mark: 'enter' },
   awaits('Type a prompt', `${FIRST}: spawn the worker and stop.\r`),
   awaits('LEAD-DONE', '', { mark: 'lead-done' }),
-  { afterPrevTicks: 60, data: '', mark: 'after-worker' },
+  { atTick: 500, awaitText: 'LEAD-ACK', minTick: 3, awaitSettleTicks: 4, requireAwait: true, data: '', mark: 'after-worker' },
   { afterPrevTicks: 2, data: `${SECOND}: anything from the worker?\r` },
   awaits('LEAD-SECOND', '', { mark: 'second' }),
   { afterPrevTicks: 4, data: '', mark: 'final' },
