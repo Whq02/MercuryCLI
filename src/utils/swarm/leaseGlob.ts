@@ -307,6 +307,30 @@ export async function getLeaseConflict(
   return null
 }
 
+export async function getLeaseScopeConflict(
+  team: string,
+  agentId: string,
+  scopePath: string,
+  opts: { base?: string; nowMs?: number } = {},
+): Promise<LeaseConflict | null> {
+  const base = opts.base ?? getProjectRoot()
+  const now = opts.nowMs ?? Date.now()
+  const rel = relScope(scopePath, base)
+  if (rel === '..' || rel.startsWith('../')) return null
+  const scope = rel === '' ? '**' : `${rel}/**`
+  const store = await leaseStoreFor(team).read()
+  for (const lease of store.leases) {
+    if (lease.agentId === agentId) continue
+    if (isLeaseExpired(lease, now)) continue
+    for (const glob of lease.globs) {
+      if (globsOverlap(scope, glob)) {
+        return { agentId: lease.agentId, glob, holder: lease.holder }
+      }
+    }
+  }
+  return null
+}
+
 export function subscribeLeases(team: string, listener: () => void): () => void {
   return leaseStoreFor(team).subscribe(() => listener(), { immediate: false })
 }
