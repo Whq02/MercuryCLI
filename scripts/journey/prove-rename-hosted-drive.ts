@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs, resolveCaptureDriver } from '../lib/captureDriver.ts'
 import { childEnv, startFixture } from '../daemon/dupline-world.ts'
 import { AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR } from '../../src/tools/AgentTool/agentColorManager.ts'
@@ -49,7 +49,7 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
   const fixture = await startFixture(join(world, 'wire.jsonl'), 1, 1)
   const env: NodeJS.ProcessEnv = {
     ...childEnv(home, fixture.port),
-    ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
+    ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     MERCURY_CRITTER: 'clam',
     MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_AWAY_SUMMARY: '0',
