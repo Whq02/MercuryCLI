@@ -16,7 +16,7 @@ cleanup() {
   rm -rf "$work"
 }
 trap cleanup EXIT
-fixture() { sleep 600 >/dev/null 2>&1 & last=$!; pids="$pids $last"; }
+fixture() { sleep 600 >/dev/null 2>&1 & last=$!; disown "$last"; pids="$pids $last"; }
 started_of() { ps -o lstart= -p "$1" 2>/dev/null | sed 's/^ *//; s/ *$//'; }
 gone_within() {
   local p=$1 n=0
@@ -56,7 +56,7 @@ check "an entry whose runner is gone is reaped" "$(gone_within "$orphan" && [ ! 
 
 echo "── the orphan sweep reads the same shape"
 ledger3="$work/ledger3"; mkdir -p "$ledger3"
-bash -c 'exec -a mercury sleep 600' >/dev/null 2>&1 & swept=$!; pids="$pids $swept"
+bash -c 'exec -a mercury sleep 600' >/dev/null 2>&1 & swept=$!; disown "$swept"; pids="$pids $swept"
 sleep 0.2
 entry "$ledger3/$swept.$dead.entry" "$swept" "$dead" "" "$work" "mercury 600"
 dry=$(MERCURY_SWEEP_ONLY_PIDS="$swept" MERCURY_PROCESS_LEDGER_DIR="$ledger3" bash "$root/scripts/lib/sweep-orphans.sh" --dry-run 2>&1)

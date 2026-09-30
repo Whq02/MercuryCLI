@@ -117,12 +117,15 @@ for r in "$root"/scripts/*/run-all.sh; do
 done
 check "every runner that sets its own EXIT trap chains suite_home_cleanup" "$([ -z "$unchained" ] && echo 0 || echo 1)" "$unchained"
 printf '#!/usr/bin/env bash\nset -u\n. "%s" || exit 78; suite_env_guard "$0"\nown="$(mktemp -d "$TMPDIR/own.XXXXXX")"\ntrap %s EXIT\nprintf "%%s\\n" "$MERCURY_CONFIG_DIR"\n' "$guard" "'rm -rf \"\$own\"; suite_home_cleanup'" >"$scratch/chained.sh"
-printf '#!/usr/bin/env bash\nset -u\n. "%s" || exit 78; suite_env_guard "$0"\nown="$(mktemp -d "$TMPDIR/own.XXXXXX")"\ntrap %s EXIT\nprintf "%%s\\n" "$MERCURY_CONFIG_DIR"\n' "$guard" "'rm -rf \"\$own\"'" >"$scratch/unchained.sh"
+printf '#!/usr/bin/env bash\nset -u\n. "%s" || exit 78; suite_env_guard "$0"\nown="$(mktemp -d "$TMPDIR/own.XXXXXX")"\ntrap %s EXIT\nprintf "%%s\\n%%s\\n" "$MERCURY_CONFIG_DIR" "$MERCURY_SUITE_TMPDIR"\n' "$guard" "'rm -rf \"\$own\"'" >"$scratch/unchained.sh"
 home="$(clean BUN=/usr/bin/false bash "$scratch/chained.sh" 2>/dev/null)"
 check "a runner's own trap chained with suite_home_cleanup still removes the scratch home" "$([ -n "$home" ] && [ ! -e "$home" ] && echo 0 || echo 1)" "home=$home"
-home="$(clean BUN=/usr/bin/false bash "$scratch/unchained.sh" 2>/dev/null)"
+left="$(clean BUN=/usr/bin/false bash "$scratch/unchained.sh" 2>/dev/null)"
+home="$(printf '%s\n' "$left" | sed -n 1p)"
+run_root="$(printf '%s\n' "$left" | sed -n 2p)"
 check "an unchained trap would leave it, and the census reads that runner as unchained" "$([ -n "$home" ] && [ -e "$home" ] && ! trap_chained "$scratch/unchained.sh" && echo 0 || echo 1)" "home=$home"
 rm -rf "$home"
+case "$run_root" in (*/mercury-proof-run.??????) rm -rf "$run_root" ;; esac
 
 echo "── the single-proof road: the bunfig preload"
 check "bunfig.toml names the proof-home preload" "$(grep -qx 'preload = \["./scripts/lib/proofHomePreload.ts"\]' "$root/bunfig.toml" && echo 0 || echo 1)"
