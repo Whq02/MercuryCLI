@@ -526,6 +526,8 @@ section('§9 the carry words: a reached window says what carries the requests fr
   const composer = src('src/components/PromptInput/PromptInput.tsx')
   check('the slot offer card carries a carry line under its reached sentence, handed the owner\'s words by the composer', slotCard.includes('{GLYPH.dot} {carryWords}') && composer.includes('carryWords: usageCarryWords(usageForProvider(family).carry) ?? null') && composer.includes('carryWords={offer.carryWords}'))
   check('the handoff notice appends them after its reset', composer.includes("window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}"))
+  const capCard = src('src/components/CapOfferCard.tsx')
+  check('the cross-family offer card carries a carry line under its reached sentence on a handoff, never on the way home', capCard.includes('{!home && carryWords ? (') && capCard.includes('{GLYPH.dot} {carryWords}') && composer.includes("carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}"))
   const refusalSrc = src('src/services/providers/anthropicRefusal.ts')
   check('the standing Anthropic refusal reads the owner\'s carry words', refusalSrc.includes('anthropicWindowWords(seen, anthropicCarryWords())') && refusalSrc.includes('usageCarryWords(anthropicExtraUsageCarry())'))
   const usabilitySrc = src('src/services/providers/providerUsability.ts')

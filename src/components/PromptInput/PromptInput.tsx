@@ -2712,6 +2712,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         trigger={offer.trigger}
         windowName={offer.windowName}
         resetText={offer.resetText}
+        carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}
         targetModel={offer.targetModel}
         homeRoute={offer.homeRoute}
         awayRoute={offer.awayRoute}
