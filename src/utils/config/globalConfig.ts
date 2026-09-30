@@ -14,7 +14,7 @@ import { safeParseJSON } from '../json.js'
 import { stripBOM } from '../jsonRead.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
-import { rewriteRetiredGlobalConfigKeys, rewriteRetiredProjectConfigKeys } from '../../migrations/migrateConfigSpellings.js'
+import { dropRetiredAdvisorConfigKeys, rewriteRetiredGlobalConfigKeys, rewriteRetiredProjectConfigKeys } from '../../migrations/migrateConfigSpellings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 
 import {
@@ -223,7 +223,7 @@ export function noteConfigLocklessFallback(): void {
 export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
 
 function migrateConfigFields(config: GlobalConfig): GlobalConfig {
-  const rewritten = rewriteRetiredGlobalConfigKeys(config)
+  const rewritten = dropRetiredAdvisorConfigKeys(rewriteRetiredGlobalConfigKeys(config))
   const projects = rewriteRetiredProjectConfigKeys(rewritten.projects)
   return projects === rewritten.projects ? rewritten : { ...rewritten, projects }
 }

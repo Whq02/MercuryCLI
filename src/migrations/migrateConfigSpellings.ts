@@ -51,6 +51,19 @@ export function rewriteRetiredGlobalConfigKeys<T extends object>(config: T): T {
   return dropRetiredKeys(rewriteRetiredKeys(config, RETIRED_GLOBAL_CONFIG_KEYS), DROPPED_GLOBAL_CONFIG_KEYS)
 }
 
+export const DROPPED_ADVISOR_CONFIG_KEYS: readonly string[] = ['seats']
+
+export function dropRetiredAdvisorConfigKeys<T extends { advisor?: object }>(config: T): T {
+  const advisor = config.advisor
+  if (advisor === undefined) return config
+  const kept = dropRetiredKeys(advisor, DROPPED_ADVISOR_CONFIG_KEYS)
+  if (kept === advisor) return config
+  const next = { ...config }
+  if (Object.keys(kept).length === 0) delete next.advisor
+  else next.advisor = kept
+  return next
+}
+
 export function rewriteRetiredProjectConfigKeys<T extends object>(
   projects: Record<string, T> | undefined,
 ): Record<string, T> | undefined {
