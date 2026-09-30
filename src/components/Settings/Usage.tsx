@@ -52,8 +52,11 @@ import { resolveLocalAccount } from '../../services/providers/local/localAccount
 import { LOCAL_SERVER_NAMES } from '../../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { formatLaneSpend } from '../../cost-tracker.js'
+import { usePopupMarker } from '../../context/popupFormContext.js'
+import { settingsPopupMarker, settingsPopupWindow } from '../../utils/cockpit/settingsPopup.js'
 import { ConfigurableShortcutHint } from '../ConfigurableShortcutHint.js'
 import { ProgressBar } from '../design-system/ProgressBar.js'
+import { GLYPH } from '../mercury-ui/glyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 
 const WARN_PCT = 70
@@ -1014,7 +1017,125 @@ export function usageBodyRows(budget: number, requestedJevRows = 1): { footerRow
   return { footerRows, jevRows, capacity: rows - footerRows - jevRows }
 }
 
-export function Usage({ openToken, width = 146, rowBudget = 22 }: { openToken?: number; width?: number; rowBudget?: number }): React.ReactNode {
+export type UsageCompactLine = { text: string; heading: boolean }
+
+export type UsageCompactReads = {
+  identity: (family: RouterProviderId) => string
+  usage: (family: RouterProviderId) => ActiveSourceUsage
+  anthropicWindows: () => UsageWindowView[]
+  anthropicPools: () => UsageWindowView[]
+  openaiWindows: () => UsageWindowView[]
+  jev: () => string
+}
+
+function compactWindowLine(w: UsageWindowView, title: string): string | undefined {
+  if (w.usedPct === undefined) return undefined
+  const reset = resetLineOf(w.resetsAtMs !== undefined ? new Date(w.resetsAtMs).toISOString() : null, false)
+  return `  ${title} · ${Math.floor(w.usedPct)}%${reset !== null ? ` · ${reset}` : ''}`
+}
+
+export function usageCompactLines(
+  plan: UsageSection[],
+  reads: UsageCompactReads = {
+    identity: family => providerIdentitySentence(providerIdentityLine(family)),
+    usage: usageForProvider,
+    anthropicWindows: () => anthropicWindowViews().filter(w => w.state === 'live'),
+    anthropicPools: () => anthropicPoolWindowViews().filter(w => w.state === 'live'),
+    openaiWindows: openaiObservedWindowViews,
+    jev: jevUsageRow,
+  },
+): UsageCompactLine[] {
+  const lines: UsageCompactLine[] = []
+  for (const section of plan) {
+    lines.push({ text: `${section.title} · ${reads.identity(section.id)}`, heading: true })
+    if (!section.family.credentialed) continue
+    const usage = reads.usage(section.id)
+    const windows: string[] = []
+    if (section.id === 'anthropic') {
+      for (const w of reads.anthropicWindows()) {
+        const line = compactWindowLine(w, w.key === '5h' ? 'Current session' : w.key === '7d' ? 'Current week (all models)' : `Window (${w.label})`)
+        if (line !== undefined) windows.push(line)
+      }
+      for (const w of reads.anthropicPools()) {
+        const line = compactWindowLine(w, `Current week (${w.label})`)
+        if (line !== undefined) windows.push(line)
+      }
+    } else {
+      for (const w of section.id === 'openai' ? reads.openaiWindows() : usage.windows) {
+        const line = compactWindowLine(w, w.label === 'wk' ? 'Current week' : w.label === '7d' ? 'Current week (7d)' : `Window (${w.label})`)
+        if (line !== undefined) windows.push(line)
+      }
+    }
+    for (const line of windows) lines.push({ text: line, heading: false })
+    const credits = usageCreditsLine(usage.credits) ?? figuresLine(usage)
+    if (credits !== undefined) lines.push({ text: `  ${credits}`, heading: false })
+    const full = fullWindowLine(usage)
+    if (full !== undefined) lines.push({ text: `  ${full}`, heading: false })
+  }
+  lines.push({ text: reads.jev(), heading: false })
+  return lines
+}
+
+function UsageCompact({ openToken, width, rowBudget }: { openToken?: number; width: number; rowBudget: number }): React.ReactNode {
+  const tokens = useMercuryTokens()
+  useCatalogueEpoch()
+  useSyncExternalStore(subscribeJevSessionFacts, jevSessionFactsStamp, jevSessionFactsStamp)
+  const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
+  const [, setSample] = useState(0)
+  const asks = plan.filter(section => section.family.credentialed).map(section => section.id).join('|')
+  useEffect(() => {
+    let disposed = false
+    for (const id of asks.split('|').filter(Boolean) as RouterProviderId[]) {
+      const operator = id === 'anthropic' && isClaudeAISubscriber() && openToken !== undefined && markOpenAsked(openToken)
+      void refreshProviderUsage(id, { reason: operator ? 'operator' : 'open' }).then(() => {
+        if (!disposed) setSample(s => s + 1)
+      })
+    }
+    return () => {
+      disposed = true
+    }
+  }, [openToken, asks])
+  const lines = usageCompactLines(plan)
+  const rows = Math.max(0, Math.floor(rowBudget))
+  const [cursor, setCursor] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const view = settingsPopupWindow(cursor, offset, lines.length, rows)
+  useEffect(() => {
+    if (view.cursor !== cursor) setCursor(view.cursor)
+    if (view.offset !== offset) setOffset(view.offset)
+  }, [view.cursor, view.offset, cursor, offset])
+  usePopupMarker(rows > 0 ? settingsPopupMarker(view.cursor + 1, lines.length) : null)
+  useInput((_input, key, event) => {
+    if (!key.upArrow && !key.downArrow) return
+    event.stopImmediatePropagation()
+    const next = settingsPopupWindow(view.cursor + (key.upArrow ? -1 : 1), view.offset, lines.length, rows)
+    setCursor(next.cursor)
+    setOffset(next.offset)
+  })
+  const columns = Math.max(1, Math.floor(width))
+  return (
+    <Box flexDirection="column" width={columns} height={rows} flexShrink={0} overflow="hidden">
+      {lines.slice(view.offset, view.offset + rows).map((line, index) => {
+        const at = view.offset + index
+        const current = at === view.cursor
+        return (
+          <Box key={at} height={1} flexShrink={0}>
+            <Text bold={line.heading} color={current ? tokens.textPrimary : line.heading ? undefined : tokens.textSecondary} wrap="truncate-end">
+              {current ? `${GLYPH.chevronRight} ` : '  '}
+              {line.text}
+            </Text>
+          </Box>
+        )
+      })}
+    </Box>
+  )
+}
+
+export function Usage({ openToken, width = 146, rowBudget = 22, compact = false }: { openToken?: number; width?: number; rowBudget?: number; compact?: boolean }): React.ReactNode {
+  return compact ? <UsageCompact {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} /> : <UsageFull {...(openToken !== undefined ? { openToken } : {})} width={width} rowBudget={rowBudget} />
+}
+
+function UsageFull({ openToken, width, rowBudget }: { openToken?: number; width: number; rowBudget: number }): React.ReactNode {
   const plan = orderUsageSections(usageSectionPlan(providerFamilyPresences()), liveSignInRecency())
   const { perRow, colW, meterW, gap } = usageColumns(width, plan.length)
   const bands: UsageSection[][] = []

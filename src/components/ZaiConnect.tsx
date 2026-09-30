@@ -8,6 +8,8 @@ import type { ZaiApiPlan } from '../services/providers/zai/zaiClient.js'
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 
 export function ZaiConnect({
@@ -16,19 +18,22 @@ export function ZaiConnect({
   onResult: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [plan, setPlan] = useState<ZaiApiPlan | undefined>(undefined)
 
   if (plan === undefined) {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           Connect GLM (Z.AI) — API key
         </Text>
-        <Text color={tokens.textSecondary}>
-          Z.AI signs in with API keys only. Which key is this? A GLM Coding Plan key is valid on the Coding
-          Plan base and refused on the general one, so the answer picks the base.
-        </Text>
-        <Text color={tokens.textSecondary}>{keyPageLine('zai')}</Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            Z.AI signs in with API keys only. Which key is this? A GLM Coding Plan key is valid on the Coding
+            Plan base and refused on the general one, so the answer picks the base.
+          </Text>
+        )}
+        {compact ? null : <Text color={tokens.textSecondary}>{keyPageLine('zai')}</Text>}
         <Select
           options={[
             { label: 'GLM Coding Plan key — api.z.ai/api/coding/paas/v4', value: 'coding' },
@@ -54,6 +59,7 @@ function ZaiKeyLeg({
   onResult: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -76,14 +82,14 @@ function ZaiKeyLeg({
     onResult({ ok: outcome.ok, receipt: outcome.receipt })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect GLM (Z.AI) — {zaiPlanLabel(plan)}
-      </Text>
-      <Text>
-        Paste your {zaiPlanLabel(plan)}. Stored auth-scoped (mode 600), never logged; a ZAI_API_KEY env var
-        always wins over the store (and rides the general base).
-      </Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      <KeyCardTitle family="zai" short={zaiPlanLabel(plan)}>{`Connect GLM (Z.AI) — ${zaiPlanLabel(plan)}`}</KeyCardTitle>
+      {compact ? null : (
+        <Text>
+          Paste your {zaiPlanLabel(plan)}. Stored auth-scoped (mode 600), never logged; a ZAI_API_KEY env var
+          always wins over the store (and rides the general base).
+        </Text>
+      )}
       <Box>
         <Text>Key: </Text>
         <TextInput
@@ -97,7 +103,7 @@ function ZaiKeyLeg({
         />
       </Box>
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

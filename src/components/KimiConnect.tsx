@@ -16,6 +16,8 @@ import {
 import { KIMI_CONNECT_STOPPED_RECEIPT, runKimiDeviceLogin, storeMoonshotApiKeyLogin } from '../services/providers/moonshot/moonshotLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 
 const COPY_ACK_MS = 2000
@@ -26,6 +28,7 @@ export function KimiConnect({
   onResult: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [leg, setLeg] = useState<'choice' | 'region' | 'device' | 'key'>('choice')
   const [region, setRegion] = useState<KimiRegion>(() => moonshotStoredRegion() ?? 'global')
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'finishing'>('starting')
@@ -99,14 +102,16 @@ export function KimiConnect({
 
   if (leg === 'choice') {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           Connect Kimi (Moonshot)
         </Text>
-        <Text color={tokens.textSecondary}>
-          A Kimi account signs in with a device code and runs on its plan; a Moonshot platform key bills
-          usage-based. Either one lights the Kimi rows in /model.
-        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            A Kimi account signs in with a device code and runs on its plan; a Moonshot platform key bills
+            usage-based. Either one lights the Kimi rows in /model.
+          </Text>
+        )}
         <Select
           options={[
             { label: 'Sign in with Kimi — device code in your browser', value: 'region' },
@@ -121,13 +126,15 @@ export function KimiConnect({
 
   if (leg === 'region') {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           Connect Kimi — which deployment holds your account?
         </Text>
-        <Text color={tokens.textSecondary}>
-          The choice picks the sign-in host and the base your turns ride; it is remembered with the login.
-        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            The choice picks the sign-in host and the base your turns ride; it is remembered with the login.
+          </Text>
+        )}
         <Select
           defaultFocusValue={region}
           options={KIMI_REGIONS.map(candidate => ({
@@ -152,10 +159,12 @@ export function KimiConnect({
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect Kimi (device code · {kimiRegionLabel(region)})
-      </Text>
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect Kimi (device code · {kimiRegionLabel(region)})
+        </Text>
+      )}
       {phase === 'starting' ? (
         <Text color={tokens.textSecondary}>Requesting a device code from the Kimi sign-in host…</Text>
       ) : null}
@@ -164,21 +173,28 @@ export function KimiConnect({
       ) : null}
       {start && phase === 'waiting' ? (
         <>
-          <Text color={tokens.textSecondary}>
-            A browser window should be opening. On the Kimi page, enter this code:
-          </Text>
-          <Text bold color={tokens.textPrimary}>
-            {'    '}
+          {compact ? null : (
+            <Text color={tokens.textSecondary}>
+              A browser window should be opening. On the Kimi page, enter this code:
+            </Text>
+          )}
+          <Text bold color={tokens.textPrimary} wrap="truncate-end">
+            {compact ? '' : '    '}
             {start.userCode}
+            {compact ? <Text bold={false} color={tokens.info}> · {start.verificationUriComplete ?? start.verificationUri}</Text> : null}
           </Text>
-          <Text color={tokens.textMuted}>If nothing opened, visit:</Text>
-          <Text color={tokens.info} wrap="wrap">
-            {start.verificationUriComplete ?? start.verificationUri}
-          </Text>
-          <Text color={tokens.textMuted}>
-            waiting for Kimi to confirm{polls > 0 ? ` (${polls} check${polls === 1 ? '' : 's'})` : ''} · expires{' '}
-            {new Date(start.expiresAtMs).toLocaleTimeString()}
-          </Text>
+          {compact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+          {compact ? null : (
+            <Text color={tokens.info} wrap="wrap">
+              {start.verificationUriComplete ?? start.verificationUri}
+            </Text>
+          )}
+          {compact ? null : (
+            <Text color={tokens.textMuted}>
+              waiting for Kimi to confirm{polls > 0 ? ` (${polls} check${polls === 1 ? '' : 's'})` : ''} · expires{' '}
+              {new Date(start.expiresAtMs).toLocaleTimeString()}
+            </Text>
+          )}
         </>
       ) : null}
       {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
@@ -194,6 +210,7 @@ function MoonshotKeyLeg({
   onResult: (receipt: string, ok?: boolean) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -217,12 +234,14 @@ function MoonshotKeyLeg({
     })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text>{keyPageLine('moonshot')}</Text>
-      <Text>
-        Paste your Moonshot API key. Stored auth-scoped (mode 600), never logged; a MOONSHOT_API_KEY env var
-        always wins over the store, and a Kimi sign-in outranks a stored key.
-      </Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="moonshot">Moonshot key</KeyCardTitle> : <Text>{keyPageLine('moonshot')}</Text>}
+      {compact ? null : (
+        <Text>
+          Paste your Moonshot API key. Stored auth-scoped (mode 600), never logged; a MOONSHOT_API_KEY env var
+          always wins over the store, and a Kimi sign-in outranks a stored key.
+        </Text>
+      )}
       <Box>
         <Text>Key: </Text>
         <TextInput
@@ -237,7 +256,7 @@ function MoonshotKeyLeg({
       </Box>
       {storing ? <Text dimColor>Checking the key against the Moonshot balance endpoint…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

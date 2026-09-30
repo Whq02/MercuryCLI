@@ -32,7 +32,7 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
   check(
     'the /logins card derives rows AND count from the owner (never a hand copy)',
     card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') &&
-      card.includes('visibleOptionCount={idleRows.length}'),
+      card.includes('visibleOptionCount={compact ? Math.max(1, Math.min(rows, idleRows.length)) : idleRows.length}'),
   )
   check(
     "the walk's provider station IS the /logins card — same component, engine settlement live",

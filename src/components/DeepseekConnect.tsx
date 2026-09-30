@@ -6,6 +6,8 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 
 export function DeepseekConnect({
@@ -16,6 +18,7 @@ export function DeepseekConnect({
   onBack: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -42,15 +45,15 @@ export function DeepseekConnect({
     })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect DeepSeek — API key
-      </Text>
-      <Text>{keyPageLine('deepseek')}</Text>
-      <Text>
-        DeepSeek signs in with API keys only. Stored auth-scoped (mode 600), never logged; a DEEPSEEK_API_KEY
-        env var always wins over the store.
-      </Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      <KeyCardTitle family="deepseek" short="DeepSeek key">Connect DeepSeek — API key</KeyCardTitle>
+      {compact ? null : <Text>{keyPageLine('deepseek')}</Text>}
+      {compact ? null : (
+        <Text>
+          DeepSeek signs in with API keys only. Stored auth-scoped (mode 600), never logged; a DEEPSEEK_API_KEY
+          env var always wins over the store.
+        </Text>
+      )}
       <Box>
         <Text>Key: </Text>
         <TextInput
@@ -65,7 +68,7 @@ export function DeepseekConnect({
       </Box>
       {storing ? <Text dimColor>Checking the key against the DeepSeek balance endpoint…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

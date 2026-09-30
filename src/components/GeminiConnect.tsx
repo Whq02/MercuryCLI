@@ -41,6 +41,8 @@ import {
   type GeminiGuideOpenState,
   type GeminiGuideStepNumber,
 } from './geminiConnectGuide.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 function GuideLines({ lines }: { lines: GeminiGuideLine[] }): React.ReactNode {
   const tokens = useMercuryTokens()
@@ -116,6 +118,7 @@ export function GeminiConnect({
   const tokens = useMercuryTokens()
   const size = useTerminalSize()
   const compact = size.columns < LAYOUT_BREAKPOINTS.cockpitMin || size.rows < LAYOUT_BREAKPOINTS.cockpitMinRows
+  const popupCompact = usePopupCompact().compact
   const [leg, setLeg] = useState<'choice' | 'key' | 'guide'>('choice')
   const [facts, setFacts] = useState<GeminiConnectFacts>(() => liveGeminiConnectFacts())
   const [step, setStep] = useState<GeminiGuideStepNumber>(1)
@@ -288,13 +291,15 @@ export function GeminiConnect({
 
   if (leg === 'choice') {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={popupCompact ? 0 : 1} gap={popupCompact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           {GEMINI_CONNECT_TITLE}
         </Text>
-        <Text color={tokens.textSecondary} wrap="wrap">
-          {GEMINI_CONNECT_INTRO}
-        </Text>
+        {popupCompact ? null : (
+          <Text color={tokens.textSecondary} wrap="wrap">
+            {GEMINI_CONNECT_INTRO}
+          </Text>
+        )}
         <Select
           options={geminiConnectRows(facts)}
           onChange={value => {
@@ -387,14 +392,14 @@ export function GeminiConnect({
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <GuideLines lines={geminiGuidePaneLines({ step: 6, compact })} />
+    <Box flexDirection="column" paddingX={popupCompact ? 0 : 1}>
+      {popupCompact ? null : <GuideLines lines={geminiGuidePaneLines({ step: 6, compact })} />}
       {phase === 'exchanging' ? <Text color={tokens.textSecondary}>Exchanging the authorization code…</Text> : null}
       {listenerNote ? <Text color={tokens.warning}>{listenerNote}</Text> : null}
       {authorizeUrl && phase !== 'exchanging' ? (
         <>
-          <Text color={tokens.textMuted}>If nothing opened, visit:</Text>
-          <Text color={tokens.info} wrap="wrap">
+          {popupCompact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+          <Text color={tokens.info} wrap={popupCompact ? 'truncate-end' : 'wrap'}>
             {authorizeUrl}
           </Text>
           <Box>
@@ -428,6 +433,7 @@ function GeminiKeyLeg({
   onBack: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [opened, setOpened] = useState<GeminiGuideOpenState>('opening')
   const [key, setKey] = useState('')
   const [cursor, setCursor] = useState(0)
@@ -461,9 +467,9 @@ function GeminiKeyLeg({
     })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
       <Box flexDirection="column">
-        <GuideLines lines={geminiKeyLegLines(opened)} />
+        {compact ? <KeyCardTitle family="gemini">Gemini key</KeyCardTitle> : <GuideLines lines={geminiKeyLegLines(opened)} />}
       </Box>
       <Box>
         <Text>Key: </Text>
@@ -480,7 +486,7 @@ function GeminiKeyLeg({
       </Box>
       {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

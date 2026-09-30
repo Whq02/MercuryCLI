@@ -4,6 +4,7 @@ import { Box, Text, useInput } from '../../ink.js'
 import { ConsoleOAuthFlow, type LoginFamilyFocus } from '../../components/ConsoleOAuthFlow.js'
 import { SIGN_IN_WORDS } from '../../components/Onboarding.js'
 import { PopupForm } from '../../components/PopupForm.js'
+import { usePopupCompact } from '../../context/popupFormContext.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { closeSettingsPopup, openSettingsPopup, type SettingsPopupGeometry } from '../../utils/cockpit/settingsPopup.js'
 import { resetCostState } from '../../bootstrap/state.js'
@@ -75,7 +76,8 @@ export function Login({
 
 function LoginReceipt({ receipt, onDone }: { receipt: string; onDone: () => void }): React.ReactNode {
   useInput((_input, key) => { if (key.return || key.escape) onDone() })
-  return <Box flexDirection="column" gap={1}><Text>{receipt}</Text><Text dimColor>press Enter to continue</Text></Box>
+  const { compact } = usePopupCompact()
+  return <Box flexDirection="column" gap={compact ? 0 : 1}><Text>{receipt}</Text><Text dimColor>press Enter to continue</Text></Box>
 }
 
 function runPostLoginRefresh(context: LocalJSXCommandContext): void {

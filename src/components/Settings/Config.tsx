@@ -11,6 +11,8 @@ import { basename } from 'node:path'
 import type { LocalJSXCommandContext } from '../../commands.js'
 import { enqueueNotification } from '../../context/notifications.js'
 import { ModalContext } from '../../context/modalContext.js'
+import { usePopupMarker } from '../../context/popupFormContext.js'
+import { settingsPopupMarker } from '../../utils/cockpit/settingsPopup.js'
 import { Box, Text, useInput } from '../../ink.js'
 import { escapeFromOutsidePress } from '../../ink/recessLayer.js'
 import wrapText from '../../ink/wrap-text.js'
@@ -321,6 +323,7 @@ export function Config({
   context,
   width,
   contentHeight,
+  compact = false,
 }: {
   onClose: (result?: unknown) => void
   onLine?: (line: string) => void
@@ -328,6 +331,7 @@ export function Config({
   context: LocalJSXCommandContext
   width: number
   contentHeight: number
+  compact?: boolean
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const setAppState = useSetAppState()
@@ -1174,9 +1178,10 @@ export function Config({
     onLine?.(line)
   }, [line, onLine])
 
-  const listRows = Math.max(1, contentHeight - CONFIG_LIST_CHROME_ROWS)
+  const searchRowUp = !compact || searchMode || query !== ''
+  const listRows = Math.max(1, contentHeight - (compact ? (searchRowUp ? 1 : 0) : CONFIG_LIST_CHROME_ROWS))
   const windowFor = (index: number): number => {
-    const warning = searchMode ? undefined : filtered[index]?.warning
+    const warning = searchMode || compact ? undefined : filtered[index]?.warning
     return Math.max(1, listRows - (warning === undefined ? 0 : configWarningRows(warning, width)))
   }
   const win = configListWindow(selected, offset, filtered.length, windowFor(Math.max(0, Math.min(selected, filtered.length - 1))))
@@ -1184,6 +1189,7 @@ export function Config({
     if (win.sel !== selected) setSelected(win.sel)
     if (win.off !== offset) setOffset(win.off)
   }, [win.sel, win.off, selected, offset])
+  usePopupMarker(compact && subMenu === null && filtered.length > 0 ? settingsPopupMarker(win.sel + 1, filtered.length) : null)
 
   const moveTo = (next: number): void => {
     const target = Math.max(0, Math.min(next, filtered.length - 1))
@@ -1387,6 +1393,7 @@ export function Config({
   if (subMenu === 'theme') {
     return (
       <Select
+        {...(compact ? { visibleOptionCount: Math.max(1, contentHeight) } : {})}
         options={REACHABLE_THEME_SETTINGS.map(setting => ({
           label: THEME_LABELS[setting] ?? setting,
           value: setting,
@@ -1490,7 +1497,7 @@ export function Config({
 
   return (
     <Box flexDirection="column" width={width} flexShrink={0}>
-      <Box height={1}>
+      <Box height={searchRowUp ? 1 : 0} overflow="hidden">
         <SearchBox
           query={query}
           isFocused={searchMode}
@@ -1500,7 +1507,7 @@ export function Config({
           borderless={true}
         />
       </Box>
-      <Box height={1} />
+      <Box height={compact ? 0 : 1} />
       {visible.map((item, index) => {
         const at = win.off + index
         const isSelected = !searchMode && at === win.sel
@@ -1536,7 +1543,7 @@ export function Config({
                 <Box width={1} flexShrink={0} />
               </InteractiveRow>
             </Box>
-            {isSelected && item.warning !== undefined ? (
+            {isSelected && !compact && item.warning !== undefined ? (
               <Text color={tokens.warning}>{'  '}{item.warning}</Text>
             ) : null}
           </Box>
@@ -1547,7 +1554,7 @@ export function Config({
           <Text color={tokens.textMuted}>no settings match “{query}”</Text>
         </Box>
       ) : null}
-      <Box height={1}>
+      <Box height={compact ? 0 : 1} overflow="hidden">
         <Text color={tokens.textMuted}>{configMoreRow(win.hiddenBelow)}</Text>
       </Box>
     </Box>

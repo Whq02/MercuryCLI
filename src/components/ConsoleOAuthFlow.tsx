@@ -11,7 +11,8 @@ import TextInput from './TextInput.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { PopupFormContext } from '../context/popupFormContext.js'
+import { PopupFormContext, usePopupCompact, usePopupMarker } from '../context/popupFormContext.js'
+import { settingsPopupMarker } from '../utils/cockpit/settingsPopup.js'
 import { escapeFromOutsidePress } from '../ink/recessLayer.js'
 import { LoginAccountCard } from './LoginAccountCard.js'
 import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowStateOf } from './BootLoginsScreen.js'
@@ -36,6 +37,7 @@ import { ZaiConnect } from './ZaiConnect.js'
 import { DeepseekConnect } from './DeepseekConnect.js'
 import { XaiConnect } from './XaiConnect.js'
 import { MetaConnect } from './MetaConnect.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
@@ -87,8 +89,9 @@ export function ConsoleOAuthFlow({
   onAbandonLeg?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const { columns } = useTerminalSize()
+  const { columns, rows } = useTerminalSize()
   const popup = React.useContext(PopupFormContext)
+  const compact = popup && usePopupCompact().compact
   const { addNotification } = useNotifications()
   const setupToken = mode === 'setup-token'
 
@@ -108,8 +111,12 @@ export function ConsoleOAuthFlow({
 
   const [leg, setLeg] = useState<EngineLeg | null>(null)
   const [accountFamily, setAccountFamily] = useState<LoginFamilyValue | null>(null)
+  const [menuFocus, setMenuFocus] = useState(0)
   useSignInEpoch()
   useCatalogueEpoch()
+  const menuUp = leg === null && accountFamily === null && state.name === 'idle'
+  const menuCount = loginFamilyRows({ engineLegs: onOpenaiDone !== undefined }).length + (onSkip !== undefined ? 1 : 0)
+  usePopupMarker(compact && menuUp ? settingsPopupMarker(menuFocus + 1, menuCount) : null)
   const [code, setCodeState] = useState('')
   const codeRef = useRef('')
   const setCode = useCallback((next: string): void => {
@@ -167,9 +174,9 @@ export function ConsoleOAuthFlow({
       borderStyle={popup ? undefined : 'round'}
       borderColor={tokens.borderSubtle}
       paddingX={popup ? 0 : 1}
-      gap={1}
+      gap={compact ? 0 : 1}
     >
-      <Text bold>{setupToken ? 'Set up a long-lived token' : 'Sign in'}</Text>
+      {compact ? null : <Text bold>{setupToken ? 'Set up a long-lived token' : 'Sign in'}</Text>}
       {children}
     </Box>
   )
@@ -200,8 +207,8 @@ export function ConsoleOAuthFlow({
       case 'openai':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(
-          <Box flexDirection="column" gap={1}>
-            <Text>OpenAI — pick the credential to connect.</Text>
+          <Box flexDirection="column" gap={compact ? 0 : 1}>
+            <Text wrap="truncate-end">OpenAI — pick the credential to connect.</Text>
             <Select
               options={[...openaiArmPickRows]}
               onChange={value => setLeg(value === 'key' ? 'openai-key' : 'openai-subscription')}
@@ -266,20 +273,24 @@ export function ConsoleOAuthFlow({
       const facts = popup ? collectLoginsScreenFacts() : null
       const arms = popup ? loginsCatalogue() : []
       return frame(
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            {startingMessage ??
-              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta). An API key also connects from the terminal: /router key <provider>.'}
-          </Text>
+        <Box flexDirection="column" gap={compact ? 0 : 1}>
+          {compact ? null : (
+            <Text>
+              {startingMessage ??
+                'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta). An API key also connects from the terminal: /router key <provider>.'}
+            </Text>
+          )}
           <Select
-            visibleOptionCount={idleRows.length}
+            visibleOptionCount={compact ? Math.max(1, Math.min(rows, idleRows.length)) : idleRows.length}
             defaultFocusValue={defaultFocus}
             layout={popup ? 'compact-vertical' : 'compact'}
             options={idleRows.map(row => {
               const arm = arms.find(candidate => candidate.row.value === row.value)
               const status = facts && arm ? loginsRowStateOf(arm, facts) : null
+              if (compact) return status?.signedIn ? { ...row, label: `${row.label} · ${status.chip}` } : row
               return { ...row, ...(status?.signedIn ? { description: status.chip } : {}) }
             })}
+            onFocus={value => setMenuFocus(Math.max(0, idleRows.findIndex(row => row.value === value)))}
             onChange={value => {
               const arm = arms.find(candidate => candidate.row.value === value)
               if (facts && arm && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
@@ -290,7 +301,7 @@ export function ConsoleOAuthFlow({
             }}
             onCancel={onCancel}
           />
-          <ProviderReadinessBlock />
+          {compact ? null : <ProviderReadinessBlock />}
         </Box>,
       )
     }
@@ -302,22 +313,28 @@ export function ConsoleOAuthFlow({
       const promptLabel = 'Paste code here if prompted > '
       const inputColumns = Math.max(10, columns - promptLabel.length - 1)
       return frame(
-        <Box flexDirection="column" gap={1}>
-          <Text>
-            A browser window has been opened — finish signing in there.
-            {state.forcedMethod
-              ? ` (login method pre-selected: ${state.forcedMethod})`
-              : ''}
-          </Text>
+        <Box flexDirection="column" gap={compact ? 0 : 1}>
+          {compact ? null : (
+            <Text>
+              A browser window has been opened — finish signing in there.
+              {state.forcedMethod
+                ? ` (login method pre-selected: ${state.forcedMethod})`
+                : ''}
+            </Text>
+          )}
           {pastePromptUp ? (
-            <Box flexDirection="column" gap={1}>
-              <Text dimColor wrap="wrap">
-                Browser did not open? Use this URL:{'\n'}
-                {state.url}
-              </Text>
+            <Box flexDirection="column" gap={compact ? 0 : 1}>
+              {compact ? (
+                <Text dimColor wrap="truncate-end">{state.url}</Text>
+              ) : (
+                <Text dimColor wrap="wrap">
+                  Browser did not open? Use this URL:{'\n'}
+                  {state.url}
+                </Text>
+              )}
               {copied ? (
                 <Text color={tokens.success}>Copied to clipboard</Text>
-              ) : (
+              ) : compact ? null : (
                 <Text dimColor>press c to copy the URL</Text>
               )}
               <Box>
@@ -332,6 +349,7 @@ export function ConsoleOAuthFlow({
                   onChangeCursorOffset={setCodeCursor}
                 />
               </Box>
+              {compact ? <Text dimColor>c copies the URL · esc cancels</Text> : null}
             </Box>
           ) : null}
         </Box>,
@@ -349,7 +367,7 @@ export function ConsoleOAuthFlow({
     case 'success':
       if (setupToken && state.token !== undefined) {
         return frame(
-          <Box flexDirection="column" gap={1}>
+          <Box flexDirection="column" gap={compact ? 0 : 1}>
             <Text color={tokens.success}>Token created. It is valid for one year.</Text>
             <Text bold>{state.token}</Text>
             <Text color={tokens.warning}>
@@ -362,7 +380,7 @@ export function ConsoleOAuthFlow({
         )
       }
       return frame(
-        <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column" gap={compact ? 0 : 1}>
           <SuccessEnterConfirms onDone={onDone} />
           <Text color={tokens.success}>
             Signed in{accountLabel !== null ? ` as ${accountLabel}` : ''}.
@@ -379,7 +397,7 @@ export function ConsoleOAuthFlow({
 
     case 'error':
       return frame(
-        <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column" gap={compact ? 0 : 1}>
           <ErrorEnterRetries
             hasRetry={state.retry !== undefined}
             onRetry={() => {
@@ -452,10 +470,11 @@ function OpenaiKeyLeg({
       onOpenaiDone({ ok: outcome.ok, receipt: outcome.receipt })
     })
   }
+  const { compact } = usePopupCompact()
   return (
-    <Box flexDirection="column" gap={1}>
-      <Text>{keyPageLine('openai')}</Text>
-      <Text>Paste your OpenAI API key. It is stored in the auth-scoped secret store (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="openai">OpenAI key</KeyCardTitle> : <Text>{keyPageLine('openai')}</Text>}
+      {compact ? null : <Text>Paste your OpenAI API key. It is stored in the auth-scoped secret store (mode 600), never logged; an OPENAI_API_KEY env var always wins over the store.</Text>}
       <Box>
         <Text>Key: </Text>
         <TextInput
@@ -470,7 +489,7 @@ function OpenaiKeyLeg({
       </Box>
       {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

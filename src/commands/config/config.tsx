@@ -20,6 +20,7 @@ export function ConfigPopupBody({ geometry, context }: { geometry: SettingsPopup
       context={context}
       width={geometry.inner}
       contentHeight={geometry.rowBudget}
+      compact={geometry.compact}
     />
   )
 }

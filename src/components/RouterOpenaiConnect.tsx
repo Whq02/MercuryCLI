@@ -5,6 +5,7 @@ import TextInput from './TextInput.js'
 import { setClipboard } from '../ink/termio/osc.js'
 import { errorMessageWithCause } from '../utils/errors.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 import {
   beginOpenaiBrowserConnect,
   beginOpenaiDeviceConnect,
@@ -31,6 +32,7 @@ export function RouterOpenaiConnect({
   onSwitchToDevice?: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [paste, setPasteState] = useState('')
   const pasteRef = useRef('')
   const setPaste = (next: string): void => {
@@ -142,22 +144,26 @@ export function RouterOpenaiConnect({
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect OpenAI (ChatGPT subscription)
-      </Text>
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect OpenAI (ChatGPT subscription)
+        </Text>
+      )}
       {mode === 'browser' ? (
         <>
-          <Text color={tokens.textSecondary}>
-            {phase === 'exchanging'
-              ? 'Exchanging the authorization code…'
-              : 'A browser window should be opening for the OpenAI sign-in. Approve it and Mercury completes automatically via the loopback listener.'}
-          </Text>
+          {compact && phase !== 'exchanging' ? null : (
+            <Text color={tokens.textSecondary}>
+              {phase === 'exchanging'
+                ? 'Exchanging the authorization code…'
+                : 'A browser window should be opening for the OpenAI sign-in. Approve it and Mercury completes automatically via the loopback listener.'}
+            </Text>
+          )}
           {listenerNote ? <Text color={tokens.warning}>{listenerNote}</Text> : null}
           {authorizeUrl && phase !== 'exchanging' ? (
             <>
-              <Text color={tokens.textMuted}>If nothing opened, visit:</Text>
-              <Text color={tokens.info} wrap="wrap">
+              {compact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+              <Text color={tokens.info} wrap={compact ? 'truncate-end' : 'wrap'}>
                 {authorizeUrl}
               </Text>
               <Box>
@@ -178,19 +184,24 @@ export function RouterOpenaiConnect({
         </>
       ) : (
         <>
-          <Text color={tokens.textSecondary}>
-            {device
-              ? 'On any signed-in browser, enter this one-time code:'
-              : 'Requesting a device code…'}
-          </Text>
+          {compact && device ? null : (
+            <Text color={tokens.textSecondary}>
+              {device
+                ? 'On any signed-in browser, enter this one-time code:'
+                : 'Requesting a device code…'}
+            </Text>
+          )}
           {device ? (
             <>
-              <Text bold color={tokens.info}>
+              <Text bold color={tokens.info} wrap="truncate-end">
                 {device.userCode}
+                {compact ? <Text bold={false} color={tokens.textMuted}> · {device.verifyHint}</Text> : null}
               </Text>
-              <Text color={tokens.textMuted} wrap="wrap">
-                {device.verifyHint}
-              </Text>
+              {compact ? null : (
+                <Text color={tokens.textMuted} wrap="wrap">
+                  {device.verifyHint}
+                </Text>
+              )}
               {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
               <Text color={tokens.textMuted}>Waiting for approval… c copies the code · ESC stops watching.</Text>
             </>

@@ -15,6 +15,8 @@ for (const name of Object.keys(process.env)) {
 const localeString = Date.prototype.toLocaleString
 Date.prototype.toLocaleString = function (_locales, options) { return localeString.call(this, 'en-US', { ...options, timeZone: 'UTC' }) }
 const ROOT = join(import.meta.dir, '../..')
+const { pinSourceRef } = await import('../lib/settingsPopupHarness.ts')
+pinSourceRef()
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 async function stub(path: string, fixture: () => Record<string, unknown>): Promise<void> {
@@ -78,7 +80,8 @@ await stub('../../src/cost-tracker.js', () => ({ formatLaneSpend: () => '$0.00' 
 await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ ConfigurableShortcutHint: () => null }))
 await stub('../../src/components/Settings/Settings.js', () => ({ nextSettingsOpen: (() => { let n = 0; return () => ++n })() }))
 
-const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageWindow } = await import('../../src/components/Settings/Usage.js')
+const { JEV_USAGE_LABEL, Usage, usageBodyRows, usageColumns, usageCompactLines, usageSectionPlan, usageWindow } = await import('../../src/components/Settings/Usage.js')
+const { PopupCompactContext } = await import('../../src/context/popupFormContext.js')
 const { Box, render, flushPendingSyncWork, EventEmitter, InputEvent, elementScreenTop, elementScreenLeft, wrapText } = await import('../../src/ink.js')
 const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
 const { default: squashText } = await import('../../src/ink/squash-text-nodes.js')
@@ -106,7 +109,9 @@ function sectionSizes(node: DOMNode): Array<{ title: string; width: number; heig
   }
   return node.childNodes.flatMap(sectionSizes)
 }
-async function mount(width: number, rowBudget: number, columns: number, openToken: number) {
+let marker: string | null = null
+const compactFrame = { compact: true, setMarker: (next: string | null) => { marker = next } }
+async function mount(width: number, rowBudget: number, columns: number, openToken: number, compact = false) {
   const emitter = new EventEmitter()
   const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
@@ -114,7 +119,8 @@ async function mount(width: number, rowBudget: number, columns: number, openToke
   const stdout = Object.assign(stream, { columns, rows: columns === 178 ? 51 : 40 }) as unknown as NodeJS.WriteStream
   const root = React.createRef<DOMElement>()
   const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
-  const node = (w: number, budget: number) => React.createElement(StdinContext.Provider, { value: context }, React.createElement(Box, { ref: root, flexDirection: 'column' }, React.createElement(Usage, { width: w, rowBudget: budget, openToken } as never)))
+  const compactProvider = (PopupCompactContext as { Provider?: React.Provider<unknown> } | undefined)?.Provider
+  const node = (w: number, budget: number) => React.createElement(StdinContext.Provider, { value: context }, compactProvider === undefined ? React.createElement(Box, { ref: root, flexDirection: 'column' }, React.createElement(Usage, { width: w, rowBudget: budget, openToken, compact } as never)) : React.createElement(compactProvider, { value: compact ? compactFrame : { compact: false, setMarker: () => {} } }, React.createElement(Box, { ref: root, flexDirection: 'column' }, React.createElement(Usage, { width: w, rowBudget: budget, openToken, compact } as never))))
   let painted = (): void => {}
   const firstFrame = new Promise<void>(resolve => { painted = resolve })
   const instance = await render(node(width, rowBudget), { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
@@ -260,6 +266,34 @@ heldRefresh = undefined
 check('an asynchronously taller band updates clipping and the more names without a key', delayed.viewport().clip === usageBodyRows(22).capacity && delayed.frame().includes('↓ 7 more · DeepSeek · Moonshot · Hugging Face · Z.AI · OpenRouter · Custom endpoint · Local models'))
 await walk(delayed, 146, 22, 'asynchronous band growth')
 delayed.close()
+{
+  rich = true
+  subscriber = true
+  const compactReads = { identity: () => 'fixture identity', usage: owner as never, anthropicWindows: () => windows as never, anthropicPools: () => pools as never, openaiWindows: () => [], jev: () => 'JEV fixture row' }
+  const lines: Array<{ text: string; heading: boolean }> = typeof usageCompactLines === 'function' ? usageCompactLines(usageSectionPlan(families() as never), compactReads) : []
+  check('compact lines: every provider is one heading line, the signed-in Anthropic family adds one line per window and pool, the JEV row closes the list', lines.length === ids.length + 4 + 1 && lines.filter(line => line.heading).length === ids.length && lines[0]!.text === 'Anthropic usage · fixture identity' && lines[1]!.text.startsWith('  Current session · 52% · resets ') && lines[2]!.text.startsWith('  Current week (all models) · 49% · resets ') && lines[3]!.text.startsWith('  Current week (Fable) · 46%') && lines[4]!.text.startsWith('  Current week (Opus) · 12%') && lines.at(-1)!.text === 'JEV fixture row', JSON.stringify(lines.map(line => line.text)))
+  const before = counts.get('anthropic:operator') ?? 0
+  const board = await mount(58, 4, 64, token++, true)
+  const frameLines = () => board.frame().split('\n')
+  check('compact 58×4: four single-line rows fill the body, the first the Anthropic heading under the cursor', frameLines().length === 4 && frameLines().every(line => stringWidth(line) <= 58) && frameLines()[0]!.startsWith('› Anthropic usage') && frameLines()[1]!.includes('Current session · 52%') && !board.frame().includes('▀') && !board.frame().includes('Subscription'), board.frame())
+  check('compact: the marker reads 1 of the line count', marker === `1 of ${lines.length}`, String(marker))
+  let consumed = true
+  for (let step = 0; step < lines.length - 1; step++) consumed &&= await board.key('down')
+  check('compact: down arrows walk every line to the JEV row, the marker following, only arrows consumed', consumed && marker === `${lines.length} of ${lines.length}` && frameLines().at(-1)!.startsWith('› JEV') && !(await board.key('escape')), `${marker} · ${board.frame()}`)
+  consumed &&= await board.key('down')
+  check('compact: the bottom clamps', consumed && marker === `${lines.length} of ${lines.length}`)
+  for (let step = 0; step < lines.length; step++) consumed &&= await board.key('up')
+  check('compact: up arrows return to the first line', consumed && marker === `1 of ${lines.length}` && frameLines()[0]!.startsWith('› Anthropic usage'))
+  check('compact: the operator ask ran once for the open', (counts.get('anthropic:operator') ?? 0) - before === 1)
+  if (frameDir) writeFileSync(join(frameDir, 'compact-58x4.txt'), board.frame() + '\n')
+  board.close()
+  check('compact: unmounting clears the marker', marker === null)
+  rich = false
+  subscriber = false
+  const absent = await mount(58, 4, 64, token++, true)
+  check('compact absent estate: every row is a heading with the identity line, no window rows', absent.frame().split('\n').every(line => / usage · /.test(line)), absent.frame())
+  absent.close()
+}
 for (const budget of [0, 1, 2, 3, 7, 13, 22]) {
   for (const width of [1, 19, 40, 116, 119, 120, 146]) {
     rich = false
