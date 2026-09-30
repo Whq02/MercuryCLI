@@ -15,6 +15,7 @@
    GLM (Z.AI) — API key (general or GLM Co…  not signed in
    DeepSeek — API key                        not signed in
    xAI — API key (Grok)                      not signed in
+   Meta — API key (Muse)                     not signed in
 
  OpenAI · ChatGPT Plus
  ↑↓ move · ↵ sign in · esc back

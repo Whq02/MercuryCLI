@@ -120,7 +120,7 @@ export const HARNESS_PROFILES: readonly HarnessProfile[] = [
   {
     schema: 1,
     id: 'chat-engine-default',
-    version: 3,
+    version: 4,
     status: 'accepted',
     description: 'the shared chat-completions lanes\' accepted default (Moonshot · DeepSeek · compat) — byte-identical to the identity posture',
     compatibility: {
