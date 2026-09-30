@@ -1,0 +1,150 @@
+{
+  "observed": "2026-09-30",
+  "request": "GET /api/oauth/usage (claude.ai OAuth bearer, anthropic-beta oauth-2025-04-20)",
+  "plan": "max (default_claude_max_20x), extra usage turned off by the user",
+  "redaction": "ids, names and free text masked; figures kept as stated",
+  "status": 200,
+  "headers": {
+    "anthropic-organization-id": "<masked id>",
+    "anthropic-workspace-id": "<masked id>",
+    "content-type": "application/json"
+  },
+  "body": {
+    "five_hour": {
+      "utilization": 20,
+      "resets_at": "2026-09-30T23:40:00.019794+00:00",
+      "limit_dollars": null,
+      "used_dollars": null,
+      "remaining_dollars": null,
+      "locked_reason": null
+    },
+    "seven_day": {
+      "utilization": 22,
+      "resets_at": "2026-10-07T08:00:00.019822+00:00",
+      "limit_dollars": null,
+      "used_dollars": null,
+      "remaining_dollars": null,
+      "locked_reason": null
+    },
+    "seven_day_oauth_apps": null,
+    "seven_day_opus": null,
+    "seven_day_sonnet": null,
+    "seven_day_cowork": null,
+    "seven_day_omelette": null,
+    "tangelo": null,
+    "iguana_necktie": null,
+    "omelette_promotional": null,
+    "nimbus_quill": {
+      "utilization": 0,
+      "resets_at": null,
+      "limit_dollars": null,
+      "used_dollars": null,
+      "remaining_dollars": null,
+      "locked_reason": null
+    },
+    "cinder_cove": null,
+    "copper_kite": null,
+    "brass_thimble": null,
+    "harbor_lantern": null,
+    "wattle_ember": null,
+    "amber_ladder": null,
+    "amber_cistern": null,
+    "juniper_tide": null,
+    "cedar_ember": null,
+    "amber_gauge": null,
+    "extra_usage": {
+      "is_enabled": false,
+      "monthly_limit": null,
+      "used_credits": null,
+      "utilization": null,
+      "currency": null,
+      "decimal_places": null,
+      "disabled_reason": null,
+      "user_disabled": true,
+      "spend_limit_reached": false,
+      "credits_ever_enabled": true,
+      "daily": null,
+      "weekly": null
+    },
+    "limits": [
+      {
+        "kind": "session",
+        "group": "session",
+        "percent": 20,
+        "severity": "normal",
+        "resets_at": "2026-09-30T23:40:00.019794+00:00",
+        "scope": null,
+        "is_active": false
+      },
+      {
+        "kind": "weekly_all",
+        "group": "weekly",
+        "percent": 22,
+        "severity": "normal",
+        "resets_at": "2026-10-07T08:00:00.019822+00:00",
+        "scope": null,
+        "is_active": false
+      },
+      {
+        "kind": "weekly_scoped",
+        "group": "weekly",
+        "percent": 42,
+        "severity": "normal",
+        "resets_at": "2026-10-07T08:00:00.019999+00:00",
+        "scope": {
+          "model": {
+            "id": null,
+            "display_name": "<masked string, 5 chars>"
+          },
+          "surface": null
+        },
+        "is_active": true
+      }
+    ],
+    "spend": {
+      "used": {
+        "amount_minor": 0,
+        "currency": "USD",
+        "exponent": 2
+      },
+      "limit": null,
+      "percent": 0,
+      "severity": "normal",
+      "enabled": false,
+      "disabled_reason": null,
+      "cap": null,
+      "balance": null,
+      "auto_reload": null,
+      "disclaimer": "<string, 113 chars>",
+      "can_purchase_credits": false,
+      "can_toggle": false
+    },
+    "member_dashboard_available": false,
+    "seven_day_breakdown": {
+      "as_of": "2026-09-30T19:22:48.055609+00:00",
+      "window_started_at": "2026-09-30T08:00:00.019822+00:00",
+      "rows": [
+        {
+          "key": "<masked string, 11 chars>",
+          "display_name": "<masked string, 11 chars>",
+          "percent": 100
+        },
+        {
+          "key": "<masked string, 4 chars>",
+          "display_name": "<masked string, 5 chars>",
+          "percent": 0
+        },
+        {
+          "key": "<masked string, 6 chars>",
+          "display_name": "<masked string, 6 chars>",
+          "percent": 0
+        },
+        {
+          "key": "<masked string, 5 chars>",
+          "display_name": "<masked string, 5 chars>",
+          "percent": 0
+        }
+      ]
+    }
+  }
+}

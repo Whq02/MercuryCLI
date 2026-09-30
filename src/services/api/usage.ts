@@ -19,6 +19,8 @@ export type Utilization = {
   seven_day_opus?: RateLimit | null
   seven_day_sonnet?: RateLimit | null
   seven_day_fable?: RateLimit | null
+  extra_usage?: unknown
+  spend?: unknown
 }
 
 const USAGE_TIMEOUT_MS = 5000

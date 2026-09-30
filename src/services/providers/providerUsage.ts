@@ -18,11 +18,14 @@ import type { RouterProviderId } from '../../utils/router/providers/types.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../../utils/cockpit/quota.js'
 import {
   currentLimits,
+  getEndpointExtraUsage,
   getRawUtilization,
   getUsageCredentialEpoch,
   getUsageRecordVersion,
   WEEKLY_POOL_CLAIMS,
   weeklyPoolClaimForModel,
+  type AnthropicExtraUsageRecord,
+  type AnthropicMoney,
   type RateLimitType,
   type WeeklyPoolClaim,
 } from '../claudeAiLimits.js'
@@ -374,6 +377,7 @@ export interface ActiveUsageReads {
   activeEntry?: (provider: UsageProvider) => WalletEntry | undefined
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
   anthropicPoolWindows?: () => UsageWindowView[]
+  anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
   openaiObserved?: () => OpenaiObservedUsage
   openaiLimited?: () => OpenaiLimitWindow
   zaiKeyPresent?: () => boolean
@@ -702,6 +706,45 @@ export function anthropicPoolWindowViews(reads?: ActiveUsageReads): UsageWindowV
     })
   }
   return views
+}
+
+export const EXTRA_USAGE_NOT_READ_WORDS = 'not read yet — /usage samples the usage endpoint'
+export const EXTRA_USAGE_OFF_WORDS = 'extra usage off'
+export const EXTRA_USAGE_UNSTATED_WORDS = 'not stated by the endpoint'
+export const EXTRA_USAGE_NO_FIGURE_WORDS = 'extra usage on — the endpoint states no figure'
+
+function moneyFigure(m: AnthropicMoney): string {
+  return (m.amount / 10 ** m.exponent).toFixed(Math.max(0, Math.min(6, m.exponent)))
+}
+
+function moneyShort(m: AnthropicMoney): string {
+  return moneyFigure(m).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1')
+}
+
+function moneyWords(m: AnthropicMoney): string {
+  return `${m.currency} ${moneyFigure(m)}`
+}
+
+export function anthropicExtraUsageCredits(reads?: ActiveUsageReads): UsageCreditsView {
+  const record = (reads?.anthropicExtraUsage ?? getEndpointExtraUsage)()
+  if (record === null) return { state: 'unreported', reason: EXTRA_USAGE_NOT_READ_WORDS, compact: 'not read yet' }
+  const stamp = { source: record.source, observedAtMs: record.observedAtMs, freshForMs: usageStaleAfterMs() }
+  if (!record.stated) return { state: 'unreported', reason: EXTRA_USAGE_UNSTATED_WORDS, compact: 'not stated', ...stamp }
+  if (!record.enabled) {
+    const why = record.disabledReason !== undefined ? ` — ${record.disabledReason.replace(/_/g, ' ')}` : ''
+    return { state: 'unreported', reason: `${EXTRA_USAGE_OFF_WORDS}${why}`, compact: 'extra off', ...stamp }
+  }
+  if (record.used === undefined) return { state: 'unreported', reason: EXTRA_USAGE_NO_FIGURE_WORDS, compact: 'not stated', ...stamp }
+  const cap = record.limit
+  const period = record.period === 'month' ? ' this month' : ''
+  const reached = record.limitReached === true ? ' · limit reached' : ''
+  const balance = record.balance !== undefined ? ` · balance ${moneyWords(record.balance)}` : ''
+  const display =
+    cap !== undefined
+      ? `extra usage ${moneyWords(record.used)} of ${moneyFigure(cap)}${period}${reached}${balance}`
+      : `extra usage ${moneyWords(record.used)}${period}${reached}${balance}`
+  const compact = cap !== undefined ? `extra ${moneyFigure(record.used)}/${moneyShort(cap)}` : `extra ${moneyFigure(record.used)}`
+  return { state: 'reported', display, compact, ...stamp }
 }
 
 export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
@@ -1304,6 +1347,7 @@ export function usageForProvider(
       shape: 'subscription-windows',
       windows: anthropicWindowViews(reads),
       pools: anthropicPoolWindowViews(reads),
+      credits: anthropicExtraUsageCredits(reads),
       spend,
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
       ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
