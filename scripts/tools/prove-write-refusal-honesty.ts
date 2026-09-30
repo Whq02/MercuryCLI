@@ -36,7 +36,7 @@ console.log('[1] a create INSIDE the working directory, default mode')
   const verdict = touch(['denied-probe.txt'], cwd, context)
   check('the create asks (no grant covers it)', verdict.behavior === 'ask', verdict.behavior)
   check('the reason names the permission mode and the approval road', /needs approval to create/.test(verdict.message) && /permission mode/.test(verdict.message) && /Approve it on its permission card/.test(verdict.message), verdict.message)
-  check('…and NEVER calls an inside path outside', !/is outside it/.test(verdict.message), verdict.message)
+  check('…and NEVER calls an inside path outside', !/outside/.test(verdict.message), verdict.message)
   check('the refused path is the resolved inside path', verdict.message.includes(join(PROJ, 'denied-probe.txt')), verdict.message)
 }
 
@@ -45,7 +45,8 @@ console.log('[2] a create OUTSIDE the working directory')
   const outside = join(SCRATCH, 'elsewhere', 'probe.txt')
   const verdict = touch([outside], cwd, context)
   check('the create asks', verdict.behavior === 'ask', verdict.behavior)
-  check('the geometry sentence stands for a real outside target', /may only create inside the working directory/.test(verdict.message) && /is outside it/.test(verdict.message), verdict.message)
+  check('the approval request names the real outside target and starting folder', verdict.message.includes(`needs approval to create ${outside}, outside the starting folder ('${cwd}')`), verdict.message)
+  check('the outside target has an ordinary approval road, never a folder refusal', /Approve it on its permission card or add an allow rule/.test(verdict.message) && !/may only|reads only/.test(verdict.message), verdict.message)
 }
 
 console.log('[3] the read road is untouched')
