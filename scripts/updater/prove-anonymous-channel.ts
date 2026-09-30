@@ -12,8 +12,8 @@ if (!existsSync(DIST)) {
     console.log(`  [FAIL] MERCURY_JOURNEY_DIST names a missing bundle: ${DIST}`)
     process.exit(1)
   }
-  console.log('  [SKIP-BUILD] dist/mercury.mjs absent — building first')
-  execFileSync(process.execPath, ['run', 'build.ts'], { cwd: ROOT, stdio: 'inherit' })
+  console.error('dist/mercury.mjs missing — run bun run build.ts before the proof')
+  process.exit(1)
 }
 
 let failures = 0

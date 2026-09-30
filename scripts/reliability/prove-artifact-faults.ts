@@ -21,19 +21,6 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
 
-if (process.env.MERCURY_GATE_PREBUILT !== '1') {
-  console.log('  (building dist/mercury.mjs — standalone run)')
-  const b = spawnSync(process.execPath, ['run', join(REPO, 'build.ts')], {
-    cwd: REPO,
-    encoding: 'utf8',
-    timeout: 300_000,
-  })
-  if (b.status !== 0) {
-    console.error(b.stderr || b.stdout)
-    console.error('❌ artifact faults: dist build failed')
-    process.exit(1)
-  }
-}
 if (!existsSync(DIST)) {
   console.error('❌ artifact faults: dist/mercury.mjs missing')
   process.exit(1)
