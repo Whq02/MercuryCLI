@@ -185,6 +185,8 @@ function MessageInner({
           ? message.message.content
           : []
         const inFlightCount = inProgressToolUseIDs.size
+        const recordedAtMs = Date.parse(message.timestamp)
+        const startedAtMs = Number.isNaN(recordedAtMs) ? null : recordedAtMs
         const blocks = content.map((block, index) => {
           const reasoningId = `${message.uuid}:${index}`
           switch (block.type) {
@@ -203,6 +205,7 @@ function MessageInner({
                   inProgressToolUseIDs={inProgressToolUseIDs}
                   inProgressToolCallCount={inFlightCount}
                   progressMessagesForMessage={progressMessagesForMessage}
+                  startedAtMs={startedAtMs}
                 />
               )
             case 'text':
