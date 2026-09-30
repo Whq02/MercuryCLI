@@ -40,12 +40,14 @@ export interface BusyRetryLadder {
   readonly waitsMs: number[]
 }
 
-export function openBusyRetryLadder(nowMs: number, scale: number = busyRetryScale()): BusyRetryLadder {
+export function openBusyRetryLadder(nowMs: number, scale: number = busyRetryScale(), capMs?: number): BusyRetryLadder {
   const rungsMs = BUSY_RETRY_RUNGS_MS.map(ms => Math.max(1, Math.round(ms * scale)))
+  const wholeMs = rungsMs.reduce((sum, ms) => sum + ms, 0)
+  const budgetMs = capMs === undefined || !Number.isFinite(capMs) ? wholeMs : Math.min(wholeMs, Math.max(1, Math.round(capMs * scale)))
   return {
     rungsMs,
     quietMs: Math.round(BUSY_RETRY_QUIET_MS * scale),
-    budgetMs: rungsMs.reduce((sum, ms) => sum + ms, 0),
+    budgetMs,
     startedAtMs: nowMs,
     rung: 0,
     spentMs: 0,
@@ -82,6 +84,15 @@ export function nextBusyRetry(ladder: BusyRetryLadder, askedMs: number | undefin
   ladder.spentMs += waitMs
   ladder.waitsMs.push(waitMs)
   return { waitMs, quiet, attempt, of }
+}
+
+export function busyRetryLeftMs(ladder: BusyRetryLadder): number {
+  return Math.max(0, ladder.budgetMs - ladder.spentMs)
+}
+
+export function nextBusyRetryWithinBudget(ladder: BusyRetryLadder, askedMs: number | undefined, nowMs: number): BusyRetryStep | null {
+  if (askedMs !== undefined && Number.isFinite(askedMs) && askedMs > busyRetryLeftMs(ladder)) return null
+  return nextBusyRetry(ladder, askedMs, nowMs)
 }
 
 const ORDINALS = ['second', 'third', 'fourth', 'fifth', 'sixth', 'seventh', 'eighth', 'ninth', 'tenth']
