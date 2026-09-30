@@ -66,6 +66,7 @@ import { fluxMark } from '../../utils/flux/fluxProbe.js'
 import { decodeRequestWait, streamIdleWarningMsOf, type RequestWaitV1 } from '../providers/streamIdleBudget.js'
 import { getFocusedSessionConnector, setFocusedSessionConnector, subscribeFocusedSessionConnector, claimHopEpoch, hopEpochIsCurrent } from './focusedConnector.js'
 import type {
+  AdvisorFactsV1,
   AgentControlReceiptV1,
   AskAnswerV1,
   AskReceiptV1,
@@ -2153,6 +2154,10 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
 
   workRoster(): WorkRosterV1 {
     return this.workSnapshot
+  }
+
+  advisorFacts(): AdvisorFactsV1 | null {
+    return this.facts?.advisor ?? null
   }
 
   subscribeWork(listener: () => void): () => void {

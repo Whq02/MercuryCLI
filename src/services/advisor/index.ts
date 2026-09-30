@@ -16,7 +16,9 @@ export {
   advisorChatLine,
   advisorChatState,
   advisorChatSwitch,
+  advisorChipWords,
   advisorDispatchEffort,
+  advisorFacts,
   advisorEnabled,
   advisorIntervalWords,
   advisorReceiptWords,
@@ -29,6 +31,7 @@ export {
   setAdvisorEnabled,
   setAdvisorMinutes,
   type AdvisorChatState,
+  type AdvisorFacts,
   type AdvisorSeat,
   type AdvisorSettings,
 } from './advisorSettings.js'

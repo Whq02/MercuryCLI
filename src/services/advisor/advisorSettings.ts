@@ -78,6 +78,33 @@ export function advisorSeatRefusal(
   return undefined
 }
 
+export interface AdvisorFacts {
+  on: boolean
+  chat: boolean
+  settings: boolean
+  minutes: number
+  model: string | null
+}
+
+export function advisorFacts(): AdvisorFacts {
+  const settings = readAdvisorSettings()
+  const model = resolveAdvisorModel()
+  return {
+    on: advisorSeatRefusal(advisorSessionSeat(), settings) === undefined,
+    chat: advisorChatSwitch(),
+    settings: settings.enabled,
+    minutes: settings.minutes,
+    model: model.origin === 'unset' ? null : model.model,
+  }
+}
+
+export function advisorChipWords(facts: AdvisorFacts | null): string | null {
+  if (facts === null || !facts.chat) return null
+  if (!facts.settings) return 'advisor · off in settings'
+  if (!facts.on) return null
+  return `advisor · ${advisorIntervalWords(facts.minutes)}`
+}
+
 export interface AdvisorChatState {
   chat: boolean
   settings: AdvisorSettings

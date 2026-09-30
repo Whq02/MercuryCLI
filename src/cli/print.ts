@@ -135,7 +135,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
-import { advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
+import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -2307,6 +2307,7 @@ export async function runHeadless(
             })),
             work: projectWorkRoster(state.tasks),
             pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
+            advisor: advisorFacts(),
             notices: noticeRows(),
             mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,
