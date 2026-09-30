@@ -63,7 +63,7 @@ const XAI_BILLING_SURFACES = new Set([
   'src/skills/bundled/provider-apis/references/chat-completions.md',
   'src/substrate/flagRegistry.ts',
 ])
-const XAI_BILLING_WORDS = /team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the team|xAI's team|These are team/i
+const XAI_BILLING_WORDS = /team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
@@ -106,6 +106,10 @@ check('the xAI billing vocabulary is excused only on its named surfaces',
     OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'team usage')))
 check('a crew spelling beside xAI billing words still trips',
   OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team usage; ask a teammate')))
+check('the API billing possessive stays scoped to its documented account',
+  !OLD.test(crewRemainder('docs/ENGINES.md', "an optional management key for the API team's")) &&
+    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', "an optional management key for the API team's")) &&
+    OLD.test(crewRemainder('docs/ENGINES.md', 'an optional management key for the API teammate')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md', 'CLAUDE.md'].includes(f))
