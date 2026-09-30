@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/bootstrap/state.ts src/constants/oauth.ts src/constants/system.ts
 # gate-watch: src/utils/**
 # gate-watch: scripts/lib/* src/QueryEngine.ts src/cli/print.ts src/commands/model/mercuryModel.tsx
 # gate-watch: src/commands/submodels/submodels.tsx src/components/* src/components/PromptInput/PromptInput.tsx

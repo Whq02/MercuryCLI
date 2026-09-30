@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: scripts/lib/hermetic.ts scripts/providers/lib/xai-usage-fixture.ts
+# gate-watch: scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
+# gate-watch: scripts/providers/fixtures/anthropic-oauth-usage.json scripts/providers/fixtures/openai-chatgpt-usage.json
+# gate-watch: src/context/modalContext.tsx src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/bootstrap/state*
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
 # gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts

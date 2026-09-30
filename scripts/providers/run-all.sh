@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
+# gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
+# gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/commands/status/mercuryStatus.tsx src/state/AppState.tsx
+# gate-watch: src/utils/router/modelRegistry.ts src/utils/router/providerDiscovery.ts
+# gate-watch: src/utils/router/providers/deepseek.ts src/utils/router/providers/xai.ts
 # gate-watch: src/services/providers/providerUsability* src/services/providers/providerUsage* src/services/providers/openai/openaiLimitState* src/services/engine-connector/daemonConnector*
 # gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
 # gate-watch: src/services/providers/sseDecoder*

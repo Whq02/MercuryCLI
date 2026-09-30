@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
+# gate-watch: src/services/providers/meta/metaCatalogue.ts src/services/providers/xai/xaiCatalogue.ts
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/utils/sessionStoragePortable*
 # gate-watch: src/utils/hooks/missionHook* src/services/mission/missionCard* src/utils/sessionRestore*
