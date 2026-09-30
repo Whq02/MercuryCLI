@@ -58,6 +58,7 @@ run_checked_suite >"$out" 2>&1 &
 pid=$!
 runner=$$
 end_suite_tree() {
+  MERCURY_SUITE_BROWSER_CLEANER=1 "${MERCURY_NODE:-node}" "$repo_root/scripts/lib/proofBrowser.cjs" --quiesce "$pid" "$MERCURY_SUITE_TMPDIR" >>"$out" 2>&1
   kill_tree "$pid"
   wait "$pid" 2>/dev/null || true
   process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
@@ -76,6 +77,7 @@ trap 'on_runner_signal INT 130' INT
 trap 'on_runner_signal HUP 129' HUP
 wait "$pid" 2>/dev/null; rc=$?
 if [ -f "$outdir/$dom.hang" ]; then wait "$watcher" 2>/dev/null; fi
+suite_browser_cleanup >>"$out" 2>&1
 process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
 times >"$outdir/$dom.times"
 cpu_secs=$(tail -1 "$outdir/$dom.times" | awk '{

@@ -59,6 +59,12 @@ function installProofScratch() {
     return registerProofScratch(await promise.call(this, scratchPrefix(prefix), options))
   }
   syncBuiltinESMExports()
+  if (!process.env.MERCURY_SUITE_BROWSER_CLEANER) {
+    require('./proofBrowser.cjs').installProofBrowser(profile => {
+      const root = process.env.MERCURY_SUITE_TMPDIR
+      return folders.has(profile) || Boolean(root && path.resolve(profile).startsWith(path.resolve(root) + path.sep))
+    })
+  }
   process.on('exit', () => {
     if (runRoot) return
     for (const folder of [...folders].reverse()) {

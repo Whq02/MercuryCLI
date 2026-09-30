@@ -84,10 +84,17 @@ suite_home_guard() {
 suite_home_cleanup() {
   [ -n "${__suite_home_scratch:-}" ] && rm -rf "$__suite_home_scratch"
   if [ -n "${__suite_temp_scratch:-}" ]; then
+    suite_browser_cleanup >&2
     process_ledger_reap "${MERCURY_PROCESS_LEDGER_DIR:-}" >&2
     rm -rf "$__suite_temp_scratch"
   fi
   return 0
+}
+
+suite_browser_cleanup() {
+  local ledger="${MERCURY_SUITE_TMPDIR:-}/browser-ledger"
+  [ -d "$ledger" ] || return 0
+  MERCURY_SUITE_BROWSER_CLEANER=1 "${MERCURY_NODE:-node}" "$(dirname "${BASH_SOURCE[0]}")/proofBrowser.cjs" "$ledger"
 }
 
 suite_scratch_init() {
