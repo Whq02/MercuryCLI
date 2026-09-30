@@ -1,6 +1,6 @@
 # Engines — the provider estate
 
-Mercury's main loop can run on models from ten provider families. One pure law decides
+Mercury's main loop can run on models from its provider families. One pure law decides
 which family serves an id, one dispatch seam routes the call, and each family's runtime
 owns its own wire, credentials, and refusals. Nothing ever falls through from one
 provider to another.
@@ -20,6 +20,7 @@ arm.
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
+| `meta` | `muse-spark-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
@@ -79,6 +80,45 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
+Meta's Muse Spark rows come only from the account's live `GET /v1/models`
+list, newest creation time first, with the id breaking ties. Connect through
+`/logins meta` (or `/logins muse`), `/router key meta`, or `MODEL_API_KEY`;
+`META_API_KEY`, the spelling Muse Code documents, is also accepted, after
+`MODEL_API_KEY` and before the stored key. These are pay-as-you-go Model API
+keys. `/accounts` manages the stored key. The family word `muse` selects the
+newest served Standard Muse Spark row. A successful empty list stays empty;
+no unfetched row becomes selectable. A named id can be sent with an honest
+notice when the list is unreachable, but an id missing from a fetched list
+is refused before chat.
+
+Contributor rows are labelled **training permitted** and must be selected
+explicitly: neither `muse` nor the computed default silently opts an account
+into training on its prompts and completions. Meta's documented Spark 1.3,
+1.2 and 1.1 rows have a 1,048,576-token context. Standard pricing is $1.25
+input, $0.15 cached input and $4.25 output per million tokens; the 1.3 and 1.2
+Contributor rows are $0.10, $0.002 and $0.20 respectively, with no long-context
+premium. Unrecorded served ids keep their raw names and unknown prices.
+
+Mercury uses Meta's OpenAI-compatible Chat Completions endpoint at
+`https://api.meta.ai/v1/chat/completions`, with streaming, function tools,
+JSON-schema output and the model's documented reasoning effort. `none` is
+not supported; `max` is documented only for Standard Muse Spark 1.3. No
+reasoning-off flag is sent. Meta also offers Responses and Messages APIs;
+its Chat Completions API does **not** preserve private reasoning across
+turns. Mercury's Meta road therefore replays the conversation and tool
+results, not encrypted reasoning. Meta recommends Responses for reasoning
+continuity in agentic work; that is not claimed by this road.
+
+Meta's subscription page says: “This credential is for use with Muse Code
+only” and a subscription “works only through the Muse Code CLI”. Mercury
+does not reuse Muse Code's browser session, client identity or subscription
+credential. No public third-party OAuth client registration or device flow
+was documented in the sources read on **2026-09-30**: [quickstart](https://dev.meta.ai/docs/quickstart),
+[models](https://dev.meta.ai/docs/models), [pricing](https://dev.meta.ai/docs/pricing-rate-limits),
+[reasoning](https://dev.meta.ai/docs/reasoning), [authentication](https://dev.meta.ai/docs/authentication),
+[Muse Code sign-in](https://dev.meta.ai/docs/muse-code/auth) and
+[subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -123,13 +163,13 @@ alike). A credential is not an earned fact.
 
 ## The runtimes
 
-Three wires serve the ten families:
+Three wire families serve the providers:
 
 - **The Anthropic home lane** — the first-party API, directly or through a
   base-URL proxy.
 - **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
   through generateContent when using a Google account.
-- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, the
+- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, Meta, the
   operator-named compat slot, OpenRouter, Gemini with an API key,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
@@ -431,7 +471,7 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
-- **zai, deepseek, huggingface, local, compat** — env pins and stored keys.
+- **zai, deepseek, meta, huggingface, local, compat** — env pins and stored keys.
 
 Slots carry presence facts and masked key tails only — never a secret value.
 Removal is routed to each slot's owning store, never inlined. Env-pinned
@@ -792,7 +832,7 @@ rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
 key's credit totals and cap, the DeepSeek and Moonshot balances, and an honest
 one-line absence for a lane whose provider publishes no usage Mercury can read
-(a general Z.AI key, Gemini, Hugging Face, a custom endpoint, an API key on a
+(a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key on a
 subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
@@ -821,7 +861,7 @@ no plan reads "usage: not on a coding plan".
 
 The cost ledger prices every request at its own provider's published rates
 from one pricing owner per family: the first-party tier table; the GPT,
-DeepSeek, Kimi, GLM and Gemini price tables (a longer-prompt tier applied per
+DeepSeek, Meta, Kimi, GLM and Gemini price tables (a longer-prompt tier applied per
 request); the OpenRouter catalogue row when the wire states no cost of its
 own; the Hugging Face listed floor as a flagged estimate; a recorded zero for
 a local server. A turn on a model with no rate on file lands in the ledger

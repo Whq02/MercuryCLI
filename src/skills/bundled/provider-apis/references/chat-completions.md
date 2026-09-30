@@ -12,6 +12,7 @@ Checked: 2026-09-15
 |---|---|---|
 | Kimi | https://api.moonshot.ai/v1 | Model-gated `reasoning_effort`; no temperature; separate OAuth coding endpoint |
 | DeepSeek | https://api.deepseek.com | `thinking.type`; explicit `max_tokens` override |
+| Meta (Muse) | https://api.meta.ai/v1 | `MODEL_API_KEY` (or `META_API_KEY`); per-model `reasoning_effort`; explicit `max_completion_tokens`; private reasoning is not returned or replayed |
 | Z.AI | https://api.z.ai/api/paas/v4 | Separate Coding Plan base; native chat, never Anthropic compatibility |
 | OpenRouter | https://openrouter.ai/api/v1 | `reasoning.effort` from model vocabulary |
 | Gemini | https://generativelanguage.googleapis.com/v1beta/openai | Model-gated `reasoning_effort`; key or OAuth |
@@ -22,5 +23,6 @@ Checked: 2026-09-15
 - Request `stream_options.include_usage` where supported. Mercury sends it on the shared client, not Z.AI; OpenRouter and DeepSeek supply final usage regardless.
 - Read standard `prompt_tokens_details.cached_tokens`, Kimi `cached_tokens`, or DeepSeek `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens` under `usage`; spellings can coexist.
 - Preserve reasoning history only for the selected model's supported replay contract; do not generalise one family's rule.
+- Meta (checked 2026-09-30): `GET /v1/models` is the account list; Spark always reasons, accepts `minimal` through `xhigh`, and Standard Spark 1.3 also accepts `max`. Never send `none`. The chat API redacts private reasoning and cannot replay it; Meta recommends Responses for encrypted reasoning continuity, which Mercury's Meta chat road does not claim. Use pay-as-you-go API keys, never Muse Code's subscription-only credential. Sources: [Meta chat](https://dev.meta.ai/docs/protocols/chat-completions), [reasoning](https://dev.meta.ai/docs/reasoning), [subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions).
 
 Sources: [Kimi](https://platform.kimi.ai/docs/api/chat), [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/), [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion), [OpenRouter](https://openrouter.ai/docs/cookbook/administration/usage-accounting), [Gemini](https://ai.google.dev/gemini-api/docs/openai), [HF](https://huggingface.co/docs/inference-providers/en/tasks/chat-completion), [Ollama](https://docs.ollama.com/api/openai-compatibility), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers).
