@@ -7,8 +7,12 @@ import { formatRelativeTimeAgo } from '../utils/format.js';
 import { daemonControlRpc } from '../daemon/controlSocket.js';
 import { MERCURY_DAEMON_PROTO } from '../daemon/protocol.js';
 import {
+  fireDeltaWords,
   saturnFactsOf,
   saturnNextFireMs,
+  saturnStandingFireWords,
+  saturnStandingOf,
+  saturnStandingWords,
   type HeldFireV1,
   type SaturnFactsRowV1,
   type SaturnScheduleV1,
@@ -126,18 +130,18 @@ export function collectSaturnScreenFacts(nowMs: number): SaturnScreenFactsV1 {
   }
 }
 
-export function fireDeltaWords(nextFireMs: number | null, nowMs: number): string {
-  if (nextFireMs === null) return 'no future fire';
-  const deltaMs = nextFireMs - nowMs;
-  if (deltaMs <= 0) return 'due now';
-  const minutes = Math.round(deltaMs / 60000);
-  if (minutes < 60) return `in ${Math.max(1, minutes)}m`;
-  if (minutes < 60 * 24) return `in ${Math.round(minutes / 60)}h`;
-  return `in ${Math.round(minutes / (60 * 24))}d`;
-}
+export { fireDeltaWords };
 
 export function saturnNextFireWords(facts: SaturnFactsRowV1, nowMs: number): string {
   return facts.paused === true ? 'paused' : fireDeltaWords(facts.nextFireMs, nowMs);
+}
+
+export function saturnRowWords(row: SaturnScreenRowV1, nowMs: number): string {
+  return saturnStandingWords(saturnStandingOf(row.schedule, row.held), nowMs);
+}
+
+export function saturnRowFireWords(row: SaturnScreenRowV1, nowMs: number): string {
+  return saturnStandingFireWords(saturnStandingOf(row.schedule, row.held), nowMs);
 }
 
 export type SaturnEntry = {
@@ -155,15 +159,15 @@ export type SaturnEntry = {
 const clampText = (s: string, w: number): string => (s.length > w ? s.slice(0, w - 1) + '…' : s);
 
 export function saturnEntryOf(row: SaturnScreenRowV1, nowMs: number): SaturnEntry {
-  const words = saturnNextFireWords(row.facts, nowMs);
-  const heldBit = row.held.length > 0 ? ` · ${row.held.length} held` : '';
+  const standing = saturnStandingOf(row.schedule, row.held);
+  const words = saturnStandingWords(standing, nowMs);
   return {
     label: `${row.facts.id}  ${clampText(row.facts.when, 34)}`,
     group: row.box === true ? 'box' : row.sessionId,
     groupTitle: row.box === true ? 'box (machine)' : `${row.sessionTitle}${row.parked ? ' · parked' : ''}`,
-    summary: `${row.facts.kind} · ${words}${heldBit}`,
-    valueLabel: `${words}${heldBit}`,
-    valueIsDefault: row.held.length === 0 && row.facts.paused !== true && row.facts.nextFireMs !== null,
+    summary: `${row.facts.kind} · ${words}`,
+    valueLabel: words,
+    valueIsDefault: standing.held === 0 && !standing.paused && standing.nextFireMs !== null,
     pinnedVal: null,
     detail: null,
   };
@@ -173,7 +177,7 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
   const s = row.schedule;
   const lines: string[] = [`${row.facts.id} · ${row.facts.kind}${row.box === true ? ' · box tier' : ''}`, ''];
   lines.push(...wrapPlain(`when: ${row.facts.when}`, DETAIL_W));
-  lines.push(`next: ${saturnNextFireWords(row.facts, nowMs)}`);
+  lines.push(`next: ${saturnRowFireWords(row, nowMs)}`);
   lines.push(`last: ${s.lastFiredAt !== undefined ? formatRelativeTimeAgo(new Date(s.lastFiredAt), { style: 'short', now: new Date(nowMs) }) : 'never'}`);
   lines.push(`model: ${s.modelKey}${s.effort !== undefined ? ` · ${s.effort}` : ''}`);
   lines.push(...wrapPlain(`account: ${s.account.family}/${s.account.source}${s.account.identity !== undefined ? ` · ${s.account.identity}` : ''}`, DETAIL_W));
@@ -213,8 +217,7 @@ export function saturnDetailLines(row: SaturnScreenRowV1, nowMs: number, receipt
 
 export function saturnSummaryRows(f: SaturnScreenFactsV1, nowMs: number): Array<{ key: string; value: string; tone?: 'teal' | 'amber' | 'crimson' | 'faint' }> {
   const soonest = f.rows
-    .filter(r => r.facts.paused !== true)
-    .map(r => r.facts.nextFireMs)
+    .map(r => saturnStandingOf(r.schedule, r.held).nextFireMs)
     .filter((n): n is number => n !== null)
     .sort((a, b) => a - b)[0];
   return [

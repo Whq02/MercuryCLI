@@ -5,7 +5,9 @@ import { logForDebugging } from '../utils/debug.js'
 import { concourseWorkersPath, type ConcourseWorkerRecordV1 } from './concourseSupervisor.js'
 import {
   describeWhen,
+  dropSaturnSelfWakes,
   holdSaturnFire,
+  isSaturnSelfWake,
   markSaturnFired,
   refreshSaturnScheduleAccount,
   rowSaturnTickReceipt,
@@ -190,11 +192,12 @@ export interface SaturnTickReportV1 {
   held: number
   missed: number
   replayed: number
+  dropped: number
   pending: number
 }
 
 export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<SaturnTickReportV1> {
-  const report: SaturnTickReportV1 = { fired: 0, held: 0, missed: 0, replayed: 0, pending: 0 }
+  const report: SaturnTickReportV1 = { fired: 0, held: 0, missed: 0, replayed: 0, dropped: 0, pending: 0 }
   if (isSaturnDisabled()) return report
   const now = ports.now()
   const windowMs = saturnCatchupWindowMs()
@@ -203,15 +206,26 @@ export async function tickSaturnOnce(ports: SaturnTickerPortsV1): Promise<Saturn
     const sessionId = rec.sessionId
     const parked = isParkedRecord(rec)
 
-    const heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
-    const scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
-    report.pending += heldList.length + scheduleList.length
+    let heldList = Array.isArray(rec.heldFires) ? rec.heldFires.filter(saturnHeldRowUsable) : []
+    let scheduleList = Array.isArray(rec.schedules) ? rec.schedules.filter(saturnScheduleRowUsable) : []
     const mangledCount =
       (Array.isArray(rec.heldFires) ? rec.heldFires.length - heldList.length : rec.heldFires !== undefined ? 1 : 0) +
       (Array.isArray(rec.schedules) ? rec.schedules.length - scheduleList.length : rec.schedules !== undefined ? 1 : 0)
     if (mangledCount > 0) {
       logForDebugging(`[saturn] session ${sessionId}: ${mangledCount} mangled schedule/hold entr${mangledCount === 1 ? 'y' : 'ies'} skipped (record surgery?) — healthy rows proceed`)
     }
+
+    if (parked && scheduleList.some(isSaturnSelfWake)) {
+      const gone = dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, rec.parkedAt !== undefined ? 'parked' : 'stopped', ports.dir)
+      if (gone.dropped.length > 0) {
+        report.dropped += gone.dropped.length
+        const ids = new Set(gone.dropped)
+        scheduleList = scheduleList.filter(s => !ids.has(s.id))
+        heldList = heldList.filter(h => !ids.has(h.scheduleId))
+        logForDebugging(`[saturn] session ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${gone.droppedHolds} held) — the session is ${rec.parkedAt !== undefined ? 'parked' : 'stopped'}`)
+      }
+    }
+    report.pending += heldList.length + scheduleList.length
 
     if (heldList.length > 0) {
       const releasable: Array<{ scheduleId: string; dueAt: number }> = []
@@ -661,7 +675,7 @@ export function startSaturnTicker(ports: SaturnTickerPortsV1, onReport?: (r: Sat
     void tickSaturnOnce(ports)
       .then(r => {
         pending = r.pending
-        if (onReport && r.fired + r.held + r.missed + r.replayed > 0) onReport(r)
+        if (onReport && r.fired + r.held + r.missed + r.replayed + r.dropped > 0) onReport(r)
       })
       .catch(() => {})
       .finally(() => {

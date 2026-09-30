@@ -7,6 +7,7 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'
 import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseSupervisor.js'
+import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 
 
 export interface ScheduleAccountV1 {
@@ -581,6 +582,62 @@ export function rowSaturnTickReceipt(
   }
 }
 
+export function isSaturnSelfWake(s: SaturnScheduleV1): boolean {
+  return (
+    typeof s.createdBy === 'string' &&
+    s.createdBy.startsWith('model:') &&
+    s.when.kind === 'at' &&
+    s.action.kind === 'fire' &&
+    wakeDelayOfSpelling(s.when.spelling) !== null
+  )
+}
+
+export type SaturnSelfWakeDropWhy = 'parked' | 'stopped' | 'interrupted'
+
+const SELF_WAKE_DROP_CLAUSE: Record<SaturnSelfWakeDropWhy, string> = {
+  parked: 'the session was parked',
+  stopped: 'the session was stopped',
+  interrupted: 'the turn was interrupted',
+}
+
+export function dropSaturnSelfWakes(
+  sessionId: string,
+  by: string | ((scheduleId: string) => string),
+  why: SaturnSelfWakeDropWhy,
+  dir?: string,
+): { dropped: string[]; droppedHolds: number } {
+  const out: { dropped: string[]; droppedHolds: number } = { dropped: [], droppedHolds: 0 }
+  updateConcourseWorkers(workers => {
+    const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    if (!rec || !Array.isArray(rec.schedules)) return
+    const wakes = rec.schedules.filter(s => saturnScheduleRowUsable(s) && isSaturnSelfWake(s))
+    if (wakes.length === 0) return
+    const ids = new Set(wakes.map(s => s.id))
+    const keptSchedules = rec.schedules.filter(s => !(saturnScheduleRowUsable(s) && ids.has(s.id)))
+    if (keptSchedules.length === 0) delete rec.schedules
+    else rec.schedules = keptSchedules
+    const holds = Array.isArray(rec.heldFires) ? rec.heldFires : []
+    const holdsOf = (id: string): number => holds.filter(h => saturnHeldRowUsable(h) && h.scheduleId === id).length
+    const keptHolds = holds.filter(h => !(saturnHeldRowUsable(h) && ids.has(h.scheduleId)))
+    if (keptHolds.length !== holds.length) {
+      if (keptHolds.length === 0) delete rec.heldFires
+      else rec.heldFires = keptHolds
+    }
+    for (const s of wakes) {
+      const droppedHolds = holdsOf(s.id)
+      out.dropped.push(s.id)
+      out.droppedHolds += droppedHolds
+      rowScheduleReceipt(
+        rec,
+        typeof by === 'function' ? by(s.id) : by,
+        `schedule '${s.id}' removed — ${SELF_WAKE_DROP_CLAUSE[why]}; its self-paced wake (${describeWhen(s.when)}) paced a turn that is over${droppedHolds > 0 ? ` (${droppedHolds} held fire${droppedHolds === 1 ? '' : 's'} dropped with it)` : ''}`,
+        { op: 'remove', id: s.id, selfWake: true, why, ...(droppedHolds > 0 ? { droppedHolds } : {}) },
+      )
+    }
+  }, dir)
+  return out
+}
+
 
 export interface SaturnFactsRowV1 {
   id: string
@@ -648,21 +705,72 @@ export function saturnSoonestFireMs(
   return next
 }
 
+export interface SaturnStandingV1 {
+  nextFireMs: number | null
+  held: number
+  paused: boolean
+}
+
+export function saturnStandingOf(
+  schedule: SaturnScheduleV1,
+  heldFires: ReadonlyArray<HeldFireV1> | undefined,
+): SaturnStandingV1 {
+  const held = Array.isArray(heldFires) ? heldFires.filter(h => saturnHeldRowUsable(h) && h.scheduleId === schedule.id).length : 0
+  if (schedule.paused === true) return { nextFireMs: null, held, paused: true }
+  if (held > 0) return { nextFireMs: null, held, paused: false }
+  if (schedule.when.kind === 'at') return { nextFireMs: schedule.when.atMs, held, paused: false }
+  const anchor = Math.max(schedule.createdAt, schedule.lastFiredAt ?? 0, 0)
+  return { nextFireMs: saturnNextFireMs(schedule.when, anchor), held, paused: false }
+}
+
+export function fireDeltaWords(nextFireMs: number | null, nowMs: number): string {
+  if (nextFireMs === null) return 'no future fire'
+  const deltaMs = nextFireMs - nowMs
+  if (deltaMs <= 0) return 'due now'
+  const minutes = Math.round(deltaMs / 60000)
+  if (minutes < 60) return `in ${Math.max(1, minutes)}m`
+  if (minutes < 60 * 24) return `in ${Math.round(minutes / 60)}h`
+  return `in ${Math.round(minutes / (60 * 24))}d`
+}
+
+export function saturnStandingFireWords(standing: SaturnStandingV1, nowMs: number): string {
+  return standing.paused ? 'paused' : fireDeltaWords(standing.nextFireMs, nowMs)
+}
+
+export function saturnStandingWords(standing: SaturnStandingV1, nowMs: number): string {
+  const fire = saturnStandingFireWords(standing, nowMs)
+  return standing.held > 0 ? `${fire} · ${standing.held} held` : fire
+}
+
+export interface SaturnWakeGlanceV1 {
+  count: number
+  held: number
+  nextFireMs: number | null
+}
+
 export function saturnWakeGlanceOf(
-  records: ReadonlyArray<{ schedules?: SaturnScheduleV1[] }>,
-  nowMs: number,
-): { count: number; nextFireMs: number | null } {
+  records: ReadonlyArray<{ schedules?: SaturnScheduleV1[]; heldFires?: HeldFireV1[] }>,
+): SaturnWakeGlanceV1 {
   let count = 0
+  let held = 0
   let next: number | null = null
   for (const rec of records) {
-    for (const s of rec.schedules ?? []) {
+    if (!Array.isArray(rec.schedules)) continue
+    for (const s of rec.schedules) {
+      if (!saturnScheduleRowUsable(s)) continue
       count++
-      if (s.paused === true) continue
-      const n = saturnNextFireMs(s.when, Math.max(s.createdAt, s.lastFiredAt ?? 0))
-      if (n !== null && (next === null || n < next)) next = n
+      const standing = saturnStandingOf(s, rec.heldFires)
+      held += standing.held
+      if (standing.nextFireMs !== null && (next === null || standing.nextFireMs < next)) next = standing.nextFireMs
     }
   }
-  return { count, nextFireMs: next !== null && next <= nowMs ? nowMs : next }
+  return { count, held, nextFireMs: next }
+}
+
+export function saturnWakeGlanceWords(glance: SaturnWakeGlanceV1, nowMs: number): { name: string; verb: string | undefined } {
+  const name = glance.held > 0 ? `${glance.count} scheduled · ${glance.held} held` : `${glance.count} scheduled`
+  const verb = glance.nextFireMs !== null ? fireDeltaWords(glance.nextFireMs, nowMs) : glance.held > 0 ? undefined : 'no next fire'
+  return { name, verb }
 }
 
 export function describeWhen(when: SaturnWhenV1): string {

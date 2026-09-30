@@ -237,10 +237,10 @@ export function BootSplashScreen(): React.ReactNode {
           import('../daemon/saturnBoxSchedules.js'),
         ]);
         const records = Object.values(sup.readSessionWorkers()).filter(r => r.endedAt === undefined);
-        const glance = saturn.saturnWakeGlanceOf([...records, box.readBoxSchedules()], Date.now());
+        const glance = saturn.saturnWakeGlanceOf([...records, box.readBoxSchedules()]);
         if (!cancelled && glance.count > 0) {
           setSaturnCtx(
-            `${glance.count} schedule${glance.count === 1 ? '' : 's'}${glance.nextFireMs !== null ? ` · next ${fireDeltaWords(glance.nextFireMs, Date.now())}` : ''}`,
+            `${glance.count} schedule${glance.count === 1 ? '' : 's'}${glance.nextFireMs !== null ? ` · next ${fireDeltaWords(glance.nextFireMs, Date.now())}` : ''}${glance.held > 0 ? ` · ${glance.held} held` : ''}`,
           );
         }
       } catch {

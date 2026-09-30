@@ -19,7 +19,7 @@ import { MAIN_CONVERSATION_ID } from '../services/crew/conversations.js'
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import type { TaskState } from '../tasks/types.js'
 import type { LogOption } from '../types/logs.js'
-import { saturnWakeGlanceOf } from '../daemon/saturn.js'
+import { saturnWakeGlanceOf, saturnWakeGlanceWords, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
 import { readSessionWorkers } from '../daemon/concourseSupervisor.js'
 
 function formatSpan(ms: number): string {
@@ -259,7 +259,7 @@ function railRowProps(
 }
 
 const lastKnownRecent = new Map<string, LogOption[]>()
-let lastKnownWakeGlance: { count: number; nextFireMs: number | null } | null = null
+let lastKnownWakeGlance: SaturnWakeGlanceV1 | null = null
 const lastKnownWorkShape = new Map<string, string>()
 
 const subscribeFocusedRecords = subscribeThroughFocused((c, l) => c.subscribeRecords(l))
@@ -642,7 +642,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   }, [solo, recentScopeKey])
   const mission = getActiveMission()
 
-  const [wakeGlance, setWakeGlance] = useState<{ count: number; nextFireMs: number | null } | null>(
+  const [wakeGlance, setWakeGlance] = useState<SaturnWakeGlanceV1 | null>(
     () => lastKnownWakeGlance,
   )
   useEffect(() => {
@@ -650,7 +650,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const probe = () => {
       try {
         const records = Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined)
-        const s = saturnWakeGlanceOf(records, Date.now())
+        const s = saturnWakeGlanceOf(records)
         const next = s.count > 0 ? s : null
         lastKnownWakeGlance = next
         if (alive) setWakeGlance(next)
@@ -923,20 +923,15 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   }
 
 
-  const wakeBody = wakeGlance ? (
+  const wakeWords = wakeGlance ? saturnWakeGlanceWords(wakeGlance, Date.now()) : null
+  const wakeBody = wakeWords ? (
     <RailRow
       width={rowW}
       glyph={GLYPH.inProgress}
       glyphColor={tok.success}
-      name={`${wakeGlance.count} scheduled`}
+      name={wakeWords.name}
       nameColor={tok.textSecondary}
-      verb={
-        wakeGlance.nextFireMs === null
-          ? 'no next fire'
-          : wakeGlance.nextFireMs <= Date.now()
-            ? 'due now'
-            : `in ${formatSpan(wakeGlance.nextFireMs - Date.now())}`
-      }
+      verb={wakeWords.verb}
       verbColor={tok.textMuted}
       {...railRowProps(isOn, sel, { kind: 'command', command: '/saturn', label: 'wake:glance' })}
     />
