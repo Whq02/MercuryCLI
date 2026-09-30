@@ -69,6 +69,11 @@ function matchOverflowSentence(message: string): ShapeMatch | null {
     const actual = /(?:resulted in|requested(?: about)?)\s+(\d[\d,]*)\s+tokens/i.exec(message)
     return { shape: 'context-length-exceeded', limitTokens: num(maxLen[1]), actualTokens: num(actual?.[1]) }
   }
+  const inputBudget = /context length is only (\d[\d,]*) tokens[\s\S]*?maximum input length of (\d[\d,]*) tokens[\s\S]*?reduce the length of the input prompt/i.exec(message)
+  if (inputBudget) {
+    const actual = /passed (\d[\d,]*) input tokens/i.exec(message)
+    return { shape: 'context-length-exceeded', limitTokens: num(inputBudget[2]), actualTokens: num(actual?.[1]) }
+  }
   if (/exceeds? the context window/i.test(message)) return { shape: 'context-length-exceeded' }
   if (/context[ _]length[ _]exceeded/i.test(message)) return { shape: 'context-length-exceeded' }
 

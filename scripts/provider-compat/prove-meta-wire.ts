@@ -10,7 +10,8 @@ const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/pr
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MODEL_API_KEY = 'meta-fixture-wire-not-a-real-key'
-let mode: 'text' | 'tools' | 'malformed' | 'auth' | 'billing' | 'busy' | 'truncated' = 'text'
+const META_OVERFLOW_BODY = { error: { message: "You passed 1200064 input tokens and requested 1 output tokens. However, the model's context length is only 1048576 tokens, resulting in a maximum input length of 1048575 tokens. Please reduce the length of the input prompt", type: 'invalid_request_error', code: null, param: null } }
+let mode: 'text' | 'tools' | 'malformed' | 'auth' | 'billing' | 'busy' | 'truncated' | 'overflow' | 'invalid' = 'text'
 let modelList: unknown[] = [{ id: 'muse-spark-1.3', created: 3 }, { id: 'muse-spark-1.2', created: 2 }, { id: 'muse-spark-1.3-contributor', created: 4 }]
 const captures: Array<{ path: string; body: Record<string, any>; bearer: boolean }> = []
 let listReads = 0
@@ -31,6 +32,8 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
     if (mode === 'busy') mode = 'text'
     return Response.json({ error: { message: status === 503 ? 'provider overloaded' : status === 402 ? 'insufficient balance' : 'invalid API key' } }, { status, headers: { 'x-should-retry': 'false' } })
   }
+  if (mode === 'overflow') return Response.json(META_OVERFLOW_BODY, { status: 400 })
+  if (mode === 'invalid') return Response.json({ error: { message: 'Unsupported parameter: top_p', type: 'invalid_request_error', code: null, param: 'top_p' } }, { status: 400 })
   const chunk = (delta: unknown, finish: string | null = null): string => sse({ id: 'meta-fixture', object: 'chat.completion.chunk', created: 1, model: body.model, choices: [{ index: 0, delta, finish_reason: finish }] })
   let stream = chunk({ role: 'assistant', reasoning_content: '' })
   if (mode === 'tools' || mode === 'malformed') {
@@ -105,6 +108,12 @@ try {
   const beforeAuth = captures.length
   const auth = await run()
   check('an invalid key refuses once with the Meta remedy', captures.length === beforeAuth + 1 && auth.some(row => row.isApiErrorMessage && JSON.stringify(row).includes('/logins meta')))
+  mode = 'overflow'
+  const beforeOverflow = captures.length
+  const overflow = await run()
+  check('the documented null-code Meta 400 stamps an input overflow once for emergency folding', captures.length === beforeOverflow + 1 && overflow.some(row => row.isApiErrorMessage && row.overflowSignal?.family === 'meta' && row.overflowSignal.shape === 'context-length-exceeded' && row.overflowSignal.actualTokens === 1_200_064 && row.overflowSignal.limitTokens === 1_048_575))
+  mode = 'invalid'
+  check('an unrelated Meta invalid-request 400 carries no overflow stamp', (await run()).every(row => row.overflowSignal === undefined))
   mode = 'billing'; await run()
   check('billing refusal belongs to Meta, not another family', laneBillingState('meta').state === 'credit-exhausted')
   mode = 'busy'

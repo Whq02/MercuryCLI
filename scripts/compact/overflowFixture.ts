@@ -167,6 +167,8 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
         res.end(
           path.startsWith('/openai/')
             ? JSON.stringify(OPENAI_MODELS_BODY)
+            : path.startsWith('/xai/') ? JSON.stringify({ object: 'list', data: [{ id: 'grok-4.7', object: 'model', owned_by: 'xai', created: 3 }] })
+            : path.startsWith('/meta/') ? JSON.stringify({ object: 'list', data: [{ id: 'muse-spark-1.3', object: 'model', owned_by: 'meta', created: 3 }] })
             : path.startsWith('/moonshot/') ? JSON.stringify({ object: 'list', data: [{ id: 'kimi-k3', object: 'model', owned_by: 'moonshot' }] }) : JSON.stringify({ object: 'list', data: [{ id: 'fixture-local', object: 'model', owned_by: 'fixture' }] }),
         )
         return
@@ -229,6 +231,10 @@ export async function startOverflowFixture(): Promise<OverflowFixture> {
     MOONSHOT_API_KEY: 'fixture-moonshot-key',
     MERCURY_DEEPSEEK_API_BASE: `${base}/deepseek`,
     DEEPSEEK_API_KEY: 'fixture-deepseek-key',
+    MERCURY_XAI_API_BASE: `${base}/xai/v1`,
+    XAI_API_KEY: 'fixture-xai-key',
+    MERCURY_META_API_BASE: `${base}/meta/v1`,
+    MODEL_API_KEY: 'fixture-meta-key',
     MERCURY_OPENROUTER_API_BASE: `${base}/openrouter/api/v1`,
     MERCURY_OPENROUTER_AUTH_BASE: `${base}/openrouter/auth`,
     OPENROUTER_API_KEY: 'fixture-openrouter-key',
@@ -274,6 +280,8 @@ export const OVERFLOW_LANES: ReadonlyArray<{ lane: string; model: string; dialec
   { lane: 'zai', model: 'glm-5.2', dialect: 'chat' },
   { lane: 'moonshot', model: 'kimi-k3', dialect: 'chat' },
   { lane: 'deepseek', model: 'deepseek-v4-pro', dialect: 'chat' },
+  { lane: 'xai', model: 'grok-4.7', dialect: 'chat' },
+  { lane: 'meta', model: 'muse-spark-1.3', dialect: 'chat' },
   { lane: 'openai-compat', model: 'compat/fixture-model', dialect: 'chat' },
   { lane: 'openrouter', model: 'openrouter/fixture/model', dialect: 'chat' },
   { lane: 'gemini', model: 'gemini-3-pro', dialect: 'chat' },
@@ -306,6 +314,16 @@ export const OVERFLOW_WIRE_SHAPES: Record<string, { status: number; body: unknow
     status: 400,
     body: { error: { message: "This model's maximum context length is 131072 tokens. However, you requested 140123 tokens (135123 in the messages, 5000 in the completion). Please reduce the length of the messages or completion.", type: 'invalid_request_error', param: null, code: 'invalid_request_error' } },
     expect: { shape: 'context-length-exceeded', actual: 140_123, limit: 131_072 },
+  },
+  xai: {
+    status: 400,
+    body: { error: { message: 'Fixture input exceeds the context window of this model.', type: 'invalid_request_error', code: 'context_length_exceeded' } },
+    expect: { shape: 'context-length-exceeded' },
+  },
+  meta: {
+    status: 400,
+    body: { error: { message: "You passed 1200064 input tokens and requested 1 output tokens. However, the model's context length is only 1048576 tokens, resulting in a maximum input length of 1048575 tokens. Please reduce the length of the input prompt", type: 'invalid_request_error', code: null, param: null } },
+    expect: { shape: 'context-length-exceeded', actual: 1_200_064, limit: 1_048_575 },
   },
   'openai-compat': {
     status: 400,
