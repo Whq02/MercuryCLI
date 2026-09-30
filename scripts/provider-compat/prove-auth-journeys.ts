@@ -53,6 +53,7 @@ process.env.MERCURY_HUGGINGFACE_HUB_BASE = 'https://hub.fixture.invalid'
 process.env.MERCURY_HUGGINGFACE_API_BASE = 'https://hfrouter.fixture.invalid/v1'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://moonshot.fixture.invalid/v1'
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://deepseek.fixture.invalid'
+process.env.MERCURY_XAI_API_BASE = 'https://xai.fixture.invalid/v1'
 process.env.MERCURY_META_API_BASE = 'https://meta.fixture.invalid/v1'
 process.env.MERCURY_OPENAI_AUTH_BASE = 'https://oai-auth.fixture.invalid'
 process.env.MERCURY_OPENAI_CHATGPT_BASE = 'https://oai-chatgpt.fixture.invalid/codex'
@@ -171,6 +172,7 @@ const { compatChatCallModel, compatDispatchModelId, compatFaultToTypedError } = 
 )
 const { moonshotLaneProfile } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
 const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
+const { xaiLaneProfile } = await import('../../src/services/providers/xai/xaiCallModel.ts')
 const { metaLaneProfile } = await import('../../src/services/providers/meta/metaCallModel.ts')
 const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
 const { geminiLaneProfile } = await import('../../src/services/providers/gemini/geminiCallModel.ts')
@@ -276,7 +278,7 @@ function messageText(m: AssistantMessage): string {
 section('S1 · the family roster derives from the route law (never hand-copied)')
 
 const FAMILIES = ['anthropic', ...PROVIDER_ID_SPACES.map(space => space.route)] as const
-check('the route law declares exactly the eleven launch families', FAMILIES.length === 11)
+check('the route law declares twelve families including Anthropic', FAMILIES.length === 12)
 check(
   'every family has a display name of its own (no fallthrough spelling)',
   FAMILIES.every(f => providerDisplayName(f) !== f || f === 'local'),
@@ -289,6 +291,7 @@ const FAMILY_MODEL: Record<string, string> = {
   openai: 'gpt-5.2',
   moonshot: 'kimi-k3',
   deepseek: 'deepseek-chat',
+  xai: 'grok-4.7',
   meta: 'muse-spark-1.3',
   'openai-compat': 'compat/fixture-vendor-model',
   openrouter: 'openrouter/qwen/qwen3-coder',
@@ -329,6 +332,7 @@ section('S3 · J4 credential-absent: the refusal names the attach route, no wire
 const laneProfiles: Record<string, { profile: typeof moonshotLaneProfile; envKey?: string; keyEnvVar?: string }> = {
   moonshot: { profile: moonshotLaneProfile, keyEnvVar: 'MOONSHOT_API_KEY' },
   deepseek: { profile: deepseekLaneProfile, keyEnvVar: 'DEEPSEEK_API_KEY' },
+  xai: { profile: xaiLaneProfile, keyEnvVar: 'XAI_API_KEY' },
   meta: { profile: metaLaneProfile, keyEnvVar: 'MODEL_API_KEY' },
   openrouter: { profile: openrouterLaneProfile, keyEnvVar: 'OPENROUTER_API_KEY' },
   gemini: { profile: geminiLaneProfile, keyEnvVar: 'GEMINI_API_KEY' },
@@ -338,6 +342,7 @@ const laneProfiles: Record<string, { profile: typeof moonshotLaneProfile; envKey
 const ATTACH_ROUTE_WORDS: Record<string, string> = {
   moonshot: 'MOONSHOT_API_KEY',
   deepseek: 'DEEPSEEK_API_KEY',
+  xai: 'XAI_API_KEY',
   meta: 'MODEL_API_KEY',
   openrouter: '/logins',
   gemini: '/logins',
@@ -374,6 +379,7 @@ section('S4 · J4/J5/J6 fault matrix — EVERY compat-lane family, same scenario
 
 process.env.MOONSHOT_API_KEY = laneKey('moonshot', '1111')
 process.env.DEEPSEEK_API_KEY = laneKey('deepseek', '2222')
+process.env.XAI_API_KEY = laneKey('xai', 'aa27')
 process.env.MODEL_API_KEY = laneKey('meta', 'aa26')
 process.env.OPENROUTER_API_KEY = laneKey('openrouter', '3333')
 process.env.GEMINI_API_KEY = laneKey('gemini', '4444')
@@ -405,6 +411,12 @@ const MATRIX: MatrixLane[] = [
     run: m => compatChatCallModel(deepseekLaneProfile, callParams(m)),
     wireModel: 'deepseek-chat',
     bearer: `Bearer ${process.env.DEEPSEEK_API_KEY}`,
+  },
+  {
+    family: 'xai',
+    run: m => compatChatCallModel(xaiLaneProfile, callParams(m)),
+    wireModel: 'grok-4.7',
+    bearer: `Bearer ${process.env.XAI_API_KEY}`,
   },
   {
     family: 'meta',
@@ -1005,6 +1017,7 @@ section('S6 · J1/J7/J10 — slots: masked tails only, env pins win, removal rou
 providerSecrets.writeStoredZaiApiKey(laneKey('zai-stored', 'aa11'))
 providerSecrets.writeStoredMoonshotApiKey(laneKey('moonshot-stored', 'bb22'))
 providerSecrets.writeStoredDeepseekApiKey(laneKey('deepseek-stored', 'cc33'))
+providerSecrets.writeStoredXaiApiKey(laneKey('xai-stored', 'cc27'))
 providerSecrets.writeStoredMetaApiKey(laneKey('meta-stored', 'cc26'))
 providerSecrets.writeStoredOpenrouterApiKey(laneKey('openrouter-stored', 'dd44'))
 providerSecrets.writeStoredGeminiApiKey(laneKey('gemini-stored', 'ee55'))
@@ -1050,7 +1063,7 @@ const slotReads = {
   )
   check(
     'slots: every seeded family shows its stored-key slot',
-    ['zai', 'moonshot', 'deepseek', 'meta', 'openrouter', 'gemini', 'openai-compat', 'huggingface', 'local'].every(
+    ['zai', 'moonshot', 'deepseek', 'xai', 'meta', 'openrouter', 'gemini', 'openai-compat', 'huggingface', 'local'].every(
       family => flat.some(s => s.family === family && s.id.endsWith(':stored-key')),
     ) &&
       flat.some(s => s.id === 'openai:api-key'),

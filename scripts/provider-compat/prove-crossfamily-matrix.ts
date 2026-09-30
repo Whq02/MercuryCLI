@@ -46,6 +46,7 @@ type Family =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'meta'
   | 'gemini'
   | 'openrouter'
@@ -54,7 +55,7 @@ type Family =
   | 'compat'
 
 const FAMILIES: readonly Family[] = [
-  'anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'meta',
+  'anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta',
   'gemini', 'openrouter', 'huggingface', 'local', 'compat',
 ]
 
@@ -151,6 +152,7 @@ function familyOfPath(path: string): Family | undefined {
   if (path.startsWith('/zai/')) return 'zai'
   if (path.startsWith('/moonshot/')) return 'moonshot'
   if (path.startsWith('/deepseek/')) return 'deepseek'
+  if (path.startsWith('/xai/')) return 'xai'
   if (path.startsWith('/meta/')) return 'meta'
   if (path.startsWith('/gemini/')) return 'gemini'
   if (path.startsWith('/openrouter/')) return 'openrouter'
@@ -180,6 +182,11 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       if (path === '/openai/v1/models') {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end(JSON.stringify(OPENAI_MODELS_BODY))
+        return
+      }
+      if (path === '/xai/v1/models') {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ object: 'list', data: [{ id: 'grok-4.7', object: 'model', owned_by: 'xai', created: 3 }] }))
         return
       }
       if (path === '/meta/v1/models') {
@@ -256,6 +263,8 @@ Object.assign(process.env, {
   MOONSHOT_API_KEY: 'fixture-moonshot-key',
   MERCURY_DEEPSEEK_API_BASE: `${base}/deepseek`,
   DEEPSEEK_API_KEY: 'fixture-deepseek-key',
+  MERCURY_XAI_API_BASE: `${base}/xai/v1`,
+  XAI_API_KEY: 'fixture-xai-key',
   MERCURY_META_API_BASE: `${base}/meta/v1`,
   MODEL_API_KEY: 'fixture-meta-key',
   MERCURY_GEMINI_API_BASE: `${base}/gemini/v1beta`,
@@ -298,6 +307,7 @@ type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 
 await refreshLocalDiscovery({ force: true })
 await (await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')).refreshMoonshotCatalogue({ force: true })
+await (await import('../../src/services/providers/xai/xaiCatalogue.ts')).refreshXaiCatalogue({ force: true })
 await (await import('../../src/services/providers/meta/metaCatalogue.ts')).refreshMetaCatalogue({ force: true })
 
 const echoCalls: Array<{ family: string; text: string }> = []
@@ -433,6 +443,7 @@ const WORKER_SPELLINGS: Record<Family, { model: string; wireId: string }> = {
   zai: { model: GLM_STATIC_CATALOGUE[0]!.id, wireId: GLM_STATIC_CATALOGUE[0]!.id },
   moonshot: { model: moonshotCatalogueEntries()[0]!.id, wireId: moonshotCatalogueEntries()[0]!.id },
   deepseek: { model: DEEPSEEK_STATIC_CATALOGUE[0]!.id, wireId: DEEPSEEK_STATIC_CATALOGUE[0]!.id },
+  xai: { model: 'grok-4.7', wireId: 'grok-4.7' },
   meta: { model: 'muse-spark-1.3', wireId: 'muse-spark-1.3' },
   gemini: { model: 'gemini-3-pro', wireId: 'gemini-3-pro' },
   openrouter: { model: 'openrouter/qwen/qwen3-coder', wireId: 'qwen/qwen3-coder' },
@@ -450,7 +461,8 @@ const RING: Array<{ parent: Family; worker: Family }> = [
   { parent: 'gemini', worker: 'zai' },
   { parent: 'zai', worker: 'moonshot' },
   { parent: 'moonshot', worker: 'deepseek' },
-  { parent: 'deepseek', worker: 'meta' },
+  { parent: 'deepseek', worker: 'xai' },
+  { parent: 'xai', worker: 'meta' },
   { parent: 'meta', worker: 'openrouter' },
   { parent: 'openrouter', worker: 'huggingface' },
   { parent: 'huggingface', worker: 'local' },
@@ -566,8 +578,8 @@ section('§C the workflow driver — scripted fan-out across every family')
     return results;
   `
   const o = await driveWorkflow('claude-opus-5', fanoutScript)
-  check('the ten-family fan-out ran to completion (no run error)', o.error === undefined, String(o.error ?? ''))
-  check('all ten agents were admitted and none failed', o.agentCount === FAMILIES.length && o.failures.length === 0,
+  check('the twelve-family fan-out ran to completion (no run error)', o.error === undefined, String(o.error ?? ''))
+  check('all twelve agents were admitted and none failed', o.agentCount === FAMILIES.length && o.failures.length === 0,
     `agentCount=${o.agentCount} failures=${text(o.failures).slice(0, 300)}`)
   const results = (o.result ?? {}) as Record<string, unknown>
   for (const family of FAMILIES) {
@@ -716,7 +728,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
   const { getAgentModel } = await import('../../src/utils/model/agent.ts')
 
   const CLASS_TO_ROUTE: Record<string, string> = {
-    gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', muse: 'meta',
+    gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',
     compat: 'openai-compat', huggingface: 'huggingface', local: 'local',
     gemini: 'gemini', openrouter: 'openrouter',
   }
@@ -733,6 +745,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
     { cls: 'glm', backend: 'zai', model: WORKER_SPELLINGS.zai.model },
     { cls: 'kimi', backend: 'moonshot', model: WORKER_SPELLINGS.moonshot.model },
     { cls: 'deepseek', backend: 'deepseek', model: WORKER_SPELLINGS.deepseek.model },
+    { cls: 'grok', backend: 'xai', model: WORKER_SPELLINGS.xai.model },
     { cls: 'muse', backend: 'meta', model: WORKER_SPELLINGS.meta.model },
     { cls: 'gemini', backend: 'gemini', model: 'gemini-3-pro' },
     { cls: 'openrouter', backend: 'openrouter', model: 'openrouter/openrouter/auto' },

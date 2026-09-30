@@ -527,8 +527,8 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   const entry = loginsEntryOf(claudeArm, facts)
   t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
 
-  t.check('the summary counts distinct families (9), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=9', 'Signed in=4 of 9', 'Ready=4 lanes']))
-  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 9 families signed in · 4 ready')
+  t.check('the summary counts distinct families (10), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=10', 'Signed in=4 of 10', 'Ready=4 lanes']))
+  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 10 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 

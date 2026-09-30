@@ -41,8 +41,8 @@ section('§1 the family list derives from routeLaw')
 
 const declaredRoutes = PROVIDER_ID_SPACES.map(s => s.route)
 const FAMILIES = ['anthropic', ...declaredRoutes] as const
-check('the id-space table declares nine non-anthropic families', declaredRoutes.length === 9, String(declaredRoutes.length))
-check('ten families with the anthropic home lane', FAMILIES.length === 10, FAMILIES.join(','))
+check('the id-space table declares eleven non-anthropic families', declaredRoutes.length === 11, String(declaredRoutes.length))
+check('twelve families with the anthropic home lane', FAMILIES.length === 12, FAMILIES.join(','))
 check('no duplicate family ids', new Set(FAMILIES).size === FAMILIES.length)
 
 const EXEMPLARS: Record<string, string> = {
@@ -51,6 +51,8 @@ const EXEMPLARS: Record<string, string> = {
   openai: 'gpt-5.2',
   moonshot: 'kimi-k3',
   deepseek: 'deepseek-chat',
+  xai: 'grok-4.7',
+  meta: 'muse-spark-1.3',
   'openai-compat': 'compat/operator-model',
   openrouter: 'openrouter/qwen/qwen3-coder',
   gemini: 'gemini-3-pro',

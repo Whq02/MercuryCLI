@@ -16,7 +16,7 @@ function section(title: string): void {
 }
 
 console.log('============================================================')
-console.log(' PROVAUTH — the auth flow matrix: ten families × six arms')
+console.log(' PROVAUTH — the auth flow matrix: twelve families × six arms')
 console.log('============================================================')
 
 for (const key of [
@@ -166,7 +166,7 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
   },
 }
 
-check('the family set is the resolver’s eleven (or the grid grew and the cells below must follow)', families.length === 11, families.join(', '))
+check('the family set is the resolver’s twelve (including Anthropic)', families.length === 12, families.join(', '))
 {
   let driven = 0
   let absent = 0
@@ -296,7 +296,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
   check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
   check(
-    'the /logins catalogue carries the nine sign-in families (anthropic as claudeai+console)',
+    'the /logins catalogue carries the ten sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
       ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'].join('|'),
     rows.join('|'),
@@ -306,7 +306,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
   )
   check(
-    "the nine sign-in families parse a /logins focus (anthropic → 'claudeai')",
+    "the ten sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
       (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'] as const).every(
         family => loginFamilyFocusFor(family) === family,

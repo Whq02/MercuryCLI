@@ -17,6 +17,10 @@ for (const key of [
   'GEMINI_API_KEY',
   'HF_TOKEN',
   'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
+  'XAI_MANAGEMENT_API_KEY',
+  'MODEL_API_KEY',
+  'META_API_KEY',
   'MOONSHOT_API_KEY',
   'KIMI_API_KEY',
   'CLAUDE_CODE_OAUTH_TOKEN',
@@ -142,7 +146,7 @@ section('§0 signed out everywhere: no list, every off-grammar id is unrecognise
   }
   check('the grammar still answers a typed id with no list: kimi-k3 · deepseek-v4-pro · gpt-5.6-sol · gemini-3-pro', declaredRouteOf('kimi-k3') === 'moonshot' && declaredRouteOf('deepseek-v4-pro') === 'deepseek' && declaredRouteOf('gpt-5.6-sol') === 'openai' && declaredRouteOf('gemini-3-pro') === 'gemini')
   const order = (idSpaces as { LIVE_LIST_FAMILIES?: readonly string[] }).LIVE_LIST_FAMILIES
-  check('the seam walks the five bare-id families in the fixed order moonshot · deepseek · meta · openai · gemini', order?.join(',') === 'moonshot,deepseek,meta,openai,gemini', String(order?.join(',')))
+  check('the seam walks the six bare-id families in the fixed order moonshot · deepseek · xai · meta · openai · gemini', order?.join(',') === 'moonshot,deepseek,xai,meta,openai,gemini', String(order?.join(',')))
 }
 
 for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {
@@ -194,6 +198,29 @@ section('§grammar: provenance outranks the prefix, and a qualified namespace ou
   check('an absent id stays absence; a first-party id stays first-party', classifyModelRoute('').kind === 'absence' && declaredRouteOf('claude-sonnet-5') === 'anthropic')
   signOut('moonshot')
   resetAll()
+}
+
+for (const lane of [
+  { family: 'xai', key: 'XAI_API_KEY', baseKey: 'MERCURY_XAI_API_BASE', id: 'grok-fixture-live', group: 'Mercury — xAI models' },
+  { family: 'meta', key: 'MODEL_API_KEY', baseKey: 'MERCURY_META_API_BASE', id: 'muse-spark-fixture-live', group: 'Mercury — Meta models' },
+]) {
+  const owner = lane.family === 'xai'
+    ? await import('../../src/services/providers/xai/xaiCatalogue.ts').then(module => ({ reset: module.__resetXaiCatalogueForTest, refresh: module.refreshXaiCatalogue, ids: module.cachedLiveIds }))
+    : await import('../../src/services/providers/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue, ids: module.cachedLiveIds }))
+  process.env[lane.baseKey] = `http://127.0.0.1:1/${lane.family}/v1`
+  process.env[lane.key] = `${lane.family}-fixture-key`
+  owner.reset()
+  await owner.refresh({ force: true, fetchImpl: (async () => Response.json(openaiList([lane.id]))) as typeof fetch })
+  check(`${lane.family}: the credential-scoped live set holds the unknown supported model`, owner.ids().has(lane.id) && declaredRouteOf(lane.id) === lane.family)
+  check(`${lane.family}: the fetched row paints only in its own group`, getModelOptions().some(row => row.group === lane.group && row.value === lane.id && !row.unavailable))
+  const validation = await validateModel(lane.id)
+  check(`${lane.family}: its typed model road admits the fetched id`, validation.valid, validation.error)
+  const dispatch = await dispatchOf(lane.id)
+  check(`${lane.family}: the exact-id road uses its own backend`, dispatch === `${lane.family}:${lane.id}`, dispatch)
+  process.env[lane.key] = `${lane.family}-other-fixture-key`
+  check(`${lane.family}: another key cannot borrow the first key's live provenance`, owner.ids().size === 0)
+  delete process.env[lane.key]
+  owner.reset()
 }
 
 section('§seams, source-shaped')

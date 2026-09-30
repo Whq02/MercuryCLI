@@ -29,6 +29,10 @@ for (const key of [
   'GEMINI_API_KEY',
   'HF_TOKEN',
   'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
+  'XAI_MANAGEMENT_API_KEY',
+  'MODEL_API_KEY',
+  'META_API_KEY',
   'MOONSHOT_API_KEY',
   'KIMI_API_KEY',
   'CLAUDE_CODE_OAUTH_TOKEN',
@@ -108,12 +112,26 @@ const LIVE_LIST = { object: 'list', data: [
 ] }
 type Mode = { kind: 'list'; body: unknown } | { kind: 'hold' } | { kind: 'refuse'; status: number }
 let mode: Mode = { kind: 'list', body: LIVE_LIST }
+const addedLists = {
+  xai: { id: 'grok-4.7', next: 'grok-fixture-next', key: 'XAI_API_KEY', base: 'MERCURY_XAI_API_BASE', requests: 0, ids: ['grok-4.7'] },
+  meta: { id: 'muse-spark-1.3', next: 'muse-spark-fixture-next', key: 'MODEL_API_KEY', base: 'MERCURY_META_API_BASE', requests: 0, ids: ['muse-spark-1.3'] },
+}
 let requests = 0
 let releaseHeld: (() => void) | null = null
 const ledger = join(scratch, 'wire.jsonl')
 writeFileSync(ledger, '')
 const fixture = createServer((req, res) => {
   const path = new URL(req.url ?? '/', 'http://fixture').pathname
+  for (const [family, lane] of Object.entries(addedLists)) {
+    if (req.method === 'GET' && path === `/${family}/v1/models`) {
+      lane.requests++
+      const authorized = req.headers.authorization === `Bearer ${KEY}`
+      appendFileSync(ledger, JSON.stringify({ method: req.method, path, status: authorized ? 200 : 401, at: Date.now() }) + '\n')
+      res.writeHead(authorized ? 200 : 401, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(authorized ? { object: 'list', data: lane.ids.map((id, index) => ({ id, object: 'model', owned_by: family, created: index + 1 })) } : { error: { message: 'fixture refuses the credential' } }))
+      return
+    }
+  }
   const isList = req.method === 'GET' && path === '/models'
   const authorized = req.headers.authorization === `Bearer ${KEY}`
   const answer = (status: number, body: unknown): void => {
@@ -319,6 +337,32 @@ try {
     check('no key: the open sends nothing and the attach row leads the block', requests === before && found && focusOf(out.frame()) === 'DeepSeek — attach a key', `requests ${requests - before} · focus "${focusOf(out.frame())}"`)
     out.unmount()
     process.env.DEEPSEEK_API_KEY = KEY
+  }
+
+  for (const [family, lane] of Object.entries(addedLists)) {
+    const owner = family === 'xai'
+      ? await import('../../src/services/providers/xai/xaiCatalogue.ts').then(module => ({ reset: module.__resetXaiCatalogueForTest, refresh: module.refreshXaiCatalogue }))
+      : await import('../../src/services/providers/meta/metaCatalogue.ts').then(module => ({ reset: module.__resetMetaCatalogueForTest, refresh: module.refreshMetaCatalogue }))
+    process.env[lane.base] = `${BASE}/${family}/v1`
+    process.env[lane.key] = KEY
+    const title = ` ${family.toUpperCase()} · `
+    for (const band of BANDS) {
+      owner.reset()
+      lane.ids = [lane.id]
+      await owner.refresh({ force: true })
+      lane.ids = [lane.next, lane.id]
+      const before = lane.requests
+      const picker = await mount(lane.id, band)
+      await until(() => headingOf(picker.frame(), title).endsWith('2 live'), 3000)
+      const frame = picker.frame()
+      check(`${family} ${tag(band)}: opening the cached catalogue reads its own wire once and paints the changed live count`, lane.requests === before + 1 && headingOf(frame, title).endsWith('2 live'), `${lane.requests - before} requests; ${headingOf(frame, title)}`)
+      check(`${family} ${tag(band)}: the fetched new row is selectable and its changed-list notice names its own family`, linesOf(frame).some(line => line.includes(lane.next) || (line.includes('…') && line.includes(lane.next.slice(0, 16)))) && frame.toLowerCase().includes(`${family} — the live list changed; rows updated`), frame)
+      check(`${family} ${tag(band)}: the new family block fits the terminal`, fits(frame, band.columns, band.rows))
+      file(`${family}-${tag(band)}-refreshed`, frame)
+      picker.unmount()
+    }
+    delete process.env[lane.key]
+    owner.reset()
   }
 
   section('§5 the seam, source-shaped: every picker in the /model surface opens the DeepSeek road beside the other families')

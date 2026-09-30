@@ -31,6 +31,8 @@ const KIMI_TOKEN = 'fixture-kimi-access-token-0001'
 const STORED_KEYS = {
   zai: 'zz-fixture-zai-coding-plan-key-YtbT',
   deepseek: 'zz-fixture-deepseek-stored-key-dsk1',
+  xai: 'zz-fixture-xai-stored-key-xai1',
+  meta: 'zz-fixture-meta-stored-key-mta1',
   compat: 'zz-fixture-compat-stored-key-cmp1',
   openrouterMinted: 'zz-fixture-openrouter-minted-key-orm1',
 }
@@ -42,6 +44,8 @@ const ENV_KEYS: Record<string, string> = {
   GEMINI_API_KEY: 'zz-fixture-gemini-env-key-gem1',
   MOONSHOT_API_KEY: 'zz-fixture-moonshot-env-key-msk1',
   DEEPSEEK_API_KEY: 'zz-fixture-deepseek-env-key-dsk2',
+  XAI_API_KEY: 'zz-fixture-xai-env-key-xai2',
+  MODEL_API_KEY: 'zz-fixture-meta-env-key-mta2',
   MERCURY_COMPAT_API_KEY: 'zz-fixture-compat-env-key-cmp2',
   HF_TOKEN: 'zz-fixture-huggingface-env-token-hft1',
   MERCURY_LOCAL_API_KEY: 'zz-fixture-local-env-key-loc1',
@@ -55,7 +59,7 @@ const SCRATCH_ROOT = process.env.MERCURY_CONFIG_DIR?.trim() || tmpdir()
 mkdirSync(SCRATCH_ROOT, { recursive: true })
 const HOME = mkdtempSync(join(SCRATCH_ROOT, 'identity-line-'))
 for (const name of Object.keys(process.env)) {
-  if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|AWS_|AZURE_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
+  if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|XAI_|META_|MODEL_API_KEY$|HF_|HUGGINGFACE_|AWS_|AZURE_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
 }
 Object.assign(process.env, {
   HOME,
@@ -72,7 +76,7 @@ Object.assign(process.env, {
   LANG: 'en_GB.UTF-8',
   LC_ALL: 'en_GB.UTF-8',
 })
-for (const name of ['MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_OAUTH_BASE', 'MERCURY_HUGGINGFACE_ROUTER_BASE']) process.env[name] = 'http://127.0.0.1:1'
+for (const name of ['MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_XAI_API_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE', 'MERCURY_META_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_OAUTH_BASE', 'MERCURY_HUGGINGFACE_ROUTER_BASE']) process.env[name] = 'http://127.0.0.1:1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const originalNow = Date.now
 const originalLocale = Date.prototype.toLocaleString
@@ -178,7 +182,7 @@ function writeStores(leg: Leg): void {
     writeJson(FILES.gemini, { version: 1, client: { clientId: 'fixture-google-client' }, tokens: { accessToken: 'fixture-google-access-token-0001', refreshToken: 'fixture-google-refresh-token-0001', accessTokenExpiresAtMs: NOW + 30 * DAY } })
     writeJson(FILES.moonshot, { version: 1, tokens: { accessToken: KIMI_TOKEN, refreshToken: 'fixture-kimi-refresh-token-0001', accessTokenExpiresAtMs: NOW + 30 * DAY }, region: 'global' })
     writeJson(FILES.openrouter, { version: 1, minted: { key: STORED_KEYS.openrouterMinted, mintedAtMs: NOW } })
-    writeJson(FILES.secrets, { version: 1, zaiApiKey: STORED_KEYS.zai, zaiKeyPlan: 'coding', deepseekApiKey: STORED_KEYS.deepseek, compatApiKey: STORED_KEYS.compat })
+    writeJson(FILES.secrets, { version: 1, zaiApiKey: STORED_KEYS.zai, zaiKeyPlan: 'coding', deepseekApiKey: STORED_KEYS.deepseek, xaiApiKey: STORED_KEYS.xai, metaApiKey: STORED_KEYS.meta, compatApiKey: STORED_KEYS.compat })
     process.env.MERCURY_COMPAT_BASE_URL = 'http://127.0.0.1:1'
   } else if (leg === 'keys') {
     writeJson(FILES.credentials, {})
@@ -238,6 +242,8 @@ const FAMILIES: Family[] = [
   { id: 'gemini', model: 'gemini-2.5-pro', popupTitle: 'Gemini usage', railTitle: { accounts: 'Gemini usage', keys: 'API usage', nothing: 'Gemini usage' }, line: { accounts: 'Google account (OAuth)', keys: 'API key · …gem1', nothing: NO_ACCOUNT }, account: {} },
   { id: 'moonshot', model: 'kimi-k2', popupTitle: 'Moonshot usage', railTitle: { accounts: 'Kimi usage', keys: 'API usage', nothing: 'Moonshot usage' }, line: { accounts: KIMI_LABEL, keys: 'API key · …msk1', nothing: NO_ACCOUNT }, account: {} },
   { id: 'deepseek', model: 'deepseek-chat', popupTitle: 'DeepSeek usage', railTitle: { accounts: 'API usage', keys: 'API usage', nothing: 'DeepSeek usage' }, line: { accounts: 'API key · …dsk1', keys: 'API key · …dsk2', nothing: NO_ACCOUNT }, account: {} },
+  { id: 'xai', model: 'grok-4.7', popupTitle: 'xAI usage', railTitle: { accounts: 'API usage', keys: 'API usage', nothing: 'xAI usage' }, line: { accounts: 'API key · …xai1', keys: 'API key · …xai2', nothing: NO_ACCOUNT }, account: {} },
+  { id: 'meta', model: 'muse-spark-1.3', popupTitle: 'Meta usage', railTitle: { accounts: 'API usage', keys: 'API usage', nothing: 'Meta usage' }, line: { accounts: 'API key · …mta1', keys: 'API key · …mta2', nothing: NO_ACCOUNT }, account: {} },
   { id: 'openai-compat', model: 'compat/fixture-model', popupTitle: 'Custom endpoint usage', railTitle: { accounts: 'API usage', keys: 'API usage', nothing: 'Endpoint usage' }, line: { accounts: 'API key · …cmp1', keys: 'API key · …cmp2', nothing: NO_ACCOUNT }, account: {} },
   { id: 'huggingface', model: 'huggingface/fixture/model', popupTitle: 'Hugging Face usage', railTitle: { accounts: 'Hugging Face usage', keys: 'API usage', nothing: 'Hugging Face usage' }, line: { accounts: HF_USERNAME, keys: 'token · …hft1', nothing: NO_ACCOUNT }, account: { accounts: true } },
   { id: 'local', model: 'local/fixture-model', popupTitle: 'Local models usage', railTitle: { accounts: 'Local usage', keys: 'Local usage', nothing: 'Local usage' }, line: { accounts: 'Ollama 0.11.4 (1)', keys: 'Ollama 0.11.4 (1) · key (env)', nothing: NO_ACCOUNT }, account: {} },

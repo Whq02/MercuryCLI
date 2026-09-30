@@ -174,6 +174,7 @@ src/services/providers/deferralProbe.ts :: cache :: keyed-by-truth
 src/services/providers/gemini/geminiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/huggingface/huggingfaceCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/local/localDiscovery.ts :: cached :: ttl-bounded
+src/services/providers/meta/metaCatalogue.ts :: cache :: ttl-bounded
 src/services/providers/moonshot/moonshotCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/providers/moonshot/moonshotCatalogue.ts :: identityMemo :: keyed-by-truth
 src/services/providers/openai/openaiCatalogue.ts :: catalogueCache :: ttl-bounded
@@ -182,6 +183,7 @@ src/services/providers/openrouter/openrouterCatalogue.ts :: catalogueCache :: tt
 src/services/providers/providerIdentityLine.ts :: memo :: ttl-bounded
 src/services/providers/providerUsage.ts :: activeUsageCache :: ttl-bounded
 src/services/providers/providerUsage.ts :: otherUsagesCache :: ttl-bounded
+src/services/providers/xai/xaiCatalogue.ts :: catalogueCache :: ttl-bounded
 src/services/repoHost/repoHost.ts :: cache :: ttl-bounded
 src/services/samples/facts.ts :: cached :: keyed-by-truth
 src/services/saturn/sessionScheduleBridge.ts :: rosterCache :: subscription-fed

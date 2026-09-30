@@ -35,6 +35,8 @@ const usage = {
   'glm-5.2': record(300, 30, 0.03),
   'kimi-k3': record(400, 40, 0.04),
   'deepseek-v4-pro': record(500, 50, 0.05),
+  'grok-4.7': record(1200, 120, 0.12),
+  'muse-spark-1.3': record(1300, 130, 0.13),
   'compat/qwen3-32b': record(600, 60, 0),
   'openrouter/anthropic/claude-opus-5': record(700, 70, 0.07),
   'gemini-3-pro': record(800, 80, 0.08),
@@ -66,7 +68,9 @@ expectLine('OpenRouter (the carrier slug counts here, never Anthropic)', /^OpenR
 expectLine('Gemini', /^Gemini: 800 in · 80 out/)
 expectLine('Hugging Face', /^Hugging Face: 900 in · 90 out/)
 expectLine('Local models (keyless ⇒ no USD tail)', /^Local models: 1,100 in · 110 out$/)
-check('exactly nine lane lines — one per engine family that ran', lines.length === 9, String(lines.length))
+expectLine('xAI', /^xAI: 1,200 in · 120 out/)
+expectLine('Meta', /^Meta: 1,300 in · 130 out/)
+check('exactly eleven lane lines — one per engine family that ran', lines.length === 11, String(lines.length))
 check('the Anthropic ledger row never becomes a lane line (the subscriber/pool sentence owns it)', !lines.some(l => /^Anthropic/.test(l)))
 
 const quiet = nonAnthropicLaneLines({
