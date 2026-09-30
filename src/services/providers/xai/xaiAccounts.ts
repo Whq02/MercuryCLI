@@ -1,4 +1,4 @@
-import { readStoredXaiApiKey } from '../../../utils/router/providerSecrets.js'
+import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../../../utils/router/providerSecrets.js'
 
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'
 
@@ -10,8 +10,17 @@ export function xaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): str
   return `${xaiApiBase(env)}/chat/completions`
 }
 
-export function xaiBalanceUrl(_env: NodeJS.ProcessEnv = process.env): string {
-  throw new Error('xAI credits are not reported by the inference API')
+export function xaiManagementBase(env: NodeJS.ProcessEnv = process.env): string {
+  return (env['MERCURY_XAI_MANAGEMENT_API_BASE']?.trim() || 'https://management-api.x.ai').replace(/\/+$/, '')
+}
+
+export function resolveXaiManagementApiKey(
+  env: Record<string, string | undefined> = process.env,
+): { key: string; source: 'env' | 'stored' } | undefined {
+  const key = env.XAI_MANAGEMENT_API_KEY?.trim()
+  if (key) return { key, source: 'env' }
+  const stored = readStoredXaiManagementApiKey()
+  return stored ? { key: stored, source: 'stored' } : undefined
 }
 
 export function resolveXaiApiKey(

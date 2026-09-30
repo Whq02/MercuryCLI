@@ -6,7 +6,7 @@ export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly strin
   zai: ['ZAI_API_KEY'],
   moonshot: ['MOONSHOT_API_KEY'],
   deepseek: ['DEEPSEEK_API_KEY'],
-  xai: ['XAI_API_KEY'],
+  xai: ['XAI_API_KEY', 'XAI_MANAGEMENT_API_KEY'],
   openrouter: ['OPENROUTER_API_KEY'],
   gemini: ['GEMINI_API_KEY', 'GOOGLE_API_KEY'],
   huggingface: ['HF_TOKEN'],

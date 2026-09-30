@@ -303,7 +303,7 @@ const ENGINE_USAGE_PRESENTATION: Record<
   xai: {
     title: 'xAI usage',
     connect: '/logins xai adds an xAI API key (XAI_API_KEY works too)',
-    limitsNote: 'Usage bills to your xAI team\'s prepaid credits; the xAI API exposes no usage or balance endpoint an API key can read — console.x.ai is the view.',
+    limitsNote: 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
   },
   'openai-compat': {
     title: 'Custom endpoint usage',
@@ -648,6 +648,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         spend={spend}
         {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
+      {figuresLine(usage) !== undefined ? <Text dimColor>{figuresLine(usage)}</Text> : null}
       {section.family.credentialed && usage.readerNote !== undefined ? (
         <Text dimColor>{usage.readerNote}</Text>
       ) : null}
