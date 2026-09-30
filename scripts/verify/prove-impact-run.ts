@@ -19,6 +19,7 @@ cpSync(join(ROOT, 'scripts/gate/run-suite.sh'), join(estate, 'scripts/gate/run-s
 mkdirSync(join(estate, 'scripts', 'lib'), { recursive: true })
 cpSync(join(ROOT, 'scripts/lib/suite-env.sh'), join(estate, 'scripts/lib/suite-env.sh'))
 cpSync(join(ROOT, 'scripts/lib/firstRunSeed.ts'), join(estate, 'scripts/lib/firstRunSeed.ts'))
+for (const file of ['process-ledger.sh', 'proofScratch.cjs', 'proofBrowser.cjs']) cpSync(join(ROOT, 'scripts/lib', file), join(estate, 'scripts/lib', file))
 for (const [suite, rc] of [
   ['a', 0],
   ['b', 0],

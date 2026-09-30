@@ -46,7 +46,26 @@ const ALIAS_PINS: Array<[string, string]> = [
 
 const MESSAGE_ROW_READERS = ['src/utils/attachments/types.ts', 'src/fabric/validate.ts', 'scripts/transcript-rows/prove-crew-messages-kind.ts', 'scripts/tools/prove-runaway-output-seams.ts', 'scripts/idiom/prove-body-shape-registry.ts', 'scripts/crew/prove-crew-messages-row.ts', 'scripts/attachments/goldens.json']
 
+const XAI_BILLING_SURFACES = new Set([
+  'docs/ENGINES.md',
+  'scripts/providers/lib/xai-usage-fixture.ts',
+  'scripts/providers/prove-usage-owner-per-family.ts',
+  'scripts/providers/prove-xai-usage.ts',
+  'scripts/settings/prove-provider-neutral-surfaces.ts',
+  'scripts/settings/prove-xai-usage-popup.ts',
+  'scripts/ui/fixtures/face-logins/logins-120x40-key-xai-management.txt',
+  'scripts/ui/fixtures/face-logins/logins-80x24-key-xai-management.txt',
+  'src/components/RouterKeyEntry.tsx',
+  'src/components/Settings/Usage.tsx',
+  'src/services/providers/providerUsage.ts',
+  'src/services/providers/xai/xaiLogin.ts',
+  'src/services/providers/xai/xaiUsageState.ts',
+  'src/skills/bundled/provider-apis/references/chat-completions.md',
+  'src/substrate/flagRegistry.ts',
+])
+const XAI_BILLING_WORDS = /team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the team|xAI's team|These are team/i
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
+  [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
   [new RegExp(J('(?:\\b', 'team', ": ')?[Cc]laude[ _]", 'Team'), ''), 'the Claude Team plan, the provider\'s name for it, and the plan table row keyed by its wire value'],
   [new RegExp(J('claude_', 'team'), ''), 'the plan on the wire'],
@@ -63,6 +82,15 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('team', 'mate_mailbox'), ''), 'the old kind of the message row: the attachment types read it through their own table, the validator keeps its shape row, the pins drive it', rel => MESSAGE_ROW_READERS.includes(rel)],
 ]
 
+function crewRemainder(rel: string, line: string): string {
+  let rest = line
+  for (const [re, , where] of NOT_THE_CREW) {
+    if (where !== undefined && !where(rel)) continue
+    rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
+  }
+  return rest
+}
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
@@ -72,6 +100,12 @@ function check(label: string, cond: boolean, detail = ''): void {
 console.log('============================================================')
 console.log(' no old spelling remains: every tracked file says crew, except the alias tables and the excluded areas')
 console.log('============================================================')
+
+check('the xAI billing vocabulary is excused only on its named surfaces',
+  !OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team_id teamId /teams/ team usage')) &&
+    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'team usage')))
+check('a crew spelling beside xAI billing words still trips',
+  OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team usage; ask a teammate')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
 const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md', 'CLAUDE.md'].includes(f))
@@ -100,11 +134,7 @@ for (const rel of scoped) {
     const line = lines[i]!
     if (!OLD.test(line)) continue
     if (rel === 'src/substrate/flagRegistry.ts' && /formerly: '[A-Z_]+'/.test(line) && !OLD.test(line.replace(/formerly: '[A-Z_]+'/g, ''))) continue
-    let rest = line
-    for (const [re, , where] of NOT_THE_CREW) {
-      if (where !== undefined && !where(rel)) continue
-      rest = rest.replace(new RegExp(re.source, re.flags.includes('g') ? re.flags : `${re.flags}g`), ' ')
-    }
+    const rest = crewRemainder(rel, line)
     if (!OLD.test(rest)) continue
     hits.push({ file: rel, line: i + 1, text: line.trim().slice(0, 140) })
   }

@@ -76,7 +76,7 @@ Object.assign(process.env, {
   LANG: 'en_GB.UTF-8',
   LC_ALL: 'en_GB.UTF-8',
 })
-for (const name of ['MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_XAI_API_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE', 'MERCURY_META_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_OAUTH_BASE', 'MERCURY_HUGGINGFACE_ROUTER_BASE']) process.env[name] = 'http://127.0.0.1:1'
+const FIXTURE_BASES = ['MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_XAI_API_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE', 'MERCURY_META_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE']
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const originalNow = Date.now
 const originalLocale = Date.prototype.toLocaleString
@@ -84,7 +84,13 @@ Date.now = () => NOW
 Date.prototype.toLocaleString = function (_locales, options) {
   return originalLocale.call(this, 'en-GB', { ...options, timeZone: 'UTC', hourCycle: 'h23' })
 }
+const anthropicUsage = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-oauth-usage.json'), 'utf8')).body
+const openaiUsage = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/openai-chatgpt-usage.json'), 'utf8')).body
+const huggingfaceWhoami = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json'), 'utf8')).user
+openaiUsage.rate_limit.primary_window.reset_at = (NOW + 2 * 3_600_000) / 1000
+openaiUsage.rate_limit.primary_window.reset_after_seconds = 7200
 const utilization = {
+  extra_usage: anthropicUsage.extra_usage,
   five_hour: { utilization: 52, resets_at: new Date(NOW + 2 * 3_600_000).toISOString() },
   seven_day: { utilization: 49, resets_at: new Date(NOW + 3 * DAY).toISOString() },
   seven_day_fable: { utilization: 46, resets_at: new Date(NOW + 3 * DAY).toISOString() },
@@ -98,6 +104,7 @@ const kimiUsages = {
 }
 const ollamaTags = { models: [{ name: 'fixture-model:latest', model: 'fixture-model:latest', details: { family: 'llama', parameter_size: '8B', quantization_level: 'Q4_K_M' } }] }
 const requests: string[] = []
+const unserved: string[] = []
 const server = Bun.serve({
   hostname: '127.0.0.1',
   port: 0,
@@ -107,14 +114,23 @@ const server = Bun.serve({
     const bearer = request.headers.get('authorization')
     if (request.method === 'GET' && path === '/api/oauth/usage' && bearer === `Bearer ${ANTHROPIC_TOKEN}`) return Response.json(utilization)
     if (request.method === 'GET' && path === '/usages' && bearer === `Bearer ${KIMI_TOKEN}`) return Response.json(kimiUsages)
+    if (request.method === 'GET' && path === '/wham/usage' && bearer === 'Bearer fixture-chatgpt-access-token-0001') return Response.json(openaiUsage)
+    if (request.method === 'GET' && path === '/api/whoami-v2' && ['Bearer fixture-hf-access-token-0001', `Bearer ${ENV_KEYS.HF_TOKEN}`].includes(bearer ?? '')) return Response.json({ ...huggingfaceWhoami, name: HF_USERNAME })
+    if (request.method === 'GET' && path === '/models') return Response.json({ data: [], models: [] })
+    if (request.method === 'GET' && path === '/key') return Response.json({ data: { usage: 2, limit: 20, limit_remaining: 18, is_free_tier: false } })
+    if (request.method === 'GET' && path === '/user/balance') return Response.json({ is_available: true, balance_infos: [{ currency: 'USD', total_balance: '18.00', granted_balance: '0.00', topped_up_balance: '18.00' }] })
+    if (request.method === 'GET' && path === '/users/me/balance') return Response.json({ code: 0, data: { available_balance: 18, voucher_balance: 0, cash_balance: 18 } })
+    if (request.method === 'GET' && path === '/api/monitor/usage/quota/limit') return Response.json({ success: true, data: { limits: [{ type: 'TOKENS_LIMIT', percentage: 25, unit: 3, number: 5, nextResetTime: NOW + 2 * 3_600_000 }] } })
     if (request.method === 'GET' && path === '/api/tags') return Response.json(ollamaTags)
     if (request.method === 'GET' && path === '/api/version') return Response.json({ version: '0.11.4' })
     if (request.method === 'GET' && path === '/api/ps') return Response.json({ models: [] })
     if (request.method === 'POST' && path === '/api/show') return Response.json({ capabilities: ['tools'], model_info: {} })
+    unserved.push(`${request.method} ${path}`)
     return new Response(null, { status: 404 })
   },
 })
 const FIXTURE_ORIGIN = `http://127.0.0.1:${server.port}`
+for (const name of FIXTURE_BASES) process.env[name] = FIXTURE_ORIGIN
 process.env.ANTHROPIC_BASE_URL = FIXTURE_ORIGIN
 process.env.MERCURY_MOONSHOT_CODING_BASE = FIXTURE_ORIGIN
 const escaped: string[] = []
@@ -183,11 +199,11 @@ function writeStores(leg: Leg): void {
     writeJson(FILES.moonshot, { version: 1, tokens: { accessToken: KIMI_TOKEN, refreshToken: 'fixture-kimi-refresh-token-0001', accessTokenExpiresAtMs: NOW + 30 * DAY }, region: 'global' })
     writeJson(FILES.openrouter, { version: 1, minted: { key: STORED_KEYS.openrouterMinted, mintedAtMs: NOW } })
     writeJson(FILES.secrets, { version: 1, zaiApiKey: STORED_KEYS.zai, zaiKeyPlan: 'coding', deepseekApiKey: STORED_KEYS.deepseek, xaiApiKey: STORED_KEYS.xai, metaApiKey: STORED_KEYS.meta, compatApiKey: STORED_KEYS.compat })
-    process.env.MERCURY_COMPAT_BASE_URL = 'http://127.0.0.1:1'
+    process.env.MERCURY_COMPAT_BASE_URL = FIXTURE_ORIGIN
   } else if (leg === 'keys') {
     writeJson(FILES.credentials, {})
     Object.assign(process.env, ENV_KEYS)
-    process.env.MERCURY_COMPAT_BASE_URL = 'http://127.0.0.1:1'
+    process.env.MERCURY_COMPAT_BASE_URL = FIXTURE_ORIGIN
   } else {
     writeJson(FILES.credentials, {})
   }
@@ -451,7 +467,10 @@ section('the fixture never left the loopback box')
   check('the Kimi usages endpoint was read with the fixture bearer', requests.includes('GET /usages'), JSON.stringify(requests.slice(0, 12)))
   check('the local server was discovered on the fixture', requests.includes('GET /api/tags'), JSON.stringify(requests.slice(0, 12)))
   check('no request reached an OAuth profile endpoint while painting', !requests.some(path => path.includes('/api/oauth/profile')), JSON.stringify(requests))
-  check('no fetch escaped the loopback box', escaped.every(url => url.startsWith('http://127.0.0.1:1/')), JSON.stringify(escaped.slice(0, 6)))
+  check('the ChatGPT usage endpoint was read with the fixture bearer', requests.includes('GET /wham/usage'), JSON.stringify(requests))
+  check('the Hugging Face account facts came from the fixture Hub', requests.includes('GET /api/whoami-v2'), JSON.stringify(requests))
+  check('every loopback request has a fixture response', unserved.length === 0, JSON.stringify(unserved))
+  check('no fetch escaped the loopback box', escaped.length === 0, JSON.stringify(escaped))
   if (rejections.length > 0) console.log(`[note] unhandled rejections while painting: ${JSON.stringify(rejections.slice(0, 4))}`)
 }
 

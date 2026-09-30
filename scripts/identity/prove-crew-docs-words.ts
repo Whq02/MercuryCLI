@@ -17,6 +17,12 @@ const NOT_THE_CREW: RegExp[] = [
 const ROOT_SURFACES = ['README.md', 'AGENTS.md', 'MERCURY.md', 'CONTRIBUTING.md']
 type Row = { path: string; fragment: string | null; why: string }
 const ALLOW: Row[] = [
+  ...[
+    'an API key for Grok, with an optional management key for the team',
+    "the DeepSeek and Moonshot balances, xAI's team",
+    'For xAI, the inference key identifies the team',
+    'postpaid invoice preview and spending limit where enabled. These are team',
+  ].map(fragment => ({ path: 'docs/ENGINES.md', fragment, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'docs/releases/', fragment: null, why: 'past release pages stay as published' },
   { path: 'docs/SESSIONS.md', fragment: 'the way a team commits', why: "the people's team committing its config, not the crew" },
 ]

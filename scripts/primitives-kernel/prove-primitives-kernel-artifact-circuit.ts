@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -36,13 +36,16 @@ interface Cert {
 }
 
 function runDoctor(args: string[]): Cert {
-  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', ...args], {
+  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', ...args], {
     cwd: outsideCwd,
     encoding: 'utf8',
     timeout: 240_000,
     env: { ...process.env, MERCURY_CONFIG_DIR: configDir },
   })
-  return JSON.parse(raw) as Cert
+  if (result.error) throw result.error
+  const cert = JSON.parse(result.stdout) as Cert
+  check('doctor exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
+  return cert
 }
 
 function findCheck(cert: Cert, id: string): Check | undefined {

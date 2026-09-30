@@ -9,6 +9,7 @@ import {
 import {
   activeSourceUsage,
   openaiObservedWindowViews,
+  openaiSubscriptionCredits,
   usageWindowLabel,
   type ActiveUsageReads,
 } from '../../src/services/providers/providerUsage.js'
@@ -149,6 +150,24 @@ section('3 · activeSourceUsage — lane → kind → SHAPE, switch re-derives')
     JSON.stringify(oai),
   )
   check('no reached limit ⇒ no limited field', oai.limited === undefined)
+  check('an unstated subscription credit balance stays unreported', oai.credits?.state === 'unreported')
+  const creditReads: ActiveUsageReads = {
+    ...baseReads,
+    activeEntry: p => (p === 'openai' ? subEntry('openai') : undefined),
+    openaiObserved: () => ({
+      ...baseReads.openaiObserved!(),
+      credits: { hasCredits: true, unlimited: false, balance: '62500', source: 'endpoint', observedAtMs: 555 },
+    }),
+  }
+  const credited = activeSourceUsage({ model: 'gpt-5.6-sol', reads: creditReads })
+  const credits = openaiSubscriptionCredits(creditReads)
+  check(
+    'the subscription arm and credit owner report the endpoint balance without a currency',
+    credits.state === 'reported' && credits.display === '62,500' && credits.compact === '62.5k' &&
+      credits.source === 'endpoint' && credits.observedAtMs === 555 &&
+      JSON.stringify(credited.credits) === JSON.stringify(credits),
+    JSON.stringify(credited.credits),
+  )
 
   const oaiLimited = activeSourceUsage({
     model: 'gpt-5.6-sol',
@@ -279,8 +298,9 @@ section('4 · structural — two slots, honest absences, one owner, both seams')
     usageTab.includes('openaiObservedWindowViews()'),
   )
   check(
-    'settings: the honest OpenAI absence line exists (no fabricated meter)',
-    usageTab.includes('no usage signal observed from the account source yet'),
+    'settings: before any observation the OpenAI absence names the endpoint and reply roads',
+    usageTab.includes('no usage signal observed yet — this tab reads the ChatGPT usage endpoint;') &&
+      usageTab.includes('GPT replies also update the meter.'),
   )
   const { usageColumns } = await import('../../src/components/Settings/Usage.js')
   check(

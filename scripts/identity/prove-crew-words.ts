@@ -30,6 +30,19 @@ const LOG_CALLEE = /^(?:logForDebugging|logError|logEvent|logWarn|logInfo|debugL
 
 type Row = { path: string; fragment: string | null; why: string }
 const ALLOW: Row[] = [
+  ...[
+    ['src/components/RouterKeyEntry.tsx', 'the API key identifies the team'],
+    ['src/components/Settings/Usage.tsx', 'the team’s prepaid credits'],
+    ['src/services/providers/providerUsage.ts', 'a management key unlocks the team balance'],
+    ['src/services/providers/providerUsage.ts', 'team usage ('],
+    ['src/services/providers/xai/xaiLogin.ts', 'its metadata identifies the team whose usage is read'],
+    ['src/services/providers/xai/xaiLogin.ts', 'team usage confirmed'],
+    ['src/services/providers/xai/xaiLogin.ts', '/usage reads the team meter'],
+    ['src/services/providers/xai/xaiUsageState.ts', "console.x.ai's settings page unlocks the team usage meter"],
+    ['src/services/providers/xai/xaiUsageState.ts', 'API key team lookup'],
+    ['src/services/providers/xai/xaiUsageState.ts', 'check the key and its team permissions; /logins xai'],
+    ['src/substrate/flagRegistry.ts', 'xAI Management API base for team billing reads'],
+  ].map(([path, fragment]) => ({ path: path!, fragment: fragment!, why: "xAI's billing account, not a Mercury crew" })),
   { path: 'src/tools/', fragment: null, why: "a tool's prompt.ts is its instructions to the model, not a screen" },
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
   { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Agent tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },

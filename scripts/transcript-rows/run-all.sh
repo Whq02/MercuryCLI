@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/ink/** src/utils/cockpit/**
 # gate-watch: docs/TERMINAL-PROFILE.md scripts/ui/motion-menu-stills.ts
 set -uo pipefail
