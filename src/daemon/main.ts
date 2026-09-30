@@ -133,7 +133,8 @@ import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
-import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync } from './planeRecords.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
+import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
@@ -321,6 +322,13 @@ async function daemonRun(args: string[]): Promise<void> {
   let handoverPredecessor: number | null = null
   let handover: HandoverStateV1 | null = null
   let stopLockBeat: (() => void) | null = null
+  let planeServedByOther: PlaneOwnerV1 | null = null
+  let birthsInFlight = 0
+  let sessionless = initialSessionlessState()
+  const noteHosted = (): void => {
+    if (!sessionless.hosted) sessionless = { ...sessionless, hosted: true }
+  }
+  let stopSessionlessBeat: (() => void) | null = null
   let stopSaturnTicker: (() => void) | null = null
   let roster: TaskRoster | null = null
   const dispatchDrains: DispatchDrainHandle[] = []
@@ -461,6 +469,7 @@ async function daemonRun(args: string[]): Promise<void> {
             console.error(
               `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
             )
+            noteHosted()
             if (roster !== null) onSeatSpawned(runnerId, roster)
           },
         }),
@@ -608,6 +617,14 @@ async function daemonRun(args: string[]): Promise<void> {
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners().size} live session(s) until they finish`)
       }
       const handoverRef = handover
+      const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
+        birthsInFlight++
+        try {
+          return await door()
+        } finally {
+          birthsInFlight--
+        }
+      }
       const concourseAdmitHandler = makeConcourseAdmitHandler({
         roster: () => roster ?? undefined,
         ...warmAdmitDoors,
@@ -616,6 +633,7 @@ async function daemonRun(args: string[]): Promise<void> {
           console.error(
             `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
           )
+          noteHosted()
           if (roster !== null) onSeatSpawned(runnerId, roster)
         },
       })
@@ -637,9 +655,9 @@ async function daemonRun(args: string[]): Promise<void> {
         isReady: () => ready,
         whenReady: () => readyPromise,
         nudgeAgent: agentName => idleNudges.get(agentName)?.(),
-        crewSpawn: crewSpawnHandler,
-        concourseAdmit: concourseAdmitHandler,
-        concourseDispatch: concourseDispatchHandler,
+        crewSpawn: (...args) => countBirth(() => crewSpawnHandler(...args)),
+        concourseAdmit: (...args) => countBirth(() => concourseAdmitHandler(...args)),
+        concourseDispatch: (...args) => countBirth(() => concourseDispatchHandler(...args)),
         concourseWithdraw: clientMessageId => concourseDispatchHandler.withdraw(clientMessageId),
         concourseWarm: req => ensureWarmRunner(req, warmDeps),
         warmRunnerCount: () => warmRunnerCount(),
@@ -1108,6 +1126,7 @@ async function daemonRun(args: string[]): Promise<void> {
                 takeBack = sameBuildTree(deployed, bootBuildTree) && !sameBuildTree(deployed, foreign.buildTree)
               }
             }
+            planeServedByOther = foreignOwner && !takeBack ? foreign : null
             if (foreignOwner && !takeBack) return
             if (takeBack) {
               // eslint-disable-next-line no-console
@@ -1177,6 +1196,39 @@ async function daemonRun(args: string[]): Promise<void> {
         armedBeat.unref?.()
         stopArmedBeat = () => clearInterval(armedBeat)
       }
+      {
+        let lastHold = ''
+        const sessionlessBeat = setInterval(() => {
+          if (restartAfterTeardown) return
+          const live = liveWorkers().live
+          const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
+          const candidate = live === 0 && birthsInFlight === 0 && (sessionless.hosted || superseded) && !foreground && (superseded || !(persist || currentOwnerPid === null))
+          const scheduled = candidate && !superseded ? Object.values(readSessionWorkers()).some(r => r.endedAt === undefined && (r.schedules?.length ?? 0) > 0) : false
+          const verdict = decideSessionlessExit(sessionless, {
+            live,
+            birthsInFlight,
+            superseded,
+            persist: persist || currentOwnerPid === null,
+            foreground,
+            scheduled,
+            now: Date.now(),
+          })
+          sessionless = verdict.state
+          if (!verdict.exit) {
+            if (candidate && verdict.hold !== lastHold && !verdict.hold.startsWith('empty for')) {
+              lastHold = verdict.hold
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] no session is hosted here — held by: ${verdict.hold}`)
+            }
+            return
+          }
+          // eslint-disable-next-line no-console
+          console.error(`[daemon] ${verdict.why} — shutting down`)
+          requestShutdown('sessionless')
+        }, SESSIONLESS_EXIT_BEAT_MS)
+        sessionlessBeat.unref?.()
+        stopSessionlessBeat = () => clearInterval(sessionlessBeat)
+      }
       if (handoverPredecessor !== null && supervisorLock === null) {
         const lockBeat = setInterval(() => {
           void (async () => {
@@ -1241,6 +1293,7 @@ async function daemonRun(args: string[]): Promise<void> {
               onSpawned: (runnerId, _spec, pid) => {
                 // eslint-disable-next-line no-console
                 console.error(`[daemon] schedule-born session admitted: ${runnerId} (pid ${pid})`)
+            noteHosted()
             if (roster !== null) onSeatSpawned(runnerId, roster)
               },
             }),
@@ -1323,6 +1376,7 @@ async function daemonRun(args: string[]): Promise<void> {
       stopPlaneHeal?.()
       stopArmedBeat?.()
       stopLockBeat?.()
+      stopSessionlessBeat?.()
       stopSaturnTicker?.()
       const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
       if (supersededBy !== null && restartAfterTeardown) {
