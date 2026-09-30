@@ -61,6 +61,31 @@ export function allToolsResolved(
   )
 }
 
+function rowToolUseIDs(msg: RenderableMessage): string[] {
+  if (msg.type === 'grouped_tool_use') {
+    return msg.messages.flatMap(member => {
+      const first = member.message.content[0]
+      return first?.type === 'tool_use' ? [first.id] : []
+    })
+  }
+  if (msg.type !== 'assistant') return []
+  const content = msg.message.content
+  if (!Array.isArray(content)) return []
+  return content.flatMap(block => (block.type === 'tool_use' ? [block.id] : []))
+}
+
+export function toolStateMoved(
+  prev: Pick<MessageRowProps, 'message' | 'inProgressToolUseIDs' | 'lookups'>,
+  next: Pick<MessageRowProps, 'message' | 'inProgressToolUseIDs' | 'lookups'>,
+): boolean {
+  for (const id of rowToolUseIDs(next.message)) {
+    if (prev.lookups.resolvedToolUseIDs.has(id) !== next.lookups.resolvedToolUseIDs.has(id)) return true
+    if (prev.inProgressToolUseIDs.has(id) !== next.inProgressToolUseIDs.has(id)) return true
+    if (prev.lookups.toolResultByToolUseID.get(id) !== next.lookups.toolResultByToolUseID.get(id)) return true
+  }
+  return false
+}
+
 export function hasContentAfterIndex(
   messages: RenderableMessage[],
   index: number,
@@ -368,6 +393,7 @@ export function areMessageRowPropsEqual(
   if (!allToolsResolved(next.message, next.lookups.resolvedToolUseIDs)) {
     return false
   }
+  if (toolStateMoved(prev, next)) return false
   if (prev.isCursorRow !== next.isCursorRow) return false
   if (prev.cursorExpanded !== next.cursorExpanded) return false
   if (prev.clickExpanded !== next.clickExpanded) return false
