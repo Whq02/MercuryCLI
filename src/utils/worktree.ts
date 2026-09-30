@@ -113,6 +113,34 @@ async function runGit(
   return { code: result.code, stdout: result.stdout, stderr: result.stderr }
 }
 
+const creationChainByRepository = new Map<string, Promise<unknown>>()
+
+function serialiseWorktreeCreation<T>(repoRoot: string, work: () => Promise<T>): Promise<T> {
+  const key = findCanonicalGitRoot(repoRoot) ?? repoRoot
+  const previous = creationChainByRepository.get(key) ?? Promise.resolve()
+  const run = previous.then(work, work)
+  creationChainByRepository.set(
+    key,
+    run.then(
+      () => undefined,
+      () => undefined,
+    ),
+  )
+  return run
+}
+
+const GIT_LOCK_REFUSAL = /could not lock|cannot lock|unable to create '[^']*\.lock'/i
+
+const LOCK_RETRY_DELAY_MS = 500
+
+async function runWorktreeAdd(args: string[], repoRoot: string): Promise<{ code: number; stdout: string; stderr: string }> {
+  const first = await runGit(args, repoRoot)
+  if (first.code === 0 || !GIT_LOCK_REFUSAL.test(first.stderr)) return first
+  logForDebugging(`git worktree add waited on a lock and retries once: ${first.stderr.trim().split('\n')[0] ?? ''}`)
+  await sleep(LOCK_RETRY_DELAY_MS)
+  return runGit(args, repoRoot)
+}
+
 
 type CreateOrResumeResult = {
   worktreePath: string
@@ -128,7 +156,11 @@ type CreateOrResumeOptions = {
   baseFrom?: string
 }
 
-async function createOrResumeWorktree(
+function createOrResumeWorktree(repoRoot: string, slug: string, options?: CreateOrResumeOptions): Promise<CreateOrResumeResult> {
+  return serialiseWorktreeCreation(repoRoot, () => createOrResumeWorktreeNow(repoRoot, slug, options))
+}
+
+async function createOrResumeWorktreeNow(
   repoRoot: string,
   slug: string,
   options?: CreateOrResumeOptions,
@@ -154,7 +186,7 @@ async function createOrResumeWorktree(
       return { worktreePath, headCommit: sha, existed: true }
     }
     await mkdir(worktreesHome(repoRoot), { recursive: true })
-    const add = await runGit(['worktree', 'add', '--detach', worktreePath, sha], repoRoot)
+    const add = await runWorktreeAdd(['worktree', 'add', '--detach', worktreePath, sha], repoRoot)
     if (add.code !== 0) {
       throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
     }
@@ -211,7 +243,7 @@ async function createOrResumeWorktree(
   const addArgs = ['worktree', 'add', '-B', branchName, '--no-track']
   if (useSparse) addArgs.push('--no-checkout')
   addArgs.push(worktreePath, baseSha)
-  const add = await runGit(addArgs, repoRoot)
+  const add = await runWorktreeAdd(addArgs, repoRoot)
   if (add.code !== 0) {
     throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
   }

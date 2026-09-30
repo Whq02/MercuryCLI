@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import '../lib/hermetic.ts'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -158,6 +158,30 @@ const sixPinned = await Promise.allSettled(Array.from({ length: 6 }, (_, index) 
 const sixPinnedOk = fulfilled(sixPinned)
 check('six pinned creations launched together all succeed', sixPinnedOk.length === 6, refusals(sixPinned))
 check('each pinned one stands at the pin, detached', sixPinnedOk.length === 6 && sixPinnedOk.every(cut => headOf(cut.worktreePath) === local.first && isDetached(cut.worktreePath)))
+
+section('§5 a ref lock another process holds for a moment: creation waits it out')
+const lockSlug = 'agent-a3000000'
+mkdirSync(join(stale.repo, '.git', 'refs', 'heads'), { recursive: true })
+const heldLock = join(stale.repo, '.git', 'refs', 'heads', `worktree-${lockSlug}.lock`)
+writeFileSync(heldLock, '')
+const release = setTimeout(() => {
+  try {
+    unlinkSync(heldLock)
+  } catch {
+    return
+  }
+}, 300)
+enter(stale.repo)
+let lockedOutcome: Cut | null = null
+let lockedRefusal = ''
+try {
+  lockedOutcome = await createAgentWorktree(lockSlug)
+} catch (error) {
+  lockedRefusal = error instanceof Error ? error.message : String(error)
+}
+clearTimeout(release)
+check('the creation succeeds once the lock is released', lockedOutcome !== null, lockedRefusal)
+check('…at the checkout HEAD', lockedOutcome !== null && headOf(lockedOutcome.worktreePath) === stale.head)
 
 section('§6 the PR road: pull/<n>/head is fetched from origin and is the base')
 git(originWork, 'checkout', '-q', '-b', 'feature')
