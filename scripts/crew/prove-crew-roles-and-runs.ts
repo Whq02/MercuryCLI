@@ -56,6 +56,8 @@ section('§1 the runs board lists a crewmate\'s task written through the live co
 {
   const crew = tasks.getTaskListId()
   check('with no crew, the session\'s crew is keyed by its own id (the task list id)', crew === String(getSessionId()), crew)
+  tasks.setLeaderCrewName(crew)
+  check('the born crew stands once the leader registers it (as the spawn does on the first crewmate\'s row), and keeps the session id as the list id', tasks.getTaskListId() === crew, tasks.getTaskListId())
   const file = join(crewStoreRoot(), 'livecomms', `${sanitizeName(crew)}.json`)
   mkdirSync(join(crewStoreRoot(), 'livecomms'), { recursive: true })
   const now = Date.now()

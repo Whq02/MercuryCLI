@@ -19,6 +19,7 @@ import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import { getHardcodedCrewmateModelFallback } from '../../utils/swarm/crewmateModel.js'
 import { crewContextFor, resolveSpawnCrew } from '../../utils/crew/crewBirth.js'
 import { crewWorktreeSlug, resolveCrewStart } from '../../utils/crew/crewStart.js'
+import { setLeaderCrewName } from '../../utils/tasks.js'
 
 
 const DESCRIPTION_PROMPT_CHARS = 50
@@ -246,6 +247,7 @@ async function spawnInProcessStrategy(
     if (spawnResult.taskId !== undefined) unwindCrewmateSpawn(spawnResult.taskId, context.setAppStateForTasks ?? context.setAppState, errorMessage(error))
     throw error
   }
+  setLeaderCrewName(crewName)
 
   if (spawnResult.taskId && spawnResult.crewmateContext && spawnResult.abortController) {
     let settleFirstDispatch: (outcome: FirstDispatchOutcome) => void = () => {}
