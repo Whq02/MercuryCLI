@@ -15,14 +15,8 @@ import { autoCompactDisabledReason, compactionSettingsText, resolveAutoCompactWi
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
-export const OVERFLOW_RECOVERY_FLAG = 'MERCURY_OVERFLOW_RECOVERY'
-
-export function overflowRecoveryEnabled(): boolean {
-  return flagEnabled(OVERFLOW_RECOVERY_FLAG)
-}
-
 export function overflowLadderArmed(querySource: string | undefined): boolean {
-  return overflowRecoveryEnabled() && isTurnOwningQuerySource(querySource)
+  return isTurnOwningQuerySource(querySource)
 }
 
 export type OverflowEpisode = { readonly pruned: boolean; readonly folded: boolean }

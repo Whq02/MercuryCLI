@@ -143,14 +143,13 @@ section('§3 — turning off early folds leaves emergency recovery enabled')
   check('the master switch still refuses by name without folding', stopped.receipt.outcome === 'refused' && stopped.summarizeCalls === 0 && String(stopped.receipt.reason).includes('MERCURY_COMPACT=0'))
 }
 
-section('§4 — the flag off: today\'s surface, the raw failure text, no fold')
+section('§4 — the legacy recovery switch cannot disable emergency folding')
 {
   await reseed(12)
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
   const r = await drive({ id: 'ovf-4', script: ['overflow', 'reply'] })
   delete process.env.MERCURY_OVERFLOW_RECOVERY
-  const reason = String(r.receipt.reason ?? '')
-  check('refused after one call, no fold, the thrown text as the reason', r.receipt.outcome === 'refused' && r.seen.length === 1 && r.summarizeCalls === 0 && reason === 'coordinator turn failed — API Error: OpenAI stream failed (openai-context_length_exceeded) — raw sentence', reason)
+  check('the coordinator still folds once and completes after the retry', r.receipt.outcome !== 'refused' && r.seen.length === 2 && r.summarizeCalls === 1, JSON.stringify(r.receipt))
 }
 
 section('§5 — a non-overflow failure is untouched')

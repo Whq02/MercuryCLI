@@ -703,10 +703,9 @@ that headroom anyway, the turn recovers instead of ending:
 
 Each step runs at most once per stretch of work; a completed tool round
 starts a fresh one. The coordinator's chat recovers the same way. The
-provider's own refusal never becomes the reply. `MERCURY_OVERFLOW_RECOVERY=0`
-turns the recovery off. Turning Auto-compact off in `/config`, or setting
-`MERCURY_AUTO_COMPACT=0`, stops early folds, not emergency recovery: an
-overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
+provider's own refusal never becomes the reply. Turning Auto-compact off in
+`/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds, not
+emergency recovery: an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
 altogether. The failure and rapid-refill breakers still stop repeated doomed
 folds. `/doctor` names the setting or environment switch that turned folding
 off, and whether emergency folding remains available.

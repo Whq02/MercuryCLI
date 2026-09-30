@@ -14,7 +14,6 @@ import {
 } from './coordinatorKernel.js'
 import { COORDINATOR_PERSONA, COORDINATOR_PERSONA_VERSION } from './coordinatorPersona.js'
 import { coordinatorOverflowOf, coordinatorOverflowRefusal } from './coordinatorOverflow.js'
-import { overflowRecoveryEnabled } from '../compact/overflowRecovery.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { CoordinatorBoardV1 } from './coordinatorBoard.js'
 import type { CoordinatorTurnRuntime } from './coordinatorTools.js'
@@ -464,7 +463,7 @@ async function runAssistedTurnGoverned(
         proposal = await callModel(inputFor(conversation), assistModelId, runtime)
       } catch (err) {
         const overflow = coordinatorOverflowOf(err)
-        if (overflow === null || !overflowRecoveryEnabled() || event.kind !== 'operator-message') throw err
+        if (overflow === null || event.kind !== 'operator-message') throw err
         if (!flagEnabled('MERCURY_COMPACT')) throw new Error(coordinatorOverflowRefusal(overflow, 'compaction-off'))
         const compact = await import('./coordinatorCompact.js')
         const folded = await compact.summarizeCoordinatorConversation({

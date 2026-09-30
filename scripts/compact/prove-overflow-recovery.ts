@@ -376,10 +376,10 @@ section('R5 the switches — MERCURY_AUTO_COMPACT · MERCURY_COMPACT · the flag
   check('compaction off: the refusal names MERCURY_COMPACT', b.terminal.reason === 'prompt_too_long' && bText.includes('compaction is disabled (MERCURY_COMPACT=0)'), bText)
 
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
-  const c = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
+  const c = await run({ seed: seedPlain(), script: [[ping(), overflowError()], [ping(), asstText('legacy switch cannot strand the turn')]] })
   delete process.env.MERCURY_OVERFLOW_RECOVERY
-  check('flag OFF: today\'s surface — the raw error is the settled reply, terminal completed, one call', c.terminal.reason === 'completed' && c.calls.length === 1 && errorYields(c.yields).length === 1 && textOf(errorYields(c.yields)[0]).includes(OPENAI_RAW), JSON.stringify(c.terminal))
-  check('flag OFF: nothing withheld, no ladder transition, no notice', !c.events.some(e => e.kind === 'assistant_settled' && e.withheld === true) && !JSON.stringify(settledTransitions(c.events)).includes('overflow_recovery') && noticeTexts(c.yields).length === 0)
+  check('the legacy recovery switch cannot disable the emergency fold', c.terminal.reason === 'completed' && c.calls.length === 2 && errorYields(c.yields).length === 0, JSON.stringify(c.terminal))
+  check('the recovery transition and notice still explain the fold', JSON.stringify(settledTransitions(c.events)).includes('overflow_recovery') && noticeTexts(c.yields).some(t => t.includes('folding the conversation and retrying')))
 }
 
 section('R6 the failure breaker — a tripped compaction breaker refuses typed')
