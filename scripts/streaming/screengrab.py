@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
-import base64, json, sys
+import base64, json, os, subprocess, sys
 
+engine = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ui', 'vshot.py')
+preflight = subprocess.run([sys.executable, engine, '--preflight'], capture_output=True, text=True)
+if preflight.returncode != 0:
+    sys.stderr.write(preflight.stderr)
+    sys.exit(preflight.returncode)
+prefix = 'ok ' + sys.executable + ' '
+if not preflight.stdout.startswith(prefix):
+    raise RuntimeError('capture preflight returned an invalid emulator receipt')
+sys.path.insert(0, os.path.dirname(preflight.stdout[len(prefix):].strip()))
 import pyte
 
 drive, cols, rows = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
