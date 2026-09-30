@@ -200,7 +200,7 @@ export type GlobalConfig = {
   advisor?: {
     enabled?: boolean
     crewmates?: boolean
-    seats?: number
+    minutes?: number
   }
   subModels?: {
     console?: string

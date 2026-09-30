@@ -125,7 +125,20 @@ const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/utils/model/capab
 const ADVISOR_MODEL = 'claude-opus-4-8'
 const AGENT = 'agent-fixture-1'
 const DIR = mkdtempSync(join(process.env.SCRATCHPAD ?? tmpdir(), 'advisor-context-'))
-const ON5 = { enabled: true, crewmates: true, seats: 5 }
+const ON5 = { enabled: true, crewmates: true, minutes: 5 }
+const T0 = Date.parse('2026-06-19T09:00:00.000Z')
+const clock = { now: T0 }
+const now = (): number => clock.now
+const tick = (minutes: number): void => {
+  clock.now += minutes * 60_000
+}
+const MINUTE = 60_000
+const afterInterval = async (id: string, transcript: Raw[], road: Raw): Promise<unknown> => {
+  const first = await advisor.advisorTurnSettled(id, transcript as never, road as never)
+  if (first !== null) return first
+  tick((road.settings as { minutes?: number } | undefined)?.minutes ?? advisor.readAdvisorSettings().minutes)
+  return advisor.advisorTurnSettled(id, transcript as never, road as never)
+}
 
 type CallRecord = { model: string; system: string; prompt: string; effort?: string }
 const makeCall = (answers: string[] | ((n: number) => string)): { call: (args: CallRecord) => Promise<Raw>; calls: CallRecord[] } => {
@@ -150,30 +163,31 @@ const resultRow = (n: number, id: string, out: string, isError = false): Raw =>
   createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: out, ...(isError ? { is_error: true } : {}) }] as never, uuid: uuidAt(n) as never }) as unknown as Raw
 const metaRow = (n: number, words: string): Raw => createUserMessage({ content: words, isMeta: true, uuid: uuidAt(n) as never }) as unknown as Raw
 
-section('§0 the settings: off by default, ten turns, a trim-to-defaults writer beside the JEV row, the model through the /submodels store')
+section('§0 the settings: off by default, ten minutes, a trim-to-defaults writer beside the JEV row, the model through the /submodels store')
 {
   const fresh = advisor.readAdvisorSettings()
-  check('both switches off by default, every 10 turns', fresh.enabled === false && fresh.crewmates === false && fresh.seats === 10 && advisor.ADVISOR_DEFAULT_SEATS === 10, j(fresh))
+  check('both switches off by default, every 10 minutes (red on the base: ten turns)', fresh.enabled === false && fresh.crewmates === false && fresh.minutes === 10 && advisor.ADVISOR_DEFAULT_MINUTES === 10 && fresh.seats === undefined, j(fresh))
   check('nothing stored for the defaults', config.getGlobalConfig().advisor === undefined)
   const on = advisor.setAdvisorEnabled(true)
   check('advisor:on lands as the one key and leaves crewmates off', on.enabled && !on.crewmates && j(config.getGlobalConfig().advisor) === j({ enabled: true }), j(config.getGlobalConfig().advisor))
   check('old settings with only enabled true do not opt crewmates in', !advisor.advisorSettingsFromStored({ enabled: true }).crewmates)
   check('only an explicit boolean true opts crewmates in', !advisor.advisorSettingsFromStored({ enabled: true, crewmates: 'true' } as never).crewmates && !advisor.advisorSettingsFromStored({ enabled: true, crewmates: 1 } as never).crewmates)
-  const twenty = advisor.setAdvisorSeats(20)
-  check('advisorseats:20 lands beside it', twenty.seats === 20 && j(config.getGlobalConfig().advisor) === j({ enabled: true, seats: 20 }), j(config.getGlobalConfig().advisor))
-  const ten = advisor.setAdvisorSeats(10)
-  check('the default interval trims back out of the file', ten.seats === 10 && j(config.getGlobalConfig().advisor) === j({ enabled: true }), j(config.getGlobalConfig().advisor))
+  const twenty = advisor.setAdvisorMinutes(20)
+  check('advisor minutes:20 lands beside it under the minutes key', twenty.minutes === 20 && j(config.getGlobalConfig().advisor) === j({ enabled: true, minutes: 20 }), j(config.getGlobalConfig().advisor))
+  const ten = advisor.setAdvisorMinutes(10)
+  check('the default interval trims back out of the file', ten.minutes === 10 && j(config.getGlobalConfig().advisor) === j({ enabled: true }), j(config.getGlobalConfig().advisor))
   let refused = ''
   try {
-    advisor.setAdvisorSeats(0)
+    advisor.setAdvisorMinutes(0)
   } catch (error) {
     refused = String(error)
   }
-  check('the floor is one turn: 0 is refused typed, the file untouched', refused.includes('1 or more') && j(config.getGlobalConfig().advisor) === j({ enabled: true }), refused)
-  check('a hand-edited off-floor interval reads as the default', advisor.advisorSettingsFromStored({ enabled: true, seats: 0 }).seats === 10 && advisor.advisorSettingsFromStored({ seats: 2.5 }).seats === 10)
+  check('the floor is one minute: 0 is refused typed, the file untouched', refused.includes('1 or more') && refused.includes('minutes') && j(config.getGlobalConfig().advisor) === j({ enabled: true }), refused)
+  check('a hand-edited off-floor interval reads as the default', advisor.advisorSettingsFromStored({ enabled: true, minutes: 0 }).minutes === 10 && advisor.advisorSettingsFromStored({ minutes: 2.5 }).minutes === 10)
+  check("a saved turn count from an older build is not an interval: the reader never reads `seats`", advisor.advisorSettingsFromStored({ enabled: true, seats: 5 } as never).minutes === 10)
   const off = advisor.setAdvisorEnabled(false)
   check('advisor off again removes the block entirely', !off.enabled && config.getGlobalConfig().advisor === undefined, j(config.getGlobalConfig().advisor))
-  check('the ladder the /config row cycles is 5 · 10 · 20 · 50', j(advisor.ADVISOR_SEATS_LADDER) === j([5, 10, 20, 50]))
+  check('the ladder the /config row cycles is 10 · 20 · 30 · 45 · 60 minutes (red on the base: 5 · 10 · 20 · 50 turns)', j(advisor.ADVISOR_MINUTES_LADDER) === j([10, 20, 30, 45, 60]) && advisor.ADVISOR_MINUTES_FLOOR === 1 && advisor.ADVISOR_SEATS_LADDER === undefined)
   check("the advisor is a second sub-model container beside the console, with its own env pin", j(slots.SUB_MODEL_CONTAINERS) === j(['console', 'advisor']) && slots.subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL' && slots.subModelEnvVar('console') === 'MERCURY_CONSOLE_MODEL', j(slots.SUB_MODEL_CONTAINERS))
   check('unpinned, the advisor model is UNSET and answers the /submodels hint', advisor.resolveAdvisorModel().origin === 'unset')
   process.env.MERCURY_ADVISOR_MODEL = ` ${ADVISOR_MODEL}[1m] `
@@ -191,19 +205,22 @@ section('§0 the settings: off by default, ten turns, a trim-to-defaults writer 
   check("the console's identity line is untouched", consoleIdentity.includes('the Console, the side-question assistant'))
   check("the advisor's effort context says its calls run with thinking off; the console's stays the session's", j(slots.subModelEffortContext('advisor')) === j({ thinkingEnabled: false }) && j(slots.subModelEffortContext('console')) === j({}))
   check('the workload vocabulary carries the advisor beside cron', workload.WORKLOAD_ADVISOR === 'advisor' && workload.WORKLOAD_CRON === 'cron')
-  check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, crewmates: false, seats: 5 }).includes('every 5 turns') && advisor.advisorReceiptWords({ enabled: false, crewmates: false, seats: 10 }).startsWith('Advisor off'))
+  check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, crewmates: false, minutes: 5 }).includes('every 5 minutes') && advisor.advisorReceiptWords({ enabled: false, crewmates: false, minutes: 10 }).startsWith('Advisor off'))
+  check('the interval words: minutes, one of them singular', advisor.advisorIntervalWords(10) === 'every 10 minutes' && advisor.advisorIntervalWords(1) === 'every 1 minute' && advisor.advisorValueWords({ enabled: true, crewmates: false, minutes: 10 }) === 'on · every 10 minutes')
 }
 
 section('§0b seat admission: main follows Advisor, crewmates require a second opt-in, workflows never run')
 {
   for (const enabled of [false, true]) for (const crewmates of [false, true]) {
-    const settings = { enabled, crewmates, seats: 1 }
+    const settings = { enabled, crewmates, minutes: 1 }
     for (const seat of ['main', 'crewmate', 'workflow'] as const) {
       const allowed = enabled && (seat === 'main' || (seat === 'crewmate' && crewmates))
       const id = `scope-${seat}-${enabled}-${crewmates}`
       const { call, calls } = makeCall(['Check the base before the next edit.'])
-      const road = { seat, settings, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false }
+      const road = { seat, settings, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now }
       const transcript = [operatorRow(1, 'which seam?')] as never
+      await advisor.advisorTurnSettled(id, transcript, road)
+      tick(1)
       const note = await advisor.advisorTurnSettled(id, transcript, road)
       const ask = await advisor.askAdvisor(id, 'which seam?', transcript, road)
       check(`${seat}, master=${enabled}, crewmates=${crewmates}: notes and asks share admission`, allowed ? note !== null && ask.ok && calls.length === 2 : note === null && !ask.ok && calls.length === 0, j({ note, ask, calls: calls.length }))
@@ -213,12 +230,12 @@ section('§0b seat admission: main follows Advisor, crewmates require a second o
   advisor.setAdvisorCrewmates(true)
   check('opting crewmates in while master is off does not enable the master', !advisor.readAdvisorSettings().enabled && advisor.readAdvisorSettings().crewmates && advisor.advisorSeatRefusal('crewmate') !== undefined && j(config.getGlobalConfig().advisor) === j({ crewmates: true }))
   advisor.setAdvisorEnabled(true)
-  advisor.setAdvisorSeats(20)
-  check('both explicitly enabled persist beside the cadence', j(config.getGlobalConfig().advisor) === j({ enabled: true, crewmates: true, seats: 20 }))
+  advisor.setAdvisorMinutes(20)
+  check('both explicitly enabled persist beside the interval', j(config.getGlobalConfig().advisor) === j({ enabled: true, crewmates: true, minutes: 20 }))
   advisor.setAdvisorEnabled(false)
   check('master off keeps the explicit preference but closes crewmate admission', advisor.readAdvisorSettings().crewmates && advisor.advisorSeatRefusal('crewmate') !== undefined)
   advisor.setAdvisorCrewmates(false)
-  advisor.setAdvisorSeats(10)
+  advisor.setAdvisorMinutes(10)
   check('returning both switches and interval to defaults trims the whole block', config.getGlobalConfig().advisor === undefined)
 }
 
@@ -226,45 +243,53 @@ section("§1 off by default: with advisor.enabled false nothing runs — no cont
 {
   const { call, calls } = makeCall(['a note that must never be asked for'])
   let note: unknown = 'unset'
-  for (let turn = 1; turn <= 12; turn++) {
-    note = await advisor.advisorTurnSettled(AGENT, [operatorRow(1, 'hello')] as never, { call: call as never, dir: DIR })
+  for (let boundary = 1; boundary <= 12; boundary++) {
+    tick(10)
+    note = await advisor.advisorTurnSettled(AGENT, [operatorRow(1, 'hello')] as never, { call: call as never, dir: DIR, now })
   }
-  check('twelve settled turns with the advisor off: no note and no call', note === null && calls.length === 0, `note=${j(note)} calls=${calls.length}`)
+  check('twelve boundaries two hours apart with the advisor off: no note and no call', note === null && calls.length === 0, `note=${j(note)} calls=${calls.length}`)
   check('no advisor context was opened', advisor.peekAdvisorContext(AGENT) === undefined)
   check('no file was written', !existsSync(advisor.advisorContextPath(AGENT, DIR)))
 }
 
-section('§2 THE CADENCE: the counter fires at exactly `seats` turns and not before; the digest carries only the new rows; the note lands with the advisor origin')
+section('§2 THE MINUTES CLOCK: a note falls due once `minutes` have passed since the last look and not before, and is composed at the next boundary; the digest carries only the new rows; the note lands with the advisor origin (red on the base: a turn counter)')
 {
   advisor.resetAdvisorContextsForTests()
+  clock.now = T0
   const { call, calls } = makeCall(['Verify the pin on the base before you cut.', 'The second note.'])
   const transcript: Raw[] = []
-  const notes: Array<{ turn: number; note: Raw }> = []
+  const notes: Array<{ minute: number; note: Raw }> = []
   let n = 0
-  for (let turn = 1; turn <= 12; turn++) {
-    transcript.push(operatorRow(++n, `operator line ${turn}`))
-    transcript.push(replyRow(++n, `reply ${turn}`))
-    const note = await advisor.advisorTurnSettled(AGENT, transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-    if (note !== null) notes.push({ turn, note: note as unknown as Raw })
-    if (turn < 5) check(`turn ${turn}: no note yet, no call`, note === null && calls.length === 0, `note=${j(note)} calls=${calls.length}`)
+  const road = { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now }
+  for (let minute = 0; minute <= 12; minute++) {
+    if (minute > 0) tick(1)
+    transcript.push(operatorRow(++n, `operator line ${minute}`))
+    transcript.push(replyRow(++n, `reply ${minute}`))
+    const note = await advisor.advisorTurnSettled(AGENT, transcript as never, road)
+    if (note !== null) notes.push({ minute, note: note as unknown as Raw })
+    if (minute < 5) check(`minute ${minute}: no note yet, no call`, note === null && calls.length === 0, `note=${j(note)} calls=${calls.length}`)
   }
-  check('notes at exactly turns 5 and 10 in twelve turns (red on the base: no advisor)', j(notes.map(x => x.turn)) === j([5, 10]) && calls.length === 2, j(notes.map(x => x.turn)))
+  check('notes at exactly minutes 5 and 10 of the thirteen boundaries — five minutes after the context opened, then five after the first note (red on the base: turns)', j(notes.map(x => x.minute)) === j([5, 10]) && calls.length === 2, j(notes.map(x => x.minute)))
+  const opened = advisor.peekAdvisorContext(AGENT)!
+  check('the context records when it was opened and the last look, both on the seam clock', opened.openedAt === T0 && opened.lookedAt === T0 + 10 * MINUTE && advisor.advisorClockStart(opened) === T0 + 10 * MINUTE, j({ openedAt: opened.openedAt, lookedAt: opened.lookedAt }))
+  check('the due test by the seam: not due at 4 minutes 59 seconds, due at 5 minutes, and a one-minute floor', !advisor.advisorNoteDue(opened, 5, T0 + 15 * MINUTE - 1000) && advisor.advisorNoteDue(opened, 5, T0 + 15 * MINUTE) && advisor.advisorNoteDue(opened, 0, T0 + 11 * MINUTE) && !advisor.advisorNoteDue(opened, 0, T0 + 11 * MINUTE - 1))
   const first = calls[0]!
-  check("the first digest carries the ten rows of turns 1–5, rendered as the transcript reads", first.prompt.includes('[operator] operator line 1') && first.prompt.includes('[agent] reply 5') && !first.prompt.includes('operator line 6'), first.prompt.slice(0, 400))
+  check("the first digest carries the twelve rows of minutes 0–5, rendered as the transcript reads", first.prompt.includes('[operator] operator line 0') && first.prompt.includes('[agent] reply 5') && !first.prompt.includes('operator line 6'), first.prompt.slice(0, 400))
   check('the first call carries the fixed system prompt, addressed to the agent, never the operator', first.system === advisor.ADVISOR_SYSTEM_PROMPT && first.system.includes('never address the operator') && first.system.includes(`at most ${advisor.ADVISOR_NOTE_MAX_LINES} lines`))
   check('the first call has no earlier notes to show', first.prompt.includes('no earlier notes'))
   const second = calls[1]!
-  check('the second digest carries ONLY the rows since the first note (turns 6–10), never turns 1–5 again', second.prompt.includes('[operator] operator line 6') && second.prompt.includes('[agent] reply 10') && !second.prompt.includes('operator line 5') && !second.prompt.includes('reply 1\n'), second.prompt.slice(0, 600))
+  check('the second digest carries ONLY the rows since the first note (minutes 6–10), never minutes 0–5 again', second.prompt.includes('[operator] operator line 6') && second.prompt.includes('[agent] reply 10') && !second.prompt.includes('operator line 5') && !second.prompt.includes('reply 1\n'), second.prompt.slice(0, 600))
   check("the second call shows the advisor its own first note as memory", second.prompt.includes('[your note') && second.prompt.includes('Verify the pin on the base before you cut.'), second.prompt.slice(0, 600))
   const note1 = notes[0]!.note
   const origin = note1.origin as Raw
   check("the note's words are the fixture's answer, clamped to the line cap", note1.text === 'Verify the pin on the base before you cut.', j(note1))
-  check("the note's origin: { kind: 'advisor', model, seats, at } — a MessageOrigin member the guard admits", rows.isAdvisorOrigin(origin) && origin.kind === 'advisor' && origin.model === ADVISOR_MODEL && origin.seats === 5 && typeof origin.at === 'string' && !rows.isSaturnOrigin(origin), j(origin))
+  check("the note's origin: { kind: 'advisor', model, minutes, at } — a MessageOrigin member the guard admits, the stamp on the seam clock", rows.isAdvisorOrigin(origin) && origin.kind === 'advisor' && origin.model === ADVISOR_MODEL && origin.minutes === 5 && origin.seats === undefined && origin.at === new Date(T0 + 5 * MINUTE).toISOString() && !rows.isSaturnOrigin(origin), j(origin))
   check('the guard refuses the other origins and a bare kind', !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: 'x' }) && !rows.isAdvisorOrigin(undefined))
   const command = advisor.advisorNoteQueueCommand(note1 as never, uuidAt(900))
   check("the queue command is the Saturn door's shape: a prompt at later, slash-safe, the origin on it, never isMeta, no workload on the agent's turn", command.mode === 'prompt' && command.priority === 'later' && command.skipSlashCommands === true && command.isMeta === undefined && command.workload === undefined && j(command.origin) === j(origin) && command.value === note1.text, j(command))
   const context = advisor.peekAdvisorContext(AGENT)!
-  check('the advisor context holds digest+note pairs for both notes, with the cursor on the last row shown', context.rows.map(r => r.kind).join(',') === 'digest,note,digest,note' && context.cursor === uuidAt(20), j({ kinds: context.rows.map(r => r.kind), cursor: context.cursor }))
+  check('the advisor context holds digest+note pairs for both notes, with the cursor on the last row shown', context.rows.map(r => r.kind).join(',') === 'digest,note,digest,note' && context.cursor === uuidAt(22), j({ kinds: context.rows.map(r => r.kind), cursor: context.cursor }))
+  check('the rows carry no turn number any more (the memory has no turn counter to record)', context.rows.every(r => !('turn' in r)), j(context.rows.map(r => Object.keys(r))))
   const mid = text.wrapCommandText(note1.text, origin as never)
   check("a mid-turn drain frames the note as advice from the advisor, never as 'the operator sent a new message'", mid.startsWith(text.ADVISOR_NOTE_HEAD) && mid.includes(note1.text) && mid.endsWith(text.ADVISOR_NOTE_TAIL) && !mid.includes('The operator sent a new message'), mid.slice(0, 200))
   check("the head says it is not the operator; the tail says it is advice, never an instruction", text.ADVISOR_NOTE_HEAD.includes('not the operator') && text.ADVISOR_NOTE_TAIL.includes('advice, not an instruction'))
@@ -281,7 +306,7 @@ section('§2b the digest: tool calls with their results clipped, meta rows and a
     resultRow(3, 'tu_2', long),
     resultRow(4, 'tu_2', 'boom', true),
     metaRow(5, 'a hidden system nudge'),
-    { ...operatorRow(6, 'an earlier advisor note'), origin: { kind: 'advisor', model: 'm', seats: 5, at: 'now' } },
+    { ...operatorRow(6, 'an earlier advisor note'), origin: { kind: 'advisor', model: 'm', minutes: 5, at: 'now' } },
     replyRow(7, 'done'),
   ]
   const digest = advisor.renderAgentDigest(messages as never, undefined)
@@ -308,13 +333,17 @@ section('§3 the memory on disk: beside the transcript under <session>/advisor/<
   const lines = readFileSync(file, 'utf8').split('\n').filter(l => l.trim() !== '')
   check('one head line, then one line per row, JSON each', lines.length === 5 && (JSON.parse(lines[0]!) as Raw).kind === 'head' && lines.slice(1).every(l => typeof (JSON.parse(l) as Raw).text === 'string'), j(lines.map(l => (JSON.parse(l) as Raw).kind)))
   advisor.resetAdvisorContextsForTests()
-  const resumed = await advisor.loadAdvisorContext(AGENT, { dir: DIR })
-  check('a fresh process reads the four rows back with the cursor on the last row shown', resumed.rows.length === 4 && resumed.cursor === uuidAt(20) && resumed.rows[3]!.text === 'The second note.', j({ rows: resumed.rows.length, cursor: resumed.cursor }))
-  check('the counter starts again after a resume (the memory carries, the cadence restarts)', resumed.turns === 0)
+  const resumed = await advisor.loadAdvisorContext(AGENT, { dir: DIR, now })
+  check('a fresh process reads the four rows back with the cursor on the last row shown', resumed.rows.length === 4 && resumed.cursor === uuidAt(22) && resumed.rows[3]!.text === 'The second note.', j({ rows: resumed.rows.length, cursor: resumed.cursor }))
+  check("the clock resumes from the last note's own stamp on disk, not from the moment the context was opened (red on the base: a turn counter starting again)", resumed.openedAt === clock.now && resumed.lookedAt === undefined && advisor.advisorLastNoteAt(resumed) === T0 + 10 * MINUTE && advisor.advisorClockStart(resumed) === T0 + 10 * MINUTE, j({ openedAt: resumed.openedAt, start: advisor.advisorClockStart(resumed) }))
   const { call, calls } = makeCall(['note after resume'])
-  const more = [operatorRow(21, 'after the resume'), replyRow(22, 'ok')]
-  for (let turn = 1; turn <= 5; turn++) await advisor.advisorTurnSettled(AGENT, more as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check('after the resume the advisor remembers its earlier notes and reads only the rows after its cursor', calls.length === 1 && calls[0]!.prompt.includes('The second note.') && calls[0]!.prompt.includes('[operator] after the resume') && !calls[0]!.prompt.includes('operator line 1'), calls[0]?.prompt.slice(0, 500))
+  const more = [operatorRow(23, 'after the resume'), replyRow(24, 'ok')]
+  const road = { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now }
+  const early = await advisor.advisorTurnSettled(AGENT, more as never, road)
+  check('two minutes after the last note the resumed context is not due: no call', clock.now === T0 + 12 * MINUTE && early === null && calls.length === 0, `${clock.now - T0} ms`)
+  tick(3)
+  await advisor.advisorTurnSettled(AGENT, more as never, road)
+  check('five minutes after it the advisor remembers its earlier notes and reads only the rows after its cursor', calls.length === 1 && calls[0]!.prompt.includes('The second note.') && calls[0]!.prompt.includes('[operator] after the resume') && !calls[0]!.prompt.includes('operator line 1'), calls[0]?.prompt.slice(0, 500))
 }
 
 section('§4 TWO CLOCKS: the advisor context compacts on ITS gauge (the advisor model\'s window), never the agent\'s — agent 8k, advisor 64k')
@@ -365,22 +394,25 @@ section('§5 THE ASK ROAD: the agent\'s question plus the digest since the last 
   advisor.resetAdvisorContextsForTests()
   const { call, calls } = makeCall(['Check the base first: run the pin on 89017923b before you edit.'])
   const transcript = [operatorRow(1, 'fix the flaky pin'), replyRow(2, 'I will start with the seam')]
-  const off = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: { enabled: false, crewmates: false, seats: 10 }, model: ADVISOR_MODEL, dir: DIR })
+  const off = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: { enabled: false, crewmates: false, minutes: 10 }, model: ADVISOR_MODEL, dir: DIR, now })
   check('with the advisor off the ask answers a typed refusal and spends nothing', !off.ok && off.reason.includes('off') && calls.length === 0, j(off))
-  const empty = await advisor.askAdvisor('agent-ask', '   ', transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  const empty = await advisor.askAdvisor('agent-ask', '   ', transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now })
   check('an empty question is refused typed', !empty.ok && empty.reason.includes('empty'))
-  const asked = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  const asked = await advisor.askAdvisor('agent-ask', 'am I on the right seam?', transcript as never, { call: call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now })
   check("the reply is the fixture's answer, with the model named", asked.ok && asked.reply === 'Check the base first: run the pin on 89017923b before you edit.' && asked.model === ADVISOR_MODEL, j(asked))
   const prompt = calls[0]!.prompt
   check('the prompt carries the digest since the last note and the question, under the same system prompt', prompt.includes('[operator] fix the flaky pin') && prompt.includes('<the_agents_question>\nam I on the right seam?') && calls[0]!.system === advisor.ADVISOR_SYSTEM_PROMPT && prompt.includes(advisor.ADVISOR_ASK_PROMPT_TAIL), prompt.slice(0, 400))
   const context = advisor.peekAdvisorContext('agent-ask')!
   check('the ask is recorded in the advisor context like a note: digest · question · reply, the cursor advanced', context.rows.map(r => r.kind).join(',') === 'digest,question,reply' && context.cursor === uuidAt(2), j(context.rows.map(r => r.kind)))
+  check("an ask is not a look: the interval's clock still runs from the context's opening, so the ask neither delays nor hastens the next note", context.lookedAt === undefined && advisor.advisorClockStart(context) === context.openedAt)
   const { call: call2, calls: calls2 } = makeCall(['note after the ask'])
-  for (let turn = 1; turn <= 5; turn++) await advisor.advisorTurnSettled('agent-ask', transcript as never, { call: call2 as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check('the next scheduled note sees nothing new after the ask consumed the rows (no call) — the ask and the cadence share one cursor', calls2.length === 0)
+  const road2 = { call: call2 as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now }
+  tick(5)
+  const nothingNew = await advisor.advisorTurnSettled('agent-ask', transcript as never, road2)
+  check('the due note sees nothing new after the ask consumed the rows: no call, and the look is not stamped — the ask and the clock share one cursor', nothingNew === null && calls2.length === 0 && context.lookedAt === undefined)
   transcript.push(replyRow(3, 'after the ask'))
-  for (let turn = 1; turn <= 5; turn++) await advisor.advisorTurnSettled('agent-ask', transcript as never, { call: call2 as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check('and the next note after new rows remembers the question and the reply', calls2.length === 1 && calls2[0]!.prompt.includes('[the agent asked') && calls2[0]!.prompt.includes('[your reply') && calls2[0]!.prompt.includes('[agent] after the ask'), calls2[0]?.prompt.slice(0, 500))
+  await advisor.advisorTurnSettled('agent-ask', transcript as never, road2)
+  check('"due" stayed true until a row appeared: the very next boundary with a new row composes the note, remembering the question and the reply (red on the base: a counter that had to fill again)', calls2.length === 1 && context.lookedAt === clock.now && calls2[0]!.prompt.includes('[the agent asked') && calls2[0]!.prompt.includes('[your reply') && calls2[0]!.prompt.includes('[agent] after the ask'), calls2[0]?.prompt.slice(0, 500))
 }
 
 section("§6 THE LIVE CALL through the one routing seam: the workload bucket carries the advisor's tokens; a refused model is silent")
@@ -401,13 +433,18 @@ section("§6 THE LIVE CALL through the one routing seam: the workload bucket car
   check('a refused advisor model answers ok:false with the reason, never a throw', !refused.ok && refused.reason.length > 0, j(refused))
   advisor.resetAdvisorContextsForTests()
   const transcript = [operatorRow(1, 'hello'), replyRow(2, 'hi')]
+  const road = { settings: ON5, model: ADVISOR_MODEL, dir: DIR, now }
   let note: unknown = 'unset'
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-refused', transcript as never, { settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check('on the cadence a refused advisor is silent: no note, nothing in the agent\'s context', note === null)
+  note = await afterInterval('agent-refused', transcript, road)
+  check('on the clock a refused advisor is silent: no note, nothing in the agent\'s context', note === null)
   const context = advisor.peekAdvisorContext('agent-refused')!
-  check('and nothing is recorded in its memory for the refused round', context.rows.length === 0)
+  check('and nothing is recorded in its memory for the refused round, though the look is stamped so the refusal is not repeated at the next boundary', context.rows.length === 0 && context.lookedAt === clock.now)
+  wire.length = 0
+  note = await advisor.advisorTurnSettled('agent-refused', transcript as never, road)
+  check('the very next boundary asks nothing: the interval runs from the refused look', note === null && wire.length === 0)
   fixture = { kind: 'text', text: 'carry on' }
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-refused', transcript as never, { settings: ON5, model: ADVISOR_MODEL, dir: DIR })
+  tick(5)
+  note = await advisor.advisorTurnSettled('agent-refused', transcript as never, road)
   check("an advisor that answers 'carry on' lands no row in the agent's context, but its memory records the look", note === null && context.rows.map(r => r.kind).join(',') === 'digest,note', j(context.rows.map(r => r.kind)))
   advisor.resetAdvisorContextsForTests()
   config.saveGlobalConfig(c => {
@@ -418,7 +455,7 @@ section("§6 THE LIVE CALL through the one routing seam: the workload bucket car
   const unset = advisor.setAdvisorEnabled(true)
   let unsetNote: unknown = 'unset'
   const { call, calls } = makeCall(['never'])
-  for (let turn = 1; turn <= 10; turn++) unsetNote = await advisor.advisorTurnSettled('agent-unset', transcript as never, { call: call as never, dir: DIR })
+  for (let boundary = 1; boundary <= 3; boundary++) unsetNote = await afterInterval('agent-unset', transcript, { call: call as never, dir: DIR, now })
   check('advisor on but no model pinned: silent with a debug line, no call (the choice is the operator\'s)', unset.enabled && unsetNote === null && calls.length === 0)
   advisor.setAdvisorEnabled(false)
 }
@@ -443,16 +480,15 @@ section('§7 THE CALL HAS ROOM TO ANSWER: an always-thinking advisor that thinks
   advisor.resetAdvisorContextsForTests()
   config.saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, advisor: 'claude-opus-5-5' } }))
   advisor.setAdvisorEnabled(true)
-  advisor.setAdvisorSeats(5)
+  advisor.setAdvisorMinutes(20)
   const dial = slots.setSubModelEffort('advisor', 'max')
   check("the operator's dial: the advisor container's effort set to max on claude-opus-5-5", dial.ok && advisor.advisorDispatchEffort('claude-opus-5-5') === 'max', j(dial))
   wire.length = 0
   fixture = { kind: 'think', tokens: THINK, text: NOTE }
   const transcript = [operatorRow(1, 'four decisions for the release'), replyRow(2, 'which two are the most dangerous?')]
-  let note: unknown = 'unset'
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-dial', transcript as never, { dir: DIR })
+  const note = await afterInterval('agent-dial', transcript, { dir: DIR, now })
   const landed = note as Raw | null
-  check("the operator's own condition — the saved model, the saved dial, the real call — lands the note on the fifth turn (red on the base: null)", landed !== null && landed.text === NOTE && (landed.origin as Raw).model === 'claude-opus-5-5', j(note))
+  check("the operator's own condition — the saved model, the saved dial, the saved twenty minutes, the real call — lands the note once the interval has passed (red on the base: null)", landed !== null && landed.text === NOTE && (landed.origin as Raw).model === 'claude-opus-5-5' && (landed.origin as Raw).minutes === 20, j(note))
   check('that request carried output_config.effort max and the 128,000 ceiling, no thinking key', wire.length === 1 && j(wire[0]!.body.output_config) === j({ effort: 'max' }) && wire[0]!.body.max_tokens === 128_000 && !('thinking' in wire[0]!.body), j({ output_config: wire[0]?.body.output_config, max: wire[0]?.body.max_tokens }))
   const callSource = readFileSync(join(ROOT, 'src/services/advisor/advisorCall.ts'), 'utf8')
   check('by source: the advisor call carries no wall clock of its own (a thinking model is never cut) and no output cap of its own', !callSource.includes('AbortSignal.timeout(') && !callSource.includes('maxOutputTokensOverride'), callSource.split('\n').filter(l => l.includes('AbortSignal.timeout(') || l.includes('maxOutputTokensOverride')).join(' | '))
@@ -475,18 +511,24 @@ section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is 
   advisor.resetAdvisorContextsForTests()
   const once = makeCall(['', 'The real note, on the second ask.'])
   let note: unknown = 'unset'
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-once-more', transcript as never, { call: once.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  note = await afterInterval('agent-once-more', transcript, { call: once.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet, now })
   check('an empty answer is asked once more and the second answer lands as the note — exactly two calls, no quiet row (red on the base: one call, an empty note)', (note as Raw | null)?.text === 'The real note, on the second ask.' && once.calls.length === 2 && quiets.length === 0, j({ note, calls: once.calls.length, quiets: quiets.length }))
   check('the second ask carries the same prompt as the first', once.calls.length === 2 && once.calls[0]!.prompt === once.calls[1]!.prompt)
   advisor.resetAdvisorContextsForTests()
   const twice = makeCall(['', '', 'never a third answer'])
   note = 'unset'
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-twice', transcript as never, { call: twice.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  const twiceRoad = { call: twice.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet, now }
+  note = await afterInterval('agent-twice', transcript, twiceRoad)
   check('empty twice: exactly two calls, never a third, and no note (red on the base: one call)', note === null && twice.calls.length === 2, j({ note, calls: twice.calls.length }))
   const quiet = quiets[0]
-  check("and the round hands the chat ONE quiet verdict with the advisor origin, marked empty, whose words say the advisor had nothing to say (red on the base: nothing)", quiets.length === 1 && quiet !== undefined && rows.isAdvisorOrigin(quiet.origin) && (quiet.origin as Raw).model === ADVISOR_MODEL && (quiet.origin as Raw).seats === 5 && quiet.empty === true && quiet.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && advisor.advisorQuietWords(quiet as never) === 'had nothing to say this round — answered with no text, twice', j(quiets))
+  check("and the round hands the chat ONE quiet verdict with the advisor origin, marked empty, whose words say the advisor had nothing to say (red on the base: nothing)", quiets.length === 1 && quiet !== undefined && rows.isAdvisorOrigin(quiet.origin) && (quiet.origin as Raw).model === ADVISOR_MODEL && (quiet.origin as Raw).minutes === 5 && (quiet.origin as Raw).at === new Date(clock.now).toISOString() && quiet.empty === true && quiet.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && advisor.advisorQuietWords(quiet as never) === 'had nothing to say this round — answered with no text, twice', j(quiets))
   const twiceContext = advisor.peekAdvisorContext('agent-twice')!
-  check("the advisor's memory records nothing for the quiet round and its cursor stays, so the next round reads the same rows again", twiceContext.rows.length === 0 && twiceContext.cursor === undefined, j({ rows: twiceContext.rows.length, cursor: twiceContext.cursor }))
+  check("the advisor's memory records nothing for the quiet round and its cursor stays, so the next look reads the same rows again", twiceContext.rows.length === 0 && twiceContext.cursor === undefined, j({ rows: twiceContext.rows.length, cursor: twiceContext.cursor }))
+  note = await advisor.advisorTurnSettled('agent-twice', transcript as never, twiceRoad)
+  check('the quiet round counts as the look: the very next boundary asks nothing more and paints no second quiet row (the interval runs from the look, not from a note)', note === null && twice.calls.length === 2 && quiets.length === 1 && twiceContext.lookedAt === clock.now)
+  tick(5)
+  note = await advisor.advisorTurnSettled('agent-twice', transcript as never, twiceRoad)
+  check('five minutes on, the same rows are read again and the advisor answers this time', (note as Raw | null)?.text === 'never a third answer' && twice.calls.length === 3 && quiets.length === 1, j({ note, calls: twice.calls.length }))
   const minted = typeof advisor.createAdvisorQuietMessage === 'function'
   check('the service mints the quiet row and its words (red on the base: no such factory)', minted)
   const row = minted ? (advisor.createAdvisorQuietMessage(quiet as never) as unknown as Raw) : ({} as Raw)
@@ -498,10 +540,10 @@ section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is 
   wire.length = 0
   fixture = { kind: 'refuse', status: 401, message: 'no such key for this seat' }
   advisor.resetAdvisorContextsForTests()
-  for (let turn = 1; turn <= 5; turn++) note = await advisor.advisorTurnSettled('agent-refused-quiet', transcript as never, { settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet })
+  note = await afterInterval('agent-refused-quiet', transcript, { settings: ON5, model: ADVISOR_MODEL, dir: DIR, onQuiet, now })
   const refusalWords = minted && quiets.length === 1 ? advisor.advisorQuietWords(quiets[0] as never) : ''
   check('a refusal is asked once, never twice, and its quiet row carries the refusal words, not the empty words', note === null && wire.length === 1 && quiets.length === 1 && quiets[0]!.empty === false && refusalWords.startsWith('had nothing to say this round — ') && refusalWords.includes('no such key for this seat'), j({ wire: wire.length, quiets }))
-  const long = minted ? advisor.advisorQuietWords({ origin: { kind: 'advisor', model: ADVISOR_MODEL, seats: 5, at: 'now' }, reason: 'x'.repeat(500), empty: false } as never) : ''
+  const long = minted ? advisor.advisorQuietWords({ origin: { kind: 'advisor', model: ADVISOR_MODEL, minutes: 5, at: 'now' }, reason: 'x'.repeat(500), empty: false } as never) : ''
   check(`a long reason is clipped to ${String(advisor.ADVISOR_QUIET_REASON_CLIP)} characters on the row`, minted && long.length === 'had nothing to say this round — '.length + advisor.ADVISOR_QUIET_REASON_CLIP + 1 && long.endsWith('…'), String(long.length))
   wire.length = 0
   fixture = { kind: 'think', tokens: 200_000, text: 'never reached' }
@@ -514,11 +556,12 @@ section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is 
   const askTwice = makeCall(['', ''])
   const unanswered = await advisor.askAdvisor('agent-ask-twice', 'am I on the right seam?', transcript as never, { call: askTwice.call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
   check("empty twice on the ask road names it in the reason the tool result carries — the agent is told, never left in silence", !unanswered.ok && unanswered.reason === advisor.ADVISOR_EMPTY_TWICE_REASON && askTwice.calls.length === 2, j(unanswered))
-  const crew = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, { call: makeCall(['', '']).call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check("a crewmate's round answers the quiet verdict as its own word, distinct from silent (nothing new) and from delivered", ['counted', 'quiet'].includes(crew), crew)
-  let crewVerdict: string = crew
-  for (let turn = 1; turn <= 4; turn++) crewVerdict = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, { call: makeCall(['', '']).call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR })
-  check("on the fifth round the crewmate's road reads quiet and stashes no note", crewVerdict === 'quiet' && advisor.peekAdvisorNotes('agent-crew-quiet').length === 0, crewVerdict)
+  const crewRoad = { call: makeCall(['', '']).call as never, settings: ON5, model: ADVISOR_MODEL, dir: DIR, now }
+  const crew = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, crewRoad)
+  check("a crewmate's round before the interval has passed reads waiting — its own word, distinct from silent (nothing new), quiet and delivered", crew === 'waiting', crew)
+  tick(5)
+  const crewVerdict = await advisor.advisorAgentRound('agent-crew-quiet', transcript as never, crewRoad)
+  check("once the interval has passed the crewmate's road reads quiet and stashes no note", crewVerdict === 'quiet' && advisor.peekAdvisorNotes('agent-crew-quiet').length === 0, crewVerdict)
 }
 
 server.close()

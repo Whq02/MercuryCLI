@@ -4,6 +4,8 @@ import { callAdvisorOnceMore, liveAdvisorCall } from './advisorCall.js'
 import { appendAdvisorRow, loadAdvisorContext, maybeCompactAdvisorContext } from './advisorContext.js'
 import {
   ADVISOR_SYSTEM_PROMPT,
+  advisorClock,
+  advisorContextOptions,
   clampNoteLines,
   renderAdvisorMemory,
   renderAgentDigest,
@@ -55,10 +57,7 @@ export async function askAdvisor(
     }
     model = resolved.model
   }
-  const context = await loadAdvisorContext(agentId, {
-    ...(road.dir !== undefined ? { dir: road.dir } : {}),
-    ...(road.persist !== undefined ? { persist: road.persist } : {}),
-  })
+  const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   const digest = renderAgentDigest(messages, context.cursor)
   const reply = await callAdvisorOnceMore(road.call ?? liveAdvisorCall, {
     model,
@@ -68,9 +67,9 @@ export async function askAdvisor(
     ...(road.signal !== undefined ? { signal: road.signal } : {}),
   })
   if (!reply.ok) return { ok: false, reason: reply.reason }
-  const at = new Date().toISOString()
+  const at = new Date(advisorClock(road)()).toISOString()
   if (digest.count > 0) {
-    await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor, turn: context.turns })
+    await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor })
   }
   await appendAdvisorRow(context, { kind: 'question', at, text: trimmed })
   const text = clampNoteLines(reply.text)

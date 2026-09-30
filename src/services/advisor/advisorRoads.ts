@@ -2,7 +2,7 @@ import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
-import { advanceAdvisorTurn, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
+import { advisorClock, advisorContextOptions, advisorNoteDue, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
 import { loadAdvisorContext } from './advisorContext.js'
 import { advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings } from './advisorSettings.js'
 
@@ -15,7 +15,7 @@ export function advisorCountsTurn(command: Pick<QueuedCommand, 'mode' | 'origin'
   return ADVISOR_COUNTED_MODES.has(command.mode) && !isAdvisorOrigin(command.origin)
 }
 
-export type AdvisorRoundVerdict = 'off' | 'counted' | 'busy' | 'silent' | 'quiet' | 'delivered'
+export type AdvisorRoundVerdict = 'off' | 'waiting' | 'busy' | 'silent' | 'quiet' | 'delivered'
 
 export async function advisorRound(
   agentId: string,
@@ -25,13 +25,10 @@ export async function advisorRound(
 ): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
   if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return 'off'
-  const context = await loadAdvisorContext(agentId, {
-    ...(road.dir !== undefined ? { dir: road.dir } : {}),
-    ...(road.persist !== undefined ? { persist: road.persist } : {}),
-  })
-  if (!advanceAdvisorTurn(context, settings.seats)) return 'counted'
+  const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
+  if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return 'waiting'
   if (inFlight.has(agentId)) {
-    logForDebugging(`advisor: a note for ${agentId} is still being written — this round's note is skipped`)
+    logForDebugging(`advisor: a note for ${agentId} is still being written — this boundary's note is skipped`)
     return 'busy'
   }
   inFlight.add(agentId)
