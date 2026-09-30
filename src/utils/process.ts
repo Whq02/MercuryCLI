@@ -18,6 +18,10 @@ export function registerProcessOutputErrorHandlers(): void {
   handleStreamGoneErrors(process.stderr)
 }
 
+export function registerProcessInputErrorHandler(onGone: (code: string) => void): void {
+  handleStreamGoneErrors(process.stdin, onGone)
+}
+
 export function writeToStdout(data: string): void {
   if (process.stdout.destroyed) return
   process.stdout.write(data)

@@ -10,7 +10,7 @@ import { armInactivityDeadline } from './deadline.js'
 import { logForDebugging } from './debug.js'
 import { logForDiagnosticsNoPII } from './diagLogs.js'
 import { logError } from './log.js'
-import { registerProcessOutputErrorHandlers } from './process.js'
+import { registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 
 
@@ -37,6 +37,12 @@ export function markTerminalGone(): void {
 }
 function terminalIsGone(): boolean {
   return terminalGoneFlag || process.stdout.writable === false
+}
+
+export const TERMINAL_GONE_EXIT_CODE = 129
+
+export function terminalGoneReadLine(code: string): string {
+  return `terminal gone: stdin read ${code} — the session closes like a hangup (exit ${TERMINAL_GONE_EXIT_CODE})`
 }
 
 function resolveRestorationSync(): ShutdownRestorationModule | undefined {
@@ -306,6 +312,18 @@ export const setupGracefulShutdown = (): void => {
   }
 
   registerProcessOutputErrorHandlers()
+  if (process.stdin.isTTY && !isDaemonSubcommand()) {
+    registerProcessInputErrorHandler(code => {
+      markTerminalGone()
+      logForDebugging(terminalGoneReadLine(code), { level: 'warn' })
+      logForDiagnosticsNoPII('warn', 'orphan_detected', {
+        stdoutWritable: Boolean(process.stdout.writable),
+        stdinReadable: false,
+        stdinReadError: code,
+      })
+      gracefulShutdownSync(TERMINAL_GONE_EXIT_CODE)
+    })
+  }
 
   process.on('uncaughtException', (err: unknown) => {
     if (isModuleLoadFailure(err) && !isShuttingDown()) {

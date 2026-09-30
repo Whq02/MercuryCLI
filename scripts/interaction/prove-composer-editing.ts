@@ -68,7 +68,7 @@ console.log('\n── §2 contracts pinned in source ─────────
   const installer = installerStart >= 0 && crashHandlerAt > installerStart ? shutdown.slice(installerStart, crashHandlerAt) : ''
   check(
     'the stream-gone handlers are armed inside the shutdown installer, ahead of the crash handler',
-    shutdown.includes("import { registerProcessOutputErrorHandlers } from './process.js'") && installer.includes('registerProcessOutputErrorHandlers()'),
+    /import \{[^}]*\bregisterProcessOutputErrorHandlers\b[^}]*\} from '\.\/process\.js'/.test(shutdown) && installer.includes('registerProcessOutputErrorHandlers()'),
   )
   const entry = read('src/main.tsx')
   const init = read('src/entrypoints/init.ts')
