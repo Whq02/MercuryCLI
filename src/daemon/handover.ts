@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { controlSockPath } from './controlSocket.js'
+import { vendoredNodeBeside } from './daemonBuild.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { encodeFrame, readControlFrame, type DaemonReply } from './protocol.js'
 
@@ -21,19 +22,27 @@ export function parseHandoverFrom(raw: string | undefined): number | null {
 export interface DeployedRuntimeV1 {
   script: string
   buildTree: string | null
+  dir: string
+  node: string | null
 }
 
+export const RUNTIME_POINTER_NAMES = ['current', 'dist'] as const
+
 export function deployedRuntime(home: string = getMercuryHome()): DeployedRuntimeV1 | null {
-  const script = join(home, 'runtime', 'dist', 'mercury.mjs')
-  if (!existsSync(script)) return null
-  let buildTree: string | null = null
-  try {
-    const manifest = JSON.parse(readFileSync(join(home, 'runtime', 'dist', 'manifest.json'), 'utf8')) as { buildTree?: unknown }
-    buildTree = typeof manifest.buildTree === 'string' ? manifest.buildTree.slice(0, 12) : null
-  } catch {
-    buildTree = null
+  for (const name of RUNTIME_POINTER_NAMES) {
+    const dir = join(home, 'runtime', name)
+    const script = join(dir, 'mercury.mjs')
+    if (!existsSync(script)) continue
+    let buildTree: string | null = null
+    try {
+      const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { buildTree?: unknown }
+      buildTree = typeof manifest.buildTree === 'string' ? manifest.buildTree.slice(0, 12) : null
+    } catch {
+      buildTree = null
+    }
+    return { script, buildTree, dir, node: vendoredNodeBeside(dir) }
   }
-  return { script, buildTree }
+  return null
 }
 
 export interface HandoverDecisionInput {

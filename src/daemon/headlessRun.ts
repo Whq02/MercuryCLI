@@ -13,6 +13,7 @@ import {
   SPAWNED_BY_ENV,
 } from '../utils/spawnLedger.js'
 import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
+import { selfScriptPath } from './daemonBuild.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import { decodePermissionModeSpelling } from '../types/permissions.js'
@@ -158,7 +159,7 @@ export function buildHeadlessPrompt(task: {
 }
 
 export function getSelfInvocation(): { node: string; script: string } {
-  return { node: process.execPath, script: process.argv[1] || '' }
+  return { node: process.execPath, script: selfScriptPath() }
 }
 
 

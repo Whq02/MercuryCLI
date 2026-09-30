@@ -227,10 +227,11 @@ export function __resetDaemonSignInPokeForTest(): void {
 
 export function spawnOwnedDaemon(
   projectDir: string,
-  opts?: { label?: string; extraEnv?: Record<string, string | undefined>; persist?: boolean; script?: string; ownerPipe?: boolean },
+  opts?: { label?: string; extraEnv?: Record<string, string | undefined>; persist?: boolean; script?: string; node?: string; ownerPipe?: boolean },
 ): number | undefined {
   const label = opts?.label ?? 'daemon'
   const script = opts?.script ?? process.argv[1]
+  const node = opts?.node ?? process.execPath
   if (!script) {
     logForDebugging(`[${label}] spawnOwnedDaemon: no process.argv[1]; cannot spawn daemon`)
     return undefined
@@ -280,7 +281,7 @@ export function spawnOwnedDaemon(
     const ownerPipe = process.platform !== 'win32' && opts?.ownerPipe !== false
     if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
     stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])
-    const child = spawn(process.execPath, [script, 'daemon', 'run', projectDir], {
+    const child = spawn(node, [script, 'daemon', 'run', projectDir], {
       cwd: projectDir,
       detached: true,
       windowsHide: true,

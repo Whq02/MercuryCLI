@@ -29,24 +29,42 @@ A source copy is installed by deploying its build; the launcher never boots
 the repository's `dist/` directly, because a mid-build bundle must not
 hot-swap a running product:
 
-- `bash scripts/ops/deploy-runtime.sh` publishes the build to
-  `<config-home>/runtime/dist`. It takes only a committed tree's own build:
+- `bash scripts/ops/deploy-runtime.sh` publishes the build under
+  `<config-home>/runtime`. It takes only a committed tree's own build:
   the working tree must be clean and the bundle must match its manifest.
-  The previous runtime is kept beside it as `runtime/dist.prev` for a
-  manual rollback; nothing boots it on its own.
+  Every build lands in a fresh folder of its own,
+  `runtime/builds/<tree>-<bundle>`, and two pointers name the active one:
+  `runtime/current` (what the launcher and the daemon read) and
+  `runtime/dist` (the older name, kept as the same link). A pointer is
+  switched by one atomic rename. A folder that a running daemon or session
+  lives in is never moved or renamed — macOS treats a moved program as new
+  and rescans it on every helper it launches — and it is removed only by a
+  later deploy that finds nothing running from it. A daemon keeps serving
+  the build it was started from until its last session has exited; a
+  session born after the deploy runs on the new build's daemon. Manual
+  rollback: point `runtime/current` (and `runtime/dist`) at an older
+  `builds/` folder — `cd <config-home>/runtime && ln -sfn builds/<older>
+  current && ln -sfn builds/<older> dist`; nothing boots an older build on
+  its own. A `runtime/dist` that is still a real folder from the earlier
+  layout is left exactly where it is while a daemon runs from it and
+  becomes the link once that daemon is gone; `runtime/current` names the
+  new build from the first deploy on. The deploy also publishes the
+  launcher and the enter screen, so the three never drift apart.
 - `bash scripts/ops/deploy-launcher.sh` installs the `mercury` launcher at
-  `<config-home>/bin/mercury`; put that directory on your `PATH`.
+  `<config-home>/bin/mercury` on its own; put that directory on your `PATH`.
 
 The launcher resolves the config home without creating one —
 `MERCURY_CONFIG_DIR`, then `MERCURY_HOME`, else `~/.mercury` — and boots
-`<config-home>/runtime/dist/mercury.mjs` on the Node it resolves the same
-way the release launchers do (`MERCURY_NODE`, the vendored `vendor/node`
-beside the deployed bundle, then a PATH node — no rung answering is a loud
-card naming all three, exit 127); `MERCURY_DIST` points a development boot
-at another bundle. A missing deployed runtime is a loud refusal card naming
-the deploy command, exit 66 — never a silent fallback onto stale bits. When
-the deployed runtime is older than the repository HEAD, the launcher prints
-a calm one-line drift note and continues.
+`<config-home>/runtime/current/mercury.mjs` (falling back to
+`runtime/dist/mercury.mjs` where no `current` pointer exists yet) on the
+Node it resolves the same way the release launchers do (`MERCURY_NODE`,
+the vendored `vendor/node` beside the deployed bundle, then a PATH node —
+no rung answering is a loud card naming all three, exit 127);
+`MERCURY_DIST` points a development boot at another bundle. A missing
+deployed runtime is a loud refusal card naming the deploy command, exit 66
+— never a silent fallback onto stale bits. When the deployed runtime is
+older than the repository HEAD, the launcher prints a calm one-line drift
+note and continues.
 
 A config home that is another harness's own — `~/.claude`, `~/.codex`,
 `~/.gemini`, `~/.copilot`, `~/.cursor`, `~/.kiro`, `~/.cline`, `~/.continue`,

@@ -390,31 +390,28 @@ function rig(opts: { baseline?: string | null } = {}): Rig {
 }
 const beatsPerFloor = ownerWatch.OWNER_IDENTITY_FLOOR_MS / ownerWatch.OWNER_WATCH_INTERVAL_MS
 
-section('§5 PID REUSE — caught at the identity floor, confirmed on the next beat, then reaped')
+section('§5 PID REUSE — the token is read again only when liveness moved: a pid that comes back wearing another token is a stranger')
 {
   const r = rig()
-  await r.tick(beatsPerFloor - 1)
-  check('no probe before the floor', r.tokens === 0, `${r.tokens} probes`)
+  await r.tick(beatsPerFloor * 3)
+  check('three minutes of beats with a live owner cost no probe at all', r.tokens === 0 && r.reaped.length === 0, `${r.tokens} probes`)
+  r.set({ alive: false })
   await r.tick(1)
-  check('one probe at the floor (the owner still matches)', r.tokens === 1 && r.reaped.length === 0, `${r.tokens} probes`)
-  r.set({ token: 'token-B' })
-  await r.tick(beatsPerFloor - 1)
-  check('the beat spawns nothing between floors even with the pid reused', r.tokens === 1 && r.reaped.length === 0)
+  check('one dead beat, no reap yet', r.handle.facts().deadStreak === 1 && r.reaped.length === 0)
+  r.set({ alive: true, token: 'token-B' })
   await r.tick(1)
-  check('the floor probe reads the new token — one dead beat, no reap yet', r.tokens === 2 && r.handle.facts().identityLost && r.handle.facts().deadStreak === 1 && r.reaped.length === 0)
-  await r.tick(1)
-  check('the next beat re-probes (the grace confirms it) and reaps as owner-replaced', r.tokens === 3 && r.reaped.join() === 'owner-replaced', `${r.tokens} probes; reaped=${r.reaped.join()}`)
+  check('the pid came back: one probe reads the stranger, the grace completes, reaped as owner-replaced', r.tokens === 1 && r.handle.facts().identityLost && r.reaped.join() === 'owner-replaced', `${r.tokens} probes; reaped=${r.reaped.join()}`)
   check('the watch stops after the reap (no further beats act)', r.handle.facts().reaped === 'owner-replaced')
 }
 {
   const r = rig()
-  await r.tick(beatsPerFloor)
-  r.set({ token: 'token-B' })
-  await r.tick(beatsPerFloor)
-  check('a mismatch stands one beat', r.handle.facts().deadStreak === 1 && r.reaped.length === 0)
-  r.set({ token: 'token-A' })
+  r.set({ alive: false })
   await r.tick(1)
-  check('…and a matching confirmation clears it — a glitch never reaps', r.handle.facts().deadStreak === 0 && !r.handle.facts().identityLost && r.reaped.length === 0)
+  r.set({ alive: true })
+  await r.tick(1)
+  check('a pid that comes back with the SAME token was a liveness glitch — one probe, no reap, the streak clears', r.tokens === 1 && !r.handle.facts().identityLost && r.handle.facts().deadStreak === 0 && r.reaped.length === 0)
+  await r.tick(beatsPerFloor)
+  check('…and no probe follows on any cadence', r.tokens === 1)
   r.handle.stop()
 }
 {
@@ -426,38 +423,43 @@ section('§5 PID REUSE — caught at the identity floor, confirmed on the next b
   check('…and a gone pid still reaps after the grace', r.reaped.join() === 'owner-gone')
 }
 
-section('§6 A PROBE THAT CANNOT RUN — logs once, backs off four floors, liveness keeps watching')
+section('§6 A PROBE THAT CANNOT RUN — logs once, backs off, liveness keeps watching')
 {
   const r = rig()
-  r.set({ token: null })
-  await r.tick(beatsPerFloor)
-  check('the floor probe could not run: one line in the log', r.tokens === 1 && r.lines.length === 1 && r.lines[0]!.includes('could not run'), r.lines.join(' | '))
-  const backoffFloors = ownerWatch.OWNER_PROBE_BACKOFF_FACTOR
-  await r.tick(beatsPerFloor * backoffFloors - 1)
-  check(`no retry inside the back-off (${backoffFloors} floors)`, r.tokens === 1 && r.lines.length === 1, `${r.tokens} probes, ${r.lines.length} lines`)
-  check('the daemon still reads the owner as alive (fail safe)', r.reaped.length === 0 && r.handle.facts().deadStreak === 0)
+  r.set({ alive: false })
   await r.tick(1)
-  check('the probe tries again once the back-off ends', r.tokens === 2)
-  check('a second failure adds no second line (logged once per streak)', r.lines.length === 1, r.lines.join(' | '))
+  r.set({ alive: true, token: null })
+  await r.tick(1)
+  check('the transition probe could not run: one line in the log, the owner reads alive (fail safe)', r.tokens === 1 && r.lines.length === 1 && r.lines[0]!.includes('could not run') && r.reaped.length === 0 && r.handle.facts().deadStreak === 0, r.lines.join(' | '))
+  const backoffFloors = ownerWatch.OWNER_PROBE_BACKOFF_FACTOR
+  r.set({ alive: false })
+  await r.tick(1)
+  r.set({ alive: true })
+  await r.tick(1)
+  check(`no retry inside the back-off (${backoffFloors} units), even on another liveness move — the move is remembered`, r.tokens === 1 && r.lines.length === 1, `${r.tokens} probes, ${r.lines.length} lines`)
   r.set({ token: 'token-A' })
   await r.tick(beatsPerFloor * backoffFloors)
-  check('a probe that answers again says so once and resets the back-off', r.tokens === 3 && r.lines.length === 2 && r.lines[1]!.includes('answers again') && r.handle.facts().backoffUntil === 0, r.lines.join(' | '))
+  check('once the back-off ends the remembered move probes once; an answer says so once and resets the back-off', r.tokens === 2 && r.lines.length === 2 && r.lines[1]!.includes('answers again') && r.handle.facts().backoffUntil === 0 && r.reaped.length === 0, r.lines.join(' | '))
+  await r.tick(beatsPerFloor)
+  check('…and nothing probes afterwards', r.tokens === 2)
   r.handle.stop()
 }
 {
   const r = rig()
-  r.set({ token: null })
-  await r.tick(beatsPerFloor)
+  r.set({ alive: false })
+  await r.tick(1)
+  r.set({ alive: true, token: null })
+  await r.tick(1)
   r.set({ alive: false })
   await r.tick(ownerWatch.OWNER_WATCH_GRACE_CHECKS)
   check('a gone pid reaps during the back-off — the beat never stopped watching', r.reaped.join() === 'owner-gone' && r.tokens === 1)
 }
 
-section('§7 THE FLOOR — 120 s of beats cost at most two identity probes')
+section('§7 NO CADENCE — 120 s of beats cost zero identity probes')
 {
   const r = rig()
   await r.tick(Math.floor(120_000 / ownerWatch.OWNER_WATCH_INTERVAL_MS))
-  check('≤ 2 probes in 120 s of beats', r.tokens <= 2 && r.tokens >= 1, `${r.tokens} probes`)
+  check('0 probes in 120 s of beats', r.tokens === 0, `${r.tokens} probes`)
   check('the owner reads alive throughout', r.reaped.length === 0 && r.handle.facts().deadStreak === 0)
   r.handle.stop()
 }
@@ -487,7 +489,8 @@ section('§9 THE WIRING — source pins')
   check('the plane heal runs on its directory watch with a 30 s floor', main.includes('const PLANE_HEAL_FLOOR_MS = 30_000') && main.includes('watchDir(planeDir, { persistent: false }') && main.includes('}, PLANE_HEAL_FLOOR_MS)'))
   check('the reconcile tick keeps the minute floor behind a change gate', main.includes('const RECONCILE_TICK_MS = 60_000') && main.includes('stamp !== reconcileRecordsStamp || reconcileHadLive'))
   check('the Saturn ticker gates its walk on the stores\' move stamps', ticker.includes('if (pending === 0 && stamp === storeStamp) return') && ticker.includes('export function saturnStoreStamp'))
-  check('the identity floor is the minute and the back-off four floors', ownerWatch.OWNER_IDENTITY_FLOOR_MS === 60_000 && ownerWatch.OWNER_PROBE_BACKOFF_FACTOR === 4)
+  check('the token is read again only when liveness moved — no probe on a cadence of its own', !/t - facts\.lastProbeAt >= floorMs/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))) && /cameBack/.test(read(join(ROOT, 'src/daemon/ownerWatch.ts'))))
+  check('the back-off unit is the minute, four units long', ownerWatch.OWNER_IDENTITY_FLOOR_MS === 60_000 && ownerWatch.OWNER_PROBE_BACKOFF_FACTOR === 4)
   check('the beat and the grace stand where they were', ownerWatch.OWNER_WATCH_INTERVAL_MS === 4000 && ownerWatch.OWNER_WATCH_GRACE_CHECKS === 2)
 }
 

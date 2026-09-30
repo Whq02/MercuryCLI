@@ -1443,7 +1443,7 @@ export function reconcileConcourseWorkers(
         continue
       }
       const rosterLive = rosterLiveShorts.has(rec.runnerId)
-      const pidLive = workerPidAlive(rec)
+      const pidLive = rosterLive || workerPidAlive(rec)
       if (rosterLive || pidLive) {
         rec.lastLiveAt = Date.now()
         receipt.live.push(rec.runnerId)

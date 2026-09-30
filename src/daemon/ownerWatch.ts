@@ -297,9 +297,10 @@ export function startOwnerWatch(ports: OwnerWatchPortsV1): OwnerWatchHandleV1 {
   let failureLogged = false
   let timer: ReturnType<typeof setInterval> | undefined
 
+  let cameBack = false
   const probeDue = (t: number): boolean => {
     if (!identityCheckable || inflight || t < facts.backoffUntil) return false
-    return facts.identityLost || t - facts.lastProbeAt >= floorMs
+    return facts.identityLost || cameBack
   }
   const probe = async (): Promise<void> => {
     inflight = true
@@ -348,7 +349,11 @@ export function startOwnerWatch(ports: OwnerWatchPortsV1): OwnerWatchHandleV1 {
     } else if (!alive(ports.ownerPid)) {
       ownerAlive = false
     } else {
-      if (probeDue(now())) await probe()
+      if (facts.deadStreak > 0) cameBack = true
+      if (probeDue(now())) {
+        cameBack = false
+        await probe()
+      }
       ownerAlive = !facts.identityLost
       if (!ownerAlive) why = 'owner-replaced'
     }
