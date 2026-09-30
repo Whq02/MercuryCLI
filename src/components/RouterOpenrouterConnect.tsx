@@ -68,6 +68,7 @@ export function RouterOpenrouterConnect({
       .catch(error => settle(openrouterConnectFailedReceipt(error)))
     return () => {
       handlesRef.current = undefined
+      handles.cancel('cancelled from the connect surface')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leg])

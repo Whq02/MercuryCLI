@@ -71,7 +71,7 @@ t.section('§1 — THE CENSUS over src/: the sign-in surface is spelled /logins;
 t.section('§2 — THE ONE NAME stands where the second name stood')
 {
   const login = code('src/commands/login/login.tsx')
-  t.check("the card's title word is logins (the lockup reads Mercury — logins)", login.includes('view="logins"') && read('src/components/mercury-ui/components.tsx').includes('const title = `Mercury${separator}${view}`'))
+  t.check("the popup title word is logins (the lockup reads Mercury · logins)", login.includes("view: 'logins'") && read('src/components/mercury-ui/components.tsx').includes('const title = `Mercury${separator}${view}`'))
   t.check('the footer and the close receipt say /logins', login.includes('esc closes /logins') && login.includes("'/logins closed — no credential changed'"))
   const row = read('src/substrate/flagRegistry.ts').split('\n').find(l => l.includes("env: 'MERCURY_LOGIN_COMMAND'")) ?? ''
   t.check('the flag keeps its env name and its words say /logins', row.includes("summary: 'the /logins command; =0 removes it'") && row.includes("off: '=0 no /logins'"), row.slice(0, 160))

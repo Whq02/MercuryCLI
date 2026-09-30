@@ -72,7 +72,7 @@ export function Settings({
   geometry: SettingsPopupPlacement
 }): React.ReactNode {
   const tok = useMercuryTokens()
-  const token = useRegisterOverlay('settings')
+  const token = useRegisterOverlay('settings', !request.bodyOwnsEscape)
   const surfaceRef = useElevatedSurface()
   const { addNotification } = useNotifications()
   const [line, setLine] = useState<string | null>(null)
@@ -92,12 +92,13 @@ export function Settings({
       if (token !== null && !isTopOverlayNow(token)) return false
       close()
     },
-    { context: 'Settings', isActive: !bodyOwnsEscape },
+    { context: 'Settings', isActive: !bodyOwnsEscape && !request.bodyOwnsEscape },
   )
   useExitOnCtrlCD(useKeybindings)
   const ground = estateGroundBg(tok)
   const inner = geometry.inner
   const fixed = geometry.rows !== null
+  const tight = fixed && geometry.rows! <= 7
   return (
     <Box
       ref={surfaceRef}
@@ -105,25 +106,25 @@ export function Settings({
       width={geometry.width}
       {...(fixed ? { height: geometry.rows as number } : {})}
       flexShrink={0}
-      borderStyle="round"
+      borderStyle={tight ? undefined : 'round'}
       borderColor={tok.borderStrong}
-      paddingX={1}
+      paddingX={tight ? 0 : 1}
       opaque={true}
       {...(ground !== undefined ? { backgroundColor: ground } : {})}
     >
-      <Box flexShrink={0}>
+      <Box flexShrink={0} height={tight && geometry.rows! < 2 ? 0 : 1} overflow="hidden">
         <ProductLockup view={view} separator=" · " />
       </Box>
-      <Box height={1} flexShrink={0}>
-        <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(line ?? request.line, inner)}</Text>
+      <Box height={tight && geometry.rows! < 3 ? 0 : 1} flexShrink={0} overflow="hidden">
+        <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(tight ? 'Window too small · resize to continue' : line ?? request.line, inner)}</Text>
       </Box>
-      <Box height={1} flexShrink={0} />
+      <Box height={tight ? 0 : 1} flexShrink={0} />
       <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} overflow="hidden" {...(fixed ? { flexGrow: 1, flexShrink: 1, minHeight: 0 } : { flexShrink: 0, maxHeight: geometry.rowBudget })}>
         <SettingsPopupFrameContext.Provider value={frame}>
           <Suspense fallback={null}>{request.body(geometry)}</Suspense>
         </SettingsPopupFrameContext.Provider>
       </Box>
-      <Box height={1} flexShrink={0} />
+      <Box height={tight ? 0 : 1} flexShrink={0} />
       <Box height={1} flexShrink={0} width={inner + 1} marginRight={-1}>
         <Text color={tok.textMuted}>{cutToWidth(request.hint, inner + 1)}</Text>
       </Box>

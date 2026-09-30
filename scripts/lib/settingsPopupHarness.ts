@@ -104,6 +104,7 @@ export type Mounted = {
   lines: () => string[]
   screen: () => string
   styleAt: (x: number, y: number) => { bg: string; fg: string; bold: boolean; inverse: boolean } | null
+  resize: (element: unknown, columns: number, rows: number) => void
   unmount: () => void
 }
 
@@ -135,6 +136,17 @@ export async function mountOffscreen(element: unknown, columns: number, rows: nu
     styleAt: (x, y) => {
       const style = replay().styleAt(x, y)
       return style === null ? null : { bg: style.bg, fg: style.fg, bold: style.bold, inverse: style.inverse }
+    },
+    resize: (next, nextColumns, nextRows) => {
+      if (columns === nextColumns && rows === nextRows) { ink.render(next as never); return }
+      columns = nextColumns
+      rows = nextRows
+      stdout.columns = columns
+      stdout.rows = rows
+      stdout.writes.length = 0
+      ink.invalidatePrevFrame()
+      stdout.emit('resize')
+      ink.render(next as never)
     },
     unmount: () => {
       ink.unmount()

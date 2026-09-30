@@ -76,7 +76,7 @@ section('mechanism pins')
 
   const login = read('src/commands/login/login.tsx')
   check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
-  check('the /logins footer says esc closes (not cancels)', login.includes('footer="esc back · from the menu, esc closes /logins"'))
+  check('the /logins popup keeps its back/close context and the shared popup hint', login.includes("line: 'esc back · from the menu, esc closes /logins'") && login.includes("hint: '↕ scroll · esc or click outside closes'"))
 }
 
 section('THE SCREEN at 100x30: footers pinned, PageDown pages, the help grid whole')
@@ -115,8 +115,10 @@ if (driver.kind !== 'posix-pty') {
       { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
-      { requireAwait: true, awaitText: 'Provider readiness', awaitStableTicks: 3, mark: 'top', data: '' },
+      { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
       { afterPrevTicks: 4, data: '\u001b[6~' },
+      { afterPrevTicks: 2, data: '\u001b[6~' },
+      { afterPrevTicks: 2, data: '\u001b[6~' },
       { requireAwait: true, awaitText: 'OpenAI-compatible', awaitStableTicks: 3, mark: 'paged', data: '' },
       { afterPrevTicks: 3, data: '\u001b' },
     ], 70)

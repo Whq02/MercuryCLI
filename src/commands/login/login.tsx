@@ -1,9 +1,11 @@
 import * as React from 'react'
-import { useRef } from 'react'
-import { Box } from '../../ink.js'
+import { useRef, useState } from 'react'
+import { Box, Text, useInput } from '../../ink.js'
 import { ConsoleOAuthFlow, type LoginFamilyFocus } from '../../components/ConsoleOAuthFlow.js'
 import { SIGN_IN_WORDS } from '../../components/Onboarding.js'
-import { CommandCenter } from '../../components/mercury-ui/components.js'
+import { PopupForm } from '../../components/PopupForm.js'
+import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
+import { closeSettingsPopup, openSettingsPopup, type SettingsPopupGeometry } from '../../utils/cockpit/settingsPopup.js'
 import { resetCostState } from '../../bootstrap/state.js'
 import { useAppState } from '../../state/AppState.js'
 import type {
@@ -25,7 +27,11 @@ export function Login({
   onOpenaiDone,
   startingMessage,
   initialFocus,
+  geometry,
+  scrollRef,
 }: {
+  geometry: SettingsPopupGeometry
+  scrollRef?: React.RefObject<ScrollBoxHandle | null>
   onDone: (success: boolean, mainLoopModel: string) => void
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
   startingMessage?: string
@@ -33,7 +39,13 @@ export function Login({
 }): React.ReactNode {
   const mainLoopModel = useAppState(state => state.mainLoopModel)
   const settledRef = useRef(false)
+  const accountReceipt = useRef<string | null>(null)
+  const [receipt, setReceipt] = useState<{ ok: boolean; receipt: string } | null>(null)
   const settle = (success: boolean): void => {
+    if (!success && accountReceipt.current !== null && onOpenaiDone) {
+      settleOpenai({ ok: true, receipt: accountReceipt.current })
+      return
+    }
     if (settledRef.current) return
     settledRef.current = true
     onDone(success, mainLoopModel ?? '')
@@ -44,23 +56,26 @@ export function Login({
     onOpenaiDone?.(result)
   }
   return (
-    <CommandCenter
-      view="logins"
-      footer="esc back · from the menu, esc closes /logins"
-      captureInput={false}
-      onClose={() => settle(false)}
-    >
+    <PopupForm width={geometry.inner} rows={geometry.rowBudget} scrollRef={scrollRef}>
       <Box flexDirection="column">
-        <ConsoleOAuthFlow
-          onDone={() => settle(true)}
-          onCancel={() => settle(false)}
-          {...(onOpenaiDone !== undefined ? { onOpenaiDone: settleOpenai } : {})}
-          {...(startingMessage !== undefined ? { startingMessage } : {})}
-          {...(initialFocus !== undefined ? { initialFocus } : {})}
-        />
+        {receipt ? <LoginReceipt receipt={receipt.receipt} onDone={() => settleOpenai(receipt)} /> : (
+          <ConsoleOAuthFlow
+            onDone={() => settle(true)}
+            onCancel={() => settle(false)}
+            onAccountChange={message => { accountReceipt.current = message }}
+            {...(onOpenaiDone !== undefined ? { onOpenaiDone: (result: { ok: boolean; receipt: string }) => result.ok ? setReceipt(result) : settleOpenai(result) } : {})}
+            {...(startingMessage !== undefined ? { startingMessage } : {})}
+            {...(initialFocus !== undefined ? { initialFocus } : {})}
+          />
+        )}
       </Box>
-    </CommandCenter>
+    </PopupForm>
   )
+}
+
+function LoginReceipt({ receipt, onDone }: { receipt: string; onDone: () => void }): React.ReactNode {
+  useInput((_input, key) => { if (key.return || key.escape) onDone() })
+  return <Box flexDirection="column" gap={1}><Text>{receipt}</Text><Text dimColor>press Enter to continue</Text></Box>
 }
 
 function runPostLoginRefresh(context: LocalJSXCommandContext): void {
@@ -147,12 +162,31 @@ export async function call(
     context.setAppState(prev => ({ ...prev, authVersion: (prev.authVersion ?? 0) + 1 }))
     onDone(result.receipt, chain)
   }
-  return (
-    <Login
-      onDone={complete}
-      onOpenaiDone={completeOpenai}
-      startingMessage={SIGN_IN_WORDS.intro}
-      {...(initialFocus !== undefined ? { initialFocus } : {})}
-    />
-  )
+  const scrollRef = React.createRef<ScrollBoxHandle>()
+  openSettingsPopup({
+    view: 'logins',
+    scrollRef,
+    width: 100,
+    rows: 29,
+    line: 'esc back · from the menu, esc closes /logins',
+    hint: '↕ scroll · esc or click outside closes',
+    bodyOwnsEscape: true,
+    body: geometry => (
+      <Login
+        geometry={geometry}
+        scrollRef={scrollRef}
+        onDone={(success, model) => {
+          closeSettingsPopup()
+          complete(success, model)
+        }}
+        onOpenaiDone={result => {
+          closeSettingsPopup()
+          completeOpenai(result)
+        }}
+        startingMessage={SIGN_IN_WORDS.intro}
+        {...(initialFocus !== undefined ? { initialFocus } : {})}
+      />
+    ),
+  })
+  return null
 }

@@ -1,7 +1,8 @@
 
 import figures from 'figures'
 import { GLYPH } from '../mercury-ui/glyphs.js'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useContext, useEffect, useRef, useState } from 'react'
+import { PopupFormContext } from '../../context/popupFormContext.js'
 import { Ansi, Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -149,6 +150,7 @@ export function Select<T = string>({
   onRemoveImage,
   onEmptyInputSubmit,
 }: SelectProps<T>): React.ReactNode {
+  const fit = useContext(PopupFormContext)
   const state = useSelectState({
     visibleOptionCount,
     options,
@@ -425,7 +427,7 @@ export function Select<T = string>({
         const dimDescription = option.dimDescription !== false
 
         const labelNode = (
-          <Box flexShrink={0}>
+          <Box flexShrink={fit ? 1 : 0} minWidth={fit ? 0 : undefined}>
             <Text color={stateColor} dimColor={option.disabled}>
               {prefix}
               {renderLabel(option.label, highlightText)}
