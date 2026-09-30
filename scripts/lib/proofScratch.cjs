@@ -14,11 +14,16 @@ function keepProofScratch(folder) {
     if (Buffer.from(candidate).equals(Buffer.from(folder))) folders.delete(candidate)
   }
 }
+function insideRunRoot(value, root) {
+  const spellings = [root, `/private${root}`, root.startsWith('/private/') ? root.slice('/private'.length) : root]
+  return spellings.some(spelling => value.startsWith(spelling + path.sep))
+}
 function scratchPrefix(prefix) {
   const root = process.env.MERCURY_SUITE_TMPDIR
   if (!root) return prefix
   try {
     const value = prefix instanceof URL ? fileURLToPath(prefix) : String(prefix)
+    if (insideRunRoot(value, root)) return prefix
     if (/^\/(?:private\/)?tmp\/mw\//.test(value)) {
       const base = Buffer.from(root + path.sep)
       return Buffer.isBuffer(prefix)
