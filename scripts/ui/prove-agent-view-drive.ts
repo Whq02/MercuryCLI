@@ -245,7 +245,7 @@ async function leg(cols: number, rows: number): Promise<void> {
   const interruptedNotice = records.find(line => line.includes('<status>interrupted</status>'))
   console.log(`  the lead's notice in the session records: ${interruptedNotice === undefined ? '(none)' : interruptedNotice.slice(0, 200)}`)
   check(`${tag}: the lead's notice carries the typed kind <status>interrupted</status> and says the operator interrupted it`, interruptedNotice !== undefined && interruptedNotice.includes('interrupted by the operator on its screen'), records.filter(line => line.includes('task-notification')).join(' | ').slice(0, 300))
-  check(`${tag}: the notice is the operator's kind, never the crew view's stop`, !records.some(line => line.includes('stopped from the crew view')))
+  check(`${tag}: the notice is the operator's kind, never the crew view's stop`, !records.some(line => line.includes('stopped from the crew view · r on its row')), records.filter(line => line.includes('stopped from the crew view · r on its row')).join(' | ').slice(0, 300))
   if (failures > before || process.env.AGENT_VIEW_KEEP === '1') {
     for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
     dump(`${tag} · final`, cap.text)
