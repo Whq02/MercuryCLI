@@ -1,6 +1,6 @@
 
 export const GEMINI_USAGE_ABSENCE_NOTE =
-  'Usage bills to your Google account; the Gemini API exposes no usage endpoint — monitor spend in the Google Cloud console.'
+  'Usage is metered per model on the Google Cloud project behind this credential; the Gemini API states no usage, quota or credit figure to it (no usage endpoint, no quota headers on its replies) — the Cloud console Quotas page for the Generative Language API, or Google AI Studio, is the view.'
 
 export type GeminiLimitWindow =
   | { state: 'limited'; resetsAtMs: number; observedAtMs: number }

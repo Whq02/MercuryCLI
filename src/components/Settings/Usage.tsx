@@ -511,6 +511,7 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
                 ? spendLine(spend, true)
                 : INACTIVE_SLOT_LINE}
             </Text>
+            {active?.kind === 'oauth' && usageCreditsLine(usage.credits) !== undefined ? <Text dimColor>{usageCreditsLine(usage.credits)}</Text> : null}
           </Box>
         )}
       </Box>
@@ -534,9 +535,21 @@ function HuggingfaceUsageSection(): React.ReactNode {
   const account = resolveHuggingfaceAccount()
   const spend = providerSessionSpend('huggingface')
   const availability = getHuggingfaceAvailability()
-  const usage = usageForProvider('huggingface')
-  const rateLine = figuresLine(usage)
-  const rateReset = usage.figures?.[0]?.resetsAtMs
+  const usage = useOwnerUsage('huggingface', account !== undefined)
+  const rate = usage.figures?.find(f => f.key === 'rate-remaining')
+  const plan = usage.figures?.find(f => f.key === 'plan')
+  const rateLine = rate !== undefined ? figuresLine({ ...usage, figures: [rate] }) : undefined
+  const rateReset = rate?.resetsAtMs
+  const planStamp = plan !== undefined ? usageSourceWords(plan) : undefined
+  const planLine =
+    plan !== undefined
+      ? [
+          `${plan.value} ${plan.label}`,
+          ...(plan.resetsAtMs !== undefined ? [`period ends ${new Date(plan.resetsAtMs).toLocaleDateString()}`] : []),
+          ...(planStamp !== undefined ? [planStamp] : []),
+        ].join(' · ')
+      : undefined
+  const planRow = [planLine, usage.readerNote].filter((line): line is string => line !== undefined).join(' · ')
   return (
     <Box flexDirection="column">
       <Text bold>Hugging Face usage</Text>
@@ -547,6 +560,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
             <Text dimColor>{spendLine(spend, false)}</Text>
+            {usageCreditsLine(usage.credits) !== undefined ? <Text dimColor>{usageCreditsLine(usage.credits)}</Text> : null}
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine("/logins huggingface signs in with the Hub's device-code flow")}</Text>
@@ -558,6 +572,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
         spend={spend}
         {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
+      {account && planRow !== '' ? <Text dimColor>{planRow}</Text> : null}
       {account && (rateLine !== undefined || usage.limited !== undefined) ? (
         <Text dimColor>
           {rateLine !== undefined

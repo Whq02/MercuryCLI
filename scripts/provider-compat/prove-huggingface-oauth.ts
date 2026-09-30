@@ -40,7 +40,7 @@ const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/router/pr
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
 const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { HUGGINGFACE_USAGE_ABSENCE_NOTE } = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
+const { HUGGINGFACE_USAGE_ABSENCE_NOTE, decodeHuggingfaceAccountFacts, huggingfaceWhoamiUrl } = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -289,6 +289,14 @@ section('5 · slots · usability · usage shape · routed removal')
   check('usability: no local server ⇒ the typed blocker names the probe route', !usability.local.usable && usability.local.blockers[0]!.includes('Ollama'))
   const usage = activeSourceUsage({ model: 'huggingface/openai/gpt-oss-120b', reads: { huggingfaceAccount: () => resolveHuggingfaceAccount(), spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }) } })
   check('usage: the api-spend shape with the stated spend-API absence and the sign-in tier', usage.shape === 'api-spend' && usage.sourceKind === 'oauth' && usage.absence === HUGGINGFACE_USAGE_ABSENCE_NOTE && usage.tier === 'Hugging Face sign-in')
+  const whoamiFixture = JSON.parse(readFileSync(join(import.meta.dir, 'fixtures/huggingface-whoami-v2-documented.json'), 'utf8')) as { user: Record<string, unknown>; freeUser: Record<string, unknown> }
+  const proUser = decodeHuggingfaceAccountFacts(whoamiFixture.user, 5_000)
+  const freeUser = decodeHuggingfaceAccountFacts(whoamiFixture.freeUser, 5_000)
+  check('whoami-v2 decodes the documented account facts — isPro, canPay, periodEnd (unix seconds → ms), billingMode — and nothing else', proUser?.accountType === 'user' && proUser.isPro === true && proUser.canPay === true && proUser.periodEndMs === (whoamiFixture.user.periodEnd as number) * 1000 && proUser.billingMode === 'postpaid' && Object.keys(proUser).sort().join(',') === 'accountType,billingMode,canPay,isPro,observedAtMs,periodEndMs', JSON.stringify(proUser))
+  check('a free account decodes with no period end (null on the wire) and a false plan flag', freeUser?.isPro === false && freeUser.canPay === false && freeUser.periodEndMs === undefined, JSON.stringify(freeUser))
+  check('the minimal identity answer (type + name only) still decodes as an account with no billing facts — never invented', JSON.stringify(decodeHuggingfaceAccountFacts(WHOAMI_200, 5_000)) === JSON.stringify({ observedAtMs: 5_000, accountType: 'user' }))
+  check('a non-account body decodes to nothing', decodeHuggingfaceAccountFacts({ error: 'Invalid credentials in Authorization header' }, 5_000) === undefined && decodeHuggingfaceAccountFacts('nope', 5_000) === undefined)
+  check('the whoami road the plan reader asks is the identity road under the hub base', huggingfaceWhoamiUrl() === 'https://hub.fixture.example/api/whoami-v2')
   const none = activeSourceUsage({ model: 'huggingface/openai/gpt-oss-120b', reads: { huggingfaceAccount: () => undefined, spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }) } })
   check('usage: no credential ⇒ the honest none shape', none.shape === 'none' && none.sourceKind === 'none')
   const removal = executeSlotRemoval(oauthSlot!)

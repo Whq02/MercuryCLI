@@ -68,8 +68,14 @@ import {
 } from './huggingface/huggingfaceAccounts.js'
 import {
   HUGGINGFACE_USAGE_ABSENCE_NOTE,
+  huggingfaceAccountFactsFailure,
+  huggingfaceAccountFactsFailureWords,
   huggingfaceLimitWindow,
+  huggingfaceObservedAccountFacts,
   huggingfaceObservedRate,
+  refreshHuggingfaceAccountFacts,
+  type HuggingfaceAccountFacts,
+  type HuggingfaceAccountFactsFailure,
   type HuggingfaceLimitWindow,
 } from './huggingface/huggingfaceUsageState.js'
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
@@ -394,6 +400,8 @@ export interface ActiveUsageReads {
   huggingfaceAccount?: () => HuggingfaceAccountRef | undefined
   huggingfaceLimited?: () => HuggingfaceLimitWindow
   huggingfaceRate?: () => { remaining: number; resetsAtMs?: number; observedAtMs: number } | null
+  huggingfaceAccountFacts?: () => HuggingfaceAccountFacts | null
+  huggingfaceAccountFactsFailure?: () => HuggingfaceAccountFactsFailure | null
   localAccount?: () => LocalAccountRef | undefined
   laneCredentialed?: (provider: RouterProviderId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
@@ -461,6 +469,14 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       }
       case 'local':
         await refreshLocalDiscovery({
+          ...(io?.env !== undefined ? { env: io.env } : {}),
+          ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}),
+          ...(io?.now !== undefined ? { now: io.now } : {}),
+          ...(io?.force !== undefined ? { force: io.force } : {}),
+        })
+        return
+      case 'huggingface':
+        await refreshHuggingfaceAccountFacts({
           ...(io?.env !== undefined ? { env: io.env } : {}),
           ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}),
           ...(io?.now !== undefined ? { now: io.now } : {}),
@@ -1073,6 +1089,30 @@ function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] 
   return figures
 }
 
+export function huggingfacePlanFigures(facts: HuggingfaceAccountFacts | null): UsageFigureView[] {
+  if (facts === null || facts.isPro === undefined) return []
+  const label =
+    facts.canPay === true ? 'plan · payment method on file' : facts.canPay === false ? 'plan · no payment method' : 'plan'
+  return [
+    {
+      key: 'plan',
+      label,
+      value: facts.isPro ? 'PRO' : 'free',
+      observedAtMs: facts.observedAtMs,
+      ...(facts.periodEndMs !== undefined ? { resetsAtMs: facts.periodEndMs } : {}),
+      source: 'endpoint',
+      freshForMs: usageStaleAfterMs(),
+    },
+  ]
+}
+
+function huggingfaceTier(kind: 'oauth' | 'api-key', facts: HuggingfaceAccountFacts | null): string {
+  if (kind !== 'oauth') return API_BILLING_TIER
+  if (facts?.isPro === true) return 'Hugging Face PRO'
+  if (facts?.isPro === false) return 'Hugging Face free'
+  return 'Hugging Face sign-in'
+}
+
 function deriveActiveSourceUsage(opts?: {
   model?: string
   reads?: ActiveUsageReads
@@ -1190,18 +1230,27 @@ export function usageForProvider(
     }
     const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
     const rate = reads?.huggingfaceRate ? reads.huggingfaceRate() : huggingfaceObservedRate()
-    const figures: UsageFigureView[] = rate
-      ? [
-          {
-            key: 'rate-remaining',
-            label: 'requests remaining (stated by the last response)',
-            value: String(rate.remaining),
-            observedAtMs: rate.observedAtMs,
-            ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
-            source: 'headers',
-          },
-        ]
-      : []
+    const facts = reads?.huggingfaceAccountFacts ? reads.huggingfaceAccountFacts() : huggingfaceObservedAccountFacts()
+    const factsFailure = reads?.huggingfaceAccountFactsFailure ? reads.huggingfaceAccountFactsFailure() : huggingfaceAccountFactsFailure()
+    const figures: UsageFigureView[] = [
+      ...(rate
+        ? [
+            {
+              key: 'rate-remaining',
+              label: 'requests remaining (stated by the last response)',
+              value: String(rate.remaining),
+              observedAtMs: rate.observedAtMs,
+              ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
+              source: 'headers' as const,
+            },
+          ]
+        : []),
+      ...huggingfacePlanFigures(facts),
+    ]
+    const planNote =
+      factsFailure !== null && (facts === null || factsFailure.atMs > facts.observedAtMs)
+        ? huggingfaceAccountFactsFailureWords(factsFailure)
+        : undefined
     return {
       provider,
       sourceKind: account.kind === 'oauth' ? 'oauth' : 'api-key',
@@ -1213,7 +1262,8 @@ export function usageForProvider(
       spend,
       ...(figures.length > 0 ? { figures } : {}),
       absence: HUGGINGFACE_USAGE_ABSENCE_NOTE,
-      tier: account.kind === 'oauth' ? 'Hugging Face sign-in' : API_BILLING_TIER,
+      tier: huggingfaceTier(account.kind, facts),
+      ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
       ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),
     }
   }
