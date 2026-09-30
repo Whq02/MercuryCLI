@@ -674,8 +674,10 @@ keeps the line that names the file.
 
 A request can outgrow the model's window — a large paste, a long run of
 tool results, a switch to a model with a smaller window. The conversation
-compacts itself before that point when it can; when a request overflows
-anyway, the turn recovers instead of ending:
+folds automatically 20,000 tokens before the usable edge by default, with
+proportional room preserved on small local windows. The gauge, warning line
+and ContextLeft tool count down to that same point. When a request outgrows
+that headroom anyway, the turn recovers instead of ending:
 
 - Superseded tool results older than the recent few are pruned when that
   alone covers the gap the provider named, and the request is retried. The
