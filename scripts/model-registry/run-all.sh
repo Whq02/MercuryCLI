@@ -8,6 +8,7 @@
 # gate-watch: src/daemon/crewSpawn.ts src/ink.ts src/memdir/findRelevantMemories.ts
 # gate-watch: src/services/concourse/coordinatorModels.ts src/services/concourse/workerModels.ts
 # gate-watch: src/services/providers/* src/services/providers/anthropic/*
+# gate-watch: src/services/tokenEstimation.ts src/services/vcr.ts src/services/api/client.ts
 # gate-watch: src/services/providers/gemini/geminiCatalogue.ts src/services/providers/local/localCatalogue.ts
 # gate-watch: src/services/providers/local/localDiscovery.ts src/services/providers/openai/*
 # gate-watch: src/services/providers/openaicompat/compatWire.ts
@@ -33,6 +34,7 @@ __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-submodel-effort-di
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-model-honesty.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-model-honesty.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-spelling-fold.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-spelling-fold.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-frontier-wire-laws.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-frontier-wire-laws.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-token-count-thinking.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-token-count-thinking.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-opus-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-opus-55-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-sonnet-55-row.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-sonnet-55-row.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/model-registry/prove-picker-one-row-per-model.ts || { __rc=$?; fail=1; }; prover_mark scripts/model-registry/prove-picker-one-row-per-model.ts "$__t" "$__rc"
