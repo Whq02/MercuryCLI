@@ -29,6 +29,7 @@ import { HuggingfaceConnect } from './HuggingfaceConnect.js'
 import { KimiConnect } from './KimiConnect.js'
 import { ZaiConnect } from './ZaiConnect.js'
 import { DeepseekConnect } from './DeepseekConnect.js'
+import { XaiConnect } from './XaiConnect.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
@@ -51,6 +52,7 @@ type EngineLeg =
   | 'moonshot'
   | 'zai'
   | 'deepseek'
+  | 'xai'
 
 export type LoginFamilyFocus = LoginFamilyValue
 
@@ -203,6 +205,10 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
 
+      case 'xai':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>xAI login unavailable here.</Text>)
+        return frame(<XaiConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
       case 'openai-key':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>OpenAI login unavailable here.</Text>)
         return frame(<OpenaiKeyLeg onOpenaiDone={settleLeg} onBack={() => setLeg('openai')} />)
@@ -221,7 +227,7 @@ export function ConsoleOAuthFlow({
         <Box flexDirection="column" gap={1}>
           <Text>
             {startingMessage ??
-              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek). An API key also connects from the terminal: /router key <provider>.'}
+              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI). An API key also connects from the terminal: /router key <provider>.'}
           </Text>
           <Select
             visibleOptionCount={idleRows.length}
@@ -236,7 +242,7 @@ export function ConsoleOAuthFlow({
                 setLeg('openai')
                 return
               }
-              if (value === 'moonshot' || value === 'zai' || value === 'deepseek') {
+              if (value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai') {
                 setLeg(value)
                 return
               }
@@ -470,6 +476,7 @@ const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
   { id: 'moonshot', label: 'Kimi (Moonshot)' },
   { id: 'zai', label: 'GLM (Z.AI)' },
   { id: 'deepseek', label: 'DeepSeek' },
+  { id: 'xai', label: 'xAI' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
 ]

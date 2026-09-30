@@ -10,6 +10,7 @@ export type ProviderId =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'
@@ -38,6 +39,7 @@ export interface ProviderUsabilityReads {
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   deepseekKeyPresent?: () => boolean
+  xaiKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -128,6 +130,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
         require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
       return resolveDeepseekApiKey() !== undefined
     },
+    xaiKeyPresent: () => {
+      const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+      return resolveXaiApiKey() !== undefined
+    },
     compatConfigured: () => {
       const { resolveCompatSlotConfig } =
         require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
@@ -191,7 +197,7 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     laneBillingState: lane => {
       const { laneBillingState } =
         require('./laneBillingState.js') as typeof import('./laneBillingState.js')
-      return laneBillingState(lane)
+      return lane === 'xai' ? { state: 'clear' } : laneBillingState(lane)
     },
   }
 }
@@ -285,6 +291,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     reads.deepseekKeyPresent?.() ?? false,
     'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
   )
+  const xai = keyLane('xai', reads.xaiKeyPresent?.() ?? false, 'no xAI API key — /logins xai (or XAI_API_KEY)')
   const compatAccount = reads.compatAccount?.()
   const compat = keyLane(
     'openai-compat',
@@ -369,6 +376,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     zai: applyLaneBilling(zai),
     moonshot: applyLaneBilling(moonshot),
     deepseek: applyLaneBilling(deepseek),
+    xai: applyLaneBilling(xai),
     'openai-compat': applyLaneBilling(compat),
     openrouter: applyLaneBilling(applyObservedLimit(openrouter, reads.openrouterLimitWindow?.())),
     gemini: applyLaneBilling(applyObservedLimit(gemini, reads.geminiLimitWindow?.())),
