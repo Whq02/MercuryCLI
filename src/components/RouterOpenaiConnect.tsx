@@ -91,6 +91,7 @@ export function RouterOpenaiConnect({
       })
     return () => {
       alive = false
+      handles.cancel('cancelled from the connect surface')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode])

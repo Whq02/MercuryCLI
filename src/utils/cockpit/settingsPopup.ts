@@ -1,6 +1,7 @@
 import type * as React from 'react'
+import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 
-export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup'
+export type SettingsPopupView = 'config' | 'usage' | 'status' | 'jev' | 'localsetup' | 'logins'
 
 export type SettingsPopupGeometry = { width: number; inner: number; rowBudget: number }
 
@@ -10,6 +11,8 @@ export type SettingsPopupRequest = {
   rows: number | null
   line: string
   hint: string
+  bodyOwnsEscape?: boolean
+  scrollRef?: React.RefObject<ScrollBoxHandle | null>
   body: (geometry: SettingsPopupGeometry) => React.ReactNode
 }
 

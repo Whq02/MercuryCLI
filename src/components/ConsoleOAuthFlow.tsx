@@ -11,6 +11,11 @@ import TextInput from './TextInput.js'
 import { Spinner } from './Spinner.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
+import { PopupFormContext } from '../context/popupFormContext.js'
+import { escapeFromOutsidePress } from '../ink/recessLayer.js'
+import { LoginAccountCard } from './LoginAccountCard.js'
+import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsRowStateOf } from './BootLoginsScreen.js'
+import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import { mostRecentSignInFamily } from '../utils/model/computedDefault.js'
 import { useNotifications } from '../context/notifications.js'
@@ -68,7 +73,9 @@ export function ConsoleOAuthFlow({
   initialFocus,
   onSkip,
   onAbandonLeg,
+  onAccountChange,
 }: {
+  onAccountChange?: (receipt: string) => void
   onDone: () => void
   onCancel?: () => void
   onOpenaiDone?: (result: { ok: boolean; receipt: string }) => void
@@ -81,6 +88,7 @@ export function ConsoleOAuthFlow({
 }): React.ReactNode {
   const tokens = useMercuryTokens()
   const { columns } = useTerminalSize()
+  const popup = React.useContext(PopupFormContext)
   const { addNotification } = useNotifications()
   const setupToken = mode === 'setup-token'
 
@@ -99,6 +107,9 @@ export function ConsoleOAuthFlow({
   const accountLabel = model.accountLabel
 
   const [leg, setLeg] = useState<EngineLeg | null>(null)
+  const [accountFamily, setAccountFamily] = useState<LoginFamilyValue | null>(null)
+  useSignInEpoch()
+  useCatalogueEpoch()
   const [code, setCodeState] = useState('')
   const codeRef = useRef('')
   const setCode = useCallback((next: string): void => {
@@ -108,13 +119,19 @@ export function ConsoleOAuthFlow({
   const [codeCursor, setCodeCursor] = useState(0)
 
   useInput(
-    (_input, key) => {
-      if (key.escape) (onAbandonLeg ?? onCancel)?.()
+    (_input, key, event) => {
+      if (popup && key.escape && escapeFromOutsidePress()) {
+        event.stopImmediatePropagation()
+        if (state.name === 'success') onDone()
+        else onCancel?.()
+        return
+      }
+      if (key.escape && (state.name === 'ready' || state.name === 'waiting' || state.name === 'error')) (onAbandonLeg ?? onCancel)?.()
     },
     {
       isActive:
         (onAbandonLeg !== undefined || onCancel !== undefined) &&
-        (state.name === 'ready' || state.name === 'waiting' || state.name === 'error'),
+        (popup || state.name === 'ready' || state.name === 'waiting' || state.name === 'error'),
     },
   )
 
@@ -147,9 +164,9 @@ export function ConsoleOAuthFlow({
   const frame = (children: React.ReactNode): React.ReactNode => (
     <Box
       flexDirection="column"
-      borderStyle="round"
+      borderStyle={popup ? undefined : 'round'}
       borderColor={tokens.borderSubtle}
-      paddingX={1}
+      paddingX={popup ? 0 : 1}
       gap={1}
     >
       <Text bold>{setupToken ? 'Set up a long-lived token' : 'Sign in'}</Text>
@@ -160,6 +177,23 @@ export function ConsoleOAuthFlow({
   const settleLeg = (result: { ok: boolean; receipt: string }): void => {
     onOpenaiDone?.(result)
   }
+
+  const startFamily = (value: string): void => {
+    if (value === SIGN_IN_LATER_ROW.value) { onSkip?.(); return }
+    if (value === 'openai' || value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta' || value === 'openrouter' || value === 'gemini' || value === 'huggingface') {
+      setLeg(value)
+      return
+    }
+    model.start(value === 'claudeai')
+  }
+  if (accountFamily !== null) return frame(
+    <LoginAccountCard
+      family={accountFamily}
+      onBack={() => setAccountFamily(null)}
+      onSignIn={() => { setAccountFamily(null); startFamily(accountFamily) }}
+      onChanged={receipt => onAccountChange?.(receipt)}
+    />,
+  )
 
   if (leg !== null) {
     switch (leg) {
@@ -229,6 +263,8 @@ export function ConsoleOAuthFlow({
       ]
       const recordedFocus = loginFamilyFocusFor(mostRecentSignInFamily())
       const defaultFocus = loginFamilyInitialFocus(idleRows, recordedFocus, initialFocus)
+      const facts = popup ? collectLoginsScreenFacts() : null
+      const arms = popup ? loginsCatalogue() : []
       return frame(
         <Box flexDirection="column" gap={1}>
           <Text>
@@ -238,33 +274,19 @@ export function ConsoleOAuthFlow({
           <Select
             visibleOptionCount={idleRows.length}
             defaultFocusValue={defaultFocus}
-            options={idleRows}
+            layout={popup ? 'compact-vertical' : 'compact'}
+            options={idleRows.map(row => {
+              const arm = arms.find(candidate => candidate.row.value === row.value)
+              const status = facts && arm ? loginsRowStateOf(arm, facts) : null
+              return { ...row, ...(status?.signedIn ? { description: status.chip } : {}) }
+            })}
             onChange={value => {
-              if (value === SIGN_IN_LATER_ROW.value) {
-                onSkip?.()
+              const arm = arms.find(candidate => candidate.row.value === value)
+              if (facts && arm && loginsArmSlots(arm, facts.groups.find(group => group.family.id === arm.familyId)).length > 0) {
+                setAccountFamily(arm.row.value)
                 return
               }
-              if (value === 'openai') {
-                setLeg('openai')
-                return
-              }
-              if (value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta') {
-                setLeg(value)
-                return
-              }
-              if (value === 'openrouter') {
-                setLeg('openrouter')
-                return
-              }
-              if (value === 'gemini') {
-                setLeg('gemini')
-                return
-              }
-              if (value === 'huggingface') {
-                setLeg('huggingface')
-                return
-              }
-              model.start(value === 'claudeai')
+              startFamily(value)
             }}
             onCancel={onCancel}
           />

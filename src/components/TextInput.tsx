@@ -1,6 +1,8 @@
 
 import chalk from 'chalk'
-import React, { useState } from 'react'
+import React, { useContext, useLayoutEffect, useRef, useState } from 'react'
+import { Box, measureElement, type DOMElement } from '../ink.js'
+import { PopupFormContext } from '../context/popupFormContext.js'
 import { BaseTextInput } from './BaseTextInput.js'
 import { useTextInput } from '../hooks/useTextInput.js'
 import { useBlink } from '../hooks/useBlink.js'
@@ -52,12 +54,21 @@ export default function TextInput(props: Props): React.ReactNode {
         }
       : null
 
+  const fit = useContext(PopupFormContext)
+  const fieldRef = useRef<DOMElement | null>(null)
+  const [fieldWidth, setFieldWidth] = useState(props.columns)
+  useLayoutEffect(() => {
+    if (!fit || !fieldRef.current) return
+    const width = Math.max(1, Math.floor(measureElement(fieldRef.current).width))
+    if (width !== fieldWidth) setFieldWidth(width)
+  })
+  const columns = fit ? Math.max(1, Math.min(props.columns, fieldWidth)) : props.columns
   const inputState = useTextInput({
     value: props.value,
     onChange: props.onChange,
     externalOffset: props.cursorOffset,
     onOffsetChange: props.onChangeCursorOffset,
-    columns: props.columns,
+    columns,
     onSubmit: props.onSubmit,
     onExit: props.onExit,
     onEscape: props.onEscape,
@@ -89,12 +100,14 @@ export default function TextInput(props: Props): React.ReactNode {
     onImagePaste: props.onImagePaste,
   })
 
-  return (
+  const field = (
     <BaseTextInput
       {...props}
+      columns={columns}
       inputState={inputState}
       terminalFocus={terminalFocused}
       invert={invert}
     />
   )
+  return fit ? <Box ref={fieldRef} flexGrow={1} flexShrink={1} minWidth={0}>{field}</Box> : field
 }

@@ -53,6 +53,7 @@ import { useOverlayOpen } from '../context/overlayContext.js';
 import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
+import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
 import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
@@ -1340,7 +1341,7 @@ export function REPL({
         if (element && !completed) {
           slot.mounted = true;
           setToolJSX({ jsx: element, shouldHidePromptInput: false, isLocalJSXCommand: true, isImmediate: true });
-        } else if (!element && !completed) {
+        } else if (!element && !completed && !isSettingsPopupOpen()) {
           addNotification({
             key: `command-${seatCommand.name}`,
             text: `/${getCommandName(seatCommand)} had nothing to show`,

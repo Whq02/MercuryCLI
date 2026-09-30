@@ -1,6 +1,7 @@
 
 import React, { useCallback, useEffect, useRef } from 'react'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
+import { settingsPopupRequest } from '../utils/cockpit/settingsPopup.js'
 import useInput from '../ink/hooks/use-input.js'
 import type { Key } from '../ink/events/input-event.js'
 import {
@@ -188,6 +189,7 @@ export function jumpBy(handle: ScrollBoxHandle, delta: number): boolean {
 const WHEEL_OWNING_OVERLAYS = new Set(['select', 'model-picker', 'command-palette', 'quick-open', 'file-open', 'content-search', 'files-menu'])
 
 export function wheelYieldsToTopOverlay(): boolean {
+  if (settingsPopupRequest()?.scrollRef) return false
   const top = topOverlay()
   return top !== null && WHEEL_OWNING_OVERLAYS.has(top.id)
 }
@@ -259,6 +261,8 @@ export function ScrollKeybindingHandler({
   onScrollRef.current = onScroll
 
   const activeHandle = useCallback((): ScrollBoxHandle | null => {
+    const popup = settingsPopupRequest()?.scrollRef
+    if (popup) return popup.current
     if (modalUp && modalScrollRef?.current) return modalScrollRef.current
     if (modalUp) return null
     return scrollRef.current
@@ -266,7 +270,7 @@ export function ScrollKeybindingHandler({
 
   const notifyScroll = useCallback(
     (handle: ScrollBoxHandle) => {
-      if (modalUp) return
+      if (modalUp || settingsPopupRequest()?.scrollRef) return
       const max = Math.max(
         0,
         handle.getScrollHeight() - handle.getViewportHeight(),
@@ -436,10 +440,11 @@ export function ScrollKeybindingHandler({
   )
 
   useInput(
-    (input, key) => {
+    (input, key, event) => {
       const wheelUp = (key as { wheelUp?: boolean }).wheelUp === true
       const wheelDown = (key as { wheelDown?: boolean }).wheelDown === true
       if (!wheelUp && !wheelDown) return
+      if (settingsPopupRequest()?.scrollRef) event.stopImmediatePropagation()
       if (wheelYieldsToTopOverlay()) return
       const handle = activeHandle()
       if (!handle) return
