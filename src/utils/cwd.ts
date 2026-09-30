@@ -8,6 +8,10 @@ export function runWithCwdOverride<T>(cwd: string, fn: () => T): T {
   return cwdOverrideStorage.run(cwd, fn)
 }
 
+export function getStartingCwd(): string {
+  return cwdOverrideStorage.getStore() ?? getOriginalCwd()
+}
+
 export function pwd(): string {
   const override = cwdOverrideStorage.getStore()
   if (override !== undefined) return override

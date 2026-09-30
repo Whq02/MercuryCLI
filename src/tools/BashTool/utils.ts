@@ -2,7 +2,6 @@ import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { setCwd } from '../../utils/Shell.js'
 import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'
-import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
@@ -122,16 +121,11 @@ export function outputBudgetClause(budget: OutputBudget): string | undefined {
 export const stdErrAppendShellResetMessage = (stderr: string): string =>
   `${stderr.trim()}\nShell cwd was reset to ${getOriginalCwd()}`
 
-export function resetCwdIfOutsideProject(toolPermissionContext: ToolPermissionContext): boolean {
-  const cwd = getCwd()
+export function resetCwdIfOutsideProject(_toolPermissionContext: ToolPermissionContext): boolean {
   const originalCwd = getOriginalCwd()
   if (shouldMaintainProjectWorkingDir()) {
     setCwd(originalCwd)
     return false
-  }
-  if (cwd !== originalCwd && !pathInAllowedWorkingPath(cwd, toolPermissionContext)) {
-    setCwd(originalCwd)
-    return true
   }
   return false
 }

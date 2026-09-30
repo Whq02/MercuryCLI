@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { sep as platformSep, posix as posixPath } from 'node:path'
 import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
-import { getCwd } from '../cwd.js'
+import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../fsOperations.js'
@@ -87,19 +87,12 @@ function normalizeForWorkingDirCompare(path: string): string {
 }
 
 
-export function allWorkingDirectories(context: ToolPermissionContext): Set<string> {
-  const dirs = new Set<string>([getOriginalCwd()])
-  const additional = (context as unknown as { additionalWorkingDirectories?: ReadonlyMap<string, unknown> })
-    .additionalWorkingDirectories
-  if (additional) {
-    for (const dir of additional.keys()) dirs.add(dir)
-  }
-  return dirs
+export function allWorkingDirectories(_context: ToolPermissionContext): Set<string> {
+  return new Set([getStartingCwd()])
 }
 
-export function describeWriteScope(context: ToolPermissionContext): string {
-  const dirs = [...allWorkingDirectories(context)]
-  return `The session's write scope is ${dirs.map(d => `${d}${d === getOriginalCwd() ? ' (the launch directory)' : ''}`).join(', ')}; a directory joins it with /add-dir <dir> in the session or --add-dir <dir> at launch.`
+export function describeWriteScope(_context: ToolPermissionContext): string {
+  return `The starting folder is ${getStartingCwd()}. Implement mode asks before writing outside it; Sovereign mode does not ask.`
 }
 
 export function pathInWorkingPath(path: string, workingPath: string): boolean {

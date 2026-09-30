@@ -19,7 +19,7 @@ import {
   formatDirectoryList,
   type FileOperationType,
 } from '../../utils/permissions/pathValidation.js'
-import { allWorkingDirectories, matchingRulesForInput, pathInAllowedWorkingPath, pathInWorkingPath } from '../../utils/permissions/filesystem.js'
+import { allWorkingDirectories, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { refusalWithReason, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -453,8 +453,7 @@ function composedMessage(
   if (operation === 'write' || operation === 'create') {
     return `For security: ${composeWriteRefusal(context, resolvedPath, COMMAND_ACTION[command])}`
   }
-  const dirs = formatDirectoryList([...allWorkingDirectories(context)])
-  return `For security, Mercury may only ${COMMAND_ACTION[command]} ${resolvedPath} within the allowed directories (${dirs}).`
+  return `Mercury needs permission to ${COMMAND_ACTION[command]} ${resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}).`
 }
 
 
@@ -578,23 +577,13 @@ function convertAstRedirects(redirects: Redirect[]): string[] {
 }
 
 function composeWriteRefusal(context: ToolPermissionContext, resolvedPath: string, action: string): string {
-  const added = (context as unknown as { additionalWorkingDirectories?: ReadonlyMap<string, unknown> })
-    .additionalWorkingDirectories
-  for (const dir of added?.keys() ?? []) {
-    if (pathInWorkingPath(resolvedPath, dir)) {
-      return (
-        `Mercury may only ${action} inside the working directory; ${resolvedPath} is inside the ADDED directory ${dir}, ` +
-        `which grants reads only. Approve the write on its permission card, or add a session allow rule such as Edit(${dir}/**).`
-      )
-    }
-  }
   if (pathInAllowedWorkingPath(resolvedPath, context)) {
     return (
       `Mercury needs approval to ${action} ${resolvedPath}: this permission mode does not ${action} files on its own ` +
       `and no allow rule covers it. Approve it on its permission card, add an allow rule, or start in a mode that allows writes.`
     )
   }
-  return `Mercury may only ${action} inside the working directory (${formatDirectoryList([getCwd()])}); ${resolvedPath} is outside it.`
+  return `Mercury needs approval to ${action} ${resolvedPath}, outside the starting folder (${formatDirectoryList([...allWorkingDirectories(context)])}). Approve it on its permission card or add an allow rule.`
 }
 
 function validateRedirections(
