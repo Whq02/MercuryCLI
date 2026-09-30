@@ -64,12 +64,10 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
   return o.kind === 'saturn' && (o.fire === 'wake' || o.fire === 'cron') && typeof o.firedAt === 'string'
 }
 
-type LegacyAdvisorOrigin = { seats?: unknown; minutes?: unknown }
-
 export function isAdvisorOrigin(origin: unknown): origin is AdvisorOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
-  return o.kind === 'advisor' && typeof o.model === 'string' && (typeof o.minutes === 'number' || typeof o.seats === 'number') && typeof o.at === 'string'
+  return o.kind === 'advisor' && typeof o.model === 'string' && typeof o.minutes === 'number' && typeof o.at === 'string'
 }
 
 export type SaturnQueueStamp = { origin: SaturnOrigin; workload: Workload }
@@ -137,15 +135,8 @@ export function advisorMinutesWords(minutes: number): string {
   return `every ${minutes} minute${minutes === 1 ? '' : 's'}`
 }
 
-function advisorCadenceWords(origin: AdvisorOrigin): string {
-  const written = origin as LegacyAdvisorOrigin
-  if (typeof written.minutes === 'number') return advisorMinutesWords(written.minutes)
-  const turns = written.seats
-  return typeof turns === 'number' ? `every ${turns} turn${turns === 1 ? '' : 's'}` : ''
-}
-
 export function advisorFirstLine(origin: AdvisorOrigin): string {
-  return `${origin.model} · ${advisorCadenceWords(origin)}`
+  return `${origin.model} · ${advisorMinutesWords(origin.minutes)}`
 }
 
 export function advisorPromptLines(text: string): string[] {

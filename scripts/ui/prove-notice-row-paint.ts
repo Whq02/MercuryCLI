@@ -159,8 +159,10 @@ section('§3 the advisor row: the [advisor] plate with the model and the cadence
   const note = 'Verify the pin on the base before you cut.\nThe seam is print.ts, not the driver.'
   check('the guard admits the origin; the block is muted; the plate is the lowercase word', isAdvisorOrigin(origin) && isMutedNoticeBlock(advisorBlockOf(origin as never, note)) && ADVISOR_PLATE_NAME === 'advisor')
   check('the plate reads [advisor] · <model> · every <minutes> minutes (red on the base: turns)', noticePlate(advisorBlockOf(origin as never, note)) === '[advisor] · claude-opus-4-8 · every 10 minutes', noticePlate(advisorBlockOf(origin as never, note)))
-  const legacy = { kind: 'advisor', model: 'claude-opus-4-8', seats: 10, at: STAMP }
-  check('a row written under the turn clock keeps its plate and reads the turns it was written under', isAdvisorOrigin(legacy) && noticePlate(advisorBlockOf(legacy as never, note)) === '[advisor] · claude-opus-4-8 · every 10 turns', noticePlate(advisorBlockOf(legacy as never, note)))
+  const old = { kind: 'advisor', model: 'claude-opus-4-8', seats: 10, at: STAMP }
+  check('a row written under the turn clock (seats, no minutes) is not an advisor row: the guard refuses it', !isAdvisorOrigin(old))
+  const oldFrame = await paint(h(UserTextMessage as never, { addMargin: false, param: { type: 'text', text: note }, verbose: false, origin: old }), { type: 'user', timestamp: STAMP })
+  check('…and its row wears no [advisor] plate and no turns wording', !oldFrame.includes('[advisor]') && !oldFrame.includes('turns'), oldFrame.slice(0, 200))
   const wrapped = wrapCommandText(note, origin as never)
   check('the mid-turn framing wraps the note in the advisor head and tail, never the operator words', wrapped.startsWith(ADVISOR_NOTE_HEAD) && wrapped.endsWith(ADVISOR_NOTE_TAIL) && !wrapped.includes('The operator sent a new message'), wrapped.slice(0, 120))
   check('the painted lines drop the framing and keep the note', JSON.stringify(advisorPromptLines(wrapped)) === JSON.stringify(note.split('\n')), JSON.stringify(advisorPromptLines(wrapped)))
