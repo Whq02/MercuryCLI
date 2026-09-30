@@ -36,6 +36,7 @@ export type SideQueryOptions = {
   thinking?: number | false
   stop_sequences?: string[]
   querySource: QuerySource | string
+  source?: string
 }
 
 function harnessVersion(): string {
@@ -76,7 +77,7 @@ function firstUserMessageText(messages: MessageParam[]): string {
 export async function sideQuery(opts: SideQueryOptions): Promise<ApiMessage> {
   const maxRetries = opts.maxRetries ?? 2
   const maxTokens = opts.max_tokens ?? 1024
-  const client = await getAnthropicClient({ maxRetries, source: 'side_query' })
+  const client = await getAnthropicClient({ maxRetries, source: opts.source ?? 'side_query' })
 
   const betas = [...getMergedBetas(opts.model)]
   if (opts.output_format && modelSupportsStructuredOutputs(opts.model) && !betas.includes(STRUCTURED_OUTPUTS_BETA_HEADER)) {
