@@ -189,3 +189,14 @@ export function buildLocalExtras(
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
   }
 }
+
+export function buildXaiExtras(args: LaneExtrasArgs & { vocabulary: readonly string[] }): Record<string, unknown> {
+  const effort = args.vocabulary.length === 0 ? undefined
+    : !args.thinkingEnabled ? thinkingOffWireEffort(args.vocabulary)
+      : args.effortValue !== undefined ? nearestSupportedWireEffort(args.effortValue, args.vocabulary) : undefined
+  return {
+    stream_options: { include_usage: true },
+    ...(effort !== undefined ? { reasoning_effort: effort } : {}),
+    ...(args.maxOutputTokensOverride !== undefined ? { max_completion_tokens: args.maxOutputTokensOverride } : {}),
+  }
+}

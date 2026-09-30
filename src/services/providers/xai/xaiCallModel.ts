@@ -1,33 +1,67 @@
-export const XAI_SURFACES_LANE_STUB = 'stub for the xai surfaces lane — replaced by the xai wire lane at the fold' as const
-import type {
-  AssistantMessage,
-  StreamEvent,
-  SystemAPIErrorMessage,
-} from '../../../types/message.js'
-import type {
-  CompatCallModelParams,
-  CompatLaneId,
-  CompatLaneProfile,
-} from '../openaicompat/compatChatCallModel.js'
-import { xaiChatCompletionsUrl } from './xaiAccounts.js'
-import { xaiCurrentModelId } from './xaiPins.js'
+import type { AssistantMessage, StreamEvent, SystemAPIErrorMessage } from '../../../types/message.js'
+import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
+import { readCatalogueIfPending } from '../catalogueOnDemand.js'
+import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
+import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
+import { buildXaiExtras } from '../openaicompat/compatWire.js'
+import { xaiChatCompletionsUrl, resolveXaiApiKey, resolveXaiAccount } from './xaiAccounts.js'
+import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
+import { isXaiChatModelId } from './xaiPins.js'
 
 export const xaiLaneProfile: CompatLaneProfile = {
-  lane: 'xai' as CompatLaneId,
+  lane: 'xai',
   providerLabel: 'xAI',
-  resolveCredential: () => undefined,
+  resolveCredential: () => {
+    const key = resolveXaiApiKey()
+    return key ? { apiKey: key.key } : undefined
+  },
   credentialHint: 'no xAI API key detected — /logins xai stores one; XAI_API_KEY works too.',
+  authRemedy: 'set a valid XAI_API_KEY, or store a new key via /logins xai (console.x.ai issues them).',
+  billingRemedy: 'check credits and billing at console.x.ai, then retry; /model picks another model meanwhile.',
   requestUrl: () => xaiChatCompletionsUrl(),
-  wireModelId: modelId => xaiCurrentModelId(modelId),
-  buildExtras: () => ({}),
+  wireModelId: modelId => modelId,
+  usageForSettlement: usage => ({ ...usage, outputTokens: Math.max(usage.outputTokens, (usage.totalTokens ?? 0) - usage.inputTokens) }),
+  toolCapabilityRefusal: model => xaiModelFacts(model)?.tools === false ? `xAI model '${model}' does not support tool calls.` : undefined,
+  buildExtras: args => buildXaiExtras({ ...args, vocabulary: xaiModelFacts(args.wireModel)?.efforts ?? [] }),
 }
-
 export function xaiLiveProofState(): { at: number; model: string } | null {
-  return null
+  return compatLaneLiveProofState('xai')
 }
-
-export async function* xaiCallModel(
-  _params: CompatCallModelParams,
-): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
-  return
+export async function* xaiCallModel(params: CompatCallModelParams): AsyncGenerator<StreamEvent | AssistantMessage | SystemAPIErrorMessage, void> {
+  if (params.signal.aborted) return
+  const account = resolveXaiAccount()
+  if (!account) {
+    yield* compatChatCallModel(xaiLaneProfile, params)
+    return
+  }
+  let onAbort: () => void = () => {}
+  const cancelled = new Promise<void>(resolve => {
+    onAbort = resolve
+    params.signal.addEventListener('abort', onAbort, { once: true })
+  })
+  try {
+    await Promise.race([readCatalogueIfPending('xai'), cancelled])
+  } finally {
+    params.signal.removeEventListener('abort', onAbort)
+  }
+  if (params.signal.aborted) return
+  const snapshot = getCachedXaiCatalogue()
+  const asked = normalizeModelStringForAPI(params.options.model)
+  const alias = asked.trim().toLowerCase() === 'grok'
+  const model = alias ? snapshot?.models[0]?.id : asked
+  let refusal: string | undefined
+  if (!model) refusal = `xAI cannot resolve 'grok' until the account's live list serves a chat model${snapshot?.lastError ? ` — ${snapshot.lastError}` : ''}; /model refreshes the list.`
+  else if (!isXaiChatModelId(model)) refusal = `xAI model '${model}' is not on the chat-completions road; image, video, audio and multi-agent endpoints are not supported here.`
+  else if (snapshot?.lastError?.includes('refused the credential')) refusal = `${snapshot.lastError} — /logins xai replaces the key.`
+  else if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.models.some(row => row.id.toLowerCase() === model.toLowerCase() || row.aliases?.some(id => id.toLowerCase() === model.toLowerCase()))) {
+    refusal = modelNotOfferedByCatalogue(model, account.label, snapshot.models.map(row => row.id))
+  }
+  if (refusal) {
+    yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${refusal}` })
+    return
+  }
+  const notes = snapshot?.lastError || !snapshot?.fetchedAtMs ? [`xAI model list unavailable — the named id '${model}' is sent for the provider to decide.`] : undefined
+  yield* compatChatCallModel({ ...xaiLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model! }, { ...params, options: { ...params.options, model: model! } })
 }

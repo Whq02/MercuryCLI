@@ -197,7 +197,7 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     laneBillingState: lane => {
       const { laneBillingState } =
         require('./laneBillingState.js') as typeof import('./laneBillingState.js')
-      return lane === 'xai' ? { state: 'clear' } : laneBillingState(lane)
+      return laneBillingState(lane)
     },
   }
 }

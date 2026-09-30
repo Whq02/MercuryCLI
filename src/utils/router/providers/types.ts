@@ -19,7 +19,7 @@ export type RouterModelClass =
   | 'glm'
   | 'kimi'
   | 'deepseek'
-  | 'xai'
+  | 'grok'
   | 'compat'
   | 'huggingface'
   | 'local'

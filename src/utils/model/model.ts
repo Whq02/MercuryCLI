@@ -143,6 +143,10 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(firstPartyString('opus55'))
     case 'opusplan':
       return reattach(getDefaultSonnetModel())
+    case 'grok': {
+      const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+      return reattach(xaiCatalogueRows().rows[0]?.id ?? 'grok')
+    }
     case 'best':
       return getBestModel()
     default:
@@ -290,6 +294,10 @@ export function getPublicModelDisplayName(model: string): string | null {
     if (base !== undefined) {
       return hasSuffix && ONE_M_TWIN_KEYS.has(key) ? `${base} (1M context)` : base
     }
+  }
+  if (/^grok-/i.test(bare)) {
+    const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+    return xaiDisplayPin(bare)?.displayName ?? null
   }
   const gpt = gptDisplayName(bare)
   if (gpt !== undefined) {
