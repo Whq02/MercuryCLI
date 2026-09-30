@@ -45,8 +45,9 @@ headless verbs. Windows runs `node dist\mercury.mjs` directly; the guide is
 
 Configuration and sessions live in the config home: `~/.mercury`, or whatever
 `MERCURY_CONFIG_DIR` names; the build never writes there. To make a build your
-daily `mercury`, `scripts/ops/deploy-runtime.sh` publishes a clean-tree build to
-`<config-home>/runtime/dist` and `scripts/ops/deploy-launcher.sh` installs the
+daily `mercury`, `scripts/ops/deploy-runtime.sh` publishes a clean-tree build to a
+fresh `<config-home>/runtime/builds/<build>` folder behind the `runtime/current`
+pointer (`runtime/dist` is the same link) and `scripts/ops/deploy-launcher.sh` installs the
 launcher at `<config-home>/bin/mercury` — put that directory on your `PATH`;
 `mercury --version` checks it. The launcher runs `MERCURY_NODE`, else the
 vendored `vendor/node` beside the build, else a PATH node, and fails loudly

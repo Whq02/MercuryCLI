@@ -209,6 +209,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
     'src/memdir/promoteRungate.ts': 'the promote gate runs at the headless CLI',
     'src/utils/worktree.ts': 'the --worktree --tmux attach: a multiplexer client never takes the foreground group, and it runs before the renderer mounts',
     'src/substrate/directSplash.ts': 'the pre-boot launch splash — it runs before the renderer mounts, its child shares this process group (no tcsetpgrp, so no foreground-group hand-off), and an abnormal splash death is healed by its own ABNORMAL_HEAL (terminal modes), never the reclaim',
+    'src/services/privateChannel/ghRelease.ts': 'the gh deadline holder: the inherit spelling is SOURCE TEXT of a node -e child that gh() starts with execFile, so the holder holds the execFile pipes and hands them on — it never touches a terminal',
   }
   const offenders: string[] = []
   const walk = (dir: string, visit: (rel: string, text: string) => void): void => {

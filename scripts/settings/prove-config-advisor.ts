@@ -41,7 +41,7 @@ const mods = await (async () => {
 })()
 const ready = mods ?? (await finish())
 check('the rows and the service import', true)
-const { ADVISOR_ROW_IDS, advisorConfigItems, nextAdvisorInterval } = ready.page
+const { ADVISOR_ROW_IDS, advisorConfigItems, advisorCrewmatesValueWords, nextAdvisorInterval } = ready.page
 const { readAdvisorSettings } = ready.service
 
 section('§1 the pure rows and the ladder')
@@ -51,6 +51,7 @@ section('§1 the pure rows and the ladder')
   check('three rows: Advisor, a separate crewmate opt-in, and Advisor interval', off.length === 3 && off[0]!.id === 'advisor' && off[0]!.kind === 'boolean' && off[1]!.id === 'advisorCrewmates' && off[1]!.kind === 'boolean' && off[2]!.id === 'advisorInterval' && off[2]!.kind === 'enum' && ADVISOR_ROW_IDS.length === 3, JSON.stringify(off.map(r => [r.id, r.kind])))
   check('the crewmate warning names the separate opt-in, both switches and workflow exclusion', (off[1]!.warning ?? '').includes('both this switch and Advisor must be on') && (off[1]!.warning ?? '').includes('workflow agents never receive advice'), off[1]!.warning)
   check("the Advisor row's note says whom the note is for and where the model is picked", (off[0]!.warning ?? '').includes('addressed to the agent, never to you') && (off[0]!.warning ?? '').includes('/submodels'), off[0]!.warning)
+  check('the crewmate row says "may result in high spend" whenever its switch is on, and never when it is off', advisorCrewmatesValueWords({ enabled: true, crewmates: true }) === 'on · may result in high spend' && advisorCrewmatesValueWords({ enabled: false, crewmates: true }).startsWith('on · Advisor is off') && advisorCrewmatesValueWords({ enabled: false, crewmates: true }).endsWith('may result in high spend') && advisorCrewmatesValueWords({ enabled: true, crewmates: false }) === 'off', [advisorCrewmatesValueWords({ enabled: true, crewmates: true }), advisorCrewmatesValueWords({ enabled: false, crewmates: true }), advisorCrewmatesValueWords({ enabled: true, crewmates: false })].join(' | '))
   check('the interval row lists the ladder 5 · 10 · 20 · 50', (off[2]!.warning ?? '').includes('5 · 10 · 20 · 50'), off[2]!.warning)
   check('the ladder steps 5→10→20→50 and clamps at both ends', nextAdvisorInterval(5, 1) === 10 && nextAdvisorInterval(10, 1) === 20 && nextAdvisorInterval(20, 1) === 50 && nextAdvisorInterval(50, 1) === 50 && nextAdvisorInterval(5, -1) === 5 && nextAdvisorInterval(50, -1) === 20)
   check('an off-ladder value (a hand-edited 7) steps to its neighbours', nextAdvisorInterval(7, 1) === 10 && nextAdvisorInterval(7, -1) === 5 && nextAdvisorInterval(99, -1) === 50 && nextAdvisorInterval(2, -1) === 5)
@@ -142,6 +143,7 @@ section('§3 master on leaves crewmates off; the separate opt-in and interval wr
   m.push(KEY.right)
   await settle(200)
   check('→ explicitly opts crewmates in without changing the interval', readAdvisorSettings().crewmates && readAdvisorSettings().seats === 10 && JSON.stringify(storedAdvisor()) === JSON.stringify({ enabled: true, crewmates: true }), JSON.stringify(storedAdvisor()))
+  check('the crewmate row on screen reads on · may result in high spend', rowOf(m, 'Advisor for crewmates').includes('on · may result in high spend'), rowOf(m, 'Advisor for crewmates'))
   save('config-advisor-crewmates-on-178x51', m)
   m.push(KEY.down)
   await settle(100)

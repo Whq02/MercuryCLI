@@ -234,9 +234,10 @@ first run. On Windows, run `node dist\mercury.mjs` directly.
 
 ### Installing a source build as a command
 
-`scripts/ops/deploy-runtime.sh` publishes a clean-tree build to
-`<config home>/runtime/dist`. `scripts/ops/deploy-launcher.sh` installs the
-launcher at `<config home>/bin/mercury`. Add that directory to PATH; for zsh:
+`scripts/ops/deploy-runtime.sh` publishes a clean-tree build to a fresh
+`<config home>/runtime/builds/<build>` folder and points `runtime/current` at it
+(`runtime/dist` is the older name for the same link). `scripts/ops/deploy-launcher.sh`
+installs the launcher at `<config home>/bin/mercury`. Add that directory to PATH; for zsh:
 
 ```sh
 echo 'export PATH="$HOME/.mercury/bin:$PATH"' >> ~/.zshrc

@@ -14,7 +14,7 @@ if (!existsSync(BIN)) {
 
 const IDLE_S = 75
 const SETTLE_S = 30
-const BUDGET_PER_MIN: Record<string, number> = { tui: 600, runner: 200, daemon: 100 }
+const BUDGET_PER_MIN: Record<string, number> = { tui: 600, runner: 300, daemon: 100 }
 const CONNECTOR_STATS_PER_MIN = 60
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'store-poll-budget-')))
