@@ -338,21 +338,27 @@ section('§3 one window decode per family — shared view fns + the anthropic en
   const cleared = quota.quotaWindows()
   check('fold: an unusable observation clears its endpoint record (nothing fabricated)', cleared.sevenDay.state === 'unavailable' && cleared.fiveHour.state === 'unavailable')
 
-  claudeLimits.foldUtilizationFromEndpoint({ five_hour: { utilization: 12, resets_at: resetIso } })
+  const recorded = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-oauth-usage.json'), 'utf8')) as { body: Record<string, unknown> }
+  claudeLimits.foldUtilizationFromEndpoint({ ...recorded.body, five_hour: { utilization: 12, resets_at: resetIso } } as never)
+  const extra = claudeLimits.getEndpointExtraUsage()
+  check('fold: the recorded answer lands its extra-usage block in the same record (stated, turned off, endpoint-fed)', extra !== null && extra.stated && !extra.enabled && extra.source === 'endpoint', JSON.stringify(extra))
+  check('fold: the owner reads it as the subscription credits line', providerUsage.anthropicExtraUsageCredits().reason === 'extra usage off')
   claudeLimits.resetLimitsForCredentialSwitch()
   const afterSwitch = quota.quotaWindows()
   check(
     'fold: a credential switch empties header AND endpoint records',
     afterSwitch.fiveHour.state === 'unavailable' && afterSwitch.sevenDay.state === 'unavailable',
   )
+  check('fold: …and the extra-usage record with them', claudeLimits.getEndpointExtraUsage() === null)
 
-  claudeLimits.foldUtilizationFromEndpoint({ five_hour: { utilization: 44, resets_at: resetIso } })
+  claudeLimits.foldUtilizationFromEndpoint({ ...recorded.body, five_hour: { utilization: 44, resets_at: resetIso } } as never)
   claudeLimits.extractQuotaStatusFromHeaders(new Headers({}))
   const afterGate = quota.quotaWindows()
   check(
     'fold: a closed subscriber gate empties the endpoint record with the header record (C8)',
     afterGate.fiveHour.state === 'unavailable',
   )
+  check('fold: …and the extra-usage record with them (C8)', claudeLimits.getEndpointExtraUsage() === null)
 }
 
 section('§4 signed-out honesty in the meter renderers (source pins)')
