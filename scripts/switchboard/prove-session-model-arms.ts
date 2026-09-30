@@ -80,6 +80,16 @@ section('§1 — the session arm: pure product capability')
   check('…with the /logins action riding the refusal',
     !kimi.ok && String(kimi.action ?? '').includes('/logins moonshot'), text(kimi))
 
+  const glmWord = await wm.validateWorkerModelChoice('glm', 'session')
+  check("the bare word 'glm' admits a session on the row it means (glm-5.3), as the exact id does",
+    glmWord.ok && glmWord.entry.modelId === 'glm-5.3' && (await wm.canonicalWorkerModelId('glm')) === 'glm-5.3', text(glmWord))
+  const kimiWord = await wm.validateWorkerModelChoice('kimi', 'session')
+  check("the bare word 'kimi' canonicalises to its family's first recorded row and refuses keyless exactly as that row does",
+    (await wm.canonicalWorkerModelId('kimi')) === 'kimi-k3' && !kimiWord.ok && kimiWord.reason === 'no-credential:moonshot' && String(kimiWord.action ?? '').includes('/logins moonshot'), text(kimiWord))
+  const deepseekWord = await wm.validateWorkerModelChoice('deepseek', 'session')
+  check("the bare word 'deepseek' refuses keyless naming its own family",
+    !deepseekWord.ok && deepseekWord.reason === 'no-credential:deepseek' && String(deepseekWord.action ?? '').includes('/logins deepseek'), text(deepseekWord))
+
   const nemotron = await wm.validateWorkerModelChoice('openrouter/nvidia/nemotron-nano-9b-v2:free', 'session')
   check('a keyless OpenRouter namespace id refuses no-credential:openrouter',
     !nemotron.ok && nemotron.reason === 'no-credential:openrouter', text(nemotron))

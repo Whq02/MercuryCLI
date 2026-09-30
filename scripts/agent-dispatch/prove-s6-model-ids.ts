@@ -31,9 +31,14 @@ for (const key of [
   'MERCURY_OPENAI_API_BASE',
   'MERCURY_OPENAI_CHATGPT_BASE',
   'MERCURY_OPENAI_AUTH_BASE',
+  'DEEPSEEK_API_KEY',
+  'MOONSHOT_API_KEY',
+  'KIMI_API_KEY',
+  'XAI_API_KEY',
 ]) {
   savedEnv[key] = process.env[key]
 }
+for (const key of ['DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'XAI_API_KEY']) delete process.env[key]
 {
   const { mkdtempSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
@@ -223,6 +228,13 @@ section('6 · the class aliases law')
     "'glm' ⇒ the zai catalogue FLAGSHIP pin (glm-5.3)",
     glm?.backend === 'zai' && glm.model === 'glm-5.3',
   )
+  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.js')
+  check("'glm' ⇒ the same row the session road resolves for the word", glm?.model === parseUserSpecifiedModel('glm'), `${glm?.model} vs ${parseUserSpecifiedModel('glm')}`)
+  for (const [word, provider] of [['kimi', 'moonshot'], ['deepseek', 'deepseek'], ['grok', 'xai']] as const) {
+    const keyless = await refusal(() => resolveEngineDispatch(word))
+    check(`'${word}' keyless refuses naming the ${provider} provider, never a stand-in`, keyless.includes(`Engine provider ${provider} is unavailable`), keyless)
+  }
+  check("the session road resolves 'kimi' and 'deepseek' to their families' first recorded rows on this keyless box", parseUserSpecifiedModel('kimi') === 'kimi-k3' && parseUserSpecifiedModel('deepseek') === 'deepseek-v4-pro', `${parseUserSpecifiedModel('kimi')} · ${parseUserSpecifiedModel('deepseek')}`)
   const plain = await resolveEngineDispatch('opus')
   check("'opus' ⇒ null (the Anthropic grammar untouched)", plain === null)
   const none = await resolveEngineDispatch(undefined)

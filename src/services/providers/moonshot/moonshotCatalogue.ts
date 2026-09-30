@@ -313,6 +313,14 @@ export async function qualifyMoonshotModel(modelId: string): Promise<
   await refreshMoonshotCatalogue()
   const snapshot = getCachedMoonshotCatalogue()
   const { rows, source } = moonshotCatalogueRows()
+  if (modelId.trim().toLowerCase() === 'kimi') {
+    const head = rows[0]
+    if (head !== undefined) return { kind: 'ok', modelId: head.id }
+    return {
+      kind: 'refused',
+      message: `Moonshot cannot resolve 'kimi' until the ${resolveMoonshotAccount()?.label ?? 'Moonshot account'}'s model list serves a row${snapshot?.lastError ? ` — ${snapshot.lastError}` : ''}; /model refreshes the list.`,
+    }
+  }
   if (source.kind === 'live') {
     const wanted = modelId.toLowerCase()
     if (rows.some(row => row.id === wanted)) return { kind: 'ok', modelId }

@@ -386,9 +386,11 @@ If that provider has no usable model, Mercury checks the next most recently
 connected provider. This choice happens when the session starts; a failed
 request in an existing session stays with its provider.
 
-`/model` explains the selection. With no provider connected, the home screen
-and `/model` direct you to `/logins`. `/defaultprovider` lets you explicitly
-make a provider the most recent choice.
+`/model` explains the selection. A family word picks that family's newest
+model: `/model grok`, `/model deepseek`, `/model kimi` or `/model glm`. With
+no provider connected, the home screen and `/model` direct you to `/logins`.
+`/defaultprovider` lets you explicitly make a provider the most recent
+choice.
 
 Provider access remains subject to the provider's own terms and availability.
 Mercury's licence does not replace them.

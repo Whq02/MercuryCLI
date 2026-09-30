@@ -227,6 +227,11 @@ section('§5 the doors store exact ids; the words come from a lookup of the id')
   check("the row's words come from a lookup of the exact id", picker.modelChoiceLabel(fable) === model.renderModelName(fable), picker.modelChoiceLabel(fable))
   check("the stored exact id is the picker's own row for the current mark, and an already-saved family word maps to that same row", picker.modelChoiceRow(fable) === fable && picker.modelChoiceRow('fable') === fable, `${picker.modelChoiceRow(fable)} · ${picker.modelChoiceRow('fable')}`)
   check('an exact id of another family keeps its own row and words', picker.modelChoiceRow('gemini-2.5-pro') === 'gemini-2.5-pro' && picker.modelChoiceLabel('gemini-2.5-pro').length > 0)
+  const familyHeads: Array<[string, string]> = [['deepseek', 'deepseek-v4-pro'], ['kimi', 'kimi-k3'], ['glm', 'glm-5.3']]
+  for (const [word, head] of familyHeads) {
+    check(`the bare family word '${word}' resolves to its family's first recorded row (${head}) at write time, the way 'grok' resolves to xAI's newest row`, model.parseUserSpecifiedModel(word) === head, model.parseUserSpecifiedModel(word))
+    check(`  …and the picker door maps the word onto that row`, picker.modelChoiceRow(word) === head && picker.modelChoiceLabel(word) === picker.modelChoiceLabel(head), `${picker.modelChoiceRow(word)} · ${picker.modelChoiceLabel(word)}`)
+  }
   const { subagentDefaultsOf } = await import('../../src/utils/agentDefaults.ts')
   check("the sub-agent default reader takes the choice word 'inherit' as unset", subagentDefaultsOf({ defaultModel: 'inherit' }).model === undefined && subagentDefaultsOf({ defaultModel: fable }).model === fable)
   const { resolveCrewmateModel } = await import('../../src/tools/shared/spawnMultiAgent.ts')

@@ -9,14 +9,12 @@ import { buildRouterModelSnapshot } from '../router/modelRegistry.js'
 import { refreshProviderDiscovery } from '../router/providerDiscovery.js'
 import { DEPRECATED_GPT_IDS } from '../router/providers/openai.js'
 import { GLM_STATIC_CATALOGUE } from '../router/providers/zai.js'
-import { moonshotCatalogueEntries } from '../router/providers/moonshot.js'
 import { moonshotCatalogueRows, qualifyMoonshotModel, refreshMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
 import { metaCatalogueEntries, metaCatalogueEntry } from '../router/providers/meta.js'
-import { newestMetaModel } from '../../services/providers/meta/metaCatalogue.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
@@ -32,6 +30,7 @@ import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../service
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
 import { getMainLoopModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
+import { bareFamilyWordOf } from '../model/bareFamilyWords.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
 import { canonicalWireModelId, classifyModelRoute, declaredRouteOf } from '../../services/providers/routeLaw.js'
@@ -337,45 +336,21 @@ export async function resolveEngineDispatch(
       await requireProviderAvailable('openai')
       return resolveGptClassDispatch()
     }
-    if (modelParam === 'glm') {
-      await requireProviderAvailable('zai')
-      const pin = GLM_STATIC_CATALOGUE[0]
-      if (!pin) throw new Error('Engine provider zai has no catalogue entry — cannot resolve a model.')
-      return { backend: 'zai', model: pin.id, displayLabel: pin.displayLabel }
-    }
-    if (modelParam === 'kimi') {
-      await requireProviderAvailable('moonshot')
-      await refreshMoonshotCatalogue()
-      const pin = moonshotCatalogueEntries()[0]
-      if (!pin) {
-        const { source } = moonshotCatalogueRows()
-        if (source.kind === 'unread') {
+    const familyWord = bareFamilyWordOf(modelParam)
+    if (familyWord !== undefined) {
+      await requireProviderAvailable(familyWord.route)
+      if (familyWord.route === 'moonshot') await refreshMoonshotCatalogue()
+      const head = familyWord.headRow()
+      if (!head) {
+        const { source } = familyWord.route === 'moonshot' ? moonshotCatalogueRows() : { source: undefined }
+        if (source?.kind === 'unread') {
           throw new Error(
-            `The 'kimi' class cannot resolve — the ${resolveMoonshotAccount()?.label ?? 'Moonshot account'}'s model list has not been read${source.error !== undefined ? ` (${source.error})` : ''}. Name an exact kimi-… id the account serves, or retry when the list lands.`,
+            `The '${familyWord.word}' class cannot resolve — the ${resolveMoonshotAccount()?.label ?? 'Moonshot account'}'s model list has not been read${source.error !== undefined ? ` (${source.error})` : ''}. Name an exact kimi-… id the account serves, or retry when the list lands.`,
           )
         }
-        throw new Error('Engine provider moonshot has no catalogue entry — cannot resolve a model.')
+        throw new Error(`Engine provider ${familyWord.route} has no catalogue entry — cannot resolve a model.`)
       }
-      return { backend: 'moonshot', model: pin.id, displayLabel: pin.displayLabel }
-    }
-    if (modelParam === 'muse') {
-      await requireProviderAvailable('meta')
-      const id = newestMetaModel()
-      const pin = id ? metaCatalogueEntry(id) : undefined
-      if (!pin) throw new Error('Meta has no live Standard Muse Spark row for muse; Contributor rows must be selected explicitly.')
-      return { backend: 'meta', model: pin.id, displayLabel: pin.displayLabel }
-    }
-    if (modelParam === 'deepseek') {
-      await requireProviderAvailable('deepseek')
-      const pin = deepseekCatalogueEntries()[0]
-      if (!pin) throw new Error('Engine provider deepseek has no catalogue entry — cannot resolve a model.')
-      return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
-    }
-    if (modelParam === 'grok') {
-      await requireProviderAvailable('xai')
-      const pin = xaiCatalogueEntries()[0]
-      if (!pin) throw new Error('Engine provider xai has no catalogue entry — cannot resolve a model.')
-      return { backend: 'xai', model: pin.id, displayLabel: pin.displayLabel }
+      return { backend: familyWord.route, model: head.id, displayLabel: head.displayName }
     }
     if (modelParam === 'huggingface') {
       await requireProviderAvailable('huggingface')
