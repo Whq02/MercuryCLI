@@ -388,10 +388,15 @@ const slots = await import(join(ROOT, 'src/services/providers/accountSlots.ts'))
 const status = await import(join(ROOT, 'src/utils/status.tsx'))
 const { AppStateProvider } = await import(join(ROOT, 'src/state/AppState.tsx'))
 const { AccountView } = await import(join(ROOT, 'src/components/mercury-ui/parity/AccountView.tsx'))
+const { ModalContext } = await import(join(ROOT, 'src/context/modalContext.tsx'))
 const boardRow = (frame: string): string => frame.split('\n').find(line => /\bclaude\s+OAuth\b/.test(line)) ?? ''
 async function paintBoard(size: { columns: number; rows: number }, tag: string, read?: ScopeRead): Promise<string> {
   probe = read === undefined ? () => new Promise<ScopeRead>(() => {}) : async () => read
-  const frame = await paint(React.createElement(AppStateProvider, null, React.createElement(AccountView, { onClose: () => {} })), size.columns, size.rows)
+  const frame = await paint(
+    React.createElement(ModalContext.Provider, { value: { rows: size.rows, columns: size.columns, scrollRef: null } }, React.createElement(AppStateProvider, null, React.createElement(AccountView, { onClose: () => {} }))),
+    size.columns,
+    size.rows,
+  )
   save(`accounts-${tag}-${size.columns}x${size.rows}`, frame)
   return frame
 }
