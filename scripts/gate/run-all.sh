@@ -27,6 +27,7 @@ run_proof "$here/prove-ci-shard-ceiling.sh" bash "$here/prove-ci-shard-ceiling.s
 run_proof "$here/prove-gate-scheduler.sh" bash "$here/prove-gate-scheduler.sh" || fail=1
 run_proof "$here/prove-dead-letter-orphan.sh" bash "$here/prove-dead-letter-orphan.sh" || fail=1
 run_proof "$here/prove-dist-cache.sh" bash "$here/prove-dist-cache.sh" || fail=1
+run_proof "$here/prove-dist-readonly.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dist-readonly.ts" || fail=1
 run_proof "$here/prove-ci-verdict.sh" bash "$here/prove-ci-verdict.sh" || fail=1
 run_proof "$here/prove-gate-ledger.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-gate-ledger.ts" || fail=1
 run_proof "$here/prove-suite-class-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-class-census.ts" || fail=1
