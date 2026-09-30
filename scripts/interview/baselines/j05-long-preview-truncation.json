@@ -3,7 +3,7 @@
  "note": "contract journey 5 — a 48-line preview against the height budget; the truncation bar paints",
  "cols": 120,
  "rows": 30,
- "capturedAt": "2026-09-29T22:00:17.395Z",
+ "capturedAt": "2026-09-30T05:00:13.571Z",
  "screens": [
   {
    "atMs": 12500,
@@ -37,7 +37,7 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-RxTS8w                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-ZF0zq0                                                                         esc interrupts · ⇧← back"
    ]
   },
   {
@@ -72,22 +72,22 @@
     "  Chat about this",
     "",
     "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel",
-    " flux-arena-cwd-RxTS8w                                                                         esc interrupts · ⇧← back"
+    " flux-arena-cwd-ZF0zq0                                                                         esc interrupts · ⇧← back"
    ]
   }
  ],
  "probe": {
   "counters": {
-   "patches": 12982,
+   "patches": 12615,
    "frame-recommit": 16
   },
   "frames": {
-   "total": 30,
-   "window": 30,
-   "p50": 0.8538330000001224,
-   "p95": 12.33612499999981,
-   "p99": 13.167791999999963,
-   "maxMs": 13.167791999999963
+   "total": 29,
+   "window": 29,
+   "p50": 0.6139170000001286,
+   "p95": 15.932708000000048,
+   "p99": 20.160084000000097,
+   "maxMs": 20.160084000000097
   }
  },
  "requests": [
@@ -107,7 +107,7 @@
      },
      {
       "type": "text",
-      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-29.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
+      "text": "<system-reminder>\nThe material below is available to you while you answer the user.\n\n# environment\nIs a git repository: No\n\n# currentDate\nToday's date is 2026-09-30.\n\nIMPORTANT: this material may or may not bear on the task; do not answer it in its own right unless it is highly relevant.\n</system-reminder>\n"
      },
      {
       "type": "text",
@@ -122,11 +122,11 @@
  ],
  "sends": [
   {
-   "atMs": 6640.060901641846,
+   "atMs": 6551.064252853394,
    "b64": "ZGVzaWduIHRoZSBjYWNoZSBsYXllcg=="
   },
   {
-   "atMs": 7440.060901641846,
+   "atMs": 7351.064252853394,
    "b64": "DQ=="
   }
  ]
