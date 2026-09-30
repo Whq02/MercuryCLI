@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
@@ -61,7 +61,7 @@ const runner = join(world, 'synth', 'run-all.sh')
 writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -u\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))} || exit 78; suite_env_guard "$0"\ncd ${JSON.stringify(root)} || exit 1\n${JSON.stringify(process.execPath)} ${JSON.stringify(subject)}\n`)
 
 type Reading = { home: string | null; preferred: string; bytes: number; sock: string; outcome: string; answered: boolean }
-type Leg = { name: string; base: string; words: string }
+type Leg = { name: string; base: string; words: string; runnerTemp?: string }
 
 const legs: Leg[] = []
 if (process.platform === 'darwin') {
@@ -79,6 +79,9 @@ legs.push({ name: 'deep', base: `${deep}/`, words: `a deliberately deep temp dir
 const short = mkdtempSync('/tmp/run-root-bound-')
 outside.push(short)
 legs.push({ name: 'short', base: short, words: `a short temp dir (${short.length} chars)` })
+const runnerTemp = mkdtempSync(join(homedir(), '.run-root-bound-rt-'))
+outside.push(runnerTemp)
+legs.push({ name: 'runner-temp', base: `${deep}/`, runnerTemp, words: `the deep temp dir again, with RUNNER_TEMP set to a fitting dir under the home (${runnerTemp}, ${runnerTemp.length} chars)` })
 
 try {
   for (const leg of legs) {
@@ -87,8 +90,8 @@ try {
     const expectedBase = honoured ? realpathSync(leg.base) : realpathSync('/tmp')
     const dir = join(world, `leg-${leg.name}`)
     mkdirSync(dir)
-    const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _mercuryHome, ...env } = process.env as Record<string, string>
-    const res = spawnSync('bash', [join(root, 'scripts/gate/run-suite.sh'), runner, '120', dir], { cwd: root, env: { ...env, TMPDIR: leg.base }, encoding: 'utf8', timeout: 180_000 })
+    const { MERCURY_CONFIG_DIR: _home, MERCURY_HOME: _mercuryHome, RUNNER_TEMP: _runnerTemp, ...env } = process.env as Record<string, string>
+    const res = spawnSync('bash', [join(root, 'scripts/gate/run-suite.sh'), runner, '120', dir], { cwd: root, env: { ...env, TMPDIR: leg.base, ...(leg.runnerTemp === undefined ? {} : { RUNNER_TEMP: leg.runnerTemp }) }, encoding: 'utf8', timeout: 180_000 })
     const out = existsSync(join(dir, 'synth.out')) ? readFileSync(join(dir, 'synth.out'), 'utf8') : ''
     const rc = existsSync(join(dir, 'synth.rc')) ? readFileSync(join(dir, 'synth.rc'), 'utf8').trim() : `no rc file (runner status ${res.status})`
     const header = /^suite synth: proof run root (\S+) \((.*)\)$/.exec(out.split('\n')[0] ?? '')
@@ -102,6 +105,7 @@ try {
     check('the daemon listens on its preferred path, not a fallback', reading !== undefined && reading.sock === reading.preferred, reading ? `${reading.sock} (${reading.outcome})` : 'no reading')
     check('the daemon answers a ping through the run root (rc 0)', rc === '0' && reading?.answered === true, `rc=${rc}${reading ? `; ${reading.outcome}` : ''}`)
     check('the run root is gone after the suite', runRoot !== '' && !existsSync(runRoot), runRoot || '(no run root named)')
+    if (leg.runnerTemp !== undefined) check('the run root ignores RUNNER_TEMP: never under it, never under the home, and the note does not name it', runRoot !== '' && !runRoot.startsWith(`${realpathSync(leg.runnerTemp)}/`) && !runRoot.startsWith(`${realpathSync(homedir())}/`) && !/RUNNER_TEMP/.test(note), `${runRoot || '(no run root named)'}; ${note.slice(0, 160)}`)
   }
 } finally {
   rmSync(world, { recursive: true, force: true })

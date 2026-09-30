@@ -104,7 +104,7 @@ suite_scratch_base() {
   __suite_scratch_base="${TMPDIR:-/tmp}"
   __suite_scratch_note="TMPDIR as inherited; no socket bound on this host"
   case "$(uname -s)" in (MINGW* | MSYS* | CYGWIN*) return 0 ;; esac
-  for pair in "RUNNER_TEMP=${RUNNER_TEMP:-}" "TMPDIR=${TMPDIR:-}" "fallback=/tmp"; do
+  for pair in "TMPDIR=${TMPDIR:-}" "fallback=/tmp"; do
     label=${pair%%=*}
     cand=${pair#*=}
     [ -n "$cand" ] || continue
