@@ -99,6 +99,14 @@ section('§3 the records fold keeps its contract — the gate is at the publish,
 {
   const folded = liveTurnStateOf(rows.map(r => r as never))
   check('liveTurnStateOf still reports the unresolved id raw (the pulse driver is untouched)', folded.inProgressToolUseIDs.has(HUNG_ID), j([...folded.inProgressToolUseIDs]))
+  const reply = base({ parentUuid: '00000000-0000-4000-8000-000000000012', type: 'assistant',
+    uuid: '00000000-0000-4000-8000-000000000013', requestId: 'req_hung_2',
+    message: { id: 'msg_hung_2', type: 'message', role: 'assistant', model: 'claude-opus-4-8',
+      content: [{ type: 'text', text: 'the command was cut short; moving on' }],
+      stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } },
+    timestamp: '2026-06-19T12:00:09.000Z' })
+  const answered = liveTurnStateOf([...rows, reply].map(r => r as never))
+  check('a later reply resolves the unanswered call in the fold itself: no id, no tool phase, idle', answered.inProgressToolUseIDs.size === 0 && answered.inFlight === false && answered.phase === 'idle', j({ ids: [...answered.inProgressToolUseIDs], inFlight: answered.inFlight, phase: answered.phase }))
 }
 
 console.log(failures === 0 ? '\nprove-idle-tool-rows-rest: ALL LAWS HOLD' : `\nprove-idle-tool-rows-rest: ${failures} FAILURE(S)`)
