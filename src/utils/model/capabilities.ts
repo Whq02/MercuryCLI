@@ -38,6 +38,8 @@ import {
   KIMI_EFFORT_MODELS,
 } from '../../services/providers/moonshot/kimiPins.js'
 import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
+import { isXaiModelId } from '../../services/providers/xai/xaiPins.js'
+import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/xai/xaiCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -54,6 +56,7 @@ import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 
 
 export function modelSupportsTemperature(model: string): boolean {
+  if (isXaiModelId(model)) return xaiModelFacts(model)?.temperature === true
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -66,14 +69,20 @@ export function modelSupportsTemperature(model: string): boolean {
 
 
 export function modelSupportsISP(model: string): boolean {
+  if (isXaiModelId(model)) return modelSupportsThinking(model)
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsThinking(model: string): boolean {
+  if (isXaiModelId(model)) {
+    const facts = xaiModelFacts(model)
+    return facts?.reasoning ?? (facts?.efforts?.some(effort => effort !== 'none') === true)
+  }
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
+  if (isXaiModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -95,6 +104,10 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
 }
 
 export function modelThinkingAlwaysOn(model: string): boolean {
+  if (isXaiModelId(model)) {
+    const facts = xaiModelFacts(model)
+    return modelSupportsThinking(model) && !facts?.efforts?.includes('none')
+  }
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -199,7 +212,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'gemini' | 'openrouter' | 'local'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'gemini' | 'openrouter' | 'local'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -212,6 +225,7 @@ export type EffortVocabularyView =
         | 'gpt-known-empty'
         | 'glm'
         | 'kimi'
+        | 'xai'
         | 'huggingface'
         | 'openrouter'
         | 'gemini'
@@ -268,6 +282,13 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
   }
   if (isDeepseekModelId(model) || route === 'deepseek') {
     return { kind: 'provider', source: 'deepseek', vocabulary: [...DEEPSEEK_EFFORTS], thinkingGated: true }
+  }
+  if (isXaiModelId(model) || route === 'xai') {
+    const facts = xaiModelFacts(model)
+    const vocabulary = facts?.efforts ?? []
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'xai', vocabulary, defaultEffort: facts?.defaultEffort, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
+      : { kind: 'none', source: 'xai' }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
   if (route === 'openrouter') {
@@ -471,14 +492,14 @@ export function resolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model)) {
+    if (isCarrierShapedId(model) || isXaiModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
         model,
         activation: {
           kind: 'unavailable',
-          reason: '[1m] is not a provider-verified activation path on a carrier-shaped id',
+          reason: isXaiModelId(model) ? '[1m] is not a provider-verified activation path for xAI models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
         },
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
@@ -639,6 +660,13 @@ export function resolveContextWindow(
     })
   }
 
+  if (isXaiModelId(model)) {
+    const live = getCachedXaiCatalogue()?.models.find(row => row.id.toLowerCase() === normalizeForEnginePins(model))
+    if (live?.contextWindow !== undefined) {
+      const window = live.contextWindow
+      return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
+    }
+  }
   const enginePinnedWindow = (() => {
     const id = normalizeForEnginePins(model)
     if (isGlmModelId(id)) {
@@ -648,6 +676,7 @@ export function resolveContextWindow(
     }
     if (isKimiModelId(id) || carrierRoute === 'moonshot') return kimiDisplayPin(id)?.contextWindow
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
+    if (isXaiModelId(id)) return xaiModelFacts(id)?.contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -945,6 +974,8 @@ function modalitiesAdmitImages(modalities: readonly string[] | undefined): boole
 
 function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean {
   switch (route) {
+    case 'xai':
+      return xaiModelFacts(model)?.images === true
     case 'openrouter':
       return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
     case 'huggingface':

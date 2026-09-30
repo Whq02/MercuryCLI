@@ -7,6 +7,7 @@ Fetch before naming models, prices, limits or endpoints; date each claim.
 - [OpenAI](https://developers.openai.com/api/docs/models)
 - [Kimi](https://platform.kimi.ai/docs/api/chat)
 - [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/)
+- [xAI](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions) and [xAI models](https://docs.x.ai/developers/models)
 - [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion)
 - [OpenRouter](https://openrouter.ai/docs/guides/overview/models)
 - [Gemini](https://ai.google.dev/gemini-api/docs/openai)

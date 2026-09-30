@@ -12,14 +12,14 @@ mkdirSync(home, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = home
 for (const key of [
   'MERCURY_MODEL', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY',
-  'HF_TOKEN', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
+  'HF_TOKEN', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'MOONSHOT_API_KEY', 'KIMI_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'MERCURY_OAUTH_TOKEN',
   'MERCURY_CUSTOM_MODEL_OPTION', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_LOCAL_BASE_URL', 'NODE_ENV',
 ]) delete process.env[key]
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_CRITTER_GAZE = '0'
 process.env.MERCURY_LIVE_GLYPHS = '0'
-for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) {
+for (const base of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_XAI_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_ZAI_API_BASE']) {
   process.env[base] = 'http://127.0.0.1:1'
 }
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
@@ -54,6 +54,7 @@ const MOONSHOT = 'Mercury — Moonshot models'
 const GEMINI = 'Mercury — Gemini models'
 const ZAI = 'Mercury — Z.AI models'
 const DEEPSEEK = 'Mercury — DeepSeek models'
+const XAI = 'Mercury — xAI models'
 const LOGIN = 'Claude Max login'
 const KEY = 'API key'
 const EMAIL = 'operator@example.com'
@@ -100,6 +101,7 @@ const zai: ModelChoice[] = [
   row('glm-5.3-vision', 'GLM 5.3 Vision', '64k ctx', ZAI, { gated: true, gatedReason: 'not offered on the Coding Plan' }),
 ]
 const deepseek: ModelChoice[] = [row('deepseek-v4-pro', 'DeepSeek V4 Pro', '128k ctx', DEEPSEEK), row('deepseek-v4-flash', 'DeepSeek V4 Flash', '128k ctx', DEEPSEEK)]
+const xai: ModelChoice[] = [row('grok-4.7', 'Grok 4.7', '500k ctx', XAI), row('grok-4.3', 'Grok 4.3', '1M ctx', XAI)]
 
 type Heading = { name: string; doors: Array<{ door: string; account?: string; active?: boolean }>; reason?: string }
 const headings: Record<string, Heading> = {
@@ -110,6 +112,7 @@ const headings: Record<string, Heading> = {
   [GEMINI]: { name: 'GEMINI', doors: [{ door: 'Google account', account: EMAIL, active: true }] },
   [ZAI]: { name: 'Z.AI', doors: [{ door: 'Coding Plan key', account: '…41aa', active: true }] },
   [DEEPSEEK]: { name: 'DEEPSEEK', doors: [{ door: 'API key', account: '…07b3', active: true }] },
+  [XAI]: { name: 'XAI', doors: [{ door: 'API key', account: '…c4e1', active: true }] },
 }
 
 const groupsInTodaysOrder: Array<[string, ModelChoice[]]> = [
@@ -120,6 +123,7 @@ const groupsInTodaysOrder: Array<[string, ModelChoice[]]> = [
   [ZAI, zai],
   [MOONSHOT, moonshot],
   [DEEPSEEK, deepseek],
+  [XAI, xai],
 ]
 function orderedRows(top: string, recent: string[]): ModelChoice[] {
   const rank = (group: string): number => (group === top ? -1 : recent.indexOf(group) >= 0 ? recent.indexOf(group) : 100 + groupsInTodaysOrder.findIndex(([name]) => name === group))
@@ -209,7 +213,7 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   const loginAt = lines.indexOf(loginDoor)
   const keyAt = lines.indexOf(keyDoor)
   check('the seat\'s own door comes first', loginAt >= 0 && keyAt >= 0 && loginAt < keyAt, `${loginAt} / ${keyAt}`)
-  const others = [lineWith(lines, 'OPENROUTER'), lineWith(lines, 'MOONSHOT'), lineWith(lines, 'OPENAI'), lineWith(lines, 'GEMINI'), lineWith(lines, 'Z.AI'), lineWith(lines, 'DEEPSEEK')]
+  const others = [lineWith(lines, 'OPENROUTER'), lineWith(lines, 'MOONSHOT'), lineWith(lines, 'OPENAI'), lineWith(lines, 'GEMINI'), lineWith(lines, 'Z.AI'), lineWith(lines, 'DEEPSEEK'), lineWith(lines, 'XAI')]
   check('the other providers follow by most recent use, then the never-used in today\'s order', others.every(line => line !== '') && others.map(line => lines.indexOf(line)).every((at, k, all) => k === 0 || at > all[k - 1]!), others.map(inner).join(' | '))
   check('a one-door heading reads PROVIDER · door · account · N live', inner(lineWith(lines, 'OPENAI')).trim() === `▾ OPENAI · ChatGPT Pro login · ${EMAIL} · 5 live`, inner(lineWith(lines, 'OPENAI')).trim())
   check('the OpenRouter heading counts the whole live list', inner(lineWith(lines, 'OPENROUTER')).trim() === `▸ OPENROUTER · OAuth key · …9c1d · ${OPENROUTER_TOTAL} live`, inner(lineWith(lines, 'OPENROUTER')).trim())
@@ -344,7 +348,7 @@ section('§8 the pure composition (the module the picker derives its lines from)
     const rows = orderedRows(OPENAI, [])
     const groups = pure.groupPickerRows(rows)
     const ordered = pure.orderPickerGroups(groups, { top: ANTHROPIC, recentAt: group => ({ [MOONSHOT]: 300, [OPENROUTER]: 200, [OPENAI]: 100 } as Record<string, number>)[group] })
-    check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK].join(' > '), ordered.map(group => group.group).join(' > '))
+    check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK, XAI].join(' > '), ordered.map(group => group.group).join(' > '))
     const folds = pure.initialPickerFolds(ordered, ANTHROPIC, 'claude-fable-5-1@' + LOGIN)
     check('the fold rule: over twelve rows opens folded unless top; the rest open', folds[GEMINI] === 'folded' && folds[ANTHROPIC] === 'top' && folds[OPENROUTER] === 'folded' && folds[OPENAI] === 'top', JSON.stringify(folds))
     const lines = pure.composePickerLines(ordered, folds, '', group => (group === OPENROUTER ? openrouterFull : undefined))

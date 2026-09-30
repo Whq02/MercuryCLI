@@ -17,6 +17,7 @@ async function validateNonAnthropicModel(
     | 'zai'
     | 'moonshot'
     | 'deepseek'
+    | 'xai'
     | 'openai-compat'
     | 'openrouter'
     | 'gemini'
@@ -134,6 +135,21 @@ async function validateNonAnthropicModel(
     const { qualifyMoonshotModel } = await import('../../services/providers/moonshot/moonshotCatalogue.js')
     const verdict = await qualifyMoonshotModel(trimmed.toLowerCase())
     return verdict.kind === 'refused' ? { valid: false, error: verdict.message } : { valid: true, skipCache: true }
+  }
+  if (route === 'xai') {
+    const { resolveXaiAccount } = await import('../../services/providers/xai/xaiAccounts.js')
+    if (!resolveXaiAccount()) return { valid: false, error: 'xAI is unavailable — no API key (/logins xai, or set XAI_API_KEY).' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('xai')
+    const { getCachedXaiCatalogue } = await import('../../services/providers/xai/xaiCatalogue.js')
+    const { isXaiChatModelId } = await import('../../services/providers/xai/xaiPins.js')
+    const snapshot = getCachedXaiCatalogue()
+    const id = trimmed.toLowerCase()
+    if (id === 'grok') return snapshot?.models.length ? { valid: true, skipCache: true } : { valid: false, error: "xAI's live list has not served a chat model for 'grok' yet — /model refreshes it." }
+    if (!isXaiChatModelId(id)) return { valid: false, error: 'This xAI model is not on the supported chat-completions road.' }
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins xai replaces the key.` }
+    if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.models.some(row => row.id.toLowerCase() === id || row.aliases?.some(alias => alias.toLowerCase() === id))) return { valid: false, error: `Model "${trimmed}" is not listed by the xAI account's live catalogue.` }
+    return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {
     const { resolveDeepseekApiKey } = await import(

@@ -227,9 +227,9 @@ function liveFirstPartyRow(): LaneRowVerdict {
   }
 }
 
-const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek'])
+const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek', 'xai'])
 
-function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek'): LaneRowVerdict {
+function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek' | 'xai'): LaneRowVerdict {
   try {
     const { keyLanePins, keyLaneListState } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const pin = keyLanePins(family)[0]
@@ -387,7 +387,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
     registryOrder: providers.map(provider => provider.id),
     laneRow: family => {
       if (family === 'anthropic') return liveFirstPartyRow()
-      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek')
+      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'xai')
       if (rows === undefined) {
         rows = livePickerRows()
         if (rows === null) facts.degraded = true

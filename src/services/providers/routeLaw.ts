@@ -26,6 +26,7 @@ const PROVIDER_DISPLAY_NAMES: Record<CallModelRoute, string> = {
   zai: 'Z.AI',
   moonshot: 'Moonshot',
   deepseek: 'DeepSeek',
+  xai: 'xAI',
   'openai-compat': 'Custom endpoint',
   openrouter: 'OpenRouter',
   gemini: 'Gemini',

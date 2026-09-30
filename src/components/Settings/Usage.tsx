@@ -300,6 +300,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins deepseek adds a DeepSeek API key (DEEPSEEK_API_KEY works too)',
     limitsNote: 'Usage bills to your DeepSeek account balance.',
   },
+  xai: {
+    title: 'xAI usage',
+    connect: '/logins xai adds an xAI API key (XAI_API_KEY works too)',
+    limitsNote: 'Usage bills to your xAI team\'s prepaid credits; the xAI API exposes no usage or balance endpoint an API key can read — console.x.ai is the view.',
+  },
   'openai-compat': {
     title: 'Custom endpoint usage',
     connect: 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',

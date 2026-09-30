@@ -144,6 +144,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins moonshot', note: 'sign in — /logins' }
     case 'deepseek':
       return { command: '/logins deepseek', note: 'connect — /logins (API key)' }
+    case 'xai':
+      return { command: '/logins xai', note: 'connect — /logins (API key)' }
     case 'openai-compat':
       return { note: 'MERCURY_COMPAT_BASE_URL configures the endpoint (key optional — /router key compat)' }
     case 'huggingface':

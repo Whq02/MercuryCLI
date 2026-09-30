@@ -295,18 +295,19 @@ export const OPENAI_MODEL_GROUP = 'Mercury — OpenAI models'
 export const ZAI_MODEL_GROUP = 'Mercury — Z.AI models'
 export const MOONSHOT_MODEL_GROUP = 'Mercury — Moonshot models'
 export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
+export const XAI_MODEL_GROUP = 'Mercury — xAI models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'compat'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'compat' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'compat'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'compat'
     ? provider
     : undefined
 }
@@ -466,8 +467,18 @@ export type KeyLaneListState =
   | { kind: 'pin' }
   | { kind: 'unread'; reading: boolean; error?: string }
 
-export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLaneListState {
+export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai'): KeyLaneListState {
   if (provider === 'zai') return { kind: 'pin' }
+  if (provider === 'xai') {
+    const { getCachedXaiCatalogue, xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+    const snapshot = getCachedXaiCatalogue()
+    const { source } = xaiCatalogueRows()
+    if (source.kind === 'live') return { kind: 'live', count: source.count }
+    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const gate = catalogueTrafficVerdict('xai')
+    const error = !gate.allowed ? gate.reason : snapshot?.lastError
+    return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
+  }
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
       require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
@@ -486,6 +497,7 @@ export interface KeyLaneReads {
   zaiKeyPresent(): boolean
   moonshotCredentialPresent(): boolean
   deepseekKeyPresent(): boolean
+  xaiKeyPresent?(): boolean
   compat(): { label: string; models: string[]; keyPresent: boolean } | undefined
 }
 
@@ -500,6 +512,10 @@ function liveKeyLaneReads(): KeyLaneReads {
       const { resolveMoonshotAccount } =
         require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
       return resolveMoonshotAccount() !== undefined
+    },
+    xaiKeyPresent: () => {
+      const { resolveXaiApiKey } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+      return resolveXaiApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -520,7 +536,12 @@ function liveKeyLaneReads(): KeyLaneReads {
   }
 }
 
-export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek'): KeyLanePin[] {
+export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai'): KeyLanePin[] {
+  if (provider === 'xai') {
+    const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+    const { xaiDisplayPin } = require('../../services/providers/xai/xaiPins.js') as typeof import('../../services/providers/xai/xaiPins.js')
+    return xaiCatalogueRows().rows.map(row => ({ ...row, ...(xaiDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
+  }
   if (provider === 'zai') {
     const { GLM_STATIC_CATALOGUE } =
       require('../router/providers/zai.js') as typeof import('../router/providers/zai.js')
@@ -643,6 +664,22 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
       pins: keyLanePins('deepseek'),
     }),
   )
+  const xaiRows = keyLanePins('xai')
+  const xaiState = keyLaneListState('xai')
+  const xaiCredentialed = reads.xaiKeyPresent?.() ?? false
+  if (xaiCredentialed && xaiRows.length === 0 && xaiState.kind === 'live') {
+    out.push({
+      value: keyConnectValue('xai'), label: 'xAI — no chat models listed', group: XAI_MODEL_GROUP,
+      description: "the account's live list serves no supported chat model — /logins xai checks the key",
+      descriptionForModel: 'The xAI account returned a successful empty chat-model list; no model is selectable.',
+    })
+  } else {
+    out.push(...keyLaneGroupRows({
+      group: XAI_MODEL_GROUP, providerName: 'xAI', connectValue: keyConnectValue('xai'),
+      connectHint: 'opens /logins xai (an xAI API key) — XAI_API_KEY works too',
+      keyPresent: xaiCredentialed, pins: xaiRows, listState: xaiState,
+    }))
+  }
   const compat = reads.compat()
   if (compat === undefined) {
     out.push({
@@ -706,6 +743,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
   kickDeepseekCatalogue()
+  ;(require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')).kickXaiCatalogue()
   kickMoonshotCatalogue()
   for (const row of keyLaneProviderRows()) {
     pushIfAbsent(options, row)
@@ -741,6 +779,7 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     ZAI_MODEL_GROUP,
     MOONSHOT_MODEL_GROUP,
     DEEPSEEK_MODEL_GROUP,
+    XAI_MODEL_GROUP,
     COMPAT_MODEL_GROUP,
     LOCAL_MODEL_GROUP,
   ]

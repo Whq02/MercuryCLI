@@ -25,7 +25,7 @@ section('§1 the strip set derives from the route-law family table')
     ...(idSpaces.PROVIDER_ID_SPACES as Array<{ route: string }>).map(space => space.route),
     'anthropic',
   ])
-  check('the family union covers the ten routes', routes.size === 10, [...routes].join(','))
+  check('the credential table covers exactly the declared family union', routes.size === Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).length && Object.keys(spellings.PROVIDER_CREDENTIAL_ENV_VARS).every(route => routes.has(route)), [...routes].join(','))
   for (const route of routes) {
     const vars = (spellings.PROVIDER_CREDENTIAL_ENV_VARS as Record<string, readonly string[]>)[route]
     check(`route '${route}' carries at least one credential spelling`, Array.isArray(vars) && vars.length > 0, JSON.stringify(vars))

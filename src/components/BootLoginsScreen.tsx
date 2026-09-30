@@ -12,6 +12,7 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js';
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js';
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js';
+import { storeXaiApiKeyLogin } from '../services/providers/xai/xaiLogin.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -416,6 +417,7 @@ export type FaceKeyLegId =
   | 'zai-general'
   | 'zai-coding'
   | 'deepseek'
+  | 'xai'
   | 'moonshot-key'
   | 'hf-token'
   | 'openrouter-key'
@@ -500,6 +502,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return zaiPlanLabel('coding');
     case 'deepseek':
       return 'DeepSeek API key';
+    case 'xai':
+      return 'xAI API key';
     case 'moonshot-key':
       return 'Moonshot API key';
     case 'hf-token':
@@ -520,6 +524,8 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
       return 'Stored auth-scoped (mode 600), never logged; ZAI_API_KEY wins over the store.';
     case 'deepseek':
       return 'Proven on the balance endpoint first; stored auth-scoped (mode 600); DEEPSEEK_API_KEY wins.';
+    case 'xai':
+      return 'Checked with xAI first; stored auth-scoped (mode 600); XAI_API_KEY wins.';
     case 'moonshot-key':
       return 'Proven on the balance endpoint first; stored auth-scoped (mode 600); MOONSHOT_API_KEY wins; a Kimi sign-in outranks it.';
     case 'hf-token':
@@ -541,6 +547,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: `a ${zaiPlanLabel('coding')}` };
     case 'deepseek':
       return { stores: 'a DeepSeek API key' };
+    case 'xai':
+      return { stores: 'an xAI API key' };
     case 'moonshot-key':
       return { stores: 'a Moonshot platform key' };
     case 'hf-token':
@@ -559,6 +567,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
     lines.push(...wrapPlain(sentence!.text, DETAIL_W), ...wrapHard(address!.text, DETAIL_W));
   }
   if (leg === 'deepseek' && note === null) lines.push(...wrapClauses(keyPageLine('deepseek'), DETAIL_W));
+  if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
@@ -1197,6 +1206,9 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
       case 'deepseek':
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
+      case 'xai':
+        setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });
+        return;
       case 'moonshot':
         openPick('moonshot');
         return;
@@ -1293,6 +1305,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     };
     if (leg === 'openai-key') void storeOpenaiApiKeyLogin(value).then(settle);
     else if (leg === 'deepseek') void storeDeepseekApiKeyLogin(value).then(settle);
+    else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);

@@ -93,6 +93,7 @@ const COMPAT_RETRY_BACKOFF_MS = 400
 export type CompatLaneId =
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'
@@ -120,6 +121,7 @@ export interface CompatLaneProfile {
     settle?(messages: readonly AssistantMessage[]): void
   } | undefined
   effortOnWire?(extra: Record<string, unknown>): EffortWireFact
+  usageForSettlement?(usage: CompatUsage): CompatUsage
   leadingNotes?: readonly string[]
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
@@ -865,7 +867,7 @@ async function* streamOneCompatAttempt(ctx: {
       case 'tool-call-fragment':
         break
       case 'usage':
-        usageSeen = event.usage
+        usageSeen = profile.usageForSettlement?.(event.usage) ?? event.usage
         break
       case 'finish':
         finish = {

@@ -81,10 +81,10 @@ function providerAccountFacts(reads: typeof liveReads): StatusFact[] {
   }
   const openai = usage('openai')
   const limited = openai?.limited
-  const keyIds = ['zai', 'moonshot', 'deepseek']
+  const keyIds = ['zai', 'moonshot', 'deepseek', 'xai']
   const keyValues = keyIds.map(id => account(id).replace(new RegExp(`^${familyDisplayName(id as Parameters<typeof familyDisplayName>[0]).replace('.', '\\.')} `), '') + windows(id))
   const keys = keyValues.every(value => value === keyValues[0])
-    ? `Z.AI · Moonshot · DeepSeek     ${keyValues[0]!.replace(/^API key\b/, 'API keys')}`
+    ? `Z.AI · Moonshot · DeepSeek · xAI     ${keyValues[0]!.replace(/^API key\b/, 'API keys')}`
     : keyIds.map((id, i) => `${familyDisplayName(id as Parameters<typeof familyDisplayName>[0])}  ${keyValues[i]}`).join(' · ')
   const custom = account('openai-compat') + windows('openai-compat')
   const local = account('local') + windows('local')

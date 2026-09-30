@@ -12,6 +12,7 @@ Checked: 2026-09-15
 |---|---|---|
 | Kimi | https://api.moonshot.ai/v1 | Model-gated `reasoning_effort`; no temperature; separate OAuth coding endpoint |
 | DeepSeek | https://api.deepseek.com | `thinking.type`; explicit `max_tokens` override |
+| xAI (Grok) | https://api.x.ai/v1 | `XAI_API_KEY` bearer; `reasoning_effort` on the reasoning models; usage carries `prompt_tokens_details.cached_tokens` and `completion_tokens_details.reasoning_tokens` |
 | Z.AI | https://api.z.ai/api/paas/v4 | Separate Coding Plan base; native chat, never Anthropic compatibility |
 | OpenRouter | https://openrouter.ai/api/v1 | `reasoning.effort` from model vocabulary |
 | Gemini | https://generativelanguage.googleapis.com/v1beta/openai | Model-gated `reasoning_effort`; key or OAuth |
@@ -20,7 +21,8 @@ Checked: 2026-09-15
 
 - DeepSeek takes `reasoning_effort` (`low`/`high`/`max`) as a top-level field beside the `thinking` object, which carries `type` alone; Mercury sends it there, and omits the effort entirely when thinking is off.
 - Request `stream_options.include_usage` where supported. Mercury sends it on the shared client, not Z.AI; OpenRouter and DeepSeek supply final usage regardless.
+- xAI documents the OpenAI-shaped `POST /v1/chat/completions` (`model`, `messages`, `stream`, `stream_options`, `tools`, `tool_choice`, `parallel_tool_calls`, `max_tokens`/`max_completion_tokens`, `reasoning_effort`, `response_format`) and `GET /v1/models` for the account's model list; its finish reasons are `stop`, `length` and `end_turn`. Usage, balance and credit figures live on its separate Management API behind a management key, so an inference key reads no usage endpoint.
 - Read standard `prompt_tokens_details.cached_tokens`, Kimi `cached_tokens`, or DeepSeek `prompt_cache_hit_tokens`/`prompt_cache_miss_tokens` under `usage`; spellings can coexist.
 - Preserve reasoning history only for the selected model's supported replay contract; do not generalise one family's rule.
 
-Sources: [Kimi](https://platform.kimi.ai/docs/api/chat), [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/), [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion), [OpenRouter](https://openrouter.ai/docs/cookbook/administration/usage-accounting), [Gemini](https://ai.google.dev/gemini-api/docs/openai), [HF](https://huggingface.co/docs/inference-providers/en/tasks/chat-completion), [Ollama](https://docs.ollama.com/api/openai-compatibility), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers).
+Sources: [Kimi](https://platform.kimi.ai/docs/api/chat), [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/), [xAI](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions), [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion), [OpenRouter](https://openrouter.ai/docs/cookbook/administration/usage-accounting), [Gemini](https://ai.google.dev/gemini-api/docs/openai), [HF](https://huggingface.co/docs/inference-providers/en/tasks/chat-completion), [Ollama](https://docs.ollama.com/api/openai-compatibility), [Mercury](https://github.com/Whq02/MercuryCLI/tree/fc81e29e4129a56b1bfb3beca9819ebfb29875f9/src/services/providers).

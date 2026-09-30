@@ -141,6 +141,11 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
     'expiry-at-rest':
       'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
   },
+  xai: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest':
+      'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
   'openai-compat': {
     refresh: 'a configured endpoint key has no refresh protocol — honest absence',
     'expiry-at-rest':
@@ -157,7 +162,7 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
   },
 }
 
-check('the family set is the resolver’s ten (or the grid grew and the cells below must follow)', families.length === 10, families.join(', '))
+check('the family set is the resolver’s eleven (or the grid grew and the cells below must follow)', families.length === 11, families.join(', '))
 {
   let driven = 0
   let absent = 0
@@ -192,6 +197,7 @@ const RECONNECT_DOORS: Record<string, string> = {
   zai: '/logins zai',
   moonshot: '/logins moonshot',
   deepseek: '/logins deepseek',
+  xai: '/logins xai',
   openrouter: '/logins openrouter',
   gemini: '/logins gemini',
   huggingface: '/logins huggingface',
@@ -209,6 +215,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     zai: 'no Z.AI API key — /logins zai (or ZAI_API_KEY)',
     moonshot: 'no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)',
     deepseek: 'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
+    xai: 'no xAI API key — /logins xai (or XAI_API_KEY)',
     'openai-compat': 'no endpoint configured — MERCURY_COMPAT_BASE_URL',
     openrouter: 'no OpenRouter credential — /logins (or OPENROUTER_API_KEY)',
     gemini: 'no Gemini credential — /logins (or GOOGLE_API_KEY / GEMINI_API_KEY)',
@@ -232,6 +239,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     zai: 'not connected — /logins zai adds a key',
     moonshot: 'not connected — /logins moonshot adds Kimi or a key',
     deepseek: 'not connected — /logins deepseek adds a key',
+    xai: 'not connected — /logins xai adds a key',
     'openai-compat': 'not configured — set MERCURY_COMPAT_BASE_URL',
     openrouter: 'not connected — /logins adds OpenRouter',
     gemini: 'not connected — /logins adds Gemini',
@@ -281,9 +289,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
   check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
   check(
-    'the /logins catalogue carries the eight sign-in families (anthropic as claudeai+console)',
+    'the /logins catalogue carries the nine sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai'].join('|'),
     rows.join('|'),
   )
   check(
@@ -291,9 +299,9 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
   )
   check(
-    "the eight sign-in families parse a /logins focus (anthropic → 'claudeai')",
+    "the nine sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
-      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek'] as const).every(
+      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
   )

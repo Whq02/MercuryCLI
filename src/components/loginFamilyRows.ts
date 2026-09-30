@@ -9,6 +9,7 @@ export type LoginFamilyValue =
   | 'moonshot'
   | 'zai'
   | 'deepseek'
+  | 'xai'
 
 export interface LoginFamilyRow {
   label: string
@@ -36,6 +37,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Kimi (Moonshot) — device-code sign-in or API key', value: 'moonshot' as const },
           { label: 'GLM (Z.AI) — API key (general or GLM Coding Plan)', value: 'zai' as const },
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
+          { label: 'xAI — API key (Grok)', value: 'xai' as const },
         ]
       : []),
   ]
@@ -68,6 +70,7 @@ export const KEY_PAGES: Record<KeyFamilyValue, string> = {
   moonshot: 'platform.kimi.ai',
   zai: 'z.ai/manage-apikey',
   deepseek: 'platform.deepseek.com',
+  xai: 'console.x.ai',
 }
 
 export const KEY_FAMILIES = Object.keys(KEY_PAGES) as KeyFamilyValue[]
@@ -91,6 +94,7 @@ export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginF
     case 'moonshot':
     case 'zai':
     case 'deepseek':
+    case 'xai':
       return defaultProvider
     default:
       return undefined

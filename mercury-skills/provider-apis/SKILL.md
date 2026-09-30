@@ -12,12 +12,12 @@ argument-hint: "[question or task]"
 ## Choose the dialect
 - Read `references/anthropic-messages.md` for Anthropic Messages: block content, tool results and cache breakpoints.
 - Read `references/openai-responses.md` for OpenAI Responses: input/output items, stateless replay and response events.
-- Read `references/chat-completions.md` for Moonshot/Kimi, DeepSeek, Z.AI, OpenRouter, Gemini, Hugging Face and local/compatible servers.
+- Read `references/chat-completions.md` for Moonshot/Kimi, DeepSeek, xAI (Grok), Z.AI, OpenRouter, Gemini, Hugging Face and local/compatible servers.
 
 ## Resolve Mercury's route
 - Resolve `compat/`, `openrouter/`, `huggingface/` and `local/` namespaces before native prefixes.
 - Strip Mercury's carrier prefix, not the provider's own model slug, before sending.
-- Route `gpt-` to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `glm-` to Z.AI; `gemini-` to Gemini.
+- Route `gpt-` to OpenAI; `kimi-`/`moonshot-` to Moonshot; `deepseek-` to DeepSeek; `grok-` to xAI; `glm-` to Z.AI; `gemini-` to Gemini.
 - Use Anthropic's declared IDs and aliases for Messages; do not treat arbitrary unknown IDs as Anthropic models.
 - Preserve explicit gateway/model-pin admission; never fall through to another provider after a route failure.
 - Use `/logins` and `/accounts` for credentials; select the actual API-key or subscription endpoint rather than substituting one for the other.

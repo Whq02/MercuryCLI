@@ -493,6 +493,10 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'DeepSeek',
     signIn: 'Add a DeepSeek API key via /logins deepseek, or export DEEPSEEK_API_KEY',
   },
+  xai: {
+    label: 'xAI',
+    signIn: 'Add an xAI API key via /logins xai, or export XAI_API_KEY',
+  },
   'openai-compat': {
     label: 'Custom endpoint',
     signIn: 'Set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',

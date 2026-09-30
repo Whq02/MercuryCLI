@@ -501,7 +501,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   )
 
   const arms = loginsCatalogue()
-  t.check('the catalogue is the row owner’s nine, engine legs offered', arms.length === 9 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek')
+  t.check('the catalogue is the row owner’s ten, engine legs offered', arms.length === 10 && arms.map(a => a.row.value).join(',') === 'openai,claudeai,console,openrouter,gemini,huggingface,moonshot,zai,deepseek,xai')
   const { loginFamilyInitialFocus, loginFamilyFocusFor } = await import('../../src/components/loginFamilyRows.js')
   const signedOutRows = loginsSortedArms(signedOutFacts()).map(arm => arm.row)
   t.check('signed-out opening focus is the first displayed row', loginFamilyInitialFocus(signedOutRows, undefined) === signedOutRows[0]!.value && signedOutRows[0]!.value === 'openai')
@@ -523,17 +523,17 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the expired pane carries the typed blocker VERBATIM', loginsDetailLines(claudeArm, expired).join('\n').includes('the claude.ai sign-in has expired —\n/logins re-authenticates it'))
 
   const sorted = loginsSortedArms(facts)
-  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek')
+  t.check('signed-in rows float first, catalogue order within each class', sorted.map(a => a.row.value).join(',') === 'openai,claudeai,huggingface,moonshot,console,openrouter,gemini,zai,deepseek,xai')
   const entry = loginsEntryOf(claudeArm, facts)
   t.check('an entry groups under its state class with the owner’s row label', entry.group === 'signed in' && entry.label === 'Claude subscription account' && entry.valueLabel === 'op@example.com')
 
-  t.check('the summary counts distinct families (8), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=8', 'Signed in=4 of 8', 'Ready=4 lanes']))
-  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 8 families signed in · 4 ready')
+  t.check('the summary counts distinct families (9), signed and ready', JSON.stringify(loginsSummaryRows(facts).map(r => `${r.key}=${r.value}`)) === JSON.stringify(['Families=9', 'Signed in=4 of 9', 'Ready=4 lanes']))
+  t.check('the status line: signed of total · ready', loginsStatusLine(facts) === '4 of 9 families signed in · 4 ready')
   t.check('the signed-out world says so honestly (lanes can be ready without a sign-in)', loginsStatusLine(signedOutFacts()) === 'no family signed in yet · 0 ready without one')
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 8'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 9', 'xAI — API key (Grok)'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -649,7 +649,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const { keyPasteGuardNote } = await import('../../src/components/mercury-ui/screens/keyPasteGuards.js')
   const { zaiPlanLabel } = await import('../../src/services/providers/zai/zaiLogin.js')
 
-  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['claudeai', 'console', 'zai', 'deepseek', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
+  t.check('↵ is live on EVERY catalogue row (the set closed at A6b)', ['claudeai', 'console', 'zai', 'deepseek', 'xai', 'moonshot', 'huggingface', 'openai', 'openrouter', 'gemini'].every(v => loginsFlowReady(v as never)))
 
   const { openaiArmPickRows } = await import('../../src/components/loginFamilyRows.js')
   t.check('the openai pick is the row owner\'s two-arm pair, byte-same labels', JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(openaiArmPickRows.map(o => o.label)) && JSON.stringify(loginsPickOptions('openai').map(o => o.label)) === JSON.stringify(['ChatGPT subscription — browser sign-in', 'OpenAI API key — paste one (stored locally, mode 600)']))
@@ -673,7 +673,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   t.check('the guard refuses whitespace with the landed sentence', keyPasteGuardNote('two words', keyLegGuardOpts('deepseek')) === 'That does not look like an API key (it contains whitespace).')
   t.check("the openai form carries the Console redirect clause verbatim", keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('openai-key')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an OpenAI key. Anthropic usage-based billing signs in through the Console row instead.')
   t.check('a clean draft passes the guard', keyPasteGuardNote('zk-9f2c3d4e5f6a7b8c', keyLegGuardOpts('zai-general')) === null && keyPasteGuardNote('  ', keyLegGuardOpts('deepseek')) === null)
-  const skinFiles = ['ConsoleOAuthFlow.tsx', 'KimiConnect.tsx', 'HuggingfaceConnect.tsx', 'ZaiConnect.tsx', 'DeepseekConnect.tsx']
+  const skinFiles = ['ConsoleOAuthFlow.tsx', 'KimiConnect.tsx', 'HuggingfaceConnect.tsx', 'ZaiConnect.tsx', 'DeepseekConnect.tsx', 'XaiConnect.tsx']
   const spellers = skinFiles.filter(f => read(`src/components/${f}`).includes('That is an Anthropic API key'))
   t.check('NO component spells the guard sentences any more (one home)', spellers.length === 0, spellers.join(','))
   t.check('every key leg consumes the one guard', skinFiles.every(f => read(`src/components/${f}`).includes('keyPasteGuardNote')))
@@ -703,6 +703,10 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
   const src = read('src/components/BootLoginsScreen.tsx')
   t.check('the esc edges ride the landed back topology', src.includes("if (leg === 'openai-key') openPick('openai');") && src.includes("else if (leg === 'zai-general' || leg === 'zai-coding') openPick('zai');") && src.includes('else closeFlow();'))
   t.check('a storing prompt holds its esc (no half-stored abandon)', src.includes('if (!current.storing) keyEscape(current.leg);'))
+
+  const xaiPane = keyPromptPaneLines('xai', null, 6, false)
+  t.check('the xAI key leg mirrors the DeepSeek one: the title, the key page line, the store words and the way out', xaiPane[0] === 'xAI API key' && xaiPane.join(' ').includes('API key: console.x.ai — sign in, API Keys, create, paste it here.') && xaiPane.join(' ').includes('XAI_API_KEY wins.') && xaiPane[xaiPane.length - 1] === '↵ stores it · esc back')
+  t.check('the xAI leg guards with the one spelling and opens from its roster row straight to the key prompt', keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('xai')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an xAI API key.' && src.includes("case 'xai':\n        setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });") && src.includes("else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);"))
 }
 
 t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks · region · the wait pane · key legs)')
