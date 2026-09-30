@@ -199,6 +199,7 @@ try {
         MERCURY_CONFIG_DIR: configHome,
         MERCURY_VERSIONS_DIR: versionsDir,
         MERCURY_UPDATE_CHANNEL_REPO: 'fixture-owner/fixture-bridge-repo',
+        MERCURY_GH_CMD: JSON.stringify(['node', fakeGhJs]),
         GH_SHIM_FIXTURES: fixtures,
         GH_SHIM_LOG: ghLog,
         MERCURY_FAKE_GH_JS: fakeGhJs,
