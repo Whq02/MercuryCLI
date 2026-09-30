@@ -73,8 +73,12 @@ leaves it unlaunched. Sovereign mode does not ask. The sub-agent's shell,
 file tools and environment section start there, and that directory is its
 own single starting folder. A missing directory is
 refused before anything is launched. With `isolation: "worktree"` the
-temporary worktree is cut from that directory's repository and the sub-agent
-runs in the worktree. A sub-agent's worktree carries links to its parent
+temporary worktree is cut from that directory's repository at the commit that
+directory's checkout is on — the branch the lead works in, never a remote's
+copy of it, with nothing fetched — or, with `worktree_at`, frozen at the named
+commit; and the sub-agent runs in the worktree. Several sub-agents launched
+together each get their own worktree, cut one after another. A sub-agent's
+worktree carries links to its parent
 checkout's `node_modules` and to each `vendor/<pack>` the checkout ignores,
 hidden from git through the clone's exclude file, so the sub-agent builds and
 runs the checks there without an install. A sub-agent continued by a later

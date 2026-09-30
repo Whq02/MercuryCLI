@@ -458,7 +458,10 @@ A session can work in a worktree of its repository instead of the checkout
 itself: `--worktree [name]` at launch cuts one (with `--tmux`, inside a tmux
 session of its own), and the EnterWorktree tool cuts one mid-session on the
 word "worktree". The worktree lives under the repository's
-`.mercury/worktrees/` on a branch of its own and comes ready to build:
+`.mercury/worktrees/` on a branch of its own, cut from the commit the checkout
+is on — the branch you work in, never a remote's copy of it, and nothing is
+fetched to cut it (a `--worktree` name of the form `#<n>` or a pull-request
+link cuts it from that pull request's head instead) — and comes ready to build:
 `node_modules` and each `vendor/<pack>` the checkout ignores are links to the
 checkout's copies, hidden from git through the clone's exclude file, so the
 checks run there without an install. Because `node_modules` is a link to the
