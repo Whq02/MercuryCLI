@@ -4,6 +4,23 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
+const { resolveBrowser } = await import(join(root, 'src/services/browser/browserResolver.ts'))
+const first = resolveBrowser()
+if (first.state !== 'ok') {
+  const { resolveExecutionProfile } = await import(join(root, 'scripts/lib/executionProfile.ts'))
+  if (resolveExecutionProfile(root).kind === 'hosted-gate') {
+    const { provisionManagedBrowserForTheGate } = await import(join(root, 'scripts/lib/provisionManagedBrowser.ts'))
+    const provisioned = await provisionManagedBrowserForTheGate(line => console.log(line))
+    const again = provisioned.ok ? resolveBrowser() : first
+    if (again.state !== 'ok') {
+      console.error(`FAIL hosted gate has no drivable browser: ${again.note}${provisioned.ok ? '' : `; ${provisioned.note}`}`)
+      process.exit(1)
+    }
+  } else {
+    console.log(`__SUITE_SKIPPED browser: ${first.note}`)
+    process.exit(0)
+  }
+}
 const world = mkdtempSync(join(tmpdir(), 'browser-teardown-pin-'))
 let failures = 0
 function check(name: string, ok: boolean, detail = '') {
@@ -22,7 +39,6 @@ try {
     const fixture = join(dir, 'fixture.ts')
     writeFileSync(fixture, `import { writeFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
-if (process.env.PROOF_BROWSER_PATH) process.env.MERCURY_BROWSER_PATH = process.env.PROOF_BROWSER_PATH
 const { ensureBrowserSession } = await import(${JSON.stringify(join(root, 'src/services/browser/browserSession.ts'))})
 const { processOwnerForLane } = await import(${JSON.stringify(join(root, 'src/services/run/resolveOwner.ts'))})
 const s = await ensureBrowserSession(processOwnerForLane(null))

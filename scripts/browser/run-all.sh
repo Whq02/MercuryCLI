@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
+# gate-env: MERCURY_BROWSER_CACHE_DIR
 # gate-watch: src/services/browser/** src/tools/BrowserTool/** src/commands/browser/**
 # gate-watch: scripts/browser/**
 # gate-watch: scripts/lib/executionProfile.ts scripts/lib/provisionManagedBrowser.ts src/Tool.ts
