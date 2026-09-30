@@ -1252,6 +1252,10 @@ export function usageForProvider(
     }
   }
 
+  if (provider === 'xai') {
+    return { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
+  }
+
   if (provider === 'unrecognised') {
     return {
       provider,
