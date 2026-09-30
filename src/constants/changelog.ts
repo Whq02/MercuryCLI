@@ -1,6 +1,13 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.25
+- Fixed a session keeping every file beside its working folder open for its whole life, which could run a machine out of file handles
+- Fixed a lost terminal crashing the session with a read error: the session closes cleanly, keeps its transcript, and the next boot offers the way back into it
+- Fixed an update leaving the Mac lagging behind old daemons: an old daemon now exits once its last session ends and launches nothing while idle
+- Fixed the working folder's own writes being called read-only in implement mode, and the shell's directory being reset when it moved outside: inside the starting folder implement goes ahead, outside it asks like any other action
+- Added the crewmate advisor's cost to its /config row: Advisor for crewmates reads "on · may result in high spend" whenever it is on
+
 ## 1.0.0-beta.24
 - Added ten more tools loaded in full on every cloud model from the first request: ChangeSet, AstSearch, AstEdit, LSP, Test, Git, Debug, Monitor, Checkpoint and Rewind ride beside the tools already loaded instead of waiting in the deferred drawer, LSP is on wherever a language server is reachable — headless and daemon sessions included — and each of the ten says when to choose it over the usual tool; a local model's tool set is exactly as it was
 - Fixed the first request being held under a size ceiling: its size is reported, never bounded, a connected MCP server's tool descriptions and schemas reach the model whole, and nothing is trimmed to fit a limit
