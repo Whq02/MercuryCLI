@@ -260,5 +260,21 @@ section('§7 the shape: the tab reads only the owner')
   check('the beside-rows memo is registered as ttl-bounded', readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8').includes('providerUsage.ts :: otherUsagesCache :: ttl-bounded'))
 }
 
+{
+  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const fixture = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/openai-chatgpt-usage.json'), 'utf8'))
+  openai.__resetOpenaiLimitStateForTest()
+  openai.recordOpenaiUsageResponse(fixture.body, NOW)
+  const view = owner.usageForProvider('openai', {
+    activeEntry: () => ({ id: 'openai:subscription', provider: 'openai', kind: 'oauth', label: 'ChatGPT Pro', custodian: 'openai-accounts', identity: { plan: 'pro' } }),
+    openaiObserved: openai.openaiObservedUsage,
+    openaiLimited: () => ({ state: 'clear' }),
+    spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+  })
+  check('OpenAI subscription: the observed fixture balance belongs to the same owner as its windows', view.shape === 'subscription-windows' && view.credits?.display === '62,500' && view.credits.source === 'endpoint' && view.credits.observedAtMs === NOW)
+  openai.forgetOpenaiLimitSource('chatgpt-subscription')
+  check('OpenAI subscription: forgetting the source drops the balance and bands together', Object.keys(openai.openaiObservedUsage()).length === 0)
+}
+
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-owner-per-family${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

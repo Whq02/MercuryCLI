@@ -59,6 +59,11 @@ try {
     check(`rail at ${columns}: host visibility follows its existing layout`, typeof railPlanAt(columns, true).telemetry === 'boolean')
     board.close()
   }
+  slot.active = false
+  Object.assign(slot, { credits: view.credits })
+  const inactive = await world.mount(React.createElement(AppStateProvider, { children: React.createElement(AccountView, { onClose() {} }) }), { columns: 80, rows: 70 })
+  check('an inactive sign-in with its own credits keeps them on its row', inactive.frame().includes('62,500'), inactive.frame())
+  inactive.close()
   view.credits = { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }
   view.windows = []
   const board = await world.mount(React.createElement(Usage, { width: 76, rowBudget: 60 }), { columns: 80, rows: 70 })

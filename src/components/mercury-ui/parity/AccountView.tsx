@@ -303,7 +303,9 @@ export function AccountView({
       }
     }
     const family = row.type === 'slot' && row.slot.active && row.slot.signedIn ? groups.find(group => group.family.id === row.slot.family)?.family.id : undefined
-    const credits = family === undefined ? undefined : usageCreditsLine(usageForProvider(family).credits)
+    const credits = row.type === 'slot' && row.slot.signedIn && row.slot.credits !== undefined
+      ? usageCreditsLine(row.slot.credits)
+      : family === undefined ? undefined : usageCreditsLine(usageForProvider(family).credits)
     return (
       <InteractiveRow key={rowKey(row)} {...rowProps(row, index)}>
         <Box flexDirection="column">

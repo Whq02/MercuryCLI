@@ -391,7 +391,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   const sub = view.entries.find(e => e.kind === 'subscription-oauth')
   const key = view.entries.find(e => e.kind === 'api-key')
   const windows = openaiObservedWindowViews()
-  const owner = usageForProvider('openai')
+  const owner = useOwnerUsage('openai', sub !== undefined || key !== undefined)
   const limited =
     view.limits.kind === 'openai-observed' && view.limits.window.state === 'limited'
       ? view.limits.window
@@ -413,11 +413,11 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
               ))
             ) : (
               <Text dimColor>
-                no usage signal observed from the account source yet — the weekly meter fills
-                after the first GPT reply (no polled endpoint exists on this lane; meters
-                derive live from response headers).
+                no usage signal observed yet — this tab reads the ChatGPT usage endpoint;
+                GPT replies also update the meter.
               </Text>
             )}
+            {owner.readerNote !== undefined ? <Text dimColor>{owner.readerNote}</Text> : null}
             {limited !== null ? (
               <Text dimColor>
                 A usage window is reached — resets {new Date(limited.resetsAtMs).toLocaleString()}.

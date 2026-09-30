@@ -235,7 +235,7 @@ try {
   const noPlanRows = railBlock(board.runs(), 'zai')
   world.save('usage-card-glm-no-plan', board.frame(), WIDE)
   console.log(`rail GLM block for a key with no coding plan: ${quote(noPlanRows)}`)
-  check("178x51 rail, a key the endpoint says has no coding plan: the identity row under the title, then 'usage: not on a coding plan' — the one sentence, wrapped at the 28-cell card, nothing else", noPlanRows[1] === 'Coding Plan key · …-key' && noPlanRows.slice(2).join(' ') === 'usage: not on a coding plan' && !noPlanRows.some(row => /[█░]{4}|no usage read/.test(row)), quote(noPlanRows))
+  check("178x51 rail, a key with no coding plan: its identity, the provider's absence and the owner's unreported credits, without a fabricated meter", noPlanRows[1] === 'Coding Plan key · …-key' && noPlanRows.slice(2).join(' ') === 'usage: not on a coding plan credits not reported' && !noPlanRows.some(row => /[█░]{4}|no usage read/.test(row)), quote(noPlanRows))
   world.setQuotaBody({ code: 200, msg: 'Operation successful', data: { limits: [world.glmFiveHour, world.glmWeek, world.glmTools], level: 'pro' }, success: true })
 
   zaiReader.__resetZaiUsageForTest()

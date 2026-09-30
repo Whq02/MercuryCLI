@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import {
   __resetOpenaiLimitStateForTest,
   adoptOpenaiObservedUsage,
+  forgetOpenaiLimitSource,
   openaiObservedUsage,
   recordOpenaiRateHeaders,
 } from '../../src/services/providers/openai/openaiLimitState.ts'
@@ -88,6 +89,21 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   )
   t('§4 UsageFactsV1 carries openaiObserved', /openaiObserved\?:/.test(src))
   t('§4 the band shape stamps its observation', src.includes('OpenaiObservedBandV1') && /observedAtMs: number/.test(src))
+}
+
+{
+  __resetOpenaiLimitStateForTest()
+  const now = Date.now()
+  adoptOpenaiObservedUsage({ credits: { hasCredits: true, unlimited: false, balance: '62500', source: 'endpoint', observedAtMs: now } })
+  t('credits cross the daemon facts boundary without a usage band', openaiObservedUsage().credits?.balance === '62500')
+  adoptOpenaiObservedUsage({ credits: { hasCredits: true, unlimited: false, balance: '1', source: 'headers', observedAtMs: now - 1 } })
+  t('a stale daemon balance never regresses a newer endpoint balance', openaiObservedUsage().credits?.balance === '62500')
+  adoptOpenaiObservedUsage({ primary: { usedPct: 40, observedAtMs: now + 1 } })
+  t('a bands-only projection does not erase or restamp credits', openaiObservedUsage().credits?.observedAtMs === now)
+  adoptOpenaiObservedUsage({ credits: { hasCredits: false, unlimited: true, observedAtMs: now + 2 } })
+  t('a newer unlimited statement replaces the previous balance', openaiObservedUsage().credits?.unlimited === true && openaiObservedUsage().credits?.balance === undefined)
+  forgetOpenaiLimitSource('chatgpt-subscription')
+  t('the source forget drops credits with the bands', Object.keys(openaiObservedUsage()).length === 0)
 }
 
 console.log(failures === 0 ? 'OPENAI METER DAEMON ROAD: ALL PASS' : 'FAILURES')

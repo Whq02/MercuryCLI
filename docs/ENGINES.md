@@ -808,6 +808,7 @@ balance endpoints, the remaining credit under an OpenRouter key cap), and
 spend presented as a balance. Every figure is a reader's last observation with
 its stamp, sampled in the popup through one door and dropped the moment the
 credential it belongs to changes — never remembered, never invented.
+The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
