@@ -11,7 +11,7 @@ import {
   overflowWhoClause,
 } from '../api/overflowSignal.js'
 import { tokenCountWithEstimation } from '../../utils/tokens.js'
-import { isAutoCompactEnabled, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
+import { autoCompactDisabledReason, compactionSettingsText, resolveAutoCompactWindow, type AutoCompactTrackingState } from './autoCompact.js'
 import { FOLD_WINDOW_REFUSAL_KEY } from './compact.js'
 import { compactionBreakerAllows } from './compactionPolicy.js'
 
@@ -32,7 +32,6 @@ export const PRUNE_COVER_MARGIN = 1.2
 
 export type FoldUnavailableWhy =
   | 'compaction-off'
-  | 'auto-compact-off'
   | 'breaker'
   | 'single-message'
   | 'fold-failed'
@@ -49,7 +48,6 @@ export function foldAvailability(input: {
   hasHistory: boolean
 }): FoldAvailability {
   if (!flagEnabled('MERCURY_COMPACT')) return { available: false, why: 'compaction-off' }
-  if (!isAutoCompactEnabled()) return { available: false, why: 'auto-compact-off' }
   if (!compactionBreakerAllows(input.tracking?.consecutiveFailures)) return { available: false, why: 'breaker' }
   if (input.headFold === 'failed') {
     return { available: false, why: 'fold-failed', ...(input.headFoldDetail !== undefined ? { detail: input.headFoldDetail } : {}) }
@@ -174,8 +172,6 @@ export function overflowRefusalText(
         return 'the conversation was folded and the request retried once, and it still overflows.'
       case 'compaction-off':
         return 'compaction is disabled (MERCURY_COMPACT=0), so nothing could fold.'
-      case 'auto-compact-off':
-        return `automatic compaction is off, so the emergency fold did not run.${byHand}`
       case 'breaker':
         return 'compaction has failed repeatedly and is paused for this session.'
       case 'fold-failed': {
@@ -189,7 +185,9 @@ export function overflowRefusalText(
         return 'this message alone is larger than the window — shorten or split it.'
     }
   })()
-  return `${PROMPT_TOO_LONG_ERROR_MESSAGE} — ${refusedBy}: ${tried} ${remedy}`
+  const off = autoCompactDisabledReason()
+  const settings = off !== null && why !== 'compaction-off' ? ` ${compactionSettingsText()}.` : ''
+  return `${PROMPT_TOO_LONG_ERROR_MESSAGE} — ${refusedBy}: ${tried}${settings} ${remedy}`
 }
 
 export function overflowGapFor(signal: OverflowSignal): number | undefined {

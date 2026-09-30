@@ -122,7 +122,13 @@ function seed(rounds: number): unknown[] {
 }
 
 type Drive = { yields: AnyMsg[]; terminal: Record<string, unknown>; threw: string | undefined; wire: ReturnType<typeof fixture.captured.slice> }
-async function drive(model: string, rounds: number): Promise<Drive> {
+async function drive(model: string, rounds: number, inputTokens?: number, prior?: AnyMsg[]): Promise<Drive> {
+  const messages = prior ?? seed(rounds) as AnyMsg[]
+  if (inputTokens !== undefined) {
+    const last = messages.filter(m => m.type === 'assistant').at(-1)!
+    const payload = last.message as { usage: { input_tokens: number } }
+    payload.usage.input_tokens = inputTokens
+  }
   const before = fixture.captured.length
   const deps = productionDeps()
   const yields: AnyMsg[] = []
@@ -130,7 +136,7 @@ async function drive(model: string, rounds: number): Promise<Drive> {
   let threw: string | undefined
   try {
     const gen = query({
-      messages: seed(rounds) as never,
+      messages: messages as never,
       systemPrompt: ['fixture system prompt'] as never,
       userContext: {},
       systemContext: {},
@@ -278,6 +284,32 @@ section('F5 a long history keeps its verbatim tail through the overflow fold; th
   const transcript = [...seed(12), ...r.yields.filter(y => y.type === 'user' || y.type === 'assistant' || y.type === 'system')]
   const fill = contextFill(transcript as never)
   check('the gauge anchors on the retried turn (2000+10), never the re-homed tail\'s pre-fold usage', fill.source === 'usage' && fill.tokens === 2010, JSON.stringify(fill))
+}
+
+section('F6 early folding off never disables the real emergency fold, on either overflow road')
+{
+  const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  for (const off of ['config', 'environment'] as const) {
+    if (off === 'config') saveGlobalConfig(c => ({ ...c, autoCompactEnabled: false }))
+    else process.env.MERCURY_AUTO_COMPACT = '0'
+    for (const source of ['provider', 'estimate'] as const) {
+      fixture.script([
+        ...(source === 'provider' ? [{ error: OVERFLOW_WIRE_SHAPES.anthropic! }] : []),
+        { text: 'SUMMARY: the older work is complete; continue the operator request.' },
+        { text: 'recovered with early folding off', usage: { input: 640, output: 12 } },
+      ])
+      const r = await drive('claude-sonnet-5-5', 5, source === 'estimate' ? 990_000 : undefined)
+      const boundary = boundaryOf(r.yields) as { compactMetadata?: { trigger?: string; overflow?: { source?: string } } } | undefined
+      check(`${off} off / ${source}: the real emergency fold completed`, r.threw === undefined && r.terminal.reason === 'completed' && boundary?.compactMetadata?.trigger === 'overflow' && boundary.compactMetadata.overflow?.source === source, JSON.stringify({ terminal: r.terminal, boundary }))
+      check(`${off} off / ${source}: only the needed calls, no refusal, ask preserved`, r.wire.length === (source === 'provider' ? 3 : 2) && errorTexts(r.yields).length === 0 && wireLastUserText('anthropic', r.wire.at(-1)!.body).endsWith(OPERATOR_ASK))
+      fixture.script([{ text: 'the next turn works', usage: { input: 700, output: 8 } }])
+      const continued = [...seed(5), ...r.yields.filter(m => ['user', 'assistant', 'system', 'attachment'].includes(m.type ?? '')), createUserMessage({ content: 'Continue on the same conversation.' })] as AnyMsg[]
+      const next = await drive('claude-sonnet-5-5', 0, undefined, continued)
+      check(`${off} off / ${source}: the next turn is not refused`, next.terminal.reason === 'completed' && errorTexts(next.yields).length === 0)
+    }
+    if (off === 'config') saveGlobalConfig(c => ({ ...c, autoCompactEnabled: true }))
+    else delete process.env.MERCURY_AUTO_COMPACT
+  }
 }
 
 await fixture.close()

@@ -119,10 +119,21 @@ export function getAutoCompactThreshold(model: string): number {
   return Math.max(1, full - AUTOCOMPACT_BUFFER_TOKENS, Math.ceil(full / SUMMARY_RESERVE_MAX_WINDOW_DIVISOR))
 }
 
+export function autoCompactDisabledReason(): 'MERCURY_COMPACT=0' | 'MERCURY_AUTO_COMPACT=0' | 'turned off in /config' | null {
+  if (!flagEnabled('MERCURY_COMPACT')) return 'MERCURY_COMPACT=0'
+  if (!flagEnabled('MERCURY_AUTO_COMPACT')) return 'MERCURY_AUTO_COMPACT=0'
+  return getGlobalConfig().autoCompactEnabled ? null : 'turned off in /config'
+}
+
 export function isAutoCompactEnabled(): boolean {
-  if (!flagEnabled('MERCURY_COMPACT')) return false
-  if (!flagEnabled('MERCURY_AUTO_COMPACT')) return false
-  return getGlobalConfig().autoCompactEnabled
+  return autoCompactDisabledReason() === null
+}
+
+export function compactionSettingsText(): string {
+  const reason = autoCompactDisabledReason()
+  if (reason === null) return 'auto-compact on'
+  if (reason === 'MERCURY_COMPACT=0') return 'compaction disabled (MERCURY_COMPACT=0); emergency folding is disabled too'
+  return `auto-compact ${reason === 'turned off in /config' ? reason : `off (${reason})`}; emergency folding remains enabled`
 }
 
 export function getBlockingLimit(model: string, settingsWindow?: number): number {
@@ -303,7 +314,6 @@ export async function autoCompactIfNeeded(
     if (querySource === 'session_memory' || querySource === 'compact') {
       return { ...notCompacted, refusal: 'the summary forks never fold themselves' }
     }
-    if (!isAutoCompactEnabled()) return { ...notCompacted, refusal: 'automatic compaction is off' }
     logForDebugging(
       `autoCompact: overflow fold forced (${overflowSignal.source} · ${overflowSignal.family} · ${overflowSignal.shape}${overflowSignal.actualTokens !== undefined && overflowSignal.limitTokens !== undefined ? ` · ${overflowSignal.actualTokens} > ${overflowSignal.limitTokens}` : ''})`,
     )

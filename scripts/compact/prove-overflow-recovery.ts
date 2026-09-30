@@ -364,12 +364,10 @@ section('R4 the prune cannot cover a large gap → straight to the fold')
 section('R5 the switches — MERCURY_AUTO_COMPACT · MERCURY_COMPACT · the flag OFF')
 {
   process.env.MERCURY_AUTO_COMPACT = '0'
-  const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
+  const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()], [ping(), asstText('recovered with early folding off')]] })
   delete process.env.MERCURY_AUTO_COMPACT
-  const aText = textOf(errorYields(a.yields)[0])
-  check('auto-compact off: terminal prompt_too_long after ONE call', a.terminal.reason === 'prompt_too_long' && a.calls.length === 1, JSON.stringify(a.terminal))
-  check('auto-compact off: the refusal says the emergency fold did not run', aText.includes('automatic compaction is off, so the emergency fold did not run'), aText)
-  check('auto-compact off: no fold was forced', a.compact.every(c => c.forced === undefined))
+  check('auto-compact off: emergency recovery completes after two calls', a.terminal.reason === 'completed' && a.calls.length === 2 && errorYields(a.yields).length === 0, JSON.stringify(a.terminal))
+  check('auto-compact off: exactly one emergency fold was forced', a.compact.filter(c => c.forced !== undefined).length === 1)
 
   process.env.MERCURY_COMPACT = '0'
   const b = await run({ seed: seedPlain(), script: [[ping(), overflowError()]] })
@@ -454,10 +452,10 @@ section('R10 the interactive refusal names the slash-command remedies')
   const text = textOf(errorYields(r.yields)[0])
   check('/clear and /model are named', text.includes('/clear starts fresh, or /model picks a model with a larger window.'), text)
   process.env.MERCURY_AUTO_COMPACT = '0'
-  const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()]], interactive: true })
+  const a = await run({ seed: seedPlain(), script: [[ping(), overflowError()], [ping(), overflowError()]], interactive: true })
   delete process.env.MERCURY_AUTO_COMPACT
   const aText = textOf(errorYields(a.yields)[0])
-  check('auto-compact off (interactive): /compact by hand is named', aText.includes('/compact folds the conversation by hand'), aText)
+  check('an exhausted emergency fold names the early-fold env switch and the retry', aText.includes('MERCURY_AUTO_COMPACT=0') && aText.includes('the conversation was folded and the request retried once'), aText)
 }
 
 section('R11 the episode law — a completed tool round opens a fresh episode; the thrash breaker stands')
@@ -500,6 +498,18 @@ section('R13 a lone message larger than the window — nothing to fold')
   const text = textOf(errorYields(r.yields)[0])
   check('terminal prompt_too_long after one call, no fold forced', r.terminal.reason === 'prompt_too_long' && r.calls.length === 1 && r.compact.every(c => c.forced === undefined), JSON.stringify(r.terminal))
   check('the refusal says the message alone is larger than the window', text.includes('this message alone is larger than the window — shorten or split it'), text)
+}
+
+section('R14 the estimate-side emergency fold runs when early folding is off')
+{
+  process.env.MERCURY_AUTO_COMPACT = '0'
+  process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE = '500'
+  const large = [createUserMessage({ content: 'earlier ask' }), asstText('earlier reply '.repeat(500)), createUserMessage({ content: OPERATOR_ASK })]
+  const r = await run({ seed: large, script: [[ping(), asstText('estimate recovered')]] })
+  delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
+  delete process.env.MERCURY_AUTO_COMPACT
+  check('one estimate-side emergency fold, then a completed reply', r.terminal.reason === 'completed' && r.calls.length === 1 && r.compact.filter(c => c.forced?.source === 'estimate').length === 1, JSON.stringify(r.terminal))
+  check('the estimate fold was announced and the operator message survives', noticeTexts(r.yields).some(t => t.includes('folding the conversation and retrying')) && lastText(r.calls[0]!.messages) === OPERATOR_ASK)
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)
