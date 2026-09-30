@@ -22,6 +22,13 @@ import {
   NO_RESPONSE_REQUESTED,
   normalizeMessages,
 } from './messages.js'
+import {
+  accumulateOpenToolUses,
+  cloneOpenToolUses,
+  freshOpenToolUses,
+  openToolUseIDs,
+  type OpenToolUses,
+} from './messages/openToolUses.js'
 import { copyPlanForResume } from './plans.js'
 import { processSessionStartHooks } from './sessionStart.js'
 import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
@@ -216,8 +223,7 @@ export type LiveTurnState = {
 }
 
 type TurnAccumulator = {
-  pending: Set<string>
-  resolved: Set<string>
+  tools: OpenToolUses
   lastPromptMs: number | null
   lastAssistantMs: number | null
   hasAssistant: boolean
@@ -225,8 +231,7 @@ type TurnAccumulator = {
 }
 
 const freshTurnAccumulator = (): TurnAccumulator => ({
-  pending: new Set(),
-  resolved: new Set(),
+  tools: freshOpenToolUses(),
   lastPromptMs: null,
   lastAssistantMs: null,
   hasAssistant: false,
@@ -234,8 +239,7 @@ const freshTurnAccumulator = (): TurnAccumulator => ({
 })
 
 const cloneTurnAccumulator = (acc: TurnAccumulator): TurnAccumulator => ({
-  pending: new Set(acc.pending),
-  resolved: new Set(acc.resolved),
+  tools: cloneOpenToolUses(acc.tools),
   lastPromptMs: acc.lastPromptMs,
   lastAssistantMs: acc.lastAssistantMs,
   hasAssistant: acc.hasAssistant,
@@ -249,15 +253,13 @@ const parseTurnTime = (timestamp: string): number | null => {
 
 function accumulateTurn(acc: TurnAccumulator, message: Message): void {
   if (message.type === 'user') {
+    accumulateOpenToolUses(acc.tools, message)
     const content = message.message.content
     if (Array.isArray(content)) {
       let carriedToolResult = false
       for (const block of content) {
         const record = block as { type?: string; tool_use_id?: string }
-        if (record.type === 'tool_result' && record.tool_use_id) {
-          acc.resolved.add(record.tool_use_id)
-          carriedToolResult = true
-        }
+        if (record.type === 'tool_result' && record.tool_use_id) carriedToolResult = true
       }
       if (!carriedToolResult && !message.isMeta) {
         acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
@@ -266,14 +268,11 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
       acc.lastPromptMs = parseTurnTime(message.timestamp) ?? acc.lastPromptMs
     }
   } else if (message.type === 'assistant') {
+    accumulateOpenToolUses(acc.tools, message)
     acc.hasAssistant = true
     acc.lastAssistantMs = parseTurnTime(message.timestamp) ?? acc.lastAssistantMs
     const content = message.message.content
     if (Array.isArray(content)) {
-      for (const block of content) {
-        const record = block as { type?: string; id?: string }
-        if (record.type === 'tool_use' && record.id) acc.pending.add(record.id)
-      }
       const last = content[content.length - 1] as { type?: string } | undefined
       if (last?.type === 'thinking' || last?.type === 'redacted_thinking') acc.lastAssistantKind = 'thinking'
       else if (last?.type === 'tool_use') acc.lastAssistantKind = 'tool'
@@ -283,10 +282,7 @@ function accumulateTurn(acc: TurnAccumulator, message: Message): void {
 }
 
 function settleTurn(acc: TurnAccumulator): LiveTurnState {
-  const unresolved = new Set<string>()
-  for (const id of acc.pending) {
-    if (!acc.resolved.has(id)) unresolved.add(id)
-  }
+  const unresolved = openToolUseIDs(acc.tools)
   const promptOpen =
     acc.lastPromptMs !== null &&
     (acc.lastAssistantMs === null || acc.lastAssistantMs >= acc.lastPromptMs - 1)

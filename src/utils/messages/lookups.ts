@@ -20,6 +20,7 @@ import {
   isStreamFaultRecoveryNudgeText,
 } from '../../services/api/errors.js'
 import { contentBlocksOf } from './normalize.js'
+import { accumulateOpenToolUses, freshOpenToolUses } from './openToolUses.js'
 import { isDenialResultText } from './rejectionText.js'
 
 function toolResultText(content: unknown): string {
@@ -225,8 +226,11 @@ export function buildMessageLookups(
   const deniedToolUseIDs = new Set<string>()
   const recoveredStreamFaultUuids = new Set<string>()
   const pendingStreamFaultUuids: string[] = []
+  const openToolUses = freshOpenToolUses()
+  const seenToolUseIDs: string[] = []
 
   for (const msg of normalizedMessages) {
+    if (msg.type === 'user' || msg.type === 'assistant') accumulateOpenToolUses(openToolUses, msg)
     if (msg.type === 'progress') {
       const toolUseID = msg.parentToolUseID
       const existing = progressMessagesByToolUseID.get(toolUseID)
@@ -279,6 +283,7 @@ export function buildMessageLookups(
         pendingStreamFaultUuids.push(msg.uuid)
       }
       for (const content of contentBlocksOf(msg.message.content)) {
+        if (content.type === 'tool_use') seenToolUseIDs.push(content.id)
         if (
           'tool_use_id' in content &&
           typeof (content as { tool_use_id: string }).tool_use_id === 'string'
@@ -317,6 +322,10 @@ export function buildMessageLookups(
       countMap.set(hookEvent, names.size)
     }
     resolvedHookCounts.set(toolUseID, countMap)
+  }
+
+  for (const id of seenToolUseIDs) {
+    if (!openToolUses.owners.has(id)) resolvedToolUseIDs.add(id)
   }
 
   const lastMsg = messages.at(-1)
@@ -381,7 +390,9 @@ export function buildSubagentLookups(
     NormalizedUserMessage & { type: 'user' }
   >()
 
+  const openToolUses = freshOpenToolUses()
   for (const { message: msg } of messages) {
+    accumulateOpenToolUses(openToolUses, msg as Message)
     if (msg.type === 'assistant') {
       for (const content of contentBlocksOf(msg.message.content)) {
         if (content.type === 'tool_use') {
@@ -400,7 +411,8 @@ export function buildSubagentLookups(
 
   const inProgressToolUseIDs = new Set<string>()
   for (const id of toolUseByToolUseID.keys()) {
-    if (!resolvedToolUseIDs.has(id)) inProgressToolUseIDs.add(id)
+    if (openToolUses.owners.has(id)) inProgressToolUseIDs.add(id)
+    else resolvedToolUseIDs.add(id)
   }
 
   return {

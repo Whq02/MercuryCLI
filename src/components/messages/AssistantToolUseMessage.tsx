@@ -60,9 +60,11 @@ export function _seedToolStartStamp(id: string, at: number): void {
 export function RunningToolElapsed({
   id,
   running,
+  startedAtMs = null,
 }: {
   id: string
   running: boolean
+  startedAtMs?: number | null
 }): React.ReactNode {
   const reducedMotion =
     useAppStateMaybeOutsideOfProvider(
@@ -76,9 +78,12 @@ export function RunningToolElapsed({
     toolStartStamps.delete(id)
     return null
   }
-  if (!toolStartStamps.has(id)) seedStamp(id, Date.now())
+  const recorded = startedAtMs !== null && Number.isFinite(startedAtMs) ? startedAtMs : null
+  if (recorded !== null) {
+    if (toolStartStamps.get(id) !== recorded) seedStamp(id, recorded)
+  } else if (!toolStartStamps.has(id)) seedStamp(id, Date.now())
   const startedAt = toolStartStamps.get(id) ?? Date.now()
-  const elapsedMs = Date.now() - startedAt
+  const elapsedMs = Math.max(0, Date.now() - startedAt)
   if (elapsedMs < ELAPSED_VISIBLE_MS) return null
   return <Text dimColor> · {Math.floor(elapsedMs / 1000)}s</Text>
 }
@@ -140,6 +145,7 @@ export function AssistantToolUseMessage({
   inProgressToolCallCount = 1,
   lookups,
   isTranscriptMode = false,
+  startedAtMs = null,
 }: {
   param: ToolUseBlockParam
   addMargin?: boolean
@@ -153,6 +159,7 @@ export function AssistantToolUseMessage({
   inProgressToolCallCount?: number
   lookups: MessageLookups
   isTranscriptMode?: boolean
+  startedAtMs?: number | null
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize()
   const tokens = useMercuryTokens()
@@ -347,7 +354,7 @@ export function AssistantToolUseMessage({
               {targetText ?? useMessage}
             </Text>
           ) : null}
-          <RunningToolElapsed id={param.id} running={running && shouldAnimate} />
+          <RunningToolElapsed id={param.id} running={running && shouldAnimate} startedAtMs={startedAtMs} />
           {editMeta ? (
             <Text>
               {' '}

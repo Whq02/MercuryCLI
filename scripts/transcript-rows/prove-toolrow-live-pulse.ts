@@ -79,6 +79,24 @@ check(
   'with two tools and one result, exactly the unresolved one still pulses',
   partialFold.inProgressToolUseIDs.has(TOOL_ID) && !partialFold.inProgressToolUseIDs.has(OTHER_ID),
 )
+const reply = (at: number): RawMsg => ({
+  type: 'assistant',
+  uuid: `a-${at}`,
+  timestamp: new Date(at).toISOString(),
+  message: { id: `msg-${at}`, role: 'assistant', content: [{ type: 'text', text: 'the build passed' }] },
+})
+const answeredFold = liveTurnStateOf([prompt(1000), toolUse(2000, [TOOL_ID]), reply(4000)] as never)
+check(
+  'a later reply resolves a call whose result record is missing — the pulse never runs past the reply',
+  answeredFold.inProgressToolUseIDs.size === 0 && !answeredFold.inFlight,
+  JSON.stringify({ ids: [...answeredFold.inProgressToolUseIDs], inFlight: answeredFold.inFlight }),
+)
+const lastCallFold = liveTurnStateOf([prompt(1000), toolUse(2000, [TOOL_ID]), reply(4000), toolUse(5000, [OTHER_ID])] as never)
+check(
+  '…and only the newest reply\'s own call is the one that pulses',
+  lastCallFold.inProgressToolUseIDs.has(OTHER_ID) && lastCallFold.inProgressToolUseIDs.size === 1,
+  JSON.stringify([...lastCallFold.inProgressToolUseIDs]),
+)
 
 section('§B the pulse WEAR — the row driven through the fold\'s own set')
 const baseLookups = (over: Partial<Record<string, unknown>> = {}): unknown => ({

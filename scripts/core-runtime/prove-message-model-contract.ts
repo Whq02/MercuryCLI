@@ -714,9 +714,24 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
     const nResolved = new Set<string>()
     const nErrored = new Set<string>()
     const nDenied = new Set<string>()
+    const openUses = new Map<string, string>()
+    const seenUses: string[] = []
     for (const nm of normalized) {
-      if (nm.type === 'user') {
+      if (nm.type === 'assistant') {
+        for (const [id, owner] of [...openUses]) if (owner !== nm.message.id) openUses.delete(id)
         for (const b of nm.message.content as Block[]) {
+          if (b.type !== 'tool_use') continue
+          openUses.set(b.id, nm.message.id)
+          seenUses.push(b.id)
+        }
+      }
+      if (nm.type === 'user') {
+        const blocks = nm.message.content as Block[]
+        const results = blocks.filter(b => b.type === 'tool_result')
+        for (const b of results) openUses.delete(b.tool_use_id)
+        const cut = blocks.some(b => b.type === 'text' && rejection.isTurnCutText(String(b.text ?? '')))
+        if (results.length === 0 && !nm.isMeta && !cut) openUses.clear()
+        for (const b of blocks) {
           if (b.type !== 'tool_result') continue
           nResolved.add(b.tool_use_id)
           if (b.is_error) {
@@ -738,6 +753,7 @@ section('LOOKUPS-DIFF — lookups vs legacy scans vs naive re-derivation')
         }
       }
     }
+    for (const id of seenUses) if (!openUses.has(id)) nResolved.add(id)
     const lastRaw = raw.at(-1)
     const exemptId = lastRaw?.type === 'assistant' ? lastRaw.message.id : undefined
     for (const nm of normalized) {
