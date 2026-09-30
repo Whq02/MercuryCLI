@@ -26,6 +26,7 @@ import {
   weeklyPoolClaimForModel,
   type AnthropicExtraUsageRecord,
   type AnthropicMoney,
+  type ClaudeAILimits,
   type RateLimitType,
   type WeeklyPoolClaim,
 } from '../claudeAiLimits.js'
@@ -36,6 +37,8 @@ import { providerDisplayName } from './routeLaw.js'
 import { declaredRouteOf, PROVIDER_ID_SPACES } from './callModelRouter.js'
 import {
   NO_USAGE_READ_WORDS,
+  usageAgeWords,
+  usageFreshHorizonMs,
   usageFreshness,
   usagePollTtlMs,
   usageSourceWords,
@@ -343,6 +346,20 @@ export interface UsageCreditsView {
 
 export const CREDITS_UNREPORTED_WORDS = 'not reported by the provider'
 
+export interface UsageCarryView {
+  state: 'carries' | 'nothing' | 'unstated'
+  display: string
+  compact: string
+  source?: UsageFeed
+  observedAtMs?: number
+  freshForMs?: number
+}
+
+export const CARRY_NOTHING_TAIL = 'nothing carries requests until the reset'
+export const CARRY_UNSTATED_WORDS = 'the provider states nothing about what carries requests past the window'
+export const CARRY_UNSTATED_COMPACT = 'past window: not stated'
+const CARRY_UNSTATED: UsageCarryView = { state: 'unstated', display: CARRY_UNSTATED_WORDS, compact: CARRY_UNSTATED_COMPACT }
+
 export type ActiveUsageShape = 'subscription-windows' | 'api-spend' | 'none'
 
 export interface UsageFigureView {
@@ -364,6 +381,7 @@ export interface ActiveSourceUsage {
   pools: UsageWindowView[]
   binding?: UsageBindingView
   credits?: UsageCreditsView
+  carry?: UsageCarryView
   spend: ProviderSessionSpend
   limited?: { resetsAtMs: number }
   balance?: {
@@ -386,6 +404,7 @@ export interface ActiveUsageReads {
   anthropicWindows?: () => { fiveHour: QuotaWindow; sevenDay: QuotaWindow }
   anthropicPoolWindows?: () => UsageWindowView[]
   anthropicExtraUsage?: () => AnthropicExtraUsageRecord | null
+  anthropicLimits?: () => ClaudeAILimits
   openaiObserved?: () => OpenaiObservedUsage
   openaiLimited?: () => OpenaiLimitWindow
   zaiKeyPresent?: () => boolean
@@ -767,16 +786,48 @@ export function anthropicExtraUsageCredits(reads?: ActiveUsageReads): UsageCredi
     return { state: 'unreported', reason: `${EXTRA_USAGE_OFF_WORDS}${why}`, compact: 'extra off', ...stamp }
   }
   if (record.used === undefined) return { state: 'unreported', reason: EXTRA_USAGE_NO_FIGURE_WORDS, compact: 'not stated', ...stamp }
-  const cap = record.limit
-  const period = record.period === 'month' ? ' this month' : ''
+  const figure = extraUsageFigure(record, record.used)
   const reached = record.limitReached === true ? ' · limit reached' : ''
   const balance = record.balance !== undefined ? ` · balance ${moneyWords(record.balance)}` : ''
-  const display =
-    cap !== undefined
-      ? `extra usage ${moneyWords(record.used)} of ${moneyFigure(cap)}${period}${reached}${balance}`
-      : `extra usage ${moneyWords(record.used)}${period}${reached}${balance}`
-  const compact = cap !== undefined ? `extra ${moneyFigure(record.used)}/${moneyShort(cap)}` : `extra ${moneyFigure(record.used)}`
-  return { state: 'reported', display, compact, ...stamp }
+  return { state: 'reported', display: `extra usage ${figure.display}${reached}${balance}`, compact: `extra ${figure.compact}`, ...stamp }
+}
+
+function extraUsageFigure(record: AnthropicExtraUsageRecord, used: AnthropicMoney): { display: string; compact: string } {
+  const cap = record.limit
+  const period = record.period === 'month' ? ' this month' : ''
+  return cap !== undefined
+    ? { display: `${moneyWords(used)} of ${moneyFigure(cap)}${period}`, compact: `${moneyFigure(used)}/${moneyShort(cap)}` }
+    : { display: `${moneyWords(used)}${period}`, compact: moneyFigure(used) }
+}
+
+function extraUsageReasonWords(reason: string | undefined): string {
+  return reason !== undefined && reason !== '' ? ` (${reason.replace(/_/g, ' ')})` : ''
+}
+
+export function anthropicExtraUsageCarry(reads?: ActiveUsageReads): UsageCarryView {
+  const record = (reads?.anthropicExtraUsage ?? getEndpointExtraUsage)()
+  const limits = reads?.anthropicLimits?.() ?? (reads === undefined ? currentLimits : undefined)
+  const stamp = record !== null ? { source: record.source, observedAtMs: record.observedAtMs, freshForMs: usageStaleAfterMs() } : {}
+  if (record !== null && record.stated && record.enabled && record.limitReached === true) {
+    return { state: 'nothing', display: `extra usage limit reached — ${CARRY_NOTHING_TAIL}`, compact: 'extra usage limit reached', ...stamp }
+  }
+  if (limits !== undefined && limits.status === 'rejected' && limits.overageStatus === 'rejected') {
+    const reason = limits.overageDisabledReason
+    if (reason === 'out_of_credits') return { state: 'nothing', display: `extra usage out of credits — ${CARRY_NOTHING_TAIL}`, compact: 'extra usage out of credits', source: 'headers' }
+    if (reason === undefined) return { state: 'nothing', display: `extra usage refused — ${CARRY_NOTHING_TAIL}`, compact: 'extra usage refused', source: 'headers' }
+    return { state: 'nothing', display: `${EXTRA_USAGE_OFF_WORDS}${extraUsageReasonWords(reason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, source: 'headers' }
+  }
+  if (record === null) {
+    if (limits?.isUsingOverage === true) return { state: 'carries', display: 'on extra usage', compact: 'on extra usage', source: 'headers' }
+    return { state: 'unstated', display: `extra usage ${EXTRA_USAGE_NOT_READ_WORDS}`, compact: 'extra usage not read yet' }
+  }
+  if (!record.stated) return { state: 'unstated', display: `extra usage ${EXTRA_USAGE_UNSTATED_WORDS}`, compact: 'extra usage not stated', ...stamp }
+  if (!record.enabled) {
+    return { state: 'nothing', display: `${EXTRA_USAGE_OFF_WORDS}${extraUsageReasonWords(record.disabledReason)} — ${CARRY_NOTHING_TAIL}`, compact: EXTRA_USAGE_OFF_WORDS, ...stamp }
+  }
+  if (record.used === undefined) return { state: 'carries', display: 'on extra usage — the endpoint states no figure', compact: 'on extra usage', ...stamp }
+  const figure = extraUsageFigure(record, record.used)
+  return { state: 'carries', display: `on extra usage · ${figure.display}`, compact: `on extra usage ${figure.compact}`, ...stamp }
 }
 
 export function worstLiveWindow(windows: readonly UsageWindowView[]): UsageWindowView | null {
@@ -856,6 +907,46 @@ export function usageCreditsLine(
   return style === 'compact' ? `credits ${words}` : `credits: ${words}`
 }
 
+export function usageCarryWords(
+  carry: UsageCarryView | undefined,
+  now: number = Date.now(),
+  style: 'prose' | 'compact' = 'prose',
+): string | undefined {
+  if (carry === undefined) return undefined
+  if (style === 'compact') {
+    const stale = usageStaleTail(carry, now)
+    return `${carry.compact}${stale !== undefined ? ` ${stale}` : ''}`
+  }
+  const age = usageViewIsStale(carry, now) ? usageAgeWords(carry, now) : undefined
+  return `${carry.display}${age !== undefined ? ` · ${age}` : ''}`
+}
+
+export function usageWindowReached(
+  view: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited'>,
+  now: number = Date.now(),
+): 'wall' | 'full' | null {
+  if (view.limited !== undefined) return 'wall'
+  const full = [...view.windows, ...view.pools].some(
+    w => w.state === 'live' && typeof w.usedPct === 'number' && Math.round(w.usedPct) >= 100 && (w.resetsAtMs === undefined || w.resetsAtMs > now),
+  )
+  return full ? 'full' : null
+}
+
+export function usageReachedWords(
+  view: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>,
+  now: number = Date.now(),
+  style: 'prose' | 'compact' = 'prose',
+): string | undefined {
+  const reached = usageWindowReached(view, now)
+  if (reached === null) return undefined
+  const carry = usageCarryWords(view.carry, now, style)
+  if (reached === 'wall') {
+    const reset = view.limited !== undefined ? (style === 'compact' ? `resets ${formatCountdown(view.limited.resetsAtMs - now)}` : usageResetWords(view.limited.resetsAtMs, now)) : undefined
+    return ['limit reached', reset, carry].filter((part): part is string => part !== undefined).join(' · ')
+  }
+  return carry !== undefined ? `100% · ${carry}` : '100%'
+}
+
 export function freshestUsageView(views: readonly UsageWindowView[]): UsageWindowView | undefined {
   let best: UsageWindowView | undefined
   for (const v of views) {
@@ -885,14 +976,12 @@ export function usageSummaryWords(view: ActiveSourceUsage, now: number = Date.no
   if (credits !== undefined) parts.push(credits)
   if (view.readerNote !== undefined) parts.push(view.readerNote)
   if (view.readerRecord !== undefined) parts.push(view.readerRecord)
-  if (view.limited !== undefined) {
-    const reset = usageResetWords(view.limited.resetsAtMs, now)
-    parts.push(`limit reached${reset !== undefined ? ` · ${reset}` : ''}`)
-  }
+  const reached = usageReachedWords(view, now)
+  if (reached !== undefined) parts.push(reached)
   return parts.join(' · ')
 }
 
-export function usageViewIsStale(view: UsageWindowView | UsageCreditsView, now: number = Date.now()): boolean {
+export function usageViewIsStale(view: Pick<UsageWindowView, 'source' | 'observedAtMs' | 'freshForMs'>, now: number = Date.now()): boolean {
   return usageFreshness(view, now).state === 'stale'
 }
 
@@ -958,6 +1047,19 @@ function kimiManagedCredits(usage: KimiManagedUsageView | null, error?: string):
   return { state: 'reported', display: `${amount} Extra Usage balance`, compact: `${amount} extra`, source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
 }
 
+export const KIMI_EXTRA_USAGE_NOT_READ_WORDS = 'Extra Usage not read yet — /usage samples Kimi /usages'
+export const KIMI_EXTRA_USAGE_UNSTATED_WORDS = 'no Extra Usage balance stated — Kimi Code Console shows membership billing'
+
+function kimiExtraUsageCarry(usage: KimiManagedUsageView | null, error?: string): UsageCarryView {
+  if (usage === null) return { state: 'unstated', display: error ?? KIMI_EXTRA_USAGE_NOT_READ_WORDS, compact: error ? 'Extra Usage not read' : 'Extra Usage not read yet' }
+  const stamp = { source: 'endpoint' as const, observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
+  if (usage.extraUsage === undefined) return { state: 'unstated', display: KIMI_EXTRA_USAGE_UNSTATED_WORDS, compact: 'Extra Usage not stated', ...stamp }
+  const amount = `${usage.extraUsage.currency} ${usage.extraUsage.balance}`
+  const value = Number(usage.extraUsage.balance)
+  if (Number.isFinite(value) && value <= 0) return { state: 'nothing', display: `Extra Usage balance ${amount} — ${CARRY_NOTHING_TAIL}`, compact: `Extra Usage ${amount}`, ...stamp }
+  return { state: 'carries', display: `on Extra Usage · ${amount} left`, compact: `on Extra Usage ${amount}`, ...stamp }
+}
+
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
     ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
@@ -979,15 +1081,31 @@ export function openaiSubscriptionCredits(reads?: ActiveUsageReads): UsageCredit
   const source = credits.source ?? 'headers'
   const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(source) }
   if (credits.unlimited) return { state: 'reported', display: 'unlimited', compact: 'unlimited', ...stamp }
-  if (credits.balance !== undefined) {
-    const [integer, decimal] = credits.balance.split('.')
-    const display = integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decimal !== undefined ? `.${decimal}` : '')
-    const value = Number(credits.balance)
-    const compact = Number.isSafeInteger(Math.trunc(value)) && value >= 1000
-      ? new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value).toLowerCase() : display
-    return { state: 'reported', display, compact, ...stamp }
-  }
+  if (credits.balance !== undefined) return { state: 'reported', ...openaiBalanceWords(credits.balance), ...stamp }
   return { state: 'unreported', reason: credits.hasCredits ? 'balance not stated on this reply' : 'no credits on this plan', compact: credits.hasCredits ? 'not stated' : 'none on this plan', ...stamp }
+}
+
+function openaiBalanceWords(balance: string): { display: string; compact: string } {
+  const [integer, decimal] = balance.split('.')
+  const display = integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decimal !== undefined ? `.${decimal}` : '')
+  const value = Number(balance)
+  const compact = Number.isSafeInteger(Math.trunc(value)) && value >= 1000
+    ? new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value).toLowerCase() : display
+  return { display, compact }
+}
+
+export const OPENAI_CREDITS_NOT_READ_WORDS = 'credits not read yet — /usage samples the usage endpoint'
+
+export function openaiCreditsCarry(reads?: ActiveUsageReads): UsageCarryView {
+  const credits = (reads?.openaiObserved ?? openaiSubscriptionUsage)().credits
+  if (credits === undefined) return { state: 'unstated', display: OPENAI_CREDITS_NOT_READ_WORDS, compact: 'credits not read yet' }
+  const source = credits.source ?? 'headers'
+  const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: usageFreshHorizonMs(source) }
+  if (credits.unlimited) return { state: 'carries', display: 'on credits · unlimited', compact: 'on credits unlimited', ...stamp }
+  if (!credits.hasCredits) return { state: 'nothing', display: `no credits — ${CARRY_NOTHING_TAIL}`, compact: 'no credits', ...stamp }
+  if (credits.balance === undefined) return { state: 'carries', display: 'on credits — the balance is not stated', compact: 'on credits', ...stamp }
+  const balance = openaiBalanceWords(credits.balance)
+  return { state: 'carries', display: `on credits · ${balance.display} left`, compact: `on credits ${balance.compact}`, ...stamp }
 }
 
 function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
@@ -1166,6 +1284,15 @@ export function usageForProvider(
   provider: RouterProviderId | 'unrecognised',
   reads?: ActiveUsageReads,
 ): ActiveSourceUsage {
+  const view = deriveUsageForProvider(provider, reads)
+  if (view.sourceKind === 'none' || view.carry !== undefined) return view
+  return { ...view, carry: CARRY_UNSTATED }
+}
+
+function deriveUsageForProvider(
+  provider: RouterProviderId | 'unrecognised',
+  reads?: ActiveUsageReads,
+): ActiveSourceUsage {
   const spend = provider === 'unrecognised' ? spendForRoute(provider) : (reads?.spend ?? spendForRoute)(provider)
 
   if (provider === 'zai') {
@@ -1339,6 +1466,7 @@ export function usageForProvider(
         windows: kimiManagedWindowViews(managed),
         pools: [],
         credits: kimiManagedCredits(managed, error),
+        carry: kimiExtraUsageCarry(managed, error),
         ...(error ? { readerNote: error, readerNoteCompact: error } : {}),
         spend,
         tier: 'Kimi sign-in',
@@ -1467,6 +1595,7 @@ export function usageForProvider(
       windows: anthropicWindowViews(reads),
       pools: anthropicPoolWindowViews(reads),
       credits: anthropicExtraUsageCredits(reads),
+      carry: anthropicExtraUsageCarry(reads),
       spend,
       tier: plan ? `Claude ${planWord(plan)}` : 'Claude subscription',
       ...(reader.note !== undefined ? { readerNote: reader.note } : {}),
@@ -1485,6 +1614,7 @@ export function usageForProvider(
     windows: openaiWindowViews(reads),
     pools: [],
     credits: openaiSubscriptionCredits(reads),
+    carry: openaiCreditsCarry(reads),
     ...(reads === undefined ? openaiUsageReaderState() : {}),
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',

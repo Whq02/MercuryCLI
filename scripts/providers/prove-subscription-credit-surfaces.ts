@@ -22,7 +22,7 @@ try {
     activeSourceUsage: () => view,
     windowSourceUsages: () => ({ primary: view, others: [] }),
     providerFamilyPresences: () => [family],
-    providerUsageView: () => ({ provider: 'openai', entries: [{ kind: 'subscription-oauth', label: 'ChatGPT Pro' }], activeEntry: { kind: 'subscription-oauth' }, sessionSpend: view.spend, limits: { kind: 'openai-observed', window: { state: 'clear' } } }),
+    providerUsageView: () => ({ provider: 'openai', entries: [{ kind: 'subscription-oauth', label: 'ChatGPT Pro' }], activeEntry: { kind: 'subscription-oauth' }, sessionSpend: view.spend, limits: { kind: 'openai-observed', window: view.limited !== undefined ? { state: 'limited', resetsAtMs: view.limited.resetsAtMs, observedAtMs: world.now() } : { state: 'clear' } } }),
     openaiObservedWindowViews: () => view.windows,
     refreshProviderUsage: async () => {},
   }))
@@ -70,6 +70,81 @@ try {
   check('the subscription without a figure says why instead of zero', board.frame().includes('credits: not stated on this reply yet') && !board.frame().includes('62,500'), board.frame())
   world.save('credits-usage-unreported', board.frame(), { columns: 80, rows: 70 })
   board.close()
+
+  const shapes: Array<{ name: string; shape: Partial<ActiveSourceUsage>; tab?: string; deck: string; rail: string[] }> = [
+    {
+      name: 'openai-full-on-credits',
+      shape: {
+        provider: 'openai', label: 'OpenAI usage', tier: 'ChatGPT Pro',
+        windows: [{ key: 'wk', label: 'wk', state: 'live', usedPct: 100, resetsAtMs: world.now() + 6 * 86_400_000, source: 'endpoint', observedAtMs: world.now() }],
+        credits: { state: 'reported', display: '62,500', compact: '62.5k', source: 'endpoint', observedAtMs: world.now() },
+        carry: { state: 'carries', display: 'on credits · 62,500 left', compact: 'on credits 62.5k', source: 'endpoint', observedAtMs: world.now() },
+      },
+      tab: 'A usage window reads 100% · on credits · 62,500 left.',
+      deck: '100% · on credits · 62,500 left',
+      rail: ['100% · on credits 62.5k'],
+    },
+    {
+      name: 'openai-walled-no-credits',
+      shape: {
+        provider: 'openai', label: 'OpenAI usage', tier: 'ChatGPT Pro',
+        windows: [{ key: 'wk', label: 'wk', state: 'live', usedPct: 100, resetsAtMs: world.now() + 6 * 86_400_000, source: 'headers', observedAtMs: world.now() }],
+        credits: { state: 'unreported', reason: 'no credits on this plan', compact: 'none on this plan', source: 'headers', observedAtMs: world.now() },
+        carry: { state: 'nothing', display: 'no credits — nothing carries requests until the reset', compact: 'no credits', source: 'headers', observedAtMs: world.now() },
+        limited: { resetsAtMs: world.now() + 30 * 60_000 },
+      },
+      tab: 'A usage window is reached — resets ',
+      deck: 'limit reached · resets 30m · no credits — nothing carries requests until the reset',
+      rail: ['limit reached · resets', 'no credits'],
+    },
+    {
+      name: 'anthropic-walled-extra-off',
+      shape: {
+        provider: 'anthropic', label: 'Anthropic usage', tier: 'Claude Max',
+        windows: [{ key: '5h', label: '5h', state: 'live', usedPct: 100, resetsAtMs: world.now() + 3_600_000, source: 'endpoint', observedAtMs: world.now() }, { key: '7d', label: '7d', state: 'live', usedPct: 44, resetsAtMs: world.now() + 6 * 86_400_000, source: 'endpoint', observedAtMs: world.now() }],
+        credits: { state: 'unreported', reason: 'extra usage off', compact: 'extra off', source: 'endpoint', observedAtMs: world.now() },
+        carry: { state: 'nothing', display: 'extra usage off — nothing carries requests until the reset', compact: 'extra usage off', source: 'endpoint', observedAtMs: world.now() },
+        limited: { resetsAtMs: world.now() + 3_600_000 },
+      },
+      deck: 'limit reached · resets 1h · extra usage off — nothing carries requests until the reset',
+      rail: ['limit reached · resets', 'extra usage off'],
+    },
+    {
+      name: 'kimi-full-on-wallet',
+      shape: {
+        provider: 'moonshot', label: 'Kimi usage', tier: 'Kimi sign-in', sourceKind: 'oauth',
+        windows: [{ key: '5h', label: '5h', state: 'live', usedPct: 100, resetsAtMs: world.now() + 3_600_000, source: 'endpoint', observedAtMs: world.now() }],
+        credits: { state: 'reported', display: 'CNY 12.34 Extra Usage balance', compact: 'CNY 12.34 extra', source: 'endpoint', observedAtMs: world.now() },
+        carry: { state: 'carries', display: 'on Extra Usage · CNY 12.34 left', compact: 'on Extra Usage CNY 12.34', source: 'endpoint', observedAtMs: world.now() },
+      },
+      deck: '100% · on Extra Usage · CNY 12.34 left',
+      rail: ['100% · on Extra Usage CNY 12.34'],
+    },
+  ]
+  for (const { name, shape, tab, deck, rail } of shapes) {
+    delete view.limited
+    Object.assign(view, { sourceKind: 'subscription-oauth', shape: 'subscription-windows', pools: [] }, shape)
+    for (const columns of [80, 120]) {
+      const at = { columns, rows: 70 }
+      if (tab !== undefined) {
+        const usageBoard = await world.mount(React.createElement(Usage, { width: columns - 4, rowBudget: 60 }), at)
+        world.save(`carry-${name}-usage`, usageBoard.frame(), at)
+        const usageFrame = usageBoard.frame().replace(/\s+/g, ' ')
+        check(`${name}: the /usage tab at ${columns} says what carries the requests after its reached sentence`, usageFrame.includes(tab) && (view.limited === undefined || usageFrame.includes(view.carry!.display)) && world.inBounds(usageBoard.frame(), at) && !usageBoard.frame().includes('RENDER ERROR'), usageBoard.frame())
+        usageBoard.close()
+      }
+      const deckBoard = await world.mount(React.createElement(Deck, { onClose() {} }), at)
+      world.save(`carry-${name}-deck`, deckBoard.frame(), at)
+      const deckFlat = deckBoard.frame().replace(/[│╭╮╰╯─]/g, ' ').replace(/\s+/g, ' ')
+      check(`${name}: /deck at ${columns} carries the words on its reached line`, deckFlat.includes(deck) && world.inBounds(deckBoard.frame(), at) && !deckBoard.frame().includes('RENDER ERROR'), deckBoard.frame())
+      deckBoard.close()
+      const railBoard = await world.mount(React.createElement(HelmTelemetryRail, { width: 30, availRows: 65 }), at)
+      world.save(`carry-${name}-rail`, railBoard.frame(), at)
+      const railFlat = railBoard.frame().split('\n').map(line => line.replace(/[│╭╮╰╯─]/g, '').trim()).join(' ').replace(/\s+/g, ' ')
+      check(`${name}: the rail at ${columns} paints the compact carry words under its reached line`, rail.every(words => railFlat.includes(words)) && railFlat.indexOf(rail[rail.length - 1]!) >= railFlat.indexOf(rail[0]!) && !railBoard.frame().includes('RENDER ERROR'), railBoard.frame())
+      railBoard.close()
+    }
+  }
 } finally {
   world.close()
 }

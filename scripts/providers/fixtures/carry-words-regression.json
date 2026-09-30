@@ -1,0 +1,10 @@
+{
+  "base": "a9706000b",
+  "source": "src/services/providers/providerUsage.ts",
+  "check": "usageSummaryWords over the recorded ChatGPT usage fixture (openai-chatgpt-usage.json, 62,500 credits) with an observed wall must end with what carries the requests: ' · on credits · 62,500 left'",
+  "baseSummaryTail": "limit reached · resets 21:58 (in 30m)",
+  "laneSummaryTail": "limit reached · resets 21:58 (in 30m) · on credits · 62,500 left",
+  "baseExitCode": 1,
+  "laneExitCode": 0,
+  "baseMethod": "git show a9706000b:src/services/providers/providerUsage.ts copied to lane scratch with its relative imports pointed at the lane tree; the same check run against the base copy and the lane source"
+}

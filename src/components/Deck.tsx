@@ -30,7 +30,7 @@ import {
   type Snapshot,
   type TraceData,
 } from '../utils/cockpit/index.js'
-import { activeSourceUsage, freshestUsageView, usageCreditsWords } from '../services/providers/providerUsage.js'
+import { activeSourceUsage, freshestUsageView, usageCarryWords, usageCreditsWords, usageWindowReached } from '../services/providers/providerUsage.js'
 import { NO_USAGE_READ_WORDS, usageSourceWords } from '../services/providers/usageFreshness.js'
 import { mercuryDoctrineEnabled } from '../prompt/mercuryContract.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -200,10 +200,19 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
             </Text>,
           )
         }
+        const reached = usageWindowReached(usage, now)
+        const carryWords = reached !== null ? usageCarryWords(usage.carry, now) : undefined
+        const carryTail = carryWords !== undefined ? ` · ${carryWords}` : ''
         if (usage.limited !== undefined) {
           nodes.push(
             <Text key="limited" color={t.warning}>
-              {padTo('', 11)}limit reached · resets {formatCountdown(usage.limited.resetsAtMs - now)}
+              {padTo('', 11)}limit reached · resets {formatCountdown(usage.limited.resetsAtMs - now)}{carryTail}
+            </Text>,
+          )
+        } else if (reached === 'full') {
+          nodes.push(
+            <Text key="full" color={usage.carry?.state === 'carries' ? t.textPrimary : t.warning}>
+              {padTo('', 11)}100%{carryTail}
             </Text>,
           )
         }

@@ -369,7 +369,182 @@ section("§8 the doctor's usage row is the owner's summary — windows, pools, f
   const none = owner.usageSummaryWords(owner.usageForProvider('openrouter', { openrouterKeyPresent: () => false, spend: () => spend }), NOW)
   check("a signed-out family's summary is its why-not", none === 'not connected — /logins adds OpenRouter', none)
   const limited = owner.usageSummaryWords({ ...view, limited: { resetsAtMs: NOW + 30 * MIN } }, NOW)
-  check('a reached limit rides the summary with its local reset', /limit reached · resets (?:[A-Z][a-z]{2} )?\d{2}:\d{2} \(in 30m\)$/.test(limited), limited)
+  check('a reached limit rides the summary with its local reset, then what carries the requests', /limit reached · resets (?:[A-Z][a-z]{2} )?\d{2}:\d{2} \(in 30m\) · extra usage not read yet — \/usage samples the usage endpoint$/.test(limited), limited)
+}
+
+section('§9 the carry words: a reached window says what carries the requests from here, from the vendor\'s stated facts, or that nothing does')
+{
+  const prose = (view: { carry?: import('../../src/services/providers/providerUsage.ts').UsageCarryView }): string | undefined => owner.usageCarryWords(view.carry, NOW)
+  const compact = (view: { carry?: import('../../src/services/providers/providerUsage.ts').UsageCarryView }): string | undefined => owner.usageCarryWords(view.carry, NOW, 'compact')
+  const allowed = { status: 'allowed' as const, unifiedRateLimitFallbackAvailable: false, isUsingOverage: false }
+  const extra = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord> | null, limits: import('../../src/services/claudeAiLimits.ts').ClaudeAILimits = allowed, readAtMs = NOW - 10_000): Reads => ({
+    ...subscriptionReads(),
+    anthropicExtraUsage: () => over === null ? null : { stated: true, enabled: true, used: { amount: 1240, currency: 'USD', exponent: 2 }, limit: { amount: 5000, currency: 'USD', exponent: 2 }, period: 'month', utilizationPct: 24.8, source: 'endpoint', observedAtMs: readAtMs, ...over },
+    anthropicLimits: () => limits,
+  }) as Reads
+  const sub = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord> | null, limits?: import('../../src/services/claudeAiLimits.ts').ClaudeAILimits, readAtMs?: number) => owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: extra(over, limits, readAtMs) })
+  const on = sub({})
+  check("Anthropic, extra usage on: 'on extra usage · USD 12.40 of 50.00 this month' · 'on extra usage 12.40/50'", on.carry?.state === 'carries' && prose(on) === 'on extra usage · USD 12.40 of 50.00 this month' && compact(on) === 'on extra usage 12.40/50', `${prose(on)} | ${compact(on)}`)
+  check('…stamped by the endpoint read', on.carry?.source === 'endpoint' && on.carry.observedAtMs === NOW - 10_000 && on.carry.freshForMs === fresh.usageStaleAfterMs())
+  const onNoFigure = sub({ used: undefined, limit: undefined, period: undefined })
+  check("on, no figure stated: 'on extra usage — the endpoint states no figure' · 'on extra usage'", onNoFigure.carry?.state === 'carries' && prose(onNoFigure) === 'on extra usage — the endpoint states no figure' && compact(onNoFigure) === 'on extra usage', prose(onNoFigure))
+  const capHit = sub({ used: { amount: 5000, currency: 'USD', exponent: 2 }, limitReached: true })
+  check("the cap hit: 'extra usage limit reached — nothing carries requests until the reset' · 'extra usage limit reached' (the credits line beside it keeps the figure)", capHit.carry?.state === 'nothing' && prose(capHit) === 'extra usage limit reached — nothing carries requests until the reset' && compact(capHit) === 'extra usage limit reached' && (owner.usageCreditsLine(capHit.credits, NOW) ?? '').startsWith('credits: extra usage USD 50.00 of 50.00 this month · limit reached'), `${prose(capHit)} | ${owner.usageCreditsLine(capHit.credits, NOW)}`)
+  const off = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, utilizationPct: undefined })
+  check("extra usage off: 'extra usage off — nothing carries requests until the reset' · 'extra usage off'", off.carry?.state === 'nothing' && prose(off) === 'extra usage off — nothing carries requests until the reset' && compact(off) === 'extra usage off', prose(off))
+  const offWhy = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'out_of_credits' })
+  check("…with the provider's reason: 'extra usage off (out of credits) — nothing carries requests until the reset'", prose(offWhy) === 'extra usage off (out of credits) — nothing carries requests until the reset' && compact(offWhy) === 'extra usage off', prose(offWhy))
+  const unstated = sub({ stated: false, enabled: false, used: undefined, limit: undefined, period: undefined })
+  check("an answer without the block: 'extra usage not stated by the endpoint' · 'extra usage not stated'", unstated.carry?.state === 'unstated' && prose(unstated) === 'extra usage not stated by the endpoint' && compact(unstated) === 'extra usage not stated', prose(unstated))
+  const unread = sub(null)
+  check("nothing read: 'extra usage not read yet — /usage samples the usage endpoint' · 'extra usage not read yet'", unread.carry?.state === 'unstated' && prose(unread) === `extra usage ${owner.EXTRA_USAGE_NOT_READ_WORDS}` && compact(unread) === 'extra usage not read yet', prose(unread))
+  const headersOn = sub(null, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: true, overageStatus: 'allowed', rateLimitType: 'five_hour' })
+  check("nothing read but the reply headers say the account is using extra usage: 'on extra usage' (header-fed, no figure)", headersOn.carry?.state === 'carries' && prose(headersOn) === 'on extra usage' && compact(headersOn) === 'on extra usage' && headersOn.carry.source === 'headers', prose(headersOn))
+  const headersOut = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits', rateLimitType: 'five_hour' })
+  check("a wall whose headers reject extra usage for credit: 'extra usage out of credits — nothing carries requests until the reset' (the wall's own fact beats the endpoint's older figure)", headersOut.carry?.state === 'nothing' && prose(headersOut) === 'extra usage out of credits — nothing carries requests until the reset' && compact(headersOut) === 'extra usage out of credits', prose(headersOut))
+  const headersRefused = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'org_level_disabled', rateLimitType: 'five_hour' })
+  check("…with another stated reason: 'extra usage off (org level disabled) — nothing carries requests until the reset'", prose(headersRefused) === 'extra usage off (org level disabled) — nothing carries requests until the reset' && compact(headersRefused) === 'extra usage off', prose(headersRefused))
+  const headersBare = sub({}, { status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', rateLimitType: 'five_hour' })
+  check("…and with none stated: 'extra usage refused — nothing carries requests until the reset'", prose(headersBare) === 'extra usage refused — nothing carries requests until the reset' && compact(headersBare) === 'extra usage refused', prose(headersBare))
+  const headersAllowedWindow = sub({}, { status: 'allowed', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', rateLimitType: 'five_hour' })
+  check('a rejected overage header behind an ALLOWED window does not override the endpoint (no wall stands)', headersAllowedWindow.carry?.state === 'carries' && prose(headersAllowedWindow) === 'on extra usage · USD 12.40 of 50.00 this month', prose(headersAllowedWindow))
+  const stale = sub({}, allowed, NOW - 12 * MIN)
+  check("twelve minutes on, the prose says so and the rail tails '↻12m': 'on extra usage · USD 12.40 of 50.00 this month · stale · last read 12 min ago'", prose(stale) === 'on extra usage · USD 12.40 of 50.00 this month · stale · last read 12 min ago' && compact(stale) === 'on extra usage 12.40/50 ↻12m', `${prose(stale)} | ${compact(stale)}`)
+
+  const gptFixture = JSON.parse(src('scripts/providers/fixtures/openai-chatgpt-usage.json'))
+  const openaiState = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const gptEntry = { ...subEntry, provider: 'openai', custodian: 'openai-accounts' } as const
+  const gptWith = (credits: Record<string, unknown> | null, observedAtMs = NOW - 5_000) => {
+    openaiState.__resetOpenaiLimitStateForTest()
+    openaiState.recordOpenaiUsageResponse({ ...gptFixture.body, credits }, observedAtMs)
+    return owner.usageForProvider('openai', { activeEntry: () => ({ ...gptEntry }), openaiObserved: openaiState.openaiObservedUsage, spend: () => spend })
+  }
+  const gpt = gptWith(gptFixture.body.credits)
+  check("ChatGPT on the recorded fixture (62,500 credits): 'on credits · 62,500 left' · 'on credits 62.5k', stamped by the usage endpoint", gpt.carry?.state === 'carries' && prose(gpt) === 'on credits · 62,500 left' && compact(gpt) === 'on credits 62.5k' && gpt.carry.source === 'endpoint' && gpt.carry.observedAtMs === NOW - 5_000, `${prose(gpt)} | ${compact(gpt)}`)
+  const gptUnlimited = gptWith({ has_credits: true, unlimited: true })
+  check("unlimited credits: 'on credits · unlimited' · 'on credits unlimited'", gptUnlimited.carry?.state === 'carries' && prose(gptUnlimited) === 'on credits · unlimited' && compact(gptUnlimited) === 'on credits unlimited', prose(gptUnlimited))
+  const gptNone = gptWith({ has_credits: false, unlimited: false })
+  check("no credits: 'no credits — nothing carries requests until the reset' · 'no credits'", gptNone.carry?.state === 'nothing' && prose(gptNone) === 'no credits — nothing carries requests until the reset' && compact(gptNone) === 'no credits', prose(gptNone))
+  const gptNoBalance = gptWith({ has_credits: true, unlimited: false })
+  check("credits stated without a balance: 'on credits — the balance is not stated' · 'on credits'", gptNoBalance.carry?.state === 'carries' && prose(gptNoBalance) === 'on credits — the balance is not stated' && compact(gptNoBalance) === 'on credits', prose(gptNoBalance))
+  const gptStale = gptWith(gptFixture.body.credits, NOW - 3 * MIN)
+  check("three minutes past the endpoint horizon: 'on credits · 62,500 left · stale · last read 3 min ago' · 'on credits 62.5k ↻3m'", prose(gptStale) === 'on credits · 62,500 left · stale · last read 3 min ago' && compact(gptStale) === 'on credits 62.5k ↻3m', `${prose(gptStale)} | ${compact(gptStale)}`)
+  openaiState.__resetOpenaiLimitStateForTest()
+  const gptUnread = owner.usageForProvider('openai', { activeEntry: () => ({ ...gptEntry }), openaiObserved: openaiState.openaiObservedUsage, spend: () => spend })
+  check("nothing read: 'credits not read yet — /usage samples the usage endpoint' · 'credits not read yet'", gptUnread.carry?.state === 'unstated' && prose(gptUnread) === owner.OPENAI_CREDITS_NOT_READ_WORDS && compact(gptUnread) === 'credits not read yet', prose(gptUnread))
+  openaiState.recordOpenaiRateHeaders(new Headers({ 'x-codex-credits-has-credits': 'false', 'x-codex-credits-unlimited': 'false' }), () => NOW - 1_000)
+  const gptHeaders = owner.usageForProvider('openai', { activeEntry: () => ({ ...gptEntry }), openaiObserved: openaiState.openaiObservedUsage, spend: () => spend })
+  check("a reply's own headers state the credits too: 'no credits — nothing carries requests until the reset', header-fed", gptHeaders.carry?.state === 'nothing' && prose(gptHeaders) === 'no credits — nothing carries requests until the reset' && gptHeaders.carry.source === 'headers', prose(gptHeaders))
+  openaiState.__resetOpenaiLimitStateForTest()
+
+  type KimiManagedUsageViewT = import('../../src/services/providers/providerUsage.ts').KimiManagedUsageView
+  const kimi = (managed: KimiManagedUsageViewT | null, error?: string) => owner.usageForProvider('moonshot', { moonshotAccount: () => ({ kind: 'kimi-oauth' }), kimiManagedUsage: () => managed, ...(error !== undefined ? { kimiManagedError: () => error } : {}), spend: () => spend })
+  const wallet = kimi({ observedAtMs: NOW - 4_000, windows: [], extraUsage: { balance: '12.34', currency: 'CNY' } })
+  check("Kimi with a wallet: 'on Extra Usage · CNY 12.34 left' · 'on Extra Usage CNY 12.34'", wallet.carry?.state === 'carries' && prose(wallet) === 'on Extra Usage · CNY 12.34 left' && compact(wallet) === 'on Extra Usage CNY 12.34', `${prose(wallet)} | ${compact(wallet)}`)
+  const walletEmpty = kimi({ observedAtMs: NOW - 4_000, windows: [], extraUsage: { balance: '0', currency: 'CNY' } })
+  check("an empty wallet: 'Extra Usage balance CNY 0 — nothing carries requests until the reset'", walletEmpty.carry?.state === 'nothing' && prose(walletEmpty) === 'Extra Usage balance CNY 0 — nothing carries requests until the reset', prose(walletEmpty))
+  const noWallet = kimi({ observedAtMs: NOW, windows: [{ windowMinutes: 300, used: 1, limit: 10 }] })
+  check("no wallet stated: the reason — 'no Extra Usage balance stated — Kimi Code Console shows membership billing' · 'Extra Usage not stated'", noWallet.carry?.state === 'unstated' && prose(noWallet) === owner.KIMI_EXTRA_USAGE_UNSTATED_WORDS && compact(noWallet) === 'Extra Usage not stated', prose(noWallet))
+  const kimiUnread = kimi(null)
+  check("nothing read: 'Extra Usage not read yet — /usage samples Kimi /usages'", kimiUnread.carry?.state === 'unstated' && prose(kimiUnread) === owner.KIMI_EXTRA_USAGE_NOT_READ_WORDS && compact(kimiUnread) === 'Extra Usage not read yet', prose(kimiUnread))
+  const kimiFailed = kimi(null, 'Kimi usage read failed · HTTP 503')
+  check("a failed read carries the reader's own words", kimiFailed.carry?.state === 'unstated' && prose(kimiFailed) === 'Kimi usage read failed · HTTP 503' && compact(kimiFailed) === 'Extra Usage not read', prose(kimiFailed))
+
+  const keyEntry = { ...subEntry, id: 'fx-key', kind: 'api-key' } as const
+  const others: Array<[string, ReturnType<typeof owner.usageForProvider>]> = [
+    ['a first-party API key', owner.usageForProvider('anthropic', { activeEntry: () => ({ ...keyEntry }), spend: () => spend })],
+    ['an OpenAI API key', owner.usageForProvider('openai', { activeEntry: () => ({ ...keyEntry, provider: 'openai', custodian: 'openai-accounts' }), spend: () => spend })],
+    ['a Z.AI key', owner.usageForProvider('zai', { zaiKeyPresent: () => true, spend: () => spend })],
+    ['a GLM coding plan', owner.usageForProvider('zai', { zaiKeyPresent: () => true, zaiAccount: () => ({ plan: 'coding', source: 'stored' }), zaiQuota: () => null, zaiQuotaFailure: () => null, spend: () => spend })],
+    ['an OpenRouter key', owner.usageForProvider('openrouter', { openrouterKeyPresent: () => true, openrouterObserved: () => ({ usage: null }), openrouterLimited: () => ({ state: 'clear' }), spend: () => spend })],
+    ['a Gemini sign-in', owner.usageForProvider('gemini', { geminiAccount: () => ({ provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }), geminiLimited: () => ({ state: 'clear' }), spend: () => spend })],
+    ['a Hugging Face token', owner.usageForProvider('huggingface', { huggingfaceAccount: () => ({ kind: 'api-key' } as never), huggingfaceLimited: () => ({ state: 'clear' }), huggingfaceRate: () => null, spend: () => spend })],
+    ['a DeepSeek key', owner.usageForProvider('deepseek', { laneCredentialed: () => true, deepseekBalance: () => null, spend: () => spend })],
+    ['a Moonshot key', owner.usageForProvider('moonshot', { moonshotAccount: () => ({ kind: 'api-key' }), moonshotBalance: () => null, spend: () => spend })],
+    ['an xAI key', owner.usageForProvider('xai', { laneCredentialed: () => true, xaiManagementKeyPresent: () => false, spend: () => spend })],
+    ['a custom endpoint', owner.usageForProvider('openai-compat', { laneCredentialed: () => true, spend: () => spend })],
+    ['a local server', owner.usageForProvider('local', { localAccount: () => ({ kind: 'keyless', label: 'Ollama', serverCount: 1, modelCount: 2 }) as never, spend: () => spend })],
+  ]
+  for (const [name, view] of others) {
+    check(`${name}: the family states nothing about carrying, said in one clause — '${owner.CARRY_UNSTATED_WORDS}' · '${owner.CARRY_UNSTATED_COMPACT}'`, view.carry?.state === 'unstated' && prose(view) === owner.CARRY_UNSTATED_WORDS && compact(view) === owner.CARRY_UNSTATED_COMPACT, `${prose(view)} | ${compact(view)}`)
+  }
+  const signedOut = owner.usageForProvider('openrouter', { openrouterKeyPresent: () => false, spend: () => spend })
+  check('a signed-out family carries no words (nothing is connected to carry anything)', signedOut.carry === undefined)
+
+  const every = [on, onNoFigure, capHit, off, offWhy, unstated, unread, headersOn, headersOut, headersRefused, headersBare, gpt, gptUnlimited, gptNone, gptNoBalance, gptUnread, gptHeaders, wallet, walletEmpty, noWallet, kimiUnread, ...others.map(([, v]) => v)]
+  check('every prose spelling fits an 80-column row (and so a 120-column one); every compact spelling fits the rail (≤ 28 cells)', every.every(v => (prose(v) ?? '').length <= 80 && (compact(v) ?? '').length <= 28), JSON.stringify(every.map(v => [prose(v)?.length, compact(v)?.length])))
+  const longestReason = sub({ enabled: false, used: undefined, limit: undefined, period: undefined, disabledReason: 'org_service_zero_credit_limit' })
+  check("the longest wire reason still fits a 120-column row: 'extra usage off (org service zero credit limit) — nothing carries requests until the reset'", prose(longestReason) === 'extra usage off (org service zero credit limit) — nothing carries requests until the reset' && (prose(longestReason) ?? '').length <= 120, prose(longestReason))
+
+  type UsageWindowViewT = import('../../src/services/providers/providerUsage.ts').UsageWindowView
+  const wk = (usedPct: number, over: Partial<UsageWindowViewT> = {}): UsageWindowViewT => ({ key: 'wk', label: 'wk', state: 'live', usedPct, resetsAtMs: NOW + 6 * 24 * HOUR, source: 'endpoint', observedAtMs: NOW - 5_000, ...over })
+  check("the reached predicate: an observed wall is 'wall'", owner.usageWindowReached({ windows: [wk(40)], pools: [], limited: { resetsAtMs: NOW + 30 * MIN } }, NOW) === 'wall')
+  check("…a live window painted at 100% (99.6 rounds up) is 'full' without a wall", owner.usageWindowReached({ windows: [wk(100)], pools: [] }, NOW) === 'full' && owner.usageWindowReached({ windows: [wk(99.6)], pools: [] }, NOW) === 'full' && owner.usageWindowReached({ windows: [], pools: [wk(100, { key: 'seven_day_fable', label: 'Fable' })] }, NOW) === 'full')
+  check('…99.4 paints 99% and is not reached; a full window whose reset has passed is not reached; a window stated without a percent is not reached', owner.usageWindowReached({ windows: [wk(99.4)], pools: [] }, NOW) === null && owner.usageWindowReached({ windows: [wk(100, { resetsAtMs: NOW - 1 })], pools: [] }, NOW) === null && owner.usageWindowReached({ windows: [wk(100, { usedPct: undefined })], pools: [] }, NOW) === null)
+  const gptFull = { ...gptWith(gptFixture.body.credits), windows: [wk(100)] }
+  const gptWalled = { ...gptFull, windows: [wk(99)], limited: { resetsAtMs: NOW + 30 * MIN } }
+  check("the reached words, prose: 'limit reached · resets HH:MM (in 30m) · on credits · 62,500 left'", /^limit reached · resets (?:[A-Z][a-z]{2} )?\d{2}:\d{2} \(in 30m\) · on credits · 62,500 left$/.test(owner.usageReachedWords(gptWalled, NOW) ?? ''), owner.usageReachedWords(gptWalled, NOW))
+  check("…compact: 'limit reached · resets 30m · on credits 62.5k'", owner.usageReachedWords(gptWalled, NOW, 'compact') === 'limit reached · resets 30m · on credits 62.5k', owner.usageReachedWords(gptWalled, NOW, 'compact'))
+  check("a window at 100% without a wall (OpenAI on credits): '100% · on credits · 62,500 left' · '100% · on credits 62.5k'", owner.usageReachedWords(gptFull, NOW) === '100% · on credits · 62,500 left' && owner.usageReachedWords(gptFull, NOW, 'compact') === '100% · on credits 62.5k', owner.usageReachedWords(gptFull, NOW))
+  check('a window short of 100% with no wall has no reached words', owner.usageReachedWords({ ...gptFull, windows: [wk(99)] }, NOW) === undefined)
+  const gptSummary = owner.usageSummaryWords(gptFull, NOW)
+  check("the doctor's summary carries them after the window and credits lines", gptSummary.includes('wk 100%') && gptSummary.endsWith(' · 100% · on credits · 62,500 left'), gptSummary)
+  const offWalled = owner.usageSummaryWords({ ...off, limited: { resetsAtMs: NOW + 30 * MIN } }, NOW)
+  check("…and a walled Claude subscription with extra usage off says nothing carries", offWalled.includes(' · limit reached · resets ') && offWalled.endsWith(' (in 30m) · extra usage off — nothing carries requests until the reset'), offWalled)
+  const gptFullReads = { route: () => 'openai', activeEntry: () => ({ ...gptEntry }), openaiObserved: () => ({ primary: { usedPct: 100, windowMinutes: 10080, resetsAtMs: NOW + 6 * 24 * HOUR, observedAtMs: NOW - 5_000, source: 'endpoint' }, credits: { hasCredits: true, unlimited: false, balance: '62500', observedAtMs: NOW - 5_000, source: 'endpoint' } }), openaiLimited: () => ({ state: 'clear' }), spend: () => spend } as Reads
+  const fullWarning = providerLimitWarning({ model: 'gpt-5.6', reads: gptFullReads })
+  check("the strip warning at 100% carries the words: 'OpenAI: 100% of the weekly window used · resets … · on credits · 62,500 left'", /^OpenAI: 100% of the weekly window used · resets .+ · on credits · 62,500 left$/.test(fullWarning?.text ?? ''), fullWarning?.text ?? '(null)')
+  const nearWarning = providerLimitWarning({ model: 'gpt-5.6', reads: { ...gptFullReads, openaiObserved: () => ({ primary: { usedPct: 90, windowMinutes: 10080, resetsAtMs: NOW + 6 * 24 * HOUR, observedAtMs: NOW - 5_000, source: 'endpoint' }, credits: { hasCredits: true, unlimited: false, balance: '62500', observedAtMs: NOW - 5_000, source: 'endpoint' } }) } as Reads })
+  check('…and at 90% it does not (the window is not reached)', /^OpenAI: 90% of the weekly window used · resets [^·]+$/.test(nearWarning?.text ?? ''), nearWarning?.text ?? '(null)')
+  const claudeFull = providerLimitWarning({ model: 'claude-fable-5-1', reads: { ...extra({}), anthropicWindows: () => ({ fiveHour: { key: '5h', usedPct: 100, resetsAtMs: NOW + HOUR, state: 'live', source: 'endpoint', observedAtMs: NOW - 10_000 }, sevenDay: { key: '7d', usedPct: 44, resetsAtMs: NOW + 6 * 24 * HOUR, state: 'live', source: 'endpoint', observedAtMs: NOW - 10_000 } }) } as never })
+  check("a Claude session window at 100% with extra usage on: 'Anthropic: 100% of the session limit used · resets … · on extra usage · USD 12.40 of 50.00 this month'", /^Anthropic: 100% of the session limit used · resets .+ · on extra usage · USD 12\.40 of 50\.00 this month$/.test(claudeFull?.text ?? ''), claudeFull?.text ?? '(null)')
+
+  const refusal = await import('../../src/services/providers/anthropicRefusal.ts')
+  const seen = { account: 'a@example.com', observedAtMs: NOW - MIN, resetsAtMs: NOW + 30 * MIN }
+  check('the Anthropic refusal words append the carry words after the reset, and stay as they were without them', refusal.anthropicWindowWords(seen, 'extra usage off — nothing carries requests until the reset').endsWith(' · extra usage off — nothing carries requests until the reset') && refusal.anthropicWindowWords(seen).startsWith(`the Anthropic usage window is reached for ${seen.account}, seen at `) && !refusal.anthropicWindowWords(seen).includes(' · ') && refusal.anthropicWindowWords(undefined, 'on extra usage') === 'the Anthropic usage window is reached — the reset time is not known · on extra usage', refusal.anthropicWindowWords(seen, 'extra usage off — nothing carries requests until the reset'))
+  const messages = await import('../../src/services/rateLimitMessages.ts')
+  const block = messages.composeAnthropicWallRemedies({ carryWords: () => 'extra usage off — nothing carries requests until the reset', slotAppendix: () => 'The other slot is signed in.', upsellEligible: () => true, laneTarget: () => ({ route: 'openai', name: 'OpenAI' }) })
+  check("the Anthropic wall row's block leads with the carry words, then the slot, account and lane remedies in their order", block.startsWith('\nextra usage off — nothing carries requests until the reset\nThe other slot is signed in.\n') && block.indexOf('/logins') < block.indexOf('lane is usable now'), JSON.stringify(block))
+  check('…and a block composed without the read keeps its old lines exactly', messages.composeAnthropicWallRemedies({ slotAppendix: () => 'The other slot is signed in.', upsellEligible: () => false, laneTarget: () => null }) === '\nThe other slot is signed in.')
+  const errorsSrc = src('src/services/api/errors.ts')
+  check("the wall row reads the carry words from the refusal's own headers", errorsSrc.includes('composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })'))
+  check("…and the refusal owner composes them from those headers ahead of the endpoint's older figure", refusal.anthropicCarryWords({ status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits' }) === 'extra usage out of credits — nothing carries requests until the reset', refusal.anthropicCarryWords({ status: 'rejected', unifiedRateLimitFallbackAvailable: false, isUsingOverage: false, overageStatus: 'rejected', overageDisabledReason: 'out_of_credits' }))
+  const usability = await import('../../src/services/providers/providerUsability.ts')
+  const usabilityReads = {
+    anthropicApiKey: () => null, anthropicSubscriber: () => true, anthropicLimitStatus: () => 'rejected' as const, anthropicLimitObservation: () => seen,
+    gptSeat: () => ({ state: 'ready' as const }), zaiKeyPresent: () => false, openaiLimitWindow: () => ({ state: 'limited' as const }),
+    carryWords: (lane: string) => lane === 'openai' ? 'on credits · 62,500 left' : lane === 'anthropic' ? 'extra usage off — nothing carries requests until the reset' : undefined,
+  }
+  const map = usability.resolveProviderUsability(usabilityReads as never)
+  check("the usability blocker carries them: 'the openai usage window is reached — resets per /usage · on credits · 62,500 left'", map.openai.limitBlocker === 'the openai usage window is reached — resets per /usage · on credits · 62,500 left', map.openai.limitBlocker)
+  check("…and the Anthropic lane's blocker too", (map.anthropic.limitBlocker ?? '').includes(' — resets at ') && (map.anthropic.limitBlocker ?? '').endsWith(' · extra usage off — nothing carries requests until the reset'), map.anthropic.limitBlocker)
+  const bare = usability.resolveProviderUsability({ ...usabilityReads, carryWords: undefined } as never)
+  check('a read bundle without the carry read keeps the blockers as they were', bare.openai.limitBlocker === 'the openai usage window is reached — resets per /usage' && !(bare.anthropic.limitBlocker ?? '').includes(' · '), bare.openai.limitBlocker)
+  const delegated = usability.delegationDispatchBlocker('openai', map)
+  check('a delegated dispatch refusal names what carries the requests', (delegated ?? '').includes('(the openai usage window is reached — resets per /usage · on credits · 62,500 left)'), delegated ?? '(null)')
+
+  const rail = src('src/components/HelmTelemetryRail.tsx')
+  check("the rail paints the compact carry words under its reached line through the one composer, and the '100% · …' row without a wall", rail.includes("usageCarryWords(usage.carry, readNow, 'compact')") && rail.includes("reached === 'wall' ? carry : `100% · ${carry}`") && rail.includes('usageWindowReached(usage, readNow)'))
+  const tab = src('src/components/Settings/Usage.tsx')
+  check('the /usage tab appends the carry words to its reached sentences and paints the 100% line under every family\'s meters', tab.includes('toLocaleString()}{carryTail(owner)}.') && tab.includes('toLocaleTimeString()}${carryTail(usage)}.') && (tab.match(/<FullWindowLine usage=/g) ?? []).length >= 4 && tab.includes('A usage window reads 100%${carryTail(usage)}.'))
+  const deck = src('src/components/Deck.tsx')
+  check('/deck appends them to its reached line and paints the 100% row', deck.includes('usageCarryWords(usage.carry, now)') && deck.includes('{formatCountdown(usage.limited.resetsAtMs - now)}{carryTail}') && deck.includes('100%{carryTail}'))
+  const slotCard = src('src/components/SlotOfferCard.tsx')
+  const composer = src('src/components/PromptInput/PromptInput.tsx')
+  check('the slot offer card carries a carry line under its reached sentence, handed the owner\'s words by the composer', slotCard.includes('{GLYPH.dot} {carryWords}') && composer.includes('carryWords: usageCarryWords(usageForProvider(family).carry) ?? null') && composer.includes('carryWords={offer.carryWords}'))
+  check('the handoff notice appends them after its reset', composer.includes("window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}"))
+  const capCard = src('src/components/CapOfferCard.tsx')
+  check('the cross-family offer card carries a carry line under its reached sentence on a handoff, never on the way home', capCard.includes('{!home && carryWords ? (') && capCard.includes('{GLYPH.dot} {carryWords}') && composer.includes("carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}"))
+  const refusalSrc = src('src/services/providers/anthropicRefusal.ts')
+  check('the standing Anthropic refusal reads the owner\'s carry words', refusalSrc.includes('anthropicWindowWords(seen, anthropicCarryWords())') && refusalSrc.includes('usageCarryWords(anthropicExtraUsageCarry(limits !== undefined ? { anthropicLimits: () => limits } : undefined))'))
+  const usabilitySrc = src('src/services/providers/providerUsability.ts')
+  check('the live usability bundle reads them from the owner, only for a limited lane', usabilitySrc.includes('usageCarryWords(usageForProvider(lane).carry)') && usabilitySrc.includes("reads.carryWords?.(lane.provider)") && usabilitySrc.indexOf("reads.carryWords?.(lane.provider)") > usabilitySrc.indexOf("if (window?.state !== 'limited' || lane.credential === 'none') return lane"))
+  const openaiWall = src('src/services/providers/openai/openaiCallModel.ts')
+  check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. GPT work on this source pauses'))
+  const strip = src('src/services/providers/limitWarning.ts')
+  check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
+  const doctor = src('src/utils/healthReport.ts')
+  check('the doctor row rides the summary words (which now carry them) and the standing refusal words', doctor.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))') && doctor.includes('standingWindowWords(presence.id)'))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-truth-meters${failures ? ` (${failures} failure(s))` : ''}`)

@@ -26,6 +26,7 @@ type Props = {
   trigger: 'rejected' | 'reset'
   windowName: string | null
   resetText: string | null
+  carryWords?: string | null
   targetModel: string
   homeRoute: ProviderUsability['provider']
   awayRoute: ProviderUsability['provider']
@@ -40,6 +41,7 @@ export function CapOfferCard({
   trigger,
   windowName,
   resetText,
+  carryWords = null,
   targetModel,
   homeRoute,
   awayRoute,
@@ -133,6 +135,11 @@ export function CapOfferCard({
         {resetText ? (
           <Text color={FAINT}>
             {GLYPH.dot} {home ? 'window reset confirmed' : `resets ${resetText}`}
+          </Text>
+        ) : null}
+        {!home && carryWords ? (
+          <Text color={FAINT}>
+            {GLYPH.dot} {carryWords}
           </Text>
         ) : null}
         {list !== null ? (

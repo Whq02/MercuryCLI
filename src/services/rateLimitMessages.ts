@@ -211,6 +211,7 @@ export interface WallRemedyReads {
   slotAppendix?: () => string
   upsellEligible?: () => boolean
   laneTarget?: () => { route: string; name: string } | null
+  carryWords?: () => string | undefined
 }
 
 export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
@@ -245,7 +246,15 @@ export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
     }
   })()
   const laneRemedy = crossFamilyLaneRemedy('anthropic', reads?.laneTarget)
-  const lines = [slotRemedy, upsell, laneRemedy].filter((line): line is string => line !== null)
+  const carry = ((): string | null => {
+    try {
+      const words = reads?.carryWords?.()
+      return words === undefined || words === '' ? null : words
+    } catch {
+      return null
+    }
+  })()
+  const lines = [carry, slotRemedy, upsell, laneRemedy].filter((line): line is string => line !== null)
   return lines.length === 0 ? '' : `\n${lines.join('\n')}`
 }
 

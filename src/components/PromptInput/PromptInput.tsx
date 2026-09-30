@@ -231,6 +231,7 @@ import {
   subscribeCapHandoff,
 } from '../../services/capFailover.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
+import { usageCarryWords, usageForProvider } from '../../services/providers/providerUsage.js'
 import { slotSeatView, slotSwitchTransient, switchActiveSlot } from '../../services/providers/slotSwitch.js'
 import { paintSlotSwitchReceipt } from '../../utils/model/slotSwitchReceipt.js'
 import { getOpenaiObservedVersion, openaiLimitWindow, subscribeOpenaiObserved } from '../../services/providers/openai/openaiLimitState.js'
@@ -658,6 +659,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     toLabel: string
     headroomObserved: boolean
     resetText: string | null
+    carryWords: string | null
   } | null>(null)
   const limits = useClaudeAiLimits()
   const capHandoffIntentRef = useRef<CapHandoffNote | null>(null)
@@ -841,6 +843,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
                   activeWall.resetsAtMs !== undefined
                     ? (formatResetTime(activeWall.resetsAtMs / 1000) ?? null)
                     : null,
+                carryWords: usageCarryWords(usageForProvider(family).carry) ?? null,
               })
               setOverlay('slot-offer')
               return
@@ -931,9 +934,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (target === undefined) return
       capHandoffIntentRef.current = { homeModel: effective, homeFamily }
       applyModelSelection(target)
+      const homeCarry = usageCarryWords(usageForProvider(homeFamily as CallModelRoute).carry)
       addNotification({
         key: 'cap-failover',
-        text: `Usage handoff: ${renderModelName(target)} — the ${homeName} ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}`,
+        text: `Usage handoff: ${renderModelName(target)} — the ${homeName} ${windowName ?? 'usage'} window is reached${resetText !== null ? ` · resets ${resetText}` : ''}${homeCarry !== undefined ? ` · ${homeCarry}` : ''}`,
         priority: 'high',
         timeoutMs: 8000,
       })
@@ -2708,6 +2712,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         trigger={offer.trigger}
         windowName={offer.windowName}
         resetText={offer.resetText}
+        carryWords={offer.direction === 'handoff' ? (usageCarryWords(usageForProvider(offer.homeRoute).carry) ?? null) : null}
         targetModel={offer.targetModel}
         homeRoute={offer.homeRoute}
         awayRoute={offer.awayRoute}
@@ -2742,6 +2747,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         toLabel={offer.toLabel}
         headroomObserved={offer.headroomObserved}
         resetText={offer.resetText}
+        carryWords={offer.carryWords}
         onAccept={() => {
           setSlotOffer(null)
           setOverlay(null)

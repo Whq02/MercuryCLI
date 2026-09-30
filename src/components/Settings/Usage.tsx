@@ -18,8 +18,10 @@ import {
   providerSessionSpend,
   providerUsageView,
   refreshProviderUsage,
+  usageCarryWords,
   usageCreditsLine,
   usageForProvider,
+  usageWindowReached,
   zaiAccountFacts,
   type ActiveSourceUsage,
   type ProviderFamilyPresence,
@@ -225,6 +227,20 @@ export function UsageCredits({ usage }: { usage: Pick<ActiveSourceUsage, 'credit
   return line === undefined ? null : <Text dimColor>{line}</Text>
 }
 
+export function carryTail(usage: Pick<ActiveSourceUsage, 'carry'>): string {
+  const words = usageCarryWords(usage.carry)
+  return words === undefined ? '' : ` · ${words}`
+}
+
+export function fullWindowLine(usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'>): string | undefined {
+  return usageWindowReached(usage) === 'full' ? `A usage window reads 100%${carryTail(usage)}.` : undefined
+}
+
+function FullWindowLine({ usage }: { usage: Pick<ActiveSourceUsage, 'windows' | 'pools' | 'limited' | 'carry'> }): React.ReactNode {
+  const line = fullWindowLine(usage)
+  return line === undefined ? null : <Text dimColor>{line}</Text>
+}
+
 function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourceUsage {
   useUsageLayout()
   const [, setSample] = useState(0)
@@ -420,9 +436,11 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
             {owner.readerNote !== undefined ? <Text dimColor>{owner.readerNote}</Text> : null}
             {limited !== null ? (
               <Text dimColor>
-                A usage window is reached — resets {new Date(limited.resetsAtMs).toLocaleString()}.
+                A usage window is reached — resets {new Date(limited.resetsAtMs).toLocaleString()}{carryTail(owner)}.
               </Text>
-            ) : null}
+            ) : (
+              <FullWindowLine usage={owner} />
+            )}
             <Text dimColor>
               {active?.kind === 'subscription-oauth'
                 ? spendLine(spend, false)
@@ -579,7 +597,7 @@ function HuggingfaceUsageSection(): React.ReactNode {
           {rateLine !== undefined
             ? `${rateLine}${rateReset !== undefined ? ` · resets ${new Date(rateReset).toLocaleTimeString()}` : ''}`
             : ''}
-          {usage.limited !== undefined ? ` A limit is reached — resets ${new Date(usage.limited.resetsAtMs).toLocaleTimeString()}.` : ''}
+          {usage.limited !== undefined ? ` A limit is reached — resets ${new Date(usage.limited.resetsAtMs).toLocaleTimeString()}${carryTail(usage)}.` : ''}
         </Text>
       ) : null}
       <Text dimColor>
@@ -704,6 +722,7 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
             ) : (
               <Text dimColor>Plan windows: not yet observed — the usage endpoint is asked on this tab.</Text>
             )}
+            <FullWindowLine usage={usage} />
           </Box>
         ) : (
           <Text dimColor>none — /logins moonshot signs in with a device code · n/a</Text>
@@ -757,6 +776,7 @@ function ZaiUsageSection({ width, credentialLabel }: { width?: number; credentia
               <Text dimColor>{usage.readerNote ?? 'Plan windows: not yet observed — the quota endpoint is asked on this tab.'}</Text>
             )}
             {windows.length > 0 && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
+            <FullWindowLine usage={usage} />
             {figures !== undefined ? <Text dimColor>{figures}</Text> : null}
           </Box>
         ) : (
@@ -891,6 +911,7 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
         {poolViews.map(w => (
           <ObservedWindowMeter key={w.key} window={w} title={`Current week (${w.label})`} {...(width !== undefined ? { maxWidth: width } : {})} />
         ))}
+        <FullWindowLine usage={usageForProvider('anthropic')} />
       </Box>
     )
   })()

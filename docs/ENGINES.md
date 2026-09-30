@@ -858,6 +858,8 @@ OpenRouter OAuth-minted keys show the same remaining credit under the key cap as
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
 
+A window that reads reached — 100%, or a refused request — says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure ("on extra usage · USD 12.40 of 50.00 this month") or says "extra usage off — nothing carries requests until the reset" with the reason Anthropic gives, a ChatGPT sign-in says "on credits · 62,500 left" or "no credits — nothing carries requests until the reset", a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the doctor's usage row.
+
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
 the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on

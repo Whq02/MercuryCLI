@@ -54,6 +54,7 @@ export interface ProviderUsabilityReads {
   laneBillingState?: (
     lane: ProviderId,
   ) => { state: 'credit-exhausted'; detail: string; remedy: string } | { state: 'clear' }
+  carryWords?: (lane: ProviderId) => string | undefined
 }
 
 export function anthropicLimitReads(
@@ -199,6 +200,15 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
         require('./laneBillingState.js') as typeof import('./laneBillingState.js')
       return laneBillingState(lane)
     },
+    carryWords: lane => {
+      try {
+        const { usageCarryWords, usageForProvider } =
+          require('./providerUsage.js') as typeof import('./providerUsage.js')
+        return usageCarryWords(usageForProvider(lane).carry)
+      } catch {
+        return undefined
+      }
+    },
   }
 }
 
@@ -225,7 +235,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
   if (anthropicCredential === 'none') {
     anthropicBlockers.push('no Anthropic credential — /logins (or ANTHROPIC_API_KEY)')
   }
-  const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(reads.anthropicLimitObservation?.()) : undefined
+  const anthropicWindowBlocker = limit === 'rejected' ? anthropicWindowWords(reads.anthropicLimitObservation?.(), reads.carryWords?.('anthropic')) : undefined
   if (anthropicWindowBlocker !== undefined) {
     anthropicBlockers.push(anthropicWindowBlocker)
   }
@@ -332,7 +342,8 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     window: { state: 'limited' | 'clear' } | undefined,
   ): ProviderUsability => {
     if (window?.state !== 'limited' || lane.credential === 'none') return lane
-    const windowBlocker = `the ${lane.provider} usage window is reached — resets per /usage`
+    const carry = lane.provider === 'unrecognised' ? undefined : reads.carryWords?.(lane.provider)
+    const windowBlocker = `the ${lane.provider} usage window is reached — resets per /usage${carry !== undefined && carry !== '' ? ` · ${carry}` : ''}`
     return {
       ...lane,
       limit: 'rejected',

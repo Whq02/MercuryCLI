@@ -11,7 +11,7 @@ import { isEnvShadowedAuthSource } from '../../utils/loginShadow.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { createAssistantAPIErrorMessage, NO_RESPONSE_REQUESTED } from '../../utils/messages.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
-import { classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
+import { anthropicCarryWords, classifyAnthropicRefusal } from '../providers/anthropicRefusal.js'
 import { clientContractGateText, modelRefusalFromError, noteModelRefusal, type ModelRefusalRequest } from '../providers/anthropic/modelRefusal.js'
 import { classifyCredentialWall, credentialWallLine, isRevokedSignInText } from '../providers/credentialWall.js'
 import { classifyOverflowFault, type OverflowFamily } from './overflowSignal.js'
@@ -516,7 +516,7 @@ function composeAssistantMessageFromError(
       const text = getRateLimitErrorMessage(limits, model)
       if (text !== null && text !== '') {
         return createAssistantAPIErrorMessage({
-          content: `${text}${composeAnthropicWallRemedies()}`,
+          content: `${text}${composeAnthropicWallRemedies({ carryWords: () => anthropicCarryWords(limits) })}`,
           error: 'rate_limit',
         })
       }
