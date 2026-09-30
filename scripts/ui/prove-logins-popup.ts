@@ -4,9 +4,10 @@ import { mock } from 'bun:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import stringWidth from 'string-width'
-import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 import type { DOMElement } from '../../src/ink.js'
 
+pinSourceRef()
 const home = pinScratchHome('mercury-logins-popup')
 for (const name of Object.keys(process.env)) if (/^(ANTHROPIC_|CLAUDE_|OPENAI_|ZAI_|XAI_|META_|OPENROUTER_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_)/.test(name)) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -104,9 +105,17 @@ function check(label: string, pass: boolean, detail = ''): void {
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
 }
 type Scene = { columns: number; rows: number; bottom?: number }
-const sizes: Scene[] = [{ columns: 64, rows: 12 }, { columns: 80, rows: 24 }, { columns: 120, rows: 40 }, { columns: 178, rows: 51 }]
+const allSizes: Scene[] = [{ columns: 64, rows: 12 }, { columns: 80, rows: 24 }, { columns: 120, rows: 40 }, { columns: 178, rows: 51 }]
+const sizeArg = process.argv.indexOf('--sizes')
+const sizes = sizeArg < 0 ? allSizes : allSizes.filter(s => (process.argv[sizeArg + 1] ?? '').split(',').includes(`${s.columns}x${s.rows}`))
 const title = 'Mercury · logins'
 const hint = 'esc or click outside closes'
+const compactHint = 'Mercury · logins · esc closes'
+const geometryOf = (s: Scene) => settingsPopupGeometry({ width: 100, rows: 29 }, s.columns, s.rows, 0, { top: 0, rows: s.rows - (s.bottom ?? 0) })
+const COMPACT_BELOW_BODY_ROWS = 8
+const isCompact = (s: Scene): boolean => (geometryOf(s).rows ?? 0) - 7 < COMPACT_BELOW_BODY_ROWS
+check('the host folds below eight full-layout body rows, one constant the geometry reads', (store as { SETTINGS_POPUP_COMPACT_BELOW_ROWS?: number }).SETTINGS_POPUP_COMPACT_BELOW_ROWS === COMPACT_BELOW_BODY_ROWS && allSizes.every(s => geometryOf(s).compact === isCompact(s)) && geometryOf({ columns: 64, rows: 12, bottom: 3 }).compact === true && geometryOf({ columns: 64, rows: 12, bottom: 3 }).rowBudget === 4, JSON.stringify(allSizes.map(s => [s.columns, s.rows, geometryOf(s).compact])))
+const markerOf = (m: Mounted): string | undefined => m.lines().find(line => line.includes(compactHint))?.match(/(\d+ of \d+)\s*│?\s*$/)?.[1]
 const context = { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never
 const receipts: string[] = []
 async function mount(scene: Scene, focus = '') {
@@ -134,45 +143,70 @@ function fits(m: Mounted, s: Scene, name: string) {
   const left = lines[top]?.indexOf('╭') ?? -1
   const right = lines[top]?.indexOf('╮') ?? -1
   const bottom = lines.findIndex((line, i) => i > top && line[left] === '╰')
-  const geometry = settingsPopupGeometry({ width: 100, rows: 29 }, s.columns, s.rows, 0, { top: 0, rows: s.rows - (s.bottom ?? 0) })
-  check(`${name} ${s.columns}x${s.rows}: complete centred frame and pinned close hint`, top === geometry.top && left === geometry.left && right - left + 1 === geometry.width && bottom - top + 1 === geometry.rows && lines.slice(top + 1, bottom).every(line => line[left] === '│' && line[right] === '│') && m.screen().includes(hint), m.screen())
+  const geometry = geometryOf(s)
+  const framed = top === geometry.top && left === geometry.left && right - left + 1 === geometry.width && bottom - top + 1 === geometry.rows && lines.slice(top + 1, bottom).every(line => line[left] === '│' && line[right] === '│')
+  if (isCompact(s)) check(`${name} ${s.columns}x${s.rows}: complete centred frame whose first row folds the title and the close hint`, framed && (lines[top + 1] ?? '').includes(compactHint) && !m.screen().includes(hint), m.screen())
+  else check(`${name} ${s.columns}x${s.rows}: complete centred frame and pinned close hint`, framed && m.screen().includes(hint), m.screen())
   check(`${name}: every cell stays inside the terminal and the host bottom survives`, lines.length <= s.rows && lines.every(line => stringWidth(line) <= s.columns) && lines.slice(s.rows - (s.bottom ?? 0)).every(line => line === 'BOTTOM'))
 }
-async function walk(m: Mounted, end: string): Promise<boolean> {
+async function walk(m: Mounted, end: string, step = '\x1b[6~'): Promise<boolean> {
   for (let i = 0; i < 70; i++) {
     if (m.screen().includes(end)) return true
     const before = m.screen()
-    await key(m, '\x1b[6~')
+    await key(m, step)
     if (m.screen() === before) return false
   }
   return false
 }
+const bodyRows = (m: Mounted, s: Scene): string[] => {
+  const lines = m.lines()
+  const top = lines.findIndex(line => line.includes('╭'))
+  const bottom = lines.findIndex((line, i) => i > top && line.includes('╰'))
+  return lines.slice(top + 2, bottom).map(line => line.replace(/^\s*│ ?/, '').replace(/│\s*$/, '').trimEnd())
+}
+const rowsVisible = (m: Mounted, s: Scene): number => bodyRows(m, s).filter(line => line !== '').length
 for (const s of sizes) {
   seed = 'idle'; estate = 'absent'
   let board = await mount(s)
   fits(board.m, s, 'menu'); save(board.m, s, 'menu')
+  const compact = isCompact(s)
+  if (compact) {
+    const body = bodyRows(board.m, s)
+    check(`${s.columns}x${s.rows} compact: the body is the family rows alone, one line each, filling the box`, body.length === geometryOf(s).rowBudget && body.every(line => line !== '') && body.filter(line => /^[❯ ↓↑] /.test(line)).length === body.length && !board.m.screen().includes('Sign in') && !board.m.screen().includes('Provider readiness') && !board.m.screen().includes('subscription, usage-based billing'), body.join(' | '))
+    check(`${s.columns}x${s.rows} compact: the header marker reads 1 of 11`, markerOf(board.m) === '1 of 11', markerOf(board.m))
+  }
   for (let index = 1; index < 11; index++) {
     await key(board.m, KEY.down)
     check(`${s.columns}x${s.rows}: menu focus ${index + 1} is visible`, /❯|›/.test(board.m.screen()))
+    if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 11`, markerOf(board.m) === `${index + 1} of 11`, markerOf(board.m))
   }
-  check('the readiness tail is reachable without moving the close hint', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(hint))
-  save(board.m, s, 'readiness')
-  const scroll = store.settingsPopupRequest()?.scrollRef?.current
-  const beforeWheel = scroll?.getScrollTop() ?? 0
-  await key(board.m, '\x1b[<64;15;7M')
-  check('the shared wheel handler scrolls the popup, not the retained transcript', beforeWheel > 0 && (scroll?.getScrollTop() ?? beforeWheel) < beforeWheel)
+  if (compact) {
+    check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('Meta — API key (Muse)') && board.m.lines().some(line => line.includes(compactHint)))
+    save(board.m, s, 'menu-bottom')
+    for (let index = 0; index < 10; index++) await key(board.m, KEY.up)
+    check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 11`, markerOf(board.m) === '1 of 11' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
+  } else {
+    check('the readiness tail is reachable without moving the close hint', await walk(board.m, 'OpenAI-compatible') && board.m.screen().includes(hint))
+    save(board.m, s, 'readiness')
+    const scroll = store.settingsPopupRequest()?.scrollRef?.current
+    const beforeWheel = scroll?.getScrollTop() ?? 0
+    await key(board.m, '\x1b[<64;15;7M')
+    check('the shared wheel handler scrolls the popup, not the retained transcript', beforeWheel > 0 && (scroll?.getScrollTop() ?? beforeWheel) < beforeWheel)
+  }
   await key(board.m, KEY.esc)
   const closed = await waitFor(() => !store.isSettingsPopupOpen(), 1000)
   check('menu esc closes the popup and reports no credential change', closed && receipts.at(-1)?.includes('no credential changed') === true, `open=${store.isSettingsPopupOpen()} receipt=${receipts.at(-1)}`)
   board.close()
   if (process.argv.includes('--menu-only')) { await releaseScratchHome(home); process.exit(failures ? 1 : 0) }
-  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '1', huggingface: '2', moonshot: '2', zai: '1', xai: '', meta: '' })) {
+  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '1', huggingface: '2', moonshot: '2', zai: '1', xai: '2', meta: '' })) {
     board = await mount(s, family)
     await key(board.m, KEY.enter)
     save(board.m, s, `${family}-choice`)
+    if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows without the intro paragraph`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' ? 3 : 2) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
     if (arm) await key(board.m, arm)
     await key(board.m, 'fixture-draft-with-caret-0123456789')
     check(`${family}: its key field remains visible inside the popup`, /Key:|key:|Token:/.test(board.m.screen()))
+    if (compact) check(`${family} compact: the key card is two lines, the label with its key page and esc back, then the input`, rowsVisible(board.m, s) === 2 && /esc back/.test(bodyRows(board.m, s)[0] ?? '') && /^(Key|Token): \*+/.test(bodyRows(board.m, s)[1] ?? ''), bodyRows(board.m, s).join(' | '))
     fits(board.m, s, `${family} key`); save(board.m, s, `${family}-key`)
     board.close()
   }
@@ -180,6 +214,11 @@ for (const s of sizes) {
     board = await mount(s, family)
     await key(board.m, KEY.enter); await key(board.m, arm!)
     check(`${family} ${arm}: its device/browser wait stays reachable`, await walk(board.m, code!))
+    if (compact) {
+      const body = bodyRows(board.m, s).filter(line => line !== '')
+      const wait = family === 'huggingface' ? [/^HF-CODE · https:\/\/example\.com\/hf\/device$/, /^c copies the URL · ESC cancels\.$/] : [/^https:\/\/example\.com\/authorize\?state=fixture/, /^(or paste the redirected URL|paste the code):/, /^c copies the URL/]
+      check(`${family} ${arm} compact: the wait is the code or URL line, the paste line and the way out, nothing else`, body.length === wait.length && wait.every((pattern, index) => pattern.test(body[index] ?? '')), body.join(' | '))
+    }
     fits(board.m, s, `${family} wait`); save(board.m, s, `${family}-wait-${arm}`)
     const cancels = browserCancels
     board.close()
@@ -216,12 +255,14 @@ for (const s of sizes) {
   check('the paste guard stays in the popup without reaching a driver', submits.length === submitted && await walk(board.m, 'whitespace).'))
   save(board.m, s, 'paste-guard')
   await key(board.m, KEY.esc)
-  check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, 'Provider readiness'))
+  check('key esc returns to the family menu, not out of the popup', store.isSettingsPopupOpen() && await walk(board.m, compact ? 'OpenAI — ChatGPT' : 'Provider readiness', compact ? KEY.up : undefined))
+  if (compact) check('compact: back on the menu the marker returns', markerOf(board.m) !== undefined && /of 11$/.test(markerOf(board.m) ?? ''), markerOf(board.m))
   board.close()
   board = await mount(s, 'moonshot')
   await key(board.m, KEY.enter); await key(board.m, KEY.enter); await key(board.m, KEY.enter)
   check('the device code is reachable', await walk(board.m, 'ABCD-EFGH'))
   fits(board.m, s, 'device'); save(board.m, s, 'device')
+  if (compact) check('compact: the device wait is the code with its URL, then the way out', JSON.stringify(bodyRows(board.m, s).filter(line => line !== '')) === JSON.stringify(['ABCD-EFGH · https://example.com/kimi/device', 'c copies the URL · ESC cancels.']), bodyRows(board.m, s).join(' | '))
   check('the device URL and cancellation instructions remain reachable', await walk(board.m, 'ESC cancels.'))
   save(board.m, s, 'device-bottom')
   await key(board.m, KEY.esc)
@@ -230,6 +271,7 @@ for (const s of sizes) {
   seed = 'waiting'
   board = await mount(s)
   fits(board.m, s, 'browser'); save(board.m, s, 'browser')
+  if (compact) check('compact: the Anthropic browser wait is the URL, the paste line and the way out', bodyRows(board.m, s).filter(line => line !== '').length === 3 && /^https:\/\/example\.com\/oauth/.test(bodyRows(board.m, s)[0] ?? '') && bodyRows(board.m, s)[2] === 'c copies the URL · esc cancels', bodyRows(board.m, s).join(' | '))
   await key(board.m, 'abc')
   check('browser paste stays visible', board.m.screen().includes('Paste code here if prompted >'))
   await key(board.m, KEY.enter)
@@ -251,10 +293,15 @@ for (const s of sizes) {
   for (estate of ['full', 'mixed']) {
     board = await mount(s)
     save(board.m, s, `${estate}-menu`)
-    check(`${estate} readiness reaches the credentialed family rows`, await walk(board.m, 'ready · oauth'))
-    save(board.m, s, `${estate}-readiness-top`)
-    check(`${estate} readiness reaches every family`, await walk(board.m, 'OpenAI-compatible'))
-    fits(board.m, s, `${estate} estate`); save(board.m, s, `${estate}-readiness-bottom`)
+    if (compact) {
+      check(`${estate} compact: a signed-in family row carries its identity chip inline`, await walk(board.m, 'Claude subscription account · anthropic@example.com', KEY.down))
+      fits(board.m, s, `${estate} estate`)
+    } else {
+      check(`${estate} readiness reaches the credentialed family rows`, await walk(board.m, 'ready · oauth'))
+      save(board.m, s, `${estate}-readiness-top`)
+      check(`${estate} readiness reaches every family`, await walk(board.m, 'OpenAI-compatible'))
+      fits(board.m, s, `${estate} estate`); save(board.m, s, `${estate}-readiness-bottom`)
+    }
     board.close()
     for (const family of ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta']) {
       const id = family === 'claudeai' || family === 'console' ? 'anthropic' : family
@@ -265,6 +312,7 @@ for (const s of sizes) {
       save(board.m, s, `${estate}-${family}-actions`)
       for (let i = 0; i < 35; i++) { const before = board.m.screen(); await key(board.m, '\x1b[5~'); if (before === board.m.screen()) break }
       check(`${estate} ${family}: the boot owner's account identity is reachable`, await walk(board.m, `${id}@example.com`))
+      if (compact) check(`${estate} ${family} compact: the account card is its identity line then the actions`, (bodyRows(board.m, s)[0] ?? '').includes(`${id}@example.com`) && (bodyRows(board.m, s)[1] ?? '').includes('Sign in / re-login'), bodyRows(board.m, s).join(' | '))
       fits(board.m, s, `${estate} ${family}`); save(board.m, s, `${estate}-${family}-identity`)
       await key(board.m, KEY.esc)
       check('account esc returns to the roster without signing out', store.isSettingsPopupOpen() && removedCalls.length === 0)
@@ -273,32 +321,37 @@ for (const s of sizes) {
   }
 }
 estate = 'absent'; seed = 'idle'
-const resizable = await mount(sizes[3]!, 'deepseek')
+const resizable = await mount(allSizes[3]!, 'deepseek')
 await key(resizable.m, KEY.enter); await key(resizable.m, 'draft-kept-')
-for (const s of [...sizes].reverse()) { await resizable.resize(s); fits(resizable.m, s, 'resize key'); check('resize keeps the input in view', resizable.m.screen().includes('Key:')) }
-await resizable.resize({ columns: 64, rows: 12, bottom: 6 })
-check('below the chrome floor the popup warns and keeps escape visible', resizable.m.screen().includes('Window too small') && resizable.m.screen().includes(hint))
-save(resizable.m, sizes[0]!, 'tiny-host')
-await resizable.resize(sizes[3]!)
+for (const s of [...allSizes].reverse()) { await resizable.resize(s); fits(resizable.m, s, 'resize key'); check('resize keeps the input in view', resizable.m.screen().includes('Key:')) }
+const oneRow = { columns: 64, rows: 12, bottom: 6 }
+await resizable.resize(oneRow)
+fits(resizable.m, oneRow, 'one-row host')
+check('a four-row popup is compact with one body row: the key input and the folded header stay', geometryOf(oneRow).rows === 4 && geometryOf(oneRow).compact && resizable.m.screen().includes('Key:') && resizable.m.lines().some(line => line.includes(compactHint)) && !resizable.m.screen().includes('Window too small'), resizable.m.screen())
+save(resizable.m, allSizes[0]!, 'one-row-host')
+await resizable.resize({ columns: 64, rows: 12, bottom: 7 })
+check('below the compact floor the popup warns and keeps escape visible', resizable.m.screen().includes('Window too small') && resizable.m.screen().includes(hint), resizable.m.screen())
+save(resizable.m, allSizes[0]!, 'tiny-host')
+await resizable.resize(allSizes[3]!)
 await key(resizable.m, 'after-resize'); await key(resizable.m, KEY.enter)
 check('resize preserves the same mounted draft', submits.at(-1) === 'draft-kept-after-resize')
 resizable.close()
-const device = await mount(sizes[3]!, 'moonshot')
+const device = await mount(allSizes[3]!, 'moonshot')
 await key(device.m, KEY.enter); await key(device.m, KEY.enter); await key(device.m, KEY.enter)
 const started = deviceStarts
-for (const s of [...sizes].reverse()) { await device.resize(s); fits(device.m, s, 'resize device'); check('resize keeps the device code reachable', await walk(device.m, 'ABCD-EFGH')) }
+for (const s of [...allSizes].reverse()) { await device.resize(s); fits(device.m, s, 'resize device'); check('resize keeps the device code reachable', await walk(device.m, 'ABCD-EFGH')) }
 check('resize never restarts the device driver', deviceStarts === started)
 device.close()
 const short = { columns: 80, rows: 14, bottom: 4 }
 const tiny = await mount(short)
 fits(tiny.m, short, 'short host')
-check('a shorter host still scrolls to the last readiness row', await walk(tiny.m, 'OpenAI-compatible'))
+check('a shorter host is compact and its arrows reach the last family row with the marker at 11 of 11', isCompact(short) && await walk(tiny.m, 'Meta — API key (Muse)', KEY.down) && markerOf(tiny.m) === '11 of 11', markerOf(tiny.m))
 save(tiny.m, short, 'short-host')
 tiny.close()
 for (const phase of ['menu', 'key', 'device', 'browser', 'receipt', 'account']) {
   seed = phase === 'browser' ? 'waiting' : phase === 'receipt' ? 'success' : 'idle'
   estate = phase === 'account' ? 'full' : 'absent'
-  const board = await mount(sizes[3]!, phase === 'device' ? 'moonshot' : 'deepseek')
+  const board = await mount(allSizes[3]!, phase === 'device' ? 'moonshot' : 'deepseek')
   if (phase === 'key' || phase === 'account') await key(board.m, KEY.enter)
   if (phase === 'device') { await key(board.m, KEY.enter); await key(board.m, KEY.enter); await key(board.m, KEY.enter) }
   await key(board.m, '\x1b[<0;2;2M')
@@ -306,23 +359,23 @@ for (const phase of ['menu', 'key', 'device', 'browser', 'receipt', 'account']) 
   board.close()
 }
 seed = 'idle'; estate = 'full'
-const removal = await mount(sizes[2]!, 'deepseek')
+const removal = await mount(allSizes[2]!, 'deepseek')
 await key(removal.m, KEY.enter); await key(removal.m, KEY.down); await key(removal.m, KEY.enter)
 check('removing a stored key first asks for confirmation, without touching an owner', removedCalls.length === 0 && await walk(removal.m, 'Confirm again to remove'))
-save(removal.m, sizes[2]!, 'remove-confirmation')
+save(removal.m, allSizes[2]!, 'remove-confirmation')
 await key(removal.m, KEY.enter)
 check('the second confirmation routes through the existing removal owner once', removedCalls.join() === 'deepseek:fixture' && store.isSettingsPopupOpen())
 check('the removal receipt stays inside the popup', await walk(removal.m, 'cleared from the auth-scoped store'))
-save(removal.m, sizes[2]!, 'remove-receipt')
+save(removal.m, allSizes[2]!, 'remove-receipt')
 await key(removal.m, '\x1b[<0;2;2M')
 check('closing after removal never says no credential changed', !store.isSettingsPopupOpen() && !receipts.at(-1)?.includes('no credential changed'))
 removal.close()
-const switching = await mount(sizes[2]!, 'openai')
+const switching = await mount(allSizes[2]!, 'openai')
 await key(switching.m, KEY.enter); await key(switching.m, KEY.down); await key(switching.m, KEY.enter)
 check('switching calls the existing active-slot owner and leaves the popup up', switches === 1 && store.isSettingsPopupOpen())
 await key(switching.m, 's')
 check('the boot detail line advertises a live s switch gesture', switches === 2 && store.isSettingsPopupOpen())
-save(switching.m, sizes[2]!, 'switch-receipt')
+save(switching.m, allSizes[2]!, 'switch-receipt')
 switching.close()
 await releaseScratchHome(home)
 console.log(`prove-logins-popup: ${failures} failure(s)`)

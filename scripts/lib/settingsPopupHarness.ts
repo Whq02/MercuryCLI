@@ -1,8 +1,28 @@
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+
+export function pinSourceRef(argv: string[] = process.argv): string | undefined {
+  const at = argv.indexOf('--source-ref')
+  const ref = at < 0 ? undefined : argv[at + 1]
+  if (ref === undefined) return undefined
+  const root = join(import.meta.dir, '../..')
+  const changed = execFileSync('git', ['-C', root, 'diff', '--name-only', '--diff-filter=M', ref, '--', 'src'], { encoding: 'utf8' }).trim().split('\n').filter(file => /\.tsx?$/.test(file))
+  const sources = new Map(changed.map(file => [file, execFileSync('git', ['-C', root, 'show', `${ref}:${file}`], { encoding: 'utf8' })]))
+  Bun.plugin({
+    name: 'versioned-product-source',
+    setup(build) {
+      for (const [file, contents] of sources) {
+        const path = join(root, file)
+        build.onLoad({ filter: new RegExp(`^${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`) }, () => ({ contents, loader: file.endsWith('.tsx') ? 'tsx' : 'ts' }))
+      }
+    },
+  })
+  console.log(`Rendering product source from ${ref}; ${sources.size} changed modules restored in the loader`)
+  return ref
+}
 
 export const KEY = {
   esc: '\x1b',

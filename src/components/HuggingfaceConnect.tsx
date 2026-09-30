@@ -14,6 +14,8 @@ import {
 } from '../services/providers/huggingface/huggingfaceLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 
 const COPY_ACK_MS = 2000
@@ -24,6 +26,7 @@ export function HuggingfaceConnect({
   onResult: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [leg, setLeg] = useState<'choice' | 'device' | 'token'>('choice')
   const [phase, setPhase] = useState<'starting' | 'waiting' | 'finishing'>('starting')
   const [start, setStart] = useState<HuggingfaceDeviceAuthStart | undefined>(undefined)
@@ -95,13 +98,15 @@ export function HuggingfaceConnect({
 
   if (leg === 'choice') {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           Connect Hugging Face
         </Text>
-        <Text color={tokens.textSecondary}>
-          One Hub token reaches every open model on Inference Providers (monthly credits first, then pay-as-you-go at provider rates).
-        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            One Hub token reaches every open model on Inference Providers (monthly credits first, then pay-as-you-go at provider rates).
+          </Text>
+        )}
         <Select
           options={[
             { label: 'Sign in with Hugging Face — device code in your browser', value: 'device' },
@@ -119,10 +124,12 @@ export function HuggingfaceConnect({
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect Hugging Face (device code)
-      </Text>
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect Hugging Face (device code)
+        </Text>
+      )}
       {phase === 'starting' ? (
         <Text color={tokens.textSecondary}>Requesting a device code from huggingface.co…</Text>
       ) : null}
@@ -131,21 +138,28 @@ export function HuggingfaceConnect({
       ) : null}
       {start && phase === 'waiting' ? (
         <>
-          <Text color={tokens.textSecondary}>
-            A browser window should be opening. On the Hugging Face page, enter this code:
-          </Text>
-          <Text bold color={tokens.textPrimary}>
-            {'    '}
+          {compact ? null : (
+            <Text color={tokens.textSecondary}>
+              A browser window should be opening. On the Hugging Face page, enter this code:
+            </Text>
+          )}
+          <Text bold color={tokens.textPrimary} wrap="truncate-end">
+            {compact ? '' : '    '}
             {start.userCode}
+            {compact ? <Text bold={false} color={tokens.info}> · {start.verificationUriComplete ?? start.verificationUri}</Text> : null}
           </Text>
-          <Text color={tokens.textMuted}>If nothing opened, visit:</Text>
-          <Text color={tokens.info} wrap="wrap">
-            {start.verificationUriComplete ?? start.verificationUri}
-          </Text>
-          <Text color={tokens.textMuted}>
-            waiting for the Hub to confirm{polls > 0 ? ` (${polls} check${polls === 1 ? '' : 's'})` : ''} · expires{' '}
-            {new Date(start.expiresAtMs).toLocaleTimeString()}
-          </Text>
+          {compact ? null : <Text color={tokens.textMuted}>If nothing opened, visit:</Text>}
+          {compact ? null : (
+            <Text color={tokens.info} wrap="wrap">
+              {start.verificationUriComplete ?? start.verificationUri}
+            </Text>
+          )}
+          {compact ? null : (
+            <Text color={tokens.textMuted}>
+              waiting for the Hub to confirm{polls > 0 ? ` (${polls} check${polls === 1 ? '' : 's'})` : ''} · expires{' '}
+              {new Date(start.expiresAtMs).toLocaleTimeString()}
+            </Text>
+          )}
         </>
       ) : null}
       {copied ? <Text color={tokens.success}>Copied to clipboard</Text> : null}
@@ -165,6 +179,7 @@ function HuggingfaceTokenLeg({
   onNote: (note: string | undefined) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [storing, setStoring] = useState(false)
@@ -187,12 +202,14 @@ function HuggingfaceTokenLeg({
     })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text>{keyPageLine('huggingface')}</Text>
-      <Text>
-        Paste a Hugging Face token with the Inference Providers permission. Stored auth-scoped (mode 600), never
-        logged; an HF_TOKEN env var always wins over the store.
-      </Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="huggingface">Hugging Face token</KeyCardTitle> : <Text>{keyPageLine('huggingface')}</Text>}
+      {compact ? null : (
+        <Text>
+          Paste a Hugging Face token with the Inference Providers permission. Stored auth-scoped (mode 600), never
+          logged; an HF_TOKEN env var always wins over the store.
+        </Text>
+      )}
       <Box>
         <Text>Token: </Text>
         <TextInput
@@ -207,7 +224,7 @@ function HuggingfaceTokenLeg({
       </Box>
       {storing ? <Text dimColor>Checking the token with the Hub and fetching the live catalogue…</Text> : null}
       {note !== undefined ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

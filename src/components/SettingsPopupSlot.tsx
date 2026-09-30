@@ -3,6 +3,7 @@ import { useLayoutEffect, useState, useSyncExternalStore } from 'react'
 import { Box, elementScreenLeft, elementScreenTop, measureElement, type DOMElement } from '../ink.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import {
+  settingsPopupCompact,
   settingsPopupRequest,
   settingsPopupVersion,
   subscribeSettingsPopup,
@@ -14,6 +15,7 @@ import { Settings } from './Settings/Settings.js'
 import { FloatingPopup, POPUP_GUTTER, PopupGutter, popupGeometry, popupWidth } from './PopupGutter.js'
 
 export const SETTINGS_POPUP_CHROME_ROWS = 7
+export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3
 export const SETTINGS_POPUP_MIN_WIDTH = 12
 
 export type SettingsPopupPlacement = SettingsPopupGeometry & {
@@ -49,9 +51,11 @@ export function settingsPopupGeometry(
   const requestedWidth = typeof request.width === 'function' ? request.width(available) : request.width
   const geometry = popupGeometry(host, { width: requestedWidth, rows: request.rows ?? host.rows })
   const rows = request.rows === null ? null : geometry.rows
-  const rowBudget = Math.max(0, geometry.rows - SETTINGS_POPUP_CHROME_ROWS)
+  const fullBudget = Math.max(0, geometry.rows - SETTINGS_POPUP_CHROME_ROWS)
+  const compact = rows !== null && settingsPopupCompact(fullBudget)
+  const rowBudget = compact ? Math.max(0, geometry.rows - SETTINGS_POPUP_COMPACT_CHROME_ROWS) : fullBudget
   const top = rows === null ? null : popupGeometry(host, geometry, centredTop(rows, terminalRows)).top
-  return { width: geometry.width, inner: Math.max(0, geometry.width - 4), rowBudget, left: geometry.left, top, rows }
+  return { width: geometry.width, inner: Math.max(0, geometry.width - 4), rowBudget, compact, left: geometry.left, top, rows }
 }
 
 export function SettingsPopupSlot({

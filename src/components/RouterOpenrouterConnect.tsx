@@ -20,6 +20,8 @@ import {
 } from '../services/providers/openrouter/openrouterLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 
 export function RouterOpenrouterConnect({
@@ -28,6 +30,7 @@ export function RouterOpenrouterConnect({
   onResult: (result: { ok: boolean; receipt: string }) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [leg, setLeg] = useState<'choice' | 'browser' | 'headless' | 'key'>('choice')
   const [paste, setPasteState] = useState('')
   const pasteRef = useRef('')
@@ -110,13 +113,15 @@ export function RouterOpenrouterConnect({
 
   if (leg === 'choice') {
     return (
-      <Box flexDirection="column" paddingX={1} gap={1}>
-        <Text bold color={tokens.accent}>
+      <Box flexDirection="column" paddingX={compact ? 0 : 1} gap={compact ? 0 : 1}>
+        <Text bold color={tokens.accent} wrap="truncate-end">
           Connect OpenRouter
         </Text>
-        <Text color={tokens.textSecondary}>
-          One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).
-        </Text>
+        {compact ? null : (
+          <Text color={tokens.textSecondary}>
+            One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).
+          </Text>
+        )}
         <Select
           options={[
             { label: 'Sign in with the browser — OAuth mints a scoped key', value: 'browser' },
@@ -135,24 +140,30 @@ export function RouterOpenrouterConnect({
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
-      <Text bold color={tokens.accent}>
-        Connect OpenRouter ({leg === 'browser' ? 'browser sign-in' : 'headless code'})
-      </Text>
-      <Text color={tokens.textSecondary}>
-        {phase === 'exchanging'
-          ? 'Exchanging the authorization code — OpenRouter mints the key…'
-          : leg === 'browser'
-            ? 'A browser window should be opening. Authorize Mercury and the loopback listener completes automatically.'
-            : 'Open this URL on any signed-in browser; OpenRouter displays an authorization code — paste it below.'}
-      </Text>
+    <Box flexDirection="column" paddingX={compact ? 0 : 1}>
+      {compact ? null : (
+        <Text bold color={tokens.accent}>
+          Connect OpenRouter ({leg === 'browser' ? 'browser sign-in' : 'headless code'})
+        </Text>
+      )}
+      {compact && phase !== 'exchanging' ? null : (
+        <Text color={tokens.textSecondary}>
+          {phase === 'exchanging'
+            ? 'Exchanging the authorization code — OpenRouter mints the key…'
+            : leg === 'browser'
+              ? 'A browser window should be opening. Authorize Mercury and the loopback listener completes automatically.'
+              : 'Open this URL on any signed-in browser; OpenRouter displays an authorization code — paste it below.'}
+        </Text>
+      )}
       {listenerNote ? <Text color={tokens.warning}>{listenerNote}</Text> : null}
       {authorizeUrl && phase !== 'exchanging' ? (
         <>
-          <Text color={tokens.textMuted}>
-            {leg === 'browser' ? 'If nothing opened, visit:' : 'URL:'}
-          </Text>
-          <Text color={tokens.info} wrap="wrap">
+          {compact ? null : (
+            <Text color={tokens.textMuted}>
+              {leg === 'browser' ? 'If nothing opened, visit:' : 'URL:'}
+            </Text>
+          )}
+          <Text color={tokens.info} wrap={compact ? 'truncate-end' : 'wrap'}>
             {authorizeUrl}
           </Text>
           <Box>
@@ -182,6 +193,7 @@ function OpenrouterKeyLeg({
   onResult: (receipt: string, ok?: boolean) => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [key, setKey] = useState('')
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -205,12 +217,14 @@ function OpenrouterKeyLeg({
     })
   }
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text>{keyPageLine('openrouter')}</Text>
-      <Text>
-        Paste your OpenRouter API key. Stored auth-scoped (mode 600), never logged; an
-        OPENROUTER_API_KEY env var always wins over the store.
-      </Text>
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {compact ? <KeyCardTitle family="openrouter">OpenRouter key</KeyCardTitle> : <Text>{keyPageLine('openrouter')}</Text>}
+      {compact ? null : (
+        <Text>
+          Paste your OpenRouter API key. Stored auth-scoped (mode 600), never logged; an
+          OPENROUTER_API_KEY env var always wins over the store.
+        </Text>
+      )}
       <Box>
         <Text>Key: </Text>
         <TextInput
@@ -225,7 +239,7 @@ function OpenrouterKeyLeg({
       </Box>
       {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

@@ -6,13 +6,17 @@ import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
 import { useSetAppStateMaybe } from '../state/AppState.js'
 import { executeSlotRemoval, familyDisplayName } from '../services/providers/accountSlots.js'
 import { switchActiveSlot } from '../services/providers/slotSwitch.js'
-import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsDetailLines, loginsSwitchableFamily } from './BootLoginsScreen.js'
+import { collectLoginsScreenFacts, loginsArmSlots, loginsCatalogue, loginsDetailLines, loginsRowStateOf, loginsSwitchableFamily } from './BootLoginsScreen.js'
 import { Select } from './CustomSelect/index.js'
 import type { LoginFamilyValue } from './loginFamilyRows.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
+import { useTerminalSize } from '../hooks/useTerminalSize.js'
 
 export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { family: LoginFamilyValue; onSignIn: () => void; onBack: () => void; onChanged: (receipt: string) => void }): React.ReactNode {
   useSignInEpoch()
   useCatalogueEpoch()
+  const { compact } = usePopupCompact()
+  const { rows } = useTerminalSize()
   const setAppState = useSetAppStateMaybe()
   const [version, setVersion] = useState(0)
   const [note, setNote] = useState('')
@@ -38,13 +42,14 @@ export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { fami
     event.stopImmediatePropagation()
     switchSlot()
   })
+  const detail = loginsDetailLines(arm, facts)
   return (
-    <Box flexDirection="column" gap={1}>
+    <Box flexDirection="column" gap={compact ? 0 : 1}>
       <Box flexDirection="column">
-        {loginsDetailLines(arm, facts).map((line, index) => <Text key={index}>{line || ' '}</Text>)}
+        {compact ? <Text wrap="truncate-end">{detail[0]} · {loginsRowStateOf(arm, facts).chip}</Text> : detail.map((line, index) => <Text key={index}>{line || ' '}</Text>)}
       </Box>
       <Select
-        visibleOptionCount={slots.length + 2}
+        visibleOptionCount={compact ? Math.max(1, Math.min(rows - 1, slots.length + 2)) : slots.length + 2}
         options={[
           { label: 'Sign in / re-login', value: 'sign-in' },
           ...(switchable ? [{ label: 'Switch active slot', value: 'switch' }] : []),
@@ -70,7 +75,7 @@ export function LoginAccountCard({ family, onSignIn, onBack, onChanged }: { fami
         onCancel={onBack}
       />
       {note ? <Text>{note}</Text> : null}
-      <Text dimColor>esc back</Text>
+      {compact ? null : <Text dimColor>esc back</Text>}
     </Box>
   )
 }

@@ -12,6 +12,8 @@ import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js'
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import { keyPageLine } from './loginFamilyRows.js'
+import { KeyCardTitle } from './KeyCardTitle.js'
+import { usePopupCompact } from '../context/popupFormContext.js'
 
 export function XaiConnect({
   onResult,
@@ -21,6 +23,7 @@ export function XaiConnect({
   onBack: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
+  const { compact } = usePopupCompact()
   const [step, setStep] = useState<'choice' | 'device' | 'api' | 'management'>('choice')
   const [event, setEvent] = useState<XaiDeviceLoginEvent>({ phase: 'starting' })
   const cancelled = useRef(false)
@@ -73,36 +76,44 @@ export function XaiConnect({
       else { setApiReceipt(outcome.receipt); setNote(null); setStep('management') }
     })
   }
-  if (step === 'choice') return <Box flexDirection="column" gap={1} paddingX={1}>
+  if (step === 'choice') return <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
     <Text bold color={tokens.accent}>Connect xAI</Text>
-    <Text>Use your Grok subscription or an API key. xAI decides subscription eligibility; consent may say Grok Build.</Text>
+    {compact ? null : <Text>Use your Grok subscription or an API key. xAI decides subscription eligibility; consent may say Grok Build.</Text>}
     <Select options={XAI_CONNECT_ROWS} onChange={choice => setStep(choice === 'device' ? 'device' : 'api')} onCancel={onBack} />
   </Box>
-  if (step === 'device') return <Box flexDirection="column" gap={1} paddingX={1}>
-    <Text bold color={tokens.accent}>Connect Grok (device code)</Text>
+  if (step === 'device') return <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+    {compact ? null : <Text bold color={tokens.accent}>Connect Grok (device code)</Text>}
     {event.phase === 'waiting' ? <>
-      <Text>Enter this code on the xAI sign-in page: {event.start.userCode}</Text>
-      <Text>{event.start.verificationUriComplete ?? event.start.verificationUri}</Text>
-      <Text>Waiting for approval ({event.polls} checks) · expires {new Date(event.start.expiresAtMs).toLocaleTimeString()}</Text>
+      {compact ? (
+        <Text wrap="truncate-end"><Text bold>{event.start.userCode}</Text> · {event.start.verificationUriComplete ?? event.start.verificationUri}</Text>
+      ) : (
+        <Text>Enter this code on the xAI sign-in page: {event.start.userCode}</Text>
+      )}
+      {compact ? null : <Text>{event.start.verificationUriComplete ?? event.start.verificationUri}</Text>}
+      {compact ? null : <Text>Waiting for approval ({event.polls} checks) · expires {new Date(event.start.expiresAtMs).toLocaleTimeString()}</Text>}
       {event.note ? <Text>{event.note}</Text> : null}
     </> : <Text>{event.phase === 'starting' ? 'Requesting a device code…' : 'Authorized — storing sign-in and reading models…'}</Text>}
     {note ? <Text>{note}</Text> : null}
     <Text dimColor>c copies the URL · esc cancels</Text>
   </Box>
   return (
-    <Box flexDirection="column" gap={1} paddingX={1}>
-      <Text bold color={tokens.accent}>{management ? 'Connect xAI — management key (optional)' : 'Connect xAI — API key'}</Text>
-      <Text>{management ? XAI_MANAGEMENT_KEY_PAGE : keyPageLine('xai')}</Text>
-      <Text>{management
+    <Box flexDirection="column" gap={compact ? 0 : 1} paddingX={compact ? 0 : 1}>
+      {management ? (
+        <Text bold color={tokens.accent} wrap="truncate-end">Connect xAI — management key (optional){compact ? <Text bold={false} color={tokens.textMuted}> · {XAI_MANAGEMENT_KEY_PAGE} · esc skips</Text> : null}</Text>
+      ) : (
+        <KeyCardTitle family="xai" short="xAI key">Connect xAI — API key</KeyCardTitle>
+      )}
+      {compact ? null : <Text>{management ? XAI_MANAGEMENT_KEY_PAGE : keyPageLine('xai')}</Text>}
+      {compact ? null : <Text>{management
         ? 'Needs Management Keys Read + Write permission in the console. Stored auth-scoped (mode 600); XAI_MANAGEMENT_API_KEY wins.'
-        : 'Stored auth-scoped (mode 600), never logged; XAI_API_KEY wins. An optional management key follows for /usage.'}</Text>
+        : 'Stored auth-scoped (mode 600), never logged; XAI_API_KEY wins. An optional management key follows for /usage.'}</Text>}
       <Box>
         <Text>Key: </Text>
         <TextInput value={value} onChange={setValue} onSubmit={submit} mask="*" columns={48} cursorOffset={cursor} onChangeCursorOffset={setCursor} />
       </Box>
       {storing ? <Text dimColor>Checking the key with xAI…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
-      <Text dimColor>{management ? 'enter empty or esc skips — API key stays' : 'enter empty keeps an existing API key · esc back'}</Text>
+      {compact ? null : <Text dimColor>{management ? 'enter empty or esc skips — API key stays' : 'enter empty keeps an existing API key · esc back'}</Text>}
     </Box>
   )
 }

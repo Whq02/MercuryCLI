@@ -7,7 +7,8 @@ import { Box, Text } from '../../ink.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { Message } from '../../types/message.js'
-import { closeSettingsPopup, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
+import { PopupCompactContext } from '../../context/popupFormContext.js'
+import { SETTINGS_POPUP_COMPACT_HINT, closeSettingsPopup, type SettingsPopupRequest } from '../../utils/cockpit/settingsPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
 import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
 import { formatCommandLoadingMetadata } from '../../utils/processUserInput/processSlashCommand.js'
@@ -15,7 +16,7 @@ import { cutToWidth } from '../MercuryFilesMenu.js'
 import { ProductLockup } from '../mercury-ui/components.js'
 import { useElevatedSurface } from '../mercury-ui/useElevatedSurface.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import type { SettingsPopupPlacement } from '../SettingsPopupSlot.js'
+import { SETTINGS_POPUP_COMPACT_CHROME_ROWS, type SettingsPopupPlacement } from '../SettingsPopupSlot.js'
 
 export type SettingsTabName = 'Status' | 'Config' | 'Usage'
 
@@ -29,6 +30,7 @@ export type SettingsPopupFrame = {
   close: (summary?: string) => void
   setLine: (line: string | null) => void
   setOwnsEscape: (owns: boolean) => void
+  setMarker: (marker: string | null) => void
 }
 
 const SettingsPopupFrameContext = createContext<SettingsPopupFrame | null>(null)
@@ -76,6 +78,7 @@ export function Settings({
   const surfaceRef = useElevatedSurface()
   const { addNotification } = useNotifications()
   const [line, setLine] = useState<string | null>(null)
+  const [marker, setMarker] = useState<string | null>(null)
   const [bodyOwnsEscape, setOwnsEscape] = useState(false)
   const view = request.view
   const close = useCallback(
@@ -85,7 +88,8 @@ export function Settings({
     },
     [view, addNotification],
   )
-  const frame = useMemo<SettingsPopupFrame>(() => ({ close, setLine, setOwnsEscape }), [close])
+  const frame = useMemo<SettingsPopupFrame>(() => ({ close, setLine, setOwnsEscape, setMarker }), [close])
+  const compactFrame = useMemo(() => ({ compact: geometry.compact && (geometry.rows === null || geometry.rows > SETTINGS_POPUP_COMPACT_CHROME_ROWS), setMarker }), [geometry.compact, geometry.rows])
   useKeybinding(
     'confirm:no',
     () => {
@@ -98,7 +102,9 @@ export function Settings({
   const ground = estateGroundBg(tok)
   const inner = geometry.inner
   const fixed = geometry.rows !== null
-  const tight = fixed && geometry.rows! <= 7
+  const tight = fixed && geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS
+  const compact = compactFrame.compact
+  const folded = tight || compact
   return (
     <Box
       ref={surfaceRef}
@@ -114,18 +120,27 @@ export function Settings({
     >
       <Box flexShrink={0} height={tight && geometry.rows! < 2 ? 0 : 1} overflow="hidden">
         <ProductLockup view={view} separator=" · " />
+        {compact ? <Text color={tok.textMuted}> · {SETTINGS_POPUP_COMPACT_HINT}</Text> : null}
+        <Box flexGrow={1} />
+        {compact && marker !== null && marker !== '' ? (
+          <Box flexShrink={0} marginLeft={1}>
+            <Text color={tok.textMuted}>{marker}</Text>
+          </Box>
+        ) : null}
       </Box>
-      <Box height={tight && geometry.rows! < 3 ? 0 : 1} flexShrink={0} overflow="hidden">
+      <Box height={(tight && geometry.rows! < 3) || compact ? 0 : 1} flexShrink={0} overflow="hidden">
         <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(tight ? 'Window too small · resize to continue' : line ?? request.line, inner)}</Text>
       </Box>
-      <Box height={tight ? 0 : 1} flexShrink={0} />
+      <Box height={folded ? 0 : 1} flexShrink={0} />
       <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} overflow="hidden" {...(fixed ? { flexGrow: 1, flexShrink: 1, minHeight: 0 } : { flexShrink: 0, maxHeight: geometry.rowBudget })}>
         <SettingsPopupFrameContext.Provider value={frame}>
-          <Suspense fallback={null}>{request.body(geometry)}</Suspense>
+          <PopupCompactContext.Provider value={compactFrame}>
+            <Suspense fallback={null}>{request.body({ ...geometry, compact })}</Suspense>
+          </PopupCompactContext.Provider>
         </SettingsPopupFrameContext.Provider>
       </Box>
-      <Box height={tight ? 0 : 1} flexShrink={0} />
-      <Box height={1} flexShrink={0} width={inner + 1} marginRight={-1}>
+      <Box height={folded ? 0 : 1} flexShrink={0} />
+      <Box height={compact ? 0 : 1} flexShrink={0} width={inner + 1} marginRight={-1} overflow="hidden">
         <Text color={tok.textMuted}>{cutToWidth(request.hint, inner + 1)}</Text>
       </Box>
     </Box>

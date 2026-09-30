@@ -77,6 +77,14 @@ section('mechanism pins')
   const login = read('src/commands/login/login.tsx')
   check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
   check('the /logins popup keeps its back/close context and the shared popup hint', login.includes("line: 'esc back · from the menu, esc closes /logins'") && login.includes("hint: '↕ scroll · esc or click outside closes'"))
+
+  const host = read('src/utils/cockpit/settingsPopup.ts')
+  check('the settings host folds to the compact layout below one constant of measured full-layout body rows', host.includes('export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8') && host.includes('return fullBodyRows < SETTINGS_POPUP_COMPACT_BELOW_ROWS') && host.includes('compact: boolean'))
+  const slot = read('src/components/SettingsPopupSlot.tsx')
+  check('the slot measures the compact body against a three-row chrome (border and the folded title row)', slot.includes('export const SETTINGS_POPUP_COMPACT_CHROME_ROWS = 3') && slot.includes('const compact = rows !== null && settingsPopupCompact(fullBudget)'))
+  const settings = read('src/components/Settings/Settings.tsx')
+  check('the compact frame folds the close hint into the title row, hides the line and hint rows and carries the body marker', settings.includes('SETTINGS_POPUP_COMPACT_HINT') && settings.includes('compact && marker !== null') && settings.includes('height={compact ? 0 : 1} flexShrink={0} width={inner + 1}') && settings.includes('geometry.rows! <= SETTINGS_POPUP_COMPACT_CHROME_ROWS'))
+  check('/config, /usage and /logins read the one compact flag', read('src/commands/config/config.tsx').includes('compact={geometry.compact}') && read('src/commands/usage/usage.tsx').includes('compact={geometry.compact}') && read('src/components/ConsoleOAuthFlow.tsx').includes('usePopupCompact().compact'))
 }
 
 section('THE SCREEN at 100x30: footers pinned, PageDown pages, the help grid whole')

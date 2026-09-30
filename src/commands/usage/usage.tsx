@@ -24,7 +24,7 @@ export const call = async (_args: string, _context: LocalJSXCommandContext): Pro
     rows: 29,
     line: `${providerFamilyPresences().length} providers · ${subscriptions} subscriptions signed in${meters.length ? ` · Anthropic ${meters.join(' · ')}` : ''}`,
     hint: '↑↓ scroll · esc or click outside closes',
-    body: geometry => <Usage key={openToken} openToken={openToken} width={geometry.inner} rowBudget={geometry.rowBudget} />,
+    body: geometry => <Usage key={openToken} openToken={openToken} width={geometry.inner} rowBudget={geometry.rowBudget} compact={geometry.compact} />,
   })
   return { type: 'skip' }
 }

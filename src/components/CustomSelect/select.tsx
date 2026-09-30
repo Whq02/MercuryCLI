@@ -2,7 +2,7 @@
 import figures from 'figures'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import React, { useContext, useEffect, useRef, useState } from 'react'
-import { PopupFormContext } from '../../context/popupFormContext.js'
+import { PopupFormContext, usePopupCompact } from '../../context/popupFormContext.js'
 import { Ansi, Box, Text } from '../../ink.js'
 import { useDeclaredCursor } from '../../ink/hooks/use-declared-cursor.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -151,6 +151,7 @@ export function Select<T = string>({
   onEmptyInputSubmit,
 }: SelectProps<T>): React.ReactNode {
   const fit = useContext(PopupFormContext)
+  const singleLine = usePopupCompact().compact
   const state = useSelectState({
     visibleOptionCount,
     options,
@@ -427,8 +428,8 @@ export function Select<T = string>({
         const dimDescription = option.dimDescription !== false
 
         const labelNode = (
-          <Box flexShrink={fit ? 1 : 0} minWidth={fit ? 0 : undefined}>
-            <Text color={stateColor} dimColor={option.disabled}>
+          <Box flexShrink={fit ? 1 : 0} minWidth={fit ? 0 : undefined} {...(singleLine ? { height: 1, overflow: 'hidden' as const } : {})}>
+            <Text color={stateColor} dimColor={option.disabled} {...(singleLine ? { wrap: 'truncate-end' as const } : {})}>
               {prefix}
               {renderLabel(option.label, highlightText)}
             </Text>
@@ -483,7 +484,7 @@ export function Select<T = string>({
               >
                 {labelNode}
               </SelectOption>
-              {description !== undefined ? (
+              {description !== undefined && !singleLine ? (
                 <Box paddingLeft={indent}>
                   <Text color={stateColor} dimColor={dimDescription}>
                     <Ansi>{description}</Ansi>
