@@ -372,6 +372,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.
 - **DeepSeek:** API key.
+- **xAI (Grok):** API key.
 
 Local model servers and custom OpenAI-compatible endpoints are discovered or
 configured separately, without a provider sign-in. Each provider has its own

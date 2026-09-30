@@ -20,6 +20,7 @@ arm.
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
+| `xai` | `grok-*`, alias `grok` | xAI |
 | `gemini` | `gemini-*`, alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
 | `openrouter` | `openrouter/<vendor-slug>` (qualified; stripped — OpenRouter ids are themselves vendor/model slugs, so only a namespace disambiguates them) | OpenRouter |
@@ -79,6 +80,12 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
+xAI's Grok rows follow the same road: with an xAI key present, Mercury reads
+the account's model list when the picker composes its rows and paints the
+Grok ids it names; the family word `grok` means the newest Grok row that list
+serves, and while the list is unreachable the recorded rows stand in with
+their date.
+
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its
 region's coding list with the same credential used for chat. The newest
@@ -129,8 +136,8 @@ Three wires serve the ten families:
   base-URL proxy.
 - **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
   through generateContent when using a Google account.
-- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, the
-  operator-named compat slot, OpenRouter, Gemini with an API key,
+- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, xAI's Grok
+  models, the operator-named compat slot, OpenRouter, Gemini with an API key,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -431,7 +438,7 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
-- **zai, deepseek, huggingface, local, compat** — env pins and stored keys.
+- **zai, deepseek, xai, huggingface, local, compat** — env pins and stored keys.
 
 Slots carry presence facts and masked key tails only — never a secret value.
 Removal is routed to each slot's owning store, never inlined. Env-pinned
@@ -792,8 +799,8 @@ rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
 key's credit totals and cap, the DeepSeek and Moonshot balances, and an honest
 one-line absence for a lane whose provider publishes no usage Mercury can read
-(a general Z.AI key, Gemini, Hugging Face, a custom endpoint, an API key on a
-subscription lane, a local server).
+(a general Z.AI key, Gemini, Hugging Face, xAI, a custom endpoint, an API key
+on a subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
 balance endpoints, the remaining credit under an OpenRouter key cap), and
