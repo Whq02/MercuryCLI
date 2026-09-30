@@ -274,5 +274,60 @@ section('§7 the shape: the tab reads only the owner')
   check('the beside-rows memo is registered as ttl-bounded', readFileSync(join(ROOT, 'scripts/staleness/prove-stale-registry.ts'), 'utf8').includes('providerUsage.ts :: otherUsagesCache :: ttl-bounded'))
 }
 
+section('§8 the first-party subscription: the extra-usage figure rides the one usage GET (a loopback fixture, never the live endpoint)')
+{
+  const { createServer } = await import('node:http')
+  const { writeFileSync } = await import('node:fs')
+  const fixture = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/anthropic-oauth-usage.json'), 'utf8')) as { body: Record<string, unknown> }
+  let answer: Record<string, unknown> = fixture.body
+  const usageRequests: string[] = []
+  const server = createServer((req, res) => {
+    if ((req.url ?? '').startsWith('/api/oauth/usage')) {
+      usageRequests.push(req.url ?? '')
+      res.writeHead(200, { 'content-type': 'application/json' })
+      res.end(JSON.stringify(answer))
+      return
+    }
+    res.writeHead(404, { 'content-type': 'application/json' })
+    res.end('{}')
+  })
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+  process.env.ANTHROPIC_BASE_URL = base
+  writeFileSync(
+    join(scratch, '.credentials.json'),
+    JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-live', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }),
+  )
+  const { dropCredentialMemos } = await import('../../src/utils/auth.js')
+  const { resetWalletEntriesMemo } = await import('../../src/services/wallet/wallet.js')
+  const limits = await import('../../src/services/claudeAiLimits.ts')
+  const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
+  dropCredentialMemos()
+  resetWalletEntriesMemo()
+  reader._resetAnthropicUsageReaderForTesting()
+  limits.resetLimitsForCredentialSwitch()
+  const before = owner.usageForProvider('anthropic')
+  check('signed in, nothing read yet: the subscription view carries the credits line in its not-read arm', before.sourceKind === 'subscription-oauth' && before.credits?.state === 'unreported' && before.credits.reason === owner.EXTRA_USAGE_NOT_READ_WORDS, JSON.stringify(before.credits))
+  await owner.refreshProviderUsage('anthropic', { reason: 'operator' })
+  const off = owner.usageForProvider('anthropic')
+  check('the door asked the usage endpoint exactly once', usageRequests.length === 1, JSON.stringify(usageRequests))
+  check("the recorded answer (extra usage turned off by the user) lands as 'extra usage off', endpoint-fed, beside the pair", off.credits?.state === 'unreported' && owner.usageCreditsLine(off.credits) === 'credits: extra usage off' && off.credits.source === 'endpoint' && off.windows.map(w => `${w.key}=${w.usedPct}`).join(',') === '5h=20,7d=22', JSON.stringify({ credits: off.credits, windows: off.windows }))
+  check('the reader carries no failure note and the read counted once', off.readerNote === undefined && reader.anthropicUsageReadStatus().requests === 1)
+  answer = { ...fixture.body, extra_usage: { ...(fixture.body.extra_usage as object), is_enabled: true, user_disabled: false, monthly_limit: 5000, used_credits: 1240, utilization: 24.8, currency: 'USD', decimal_places: 2 } }
+  await owner.refreshProviderUsage('anthropic', { reason: 'operator' })
+  const on = owner.usageForProvider('anthropic')
+  check('the operator\'s ask made one more request — the figure rides the same GET as the windows (no second poll)', usageRequests.length === 2, String(usageRequests.length))
+  check("the enabled answer lands as the reported figure: 'extra usage USD 12.40 of 50.00 this month' · 'extra 12.40/50'", on.credits?.state === 'reported' && on.credits.display === 'extra usage USD 12.40 of 50.00 this month' && on.credits.compact === 'extra 12.40/50' && on.credits.source === 'endpoint' && typeof on.credits.observedAtMs === 'number', JSON.stringify(on.credits))
+  check('the figure carries the same stamp as the windows it rode with', on.credits?.observedAtMs === on.windows[0]?.observedAtMs, JSON.stringify({ credits: on.credits?.observedAtMs, window: on.windows[0]?.observedAtMs }))
+  check('the summary words carry it for the doctor', owner.usageSummaryWords(on).includes('credits: extra usage USD 12.40 of 50.00 this month'), owner.usageSummaryWords(on))
+  limits.resetLimitsForCredentialSwitch()
+  check('a credential switch drops the figure with the windows (never remembered for the next account)', owner.usageForProvider('anthropic').credits?.reason === owner.EXTRA_USAGE_NOT_READ_WORDS)
+  server.close()
+  delete process.env.ANTHROPIC_BASE_URL
+  writeFileSync(join(scratch, '.credentials.json'), '{}')
+  dropCredentialMemos()
+  resetWalletEntriesMemo()
+}
+
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-owner-per-family${failures ? ` (${failures} failure(s))` : ''}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -178,6 +178,94 @@ const SEED_DEFAULT_TTL_SECONDS = 2820
 
 let endpointUtilization: RawUtilization = {}
 
+export type AnthropicMoney = { amount: number; currency: string; exponent: number }
+
+export type AnthropicExtraUsageRecord = {
+  stated: boolean
+  enabled: boolean
+  used?: AnthropicMoney
+  limit?: AnthropicMoney
+  balance?: AnthropicMoney
+  utilizationPct?: number
+  disabledReason?: string
+  limitReached?: boolean
+  period?: 'month'
+  source: UsageFeed
+  observedAtMs: number
+}
+
+let endpointExtraUsage: AnthropicExtraUsageRecord | null = null
+
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
+}
+
+function moneyOf(value: unknown): AnthropicMoney | undefined {
+  if (typeof value !== 'object' || value === null) return undefined
+  const m = value as { amount_minor?: unknown; currency?: unknown; exponent?: unknown }
+  const amount = finiteNumber(m.amount_minor)
+  const exponent = finiteNumber(m.exponent)
+  if (amount === undefined || exponent === undefined || typeof m.currency !== 'string' || m.currency === '') return undefined
+  return { amount, currency: m.currency, exponent }
+}
+
+function wordOf(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
+}
+
+export function decodeAnthropicExtraUsage(body: unknown, observedAtMs: number): AnthropicExtraUsageRecord {
+  const stamp = { source: 'endpoint' as const, observedAtMs }
+  const top = typeof body === 'object' && body !== null ? (body as { extra_usage?: unknown; spend?: unknown }) : {}
+  const spend = typeof top.spend === 'object' && top.spend !== null ? (top.spend as Record<string, unknown>) : undefined
+  const balance = moneyOf(spend?.balance)
+  if (typeof top.extra_usage === 'object' && top.extra_usage !== null) {
+    const e = top.extra_usage as Record<string, unknown>
+    const currency = wordOf(e.currency)
+    const exponent = finiteNumber(e.decimal_places) ?? moneyOf(spend?.used)?.exponent ?? 2
+    const money = (value: unknown): AnthropicMoney | undefined => {
+      const amount = finiteNumber(value)
+      return amount === undefined || currency === undefined ? undefined : { amount, currency, exponent }
+    }
+    const used = money(e.used_credits)
+    const limit = money(e.monthly_limit)
+    const utilizationPct = finiteNumber(e.utilization)
+    const disabledReason = wordOf(e.disabled_reason)
+    return {
+      stated: true,
+      enabled: e.is_enabled === true,
+      ...(used !== undefined ? { used } : {}),
+      ...(limit !== undefined ? { limit, period: 'month' as const } : {}),
+      ...(balance !== undefined ? { balance } : {}),
+      ...(utilizationPct !== undefined ? { utilizationPct } : {}),
+      ...(disabledReason !== undefined ? { disabledReason } : {}),
+      ...(e.spend_limit_reached === true ? { limitReached: true } : {}),
+      ...stamp,
+    }
+  }
+  if (spend !== undefined) {
+    const used = moneyOf(spend.used)
+    const limit = moneyOf(spend.limit)
+    const utilizationPct = finiteNumber(spend.percent)
+    const disabledReason = wordOf(spend.disabled_reason)
+    return {
+      stated: true,
+      enabled: spend.enabled === true,
+      ...(used !== undefined ? { used } : {}),
+      ...(limit !== undefined ? { limit } : {}),
+      ...(balance !== undefined ? { balance } : {}),
+      ...(utilizationPct !== undefined ? { utilizationPct } : {}),
+      ...(disabledReason !== undefined ? { disabledReason } : {}),
+      ...stamp,
+    }
+  }
+  return { stated: false, enabled: false, ...stamp }
+}
+
+export function getEndpointExtraUsage(): AnthropicExtraUsageRecord | null {
+  const ownerStands = observedOwner === null || observedOwner === resolveOwner()
+  return ownerStands ? endpointExtraUsage : null
+}
+
 function normalizeEndpointWindow(
   w: { utilization: number | null; resets_at: string | null } | null | undefined,
 ): RawWindow | null {
@@ -193,6 +281,8 @@ export function foldUtilizationFromEndpoint(
   u: {
     five_hour?: { utilization: number | null; resets_at: string | null } | null
     seven_day?: { utilization: number | null; resets_at: string | null } | null
+    extra_usage?: unknown
+    spend?: unknown
   } & Partial<Record<WeeklyPoolClaim, { utilization: number | null; resets_at: string | null } | null>>,
   issuedEpoch?: number,
   observedAtMs: number = Date.now(),
@@ -209,6 +299,7 @@ export function foldUtilizationFromEndpoint(
     if (pool) next[claim] = stamp(pool)
   }
   endpointUtilization = next
+  endpointExtraUsage = decodeAnthropicExtraUsage(u, observedAtMs)
   observedOwner = resolveOwner()
   noteUsageRecordChanged()
 }
@@ -468,6 +559,7 @@ function handleGateClosed(): void {
   usageCredentialEpoch++
   rawUtilization = {}
   endpointUtilization = {}
+  endpointExtraUsage = null
   observedOwner = null
   verdictOwner = null
   verdictObservedAtMs = null
@@ -534,6 +626,7 @@ export function resetLimitsForCredentialSwitch(): void {
   verdictOwner = null
   verdictObservedAtMs = null
   endpointUtilization = {}
+  endpointExtraUsage = null
   windowObserved = false
   noteUsageRecordChanged()
   if (!limitsEqual(currentLimits, DEFAULT_LIMITS)) {
