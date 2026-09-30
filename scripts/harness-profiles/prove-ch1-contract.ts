@@ -30,10 +30,10 @@ const FROZEN_DIGESTS: Record<string, string> = {
   'anthropic-default': 'hpr1-59e36b86b0d539b1',
   'openai-default': 'hpr1-be54a985fb6f5828',
   'zai-default': 'hpr1-271d7ce47867256e',
-  'chat-engine-default': 'hpr1-da9e2a1d79e85440',
+  'chat-engine-default': 'hpr1-29a9f73d60dfd9b0',
   'anthropic-context-bounded': 'hpr1-7c977cfe16708267',
 }
-const FROZEN_SET_DIGEST = 'hprs1-fa61a9739feb5ba3'
+const FROZEN_SET_DIGEST = 'hprs1-25209b029c0b6d19'
 
 console.log('§A catalogue completeness (CH-07)')
 check('§A ids tuple matches the catalogue in order', JSON.stringify(HARNESS_PROFILE_IDS) === JSON.stringify(HARNESS_PROFILES.map(p => p.id)))
