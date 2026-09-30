@@ -2,6 +2,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { seedFirstRun } from './firstRunSeed.ts'
+import { keepProofScratch } from './proofScratch.cjs'
 
 export interface ProofHomeOptions {
   keep?: boolean
@@ -19,6 +20,7 @@ export function resolveProofHome(trustedCwds: readonly string[], options: ProofH
   const home = mkdtempSync(join(tmpdir(), 'mercury-proof-home-')).normalize('NFC')
   seedFirstRun(home, [...trustedCwds])
   process.env.MERCURY_CONFIG_DIR = home
+  if (options.keep) keepProofScratch(home)
   if (!options.keep) {
     process.on('exit', () => {
       try {

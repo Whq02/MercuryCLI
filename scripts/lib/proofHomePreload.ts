@@ -1,6 +1,7 @@
 import { join, resolve, sep } from 'node:path'
 import { configHomeIsReal } from './loginDriverGuard.ts'
 import { resolveProofHome } from './proofHome.ts'
+import { installProofScratch } from './proofScratch.cjs'
 
 const root = resolve(import.meta.dir, '..', '..')
 const scripts = join(root, 'scripts')
@@ -13,7 +14,10 @@ export function entryTakesProofHome(path: string): boolean {
   return path !== vendor && !path.startsWith(vendor + sep)
 }
 
-if (entryTakesProofHome(entry)) process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+if (entryTakesProofHome(entry)) {
+  installProofScratch()
+  process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
+}
 
 if (entryTakesProofHome(entry) && configHomeIsReal()) {
   delete process.env.MERCURY_CONFIG_DIR

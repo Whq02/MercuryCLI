@@ -9,14 +9,17 @@ note=${4:-}
 dom=$(basename "$(dirname "$runner")")
 out="$outdir/$dom.out"
 repo_root=$(cd "$(dirname "$0")/../.." && pwd)
+. "$repo_root/scripts/lib/suite-env.sh"
+unset MERCURY_SUITE_TMPDIR
+suite_scratch_init "$runner"
 
 if [ -z "${MERCURY_CONFIG_DIR:-}" ]; then
-  export MERCURY_CONFIG_DIR="$outdir/$dom.config-home"
+  export MERCURY_CONFIG_DIR="$MERCURY_SUITE_TMPDIR/config-home"
   mkdir -p "$MERCURY_CONFIG_DIR"
   "${BUN:-$HOME/.bun/bin/bun}" run "$repo_root/scripts/lib/firstRunSeed.ts" "$MERCURY_CONFIG_DIR" "$repo_root"
 fi
 
-export MERCURY_HOME="${MERCURY_HOME:-$outdir/$dom.proof-home}"
+export MERCURY_HOME="${MERCURY_HOME:-$MERCURY_SUITE_TMPDIR/proof-home}"
 mkdir -p "$MERCURY_HOME"
 
 export BROWSER="${BROWSER:-/usr/bin/true}"
@@ -24,7 +27,7 @@ export BROWSER="${BROWSER:-/usr/bin/true}"
 export MERCURY_CREDENTIAL_STORE="${MERCURY_CREDENTIAL_STORE:-file}"
 
 . "$repo_root/scripts/lib/process-ledger.sh"
-export MERCURY_PROCESS_LEDGER_DIR="$outdir/$dom.ledger"
+export MERCURY_PROCESS_LEDGER_DIR="$MERCURY_SUITE_TMPDIR/process-ledger"
 mkdir -p "$MERCURY_PROCESS_LEDGER_DIR"
 
 kill_tree() {
@@ -57,6 +60,7 @@ runner=$$
 end_suite_tree() {
   kill_tree "$pid"
   process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
+  suite_home_cleanup
 }
 ( n=0; while [ "$n" -lt "$secs" ]; do sleep 1; n=$((n + 1)); kill -0 "$pid" 2>/dev/null || exit 0; kill -0 "$runner" 2>/dev/null || { printf '\n__SUITE_RUNNER_GONE (tree-killed)__\n' >>"$out"; end_suite_tree; exit 0; }; done; kill -0 "$pid" 2>/dev/null && { printf '\n__SUITE_TIMEOUT after %ss (tree-killed%s)__\n' "$secs" "${note:+; $note}" >>"$out"; echo "$secs" >"$outdir/$dom.hang"; end_suite_tree; } ) 2>/dev/null &
 watcher=$!
@@ -85,6 +89,7 @@ wait "$watcher" 2>/dev/null
 
 echo $(( SECONDS - t0 )) >"$outdir/$dom.secs"
 echo "$cpu_secs" >"$outdir/$dom.cpu"
+suite_home_cleanup
 echo "$rc" >"$outdir/$dom.rc.tmp" && mv -f "$outdir/$dom.rc.tmp" "$outdir/$dom.rc"
 [ "$rc" -eq 255 ] && rc=254
 exit "$rc"
