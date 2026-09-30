@@ -76,6 +76,14 @@ await stub('../../src/services/providers/moonshot/moonshotLogin.js', {
   },
 })
 await stub('../../src/services/providers/moonshot/moonshotAccounts.js', { moonshotStoredRegion: () => undefined })
+let xaiCancelled: (() => boolean) | undefined
+await stub('../../src/services/providers/xai/xaiLogin.js', {
+  runXaiDeviceLogin: (options: { cancelled: () => boolean; onEvent: (event: unknown) => void }) => {
+    xaiCancelled = options.cancelled
+    options.onEvent({ phase: 'waiting', polls: 0, start: { userCode: 'GROK-CODE', verificationUri: 'https://example.com/grok/device', expiresAtMs: 1_900_000_000_000 } })
+    return new Promise(() => {})
+  },
+})
 await stub('../../src/services/providers/deepseek/deepseekLogin.js', {
   storeDeepseekApiKeyLogin: async (value: string) => { submits.push(value); return { stored: successKey, ok: successKey, receipt: successKey ? 'DeepSeek connected — fixture receipt.' : 'Fixture refused the key — correct it here.' } },
 })
@@ -166,7 +174,7 @@ for (const s of sizes) {
   check('menu esc closes the popup and reports no credential change', closed && receipts.at(-1)?.includes('no credential changed') === true, `open=${store.isSettingsPopupOpen()} receipt=${receipts.at(-1)}`)
   board.close()
   if (process.argv.includes('--menu-only')) { await releaseScratchHome(home); process.exit(failures ? 1 : 0) }
-  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '1', huggingface: '2', moonshot: '2', zai: '1', xai: '', meta: '' })) {
+  for (const [family, arm] of Object.entries({ openai: '2', openrouter: '3', gemini: '1', huggingface: '2', moonshot: '2', zai: '1', xai: '2', meta: '' })) {
     board = await mount(s, family)
     await key(board.m, KEY.enter)
     save(board.m, s, `${family}-choice`)
@@ -176,14 +184,15 @@ for (const s of sizes) {
     fits(board.m, s, `${family} key`); save(board.m, s, `${family}-key`)
     board.close()
   }
-  for (const [family, arm, code] of [['huggingface', '1', 'HF-CODE'], ['openai', '1', 'or paste the redirected URL:'], ['openrouter', '1', 'or paste the redirected URL:'], ['openrouter', '2', 'paste the code:']]) {
+  for (const [family, arm, code] of [['huggingface', '1', 'HF-CODE'], ['xai', '1', 'GROK-CODE'], ['openai', '1', 'or paste the redirected URL:'], ['openrouter', '1', 'or paste the redirected URL:'], ['openrouter', '2', 'paste the code:']]) {
     board = await mount(s, family)
     await key(board.m, KEY.enter); await key(board.m, arm!)
     check(`${family} ${arm}: its device/browser wait stays reachable`, await walk(board.m, code!))
     fits(board.m, s, `${family} wait`); save(board.m, s, `${family}-wait-${arm}`)
     const cancels = browserCancels
     board.close()
-    if (family !== 'huggingface') check(`${family}: popup unmount cancels the browser handles`, browserCancels === cancels + 1)
+    if (family === 'xai') check('xai: popup unmount cancels the device driver', xaiCancelled?.() === true)
+    else if (family !== 'huggingface') check(`${family}: popup unmount cancels the browser handles`, browserCancels === cancels + 1)
   }
   board = await mount(s, 'gemini')
   await key(board.m, KEY.enter); await key(board.m, '2')
