@@ -295,18 +295,19 @@ export const OPENAI_MODEL_GROUP = 'Mercury — OpenAI models'
 export const ZAI_MODEL_GROUP = 'Mercury — Z.AI models'
 export const MOONSHOT_MODEL_GROUP = 'Mercury — Moonshot models'
 export const DEEPSEEK_MODEL_GROUP = 'Mercury — DeepSeek models'
+export const XAI_MODEL_GROUP = 'Mercury — xAI models'
 export const COMPAT_MODEL_GROUP = 'Mercury — custom endpoint'
 
 export const KEY_CONNECT_PREFIX = '__mercury_connect__:'
-export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'compat'): string {
+export function keyConnectValue(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat'): string {
   return `${KEY_CONNECT_PREFIX}${provider}`
 }
 export function parseKeyConnectValue(
   value: string,
-): 'zai' | 'moonshot' | 'deepseek' | 'compat' | undefined {
+): 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat' | undefined {
   if (!value.startsWith(KEY_CONNECT_PREFIX)) return undefined
   const provider = value.slice(KEY_CONNECT_PREFIX.length)
-  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'compat'
+  return provider === 'zai' || provider === 'moonshot' || provider === 'deepseek' || provider === 'xai' || provider === 'compat'
     ? provider
     : undefined
 }
