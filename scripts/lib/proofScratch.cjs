@@ -17,30 +17,48 @@ function keepProofScratch(folder) {
 function scratchPrefix(prefix) {
   const root = process.env.MERCURY_SUITE_TMPDIR
   if (!root) return prefix
-  const value = prefix instanceof URL ? fileURLToPath(prefix) : String(prefix)
-  if (/^\/(?:private\/)?tmp\/mw\//.test(value)) {
-    const base = Buffer.from(root + path.sep)
-    return Buffer.isBuffer(prefix)
-      ? Buffer.concat([base, prefix.subarray(prefix.lastIndexOf(47) + 1)])
-      : root + path.sep + value.slice(value.lastIndexOf('/') + 1)
+  try {
+    const value = prefix instanceof URL ? fileURLToPath(prefix) : String(prefix)
+    if (/^\/(?:private\/)?tmp\/mw\//.test(value)) {
+      const base = Buffer.from(root + path.sep)
+      return Buffer.isBuffer(prefix)
+        ? Buffer.concat([base, prefix.subarray(prefix.lastIndexOf(47) + 1)])
+        : root + path.sep + value.slice(value.lastIndexOf('/') + 1)
+    }
+  } catch {
+    return prefix
   }
   return prefix
+}
+function processStartedAt() {
+  const { execFileSync } = require('node:child_process')
+  for (const ps of ['ps', '/bin/ps', '/usr/bin/ps']) {
+    try {
+      const started = execFileSync(ps, ['-o', 'lstart=', '-p', String(process.pid)], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5000, windowsHide: true }).trim()
+      if (started) return started
+    } catch {}
+  }
+  return '?'
+}
+function processFolder() {
+  try {
+    return process.cwd() || '?'
+  } catch {
+    return '?'
+  }
+}
+function writeLedgerEntry(ledger) {
+  try {
+    fs.mkdirSync(ledger, { recursive: true })
+    fs.writeFileSync(path.join(ledger, `${process.pid}.entry`), [process.pid, process.env.MERCURY_SUITE_RUNNER_PID || process.ppid, processStartedAt(), processFolder(), process.execPath].join('\t') + '\n')
+  } catch {}
 }
 function installProofScratch() {
   if (installed) return
   installed = true
   const runRoot = process.env.MERCURY_SUITE_TMPDIR
   const ledger = process.env.MERCURY_PROCESS_LEDGER_DIR
-  if (ledger) {
-    const { execFileSync } = require('node:child_process')
-    try {
-      fs.mkdirSync(ledger, { recursive: true })
-      const started = execFileSync('ps', ['-o', 'lstart=', '-p', String(process.pid)], { encoding: 'utf8' }).trim()
-      fs.writeFileSync(path.join(ledger, `${process.pid}.entry`), [process.pid, process.env.MERCURY_SUITE_RUNNER_PID || process.ppid, started, process.cwd(), process.execPath].join('\t') + '\n')
-    } catch (error) {
-      if (process.platform !== 'win32') throw error
-    }
-  }
+  if (ledger) writeLedgerEntry(ledger)
   const sync = fs.mkdtempSync
   const callback = fs.mkdtemp
   const promise = fs.promises.mkdtemp
@@ -60,10 +78,12 @@ function installProofScratch() {
   }
   syncBuiltinESMExports()
   if (!process.env.MERCURY_SUITE_BROWSER_CLEANER) {
-    require('./proofBrowser.cjs').installProofBrowser(profile => {
-      const root = process.env.MERCURY_SUITE_TMPDIR
-      return folders.has(profile) || Boolean(root && path.resolve(profile).startsWith(path.resolve(root) + path.sep))
-    })
+    try {
+      require('./proofBrowser.cjs').installProofBrowser(profile => {
+        const root = process.env.MERCURY_SUITE_TMPDIR
+        return folders.has(profile) || Boolean(root && path.resolve(profile).startsWith(path.resolve(root) + path.sep))
+      })
+    } catch {}
   }
   process.on('exit', () => {
     if (runRoot) return
@@ -76,4 +96,8 @@ function installProofScratch() {
   })
 }
 module.exports = { installProofScratch, registerProofScratch, keepProofScratch }
-if (process.env.MERCURY_SUITE_TMPDIR) installProofScratch()
+if (process.env.MERCURY_SUITE_TMPDIR) {
+  try {
+    installProofScratch()
+  } catch {}
+}

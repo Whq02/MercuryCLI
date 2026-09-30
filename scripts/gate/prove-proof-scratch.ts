@@ -1,7 +1,7 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
 const world = mkdtempSync(join(tmpdir(), 'proof-scratch-pin-'))
@@ -52,6 +52,32 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
     check(`${mode} leaves no scratch folders`, left.length === 0, `created=${made.length}, leftovers=${left.length}`)
     check(`${mode} preserves the result`, mode === 'wall' ? code === 137 : mode === 'term' ? code === 143 : code === 0, `rc=${code} ${output}`)
     for (const p of made) rmSync(p, { recursive: true, force: true })
+  }
+  const boots = join(world, 'boots')
+  const emptyBin = join(boots, 'empty-bin')
+  mkdirSync(emptyBin, { recursive: true })
+  const ledger = join(boots, 'ledger')
+  const { NODE_OPTIONS: _options, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
+  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}` }
+  const summary = (r: ReturnType<typeof spawnSync>) => JSON.stringify({ status: r.status, signal: r.signal, stdout: String(r.stdout), stderr: String(r.stderr) })
+  const entryOf = (pid: number | undefined) => (pid && existsSync(join(ledger, `${pid}.entry`)) ? readFileSync(join(ledger, `${pid}.entry`), 'utf8').trimEnd().split('\t') : [])
+  const shapes = {
+    'a fresh process whose PATH carries no ps': (runtime: string, env: Record<string, string>) => spawnSync(runtime, ['-e', 'console.log("alive")'], { cwd: root, env: { ...env, PATH: emptyBin }, encoding: 'utf8' }),
+    'a process whose folder was deleted': (runtime: string, env: Record<string, string>) => {
+      const gone = join(boots, `gone-${Math.random().toString(36).slice(2)}`)
+      mkdirSync(gone)
+      return spawnSync('bash', ['-c', 'cd "$1" && /bin/rmdir "$1" && exec "$2" -e \'console.log("alive")\'', 'bash', gone, runtime], { env, encoding: 'utf8' })
+    },
+  }
+  for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
+    for (const [shape, boot] of Object.entries(shapes)) {
+      const bare = boot(runtime, bareEnv)
+      const loaded = boot(runtime, preloadEnv)
+      const label = `${basename(runtime)}: ${shape}`
+      check(`${label} boots unchanged under the preload`, summary(loaded) === summary(bare), `preload ${summary(loaded)} vs bare ${summary(bare)}`)
+      const entry = entryOf(loaded.pid)
+      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (entry.length === 5 && entry[0] === String(loaded.pid) && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)}`)
+    }
   }
 } finally {
   rmSync(world, { recursive: true, force: true })
