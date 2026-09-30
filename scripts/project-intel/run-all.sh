@@ -22,6 +22,7 @@ echo "############################################################"
 echo "# Project intelligence — proof suite"
 echo "############################################################"
 shopt -s nullglob
+[ -f "$here/prove-path-tokens-linear.ts" ] || { printf '%s\n' 'Missing required proof: prove-path-tokens-linear.ts' >&2; exit 1; }
 for proof in "$here"/prove-*.ts; do
   echo
   echo ">>> $(basename "$proof")"

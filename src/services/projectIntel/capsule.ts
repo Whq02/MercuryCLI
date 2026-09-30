@@ -71,7 +71,7 @@ const IMPORT_SCAN_LINES = 60
 const MEMORY_REF_CAP = 4
 
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
-const PATHISH_RE = /[A-Za-z0-9_@./-]*[/.][A-Za-z0-9_@./-]+/g
+const PATHISH_RE = /[A-Za-z0-9_@./-]+/g
 
 function fileRef(path: string): string {
   return `mercury://file/${path}`
@@ -91,8 +91,12 @@ function existsFile(workspace: string, rel: string): boolean {
 
 export function pathTokens(task: string, workspace: string): string[] {
   const seen = new Set<string>()
-  for (const raw of task.match(PATHISH_RE) ?? []) {
-    let cleaned = normalize(raw.replace(/^["'`(]+|["'`),.:;?!]+$/g, '')).replace(/^\.\//, '')
+  for (const [raw] of task.matchAll(PATHISH_RE)) {
+    const separator = raw.search(/[/.]/)
+    if (separator < 0 || separator === raw.length - 1) continue
+    let end = raw.length
+    while (end > 0 && raw[end - 1] === '.') end--
+    let cleaned = normalize(raw.slice(0, end)).replace(/^\.\//, '')
     if (!cleaned || cleaned.startsWith('..')) continue
     if (cleaned.startsWith('/')) {
       const prefix = workspace.endsWith('/') ? workspace : `${workspace}/`
