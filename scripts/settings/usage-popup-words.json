@@ -79,7 +79,7 @@
     "no account",
     "no account",
     "no account",
-    "no usage signal observed from the account source yet — the weekly meter fills after the first GPT reply (no polled endpoint exists on this lane; meters derive live from response headers).",
+    "no usage signal observed yet — this tab reads the ChatGPT usage endpoint; GPT replies also update the meter.",
     "none — a pasted key attaches one · n/a",
     "none — a pasted key attaches one · n/a",
     "none — a pasted key attaches one · n/a",

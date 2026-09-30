@@ -45,10 +45,10 @@ import {
 } from './usageFreshness.js'
 import {
   openaiLimitWindow,
-  openaiObservedUsage,
   type OpenaiLimitWindow,
   type OpenaiObservedUsage,
 } from './openai/openaiLimitState.js'
+import { openaiSubscriptionUsage, openaiUsageReaderState } from './openai/openaiUsageState.js'
 import { readMintedOpenrouterKey, resolveOpenrouterApiKey, type OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
 import {
   openrouterLimitWindow,
@@ -432,6 +432,11 @@ export interface UsageRefreshIo {
 export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
   try {
     switch (provider) {
+      case 'openai': {
+        const { refreshOpenaiUsage } = require('./openai/openaiUsageState.js') as typeof import('./openai/openaiUsageState.js')
+        await refreshOpenaiUsage(io)
+        return
+      }
       case 'openrouter':
         await refreshOpenrouterKeyUsage(io)
         return
@@ -968,15 +973,32 @@ export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   return (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
 }
 
+export function openaiSubscriptionCredits(reads?: ActiveUsageReads): UsageCreditsView {
+  const credits = (reads?.openaiObserved ?? openaiSubscriptionUsage)().credits
+  if (credits === undefined) return { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }
+  const source = credits.source ?? 'headers'
+  const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(source) }
+  if (credits.unlimited) return { state: 'reported', display: 'unlimited', compact: 'unlimited', ...stamp }
+  if (credits.balance !== undefined) {
+    const [integer, decimal] = credits.balance.split('.')
+    const display = integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decimal !== undefined ? `.${decimal}` : '')
+    const value = Number(credits.balance)
+    const compact = Number.isSafeInteger(Math.trunc(value)) && value >= 1000
+      ? new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value).toLowerCase() : display
+    return { state: 'reported', display, compact, ...stamp }
+  }
+  return { state: 'unreported', reason: credits.hasCredits ? 'balance not stated on this reply' : 'no credits on this plan', compact: credits.hasCredits ? 'not stated' : 'none on this plan', ...stamp }
+}
+
 function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
-  const observed = (reads?.openaiObserved ?? openaiObservedUsage)()
+  const observed = (reads?.openaiObserved ?? openaiSubscriptionUsage)()
   const bands = [observed.primary, observed.secondary].filter(
     (b): b is NonNullable<typeof b> => b !== undefined && b.usedPct !== undefined,
   )
   bands.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0))
   return bands.map(band => {
     const label = usageWindowLabel(band.windowMinutes)
-    const stamp = { observedAtMs: band.observedAtMs, source: 'headers' as const }
+    const stamp = { observedAtMs: band.observedAtMs, source: band.source ?? 'headers' as const }
     const horizon = (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(stamp.source)
     const freshForMs = band.resetsAtMs !== undefined ? Math.min(horizon, band.resetsAtMs - band.observedAtMs - 1) : horizon
     return {
@@ -1462,6 +1484,8 @@ export function usageForProvider(
     shape: 'subscription-windows',
     windows: openaiWindowViews(reads),
     pools: [],
+    credits: openaiSubscriptionCredits(reads),
+    ...(reads === undefined ? openaiUsageReaderState() : {}),
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',
     ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),

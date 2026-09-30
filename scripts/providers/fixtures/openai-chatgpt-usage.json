@@ -1,0 +1,50 @@
+{
+  "observedOn": "2026-09-30T19:23:17.837Z",
+  "method": "GET",
+  "url": "https://chatgpt.com/backend-api/wham/usage",
+  "status": 200,
+  "headers": {},
+  "referenceRevision": "f151a0f5c20e50055957b79d50e16834e00e32e1",
+  "references": [
+    "https://github.com/openai/codex/blob/f151a0f5c20e50055957b79d50e16834e00e32e1/codex-rs/backend-client/src/client/rate_limit_resets.rs",
+    "https://github.com/openai/codex/blob/f151a0f5c20e50055957b79d50e16834e00e32e1/codex-rs/backend-client/src/client.rs",
+    "https://github.com/openai/codex/blob/f151a0f5c20e50055957b79d50e16834e00e32e1/codex-rs/codex-api/src/rate_limits.rs"
+  ],
+  "body": {
+    "user_id": "[masked]",
+    "account_id": "[masked]",
+    "email": "[masked]",
+    "plan_type": "pro",
+    "rate_limit": {
+      "allowed": true,
+      "limit_reached": false,
+      "primary_window": {
+        "used_percent": 99,
+        "limit_window_seconds": 604800,
+        "reset_after_seconds": 598016,
+        "reset_at": 1791394213
+      },
+      "secondary_window": null
+    },
+    "code_review_rate_limit": null,
+    "additional_rate_limits": null,
+    "model_usage": {
+      "gpt-6-astra": { "available": true, "available_at": null, "credits_would_enable": false }
+    },
+    "chatpass": {
+      "windows": [{ "used_percent": 0, "limit_window_seconds": 604800, "reset_after_seconds": 604800, "reset_at": 1791400997 }]
+    },
+    "credits": {
+      "has_credits": true,
+      "unlimited": false,
+      "overage_limit_reached": false,
+      "balance": "62500",
+      "approx_local_messages": [15625, 81250],
+      "approx_cloud_messages": [2500, 15625]
+    },
+    "spend_control": { "reached": false, "individual_limit": null },
+    "rate_limit_reached_type": null,
+    "promo": null,
+    "rate_limit_reset_credits": { "available_count": 0, "applicable_available_count": 0 }
+  }
+}

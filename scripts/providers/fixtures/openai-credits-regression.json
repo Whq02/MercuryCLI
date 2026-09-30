@@ -1,0 +1,15 @@
+{
+  "base": "74938a365",
+  "source": "src/services/providers/openai/openaiLimitState.ts",
+  "check": "recordOpenaiRateHeaders must retain the provider-stated credit balance in openaiObservedUsage().credits.balance",
+  "inputHeaders": {
+    "x-codex-credits-has-credits": "true",
+    "x-codex-credits-unlimited": "false",
+    "x-codex-credits-balance": "62500"
+  },
+  "expectedBalance": "62500",
+  "baseObservedBalance": "undefined",
+  "baseExitCode": 1,
+  "laneExitCode": 0,
+  "baseMethod": "git show 74938a365:src/services/providers/openai/openaiLimitState.ts copied to lane scratch; the same header regression run against the base copy and the lane source"
+}

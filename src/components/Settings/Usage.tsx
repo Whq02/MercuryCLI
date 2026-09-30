@@ -161,7 +161,10 @@ function SlotHeading({ text }: { text: string }): React.ReactNode {
 }
 
 function IdentityLine({ family }: { family: RouterProviderId }): React.ReactNode {
-  return <Text dimColor wrap="truncate-end">{providerIdentitySentence(providerIdentityLine(family))}</Text>
+  return <Box flexDirection="column">
+    <Text dimColor wrap="truncate-end">{providerIdentitySentence(providerIdentityLine(family))}</Text>
+    <UsageCredits usage={usageForProvider(family)} />
+  </Box>
 }
 
 export const SCHEDULED_SPEND_LABEL = 'Scheduled'
@@ -215,6 +218,11 @@ function ApiKeySlot({
       )}
     </Box>
   )
+}
+
+export function UsageCredits({ usage }: { usage: Pick<ActiveSourceUsage, 'credits'> }): React.ReactNode {
+  const line = usageCreditsLine(usage.credits)
+  return line === undefined ? null : <Text dimColor>{line}</Text>
 }
 
 function useOwnerUsage(id: RouterProviderId, credentialed: boolean): ActiveSourceUsage {
@@ -383,7 +391,7 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
   const sub = view.entries.find(e => e.kind === 'subscription-oauth')
   const key = view.entries.find(e => e.kind === 'api-key')
   const windows = openaiObservedWindowViews()
-  const owner = usageForProvider('openai')
+  const owner = useOwnerUsage('openai', sub !== undefined || key !== undefined)
   const limited =
     view.limits.kind === 'openai-observed' && view.limits.window.state === 'limited'
       ? view.limits.window
@@ -405,11 +413,11 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
               ))
             ) : (
               <Text dimColor>
-                no usage signal observed from the account source yet — the weekly meter fills
-                after the first GPT reply (no polled endpoint exists on this lane; meters
-                derive live from response headers).
+                no usage signal observed yet — this tab reads the ChatGPT usage endpoint;
+                GPT replies also update the meter.
               </Text>
             )}
+            {owner.readerNote !== undefined ? <Text dimColor>{owner.readerNote}</Text> : null}
             {limited !== null ? (
               <Text dimColor>
                 A usage window is reached — resets {new Date(limited.resetsAtMs).toLocaleString()}.
@@ -428,7 +436,6 @@ function OpenaiUsageSection({ width }: { width?: number }): React.ReactNode {
         isActive={active?.kind === 'api-key'}
         spend={spend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
-        {...(usageCreditsLine(owner.credits) !== undefined ? { creditsLine: usageCreditsLine(owner.credits)! } : {})}
       />
       <Text dimColor>
         {seat.state === 'ready'
@@ -452,7 +459,6 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
     (usage.sourceKind === 'none'
       ? 'no credential — nothing to poll'
       : 'fetching live credit truth from the key endpoint…')
-  const balanceLine = usageCreditsLine(usage.credits)
   return (
     <Box flexDirection="column">
       <Text bold>OpenRouter usage</Text>
@@ -481,7 +487,6 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
         <ObservedWindowMeter key={w.key} window={w} title="Key credit cap" {...(width !== undefined ? { maxWidth: width } : {})} />
       ))}
       <Text dimColor>{creditLine}</Text>
-      {balanceLine !== undefined ? <Text dimColor>{balanceLine}</Text> : null}
       <Text dimColor>One credential serves the whole OpenRouter multi-model catalogue.</Text>
     </Box>
   )
@@ -511,7 +516,6 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
                 ? spendLine(spend, true)
                 : INACTIVE_SLOT_LINE}
             </Text>
-            {active?.kind === 'oauth' && usageCreditsLine(usage.credits) !== undefined ? <Text dimColor>{usageCreditsLine(usage.credits)}</Text> : null}
           </Box>
         )}
       </Box>
@@ -519,7 +523,6 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
         presentLabel={key?.label}
         isActive={active?.kind === 'api-key'}
         spend={spend}
-        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       <Text dimColor>{usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote}</Text>
     </Box>
@@ -560,7 +563,6 @@ function HuggingfaceUsageSection(): React.ReactNode {
           <Box flexDirection="column">
             <Text dimColor>{account.label}</Text>
             <Text dimColor>{spendLine(spend, false)}</Text>
-            {usageCreditsLine(usage.credits) !== undefined ? <Text dimColor>{usageCreditsLine(usage.credits)}</Text> : null}
           </Box>
         ) : (
           <Text dimColor>{absentSlotLine("/logins huggingface signs in with the Hub's device-code flow")}</Text>
@@ -570,7 +572,6 @@ function HuggingfaceUsageSection(): React.ReactNode {
         presentLabel={account?.kind === 'api-key' ? account.label : undefined}
         isActive={account?.kind === 'api-key'}
         spend={spend}
-        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       {account && planRow !== '' ? <Text dimColor>{planRow}</Text> : null}
       {account && (rateLine !== undefined || usage.limited !== undefined) ? (
@@ -661,7 +662,6 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         presentLabel={section.family.credentialLabel}
         isActive={section.family.credentialed}
         spend={spend}
-        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       {figuresLine(usage) !== undefined ? <Text dimColor>{figuresLine(usage)}</Text> : null}
       {section.family.credentialed && usage.readerNote !== undefined ? (
@@ -715,7 +715,6 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         }
         isActive={account?.kind === 'api-key'}
         spend={spend}
-        {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
       <Text dimColor>
         {account
@@ -912,7 +911,6 @@ function AnthropicUsageSection({ width, openToken }: { width?: number; openToken
         isActive={view.activeEntry?.kind === 'api-key'}
         spend={view.sessionSpend}
         {...(owner.absence !== undefined ? { note: owner.absence } : {})}
-        {...(usageCreditsLine(owner.credits) !== undefined ? { creditsLine: usageCreditsLine(owner.credits)! } : {})}
       />
     </Box>
   )

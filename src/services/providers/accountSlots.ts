@@ -128,6 +128,7 @@ export interface AccountSlot {
   kindLabel: string
   identity: string
   signInEmail?: string
+  credits?: import('./providerUsage.js').UsageCreditsView
   active: boolean
   envPinned: boolean
   signedIn: boolean
@@ -559,6 +560,7 @@ function openaiSlots(reads: AccountSlotReads): AccountSlot[] {
       active: active?.kind === 'chatgpt-subscription',
       envPinned: false,
       signedIn: true,
+      credits: (require('./providerUsage.js') as typeof import('./providerUsage.js')).openaiSubscriptionCredits(),
       removal: { route: 'openai-subscription' },
     })
   }

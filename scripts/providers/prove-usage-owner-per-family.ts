@@ -336,8 +336,8 @@ section('§7 the shape: the tab reads only the owner')
   }
   const geminiSection = tab.slice(tab.indexOf('function GeminiUsageSection'), tab.indexOf('function HuggingfaceUsageSection'))
   const hfSection = tab.slice(tab.indexOf('function HuggingfaceUsageSection'), tab.indexOf('function LocalUsageSection'))
-  check('the Google account slot paints the credits line while it is the active source (not only the key slot)', geminiSection.includes("active?.kind === 'oauth' && usageCreditsLine(usage.credits) !== undefined"))
-  check('the Hugging Face sign-in slot paints the credits line, and the plan row rides the plan figure with the one stamp composer', hfSection.includes('<Text dimColor>{usageCreditsLine(usage.credits)}</Text>') && hfSection.includes("f.key === 'plan'") && hfSection.includes('usageSourceWords(plan)') && hfSection.includes('period ends'))
+  check('the Gemini section paints its credits line once, under its identity line through the one credits composer, never again under the Google account slot', tab.includes('<UsageCredits usage={usageForProvider(family)} />') && !geminiSection.includes('usageCreditsLine(usage.credits)'))
+  check('the Hugging Face section paints its credits line once under its identity line, and the plan row rides the plan figure with the one stamp composer', !hfSection.includes('usageCreditsLine(usage.credits)') && hfSection.includes("f.key === 'plan'") && hfSection.includes('usageSourceWords(plan)') && hfSection.includes('period ends'))
   check('the generic engine body rides useOwnerUsage(section.id)', tab.includes('useOwnerUsage(section.id, section.family.credentialed)'))
   check('the credit line, the rate line and the credits lines come from the owner\'s figures and credits view', tab.includes('figuresLine(usage)') && tab.includes('usageCreditsLine(usage.credits)') && !tab.includes('usage.balance.display'))
   check('the absence lines come from the owner (never a tab-only constant)', tab.includes('usage.absence ?? section.limitsNote') && tab.includes("usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote") && !tab.includes('GEMINI_USAGE_ABSENCE_NOTE') && !tab.includes('HUGGINGFACE_USAGE_ABSENCE_NOTE'))
@@ -399,6 +399,23 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
   writeFileSync(join(scratch, '.credentials.json'), '{}')
   dropCredentialMemos()
   resetWalletEntriesMemo()
+}
+
+section('§9 the ChatGPT sign-in: the observed balance belongs to the same owner as its windows, and leaves with them')
+{
+  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const fixture = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/openai-chatgpt-usage.json'), 'utf8'))
+  openai.__resetOpenaiLimitStateForTest()
+  openai.recordOpenaiUsageResponse(fixture.body, NOW)
+  const view = owner.usageForProvider('openai', {
+    activeEntry: () => ({ id: 'openai:subscription', provider: 'openai', kind: 'oauth', label: 'ChatGPT Pro', custodian: 'openai-accounts', identity: { plan: 'pro' } }),
+    openaiObserved: openai.openaiObservedUsage,
+    openaiLimited: () => ({ state: 'clear' }),
+    spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+  })
+  check('OpenAI subscription: the observed fixture balance belongs to the same owner as its windows', view.shape === 'subscription-windows' && view.credits?.display === '62,500' && view.credits.source === 'endpoint' && view.credits.observedAtMs === NOW)
+  openai.forgetOpenaiLimitSource('chatgpt-subscription')
+  check('OpenAI subscription: forgetting the source drops the balance and bands together', Object.keys(openai.openaiObservedUsage()).length === 0)
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-owner-per-family${failures ? ` (${failures} failure(s))` : ''}`)

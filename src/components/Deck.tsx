@@ -150,15 +150,6 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
               </Text>
             </Text>,
           )
-          const creditsWords = usageCreditsWords(usage.credits, now)
-          if (creditsWords !== undefined) {
-            nodes.push(
-              <Text key="credits">
-                <Text color={t.textMuted}>{padTo('credits', 11)}</Text>
-                <Text color={usage.credits?.state === 'reported' ? t.textPrimary : t.textMuted}>{creditsWords}</Text>
-              </Text>,
-            )
-          }
         } else if (usage.windows.length === 0) {
           nodes.push(
             <Text key="warming" color={t.textMuted}>
@@ -191,6 +182,15 @@ export function Deck({ onClose }: { onClose: () => void }): React.ReactNode {
               </Text>,
             )
           }
+        }
+        const creditsWords = usageCreditsWords(usage.credits, now)
+        if (creditsWords !== undefined) {
+          nodes.push(
+            <Text key="credits">
+              <Text color={t.textMuted}>{padTo('credits', 11)}</Text>
+              <Text color={usage.credits?.state === 'reported' ? t.textPrimary : t.textMuted}>{creditsWords}</Text>
+            </Text>,
+          )
         }
         if (usage.readerNote !== undefined) {
           nodes.push(
