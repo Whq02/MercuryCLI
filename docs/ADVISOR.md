@@ -17,8 +17,8 @@ Three settings, two doors.
 
 - **`/config` → Advisor** — on or off. Off, nothing is written and nothing is
   sent.
-- **`/config` → Advisor interval** — how many of the agent's turns pass
-  between notes: 5 · 10 · 20 · 50 (10 by default; the floor is 1).
+- **`/config` → Advisor interval** — how many minutes pass between notes:
+  10 · 20 · 30 · 45 · 60 (10 by default; the floor is 1).
 - **`/submodels` → ADVISOR** — the advisor's model, picked from the same live
   catalogue the main `/model` picker offers: every signed-in family's models
   and the local catalogue, carriers included. `tab` moves between the CONSOLE
@@ -35,25 +35,30 @@ round and why, addressed to you, never to the model.
 
 ## What the agent sees
 
-Every `interval` turns of the agent — an operator turn on the main chat, a
-tool round for a crewmate or a workflow worker — the advisor is shown the new
-rows of the agent's conversation since its last look (the operator's lines,
-the agent's replies, its tool calls with their results clipped; never the
-system prompt) beside its own earlier notes, and asked for one note of at
-most eight lines, addressed to the agent. The note lands in the agent's
-context as a user row with the advisor's provenance:
+Once `interval` minutes have passed since the advisor's last note — for the
+first note, since the advisor began reading this agent — a note is due, and
+the next boundary of the agent's work takes it: the end of a turn or a
+tool-round boundary on the main chat, a tool-round boundary for a crewmate.
+There the advisor is shown the new rows of the agent's conversation since
+its last look (the operator's lines, the agent's replies, its tool calls
+with their results clipped; never the system prompt) beside its own earlier
+notes, and asked for one note of at most eight lines, addressed to the
+agent. No timer runs: an idle agent produces no rows, and a note that is due
+waits until there is something new to read. The note lands in the agent's
+context as a row with the advisor's provenance:
 
 ```
-10:00:04 [advisor] · claude-opus-4-8 · every 5 turns
+10:00:04 [advisor] · claude-opus-4-8 · every 10 minutes
   You have not run the pin on the base yet.
   Run it on 89017923b before you edit, and keep what it prints.
 ```
 
-On the main chat the note waits for the next turn — it is never dropped into
-a running turn. On a crewmate or a worker it arrives at the next tool-round
-boundary, framed for the model as advice from a second model, never as a
-message from the operator. An advisor that has nothing to say answers
-`carry on`, and nothing lands.
+On every seat the note lands inside the agent's next turn, at its next
+boundary — beside the operator's next prompt, or after the next tool result
+of a turn already running — framed for the model as advice from a second
+model, never as a message from the operator, and never as a turn of its
+own. An advisor that has nothing to say answers `carry on`, and nothing
+lands.
 
 The advisor thinks as deeply as its effort dial asks before it writes, and
 the call has room for that thinking and the note — a question that needs
@@ -63,9 +68,13 @@ main chat shows a muted `[advisor]` row saying so — never silence, and never
 a turn for the model:
 
 ```
-10:00:04 [advisor] · claude-opus-5-5 · every 5 turns
+10:00:04 [advisor] · claude-opus-5-5 · every 10 minutes
   had nothing to say this round — answered with no text, twice
 ```
+
+A round that ends this way counts as the advisor's look: the interval runs
+from it, and the next boundary asks nothing more until the minutes have
+passed again.
 
 ## Asking the advisor
 
@@ -80,11 +89,14 @@ approval of anything.
 
 The advisor keeps its own context per advised agent: the digests it was
 shown and the notes it wrote, on disk beside the agent's transcript under
-`<session>/advisor/<agent id>.jsonl`, so a resumed session finds it. That
-context compacts on its own clock — the gauge is the advisor model's context
-window, never the agent's — so a 256k agent with a 1M advisor never compacts
-both at once, and the smaller model gains the longer memory: when the
-agent's context folds, the advisor still remembers what came before.
+`<session>/advisor/<agent id>.jsonl`, so a resumed session finds it. The
+interval's clock reads that record too: it runs from the advisor's last
+note there, so a session resumed after longer than the interval hears from
+its advisor at its first boundary. That context compacts on its own clock —
+the gauge is the advisor model's context window, never the agent's — so a
+256k agent with a 1M advisor never compacts both at once, and the smaller
+model gains the longer memory: when the agent's context folds, the advisor
+still remembers what came before.
 
 ## What it costs
 

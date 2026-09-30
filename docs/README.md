@@ -97,7 +97,7 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   start it, pull `qwen3.5:9b`, set the window from this machine's memory,
   pick the model and prove a reply, every step asking before it runs.
 - [ADVISOR.md](ADVISOR.md): the advisor, a second model of any family that
-  reads the working model's conversation every few turns and writes it one
+  reads the working model's conversation every few minutes and writes it one
   note as a muted `[advisor]` row — on the main chat, crewmates and workflow
   workers — with the `AskAdvisor` tool, its own memory and its own
   compaction clock, and its spend on `/usage`.
