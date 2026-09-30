@@ -21,7 +21,7 @@ import {
 import { contextPercentLabel, contextWindowLabel } from '../utils/contextFill.js'
 import { ctxForecastEnabled, estimateTurnsToCompact } from '../utils/cockpit/ctxForecast.js'
 import { formatClock, formatCountdown, formatCountdownCoarse } from '../utils/cockpit/quota.js'
-import { scheduledUsageLine, usageCreditsLine, usageViewIsStale, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
+import { scheduledUsageLine, usageCarryWords, usageCreditsLine, usageViewIsStale, usageWindowReached, windowSourceUsages, type ActiveSourceUsage, type UsageWindowView } from '../services/providers/providerUsage.js'
 import { providerIdentityLine } from '../services/providers/providerIdentityLine.js'
 import { localWindowReasonTag } from '../services/providers/local/localWindow.js'
 import { openrouterSlots } from '../services/providers/accountSlots.js'
@@ -404,6 +404,19 @@ function HelmTelemetryRailImpl({
         </Text>
       </Box>,
     )
+  }
+  const reached = usageWindowReached(usage, readNow)
+  const carry = reached !== null ? usageCarryWords(usage.carry, readNow, 'compact') : undefined
+  if (carry !== undefined) {
+    const carryLine = reached === 'wall' ? carry : `100% · ${carry}`
+    const carryColor = usage.carry?.state === 'carries' ? tok.textSecondary : tok.warning
+    for (const [index, line] of wrapPlain(carryLine, rowW - 2).entries()) {
+      usageNodes.push(
+        <Box key={`usage:carry:${index}`} width={rowW} height={1}>
+          <Text color={carryColor}>{`  ${line}`}</Text>
+        </Box>,
+      )
+    }
   }
   for (const other of otherUsages) {
     const otherCommand = other.provider === 'anthropic' ? '/deck' : '/usage'

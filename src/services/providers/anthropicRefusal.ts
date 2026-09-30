@@ -44,14 +44,25 @@ function clockWords(ms: number): string {
   return formatClock(ms)
 }
 
-export function anthropicWindowWords(seen?: AnthropicWindowObservation): string {
-  if (seen === undefined) return 'the Anthropic usage window is reached — the reset time is not known'
+export function anthropicWindowWords(seen?: AnthropicWindowObservation, carry?: string): string {
+  const tail = carry !== undefined && carry !== '' ? ` · ${carry}` : ''
+  if (seen === undefined) return `the Anthropic usage window is reached — the reset time is not known${tail}`
   const head = `the Anthropic usage window is reached for ${seen.account}, seen at ${clockWords(seen.observedAtMs)}`
-  if (seen.resetsAtMs !== undefined) return `${head} — resets at ${clockWords(seen.resetsAtMs)}`
+  if (seen.resetsAtMs !== undefined) return `${head} — resets at ${clockWords(seen.resetsAtMs)}${tail}`
   if (seen.lapsesAtMs !== undefined) {
-    return `${head} — no reset time was given; delegated work is refused until ${clockWords(seen.lapsesAtMs)}`
+    return `${head} — no reset time was given; delegated work is refused until ${clockWords(seen.lapsesAtMs)}${tail}`
   }
-  return head
+  return `${head}${tail}`
+}
+
+export function anthropicCarryWords(): string | undefined {
+  try {
+    const { anthropicExtraUsageCarry, usageCarryWords } =
+      require('./providerUsage.js') as typeof import('./providerUsage.js')
+    return usageCarryWords(anthropicExtraUsageCarry())
+  } catch {
+    return undefined
+  }
 }
 
 export function anthropicSignInWords(opts?: { nonInteractive?: boolean }): string {
@@ -72,5 +83,5 @@ export function standingAnthropicRefusal(): StandingAnthropicRefusal | null {
           ...(verdict.lapsesAtMs !== undefined ? { lapsesAtMs: verdict.lapsesAtMs } : {}),
         }
       : undefined
-  return { kind: 'window', words: anthropicWindowWords(seen) }
+  return { kind: 'window', words: anthropicWindowWords(seen, anthropicCarryWords()) }
 }

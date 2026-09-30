@@ -2,7 +2,7 @@ import { formatResetTime } from '../../utils/format.js'
 import { currentLimits, type ClaudeAILimits } from '../claudeAiLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
-import { activeSourceUsage, bindingWindowOf, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
+import { activeSourceUsage, bindingWindowOf, usageCarryWords, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 
 import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
@@ -88,20 +88,25 @@ export function providerLimitWarningFacts(opts?: {
   const word = label.endsWith(' usage') && label !== 'API usage'
     ? label.slice(0, -' usage'.length)
     : providerDisplayName(view.provider)
-  const fromMeter = binding === undefined ? null : warningFacts(
+  const withCarry = (facts: ProviderLimitWarningFacts | null): ProviderLimitWarningFacts | null => {
+    if (facts === null || facts.pct < 100) return facts
+    const carry = usageCarryWords(view.carry, now)
+    return carry === undefined ? facts : { ...facts, view: { ...facts.view, text: `${facts.view.text} · ${carry}` } }
+  }
+  const fromMeter = binding === undefined ? null : withCarry(warningFacts(
     view.provider,
     word,
     flooredPct(binding.window),
     binding.claim ?? binding.window.key,
     binding.claim !== undefined ? rateLimitWindowName(binding.claim) : binding.windowName,
     resetSecondsOf(binding.window),
-  )
+  ))
   if (view.provider !== 'anthropic') return fromMeter
   if (view.shape !== 'subscription-windows') return null
   const limits = reads?.anthropicLimits?.() ?? currentLimits
   if (limits.isUsingOverage) return anthropicWarning(limits)
   if (limits.status === 'rejected' && (limits.resetsAt === undefined || limits.resetsAt * 1000 > now)) return null
-  const fromHeaders = anthropicWarning(limits)
+  const fromHeaders = withCarry(anthropicWarning(limits))
   if (fromMeter === null) return fromHeaders
   return fromHeaders !== null && fromHeaders.pct > fromMeter.pct ? fromHeaders : fromMeter
 }

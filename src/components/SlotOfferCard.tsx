@@ -15,6 +15,7 @@ type Props = {
   toLabel: string
   headroomObserved: boolean
   resetText: string | null
+  carryWords?: string | null
   onAccept: () => void
   onDismiss: () => void
 }
@@ -25,6 +26,7 @@ export function SlotOfferCard({
   toLabel,
   headroomObserved,
   resetText,
+  carryWords = null,
   onAccept,
   onDismiss,
 }: Props): React.ReactNode {
@@ -61,6 +63,11 @@ export function SlotOfferCard({
         {resetText ? (
           <Text color={FAINT}>
             {GLYPH.dot} resets {resetText}
+          </Text>
+        ) : null}
+        {carryWords ? (
+          <Text color={FAINT}>
+            {GLYPH.dot} {carryWords}
           </Text>
         ) : null}
         {headroomObserved ? (

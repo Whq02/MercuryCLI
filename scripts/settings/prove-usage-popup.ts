@@ -53,6 +53,8 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   refreshProviderUsage: async (id: string, options: { reason: string }) => { const key = `${id}:${options.reason}`; counts.set(key, (counts.get(key) ?? 0) + 1); if (id === 'anthropic') await heldRefresh },
   usageForProvider: owner,
   usageCreditsLine: () => undefined,
+  usageCarryWords: () => undefined,
+  usageWindowReached: () => null,
   anthropicWindowViews: () => subscriber ? windows : [],
   anthropicPoolWindowViews: () => subscriber ? pools : [],
   openaiObservedWindowViews: () => [],
