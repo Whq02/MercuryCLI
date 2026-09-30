@@ -14,7 +14,7 @@
    Google Gemini — API key or Google OAuth   not signed in
    GLM (Z.AI) — API key (general or GLM Co…  not signed in
    DeepSeek — API key                        not signed in
-   xAI — API key (Grok)                      not signed in
+   xAI — Grok subscription sign-in or API …  not signed in
    Meta — API key (Muse)                     not signed in
 
  OpenAI · ChatGPT Plus

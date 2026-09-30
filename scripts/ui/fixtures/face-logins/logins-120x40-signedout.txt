@@ -19,7 +19,7 @@
    │   Kimi (Moonshot) — device-code sign-in o…       not signed in │  │ state: not signed in                       │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · no sign-in on this arm yet               │
    │   DeepSeek — API key                             not signed in │  │                                            │
-   │   xAI — API key (Grok)                           not signed in │  │ · no credential for this family            │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  │ · no credential for this family            │
    │   Meta — API key (Muse)                          not signed in │  │                                            │
    ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
