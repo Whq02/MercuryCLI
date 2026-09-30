@@ -1,11 +1,14 @@
 export {
   ADVISOR_CONTAINER,
+  ADVISOR_CREWMATE_REFUSAL,
   ADVISOR_DEFAULT_MINUTES,
   ADVISOR_DEFAULT_SETTINGS,
   ADVISOR_DOORS,
   ADVISOR_ENV_VAR,
   ADVISOR_MINUTES_FLOOR,
   ADVISOR_MINUTES_LADDER,
+  ADVISOR_SETTINGS_OFF_REFUSAL,
+  ADVISOR_WORKFLOW_REFUSAL,
   advisorDispatchEffort,
   advisorEnabled,
   advisorIntervalWords,
@@ -17,7 +20,6 @@ export {
   readAdvisorSettings,
   resolveAdvisorModel,
   setAdvisorEnabled,
-  setAdvisorCrewmates,
   setAdvisorMinutes,
   type AdvisorSeat,
   type AdvisorSettings,
@@ -99,7 +101,6 @@ export {
 } from './advisorNote.js'
 export {
   ADVISOR_MAIN_TURN_MODES,
-  advisorAgentRound,
   advisorMainRound,
   advisorMainTurnIsBoundary,
   advisorMainTurnSettled,

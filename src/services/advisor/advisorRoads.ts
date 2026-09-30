@@ -82,10 +82,6 @@ export function advisorMainTurnSettled(
   return advisorMainRound(sessionId, rows, road)
 }
 
-export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {
-  return advisorRound(agentId, rows, note => stashAdvisorNote(agentId, note), { ...road, seat: road.seat ?? 'crewmate' })
-}
-
 export function resetAdvisorRoadsForTests(): void {
   inFlight.clear()
   pendingNotes.clear()

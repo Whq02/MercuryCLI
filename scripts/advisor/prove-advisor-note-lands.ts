@@ -482,27 +482,27 @@ section(`§2 THE ADVISOR HAD NOTHING: the fixture answers thinking only, twice, 
   frameScenes.push(['advisor-note-quiet', "the real runner's transcript: the operator's turn, then the muted row that says the advisor had nothing to say", chat])
 }
 
-section('§3 the real session runner under the daemon crewmate role: Advisor alone never opts it in')
-for (const crewmates of [false, true]) {
+section('§3 the real session runner under the daemon crewmate role: the settings on never reach a crewmate — no advisor request, the seeded memory untouched (red on the base: a crewmate opt-in served it)')
+{
   wire.length = 0
   agentReplies = 0
   advisorMode = 'note'
-  const arena = makeArena(`crew-${crewmates}`)
+  const arena = makeArena('crew')
   arena.env.MERCURY_CREW = '1'
   arena.env.MERCURY_CREW_AGENT = 'advisor-proof-crewmate'
   const cfgPath = join(arena.configDir, '.mercury.json')
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Raw
-  cfg.advisor = { enabled: true, crewmates, minutes: MINUTES }
+  cfg.advisor = { enabled: true, crewmates: true, minutes: MINUTES }
   writeFileSync(cfgPath, `${JSON.stringify(cfg, null, 2)}\n`)
-  const sid = crewmates ? 'c0ffee00-0000-4000-8000-00000000ad04' : 'c0ffee00-0000-4000-8000-00000000ad03'
-  const memory = seedEarlierNote(arena, sid)
-  const run = await runSession(arena, sid, ['crew line 1', 'crew line 2'], { results: 2, label: 'two results' }, 30_000, next => next !== 1 || !crewmates || noteOnDisk(memory))
-  check(`daemon crewmate, opt-in=${crewmates}: finishes with two turns and no more`, run.exit === 0 && run.results === 2, j({ exit: run.exit, results: run.results, stderr: run.stderr.slice(-300) }))
+  const sid = 'c0ffee00-0000-4000-8000-00000000ad03'
+  seedEarlierNote(arena, sid)
+  const run = await runSession(arena, sid, ['crew line 1', 'crew line 2'], { results: 2, label: 'two results' }, 30_000)
+  check('daemon crewmate: finishes with two turns and no more', run.exit === 0 && run.results === 2, j({ exit: run.exit, results: run.results, stderr: run.stderr.slice(-300) }))
   const requests = wire.filter(w => w.kind === 'advisor')
-  check(`daemon crewmate, opt-in=${crewmates}: ${crewmates ? 'one' : 'no'} scheduled advisor request`, requests.length === (crewmates ? 1 : 0), String(requests.length))
+  check('daemon crewmate: no scheduled advisor request, even with a crewmates key written by hand into the settings', requests.length === 0, String(requests.length))
   const file = transcriptFileOf(arena, sid)
   const kinds = memoryKindsOf(file, sid)
-  check(`daemon crewmate, opt-in=${crewmates}: ${crewmates ? 'the note has its memory beside the seeded one' : 'the seeded memory is untouched — nothing was opened'}`, file !== null && kinds.join(',') === (crewmates ? 'head,note,digest,note' : 'head,note'), j(kinds))
+  check('daemon crewmate: the seeded memory is untouched — nothing was opened', file !== null && kinds.join(',') === 'head,note', j(kinds))
 }
 
 if (frameDir !== null) {

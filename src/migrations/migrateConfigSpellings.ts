@@ -51,7 +51,7 @@ export function rewriteRetiredGlobalConfigKeys<T extends object>(config: T): T {
   return dropRetiredKeys(rewriteRetiredKeys(config, RETIRED_GLOBAL_CONFIG_KEYS), DROPPED_GLOBAL_CONFIG_KEYS)
 }
 
-export const DROPPED_ADVISOR_CONFIG_KEYS: readonly string[] = ['seats']
+export const DROPPED_ADVISOR_CONFIG_KEYS: readonly string[] = ['seats', 'crewmates']
 
 export function dropRetiredAdvisorConfigKeys<T extends { advisor?: object }>(config: T): T {
   const advisor = config.advisor
