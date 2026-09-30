@@ -135,8 +135,8 @@ section('§2 the model allowlist: a family word is any family the live list know
   try {
     const fam = await import('../../src/utils/model/modelFamilies.ts')
     words = fam.modelFamilyWords()
-    check('the family words carry every route the id-space table declares, and anthropic', ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'gemini', 'openrouter', 'huggingface', 'local', 'openai-compat'].every(w => words.includes(w)), words.join(' · '))
-    check("the family words carry every family's class alias", ['gpt', 'glm', 'kimi', 'deepseek', 'gemini', 'compat'].every(w => words.includes(w)), words.join(' · '))
+    check('the family words carry every route the id-space table declares, and anthropic', ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'gemini', 'openrouter', 'huggingface', 'local', 'openai-compat'].every(w => words.includes(w)), words.join(' · '))
+    check("the family words carry every family's class alias", ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'gemini', 'compat'].every(w => words.includes(w)), words.join(' · '))
     check('the family words carry the first-party sub-families', ['opus', 'sonnet', 'haiku', 'fable'].every(w => words.includes(w)), words.join(' · '))
     check('a model id is never a family word', !fam.isModelFamilyWord('gpt-5.6-sol') && !fam.isModelFamilyWord('claude-opus-5'))
   } catch (e) {
