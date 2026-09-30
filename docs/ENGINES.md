@@ -83,8 +83,9 @@ with their date.
 xAI's Grok rows follow the same road: with an xAI key present, Mercury reads
 the account's model list when the picker composes its rows and paints the
 Grok ids it names; the family word `grok` means the newest Grok row that list
-serves, and while the list is unreachable the recorded rows stand in with
-their date.
+serves — as `deepseek`, `kimi` and `glm` mean the newest row of their own
+family's list — and while the list is unreachable the recorded rows stand in
+with their date.
 
 Moonshot's default, picker and specialist choices follow the account's live
 model list. An API key reads the platform list; a Kimi sign-in reads its

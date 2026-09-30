@@ -169,6 +169,10 @@ section('§2 the four account states — the rows each family paints on /model')
         check(`[${tag}] no GPT row claims the signed-out sentence`, gpt.every(o => !(o.unavailable ?? '').includes('connect OpenAI to browse its models')))
       }
       check(`[${tag}] every key-lane family without a key stays gated (the law is symmetric)`, options.filter(o => o.unavailable === 'no API key attached').length > 0)
+      for (const [word, group] of [['glm', 'Mercury — Z.AI models'], ['kimi', 'Mercury — Moonshot models'], ['deepseek', 'Mercury — DeepSeek models']] as const) {
+        const head = options.find(o => o.group === group && !isProviderActionRow(o.value))
+        check(`[${tag}] the bare word '${word}' resolves to the first row its family paints (${String(head?.value)}), gated exactly as that row is`, head !== undefined && parseUserSpecifiedModel(word) === head.value && resolvesToExistingOption(options, word), `${parseUserSpecifiedModel(word)} vs ${String(head?.value)}`)
+      }
     }
   }
   setOpenai(false)

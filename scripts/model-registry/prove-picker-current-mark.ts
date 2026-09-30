@@ -130,6 +130,20 @@ section('§4 the reason footer wraps a whole sentence, bounded, and stays one li
   check('a short reason stays on one footer line', lines(frame).filter(line => line.includes('claude-opus-4-6 · no key — not selectable')).length === 1, lines(frame).slice(-6).join('\n'))
 }
 
+section("§5 a session on a bare family word marks the row the word means, as a session on 'grok' marks xAI's newest row")
+{
+  const every = choicesOf(options())
+  for (const [word, head] of [['kimi', 'kimi-k3'], ['deepseek', 'deepseek-v4-pro'], ['glm', 'glm-5.3']] as const) {
+    process.env.MERCURY_MODEL = word
+    const served = getMainLoopModel()
+    check(`'${word}' as the session model is the main-loop model ${head}`, served === head && parseUserSpecifiedModel(word) === head, served)
+    const frame = await renderToString(React.createElement(MercuryModelPicker, { models: every, current: served, ctxPct: null } as never), 120)
+    const marked = lines(frame).filter(line => /\bcurrent\b/.test(line) && !line.includes('model IDs are real'))
+    check(`'${word}': exactly one row carries the current mark and it is the ${head} row`, marked.length === 1 && marked[0]?.includes(head) === true, JSON.stringify(marked))
+    delete process.env.MERCURY_MODEL
+  }
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(`\nprove-picker-current-mark: ${failures === 0 ? 'green' : `${failures} failed`}`)
 process.exit(failures === 0 ? 0 : 1)

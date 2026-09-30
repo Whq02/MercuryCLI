@@ -49,6 +49,7 @@ function classification(file: string, table: string, owner: string, body: string
     const permitted: Record<string, string[]> = {
       'src/utils/router/providers/zai.ts': ['describeZaiProvider', 'listZaiModels'],
       'src/utils/swarm/engineDispatch.ts': ['resolveEngineDispatch'],
+      'src/utils/model/bareFamilyWords.ts': ['glmHeadRow'],
       'src/utils/model/modelOptions.ts': ['keyLanePins'],
       'src/utils/model/capabilities.ts': ['resolveContextWindow'],
     }
@@ -120,8 +121,9 @@ for (const path of files(SRC)) {
 const options = readFileSync(join(SRC, 'utils/model/modelOptions.ts'), 'utf8')
 const dispatch = readFileSync(join(SRC, 'utils/swarm/engineDispatch.ts'), 'utf8')
 const adapter = readFileSync(join(SRC, 'utils/router/providers/moonshot.ts'), 'utf8')
+const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'utf8')
 check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))
-check('Moonshot specialist choice and exact admission read the catalogue, never a parallel static projection', dispatch.includes('moonshotCatalogueEntries()') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
+check('Moonshot specialist choice and exact admission read the catalogue, never a parallel static projection', dispatch.includes('bareFamilyWordOf(modelParam)') && familyWords.includes('moonshotCatalogueRows().rows[0]') && !familyWords.includes('KIMI_DISPLAY_PINS') && dispatch.includes('qualifyMoonshotModel(') && !dispatch.includes('KIMI_STATIC_CATALOGUE'))
 check('the Moonshot adapter does not rebuild a chooser from typed pins', adapter.includes('moonshotCatalogueRows()') && !adapter.includes('KIMI_DISPLAY_PINS'))
 check('the census actually found consumers', consumers > 0)
 console.log(`${consumers} consumers, ${failures} failures`)

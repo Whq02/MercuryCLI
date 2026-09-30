@@ -23,6 +23,7 @@ import {
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
 import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/deepseekPins.js'
+import { resolveBareFamilyWord } from './bareFamilyWords.js'
 
 export type ModelShortName = string
 export type ModelName = string
@@ -143,14 +144,15 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(firstPartyString('opus55'))
     case 'opusplan':
       return reattach(getDefaultSonnetModel())
-    case 'grok': {
-      const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
-      return reattach(xaiCatalogueRows().rows[0]?.id ?? 'grok')
-    }
     case 'best':
       return getBestModel()
     default:
       break
+  }
+
+  const familyRow = resolveBareFamilyWord(lowered)
+  if (familyRow !== undefined) {
+    return reattach(familyRow)
   }
 
   if (RETIRED_LARGE_IDS.has(bare)) {
