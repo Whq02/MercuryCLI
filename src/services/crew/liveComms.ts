@@ -318,6 +318,21 @@ export function subscribeLiveComms(
   return liveCommsStore(crew, opts?.dir).subscribe(listener, { immediate: opts?.immediate ?? true })
 }
 
+export function _statsForProofs(crew: string, dir?: string): {
+  listeners: number
+  watcher: boolean
+  pollTimer: boolean
+  pollFloorTimer: boolean
+} {
+  const stats = liveCommsStore(crew, dir)._statsForProofs()
+  return {
+    listeners: stats.listeners,
+    watcher: stats.watcher || stats.watcherStarting,
+    pollTimer: stats.pollTimer,
+    pollFloorTimer: stats.pollFloorTimer,
+  }
+}
+
 export function liveCrewOf(crew?: string): string {
   return crew ?? getCrewName() ?? 'default'
 }
