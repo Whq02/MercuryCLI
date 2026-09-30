@@ -1,17 +1,17 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const BIN = process.env.MERCURY_TERMINAL_GONE_BIN ?? join(ROOT, 'dist/mercury.mjs')
 const HARNESS = join(import.meta.dir, 'lost-terminal.py')
-const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-terminal-gone-'))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-terminal-gone-')))
 const SID = '00000000-aaaa-bbbb-cccc-e10e10e10e10'
 
 let failures = 0
@@ -81,7 +81,7 @@ async function loseTerminal(name: string, env: Record<string, string>): Promise<
       ...Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NODE_ENV' && !k.startsWith('MERCURY_'))),
       MERCURY_CONFIG_DIR: home,
       MERCURY_CREDENTIAL_STORE: 'file',
-      ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
+      ANTHROPIC_API_KEY: FIXTURE_API_KEY,
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1',
       LT_ARGV: JSON.stringify(['--resume', SID, '--debug']),
