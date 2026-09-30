@@ -4,6 +4,7 @@
 # gate-watch: src/utils/config/** src/utils/messages/** src/utils/cockpit/contextUsageLive*
 # gate-watch: src/utils/cockpit/ctxForecast* src/utils/swarm/inProcessRunner.ts src/utils/toolResultStorage.ts
 # gate-watch: scripts/lib/fixtureApi.ts src/commands/fullscreen/fullscreen.tsx
+# gate-watch: src/QueryEngine.ts src/bootstrap/state.ts src/commands/context/context-noninteractive.ts src/utils/model/model.ts
 # gate-watch: src/commands/model/mercuryModel.tsx src/components/* src/constants/prompts.ts
 # gate-watch: src/prompt/mercuryContract.ts src/services/providers/openai/openaiCallModel.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts

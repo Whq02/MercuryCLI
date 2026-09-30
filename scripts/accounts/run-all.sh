@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: scripts/lib/hermetic.ts scripts/lib/settingsPopupHarness.ts
-# gate-watch: scripts/providers/lib/xai-usage-fixture.ts scripts/ui/face-logins-stills.ts
+# gate-watch: scripts/providers/lib/xai-usage-fixture.ts scripts/providers/lib/xai-auth-fixture.ts scripts/ui/face-logins-stills.ts
 # gate-watch: src/components/mercury-ui/parity/AccountView* src/services/api/errors* src/utils/** src/services/wallet/**
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
