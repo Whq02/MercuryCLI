@@ -67,7 +67,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'gemini' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'gemini' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'

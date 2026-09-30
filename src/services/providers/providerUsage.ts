@@ -539,6 +539,10 @@ export interface ZaiQuotaFailureView {
 }
 
 function laneCredentialedLive(provider: RouterProviderId): boolean {
+  if (provider === 'xai') {
+    const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    return resolveXaiApiKey() !== undefined
+  }
   if (provider === 'deepseek') {
     const { resolveDeepseekApiKey } =
       require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
@@ -1218,6 +1222,12 @@ export function usageForProvider(
     }
   }
 
+  if (provider === 'xai') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    return credentialed
+      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: 'usage limits and credits are not reported by the xAI inference API' }
+      : { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
+  }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     const uncredentialedLabel = provider === 'deepseek' ? 'DeepSeek usage' : 'Endpoint usage'

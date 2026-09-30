@@ -38,6 +38,7 @@ export type CacheLane =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'

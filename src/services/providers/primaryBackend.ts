@@ -15,6 +15,8 @@ import { moonshotCallModel, moonshotLiveProofState } from './moonshot/moonshotCa
 import { moonshotDispatchSource } from './moonshot/moonshotAccounts.js'
 import { deepseekCallModel, deepseekLiveProofState } from './deepseek/deepseekCallModel.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
+import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
+import { resolveXaiApiKey } from './xai/xaiAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -34,6 +36,7 @@ export type PrimaryBackendId =
   | 'openai-responses'
   | 'moonshot-chat'
   | 'deepseek-chat'
+  | 'xai-chat'
   | 'openai-compat-chat'
   | 'openrouter-chat'
   | 'gemini-generate'
@@ -49,6 +52,7 @@ export interface AgentRuntimeRef {
     | 'openai'
     | 'moonshot'
     | 'deepseek'
+    | 'xai'
     | 'openai-compat'
     | 'openrouter'
     | 'gemini'
@@ -62,6 +66,7 @@ export interface AgentRuntimeRef {
     | { kind: 'gpt'; major: number; minor: number; variant: string }
     | { kind: 'kimi' }
     | { kind: 'deepseek' }
+    | { kind: 'grok' }
     | { kind: 'compat' }
     | { kind: 'openrouter' }
     | { kind: 'gemini' }
@@ -164,6 +169,18 @@ const deepseekBackend: PrimaryAgentBackend = {
     return proof
       ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
       : { state: 'configured', detail: 'key present · shared compat runtime landed · no live turn proven this session' }
+  },
+}
+
+const xaiBackend: PrimaryAgentBackend = {
+  id: 'xai-chat', provider: 'xai', label: 'xAI (native, in-process)',
+  callModel: xaiCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveXaiApiKey()) return { state: 'unavailable', reason: 'no API key (/logins xai, or XAI_API_KEY)' }
+    const proof = xaiLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · shared compat runtime · no live turn proven this session' }
   },
 }
 
@@ -270,6 +287,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   openai: openaiBackend,
   moonshot: moonshotBackend,
   deepseek: deepseekBackend,
+  xai: xaiBackend,
   'openai-compat': compatBackend,
   openrouter: openrouterBackend,
   gemini: geminiBackend,
@@ -307,6 +325,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'kimi' }
   } else if (route === 'deepseek') {
     family = { kind: 'deepseek' }
+  } else if (route === 'xai') {
+    family = { kind: 'grok' }
   } else if (route === 'openai-compat') {
     family = { kind: 'compat' }
   } else if (route === 'openrouter') {
