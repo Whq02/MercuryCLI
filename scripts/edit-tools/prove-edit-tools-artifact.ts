@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -58,11 +58,12 @@ interface Check {
   detail?: string
 }
 interface Cert {
+  verdict: string
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
 function runDoctor(extraEnv: Record<string, string> = {}): Cert {
-  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json'], {
+  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json'], {
     cwd,
     encoding: 'utf8',
     timeout: 300_000,
@@ -74,7 +75,10 @@ function runDoctor(extraEnv: Record<string, string> = {}): Cert {
       ...extraEnv,
     },
   })
-  return JSON.parse(raw) as Cert
+  if (result.error) throw result.error
+  const cert = JSON.parse(result.stdout) as Cert
+  check('doctor exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
+  return cert
 }
 
 function workbenchCheck(cert: Cert): Check | undefined {
