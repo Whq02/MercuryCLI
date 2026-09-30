@@ -390,6 +390,7 @@ if (!existsSync(DIST) || !nodeBin) {
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_VERIFY_EVIDENCE: '0',
+    ...(process.env.MERCURY_TMPDIR ? { MERCURY_TMPDIR: process.env.MERCURY_TMPDIR } : {}),
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
   }
