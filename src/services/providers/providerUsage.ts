@@ -410,6 +410,7 @@ export interface ActiveUsageReads {
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
+  kimiManagedError?: () => string | undefined
   spend?: (route: RouterProviderId) => ProviderSessionSpend
   anthropicPlan?: () => string | null
 }
@@ -534,12 +535,14 @@ export interface KimiManagedUsageView {
   observedAtMs: number
   quota?: KimiUsageWindowView
   windows: KimiUsageWindowView[]
+  extraUsage?: { balance: string; currency: string }
 }
 export interface KimiUsageWindowView {
   name?: string
   windowMinutes?: number
-  used: number
-  limit: number
+  used?: number
+  limit?: number
+  usedRatio?: number
   resetsAtMs?: number
 }
 
@@ -665,11 +668,12 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
     const label = w.windowMinutes === 7 * 24 * 60 ? '7d' : w.windowMinutes !== undefined ? usageWindowLabel(w.windowMinutes) : fallbackLabel
     const count = (seen.get(label) ?? 0) + 1
     seen.set(label, count)
+    const usedPct = w.usedRatio !== undefined ? w.usedRatio * 100 : w.used !== undefined && w.limit !== undefined && w.limit > 0 ? (w.used / w.limit) * 100 : undefined
     return {
       key: count === 1 ? label : `${label}#${count}`,
       label,
       state: 'live',
-      ...(w.limit > 0 ? { usedPct: Math.min(100, Math.max(0, (w.used / w.limit) * 100)) } : {}),
+      ...(usedPct !== undefined ? { usedPct: Math.min(100, Math.max(0, usedPct)) } : {}),
       ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
       observedAtMs: usage.observedAtMs,
       source: 'endpoint',
@@ -678,7 +682,7 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
   const windows = [...usage.windows].sort(
     (a, b) => (a.windowMinutes ?? Number.POSITIVE_INFINITY) - (b.windowMinutes ?? Number.POSITIVE_INFINITY),
   )
-  const views = windows.map(w => view(w, 'win'))
+  const views = windows.map(w => view(w, w.name ?? 'win'))
   if (usage.quota) views.push(view(usage.quota, 'quota'))
   return views
 }
@@ -936,6 +940,17 @@ function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastErr
     }
   }
   return { state: 'unreported', reason: 'the key endpoint stated no cap or balance', compact: 'not stated' }
+}
+
+function kimiManagedCredits(usage: KimiManagedUsageView | null, error?: string): UsageCreditsView {
+  if (usage === null) return { state: 'unreported', reason: error ?? 'not read yet — /usage samples Kimi /usages', compact: error ? 'not read' : 'not read yet' }
+  if (usage.extraUsage === undefined) return {
+    state: 'unreported',
+    reason: 'Kimi /usages states no Extra Usage balance with a currency — Kimi Code Console shows membership billing',
+    compact: 'not stated',
+  }
+  const amount = `${usage.extraUsage.currency} ${usage.extraUsage.balance}`
+  return { state: 'reported', display: `${amount} Extra Usage balance`, compact: `${amount} extra`, source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
 }
 
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
@@ -1293,6 +1308,7 @@ export function usageForProvider(
     }
     if (account.kind === 'kimi-oauth') {
       const managed = reads?.kimiManagedUsage ? reads.kimiManagedUsage() : liveKimiManagedUsage()
+      const error = reads?.kimiManagedError ? reads.kimiManagedError() : reads?.kimiManagedUsage ? undefined : (require('./moonshot/moonshotUsageState.js') as typeof import('./moonshot/moonshotUsageState.js')).kimiManagedUsageError()
       return {
         provider,
         sourceKind: 'oauth',
@@ -1300,6 +1316,8 @@ export function usageForProvider(
         shape: 'subscription-windows',
         windows: kimiManagedWindowViews(managed),
         pools: [],
+        credits: kimiManagedCredits(managed, error),
+        ...(error ? { readerNote: error, readerNoteCompact: error } : {}),
         spend,
         tier: 'Kimi sign-in',
       }

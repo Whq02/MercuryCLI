@@ -92,6 +92,21 @@ section('§1 the readers land in the owner through the one refresh door, stamped
   check('moonshot key: the door asked the balance endpoint once', fetchCalls === 1, String(fetchCalls))
   check('moonshot key: the owner carries the USD balance, stamped', ms.sourceKind === 'api-key' && ms.balance?.display === 'USD 5.5' && ms.balance?.observedAtMs === NOW, JSON.stringify(ms.balance))
 
+  const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
+  delete process.env.MOONSHOT_API_KEY
+  moonshotAccounts.writeMoonshotTokens({ accessToken: 'kimi-fixture', refreshToken: 'kimi-refresh-fixture' }, 'global')
+  fetchCalls = 0
+  await owner.refreshProviderUsage('moonshot', {
+    fetchImpl: fixtureFetch(url => {
+      check('Kimi OAuth uses the coding usage endpoint, not the platform balance', url.endsWith('/coding/v1/usages'), url)
+      return json({ usages: { limit_5h: { used_ratio: 0.25 } }, boosterWallet: { balance: { type: 'BOOSTER', amount: '2000000000', amountLeft: '1234000000' }, monthlyChargeLimit: { currency: 'USD', priceInCents: '5000' } } })
+    }), env: process.env, now, force: true,
+  })
+  const kimi = owner.usageForProvider('moonshot')
+  check('Kimi OAuth credits and windows share the one managed read', fetchCalls === 1 && kimi.sourceKind === 'oauth' && kimi.credits?.display === 'USD 12.34 Extra Usage balance' && kimi.credits.observedAtMs === NOW && kimi.windows[0]?.observedAtMs === NOW && kimi.windows[0]?.usedPct === 25, JSON.stringify(kimi))
+  moonshotAccounts.writeMoonshotTokens(null)
+  process.env.MOONSHOT_API_KEY = 'sk-moonshot-fixture'
+
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
   fetchCalls = 0
   await owner.refreshProviderUsage('openrouter', {

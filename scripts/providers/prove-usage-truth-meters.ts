@@ -212,7 +212,10 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   check("the Hugging Face sign-in's summary leads with the stated plan tier and carries the absence (whoami-v2 named) and the credits line", hfSummary.startsWith('Hugging Face PRO · ') && hfSummary.includes('whoami-v2') && hfSummary.includes(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`) && !/USD/.test(hfSummary), hfSummary)
   const kimi = owner.usageForProvider('moonshot', { moonshotAccount: () => ({ kind: 'kimi-oauth' }), kimiManagedUsage: () => ({ observedAtMs: NOW, windows: [{ windowMinutes: 300, used: 1, limit: 10 }] }), spend: () => spend })
   const local = owner.usageForProvider('local', { localAccount: () => ({ kind: 'keyless', label: 'Ollama', serverCount: 1, modelCount: 2 }) as never, spend: () => spend })
-  check('a Kimi sign-in and a local server carry no credits line (windows or nothing are their meter)', kimi.credits === undefined && local.credits === undefined)
+  check('a local server carries no credits line (nothing is its meter)', local.credits === undefined)
+  check('a Kimi sign-in without a wallet names the checked usage and membership billing views', kimi.credits?.state === 'unreported' && line(kimi)?.includes('Kimi /usages states no Extra Usage balance') === true && line(kimi)?.includes('Kimi Code Console') === true && line(kimi, 'compact') === 'credits not stated', line(kimi))
+  const kimiWallet = owner.usageForProvider('moonshot', { moonshotAccount: () => ({ kind: 'kimi-oauth' }), kimiManagedUsage: () => ({ observedAtMs: NOW - 4_000, windows: [], extraUsage: { balance: '12.34', currency: 'CNY' } }), spend: () => spend })
+  check('Kimi Extra Usage carries its stated currency and the managed read stamp', line(kimiWallet) === 'credits: CNY 12.34 Extra Usage balance · endpoint-fed · read 4 s ago' && line(kimiWallet, 'compact') === 'credits CNY 12.34 extra', line(kimiWallet))
   const extra = (over: Partial<import('../../src/services/claudeAiLimits.ts').AnthropicExtraUsageRecord>, readAtMs = NOW - 10_000): Reads => ({
     ...subscriptionReads(),
     anthropicExtraUsage: () => ({ stated: true, enabled: true, used: { amount: 1240, currency: 'USD', exponent: 2 }, limit: { amount: 5000, currency: 'USD', exponent: 2 }, period: 'month', utilizationPct: 24.8, source: 'endpoint', observedAtMs: readAtMs, ...over }),

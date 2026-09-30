@@ -15,7 +15,7 @@ const home = mkdtempSync(join(parent, 'openrouter-proof-'))
 for (const name of Object.keys(process.env)) {
   if (/^(MERCURY_|ANTHROPIC_|CLAUDE_|OPENROUTER_|OPENAI_|ZAI_|GOOGLE_|GEMINI_|MOONSHOT_|DEEPSEEK_|HF_|HUGGINGFACE_|TYPESAFE_|AWS_|AZURE_)/.test(name) || /proxy/i.test(name)) delete process.env[name]
 }
-Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_AUTH_SCOPE_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_HELM_CONSOLE: '0', MERCURY_EVOLUTION_LEDGER: '0', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
+Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_AUTH_SCOPE_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_HELM_CONSOLE: '0', MERCURY_EVOLUTION_LEDGER: '0', MERCURY_MODEL: 'openrouter/fixture/model', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' })
 for (const name of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENAI_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_GEMINI_OAUTH_AUTH_BASE', 'MERCURY_GEMINI_OAUTH_TOKEN_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_LOCAL_BASE_URL', 'MERCURY_COMPAT_BASE_URL', 'MERCURY_JEV_BASE']) process.env[name] = 'http://127.0.0.1:1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const mintedKey = 'proof-openrouter-minted-key'
@@ -119,19 +119,20 @@ try {
   await stub('../../src/components/mercury-ui/components.js', { useNowTick: () => Date.now() })
   const { Usage } = await import('../../src/components/Settings/Usage.js')
   const { HelmTelemetryRail } = await import('../../src/components/HelmTelemetryRail.js')
+  const { Deck } = await import('../../src/components/Deck.js')
   const { railPlanAt } = await import('../../src/utils/helmGeometry.js')
   const ink = await import('../../src/ink.js')
   const { default: StdinContext } = await import('../../src/ink/components/StdinContext.js')
-  async function renderRefusal(message: string, tag: string) {
-    for (const size of [[178, 51], [80, 21]]) {
+  async function renderRefusal(message: string | undefined, tag: string) {
+    for (const size of message ? [[178, 51], [80, 21]] : [[120, 51], [80, 51]]) {
       ;[columns, rows] = size as [number, number]
-      for (const surface of ['rail', 'usage']) {
+      for (const surface of message ? ['rail', 'usage'] : ['rail', 'usage', 'deck']) {
         const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
         const stream = new PassThrough()
         stream.resume()
         const stdout = Object.assign(stream, { columns, rows }) as unknown as NodeJS.WriteStream
         const context = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: new ink.EventEmitter(), internal_querier: null }
-        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : React.createElement(Usage, { width: columns === 178 ? 146 : 76, rowBudget: rows === 51 ? 29 : 21, openToken: columns })
+        const child = surface === 'rail' ? React.createElement(HelmTelemetryRail, { width: railPlanAt(columns, true).telemetryW, availRows: rows }) : surface === 'deck' ? React.createElement(Deck, { onClose() {} }) : React.createElement(Usage, { width: Math.min(146, columns - 4), rowBudget: rows === 51 ? 29 : 21, openToken: columns })
         const node = React.createElement(StdinContext.Provider, { value: context }, React.createElement(ink.Box, { flexDirection: 'column', width: columns }, child))
         let painted = () => {}
         const firstFrame = new Promise<void>(resolve => { painted = resolve })
@@ -142,6 +143,11 @@ try {
         const name = `${tag}-${surface}-${columns}x${rows}.txt`
         if (frames) { writeFileSync(join(frames, name), frame); index.push(name) }
         const text = compact(frame)
+        if (message === undefined) {
+          check(`${name}: the OAuth source credits paint within the source-render budgets`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('37.50') && text.includes('credits') && (surface === 'deck' || text.includes('OAuth-minted key')), frame)
+          instance.unmount(); instance.cleanup(); stream.destroy()
+          continue
+        }
         check(`${name}: source render stays within both budgets and carries both slot headings`, frame.split('\n').length <= rows && frame.split('\n').every(line => stringWidth(line) <= columns) && text.includes('OAuth-minted key') && text.includes('API key'), frame)
         const mintedAt = text.indexOf('OAuth-minted key')
         const messageAt = text.indexOf(message, mintedAt)
@@ -191,6 +197,24 @@ try {
   connect.completeWithRedirect('fixture-code')
   await connect.result
   check('re-minting clears expiration even when the fixture reuses the key', accounts.resolveOpenrouterApiKey()?.source === 'oauth' && readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === undefined)
+  mintedStatus = 200
+  const now = Date.now()
+  const countBefore = requests.length
+  await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true, now: () => now })
+  const oauthUsage = owner.usageForProvider('openrouter')
+  check('the newly OAuth-minted key rides the existing key reader once', accounts.resolveOpenrouterApiKey()?.source === 'oauth' && requests.length === countBefore + 1 && requests.at(-1) === 'GET /key minted')
+  check('OAuth credits are the same capped-key credits with the same stamp', oauthUsage.credits?.display === '37.50 remaining under the key cap' && oauthUsage.credits.observedAtMs === now && oauthUsage.windows[0]?.observedAtMs === now)
+  await renderRefusal(undefined, 'oauth-credits')
+  const fresh = await import('../../src/services/providers/usageFreshness.js')
+  check('OAuth credits retain the generic stale spelling', owner.usageCreditsLine(oauthUsage.credits, now + fresh.usageStaleAfterMs() + 60_000)?.includes('stale') === true)
+  mintedStatus = 503
+  mintedBody = { error: { message: 'Fixture credits temporarily unavailable' } }
+  await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
+  const failedOAuth = owner.usageForProvider('openrouter')
+  check('a refused OAuth credit read keeps its last balance and names the OAuth slot', failedOAuth.credits?.display === oauthUsage.credits?.display && failedOAuth.credits?.observedAtMs === now && failedOAuth.readerNote === 'credit truth unavailable for OAuth-minted key' && readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'Fixture credits temporarily unavailable')
+  const noCap = owner.usageForProvider('openrouter', { openrouterKeyPresent: () => true, openrouterObserved: () => ({ usage: { limit: null, limitRemaining: null, observedAtMs: now } }) })
+  check('an OAuth key with no cap never fabricates account credits', noCap.credits?.state === 'unreported' && noCap.credits.reason?.includes('uncapped key') === true)
+  mintedStatus = 401
   mintedBody = undefined
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
   check('a bodiless minted 401 reports HTTP 401 without inventing expiry', readSlots().find(slot => slot.id === 'openrouter:oauth-key')?.stateNote === 'key endpoint returned HTTP 401 · /logins openrouter: ⌫ removes it')
