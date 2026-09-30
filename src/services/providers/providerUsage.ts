@@ -45,10 +45,10 @@ import {
 } from './usageFreshness.js'
 import {
   openaiLimitWindow,
-  openaiObservedUsage,
   type OpenaiLimitWindow,
   type OpenaiObservedUsage,
 } from './openai/openaiLimitState.js'
+import { openaiSubscriptionUsage, openaiUsageReaderState } from './openai/openaiUsageState.js'
 import { readMintedOpenrouterKey, resolveOpenrouterApiKey, type OpenrouterKeySource } from './openrouter/openrouterAccounts.js'
 import {
   openrouterLimitWindow,
@@ -68,8 +68,14 @@ import {
 } from './huggingface/huggingfaceAccounts.js'
 import {
   HUGGINGFACE_USAGE_ABSENCE_NOTE,
+  huggingfaceAccountFactsFailure,
+  huggingfaceAccountFactsFailureWords,
   huggingfaceLimitWindow,
+  huggingfaceObservedAccountFacts,
   huggingfaceObservedRate,
+  refreshHuggingfaceAccountFacts,
+  type HuggingfaceAccountFacts,
+  type HuggingfaceAccountFactsFailure,
   type HuggingfaceLimitWindow,
 } from './huggingface/huggingfaceUsageState.js'
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
@@ -394,6 +400,8 @@ export interface ActiveUsageReads {
   huggingfaceAccount?: () => HuggingfaceAccountRef | undefined
   huggingfaceLimited?: () => HuggingfaceLimitWindow
   huggingfaceRate?: () => { remaining: number; resetsAtMs?: number; observedAtMs: number } | null
+  huggingfaceAccountFacts?: () => HuggingfaceAccountFacts | null
+  huggingfaceAccountFactsFailure?: () => HuggingfaceAccountFactsFailure | null
   localAccount?: () => LocalAccountRef | undefined
   laneCredentialed?: (provider: RouterProviderId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
@@ -402,6 +410,7 @@ export interface ActiveUsageReads {
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
+  kimiManagedError?: () => string | undefined
   spend?: (route: RouterProviderId) => ProviderSessionSpend
   anthropicPlan?: () => string | null
 }
@@ -423,6 +432,11 @@ export interface UsageRefreshIo {
 export async function refreshProviderUsage(provider: RouterProviderId, io?: UsageRefreshIo): Promise<void> {
   try {
     switch (provider) {
+      case 'openai': {
+        const { refreshOpenaiUsage } = require('./openai/openaiUsageState.js') as typeof import('./openai/openaiUsageState.js')
+        await refreshOpenaiUsage(io)
+        return
+      }
       case 'openrouter':
         await refreshOpenrouterKeyUsage(io)
         return
@@ -461,6 +475,14 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       }
       case 'local':
         await refreshLocalDiscovery({
+          ...(io?.env !== undefined ? { env: io.env } : {}),
+          ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}),
+          ...(io?.now !== undefined ? { now: io.now } : {}),
+          ...(io?.force !== undefined ? { force: io.force } : {}),
+        })
+        return
+      case 'huggingface':
+        await refreshHuggingfaceAccountFacts({
           ...(io?.env !== undefined ? { env: io.env } : {}),
           ...(io?.fetchImpl !== undefined ? { fetchImpl: io.fetchImpl } : {}),
           ...(io?.now !== undefined ? { now: io.now } : {}),
@@ -518,12 +540,14 @@ export interface KimiManagedUsageView {
   observedAtMs: number
   quota?: KimiUsageWindowView
   windows: KimiUsageWindowView[]
+  extraUsage?: { balance: string; currency: string }
 }
 export interface KimiUsageWindowView {
   name?: string
   windowMinutes?: number
-  used: number
-  limit: number
+  used?: number
+  limit?: number
+  usedRatio?: number
   resetsAtMs?: number
 }
 
@@ -653,11 +677,12 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
     const label = w.windowMinutes === 7 * 24 * 60 ? '7d' : w.windowMinutes !== undefined ? usageWindowLabel(w.windowMinutes) : fallbackLabel
     const count = (seen.get(label) ?? 0) + 1
     seen.set(label, count)
+    const usedPct = w.usedRatio !== undefined ? w.usedRatio * 100 : w.used !== undefined && w.limit !== undefined && w.limit > 0 ? (w.used / w.limit) * 100 : undefined
     return {
       key: count === 1 ? label : `${label}#${count}`,
       label,
       state: 'live',
-      ...(w.limit > 0 ? { usedPct: Math.min(100, Math.max(0, (w.used / w.limit) * 100)) } : {}),
+      ...(usedPct !== undefined ? { usedPct: Math.min(100, Math.max(0, usedPct)) } : {}),
       ...(w.resetsAtMs !== undefined ? { resetsAtMs: w.resetsAtMs } : {}),
       observedAtMs: usage.observedAtMs,
       source: 'endpoint',
@@ -666,7 +691,7 @@ export function kimiManagedWindowViews(usage: KimiManagedUsageView | null): Usag
   const windows = [...usage.windows].sort(
     (a, b) => (a.windowMinutes ?? Number.POSITIVE_INFINITY) - (b.windowMinutes ?? Number.POSITIVE_INFINITY),
   )
-  const views = windows.map(w => view(w, 'win'))
+  const views = windows.map(w => view(w, w.name ?? 'win'))
   if (usage.quota) views.push(view(usage.quota, 'quota'))
   return views
 }
@@ -926,6 +951,17 @@ function openrouterCredits(observed: { usage: OpenrouterKeyUsage | null; lastErr
   return { state: 'unreported', reason: 'the key endpoint stated no cap or balance', compact: 'not stated' }
 }
 
+function kimiManagedCredits(usage: KimiManagedUsageView | null, error?: string): UsageCreditsView {
+  if (usage === null) return { state: 'unreported', reason: error ?? 'not read yet — /usage samples Kimi /usages', compact: error ? 'not read' : 'not read yet' }
+  if (usage.extraUsage === undefined) return {
+    state: 'unreported',
+    reason: 'Kimi /usages states no Extra Usage balance with a currency — Kimi Code Console shows membership billing',
+    compact: 'not stated',
+  }
+  const amount = `${usage.extraUsage.currency} ${usage.extraUsage.balance}`
+  return { state: 'reported', display: `${amount} Extra Usage balance`, compact: `${amount} extra`, source: 'endpoint', observedAtMs: usage.observedAtMs, freshForMs: usageStaleAfterMs() }
+}
+
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
     ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
@@ -941,15 +977,32 @@ export function openrouterCreditFacts(reads?: ActiveUsageReads): {
   return (reads?.openrouterObserved ?? openrouterObservedKeyUsage)()
 }
 
+export function openaiSubscriptionCredits(reads?: ActiveUsageReads): UsageCreditsView {
+  const credits = (reads?.openaiObserved ?? openaiSubscriptionUsage)().credits
+  if (credits === undefined) return { state: 'unreported', reason: 'not stated on this reply yet', compact: 'not stated yet' }
+  const source = credits.source ?? 'headers'
+  const stamp = { source, observedAtMs: credits.observedAtMs, freshForMs: (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(source) }
+  if (credits.unlimited) return { state: 'reported', display: 'unlimited', compact: 'unlimited', ...stamp }
+  if (credits.balance !== undefined) {
+    const [integer, decimal] = credits.balance.split('.')
+    const display = integer!.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (decimal !== undefined ? `.${decimal}` : '')
+    const value = Number(credits.balance)
+    const compact = Number.isSafeInteger(Math.trunc(value)) && value >= 1000
+      ? new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value).toLowerCase() : display
+    return { state: 'reported', display, compact, ...stamp }
+  }
+  return { state: 'unreported', reason: credits.hasCredits ? 'balance not stated on this reply' : 'no credits on this plan', compact: credits.hasCredits ? 'not stated' : 'none on this plan', ...stamp }
+}
+
 function openaiWindowViews(reads?: ActiveUsageReads): UsageWindowView[] {
-  const observed = (reads?.openaiObserved ?? openaiObservedUsage)()
+  const observed = (reads?.openaiObserved ?? openaiSubscriptionUsage)()
   const bands = [observed.primary, observed.secondary].filter(
     (b): b is NonNullable<typeof b> => b !== undefined && b.usedPct !== undefined,
   )
   bands.sort((a, b) => (a.windowMinutes ?? 0) - (b.windowMinutes ?? 0))
   return bands.map(band => {
     const label = usageWindowLabel(band.windowMinutes)
-    const stamp = { observedAtMs: band.observedAtMs, source: 'headers' as const }
+    const stamp = { observedAtMs: band.observedAtMs, source: band.source ?? 'headers' as const }
     const horizon = (require('./usageFreshness.js') as typeof import('./usageFreshness.js')).usageFreshHorizonMs(stamp.source)
     const freshForMs = band.resetsAtMs !== undefined ? Math.min(horizon, band.resetsAtMs - band.observedAtMs - 1) : horizon
     return {
@@ -1077,6 +1130,30 @@ function openrouterFigures(usage: OpenrouterKeyUsage | null): UsageFigureView[] 
   return figures
 }
 
+export function huggingfacePlanFigures(facts: HuggingfaceAccountFacts | null): UsageFigureView[] {
+  if (facts === null || facts.isPro === undefined) return []
+  const label =
+    facts.canPay === true ? 'plan · payment method on file' : facts.canPay === false ? 'plan · no payment method' : 'plan'
+  return [
+    {
+      key: 'plan',
+      label,
+      value: facts.isPro ? 'PRO' : 'free',
+      observedAtMs: facts.observedAtMs,
+      ...(facts.periodEndMs !== undefined ? { resetsAtMs: facts.periodEndMs } : {}),
+      source: 'endpoint',
+      freshForMs: usageStaleAfterMs(),
+    },
+  ]
+}
+
+function huggingfaceTier(kind: 'oauth' | 'api-key', facts: HuggingfaceAccountFacts | null): string {
+  if (kind !== 'oauth') return API_BILLING_TIER
+  if (facts?.isPro === true) return 'Hugging Face PRO'
+  if (facts?.isPro === false) return 'Hugging Face free'
+  return 'Hugging Face sign-in'
+}
+
 function deriveActiveSourceUsage(opts?: {
   model?: string
   reads?: ActiveUsageReads
@@ -1194,18 +1271,27 @@ export function usageForProvider(
     }
     const limitedWindow = (reads?.huggingfaceLimited ?? huggingfaceLimitWindow)()
     const rate = reads?.huggingfaceRate ? reads.huggingfaceRate() : huggingfaceObservedRate()
-    const figures: UsageFigureView[] = rate
-      ? [
-          {
-            key: 'rate-remaining',
-            label: 'requests remaining (stated by the last response)',
-            value: String(rate.remaining),
-            observedAtMs: rate.observedAtMs,
-            ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
-            source: 'headers',
-          },
-        ]
-      : []
+    const facts = reads?.huggingfaceAccountFacts ? reads.huggingfaceAccountFacts() : huggingfaceObservedAccountFacts()
+    const factsFailure = reads?.huggingfaceAccountFactsFailure ? reads.huggingfaceAccountFactsFailure() : huggingfaceAccountFactsFailure()
+    const figures: UsageFigureView[] = [
+      ...(rate
+        ? [
+            {
+              key: 'rate-remaining',
+              label: 'requests remaining (stated by the last response)',
+              value: String(rate.remaining),
+              observedAtMs: rate.observedAtMs,
+              ...(rate.resetsAtMs !== undefined ? { resetsAtMs: rate.resetsAtMs } : {}),
+              source: 'headers' as const,
+            },
+          ]
+        : []),
+      ...huggingfacePlanFigures(facts),
+    ]
+    const planNote =
+      factsFailure !== null && (facts === null || factsFailure.atMs > facts.observedAtMs)
+        ? huggingfaceAccountFactsFailureWords(factsFailure)
+        : undefined
     return {
       provider,
       sourceKind: account.kind === 'oauth' ? 'oauth' : 'api-key',
@@ -1217,7 +1303,8 @@ export function usageForProvider(
       spend,
       ...(figures.length > 0 ? { figures } : {}),
       absence: HUGGINGFACE_USAGE_ABSENCE_NOTE,
-      tier: account.kind === 'oauth' ? 'Hugging Face sign-in' : API_BILLING_TIER,
+      tier: huggingfaceTier(account.kind, facts),
+      ...(planNote !== undefined ? { readerNote: planNote, readerNoteCompact: planNote } : {}),
       ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),
     }
   }
@@ -1247,6 +1334,7 @@ export function usageForProvider(
     }
     if (account.kind === 'kimi-oauth') {
       const managed = reads?.kimiManagedUsage ? reads.kimiManagedUsage() : liveKimiManagedUsage()
+      const error = reads?.kimiManagedError ? reads.kimiManagedError() : reads?.kimiManagedUsage ? undefined : (require('./moonshot/moonshotUsageState.js') as typeof import('./moonshot/moonshotUsageState.js')).kimiManagedUsageError()
       return {
         provider,
         sourceKind: 'oauth',
@@ -1254,6 +1342,8 @@ export function usageForProvider(
         shape: 'subscription-windows',
         windows: kimiManagedWindowViews(managed),
         pools: [],
+        credits: kimiManagedCredits(managed, error),
+        ...(error ? { readerNote: error, readerNoteCompact: error } : {}),
         spend,
         tier: 'Kimi sign-in',
       }
@@ -1405,6 +1495,8 @@ export function usageForProvider(
     shape: 'subscription-windows',
     windows: openaiWindowViews(reads),
     pools: [],
+    credits: openaiSubscriptionCredits(reads),
+    ...(reads === undefined ? openaiUsageReaderState() : {}),
     spend,
     tier: openaiPlan ? `ChatGPT ${planWord(openaiPlan)}` : 'ChatGPT subscription',
     ...(limitedWindow.state === 'limited' ? { limited: { resetsAtMs: limitedWindow.resetsAtMs } } : {}),

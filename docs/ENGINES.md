@@ -880,6 +880,24 @@ key from the console's settings page to read usage — /logins xai". A refused
 management key is named plainly, with the last successful read and its age
 left visible. No management key is not an error.
 
+A Google sign-in on the Gemini lane shows its credits line and an absence line
+naming the view (the Cloud console Quotas page for the Generative Language
+API, or Google AI Studio), because Google states no usage, quota or credit
+figure to it: the Gemini API has no usage endpoint, its replies carry no quota
+headers, and the Code Assist, Cloud Quotas and Cloud Monitoring roads refuse a
+sign-in made with your own OAuth client.
+A Hugging Face sign-in or token shows the plan the Hub states to it
+(`whoami-v2`: PRO or free, whether a payment method is on file, when the
+billing period ends) as its tier and a plan line with the read's age, sampled
+through the same door as every reader, while the credits line says the credits
+used and left are not stated to a token and the absence line names the billing
+page.
+
+A Kimi sign-in shows its Extra Usage balance in the stated currency beside its plan windows, or says when the managed-usage endpoint reports no balance.
+OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account.
+
+The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
+
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
 the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on

@@ -130,6 +130,18 @@ const MODEL_NAMES = {
   "muse-spark-1.3-contributor": "Muse Spark 1.3 Contributor (training permitted)",
   "muse-spark-1.2-contributor": "Muse Spark 1.2 Contributor (training permitted)",
   "muse": "Muse",
+  "deepseek-v4-pro": "DeepSeek V4 Pro",
+  "deepseek-flash": "DeepSeek V4.1 Flash",
+  "deepseek-v4-flash": "DeepSeek V4.1 Flash",
+  "kimi-k3": "Kimi K3",
+  "kimi-k2.7-code": "Kimi K2.7 Code",
+  "kimi-k2.7-code-highspeed": "Kimi K2.7 Code Highspeed",
+  "kimi-k2.6": "Kimi K2.6",
+  "kimi-k2.5": "Kimi K2.5",
+  "k3": "K3",
+  "k3-256k": "K3 256K",
+  "glm-5.3": "GLM-5.3",
+  "glm-5.2": "GLM-5.2",
   "sonnet": "Sonnet 5.5",
   "opus": "Opus 5.5",
   "haiku": "Haiku 4.5",
@@ -139,6 +151,9 @@ const MODEL_NAMES = {
   "best": "Opus 5.5",
   "opusplan": "Opus in strategy mode, else Sonnet",
   "grok": "Grok 4.7",
+  "deepseek": "DeepSeek V4 Pro",
+  "kimi": "Kimi K3",
+  "glm": "GLM-5.3",
 }
 
 const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))

@@ -43,6 +43,8 @@ const geminiState = await import('../../src/services/providers/gemini/geminiUsag
 import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
 
 const FAMILIES: RouterProviderId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
+const WHOAMI = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json'), 'utf8')) as { user: Record<string, unknown>; freeUser: Record<string, unknown> }
+const GEMINI_ROADS = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json'), 'utf8')) as { roads: Record<string, { status: number; quotaHeaders?: string[]; body?: { error?: { details?: { reason?: string }[] } } }> }
 const NOW = 1_760_000_000_000
 const now = (): number => NOW
 const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -90,6 +92,21 @@ section('§1 the readers land in the owner through the one refresh door, stamped
   check('moonshot key: the door asked the balance endpoint once', fetchCalls === 1, String(fetchCalls))
   check('moonshot key: the owner carries the USD balance, stamped', ms.sourceKind === 'api-key' && ms.balance?.display === 'USD 5.5' && ms.balance?.observedAtMs === NOW, JSON.stringify(ms.balance))
 
+  const moonshotAccounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
+  delete process.env.MOONSHOT_API_KEY
+  moonshotAccounts.writeMoonshotTokens({ accessToken: 'kimi-fixture', refreshToken: 'kimi-refresh-fixture' }, 'global')
+  fetchCalls = 0
+  await owner.refreshProviderUsage('moonshot', {
+    fetchImpl: fixtureFetch(url => {
+      check('Kimi OAuth uses the coding usage endpoint, not the platform balance', url.endsWith('/coding/v1/usages'), url)
+      return json({ usages: { limit_5h: { used_ratio: 0.25 } }, boosterWallet: { balance: { type: 'BOOSTER', amount: '2000000000', amountLeft: '1234000000' }, monthlyChargeLimit: { currency: 'USD', priceInCents: '5000' } } })
+    }), env: process.env, now, force: true,
+  })
+  const kimi = owner.usageForProvider('moonshot')
+  check('Kimi OAuth credits and windows share the one managed read', fetchCalls === 1 && kimi.sourceKind === 'oauth' && kimi.credits?.display === 'USD 12.34 Extra Usage balance' && kimi.credits.observedAtMs === NOW && kimi.windows[0]?.observedAtMs === NOW && kimi.windows[0]?.usedPct === 25, JSON.stringify(kimi))
+  moonshotAccounts.writeMoonshotTokens(null)
+  process.env.MOONSHOT_API_KEY = 'sk-moonshot-fixture'
+
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture000'
   fetchCalls = 0
   await owner.refreshProviderUsage('openrouter', {
@@ -108,12 +125,34 @@ section('§1 the readers land in the owner through the one refresh door, stamped
 
   process.env.HF_TOKEN = 'hf_fixture000'
   huggingfaceState.recordHuggingfaceRateHeaders(new Headers({ ratelimit: '"default";r=950;t=3600' }), 200, now)
+  const asked: string[] = []
   fetchCalls = 0
-  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => json({})), env: process.env, now, force: true })
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(url => { asked.push(url); return json(WHOAMI.user) }), env: process.env, now, force: true })
   const hf = owner.usageForProvider('huggingface')
-  check('huggingface: the door asks nothing (no spend API is documented)', fetchCalls === 0, String(fetchCalls))
-  check('huggingface: the stated rate rides as the one figure, with its reset', hf.figures?.length === 1 && hf.figures[0]?.key === 'rate-remaining' && hf.figures[0]?.value === '950' && hf.figures[0]?.resetsAtMs === NOW + 3_600_000, JSON.stringify(hf.figures))
-  check('huggingface: the absence of a spend API still rides beside the figure', typeof hf.absence === 'string' && hf.absence.includes('no spend or credit API'))
+  check('huggingface: the door asks whoami-v2 once (the one road the Hub states account facts on)', fetchCalls === 1 && asked[0]?.endsWith('/api/whoami-v2') === true, `${fetchCalls} ${asked.join(',')}`)
+  check('huggingface: the stated rate rides as a figure, with its reset', hf.figures?.some(f => f.key === 'rate-remaining' && f.value === '950' && f.resetsAtMs === NOW + 3_600_000) === true, JSON.stringify(hf.figures))
+  const plan = hf.figures?.find(f => f.key === 'plan')
+  check("huggingface: the plan the Hub stated rides as a figure — 'PRO' · 'plan · payment method on file' — endpoint-fed, stamped, with the period end from periodEnd (unix seconds)", plan?.value === 'PRO' && plan.label === 'plan · payment method on file' && plan.source === 'endpoint' && plan.observedAtMs === NOW && plan.resetsAtMs === (WHOAMI.user.periodEnd as number) * 1000, JSON.stringify(plan))
+  check('huggingface: a token is API billing (the tier law), the credits line keeps the one spelling (the Hub states no balance), no reader note', hf.tier === 'API billing' && owner.usageCreditsLine(hf.credits, NOW) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && hf.readerNote === undefined, JSON.stringify({ tier: hf.tier, credits: hf.credits, note: hf.readerNote }))
+  check('huggingface: the absence line names what whoami-v2 states, what it does not, and the billing page', typeof hf.absence === 'string' && hf.absence.includes('no spend or credit API') && hf.absence.includes('whoami-v2') && hf.absence.includes('not the credits used') && hf.absence.includes('huggingface.co/settings/billing'), hf.absence)
+  fetchCalls = 0
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => json(WHOAMI.user)), env: process.env, now })
+  check('huggingface: a re-show inside the freshness floor serves the last observation (no second ask)', fetchCalls === 0, String(fetchCalls))
+  const facts = { observedAtMs: NOW, accountType: 'user' }
+  const oauthReads = (over: Record<string, unknown> | null) => ({
+    huggingfaceAccount: () => ({ kind: 'oauth', label: 'Hugging Face account (fixture)', keySource: 'oauth' }) as never,
+    huggingfaceLimited: () => ({ state: 'clear' as const }),
+    huggingfaceRate: () => null,
+    huggingfaceAccountFacts: () => (over === null ? null : { ...facts, ...over }),
+    huggingfaceAccountFactsFailure: () => null,
+    spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+  })
+  const pro = owner.usageForProvider('huggingface', oauthReads({ isPro: true, canPay: true, periodEndMs: NOW + 86_400_000 }))
+  const free = owner.usageForProvider('huggingface', oauthReads({ isPro: false, canPay: false }))
+  const unread = owner.usageForProvider('huggingface', oauthReads(null))
+  check("huggingface sign-in: the tier is the plan the Hub stated — 'Hugging Face PRO' · 'Hugging Face free' — and 'Hugging Face sign-in' until it is read", pro.tier === 'Hugging Face PRO' && free.tier === 'Hugging Face free' && unread.tier === 'Hugging Face sign-in', `${pro.tier} | ${free.tier} | ${unread.tier}`)
+  check("huggingface sign-in: a free account's figure is 'free' · 'plan · no payment method', with no period end; nothing read is no figure", free.figures?.[0]?.value === 'free' && free.figures[0].label === 'plan · no payment method' && free.figures[0].resetsAtMs === undefined && unread.figures === undefined, JSON.stringify({ free: free.figures, unread: unread.figures }))
+  check('huggingface sign-in: the sign-in carries the credits line too (the one spelling)', owner.usageCreditsLine(pro.credits, NOW) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && owner.usageCreditsLine(unread.credits, NOW, 'compact') === 'credits not reported')
   const { xaiUsageFixture, XAI_FIXTURE_NOW } = await import('./lib/xai-usage-fixture.ts')
   const xaiFixture = xaiUsageFixture()
   Object.assign(process.env, xaiFixture.env)
@@ -146,6 +185,13 @@ section('§2 honest absence — the owner says the provider publishes nothing, a
   check('zai (an env key is a general key): connected, api-spend, and the owner states that a general key has no usage road, naming the billing console', zai.sourceKind === 'api-key' && zai.shape === 'api-spend' && zai.absence === 'No usage road for a general Z.AI key — https://z.ai/manage-apikey/billing is the view', zai.absence)
   const gm = owner.usageForProvider('gemini')
   check('gemini: the owner carries the verified no-usage-endpoint line (the same constant the reader states)', gm.sourceKind === 'api-key' && gm.absence === geminiState.GEMINI_USAGE_ABSENCE_NOTE, gm.absence)
+  check('gemini: the absence line says what Google states to the credential (nothing: no usage endpoint, no quota headers) and names the view', (gm.absence ?? '').includes('no usage endpoint') && (gm.absence ?? '').includes('no quota headers') && (gm.absence ?? '').includes('Quotas page') && (gm.absence ?? '').includes('AI Studio'), gm.absence)
+  const roads = GEMINI_ROADS.roads
+  const closed = ['code-assist-loadCodeAssist', 'code-assist-retrieveUserQuota', 'cloud-quotas-quotaInfos', 'cloud-monitoring-quota-usage']
+  check('gemini: the recorded roads agree — the Gemini API reply carries no quota header, and every quota road answers 403 to a sign-in on the operator\'s own OAuth client', roads['gemini-api-reply-headers']?.status === 200 && roads['gemini-api-reply-headers']?.quotaHeaders?.length === 0 && closed.every(road => roads[road]?.status === 403), JSON.stringify(Object.fromEntries(Object.entries(roads).map(([k, v]) => [k, v.status]))))
+  check('gemini: the Code Assist and Cloud Quotas refusals are SERVICE_DISABLED (not enabled on the client\'s project), so no figure is invented from them', ['code-assist-loadCodeAssist', 'code-assist-retrieveUserQuota', 'cloud-quotas-quotaInfos'].every(road => roads[road]?.body?.error?.details?.[0]?.reason === 'SERVICE_DISABLED'))
+  const gmOauth = owner.usageForProvider('gemini', { geminiAccount: () => ({ provider: 'gemini', kind: 'oauth', label: 'Google account (OAuth)' }), geminiLimited: () => ({ state: 'clear' }), spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }) })
+  check("gemini sign-in: the Google account carries the credits line (the one spelling), the 'Google sign-in' tier, the absence line, and no figure", gmOauth.sourceKind === 'oauth' && owner.usageCreditsLine(gmOauth.credits, NOW) === `credits: ${owner.CREDITS_UNREPORTED_WORDS}` && owner.usageCreditsLine(gmOauth.credits, NOW, 'compact') === 'credits not reported' && gmOauth.tier === 'Google sign-in' && gmOauth.absence === geminiState.GEMINI_USAGE_ABSENCE_NOTE && gmOauth.figures === undefined, JSON.stringify({ credits: gmOauth.credits, tier: gmOauth.tier, figures: gmOauth.figures }))
   const compat = owner.usageForProvider('openai-compat')
   check('custom endpoint: the owner says the endpoint publishes nothing Mercury reads', compat.sourceKind === 'api-key' && typeof compat.absence === 'string' && compat.absence.includes('publishes no usage'), compat.absence)
   const anth = owner.usageForProvider('anthropic')
@@ -191,6 +237,22 @@ section('§3 the reader speaks about itself: a failed poll, a provider-marked un
     threw = true
   }
   check('the refresh door never throws (the last observation stands)', !threw && owner.usageForProvider('deepseek').balance?.display === 'CNY 0.00')
+
+  huggingfaceState.__resetHuggingfaceUsageStateForTest()
+  process.env.HF_TOKEN = 'hf_fixture000'
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => new Response('{"error":"Invalid credentials in Authorization header"}', { status: 401, headers: { 'content-type': 'application/json' } })), env: process.env, now, force: true })
+  const hfRefused = owner.usageForProvider('huggingface')
+  check("huggingface: a refused whoami is the reader's own line — 'no plan read (the Hub refused the token · HTTP 401)' — the tier stays honest and no plan figure is invented", hfRefused.readerNote === 'no plan read (the Hub refused the token · HTTP 401)' && hfRefused.readerNoteCompact === hfRefused.readerNote && !(hfRefused.figures ?? []).some(f => f.key === 'plan') && hfRefused.tier === 'API billing', JSON.stringify({ note: hfRefused.readerNote, figures: hfRefused.figures }))
+  fetchCalls = 0
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => json(WHOAMI.user)), env: process.env, now })
+  check('huggingface: a failed read is not retried inside the floor (no hammering a refusing Hub)', fetchCalls === 0, String(fetchCalls))
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => { throw new Error('fixture: socket closed') }), env: process.env, now, force: true })
+  check("huggingface: an unreachable Hub says so — 'no plan read (Hub unreachable · fixture: socket closed)'", owner.usageForProvider('huggingface').readerNote === 'no plan read (Hub unreachable · fixture: socket closed)', owner.usageForProvider('huggingface').readerNote)
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => json(WHOAMI.freeUser)), env: process.env, now: () => NOW + 1_000, force: true })
+  const hfRecovered = owner.usageForProvider('huggingface')
+  check('huggingface: the next answer clears the note and lands the stated plan (free, no payment method, no period end)', hfRecovered.readerNote === undefined && hfRecovered.figures?.find(f => f.key === 'plan')?.value === 'free' && hfRecovered.figures.find(f => f.key === 'plan')?.resetsAtMs === undefined, JSON.stringify({ note: hfRecovered.readerNote, figures: hfRecovered.figures }))
+  const words = owner.usageSummaryWords(hfRecovered, NOW + 1_000)
+  check("huggingface: the doctor's summary carries the tier, the absence, the credits line and the plan (never a fabricated balance)", words.startsWith('API billing · ') && words.includes(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`) && words.includes('whoami-v2') && !/USD/.test(words), words)
 }
 
 section('§4 signed out: every family carries its why-not and no figure')
@@ -232,6 +294,12 @@ section('§5 never remembered: a credential switch drops the departed key\'s rec
   check('openrouter key 1: figures observed', (owner.usageForProvider('openrouter').figures?.length ?? 0) > 0)
   process.env.OPENROUTER_API_KEY = 'sk-or-fixture111'
   check('openrouter key 2: nothing observed, no cap window (the departed key\'s credits never repaint)', owner.usageForProvider('openrouter').figures === undefined && owner.usageForProvider('openrouter').windows.length === 0)
+  process.env.HF_TOKEN = 'hf_fixture_token_A'
+  await owner.refreshProviderUsage('huggingface', { fetchImpl: fixtureFetch(() => json(WHOAMI.user)), env: process.env, now, force: true })
+  check('huggingface token A: its plan is observed', owner.usageForProvider('huggingface').figures?.some(f => f.key === 'plan' && f.value === 'PRO') === true)
+  process.env.HF_TOKEN = 'hf_fixture_token_B'
+  const hfB = owner.usageForProvider('huggingface')
+  check("huggingface token B: nothing observed — token A's plan never repaints, the tier falls back", !(hfB.figures ?? []).some(f => f.key === 'plan') && hfB.readerNote === undefined, JSON.stringify(hfB.figures))
   signOut()
   resetReaders()
 }
@@ -263,9 +331,13 @@ section('§7 the shape: the tab reads only the owner')
   check('the tab imports no reader module (every *UsageState import is gone)', !/UsageState\.js'/.test(tab), (tab.match(/UsageState\.js'/g) ?? []).join(','))
   check('the tab never refreshes a reader directly (the discovery re-probe rides the door too)', !tab.includes('refreshLocalDiscovery') && !tab.includes('refreshOpenrouterKeyUsage') && !tab.includes('refreshDeepseekBalance') && !tab.includes('refreshMoonshotBalance') && !tab.includes('refreshKimiManagedUsage'))
   check('the tab samples through the one door and reads the one view', tab.includes("refreshProviderUsage(id, { reason: 'open' })") && tab.includes('return usageForProvider(id)'))
-  for (const family of ['openrouter', 'moonshot', 'local'] as const) {
+  for (const family of ['openrouter', 'moonshot', 'local', 'huggingface'] as const) {
     check(`the ${family} section rides useOwnerUsage`, tab.includes(`useOwnerUsage('${family}'`))
   }
+  const geminiSection = tab.slice(tab.indexOf('function GeminiUsageSection'), tab.indexOf('function HuggingfaceUsageSection'))
+  const hfSection = tab.slice(tab.indexOf('function HuggingfaceUsageSection'), tab.indexOf('function LocalUsageSection'))
+  check('the Gemini section paints its credits line once, under its identity line through the one credits composer, never again under the Google account slot', tab.includes('<UsageCredits usage={usageForProvider(family)} />') && !geminiSection.includes('usageCreditsLine(usage.credits)'))
+  check('the Hugging Face section paints its credits line once under its identity line, and the plan row rides the plan figure with the one stamp composer', !hfSection.includes('usageCreditsLine(usage.credits)') && hfSection.includes("f.key === 'plan'") && hfSection.includes('usageSourceWords(plan)') && hfSection.includes('period ends'))
   check('the generic engine body rides useOwnerUsage(section.id)', tab.includes('useOwnerUsage(section.id, section.family.credentialed)'))
   check('the credit line, the rate line and the credits lines come from the owner\'s figures and credits view', tab.includes('figuresLine(usage)') && tab.includes('usageCreditsLine(usage.credits)') && !tab.includes('usage.balance.display'))
   check('the absence lines come from the owner (never a tab-only constant)', tab.includes('usage.absence ?? section.limitsNote') && tab.includes("usage.absence ?? ENGINE_USAGE_PRESENTATION.gemini!.limitsNote") && !tab.includes('GEMINI_USAGE_ABSENCE_NOTE') && !tab.includes('HUGGINGFACE_USAGE_ABSENCE_NOTE'))
@@ -327,6 +399,23 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
   writeFileSync(join(scratch, '.credentials.json'), '{}')
   dropCredentialMemos()
   resetWalletEntriesMemo()
+}
+
+section('§9 the ChatGPT sign-in: the observed balance belongs to the same owner as its windows, and leaves with them')
+{
+  const openai = await import('../../src/services/providers/openai/openaiLimitState.ts')
+  const fixture = JSON.parse(readFileSync(join(ROOT, 'scripts/providers/fixtures/openai-chatgpt-usage.json'), 'utf8'))
+  openai.__resetOpenaiLimitStateForTest()
+  openai.recordOpenaiUsageResponse(fixture.body, NOW)
+  const view = owner.usageForProvider('openai', {
+    activeEntry: () => ({ id: 'openai:subscription', provider: 'openai', kind: 'oauth', label: 'ChatGPT Pro', custodian: 'openai-accounts', identity: { plan: 'pro' } }),
+    openaiObserved: openai.openaiObservedUsage,
+    openaiLimited: () => ({ state: 'clear' }),
+    spend: () => ({ inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }),
+  })
+  check('OpenAI subscription: the observed fixture balance belongs to the same owner as its windows', view.shape === 'subscription-windows' && view.credits?.display === '62,500' && view.credits.source === 'endpoint' && view.credits.observedAtMs === NOW)
+  openai.forgetOpenaiLimitSource('chatgpt-subscription')
+  check('OpenAI subscription: forgetting the source drops the balance and bands together', Object.keys(openai.openaiObservedUsage()).length === 0)
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-owner-per-family${failures ? ` (${failures} failure(s))` : ''}`)

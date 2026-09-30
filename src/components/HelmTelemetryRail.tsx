@@ -308,26 +308,6 @@ function HelmTelemetryRailImpl({
         )
       })(),
     )
-    const credits = usageCreditsLine(usage.credits, now, 'compact')
-    if (credits !== undefined) {
-      if (usage.provider === 'openrouter') {
-        for (const [index, line] of wrapPlain(credits, rowW - 2).entries()) {
-          usageNodes.push(
-            <Box key={`usage:credits:${index}`} width={rowW} height={1}>
-              <Text color={tok.textMuted}>{`  ${line}`}</Text>
-            </Box>,
-          )
-        }
-      } else {
-        usageNodes.push(
-          <Box key="usage:credits" width={rowW}>
-            <Text wrap="truncate-end">
-              <Text color={tok.textMuted}>{`  ${credits}`}</Text>
-            </Text>
-          </Box>,
-        )
-      }
-    }
   } else if (usageEmpty && usage.sourceKind === 'none') {
     usageNodes.push(<EmptyHint key="usage:whynot" text={usage.whyNot ?? 'not connected'} width={rowW} />)
   } else if (usageEmpty && usage.absence) {
@@ -365,6 +345,16 @@ function HelmTelemetryRailImpl({
         })(),
       )
       if (detailRows(usage.provider)) appendKimiDetails(w, `usage:${w.key}`)
+    }
+  }
+  const credits = usageCreditsLine(usage.credits, now, 'compact')
+  if (credits !== undefined) {
+    for (const [index, line] of wrapPlain(credits, rowW - 2).entries()) {
+      usageNodes.push(
+        <Box key={`usage:credits:${index}`} width={rowW} height={1}>
+          <Text color={tok.textMuted}>{`  ${line}`}</Text>
+        </Box>,
+      )
     }
   }
   if (usage.provider === 'openrouter' && usage.readerNoteCompact !== undefined) {
@@ -451,6 +441,16 @@ function HelmTelemetryRailImpl({
         })(),
       )
       if (detailRows(other.provider)) appendKimiDetails(w, `usage:${other.provider}:${w.key}`)
+    }
+    const otherCredits = usageCreditsLine(other.credits, now, 'compact')
+    if (otherCredits !== undefined) {
+      for (const [index, line] of wrapPlain(otherCredits, rowW - 2).entries()) {
+        usageNodes.push(
+          <Box key={`usage:other:${other.provider}:credits:${index}`} width={rowW} height={1}>
+            <Text color={tok.textMuted}>{`  ${line}`}</Text>
+          </Box>,
+        )
+      }
     }
   }
   {

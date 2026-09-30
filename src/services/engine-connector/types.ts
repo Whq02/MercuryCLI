@@ -117,6 +117,7 @@ export type UsageFactsV1 = {
   openaiObserved?: {
     primary?: OpenaiObservedBandV1
     secondary?: OpenaiObservedBandV1
+    credits?: { hasCredits: boolean; unlimited: boolean; balance?: string; observedAtMs: number; source?: 'headers' | 'endpoint' }
   }
   anthropicWindow?: AnthropicWindowFactV1
   openaiWindow?: OpenaiWindowFactV1
@@ -144,6 +145,7 @@ export type JevFactsV1 = {
 }
 
 export type OpenaiObservedBandV1 = {
+  source?: 'headers' | 'endpoint'
   usedPct?: number
   windowMinutes?: number
   resetsAtMs?: number
