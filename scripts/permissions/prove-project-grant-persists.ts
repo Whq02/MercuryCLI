@@ -13,7 +13,7 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 process.chdir(PROJ)
 
 const { checkPathConstraints } = await import('../../src/tools/BashTool/pathValidation.ts')
-const { persistPermissionUpdate } = await import('../../src/utils/permissions/PermissionUpdate.ts')
+const { persistPermissionUpdate, createEditRuleSuggestion } = await import('../../src/utils/permissions/PermissionUpdate.ts')
 type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionContext
 
 let failures = 0
@@ -33,7 +33,7 @@ section('§1 THE MINTED DESTINATION')
   const result = checkPathConstraints({ command: `touch ${join(OUTSIDE, 't.txt')}` }, PROJ, emptyCtx()) as {
     suggestions?: Array<{ type: string; destination?: string; directories?: string[] }>
   }
-  const dirSuggestion = (result.suggestions ?? []).find(s => s.type === 'addDirectories')
+  const dirSuggestion = (result.suggestions ?? []).find(s => s.type === 'addRules')
   check('the directory suggestion exists', dirSuggestion !== undefined, JSON.stringify(result.suggestions))
   check(
     "and carries the localSettings destination (FC-060: 'in this project' persists)",
@@ -44,13 +44,14 @@ section('§1 THE MINTED DESTINATION')
 
 section('§2 THE PERSISTED WRITE')
 {
-  persistPermissionUpdate({ type: 'addDirectories', destination: 'localSettings', directories: [OUTSIDE] } as never)
+  const grant = createEditRuleSuggestion(OUTSIDE, 'localSettings')!
+  persistPermissionUpdate(grant)
   const written = JSON.parse(readFileSync(join(PROJ, '.mercury', 'settings.local.json'), 'utf8')) as {
-    permissions?: { additionalDirectories?: string[] }
+    permissions?: { allow?: string[]; additionalDirectories?: unknown }
   }
   check(
-    'the directory lands in settings.local.json additionalDirectories',
-    (written.permissions?.additionalDirectories ?? []).includes(OUTSIDE),
+    'the ordinary Edit rule lands in settings.local.json without another root',
+    (written.permissions?.allow ?? []).includes(`Edit(/${OUTSIDE}/**)`) && !Object.hasOwn(written.permissions ?? {}, 'additionalDirectories'),
     JSON.stringify(written.permissions),
   )
 }

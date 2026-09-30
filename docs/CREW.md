@@ -67,13 +67,11 @@ still pass their provider's dispatch checks. A different family keeps that
 family's preferred model; an exact model id keeps its explicit choice.
 
 An Agent call may name the directory its sub-agent works in with `cwd`: an
-absolute directory that exists. A directory inside a workspace the session
-already trusts — one of the session's working directories, or a folder the
-operator has trusted — is used as named. Any other folder is a permission
-question to the operator, asked once per folder per session with the folder
-named: yes launches the sub-agent there, no leaves it unlaunched, and in
-sovereign mode the question answers itself yes. The sub-agent's shell, its
-file tools and its environment section start there. A missing directory is
+absolute directory that exists. Starting outside the session's starting
+folder asks for ordinary permission: yes launches the sub-agent there, no
+leaves it unlaunched. Sovereign mode does not ask. The sub-agent's shell,
+file tools and environment section start there, and that directory is its
+own single starting folder. A missing directory is
 refused before anything is launched. With `isolation: "worktree"` the
 temporary worktree is cut from that directory's repository and the sub-agent
 runs in the worktree. A sub-agent's worktree carries links to its parent

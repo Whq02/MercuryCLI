@@ -1,6 +1,5 @@
 import { memoize } from 'lodash-es'
 import {
-  getAddedDirectories,
   setCachedInstructionPrompt,
 } from './bootstrap/state.js'
 import {
@@ -21,7 +20,7 @@ import { logError } from './utils/log.js'
 const GIT_STATUS_MAX_LENGTH = 2000
 
 export function isInstructionDiscoveryDisabled(): boolean {
-  return isBareMode() && getAddedDirectories().length === 0
+  return isBareMode()
 }
 
 

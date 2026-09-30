@@ -107,8 +107,8 @@ section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical w
   const tools = ['Bash', 'Read', 'Edit', 'Glob', 'Grep'].map(name => ({ name })) as never
   const alpha = { type: 'connected', name: 'alpha', instructions: 'use tool X first' } as never
   const beta = { type: 'connected', name: 'beta', instructions: 'never call Y twice' } as never
-  const withServers = (await prompts.getSystemPrompt(tools, 'claude-sonnet-5', undefined, [alpha, beta])).join('\n\n')
-  const without = (await prompts.getSystemPrompt(tools, 'claude-sonnet-5', undefined, [])).join('\n\n')
+  const withServers = (await prompts.getSystemPrompt(tools, 'claude-sonnet-5', [alpha, beta])).join('\n\n')
+  const without = (await prompts.getSystemPrompt(tools, 'claude-sonnet-5', [])).join('\n\n')
   check('the system prompt with two instruction-bearing servers is byte-identical to the one with none', withServers === without, `${withServers.length} vs ${without.length}`)
   check('…and spells no MCP Server Instructions block (the second copy is gone)', !withServers.includes('# MCP Server Instructions') && !withServers.includes('use tool X first'))
   const oracle = `# MCP Server Instructions\n\nThe following MCP servers have provided instructions for how to use their tools and resources:\n\n## alpha\nuse tool X first\n\n## beta\nnever call Y twice`

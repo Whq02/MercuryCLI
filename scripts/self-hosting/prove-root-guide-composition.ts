@@ -1,309 +1,80 @@
 #!/usr/bin/env bun
+// gate-watch: src/utils/config/globalConfig.ts src/context.ts src/services/instructions/** src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/Tool.ts
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
-const repo = join(import.meta.dir, '..', '..')
-
-let failures = 0
-const check = (cond: boolean, msg: string, detail = ''): void => {
-  if (cond) console.log(`  [PASS] ${msg}`)
-  else {
-    failures++
-    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''}`)
-  }
-}
-
-const ADDED_NEEDLE = 'added-directory-guide-needle-7c1e'
-const NESTED_NEEDLE = 'added-directory-nested-guide-needle-9b2d'
-const PARENT_NEEDLE = 'added-directory-parent-guide-needle-4f6a'
-const driverSrc = `
-import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
+const repo = join(import.meta.dir, '../..')
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'one-root-guides-')))
+const project = join(scratch, 'project')
+const outside = join(scratch, 'outside')
+for (const dir of [join(project, 'sub'), join(outside, 'sub')]) mkdirSync(dir, { recursive: true })
+writeFileSync(join(project, 'CLAUDE.md'), '@AGENTS.md\n')
+writeFileSync(join(project, 'AGENTS.md'), 'explicit-guide-needle\n')
+writeFileSync(join(project, 'sub', 'MERCURY.md'), 'nested-guide-needle\n')
+writeFileSync(join(project, 'sub', 'file.ts'), 'export const answer = 42\n')
+writeFileSync(join(outside, 'MERCURY.md'), 'outside-guide-needle\n')
+writeFileSync(join(outside, 'sub', 'MERCURY.md'), 'outside-nested-needle\n')
+writeFileSync(join(outside, 'sub', 'file.ts'), 'export const answer = 42\n')
+const driver = join(scratch, 'driver.ts')
+writeFileSync(driver, `
+;(globalThis as any).MACRO = { VERSION: '1.0.0' }
+const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
 enableConfigs()
-const { getAddedDirectories, getCachedInstructionPrompt, setCachedInstructionPrompt } = await import('${repo}/src/bootstrap/state.js')
-const { getEmptyToolPermissionContext } = await import('${repo}/src/Tool.js')
-const { applyPermissionUpdate } = await import('${repo}/src/utils/permissions/PermissionUpdate.js')
-const { onChangeAppState } = await import('${repo}/src/state/onChangeAppState.js')
-const stateOf = toolPermissionContext => ({ toolPermissionContext, mainLoopModel: null, expandedView: null, verbose: false, settings: undefined })
-let permission = getEmptyToolPermissionContext()
-const changeWorkspace = (type, dir) => {
-  const next = applyPermissionUpdate(permission, { type, directories: [dir], destination: 'session' })
-  onChangeAppState({ oldState: stateOf(permission), newState: stateOf(next) })
-  permission = next
-}
-setCachedInstructionPrompt('stale-before-the-change')
-if (process.env.DRV_ADDED_DIR) changeWorkspace('addDirectories', process.env.DRV_ADDED_DIR)
-const cachedPromptAfterChange = getCachedInstructionPrompt()
-const { isInstructionDiscoveryDisabled, getUserContext } = await import('${repo}/src/context.js')
-const { getInstructionFiles, getInstructionCompositionState, composeInstructionPrompt, filterInjectedInstructionFiles, getInstructionBundle, getMaxMemoryCharacterCount, getLargeMemoryFiles } = await import('${repo}/src/services/instructions/engine.js')
+const { getEmptyToolPermissionContext } = await import(${JSON.stringify(join(repo, 'src/Tool.ts'))})
+const { getInstructionFiles, composeInstructionPrompt, getInstructionBundle, getMaxMemoryCharacterCount, getLargeMemoryFiles } = await import(${JSON.stringify(join(repo, 'src/services/instructions/engine.ts'))})
+const { getUserContext, isInstructionDiscoveryDisabled } = await import(${JSON.stringify(join(repo, 'src/context.ts'))})
+const { getNestedMemoryAttachmentsForFile } = await import(${JSON.stringify(join(repo, 'src/utils/attachments/nestedMemory.ts'))})
+const { createFileStateCacheWithSizeLimit } = await import(${JSON.stringify(join(repo, 'src/utils/fileStateCache.ts'))})
 const files = await getInstructionFiles()
-const state = getInstructionCompositionState()
-const composed = composeInstructionPrompt(filterInjectedInstructionFiles(files))
+const composed = composeInstructionPrompt(files)
 const bundle = await getInstructionBundle()
-// The list as it stood at composition time (a DRV_REMOVE_AFTER leg narrows it below).
-const addedAtCompose = getAddedDirectories()
-// The real gate: the user context the model receives (context.ts decides whether discovery runs).
-const userContext1 = await getUserContext()
-const userContextInstructions = userContext1.claudeMd ?? null
-let touched = []
-if (process.env.DRV_TOUCH) {
-  const { getNestedMemoryAttachmentsForFile } = await import('${repo}/src/utils/attachments/nestedMemory.js')
-  const { createFileStateCacheWithSizeLimit } = await import('${repo}/src/utils/fileStateCache.js')
-  const appState = stateOf(permission)
-  const ctx = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => appState }
-  touched = (await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, ctx, appState)).map(a => a.path)
+const state = { toolPermissionContext: getEmptyToolPermissionContext() }
+const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
+const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
+console.log(JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).claudeMd ?? '', touched: touched.map(a => a.path) }))
+`)
+let passed = 0
+let failed = 0
+function check(label: string, ok: boolean): void {
+  ok ? passed++ : failed++
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
 }
-// An unrelated workspace change — a permission rule, no directory moved —
-// replaces the tool-permission context; the choke point must drop nothing.
-let unrelated = null
-if (process.env.DRV_ADDED_DIR) {
-  const next = applyPermissionUpdate(permission, { type: 'addRules', rules: [{ toolName: 'Read' }], behavior: 'allow', destination: 'session' })
-  onChangeAppState({ oldState: stateOf(permission), newState: stateOf(next) })
-  permission = next
-  const userContext2 = await getUserContext()
-  unrelated = { contextSurvived: userContext2 === userContext1, cachedPrompt: getCachedInstructionPrompt(), addedDirectories: getAddedDirectories() }
+function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = {}) {
+  const home = mkdtempSync(join(scratch, 'home-'))
+  if (options.retired) writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [outside] } }))
+  const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
+  const run = spawnSync(process.execPath, ['run', driver], { cwd: project, env: { ...env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ...(options.bare ? { MERCURY_BARE: '1' } : {}), ...(options.touch ? { DRV_TOUCH: options.touch } : {}) }, encoding: 'utf8', timeout: 60_000 })
+  if (run.status !== 0) throw new Error(`driver exited ${run.status}: ${run.stderr}`)
+  return JSON.parse(run.stdout.trim().split('\n').at(-1)!) as { paths: string[]; composed: string; resolution: string; entries: Array<{ path: string; root?: string; origin: string }>; cap: number; large: string[]; disabled: boolean; user: string; touched: string[] }
 }
-let after = null
-if (process.env.DRV_REMOVE_AFTER && process.env.DRV_ADDED_DIR) {
-  changeWorkspace('removeDirectories', process.env.DRV_ADDED_DIR)
-  const files2 = await getInstructionFiles()
-  const composed2 = composeInstructionPrompt(filterInjectedInstructionFiles(files2))
-  const userContext3 = await getUserContext()
-  after = { paths: files2.map(f => f.path), composedHasAddedNeedle: composed2.includes('${ADDED_NEEDLE}'), addedDirectories: getAddedDirectories(), contextDropped: userContext3 !== userContext1 }
+try {
+  const plain = drive()
+  check('the default profile is native', plain.resolution === 'native')
+  check('a compatibility guide never auto-loads as a native root guide', !plain.composed.includes('explicit-guide-needle'))
+  writeFileSync(join(project, 'MERCURY.local.md'), '@CLAUDE.md\n')
+  const explicit = drive()
+  check('an explicit native import composes the compatibility guide exactly once', explicit.composed.split('explicit-guide-needle').length === 2)
+  check('the starting-folder entry is root-stamped', explicit.entries.some(e => e.path === join(project, 'MERCURY.local.md') && e.root === project && e.origin === 'project-walk'))
+  unlinkSync(join(project, 'MERCURY.local.md'))
+  const native = join(project, 'MERCURY.md')
+  writeFileSync(native, 'native-root-needle\n')
+  const nested = drive({ touch: join(project, 'sub', 'file.ts') })
+  check('the native starting-folder guide reaches user context', nested.user.includes('native-root-needle'))
+  check('the boot walk does not descend into nested guides', !nested.paths.includes(join(project, 'sub', 'MERCURY.md')))
+  check('touching a file under the starting folder attaches its nested guide', nested.touched.includes(join(project, 'sub', 'MERCURY.md')))
+  const retired = drive({ retired: true, touch: join(outside, 'sub', 'file.ts') })
+  check('a retired saved directory never becomes an instruction root', !retired.composed.includes('outside-guide-needle') && !retired.user.includes('outside-guide-needle'))
+  check('nor does touching it load a nested guide', retired.touched.length === 0)
+  check('every project guide keeps the starting folder as its root', retired.entries.filter(e => e.origin === 'project-walk').every(e => e.root === project))
+  const bare = drive({ bare: true, retired: true })
+  check('bare mode stays discovery-free despite an old saved directory', bare.disabled && bare.user === '')
+  writeFileSync(native, `native-root-needle\n${'x'.repeat(plain.cap + 1)}\n`)
+  const big = drive()
+  check('a large starting-folder guide is reported, never truncated', big.large.includes(native) && big.composed.length > big.cap && big.composed.includes('native-root-needle'))
+} finally {
+  rmSync(scratch, { recursive: true, force: true })
 }
-console.log(JSON.stringify({
-  paths: files.map(f => f.path),
-  resolution: state.resolution,
-  diagnostics: state.diagnostics,
-  composedHasGuide: composed.includes('Mercury — building and running a local copy'),
-  guideCount: composed.split('Mercury is a terminal harness for software development').length - 1,
-  addedDirectories: addedAtCompose,
-  discoveryDisabled: isInstructionDiscoveryDisabled(),
-  composedHasAddedNeedle: composed.includes('${ADDED_NEEDLE}'),
-  composedHasNestedNeedle: composed.includes('${NESTED_NEEDLE}'),
-  composedHasParentNeedle: composed.includes('${PARENT_NEEDLE}'),
-  composedHasRootStamp: process.env.DRV_ADDED_DIR ? composed.includes('for the added directory ' + process.env.DRV_ADDED_DIR + ',') : false,
-  composedLength: composed.length,
-  userContextHasInstructions: userContextInstructions !== null,
-  userContextHasAddedNeedle: (userContextInstructions ?? '').includes('${ADDED_NEEDLE}'),
-  cachedPromptAfterChange,
-  entries: bundle.entries.map(e => ({ path: e.path, type: e.type, origin: e.origin, root: e.root ?? null })),
-  cap: getMaxMemoryCharacterCount(),
-  largeFiles: getLargeMemoryFiles(files).map(f => f.path),
-  touched,
-  unrelated,
-  after,
-}))
-`
-const driverDir = mkdtempSync(join(tmpdir(), 'native-selfhost-drv-'))
-const driverPath = join(driverDir, 'drv.ts')
-await Bun.write(driverPath, driverSrc)
-
-interface Capture {
-  paths: string[]
-  resolution: { requested: string; resolved: string; mapped?: string }
-  diagnostics: { kind: string; path: string }[]
-  composedHasGuide: boolean
-  guideCount: number
-  addedDirectories: string[]
-  discoveryDisabled: boolean
-  composedHasAddedNeedle: boolean
-  composedHasNestedNeedle: boolean
-  composedHasParentNeedle: boolean
-  composedHasRootStamp: boolean
-  composedLength: number
-  userContextHasInstructions: boolean
-  userContextHasAddedNeedle: boolean
-  cachedPromptAfterChange: string | null
-  entries: { path: string; type: string; origin: string; root: string | null }[]
-  cap: number
-  largeFiles: string[]
-  touched: string[]
-  unrelated: { contextSurvived: boolean; cachedPrompt: string | null; addedDirectories: string[] } | null
-  after: { paths: string[]; composedHasAddedNeedle: boolean; addedDirectories: string[]; contextDropped: boolean } | null
-}
-function drive(cwd: string, extraEnv: Record<string, string>): Capture {
-  const home = mkdtempSync(join(tmpdir(), 'native-selfhost-home-'))
-  const env: Record<string, string | undefined> = {}
-  for (const [k, v] of Object.entries(process.env)) {
-    if (/^(MERCURY_|CLAUDE_)/.test(k)) continue
-    env[k] = v
-  }
-  env.MERCURY_CONFIG_DIR = home
-  env.MERCURY_EVOLUTION_LEDGER = '0'
-  Object.assign(env, extraEnv)
-  const run = spawnSync(process.execPath, ['run', driverPath], {
-    cwd,
-    env,
-    encoding: 'utf8',
-    timeout: 120_000,
-  })
-  rmSync(home, { recursive: true, force: true })
-  if (run.status !== 0) {
-    console.error(`  [FAIL] driver exited ${run.status}: ${String(run.stderr).slice(0, 800)}`)
-    process.exit(1)
-  }
-  const lines = String(run.stdout).trim().split('\n')
-  return JSON.parse(lines[lines.length - 1]!) as Capture
-}
-
-console.log('root guide composition — the pointer arrangement')
-
-const nat = drive(repo, {})
-check(
-  nat.resolution.resolved === 'native',
-  `default resolution is the native contract (requested ${nat.resolution.requested} → resolved ${nat.resolution.resolved})`,
-)
-
-const mirror = realpathSync(mkdtempSync(join(tmpdir(), 'native-selfhost-mirror-')))
-const mirrorGuide = join(mirror, 'CLAUDE.md')
-const mirrorStub = join(mirror, 'MERCURY.local.md')
-copyFileSync(join(repo, 'CLAUDE.md'), mirrorGuide)
-copyFileSync(join(repo, 'AGENTS.md'), join(mirror, 'AGENTS.md'))
-
-const bare = drive(mirror, {})
-check(bare.resolution.resolved === 'native', 'bare guide layout resolves native')
-check(
-  !bare.paths.includes(mirrorGuide),
-  'root CLAUDE.md does not compose as a native project source (no auto-load)',
-)
-check(bare.guideCount === 0, `no root guide composes natively without the stub (count ${bare.guideCount})`)
-check(
-  !bare.diagnostics.some(d => d.path === mirrorGuide),
-  'no diagnostic is raised for the pointer file (nothing composes, nothing is reported)',
-  JSON.stringify(bare.diagnostics),
-)
-
-writeFileSync(mirrorStub, '@CLAUDE.md\n')
-const stub = drive(mirror, {})
-check(stub.resolution.resolved === 'native', 'stub layout still resolves native (the import is not a profile flip)')
-check(
-  stub.paths.includes(mirrorGuide) && stub.composedHasGuide,
-  'the local stub composes the guide through @CLAUDE.md → @AGENTS.md',
-)
-check(stub.guideCount === 1, `the guide composes exactly once via the stub (count ${stub.guideCount})`)
-check(
-  !stub.diagnostics.some(d => d.path === mirrorGuide || d.path === mirrorStub),
-  'the explicit import composes the pointer file without a diagnostic (no missing target, cycle or duplicate)',
-  JSON.stringify(stub.diagnostics),
-)
-
-unlinkSync(mirrorStub)
-const unknownReq = drive(mirror, { MERCURY_INSTRUCTION_PROFILE: 'other' })
-check(
-  unknownReq.resolution.resolved === 'native',
-  `an unrecognised profile value resolves native (requested ${unknownReq.resolution.requested} → ${unknownReq.resolution.resolved})`,
-)
-check(unknownReq.guideCount === 0, `no root guide composes under an unrecognised value (count ${unknownReq.guideCount})`)
-
-const parent = realpathSync(mkdtempSync(join(tmpdir(), 'native-selfhost-parent-')))
-writeFileSync(join(parent, 'MERCURY.md'), `# Parent guide\n\n${PARENT_NEEDLE}\n`)
-const added = join(parent, 'root')
-const addedGuide = join(added, 'MERCURY.md')
-const nestedGuide = join(added, 'sub', 'MERCURY.md')
-const nestedFile = join(added, 'sub', 'file.ts')
-mkdirSync(join(added, 'sub'), { recursive: true })
-writeFileSync(addedGuide, `# Added root guide\n\n${ADDED_NEEDLE}\n`)
-writeFileSync(nestedGuide, `# Nested guide\n\n${NESTED_NEEDLE}\n`)
-writeFileSync(nestedFile, 'export const answer = 42\n')
-const withAdded = drive(mirror, { DRV_ADDED_DIR: added, DRV_TOUCH: nestedFile, DRV_REMOVE_AFTER: '1' })
-check(
-  withAdded.addedDirectories.length === 1 && withAdded.addedDirectories[0] === added,
-  'the /add-dir command path (the permission update → the state-change choke point) reaches the added-directories list',
-  JSON.stringify(withAdded.addedDirectories),
-)
-check(
-  withAdded.cachedPromptAfterChange === null,
-  'the command path drops the cached instruction prompt (never stale for the classifier)',
-  String(withAdded.cachedPromptAfterChange),
-)
-check(!withAdded.discoveryDisabled, 'instruction discovery stays enabled with an added directory')
-check(
-  withAdded.paths.includes(addedGuide) && withAdded.composedHasAddedNeedle,
-  "an added directory's MERCURY.md composes",
-  withAdded.paths.join(' · '),
-)
-check(
-  withAdded.composedHasRootStamp,
-  'the composed slice is root-stamped for the model ("for the added directory <root>")',
-)
-check(
-  withAdded.entries.some(e => e.path === addedGuide && e.type === 'Project' && e.origin === 'additional-dir' && e.root === added),
-  "the bundle entry is stamped with the root it came from (origin 'additional-dir')",
-  JSON.stringify(withAdded.entries),
-)
-check(withAdded.largeFiles.length === 0, 'within the ceiling: a small guide is not reported large')
-check(
-  !withAdded.composedHasParentNeedle && !withAdded.paths.includes(join(parent, 'MERCURY.md')),
-  "no ancestor walk above an added root: the parent directory's guide does not compose",
-  withAdded.paths.join(' · '),
-)
-check(
-  !withAdded.paths.includes(nestedGuide) && !withAdded.composedHasNestedNeedle,
-  "a nested guide under the added root waits for a touch, exactly like the main root's (the boot walk never descends)",
-  withAdded.paths.join(' · '),
-)
-check(
-  withAdded.touched.includes(nestedGuide),
-  'touching a file under the added root attaches its nested guide (the ladders anchor at the added root)',
-  withAdded.touched.join(' · ') || '(nothing attached)',
-)
-check(
-  withAdded.userContextHasAddedNeedle,
-  'the user context the model receives carries the added guide (the real gate in context.ts)',
-)
-check(
-  withAdded.unrelated !== null &&
-    withAdded.unrelated.contextSurvived &&
-    withAdded.unrelated.cachedPrompt !== null &&
-    withAdded.unrelated.cachedPrompt.includes(ADDED_NEEDLE) &&
-    withAdded.unrelated.addedDirectories.length === 1,
-  'an unrelated workspace change (a permission rule, no directory moved) drops nothing: the composed user context and the classifier prompt survive',
-  JSON.stringify(withAdded.unrelated),
-)
-check(
-  withAdded.after !== null &&
-    !withAdded.after.paths.includes(addedGuide) &&
-    !withAdded.after.composedHasAddedNeedle &&
-    withAdded.after.addedDirectories.length === 0 &&
-    withAdded.after.contextDropped,
-  'removing the directory (the same path) drops its instructions from the next composition and drops the composed user context',
-  JSON.stringify(withAdded.after),
-)
-check(
-  stub.entries.some(e => e.path === mirrorStub && e.origin === 'project-walk' && e.root === mirror),
-  "the main root's entries are stamped with the boot cwd (origin 'project-walk')",
-  JSON.stringify(stub.entries),
-)
-
-writeFileSync(addedGuide, `# Added root guide\n\n${ADDED_NEEDLE}\n${'x'.repeat(bare.cap + 1)}\n`)
-const big = drive(mirror, { DRV_ADDED_DIR: added })
-check(big.cap === bare.cap, `one ceiling: the per-model cap is the same number with an added root (${big.cap} = ${bare.cap})`)
-check(
-  big.largeFiles.includes(addedGuide),
-  "an over-cap guide in an added root is reported by the same large-file measure as the main root's",
-  big.largeFiles.join(' · ') || '(none reported)',
-)
-check(
-  big.composedHasAddedNeedle && big.composedLength > big.cap,
-  "…and composes whole, never cut — the over-ceiling behaviour the main root gets",
-  `composed ${big.composedLength} chars, cap ${big.cap}`,
-)
-
-const bareAlone = drive(mirror, { MERCURY_BARE: '1' })
-check(
-  bareAlone.discoveryDisabled && !bareAlone.userContextHasInstructions,
-  'bare mode with no added directory disables instruction discovery: the user context carries no instructions',
-)
-const bareAdded = drive(mirror, { MERCURY_BARE: '1', DRV_ADDED_DIR: added })
-check(
-  !bareAdded.discoveryDisabled && bareAdded.userContextHasAddedNeedle,
-  "bare mode never refuses a directory the operator added: its guide reaches the user context (the context.ts law)",
-)
-rmSync(parent, { recursive: true, force: true })
-
-rmSync(mirror, { recursive: true, force: true })
-rmSync(driverDir, { recursive: true, force: true })
-console.log(failures === 0 ? '\n✅ root guide composition proven (both guide states, the added-directory law)' : `\n❌ ${failures} failure(s)`)
-process.exit(failures === 0 ? 0 : 1)
+console.log(`root-guide-composition: ${passed} passed, ${failed} failed`)
+process.exit(failed ? 1 : 0)

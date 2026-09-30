@@ -89,7 +89,6 @@ const IDENTITY: KeyTable = {
 const WORKSPACE: KeyTable = {
   originalCwd: 'original_cwd',
   projectRoot: 'project_root',
-  instructionRoots: 'instruction_roots',
 }
 const WORK_ROW: KeyTable = {
   startTime: 'start_time',

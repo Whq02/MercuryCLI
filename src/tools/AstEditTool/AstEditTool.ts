@@ -45,9 +45,7 @@ import type { PermissionDecision } from '../../utils/permissions/PermissionResul
 import {
   checkReadPermissionForTool,
   checkWritePermissionForTool,
-  describeWriteScope,
   matchingRuleForInput,
-  pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
 import { reasonForRule, refusalWithReason } from '../../utils/permissions/ruleReason.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
@@ -383,7 +381,6 @@ export const AstEditTool = buildTool({
 
     const permCtx = context.getAppState().toolPermissionContext
     const denied: string[] = []
-    const outOfScope: string[] = []
     for (const f of plan.files) {
       const decision = checkWritePermissionForTool(pathShim, { file_path: f.abs }, permCtx)
       if (decision.behavior === 'allow') continue
@@ -391,15 +388,11 @@ export const AstEditTool = buildTool({
         denied.push(f.rel)
         continue
       }
-      if (!pathInAllowedWorkingPath(f.abs, permCtx)) outOfScope.push(f.rel)
     }
-    if (denied.length > 0 || outOfScope.length > 0) {
-      const rows = [
-        ...denied.map(p => `  ${p} — blocked by a deny rule`),
-        ...outOfScope.map(p => `  ${p} — outside the session's write scope`),
-      ]
+    if (denied.length > 0) {
+      const rows = denied.map(p => `  ${p} — blocked by a deny rule`)
       throw new Error(
-        `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a refused path refuses the whole edit). ${outOfScope.length > 0 ? `${describeWriteScope(permCtx)} ` : ''}Add the directory with /add-dir or adjust permission rules, then apply again.`,
+        `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a denied path refuses the whole edit). Adjust permission rules, then apply again.`,
       )
     }
     if (context.abortController.signal.aborted) {

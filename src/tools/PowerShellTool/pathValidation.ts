@@ -19,7 +19,7 @@ import {
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
 import { expandTilde, isDangerousRemovalPath, isPathInSandboxWriteAllowlist } from '../../utils/permissions/pathValidation.js'
-import { createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
+import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { getFsImplementation, safeResolvePath } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
@@ -315,7 +315,7 @@ export function checkPathConstraints(
       const decision = resolveAndDecide(redirect.target, cwd, context, 'write')
       if (!decision.allowed) {
         if (decision.reason?.type === 'rule') return { behavior: 'deny', message: redirMessage(decision, context), decisionReason: decision.reason }
-        seedAsk({ behavior: 'ask', message: redirMessage(decision, context), blockedPath: decision.resolvedPath, decisionReason: decision.reason, suggestions: decision.resolvedPath ? [addDir(decision.resolvedPath)] : [] })
+        seedAsk({ behavior: 'ask', message: redirMessage(decision, context), blockedPath: decision.resolvedPath, decisionReason: decision.reason, suggestions: decision.resolvedPath ? [editGrant(decision.resolvedPath)] : [] })
       }
     }
   }
@@ -357,24 +357,26 @@ function askForPath(canonical: string, decision: ResolveResult, operation: Opera
       const rule = createReadRuleSuggestion(dir)
       if (rule) suggestions.push(rule)
     } else {
-      suggestions.push(addDir(decision.resolvedPath))
+      suggestions.push(editGrant(decision.resolvedPath))
       suggestions.push({ type: 'setMode', destination: 'session', mode: 'implement' })
     }
   }
   return { behavior: 'ask', message: pathMessage(canonical, decision, context), blockedPath: decision.resolvedPath, decisionReason: decision.reason, suggestions }
 }
 
-function addDir(resolvedPath: string): PermissionUpdate {
-  return { type: 'addDirectories', destination: 'session', directories: [getDirectoryForPath(resolvedPath)] }
+function editGrant(resolvedPath: string): PermissionUpdate {
+  return createEditRuleSuggestion(getDirectoryForPath(resolvedPath)) ?? {
+    type: 'addRules', rules: [{ toolName: 'Edit', ruleContent: `/${resolvedPath.replace(/\\/g, '/')}` }], behavior: 'allow', destination: 'session',
+  }
 }
 
 function pathMessage(canonical: string, decision: ResolveResult, context: ToolPermissionContext): string {
   if (decision.reason && (decision.reason.type === 'other' || decision.reason.type === 'safetyCheck')) return decision.reason.reason
-  return `${canonical} targets ${decision.resolvedPath}, outside the allowed working directories (${formatDirs(context)}).`
+  return `${canonical} needs permission for ${decision.resolvedPath}. The starting folder is ${formatDirs(context)}.`
 }
 function redirMessage(decision: ResolveResult, context: ToolPermissionContext): string {
   if (decision.reason && (decision.reason.type === 'other' || decision.reason.type === 'safetyCheck')) return decision.reason.reason
-  return `The redirection target ${decision.resolvedPath} is outside the allowed working directories (${formatDirs(context)}).`
+  return `Writing the redirection target ${decision.resolvedPath} needs permission. The starting folder is ${formatDirs(context)}.`
 }
 function formatDirs(context: ToolPermissionContext): string {
   const dirs = [...allWorkingDirectories(context)].map(d => `'${d}'`)

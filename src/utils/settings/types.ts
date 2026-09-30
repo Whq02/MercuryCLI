@@ -5,6 +5,7 @@ import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { lazySchema } from '../lazySchema.js'
+import { logForDebugging } from '../debug.js'
 import { PERMISSION_MODES, decodePermissionModeSpelling } from '../permissions/PermissionMode.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
 
@@ -85,8 +86,19 @@ export function isMcpServerUrlEntry(
   return typeof (entry as { serverUrl?: unknown }).serverUrl === 'string'
 }
 
+let retiredDirectoriesLogged = false
+function ignoreRetiredPermissionDirectories(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null || !Object.hasOwn(value, 'additionalDirectories')) return value
+  const { additionalDirectories: _ignored, ...permissions } = value as Record<string, unknown>
+  if (!retiredDirectoriesLogged) {
+    retiredDirectoriesLogged = true
+    logForDebugging('permissions.additionalDirectories is retired and ignored; the starting folder is the only root')
+  }
+  return permissions
+}
+
 export const PermissionsSchema = lazySchema(() =>
-  z
+  z.preprocess(ignoreRetiredPermissionDirectories, z
     .object({
       allow: z.array(PermissionRuleSchema()).optional(),
       deny: z.array(PermissionRuleSchema()).optional(),
@@ -99,10 +111,9 @@ export const PermissionsSchema = lazySchema(() =>
         .optional(),
       disableSovereignMode: z.boolean().optional().describe('True closes Sovereign mode for every session that reads this file'),
       disableFlowMode: z.boolean().optional().describe('True closes Flow for every session that reads this file'),
-      additionalDirectories: z.array(z.string()).optional(),
       reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
     })
-    .passthrough(),
+    .passthrough()),
 )
 
 export type ExtensionHookMatcher = {

@@ -131,9 +131,9 @@ source is an operator act (`docs/EXTENSIONS.md`).
 
 ## Skills
 
-Skills load from Mercury's homes alone — `.mercury/skills` under the project
-tree and under each added directory, `~/.mercury/skills`, the managed policy
-tree, and approved extensions (`src/skills/loadSkillsDir.ts`,
+Skills load from Mercury's homes alone — `.mercury/skills` under the starting
+project's instruction chain, `~/.mercury/skills`, the managed policy tree,
+and approved extensions (`src/skills/loadSkillsDir.ts`,
 `src/extensions/load/commands.ts`). A skill body's template tokens expand in
 Mercury's spelling alone, `${MERCURY_SKILL_DIR}` and `${MERCURY_SESSION_ID}`.
 

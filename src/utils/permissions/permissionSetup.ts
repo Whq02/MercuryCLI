@@ -23,12 +23,10 @@ import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPa
 import { modeBypassesPermissions, permissionModeFromString } from './PermissionMode.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import type {
-  AdditionalWorkingDirectory,
   PermissionMode,
   PermissionRule,
   PermissionRuleSource,
   PermissionRuleValue,
-  WorkingDirectorySource,
   } from '../../types/permissions.js'
 
 
@@ -610,17 +608,14 @@ export async function initializeToolPermissionContext(args: {
   baseToolsCli?: string[]
   permissionMode: PermissionMode
   allowDangerouslySkipPermissions: boolean
-  addDirs?: string[]
 }): Promise<{
   toolPermissionContext: ToolPermissionContext
   warnings: string[]
   dangerousPermissions: DangerousPermissionInfo[]
   overlyBroadBashPermissions: DangerousPermissionInfo[]
-  admittedDirectories: string[]
 }> {
   const { loadAllPermissionRulesFromDisk } = await import('./permissionsLoader.js')
   const { applyPermissionRulesToPermissionContext } = await import('./permissions.js')
-  const { validateDirectoryForWorkspace, resolveWithoutTrailingSeparator } = await import('../../commands/add-dir/validation.js')
 
   const allowRules = parseToolListFromCLI(args.allowedToolsCli).map(normalizeRuleString)
   const denyRules = parseToolListFromCLI(args.disallowedToolsCli)
@@ -640,71 +635,9 @@ export async function initializeToolPermissionContext(args: {
   }
 
   const warnings: string[] = []
-  const additionalWorkingDirectories = new Map<string, AdditionalWorkingDirectory>()
-  const admittedWorkspaceDirs: string[] = []
-  const admitDirectory = async (
-    dir: string,
-    source: WorkingDirectorySource,
-    origin: string,
-  ): Promise<void> => {
-    let result: Awaited<ReturnType<typeof validateDirectoryForWorkspace>>
-    try {
-      result = await validateDirectoryForWorkspace(
-        dir,
-        { additionalWorkingDirectories } as unknown as ToolPermissionContext,
-      )
-    } catch (error) {
-      warnings.push(`${origin} ${dir}: unreadable (${error instanceof Error ? error.message : String(error)}) — skipped`)
-      return
-    }
-    if (result.resultType === 'success') {
-      additionalWorkingDirectories.set(result.absolutePath, {
-        path: result.absolutePath,
-        source,
-      })
-      if (!admittedWorkspaceDirs.includes(result.absolutePath)) {
-        admittedWorkspaceDirs.push(result.absolutePath)
-      }
-    } else if (result.resultType === 'alreadyInWorkingDirectory') {
-      const resolved = resolveWithoutTrailingSeparator(dir)
-      if (!admittedWorkspaceDirs.includes(resolved)) {
-        admittedWorkspaceDirs.push(resolved)
-      }
-    } else if (result.resultType !== 'emptyPath') {
-      warnings.push(
-        `${origin} ${dir}: ${result.resultType === 'notADirectory' ? 'not a directory' : 'path not found'} — skipped`,
-      )
-    }
-  }
-  for (const dir of args.addDirs ?? []) {
-    await admitDirectory(dir, 'cliArg', '--add-dir')
-  }
-
-  const { shouldAllowManagedPermissionRulesOnly } = await import('./permissionsLoader.js')
-  const { getSettingsForSource } = await import('../settings/settings.js')
-  const { getEnabledSettingSources } = await import('../settings/constants.js')
-  const directorySources = shouldAllowManagedPermissionRulesOnly()
-    ? (['policySettings'] as const)
-    : getEnabledSettingSources()
-  for (const source of directorySources) {
-    let remembered: string[] = []
-    try {
-      const settings = getSettingsForSource(source as never) as
-        | { permissions?: { additionalDirectories?: unknown } }
-        | undefined
-      const raw = settings?.permissions?.additionalDirectories
-      if (Array.isArray(raw)) remembered = raw.filter((d): d is string => typeof d === 'string')
-    } catch {
-      continue
-    }
-    for (const dir of remembered) {
-      await admitDirectory(dir, source as WorkingDirectorySource, `permissions.additionalDirectories (${source})`)
-    }
-  }
 
   let context = {
     mode: args.permissionMode,
-    additionalWorkingDirectories,
     alwaysAllowRules: { cliArg: allowRules },
     alwaysDenyRules: { cliArg: denyRules },
     alwaysAskRules: {},
@@ -720,7 +653,6 @@ export async function initializeToolPermissionContext(args: {
     warnings,
     dangerousPermissions,
     overlyBroadBashPermissions: [],
-    admittedDirectories: admittedWorkspaceDirs,
   }
 }
 

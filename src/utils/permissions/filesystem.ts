@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { sep as platformSep, posix as posixPath } from 'node:path'
 import ignore from 'ignore'
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
-import { getCwd } from '../cwd.js'
+import { getCwd, getStartingCwd } from '../cwd.js'
 import { permissionRuleValueFromString } from './permissionRuleParser.js'
 import { getMercuryHome } from '../envUtils.js'
 import { getFsImplementation, getPathsForPermissionCheck, safeResolvePath } from '../fsOperations.js'
@@ -23,7 +23,7 @@ import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionDecision, PermissionResult } from './PermissionResult.js'
-import { createReadRuleSuggestion } from './PermissionUpdate.js'
+import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
 import { refusalWithReason, withRuleReason } from './ruleReason.js'
 
 
@@ -87,19 +87,8 @@ function normalizeForWorkingDirCompare(path: string): string {
 }
 
 
-export function allWorkingDirectories(context: ToolPermissionContext): Set<string> {
-  const dirs = new Set<string>([getOriginalCwd()])
-  const additional = (context as unknown as { additionalWorkingDirectories?: ReadonlyMap<string, unknown> })
-    .additionalWorkingDirectories
-  if (additional) {
-    for (const dir of additional.keys()) dirs.add(dir)
-  }
-  return dirs
-}
-
-export function describeWriteScope(context: ToolPermissionContext): string {
-  const dirs = [...allWorkingDirectories(context)]
-  return `The session's write scope is ${dirs.map(d => `${d}${d === getOriginalCwd() ? ' (the launch directory)' : ''}`).join(', ')}; a directory joins it with /add-dir <dir> in the session or --add-dir <dir> at launch.`
+export function allWorkingDirectories(_context: ToolPermissionContext): Set<string> {
+  return new Set([getStartingCwd()])
 }
 
 export function pathInWorkingPath(path: string, workingPath: string): boolean {
@@ -743,7 +732,7 @@ export function checkReadPermissionForTool(
   return {
     behavior: 'ask',
     message: `Permission to read from ${path} has not been granted.`,
-    decisionReason: { type: 'workingDir', reason: 'the path is outside the allowed working directories' },
+    decisionReason: { type: 'workingDir', reason: 'the path is outside the starting folder' },
     suggestions: generateSuggestions(path, 'read', context, resolutionSet),
   } as unknown as PermissionDecision
 }
@@ -814,7 +803,7 @@ export function checkWritePermissionForTool(
     message: `Permission to write to ${path} has not been granted.`,
     suggestions: generateSuggestions(path, 'write', context, resolutionSet),
     decisionReason: outsideWorkingDir
-      ? { type: 'workingDir', reason: 'the path is outside the allowed working directories' }
+      ? { type: 'workingDir', reason: 'the path is outside the starting folder' }
       : undefined,
   } as unknown as PermissionDecision
 }
@@ -888,11 +877,8 @@ export function generateSuggestions(
 
   const suggestions = modeSuggestion(context)
   if (outside) {
-    suggestions.push({
-      type: 'addDirectories',
-      directories: getResolvedWorkingDirPaths(parent),
-      destination: 'session',
-    } as unknown as PermissionUpdate)
+    const grant = createEditRuleSuggestion(parent)
+    if (grant) suggestions.push(grant)
   }
   return suggestions
 }

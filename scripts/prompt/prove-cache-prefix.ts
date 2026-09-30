@@ -27,6 +27,7 @@ console.log('============================================================')
 const prompts = await import('../../src/constants/prompts.ts')
 const bc = await import('../../src/prompt/behaviourContract.ts')
 const sections = await import('../../src/constants/systemPromptSections.ts')
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 
 const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
@@ -42,8 +43,8 @@ const renderFor = (family: bc.ContractRenderFamily, segments: string[]): string 
 
 for (const [family, model] of FAMILY_MODELS) {
   section(`§1 turn stability — ${family} (${model})`)
-  const turn1 = await prompts.getSystemPrompt(tools, model, undefined, [])
-  const turn2 = await prompts.getSystemPrompt(tools, model, undefined, [])
+  const turn1 = await prompts.getSystemPrompt(tools, model, [])
+  const turn2 = await prompts.getSystemPrompt(tools, model, [])
   const r1 = renderFor(family, turn1)
   const r2 = renderFor(family, turn2)
   check('consecutive builds render byte-identical', r1 === r2,
@@ -55,14 +56,16 @@ for (const [family, model] of FAMILY_MODELS) {
     bc.resolveBehaviourContract(turn1).sections.every(s => s.group !== 'segment'))
 
   section(`§2 signature moves only with inputs — ${family}`)
-  const frozen = await prompts.getSystemPrompt(tools, model, [join(cwd, 'extra-dir')], [])
+  setOriginalCwd(join(cwd, 'other-project'))
+  const frozen = await prompts.getSystemPrompt(tools, model, [])
   check('within the conversation a changed input is frozen out (byte-identical render, same digest)', renderFor(family, frozen) === r1 && bc.resolveBehaviourContract(frozen).digest === d1)
   sections.clearSystemPromptSections()
-  const changed = await prompts.getSystemPrompt(tools, model, [join(cwd, 'extra-dir')], [])
+  const changed = await prompts.getSystemPrompt(tools, model, [])
   const dChanged = bc.resolveBehaviourContract(changed).digest
   check('across the lawful boundary a changed input moves the digest', dChanged !== d1)
   sections.clearSystemPromptSections()
-  const restored = await prompts.getSystemPrompt(tools, model, undefined, [])
+  setOriginalCwd(cwd)
+  const restored = await prompts.getSystemPrompt(tools, model, [])
   check('restoring the input restores the byte-identical render',
     renderFor(family, restored) === r1)
   check('…and the original digest', bc.resolveBehaviourContract(restored).digest === d1)

@@ -104,10 +104,8 @@ export async function bootWorkspace(messageId?: string): Promise<Workspace> {
     trackedFiles: new Set<string>(),
     snapshotSequence: 1,
   }
-  const permission = {
-    ...getEmptyToolPermissionContext(),
-    additionalWorkingDirectories: new Map([[root, { path: root, source: 'cliArg' }]]),
-  }
+  state.setOriginalCwd(root)
+  const permission = getEmptyToolPermissionContext()
   const context = {
     abortController: new AbortController(),
     readFileState,

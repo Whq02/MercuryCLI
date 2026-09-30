@@ -292,40 +292,38 @@ function scratchDirInCwd(tag: string): string {
   rmSync(dir, { recursive: true, force: true })
 }
 
-{
-  const dir = scratchDirInCwd('scope')
-  const outside = mkdtempSync(path.join(tmpdir(), 'lsp-outside-'))
-  const outsideFile = path.join(outside, 'victim.ts')
-  writeFileSync(outsideFile, 'const abc = 1\n')
-  const env = fakeEnvFor(dir, {
-    ctx: PERMISSIVE_CTX,
-    renameEditFor: () => ({
-      changes: {
-        [pathToFileURL(outsideFile).href]: [
-          { range: { start: { line: 0, character: 6 }, end: { line: 0, character: 9 } }, newText: 'xyz' },
-        ],
-      },
-    }),
-  })
-  writeFileSync(env.target, 'const abc = 1\n')
-  env.markRead()
-  const out = await runMercuryLspOp({
-    input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
-    absolutePath: env.target,
-    cwd: dir,
-    manager: env.manager as never,
-    tool: env.tool as never,
-    context: env.context as never,
-  })
-  check(
-    'production apply: OUT-OF-SCOPE target ⇒ REFUSED, nothing written',
-    out.applied === false &&
-      out.result.includes('outside the session') &&
-      readFileSync(outsideFile, 'utf8') === 'const abc = 1\n',
-    `applied=${out.applied} result=${out.result.slice(0, 100)}`,
-  )
-  rmSync(dir, { recursive: true, force: true })
-  rmSync(outside, { recursive: true, force: true })
+for (const mode of ['implement', 'default', 'sovereign', 'autopilot']) {
+  for (const answer of [false, true]) {
+    const dir = scratchDirInCwd('permission')
+    const outside = mkdtempSync(path.join(tmpdir(), 'lsp-outside-'))
+    const outsideFile = path.join(outside, 'victim.ts')
+    writeFileSync(outsideFile, 'const abc = 1\n')
+    const env = fakeEnvFor(dir, {
+      ctx: { ...PERMISSIVE_CTX, mode },
+      renameEditFor: () => ({ changes: { [pathToFileURL(outsideFile).href]: [
+        { range: { start: { line: 0, character: 6 }, end: { line: 0, character: 9 } }, newText: 'xyz' },
+      ] } }),
+    })
+    writeFileSync(env.target, 'const abc = 1\n')
+    env.markRead()
+    env.context.readFileState.set(outsideFile, { content: readFileSync(outsideFile, 'utf8'), timestamp: Math.floor(statSync(outsideFile).mtimeMs), offset: undefined, limit: undefined })
+    const asks: string[] = []
+    const out = await runMercuryLspOp({
+      input: { operation: 'rename', filePath: env.target, line: 1, character: 7, newName: 'xyz', apply: true },
+      absolutePath: env.target,
+      cwd: dir,
+      manager: env.manager as never,
+      tool: env.tool as never,
+      context: env.context as never,
+      requestWritePermission: async file => { asks.push(file); return answer },
+    })
+    const bypass = mode === 'sovereign' || mode === 'autopilot'
+    const applied = bypass || answer
+    check(`${mode}: an additional outside file ${bypass ? 'never asks' : 'asks once'}`, asks.length === (bypass ? 0 : 1) && asks.every(file => file === outsideFile), JSON.stringify(asks))
+    check(`${mode}: outside answer=${answer}, applied=${applied}`, out.applied === applied && readFileSync(outsideFile, 'utf8') === (applied ? 'const xyz = 1\n' : 'const abc = 1\n'), out.result.slice(0, 180))
+    rmSync(dir, { recursive: true, force: true })
+    rmSync(outside, { recursive: true, force: true })
+  }
 }
 
 {

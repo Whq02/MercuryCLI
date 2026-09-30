@@ -722,7 +722,7 @@ export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {
 
 
 const KNOWN_LOGGING_CHILDREN: Record<string, string[]> = {
-  permissions: ['allow', 'deny', 'ask', 'defaultMode', 'disableSovereignMode', 'disableFlowMode', 'additionalDirectories'],
+  permissions: ['allow', 'deny', 'ask', 'defaultMode', 'disableSovereignMode', 'disableFlowMode'],
   sandbox: [
     'enabled',
     'failIfUnavailable',

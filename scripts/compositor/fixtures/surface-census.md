@@ -29,7 +29,7 @@
 | REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
 | non-takeover argv paths (-p · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
-## Slash routes — modal-slot views (local-jsx: 73)
+## Slash routes — modal-slot views (local-jsx: 72)
 
 Host: the FullscreenLayout modal slot (opaque claim; SURFACE-CLAIM
 INVARIANT forces height = terminalRows at peek 0). Kernel signals name
@@ -38,7 +38,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | route | kernel signals | unit |
 |---|---|---|
 | /accounts | ilist irow | `src/commands/accounts` |
-| /add-dir | — | `src/commands/add-dir` |
 | /agent-form | flat | `src/commands/agent-form` |
 | /agents | flat | `src/commands/agents` |
 | /appearance | irow | `src/commands/appearance` |

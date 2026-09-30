@@ -72,13 +72,6 @@ export type PermissionRule = {
   ruleValue: PermissionRuleValue
 }
 
-export type WorkingDirectorySource = PermissionRuleSource
-
-export type AdditionalWorkingDirectory = {
-  path: string
-  source: WorkingDirectorySource
-}
-
 export type PermissionUpdateDestination =
   | 'userSettings'
   | 'projectSettings'
@@ -108,16 +101,6 @@ export type PermissionUpdate =
   | {
       type: 'setMode'
       mode: ExternalPermissionMode
-      destination: PermissionUpdateDestination
-    }
-  | {
-      type: 'addDirectories'
-      directories: string[]
-      destination: PermissionUpdateDestination
-    }
-  | {
-      type: 'removeDirectories'
-      directories: string[]
       destination: PermissionUpdateDestination
     }
 
@@ -269,7 +252,6 @@ export type PermissionRuleReasonsBySource = {
 
 export type ToolPermissionContext = {
   mode: InternalPermissionMode
-  additionalWorkingDirectories: Map<string, AdditionalWorkingDirectory>
   alwaysAllowRules: ToolPermissionRulesBySource
   alwaysDenyRules: ToolPermissionRulesBySource
   alwaysAskRules: ToolPermissionRulesBySource

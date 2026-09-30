@@ -3,8 +3,6 @@ import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { notifyPermissionModeChanged } from '../utils/sessionState.js'
 import { auditModeChange } from '../utils/permissions/modeTransitions.js'
 import { setMainLoopModelOverride } from '../bootstrap/state.js'
-import { getUserContext } from '../context.js'
-import { syncInstructionRootsWithWorkspace } from '../services/instructions/engine.js'
 import { clearApiKeyHelperCache } from '../utils/auth.js'
 import { applyConfigEnvironmentVariables } from '../utils/managedEnv.js'
 import { logError } from '../utils/log.js'
@@ -68,17 +66,4 @@ export function onChangeAppState({
     }
   }
 
-  if (newState.toolPermissionContext !== oldState.toolPermissionContext) {
-    try {
-      if (
-        syncInstructionRootsWithWorkspace(
-          newState.toolPermissionContext.additionalWorkingDirectories,
-        )
-      ) {
-        getUserContext.cache?.clear?.()
-      }
-    } catch (error) {
-      logError(error)
-    }
-  }
 }

@@ -30,7 +30,7 @@ const purpose = "for temporary files (helper scripts, intermediate results, capt
 const announced = (block: string): string => (block.match(/^(?:\s*- )?Scratchpad directory: (\S+) — /m) ?? [])[1] ?? ''
 const scratchpadLine = (block: string): string => (block.split('\n').find(line => line.includes('Scratchpad directory: ')) ?? '').replace(/^\s*- /, '')
 const agentEnv = async (agentId: string): Promise<string> =>
-  (await prompts.enhanceSystemPromptWithEnvDetails([`Agent ${agentId} instructions.`], MODEL, undefined, undefined, agentId)).join('\n\n')
+  (await prompts.enhanceSystemPromptWithEnvDetails([`Agent ${agentId} instructions.`], MODEL, undefined, agentId)).join('\n\n')
 
 section('§1 a session without sub-agents: the root, in the words it always had')
 const root = getScratchpadDir()
@@ -101,7 +101,7 @@ const sectionAt = (sections: readonly string[], offset: number): number => {
   return sections.length
 }
 
-const mainParent = await prompts.getSystemPrompt([], MODEL, undefined, [])
+const mainParent = await prompts.getSystemPrompt([], MODEL, [])
 const mainText = wire(mainParent)
 const forkOfMain = compose(mainParent, forkDir)
 const forkOfMainText = wire(forkOfMain)
@@ -117,7 +117,7 @@ const blocks = splitSysPromptPrefix([getCLISyspromptPrefix({ isNonInteractive: f
 console.log(`  [NOTE] the main thread's prompt: ${mainParent.length} sections, ${Buffer.byteLength(mainText)} bytes joined; the fork's bytes leave the parent's at byte ${shared} (the scratchpad line starts at byte ${lineBytes}, section ${sectionAt(mainParent, lineAt)} of ${mainParent.length}); on the wire the composed sections travel as ${blocks.length - 1} block after the identity prefix, so the cache keeps the tools and the prefix block and re-reads the rest block and every row after it`)
 
 const parentId = 'aparent01'
-const subParent = await prompts.enhanceSystemPromptWithEnvDetails([`Agent ${parentId} instructions.`], MODEL, undefined, undefined, parentId)
+const subParent = await prompts.enhanceSystemPromptWithEnvDetails([`Agent ${parentId} instructions.`], MODEL, undefined, parentId)
 const forkOfSub = compose(subParent, forkDir)
 const forkOfSubText = wire(forkOfSub)
 check(`${RED_FORK}: a fork of a sub-agent is told its own folder, not its parent's`, announced(forkOfSubText) === forkDir, `told ${announced(forkOfSubText)}`)

@@ -28,7 +28,6 @@ import {
   hasUnknownModelCost,
   getOriginalCwd,
   getProjectRoot,
-  getAddedDirectories,
   isSessionPersistenceDisabled,
   setAskChannel,
   switchSession,
@@ -2288,7 +2287,6 @@ export async function runHeadless(
               cwd: getCwd(),
               originalCwd: getOriginalCwd(),
               projectRoot: getProjectRoot(),
-              instructionRoots: getAddedDirectories(),
             },
             recoveredCommandIds,
             queue: getCommandQueue().filter(command => command.agentId === undefined).map(command => ({

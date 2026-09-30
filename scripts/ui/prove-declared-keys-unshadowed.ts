@@ -59,7 +59,6 @@ const CAPTURE_RULES: Record<string, Rule> = {
     gates: [
       { file: 'src/components/design-system/Dialog.tsx', needles: ["{ context: 'Confirmation', isActive: isCancelActive }"] },
       { file: 'src/components/mcp/ElicitationDialog.tsx', needles: ['isCancelActive={(!fieldFocused || buttonFocused) && !accordionOpen}'] },
-      { file: 'src/components/permissions/rules/AddWorkspaceDirectory.tsx', needles: ['isCancelActive={false}'] },
       { file: 'src/components/ExportDialog.tsx', needles: ["context: 'Settings',", "isActive: screen === 'filename',"] },
       { file: 'src/components/LogSelector.tsx', needles: ["context: 'Settings',", 'isActive: inRename,'] },
       { file: 'src/components/mcp/MCPRemoteServerMenu.tsx', needles: ['isCancelActive={pasteSubmit === null}', "{ context: 'Settings', isActive: phase.id === 'auth' && pasteSubmit !== null }"] },
@@ -146,7 +145,7 @@ section('§1b a design-system Dialog that hosts a text field turns its cancel of
 {
   const DIALOG_FIELD_NOTES: Record<string, string> = {}
   const dialogHosts = files.filter(rel => hostsTextField(read(rel)) && /<Dialog\b/.test(read(rel)))
-  check('the census is populated (≥ 3 Dialog text hosts)', dialogHosts.length >= 3, dialogHosts.join(' · '))
+  check('the census is populated (≥ 2 Dialog text hosts)', dialogHosts.length >= 2, dialogHosts.join(' · '))
   for (const rel of dialogHosts) {
     const src = read(rel)
     if (src.includes('isCancelActive=')) {

@@ -100,6 +100,11 @@ export function generateShellSuggestionsLabel(
             const cleaned = rule.ruleContent.replace('/**', '')
             if (cleaned !== '') readPaths.push(cleaned)
           }
+        } else if (rule.toolName === 'Edit') {
+          if (rule.ruleContent !== undefined) {
+            const cleaned = rule.ruleContent.replace(/\/\*\*$/, '').replace(/^\/\//, '/')
+            if (cleaned !== '') directories.push(cleaned)
+          }
         } else if (rule.toolName === shellToolName) {
           if (rule.ruleContent !== undefined) {
             const prefix = permissionRuleExtractPrefix(rule.ruleContent) ?? rule.ruleContent
@@ -107,8 +112,6 @@ export function generateShellSuggestionsLabel(
           }
         }
       }
-    } else if (update.type === 'addDirectories') {
-      directories.push(...update.directories)
     }
   }
 

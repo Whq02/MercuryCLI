@@ -160,7 +160,6 @@ const OBSERVABLES: Array<{
   { key: 'sessionExtensions', family: 'boot', scope: 'process', read: () => state.getSessionExtensions() },
   { key: 'allowedChannels', family: 'boot', scope: 'process', read: () => state.getAllowedChannels() },
   { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
-  { key: 'addedDirectories', family: 'boot', scope: 'process', read: () => state.getAddedDirectories() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
   { key: 'hasExitedPlanMode', family: 'oneShot', scope: 'conversation', read: () => state.hasExitedPlanModeInSession() },
@@ -267,7 +266,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'addToTurnClassifierDuration', 'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
     'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState', 'consumePostCompaction',
-    'flushInteractionTime', 'getAddedDirectories',
+    'flushInteractionTime',
     'getAgentColorMap', 'getAllowedChannels', 'getAskChannel',
     'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
     'getCacheEditingHeaderLatched', 'getCachedInstructionPrompt',
@@ -304,7 +303,7 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'resetCostState', 'resetModelStringsForTestingOnly',
     'resetSdkInitState', 'resetStateForTests',
     'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 'resetTurnClassifierDuration',
-    'resetTurnHookDuration', 'resetTurnToolDuration', 'setAddedDirectories',
+    'resetTurnHookDuration', 'resetTurnToolDuration',
     'setAllowedChannels', 'setAllowedSettingSources',
     'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 'setCachedInstructionPrompt',
     'setClientType', 'setCostStateForRestore', 'setCwdState',
@@ -433,7 +432,7 @@ section('LAW 12 SLOW-OPS-ABSENT — the dormant family is DELETED')
   )
 }
 
-section('LAW ONE OWNER — the added-directories list has one gatherer')
+section('LAW ONE ROOT — no added-directory state or readers')
 {
   const srcDir = join(repoRoot, 'src')
   const filesMatching = (re: RegExp): string[] => {
@@ -450,50 +449,12 @@ section('LAW ONE OWNER — the added-directories list has one gatherer')
     walk(srcDir)
     return hits.sort()
   }
-  const fieldHome = filesMatching(/\baddedDirectories\b/)
-  check(
-    'one owner: the field lives in the boot-config family and the facade only',
-    fieldHome.join(',') === 'bootstrap/runtime/boot-config.ts,bootstrap/state.ts',
-    fieldHome.join(','),
-  )
-  const fieldWriters = filesMatching(/\.addedDirectories\s*=[^=]/)
-  check(
-    'one owner: the field is assigned by the facade setter alone',
-    fieldWriters.join(',') === 'bootstrap/state.ts',
-    fieldWriters.join(','),
-  )
-  const writers = filesMatching(/\bsetAddedDirectories\(/).filter(p => p !== 'bootstrap/state.ts')
-  check(
-    'one owner: exactly two writers — the boot flag pass (main.tsx) and the instruction engine (services/instructions/engine.ts)',
-    writers.join(',') === 'main.tsx,services/instructions/engine.ts',
-    writers.join(','),
-  )
-  const flagReaders = filesMatching(/\bopts\.addDir\b/)
-  check(
-    'one owner: the --add-dir flag value is read in main.tsx only (no second gatherer)',
-    flagReaders.join(',') === 'main.tsx',
-    flagReaders.join(','),
-  )
-  const readers = filesMatching(/\bgetAddedDirectories\(/).filter(p => p !== 'bootstrap/state.ts')
-  check(
-    "one owner: the readers reach the list through the getter (the engine's root chains, the @import boundary, the nested ladders, skills, the bare-mode law)",
-    readers.length >= 6 &&
-      ['context.ts', 'skills/loadSkillsDir.ts', 'services/instructions/engine.ts', 'services/instructions/discovery.ts', 'utils/attachments/nestedMemory.ts'].every(p => readers.includes(p)),
-    readers.join(','),
-  )
-  const chokePoint = readFileSync(join(srcDir, 'state', 'onChangeAppState.ts'), 'utf8')
-  check(
-    'one owner: the state-change choke point mirrors the workspace into the roots (syncInstructionRootsWithWorkspace)',
-    chokePoint.includes('syncInstructionRootsWithWorkspace('),
-  )
-  const syncCallers = filesMatching(/\bsyncInstructionRootsWithWorkspace\(/).filter(p => p !== 'services/instructions/engine.ts')
-  check(
-    'one owner: the choke point is the only in-session caller of the sync (no mutation site duplicates it)',
-    syncCallers.join(',') === 'state/onChangeAppState.ts',
-    syncCallers.join(','),
-  )
+  for (const needle of [/\baddedDirectories\b/, /\bgetAddedDirectories\(/, /\bsetAddedDirectories\(/, /\bopts\.addDir\b/, /\bsyncInstructionRootsWithWorkspace\(/]) {
+    const matches = filesMatching(needle)
+    check(`one root: no retired directory state or reader ${needle}`, matches.length === 0, matches.join(','))
+  }
   const exports = state as never as Record<string, unknown>
-  check('one owner: the facade exports the getter and the setter', typeof exports.getAddedDirectories === 'function' && typeof exports.setAddedDirectories === 'function')
+  check('one root: the facade has no added-directory accessors', exports.getAddedDirectories === undefined && exports.setAddedDirectories === undefined)
   const stem = ['Claude', 'Md'].join('')
   check(
     "one owner: no facade export names the other product's instruction file",
@@ -1195,7 +1156,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setSessionExtensions(['extension-a'])
     state.setAllowedChannels([{ kind: 'server', name: 'chan' }])
     state.setHasDevChannels(true)
-    state.setAddedDirectories(['/tmp/extra'])
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
     state.setHasExitedPlanMode(true)

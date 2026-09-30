@@ -4,7 +4,7 @@ import { homedir } from 'os'
 import { dirname, extname, isAbsolute, join, relative } from 'path'
 import picomatch from 'picomatch'
 
-import { getAddedDirectories, getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd } from '../../bootstrap/state.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getErrnoCode } from '../../utils/errors.js'
 import { normalizePathForComparison } from '../../utils/file.js'
@@ -21,8 +21,7 @@ import type {
 import { parseInstructionFileContent, TEXT_FILE_EXTENSIONS } from './sourceText.js'
 
 export function pathInInstructionRoots(path: string): boolean {
-  if (pathInWorkingPath(path, getOriginalCwd())) return true
-  return getAddedDirectories().some(root => pathInWorkingPath(path, root))
+  return pathInWorkingPath(path, getOriginalCwd())
 }
 
 function handleInstructionFileReadError(

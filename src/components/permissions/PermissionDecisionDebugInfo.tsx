@@ -44,14 +44,6 @@ function ruleValuesOf(updates: PermissionUpdate[] | undefined): PermissionRuleVa
   return values
 }
 
-function directoriesOf(updates: PermissionUpdate[] | undefined): string[] {
-  const dirs: string[] = []
-  for (const update of updates ?? []) {
-    if (update.type === 'addDirectories') dirs.push(...update.directories)
-  }
-  return dirs
-}
-
 type SetModeUpdate = Extract<PermissionUpdate, { type: 'setMode' }>
 function lastModeOf(updates: PermissionUpdate[] | undefined): SetModeUpdate['mode'] | undefined {
   let mode: SetModeUpdate['mode'] | undefined
@@ -163,7 +155,6 @@ export function PermissionDecisionDebugInfo({
   const suggestions =
     'suggestions' in permissionResult ? permissionResult.suggestions : undefined
   const suggestedRules = ruleValuesOf(suggestions)
-  const suggestedDirs = directoriesOf(suggestions)
   const suggestedMode = lastModeOf(suggestions)
   const reason =
     'decisionReason' in permissionResult ? permissionResult.decisionReason : undefined
@@ -186,7 +177,7 @@ export function PermissionDecisionDebugInfo({
   }
 
   const hasSuggestionContent =
-    suggestedRules.length > 0 || suggestedDirs.length > 0 || suggestedMode !== undefined
+    suggestedRules.length > 0 || suggestedMode !== undefined
 
   return (
     <Box flexDirection="column">
@@ -211,14 +202,6 @@ export function PermissionDecisionDebugInfo({
                 <Text wrap="truncate-middle">Rules</Text>
                 {suggestedRules.map((rule, index) => (
                   <Text key={index} wrap="truncate-middle"> - {permissionRuleValueToString(rule)}</Text>
-                ))}
-              </Box>
-            ) : null}
-            {suggestedDirs.length > 0 ? (
-              <Box flexDirection="column">
-                <Text wrap="truncate-middle">Directories</Text>
-                {suggestedDirs.map((dir, index) => (
-                  <Text key={index} wrap="truncate-middle"> - {dir}</Text>
                 ))}
               </Box>
             ) : null}

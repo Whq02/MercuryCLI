@@ -211,16 +211,6 @@ export const PermissionUpdateSchema = lazySchema(() =>
       mode: externalPermissionModeWireEnum().describe('The permission mode to switch to'),
       destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
     }),
-    z.object({
-      type: z.literal('addDirectories'),
-      directories: z.array(z.string()).describe('The directories to grant access to'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
-    z.object({
-      type: z.literal('removeDirectories'),
-      directories: z.array(z.string()).describe('The directories to withdraw access from'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
   ]),
 )
 export const PermissionDecisionClassificationSchema = lazySchema(() =>

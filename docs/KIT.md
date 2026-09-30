@@ -18,9 +18,8 @@ session actually gets. Two sections:
   extension-shipped ones), each `on ⇄ off`. Session-only servers, including
   Mercury's built-in `mercury` server and the reserved `ide` bridge, are not
   listed here. The `ide` bridge is managed through `/ide`, not this menu.
-- **Skills** — added directory skills (user, project and managed settings)
-  and extension skills, tri-state: `on` is ambient (the agent can reach for
-  it), `invocable` is listed but loads only when you `/name` it, `off` is
+- **Skills** — user, project, managed and extension skills, tri-state: `on`
+  is ambient (the agent can reach for it), `invocable` is listed but loads only when you `/name` it, `off` is
   absent from the next session. An extension's **master row** sits above its
   items in each section it contributes to; items under an off master read
   `off (extension)` and keep their own state underneath. Bundled skills load

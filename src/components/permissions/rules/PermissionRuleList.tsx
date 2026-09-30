@@ -14,10 +14,6 @@ import { useTerminalFocus } from '../../../ink.js'
 import { useAppState, useSetAppState } from '../../../state/AppState.js'
 import { plural } from '../../../utils/stringUtils.js'
 import {
-  applyPermissionUpdate,
-  persistPermissionUpdate,
-} from '../../../utils/permissions/PermissionUpdate.js'
-import {
   getAllowRules,
   getAskRules,
   getDenyRules,
@@ -35,14 +31,11 @@ import type {
 } from '../../../types/permissions.js'
 import type { UnreachableRule } from '../../../utils/permissions/shadowedRuleDetection.js'
 import { AddPermissionRules } from './AddPermissionRules.js'
-import { AddWorkspaceDirectory } from './AddWorkspaceDirectory.js'
 import { PermissionRuleDescription } from './PermissionRuleDescription.js'
 import { PermissionRuleInput } from './PermissionRuleInput.js'
 import { RecentDenialsTab, type RecentDenialsState } from './RecentDenialsTab.js'
-import { RemoveWorkspaceDirectory } from './RemoveWorkspaceDirectory.js'
-import { WorkspaceTab } from './WorkspaceTab.js'
 
-type TabId = 'recent' | 'allow' | 'ask' | 'deny' | 'workspace'
+type TabId = 'recent' | 'allow' | 'ask' | 'deny'
 const RULE_TABS: Record<'allow' | 'ask' | 'deny', PermissionBehavior> = {
   allow: 'allow',
   ask: 'ask',
@@ -54,8 +47,6 @@ type SubDialog =
   | { kind: 'detail'; rule: PermissionRule; nextFocus: string | null }
   | { kind: 'add-input'; behavior: PermissionBehavior }
   | { kind: 'add-destination'; ruleValues: PermissionRuleValue[]; behavior: PermissionBehavior }
-  | { kind: 'add-directory' }
-  | { kind: 'remove-directory'; path: string }
 
 export type PermissionRuleListProps = {
   onExit: LocalJSXCommandOnDone
@@ -267,7 +258,7 @@ export function PermissionRuleList({
   }, [])
 
   const exitManager = useCallback(
-    (flavor: 'default' | 'workspace') => {
+    (_flavor: 'default') => {
       const retryDisplays = [...denialsState.retryMarked]
         .sort((a, b) => a - b)
         .map(index => denialsState.denials[index]?.display ?? '')
@@ -297,9 +288,7 @@ export function PermissionRuleList({
         return
       }
       onExit(
-        flavor === 'workspace'
-          ? 'Workspace dialog dismissed.'
-          : 'Permissions dialog dismissed.',
+        'Permissions dialog dismissed.',
         { display: 'system' },
       )
     },
@@ -357,26 +346,6 @@ export function PermissionRuleList({
     [appendLog],
   )
 
-  const handleAddDirectory = useCallback(
-    (path: string, remember?: boolean) => {
-      const update = {
-        type: 'addDirectories' as const,
-        directories: [path],
-        destination: remember ? ('localSettings' as const) : ('session' as const),
-      }
-      const updated = applyPermissionUpdate(toolPermissionContext, update)
-      if (remember) persistPermissionUpdate(update)
-      setToolPermissionContext(updated)
-      appendLog(
-        remember
-          ? `Added workspace directory ${chalk.bold(path)} (saved to local settings)`
-          : `Added workspace directory ${chalk.bold(path)} for this session`,
-      )
-      setSubDialog(null)
-    },
-    [toolPermissionContext, setToolPermissionContext, appendLog],
-  )
-
   if (subDialog?.kind === 'detail') {
     return (
       <RuleDetail
@@ -405,29 +374,6 @@ export function PermissionRuleList({
         initialContext={toolPermissionContext}
         setToolPermissionContext={setToolPermissionContext}
         onAddRules={handleRulesAdded}
-        onCancel={() => setSubDialog(null)}
-      />
-    )
-  }
-  if (subDialog?.kind === 'add-directory') {
-    return (
-      <AddWorkspaceDirectory
-        permissionContext={toolPermissionContext}
-        onAddDirectory={handleAddDirectory}
-        onCancel={() => setSubDialog(null)}
-      />
-    )
-  }
-  if (subDialog?.kind === 'remove-directory') {
-    return (
-      <RemoveWorkspaceDirectory
-        directoryPath={subDialog.path}
-        permissionContext={toolPermissionContext}
-        setPermissionContext={setToolPermissionContext}
-        onRemove={path => {
-          appendLog(`Removed workspace directory ${chalk.bold(path)}`)
-          setSubDialog(null)
-        }}
         onCancel={() => setSubDialog(null)}
       />
     )
@@ -494,15 +440,6 @@ export function PermissionRuleList({
         </Tab>
         <Tab title="Deny" id="deny">
           {renderRulesTab('deny')}
-        </Tab>
-        <Tab title="Workspace" id="workspace">
-          <WorkspaceTab
-            toolPermissionContext={toolPermissionContext}
-            onExit={() => exitManager('workspace')}
-            onRequestAddDirectory={() => setSubDialog({ kind: 'add-directory' })}
-            onRequestRemoveDirectory={path => setSubDialog({ kind: 'remove-directory', path })}
-            onHeaderFocusChange={setHeaderFocused}
-          />
         </Tab>
       </Tabs>
         <Text color="subtle">{footer}</Text>

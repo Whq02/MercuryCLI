@@ -34,7 +34,7 @@ setOriginalCwd(scratch)
 setCwdState(scratch)
 const A = 'claude-fable-5-1'
 const B = 'claude-opus-5'
-const addedDir = mkdtempSync(join(tmpdir(), 'switch-back-added-'))
+const movedCwd = mkdtempSync(join(tmpdir(), 'switch-back-added-'))
 const text = (parts: string[]): string => parts.join('\n\n')
 const envBlockOf = (prompt: string): string => {
   const at = prompt.indexOf('# Environment')
@@ -43,19 +43,20 @@ const envBlockOf = (prompt: string): string => {
   return end < 0 ? prompt.slice(at) : prompt.slice(at, end)
 }
 try {
-  section('§1 the control — an added working directory never rewrites the frozen prompt while the model holds')
+  section('§1 the control — a starting-folder change never rewrites the frozen prompt while the model holds')
   clearSystemPromptSections()
   const a1 = text(await getSystemPrompt([], A, []))
-  const a1Again = text(await getSystemPrompt([], A, [addedDir]))
-  check('same model, a directory added mid-session: the system prompt is byte-identical (the env block is keyed on the model alone)', a1Again === a1 && !envBlockOf(a1Again).includes(addedDir))
+  setOriginalCwd(movedCwd)
+  const a1Again = text(await getSystemPrompt([], A, []))
+  check('same model, a directory added mid-session: the system prompt is byte-identical (the env block is keyed on the model alone)', a1Again === a1 && !envBlockOf(a1Again).includes(movedCwd))
 
   section('§2 the switch-back — A → B → A after the add: the returning model\'s prompt is no longer the one its thinking blocks were bound to')
-  const b = text(await getSystemPrompt([], B, [addedDir]))
-  check('the switch to B recomputes the env block with the added directory (a lawful change on the switch)', envBlockOf(b).includes(addedDir))
-  const a2 = text(await getSystemPrompt([], A, [addedDir]))
+  const b = text(await getSystemPrompt([], B, []))
+  check('the switch to B recomputes the env block with the added directory (a lawful change on the switch)', envBlockOf(b).includes(movedCwd))
+  const a2 = text(await getSystemPrompt([], A, []))
   check('back on A: the system prompt is byte-identical to A\'s first prompt (the prefix A\'s thinking blocks are bound to)', a2 === a1, `env block now: ${j(envBlockOf(a2).slice(0, 300))}`)
-  check('back on A: the env block carries no directory added after A\'s first request', !envBlockOf(a2).includes(addedDir))
-  check('B keeps its own block for its own return', text(await getSystemPrompt([], B, [addedDir])) === b)
+  check('back on A: the env block carries no directory added after A\'s first request', !envBlockOf(a2).includes(movedCwd))
+  check('B keeps its own block for its own return', text(await getSystemPrompt([], B, [])) === b)
 
   section('§3 the record carries every kept entry, and a new process restoring it serves each model the block it first sent')
   const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
@@ -70,7 +71,7 @@ try {
   const entryOf = (key: string) => envEntries.find(e => e.key === key)
   const sectionA = entryOf(A)?.value ?? ''
   const sectionB = entryOf(B)?.value ?? ''
-  check('the record carries the environment section under both models\' keys, each as first sent, the current one last', envEntries.length === 2 && envEntries.at(-1)?.key === B && sectionA !== '' && a1.includes(sectionA) && !sectionA.includes(addedDir) && sectionB !== '' && b.includes(sectionB) && sectionB.includes(addedDir), j(envEntries.map(e => [e.key, (e.value ?? '').slice(0, 60)])))
+  check('the record carries the environment section under both models\' keys, each as first sent, the current one last', envEntries.length === 2 && envEntries.at(-1)?.key === B && sectionA !== '' && a1.includes(sectionA) && !sectionA.includes(movedCwd) && sectionB !== '' && b.includes(sectionB) && sectionB.includes(movedCwd), j(envEntries.map(e => [e.key, (e.value ?? '').slice(0, 60)])))
   const row = await boundPrefixRecordToEmit(owner, messages as never, A)
   const persisted = JSON.parse(j(row))
   clearSystemPromptSections()
@@ -79,8 +80,8 @@ try {
   resetBoundPrefixEmitted()
   check('a new process starts with an empty section cache', getSystemPromptSectionCache().size === 0)
   restoreBoundPrefixFromMessages([persisted])
-  const a3 = text(await getSystemPrompt([], A, [addedDir]))
-  const b3 = text(await getSystemPrompt([], B, [addedDir]))
+  const a3 = text(await getSystemPrompt([], A, []))
+  const b3 = text(await getSystemPrompt([], B, []))
   check('restored: A\'s first prompt is served byte for byte although the live world carries the added directory', a3 === a1, j(envBlockOf(a3).slice(0, 200)))
   check('restored: B\'s first prompt too', envBlockOf(b3) === envBlockOf(b))
 } finally {

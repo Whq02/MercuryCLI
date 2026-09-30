@@ -249,14 +249,10 @@ export class QueryEngine {
         ? ({ type: 'adaptive' } as ThinkingConfig)
         : ({ type: 'disabled' } as ThinkingConfig))
 
-    const additionalWorkingDirectories = [
-      ...appStateSnapshot.toolPermissionContext.additionalWorkingDirectories.keys(),
-    ]
     headlessProfilerCheckpoint('before_getSystemPrompt')
     const promptParts = await fetchSystemPromptParts({
       tools: config.tools,
       mainLoopModel: resolvedModel,
-      additionalWorkingDirectories,
       mcpClients: config.mcpClients,
       customSystemPrompt: config.customSystemPrompt,
       permissionMode: appStateSnapshot.toolPermissionContext.mode,

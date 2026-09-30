@@ -314,7 +314,6 @@ export type WorkspaceFactsV1 = {
   cwd: string
   originalCwd: string
   projectRoot: string
-  instructionRoots: readonly string[]
 }
 
 

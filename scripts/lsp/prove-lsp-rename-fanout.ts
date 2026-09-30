@@ -80,10 +80,9 @@ const manager = mgrModule.getLspServerManager()!
 const { runMercuryLspOp } = await import('../../src/tools/LSPTool/mercuryOps.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
-const permCtx = {
-  ...getEmptyToolPermissionContext(),
-  additionalWorkingDirectories: new Map([[scratch, { source: 'session' }]]),
-}
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+setOriginalCwd(scratch)
+const permCtx = getEmptyToolPermissionContext()
 const readFileState = new Map<string, { content: string; timestamp: number }>()
 const ctx = {
   readFileState,

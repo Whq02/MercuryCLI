@@ -1,6 +1,5 @@
 
 import { realpathSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { isAbsolute } from 'node:path'
 import { z, type ZodType } from 'zod'
 import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
@@ -9,12 +8,9 @@ import {
   getCwdState,
   getMainThreadAgentType,
   getSdkAgentProgressSummariesEnabled,
-  getSessionTrustAccepted,
 } from '../../bootstrap/state.js'
-import { isPathTrusted } from '../../utils/config/trust.js'
-import { getGlobalConfig } from '../../utils/config/globalConfig.js'
-import { projectConfigKeyForWorkspace } from '../../utils/config/projectConfig.js'
-import { describeWriteScope, pathInAllowedWorkingPath, pathInWorkingPath } from '../../utils/permissions/filesystem.js'
+import { pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { modeBypassesPermissions } from '../../utils/permissions/PermissionMode.js'
 import {
   enhanceSystemPromptWithEnvDetails,
   getSystemPrompt,
@@ -150,9 +146,7 @@ export type AgentToolInput = {
 }
 
 const CWD_PARAM_DESCRIPTION =
-  "The absolute directory the agent works in: its shell, its file tools and its environment section start there instead of this session's directory. It must exist. A directory inside a workspace this session already trusts — one of this session's working directories, or a folder the operator has trusted — is used as named; any other directory is a permission question to the operator, asked once per folder per session. With isolation 'worktree' the worktree is cut from that directory's repository and the agent runs in the worktree."
-
-const admittedAgentDirectories = new Set<string>()
+  "The absolute directory the agent starts in: its shell, file tools and environment section start there instead of this session's directory. It must exist. Starting outside this session's starting folder asks for ordinary permission; Sovereign mode does not ask. The child has one starting folder of its own. With isolation 'worktree' the worktree is cut from that directory's repository and becomes the child's starting folder."
 
 function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling)) {
@@ -172,18 +166,8 @@ function agentDirectoryOf(spelling: string): string {
   return realpathSync(spelling)
 }
 
-function outsideTrustSentence(dir: string, permissionContext: ToolPermissionContext): string {
-  return `cwd ${dir} is outside every workspace this session trusts. ${describeWriteScope(permissionContext)}`
-}
-
-export function resolveAgentCwd(spelling: string, permissionContext: ToolPermissionContext, options?: { admit?: boolean }): string {
-  const dir = agentDirectoryOf(spelling)
-  if (directoryTrusted(dir, permissionContext) || admittedAgentDirectories.has(dir)) return dir
-  if (options?.admit === true) {
-    admittedAgentDirectories.add(dir)
-    return dir
-  }
-  throw new Error(outsideTrustSentence(dir, permissionContext))
+export function resolveAgentCwd(spelling: string, _permissionContext: ToolPermissionContext, _options?: { admit?: boolean }): string {
+  return agentDirectoryOf(spelling)
 }
 
 export function agentCwdQuestion(spelling: string, permissionContext: ToolPermissionContext): PermissionAskDecision | null {
@@ -193,20 +177,12 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
   } catch {
     return null
   }
-  if (directoryTrusted(dir, permissionContext) || admittedAgentDirectories.has(dir)) return null
+  if (pathInAllowedWorkingPath(dir, permissionContext) || modeBypassesPermissions(permissionContext.mode)) return null
   return {
     behavior: 'ask',
-    message: outsideTrustSentence(dir, permissionContext),
-    decisionReason: { type: 'workingDir', reason: `The sub-agent would work in ${dir}, a folder outside every workspace this session trusts` },
-    suggestions: [{ type: 'addDirectories', directories: [dir], destination: 'session' }],
+    message: `Allow the agent to start in ${dir}, outside this session's starting folder?`,
+    decisionReason: { type: 'workingDir', reason: `The sub-agent would start in ${dir}` },
   }
-}
-
-function directoryTrusted(dir: string, permissionContext: ToolPermissionContext): boolean {
-  if (pathInAllowedWorkingPath(dir, permissionContext)) return true
-  if (isPathTrusted(dir)) return true
-  if (getGlobalConfig().projects?.[projectConfigKeyForWorkspace(dir)]?.hasTrustDialogAccepted) return true
-  return getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())
 }
 
 const MODEL_PARAM_DESCRIPTION =
@@ -1165,9 +1141,6 @@ async function buildParentEffectiveSystemPrompt(
   const defaultSystemPrompt = await getSystemPrompt(
     options.tools,
     options.mainLoopModel,
-    Array.from(
-      context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
-    ),
     options.mcpClients,
   )
   const effective = buildEffectiveSystemPrompt({
@@ -1198,9 +1171,6 @@ async function buildDefaultSystemPrompt(
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],
     childModel,
-    Array.from(
-      context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
-    ),
     undefined,
     agentId,
   )

@@ -182,10 +182,7 @@ export function MemoryFileSelector({
       return {
         label: getRelativeMemoryPath(entry.path),
         value: entry.path,
-        description:
-          entry.origin === 'additional-dir'
-            ? `${nativePrefix(entry)}from added directory ${toTildePath(entry.root ?? entry.path)}`
-            : `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}`,
+        description: `${nativePrefix(entry)}${getRelativeMemoryPath(entry.path)}`,
       }
     })
 

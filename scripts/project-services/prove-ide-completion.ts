@@ -120,10 +120,9 @@ const manager = {
   },
 } as never
 
-const fixtureScopedPermissionContext = () => ({
-  ...getEmptyToolPermissionContext(),
-  additionalWorkingDirectories: new Map([[dir, { path: dir, source: 'cliArg' }]]),
-})
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+setOriginalCwd(dir)
+const fixtureScopedPermissionContext = getEmptyToolPermissionContext
 
 const context = {
   abortController: new AbortController(),

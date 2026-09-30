@@ -30,7 +30,7 @@ const contractMod = await import('../../src/prompt/behaviourContract.ts')
 
 const toolNames = ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Agent', 'Skill', 'TaskCreate', 'AskUserQuestion']
 const tools = toolNames.map(name => ({ name })) as never
-const segments = await prompts.getSystemPrompt(tools, 'claude-fable-5', undefined, [])
+const segments = await prompts.getSystemPrompt(tools, 'claude-fable-5', [])
 const contract = contractMod.resolveBehaviourContract(segments)
 const openai = contractMod.renderOpenaiInstructions(contract)
 const anthropic = segments.join('\n\n')

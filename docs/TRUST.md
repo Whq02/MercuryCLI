@@ -57,6 +57,28 @@ Until trust is granted in an interactive session:
 - **Workspace reads wait.** The instruction-file scan warm-up and the
   system-context prefetch are deferred until the verdict.
 
+## Starting folder and file permissions
+
+The starting folder is the directory in which the session begins. A shell
+`cd` changes where commands run, not that starting folder. An agent launched
+in another folder, including a sibling worktree, has that folder as its own
+starting folder.
+
+- **Implement mode** allows ordinary writes and edits inside the starting
+  folder. Outside it, Mercury asks for permission; approving the action lets
+  it proceed.
+- **Default mode** asks for writes and edits in either place unless a
+  permission rule already allows them.
+- **Sovereign mode**, including Autopilot, does not ask because of a file's
+  location. Capability gates, explicit deny rules and wards still apply.
+- **Flow, Strategy, Apollo, Bubble and dontAsk** keep their existing permission
+  behaviour; a folder does not add a separate refusal.
+
+Sensitive files, such as credentials and Mercury configuration, retain their
+own permission checks. The sandbox is a separate feature and keeps its own
+filesystem restrictions. A headless permission ask goes to its permission
+channel; without an answer, it is not approval.
+
 ## Commands that never reach the model
 
 `/remember` and — when the Taste Loop is on — `/good`
