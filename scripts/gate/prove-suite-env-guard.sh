@@ -10,7 +10,7 @@ check() { if [ "$2" = 0 ]; then pass "$1"; else red "$1" "${3:-}"; fi; }
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/suite-env-guard.XXXXXX")"
 trap 'rm -rf "$scratch"' EXIT
 mkdir -p "$scratch/scripts/lib" "$scratch/scripts/synth" "$scratch/home"
-cp "$root/scripts/lib/suite-env.sh" "$scratch/scripts/lib/suite-env.sh"
+for f in suite-env.sh process-ledger.sh proofScratch.cjs proofBrowser.cjs; do cp "$root/scripts/lib/$f" "$scratch/scripts/lib/$f"; done
 if [ "${MERCURY_PROOF_POISON_GUARD:-}" = "1" ]; then
   sed -i.bak 's/^  \[ "${MERCURY_SUITE_ENV:-}" = "any" \] && return 0$/  return 0/' "$scratch/scripts/lib/suite-env.sh" && rm -f "$scratch/scripts/lib/suite-env.sh.bak"
 fi

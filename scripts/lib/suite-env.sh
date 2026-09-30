@@ -4,6 +4,7 @@ suite_env_guard() {
   local runner="${1:?suite_env_guard: the path of the runner}" dir name line declared="" foreign=""
   local -a inputs
   suite_home_guard "$runner"
+  suite_scratch_init "$runner"
   export MERCURY_LOCAL_PROBE_TARGETS="${MERCURY_LOCAL_PROBE_TARGETS:-none}"
   [ "${MERCURY_SUITE_ENV:-}" = "any" ] && return 0
   if [ ! -r "$runner" ]; then
@@ -30,6 +31,7 @@ suite_env_guard() {
     case "$name" in
       MERCURY_CONFIG_DIR|MERCURY_HOME|MERCURY_CREDENTIAL_STORE|MERCURY_DAEMON_DIR|MERCURY_NODE|MERCURY_SUITE_ENV|MERCURY_PROCESS_LEDGER_DIR) continue ;;
       MERCURY_LOCAL_PROBE_TARGETS) [ "${MERCURY_LOCAL_PROBE_TARGETS:-}" = none ] && continue ;;
+      MERCURY_TMPDIR) [ "${MERCURY_TMPDIR:-}" = "${MERCURY_SUITE_TMPDIR:-}" ] && continue ;;
       MERCURY_GATE_*|MERCURY_CI_*|MERCURY_SUITE_*|MERCURY_SLICE_*|MERCURY_VSHOT_*) continue ;;
       MERCURY_CUSTOM_OAUTH_URL|MERCURY_UPDATE_API_BASE_URL|MERCURY_*_BASE) continue ;;
     esac
@@ -81,5 +83,55 @@ suite_home_guard() {
 
 suite_home_cleanup() {
   [ -n "${__suite_home_scratch:-}" ] && rm -rf "$__suite_home_scratch"
+  if [ -n "${__suite_temp_scratch:-}" ]; then
+    suite_browser_cleanup >&2
+    process_ledger_reap "${MERCURY_PROCESS_LEDGER_DIR:-}" >&2
+    rm -rf "$__suite_temp_scratch"
+  fi
   return 0
+}
+
+suite_browser_cleanup() {
+  local ledger="${MERCURY_SUITE_TMPDIR:-}/browser-ledger"
+  [ -d "$ledger" ] || return 0
+  MERCURY_SUITE_BROWSER_CLEANER=1 "${MERCURY_NODE:-node}" "$(dirname "${BASH_SOURCE[0]}")/proofBrowser.cjs" "$ledger"
+}
+
+suite_scratch_init() {
+  local subject="${1:-$0}"
+  if [ "${MERCURY_SUITE_SCRIPT:-}" != "$subject" ] || [ -z "${MERCURY_SUITE_TMPDIR:-}" ] || [ ! -d "$MERCURY_SUITE_TMPDIR" ]; then
+    __suite_temp_scratch=$(command mktemp -d "${TMPDIR:-/tmp}/mercury-proof-run.XXXXXX") || {
+      printf 'suite: cannot create temporary proof root under %s\n' "${TMPDIR:-/tmp}" >&2
+      exit 78
+    }
+    export MERCURY_SUITE_TMPDIR="$__suite_temp_scratch"
+    export MERCURY_SUITE_SCRIPT="$subject"
+    export MERCURY_SUITE_RUNNER_PID="$$"
+    export MERCURY_PROCESS_LEDGER_DIR="$__suite_temp_scratch/process-ledger"
+    . "$(dirname "${BASH_SOURCE[0]}")/process-ledger.sh" || exit 78
+    trap suite_home_cleanup EXIT
+    trap 'exit 143' TERM
+    trap 'exit 130' INT
+    trap 'exit 129' HUP
+  fi
+  export TMPDIR="$MERCURY_SUITE_TMPDIR"
+  export MERCURY_TMPDIR="$MERCURY_SUITE_TMPDIR"
+  local preload="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/proofScratch.cjs"
+  case "${NODE_OPTIONS:-}" in
+    *"$preload"*) ;;
+    *) export NODE_OPTIONS="${NODE_OPTIONS:+$NODE_OPTIONS }--require=\"$preload\"" ;;
+  esac
+  export -f mktemp
+}
+
+mktemp() {
+  local arg
+  local -a args=()
+  for arg in "$@"; do
+    case "$arg" in
+      /private/tmp/mw/*|/tmp/mw/*) [ -z "${MERCURY_SUITE_TMPDIR:-}" ] || arg="$MERCURY_SUITE_TMPDIR/${arg##*/}" ;;
+    esac
+    args+=("$arg")
+  done
+  command mktemp "${args[@]}"
 }

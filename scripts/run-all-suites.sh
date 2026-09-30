@@ -187,9 +187,13 @@ running_doms=(); running_pids=(); running_cls=(); running_wt=(); running_dir=();
 cleanup() {
   local p
   for p in ${running_pids[@]+"${running_pids[@]}"}; do kill "$p" 2>/dev/null; done
+  for p in ${running_pids[@]+"${running_pids[@]}"}; do wait "$p" 2>/dev/null; done
   rm -rf "$outdir"
 }
 trap cleanup EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
+trap 'exit 129' HUP
 
 declare -a PASS=() FAIL=() PRINTED=()
 was_printed() { local d; for d in ${PRINTED[@]+"${PRINTED[@]}"}; do [ "$d" = "$1" ] && return 0; done; return 1; }

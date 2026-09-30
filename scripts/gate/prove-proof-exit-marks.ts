@@ -74,7 +74,7 @@ try {
   mkdirSync(join(estate, 'scripts/lib'), { recursive: true })
   mkdirSync(join(estate, 'dist'))
   writeFileSync(join(estate, 'dist/mercury.mjs'), '')
-  for (const file of ['suite-env.sh', 'proof-runner.sh']) writeFileSync(join(estate, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
+  for (const file of ['suite-env.sh', 'proof-runner.sh', 'proofScratch.cjs', 'proofBrowser.cjs', 'process-ledger.sh']) writeFileSync(join(estate, 'scripts/lib', file), readFileSync(join(root, 'scripts/lib', file)))
   const fixture = '#!/bin/sh\nfor arg in "$@"; do\n  case "$arg" in */journey-j[1-5].ts) n="${arg##*/journey-j}"; n="${n%.ts}"; printf "{}\\n" > "$TMPDIR/momentum-report-J$n.json";; esac\ndone\nprintf "FAIL  diagnostic wording is not the result\\n"\nexit "$PROOF_FIXTURE_RC"\n'
   const nodeStub = join(scratch, 'node')
   writeFileSync(nodeStub, fixture)

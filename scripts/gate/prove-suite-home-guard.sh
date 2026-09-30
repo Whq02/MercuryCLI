@@ -16,6 +16,7 @@ guard="$root/scripts/lib/suite-env.sh"
 if [ "${MERCURY_PROOF_POISON_GUARD:-}" = "1" ]; then
   grep -v '^  suite_home_guard "\$runner"$' "$guard" >"$scratch/lib/suite-env.sh"
   guard="$scratch/lib/suite-env.sh"
+  for f in process-ledger.sh proofScratch.cjs proofBrowser.cjs; do cp "$root/scripts/lib/$f" "$scratch/lib/$f"; done
 fi
 clean() { env -i PATH="$PATH" HOME="$scratch/home" TMPDIR="$scratch/tmp" "$@"; }
 probe='. "$1" || exit 78; suite_env_guard "$2"; printf "%s\n" "${MERCURY_CONFIG_DIR:-}"; [ -d "${MERCURY_CONFIG_DIR:-/nonexistent}" ] && echo present; [ -f "${MERCURY_CONFIG_DIR:-/nonexistent}/.mercury.json" ] && echo seeded; grep -qF "\"$3\"" "${MERCURY_CONFIG_DIR:-/nonexistent}/.mercury.json" 2>/dev/null && echo trusts-root; printf "store=%s\n" "${MERCURY_CREDENTIAL_STORE:-}"'
@@ -142,7 +143,7 @@ from_root "$bun" -e "import('./src/utils/envUtils.ts').then(m => console.log(m.g
 check "the product's own resolver, loaded outside scripts/, still answers the default home" "$([ "$rc" = 0 ] && [ "$(first)" = "$scratch/home/.mercury" ] && echo 0 || echo 1)" "rc=$rc home=$(first) $(head -c 200 "$scratch/err")"
 estate="$scratch/estate"
 mkdir -p "$estate/scripts/lib" "$estate/scripts/vendor" "$estate/scripts/gate" "$estate/src"
-for f in proofHomePreload.ts loginDriverGuard.ts proofHome.ts firstRunSeed.ts; do cp "$root/scripts/lib/$f" "$estate/scripts/lib/$f"; done
+for f in proofHomePreload.ts loginDriverGuard.ts proofHome.ts firstRunSeed.ts proofScratch.cjs proofBrowser.cjs; do cp "$root/scripts/lib/$f" "$estate/scripts/lib/$f"; done
 cp "$root/bunfig.toml" "$estate/bunfig.toml"
 for e in scripts/gate/prove-x.ts scripts/vendor/fetch-x.ts build.ts src/y.ts; do printf "console.log(process.env.MERCURY_CONFIG_DIR ?? '')\n" >"$estate/$e"; done
 in_estate() { (cd "$estate" && clean "$bun" "$1" >"$scratch/out" 2>"$scratch/err"); }
