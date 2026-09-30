@@ -1,5 +1,8 @@
 import { getSystemPrompt } from '../constants/prompts.js'
+import { getAttributionHeader } from '../constants/system.js'
 import { getSystemContext } from '../context.js'
+import { buildTurnSystemBlocks } from '../services/providers/anthropic/cacheAndUsage.js'
+import { getPromptCachingEnabled } from '../services/providers/anthropic/requestParams.js'
 import {
   countMessagesTokensWithAPI,
   countTokensViaHaikuFallback,
@@ -11,26 +14,30 @@ import {
   MANUAL_COMPACT_BUFFER_TOKENS,
 } from '../services/compact/autoCompact.js'
 import { microcompactMessages } from '../services/compact/microCompact.js'
+import type { MCPServerConnection } from '../services/mcp/types.js'
 import { getSdkBetas } from '../bootstrap/state.js'
 import {
   filterInjectedInstructionFiles,
   getInstructionFiles,
 } from '../services/instructions/engine.js'
 import type { Tool, Tools, ToolPermissionContext, ToolUseContext } from '../Tool.js'
-import { findToolByName } from '../Tool.js'
+import { findToolByName, toolMatchesName } from '../Tool.js'
 import { isBuiltInAgent, type AgentDefinition, type AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import { SkillTool } from '../tools/SkillTool/SkillTool.js'
 import { getSkillToolInfo, getLimitedSkillToolCommands } from '../tools/SkillTool/prompt.js'
-import { isDeferredToolFor } from '../tools/ToolSearchTool/prompt.js'
+import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../tools/ToolSearchTool/prompt.js'
 import type { Message } from '../types/message.js'
-import { toolToAPISchema } from './api.js'
+import type { TextBlockParam } from '../types/wire.js'
+import { appendSystemContext, toolToAPISchema } from './api.js'
 import { getContextWindowForModel } from './context.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
+import { computeFingerprintFromMessages } from './fingerprint.js'
 import { logError } from './log.js'
 import { getRuntimeMainLoopModel } from './model/model.js'
 import { normalizeMessagesForAPI } from './messages.js'
+import { asSystemPrompt } from './systemPromptType.js'
 import { contextFill, getCurrentUsage } from './tokens.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import { isToolSearchEnabled } from './toolSearch.js'
@@ -154,6 +161,23 @@ async function countStringTokens(content: string): Promise<number | null> {
 }
 
 type GetToolPermissionContext = () => Promise<ToolPermissionContext>
+
+async function countMessagesInRequest(
+  messages: CountableMessage[],
+  roster: Tools,
+  requestSystem: TextBlockParam[],
+  getToolPermissionContext: GetToolPermissionContext,
+  agentInfo: AgentDefinitionsResult,
+  model: string,
+): Promise<number | null> {
+  const requestTools = await projectToolSchemas(roster, getToolPermissionContext, agentInfo, model)
+  const request = await countMessagesTokensWithAPI(messages, requestTools, requestSystem)
+  if (request === null) return null
+  const prefix = await countMessagesTokensWithAPI([], requestTools, requestSystem)
+  const placeholder = await countMessagesTokensWithAPI([], [])
+  if (prefix === null || placeholder === null) return null
+  return Math.max(0, request - prefix + placeholder)
+}
 
 async function projectToolSchemas(
   tools: readonly Tool[],
@@ -297,9 +321,14 @@ async function countSystemPrompt(
   tools: Tools,
   toolUseContext: Pick<ToolUseContext, 'options'> | undefined,
   mainThreadAgentDefinition: AgentDefinition | undefined,
-): Promise<{ tokens: number; sections: SystemPromptSectionDetail[] }> {
+  messages: Message[],
+): Promise<{ tokens: number; sections: SystemPromptSectionDetail[]; requestSystem: TextBlockParam[] }> {
   const options = (toolUseContext as { options?: Record<string, unknown> } | undefined)?.options
-  const defaultSystemPrompt = await getSystemPrompt(tools, runtimeModel)
+  const defaultSystemPrompt = await getSystemPrompt(
+    tools,
+    runtimeModel,
+    options?.mcpClients as MCPServerConnection[] | undefined,
+  )
   const { buildEffectiveSystemPrompt } = await import('./systemPrompt.js')
   const effective = buildEffectiveSystemPrompt({
     mainThreadAgentDefinition: mainThreadAgentDefinition as AgentDefinition,
@@ -312,8 +341,17 @@ async function countSystemPrompt(
   const parts = (effective as readonly string[]).filter(part => part !== '')
   const systemContext = await getSystemContext()
   const contextEntries = Object.entries(systemContext).filter(([, value]) => value !== '')
+  const requestSystem = buildTurnSystemBlocks(
+    getAttributionHeader(computeFingerprintFromMessages(messages)),
+    asSystemPrompt(appendSystemContext(effective, systemContext)),
+    {
+      isNonInteractive: options?.isNonInteractiveSession === true,
+      hasAppendSystemPrompt: Boolean(options?.appendSystemPrompt),
+    },
+    getPromptCachingEnabled(runtimeModel),
+  )
   if (parts.length === 0 && contextEntries.length === 0) {
-    return { tokens: 0, sections: [] }
+    return { tokens: 0, sections: [], requestSystem }
   }
   const sections: SystemPromptSectionDetail[] = await Promise.all([
     ...parts.map(async part => ({
@@ -326,7 +364,7 @@ async function countSystemPrompt(
     })),
   ])
   const total = sections.reduce((sum, section) => sum + section.tokens, 0)
-  return { tokens: total, sections }
+  return { tokens: total, sections, requestSystem }
 }
 
 async function countMemoryFiles(): Promise<{
@@ -566,6 +604,7 @@ export async function analyzeContextUsage(
     tools,
     toolUseContext,
     mainThreadAgentDefinition,
+    messages,
   )
 
   const memoryFiles = await countMemoryFiles()
@@ -670,7 +709,18 @@ export async function analyzeContextUsage(
     message => ({ role: message.message.role, content: message.message.content }),
   )
   const messageTokens =
-    normalizedForCount.length > 0 ? ((await countMessagesTokens(normalizedForCount, [])) ?? 0) : 0
+    normalizedForCount.length > 0
+      ? ((await countMessagesInRequest(
+          normalizedForCount,
+          toolSearchEnabled ? tools : tools.filter(tool => !toolMatchesName(tool, TOOL_SEARCH_TOOL_NAME)),
+          systemPromptResult.requestSystem,
+          getToolPermissionContext,
+          agentInfo,
+          runtimeModel,
+        )) ??
+        (await countMessagesTokens(normalizedForCount, [])) ??
+        0)
+      : 0
 
   let skillsBlock: ContextData['skills']
   try {

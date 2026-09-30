@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 import type { Message } from '../types/message.js'
+import type { TextBlockParam } from '../types/wire.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeAttachmentForAPI } from '../utils/messages.js'
@@ -104,10 +105,12 @@ function toProductMessage(message: CountableMessage): Message {
 export async function countMessagesTokensWithAPI(
   rawMessages: CountableMessage[],
   tools: unknown[],
+  system?: readonly TextBlockParam[],
 ): Promise<number | null> {
   if (!firstPartyCountApplies()) return null
   const messages = rawMessages.map(toProductMessage)
-  return withTokenCountVCR(messages, tools, async () => {
+  const carried = system !== undefined && system.length > 0 ? system : undefined
+  return withTokenCountVCR(messages, tools, carried, async () => {
     try {
       const model = normalizeModelStringForAPI(getMainLoopModel())
       const apiMessages = apiMessagesFor(messages)
@@ -120,6 +123,7 @@ export async function countMessagesTokensWithAPI(
           model,
           messages: body as never,
           tools: tools as never,
+          ...(carried !== undefined ? { system: carried as never } : {}),
           ...(betas.length > 0 ? { betas } : {}),
           ...(thinking
             ? {
