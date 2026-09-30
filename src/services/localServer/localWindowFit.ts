@@ -120,6 +120,30 @@ export function localWindowRefusal(fit: LocalWindowFit, window: number): string 
   return `${gibWords(load.totalBytes)} does not fit ${gibWords(fit.usableBytes)} usable · ${fit.fits ? `${tokensWords(fit.window)} fits` : 'no rung fits'}`
 }
 
+export const SMALL_MACHINE_BYTES = 16 * 1024 ** 3
+export const LOCAL_WINDOW_ROOM_FRACTION = 0.1
+export const LOCAL_WINDOW_ROOM_FLOOR_BYTES = 1024 ** 3
+
+export function smallMachine(machineBytes: number): boolean {
+  return machineBytes < SMALL_MACHINE_BYTES
+}
+
+export function localWindowRoomFloor(usableBytes: number): number {
+  return Math.max(usableBytes * LOCAL_WINDOW_ROOM_FRACTION, LOCAL_WINDOW_ROOM_FLOOR_BYTES)
+}
+
+export function localWindowRoomWarning(fit: LocalWindowFit, window: number): string | undefined {
+  if (!smallMachine(fit.machineBytes)) return undefined
+  const load = localWindowLoad(fit, window)
+  if (!load.fits) return undefined
+  const floor = localWindowRoomFloor(fit.usableBytes)
+  const roomOf = (rung: LocalWindowFitRung): number => fit.usableBytes - rung.totalBytes
+  if (roomOf(load) >= floor) return undefined
+  const smaller = fit.ladder.filter(rung => rung.window < window && rung.fits && roomOf(rung) >= floor).at(-1)
+  const suggestion = smaller === undefined ? 'no smaller rung leaves room' : `${tokensWords(smaller.window)} leaves ${gibWords(roomOf(smaller))}`
+  return `${tokensWords(window)} leaves ${gibWords(roomOf(load))} of ${gibWords(fit.usableBytes)} usable (${gibWords(fit.machineBytes)} box) · ${suggestion}`
+}
+
 function envNumber(value: string | undefined): number | undefined {
   const n = Number(value)
   return value !== undefined && Number.isFinite(n) && n > 0 ? n : undefined
