@@ -282,9 +282,9 @@ function seedEarlierNote(arena: Arena, sid: string): string {
 const noteOnDisk = (memory: string): boolean => rawRecordsOf(memory).some(r => r.kind === 'note' && r.text === NOTE)
 
 interface Run { exit: number | null; stdout: string; stderr: string; results: number; closedOn: string; frames: Raw[] }
-function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { results: number; also?: () => boolean; label: string }, deadlineMs: number, holdNextUntil?: (nextIndex: number) => boolean, identity: 'new' | 'resume' = 'new'): Promise<Run> {
+function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { results: number; also?: () => boolean; label: string }, deadlineMs: number, holdNextUntil?: (nextIndex: number) => boolean, identity: 'new' | 'resume' = 'new', extraArgv: string[] = []): Promise<Run> {
   return new Promise(resolvePromise => {
-    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', sid], { cwd: arena.cwd, env: arena.env })
+    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', sid, ...extraArgv], { cwd: arena.cwd, env: arena.env })
     let stdout = ''
     let stderr = ''
     let sent = 0
@@ -436,6 +436,37 @@ section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back
   const noteRows = chat.filter(isNoteRow)
   const lineThreeAt = chat.findIndex(r => r.type === 'user' && contentOf(r) === 'operator line 3')
   check("the chat's reader hands back two advisor rows across both lives, the second inside the resumed life's first operator turn", noteRows.length === 2 && chat.indexOf(noteRows[1]!) > lineThreeAt && lineThreeAt >= 0, j(shapeOf(chat)))
+  wire.length = 0
+  agentReplies = 0
+}
+
+section(`§1d THE HEADLESS FLAG: a -p run with --advise has its chat's switch on at birth — the note lands with no /advise typed — and the same run without the flag, the settings on in its home, makes no advisor call at all (red on the base: the settings alone ran it, and no flag existed)`)
+{
+  advisorMode = 'note'
+  agentScript = []
+  for (const flagged of [true, false]) {
+    wire.length = 0
+    agentReplies = 0
+    const arena = makeArena(flagged ? 'flag-on' : 'flag-off')
+    const SID = flagged ? 'c0ffee00-0000-4000-8000-00000000ad07' : 'c0ffee00-0000-4000-8000-00000000ad08'
+    const memory = seedEarlierNote(arena, SID)
+    const run = await runSession(arena, SID, ['operator line 1', 'operator line 2'], { results: 2, label: 'two results' }, 60_000, next => next !== 1 || !flagged || noteOnDisk(memory), 'new', flagged ? ['--advise'] : [])
+    check(`${flagged ? 'with' : 'without'} --advise: two turns, exit 0`, run.exit === 0 && run.results === 2, j({ exit: run.exit, results: run.results, stderr: run.stderr.slice(-300) }))
+    const requests = wire.filter(w => w.kind === 'advisor')
+    const file = transcriptFileOf(arena, SID)
+    const switches = rawRecordsOf(file).filter(r => JSON.stringify(r).includes('"metaKind":"advisor-switch"'))
+    if (flagged) {
+      check('with --advise: one advisor request at turn 1\'s end and the note on disk — the flag is /advise on at birth', requests.length === 1 && noteOnDisk(memory), String(requests.length))
+      check("with --advise: the session's record carries the switch on, so a later resume remembers it", switches.length >= 1 && switches.every(r => JSON.stringify(r).includes('"on":true')), j(switches.length))
+      const chat = file === null ? [] : await chatRowsOf(file)
+      check("with --advise: the note lands inside the second turn beside the operator's prompt", chat.filter(isNoteRow).length === 1, j(shapeOf(chat)))
+    } else {
+      check('without --advise: no advisor request left the box across both turn ends, with the settings on in the home', requests.length === 0, String(requests.length))
+      check('without --advise: no switch record and the seeded memory untouched', switches.length === 0 && memoryKindsOf(file, SID).join(',') === 'head,note', j(memoryKindsOf(file, SID)))
+    }
+  }
+  const main = readFileSync(join(ROOT, 'src/main.tsx'), 'utf8')
+  check("--advise is declared beside --model in --help and refused off the print road (in a chat, /advise on is the door)", main.includes(".option('--advise', 'Turn the advisor on for this print run at birth") && main.includes("failCli('--advise is a print-mode option: in a chat, /advise on turns the advisor on for that chat')"))
   wire.length = 0
   agentReplies = 0
 }

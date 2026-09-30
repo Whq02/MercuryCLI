@@ -243,6 +243,7 @@ import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
   cacheSessionTitle,
   doesMessageExistInSession,
+  saveAdvisorSwitch,
   saveAgentSetting,
 } from '../utils/sessionStorage.js'
 import { restoreAgentFromSession, restoreConversationModelFromMessages, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
@@ -331,6 +332,7 @@ type HeadlessOptions = {
   rewindFiles?: string
   agent?: string
   workload?: string
+  advise?: boolean
   setupTrigger?: 'init' | 'maintenance'
   bootSessionIdPinned?: boolean
   subscribeAppState?: (listener: () => void) => () => void
@@ -729,6 +731,7 @@ export async function runHeadless(
       saveAgentSetting(restored.agentType)
     }
   }
+  if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
     return
