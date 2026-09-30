@@ -35,7 +35,7 @@ until the tag after it ships. Each page carries the same four parts:
 | v1.0.0-beta.21 | published 2026-09-26 | [1.0.0-beta.21.md](1.0.0-beta.21.md) |
 | v1.0.0-beta.22 | published 2026-09-27 | [1.0.0-beta.22.md](1.0.0-beta.22.md) |
 | v1.0.0-beta.23 | published 2026-09-28 | [1.0.0-beta.23.md](1.0.0-beta.23.md) |
-| v1.0.0-beta.24 | ready for the tag | [1.0.0-beta.24.md](1.0.0-beta.24.md) |
+| v1.0.0-beta.24 | published 2026-09-30 | [1.0.0-beta.24.md](1.0.0-beta.24.md) |
 | v1.0.0-beta.25 | queued | [1.0.0-beta.25.md](1.0.0-beta.25.md) |
 
 How a version moves: work lands on `working`; a release folds `working` into
