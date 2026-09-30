@@ -1,5 +1,4 @@
 import type { Message, UserMessage } from '../../types/message.js'
-import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin, type AdvisorOrigin } from '../../utils/messages/noticeRows.js'
 import { callAdvisorOnceMore, liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
@@ -173,17 +172,6 @@ export function advisorNoteDue(context: Pick<AdvisorContext, 'rows' | 'openedAt'
 export interface AdvisorNote {
   text: string
   origin: AdvisorOrigin
-}
-
-export function advisorNoteQueueCommand(note: AdvisorNote, uuid: string): QueuedCommand {
-  return {
-    value: note.text,
-    mode: 'prompt',
-    uuid: uuid as never,
-    priority: 'later',
-    skipSlashCommands: true,
-    origin: note.origin,
-  }
 }
 
 export interface AdvisorRoad {

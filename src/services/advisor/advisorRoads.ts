@@ -1,7 +1,6 @@
 import type { Message } from '../../types/message.js'
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
 import { advisorClock, advisorContextOptions, advisorNoteDue, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
 import { loadAdvisorContext } from './advisorContext.js'
 import { advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings } from './advisorSettings.js'
@@ -9,10 +8,10 @@ import { advisorSeatRefusal, advisorSessionSeat, readAdvisorSettings } from './a
 const inFlight = new Set<string>()
 const pendingNotes = new Map<string, AdvisorNote[]>()
 
-export const ADVISOR_COUNTED_MODES: ReadonlySet<string> = new Set(['prompt', 'task-notification'])
+export const ADVISOR_MAIN_TURN_MODES: ReadonlySet<string> = new Set(['prompt', 'task-notification'])
 
-export function advisorCountsTurn(command: Pick<QueuedCommand, 'mode' | 'origin'>): boolean {
-  return ADVISOR_COUNTED_MODES.has(command.mode) && !isAdvisorOrigin(command.origin)
+export function advisorMainTurnIsBoundary(command: Pick<QueuedCommand, 'mode'>): boolean {
+  return ADVISOR_MAIN_TURN_MODES.has(command.mode)
 }
 
 export type AdvisorRoundVerdict = 'off' | 'waiting' | 'busy' | 'silent' | 'quiet' | 'delivered'
@@ -53,17 +52,6 @@ export async function advisorRound(
   }
 }
 
-export function advisorMainTurnSettled(
-  sessionId: string,
-  command: Pick<QueuedCommand, 'mode' | 'origin'>,
-  rows: readonly Message[],
-  deliver: (note: AdvisorNote) => void,
-  road: AdvisorRoad = {},
-): Promise<AdvisorRoundVerdict | 'uncounted'> {
-  if (!advisorCountsTurn(command)) return Promise.resolve('uncounted')
-  return advisorRound(sessionId, rows, deliver, road)
-}
-
 export function stashAdvisorNote(agentId: string, note: AdvisorNote): void {
   const list = pendingNotes.get(agentId) ?? []
   list.push(note)
@@ -78,6 +66,20 @@ export function takeAdvisorNotes(agentId: string): AdvisorNote[] {
 
 export function peekAdvisorNotes(agentId: string): readonly AdvisorNote[] {
   return pendingNotes.get(agentId) ?? []
+}
+
+export function advisorMainRound(sessionId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {
+  return advisorRound(sessionId, rows, note => stashAdvisorNote(sessionId, note), road)
+}
+
+export function advisorMainTurnSettled(
+  sessionId: string,
+  command: Pick<QueuedCommand, 'mode'>,
+  rows: readonly Message[],
+  road: AdvisorRoad = {},
+): Promise<AdvisorRoundVerdict | 'skipped'> {
+  if (!advisorMainTurnIsBoundary(command)) return Promise.resolve('skipped')
+  return advisorMainRound(sessionId, rows, road)
 }
 
 export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {

@@ -38,6 +38,7 @@ import {
   processMcpResourceAttachments,
 } from './mentionResolvers.js'
 import {
+  getAdvisorNoteAttachments,
   getAgentPendingMessageAttachments,
   getQueuedCommandAttachments,
 } from './queuedCommands.js'
@@ -260,6 +261,15 @@ export async function getAttachments(
     maybe(
       'agent_pending_messages',
       async () => getAgentPendingMessageAttachments(toolUseContext),
+      { priority: true },
+    ),
+    maybe(
+      'advisor_notes',
+      async () =>
+        getAdvisorNoteAttachments(toolUseContext, {
+          ...(querySource !== undefined ? { querySource } : {}),
+          ...(options?.localSubmission !== undefined ? { localSubmission: options.localSubmission } : {}),
+        }),
       { priority: true },
     ),
     maybe('user_context', () =>

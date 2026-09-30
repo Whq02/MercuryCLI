@@ -285,8 +285,12 @@ section('§2 THE MINUTES CLOCK: a note falls due once `minutes` have passed sinc
   check("the note's words are the fixture's answer, clamped to the line cap", note1.text === 'Verify the pin on the base before you cut.', j(note1))
   check("the note's origin: { kind: 'advisor', model, minutes, at } — a MessageOrigin member the guard admits, the stamp on the seam clock", rows.isAdvisorOrigin(origin) && origin.kind === 'advisor' && origin.model === ADVISOR_MODEL && origin.minutes === 5 && origin.seats === undefined && origin.at === new Date(T0 + 5 * MINUTE).toISOString() && !rows.isSaturnOrigin(origin), j(origin))
   check('the guard refuses the other origins and a bare kind', !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: 'x' }) && !rows.isAdvisorOrigin(undefined))
-  const command = advisor.advisorNoteQueueCommand(note1 as never, uuidAt(900))
-  check("the queue command is the Saturn door's shape: a prompt at later, slash-safe, the origin on it, never isMeta, no workload on the agent's turn", command.mode === 'prompt' && command.priority === 'later' && command.skipSlashCommands === true && command.isMeta === undefined && command.workload === undefined && j(command.origin) === j(origin) && command.value === note1.text, j(command))
+  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  advisor.setAdvisorEnabled(true)
+  advisor.stashAdvisorNote(String(state.getSessionId()), note1 as never)
+  const drained = getAdvisorNoteAttachments({ agentId: undefined }, { querySource: 'sdk' }) as Raw[]
+  advisor.setAdvisorEnabled(false)
+  check("the note's one road on every seat is the attachment drain: a queued_command attachment carrying the note and its origin, never isMeta, no command mode, no uuid of a prompt — and no prompt road exists any more (red on the base: a queued prompt at later)", drained.length === 1 && drained[0]!.type === 'queued_command' && drained[0]!.prompt === note1.text && j(drained[0]!.origin) === j(origin) && drained[0]!.isMeta === undefined && drained[0]!.commandMode === undefined && drained[0]!.source_uuid === undefined && advisor.advisorNoteQueueCommand === undefined, j(drained))
   const context = advisor.peekAdvisorContext(AGENT)!
   check('the advisor context holds digest+note pairs for both notes, with the cursor on the last row shown', context.rows.map(r => r.kind).join(',') === 'digest,note,digest,note' && context.cursor === uuidAt(22), j({ kinds: context.rows.map(r => r.kind), cursor: context.cursor }))
   check('the rows carry no turn number any more (the memory has no turn counter to record)', context.rows.every(r => !('turn' in r)), j(context.rows.map(r => Object.keys(r))))

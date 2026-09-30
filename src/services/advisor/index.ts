@@ -87,7 +87,6 @@ export {
   advisorClock,
   advisorContextOptions,
   advisorNoteDue,
-  advisorNoteQueueCommand,
   advisorTurnSettled,
   clampNoteLines,
   composeAdvisorNote,
@@ -99,9 +98,10 @@ export {
   type AgentDigest,
 } from './advisorNote.js'
 export {
-  ADVISOR_COUNTED_MODES,
+  ADVISOR_MAIN_TURN_MODES,
   advisorAgentRound,
-  advisorCountsTurn,
+  advisorMainRound,
+  advisorMainTurnIsBoundary,
   advisorMainTurnSettled,
   advisorRound,
   peekAdvisorNotes,
