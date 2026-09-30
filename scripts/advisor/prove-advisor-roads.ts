@@ -52,6 +52,13 @@ let agentDelayMs = 0
 let advisorNotes = 0
 let advisorReplies = 0
 let advisorEmptyAnswers = 0
+const T0 = Date.parse('2026-06-19T09:00:00.000Z')
+const MINUTE = 60_000
+const clock = { now: T0, tickPerAgentRequest: false }
+const tick = (minutes: number): void => {
+  clock.now += minutes * MINUTE
+}
+let onAgentRequest: (() => void) | null = null
 const wire: Array<{ model: string; kind: 'agent' | 'advisor-note' | 'advisor-ask'; body: Raw }> = []
 const sse = (name: string, obj: unknown): string => `event: ${name}\ndata: ${JSON.stringify(obj)}\n\n`
 function textOf(body: Raw): string {
@@ -136,6 +143,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     wire.push({ model, kind: 'agent', body })
+    if (clock.tickPerAgentRequest) tick(1)
+    const hook = onAgentRequest
+    onAgentRequest = null
+    hook?.()
     const turn = agentScript[agentOrdinal] ?? { text: 'script exhausted' }
     agentOrdinal++
     const answer = (): void => {
@@ -174,7 +185,9 @@ const { runAgent } = await import(join(ROOT, 'src/tools/AgentTool/runAgent.ts'))
 const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
 const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
+const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
+advisor.setAdvisorClockForTests(() => clock.now)
 
 const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
 const between = (body: string, from: string, to: string): string => {
@@ -258,12 +271,18 @@ const toolResultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> =>
   return out
 }
 
-section('§0 the wiring: one call site per road, the drain, the framing, the tool gate and its enrolment (red on the base: none of it)')
+section('§0 the wiring: one road per seat into one drain, the framing, the tool gate and its enrolment (red on the base: the main chat queued the note as a prompt)')
 {
   const runner = src('src/cli/print.ts')
   const settled = between(runner, 'onTurnSettled: command => {', 'hasWaitableBackgroundTasks')
-  check("the main chat: the driver's onTurnSettled advances the advisor with the session's own message list and enqueues the note for the NEXT turn through the Saturn door, kicking the driver", settled.includes('advisorMainTurnSettled(String(getSessionId()), command, messages') && settled.includes('enqueue(advisorNoteQueueCommand(note, randomUUID()))') && settled.includes('driver.kick()') && settled.includes('if (inputClosed) return'), settled.slice(0, 400))
-  check("a quiet round on the main chat lands a display-only row, never a queued prompt: landed now when no turn is open, else held to the turn's end, and dropped with the note once the host is gone (red on the base: no quiet road)", settled.includes('onQuiet: quiet => {') && settled.includes('if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)') && settled.includes('else landAdvisorQuiet(quiet)') && !settled.includes('enqueue(advisorNoteQueueCommand(quiet'), settled.slice(-400))
+  check("the main chat's turn end: the driver's onTurnSettled takes the advisor's main road with the session's own message list — no queued prompt, no kick of the driver (red on the base: enqueue + driver.kick)", settled.includes('advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)') && !settled.includes('enqueue(') && !settled.includes('driver.kick()') && !runner.includes('advisorNoteQueueCommand'), settled.slice(0, 400))
+  const road = between(runner, 'const advisorRoad: AdvisorRoad = {', '\n  }')
+  check("a quiet round on the main chat lands a display-only row, never a queued prompt: landed now when no turn is open, else held to the turn's end, and dropped once the host is gone", road.includes('onQuiet: quiet => {') && road.includes('if (inputClosed) return') && road.includes('if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)') && road.includes('else landAdvisorQuiet(quiet)'), road)
+  const askOptions = between(runner, 'for await (const message of ask({', 'handleElicitation: (')
+  check("the main chat's tool-round boundary: the engine's onToolRoundSettled takes the same main road with the engine's own rows (red on the base: no boundary inside a running turn)", askOptions.includes('onToolRoundSettled: rows => {') && askOptions.includes('void advisorMainRound(String(getSessionId()), rows, advisorRoad)'), askOptions.slice(-300))
+  const engine = src('src/QueryEngine.ts')
+  const userArm = between(engine, "} else if (kind === 'user') {", '} else if (isBoundary) {')
+  check("the engine reports the boundary after every tool round's user row, before the drain and the next request", userArm.includes('config.onToolRoundSettled?.(messages)') && engine.includes('onToolRoundSettled?: (messages: readonly Message[]) => void'), userArm)
   const lander = between(runner, 'const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {', '\n  }')
   check('the lander pushes the system row into the session list and records it on the transcript at once — the interactive chat paints from that record', lander.includes('const row = createAdvisorQuietMessage(quiet)') && lander.includes('messages.push(row)') && lander.includes('recordTranscript([row], undefined, undefined, messages)'), lander)
   const turnEnd = between(runner, 'if (deferredAdvisorQuiet.length > 0) {', '\n      }')
@@ -277,7 +296,13 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
   const spawn = between(hooks, 'async function* adapterSpawnStream(', 'yield* stream')
   check('the workflow spawn adapter stamps its launch kind even for custom definitions and keeps the pause seam', spawn.includes('const stream = runAgent({') && spawn.includes("agentKind: 'workflow'") && spawn.includes('beforeQueryStep: args.beforeQueryStep'), spawn.slice(-200))
   const drain = src('src/utils/attachments/queuedCommands.ts')
-  check("the pending-message drain hands the agent its stashed advisor notes as queued_command attachments with the advisor origin and no isMeta", drain.includes('const notes = takeAdvisorNotes(agentId)') && drain.includes("advisorSeatRefusal(toolUseContext.agentKind ?? 'crewmate')") && drain.includes('notes.map(note => ({') && drain.includes('origin: note.origin,') && !between(drain, 'const advice', '}))').includes('isMeta'), between(drain, 'const advice', '}))'))
+  const noteDrain = between(drain, 'export function getAdvisorNoteAttachments(', '\n}')
+  check("ONE drain for every seat: the advisor's note drain takes the stashed notes for the seat — the agent's id, or the session's on the main chat — as queued_command attachments with the advisor origin and no isMeta, and drops them for a seat the advisor has been switched off for", noteDrain.includes('const notes = takeAdvisorNotes(id)') && noteDrain.includes("const id = seat?.id ?? String(getSessionId())") && noteDrain.includes('advisorSeatRefusal(seat?.kind ?? advisorSessionSeat())') && noteDrain.includes('origin: note.origin,') && !between(noteDrain, 'return notes.map', '}))').includes('isMeta'), noteDrain)
+  check("the crewmate mailbox drain no longer carries advisor notes of its own (red on the base: two roads)", !between(drain, 'export function getAgentPendingMessageAttachments(', '\n}').includes('takeAdvisorNotes'))
+  const orchestrator = src('src/utils/attachments/orchestrator.ts')
+  const producer = between(orchestrator, "'advisor_notes',", '{ priority: true }')
+  check("the per-turn orchestrator runs the note drain as a consume-once producer on every thread, handing it the query source and the local-submission fact", producer.includes('getAdvisorNoteAttachments(toolUseContext, {') && producer.includes('querySource') && producer.includes('localSubmission'), producer)
+  check('no prompt road exists any more: the note service mints no queued command', !src('src/services/advisor/advisorNote.ts').includes('QueuedCommand') && advisor.advisorNoteQueueCommand === undefined && advisor.advisorCountsTurn === undefined)
   const framing = src('src/utils/messages/attachmentText.ts')
   check('a drained advisor note is never a hidden meta row (the origin law excepts the advisor)', framing.includes('(origin !== undefined && !isAdvisorOrigin(origin)) || attachment.isMeta'))
   const painter = src('src/components/messages/AttachmentMessage.tsx')
@@ -294,9 +319,9 @@ section('§0 the wiring: one call site per road, the drain, the framing, the too
 
 const SESSION = String(state.getSessionId())
 const memoryOf = (agentId: string): string => (existsSync(advisor.advisorContextPath(agentId)) ? readFileSync(advisor.advisorContextPath(agentId), 'utf8') : '')
-const advisorOn = (seats: number): void => {
+const advisorOn = (minutes: number): void => {
   advisor.setAdvisorEnabled(true)
-  advisor.setAdvisorSeats(seats)
+  advisor.setAdvisorMinutes(minutes)
   config.saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, advisor: ADVISOR_MODEL } }))
 }
 const resetRig = (): void => {
@@ -304,18 +329,26 @@ const resetRig = (): void => {
   agentOrdinal = 0
   advisorNotes = 0
   advisorReplies = 0
+  clock.now = T0
+  clock.tickPerAgentRequest = false
+  onAgentRequest = null
   advisor.resetAdvisorContextsForTests()
   advisor.resetAdvisorRoadsForTests()
   queue.resetCommandQueue()
   state.resetCostState()
 }
+const isNoteRow = (m: AnyMsg): boolean => m.type === 'attachment' && (m.attachment as Raw | undefined)?.type === 'queued_command' && rows.isAdvisorOrigin((m.attachment as Raw).origin)
+const notePromptOf = (m: AnyMsg): string => String((m.attachment as Raw).prompt)
 
-async function mainTurn(prompt: string, origin: Raw | undefined, messages: AnyMsg[]): Promise<AnyMsg[]> {
+async function mainTurn(prompt: string, messages: AnyMsg[]): Promise<{ yields: AnyMsg[]; landed: AnyMsg[] }> {
   const ctx = makeCtx()
   const deps = productionDeps()
-  const userRow = createUserMessage({ content: prompt, ...(origin !== undefined ? { origin: origin as never } : {}) }) as unknown as AnyMsg
+  const userRow = createUserMessage({ content: prompt }) as unknown as AnyMsg
   messages.push(userRow)
   ;(ctx as { messages: unknown }).messages = messages
+  const collected = (await getAttachments(prompt, ctx as never, null, [], messages as never, 'sdk' as never)) as Raw[]
+  const landed = collected.filter(a => a.type === 'queued_command' && rows.isAdvisorOrigin(a.origin)).map(a => createAttachmentMessage(a as never) as unknown as AnyMsg)
+  messages.push(...landed)
   const yields: AnyMsg[] = []
   const gen = query({
     messages: messages as never,
@@ -331,49 +364,50 @@ async function mainTurn(prompt: string, origin: Raw | undefined, messages: AnyMs
   while (!r.done) {
     const m = r.value as AnyMsg
     yields.push(m)
-    if (m.type === 'assistant' || m.type === 'user') messages.push(m)
+    if (m.type === 'assistant' || m.type === 'user' || isNoteRow(m)) messages.push(m)
     r = await gen.next()
   }
-  return yields
+  return { yields, landed }
 }
 
-section(`§1 THE MAIN CHAT: ${ADVISOR_MODEL} advising ${AGENT_MODEL}, twelve operator turns with seats 5, the advisor thinking ${THINK} tokens before every answer — two notes land as advisor rows after turns 5 and 10, the agent's AskAdvisor question that needs thought comes back answered in words, the advisor bucket carries the thinking (red on the base: the thinking ate the 1,200 budget — no note, "the advisor answered with no text")`)
+section(`§1 THE MAIN CHAT: ${ADVISOR_MODEL} advising ${AGENT_MODEL}, twelve operator turns a minute apart with the interval at 5 minutes, the advisor thinking ${THINK} tokens before every answer — the notes composed at the ends of turns 5 and 10 land as advisor rows INSIDE turns 6 and 11, beside the operator's prompt, never as a turn of their own; the agent's AskAdvisor question comes back answered in words; the advisor bucket carries the thinking (red on the base: the note queued as a prompt and took a turn)`)
 {
   resetRig()
   advisorOn(5)
   agentScript = Array.from({ length: 20 }, (_, i) => (i === 2 ? { ask: QUESTION, then: 'reply 3' } : { text: `reply ${i + 1}` }))
+  await advisor.loadAdvisorContext(SESSION)
   const messages: AnyMsg[] = []
-  const commands: string[] = []
+  const verdicts: string[] = []
   const rowsAfterTurn: number[] = []
+  const landedAt: number[] = []
   let askResult = ''
   let askedTools: string[] = []
   for (let turn = 1; turn <= 12; turn++) {
-    const queued = queue.dequeue() as Raw | undefined
-    if (queued !== undefined) {
-      commands.push(`advisor@${turn}`)
-      await mainTurn(String(queued.value), queued.origin as Raw, messages)
-      await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt', origin: queued.origin } as never, messages as never, () => {
-        throw new Error('the advisor never answers its own note turn')
-      })
-    }
-    commands.push(`operator@${turn}`)
-    const yields = await mainTurn(`operator line ${turn}`, undefined, messages)
+    check(`turn ${turn}: nothing is queued for the agent — a note never starts a turn`, queue.getCommandQueue().length === 0)
+    const { yields, landed } = await mainTurn(`operator line ${turn}`, messages)
+    if (landed.length > 0) landedAt.push(turn)
     if (turn === 3) {
       askedTools = yields.filter(m => m.type === 'assistant').flatMap(m => ((m.message as Raw).content as AnyMsg[]).filter(b => b.type === 'tool_use').map(b => String(b.name)))
       askResult = toolResultsOf(yields).find(t => t.id.startsWith('tu_ask'))?.text ?? ''
     }
-    await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, note => {
-      queue.enqueue(advisor.advisorNoteQueueCommand(note, crypto.randomUUID()) as never)
-    })
-    rowsAfterTurn.push(messages.filter(m => m.type === 'user' && rows.isAdvisorOrigin(m.origin)).length)
+    tick(1)
+    verdicts.push(await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never))
+    rowsAfterTurn.push(messages.filter(isNoteRow).length)
   }
-  check('the turns ran in order with the two advisor turns taken before operator turns 6 and 11', j(commands.filter(c => c.startsWith('advisor'))) === j(['advisor@6', 'advisor@11']), j(commands))
-  check('advisor rows in the transcript: none through turn 5, one after turn 6, two after turn 11 (red on the base: never any)', j(rowsAfterTurn) === j([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2]), j(rowsAfterTurn))
-  const noteRows = messages.filter(m => m.type === 'user' && rows.isAdvisorOrigin(m.origin))
-  check("each advisor row carries the fixture's note whole and the origin { advisor, model, seats 5 }", noteRows.length === 2 && String((noteRows[0]!.message as Raw).content) === 'ADVISOR-NOTE-1: you have not checked the base yet.\nDo that before the next edit.' && (noteRows[1]!.origin as Raw).model === ADVISOR_MODEL && (noteRows[1]!.origin as Raw).seats === 5 && noteRows[0]!.isMeta !== true, j(noteRows.map(m => [m.origin, (m.message as Raw).content])))
+  check("the turn ends' verdicts: waiting until five minutes have passed, delivered at the ends of turns 5 and 10, waiting between (red on the base: a turn counter)", j(verdicts) === j(['waiting', 'waiting', 'waiting', 'waiting', 'delivered', 'waiting', 'waiting', 'waiting', 'waiting', 'delivered', 'waiting', 'waiting']), j(verdicts))
+  check('each note landed beside the very next operator prompt — inside turns 6 and 11 — and no other turn carried one', j(landedAt) === j([6, 11]), j(landedAt))
+  check('advisor rows in the transcript: none through turn 5, one from turn 6, two from turn 11, every one an attachment row (red on the base: user rows the advisor started turns with)', j(rowsAfterTurn) === j([0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 2, 2]) && messages.every(m => !(m.type === 'user' && rows.isAdvisorOrigin(m.origin))), j(rowsAfterTurn))
+  const noteRows = messages.filter(isNoteRow)
+  check("each advisor row carries the fixture's note whole and the origin { advisor, model, minutes 5 }, never isMeta", noteRows.length === 2 && notePromptOf(noteRows[0]!) === 'ADVISOR-NOTE-1: you have not checked the base yet.\nDo that before the next edit.' && ((noteRows[1]!.attachment as Raw).origin as Raw).model === ADVISOR_MODEL && ((noteRows[1]!.attachment as Raw).origin as Raw).minutes === 5 && (noteRows[1]!.attachment as Raw).isMeta !== true, j(noteRows.map(m => m.attachment)))
+  const operatorSix = messages.findIndex(m => m.type === 'user' && j((m.message as Raw).content).includes('operator line 6'))
+  check("the first note's row stands right after the operator's sixth prompt and before the reply that reads it", operatorSix >= 0 && messages[operatorSix + 1] === noteRows[0] && messages[operatorSix + 2]?.type === 'assistant', j(messages.slice(operatorSix, operatorSix + 3).map(m => m.type)))
   const noteRequests = wire.filter(w => w.kind === 'advisor-note')
   check("the advisor model got exactly two note requests, each under the advisor's system prompt", noteRequests.length === 2 && noteRequests.every(w => j(w.body.system).includes('You are the Advisor')), j(noteRequests.map(w => w.body.model)))
-  check('the second note request carries only the rows since the first note (turns 6–10), never turns 1–5 again', textOf(noteRequests[1]!.body).includes('operator line 6') && textOf(noteRequests[1]!.body).includes('operator line 10') && !textOf(noteRequests[1]!.body).includes('operator line 5') && textOf(noteRequests[1]!.body).includes('ADVISOR-NOTE-1'), textOf(noteRequests[1]!.body).slice(0, 300))
+  check('the second note request carries only the rows since the first note (turns 6–10), never turns 1–5 again, and the advisor remembers its first note', textOf(noteRequests[1]!.body).includes('operator line 6') && textOf(noteRequests[1]!.body).includes('operator line 10') && !textOf(noteRequests[1]!.body).includes('operator line 5') && textOf(noteRequests[1]!.body).includes('ADVISOR-NOTE-1'), textOf(noteRequests[1]!.body).slice(0, 300))
+  const agentRequests = wire.filter(w => w.kind === 'agent')
+  const framed = agentRequests.filter(w => textOf(w.body).includes(text.ADVISOR_NOTE_HEAD))
+  const bare = agentRequests.filter(w => textOf(w.body).includes('ADVISOR-NOTE-') && !textOf(w.body).includes(text.ADVISOR_NOTE_HEAD))
+  check("THE FRAMING the model reads: from turn 6 on every request carries the note as advice from a second model, never as the operator's words, and no request ever carried the note bare as a prompt (red on the base: a user turn of the note's words)", framed.length === agentRequests.length - 6 && bare.length === 0 && !agentRequests.some(w => textOf(w.body).includes('The operator sent a new message while you were working')) && text.ADVISOR_NOTE_HEAD.includes('not the operator'), j({ framed: framed.length, bare: bare.length, requests: agentRequests.length }))
   const namedLetters = (words: string): string[] => ['A', 'B', 'C', 'D'].filter(letter => new RegExp(`\\(${letter}\\)`).test(words))
   const answersIt = (words: string): boolean => namedLetters(words).length >= 2 && words.split(/\s+/).length >= 15 && !words.includes('did not answer') && !words.includes('answered with no text')
   check('on turn 3 the agent asked the advisor the four-decisions question and the tool result is the advisor\'s words: two of the four named by letter, each with its reason (red on the base: "The advisor did not answer: the advisor answered with no text")', j(askedTools) === j(['AskAdvisor']) && askResult === ADVISOR_ANSWER && answersIt(askResult) && j(namedLetters(askResult)).startsWith('["A","B"'), `${j(askedTools)} · ${askResult}`)
@@ -385,30 +419,62 @@ section(`§1 THE MAIN CHAT: ${ADVISOR_MODEL} advising ${AGENT_MODEL}, twelve ope
   const bucket = state.getWorkloadUsage() as Record<string, Record<string, Raw>>
   const share = bucket.advisor?.[ADVISOR_MODEL]
   check(`the advisor bucket carries the three advisor calls' tokens with their thinking: 270 in · ${3 * (THINK + NOTE_TOKENS)} out, and no agent tokens`, share !== undefined && share.inputTokens === 270 && share.outputTokens === 3 * (THINK + NOTE_TOKENS) && Object.keys(bucket).length === 1 && bucket.advisor![AGENT_MODEL] === undefined, j(bucket))
-  check("the agent's own tokens sit in the per-model ledger outside any bucket (15 requests: 12 operator turns, one more for the ask's tool round, two advisor turns)", (state.getModelUsage() as Record<string, Raw>)[AGENT_MODEL]?.inputTokens === 40 * 15 && wire.filter(w => w.kind === 'agent').length === 15, j(state.getModelUsage()))
+  check("the agent's own tokens sit in the per-model ledger outside any bucket (13 requests: 12 operator turns and one more for the ask's tool round — the notes cost the agent no turn; red on the base: 15)", (state.getModelUsage() as Record<string, Raw>)[AGENT_MODEL]?.inputTokens === 40 * 13 && agentRequests.length === 13, j(state.getModelUsage()))
   const memory = advisor.advisorContextPath(SESSION)
   check("the advisor's memory sits beside the session's transcript and holds the digests, the question, the reply and the notes", existsSync(memory) && readFileSync(memory, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => (JSON.parse(l) as Raw).kind).join(',') === 'head,digest,question,reply,digest,note,digest,note', existsSync(memory) ? readFileSync(memory, 'utf8').slice(0, 300) : memory)
   const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
   check('with the advisor on, AskAdvisor is in the catalogue and enabled', getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && AskAdvisorTool.isEnabled())
 }
 
-section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking only, twice, at turn 5 — the chat gets one muted [advisor] row as a system record, the agent gets no turn and never reads it (red on the base: one advisor request, silence)")
+section("§1c INSIDE A RUNNING TURN: a note composed while the agent's first request is in flight lands at the turn's next tool-round boundary — after the tool result, before the reply that reads it — never beside the prompt it missed and never as a turn (red on the base: a note waited for the next turn)")
+{
+  resetRig()
+  advisorOn(5)
+  agentScript = [{ text: 'reply 1' }, { echo: 'a tool call' }, { text: 'reply after the tool' }]
+  const resumed = await advisor.loadAdvisorContext(SESSION)
+  clock.now = advisor.advisorClockStart(resumed)
+  check("a resumed context's clock is its last note's stamp on disk, not the moment it was opened", clock.now === T0 + 10 * MINUTE && advisor.advisorLastNoteAt(resumed) === T0 + 10 * MINUTE, String(clock.now - T0))
+  const messages: AnyMsg[] = []
+  await mainTurn('operator line 1', messages)
+  tick(5)
+  check('five minutes on, the note is due and nothing has been composed yet', advisor.advisorNoteDue(advisor.peekAdvisorContext(SESSION)!, 5, clock.now) && advisor.peekAdvisorNotes(SESSION).length === 0)
+  agentDelayMs = 80
+  const round: { verdict: Promise<string> | null } = { verdict: null }
+  onAgentRequest = () => {
+    round.verdict = advisor.advisorMainRound(SESSION, messages as never)
+  }
+  const { yields, landed } = await mainTurn('operator line 2', messages)
+  agentDelayMs = 0
+  const verdict = round.verdict === null ? 'never kicked' : await round.verdict
+  check('the round composed and stashed its note while the turn ran, and the boundary took it', verdict === 'delivered' && advisor.peekAdvisorNotes(SESSION).length === 0, verdict)
+  check('nothing landed beside the prompt (the note was not there yet) and nothing was queued', landed.length === 0 && queue.getCommandQueue().length === 0)
+  const kinds = yields.map(m => (isNoteRow(m) ? 'note' : m.type === 'user' ? 'tool_result' : String(m.type)))
+  const noteAt = kinds.indexOf('note')
+  const resultAt = kinds.indexOf('tool_result')
+  const replyAt = kinds.lastIndexOf('assistant')
+  check("the note's attachment row was yielded after the tool result and before the reply that reads it — inside the turn", noteAt > resultAt && resultAt >= 0 && noteAt < replyAt, j(kinds))
+  const turnRequests = wire.filter(w => w.kind === 'agent').slice(-2)
+  check("the turn's first request carried no note; its second, after the boundary, carried it framed as advice from a second model", turnRequests.length === 2 && !textOf(turnRequests[0]!.body).includes('ADVISOR-NOTE-1') && textOf(turnRequests[1]!.body).includes(text.ADVISOR_NOTE_HEAD) && textOf(turnRequests[1]!.body).includes('ADVISOR-NOTE-1') && !textOf(turnRequests[1]!.body).includes('The operator sent a new message'), j(turnRequests.map(w => textOf(w.body).slice(-200))))
+  check('the transcript list holds the note as an attachment row in that place, and no advisor-origin user row anywhere', messages.filter(isNoteRow).length === 1 && messages.every(m => !(m.type === 'user' && rows.isAdvisorOrigin(m.origin))), j(messages.map(m => (isNoteRow(m) ? 'note' : m.type))))
+}
+
+section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking only, twice, at the end of turn 5 — the chat gets one muted [advisor] row as a system record, the agent gets no turn and never reads it, and the next boundary asks nothing more (red on the base: one advisor request, silence)")
 {
   resetRig()
   advisorOn(5)
   agentScript = Array.from({ length: 20 }, (_, i) => ({ text: `reply ${i + 1}` }))
   advisorEmptyAnswers = 2
+  clock.now = advisor.advisorClockStart(await advisor.loadAdvisorContext(SESSION))
   const memoryBefore = memoryOf(SESSION)
   const messages: AnyMsg[] = []
   const quietRows: AnyMsg[] = []
   const verdicts: string[] = []
   for (let turn = 1; turn <= 6; turn++) {
     check(`turn ${turn}: nothing queued for the agent`, queue.getCommandQueue().length === 0)
-    await mainTurn(`operator line ${turn}`, undefined, messages)
+    await mainTurn(`operator line ${turn}`, messages)
     await recordTranscript(messages as never, undefined, undefined, messages as never)
-    const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, note => {
-      queue.enqueue(advisor.advisorNoteQueueCommand(note, crypto.randomUUID()) as never)
-    }, {
+    tick(1)
+    const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, {
       onQuiet: quiet => {
         const row = advisor.createAdvisorQuietMessage(quiet)
         messages.push(row as unknown as AnyMsg)
@@ -418,10 +484,10 @@ section("§1b THE QUIET ROUND on the main chat: the advisor answers thinking onl
     })
     verdicts.push(verdict)
   }
-  check('the verdicts: counted through turn 4, quiet at turn 5, counted again at turn 6 (red on the base: silent at turn 5)', j(verdicts) === j(['counted', 'counted', 'counted', 'counted', 'quiet', 'counted']), j(verdicts))
+  check('the verdicts: waiting through turn 4, quiet at turn 5, waiting again at turn 6 — the quiet look starts the interval over (red on the base: silent at turn 5)', j(verdicts) === j(['waiting', 'waiting', 'waiting', 'waiting', 'quiet', 'waiting']), j(verdicts))
   const noteRequests = wire.filter(w => w.kind === 'advisor-note')
   check('the advisor was asked twice for the one round — once more after the empty answer, never a third time (red on the base: once)', noteRequests.length === 2 && textOf(noteRequests[1]!.body) === textOf(noteRequests[0]!.body), String(noteRequests.length))
-  check("nothing was queued for the agent and it made exactly six requests — a quiet round costs the agent no turn", queue.getCommandQueue().length === 0 && wire.filter(w => w.kind === 'agent').length === 6, String(wire.filter(w => w.kind === 'agent').length))
+  check("nothing was queued or stashed for the agent and it made exactly six requests — a quiet round costs the agent no turn", queue.getCommandQueue().length === 0 && advisor.peekAdvisorNotes(SESSION).length === 0 && wire.filter(w => w.kind === 'agent').length === 6, String(wire.filter(w => w.kind === 'agent').length))
   const quietRow = quietRows[0]
   check('one quiet row landed in the session list after turn 5, a system record with the advisor origin and the had-nothing words', quietRows.length === 1 && quietRow !== undefined && advisor.isAdvisorQuietMessage(quietRow) && rows.isAdvisorOrigin((quietRow as Raw).origin) && ((quietRow as Raw).origin as Raw).model === ADVISOR_MODEL && String((quietRow as Raw).content) === 'had nothing to say this round — answered with no text, twice' && messages.indexOf(quietRow) > messages.findIndex(m => m.type === 'user' && j((m.message as Raw).content).includes('operator line 5')), j(quietRow))
   check('no advisor-origin user row exists: the quiet row is not a note', messages.every(m => !(m.type === 'user' && rows.isAdvisorOrigin(m.origin))))
@@ -448,13 +514,13 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
   const messages: AnyMsg[] = []
   for (let turn = 1; turn <= 12; turn++) {
     check(`turn ${turn}: nothing queued`, queue.getCommandQueue().length === 0)
-    await mainTurn(`operator line ${turn}`, undefined, messages)
-    const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never, () => {
-      throw new Error('never')
-    })
+    await mainTurn(`operator line ${turn}`, messages)
+    tick(10)
+    const verdict = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never)
     if (turn === 12) check('the road answers off without opening anything', verdict === 'off')
   }
-  check('twelve turns: no advisor request left the box, no advisor row, no advisor bucket', wire.every(w => w.kind === 'agent') && messages.every(m => !rows.isAdvisorOrigin(m.origin)) && (state.getWorkloadUsage() as Raw).advisor === undefined, j(Object.keys(state.getWorkloadUsage() as Raw)))
+  check('twelve turns two hours apart: no advisor request left the box, no advisor row, no advisor bucket', wire.every(w => w.kind === 'agent') && messages.every(m => !rows.isAdvisorOrigin(m.origin) && !isNoteRow(m)) && (state.getWorkloadUsage() as Raw).advisor === undefined, j(Object.keys(state.getWorkloadUsage() as Raw)))
+  check('a bash line or a permission answer is not a boundary the advisor composes at; a prompt and a task notification are', advisor.advisorMainTurnIsBoundary({ mode: 'prompt' }) && advisor.advisorMainTurnIsBoundary({ mode: 'task-notification' }) && !advisor.advisorMainTurnIsBoundary({ mode: 'bash' }) && !advisor.advisorMainTurnIsBoundary({ mode: 'orphaned-permission' }) && (await advisor.advisorMainTurnSettled(SESSION, { mode: 'bash' } as never, messages as never)) === 'skipped')
   const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
   check('AskAdvisor is out of the catalogue and disabled', !getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && !AskAdvisorTool.isEnabled())
   const refused = await AskAdvisorTool.call({ question: 'anyone there?' }, makeCtx() as never)
@@ -498,23 +564,27 @@ for (const leg of [
   { name: 'CREWMATE', agentId: 'a0advisor1', isAsync: true, querySource: 'agent:custom' },
   { name: 'FOREGROUND CREWMATE', agentId: 'a0advisor2', isAsync: false, querySource: 'agent:custom' },
 ]) {
-  section(`§3 ${leg.name}: twelve tool rounds with seats 5 — the notes arrive through the pending-message drain as painted advisor rows on the agent's own transcript`)
+  section(`§3 ${leg.name}: twelve tool rounds a minute apart with the interval at 5 minutes, through the product's own boundary and clock — the notes arrive through the note drain as painted advisor rows on the agent's own transcript`)
   resetRig()
   advisorOn(5)
   advisor.setAdvisorCrewmates(true)
   agentDelayMs = 40
+  clock.tickPerAgentRequest = true
   agentScript = [...Array.from({ length: 12 }, (_, i) => ({ echo: `round ${i + 1}` })), { text: 'rounds done' }]
   const { yields, threw, childContext } = await driveAgent(leg)
   check(`${leg.name}: opted-in AskAdvisor is in the child's own catalogue`, ((childContext?.options as Raw)?.tools as Array<{ name: string }> ?? []).some(t => t.name === ASK_ADVISOR_TOOL_NAME))
   agentDelayMs = 0
+  clock.tickPerAgentRequest = false
   const requests = wire.filter(w => w.kind === 'agent')
   check(`${leg.name}: the run never threw and made thirteen agent requests`, threw === undefined && requests.length === 13, `threw=${threw ?? 'no'} requests=${requests.length}`)
   const noteRequests = wire.filter(w => w.kind === 'advisor-note')
-  check(`${leg.name}: the advisor was asked twice — after the fifth and the tenth round (red on the base: never)`, noteRequests.length === 2 && textOf(noteRequests[0]!.body).includes('round 5') && !textOf(noteRequests[0]!.body).includes('round 6') && textOf(noteRequests[1]!.body).includes('round 10') && !textOf(noteRequests[1]!.body).includes('round 5"'), j(noteRequests.map(w => textOf(w.body).slice(0, 120))))
+  check(`${leg.name}: the advisor was asked twice — at the boundaries five minutes after the context opened (after round 6) and five after the first look (after round 11); red on the base: never`, noteRequests.length === 2 && textOf(noteRequests[0]!.body).includes('round 6') && !textOf(noteRequests[0]!.body).includes('round 7') && textOf(noteRequests[1]!.body).includes('round 11') && !textOf(noteRequests[1]!.body).includes('round 6"'), j(noteRequests.map(w => textOf(w.body).slice(0, 120))))
+  const crewContext = advisor.peekAdvisorContext(leg.agentId)
+  check(`${leg.name}: the crewmate's context opened on the seam clock at the first boundary and its last look is the second note's`, crewContext !== undefined && crewContext.openedAt === T0 + 1 * MINUTE && crewContext.lookedAt === T0 + 11 * MINUTE, j({ openedAt: crewContext?.openedAt, lookedAt: crewContext?.lookedAt }))
   const notes = attachmentNotes(yields)
-  check(`${leg.name}: two advisor notes were drained into the agent's rows as queued_command attachments with the advisor origin, never isMeta`, notes.length === 2 && notes.every(n => (n.attachment as Raw).isMeta !== true) && String((notes[0]!.attachment as Raw).prompt).startsWith('ADVISOR-NOTE-1'), j(notes.map(n => n.attachment)))
+  check(`${leg.name}: two advisor notes were drained into the agent's rows as queued_command attachments with the advisor origin { minutes 5 }, never isMeta`, notes.length === 2 && notes.every(n => (n.attachment as Raw).isMeta !== true && ((n.attachment as Raw).origin as Raw).minutes === 5) && String((notes[0]!.attachment as Raw).prompt).startsWith('ADVISOR-NOTE-1'), j(notes.map(n => n.attachment)))
   const framed = requests.filter(w => textOf(w.body).includes(text.ADVISOR_NOTE_HEAD))
-  check(`${leg.name}: the requests after each drain carry the note framed as advice from the advisor, never as the operator's words`, framed.length >= 2 && !requests.some(w => textOf(w.body).includes('The operator sent a new message while you were working')), String(framed.length))
+  check(`${leg.name}: from the request after each drain on, the note rides framed as advice from the advisor (the first from request 8, the second from request 13), never as the operator's words — the same framing the main chat reads`, framed.length === 6 && framed[0] === requests[7] && textOf(requests[12]!.body).includes('ADVISOR-NOTE-2') && !textOf(requests[11]!.body).includes('ADVISOR-NOTE-2') && !requests.some(w => textOf(w.body).includes('The operator sent a new message while you were working')), j({ framed: framed.length, first: requests.indexOf(framed[0]!) }))
   await flushSessionStorage()
   await settle(200)
   const transcript = leg.transcriptSubdir === undefined
@@ -563,14 +633,24 @@ section('§5 opted-in crewmate asks; master-only changes never opt in; disabling
   const before = wire.length
   const denied = await AskAdvisorTool.call({ question: QUESTION }, ctx as never) as { data: { status: string; text: string } }
   check('a stale tool object obeys the new crewmate setting immediately', denied.data.status === 'refused' && wire.length === before && denied.data.text.includes('off for crewmates'), j(denied))
-  const { getAgentPendingMessageAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
-  const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, seats: 1, at: new Date().toISOString() } }
+  const { getAdvisorNoteAttachments, isMainChatAdvisorDrain } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const note = { text: 'a note queued before the toggle', origin: { kind: 'advisor', model: ADVISOR_MODEL, minutes: 1, at: new Date().toISOString() } }
   advisor.stashAdvisorNote('crew-direct-ask', note as never)
-  check('a queued crewmate note is discarded after opt-out', getAgentPendingMessageAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
+  check('a stashed crewmate note is discarded after opt-out', getAdvisorNoteAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
   advisor.setAdvisorCrewmates(true)
   ctx.agentKind = 'workflow'
   advisor.stashAdvisorNote('crew-direct-ask', note as never)
-  check('a workflow never drains an advisor note even if one was stashed earlier', getAgentPendingMessageAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
+  check('a workflow never drains an advisor note even if one was stashed earlier', getAdvisorNoteAttachments(ctx as never).length === 0 && advisor.peekAdvisorNotes('crew-direct-ask').length === 0)
+  ctx.agentKind = 'crewmate'
+  advisor.stashAdvisorNote('crew-direct-ask', note as never)
+  const crewDrained = getAdvisorNoteAttachments(ctx as never) as Raw[]
+  check("an opted-in crewmate's stash drains to one queued_command attachment with the origin, whatever the query source (the agent id names the seat)", crewDrained.length === 1 && crewDrained[0]!.type === 'queued_command' && crewDrained[0]!.prompt === note.text && j(crewDrained[0]!.origin) === j(note.origin) && crewDrained[0]!.isMeta === undefined, j(crewDrained))
+  advisor.stashAdvisorNote(SESSION, note as never)
+  const mainCtx = { agentId: undefined }
+  check("the main chat's stash waits for the main chat's OWN model-bound collection: a memory fork, a bash line, an unnamed source take nothing and leave the note", getAdvisorNoteAttachments(mainCtx as never, { querySource: 'session_memory' }).length === 0 && getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk', localSubmission: true }).length === 0 && getAdvisorNoteAttachments(mainCtx as never, {}).length === 0 && advisor.peekAdvisorNotes(SESSION).length === 1 && !isMainChatAdvisorDrain({ agentId: 'a1', querySource: 'sdk', localSubmission: false }) && isMainChatAdvisorDrain({ agentId: undefined, querySource: 'repl_main_thread', localSubmission: false }))
+  const mainDrained = getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }) as Raw[]
+  check("…and the session's own turn takes it, once, with the same shape a crewmate's has", mainDrained.length === 1 && mainDrained[0]!.type === 'queued_command' && mainDrained[0]!.prompt === note.text && j(mainDrained[0]!.origin) === j(note.origin) && advisor.peekAdvisorNotes(SESSION).length === 0 && getAdvisorNoteAttachments(mainCtx as never, { querySource: 'sdk' }).length === 0, j(mainDrained))
+  ctx.agentKind = 'workflow'
   const { createSubagentContext } = await import(join(ROOT, 'src/utils/forkedAgent.ts'))
   const fork = createSubagentContext(ctx as never)
   check('a workflow context fork retains the workflow exclusion', fork.agentKind === 'workflow')
@@ -595,14 +675,15 @@ section('§6 crewmates on the session runner: daemon role and dynamic identity b
       check(`${identity}: the session runner is recognized as a crewmate`, advisor.advisorSessionSeat() === 'crewmate')
       const id = `session-${identity}`
       const messages = [createUserMessage({ content: 'crew prompt' })]
-      const notes: unknown[] = []
-      const verdict = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never, note => notes.push(note))
+      const verdict = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never)
       const refused = await AskAdvisorTool.call({ question: QUESTION }, makeCtx() as never) as { data: { status: string } }
-      check(`${identity}: master on alone means no scheduled advice, direct ask, context or catalogue entry`, verdict === 'off' && refused.data.status === 'refused' && wire.length === 0 && notes.length === 0 && advisor.peekAdvisorContext(id) === undefined && !AskAdvisorTool.isEnabled() && !getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME))
+      check(`${identity}: master on alone means no scheduled advice, direct ask, context or catalogue entry`, verdict === 'off' && refused.data.status === 'refused' && wire.length === 0 && advisor.peekAdvisorNotes(id).length === 0 && advisor.peekAdvisorContext(id) === undefined && !AskAdvisorTool.isEnabled() && !getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME))
       advisor.setAdvisorCrewmates(true)
-      const allowed = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never, note => notes.push(note))
+      const opened = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never)
+      tick(1)
+      const allowed = await advisor.advisorMainTurnSettled(id, { mode: 'prompt' } as never, messages as never)
       const answered = await AskAdvisorTool.call({ question: QUESTION }, makeCtx() as never) as { data: { status: string } }
-      check(`${identity}: the separate opt-in enables scheduled advice and direct asks on the same session runner`, allowed === 'delivered' && notes.length === 1 && answered.data.status === 'ok' && AskAdvisorTool.isEnabled() && getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME), j({ allowed, notes: notes.length, answered }))
+      check(`${identity}: the separate opt-in enables scheduled advice (waiting at the first boundary, delivered to the stash once the minute has passed) and direct asks on the same session runner`, opened === 'waiting' && allowed === 'delivered' && advisor.peekAdvisorNotes(id).length === 1 && answered.data.status === 'ok' && AskAdvisorTool.isEnabled() && getAllBaseTools().some(t => t.name === ASK_ADVISOR_TOOL_NAME), j({ opened, allowed, notes: advisor.peekAdvisorNotes(id).length, answered }))
     }
   } finally {
     clearDynamicCrewContext()
