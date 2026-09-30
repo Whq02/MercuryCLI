@@ -4,7 +4,6 @@ import { dirname, resolve, sep } from 'node:path'
 
 import * as chokidar from 'chokidar'
 
-import { getAddedDirectories } from '../../bootstrap/state.js'
 import { clearCommandMemoizationCaches, clearCommandsCache } from '../../commands.js'
 import { clearSkillCaches, getProjectSkillsWatchPaths, getSkillsPath, onDynamicSkillsLoaded } from '../../skills/loadSkillsDir.js'
 import { resetSentSkillNames } from '../attachments/skillListing.js'
@@ -144,9 +143,6 @@ async function armWatcher(gen: number): Promise<string[]> {
   }
   addCandidate(getSkillsPath('userSettings', 'skills'))
   for (const path of getProjectSkillsWatchPaths('skills')) addCandidate(path)
-  for (const additionalDir of getAddedDirectories()) {
-    for (const path of getProjectSkillsWatchPaths('skills', additionalDir)) addCandidate(path)
-  }
 
   if (targets.size === 0 && birthAncestors.size === 0) return []
   if (disposed || gen !== watcherGeneration) return []
