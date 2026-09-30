@@ -1,0 +1,41 @@
+{
+  "recorded": "2026-09-30",
+  "how": "the documented shape of GET https://huggingface.co/api/whoami-v2 (Bearer), taken from Hugging Face's own client types (github.com/huggingface/huggingface.js packages/hub/src/lib/who-am-i.ts: WhoAmIUser, WhoAmIOrg, AuthInfo) — NOT a live capture: the Hub refused every Hugging Face credential stored on the recording Mac (HTTP 401), so the byte-for-byte live answer is deferred; strings here are fixture values",
+  "user": {
+    "type": "user",
+    "id": "fixture-user-id",
+    "name": "fixture-user",
+    "fullname": "Fixture User",
+    "email": "fixture@example.invalid",
+    "emailVerified": true,
+    "isPro": true,
+    "canPay": true,
+    "periodEnd": 1761955200,
+    "billingMode": "postpaid",
+    "avatarUrl": "https://example.invalid/avatar.png",
+    "orgs": [],
+    "auth": { "type": "access_token", "accessToken": { "displayName": "mercury", "role": "fineGrained", "createdAt": "2026-09-01T00:00:00.000Z" } }
+  },
+  "freeUser": {
+    "type": "user",
+    "id": "fixture-free-id",
+    "name": "fixture-free",
+    "fullname": "Fixture Free",
+    "email": "free@example.invalid",
+    "emailVerified": true,
+    "isPro": false,
+    "canPay": false,
+    "periodEnd": null,
+    "billingMode": "postpaid",
+    "avatarUrl": "https://example.invalid/avatar.png",
+    "orgs": [],
+    "auth": { "type": "oauth", "expiresAt": "2026-10-01T00:00:00.000Z" }
+  },
+  "fieldMeaning": {
+    "isPro": "the PRO subscription flag (the monthly included credits follow the plan per huggingface.co/docs/inference-providers/pricing: PRO $2.00, free $0.10 subject to change)",
+    "canPay": "a payment method is on file (the read-billing OAuth scope's stated meaning; whether the openid profile inference-api scope receives it is unverified)",
+    "periodEnd": "unix seconds; the billing period end (null for a free user)",
+    "billingMode": "postpaid | prepaid",
+    "creditsUsed": "NOT stated anywhere on whoami-v2; no billing or usage endpoint is documented under /api (the paths /api/billing/usage, /api/settings/billing, /api/settings/billing/usage, /api/settings/billing/credits, /api/settings/usage, /api/inference-providers/usage, /api/settings/inference-providers/usage, /api/settings/inference-providers/overview, /api/me/billing, /api/users/me/billing, /api/credits/… answered 404 on 2026-09-30; huggingface.co/settings/billing and /settings/inference-providers/overview are the documented views)"
+  }
+}

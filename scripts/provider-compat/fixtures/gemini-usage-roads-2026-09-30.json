@@ -1,0 +1,48 @@
+{
+  "recorded": "2026-09-30",
+  "how": "one read-only request per road with the owner's stored Google OAuth access token (the operator's own Desktop OAuth client, scopes generative-language.retriever + cloud-platform), no refresh, no write; ids, tokens, project numbers and URLs masked; the numbers are the ones the wire stated",
+  "roads": {
+    "gemini-api-reply-headers": {
+      "request": "GET https://generativelanguage.googleapis.com/v1beta/models?pageSize=1 (Bearer)",
+      "status": 200,
+      "headerNames": ["alt-svc", "content-encoding", "content-type", "date", "server", "server-timing", "transfer-encoding", "vary", "x-content-type-options", "x-frame-options", "x-xss-protection"],
+      "quotaHeaders": [],
+      "body": { "models": [{ "name": "«masked»", "displayName": "Gemini 2.5 Flash", "inputTokenLimit": 1048576, "outputTokenLimit": 65536 }], "nextPageToken": "«masked»" }
+    },
+    "code-assist-loadCodeAssist": {
+      "request": "POST https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist (Bearer) {metadata:{ideType,platform,pluginType}}",
+      "status": 403,
+      "body": {
+        "error": {
+          "code": 403,
+          "message": "«masked»",
+          "status": "PERMISSION_DENIED",
+          "details": [
+            { "@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SERVICE_DISABLED", "domain": "googleapis.com", "metadata": { "service": "cloudcode-pa.googleapis.com", "serviceTitle": "Cloud Code Private API", "consumer": "projects/«masked»", "activationUrl": "«masked»" } },
+            { "@type": "type.googleapis.com/google.rpc.LocalizedMessage", "locale": "en-US", "message": "«masked»" },
+            { "@type": "type.googleapis.com/google.rpc.Help", "links": [{ "description": "Google developers console API activation", "url": "«masked»" }] }
+          ]
+        }
+      }
+    },
+    "code-assist-retrieveUserQuota": {
+      "request": "POST https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota (Bearer) {project}",
+      "status": 403,
+      "body": { "error": { "code": 403, "status": "PERMISSION_DENIED", "details": [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SERVICE_DISABLED", "metadata": { "service": "cloudcode-pa.googleapis.com", "serviceTitle": "Cloud Code Private API" } }] } },
+      "documentedShapeWhenServed": { "buckets": [{ "remainingAmount": "string", "remainingFraction": 0.0, "resetTime": "RFC 3339", "tokenType": "string", "modelId": "string" }] },
+      "documentedBy": "github.com/google-gemini/gemini-cli packages/core/src/code_assist/types.ts (RetrieveUserQuotaResponse, BucketInfo); served only under Gemini CLI's own OAuth client"
+    },
+    "cloud-quotas-quotaInfos": {
+      "request": "GET https://cloudquotas.googleapis.com/v1/projects/«project-number»/locations/global/services/generativelanguage.googleapis.com/quotaInfos (Bearer)",
+      "status": 403,
+      "body": { "error": { "code": 403, "status": "PERMISSION_DENIED", "details": [{ "@type": "type.googleapis.com/google.rpc.ErrorInfo", "reason": "SERVICE_DISABLED", "metadata": { "service": "cloudquotas.googleapis.com", "serviceTitle": "Cloud Quotas API" } }] } },
+      "note": "states quota limits per quota id, never usage, when the API is enabled on the project"
+    },
+    "cloud-monitoring-quota-usage": {
+      "request": "GET https://monitoring.googleapis.com/v3/projects/«project-number»/timeSeries?filter=metric.type=\"serviceruntime.googleapis.com/quota/rate/net_usage\" AND resource.labels.service=\"generativelanguage.googleapis.com\" (Bearer)",
+      "status": 403,
+      "body": { "error": { "code": 403, "status": "PERMISSION_DENIED", "message": "This API method requires billing to be enabled. Please enable billing on project #«masked» by visiting «masked» then retry. If you enabled billing for this project recently, wait a few minutes for the action to propagate to our systems and retry." } }
+    }
+  },
+  "finding": "Google states no usage, quota or credit figure to a Gemini sign-in made with the operator's own OAuth client on any of these roads; the per-model requests-per-day quota is viewed on the Cloud console Quotas page for the Generative Language API or in Google AI Studio; Google states no money anywhere on these roads"
+}
