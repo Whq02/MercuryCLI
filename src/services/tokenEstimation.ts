@@ -7,6 +7,7 @@ import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { getMainLoopModel, getSmallFastModel, normalizeModelStringForAPI } from '../utils/model/model.js'
 import { getModelBetas } from '../utils/betas.js'
 import { jsonStringify } from '../utils/slowOperations.js'
+import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
 import { getAPIMetadata, getExtraBodyParams } from './providers/anthropic/index.js'
@@ -73,7 +74,11 @@ export async function countMessagesTokensWithAPI(
         tools: tools as never,
         ...(betas.length > 0 ? { betas } : {}),
         ...(thinking
-          ? { thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS } }
+          ? {
+              thinking: modelSupportsAdaptiveThinking(model)
+                ? { type: 'adaptive' }
+                : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
+            }
           : {}),
       })
       const count = (response as { input_tokens?: unknown }).input_tokens
