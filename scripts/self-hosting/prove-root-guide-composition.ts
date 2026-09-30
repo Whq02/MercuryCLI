@@ -2,7 +2,7 @@
 // gate-watch: src/utils/config/globalConfig.ts src/context.ts src/services/instructions/** src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts src/Tool.ts
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 const repo = join(import.meta.dir, '../..')
@@ -19,6 +19,7 @@ writeFileSync(join(outside, 'sub', 'MERCURY.md'), 'outside-nested-needle\n')
 writeFileSync(join(outside, 'sub', 'file.ts'), 'export const answer = 42\n')
 const driver = join(scratch, 'driver.ts')
 writeFileSync(driver, `
+import { writeFileSync } from 'node:fs'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import(${JSON.stringify(join(repo, 'src/utils/config/globalConfig.ts'))})
 enableConfigs()
@@ -33,7 +34,7 @@ const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
 const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
-console.log(JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).claudeMd ?? '', touched: touched.map(a => a.path) }))
+writeFileSync(process.argv[2]!, JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).claudeMd ?? '', touched: touched.map(a => a.path) }))
 `)
 let passed = 0
 let failed = 0
@@ -43,11 +44,13 @@ function check(label: string, ok: boolean): void {
 }
 function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = {}) {
   const home = mkdtempSync(join(scratch, 'home-'))
+  const result = join(home, 'result.json')
   if (options.retired) writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [outside] } }))
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
-  const run = spawnSync(process.execPath, ['run', driver], { cwd: project, env: { ...env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ...(options.bare ? { MERCURY_BARE: '1' } : {}), ...(options.touch ? { DRV_TOUCH: options.touch } : {}) }, encoding: 'utf8', timeout: 60_000 })
+  const run = spawnSync(process.execPath, ['run', driver, result], { cwd: project, env: { ...env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ...(options.bare ? { MERCURY_BARE: '1' } : {}), ...(options.touch ? { DRV_TOUCH: options.touch } : {}) }, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', timeout: 60_000 })
+  if (run.error) throw run.error
   if (run.status !== 0) throw new Error(`driver exited ${run.status}: ${run.stderr}`)
-  return JSON.parse(run.stdout.trim().split('\n').at(-1)!) as { paths: string[]; composed: string; resolution: string; entries: Array<{ path: string; root?: string; origin: string }>; cap: number; large: string[]; disabled: boolean; user: string; touched: string[] }
+  return JSON.parse(readFileSync(result, 'utf8')) as { paths: string[]; composed: string; resolution: string; entries: Array<{ path: string; root?: string; origin: string }>; cap: number; large: string[]; disabled: boolean; user: string; touched: string[] }
 }
 try {
   const plain = drive()
@@ -70,9 +73,10 @@ try {
   check('every project guide keeps the starting folder as its root', retired.entries.filter(e => e.origin === 'project-walk').every(e => e.root === project))
   const bare = drive({ bare: true, retired: true })
   check('bare mode stays discovery-free despite an old saved directory', bare.disabled && bare.user === '')
-  writeFileSync(native, `native-root-needle\n${'x'.repeat(plain.cap + 1)}\n`)
+  const largeGuide = `native-root-needle\n${'x'.repeat(plain.cap + 1)}\n`
+  writeFileSync(native, largeGuide)
   const big = drive()
-  check('a large starting-folder guide is reported, never truncated', big.large.includes(native) && big.composed.length > big.cap && big.composed.includes('native-root-needle'))
+  check('a large starting-folder guide is reported, never truncated', big.large.includes(native) && big.composed.length > big.cap && big.composed.includes(largeGuide.trim()) && big.user.includes(largeGuide.trim()))
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

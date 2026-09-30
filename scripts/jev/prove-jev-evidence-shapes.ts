@@ -3,8 +3,12 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } fro
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'jev-shapes-home-')))
-const DIR = realpathSync(mkdtempSync(join(tmpdir(), 'jev-shapes-evidence-')))
+const WORLD = realpathSync(mkdtempSync(join(tmpdir(), 'jev-shapes-')))
+const HOME = join(WORLD, 'home')
+const PROJECT = join(WORLD, 'project')
+const DIR = join(PROJECT, 'evidence')
+for (const dir of [HOME, DIR]) mkdirSync(dir, { recursive: true })
+process.chdir(PROJECT)
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'MERCURY_API_UNIX_SOCKET']) delete process.env[key]
@@ -200,13 +204,15 @@ const denied = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]
 check('a Read deny rule on the file\'s directory denies the call, naming the path', denied.behavior === 'deny' && /Permission to read .*reds\.tsv has been denied/.test((denied as { message?: string }).message ?? ''), JSON.stringify(denied))
 const asked = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]) as never, ctxWith({ alwaysAskRules: { session: [`Read(/${DIR}/**)`] } }) as never)
 check('a Read ask rule asks, naming the path', asked.behavior === 'ask' && /reds\.tsv requires confirmation/.test((asked as { message?: string }).message ?? ''), JSON.stringify(asked))
-const outside = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]) as never, ctxWith({}) as never)
-check('a file outside every working directory asks (the working-directory boundary Read keeps)', outside.behavior === 'ask', JSON.stringify(outside))
-const inside = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]) as never, ctxWith({ additionalWorkingDirectories: new Map([[DIR, { path: DIR, source: 'session' }]]) }) as never)
-check('a file inside a declared working directory is allowed', inside.behavior === 'allow', JSON.stringify(inside))
+const outsidePath = join(WORLD, 'outside.tsv')
+writeFileSync(outsidePath, readFileSync(TSV))
+const outside = await JevEvalTool.checkPermissions(call([{ file: { path: outsidePath } }]) as never, ctxWith({}) as never)
+check('a file outside the starting folder asks (the boundary Read keeps)', outside.behavior === 'ask', JSON.stringify(outside))
+const inside = await JevEvalTool.checkPermissions(call([{ file: { path: TSV } }]) as never, ctxWith({}) as never)
+check('a file inside the starting folder is allowed', inside.behavior === 'allow', JSON.stringify(inside))
 const inlineOnly = await JevEvalTool.checkPermissions(call([{ id: 'ui', tail: 'rc 137' }, inlineTable, 'a paragraph']) as never, ctxWith({ alwaysDenyRules: { session: [`Read(/${DIR}/**)`] } }) as never)
 check('a call without a file item is the default allow: no path, no rule read', inlineOnly.behavior === 'allow')
-const second = await JevEvalTool.checkPermissions(call([{ id: 'ui', tail: 'rc 137' }, { file: { path: MD } }, { file: { path: TSV } }]) as never, ctxWith({ additionalWorkingDirectories: new Map([[DIR, { path: DIR, source: 'session' }]]), alwaysDenyRules: { session: [`Read(/${TSV})`] } }) as never)
+const second = await JevEvalTool.checkPermissions(call([{ id: 'ui', tail: 'rc 137' }, { file: { path: MD } }, { file: { path: TSV } }]) as never, ctxWith({ alwaysDenyRules: { session: [`Read(/${TSV})`] } }) as never)
 check('every file item is checked: the second file\'s deny rule denies the call', second.behavior === 'deny' && /reds\.tsv/.test((second as { message?: string }).message ?? ''), JSON.stringify(second))
 const source = readFileSync(join(ROOT, 'src/tools/JevEvalTool/JevEvalTool.ts'), 'utf8')
 check('the only permission call in the tool source is the Read ladder; it answers no permission request itself', /checkReadPermissionForTool/.test(source) && !/validateInput/.test(source) && !/classifierDecision/.test(source))
