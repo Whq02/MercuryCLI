@@ -138,8 +138,8 @@ section('§0 the words: the plate, the first line, the guard, the note stripped 
   const line = rows.advisorFirstLine(advisorOrigin() as never)
   check('the first line: the model and the cadence', line === `${MODEL} · ${CADENCE}`, line)
   check('one minute reads singular', rows.advisorFirstLine(advisorOrigin({ minutes: 1 }) as never) === `${MODEL} · every 1 minute`)
-  const legacy = { kind: 'advisor', model: MODEL, seats: 5, at: NOTE_AT }
-  check('a row written before the minutes clock (a `seats` turn count, no minutes) is still an advisor row and reads the turns it was written under (red on the base: no such row; on the fold without this: an operator line)', rows.isAdvisorOrigin(legacy) && rows.advisorFirstLine(legacy as never) === `${MODEL} · every 5 turns` && rows.advisorFirstLine({ ...legacy, seats: 1 } as never) === `${MODEL} · every 1 turn`, rows.advisorFirstLine(legacy as never))
+  const old = { kind: 'advisor', model: MODEL, seats: 5, at: NOTE_AT }
+  check("a row written before the minutes clock (a `seats` turn count, no minutes) is not an advisor row: the guard refuses it and nothing anywhere says turns (the owner's ruling)", !rows.isAdvisorOrigin(old) && !rows.isAdvisorOrigin({ ...old, minutes: '5' }) && rows.isAdvisorOrigin({ ...old, minutes: 5 }) && rows.advisorFirstLine({ ...old, minutes: 5 } as never) === `${MODEL} · ${CADENCE}`)
   const plate = rows.noticePlate({ kind: 'advisor', origin: advisorOrigin(), lines: [] } as never, ROW_AT)
   check('the notice plate of an advisor block reads [advisor] · <model> · every <minutes> minutes', plate === `[advisor] · ${MODEL} · ${CADENCE}`, plate)
   check('the guard admits the advisor origin and refuses the others', rows.isAdvisorOrigin(advisorOrigin()) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }) && !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'advisor', model: MODEL, at: NOTE_AT }) && !rows.isAdvisorOrigin(undefined))
