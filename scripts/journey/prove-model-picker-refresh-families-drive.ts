@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -142,7 +142,7 @@ for (const legName of LEGS) {
         TMPDIR: process.env.TMPDIR,
         TERM: 'xterm-256color', LANG: 'en_US.UTF-8', COLORTERM: 'truecolor',
         MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true',
-        ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: base,
+        ANTHROPIC_API_KEY: FIXTURE_API_KEY, ANTHROPIC_BASE_URL: base,
         MERCURY_OPENAI_CHATGPT_BASE: DEAD, MERCURY_OPENAI_API_BASE: `${DEAD}/v1`, MERCURY_OPENAI_AUTH_BASE: DEAD,
         MERCURY_OPENROUTER_API_BASE: `${base}/or/v1`,
         MERCURY_GEMINI_API_BASE: `${base}/gemini/v1beta`, MERCURY_GEMINI_OAUTH_AUTH_BASE: DEAD, MERCURY_GEMINI_OAUTH_TOKEN_BASE: DEAD,
