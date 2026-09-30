@@ -47,7 +47,7 @@ const deadProviders = Object.fromEntries([
 try {
   for (const [cols, rows, noDim] of [[178, 51, false], [120, 40, false], [178, 51, true]] as const) {
     if (process.argv.includes('--no-dim-only') && !noDim) continue
-    for (const panel of noDim ? ['crewmates'] : ['crewmates', 'tasks', 'model']) {
+    for (const panel of noDim ? ['crewmates'] : ['crewmates', 'runs', 'model']) {
       const tag = `${panel}-${cols}x${rows}${noDim ? '-no-dim' : ''}`
       const world = join(scratch, tag)
       const cwd = join(world, 'cwd')
