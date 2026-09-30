@@ -20,6 +20,23 @@ const sse = (body: unknown): string => `data: ${JSON.stringify(body)}\n\n`
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const path = new URL(req.url).pathname
   if (path === '/v1/models') { listReads++; listEntered?.(); await holdList; return Response.json({ data: modelList }) }
+  if (path === '/v1/responses') {
+    const body = await req.json() as Record<string, any>
+    captures.push({ path, body, bearer: req.headers.get('authorization') === 'Bearer fixture-subscription-access' })
+    assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''))
+    assert.equal(req.headers.has('X-XAI-Token-Auth'), false)
+    const item = mode === 'tools'
+      ? { type: 'function_call', id: 'fc_sub', call_id: 'call_sub', name: 'FixtureEcho', arguments: '{"text":"subscription"}', status: 'completed' }
+      : { type: 'message', id: 'msg_sub', role: 'assistant', content: [{ type: 'output_text', text: 'GROK-SUBSCRIPTION-SETTLED', annotations: [] }], status: 'completed' }
+    const encrypted = { type: 'reasoning', id: 'rs_sub', encrypted_content: 'fixture-encrypted', summary: [] }
+    const output = [encrypted, item]
+    const stream = sse({ type: 'response.created', response: { id: 'resp_sub', model: body.model, status: 'in_progress' } })
+      + sse({ type: 'response.output_item.done', output_index: 0, item: encrypted })
+      + (mode === 'tools' ? '' : sse({ type: 'response.output_text.delta', item_id: 'msg_sub', output_index: 1, content_index: 0, delta: 'GROK-SUBSCRIPTION-SETTLED' }))
+      + sse({ type: 'response.output_item.done', output_index: 1, item })
+      + sse({ type: 'response.completed', response: { id: 'resp_sub', model: body.model, status: 'completed', output, usage: { input_tokens: 30, output_tokens: 10, total_tokens: 40 } } })
+    return new Response(stream, { headers: { 'content-type': 'text/event-stream' } })
+  }
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
@@ -133,5 +150,26 @@ try {
   clearTimeout(deadline)
   releaseList(); await pendingList
   check('cancellation during discovery does not wait for the catalogue bound', interrupted !== null && interrupted.length === 0 && captures.length === beforeAbsent)
+  const oauth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  holdList = undefined; listEntered = undefined
+  modelList = [{ id: 'grok-4.7', created: 7 }]
+  oauth.writeXaiTokens({ accessToken: 'fixture-subscription-access', refreshToken: 'fixture-subscription-refresh', expiresAtMs: Date.now() + 3600_000 })
+  oauth.writePreferredXaiSource('grok-subscription')
+  delete process.env.XAI_API_KEY
+  check('the subscription alone admits the primary backend without any API key', resolvePrimaryAgentBackend('grok-4.7')?.readiness().state !== 'unavailable')
+  mode = 'tools'
+  const subscriptionTools = await run(params('grok-4.7'))
+  const subscriptionBody = captures.at(-1)!.body
+  check('subscription bearer rides api-base Responses without borrowed product headers', captures.at(-1)?.path === '/v1/responses' && captures.at(-1)?.bearer)
+  check('subscription uses flat function tools, typed input and stateless encrypted reasoning', subscriptionBody.tools[0].name === 'FixtureEcho' && !subscriptionBody.tools[0].function && Array.isArray(subscriptionBody.input) && subscriptionBody.store === false && subscriptionBody.include.includes('reasoning.encrypted_content'))
+  const { foldSplitTurnsForWire } = await import('../../src/utils/messages/pairing.ts')
+  check('wire normalization preserves the xAI replay record', foldSplitTurnsForWire(subscriptionTools).some(row => row.type === 'assistant' && row.xaiProviderTurn?.items.length === 2))
+  check('subscription tool call settles with its own provider replay record', subscriptionTools.some(row => row.message.content.some(block => block.type === 'tool_use' && block.id === 'call_sub')) && subscriptionTools.at(-1)?.xaiProviderTurn?.items.length === 2)
+  mode = 'text'
+  const subText = await run(params('grok-4.7', 'high', true, [...subscriptionTools, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_sub', content: 'subscription result' }] })]))
+  const input = captures.at(-1)!.body.input
+  check('subscription replay preserves encrypted reasoning and pairs tool output by call id', input.some((row: any) => row.type === 'reasoning' && row.encrypted_content === 'fixture-encrypted') && input.some((row: any) => row.type === 'function_call_output' && row.call_id === 'call_sub'))
+  check('subscription Responses text and usage settle under xAI', subText.some(row => JSON.stringify(row.message.content).includes('GROK-SUBSCRIPTION-SETTLED')) && subText.at(-1)?.message.usage?.output_tokens === 10)
+  oauth.clearStoredXaiSubscription()
   console.log(`XAI WIRE GREEN (${checks} checks; loopback fixture only)`)
 } finally { server.stop(true); rmSync(proofHome, { recursive: true, force: true }) }

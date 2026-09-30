@@ -1,5 +1,9 @@
 import * as React from 'react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Select } from './CustomSelect/index.js'
+import { openBrowser } from '../utils/browser.js'
+import { setClipboard } from '../ink/termio/osc.js'
+import { runXaiDeviceLogin, XAI_CONNECT_ROWS, XAI_CONNECT_STOPPED_RECEIPT, type XaiDeviceLoginEvent } from '../services/providers/xai/xaiLogin.js'
 import { Box, Text, useInput } from '../ink.js'
 import TextInput from './TextInput.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
@@ -17,7 +21,19 @@ export function XaiConnect({
   onBack: () => void
 }): React.ReactNode {
   const tokens = useMercuryTokens()
-  const [step, setStep] = useState<'api' | 'management'>('api')
+  const [step, setStep] = useState<'choice' | 'device' | 'api' | 'management'>('choice')
+  const [event, setEvent] = useState<XaiDeviceLoginEvent>({ phase: 'starting' })
+  const cancelled = useRef(false)
+  useEffect(() => {
+    if (step !== 'device') return
+    let disposed = false
+    void runXaiDeviceLogin({ cancelled: () => disposed || cancelled.current, onEvent: e => {
+      if (disposed) return
+      setEvent(e)
+      if (e.phase === 'waiting' && e.polls === 0) void openBrowser(e.start.verificationUriComplete ?? e.start.verificationUri)
+    } }).then(outcome => { if (!disposed || outcome.settledAfterCancel) onResult(outcome) })
+    return () => { disposed = true }
+  }, [step])
   const [value, setValue] = useState('')
   const [cursor, setCursor] = useState(0)
   const [note, setNote] = useState<string | null>(null)
@@ -25,10 +41,16 @@ export function XaiConnect({
   const [storing, setStoring] = useState(false)
   const management = step === 'management'
   const keep = (): void => onResult({ ok: true, receipt: `${apiReceipt} Management key unchanged; add one later through /logins xai or /router key xai-management.` })
-  useInput((_input, key) => {
+  useInput((input, key, keyEvent) => {
+    if (step === 'choice') return
     if (key.escape && !storing) {
-      if (management) keep()
-      else onBack()
+      if (step === 'device') { cancelled.current = true; setNote(XAI_CONNECT_STOPPED_RECEIPT) }
+      else if (management) keep()
+      else setStep('choice')
+    }
+    if (input === 'c' && step === 'device' && event.phase === 'waiting') {
+      keyEvent.stopImmediatePropagation()
+      void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => { if (sequence) process.stdout.write(sequence) })
     }
   })
   const submit = (raw: string): void => {
@@ -51,6 +73,22 @@ export function XaiConnect({
       else { setApiReceipt(outcome.receipt); setNote(null); setStep('management') }
     })
   }
+  if (step === 'choice') return <Box flexDirection="column" gap={1} paddingX={1}>
+    <Text bold color={tokens.accent}>Connect xAI</Text>
+    <Text>Use your Grok subscription or an API key. xAI decides subscription eligibility; consent may say Grok Build.</Text>
+    <Select options={XAI_CONNECT_ROWS} onChange={choice => setStep(choice === 'device' ? 'device' : 'api')} onCancel={onBack} />
+  </Box>
+  if (step === 'device') return <Box flexDirection="column" gap={1} paddingX={1}>
+    <Text bold color={tokens.accent}>Connect Grok (device code)</Text>
+    {event.phase === 'waiting' ? <>
+      <Text>Enter this code on the xAI sign-in page: {event.start.userCode}</Text>
+      <Text>{event.start.verificationUriComplete ?? event.start.verificationUri}</Text>
+      <Text>Waiting for approval ({event.polls} checks) · expires {new Date(event.start.expiresAtMs).toLocaleTimeString()}</Text>
+      {event.note ? <Text>{event.note}</Text> : null}
+    </> : <Text>{event.phase === 'starting' ? 'Requesting a device code…' : 'Authorized — storing sign-in and reading models…'}</Text>}
+    {note ? <Text>{note}</Text> : null}
+    <Text dimColor>c copies the URL · esc cancels</Text>
+  </Box>
   return (
     <Box flexDirection="column" gap={1} paddingX={1}>
       <Text bold color={tokens.accent}>{management ? 'Connect xAI — management key (optional)' : 'Connect xAI — API key'}</Text>

@@ -372,7 +372,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.
 - **DeepSeek:** API key.
-- **xAI (Grok):** API key.
+- **xAI (Grok):** sign in with your Grok subscription (SuperGrok / X Premium) or paste an API key through `/logins xai`.
 - **Meta (Muse):** pay-as-you-go Model API key; Muse Code subscriptions are for Muse Code only.
 
 Local model servers and custom OpenAI-compatible endpoints are discovered or

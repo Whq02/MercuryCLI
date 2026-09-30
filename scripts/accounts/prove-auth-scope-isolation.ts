@@ -50,6 +50,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/services/providers/huggingface/huggingfaceAccounts.ts',
     'src/services/providers/moonshot/moonshotAccounts.ts',
     'src/services/providers/openrouter/openrouterAccounts.ts',
+    'src/services/providers/xai/xaiOauth.ts',
     'src/utils/auth.ts',
     'src/utils/healthReport.ts',
     'src/daemon/saturnAccount.ts',

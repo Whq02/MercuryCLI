@@ -38,7 +38,10 @@ try {
   const flags = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
   assert.ok(flags.includes("env: 'MERCURY_XAI_API_BASE'"))
-  assert.ok(shard.includes('MERCURY_DEEPSEEK_API_BASE MERCURY_XAI_API_BASE MERCURY_XAI_MANAGEMENT_API_BASE'))
+  for (const base of ['MERCURY_XAI_API_BASE', 'MERCURY_XAI_AUTH_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE']) {
+    assert.ok(shard.includes(base), `${base} joins the loopback census`)
+    assert.ok(flags.includes(`env: '${base}'`), `${base} is registered`)
+  }
   assert.ok(flags.includes("env: 'MERCURY_XAI_MANAGEMENT_API_BASE'"))
   const accounts = exportsOf(join(root, 'src/services/providers/xai/xaiAccounts.ts'))
   for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)

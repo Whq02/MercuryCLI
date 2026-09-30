@@ -16,7 +16,7 @@ import { moonshotDispatchSource } from './moonshot/moonshotAccounts.js'
 import { deepseekCallModel, deepseekLiveProofState } from './deepseek/deepseekCallModel.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
 import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
-import { resolveXaiApiKey } from './xai/xaiAccounts.js'
+import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
@@ -181,11 +181,11 @@ const xaiBackend: PrimaryAgentBackend = {
   id: 'xai-chat', provider: 'xai', label: 'xAI (native, in-process)',
   callModel: xaiCallModel as unknown as typeof queryModelWithStreaming,
   readiness: (): BackendReadiness => {
-    if (!resolveXaiApiKey()) return { state: 'unavailable', reason: 'no API key (/logins xai, or XAI_API_KEY)' }
+    if (!resolveXaiCredentialSnapshot()) return { state: 'unavailable', reason: 'no usable Grok sign-in or API key (/logins xai, or XAI_API_KEY)' }
     const proof = xaiLiveProofState()
     return proof
       ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
-      : { state: 'configured', detail: 'key present · shared compat runtime · no live turn proven this session' }
+      : { state: 'configured', detail: 'credential present · no live turn proven this session' }
   },
 }
 

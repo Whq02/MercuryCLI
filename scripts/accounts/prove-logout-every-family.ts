@@ -74,6 +74,10 @@ const gemini = await import('../../src/services/providers/gemini/geminiAccounts.
 const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
 const huggingface = await import('../../src/services/providers/huggingface/huggingfaceAccounts.js')
 
+const xai = await import('../../src/services/providers/xai/xaiOauth.js')
+xai.writeXaiTokens({ accessToken: 'fixture-xai', refreshToken: 'fixture-xai-refresh', expiresAtMs: Date.now() + 3600_000 })
+check('xai: the Grok subscription is present before logout', Boolean(xai.xaiStoredTokens()))
+
 const far = Date.now() + 365 * 24 * 3600_000
 const authFile = (name: string): Record<string, unknown> => {
   try {
@@ -147,6 +151,7 @@ section('§2 performLogout — every store empties through the one owner')
   check('openrouter: the stored key is gone', secrets.readStoredOpenrouterApiKey() === undefined)
   check('gemini: the Google sign-in is disconnected', !gemini.geminiOauthConnected())
   check('gemini: the stored key is gone', secrets.readStoredGeminiApiKey() === undefined)
+  check('xai: the Grok subscription and its token bytes are forgotten', !xai.xaiStoredTokens() && authFile('.xai-auth.json').tokens === undefined)
   check('moonshot: the Kimi sign-in is disconnected', moonshot.moonshotStoredTokens() === undefined)
   check('moonshot: the stored key is gone', secrets.readStoredMoonshotApiKey() === undefined)
   check('huggingface: the device-flow sign-in is disconnected', huggingface.huggingfaceStoredTokens() === undefined)

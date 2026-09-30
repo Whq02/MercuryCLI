@@ -7,7 +7,7 @@ import { rmSync, statSync, readFileSync } from 'node:fs'
 delete process.env.XAI_API_KEY
 delete process.env.XAI_MANAGEMENT_API_KEY
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
+const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
 const { resolveXaiApiKey, resolveXaiAccount, xaiApiBase } = await import('../../src/services/providers/xai/xaiAccounts.ts')
 const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
 const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
@@ -83,5 +83,54 @@ try {
     check('face and modal call the same management-key driver', readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(value)') && readFileSync(new URL('../../src/components/XaiConnect.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(key)'))
   } finally { fixture.stop(); writeStoredXaiManagementApiKey(null) }
   check('at-rest store contains the key only under its own slot', JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).xaiApiKey === key)
+  const auth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const { xaiAuthFixture } = await import('../providers/lib/xai-auth-fixture.ts')
+  const { setAuthScope, clearAuthScope } = await import('../../src/utils/envUtils.ts')
+  const { resolveXaiCredential } = await import('../../src/services/providers/xai/xaiAccounts.ts')
+  const oauth = xaiAuthFixture()
+  let clock = Date.now()
+  const waits: number[] = []
+  const io = { env: oauth.env, now: () => clock }
+  const sleep = async (ms: number): Promise<void> => { waits.push(ms); clock += ms }
+  try {
+    setAuthScope(`${proofHome}/scoped-grok`)
+    const events: string[] = []
+    const signed = await runXaiDeviceLogin({ io, sleep, onEvent: event => events.push(event.phase) })
+    check('device code polls pending and slow_down before storing the approved grant', signed.ok && oauth.state.polls === 3 && waits.join(',') === '1000,1000,6000' && events.includes('waiting') && events.includes('finishing'))
+    check('Grok token file is auth-scoped mode 600; receipt contains no token or device secret', auth.xaiAuthPathForDisplay() === `${proofHome}/scoped-grok/.xai-auth.json` && (statSync(auth.xaiAuthPathForDisplay()).mode & 0o777) === 0o600 && !signed.receipt.includes(oauth.token) && !signed.receipt.includes('fixture-device'))
+    check('OAuth ledger and account identity name Grok, never an invented plan', readSignInLedger().xai?.kind === 'oauth' && resolveXaiAccount()?.kind === 'grok-subscription' && resolveXaiAccount()?.email === 'fixture@example.invalid')
+    process.env.XAI_API_KEY = key
+    check('subscription wins even over the env key like OpenAI', resolveXaiAccount()?.kind === 'grok-subscription')
+    auth.writePreferredXaiSource('api-key')
+    check('explicit source preference selects the key', resolveXaiAccount()?.kind === 'api-key')
+    auth.writePreferredXaiSource('grok-subscription')
+    clock += 3600_000
+    const catalogue = await import('../../src/services/providers/xai/xaiCatalogue.ts')
+    const listing = catalogue.refreshXaiCatalogue({ ...io, force: true })
+    const refreshed = await Promise.all([resolveXaiCredential(io), resolveXaiCredential(io)])
+    await listing
+    check('expired subscription refreshes once with rotating tokens and no key fallback', oauth.state.refreshes === 1 && refreshed.every(row => row?.key === oauth.rotated) && auth.xaiStoredTokens()?.refreshToken === 'fixture-rotated-refresh')
+    check('catalogue fetched through refresh is immediately visible under the rotated credential', catalogue.getCachedXaiCatalogue(io.env)?.models[0]?.id === 'grok-4.7')
+    const oauthSlot = deriveFamilySlotGroups().find(group => group.family.id === 'xai')?.slots.find(slot => slot.kind === 'oauth')
+    check('account board shows an active OAuth slot with its own removal door', oauthSlot?.active && oauthSlot.removal.route === 'xai-oauth')
+    executeSlotRemoval(oauthSlot!)
+    check('sign-out forgets only the subscription and keeps the env key', !auth.xaiStoredTokens() && resolveXaiAccount()?.kind === 'api-key')
+    oauth.state.slow = false
+    oauth.state.deny = true
+    const denied = await runXaiDeviceLogin({ io, sleep })
+    check('denied authorization never stores a grant', !denied.ok && !auth.xaiStoredTokens())
+    oauth.state.deny = false
+    let cancelled = false
+    oauth.state.onToken = () => { cancelled = true }
+    const late = await runXaiDeviceLogin({ io, sleep, cancelled: () => cancelled })
+    check('approval racing cancel is stored and disclosed, never silently orphaned', late.ok && late.settledAfterCancel && auth.xaiStoredTokens())
+    oauth.state.onToken = undefined
+    oauth.state.failRefresh = true
+    await assert.rejects(() => auth.refreshXaiTokens(io, true))
+    check('invalid_grant leaves an expired sign-in without silently switching to API billing', auth.xaiStoredTokens()?.refreshToken === '' && resolveXaiAccount()?.kind === 'grok-subscription' && await resolveXaiCredential(io) === undefined)
+    auth.clearStoredXaiSubscription()
+    clearAuthScope()
+    check('the outer auth scope never received subscription tokens', !auth.xaiStoredTokens())
+  } finally { oauth.stop(); auth.clearStoredXaiSubscription(); clearAuthScope(); delete process.env.XAI_API_KEY }
   console.log(`XAI LOGIN GREEN (${checks} checks; fixture only)`)
 } finally { writeStoredXaiApiKey(null); rmSync(proofHome, { recursive: true, force: true }) }

@@ -237,7 +237,7 @@ function tapRaw(parsed: unknown, state: TurnRecordState): CompatStreamEvent[] {
   return out
 }
 
-async function* streamOpenrouterResponses(options: CompatStreamOptions, body: string, state: TurnRecordState): AsyncGenerator<CompatStreamEvent> {
+export async function* streamOpenrouterResponses(options: CompatStreamOptions, body: string, state: TurnRecordState, lane: 'openrouter' | 'xai' = 'openrouter'): AsyncGenerator<CompatStreamEvent> {
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const url = openrouterResponsesUrl(options.url)
   const controller = new AbortController()
@@ -272,7 +272,7 @@ async function* streamOpenrouterResponses(options: CompatStreamOptions, body: st
     }, firstByteBudget)
     firstByteTimer.unref?.()
     try {
-      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), 'openrouter')
+      const fetchImpl = options.fetchImpl ?? wrapFetchWithWireDump(getApiFetch(), lane)
       const proxyOptions = options.fetchImpl ? {} : getProxyFetchOptions()
       response = await fetchImpl(url, {
         method: 'POST',

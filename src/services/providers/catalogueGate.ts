@@ -1,7 +1,7 @@
 import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { resolveMoonshotAccount } from './moonshot/moonshotAccounts.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
-import { resolveXaiApiKey } from './xai/xaiAccounts.js'
+import { resolveXaiCredentialSnapshot } from './xai/xaiAccounts.js'
 import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
@@ -52,7 +52,7 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
     case 'deepseek':
       return resolveDeepseekApiKey(env) !== undefined
     case 'xai':
-      return resolveXaiApiKey(env) !== undefined
+      return resolveXaiCredentialSnapshot(env) !== undefined
     case 'meta':
       return resolveMetaApiKey(env) !== undefined
     case 'moonshot':

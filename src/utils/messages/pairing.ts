@@ -312,6 +312,7 @@ export function foldSplitTurnsForWire(
         ...(msg.geminiProviderTurn !== undefined
           ? { geminiProviderTurn: msg.geminiProviderTurn }
           : {}),
+        ...(msg.xaiProviderTurn !== undefined ? { xaiProviderTurn: msg.xaiProviderTurn } : {}),
         ...(msg.openrouterProviderTurn !== undefined
           ? { openrouterProviderTurn: msg.openrouterProviderTurn }
           : {}),

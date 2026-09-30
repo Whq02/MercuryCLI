@@ -8,7 +8,7 @@ import { checker } from '../engine-durability/harness.ts'
 import { codeOnlyText } from '../lib/codeText.ts'
 
 for (const knob of ['GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MERCURY_GEMINI_OAUTH_CLIENT_ID', 'MERCURY_GEMINI_OAUTH_CLIENT_SECRET']) delete process.env[knob]
-process.env['MERCURY_CONFIG_DIR'] = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'logins-key-lines-')))
+process.env['MERCURY_CONFIG_DIR'] = realpathSync(mkdtempSync(join(tmpdir(), 'logins-key-lines-')))
 process.env['MERCURY_CREDENTIAL_STORE'] = 'file'
 process.env['FORCE_COLOR'] = '0'
 
@@ -72,7 +72,7 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const isKeyOnly = (family: Family): family is 'deepseek' | 'xai' | 'meta' => family === 'deepseek' || family === 'xai' || family === 'meta'
+const isKeyOnly = (family: Family): family is 'deepseek' | 'meta' => family === 'deepseek' || family === 'meta'
 const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
   isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)

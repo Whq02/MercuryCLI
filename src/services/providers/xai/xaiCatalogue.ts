@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { xaiApiBase, resolveXaiApiKey } from './xaiAccounts.js'
+import { xaiApiBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
 import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -83,7 +83,7 @@ export async function fetchXaiLiveModels(opts: {
 }
 
 export interface XaiCatalogueSnapshot {
-  keySource: 'env' | 'stored'
+  keySource: 'env' | 'stored' | 'oauth'
   models: XaiLiveModel[]
   fetchedAtMs: number
   lastAttemptAtMs?: number
@@ -92,11 +92,11 @@ export interface XaiCatalogueSnapshot {
 const catalogueCache = new Map<string, XaiCatalogueSnapshot>()
 const catalogueInFlight = new Map<string, Promise<XaiCatalogueSnapshot | null>>()
 function catalogueIdentity(env: NodeJS.ProcessEnv): string {
-  const key = resolveXaiApiKey(env)
+  const key = resolveXaiCredentialSnapshot(env)
   return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiApiBase(env)}` : 'none'
 }
 export function getCachedXaiCatalogue(env: NodeJS.ProcessEnv = process.env): XaiCatalogueSnapshot | null {
-  return resolveXaiApiKey(env) ? catalogueCache.get(catalogueIdentity(env)) ?? null : null
+  return resolveXaiCredentialSnapshot(env) ? catalogueCache.get(catalogueIdentity(env)) ?? null : null
 }
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set()
 const liveIdSets = new WeakMap<XaiCatalogueSnapshot, ReadonlySet<string>>()
@@ -119,7 +119,7 @@ export function refreshXaiCatalogue(opts?: {
 }): Promise<XaiCatalogueSnapshot | null> {
   const env = opts?.env ?? process.env
   const now = opts?.now ?? Date.now
-  const key = resolveXaiApiKey(env)
+  const key = resolveXaiCredentialSnapshot(env)
   const identity = catalogueIdentity(env)
   const cached = key ? catalogueCache.get(identity) ?? null : null
   if (!key || !catalogueTrafficVerdict('xai', env).allowed) return Promise.resolve(cached)
@@ -129,19 +129,25 @@ export function refreshXaiCatalogue(opts?: {
   const existing = catalogueInFlight.get(identity)
   if (existing) return existing
   const work = (async (): Promise<XaiCatalogueSnapshot | null> => {
+    let resolvedKey = key
     try {
-      const result = await fetchXaiLiveModels({ baseUrl: xaiApiBase(env), key: key.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
-      const snapshot: XaiCatalogueSnapshot = { keySource: key.source, models: result.models, fetchedAtMs: now() }
-      catalogueCache.set(identity, snapshot)
+      const credential = await resolveXaiCredential({ ...opts, env })
+      if (!credential) throw new Error('Grok sign-in expired — /logins xai reconnects it')
+      resolvedKey = credential
+      const result = await fetchXaiLiveModels({ baseUrl: xaiApiBase(env), key: credential.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
+      if (resolveXaiCredentialSnapshot(env)?.key !== credential.key) return null
+      const snapshot: XaiCatalogueSnapshot = { keySource: credential.source, models: result.models, fetchedAtMs: now() }
+      catalogueCache.set(catalogueIdentity(env), snapshot)
       return snapshot
     } catch (error) {
+      if (resolveXaiCredentialSnapshot(env)?.key !== resolvedKey.key) return null
       const refused = error instanceof XaiCatalogueHttpError && (error.status === 401 || error.status === 403)
       const snapshot: XaiCatalogueSnapshot = {
-        keySource: key.source, models: refused ? [] : cached?.models ?? [],
+        keySource: resolvedKey.source, models: refused ? [] : cached?.models ?? [],
         fetchedAtMs: refused ? 0 : cached?.fetchedAtMs ?? 0, lastAttemptAtMs: now(),
-        lastError: (error instanceof Error ? error.message : String(error)).split(key.key).join('[redacted]'),
+        lastError: (error instanceof Error ? error.message : String(error)).split(key.key).join('[redacted]').split(resolvedKey.key).join('[redacted]'),
       }
-      catalogueCache.set(identity, snapshot)
+      catalogueCache.set(catalogueIdentity(env), snapshot)
       return snapshot
     } finally {
       catalogueInFlight.delete(identity)

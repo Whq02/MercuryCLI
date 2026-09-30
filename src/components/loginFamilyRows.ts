@@ -38,7 +38,7 @@ export function loginFamilyRows({ engineLegs }: { engineLegs: boolean }): LoginF
           { label: 'Kimi (Moonshot) — device-code sign-in or API key', value: 'moonshot' as const },
           { label: 'GLM (Z.AI) — API key (general or GLM Coding Plan)', value: 'zai' as const },
           { label: 'DeepSeek — API key', value: 'deepseek' as const },
-          { label: 'xAI — API key (Grok)', value: 'xai' as const },
+          { label: 'xAI — Grok subscription sign-in or API key', value: 'xai' as const },
           { label: 'Meta — API key (Muse)', value: 'meta' as const },
         ]
       : []),

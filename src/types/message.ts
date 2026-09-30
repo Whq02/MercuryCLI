@@ -104,6 +104,7 @@ export type AssistantMessage = {
     projection: string
     refused?: Array<{ id: string; reason: string }>
   }
+  xaiProviderTurn?: { model: string; items: unknown[]; responseId?: string }
   openrouterProviderTurn?: {
     model: string
     items: unknown[]

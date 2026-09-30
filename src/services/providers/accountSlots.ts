@@ -111,6 +111,7 @@ export type SlotRemoval =
   | { route: 'moonshot-stored-key' }
   | { route: 'moonshot-oauth' }
   | { route: 'deepseek-stored-key' }
+  | { route: 'xai-oauth' }
   | { route: 'xai-stored-key' }
   | { route: 'xai-management-key' }
   | { route: 'meta-stored-key' }
@@ -172,6 +173,7 @@ export interface AccountSlotReads {
   moonshotOauthRegion?: () => KimiRegion
   deepseekEnvKey?: () => string | undefined
   deepseekStoredKey?: () => string | undefined
+  xaiOauth?: typeof xaiStoredTokens
   xaiEnvKey?: () => string | undefined
   xaiStoredKey?: () => string | undefined
   xaiManagementEnvKey?: () => string | undefined
@@ -914,10 +916,20 @@ function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   })
 }
 
+import { xaiStoredTokens, clearStoredXaiSubscription, readPreferredXaiSource } from './xai/xaiOauth.js'
+
 function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : process.env.XAI_API_KEY?.trim() || undefined
   const storedKey = (reads.xaiStoredKey ?? readStoredXaiApiKey)()
   const slots = keyLaneSlots({ family: 'xai', envVar: 'XAI_API_KEY', envKey, storedKey, storedRemoval: { route: 'xai-stored-key' } })
+  const oauth = (reads.xaiOauth ?? xaiStoredTokens)()
+  if (oauth) {
+    const active = readPreferredXaiSource() !== 'api-key' || !(envKey || storedKey)
+    if (active) for (const slot of slots) { slot.active = false; slot.stateNote = 'Grok subscription selected' }
+    slots.unshift({ family: 'xai', id: 'xai:oauth', name: 'subscription', kind: 'oauth', kindLabel: 'Grok subscription',
+      identity: oauth.email ?? 'Grok account', active, envPinned: false, signedIn: Boolean(oauth.refreshToken),
+      ...(oauth.refreshToken ? {} : { stateNote: 'sign-in expired — /logins xai reconnects it' }), removal: { route: 'xai-oauth' } })
+  }
   const managementEnv = reads.xaiManagementEnvKey ? reads.xaiManagementEnvKey() : process.env.XAI_MANAGEMENT_API_KEY?.trim() || undefined
   const managementStored = (reads.xaiManagementStoredKey ?? readStoredXaiManagementApiKey)()
   for (const [source, key] of [['env', managementEnv], ['stored', managementStored]] as const) {
@@ -1134,6 +1146,7 @@ export interface SlotRemovalOwners {
   clearStoredMoonshotKey?: () => void
   disconnectMoonshotOauth?: () => void
   clearStoredDeepseekKey?: () => void
+  clearXaiSubscription?: () => void
   clearStoredXaiKey?: () => void
   clearStoredXaiManagementKey?: () => void
   clearStoredMetaKey?: () => void
@@ -1336,6 +1349,9 @@ function routeSlotRemoval(
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
+    case 'xai-oauth':
+      ;(owners.clearXaiSubscription ?? clearStoredXaiSubscription)()
+      return { note: 'Grok sign-in forgotten locally; revoke the shared grant in your xAI account to end it server-side', mutated: true }
     case 'xai-stored-key':
       ;(owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null)))()
       return { note: 'stored xAI API key cleared from the auth-scoped store', mutated: true }
@@ -1373,6 +1389,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['moonshot-oauth', owners.disconnectMoonshotOauth ?? disconnectMoonshotOauth],
     ['moonshot-stored-key', owners.clearStoredMoonshotKey ?? (() => writeStoredMoonshotApiKey(null))],
     ['deepseek-stored-key', owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null))],
+    ['xai-oauth', owners.clearXaiSubscription ?? clearStoredXaiSubscription],
     ['xai-stored-key', owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null))],
     ['xai-management-key', owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null))],
     ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],

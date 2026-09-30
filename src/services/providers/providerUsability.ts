@@ -40,6 +40,7 @@ export interface ProviderUsabilityReads {
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   deepseekKeyPresent?: () => boolean
+  xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiKeyPresent?: () => boolean
   metaKeyPresent?: () => boolean
   compatConfigured?: () => boolean
@@ -137,9 +138,13 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
         require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
       return resolveDeepseekApiKey() !== undefined
     },
+    xaiAccount: () => {
+      const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+      return resolveXaiAccount()
+    },
     xaiKeyPresent: () => {
-      const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-      return resolveXaiApiKey() !== undefined
+      const { resolveXaiCredentialSnapshot } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+      return resolveXaiCredentialSnapshot() !== undefined
     },
     compatConfigured: () => {
       const { resolveCompatSlotConfig } =
@@ -308,7 +313,8 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     reads.deepseekKeyPresent?.() ?? false,
     'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
   )
-  const xai = keyLane('xai', reads.xaiKeyPresent?.() ?? false, 'no xAI API key — /logins xai (or XAI_API_KEY)')
+  const xaiAccount = reads.xaiAccount?.()
+  const xai = keyLane('xai', reads.xaiKeyPresent?.() ?? xaiAccount !== undefined, 'no Grok sign-in or xAI API key — /logins xai (or XAI_API_KEY)', xaiAccount?.kind === 'grok-subscription' ? 'oauth' : 'api-key')
   const compatAccount = reads.compatAccount?.()
   const compat = keyLane(
     'openai-compat',

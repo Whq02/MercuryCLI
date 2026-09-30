@@ -7,7 +7,7 @@ Fetch before naming models, prices, limits or endpoints; date each claim.
 - [OpenAI](https://developers.openai.com/api/docs/models)
 - [Kimi](https://platform.kimi.ai/docs/api/chat)
 - [DeepSeek](https://api-docs.deepseek.com/api/create-chat-completion/)
-- [xAI](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions) and [xAI models](https://docs.x.ai/developers/models)
+- [xAI](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions), [xAI models](https://docs.x.ai/developers/models) and [Grok subscription sign-in](https://x.ai/news/grok-openclaw) (checked 2026-09-30; Mercury follows [OpenCode's shared public device client](https://github.com/anomalyco/opencode/blob/e9f8a210b9e2b1e13d375b84906069886eb3b767/packages/opencode/src/plugin/xai.ts)).
 - [Meta Model API](https://dev.meta.ai/docs/quickstart), [Muse models](https://dev.meta.ai/docs/models), [pricing](https://dev.meta.ai/docs/pricing-rate-limits) and [Muse Code subscriptions](https://dev.meta.ai/docs/muse-code/subscriptions) (checked 2026-09-30; subscription credentials are Muse Code only)
 - [Z.AI](https://docs.z.ai/api-reference/llm/chat-completion)
 - [OpenRouter](https://openrouter.ai/docs/guides/overview/models)

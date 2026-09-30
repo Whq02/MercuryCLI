@@ -27,7 +27,7 @@ export function describeXaiProvider(): ProviderDescription {
     transport: 'openai-compat-chat-completions',
     capabilities: ['streaming', 'tool-calls', 'reasoning-deltas', 'usage-accounting', 'cancellation', 'worktree-authoring'],
     roles: SPECIALIST_ROLES,
-    account: record?.keyPresent ? { kind: 'api-key', label: record.keySource === 'stored' ? 'xAI API key (stored, auth-scoped)' : 'XAI_API_KEY (env)' } : { kind: 'none', label: 'no xAI API key detected' },
+    account: record?.keyPresent ? { kind: record.keySource === 'oauth' ? 'provider-oauth' : 'api-key', label: record.keySource === 'oauth' ? 'Grok subscription' : record.keySource === 'stored' ? 'xAI API key (stored, auth-scoped)' : 'XAI_API_KEY (env)' } : { kind: 'none', label: 'no Grok sign-in or xAI API key detected' },
     catalogue: live?.entries ?? XAI_STATIC_CATALOGUE,
     ...(live ? { catalogueSource: 'live-discovery' as const, discoveredAtMs: live.fetchedAtMs } : { catalogueSource: 'static-pin' as const }),
   }

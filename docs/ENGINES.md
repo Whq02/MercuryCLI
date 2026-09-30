@@ -81,7 +81,9 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
-xAI's Grok rows follow the same road: with an xAI key present, Mercury reads
+`/logins xai` offers Grok subscription sign-in (SuperGrok / X Premium) beside the API key, with the subscription selected by default and its unreported usage pool named plainly.
+
+xAI's Grok rows follow the same road: with a Grok sign-in or xAI key present, Mercury reads
 the account's model list when the picker composes its rows and paints the
 Grok ids it names; the family word `grok` means the newest Grok row that list
 serves — as `deepseek`, `kimi` and `glm` mean the newest row of their own
@@ -479,8 +481,8 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
-- **xai** — an API key for Grok, with an optional management key for the team
-  usage meter. `/logins xai` offers the management key as its second step;
+- **xai** — a Grok subscription sign-in or an API key, with an optional management key for the API team's
+  usage meter. The API-key leg of `/logins xai` offers the management key as its second step;
   leave it empty or press escape to keep using just the API key. An existing
   API key can be kept by pressing enter on the first step. Create the management
   key on [the console's settings page](https://console.x.ai/team/default/management-keys)

@@ -43,6 +43,15 @@ const geminiState = await import('../../src/services/providers/gemini/geminiUsag
 import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
 
 const FAMILIES: RouterProviderId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
+const xaiAuth = await import('../../src/services/providers/xai/xaiOauth.ts')
+xaiAuth.writeXaiTokens({ accessToken: 'fixture-grok', refreshToken: 'fixture-refresh', expiresAtMs: Date.now() + 3600_000 })
+xaiAuth.writePreferredXaiSource('grok-subscription')
+let grokReads = 0
+await owner.refreshProviderUsage('xai', { fetchImpl: (async () => { grokReads++; throw new Error('unexpected subscription meter request') }) as typeof fetch })
+const grokUsage = owner.usageForProvider('xai')
+check('Grok subscription names its unread pool and separate billing endpoint without fabricating allowance or reading another road', grokReads === 0 && grokUsage.sourceKind === 'subscription-oauth' && grokUsage.windows.length === 0 && grokUsage.pools.length === 0 && grokUsage.absence?.includes('cli-chat-proxy.grok.com') === true && grokUsage.tier === 'Grok subscription')
+xaiAuth.clearStoredXaiSubscription()
+
 const WHOAMI = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json'), 'utf8')) as { user: Record<string, unknown>; freeUser: Record<string, unknown> }
 const GEMINI_ROADS = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json'), 'utf8')) as { roads: Record<string, { status: number; quotaHeaders?: string[]; body?: { error?: { details?: { reason?: string }[] } } }> }
 const NOW = 1_760_000_000_000

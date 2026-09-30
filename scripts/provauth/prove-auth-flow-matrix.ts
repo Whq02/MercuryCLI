@@ -220,7 +220,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     zai: 'no Z.AI API key — /logins zai (or ZAI_API_KEY)',
     moonshot: 'no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)',
     deepseek: 'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
-    xai: 'no xAI API key — /logins xai (or XAI_API_KEY)',
+    xai: 'no Grok sign-in or xAI API key — /logins xai (or XAI_API_KEY)',
     meta: 'no Meta API key — /logins meta (or MODEL_API_KEY)',
     'openai-compat': 'no endpoint configured — MERCURY_COMPAT_BASE_URL',
     openrouter: 'no OpenRouter credential — /logins (or OPENROUTER_API_KEY)',

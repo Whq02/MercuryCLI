@@ -526,8 +526,8 @@ function liveKeyLaneReads(): KeyLaneReads {
       return resolveMoonshotAccount() !== undefined
     },
     xaiKeyPresent: () => {
-      const { resolveXaiApiKey } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
-      return resolveXaiApiKey() !== undefined
+      const { resolveXaiCredentialSnapshot } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+      return resolveXaiCredentialSnapshot() !== undefined
     },
     metaKeyPresent: () => {
       const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
