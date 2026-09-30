@@ -23,10 +23,16 @@ record(fs.mkdtempSync(path.join(os.tmpdir(), 'sync-')));
 record(fs.mkdtempSync(path.join(fs.existsSync('/private/tmp/mw') ? '/private/tmp/mw' : os.tmpdir(), 'legacy-')));
 fs.mkdtemp(path.join(os.tmpdir(), 'callback-'), (e, p) => { if (e) throw e; record(p) });
 fs.promises.mkdtemp(path.join(os.tmpdir(), 'promise-')).then(record);
+const buffer = fs.mkdtempSync(Buffer.from(path.join(os.tmpdir(), 'buffer-')), 'buffer');
+if (!process.versions.bun && !Buffer.isBuffer(buffer)) throw new Error('sync encoding changed'); record(buffer);
+fs.mkdtemp(path.join(os.tmpdir(), 'callback-buffer-'), {encoding:'buffer'}, (e, p) => { if (e) throw e; if (!process.versions.bun && !Buffer.isBuffer(p)) throw new Error('callback encoding changed'); record(p) });
+fs.promises.mkdtemp(new URL('file://' + path.join(os.tmpdir(), 'url-')), {encoding:'buffer'}).then(p => { if (!process.versions.bun && !Buffer.isBuffer(p)) throw new Error('promise encoding changed'); record(p) });
+let refused = false; try { fs.mkdtemp(path.join(os.tmpdir(), 'invalid-')) } catch { refused = true }
+if (!refused) throw new Error('missing callback was not rejected synchronously');
 if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR, 'mercury-product', 'scratchpad'); fs.mkdirSync(p, {recursive:true}); record(p) }
 `)
     const runner = join(dir, 'run-all.sh')
-    writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
+    writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmissing=0\nwhile IFS= read -r path; do [ -d "$path" ] || missing=1; done < ${JSON.stringify(receipt)}\n[ "$missing" = 1 ] || touch ${JSON.stringify(join(dir, 'handoff'))}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
     const child = spawn('bash', mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     child.stdout.on('data', b => { output += b })
@@ -42,6 +48,7 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
     const made = paths(receipt)
     const left = made.filter(p => existsSync(p))
     check(`${mode} exercised all scratch classes`, made.length >= 10, `made=${made.length}, rc=${code}`)
+    check(`${mode} the parent can read a child allocation after the child exits`, existsSync(join(dir, 'handoff')))
     check(`${mode} leaves no scratch folders`, left.length === 0, `created=${made.length}, leftovers=${left.length}`)
     check(`${mode} preserves the result`, mode === 'wall' ? code === 137 : mode === 'term' ? code === 143 : code === 0, `rc=${code} ${output}`)
     for (const p of made) rmSync(p, { recursive: true, force: true })

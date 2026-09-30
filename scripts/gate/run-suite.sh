@@ -59,6 +59,7 @@ pid=$!
 runner=$$
 end_suite_tree() {
   kill_tree "$pid"
+  wait "$pid" 2>/dev/null || true
   process_ledger_reap "$MERCURY_PROCESS_LEDGER_DIR" >>"$out" 2>&1
   suite_home_cleanup
 }

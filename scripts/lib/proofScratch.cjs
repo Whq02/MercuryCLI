@@ -6,22 +6,30 @@ const { syncBuiltinESMExports } = require('node:module')
 const folders = new Set()
 let installed = false
 function registerProofScratch(folder) {
-  folders.add(String(folder))
+  folders.add(folder)
   return folder
 }
 function keepProofScratch(folder) {
-  folders.delete(String(folder))
+  for (const candidate of folders) {
+    if (Buffer.from(candidate).equals(Buffer.from(folder))) folders.delete(candidate)
+  }
 }
 function scratchPrefix(prefix) {
   const root = process.env.MERCURY_SUITE_TMPDIR
   if (!root) return prefix
   const value = prefix instanceof URL ? fileURLToPath(prefix) : String(prefix)
-  if (/^\/(?:private\/)?tmp\/mw\//.test(value)) return path.join(root, path.basename(value))
+  if (/^\/(?:private\/)?tmp\/mw\//.test(value)) {
+    const base = Buffer.from(root + path.sep)
+    return Buffer.isBuffer(prefix)
+      ? Buffer.concat([base, prefix.subarray(prefix.lastIndexOf(47) + 1)])
+      : root + path.sep + value.slice(value.lastIndexOf('/') + 1)
+  }
   return prefix
 }
 function installProofScratch() {
   if (installed) return
   installed = true
+  const runRoot = process.env.MERCURY_SUITE_TMPDIR
   const ledger = process.env.MERCURY_PROCESS_LEDGER_DIR
   if (ledger) {
     const { execFileSync } = require('node:child_process')
@@ -40,6 +48,7 @@ function installProofScratch() {
     return registerProofScratch(sync.call(this, scratchPrefix(prefix), options))
   }
   fs.mkdtemp = function(prefix, options, done) {
+    if (typeof options !== 'function' && typeof done !== 'function') return callback.apply(this, arguments)
     if (typeof options === 'function') { done = options; options = undefined }
     return callback.call(this, scratchPrefix(prefix), options, (error, folder) => {
       if (!error) registerProofScratch(folder)
@@ -51,6 +60,7 @@ function installProofScratch() {
   }
   syncBuiltinESMExports()
   process.on('exit', () => {
+    if (runRoot) return
     for (const folder of [...folders].reverse()) {
       try { fs.rmSync(folder, { recursive: true, force: true, maxRetries: 3 }) } catch (error) {
         process.stderr.write(`proof scratch cleanup failed: ${folder}: ${error.message}\n`)
