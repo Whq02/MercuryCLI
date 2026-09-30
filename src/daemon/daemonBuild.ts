@@ -1,7 +1,7 @@
 import { closeSync, existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-let selfScriptMemo: string | null = null
+let selfScriptMemo: { argv: string; real: string } | null = null
 
 export function resolveScriptPath(script: string | undefined): string {
   if (!script) return ''
@@ -13,8 +13,9 @@ export function resolveScriptPath(script: string | undefined): string {
 }
 
 export function selfScriptPath(): string {
-  if (selfScriptMemo === null) selfScriptMemo = resolveScriptPath(process.argv[1])
-  return selfScriptMemo
+  const argv = process.argv[1] ?? ''
+  if (selfScriptMemo === null || selfScriptMemo.argv !== argv) selfScriptMemo = { argv, real: resolveScriptPath(argv) }
+  return selfScriptMemo.real
 }
 
 export function selfBuildDir(): string {
