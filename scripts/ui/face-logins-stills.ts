@@ -150,6 +150,9 @@ export const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
 }
 
 export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
+  { id: 'logins-120x40-key-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-xai-management', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-80x24-key-xai-management', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40', compose: () => composeLogins(120, 40, { sel: 0 }) },
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },

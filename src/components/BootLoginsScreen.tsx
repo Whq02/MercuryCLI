@@ -12,7 +12,9 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js';
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js';
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js';
-import { storeXaiApiKeyLogin } from '../services/providers/xai/xaiLogin.js';
+import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin } from '../services/providers/xai/xaiLogin.js';
+import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
+import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import {
   runKimiDeviceLogin,
   storeMoonshotApiKeyLogin,
@@ -418,6 +420,7 @@ export type FaceKeyLegId =
   | 'zai-coding'
   | 'deepseek'
   | 'xai'
+  | 'xai-management'
   | 'moonshot-key'
   | 'hf-token'
   | 'openrouter-key'
@@ -504,6 +507,8 @@ export function keyLegTitle(leg: FaceKeyLegId): string {
       return 'DeepSeek API key';
     case 'xai':
       return 'xAI API key';
+    case 'xai-management':
+      return 'xAI management key (optional)';
     case 'moonshot-key':
       return 'Moonshot API key';
     case 'hf-token':
@@ -525,7 +530,9 @@ export function keyLegStoreLine(leg: FaceKeyLegId): string {
     case 'deepseek':
       return 'Proven on the balance endpoint first; stored auth-scoped (mode 600); DEEPSEEK_API_KEY wins.';
     case 'xai':
-      return 'Checked with xAI first; stored auth-scoped (mode 600); XAI_API_KEY wins.';
+      return 'Stored auth-scoped (mode 600); XAI_API_KEY wins. An optional management key follows for /usage.';
+    case 'xai-management':
+      return 'Stored auth-scoped (mode 600); XAI_MANAGEMENT_API_KEY wins.';
     case 'moonshot-key':
       return 'Proven on the balance endpoint first; stored auth-scoped (mode 600); MOONSHOT_API_KEY wins; a Kimi sign-in outranks it.';
     case 'hf-token':
@@ -549,6 +556,8 @@ export function keyLegGuardOpts(leg: FaceKeyLegId): { stores: string; looksLike?
       return { stores: 'a DeepSeek API key' };
     case 'xai':
       return { stores: 'an xAI API key' };
+    case 'xai-management':
+      return { stores: 'an xAI management key' };
     case 'moonshot-key':
       return { stores: 'a Moonshot platform key' };
     case 'hf-token':
@@ -568,13 +577,14 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   }
   if (leg === 'deepseek' && note === null) lines.push(...wrapClauses(keyPageLine('deepseek'), DETAIL_W));
   if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
+  if (leg === 'xai-management' && note === null) lines.push(...wrapPlain(XAI_MANAGEMENT_KEY_PAGE, DETAIL_W));
   lines.push(...wrapPlain(keyLegStoreLine(leg), DETAIL_W));
   lines.push(maskedDraftLine(draftLen).replace('code:', 'key:'));
   if (note !== null) {
     lines.push('');
     lines.push(...wrapPlain(note, DETAIL_W));
   }
-  lines.push(storing ? 'checking the key…' : '↵ stores it · esc back');
+  lines.push(storing ? 'checking the key…' : leg === 'xai-management' ? '↵ stores · empty/esc skips; API key stays' : leg === 'xai' ? '↵ stores · empty keeps existing · esc back' : '↵ stores it · esc back');
   return lines;
 }
 
@@ -772,7 +782,7 @@ export function loginsFlowLegendOf(pane: LoginsFlowPaneV1): string {
     case 'pick':
       return '↑↓ move · ↵ pick · esc back';
     case 'key':
-      return pane.storing ? 'checking…' : '↵ store key · esc back';
+      return pane.storing ? 'checking…' : pane.leg === 'xai-management' ? '↵ store key · empty/esc skip' : '↵ store key · esc back';
     case 'device':
       return pane.device.phase === 'waiting' ? 'c copy url · esc cancel' : 'esc cancel';
     case 'handles': {
@@ -874,6 +884,7 @@ export function loginsMenuModelOf(
     opts.flow !== undefined
       ? {
           detailOverride: loginsFlowPaneLines(opts.flow),
+          ...(opts.flow.kind === 'key' && (opts.flow.leg === 'xai' || opts.flow.leg === 'xai-management') ? { detailOverrideConfirms: true } : {}),
           legend: loginsFlowLegendOf(opts.flow),
           statusRight: loginsFlowStatusOf(opts.flow),
         }
@@ -948,6 +959,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     | { kind: 'receipt'; receipt: string; ok: boolean };
   const [flow, setFlow] = useState<OpenFlowState | null>(null);
   const flowRef = useRef(flow);
+  const xaiApiReceipt = useRef('xAI API key kept.');
   flowRef.current = flow;
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraftState] = useState('');
@@ -1207,6 +1219,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         setFlow({ kind: 'key', leg: 'deepseek', note: null, storing: false });
         return;
       case 'xai':
+        xaiApiReceipt.current = 'xAI API key kept.';
         setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });
         return;
       case 'moonshot':
@@ -1287,7 +1300,11 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const submitKey = (leg: FaceKeyLegId, raw: string): void => {
     const value = raw.trim();
-    if (!value) return;
+    if (!value) {
+      if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
+      else if (leg === 'xai' && resolveXaiApiKey()) setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
+      return;
+    }
     const guard = keyPasteGuardNote(value, keyLegGuardOpts(leg));
     if (guard !== null) {
       setFlow({ kind: 'key', leg, note: guard, storing: false });
@@ -1301,11 +1318,15 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         return;
       }
       setDraft('');
-      setFlow({ kind: 'receipt', receipt: outcome.receipt, ok: outcome.ok });
+      if (leg === 'xai') {
+        xaiApiReceipt.current = outcome.receipt;
+        setFlow({ kind: 'key', leg: 'xai-management', note: null, storing: false });
+      } else setFlow({ kind: 'receipt', receipt: leg === 'xai-management' ? `${xaiApiReceipt.current} ${outcome.receipt}` : outcome.receipt, ok: outcome.ok });
     };
     if (leg === 'openai-key') void storeOpenaiApiKeyLogin(value).then(settle);
     else if (leg === 'deepseek') void storeDeepseekApiKeyLogin(value).then(settle);
     else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);
+    else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);
     else if (leg === 'moonshot-key')
       void storeMoonshotApiKeyLogin(value).then(outcome => settle({ ok: outcome.ok, stored: outcome.stored, receipt: outcome.receipt }));
     else if (leg === 'hf-token') void storeHuggingfaceTokenLogin(value).then(settle);
@@ -1316,7 +1337,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
 
   const keyEscape = (leg: FaceKeyLegId): void => {
     setDraft('');
-    if (leg === 'openai-key') openPick('openai');
+    if (leg === 'xai-management') setFlow({ kind: 'receipt', receipt: `${xaiApiReceipt.current} Management key unchanged; /logins xai adds it later.`, ok: true });
+    else if (leg === 'openai-key') openPick('openai');
     else if (leg === 'zai-general' || leg === 'zai-coding') openPick('zai');
     else if (leg === 'moonshot-key') openPick('moonshot');
     else if (leg === 'hf-token') openPick('huggingface');

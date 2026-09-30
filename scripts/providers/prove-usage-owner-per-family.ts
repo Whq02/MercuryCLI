@@ -15,7 +15,7 @@ process.env.MERCURY_DEEPSEEK_API_BASE = 'https://fixture.invalid/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
 process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_ZAI_API_BASE = 'https://fixture.invalid/zai'
-const CREDENTIAL_ENVS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'HF_TOKEN', 'HUGGINGFACE_TOKEN'] as const
+const CREDENTIAL_ENVS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'XAI_MANAGEMENT_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'HF_TOKEN', 'HUGGINGFACE_TOKEN'] as const
 const signOut = (): void => {
   for (const name of CREDENTIAL_ENVS) delete process.env[name]
 }
@@ -42,7 +42,7 @@ const huggingfaceState = await import('../../src/services/providers/huggingface/
 const geminiState = await import('../../src/services/providers/gemini/geminiUsageState.ts')
 import type { RouterProviderId } from '../../src/utils/router/providers/types.js'
 
-const FAMILIES: RouterProviderId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
+const FAMILIES: RouterProviderId[] = ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'openai-compat', 'openrouter', 'gemini', 'huggingface', 'local']
 const NOW = 1_760_000_000_000
 const now = (): number => NOW
 const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })
@@ -114,6 +114,20 @@ section('§1 the readers land in the owner through the one refresh door, stamped
   check('huggingface: the door asks nothing (no spend API is documented)', fetchCalls === 0, String(fetchCalls))
   check('huggingface: the stated rate rides as the one figure, with its reset', hf.figures?.length === 1 && hf.figures[0]?.key === 'rate-remaining' && hf.figures[0]?.value === '950' && hf.figures[0]?.resetsAtMs === NOW + 3_600_000, JSON.stringify(hf.figures))
   check('huggingface: the absence of a spend API still rides beside the figure', typeof hf.absence === 'string' && hf.absence.includes('no spend or credit API'))
+  const { xaiUsageFixture, XAI_FIXTURE_NOW } = await import('./lib/xai-usage-fixture.ts')
+  const xaiFixture = xaiUsageFixture()
+  Object.assign(process.env, xaiFixture.env)
+  try {
+    await owner.refreshProviderUsage('xai', { env: process.env, now: () => XAI_FIXTURE_NOW, force: true })
+    const xai = owner.usageForProvider('xai')
+    check('xai: the owner reads team credits and billing-cycle usage through the management door', xai.credits?.display === 'USD 12.34 prepaid' && xai.figures?.[0]?.value === 'USD 21.00' && xaiFixture.requests.length === 5)
+    check('xai: figures are endpoint-fed and stamped, with no false inference-key absence', xai.figures?.every(f => f.source === 'endpoint' && f.observedAtMs === XAI_FIXTURE_NOW) === true && !xai.absence)
+    delete process.env.XAI_MANAGEMENT_API_KEY
+    const noManagement = owner.usageForProvider('xai')
+    const calls = xaiFixture.requests.length
+    await owner.refreshProviderUsage('xai')
+    check('xai: a management key is optional, absence names its login road and never errors or calls out', noManagement.absence === "add a management key from the console's settings page to read usage — /logins xai" && !noManagement.readerNote && noManagement.figures === undefined && calls === xaiFixture.requests.length)
+  } finally { xaiFixture.stop(); delete process.env.XAI_API_KEY; delete process.env.XAI_MANAGEMENT_API_KEY }
 }
 
 section('§2 honest absence — the owner says the provider publishes nothing, and asks nothing')

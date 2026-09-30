@@ -5,10 +5,11 @@ import { strict as assert } from 'node:assert'
 import { rmSync, statSync, readFileSync } from 'node:fs'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.XAI_API_KEY
+delete process.env.XAI_MANAGEMENT_API_KEY
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
-const { storeXaiApiKeyLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
+const { storeXaiApiKeyLogin, storeXaiManagementKeyLogin } = await import('../../src/services/providers/xai/xaiLogin.ts')
 const { resolveXaiApiKey, resolveXaiAccount, xaiApiBase } = await import('../../src/services/providers/xai/xaiAccounts.ts')
-const { readStoredXaiApiKey, writeStoredXaiApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
+const { readStoredXaiApiKey, writeStoredXaiApiKey, readStoredXaiManagementApiKey, writeStoredXaiManagementApiKey, providerSecretsPathForDisplay, credentialEnvNames } = await import('../../src/utils/router/providerSecrets.ts')
 const { readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS, PROVIDER_CREDENTIAL_VALUE_SHAPES } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/services/providers/accountSlots.ts')
@@ -52,10 +53,35 @@ try {
   const unverified = await storeXaiApiKeyLogin(key, { env, fetchImpl: network })
   check('unreachable endpoint stores unverified with a scrubbed receipt', unverified.stored && unverified.receipt.includes('UNVERIFIED') && !unverified.receipt.includes(key))
   let requests = 0
-  const forbiddenFetch = (async () => { requests++; throw new Error('must not request a balance') }) as typeof fetch
-  await usage.refreshXaiBalance({ fetchImpl: forbiddenFetch })
-  const probe = await usage.fetchXaiBalance(key, { fetchImpl: forbiddenFetch })
-  check('no balance endpoint is invented: no request, null balance, explicit absence', requests === 0 && usage.xaiObservedBalance() === null && usage.decodeXaiBalance({ balance_infos: [] }, 1) === undefined && probe.state === 'unreachable' && probe.message.includes('not reported'))
+  const forbiddenFetch = (async () => { requests++; throw new Error('no management key') }) as typeof fetch
+  await usage.refreshXaiUsage({ fetchImpl: forbiddenFetch })
+  check('API key alone asks no management endpoint and has no reader error', requests === 0 && usage.xaiObservedUsage().usage === null && usage.xaiObservedUsage().failure === null)
+  const { xaiUsageFixture, XAI_FIXTURE_NOW, XAI_FIXTURE_API_KEY, XAI_FIXTURE_MANAGEMENT_KEY } = await import('../providers/lib/xai-usage-fixture.ts')
+  const fixture = xaiUsageFixture()
+  try {
+    const io = { env: fixture.env, now: () => XAI_FIXTURE_NOW }
+    const savedLedger = JSON.stringify(readSignInLedger())
+    fixture.state.status = 403
+    const refused = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
+    check('a refused management key is named and not stored; inference key stays', !refused.stored && refused.receipt.includes('refused the management key') && !readStoredXaiManagementApiKey() && readStoredXaiApiKey() === key)
+    fixture.state.status = 200
+    const managed = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, io)
+    check('management key lands beside the API key without leaking or moving the model sign-in order', managed.stored && !managed.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY) && !managed.receipt.includes(XAI_FIXTURE_API_KEY) && readStoredXaiManagementApiKey() === XAI_FIXTURE_MANAGEMENT_KEY && JSON.stringify(readSignInLedger()) === savedLedger)
+    check('management key is registered in both credential scrub lists', ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes('XAI_MANAGEMENT_API_KEY') && credentialEnvNames().includes('XAI_MANAGEMENT_API_KEY'))
+    const { resolveXaiManagementApiKey } = await import('../../src/services/providers/xai/xaiAccounts.ts')
+    check('management environment pin wins independently', resolveXaiManagementApiKey({ XAI_MANAGEMENT_API_KEY: 'env-management-fixture' })?.key === 'env-management-fixture' && resolveXaiApiKey({})?.key === key)
+    const ownSlots = deriveFamilySlotGroups().find(group => group.family.id === 'xai')!.slots
+    const managementSlot = ownSlots.find(slot => slot.removal.route === 'xai-management-key')!
+    check('management has an independent usage-only removal slot, never an active inference slot', managementSlot && !managementSlot.active && managementSlot.stateNote?.includes('usage only') && !JSON.stringify(ownSlots).includes(XAI_FIXTURE_MANAGEMENT_KEY))
+    executeSlotRemoval(managementSlot)
+    check('management-key removal keeps inference signed in', !readStoredXaiManagementApiKey() && readStoredXaiApiKey() === key)
+    const unreachable = await storeXaiManagementKeyLogin(XAI_FIXTURE_MANAGEMENT_KEY, { ...io, fetchImpl: network })
+    check('unreachable management check stores unverified without leaking either key', unreachable.stored && unreachable.receipt.includes('UNVERIFIED') && !unreachable.receipt.includes(key) && !unreachable.receipt.includes(XAI_FIXTURE_MANAGEMENT_KEY))
+    const face = await import('../../src/components/BootLoginsScreen.tsx')
+    const pane = face.keyPromptPaneLines('xai-management', null, 0, false).join(' ')
+    check('the optional face key step names the console settings and leaves an explicit skip road', pane.includes('settings page') && pane.includes('usage meter') && pane.includes('API key stays'))
+    check('face and modal call the same management-key driver', readFileSync(new URL('../../src/components/BootLoginsScreen.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(value)') && readFileSync(new URL('../../src/components/XaiConnect.tsx', import.meta.url), 'utf8').includes('storeXaiManagementKeyLogin(key)'))
+  } finally { fixture.stop(); writeStoredXaiManagementApiKey(null) }
   check('at-rest store contains the key only under its own slot', JSON.parse(readFileSync(providerSecretsPathForDisplay(), 'utf8')).xaiApiKey === key)
   console.log(`XAI LOGIN GREEN (${checks} checks; fixture only)`)
 } finally { writeStoredXaiApiKey(null); rmSync(proofHome, { recursive: true, force: true }) }

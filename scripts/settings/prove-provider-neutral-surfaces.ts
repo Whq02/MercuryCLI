@@ -101,8 +101,8 @@ section('(2) usageSectionPlan — one /usage section per family (derived, never 
   check('every enumerated family mounts a section (no hidden lanes)', usageSectionPlan(fams).some(s => s.id === ('openai' as never)))
   const xaiPlan = usageSectionPlan([{ id: 'xai', available: true, credentialed: false }] as never)
   check(
-    'xai section: the known-id presentation — the title, the /logins xai key route, and the honest no-usage-endpoint line (console.x.ai is the view)',
-    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === "Usage bills to your xAI team's prepaid credits; the xAI API exposes no usage or balance endpoint an API key can read — console.x.ai is the view.",
+    'xai section: the title and key route stay while the management key unlocks team billing reads',
+    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
     JSON.stringify(xaiPlan[0]),
   )
 }

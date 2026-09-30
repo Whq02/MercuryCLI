@@ -13,12 +13,14 @@ import {
   writeStoredMoonshotApiKey,
   writeStoredTavilyApiKey,
   writeStoredXaiApiKey,
+  writeStoredXaiManagementApiKey,
   writeStoredZaiApiKey,
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
+import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'xai-management' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -52,6 +54,12 @@ const LANES: Record<
     envVar: 'XAI_API_KEY',
     write: writeStoredXaiApiKey,
     envShadow: () => Boolean(process.env.XAI_API_KEY?.trim()),
+  },
+  'xai-management': {
+    title: 'xAI management key',
+    envVar: 'XAI_MANAGEMENT_API_KEY',
+    write: writeStoredXaiManagementApiKey,
+    envShadow: () => Boolean(process.env.XAI_MANAGEMENT_API_KEY?.trim()),
   },
   compat: {
     title: 'Custom endpoint API key',
@@ -125,6 +133,7 @@ export function RouterKeyEntry({
       <Text bold color={tokens.accent}>
         {lane.title}
       </Text>
+      {provider === 'xai-management' ? <Text>{XAI_MANAGEMENT_KEY_PAGE} Needs Management Keys Read + Write permission; the API key identifies the team.</Text> : null}
       <Text color={tokens.textSecondary}>
         Paste the key — input is masked (the last 6 characters stay visible so you can
         confirm the paste); the value never enters the transcript, receipts, or logs.

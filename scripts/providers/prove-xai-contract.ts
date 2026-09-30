@@ -24,7 +24,7 @@ function exportsOf(path: string): Map<string, string> {
 }
 let count = 0
 try {
-  const pairs = ['Accounts', 'CallModel', 'Catalogue', 'Login', 'Pins', 'UsageState'].map(part => [`src/services/providers/deepseek/deepseek${part}.ts`, `src/services/providers/xai/xai${part}.ts`])
+  const pairs = ['CallModel', 'Catalogue', 'Login', 'Pins'].map(part => [`src/services/providers/deepseek/deepseek${part}.ts`, `src/services/providers/xai/xai${part}.ts`])
   pairs.push(['src/utils/router/providers/deepseek.ts', 'src/utils/router/providers/xai.ts'])
   for (const [from, to] of pairs) {
     const expected = exportsOf(join(root, from!))
@@ -38,7 +38,13 @@ try {
   const flags = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
   assert.ok(flags.includes("env: 'MERCURY_XAI_API_BASE'"))
-  assert.ok(shard.includes('MERCURY_DEEPSEEK_API_BASE MERCURY_XAI_API_BASE'))
+  assert.ok(shard.includes('MERCURY_DEEPSEEK_API_BASE MERCURY_XAI_API_BASE MERCURY_XAI_MANAGEMENT_API_BASE'))
+  assert.ok(flags.includes("env: 'MERCURY_XAI_MANAGEMENT_API_BASE'"))
+  const accounts = exportsOf(join(root, 'src/services/providers/xai/xaiAccounts.ts'))
+  for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)
+  const usage = exportsOf(join(root, 'src/services/providers/xai/xaiUsageState.ts'))
+  for (const name of ['fetchXaiUsage', 'refreshXaiUsage', 'xaiObservedUsage', 'decodeXaiPrepaidBalance', 'decodeXaiUsageSeries']) assert.ok(usage.has(name), name)
+  console.log('[PASS] xAI has its own inference and management usage contracts, not DeepSeek balance aliases')
   console.log('[PASS] the xAI base joins the registered hermetic dead-letter census')
   console.log(`XAI CONTRACT GREEN (${count} mirrored exports; base census included)`)
 } finally { rmSync(proofHome, { recursive: true, force: true }) }

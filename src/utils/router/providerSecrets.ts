@@ -20,6 +20,7 @@ interface ProviderSecretsFile {
   moonshotApiKey?: string
   deepseekApiKey?: string
   xaiApiKey?: string
+  xaiManagementApiKey?: string
   compatApiKey?: string
   huggingfaceApiKey?: string
   localApiKey?: string
@@ -163,6 +164,7 @@ type StoredKeyField =
   | 'moonshotApiKey'
   | 'deepseekApiKey'
   | 'xaiApiKey'
+  | 'xaiManagementApiKey'
   | 'compatApiKey'
   | 'openrouterApiKey'
   | 'geminiApiKey'
@@ -234,6 +236,12 @@ export function readStoredXaiApiKey(): string | undefined {
 export function writeStoredXaiApiKey(key: string | null): void {
   writeStoredKey('xaiApiKey', key)
 }
+export function readStoredXaiManagementApiKey(): string | undefined {
+  return readStoredKey('xaiManagementApiKey')
+}
+export function writeStoredXaiManagementApiKey(key: string | null): void {
+  writeStoredKey('xaiManagementApiKey', key)
+}
 
 export function readStoredCompatApiKey(): string | undefined {
   return readStoredKey('compatApiKey')
@@ -297,6 +305,7 @@ export function credentialEnvNames(): readonly string[] {
     'MOONSHOT_API_KEY',
     'DEEPSEEK_API_KEY',
     'XAI_API_KEY',
+    'XAI_MANAGEMENT_API_KEY',
     'MERCURY_COMPAT_API_KEY',
     'MERCURY_COMPAT_BASE_URL',
     'HF_TOKEN',
