@@ -805,9 +805,18 @@ Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
 balance endpoints, the remaining credit under an OpenRouter key cap), and
 "credits: not reported by the provider" where none exists — never a computed
-spend presented as a balance. Every figure is a reader's last observation with
-its stamp, sampled in the popup through one door and dropped the moment the
-credential it belongs to changes — never remembered, never invented.
+spend presented as a balance. The Claude subscription carries the same line
+with its extra-usage figure as Anthropic states it ("credits: extra usage USD
+12.40 of 50.00 this month", read from the usage endpoint together with the
+windows and stamped with them), "extra usage off" while the account has it
+turned off, and "not stated by the endpoint" when the answer carries no such
+figure; an Anthropic API key — the Console sign-in mints one — still reads
+"not reported by the provider", because Anthropic publishes no balance for a
+key (the Console's billing page is the view, and the admin usage and cost
+reports state spend, not a balance). Every figure is a reader's last
+observation with its stamp, sampled in the popup through one door and dropped
+the moment the credential it belongs to changes — never remembered, never
+invented.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
