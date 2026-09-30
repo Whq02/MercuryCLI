@@ -6,18 +6,22 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { buildXaiExtras } from '../openaicompat/compatWire.js'
-import { xaiChatCompletionsUrl, resolveXaiApiKey, resolveXaiAccount } from './xaiAccounts.js'
+import { xaiChatCompletionsUrl, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
 import { isXaiChatModelId } from './xaiPins.js'
+import { refreshXaiTokens } from './xaiOauth.js'
+import { xaiResponsesTransport } from './xaiResponsesTransport.js'
 
 export const xaiLaneProfile: CompatLaneProfile = {
   lane: 'xai',
   providerLabel: 'xAI',
-  resolveCredential: () => {
-    const key = resolveXaiApiKey()
-    return key ? { apiKey: key.key } : undefined
+  resolveCredential: async () => {
+    try {
+      const key = await resolveXaiCredential()
+      return key ? { apiKey: key.key } : undefined
+    } catch { return undefined }
   },
-  credentialHint: 'no xAI API key detected — /logins xai stores one; XAI_API_KEY works too.',
+  credentialHint: 'no usable Grok sign-in or xAI API key — /logins xai reconnects the subscription or stores a key; XAI_API_KEY works too.',
   authRemedy: 'set a valid XAI_API_KEY, or store a new key via /logins xai (console.x.ai issues them).',
   billingRemedy: 'check credits and billing at console.x.ai, then retry; /model picks another model meanwhile.',
   requestUrl: () => xaiChatCompletionsUrl(),
@@ -63,5 +67,21 @@ export async function* xaiCallModel(params: CompatCallModelParams): AsyncGenerat
     return
   }
   const notes = snapshot?.lastError || !snapshot?.fetchedAtMs ? [`xAI model list unavailable — the named id '${model}' is sent for the provider to decide.`] : undefined
-  yield* compatChatCallModel({ ...xaiLaneProfile, ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model! }, { ...params, options: { ...params.options, model: model! } })
+  const subscription = account.kind === 'grok-subscription'
+  yield* compatChatCallModel({ ...xaiLaneProfile,
+    ...(subscription ? { streamTransport: xaiResponsesTransport,
+      recoverCredential: async () => {
+        if (resolveXaiAccount()?.kind !== 'grok-subscription') return undefined
+        const tokens = await refreshXaiTokens(undefined, true)
+        return tokens ? { apiKey: tokens.accessToken } : undefined
+      },
+      authRemedy: '/logins xai reconnects your Grok subscription; xAI decides eligibility for this account.',
+      billingRemedy: 'check the subscription pool in your Grok account; /model picks another model meanwhile.',
+    } : {}),
+    resolveCredential: async () => {
+      if (resolveXaiAccount()?.kind !== account.kind) return undefined
+      return xaiLaneProfile.resolveCredential()
+    },
+    ...(notes ? { leadingNotes: notes } : {}), wireModelId: () => model!
+  }, { ...params, options: { ...params.options, model: model! } })
 }

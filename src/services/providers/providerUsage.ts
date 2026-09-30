@@ -141,6 +141,10 @@ function engineIdentityLive(id: RouterProviderId): string | undefined {
         require('./openai/openaiAccounts.js') as typeof import('./openai/openaiAccounts.js')
       return resolveOpenaiAccount()?.email
     }
+    if (id === 'xai') {
+      const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+      return resolveXaiAccount()?.email
+    }
     if (id === 'huggingface') return resolveHuggingfaceAccount()?.username
   } catch {
   }
@@ -424,6 +428,7 @@ export interface ActiveUsageReads {
   localAccount?: () => LocalAccountRef | undefined
   laneCredentialed?: (provider: RouterProviderId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
+  xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiManagementKeyPresent?: () => boolean
   xaiObserved?: typeof xaiObservedUsage
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
@@ -459,9 +464,11 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
       case 'openrouter':
         await refreshOpenrouterKeyUsage(io)
         return
-      case 'xai':
-        await refreshXaiUsage(io)
+      case 'xai': {
+        const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+        if (resolveXaiAccount()?.kind !== 'grok-subscription') await refreshXaiUsage(io)
         return
+      }
       case 'deepseek': {
         const { refreshDeepseekBalance } =
           require('./deepseek/deepseekUsageState.js') as typeof import('./deepseek/deepseekUsageState.js')
@@ -594,8 +601,8 @@ export interface ZaiQuotaFailureView {
 
 function laneCredentialedLive(provider: RouterProviderId): boolean {
   if (provider === 'xai') {
-    const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-    return resolveXaiApiKey() !== undefined
+    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    return resolveXaiAccount() !== undefined
   }
   if (provider === 'meta') {
     const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
@@ -1497,6 +1504,12 @@ function deriveUsageForProvider(
   if (provider === 'xai') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     if (!credentialed) return { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
+    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    if ((reads?.xaiAccount ?? resolveXaiAccount)()?.kind === 'grok-subscription') return {
+      provider, sourceKind: 'subscription-oauth', label: 'Grok subscription', shape: 'subscription-windows', windows: [], pools: [], spend,
+      tier: 'Grok subscription', credits: CREDITS_UNREPORTED,
+      absence: 'Grok subscription pool not reported on this route; cli-chat-proxy.grok.com/v1/billing?format=credits is a separate billing endpoint, not read here. Check your Grok account for remaining usage.',
+    }
     const management = reads?.xaiManagementKeyPresent?.() ?? resolveXaiManagementApiKey() !== undefined
     if (!management) return {
       provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,

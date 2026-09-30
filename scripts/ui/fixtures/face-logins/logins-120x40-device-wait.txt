@@ -21,7 +21,7 @@
    │   Google Gemini — API key or Google OAuth        not signed in │  │ hangup) — still trying until the code…     │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ c copies the URL · esc cancels             │
    │   DeepSeek — API key                             not signed in │  │                                            │
-   │   xAI — API key (Grok)                           not signed in │  ╰────────────────────────────────────────────╯
+   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
                                                                        │ Families   10                              │

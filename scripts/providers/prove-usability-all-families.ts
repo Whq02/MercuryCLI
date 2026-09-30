@@ -68,6 +68,8 @@ const BLOCKER_MARKS: Record<ProviderId, string> = {
 }
 
 const FAMILIES = Object.keys(READY_OVERRIDES) as ProviderId[]
+const grok = resolveProviderUsability({ ...NONE, xaiKeyPresent: () => true, xaiAccount: () => ({ kind: 'grok-subscription' }) }).xai
+check('Grok subscription is usable as OAuth with no fabricated limit headroom', grok.usable && grok.credential === 'oauth' && grok.limit === 'unknown')
 
 section('§A every family × {ready, no-credential} — the verdict flips on its owning read')
 {

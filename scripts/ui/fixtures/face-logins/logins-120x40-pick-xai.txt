@@ -9,21 +9,21 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Claude subscription account              │
-   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │ ❯ Claude subscription account                   op@example.com │  │ Signed in as op@example.com.               │
-   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │                                            │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ ANTHROPIC_AUTH_TOKEN is set and will       │
-   │                                                                │  │ shadow this sign-in for this session.      │
-   │ available                                                      │  │                                            │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ ↵ done — the roster refreshes              │
-   │   OpenRouter — one credential, the whole …       not signed in │  │                                            │
-   │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
-   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
-   │   DeepSeek — API key                             not signed in │  │                                            │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
-   │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
-   ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
+   │ xAI (Grok)                                                     │  │ ❯ Sign in with your Grok account — SuperG… │
+   │ ❯ Sign in with your Grok account — SuperGrok / X Premium       │  │                                            │
+   │   Paste an API key (usage-based billing)                       │  │ Sign in with your Grok account             │
+   ╰────────────────────────────────────────────────────────────────╯  │ (SuperGrok / X Premium) or paste an        │
+                                                                       │ API key. xAI decides subscription          │
+                                                                       │ eligibility; consent may say Grok          │
+                                                                       │ Build.                                     │
+                                                                       │ API key: console.x.ai — sign in,           │
+                                                                       │ API Keys, create, paste it here.           │
+                                                                       │                                            │
+                                                                       │ esc — back to the roster                   │
+                                                                       │                                            │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
                                                                        │ Families   10                              │
                                                                        │ Signed in  4 of 10                         │
                                                                        │ Ready      4 lanes                         │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  signed in — ↵ returns to the roster                                                         │
+   │ ● System ready  │  xAI — Grok subscription or API key                                                          │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                                         ↵ done
+                                              ↑↓ move · ↵ pick · esc back

@@ -12,7 +12,7 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js';
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js';
 import { storeZaiApiKeyLogin, zaiPlanLabel } from '../services/providers/zai/zaiLogin.js';
 import { storeDeepseekApiKeyLogin } from '../services/providers/deepseek/deepseekLogin.js';
-import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin } from '../services/providers/xai/xaiLogin.js';
+import { storeXaiApiKeyLogin, storeXaiManagementKeyLogin, runXaiDeviceLogin, XAI_CONNECT_ROWS } from '../services/providers/xai/xaiLogin.js';
 import { resolveXaiApiKey } from '../services/providers/xai/xaiAccounts.js';
 import { XAI_MANAGEMENT_KEY_PAGE } from '../services/providers/xai/xaiUsageState.js';
 import { storeMetaApiKeyLogin } from '../services/providers/meta/metaLogin.js';
@@ -414,7 +414,7 @@ export function anthropicFlowStatusOf(snap: AnthropicLoginSnapshot, backToPicker
 }
 
 
-export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini';
+export type LoginsPickId = 'openai' | 'zai' | 'moonshot' | 'huggingface' | 'kimi-region' | 'openrouter' | 'gemini' | 'xai';
 export type FaceKeyLegId =
   | 'openai-key'
   | 'zai-general'
@@ -437,6 +437,8 @@ export function loginsPickOptions(
   geminiFacts?: GeminiConnectFacts,
 ): Array<{ label: string; value: string }> {
   switch (pick) {
+    case 'xai':
+      return XAI_CONNECT_ROWS;
     case 'openrouter':
       return [
         { label: 'Sign in with the browser — OAuth mints a scoped key', value: 'browser' },
@@ -473,6 +475,8 @@ export function loginsPickOptions(
 export function loginsPickPaneLines(pick: LoginsPickId): string[] {
   const body = ((): string => {
     switch (pick) {
+      case 'xai':
+        return 'Sign in with your Grok account (SuperGrok / X Premium) or paste an API key. xAI decides subscription eligibility; consent may say Grok Build.';
       case 'openai':
         return 'One OpenAI family, two credentials: the ChatGPT subscription signs in with the browser (d on the wait switches to a device code); an API key bills usage-based.';
       case 'zai':
@@ -614,7 +618,7 @@ export function signedInStatusWayOut(backToPicker: boolean): string {
 }
 
 
-export type FaceDeviceFamily = 'moonshot' | 'huggingface';
+export type FaceDeviceFamily = 'moonshot' | 'huggingface' | 'xai';
 
 export interface DeviceWaitStateV1 {
   family: FaceDeviceFamily;
@@ -629,6 +633,7 @@ export interface DeviceWaitStateV1 {
 }
 
 export function deviceFamilyWords(family: FaceDeviceFamily, regionWords?: string): string {
+  if (family === 'xai') return 'Grok (device code)';
   return family === 'moonshot'
     ? `Kimi (device code${regionWords !== undefined ? ` · ${regionWords}` : ''})`
     : 'Hugging Face (device code)';
@@ -650,7 +655,7 @@ export function deviceWaitPaneLines(d: DeviceWaitStateV1, nowMs: number): string
       '',
       d.family === 'moonshot'
         ? 'Authorized — storing the sign-in and'
-        : 'Authorized — reading your Hub identity',
+        : d.family === 'xai' ? 'Authorized — storing your Grok sign-in' : 'Authorized — reading your Hub identity',
       d.family === 'moonshot' ? 'reading your usage…' : 'and the live catalogue…',
     ];
   }
@@ -815,6 +820,8 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
       return anthropicFlowStatusOf(pane.snap, pane.backToPicker === true);
     case 'pick':
       switch (pane.pick) {
+        case 'xai':
+          return 'xAI — Grok subscription or API key';
         case 'openai':
           return 'OpenAI — subscription or key';
         case 'zai':
@@ -836,7 +843,7 @@ export function loginsFlowStatusOf(pane: LoginsFlowPaneV1): string {
     case 'device':
       return pane.device.phase === 'finishing'
         ? 'authorized — settling the sign-in'
-        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : 'Hub'} device code`;
+        : `waiting on the ${pane.device.family === 'moonshot' ? 'Kimi' : pane.device.family === 'xai' ? 'Grok' : 'Hub'} device code`;
     case 'handles':
       return pane.handles.phase === 'exchanging'
         ? 'exchanging the authorization code'
@@ -922,7 +929,7 @@ export function loginsMenuModelOf(
                         ? 'OpenRouter'
                         : pick.pick === 'gemini'
                           ? 'Google Gemini'
-                          : 'which deployment?',
+                          : pick.pick === 'xai' ? 'xAI (Grok)' : 'which deployment?',
             summary: '',
             valueLabel: '',
             valueIsDefault: true,
@@ -1102,6 +1109,8 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     };
     if (family === 'moonshot') {
       void runKimiDeviceLogin({ region: region ?? 'global', cancelled: () => !live(), onEvent }).then(landOrDisclose);
+    } else if (family === 'xai') {
+      void runXaiDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     } else {
       void runHuggingfaceDeviceLogin({ cancelled: () => !live(), onEvent }).then(landOrDisclose);
     }
@@ -1232,7 +1241,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
         return;
       case 'xai':
         xaiApiReceipt.current = 'xAI API key kept.';
-        setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });
+        openPick('xai');
         return;
       case 'moonshot':
         openPick('moonshot');
@@ -1255,6 +1264,10 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const resolvePick = (pick: LoginsPickId, value: string): void => {
     setDraft('');
     switch (pick) {
+      case 'xai':
+        if (value === 'key') setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });
+        else startDeviceRun('xai');
+        return;
       case 'openai':
         if (value === 'key') {
           setFlow({ kind: 'key', leg: 'openai-key', note: null, storing: false });

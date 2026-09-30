@@ -21,7 +21,7 @@
    │ ❯ Google Gemini — API key or Google OAuth        not signed in │  │ auth/overview                              │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ opened in your browser                     │
    │   DeepSeek — API key                             not signed in │  │ … (the trail continues — a taller termina… │
-   │   xAI — API key (Grok)                           not signed in │  ╰────────────────────────────────────────────╯
+   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
                                                                        │ Families   10                              │

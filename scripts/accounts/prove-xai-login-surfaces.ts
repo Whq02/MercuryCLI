@@ -10,6 +10,7 @@ import { xaiUsageFixture, XAI_FIXTURE_NOW, XAI_FIXTURE_API_KEY, XAI_FIXTURE_MANA
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_RECESS = '0'
+process.env.BROWSER = process.execPath
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
@@ -24,7 +25,8 @@ const { XaiConnect } = await import('../../src/components/XaiConnect.tsx')
 const { BootLoginsScreen } = await import('../../src/components/BootLoginsScreen.tsx')
 const { RouterKeyEntry } = await import('../../src/components/RouterKeyEntry.tsx')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
-const mount = (element: React.ReactNode, columns: number, rows: number) => mountOffscreen(React.createElement(AppStateProvider, { children: element }), columns, rows)
+const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProviderSetup.tsx')
+const mount = (element: React.ReactNode, columns: number, rows: number) => mountOffscreen(React.createElement(AppStateProvider, { children: React.createElement(KeybindingSetup, { children: element }) }), columns, rows)
 const secrets = await import('../../src/utils/router/providerSecrets.ts')
 const { signedOutFacts, STILLS, renderStill } = await import('../ui/face-logins-stills.ts')
 const framesArg = process.argv.indexOf('--frames')
@@ -43,6 +45,8 @@ try {
   try {
     observedScreen = card.screen
     await until(() => card.screen().includes('Connect xAI'))
+    check('modal offers the subscription beside its key road', card.screen().includes('Sign in with your Grok account'))
+    card.push(KEY.down); await until(() => card.screen().includes('❯ 2.')); card.push(KEY.enter); await until(() => card.screen().includes('Key:'))
     card.push(XAI_FIXTURE_API_KEY); await settle(20); card.push(KEY.enter)
     await until(() => card.screen().includes('management key (optional)'))
     check('modal saves inference first and stays open for the optional management step', secrets.readStoredXaiApiKey() === XAI_FIXTURE_API_KEY && result === undefined)
@@ -57,6 +61,8 @@ try {
     observedScreen = face.screen
     await until(() => face.screen().includes('xAI'))
     face.push(KEY.enter)
+    await until(() => face.screen().includes('Sign in with your Grok account'))
+    face.push(KEY.down); face.push(KEY.enter)
     await until(() => face.screen().includes('management key follows for /usage.'))
     face.push(KEY.enter)
     await until(() => face.screen().includes('management key (optional)'))
@@ -71,6 +77,8 @@ try {
     observedScreen = compact.screen
     await until(() => compact.screen().includes('xAI'))
     compact.push(KEY.enter)
+    await until(() => compact.screen().includes('Sign in with your Grok'))
+    compact.push(KEY.down); compact.push(KEY.enter)
     await until(() => compact.screen().includes('key:'))
     compact.push(KEY.enter)
     await until(() => compact.screen().includes('xAI management key (optional)'))
@@ -94,9 +102,37 @@ try {
     check(`${still.id}: new still paints the key prompt and its exit`, text.includes(still.id.endsWith('management') ? 'xAI management key (optional)' : 'xAI API key') && text.includes('key:') && text.includes('esc') && !text.includes('RENDER ERROR'))
     if (frames) writeFileSync(join(frames, `${still.id}.txt`), text)
   }
+  const { xaiAuthFixture } = await import('../providers/lib/xai-auth-fixture.ts')
+  const auth = xaiAuthFixture()
+  auth.state.slow = false
+  Object.assign(process.env, auth.env)
+  const { xaiStoredTokens, clearStoredXaiSubscription } = await import('../../src/services/providers/xai/xaiOauth.ts')
+  try {
+    for (const kind of ['modal', 'face'] as const) {
+      clearStoredXaiSubscription()
+      let signed = false
+      const pane = await mount(kind === 'modal'
+        ? React.createElement(XaiConnect, { onResult: value => { signed = value.ok }, onBack: () => {} })
+        : React.createElement(BootLoginsScreen, { family: 'xai', fullScene: { columns: 120, rows: 40 }, facts: signedOutFacts() }), 120, 40)
+      try {
+        observedScreen = pane.screen
+        if (kind === 'face') { await until(() => pane.screen().includes('xAI')); pane.push(KEY.enter) }
+        await until(() => pane.screen().includes('Sign in with your Grok account'))
+        pane.push(KEY.enter)
+        await until(() => pane.screen().includes('GROK-TEST'))
+        check(`${kind} renders the device code, verification URL and cancel road`, pane.screen().includes('/verify') && pane.screen().includes('esc'))
+        if (frames) writeFileSync(join(frames, `xai-subscription-${kind}.txt`), pane.lines().join('\n') + '\n')
+        await until(() => Boolean(xaiStoredTokens()))
+        if (kind === 'modal') await until(() => signed)
+        check(`${kind} runs the shared device driver and stores the sign-in`, xaiStoredTokens()?.accessToken === auth.token)
+      } finally { pane.unmount() }
+    }
+  } finally { clearStoredXaiSubscription(); auth.stop() }
   console.log(`XAI LOGIN SURFACES GREEN (${checks} checks; source-rendered fixtures)`)
 } finally {
   fixture.stop()
   Date.now = originalNow
+  const { disposeKeybindingWatcher } = await import('../../src/keybindings/loadUserBindings.ts')
+  disposeKeybindingWatcher()
   rmSync(proofHome, { recursive: true, force: true })
 }

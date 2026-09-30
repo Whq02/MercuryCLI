@@ -9,19 +9,19 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ signed in                                                      │  │ ❯ Claude subscription account              │
+   │ signed in                                                      │  │ ❯ xAI — Grok subscription sign-in or API … │
    │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
-   │ ❯ Claude subscription account                   op@example.com │  │ Signed in as op@example.com.               │
-   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │                                            │
-   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ ANTHROPIC_AUTH_TOKEN is set and will       │
-   │                                                                │  │ shadow this sign-in for this session.      │
-   │ available                                                      │  │                                            │
-   │   Usage-based billing — Anthropic Console…       not signed in │  │ ↵ done — the roster refreshes              │
+   │   Claude subscription account                   op@example.com │  │ On the sign-in page, enter this code:      │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │     GROK-TEST                              │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ If nothing opened, visit:                  │
+   │                                                                │  │ https://accounts.x.ai/device               │
+   │ available                                                      │  │ waiting (1 check) · expires in 5m          │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ c copies the URL · esc cancels             │
    │   OpenRouter — one credential, the whole …       not signed in │  │                                            │
    │   Google Gemini — API key or Google OAuth        not signed in │  │                                            │
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
    │   DeepSeek — API key                             not signed in │  │                                            │
-   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
+   │ ❯ xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
    │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
    ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
                                                                        │ Families   10                              │
@@ -35,6 +35,6 @@
                                                                        │ Dir        orchard-src                     │
                                                                        ╰────────────────────────────────────────────╯
    ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-   │ ● System ready  │  signed in — ↵ returns to the roster                                                         │
+   │ ● System ready  │  waiting on the Grok device code                                                             │
    ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
-                                                         ↵ done
+                                                c copy url · esc cancel

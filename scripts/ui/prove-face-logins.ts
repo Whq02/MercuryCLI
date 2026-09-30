@@ -533,7 +533,7 @@ t.section('§4 — THE ROSTER LAYER (A3: one home, truthful chips, the boot-menu
   t.check('the legend names only the moves that exist (↵ joined with the first flow)', loginsLegendOf() === '↑↓ move · ↵ sign in · esc back')
 
   const wide = composeLogins(120, 40, { sel: 0 }).join('\n')
-  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 10', 'xAI — API key (Grok)', 'Meta — API key (Muse)'].every(s => wide.includes(s)))
+  t.check('the wide frame carries the classes, the chips and the LOGINS panel', ['signed in', 'available', 'op@example.com', 'not signed in', 'LOGINS', 'Signed in  4 of 10', 'xAI — Grok subscription sign-in or API …', 'Meta — API key (Muse)'].every(s => wide.includes(s)))
   const floor = composeLogins(64, 12, { sel: 0 }).join('\n')
   t.check('the 64×12 floor frame WARNS and keeps the way out', floor.includes('wants at least') && floor.includes('esc back'))
 
@@ -706,7 +706,7 @@ t.section('§7 — THE KEY FAMILIES (A5: picks · the one guard spelling · driv
 
   const xaiPane = keyPromptPaneLines('xai', null, 6, false)
   t.check('the xAI key leg mirrors the DeepSeek one: the title, the key page line, the store words, the management step it names and the way out', xaiPane[0] === 'xAI API key' && xaiPane.join(' ').includes('API key: console.x.ai — sign in, API Keys, create, paste it here.') && xaiPane.join(' ').includes('XAI_API_KEY wins.') && xaiPane.join(' ').includes('management key follows for /usage.') && xaiPane[xaiPane.length - 1] === '↵ stores · empty keeps existing · esc back')
-  t.check('the xAI leg guards with the one spelling, opens from its roster row straight to the key prompt and goes on to the optional management step', keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('xai')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an xAI API key.' && src.includes("case 'xai':\n        xaiApiReceipt.current = 'xAI API key kept.';\n        setFlow({ kind: 'key', leg: 'xai', note: null, storing: false });") && src.includes("else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);") && src.includes("else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);"))
+  t.check('the xAI leg offers Grok sign-in beside the guarded key road and optional management step', keyPasteGuardNote('sk-ant-x', keyLegGuardOpts('xai')) === 'That is an Anthropic API key (sk-ant-…) — this step stores an xAI API key.' && src.includes("case 'xai':\n        xaiApiReceipt.current = 'xAI API key kept.';\n        openPick('xai');") && src.includes('runXaiDeviceLogin({ cancelled: () => !live(), onEvent })') && src.includes("else if (leg === 'xai') void storeXaiApiKeyLogin(value).then(settle);") && src.includes("else if (leg === 'xai-management') void storeXaiManagementKeyLogin(value).then(settle);"))
 }
 
 t.section('§8 — THE DEVICE FAMILIES (A6a: Kimi + Hugging Face whole — picks · region · the wait pane · key legs)')

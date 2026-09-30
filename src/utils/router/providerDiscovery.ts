@@ -56,7 +56,7 @@ export interface XaiDiscovery {
   provider: 'xai'
   probedAtMs: number
   keyPresent: boolean
-  keySource?: 'env' | 'stored'
+  keySource?: 'env' | 'stored' | 'oauth'
 }
 
 export interface MetaDiscovery {
@@ -258,8 +258,8 @@ function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
 }
 
 function probeXai(io: DiscoveryIo): XaiDiscovery {
-  const { resolveXaiApiKey } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
-  const key = resolveXaiApiKey(io.env)
+  const { resolveXaiCredentialSnapshot } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+  const key = resolveXaiCredentialSnapshot(io.env)
   return { provider: 'xai', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
 }
 
