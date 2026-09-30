@@ -570,6 +570,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-run-root-socket-bound.ts",
+      "mechanism": "hardcoded-tmp",
+      "excerpt": "const short = mkdtempSync('/tmp/run-root-bound-')",
+      "cls": "platform-owner",
+      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
+    },
+    {
       "file": "scripts/gate/prove-skip-census.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON = '/usr/bin/python3'",
