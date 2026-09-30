@@ -1230,15 +1230,22 @@ async function daemonRun(args: string[]): Promise<void> {
         stopSessionlessBeat = () => clearInterval(sessionlessBeat)
       }
       if (handoverPredecessor !== null && supervisorLock === null) {
+        let lockClaimInflight = false
         const lockBeat = setInterval(() => {
           void (async () => {
-            if (supervisorLock !== null) return
-            const taken = await acquireSupervisorLock()
-            if (taken === null) return
-            supervisorLock = taken
-            stopLockBeat?.()
-            // eslint-disable-next-line no-console
-            console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the supervisor lock — this daemon holds it now`)
+            if (supervisorLock !== null || lockClaimInflight) return
+            if (lockHeldByLivePidSync() !== null) return
+            lockClaimInflight = true
+            try {
+              const taken = await acquireSupervisorLock()
+              if (taken === null) return
+              supervisorLock = taken
+              stopLockBeat?.()
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the supervisor lock — this daemon holds it now`)
+            } finally {
+              lockClaimInflight = false
+            }
           })()
         }, HANDOVER_LOCK_BEAT_MS)
         lockBeat.unref?.()
@@ -1317,9 +1324,9 @@ async function daemonRun(args: string[]): Promise<void> {
           .catch(e => logForDebugging(`[daemon] boot self-warm failed (the first dispatch spawns cold): ${e}`))
       }
       {
-        const liveShorts = new Set(
-          roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
-        )
+        const rosteredOrHeld = (): Set<string> =>
+          new Set([...(roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : []), ...(handover?.heldRunners() ?? [])])
+        const liveShorts = rosteredOrHeld()
         const bootReconcile = reconcileConcourseWorkers(liveShorts)
         void recordProcessCensusAtBoot({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the daemon reads its own facts in-process' }) })
           .then(census => logForDebugging(`[daemon] boot process census: ${census.entries.length} Mercury process(es) read, ${census.entries.filter(entry => entry.classification === 'stale').length} stale — nothing ended at boot`))
@@ -1330,9 +1337,7 @@ async function daemonRun(args: string[]): Promise<void> {
         const reconcileTick = setInterval(() => {
           try {
             if (!daemonHomeStands('the reconcile tick')) return
-            const live = new Set(
-              roster ? roster.list().filter(j => !j.outcome).map(j => j.short) : [],
-            )
+            const live = rosteredOrHeld()
             const rosterSig = [...live].sort().join(' ')
             const stamp = fileMoveStamp(concourseWorkersPath())
             if (rosterSig !== reconcileRosterSig || stamp !== reconcileRecordsStamp || reconcileHadLive) {
