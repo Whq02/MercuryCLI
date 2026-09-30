@@ -49,7 +49,10 @@ section('§1 the pure rows and the ladder (minutes, not turns): two rows, no cre
   const tokens = { success: 'green', textSecondary: 'grey' }
   const off = advisorConfigItems({ tokens, settings: { enabled: false, minutes: 10 }, onToggle: () => {}, onInterval: () => {} })
   check('two rows: Advisor and Advisor interval — the crewmate opt-in row is gone (red on the base: three rows)', off.length === 2 && off[0]!.id === 'advisor' && off[0]!.kind === 'boolean' && off[1]!.id === 'advisorInterval' && off[1]!.kind === 'enum' && ADVISOR_ROW_IDS.length === 2 && !ADVISOR_ROW_IDS.includes('advisorCrewmates' as never) && typeof (ready.page as Record<string, unknown>).advisorCrewmatesValueWords === 'undefined', JSON.stringify(off.map(r => [r.id, r.kind])))
-  check("the Advisor row's note says whom the note is for, how often in minutes, where the model is picked, and that crewmates and workflow agents never get it", (off[0]!.warning ?? '').includes('addressed to the agent, never to you') && (off[0]!.warning ?? '').includes('/submodels') && (off[0]!.warning ?? '').includes('every 10 minutes') && (off[0]!.warning ?? '').includes('never crewmates or workflow agents') && !(off[0]!.warning ?? '').includes('opt in') && !(off[0]!.warning ?? '').includes('turns'), off[0]!.warning)
+  check("the Advisor row's note says it is the settings for every chat, whom the note is for, how often in minutes, where the model is picked, that /advise turns a chat on and off here stops every chat, and that crewmates and workflow agents never get it", (off[0]!.warning ?? '').startsWith('the settings for every chat') && (off[0]!.warning ?? '').includes('addressed to the agent, never to you') && (off[0]!.warning ?? '').includes('/submodels') && (off[0]!.warning ?? '').includes('every 10 minutes') && (off[0]!.warning ?? '').includes('each chat turns its own advisor on with /advise (a new chat starts off); off here stops every chat at once') && (off[0]!.warning ?? '').includes('never crewmates or workflow agents') && !(off[0]!.warning ?? '').includes('opt in') && !(off[0]!.warning ?? '').includes('turns between'), off[0]!.warning)
+  const onRows = advisorConfigItems({ tokens, settings: { enabled: true, minutes: 10 }, onToggle: () => {}, onInterval: () => {} })
+  const onValue = ((onRows[0]!.value as { props?: { children?: unknown } }).props?.children ?? '') as string
+  check("the Advisor row's value says the command when the settings are on — on · every 10 minutes · /advise turns it on per chat — and plain off when off (red on the base: no command named)", onValue === 'on · every 10 minutes · /advise turns it on per chat' && ((off[0]!.value as { props?: { children?: unknown } }).props?.children ?? '') === 'off', onValue)
   check('no row and no words speak of high spend or a crewmate switch', !off.some(r => (r.warning ?? '').includes('may result in high spend') || r.label.includes('crewmates')), JSON.stringify(off.map(r => [r.label, r.warning])))
   check('the interval row says how many minutes pass between notes and lists the ladder 10 · 20 · 30 · 45 · 60 (red on the base: turns, 5 · 10 · 20 · 50)', (off[1]!.warning ?? '').startsWith('how many minutes pass between notes · 10 · 20 · 30 · 45 · 60') && !(off[1]!.warning ?? '').includes('turns'), off[1]!.warning)
   check('the ladder steps 10→20→30→45→60 and clamps at both ends', nextAdvisorInterval(10, 1) === 20 && nextAdvisorInterval(20, 1) === 30 && nextAdvisorInterval(30, 1) === 45 && nextAdvisorInterval(45, 1) === 60 && nextAdvisorInterval(60, 1) === 60 && nextAdvisorInterval(10, -1) === 10 && nextAdvisorInterval(60, -1) === 45 && nextAdvisorInterval(30, -1) === 20)
@@ -57,7 +60,7 @@ section('§1 the pure rows and the ladder (minutes, not turns): two rows, no cre
   const toggles: unknown[] = []
   const on = advisorConfigItems({ tokens, settings: { enabled: false, minutes: 10 }, onToggle: (next, words) => toggles.push([next, words]), onInterval: () => {} })
   on[0]!.change!(1)
-  check('toggling the boolean asks the owner to write on, with the receipt words in minutes', JSON.stringify(toggles) === JSON.stringify([[true, 'set the advisor to on · every 10 minutes']]), JSON.stringify(toggles))
+  check('toggling the boolean asks the owner to write on, with the receipt words in minutes and the command', JSON.stringify(toggles) === JSON.stringify([[true, 'set the advisor to on · every 10 minutes · /advise turns it on per chat']]), JSON.stringify(toggles))
   const intervals: unknown[] = []
   const interval = advisorConfigItems({ tokens, settings: { enabled: true, minutes: 20 }, onToggle: () => {}, onInterval: (next, words) => intervals.push([next, words]) })
   interval[1]!.change!(1)
@@ -133,7 +136,7 @@ section('§3 the switch and the interval write independently; esc reverts both')
   check('the Advisor row is selected alone', selectedLabel(m) === 'Advisor', selectedLabel(m))
   m.push(KEY.right)
   await settle(200)
-  check('→ turns the advisor on: the row reads on · every 10 minutes and the file holds { enabled: true }', rowOf(m, 'Advisor ').includes('on · every 10 minutes') && JSON.stringify(storedAdvisor()) === JSON.stringify({ enabled: true }) && readAdvisorSettings().enabled, `${rowOf(m, 'Advisor ')} · ${JSON.stringify(storedAdvisor())}`)
+  check('→ turns the advisor on: the row reads on · every 10 minutes · /advise turns it on per chat and the file holds { enabled: true }', rowOf(m, 'Advisor ').includes('on · every 10 minutes · /advise turns it on per chat') && JSON.stringify(storedAdvisor()) === JSON.stringify({ enabled: true }) && readAdvisorSettings().enabled, `${rowOf(m, 'Advisor ')} · ${JSON.stringify(storedAdvisor())}`)
   save('config-advisor-on-178x51', m)
   m.push(KEY.down)
   await settle(100)

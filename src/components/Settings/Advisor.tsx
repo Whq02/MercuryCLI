@@ -2,7 +2,6 @@ import React from 'react'
 import { Text } from '../../ink.js'
 import {
   ADVISOR_DEFAULT_MINUTES,
-  ADVISOR_DOORS,
   ADVISOR_MINUTES_LADDER,
   advisorIntervalWords,
   advisorReceiptWords,
@@ -61,7 +60,7 @@ export function advisorConfigItems(args: {
       searchText: ADVISOR_SEARCH,
       kind: 'boolean',
       value: <Text color={settings.enabled ? tokens.success : tokens.textSecondary}>{advisorValueWords(settings)}</Text>,
-      warning: `a second model reads this conversation ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you; the agent can ask it between notes · the main chat only, never crewmates or workflow agents · ${modelWords} · off by default · doors: ${ADVISOR_DOORS}`,
+      warning: `the settings for every chat: a second model reads a chat ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you · each chat turns its own advisor on with /advise (a new chat starts off); off here stops every chat at once · never crewmates or workflow agents · ${modelWords} · off by default`,
       setByYou: settings.enabled,
       change: () => {
         const next = !settings.enabled

@@ -139,8 +139,10 @@ export function advisorIntervalWords(minutes: number): string {
   return advisorMinutesWords(minutes)
 }
 
+export const ADVISOR_PER_CHAT_WORDS = `${ADVISOR_COMMAND} turns it on per chat`
+
 export function advisorValueWords(settings: AdvisorSettings = readAdvisorSettings()): string {
-  return settings.enabled ? `on · ${advisorIntervalWords(settings.minutes)}` : 'off'
+  return settings.enabled ? `on · ${advisorIntervalWords(settings.minutes)} · ${ADVISOR_PER_CHAT_WORDS}` : 'off'
 }
 
 export function advisorReceiptWords(settings: AdvisorSettings): string {
@@ -151,4 +153,4 @@ export function advisorReceiptWords(settings: AdvisorSettings): string {
     : `Advisor off — no note is written and nothing is sent; ${modelWords}`
 }
 
-export const ADVISOR_DOORS = '/config (the Advisor rows) and /submodels (the ADVISOR container)'
+export const ADVISOR_DOORS = '/config (the Advisor rows, the settings for every chat), /advise (this chat) and /submodels (the ADVISOR container)'

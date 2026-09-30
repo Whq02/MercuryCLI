@@ -206,7 +206,7 @@ section('§0 the settings: off by default, ten minutes, a trim-to-defaults write
   check("the advisor's effort context says its calls run with thinking off; the console's stays the session's", j(slots.subModelEffortContext('advisor')) === j({ thinkingEnabled: false }) && j(slots.subModelEffortContext('console')) === j({}))
   check('the workload vocabulary carries the advisor beside cron', workload.WORKLOAD_ADVISOR === 'advisor' && workload.WORKLOAD_CRON === 'cron')
   check('the receipt words name the state and the model', advisor.advisorReceiptWords({ enabled: true, minutes: 5 }).includes('every 5 minutes') && advisor.advisorReceiptWords({ enabled: false, minutes: 10 }).startsWith('Advisor off'))
-  check('the interval words: minutes, one of them singular', advisor.advisorIntervalWords(10) === 'every 10 minutes' && advisor.advisorIntervalWords(1) === 'every 1 minute' && advisor.advisorValueWords({ enabled: true, minutes: 10 }) === 'on · every 10 minutes')
+  check('the interval words: minutes, one of them singular', advisor.advisorIntervalWords(10) === 'every 10 minutes' && advisor.advisorIntervalWords(1) === 'every 1 minute' && advisor.advisorValueWords({ enabled: true, minutes: 10 }) === 'on · every 10 minutes · /advise turns it on per chat' && advisor.advisorValueWords({ enabled: false, minutes: 10 }) === 'off')
 }
 
 section('§0b seat admission: the main chat follows Advisor; crewmates and workflow agents never get the advisor, whatever the settings say (red on the base: a crewmate opt-in)')
