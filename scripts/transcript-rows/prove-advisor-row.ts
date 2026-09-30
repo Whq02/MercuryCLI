@@ -37,7 +37,8 @@ const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normal
 const { buildMessageLookups } = await import(join(ROOT, 'src/utils/messages/lookups.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { entryToRecord, recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
-const { processUserInput } = await import(join(ROOT, 'src/utils/processUserInput/processUserInput.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const state = await import(join(ROOT, 'src/bootstrap/state.ts'))
 const { shouldShowUserMessage } = await import(join(ROOT, 'src/utils/messages/systemMessages.ts'))
 const { queuedCommandHistoryEntry } = await import(join(ROOT, 'src/history.ts'))
 const queue = await import(join(ROOT, 'src/input-core/command-queue.ts'))
@@ -63,7 +64,8 @@ const clock = (iso: string): string => formatClock(iso)!
 const NOTE = 'You have not run the pin on the base yet.\nRun it on 89017923b before you edit, and keep what it prints.'
 const OPERATOR_LINE = 'take the first two as my defaults'
 const REPLY = 'Running the pin on the base now.'
-const advisorOrigin = (extra: Raw = {}): Raw => ({ kind: 'advisor', model: MODEL, seats: 5, at: NOTE_AT, ...extra })
+const advisorOrigin = (extra: Raw = {}): Raw => ({ kind: 'advisor', model: MODEL, minutes: 5, at: NOTE_AT, ...extra })
+const CADENCE = 'every 5 minutes'
 const SIZES: Array<[number, number]> = [
   [178, 51],
   [80, 21],
@@ -128,72 +130,19 @@ const U1 = 'a5b6c7d8-0000-4000-8000-000000000031'
 const U2 = 'a5b6c7d8-0000-4000-8000-000000000032'
 const U3 = 'a5b6c7d8-0000-4000-8000-000000000033'
 const visibleRows = (messages: Raw[]): Raw[] => messages.filter(message => message.type !== 'user' || shouldShowUserMessage(message as never, false))
-
-function turnContext(): Raw {
-  const appState: Raw = {
-    toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
-    sessionHooks: new Map(),
-    tasks: {},
-    mcp: { clients: [], tools: [], commands: [], resources: {} },
-    todos: {},
-  }
-  return {
-    options: { commands: [], tools: [], mcpClients: [], isNonInteractiveSession: true },
-    getAppState: () => appState,
-    setAppState: (f: (prev: Raw) => Raw): void => {
-      Object.assign(appState, f(appState))
-    },
-    messages: [],
-    abortController: new AbortController(),
-    readFileState: new Map(),
-    setToolJSX: () => {},
-  }
-}
-
-async function batchedTurn(head: string, tail: string, tailOrigin: Raw): Promise<Raw[]> {
-  const out = await processUserInput({
-    input: head,
-    mode: 'prompt',
-    setToolJSX: () => {},
-    context: turnContext() as never,
-    messages: [],
-    querySource: 'sdk',
-    uuid: U1,
-    skipAttachments: true,
-    batchUuids: [U1, U2],
-    batchTail: [{ value: tail, uuid: U2 as never, origin: tailOrigin as never }],
-  })
-  return (out.messages as Raw[]).filter(m => m.type === 'user').map(m => ({ ...m, timestamp: ROW_AT }))
-}
-
-async function drainedTurn(command: Raw): Promise<{ shouldQuery: boolean; row: Raw | undefined; text: string }> {
-  const out = await processUserInput({
-    input: command.value as string,
-    mode: command.mode as never,
-    setToolJSX: () => {},
-    context: turnContext() as never,
-    messages: [],
-    querySource: 'sdk',
-    uuid: command.uuid as never,
-    skipAttachments: true,
-    isMeta: command.isMeta,
-    ...(command.origin !== undefined ? { origin: command.origin } : {}),
-    ...(command.skipSlashCommands === true ? { skipSlashCommands: true } : {}),
-  } as never)
-  const row = (out.messages as Raw[]).find(m => m.type === 'user' && m.uuid === command.uuid)
-  const all = (out.messages as Raw[]).filter(m => m.type === 'user').map(m => String((m.message as Raw).content)).join(' | ')
-  return { shouldQuery: out.shouldQuery, row: row === undefined ? undefined : { ...row, timestamp: ROW_AT }, text: out.resultText === undefined ? all : String(out.resultText) }
-}
+const attachmentNoteRow = (at: string, words: string = NOTE): Raw => ({ ...(createAttachmentMessage({ type: 'queued_command', prompt: words, origin: advisorOrigin() } as never) as unknown as Raw), timestamp: at })
 
 section('§0 the words: the plate, the first line, the guard, the note stripped of its mid-turn framing')
 {
   check('the plate name is advisor, lowercase, one home', rows.ADVISOR_PLATE_NAME === 'advisor' && attachedPlateName('advisor' as never) === 'advisor')
   const line = rows.advisorFirstLine(advisorOrigin() as never)
-  check('the first line: the model and the cadence', line === `${MODEL} · every 5 turns`, line)
-  check('one turn reads singular', rows.advisorFirstLine(advisorOrigin({ seats: 1 }) as never) === `${MODEL} · every 1 turn`)
+  check('the first line: the model and the cadence', line === `${MODEL} · ${CADENCE}`, line)
+  check('one minute reads singular', rows.advisorFirstLine(advisorOrigin({ minutes: 1 }) as never) === `${MODEL} · every 1 minute`)
+  const old = { kind: 'advisor', model: MODEL, seats: 5, at: NOTE_AT }
+  check("a row written before the minutes clock (a `seats` turn count, no minutes) is not an advisor row: the guard refuses it and nothing anywhere says turns (the owner's ruling)", !rows.isAdvisorOrigin(old) && !rows.isAdvisorOrigin({ ...old, minutes: '5' }) && rows.isAdvisorOrigin({ ...old, minutes: 5 }) && rows.advisorFirstLine({ ...old, minutes: 5 } as never) === `${MODEL} · ${CADENCE}`)
   const plate = rows.noticePlate({ kind: 'advisor', origin: advisorOrigin(), lines: [] } as never, ROW_AT)
-  check('the notice plate of an advisor block reads [advisor] · <model> · every <seats> turns', plate === `[advisor] · ${MODEL} · every 5 turns`, plate)
-  check('the guard admits the advisor origin and refuses the others', rows.isAdvisorOrigin(advisorOrigin()) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }) && !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin(undefined))
+  check('the notice plate of an advisor block reads [advisor] · <model> · every <minutes> minutes', plate === `[advisor] · ${MODEL} · ${CADENCE}`, plate)
+  check('the guard admits the advisor origin and refuses the others', rows.isAdvisorOrigin(advisorOrigin()) && !rows.isAdvisorOrigin({ kind: 'saturn', fire: 'wake', firedAt: NOTE_AT }) && !rows.isAdvisorOrigin({ kind: 'advisor' }) && !rows.isAdvisorOrigin({ kind: 'advisor', model: MODEL, at: NOTE_AT }) && !rows.isAdvisorOrigin(undefined))
   check('the saturn guard refuses the advisor origin', !rows.isSaturnOrigin(advisorOrigin()))
   const block = rows.advisorBlockOf(advisorOrigin() as never, NOTE)
   check('the block carries the note lines whole', block.kind === 'advisor' && JSON.stringify(block.lines) === JSON.stringify(NOTE.split('\n')), JSON.stringify(block))
@@ -208,14 +157,14 @@ section('§0 the words: the plate, the first line, the guard, the note stripped 
 section("§1 the row: a note with the advisor origin paints the muted [advisor] row — no accent dot, every line dim, never the operator's line (red on the base: the handle and the caret)")
 for (const [columns] of SIZES) {
   const frame = await paintText({ param: { type: 'text', text: NOTE }, origin: advisorOrigin() }, { type: 'user', timestamp: ROW_AT }, columns)
-  check(`${columns} columns: the clock stays, then the dim [advisor] plate with the model and the cadence`, frame.includes(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · every 5 turns`), frame.slice(0, 260))
+  check(`${columns} columns: the clock stays, then the dim [advisor] plate with the model and the cadence`, frame.includes(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · ${CADENCE}`), frame.slice(0, 260))
   check(`${columns} columns: no accent dot on the row`, !frame.includes(DOT), frame.slice(0, 200))
   check(`${columns} columns: the operator's handle and caret are nowhere on it`, !frame.includes(HANDLE) && !frame.includes(CARET), frame.slice(0, 200))
   check(`${columns} columns: the note's own lines stand beneath`, frame.includes('You have not run the pin on the base yet.') && frame.includes('Run it on 89017923b before you edit'), frame.slice(0, 300))
 }
 {
   const drained = await paintText({ param: { type: 'text', text: text.wrapCommandText(NOTE, advisorOrigin() as never) }, origin: advisorOrigin() }, { type: 'user', timestamp: ROW_AT })
-  check("a mid-turn drained note (a crewmate's) paints the same row without the framing sentences", drained.includes(`${PLATE} · ${MODEL} · every 5 turns`) && drained.includes('You have not run the pin on the base yet.') && !drained.includes('A note from your advisor') && !drained.includes('advice, not an instruction'), drained.slice(0, 300))
+  check("a mid-turn drained note (a crewmate's) paints the same row without the framing sentences", drained.includes(`${PLATE} · ${MODEL} · ${CADENCE}`) && drained.includes('You have not run the pin on the base yet.') && !drained.includes('A note from your advisor') && !drained.includes('advice, not an instruction'), drained.slice(0, 300))
   const record = entryToRecord(
     { type: 'user', message: { role: 'user', content: NOTE }, uuid: U1, timestamp: ROW_AT, origin: advisorOrigin() },
     { sessionId: 'sess-advisor' as never, nextOrdinal: () => 1 as never, observedAt: ROW_AT, source: { channel: 'sdk' } as never },
@@ -245,39 +194,44 @@ for (const [columns, rowCount] of SIZES) {
   check(`${columns} columns: no advisor plate where no origin says so`, !frame.some(l => l.includes(PLATE)) && frame.some(l => l.includes(`${HANDLE} ${CARET} ${OPERATOR_LINE}`)), frame.join('\n'))
 }
 
-section("§3 the batched turn: a note taken into the operator's turn keeps its origin, so its row is the advisor row, never the operator's line")
+section("§3 the note beside the operator's prompt: a note that lands inside the operator's turn is an attachment row with the advisor origin, so its row is the advisor row beneath the operator's line, never a second operator line (red on the base: a batched prompt of the advisor's)")
 {
-  const turn = await batchedTurn(OPERATOR_LINE, NOTE, advisorOrigin())
-  const tail = turn.find(m => m.uuid === U2)
-  check('the batch keeps one row per prompt under its own identity', turn.length === 2 && turn[0]!.uuid === U1 && tail !== undefined, JSON.stringify(turn.map(m => m.uuid)))
-  check("the head, the operator's words, carries no origin", turn[0]!.origin === undefined)
-  check('the tail, the note, keeps the advisor origin it was queued with', tail !== undefined && JSON.stringify(tail.origin) === JSON.stringify(advisorOrigin()), JSON.stringify(tail?.origin))
+  const noteRow = attachmentNoteRow(ROW_AT)
+  const turn = [userRow(OPERATOR_LINE, U1, ROW_AT), noteRow]
+  check("the operator's words carry no origin; the note is an attachment row that keeps the advisor origin it was stashed with, never a prompt of its own", turn[0]!.origin === undefined && noteRow.type === 'attachment' && JSON.stringify((noteRow.attachment as Raw).origin) === JSON.stringify(advisorOrigin()) && advisor.advisorNoteQueueCommand === undefined, JSON.stringify(noteRow))
   for (const [columns, rowCount] of SIZES) {
     const frame = await paintChat([...turn, replyRow(LATER)], columns, rowCount)
     const operatorRows = frame.filter(l => l.includes(`${HANDLE} ${CARET}`))
-    check(`${columns} columns: the operator's line paints once, and the note beneath it paints the advisor row`, operatorRows.length === 1 && operatorRows[0]!.includes(OPERATOR_LINE) && frame.some(l => l.includes(`${PLATE} · ${MODEL} · every 5 turns`)), frame.join('\n'))
+    check(`${columns} columns: the operator's line paints once, and the note beneath it paints the advisor row`, operatorRows.length === 1 && operatorRows[0]!.includes(OPERATOR_LINE) && frame.some(l => l.includes(`${PLATE} · ${MODEL} · ${CADENCE}`)), frame.join('\n'))
   }
 }
 
-section("§4 the queued note between turns: the service's queue command drains to one visible row with the origin, out of history and out of the command parser")
+section("§4 the note between turns: the drain's attachment paints one visible advisor row, the model reads it framed as advice from a second model, and it never enters the queue, the history or the command parser (red on the base: a queued prompt)")
 {
   const note = { text: NOTE, origin: advisorOrigin() }
-  const command = advisor.advisorNoteQueueCommand(note as never, U3) as unknown as Raw
+  const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
   queue.resetCommandQueue()
-  queue.enqueue(command as never)
-  queue.enqueue(advisor.advisorNoteQueueCommand({ text: '/no-such-words-here stand as words', origin: advisorOrigin() } as never, U2) as never)
-  const [queued, slashLed] = queue.getCommandQueue() as Raw[]
-  check('the queue holds the note with its origin, at later, under no workload', queued !== undefined && JSON.stringify(queued.origin) === JSON.stringify(advisorOrigin()) && queued.priority === 'later' && queued.workload === undefined && queued.isMeta === undefined, JSON.stringify(queued))
-  check('a slash-led note reads as words for the model, not a command', slashLed !== undefined && !queue.isSlashCommand(slashLed as never), JSON.stringify(slashLed))
-  check('the note earns no history entry (the origin alone keeps it out)', queuedCommandHistoryEntry(queued as never) === null)
-  queue.resetCommandQueue()
-  const drained = await drainedTurn(command)
-  const row = drained.row
-  check('the drained note is one user row under its own identity, asking to query, with the origin on it', drained.shouldQuery && row !== undefined && JSON.stringify(row.origin) === JSON.stringify(advisorOrigin()), drained.text)
-  check('the stored row is a row the chat shows, never a hidden meta row', row !== undefined && visibleRows([row]).length === 1 && row.isMeta !== true, JSON.stringify(row))
+  const { saveAdvisorSwitch } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
+  advisor.setAdvisorEnabled(true)
+  saveAdvisorSwitch(true)
+  advisor.stashAdvisorNote(String(state.getSessionId()), note as never)
+  advisor.stashAdvisorNote(String(state.getSessionId()), { text: '/no-such-words-here stand as words', origin: advisorOrigin() } as never)
+  const drained = getAdvisorNoteAttachments({ agentId: undefined }, { querySource: 'sdk' }) as Raw[]
+  advisor.setAdvisorEnabled(false)
+  saveAdvisorSwitch(false)
+  check('the drain hands back both notes as queued_command attachments with the origin, no meta, no command mode, and the queue stays empty', drained.length === 2 && drained.every(a => a.type === 'queued_command' && JSON.stringify(a.origin) === JSON.stringify(advisorOrigin()) && a.isMeta === undefined && a.commandMode === undefined) && queue.getCommandQueue().length === 0, JSON.stringify(drained))
+  const row = { ...(createAttachmentMessage(drained[0] as never) as unknown as Raw), timestamp: ROW_AT }
+  const slashLed = { ...(createAttachmentMessage(drained[1] as never) as unknown as Raw), timestamp: ROW_AT }
+  const planned = normalizeMessagesForAPI([userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), row, slashLed] as never) as Raw[]
+  const framedTexts = planned.filter(m => m.type === 'user').map(m => { const c = (m.message as Raw).content; return typeof c === 'string' ? c : (c as Raw[]).map(b => String(b.text ?? '')).join('') })
+  check("the model reads the note framed as advice from the advisor — the head says it is not the operator, the tail that it is advice — never 'the operator sent a new message'", framedTexts.some(t => t.includes(text.ADVISOR_NOTE_HEAD) && t.includes(NOTE) && t.includes(text.ADVISOR_NOTE_TAIL)) && framedTexts.every(t => !t.includes('The operator sent a new message')), JSON.stringify(framedTexts.slice(-2)))
+  check('a slash-led note reads as words for the model, not a command: it rides the same framing', framedTexts.some(t => t.includes('/no-such-words-here stand as words') && t.includes(text.ADVISOR_NOTE_HEAD)))
+  check('the note earns no history entry: nothing of it ever passes the queue (the history reads queued commands alone)', typeof queuedCommandHistoryEntry === 'function' && queue.getCommandQueue().length === 0)
+  check('the stored row is a row the chat shows, never a hidden meta row', row.type === 'attachment' && (row.attachment as Raw).isMeta === undefined, JSON.stringify(row))
   for (const [columns, rowCount] of SIZES) {
-    const frame = await paintChat(visibleRows([...(row === undefined ? [] : [row]), replyRow(LATER)]), columns, rowCount)
-    check(`${columns} columns: the chat paints the advisor row above the reply, no handle anywhere`, frame.length > 1 && frame[0]!.startsWith(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · every 5 turns`) && !frame.some(l => l.includes(HANDLE)), `${frame.length} row(s):\n${frame.join('\n')}`)
+    const frame = await paintChat([row, replyRow(LATER)], columns, rowCount)
+    check(`${columns} columns: the chat paints the advisor row above the reply, no handle anywhere`, frame.length > 1 && frame[0]!.startsWith(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · ${CADENCE}`) && !frame.some(l => l.includes(HANDLE)), `${frame.length} row(s):\n${frame.join('\n')}`)
   }
 }
 
@@ -293,8 +247,8 @@ const quietRow = (at: string): Raw =>
   check('the words: the service mints the row with the advisor block and the line that says the advisor had nothing to say this round, twice (red on the base: no such row)', minted && row.subtype === 'advisor_quiet' && row.content === QUIET_WORDS && advisor.advisorQuietWords({ origin: advisorOrigin() as never, reason: 'the provider refused the advisor call', empty: false }) === 'had nothing to say this round — the provider refused the advisor call')
   for (const [columns, rowCount] of SIZES) {
     const frame = await paintChat([userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), row], columns, rowCount)
-    const plateAt = frame.findIndex(l => l.includes(`${PLATE} · ${MODEL} · every 5 turns`))
-    check(`${columns} columns: the chat paints the clock, then the dim [advisor] plate with the model and the cadence, beneath the reply`, plateAt > 0 && frame[plateAt]!.startsWith(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · every 5 turns`), frame.join('\n'))
+    const plateAt = frame.findIndex(l => l.includes(`${PLATE} · ${MODEL} · ${CADENCE}`))
+    check(`${columns} columns: the chat paints the clock, then the dim [advisor] plate with the model and the cadence, beneath the reply`, plateAt > 0 && frame[plateAt]!.startsWith(`${clock(ROW_AT)} ${PLATE} · ${MODEL} · ${CADENCE}`), frame.join('\n'))
     check(`${columns} columns: the had-nothing line stands beneath the plate`, plateAt >= 0 && (frame[plateAt + 1] ?? '').trim() === 'had nothing to say this round — answered with no text, twice', frame.join('\n'))
     check(`${columns} columns: no accent dot, no handle and no caret on the quiet row`, plateAt >= 0 && !frame[plateAt]!.includes(DOT) && !frame[plateAt]!.includes(HANDLE) && !frame[plateAt]!.includes(CARET), frame[plateAt] ?? '')
   }
@@ -311,8 +265,8 @@ if (frameDir !== null) {
   section(`frames → ${frameDir}`)
   mkdirSync(frameDir, { recursive: true })
   const scenes: Array<[string, string, Raw[]]> = [
-    ['advisor-row', "the operator's line, Mercury's reply, then the advisor's note as a muted row and the reply that reads it", [userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), userRow(NOTE, U2, ROW_AT, advisorOrigin()), replyRow(LATER)]],
-    ['advisor-batched', "the operator's queued line and the advisor's note taken into one turn", [...(await batchedTurn(OPERATOR_LINE, NOTE, advisorOrigin())), replyRow(LATER)]],
+    ['advisor-row', "the operator's line, Mercury's reply, then the advisor's note as a muted row and the reply that reads it", [userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), attachmentNoteRow(ROW_AT), replyRow(LATER)]],
+    ['advisor-beside-prompt', "the operator's line with the advisor's note landed beside it, inside the one turn", [userRow(OPERATOR_LINE, U1, ROW_AT), attachmentNoteRow(ROW_AT), replyRow(LATER)]],
     ['advisor-quiet', "the operator's line, Mercury's reply, then the muted row that says the advisor had nothing to say this round", [userRow(OPERATOR_LINE, U1, NOTE_AT), replyRow(NOTE_AT), quietRow(ROW_AT)]],
   ]
   const index: string[] = ['the advisor row frames — the chat rows as the product paints them, transcript rows only, at the named width', '']

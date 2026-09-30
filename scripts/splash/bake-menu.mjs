@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/meta/metaPins.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/meta/metaPins.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -33,6 +33,7 @@ const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel, renderModelSetting } =
   await import('../../src/utils/model/model.ts')
+const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
 
 const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
@@ -71,6 +72,10 @@ function modelNamesBlock() {
     const name = getMarketingNameForModel(cfg.firstParty)
     if (name) names[cfg.firstParty.toLowerCase()] = name
   }
+  for (const pin of XAI_DISPLAY_PINS) {
+    const id = pin.id.toLowerCase()
+    if (names[id] === undefined) names[id] = pin.displayName
+  }
   for (const pin of META_DISPLAY_PINS) names[pin.id.toLowerCase()] = pin.displayName
   names.muse = 'Muse'
   for (const alias of MODEL_ALIASES) {
@@ -81,6 +86,8 @@ function modelNamesBlock() {
         ? renderModelSetting(bare)
         : (getMarketingNameForModel(parseUserSpecifiedModel(bare)) ?? bare)
   }
+  const grokHead = XAI_DISPLAY_PINS[0]
+  if (grokHead !== undefined && names.grok === undefined) names.grok = grokHead.displayName
   const rows = Object.entries(names).map(([id, l]) => `  ${JSON.stringify(id)}: ${JSON.stringify(l)},`)
   return { head, close, text: `${head}\n${rows.join('\n')}\n${close}` }
 }

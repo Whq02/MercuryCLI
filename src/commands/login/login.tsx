@@ -103,6 +103,10 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
       return 'zai'
     case 'deepseek':
       return 'deepseek'
+    case 'xai':
+    case 'x.ai':
+    case 'grok':
+      return 'xai'
     case 'meta':
     case 'muse':
       return 'meta'

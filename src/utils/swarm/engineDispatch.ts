@@ -14,6 +14,7 @@ import { moonshotCatalogueRows, qualifyMoonshotModel, refreshMoonshotCatalogue }
 import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonshotAccounts.js'
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
+import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
 import { metaCatalogueEntries, metaCatalogueEntry } from '../router/providers/meta.js'
 import { newestMetaModel } from '../../services/providers/meta/metaCatalogue.js'
 import {
@@ -44,7 +45,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -61,7 +62,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
     liveListedRouteOf(v) !== undefined ||
-    /^(gpt|glm|kimi|moonshot|deepseek|muse|gemini)-/i.test(v.trim()) ||
+    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini)-/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
@@ -69,12 +70,13 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'meta' | 'gemini' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'
   if (/^(kimi|moonshot)-/i.test(id)) return 'moonshot'
   if (/^deepseek-/i.test(id)) return 'deepseek'
+  if (/^grok-/i.test(id)) return 'xai'
   if (/^muse-/i.test(id)) return 'meta'
   if (/^gemini-/i.test(id)) return 'gemini'
   return undefined
@@ -89,7 +91,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -108,6 +110,7 @@ type EngineProvider =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'meta'
   | 'openai-compat'
   | 'huggingface'
@@ -368,6 +371,12 @@ export async function resolveEngineDispatch(
       if (!pin) throw new Error('Engine provider deepseek has no catalogue entry — cannot resolve a model.')
       return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
     }
+    if (modelParam === 'grok') {
+      await requireProviderAvailable('xai')
+      const pin = xaiCatalogueEntries()[0]
+      if (!pin) throw new Error('Engine provider xai has no catalogue entry — cannot resolve a model.')
+      return { backend: 'xai', model: pin.id, displayLabel: pin.displayLabel }
+    }
     if (modelParam === 'huggingface') {
       await requireProviderAvailable('huggingface')
       return resolveHuggingfaceClassDispatch()
@@ -425,6 +434,16 @@ export async function resolveEngineDispatch(
         )
       }
       return { backend: 'deepseek', model: pin.id, displayLabel: pin.displayLabel }
+    }
+    if (family === 'xai') {
+      await requireProviderAvailable('xai')
+      const pin = xaiCatalogueEntry(id)
+      if (!pin) {
+        throw new Error(
+          `xAI model '${id}' is not a catalogue-verified id (listed: ${xaiCatalogueEntries().map(c => c.id).join(', ')}) — never dispatching an unverified id.`,
+        )
+      }
+      return { backend: 'xai', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (family === 'gemini') {
       await requireProviderAvailable('gemini')

@@ -96,6 +96,7 @@ export interface CompatUsage {
   outputTokens: number
   cachedInputTokens?: number
   reasoningTokens?: number
+  totalTokens?: number
   statedCostUSD?: number
 }
 
@@ -734,12 +735,14 @@ export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage |
     num(usage.cached_tokens) ??
     num(details?.cached_tokens)
   const reasoning = num(completionDetails?.reasoning_tokens)
-  const statedCost = num(usage.cost)
+  const ticks = num(usage.cost_in_usd_ticks)
+  const statedCost = num(usage.cost) ?? (ticks !== undefined && Number.isFinite(ticks) && ticks >= 0 ? ticks / 1e10 : undefined)
   return {
     inputTokens: prompt ?? 0,
     outputTokens: completion ?? 0,
     ...(cached !== undefined ? { cachedInputTokens: cached } : {}),
     ...(reasoning !== undefined ? { reasoningTokens: reasoning } : {}),
+    ...(num(usage.total_tokens) !== undefined ? { totalTokens: num(usage.total_tokens) } : {}),
     ...(statedCost !== undefined ? { statedCostUSD: statedCost } : {}),
   }
 }

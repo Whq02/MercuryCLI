@@ -74,7 +74,7 @@ const painted1m = await renderToString(React.createElement(TokenWarning, { token
 check('the 1M seat at 200k paints nothing (an ok level has no warning row)', painted1m.trim() === '', painted1m.slice(0, 120))
 const paintedNone = await renderToString(React.createElement(TokenWarning, { tokenUsage: USED, model: NO_MODEL }), 100)
 check('the model-less id paints the field\'s row — "Context left until auto-compact: 0%"', paintedNone.includes('Context left until auto-compact: 0%'), paintedNone.slice(0, 120))
-const paintedNear = await renderToString(React.createElement(TokenWarning, { tokenUsage: 960_000, model: SEAT_1M }), 100)
+const paintedNear = await renderToString(React.createElement(TokenWarning, { tokenUsage: 940_000, model: SEAT_1M }), 100)
 check('the 1M seat near its fold paints the ladder\'s own room', /Context left until auto-compact: \d+%/.test(paintedNear) && !paintedNear.includes(': 0%'), paintedNear.slice(0, 120))
 
 section('W4 · the footer\'s model is the focused chat\'s — the band\'s owner')

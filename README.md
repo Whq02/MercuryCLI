@@ -372,6 +372,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.
 - **DeepSeek:** API key.
+- **xAI (Grok):** API key.
 - **Meta (Muse):** pay-as-you-go Model API key; Muse Code subscriptions are for Muse Code only.
 
 Local model servers and custom OpenAI-compatible endpoints are discovered or
@@ -510,7 +511,7 @@ the live list can also include skills and extension commands.
 | crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/insights` `/debrief` `/realms` |
 | memory & goals | `/memory` `/cards` `/remember` `/console` `/orient` |
-| model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/counsel` `/harness` `/caching` |
+| model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
 | config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |

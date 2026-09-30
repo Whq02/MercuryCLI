@@ -1,20 +1,45 @@
 
 import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type { ToolUseContext } from '../../Tool.js'
+import { getSessionId } from '../../bootstrap/state.js'
 import { drainPendingMessages } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { takeAdvisorNotes } from '../../services/advisor/advisorRoads.js'
-import { advisorSeatRefusal } from '../../services/advisor/advisorSettings.js'
+import { advisorSeatRefusal, advisorSessionSeat } from '../../services/advisor/advisorSettings.js'
 import {
   getImagePasteIds,
   isValidImagePaste,
   type QueuedCommand,
 } from 'src/types/textInputTypes.js'
+import type { QuerySource } from '../../constants/querySource.js'
 import type { PastedContent } from '../config.js'
 import { maybeResizeAndDownsampleImageBlock } from '../imageResizer.js'
 import { extractTextContent } from '../messages.js'
 import type { Attachment } from './types.js'
 
 const INLINE_NOTIFICATION_MODES = new Set(['prompt', 'task-notification'])
+
+export function isMainChatAdvisorDrain(args: { agentId: string | undefined; querySource: QuerySource | undefined; localSubmission: boolean | undefined }): boolean {
+  if (args.agentId !== undefined && args.agentId !== '') return false
+  if (args.localSubmission === true) return false
+  const source = args.querySource
+  return source === 'sdk' || (source !== undefined && source.startsWith('repl_main_thread'))
+}
+
+export function getAdvisorNoteAttachments(
+  toolUseContext: Pick<ToolUseContext, 'agentId'>,
+  drain: { querySource?: QuerySource; localSubmission?: boolean } = {},
+): Attachment[] {
+  const agentId = toolUseContext.agentId
+  if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []
+  const notes = takeAdvisorNotes(String(getSessionId()))
+  if (notes.length === 0) return []
+  if (advisorSeatRefusal(advisorSessionSeat()) !== undefined) return []
+  return notes.map(note => ({
+    type: 'queued_command' as const,
+    prompt: note.text,
+    origin: note.origin,
+  }))
+}
 
 export async function getQueuedCommandAttachments(
   queuedCommands: QueuedCommand[],
@@ -60,21 +85,12 @@ export function getAgentPendingMessageAttachments(
     toolUseContext.getAppState,
     toolUseContext.setAppStateForTasks ?? toolUseContext.setAppState,
   )
-  const notes = takeAdvisorNotes(agentId)
-  const advice: Attachment[] = advisorSeatRefusal(toolUseContext.agentKind ?? 'crewmate') !== undefined ? [] : notes.map(note => ({
+  return drained.map(msg => ({
     type: 'queued_command' as const,
-    prompt: note.text,
-    origin: note.origin,
+    prompt: msg,
+    origin: { kind: 'coordinator' as const },
+    isMeta: true,
   }))
-  return [
-    ...drained.map(msg => ({
-      type: 'queued_command' as const,
-      prompt: msg,
-      origin: { kind: 'coordinator' as const },
-      isMeta: true,
-    })),
-    ...advice,
-  ]
 }
 
 async function buildImageContentBlocks(

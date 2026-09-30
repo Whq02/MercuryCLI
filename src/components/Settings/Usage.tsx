@@ -305,6 +305,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins deepseek adds a DeepSeek API key (DEEPSEEK_API_KEY works too)',
     limitsNote: 'Usage bills to your DeepSeek account balance.',
   },
+  xai: {
+    title: 'xAI usage',
+    connect: '/logins xai adds an xAI API key (XAI_API_KEY works too)',
+    limitsNote: 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
+  },
   'openai-compat': {
     title: 'Custom endpoint usage',
     connect: 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)',
@@ -648,6 +653,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
         spend={spend}
         {...(usageCreditsLine(usage.credits) !== undefined ? { creditsLine: usageCreditsLine(usage.credits)! } : {})}
       />
+      {figuresLine(usage) !== undefined ? <Text dimColor>{figuresLine(usage)}</Text> : null}
       {section.family.credentialed && usage.readerNote !== undefined ? (
         <Text dimColor>{usage.readerNote}</Text>
       ) : null}

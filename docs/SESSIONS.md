@@ -677,8 +677,10 @@ keeps the line that names the file.
 
 A request can outgrow the model's window — a large paste, a long run of
 tool results, a switch to a model with a smaller window. The conversation
-compacts itself before that point when it can; when a request overflows
-anyway, the turn recovers instead of ending:
+folds automatically 20,000 tokens before the usable edge by default, with
+proportional room preserved on small local windows. The gauge, warning line
+and ContextLeft tool count down to that same point. When a request outgrows
+that headroom anyway, the turn recovers instead of ending:
 
 - Superseded tool results older than the recent few are pruned when that
   alone covers the gap the provider named, and the request is retried. The
@@ -698,15 +700,18 @@ anyway, the turn recovers instead of ending:
   the request; without such a model the summary is written on the seated
   model and narrowed until it fits, as before.
 - If it still does not fit, one plain line says what was tried and what to
-  do: `/compact` folds by hand when automatic compaction is off, `/clear`
-  starts fresh, `/model` picks a model with a larger window. A headless run
-  reports the same line as its error.
+  do: shorten or split an oversized message, use `/compact` to fold by hand,
+  `/clear` to start fresh, or `/model` to pick a larger window. A headless run
+  reports the same reason with headless remedies.
 
 Each step runs at most once per stretch of work; a completed tool round
 starts a fresh one. The coordinator's chat recovers the same way. The
-provider's own refusal never becomes the reply. `MERCURY_OVERFLOW_RECOVERY=0`
-turns the recovery off; `MERCURY_AUTO_COMPACT=0` keeps the automatic fold off
-while leaving the pruning step and the plain line.
+provider's own refusal never becomes the reply. Turning Auto-compact off in
+`/config`, or setting `MERCURY_AUTO_COMPACT=0`, stops early folds, not
+emergency recovery: an overflow still folds and retries. `MERCURY_COMPACT=0` disables compaction
+altogether. The failure and rapid-refill breakers still stop repeated doomed
+folds. `/doctor` names the setting or environment switch that turned folding
+off, and whether emergency folding remains available.
 
 ## A line sent while the model works
 

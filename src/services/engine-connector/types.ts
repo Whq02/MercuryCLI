@@ -69,6 +69,14 @@ export type PauseGateFactsV1 = {
   parked: number
 }
 
+export type AdvisorFactsV1 = {
+  on: boolean
+  chat: boolean
+  settings: boolean
+  minutes: number
+  model: string | null
+}
+
 
 export type ModelFactsV1 = {
   effective: string
@@ -385,6 +393,8 @@ export interface EngineConnectorV1 {
 
   workRoster(): WorkRosterV1
   subscribeWork(listener: () => void): () => void
+
+  advisorFacts(): AdvisorFactsV1 | null
 
   permissionMode(): PermissionMode | null
   subscribePermissionMode(listener: () => void): () => void

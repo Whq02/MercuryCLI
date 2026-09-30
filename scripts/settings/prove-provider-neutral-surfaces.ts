@@ -99,6 +99,12 @@ section('(2) usageSectionPlan — one /usage section per family (derived, never 
     plan[2]?.title === 'acme usage' && plan[2]?.connect.includes('/capabilities') && plan[2]?.limitsNote.includes('No polled usage meter'),
   )
   check('every enumerated family mounts a section (no hidden lanes)', usageSectionPlan(fams).some(s => s.id === ('openai' as never)))
+  const xaiPlan = usageSectionPlan([{ id: 'xai', available: true, credentialed: false }] as never)
+  check(
+    'xai section: the title and key route stay while the management key unlocks team billing reads',
+    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
+    JSON.stringify(xaiPlan[0]),
+  )
 }
 
 section('(3) /config — derived account rows + the read-only model pointer')
@@ -126,6 +132,7 @@ section('(3) /config — derived account rows + the read-only model pointer')
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'zai', available: true, credentialed: false },
     { id: 'deepseek', available: true, credentialed: false },
+    { id: 'xai', available: true, credentialed: false },
     { id: 'meta', available: true, credentialed: false },
   ] as never)
   check('moonshot row: the /logins moonshot route (a sign-in exists)',
@@ -134,7 +141,9 @@ section('(3) /config — derived account rows + the read-only model pointer')
     keyLaneRows[1]?.valueText === 'no key — /logins zai connects (or ZAI_API_KEY)', keyLaneRows[1]?.valueText ?? '')
   check('deepseek row: the /logins deepseek route, key-only wording',
     keyLaneRows[2]?.valueText === 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', keyLaneRows[2]?.valueText ?? '')
-  check('meta row: the /logins meta route and documented key spelling', keyLaneRows[3]?.valueText === 'no key — /logins meta connects (or MODEL_API_KEY)', keyLaneRows[3]?.valueText ?? '')
+  check('xai row: the /logins xai route, key-only wording, the xAI label',
+    keyLaneRows[3]?.valueText === 'no key — /logins xai connects (or XAI_API_KEY)' && keyLaneRows[3]?.label === 'xAI account', `${keyLaneRows[3]?.label ?? ''}: ${keyLaneRows[3]?.valueText ?? ''}`)
+  check('meta row: the /logins meta route and documented key spelling', keyLaneRows[4]?.valueText === 'no key — /logins meta connects (or MODEL_API_KEY)', keyLaneRows[4]?.valueText ?? '')
   check('Meta model pointer uses its own family', mainLoopPointerText('muse-spark-1.3').startsWith('Meta · '))
 
   const anthropicPtr = mainLoopPointerText('claude-opus-5')

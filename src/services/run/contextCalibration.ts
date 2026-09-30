@@ -5,6 +5,7 @@ export const CODEC_EPOCHS = Object.freeze({
   zai: 1,
   moonshot: 1,
   deepseek: 1,
+  xai: 1,
   meta: 1,
   'openai-compat': 1,
   openrouter: 1,

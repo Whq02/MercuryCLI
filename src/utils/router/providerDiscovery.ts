@@ -52,13 +52,19 @@ export interface DeepseekDiscovery {
   keySource?: 'env' | 'stored'
 }
 
+export interface XaiDiscovery {
+  provider: 'xai'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+
 export interface MetaDiscovery {
   provider: 'meta'
   probedAtMs: number
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
-
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -95,6 +101,7 @@ export type ProviderDiscovery =
   | GeminiDiscovery
   | MoonshotDiscovery
   | DeepseekDiscovery
+  | XaiDiscovery
   | MetaDiscovery
   | CompatDiscovery
   | HuggingfaceDiscovery
@@ -250,6 +257,18 @@ function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
   }
 }
 
+function probeXai(io: DiscoveryIo): XaiDiscovery {
+  const { resolveXaiApiKey } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+  const key = resolveXaiApiKey(io.env)
+  return { provider: 'xai', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+export function primeXaiDiscovery(io?: DiscoveryIo): XaiDiscovery | null {
+  const record = probeXai(io ?? defaultIo())
+  cache.set('xai', record)
+  return record
+}
+
 function probeCompat(io: DiscoveryIo): CompatDiscovery {
   const {
     resolveCompatSlotConfig,
@@ -359,17 +378,19 @@ export function refreshProviderDiscovery(
               ? probeGemini(io)
               : id === 'moonshot'
                 ? probeMoonshot(io)
-                : id === 'meta'
-                  ? probeMeta(io)
                 : id === 'deepseek'
                   ? probeDeepseek(io)
-                  : id === 'openai-compat'
-                    ? probeCompat(io)
-                    : id === 'huggingface'
-                      ? probeHuggingface(io)
-                      : id === 'local'
-                        ? probeLocal(io)
-                        : probeZai(io)
+                  : id === 'xai'
+                    ? probeXai(io)
+                    : id === 'meta'
+                      ? probeMeta(io)
+                      : id === 'openai-compat'
+                        ? probeCompat(io)
+                        : id === 'huggingface'
+                          ? probeHuggingface(io)
+                          : id === 'local'
+                            ? probeLocal(io)
+                            : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

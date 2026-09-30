@@ -75,6 +75,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     },
     { family: presence('zai'), slots: [] },
     { family: presence('deepseek'), slots: [] },
+    { family: presence('xai'), slots: [] },
     { family: presence('meta'), slots: [] },
   ]
   const usability: Record<ProviderId, ProviderUsability> = {
@@ -85,6 +86,7 @@ export function mixedFacts(): LoginsScreenFactsV1 {
     huggingface: usable('huggingface', { credential: 'api-key', limit: 'unknown', usable: true, blockers: [] }),
     moonshot: usable('moonshot', { credential: 'oauth', limit: 'rejected', usable: true, blockers: [] }),
     deepseek: usable('deepseek'),
+    xai: usable('xai'),
     meta: usable('meta'),
     zai: usable('zai'),
     'openai-compat': usable('openai-compat'),
@@ -150,6 +152,9 @@ export const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
 }
 
 export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
+  { id: 'logins-120x40-key-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-120x40-key-xai-management', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
+  { id: 'logins-80x24-key-xai-management', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'key', leg: 'xai-management', note: null, draftLen: 0, storing: false } }) },
   { id: 'logins-120x40', compose: () => composeLogins(120, 40, { sel: 0 }) },
   { id: 'logins-80x24', compose: () => composeLogins(80, 24, { sel: 0 }) },
   { id: 'logins-64x12', compose: () => composeLogins(64, 12, { sel: 0 }) },

@@ -1,5 +1,5 @@
 import { getGlobalConfig, saveGlobalConfig } from '../../../utils/config/globalConfig.js'
-import { fitLocalWindowOn, localWindowRefusal, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
+import { fitLocalWindowOn, localWindowRefusal, localWindowRoomWarning, type LocalWindowFit, type LocalWindowMeasured } from '../../localServer/localWindowFit.js'
 import { cachedLocalMachineTruth, refreshLocalMachineTruth, type LocalServerTruth } from '../../localServer/localServerTruth.js'
 import type { LocalModelRecord } from './localDiscovery.js'
 import { LOCAL_MODEL_PREFIX, localRecordFor } from './localCatalogue.js'
@@ -245,11 +245,22 @@ export const LOCAL_WINDOW_REASON_WORDS: Readonly<Record<LocalWindowReason, strin
   req: 'twice the request',
 }
 
+function pickedLocalWindow(record: Pick<LocalModelRecord, 'modelMaxContext'>, setting: LocalWindowSetting | undefined): number | undefined {
+  if (setting === 'max') return record.modelMaxContext
+  if (typeof setting === 'number') return record.modelMaxContext !== undefined ? Math.min(setting, record.modelMaxContext) : setting
+  return undefined
+}
+
 export function localWindowRefusalWords(record: LocalWindowFitRecord, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth()): string | undefined {
   const fit = localWindowFitOf(record, truth)
-  if (fit === undefined) return undefined
-  const window = setting === 'max' ? record.modelMaxContext : typeof setting === 'number' ? (record.modelMaxContext !== undefined ? Math.min(setting, record.modelMaxContext) : setting) : undefined
-  return window === undefined ? undefined : localWindowRefusal(fit, window)
+  const window = pickedLocalWindow(record, setting)
+  return fit === undefined || window === undefined ? undefined : localWindowRefusal(fit, window)
+}
+
+export function localWindowRoomWords(record: LocalWindowFitRecord, setting: LocalWindowSetting | undefined, truth: LocalServerTruth | null = localWindowTruth()): string | undefined {
+  const fit = localWindowFitOf(record, truth)
+  const window = pickedLocalWindow(record, setting)
+  return fit === undefined || window === undefined ? undefined : localWindowRoomWarning(fit, window)
 }
 
 export type LocalWindowWordsRecord = Pick<LocalModelRecord, 'id' | 'server' | 'modelMaxContext' | 'contextWindow' | 'servedBytes' | 'weightsBytes' | 'geometry'>
@@ -326,10 +337,10 @@ export function localWindowChoiceLine(record: LocalWindowWordsRecord, opts: { wi
         ? `auto → ${fmt(fit.window)} ${fit.atMax ? 'max' : 'fit'}`
         : 'auto'
   const number = rung === 'number' && typeof setting === 'number' ? fmt(setting) : 'number'
-  const refusal = localWindowRefusalWords(record, setting, truth)
+  const notice = localWindowRefusalWords(record, setting, truth) ?? localWindowRoomWords(record, setting, truth)
   const rungs: Array<[LocalWindowRung, string]> = [[undefined, auto], ['server', 'server'], [32_768, '32k'], [65_536, '64k'], [131_072, '128k'], ['max', 'max'], ['number', number]]
   const shown = opts.wide || rung === 'number' ? rungs : rungs.filter(([key]) => key !== 'number')
-  const ladder = shown.map(([key, label]) => (key === rung ? `[${label}${refusal !== undefined ? ` — ${refusal}` : ''}]` : label)).join(' · ')
+  const ladder = shown.map(([key, label]) => (key === rung ? `[${label}${notice !== undefined ? ` — ${notice}` : ''}]` : label)).join(' · ')
   if (application === 'server-start' || application === 'none') return `window · ${state} · set at server start · not a toggle`
   if (!opts.wide) return record.contextWindow === undefined ? `window · not loaded ${ladder} · w cycles` : `window ${ladder} · w cycles`
   return `window · ${state}${trained} · ${ladder} · w cycles`
@@ -338,6 +349,14 @@ export function localWindowChoiceLine(record: LocalWindowWordsRecord, opts: { wi
 export function localWindowRefusalSpan(line: string): { start: number; end: number } | undefined {
   const head = /\[[^\]]* — [^\]]*(?:\]|$)/.exec(line)
   if (head !== null) return { start: head.index, end: head.index + head[0].length }
-  const tail = /^[^[]*?fits\]/.exec(line)
+  const tail = /^[^[]*?(?:fits|GiB|room)\]/.exec(line)
   return tail === null ? undefined : { start: 0, end: tail[0].length }
+}
+
+export type LocalWindowNoticeKind = 'refusal' | 'warning'
+
+export function localWindowNoticeKind(line: string): LocalWindowNoticeKind | undefined {
+  const span = localWindowRefusalSpan(line)
+  if (span === undefined) return undefined
+  return line.slice(span.start, span.end).includes(' leaves ') ? 'warning' : 'refusal'
 }

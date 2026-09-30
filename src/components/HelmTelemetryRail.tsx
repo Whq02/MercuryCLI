@@ -56,7 +56,8 @@ import { InteractiveRow } from './mercury-ui/InteractiveRow.js'
 import { RailPanel, railPanelInnerWidth } from './mercury-ui/RailPanel.js'
 import { Sparkline, UsageMeter, useNowTick } from './mercury-ui/components.js'
 import { CURSOR_NUDGE_MS, AttentionPulse, ValueGlow, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
-import { gaugeColor } from './mercury-ui/theme.js'
+import { AMBER, CRIMSON, TEAL } from './mercury-ui/theme.js'
+import { calculateTokenWarningState } from '../services/compact/autoCompact.js'
 import { partitionDiskRuns } from '../tools/WorkflowTool/runManifest.js'
 import { useTelemetry } from '../state/telemetryBus.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
@@ -211,6 +212,8 @@ function HelmTelemetryRailImpl({
   useSyncExternalStore(subscribeLiveContextUsage, getLiveContextUsageVersion, getLiveContextUsageVersion)
   const ctx = getLiveContextUsage()
   const ctxPct = ctx.usedPct != null ? Math.round(ctx.usedPct) : null
+  const ctxLevel = ctx.usedTokens === null ? null : calculateTokenWarningState(ctx.usedTokens, sessionModel).level
+  const ctxColor = ctxLevel === null ? tok.textMuted : ctxLevel === 'ok' ? TEAL : ctxLevel === 'warn' ? AMBER : CRIMSON
 
   const trace = useTelemetry().trace
   const traceLive = trace?.state === 'live'
@@ -477,7 +480,7 @@ function HelmTelemetryRailImpl({
           {caret(i)}
           <Text color={tok.textMuted}>{'ctx '}</Text>
           {ctxPct != null ? (
-            <ValueGlow value={ctxPct} color={gaugeColor(ctxPct)}>{contextPercentLabel(ctxPct, ctx.fillSource)}</ValueGlow>
+            <ValueGlow value={ctxPct} color={ctxColor}>{contextPercentLabel(ctxPct, ctx.fillSource)}</ValueGlow>
           ) : (
             <Text color={tok.textMuted}>{'—'}</Text>
           )}
@@ -487,7 +490,7 @@ function HelmTelemetryRailImpl({
             <Text color={tok.textMuted}>{` · ${contextWindowLabel(ctx.window, ctx.windowSource, ctx.windowPinned)}${ctxReason !== undefined ? ` ${ctxReason}` : ''}`}</Text>
           ) : null}
           {turns != null ? (
-            <Text color={turns <= 2 ? gaugeColor(95) : tok.textMuted}>{` · ≈${turns} turns`}</Text>
+            <Text color={turns <= 2 ? ctxColor : tok.textMuted}>{` · ≈${turns} turns`}</Text>
           ) : null}
         </Text>
       </TelemetryRow>

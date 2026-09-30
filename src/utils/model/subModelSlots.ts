@@ -144,6 +144,8 @@ export function subModelConnectHome(route: CallModelRoute | string): {
       return { command: '/logins moonshot', note: 'sign in — /logins' }
     case 'deepseek':
       return { command: '/logins deepseek', note: 'connect — /logins (API key)' }
+    case 'xai':
+      return { command: '/logins xai', note: 'connect — /logins (API key)' }
     case 'meta':
       return { command: '/logins meta', note: 'connect — /logins (API key)' }
     case 'openai-compat':

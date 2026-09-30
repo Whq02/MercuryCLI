@@ -155,6 +155,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'zai') return 'Z.AI API usage billing'
       if (route === 'moonshot') return 'Moonshot API usage billing'
       if (route === 'deepseek') return 'DeepSeek API usage billing'
+      if (route === 'xai') return 'xAI API usage billing'
       if (route === 'openai-compat') return 'Custom endpoint billing'
       if (route === 'openrouter') return 'OpenRouter billing (folds from the auth lane)'
       if (route === 'gemini') return 'Gemini billing (folds from the auth lane)'

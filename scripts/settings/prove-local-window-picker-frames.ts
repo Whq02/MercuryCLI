@@ -209,6 +209,28 @@ for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80
   board.close()
 }
 
+__pinLocalServerTruthForTest({ loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown', note: 'fixture' }, machine: { platform: 'linux', totalMemoryBytes: 8 * GIB, usableMemoryBytes: 8 * GIB, usableSource: 'total memory (no GPU reading)' }, readAtMs: Date.now() })
+const TIGHT_32K = '[32k — 32k leaves 0.9 GiB of 8.0 GiB usable (8.0 GiB box) · no smaller rung leaves room]'
+const REFUSED_64K = '[64k — 8.1 GiB does not fit 8.0 GiB usable · 32k fits]'
+const sgrBefore = (raw: string, bracket: string): string | undefined => new RegExp(`(\\x1b\\[[0-9;]*m)\\${bracket}`).exec(raw)?.[1]
+for (const geometry of [{ columns: 178, rows: 51, tag: '178x51' }, { columns: 80, rows: 21, tag: '80x21' }]) {
+  const wide = geometry.columns >= 100
+  w.__resetLocalWindowsForTest()
+  w.writeLocalWindowSetting(served, 32768)
+  const board = await mount(geometry.columns, geometry.rows, `local/${SERVED_MODEL}`)
+  const fits = (frame: string): boolean => frame.split('\n').every(line => stringWidth(line) <= geometry.columns) && frame.split('\n').length <= geometry.rows
+  check(`${geometry.tag}: on an 8 GiB Linux box (8.0 GiB usable) the 9B picked at 32k fits but leaves 0.9 GiB, under the 1 GiB floor — the row warns inside the bracket and auto still predicts 32k: ${TIGHT_32K}`, board.line().replace(/\s+/g, ' ') === (wide ? `window · served 256k · auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · number · w cycles` : `window auto → 32k fit · server · ${TIGHT_32K} · 64k · 128k · max · w cycles`) && fits(board.frame()), board.line())
+  const warningInk = sgrBefore(board.raw(), '[32k — ')
+  save(`small-box-tight-${geometry.tag}`, board.frame())
+  await board.key('w')
+  check(`${geometry.tag}: w to 64k on that box is refused, not warned — ${REFUSED_64K}`, board.line().replace(/\s+/g, ' ').includes(REFUSED_64K) && !board.line().includes('leaves') && w.localWindowSettingOf(served) === 65536, board.line())
+  const failureInk = sgrBefore(board.raw(), '[64k — ')
+  check(`${geometry.tag}: the warning is painted in its own ink — an SGR opens right before the warned bracket and it is not the refusal's failure ink`, warningInk !== undefined && failureInk !== undefined && warningInk !== failureInk, `warning ${JSON.stringify(warningInk)} · failure ${JSON.stringify(failureInk)}`)
+  save(`small-box-refused-${geometry.tag}`, board.frame())
+  w.writeLocalWindowSetting(served, undefined)
+  board.close()
+}
+
 ollama.server.close()
 console.log(failures === 0 ? 'local window picker: all green' : `local window picker: ${failures} failure(s)`)
 process.exit(failures === 0 ? 0 : 1)

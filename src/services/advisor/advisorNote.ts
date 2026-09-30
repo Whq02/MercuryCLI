@@ -1,10 +1,12 @@
 import type { Message, UserMessage } from '../../types/message.js'
-import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin, type AdvisorOrigin } from '../../utils/messages/noticeRows.js'
+import { isCommandEcho } from '../../utils/messages/operatorTurns.js'
 import { callAdvisorOnceMore, liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
 import type { AdvisorQuiet } from './advisorQuiet.js'
 import {
+  advisorClockStart,
+  advisorDefaultClock,
   appendAdvisorRow,
   loadAdvisorContext,
   maybeCompactAdvisorContext,
@@ -13,6 +15,7 @@ import {
   type AdvisorSummarizer,
 } from './advisorContext.js'
 import {
+  ADVISOR_MINUTES_FLOOR,
   advisorDispatchEffort,
   advisorSeatRefusal,
   advisorSessionSeat,
@@ -73,7 +76,7 @@ function digestLinesOf(message: Message): string[] {
   if (isAdvisorOrigin(origin)) return []
   const content = user.message.content
   if (typeof content === 'string') {
-    if (user.isMeta) return []
+    if (user.isMeta || isCommandEcho(content)) return []
     return content.trim() === '' ? [] : [`[operator] ${clip(content, DIGEST_ROW_CLIP)}`]
   }
   const lines: string[] = []
@@ -82,7 +85,7 @@ function digestLinesOf(message: Message): string[] {
       const raw = block.content
       const text = typeof raw === 'string' ? raw : textOfBlocks(raw)
       lines.push(`[result${block.is_error === true ? ' error' : ''}] ${clip(text, DIGEST_RESULT_CLIP)}`)
-    } else if (block.type === 'text' && typeof block.text === 'string' && !user.isMeta && block.text.trim() !== '') {
+    } else if (block.type === 'text' && typeof block.text === 'string' && !user.isMeta && block.text.trim() !== '' && !isCommandEcho(block.text)) {
       lines.push(`[operator] ${clip(block.text, DIGEST_ROW_CLIP)}`)
     }
   }
@@ -162,10 +165,9 @@ export function clampNoteLines(text: string): string {
   return lines.slice(0, ADVISOR_NOTE_MAX_LINES).join('\n')
 }
 
-export function advanceAdvisorTurn(context: AdvisorContext, seats: number): boolean {
-  context.turns += 1
-  const interval = Math.max(1, Math.floor(seats))
-  return context.turns % interval === 0
+export function advisorNoteDue(context: Pick<AdvisorContext, 'rows' | 'openedAt' | 'lookedAt'>, minutes: number, now: number): boolean {
+  const interval = Math.max(ADVISOR_MINUTES_FLOOR, Math.floor(minutes)) * 60_000
+  return now - advisorClockStart(context) >= interval
 }
 
 export interface AdvisorNote {
@@ -173,19 +175,9 @@ export interface AdvisorNote {
   origin: AdvisorOrigin
 }
 
-export function advisorNoteQueueCommand(note: AdvisorNote, uuid: string): QueuedCommand {
-  return {
-    value: note.text,
-    mode: 'prompt',
-    uuid: uuid as never,
-    priority: 'later',
-    skipSlashCommands: true,
-    origin: note.origin,
-  }
-}
-
 export interface AdvisorRoad {
   seat?: AdvisorSeat
+  chat?: boolean
   call?: AdvisorCall
   summarize?: AdvisorSummarizer
   settings?: AdvisorSettings
@@ -195,6 +187,19 @@ export interface AdvisorRoad {
   persist?: boolean
   signal?: AbortSignal
   onQuiet?: (quiet: AdvisorQuiet) => void
+  now?: () => number
+}
+
+export function advisorClock(road: Pick<AdvisorRoad, 'now'>): () => number {
+  return road.now ?? advisorDefaultClock()
+}
+
+export function advisorContextOptions(road: Pick<AdvisorRoad, 'dir' | 'persist' | 'now'>): { dir?: string; persist?: boolean; now: () => number } {
+  return {
+    ...(road.dir !== undefined ? { dir: road.dir } : {}),
+    ...(road.persist !== undefined ? { persist: road.persist } : {}),
+    now: advisorClock(road),
+  }
 }
 
 export async function composeAdvisorNote(
@@ -203,7 +208,8 @@ export async function composeAdvisorNote(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
+  const now = advisorClock(road)
   let model = road.model
   if (model === undefined) {
     const resolved = resolveAdvisorModel()
@@ -218,6 +224,7 @@ export async function composeAdvisorNote(
     logForDebugging(`advisor: nothing new for ${context.agentId} since the last note`)
     return null
   }
+  context.lookedAt = now()
   const reply = await callAdvisorOnceMore(road.call ?? liveAdvisorCall, {
     model,
     system: ADVISOR_SYSTEM_PROMPT,
@@ -226,11 +233,11 @@ export async function composeAdvisorNote(
     ...(road.signal !== undefined ? { signal: road.signal } : {}),
   })
   if (!reply.ok) {
-    road.onQuiet?.({ origin: { kind: 'advisor', model, seats: settings.seats, at: new Date().toISOString() }, reason: reply.reason, empty: reply.empty === true })
+    road.onQuiet?.({ origin: { kind: 'advisor', model, minutes: settings.minutes, at: new Date(now()).toISOString() }, reason: reply.reason, empty: reply.empty === true })
     return null
   }
-  const at = new Date().toISOString()
-  await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor, turn: context.turns })
+  const at = new Date(now()).toISOString()
+  await appendAdvisorRow(context, { kind: 'digest', at, text: digest.text, cursor: digest.cursor })
   const text = clampNoteLines(reply.text)
   await appendAdvisorRow(context, { kind: 'note', at, text, model })
   await maybeCompactAdvisorContext(context, {
@@ -239,7 +246,7 @@ export async function composeAdvisorNote(
     ...(road.summarize !== undefined ? { summarize: road.summarize } : {}),
   })
   if (text.trim().toLowerCase() === ADVISOR_CARRY_ON) return null
-  return { text, origin: { kind: 'advisor', model, seats: settings.seats, at } }
+  return { text, origin: { kind: 'advisor', model, minutes: settings.minutes, at } }
 }
 
 export async function advisorTurnSettled(
@@ -248,11 +255,8 @@ export async function advisorTurnSettled(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
-  const context = await loadAdvisorContext(agentId, {
-    ...(road.dir !== undefined ? { dir: road.dir } : {}),
-    ...(road.persist !== undefined ? { persist: road.persist } : {}),
-  })
-  if (!advanceAdvisorTurn(context, settings.seats)) return null
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
+  const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
+  if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return null
   return composeAdvisorNote(context, messages, { ...road, settings })
 }

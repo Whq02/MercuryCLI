@@ -306,6 +306,10 @@ export async function resetSessionFilePointer() {
   getProject().resetSessionFile()
 }
 
+export function advisorSwitchOfSession(): boolean {
+  return getProject().currentSessionAdvisor === true
+}
+
 export function adoptResumedSessionFile(): void {
   const project = getProject()
   project.sessionFile = getTranscriptPath()
@@ -371,6 +375,7 @@ const ALWAYS_APPEND_KINDS = new Set<Entry['type']>([
   'attribution-snapshot',
   'speculation-accept',
   'mode',
+  'advisor-switch',
   'worktree-state',
   'context-collapse-commit',
   'context-collapse-snapshot',
@@ -385,6 +390,7 @@ class Project {
   currentSessionChainLeaf: UUID | undefined
   currentSessionAgentSetting: string | undefined
   currentSessionMode: 'coordinator' | 'normal' | undefined
+  currentSessionAdvisor: boolean | undefined
   currentSessionWorktree: PersistedWorktreeSession | null | undefined
   currentSessionPrNumber: number | undefined
   currentSessionPrUrl: string | undefined
@@ -694,6 +700,13 @@ class Project {
       appendEntryToFile(this.sessionFile, {
         type: 'mode',
         mode: this.currentSessionMode,
+        sessionId,
+      })
+    }
+    if (this.currentSessionAdvisor !== undefined) {
+      appendEntryToFile(this.sessionFile, {
+        type: 'advisor-switch',
+        on: this.currentSessionAdvisor,
         sessionId,
       })
     }

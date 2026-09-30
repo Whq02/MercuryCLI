@@ -199,8 +199,7 @@ export type GlobalConfig = {
   pingsBell?: boolean
   advisor?: {
     enabled?: boolean
-    crewmates?: boolean
-    seats?: number
+    minutes?: number
   }
   subModels?: {
     console?: string

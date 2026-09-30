@@ -30,6 +30,7 @@ const PAGES = {
   moonshot: 'platform.kimi.ai',
   zai: 'z.ai/manage-apikey',
   deepseek: 'platform.deepseek.com',
+  xai: 'console.x.ai',
   meta: 'dev.meta.ai',
 } as const
 type Family = keyof typeof PAGES
@@ -50,10 +51,12 @@ const PANE: Record<Family, string> = {
   moonshot: 'src/components/KimiConnect.tsx',
   zai: 'src/components/ZaiConnect.tsx',
   deepseek: 'src/components/DeepseekConnect.tsx',
+  xai: 'src/components/XaiConnect.tsx',
   meta: 'src/components/MetaConnect.tsx',
 }
 const ROAD: Partial<Record<Family, string[]>> = {
   deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
+  xai: ['src/services/providers/xai/xaiLogin.ts', 'src/services/providers/xai/xaiCallModel.ts'],
   meta: ['src/services/providers/meta/metaLogin.ts', 'src/services/providers/meta/metaCallModel.ts'],
   moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
   huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
@@ -69,7 +72,7 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const isKeyOnly = (family: Family): family is 'deepseek' | 'meta' => family === 'deepseek' || family === 'meta'
+const isKeyOnly = (family: Family): family is 'deepseek' | 'xai' | 'meta' => family === 'deepseek' || family === 'xai' || family === 'meta'
 const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
   isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
@@ -130,6 +133,7 @@ t.section("§2 — THE CARDS: each key family's card carries exactly one key lin
   t.check('GLM keeps its Coding-Plan/base sentence beside the key line', glm.includes('Which key is this?') && glm.includes('the answer picks the base'))
   t.check('the kimi-region question is a host choice, not a credential — it carries no key line', !screen.loginsPickPaneLines('kimi-region').join(' ').includes('API key:'))
   t.check("a DeepSeek prompt wearing a correction gives the key line's rows to the note (the pane stays compact)", !screen.keyPromptPaneLines('deepseek', 'the driver said no', 4, false).join(' ').includes(PAGES.deepseek))
+  t.check("an xAI prompt wearing a correction gives the key line's rows to the note (the pane stays compact)", !screen.keyPromptPaneLines('xai', 'the driver said no', 4, false).join(' ').includes(PAGES.xai))
   const facts = signedOutFacts()
   const arms = screen.loginsSortedArms(facts)
   for (const family of FAMILIES) {
@@ -154,7 +158,7 @@ t.section('§3 — THE PANES AGREE: every in-chat pane reuses the one line; no f
   const face = code(FACE)
   const respelled = FAMILIES.filter(f => face.includes(PAGES[f]))
   t.check('the face module spells no key page itself (every card line comes from the owner)', respelled.length === 0, respelled.join(','))
-  t.check('the face composes the cards through keyPageLine', face.includes('keyPageLine(pick)') && face.includes("keyPageLine('deepseek')"))
+  t.check('the face composes the cards through keyPageLine', face.includes('keyPageLine(pick)') && face.includes("keyPageLine('deepseek')") && face.includes("keyPageLine('xai')"))
   const ownerCode = code(OWNER)
   t.check('the owner spells each page exactly once', FAMILIES.every(f => count(ownerCode, `'${PAGES[f]}'`) === 1))
 }

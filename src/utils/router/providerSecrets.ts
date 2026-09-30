@@ -19,6 +19,8 @@ interface ProviderSecretsFile {
   geminiApiKey?: string
   moonshotApiKey?: string
   deepseekApiKey?: string
+  xaiApiKey?: string
+  xaiManagementApiKey?: string
   metaApiKey?: string
   compatApiKey?: string
   huggingfaceApiKey?: string
@@ -162,6 +164,8 @@ export function writeStoredOpenaiApiKey(key: string | null): void {
 type StoredKeyField =
   | 'moonshotApiKey'
   | 'deepseekApiKey'
+  | 'xaiApiKey'
+  | 'xaiManagementApiKey'
   | 'metaApiKey'
   | 'compatApiKey'
   | 'openrouterApiKey'
@@ -181,6 +185,7 @@ function readStoredKey(field: StoredKeyField): string | undefined {
 const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   moonshotApiKey: 'moonshot',
   deepseekApiKey: 'deepseek',
+  xaiApiKey: 'xai',
   metaApiKey: 'meta',
   compatApiKey: 'openai-compat',
   openrouterApiKey: 'openrouter',
@@ -226,6 +231,19 @@ export function readStoredDeepseekApiKey(): string | undefined {
 }
 export function writeStoredDeepseekApiKey(key: string | null): void {
   writeStoredKey('deepseekApiKey', key)
+}
+
+export function readStoredXaiApiKey(): string | undefined {
+  return readStoredKey('xaiApiKey')
+}
+export function writeStoredXaiApiKey(key: string | null): void {
+  writeStoredKey('xaiApiKey', key)
+}
+export function readStoredXaiManagementApiKey(): string | undefined {
+  return readStoredKey('xaiManagementApiKey')
+}
+export function writeStoredXaiManagementApiKey(key: string | null): void {
+  writeStoredKey('xaiManagementApiKey', key)
 }
 
 export function readStoredMetaApiKey(): string | undefined {
@@ -296,6 +314,8 @@ export function credentialEnvNames(): readonly string[] {
     'GEMINI_API_KEY',
     'MOONSHOT_API_KEY',
     'DEEPSEEK_API_KEY',
+    'XAI_API_KEY',
+    'XAI_MANAGEMENT_API_KEY',
     'MODEL_API_KEY',
     'META_API_KEY',
     'MERCURY_COMPAT_API_KEY',

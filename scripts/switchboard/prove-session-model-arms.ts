@@ -308,7 +308,7 @@ section("§7 — spoken names resolve on the LAUNCH path (the coordinator's word
 
 section("§8 — the refusal's action names the family's OWN /logins word")
 {
-  for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'meta']) {
+  for (const family of ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta']) {
     check(`${family}: the action names /logins ${family}`, wm.loginsActionFor(family) === `ask the operator to run /logins ${family}`, wm.loginsActionFor(family))
   }
   check('compat names its connect home, never a /logins leg it lacks', wm.loginsActionFor('openai-compat').includes('MERCURY_COMPAT_BASE_URL') && !wm.loginsActionFor('openai-compat').includes('/logins'))

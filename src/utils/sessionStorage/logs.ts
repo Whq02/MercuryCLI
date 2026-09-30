@@ -297,6 +297,7 @@ export function restoreSessionMetadata(meta: {
   agentColor?: string
   agentSetting?: string
   mode?: 'coordinator' | 'normal'
+  advisor?: boolean
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
   prUrl?: string
@@ -309,6 +310,7 @@ export function restoreSessionMetadata(meta: {
   if (meta.agentColor) project.currentSessionAgentColor = meta.agentColor
   if (meta.agentSetting) project.currentSessionAgentSetting = meta.agentSetting
   if (meta.mode) project.currentSessionMode = meta.mode
+  if (meta.advisor !== undefined) project.currentSessionAdvisor = meta.advisor
   if (meta.worktreeSession !== undefined)
     project.currentSessionWorktree = meta.worktreeSession
   if (meta.prNumber !== undefined)
@@ -326,6 +328,7 @@ export function clearSessionMetadata(): void {
   project.currentSessionLastPrompt = undefined
   project.currentSessionAgentSetting = undefined
   project.currentSessionMode = undefined
+  project.currentSessionAdvisor = undefined
   project.currentSessionWorktree = undefined
   project.currentSessionPrNumber = undefined
   project.currentSessionPrUrl = undefined
@@ -376,6 +379,18 @@ export function cacheSessionTitle(customTitle: string): void {
 
 export function saveMode(mode: 'coordinator' | 'normal'): void {
   getProject().currentSessionMode = mode
+}
+
+export function saveAdvisorSwitch(on: boolean): void {
+  const project = getProject()
+  project.currentSessionAdvisor = on
+  if (project.sessionFile) {
+    appendEntryToFile(project.sessionFile, {
+      type: 'advisor-switch',
+      on,
+      sessionId: getSessionId(),
+    })
+  }
 }
 
 export function saveWorktreeState(
@@ -525,6 +540,7 @@ export type ResumeFacts = Pick<
   | 'customTitle'
   | 'tag'
   | 'mode'
+  | 'advisor'
   | 'worktreeSession'
   | 'prNumber'
   | 'prUrl'
@@ -549,6 +565,7 @@ export function resumeFactsOf(
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as LogOption['mode'],
+    advisor: fold.advisorSwitches.get(sessionId),
     worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
     prNumber: fold.prNumbers.get(sessionId),
     prUrl: fold.prUrls.get(sessionId),

@@ -690,8 +690,8 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
   check('the [served] opt-down budgets the served DEFAULT (272,000)', served.effectiveWindow === 272_000 && served.source === 'live-current', j(served))
   const bareThreshold = autoCompact.getAutoCompactThreshold('gpt-6-astra')
   const servedThreshold = autoCompact.getAutoCompactThreshold('gpt-6-astra[served]')
-  check('the bare id folds at the ceiling\'s usable edge: 872,000 − 20,000 (the summary reserve) − 3,000 (the manual headroom) = 849,000', bareThreshold === 849_000, String(bareThreshold))
-  check('the [served] id folds at the default\'s usable edge: 272,000 − 23,000 = 249,000', servedThreshold === 249_000, String(servedThreshold))
+  check('the bare id folds at the ceiling\'s usable edge: 872,000 − 20,000 (summary reserve) − 3,000 (manual headroom) − 20,000 (early fold) = 829,000', bareThreshold === 829_000, String(bareThreshold))
+  check('the [served] id folds at the default\'s usable edge: 272,000 − 23,000 − 20,000 = 229,000', servedThreshold === 229_000, String(servedThreshold))
   check('the gauge reads the same window the threshold reads (872,000 bare · 272,000 served)', contextFillView([] as never, 'gpt-6-astra').window === 872_000 && contextFillView([] as never, 'gpt-6-astra[served]').window === 272_000)
 
   let n = 0
@@ -706,14 +706,14 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
       { type: 'assistant', uuid: `a-${++n}`, timestamp: new Date().toISOString(), message: { id: 'resp-X', model: 'gpt-6-astra', role: 'assistant', content: [{ type: 'text', text: 'block' }], usage, stop_reason: 'end_turn' } },
     ]
   }
-  check('the count reads the settled usage exactly', tokens.tokenCountWithEstimation(transcriptAt(849_000) as never) === 849_000)
-  const fireAt = await autoCompact.shouldAutoCompact(transcriptAt(849_000) as never, 'gpt-6-astra')
-  const fireBelow = await autoCompact.shouldAutoCompact(transcriptAt(848_999) as never, 'gpt-6-astra')
+  check('the count reads the settled usage exactly', tokens.tokenCountWithEstimation(transcriptAt(829_000) as never) === 829_000)
+  const fireAt = await autoCompact.shouldAutoCompact(transcriptAt(829_000) as never, 'gpt-6-astra')
+  const fireBelow = await autoCompact.shouldAutoCompact(transcriptAt(828_999) as never, 'gpt-6-astra')
   const fireAtCliff = await autoCompact.shouldAutoCompact(transcriptAt(272_001) as never, 'gpt-6-astra')
-  const fireServed = await autoCompact.shouldAutoCompact(transcriptAt(249_000) as never, 'gpt-6-astra[served]')
-  check('the bare id: false one token under 849,000, true at 849,000', fireBelow === false && fireAt === true, j({ fireBelow, fireAt }))
+  const fireServed = await autoCompact.shouldAutoCompact(transcriptAt(229_000) as never, 'gpt-6-astra[served]')
+  check('the bare id: false one token under 829,000, true at 829,000', fireBelow === false && fireAt === true, j({ fireBelow, fireAt }))
   check('the bare id crosses the 272,000 price cliff WITHOUT a fold (the threshold is the ceiling\'s, by the current law)', fireAtCliff === false)
-  check('the [served] id folds at 249,000 — under the cliff', fireServed === true)
+  check('the [served] id folds at 229,000 — under the cliff', fireServed === true)
 
   const pin = catalogue.gptDisplayPin('gpt-6-astra')
   const base = pin ? gptPriceTierFor(pin, 272_000) : undefined
@@ -724,11 +724,11 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
     const perTurn = (prompt: number, rates: typeof base, newTokens: number, out: number): number =>
       ((prompt - newTokens) * (rates.cachedInPerMtok ?? 0) + newTokens * (rates.costInPerMtok ?? 0) + out * (rates.costOutPerMtok ?? 0)) / 1_000_000
     console.log('\n  the cliff, at list price (a warm turn: the prefix cached, 5,000 new input tokens, 1,000 output tokens):')
-    console.log(`    at 249,000 tokens (the [served] fold point)     ${usd(perTurn(249_000, base, 5_000, 1_000))} per turn`)
+    console.log(`    at 229,000 tokens (the [served] fold point)     ${usd(perTurn(229_000, base, 5_000, 1_000))} per turn`)
     console.log(`    at 272,000 tokens (the last short-context turn)  ${usd(perTurn(272_000, base, 5_000, 1_000))} per turn`)
     console.log(`    at 272,001 tokens (the first long-context turn)  ${usd(perTurn(272_001, tier, 5_000, 1_000))} per turn`)
     console.log(`    at 500,000 tokens                                ${usd(perTurn(500_000, tier, 5_000, 1_000))} per turn`)
-    console.log(`    at 849,000 tokens (the bare fold point)          ${usd(perTurn(849_000, tier, 5_000, 1_000))} per turn`)
+    console.log(`    at 829,000 tokens (the bare fold point)          ${usd(perTurn(829_000, tier, 5_000, 1_000))} per turn`)
     console.log(`    a cold 300,000-token request                     ${usd((300_000 * (tier.costInPerMtok ?? 0)) / 1_000_000)} vs ${usd((300_000 * (base.costInPerMtok ?? 0)) / 1_000_000)} under the base tier`)
   }
 }

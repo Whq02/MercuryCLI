@@ -265,7 +265,7 @@ process.env.OPENAI_API_KEY = 'prover-key'
   check('the 1M kill-switch still caps it', getContextWindowForModel(ID) === 200_000, String(getContextWindowForModel(ID)))
   delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
-  check('the autocompact threshold sits at the served ceiling less the summary reserve and the compact headroom (872,000 − 20,000 − 3,000 = 849,000)', getAutoCompactThreshold(ID) === 849_000, String(getAutoCompactThreshold(ID)))
+  check('the autocompact threshold leaves 20,000 below the usable edge (872,000 − 20,000 − 3,000 − 20,000 = 829,000)', getAutoCompactThreshold(ID) === 829_000, String(getAutoCompactThreshold(ID)))
   const limits = imageLimitsForModel(ID)
   check("the image limits are the OpenAI family's (the route decides): 1,500 images, the 2048 detail box", limits.family === 'openai' && limits.maxImagesPerRequest === 1500 && limits.nativeLongEdgePx.standard === 2048, JSON.stringify(limits))
   check('the native web search door admits the row (its route is a search family: openai)', nativeSearchFamilyOf(ID) === 'openai', String(nativeSearchFamilyOf(ID)))

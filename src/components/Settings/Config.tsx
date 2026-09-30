@@ -93,10 +93,10 @@ import type { ModelChoice } from '../MercuryModelPicker.js'
 import { LOCAL_PULL_RECOMMENDATION } from '../../services/providers/local/localAccounts.js'
 import { LOCAL_SETUP_OFFER } from '../../commands/localsetup/words.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
-import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
+import { heldLocalWindow, localWindowApplication, localWindowRefusalWords, localWindowRoomWords, localWindowSettingOf, localWindowValueWords, nextLocalWindowSetting, writeLocalWindowSetting, localWindowSettingWords } from '../../services/providers/local/localWindow.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, localServerConfigItems, useLocalServerConfig } from './LocalServer.js'
 import { advisorConfigItems } from './Advisor.js'
-import { setAdvisorCrewmates, setAdvisorEnabled, setAdvisorSeats } from '../../services/advisor/advisorSettings.js'
+import { setAdvisorEnabled, setAdvisorMinutes } from '../../services/advisor/advisorSettings.js'
 import { localServerRevertPartial, localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'
 
 const LABEL_CELLS = 36
@@ -196,6 +196,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
   gemini: { label: 'Gemini', absent: 'not signed in — /logins connects', manage: '/accounts' },
   moonshot: { label: 'Moonshot', absent: 'not signed in — /logins moonshot connects (or MOONSHOT_API_KEY)', manage: '/accounts' },
   deepseek: { label: 'DeepSeek', absent: 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', manage: '/accounts' },
+  xai: { label: 'xAI', absent: 'no key — /logins xai connects (or XAI_API_KEY)', manage: '/accounts' },
   meta: { label: 'Meta', absent: 'no key — /logins meta connects (or MODEL_API_KEY)', manage: '/accounts' },
   'openai-compat': { label: 'Custom endpoint', absent: 'not configured — MERCURY_COMPAT_BASE_URL' },
   huggingface: { label: 'Hugging Face', absent: 'not signed in — /logins connects (or HF_TOKEN)', manage: '/accounts' },
@@ -234,7 +235,7 @@ export function localModelWindowRow(
   record: ReturnType<typeof localRecordFor>,
   route: string,
   _stamp?: number,
-): { applies: boolean; valueText: string; note: string; setByYou: boolean; overFit: boolean } {
+): { applies: boolean; valueText: string; note: string; setByYou: boolean; overFit: boolean; tight: boolean } {
   if (route !== 'local' || record === undefined) {
     const activeLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
     return {
@@ -243,12 +244,14 @@ export function localModelWindowRow(
       note: 'The served context window of a local model — /model picks a local model first; then ←/→ choose server default · 32k · 64k · 128k · trained max, or auto (the biggest window that fits this machine, chosen at first send and held for the session).',
       setByYou: false,
       overFit: false,
+      tight: false,
     }
   }
   const setting = localWindowSettingOf(record)
   const application = localWindowApplication(record)
   const applies = application === 'request' || application === 'load'
   const refusal = applies ? localWindowRefusalWords(record, setting) : undefined
+  const room = applies && refusal === undefined ? localWindowRoomWords(record, setting) : undefined
   const held = applies ? heldLocalWindow(record) : undefined
   const rule = held !== undefined && held.setting === setting && held.window !== undefined ? ` Held this session: ${held.words}.` : ''
   const note =
@@ -256,8 +259,8 @@ export function localModelWindowRow(
       ? `${record.id}: this server fixes its window when it starts; Mercury shows the served figure and cannot change it here.`
       : application === 'none'
         ? `${record.id}: an unknown server kind — the setting does not apply.`
-        : `${record.id}: auto = the biggest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
-  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined }
+        : `${record.id}: auto = the biggest of 32k · 64k · 128k · 256k whose projected load (weights + the KV cache of the layers that keep one, at the server's cache type and slots; the server's measured size once the model is loaded) fits the memory usable for models, never above the trained max — the rule /localsetup's step 5 uses; held for the session; a change reloads the model on the next send (the ingested prompt is read again).${refusal !== undefined ? ` The setting is saved but does not fit: ${refusal}.` : room !== undefined ? ` The setting fits this small box but leaves little room: ${room}.` : ''}${rule} ${application === 'request' ? 'Ollama takes it as num_ctx on every request.' : 'LM Studio takes it when the model is loaded.'}`
+  return { applies, valueText: `${localWindowValueWords(record, setting)} · ${record.id}`, note, setByYou: applies && setting !== undefined, overFit: refusal !== undefined, tight: room !== undefined }
 }
 
 export interface ConfigProviderRow {
@@ -879,7 +882,7 @@ export function Config({
     label: 'Local model window',
     searchText: 'local model window context num_ctx ollama lm studio served window',
     kind: 'enum',
-    value: <Text color={localWindowRow.overFit ? tokens.failureText : localWindowRow.applies ? undefined : tokens.textSecondary} wrap="truncate-end">{localWindowRow.valueText}</Text>,
+    value: <Text color={localWindowRow.overFit ? tokens.failureText : localWindowRow.tight ? tokens.warning : localWindowRow.applies ? undefined : tokens.textSecondary} wrap="truncate-end">{localWindowRow.valueText}</Text>,
     setByYou: localWindowRow.setByYou,
     warning: localWindowRow.note,
     change: direction => {
@@ -928,18 +931,11 @@ export function Config({
         recordToggle('advisor', words)
         bump()
       },
-      onCrewmates: (next, words) => {
-        setAdvisorCrewmates(next)
-        globalTouchedRef.current.add('advisor')
-        snapshots.dirty = true
-        recordToggle('advisor.crewmates', words)
-        bump()
-      },
       onInterval: (next, words) => {
-        setAdvisorSeats(next)
+        setAdvisorMinutes(next)
         globalTouchedRef.current.add('advisor')
         snapshots.dirty = true
-        recordSet('advisor.seats', words)
+        recordSet('advisor.minutes', words)
         bump()
       },
     }),

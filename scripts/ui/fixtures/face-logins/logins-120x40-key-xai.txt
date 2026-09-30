@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ xAI — API key (Grok)                     │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
+   │   Claude subscription account                   op@example.com │  │ xAI API key                                │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ API key: console.x.ai — sign in,           │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ API Keys, create, paste it here.           │
+   │                                                                │  │ Stored auth-scoped (mode 600);             │
+   │ available                                                      │  │ XAI_API_KEY wins. An optional              │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ management key follows for /usage.         │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ key: ▌                                     │
+   │   Google Gemini — API key or Google OAuth        not signed in │  │ ↵ stores · empty keeps existing · esc back │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │                                            │
+   │   DeepSeek — API key                             not signed in │  │                                            │
+   │ ❯ xAI — API key (Grok)                           not signed in │  ╰────────────────────────────────────────────╯
+   ╰────────────────────────────────────────────────────────────────╯  ╭────────────────────────────────────────────╮
+                                                                       │ LOGINS                                     │
+                                                                       │ Families   9                               │
+                                                                       │ Signed in  4 of 9                          │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  paste xAI API key                                                                           │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                 ↵ store key · esc back

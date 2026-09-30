@@ -110,9 +110,9 @@ the interaction primitives the view actually mounts (1-hop join).
 | /workbench | panes | `src/commands/workbench` |
 | /workflows | panes | `src/commands/workflows` |
 
-## Slash routes — transcript prints (local: 38)
+## Slash routes — transcript prints (local: 39)
 
-`/accent` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/jev` · `/jevor` · `/keybindings` · `/kill` · `/localsetup` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/supervisor` · `/update-notes` · `/usage` · `/view` · `/vim` · `/voice`
+`/accent` · `/advise` · `/auto-compact-window` · `/bootmenu` · `/branches` · `/browser` · `/clear` · `/compact` · `/concourse` · `/config` · `/cost` · `/counsel` · `/debrief` · `/files` · `/good` · `/halt` · `/heapdump` · `/jev` · `/jevor` · `/keybindings` · `/kill` · `/localsetup` · `/meh` · `/mock-limits` · `/mouse` · `/orient` · `/pings` · `/remember` · `/rewind` · `/seats` · `/speak` · `/status` · `/subagents` · `/supervisor` · `/update-notes` · `/usage` · `/view` · `/vim` · `/voice`
 
 ## Slash routes — model turns (prompt: 3)
 

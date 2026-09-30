@@ -31,6 +31,10 @@ import {
   writeStoredGeminiApiKey,
   readStoredCompatApiKey,
   readStoredDeepseekApiKey,
+  readStoredXaiApiKey,
+  writeStoredXaiApiKey,
+  readStoredXaiManagementApiKey,
+  writeStoredXaiManagementApiKey,
   readStoredMetaApiKey,
   writeStoredMetaApiKey,
   readStoredHuggingfaceApiKey,
@@ -107,6 +111,8 @@ export type SlotRemoval =
   | { route: 'moonshot-stored-key' }
   | { route: 'moonshot-oauth' }
   | { route: 'deepseek-stored-key' }
+  | { route: 'xai-stored-key' }
+  | { route: 'xai-management-key' }
   | { route: 'meta-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
@@ -165,6 +171,10 @@ export interface AccountSlotReads {
   moonshotOauthRegion?: () => KimiRegion
   deepseekEnvKey?: () => string | undefined
   deepseekStoredKey?: () => string | undefined
+  xaiEnvKey?: () => string | undefined
+  xaiStoredKey?: () => string | undefined
+  xaiManagementEnvKey?: () => string | undefined
+  xaiManagementStoredKey?: () => string | undefined
   metaEnvKey?: () => string | undefined
   metaStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
@@ -902,6 +912,26 @@ function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   })
 }
 
+function xaiSlots(reads: AccountSlotReads): AccountSlot[] {
+  const envKey = reads.xaiEnvKey ? reads.xaiEnvKey() : process.env.XAI_API_KEY?.trim() || undefined
+  const storedKey = (reads.xaiStoredKey ?? readStoredXaiApiKey)()
+  const slots = keyLaneSlots({ family: 'xai', envVar: 'XAI_API_KEY', envKey, storedKey, storedRemoval: { route: 'xai-stored-key' } })
+  const managementEnv = reads.xaiManagementEnvKey ? reads.xaiManagementEnvKey() : process.env.XAI_MANAGEMENT_API_KEY?.trim() || undefined
+  const managementStored = (reads.xaiManagementStoredKey ?? readStoredXaiManagementApiKey)()
+  for (const [source, key] of [['env', managementEnv], ['stored', managementStored]] as const) {
+    if (!key) continue
+    slots.push({
+      family: 'xai', id: `xai:management-${source}`, name: 'management', kind: 'api-key',
+      kindLabel: `Management key${source === 'env' ? ' · env' : ''}`,
+      identity: source === 'env' ? 'XAI_MANAGEMENT_API_KEY (env)' : 'stored management key (auth-scoped)',
+      active: false, envPinned: source === 'env', signedIn: true,
+      stateNote: source === 'stored' && managementEnv ? 'usage only — shadowed by XAI_MANAGEMENT_API_KEY' : 'usage only — not an inference credential',
+      removal: source === 'env' ? { route: 'env', envVar: 'XAI_MANAGEMENT_API_KEY' } : { route: 'xai-management-key' },
+    })
+  }
+  return slots
+}
+
 function compatSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.compatEnvKey ? reads.compatEnvKey() : process.env.MERCURY_COMPAT_API_KEY?.trim() || undefined
@@ -1070,20 +1100,22 @@ export function deriveFamilySlotGroups(
                   ? geminiSlots(reads)
                   : family.id === 'moonshot'
                     ? moonshotSlots(reads)
-                    : family.id === 'meta'
-                      ? metaSlots(reads)
                     : family.id === 'deepseek'
                       ? deepseekSlots(reads)
-                      : family.id === 'openai-compat'
-                        ? compatSlots(reads)
-                        : family.id === 'huggingface'
-                          ? huggingfaceSlots(reads)
-                          : family.id === 'local'
-                            ? localSlots(reads)
-                            : genericSlots(
-                            family,
-                            providers.find(provider => provider.id === family.id),
-                          )
+                      : family.id === 'xai'
+                        ? xaiSlots(reads)
+                        : family.id === 'meta'
+                          ? metaSlots(reads)
+                          : family.id === 'openai-compat'
+                            ? compatSlots(reads)
+                            : family.id === 'huggingface'
+                              ? huggingfaceSlots(reads)
+                              : family.id === 'local'
+                                ? localSlots(reads)
+                                : genericSlots(
+                                    family,
+                                    providers.find(provider => provider.id === family.id),
+                                  )
       return { family, slots }
     })
 }
@@ -1100,6 +1132,8 @@ export interface SlotRemovalOwners {
   clearStoredMoonshotKey?: () => void
   disconnectMoonshotOauth?: () => void
   clearStoredDeepseekKey?: () => void
+  clearStoredXaiKey?: () => void
+  clearStoredXaiManagementKey?: () => void
   clearStoredMetaKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
@@ -1300,6 +1334,12 @@ function routeSlotRemoval(
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
+    case 'xai-stored-key':
+      ;(owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null)))()
+      return { note: 'stored xAI API key cleared from the auth-scoped store', mutated: true }
+    case 'xai-management-key':
+      ;(owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null)))()
+      return { note: 'stored xAI management key cleared; the inference key stays', mutated: true }
     case 'compat-stored-key':
       ;(owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null)))()
       return { note: 'stored endpoint API key cleared from the auth-scoped store', mutated: true }
@@ -1331,6 +1371,8 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['moonshot-oauth', owners.disconnectMoonshotOauth ?? disconnectMoonshotOauth],
     ['moonshot-stored-key', owners.clearStoredMoonshotKey ?? (() => writeStoredMoonshotApiKey(null))],
     ['deepseek-stored-key', owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null))],
+    ['xai-stored-key', owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null))],
+    ['xai-management-key', owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null))],
     ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],

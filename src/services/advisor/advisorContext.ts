@@ -11,17 +11,17 @@ export interface AdvisorRow {
   at: string
   text: string
   cursor?: string
-  turn?: number
   folded?: number
   model?: string
 }
 
 export interface AdvisorContext {
   agentId: string
-  turns: number
   cursor: string | undefined
   rows: AdvisorRow[]
   path: string | null
+  openedAt: number
+  lookedAt?: number
 }
 
 export const ADVISOR_CONTEXT_SCHEMA = 1
@@ -35,6 +35,16 @@ const FOLD_TRANSCRIPT_MAX_CHARS = 60_000
 const FOLD_ROW_CLIP = 1200
 
 const contexts = new Map<string, AdvisorContext>()
+
+let defaultClock: () => number = Date.now
+
+export function setAdvisorClockForTests(now: (() => number) | null): void {
+  defaultClock = now ?? Date.now
+}
+
+export function advisorDefaultClock(): () => number {
+  return defaultClock
+}
 
 export function advisorContextDir(): string {
   const projectDir = getSessionProjectDir() ?? getProjectDir(getOriginalCwd())
@@ -96,7 +106,7 @@ function lastCursor(rows: readonly AdvisorRow[]): string | undefined {
 
 export async function loadAdvisorContext(
   agentId: string,
-  opts: { dir?: string; persist?: boolean } = {},
+  opts: { dir?: string; persist?: boolean; now?: () => number } = {},
 ): Promise<AdvisorContext> {
   const known = contexts.get(agentId)
   if (known !== undefined) return known
@@ -110,9 +120,23 @@ export async function loadAdvisorContext(
       rows = []
     }
   }
-  const context: AdvisorContext = { agentId, turns: 0, cursor: lastCursor(rows), rows, path }
+  const context: AdvisorContext = { agentId, cursor: lastCursor(rows), rows, path, openedAt: (opts.now ?? defaultClock)() }
   contexts.set(agentId, context)
   return context
+}
+
+export function advisorLastNoteAt(context: Pick<AdvisorContext, 'rows'>): number | undefined {
+  for (let i = context.rows.length - 1; i >= 0; i--) {
+    const row = context.rows[i]!
+    if (row.kind !== 'note') continue
+    const at = Date.parse(row.at)
+    return Number.isFinite(at) ? at : undefined
+  }
+  return undefined
+}
+
+export function advisorClockStart(context: Pick<AdvisorContext, 'rows' | 'openedAt' | 'lookedAt'>): number {
+  return context.lookedAt ?? advisorLastNoteAt(context) ?? context.openedAt
 }
 
 export function peekAdvisorContext(agentId: string): AdvisorContext | undefined {

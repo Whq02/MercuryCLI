@@ -24,7 +24,7 @@ export interface ContextLeftOutput {
 }
 
 export const CONTEXT_LEFT_UNKNOWN_LINE = 'Context: unknown until the model has answered once; the reply that made this call is the first on record, so call again now for a measured figure.'
-export const CONTEXT_LEFT_NO_FOLD_LINE = 'No fold line: autocompact is off, so nothing compacts on its own; the window edge is the limit.'
+export const CONTEXT_LEFT_NO_FOLD_LINE = 'No early fold line: autocompact is off; emergency folding can still recover an overflow unless compaction is disabled.'
 
 const WINDOW_SOURCE_WORDS: Record<ContextFillView['windowSource'], string> = {
   'live-current': "the provider's live catalogue",

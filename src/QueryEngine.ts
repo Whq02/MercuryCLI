@@ -104,6 +104,7 @@ export type QueryEngineConfig = {
   handleElicitation?: ToolUseContext['handleElicitation']
   includePartialMessages?: boolean
   onLiveness?: () => void
+  onToolRoundSettled?: (messages: readonly Message[]) => void
   setSDKStatus?: ToolUseContext['setSDKStatus']
   abortController?: AbortController
   orphanedPermission?: OrphanedPermission
@@ -838,6 +839,7 @@ export class QueryEngine {
           yield* normalizeMessage(message)
         } else if (kind === 'user') {
           yield* normalizeMessage(message)
+          config.onToolRoundSettled?.(messages)
         } else if (isBoundary) {
           const boundaryMeta = 'compactMetadata' in message ? message.compactMetadata : undefined
           const boundaryIndexStore = this.mutableMessages.length - 1

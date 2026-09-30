@@ -20,6 +20,7 @@ arm.
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |
 | `deepseek` | `deepseek-*`, alias `deepseek` | DeepSeek |
+| `xai` | `grok-*`, alias `grok` | xAI |
 | `meta` | `muse-spark-*`, alias `muse` (other `muse-*` endpoints refuse here) | Meta |
 | `gemini` | `gemini-*`, alias `gemini` | Gemini |
 | `openai-compat` | `compat/<vendor-id>` (qualified; stripped before the wire) | Custom endpoint |
@@ -79,6 +80,12 @@ prices recorded from the pricing page, and an id the page has not recorded
 paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
+
+xAI's Grok rows follow the same road: with an xAI key present, Mercury reads
+the account's model list when the picker composes its rows and paints the
+Grok ids it names; the family word `grok` means the newest Grok row that list
+serves, and while the list is unreachable the recorded rows stand in with
+their date.
 
 Meta's Muse Spark rows come only from the account's live `GET /v1/models`
 list, newest creation time first, with the id breaking ties. Connect through
@@ -169,8 +176,8 @@ Three wire families serve the providers:
   base-URL proxy.
 - **Native wires** — Z.AI, OpenAI through its Responses API, and Gemini
   through generateContent when using a Google account.
-- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, Meta, the
-  operator-named compat slot, OpenRouter, Gemini with an API key,
+- **The OpenAI-compatible chat wire** — Moonshot/Kimi, DeepSeek, xAI's Grok
+  models, Meta, the operator-named compat slot, OpenRouter, Gemini with an API key,
   Hugging Face (the Hub router, Hub slugs with an optional backend suffix),
   and local servers.
 
@@ -471,6 +478,16 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
+- **xai** — an API key for Grok, with an optional management key for the team
+  usage meter. `/logins xai` offers the management key as its second step;
+  leave it empty or press escape to keep using just the API key. An existing
+  API key can be kept by pressing enter on the first step. Create the management
+  key on [the console's settings page](https://console.x.ai/team/default/management-keys)
+  with the **Management Keys Read + Write** permission. Both keys are stored
+  auth-scoped (mode 600); env pins `XAI_API_KEY` and `XAI_MANAGEMENT_API_KEY`
+  win independently. `/router key xai-management` adds the management key
+  directly, and its `clear` road or its own `/accounts` row removes only that
+  key — the inference key stays. A management key alone cannot run Grok;
 - **zai, deepseek, meta, huggingface, local, compat** — env pins and stored keys.
 
 Slots carry presence facts and masked key tails only — never a secret value.
@@ -830,17 +847,29 @@ the order of their most recent sign-in — the same sign-in record the computed
 default reads — and each in its own shape: the first-party subscription's
 rolling windows and weekly pools, the OpenAI account's observed bands, a Kimi
 sign-in's plan windows, a GLM Coding Plan key's credit windows, an OpenRouter
-key's credit totals and cap, the DeepSeek and Moonshot balances, and an honest
-one-line absence for a lane whose provider publishes no usage Mercury can read
-(a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key on a
-subscription lane, a local server).
+key's credit totals and cap, the DeepSeek and Moonshot balances, xAI's team
+balance and billing-cycle usage with a management key, and an honest one-line
+absence for a lane whose provider publishes no usage Mercury can read
+(a general Z.AI key, Gemini, Hugging Face, Meta, a custom endpoint, an API key
+on a subscription lane, a local server).
 Every API-key slot carries a credits line: the provider-stated balance with
 its feed and age where the family exposes one (the DeepSeek and Moonshot
-balance endpoints, the remaining credit under an OpenRouter key cap), and
+balance endpoints, xAI's management-key balance, the remaining credit under
+an OpenRouter key cap), and
 "credits: not reported by the provider" where none exists — never a computed
 spend presented as a balance. Every figure is a reader's last observation with
 its stamp, sampled in the popup through one door and dropped the moment the
 credential it belongs to changes — never remembered, never invented.
+
+For xAI, the inference key identifies the team and the optional management
+key reads its prepaid credits, usage for the current billing cycle, and its
+postpaid invoice preview and spending limit where enabled. These are team
+figures, not this session's spend; a postpaid cap does not cap prepaid usage.
+A partial usage query is labelled partial, never mistaken for a reached
+spending limit. With only the inference key, `/usage` says "add a management
+key from the console's settings page to read usage — /logins xai". A refused
+management key is named plainly, with the last successful read and its age
+left visible. No management key is not an error.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on

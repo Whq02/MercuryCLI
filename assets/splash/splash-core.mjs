@@ -117,6 +117,13 @@ const MODEL_NAMES = {
   "claude-fable-5": "Fable 5",
   "claude-fable-5-1": "Fable 5.1",
   "claude-mythos-5": "Mythos 5",
+  "grok-4.7": "Grok 4.7",
+  "grok-4.6": "Grok 4.6",
+  "grok-4.5": "Grok 4.5",
+  "grok-4.3": "Grok 4.3",
+  "grok-4.20-0309-reasoning": "Grok 4.20",
+  "grok-4.20-0309-non-reasoning": "Grok 4.20 (Non-Reasoning)",
+  "grok-build-0.1": "Grok Build 0.1",
   "muse-spark-1.3": "Muse Spark 1.3",
   "muse-spark-1.2": "Muse Spark 1.2",
   "muse-spark-1.1": "Muse Spark 1.1",
@@ -131,6 +138,7 @@ const MODEL_NAMES = {
   "mythos": "Mythos 5",
   "best": "Opus 5.5",
   "opusplan": "Opus in strategy mode, else Sonnet",
+  "grok": "Grok 4.7",
 }
 
 const mixc = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t))

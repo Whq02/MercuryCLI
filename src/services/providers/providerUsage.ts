@@ -71,6 +71,8 @@ import {
 } from './huggingface/huggingfaceUsageState.js'
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
 import { refreshLocalDiscovery } from './local/localDiscovery.js'
+import { resolveXaiManagementApiKey } from './xai/xaiAccounts.js'
+import { refreshXaiUsage, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT } from './xai/xaiUsageState.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
 
@@ -391,6 +393,8 @@ export interface ActiveUsageReads {
   localAccount?: () => LocalAccountRef | undefined
   laneCredentialed?: (provider: RouterProviderId) => boolean
   deepseekBalance?: () => DeepseekObservedBalanceView | null
+  xaiManagementKeyPresent?: () => boolean
+  xaiObserved?: typeof xaiObservedUsage
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
@@ -417,6 +421,9 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
     switch (provider) {
       case 'openrouter':
         await refreshOpenrouterKeyUsage(io)
+        return
+      case 'xai':
+        await refreshXaiUsage(io)
         return
       case 'deepseek': {
         const { refreshDeepseekBalance } =
@@ -539,6 +546,10 @@ export interface ZaiQuotaFailureView {
 }
 
 function laneCredentialedLive(provider: RouterProviderId): boolean {
+  if (provider === 'xai') {
+    const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    return resolveXaiApiKey() !== undefined
+  }
   if (provider === 'meta') {
     const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
     return resolveMetaApiKey() !== undefined
@@ -1222,6 +1233,34 @@ export function usageForProvider(
     }
   }
 
+  if (provider === 'xai') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    if (!credentialed) return { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
+    const management = reads?.xaiManagementKeyPresent?.() ?? resolveXaiManagementApiKey() !== undefined
+    if (!management) return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: { state: 'unreported', reason: 'not read — a management key unlocks the team balance', compact: 'needs management key' },
+      absence: XAI_MANAGEMENT_KEY_HINT,
+    }
+    const { usage, failure } = (reads?.xaiObserved ?? xaiObservedUsage)()
+    const stamp = { source: 'endpoint' as const, observedAtMs: usage?.observedAtMs, freshForMs: usageStaleAfterMs() }
+    const balance = usage ? { display: `USD ${usage.prepaidBalanceUsd.toFixed(2)} prepaid`, observedAtMs: usage.observedAtMs } : undefined
+    const figures: UsageFigureView[] = []
+    if (usage) {
+      const cycle = `${usage.cycle.year}-${String(usage.cycle.month).padStart(2, '0')}`
+      figures.push({ key: 'team-cycle', label: `team usage (${cycle}${usage.partial ? ', partial' : ''})`, value: `USD ${usage.usageUsd.toFixed(2)}`, ...stamp })
+      if (usage.postpaidInvoiceUsd !== undefined) figures.push({ key: 'postpaid-preview', label: 'postpaid invoice preview (with VAT)', value: `USD ${usage.postpaidInvoiceUsd.toFixed(2)}`, ...stamp })
+      if (usage.postpaidLimitUsd !== undefined) figures.push({ key: 'postpaid-limit', label: 'postpaid spending limit', value: `USD ${usage.postpaidLimitUsd.toFixed(2)}`, ...stamp })
+    }
+    const note = failure ? xaiUsageFailureWords(failure) : usage?.partial ? 'usage query returned only part of the results — this is not a spending-limit signal' : undefined
+    return {
+      provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], spend, tier: API_BILLING_TIER,
+      credits: balance ? polledBalanceCredits(balance) : { state: 'unreported', reason: failure ? 'not read — see the usage reader note' : 'not read yet — /usage samples the Management API', compact: 'not read' },
+      ...(balance ? { balance } : {}),
+      ...(figures.length ? { figures } : {}),
+      ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+    }
+  }
   if (provider === 'meta') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     const { META_USAGE_ABSENCE } = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')

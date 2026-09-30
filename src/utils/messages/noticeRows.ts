@@ -18,7 +18,7 @@ export type SaturnOrigin = {
 export type AdvisorOrigin = {
   kind: 'advisor'
   model: string
-  seats: number
+  minutes: number
   at: string
   ask?: true
 }
@@ -67,7 +67,7 @@ export function isSaturnOrigin(origin: unknown): origin is SaturnOrigin {
 export function isAdvisorOrigin(origin: unknown): origin is AdvisorOrigin {
   if (typeof origin !== 'object' || origin === null) return false
   const o = origin as Record<string, unknown>
-  return o.kind === 'advisor' && typeof o.model === 'string' && typeof o.seats === 'number' && typeof o.at === 'string'
+  return o.kind === 'advisor' && typeof o.model === 'string' && typeof o.minutes === 'number' && typeof o.at === 'string'
 }
 
 export type SaturnQueueStamp = { origin: SaturnOrigin; workload: Workload }
@@ -131,8 +131,12 @@ export function noticeCarriesOwnClock(block: NoticeBlock): boolean {
   return block.kind === 'saturn' || block.kind === 'advisor'
 }
 
+export function advisorMinutesWords(minutes: number): string {
+  return `every ${minutes} minute${minutes === 1 ? '' : 's'}`
+}
+
 export function advisorFirstLine(origin: AdvisorOrigin): string {
-  return `${origin.model} · every ${origin.seats} turn${origin.seats === 1 ? '' : 's'}`
+  return `${origin.model} · ${advisorMinutesWords(origin.minutes)}`
 }
 
 export function advisorPromptLines(text: string): string[] {

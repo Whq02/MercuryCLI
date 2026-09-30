@@ -10,6 +10,7 @@ export type ProviderId =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'xai'
   | 'meta'
   | 'openai-compat'
   | 'openrouter'
@@ -39,6 +40,7 @@ export interface ProviderUsabilityReads {
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   deepseekKeyPresent?: () => boolean
+  xaiKeyPresent?: () => boolean
   metaKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
@@ -133,6 +135,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       const { resolveDeepseekApiKey } =
         require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
       return resolveDeepseekApiKey() !== undefined
+    },
+    xaiKeyPresent: () => {
+      const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+      return resolveXaiApiKey() !== undefined
     },
     compatConfigured: () => {
       const { resolveCompatSlotConfig } =
@@ -292,6 +298,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     reads.deepseekKeyPresent?.() ?? false,
     'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
   )
+  const xai = keyLane('xai', reads.xaiKeyPresent?.() ?? false, 'no xAI API key — /logins xai (or XAI_API_KEY)')
   const compatAccount = reads.compatAccount?.()
   const compat = keyLane(
     'openai-compat',
@@ -376,6 +383,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     zai: applyLaneBilling(zai),
     moonshot: applyLaneBilling(moonshot),
     deepseek: applyLaneBilling(deepseek),
+    xai: applyLaneBilling(xai),
     meta: applyLaneBilling(meta),
     'openai-compat': applyLaneBilling(compat),
     openrouter: applyLaneBilling(applyObservedLimit(openrouter, reads.openrouterLimitWindow?.())),

@@ -61,6 +61,10 @@ export function buildHarnessModelFacts(
         require('../providers/moonshot/kimiPins.js') as typeof import('../providers/moonshot/kimiPins.js')
       return kimiDisplayPin(bare) !== undefined
     })()
+  } else if (providerFamily === 'xai') {
+    modelFamily = 'grok'
+    const { xaiModelFacts } = require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')
+    modelKnown = xaiModelFacts(bare) !== undefined
   } else if (providerFamily === 'meta') {
     modelFamily = 'muse'
     const { metaDisplayPin } = require('../providers/meta/metaPins.js') as typeof import('../providers/meta/metaPins.js')

@@ -267,6 +267,54 @@ section('8 · the /config row (pure): the value words per kind and the n/a outsi
   check('a vLLM model: not applicable, the note says the server fixes its window at start', !fixed.applies && fixed.valueText.includes('set at server start') && fixed.note.includes('fixes its window when it starts'), fixed.valueText)
 }
 
+section("9 · the small-machine warning on the two pick surfaces (red on the base): on an 8 GiB darwin box a pick that fits but leaves little room is said once, in the picker's bracket and the /config row's note, with the smaller rung; auto, server, a roomy pick and a refused pick read as before")
+{
+  const memory = await import('../../src/services/localServer/localServerMemory.ts')
+  const truthModule = await import('../../src/services/localServer/localServerTruth.ts')
+  const GIB = 1024 ** 3
+  const kvHeads = (blocks: number): number[] => Array.from({ length: blocks }, (_, i) => ((i + 1) % 4 === 0 ? 4 : 0))
+  const geometry = memory.kvGeometryOf({ 'general.architecture': 'qwen35', 'qwen35.attention.head_count': 16, 'qwen35.attention.head_count_kv': kvHeads(32), 'qwen35.attention.key_length': 256, 'qwen35.attention.value_length': 256, 'qwen35.block_count': 32, 'qwen35.context_length': 262144, 'qwen35.embedding_length': 4096, 'qwen35.full_attention_interval': 4 })!
+  const truthOn = (totalBytes: number, usableBytes?: number) => ({ server: { kind: 'ollama' as const, root: ollama.root, version: '0.34.4', label: 'Ollama 0.34.4' }, loaded: [], listed: [], runners: [], launchForm: { kind: 'unknown' as const, note: 'fixture' }, machine: usableBytes === undefined ? truthModule.defaultMachineTruth('darwin', totalBytes) : { platform: 'darwin' as const, totalMemoryBytes: totalBytes, usableMemoryBytes: usableBytes, usableSource: "the server's own gpu memory line in /fixture/ollama.log (Metal)" }, readAtMs: Date.now() })
+  const EIGHT = truthOn(8 * GIB)
+  const q = localRecordFor(`local/${OLLAMA_MODEL}`)!
+  const small = { ...q, id: 'qwen3.5:4b', modelMaxContext: 262144, weightsBytes: Math.round(3.8 * GIB), geometry, contextWindow: undefined, servedBytes: undefined, loaded: false }
+  const TIGHT = '64k leaves 0.2 GiB of 6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB'
+  check('the truth: an 8 GiB darwin box reads 6.0 GiB usable by the Metal fraction, and the record carries the 4B weights and geometry', memory.gibWords(EIGHT.machine.usableMemoryBytes) === '6.0 GiB' && small.weightsBytes === Math.round(3.8 * GIB) && small.geometry.kvHeads === 32, j(EIGHT.machine))
+  check(`the one source of the words: localWindowRoomWords on a 64k pick — ${TIGHT}; 32k, auto and server say nothing; a refused 128k says nothing here (the refusal speaks)`, w.localWindowRoomWords(small, 65536, EIGHT) === TIGHT && w.localWindowRoomWords(small, 32768, EIGHT) === undefined && w.localWindowRoomWords(small, undefined, EIGHT) === undefined && w.localWindowRoomWords(small, 'server', EIGHT) === undefined && w.localWindowRoomWords(small, 131072, EIGHT) === undefined && w.localWindowRefusalWords(small, 131072, EIGHT) === '7.8 GiB does not fit 6.0 GiB usable · 64k fits' && w.localWindowRoomWords(small, 65536, null) === undefined, j([w.localWindowRoomWords(small, 65536, EIGHT), w.localWindowRoomWords(small, 131072, EIGHT)]))
+  w.__resetLocalWindowsForTest()
+  const wide = w.localWindowChoiceLine(small, { wide: true, setting: 65536, truth: EIGHT })
+  check(`the picker's wide row on a 64k pick: window · not loaded · max 256k · auto → 64k fit · server · 32k · [64k — ${TIGHT}] · 128k · max · number · w cycles`, wide === `window · not loaded · max 256k · auto → 64k fit · server · 32k · [64k — ${TIGHT}] · 128k · max · number · w cycles`, wide)
+  const narrow = w.localWindowChoiceLine(small, { wide: false, setting: 65536, truth: EIGHT })
+  check('the narrow row (80 columns) carries the same bracket', narrow === `window · not loaded auto → 64k fit · server · 32k · [64k — ${TIGHT}] · 128k · max · w cycles`, narrow)
+  check('a 32k pick reads [32k] plain; auto reads [auto → 64k fit] with no warning though 64k is tight — the default is untouched; server reads [server]', w.localWindowChoiceLine(small, { wide: true, setting: 32768, truth: EIGHT }).includes(' · [32k] · ') && w.localWindowChoiceLine(small, { wide: true, setting: undefined, truth: EIGHT }).includes(' · [auto → 64k fit] · ') && w.localWindowChoiceLine(small, { wide: true, setting: 'server', truth: EIGHT }).includes(' · [server] · '), w.localWindowChoiceLine(small, { wide: true, setting: undefined, truth: EIGHT }))
+  const refused = w.localWindowChoiceLine(small, { wide: true, setting: 131072, truth: EIGHT })
+  check('a 128k pick keeps the refusal, never a warning beside it: [128k — 7.8 GiB does not fit 6.0 GiB usable · 64k fits]', refused.includes(' · [128k — 7.8 GiB does not fit 6.0 GiB usable · 64k fits] · ') && !refused.includes('leaves'), refused)
+  check('a typed 48k: [48k — 48k leaves 0.7 GiB of 6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB]', w.localWindowChoiceLine(small, { wide: true, setting: 49152, truth: EIGHT }).includes('[48k — 48k leaves 0.7 GiB of 6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB]'), w.localWindowChoiceLine(small, { wide: true, setting: 49152, truth: EIGHT }))
+  check('the same pick on a 16 GiB box with the same 6.0 GiB usable reads [64k] plain — the warning is for boxes under 16 GiB', w.localWindowChoiceLine(small, { wide: true, setting: 65536, truth: truthOn(16 * GIB, 6 * GIB) }).includes(' · [64k] · ') && w.localWindowChoiceLine(small, { wide: true, setting: 65536, truth: truthOn(16 * GIB - 1, 6 * GIB) }).includes('[64k — 64k leaves 0.2 GiB of 6.0 GiB usable (16.0 GiB box) · 32k leaves 1.2 GiB]'), w.localWindowChoiceLine(small, { wide: true, setting: 65536, truth: truthOn(16 * GIB, 6 * GIB) }))
+  const span = (line: string) => {
+    const s = w.localWindowRefusalSpan(line)
+    return s === undefined ? undefined : line.slice(s.start, s.end)
+  }
+  check('the span finder paints the whole bracket, a wrapped head to the line end and a wrapped tail to the closing bracket, for the warning as for the refusal', span(wide) === `[64k — ${TIGHT}]` && span('window · not loaded auto → 64k fit · server · 32k · [64k — 64k leaves 0.2 GiB of') === '[64k — 64k leaves 0.2 GiB of' && span('6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB] · max · w cycles') === '6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB]' && span('(8.0 GiB box) · no smaller rung leaves room] · 128k') === '(8.0 GiB box) · no smaller rung leaves room]' && span(refused) === '[128k — 7.8 GiB does not fit 6.0 GiB usable · 64k fits]' && span('window · not loaded · max 256k · auto → 64k fit · server · [32k] · 64k') === undefined, j([span(wide), span('6.0 GiB usable (8.0 GiB box) · 32k leaves 1.2 GiB] · max · w cycles')]))
+  check("the notice kind the picker paints by: warning ink for the room line, failure ink for the refusal, none for a plain row", w.localWindowNoticeKind(wide) === 'warning' && w.localWindowNoticeKind(narrow) === 'warning' && w.localWindowNoticeKind(refused) === 'refusal' && w.localWindowNoticeKind(w.localWindowChoiceLine(small, { wide: true, setting: 32768, truth: EIGHT })) === undefined, j([w.localWindowNoticeKind(wide), w.localWindowNoticeKind(refused)]))
+  truthModule.__pinLocalServerTruthForTest(EIGHT)
+  w.writeLocalWindowSetting(small, 65536)
+  const tight = localModelWindowRow(small as never, 'local')
+  check(`the /config row on a 64k pick: the value stays 64k · num_ctx on every request · qwen3.5:4b (not over the fit), tight marks the warning ink, and the note says: The setting fits this small box but leaves little room: ${TIGHT}.`, tight.applies && tight.setByYou && !tight.overFit && tight.tight && tight.valueText === '64k · num_ctx on every request · qwen3.5:4b' && tight.note.includes(`The setting fits this small box but leaves little room: ${TIGHT}.`) && !tight.note.includes('does not fit'), `${tight.valueText} || ${tight.note}`)
+  w.writeLocalWindowSetting(small, 32768)
+  const roomy = localModelWindowRow(small as never, 'local')
+  check('on a 32k pick the row is not tight and the note carries no room sentence', !roomy.tight && !roomy.overFit && roomy.valueText.startsWith('32k') && !roomy.note.includes('leaves little room'), roomy.note)
+  w.writeLocalWindowSetting(small, 131072)
+  const over = localModelWindowRow(small as never, 'local')
+  check('on a 128k pick the refusal stands alone: overFit, not tight, the value and the note carry the refusal', over.overFit && !over.tight && over.valueText.startsWith('128k — 7.8 GiB does not fit 6.0 GiB usable · 64k fits') && over.note.includes('The setting is saved but does not fit: 7.8 GiB does not fit 6.0 GiB usable · 64k fits.') && !over.note.includes('leaves little room'), over.valueText)
+  w.writeLocalWindowSetting(small, undefined)
+  const auto = localModelWindowRow(small as never, 'local')
+  check('under auto the row predicts 64k (the biggest rung that fits) and is neither tight nor over the fit', !auto.tight && !auto.overFit && auto.valueText.startsWith('auto → 64k (the biggest rung that fits)'), auto.valueText)
+  truthModule.__pinLocalServerTruthForTest(null)
+  truthModule.__resetLocalServerTruthForTest()
+  w.__resetLocalWindowsForTest()
+}
+
 ollama.server.close()
 lmstudio.server.close()
 console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

@@ -56,7 +56,7 @@ const FALLBACK = 'compat/my-model'
 const GPT = 'gpt-5.6-sol'
 
 console.log('============================================================')
-console.log(' compact gauge truth — one owner, the full usable window, the switch re-anchors')
+console.log(' compact gauge truth — one owner, 20k of headroom, the switch re-anchors')
 console.log('============================================================')
 
 section('G1 · one owner: used % + left % = the fold point, on one window')
@@ -74,22 +74,22 @@ section('G1 · one owner: used % + left % = the fold point, on one window')
   check('pctLeft is measured over the model window (the one scale), never over the ceiling', /\(\(ceiling - tokenUsage\) \/ window\) \* 100/.test(auto) && !/\(\(ceiling - tokenUsage\) \/ ceiling\)/.test(auto))
 }
 
-section('G2 · the default threshold is the full usable window')
+section('G2 · the default threshold leaves 20k below the usable edge')
 {
   for (const [model, expectPct] of [
-    [OPUS, 97.7],
-    [FALLBACK, 88.5],
+    [OPUS, 95.7],
+    [FALLBACK, 78.5],
   ] as const) {
     const window = resolveContextWindow(model).effectiveWindow
     const effective = compact.getEffectiveContextWindowSize(model)
     const threshold = compact.getAutoCompactThreshold(model)
     const blocking = compact.getBlockingLimit(model)
-    check(`${model}: threshold === the blocking limit === effective − 3,000 (${threshold.toLocaleString()} of ${window.toLocaleString()})`, threshold === blocking && threshold === effective - 3_000, JSON.stringify({ window, effective, threshold, blocking }))
+    check(`${model}: threshold is 20,000 below the blocking limit (${threshold.toLocaleString()} of ${window.toLocaleString()})`, threshold === blocking - 20_000 && threshold === effective - 23_000, JSON.stringify({ window, effective, threshold, blocking }))
     const view = contextFillView([user('hi'), asst('resp-B', model === FALLBACK ? 'compat/my-model' : OPUS, usageOf(10_000), 'x')] as never, model)
     check(`  compactAtPct reads ${expectPct} % of the window`, view.compactAtPct !== null && Math.abs(view.compactAtPct - expectPct) < 0.01, String(view.compactAtPct))
   }
   const auto = src('src/services/compact/autoCompact.ts')
-  check('no early buffer remains in the owner (the 13k constant is retired)', !/AUTOCOMPACT_BUFFER_TOKENS/.test(auto) && !/13_000/.test(auto))
+  check('the one owner names a 20k early buffer', compact.AUTOCOMPACT_BUFFER_TOKENS === 20_000 && auto.includes('full - AUTOCOMPACT_BUFFER_TOKENS'))
 }
 
 section('G3 · a set threshold is honoured')
@@ -129,10 +129,10 @@ section('G4 · the switch re-anchors the gauge')
 section('G5 · the contradiction is dead')
 {
   const ladder = compact.calculateTokenWarningState(44_000, FALLBACK)
-  check('22 % used on a 200k window: a positive room (67 % left to the 88.5 % fold point) and an ok level — never 0 %', ladder.level === 'ok' && ladder.pctLeft === 67, JSON.stringify(ladder))
+  check('22 % used on a 200k window: positive room (57 % left to the 78.5 % fold point), never 0 %', ladder.level === 'ok' && ladder.pctLeft !== undefined && ladder.pctLeft >= 56 && ladder.pctLeft <= 57, JSON.stringify(ladder))
   const view = contextFillView([user('hi'), asst('resp-F', 'compat/my-model', usageOf(44_000), 'x')] as never, FALLBACK)
-  check('  the view says the same: used 22 · left 66/67 · fold 88.5', view.usedPct === 22 && view.leftUntilCompactPct !== null && view.leftUntilCompactPct >= 66 && view.leftUntilCompactPct <= 67, JSON.stringify(view))
+  check('  the view says the same: used 22 · left 57 · fold 78.5', view.usedPct === 22 && view.leftUntilCompactPct !== null && view.leftUntilCompactPct >= 56 && view.leftUntilCompactPct <= 57, JSON.stringify(view))
 }
 
-console.log(failures === 0 ? '\n ✅ COMPACT GAUGE TRUTH — one owner, the full usable window, the switch re-anchors' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ COMPACT GAUGE TRUTH — one owner, 20k of headroom, the switch re-anchors' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

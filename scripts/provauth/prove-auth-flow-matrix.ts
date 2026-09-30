@@ -141,6 +141,11 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
     'expiry-at-rest':
       'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
   },
+  xai: {
+    refresh: 'a stored API key has no refresh protocol — honest absence',
+    'expiry-at-rest':
+      'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
+  },
   meta: {
     refresh: 'a stored API key has no refresh protocol — honest absence',
     'expiry-at-rest': 'a key states no expiry; validity is unknowable at rest (no probe by law) — the wire speaks at the send',
@@ -196,6 +201,7 @@ const RECONNECT_DOORS: Record<string, string> = {
   zai: '/logins zai',
   moonshot: '/logins moonshot',
   deepseek: '/logins deepseek',
+  xai: '/logins xai',
   meta: '/logins meta',
   openrouter: '/logins openrouter',
   gemini: '/logins gemini',
@@ -214,6 +220,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     zai: 'no Z.AI API key — /logins zai (or ZAI_API_KEY)',
     moonshot: 'no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)',
     deepseek: 'no DeepSeek API key — /logins deepseek (or DEEPSEEK_API_KEY)',
+    xai: 'no xAI API key — /logins xai (or XAI_API_KEY)',
     meta: 'no Meta API key — /logins meta (or MODEL_API_KEY)',
     'openai-compat': 'no endpoint configured — MERCURY_COMPAT_BASE_URL',
     openrouter: 'no OpenRouter credential — /logins (or OPENROUTER_API_KEY)',
@@ -238,6 +245,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     zai: 'not connected — /logins zai adds a key',
     moonshot: 'not connected — /logins moonshot adds Kimi or a key',
     deepseek: 'not connected — /logins deepseek adds a key',
+    xai: 'not connected — /logins xai adds a key',
     meta: 'not connected — /logins meta adds a key',
     'openai-compat': 'not configured — set MERCURY_COMPAT_BASE_URL',
     openrouter: 'not connected — /logins adds OpenRouter',
@@ -290,7 +298,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     'the /logins catalogue carries the nine sign-in families (anthropic as claudeai+console)',
     rows.join('|') ===
-      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'meta'].join('|'),
+      ['openai', 'claudeai', 'console', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'].join('|'),
     rows.join('|'),
   )
   check(
@@ -300,7 +308,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
   check(
     "the nine sign-in families parse a /logins focus (anthropic → 'claudeai')",
     loginFamilyFocusFor('anthropic') === 'claudeai' &&
-      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'meta'] as const).every(
+      (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
   )

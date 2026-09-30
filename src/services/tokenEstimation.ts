@@ -1,25 +1,72 @@
 import Anthropic from '@anthropic-ai/sdk'
 
 import type { Message } from '../types/message.js'
+import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeAttachmentForAPI } from '../utils/messages.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { getMainLoopModel, getSmallFastModel, normalizeModelStringForAPI } from '../utils/model/model.js'
 import { getModelBetas } from '../utils/betas.js'
+import { sideQuery } from '../utils/sideQuery.js'
+import { sleep } from '../utils/sleep.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelSupportsAdaptiveThinking } from '../utils/thinking.js'
 import { isToolReferenceBlock } from '../utils/toolSearch.js'
 import { getAnthropicClient } from './api/client.js'
-import { getAPIMetadata, getExtraBodyParams } from './providers/anthropic/index.js'
+import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow, retrySeconds } from './api/recoveryBudget.js'
+import { is529Error, isRetryableError } from './api/withRetry.js'
+import { busyRetryScale, nextBusyRetryWithinBudget, openBusyRetryLadder } from './providers/busyRetry.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
 import { withTokenCountVCR } from './vcr.js'
 
 
 const THINKING_BUDGET_TOKENS = 1024
 const PLACEHOLDER_MESSAGES = [{ role: 'user' as const, content: 'hi' }]
+export const COUNT_RETRY_BUDGET_MS = 15_000
+const COUNT_SOURCE = 'count_tokens'
 
 function firstPartyCountApplies(): boolean {
   return declaredRouteOf(getMainLoopModel()) === 'anthropic'
+}
+
+function refusalWords(error: unknown): string {
+  const record = error as { status?: unknown; message?: unknown } | null
+  const status = typeof record?.status === 'number' ? `HTTP ${record.status}` : 'no status'
+  const message = typeof record?.message === 'string' ? record.message.replace(/\s+/g, ' ').trim().slice(0, 200) : ''
+  return message === '' ? status : `${status}: ${message}`
+}
+
+function countRetryRefusal(error: unknown, askedMs: number | undefined): string | null {
+  if (is529Error(error)) return 'an overload is not retried by a count (nobody waits on it; retries multiply the load)'
+  if (isSpentUsageWindowAnswer(error)) return 'the usage window is spent'
+  if (providerWaitIsWindow(askedMs)) return `the provider asked for ${retrySeconds(askedMs ?? 0)} — its usage window, not a burst`
+  if (!isRetryableError(error)) return 'not a retryable refusal'
+  return null
+}
+
+export async function countWithBusyRetry<T>(road: string, run: () => Promise<T>): Promise<T> {
+  const ladder = openBusyRetryLadder(Date.now(), busyRetryScale(), COUNT_RETRY_BUDGET_MS)
+  for (;;) {
+    try {
+      return await run()
+    } catch (error) {
+      const asked = providerAskedWaitMs(error)
+      const askedWords = asked === undefined ? '' : ` (the provider asked for ${retrySeconds(asked)})`
+      const refusal = countRetryRefusal(error, asked)
+      if (refusal !== null) {
+        logForDebugging(`${road}: ${refusalWords(error)} — not retried: ${refusal}; the caller keeps its estimate`, { level: 'warn' })
+        throw error
+      }
+      const step = nextBusyRetryWithinBudget(ladder, asked, Date.now())
+      if (step === null) {
+        const retries = ladder.waitsMs.length
+        logForDebugging(`${road}: ${refusalWords(error)} — the count's ${retrySeconds(ladder.budgetMs)} retry budget is spent after ${retries} retr${retries === 1 ? 'y' : 'ies'}${askedWords}; the caller keeps its estimate`, { level: 'warn' })
+        throw error
+      }
+      logForDebugging(`${road}: ${refusalWords(error)} — waiting ${retrySeconds(step.waitMs)} before retry ${step.attempt} of ${step.of}${askedWords}`, { level: 'warn' })
+      await sleep(step.waitMs)
+    }
+  }
 }
 
 type CountableMessages = ReturnType<typeof normalizeMessagesForAPI>
@@ -67,20 +114,22 @@ export async function countMessagesTokensWithAPI(
       const body = apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages
       const thinking = hasThinkingBlocks(body)
       const betas = getModelBetas(model)
-      const client = await getAnthropicClient({ maxRetries: 1, source: 'count_tokens' })
-      const response = await client.beta.messages.countTokens({
-        model,
-        messages: body as never,
-        tools: tools as never,
-        ...(betas.length > 0 ? { betas } : {}),
-        ...(thinking
-          ? {
-              thinking: modelSupportsAdaptiveThinking(model)
-                ? { type: 'adaptive' }
-                : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
-            }
-          : {}),
-      })
+      const client = await getAnthropicClient({ maxRetries: 0, source: COUNT_SOURCE })
+      const response = await countWithBusyRetry(COUNT_SOURCE, () =>
+        client.beta.messages.countTokens({
+          model,
+          messages: body as never,
+          tools: tools as never,
+          ...(betas.length > 0 ? { betas } : {}),
+          ...(thinking
+            ? {
+                thinking: modelSupportsAdaptiveThinking(model)
+                  ? { type: 'adaptive' }
+                  : { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS },
+              }
+            : {}),
+        }),
+      )
       const count = (response as { input_tokens?: unknown }).input_tokens
       return typeof count === 'number' ? count : null
     } catch (err) {
@@ -142,18 +191,18 @@ export async function countTokensViaHaikuFallback(
   const body = stripToolSearchFields(apiMessages.length === 0 ? PLACEHOLDER_MESSAGES : apiMessages)
   const thinking = hasThinkingBlocks(body)
   const model = getSmallFastModel()
-  const betas = getModelBetas(model)
-  const client = await getAnthropicClient({ maxRetries: 1, source: 'count_tokens' })
-  const response = await client.beta.messages.create({
-    model,
-    messages: body as never,
-    max_tokens: thinking ? 2048 : 1,
-    metadata: getAPIMetadata(),
-    ...getExtraBodyParams(betas),
-    ...(Array.isArray(tools) && tools.length > 0 ? { tools: tools as never } : {}),
-    ...(betas.length > 0 ? { betas } : {}),
-    ...(thinking ? { thinking: { type: 'enabled', budget_tokens: THINKING_BUDGET_TOKENS } } : {}),
-  })
+  const response = await countWithBusyRetry(`${COUNT_SOURCE} (create probe)`, () =>
+    sideQuery({
+      model,
+      messages: body as never,
+      max_tokens: thinking ? 2048 : 1,
+      ...(Array.isArray(tools) && tools.length > 0 ? { tools } : {}),
+      ...(thinking ? { thinking: THINKING_BUDGET_TOKENS } : {}),
+      maxRetries: 0,
+      querySource: COUNT_SOURCE,
+      source: COUNT_SOURCE,
+    }),
+  )
   const usage = (response as unknown as { usage?: Record<string, number | undefined> }).usage
   if (!usage || typeof usage.input_tokens !== 'number') return null
   try {

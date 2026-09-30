@@ -135,7 +135,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
-import { advisorMainTurnSettled, advisorNoteQueueCommand, createAdvisorQuietMessage, type AdvisorQuiet } from '../services/advisor/index.js'
+import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -243,6 +243,7 @@ import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
   cacheSessionTitle,
   doesMessageExistInSession,
+  saveAdvisorSwitch,
   saveAgentSetting,
 } from '../utils/sessionStorage.js'
 import { restoreAgentFromSession, restoreConversationModelFromMessages, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
@@ -331,6 +332,7 @@ type HeadlessOptions = {
   rewindFiles?: string
   agent?: string
   workload?: string
+  advise?: boolean
   setupTrigger?: 'init' | 'maintenance'
   bootSessionIdPinned?: boolean
   subscribeAppState?: (listener: () => void) => () => void
@@ -729,6 +731,7 @@ export async function runHeadless(
       saveAgentSetting(restored.agentType)
     }
   }
+  if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
     return
@@ -829,6 +832,13 @@ export async function runHeadless(
     void recordTranscript([row], undefined, undefined, messages).catch((error: unknown) => {
       logForDebugging(`advisor: the quiet row was not recorded — ${error instanceof Error ? error.message : String(error)}`)
     })
+  }
+  const advisorRoad: AdvisorRoad = {
+    onQuiet: quiet => {
+      if (inputClosed) return
+      if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
+      else landAdvisorQuiet(quiet)
+    },
   }
   const landSpawnSwitch = (kind: 'subagents' | 'workflows', on: boolean): void => {
     const landed = setSpawnSwitch(kind, on)
@@ -1315,6 +1325,9 @@ export async function runHeadless(
           replayUserMessages: options.replayUserMessages,
           includePartialMessages: options.includePartialMessages,
           onLiveness: () => turnWatchdog.touch(),
+          onToolRoundSettled: rows => {
+            void advisorMainRound(String(getSessionId()), rows, advisorRoad)
+          },
           handleElicitation: (
             serverName: string,
             params: { message: string; mode?: 'form' | 'url'; url?: string; elicitationId?: string },
@@ -1740,17 +1753,7 @@ export async function runHeadless(
       generateSuggestionAfterTurn()
       logHeadlessProfilerTurn()
       headlessProfilerStartTurn()
-      void advisorMainTurnSettled(String(getSessionId()), command, messages, note => {
-        if (inputClosed) return
-        enqueue(advisorNoteQueueCommand(note, randomUUID()))
-        driver.kick()
-      }, {
-        onQuiet: quiet => {
-          if (inputClosed) return
-          if (inFlightAbort !== null) deferredAdvisorQuiet.push(quiet)
-          else landAdvisorQuiet(quiet)
-        },
-      })
+      void advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)
     },
     hasWaitableBackgroundTasks: () =>
       getRunningTasks(getAppState()).some(task => task.type !== 'in_process_crewmate' && !(inputClosed && isLocalShellTask(task))),
@@ -2304,6 +2307,7 @@ export async function runHeadless(
             })),
             work: projectWorkRoster(state.tasks),
             pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
+            advisor: advisorFacts(),
             notices: noticeRows(),
             mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,

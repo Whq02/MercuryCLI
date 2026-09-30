@@ -7,6 +7,7 @@ import { openaiCallModel } from './openai/openaiCallModel.js'
 import { zaiCallModel } from './zai/zaiCallModel.js'
 import { moonshotCallModel } from './moonshot/moonshotCallModel.js'
 import { deepseekCallModel } from './deepseek/deepseekCallModel.js'
+import { xaiCallModel } from './xai/xaiCallModel.js'
 import { metaCallModel } from './meta/metaCallModel.js'
 import { compatCallModel } from './openaicompat/compatCallModel.js'
 import { classifyModelRoute } from './routeLaw.js'
@@ -109,11 +110,14 @@ export const routedCallModel: typeof queryModelWithStreaming = async function* (
     case 'moonshot':
       yield* moonshotCallModel(request)
       return
-    case 'meta':
-      yield* metaCallModel(request)
-      return
     case 'deepseek':
       yield* deepseekCallModel(request)
+      return
+    case 'xai':
+      yield* xaiCallModel(request)
+      return
+    case 'meta':
+      yield* metaCallModel(request)
       return
     case 'openai-compat':
       yield* compatCallModel(request)

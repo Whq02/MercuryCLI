@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'meta' | 'gemini' | 'huggingface'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'huggingface'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -238,6 +238,16 @@ function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function xaiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./xai/xaiPins.js') as typeof import('./xai/xaiPins.js')).XAI_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('xai', name, typed, () => {
+    const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
+    const { getCachedXaiCatalogue } = require('./xai/xaiCatalogue.js') as typeof import('./xai/xaiCatalogue.js')
+    const account = resolveXaiAccount(env)
+    return { family: 'xai', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedXaiCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 function huggingfaceFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const typed = (): string[] =>
     (require('./huggingface/huggingfacePins.js') as typeof import('./huggingface/huggingfacePins.js')).HUGGINGFACE_DISPLAY_PINS.map(pin => pin.id)
@@ -292,6 +302,7 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     zaiFact(name('zai'), env),
     moonshotFact(name('moonshot'), env),
     deepseekFact(name('deepseek'), env),
+    xaiFact(name('xai'), env),
     metaFact(name('meta'), env),
     geminiFact(name('gemini'), env),
     huggingfaceFact(name('huggingface'), env),
