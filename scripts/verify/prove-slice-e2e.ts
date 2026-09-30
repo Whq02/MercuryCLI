@@ -92,6 +92,9 @@ mkSuite('omega', ['# gate-class: pure'], marker('omega'))
 mkdirSync(join(scratch, 'scripts', 'gate'), { recursive: true })
 cpSync(join(REPO, 'scripts/run-all-suites.sh'), join(scratch, 'scripts/run-all-suites.sh'))
 cpSync(join(REPO, 'scripts/gate/run-suite.sh'), join(scratch, 'scripts/gate/run-suite.sh'))
+cpSync(join(REPO, 'scripts/gate/timeline.py'), join(scratch, 'scripts/gate/timeline.py'))
+mkdirSync(join(scratch, 'scripts', 'lib'), { recursive: true })
+for (const file of ['suite-env.sh', 'firstRunSeed.ts', 'project-home.sh', 'process-ledger.sh', 'proofScratch.cjs', 'proofBrowser.cjs']) cpSync(join(REPO, 'scripts/lib', file), join(scratch, 'scripts/lib', file))
 writeFileSync(
   join(scratch, 'scripts/gate/duration-seed.tsv'),
   'alpha\t5\nbeta\t5\ngamma\t5\ntypecheck\t5\nomega\t300\n',
