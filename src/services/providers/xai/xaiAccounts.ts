@@ -3,7 +3,7 @@ import { readStoredXaiApiKey } from '../../../utils/router/providerSecrets.js'
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'
 
 export function xaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
-  return (env.MERCURY_XAI_API_BASE?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
+  return (env['MERCURY_XAI_API_BASE']?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
 }
 
 export function xaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
