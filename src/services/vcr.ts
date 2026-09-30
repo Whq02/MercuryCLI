@@ -288,10 +288,13 @@ function normalizeTokenCountInput(serialized: string): string {
 export async function withTokenCountVCR(
   messages: Message[],
   tools: unknown[],
+  system: readonly unknown[] | undefined,
   produce: () => Promise<number | null>,
 ): Promise<number | null> {
   if (!isTestEnvironment()) return produce()
-  const input = normalizeTokenCountInput(jsonStringify({ messages, tools }) ?? '')
+  const input = normalizeTokenCountInput(
+    jsonStringify({ messages, tools, ...(system !== undefined ? { system } : {}) }) ?? '',
+  )
   const wrapped = await withFixture<{ count: number | null }>('token-count', input, async () => ({
     count: await produce(),
   }))

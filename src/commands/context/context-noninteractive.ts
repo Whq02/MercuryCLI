@@ -83,6 +83,7 @@ export async function collectContextData(input: CollectContextDataInput): Promis
   })
   const syntheticCarrier = {
     options: {
+      isNonInteractiveSession: true,
       ...(options.customSystemPrompt !== undefined
         ? { customSystemPrompt: options.customSystemPrompt }
         : {}),

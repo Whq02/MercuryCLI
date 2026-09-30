@@ -11,9 +11,10 @@ import {
   type UserMessage,
 } from '../../../types/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../types/wire.js'
+import { getCLISyspromptPrefix } from '../../../constants/system.js'
 import { splitSysPromptPrefix } from '../../../utils/api.js'
 import { insertBlockAfterToolResults } from '../../../utils/contentArray.js'
-import { type SystemPrompt } from '../../../utils/systemPromptType.js'
+import { asSystemPrompt, type SystemPrompt } from '../../../utils/systemPromptType.js'
 import { pinCacheEdits } from '../../compact/microCompact.js'
 import { type NonNullableUsage } from '../../api/logging.js'
 import {
@@ -280,4 +281,26 @@ export function buildSystemPromptBlocks(
         }),
     }
   })
+}
+
+export type SystemPromptPosture = {
+  isNonInteractive: boolean
+  hasAppendSystemPrompt: boolean
+}
+
+export function assembleTurnSystemPrompt(
+  attribution: string,
+  systemPrompt: SystemPrompt,
+  posture: SystemPromptPosture,
+): SystemPrompt {
+  return asSystemPrompt([attribution, getCLISyspromptPrefix(posture), ...systemPrompt].filter(Boolean))
+}
+
+export function buildTurnSystemBlocks(
+  attribution: string,
+  systemPrompt: SystemPrompt,
+  posture: SystemPromptPosture,
+  enablePromptCaching: boolean,
+): TextBlockParam[] {
+  return buildSystemPromptBlocks(assembleTurnSystemPrompt(attribution, systemPrompt, posture), enablePromptCaching)
 }

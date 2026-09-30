@@ -1,0 +1,606 @@
+{
+  "model": "claude-sonnet-5-5",
+  "road": "the product's getAnthropicClient on the owner's signed-in Anthropic account, first-party host: one seed under the main stream's composition with the shared builder's system blocks, then the count endpoint without and with those blocks, with a tool the seed did not carry, with the thinking block removed, and through the product's own counter; then, in a second process four minutes later with no seed, the request prefix and the placeholder alone through the product counter",
+  "observed_at": "2026-09-30T20:48:56.815Z",
+  "prefix_observed_at": "2026-09-30T20:55:48.352Z",
+  "product_commit": "ebddc6ca54c44fb76229d71c7256893dc6a2414a",
+  "usage_window_before": {
+    "at": "2026-09-30T20:48:25.433Z",
+    "five_hour_utilization": 71,
+    "seven_day_utilization": 35,
+    "seven_day_sonnet": null
+  },
+  "redactions": [
+    "Request ids are req_***; the bearer token, the session id, the client request id, the account uuid, the organisation id, the workspace id and the client-contract fingerprint are named, not copied.",
+    "The signed thinking block rides every count leg verbatim (the seed's own text and signature, unmodified); here its text is clipped to its first 80 characters and its signature is sig_***, with both lengths kept.",
+    "The system blocks are described, not copied: the attribution line with its contract and fingerprint masked, the product's CLI system-prompt prefix named, the session prompt clipped to 60 characters, each with its character count and cache_control mark as sent."
+  ],
+  "drop_header": "anthropic-thinking-prefix-mismatch",
+  "figures": {
+    "K1": 937,
+    "K2": 1789,
+    "K3": 1411,
+    "K4": 1049,
+    "K5": 1789,
+    "thinking_size": 740,
+    "system_size": 112,
+    "K6": 122,
+    "K7": 10,
+    "messages_row": 1677,
+    "messages_row_before": 937,
+    "rise": 740
+  },
+  "legs": [
+    {
+      "leg": "S0",
+      "law": "the seed: the reasoning prompt under the main stream's composition — the shared builder's system blocks (attribution line, CLI prefix, a session prompt), adaptive thinking with the binding, effort high, metadata.user_id — answers with a signed thinking block",
+      "road": "getAnthropicClient beta.messages.create (the turn's system blocks from buildTurnSystemBlocks)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "system": [
+          {
+            "text": "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+            "chars": 69
+          },
+          {
+            "text": "the product's CLI system-prompt prefix",
+            "chars": 105,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "text": "You are a careful arithmetic assistant answering for a token…",
+            "chars": 144,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "metadata": {
+          "user_id": "{\"account_uuid\":\"<the signed-in account>\",\"session_id\":\"<a session id>\"}"
+        },
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "tools": "absent",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:35.829Z",
+        "status": 200,
+        "ms": 10107,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-ratelimit-unified-5h-reset": "1790811600",
+          "anthropic-ratelimit-unified-5h-status": "allowed",
+          "anthropic-ratelimit-unified-5h-utilization": "0.71",
+          "anthropic-ratelimit-unified-7d-reset": "1791360000",
+          "anthropic-ratelimit-unified-7d-status": "allowed",
+          "anthropic-ratelimit-unified-7d-utilization": "0.35",
+          "anthropic-ratelimit-unified-fallback": "available",
+          "anthropic-ratelimit-unified-fallback-percentage": "0.5",
+          "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled",
+          "anthropic-ratelimit-unified-overage-status": "rejected",
+          "anthropic-ratelimit-unified-representative-claim": "five_hour",
+          "anthropic-ratelimit-unified-reset": "1790811600",
+          "anthropic-ratelimit-unified-status": "allowed",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+          "traceresponse": "<a trace id>",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 199,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 1544,
+          "output_tokens_details": {
+            "thinking_tokens": 738
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "thinking_chars": 0,
+            "signature": "sig_***",
+            "signature_chars": 2428
+          },
+          {
+            "type": "text",
+            "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+          }
+        ],
+        "final_line": "n=644397 digits=33",
+        "expected_final_line": "n=644397 digits=33"
+      }
+    },
+    {
+      "leg": "K1",
+      "law": "before: the count as shipped — the history with the signed block, no system prompt, no tools",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "system": "absent",
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2428
+              },
+              {
+                "type": "text",
+                "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:40.014Z",
+        "status": 200,
+        "ms": 184,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-thinking-prefix-mismatch": "kind=system_changed; pattern=system_rerendered; block=messages.1.content.0; sections=system; removed=0; inserted=0; modified=0; messages_delta=0",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "server-timing": "x-originResponse;dur=76",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "input_tokens": 937,
+        "body": {
+          "input_tokens": 937
+        }
+      }
+    },
+    {
+      "leg": "K2",
+      "law": "after: the same count carrying the seed's exact system blocks (the shared builder's output), no tools",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "system": [
+          {
+            "text": "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+            "chars": 69
+          },
+          {
+            "text": "the product's CLI system-prompt prefix",
+            "chars": 105,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "text": "You are a careful arithmetic assistant answering for a token…",
+            "chars": 144,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2428
+              },
+              {
+                "type": "text",
+                "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:44.212Z",
+        "status": 200,
+        "ms": 197,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "server-timing": "x-originResponse;dur=94",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "input_tokens": 1789,
+        "body": {
+          "input_tokens": 1789
+        }
+      }
+    },
+    {
+      "leg": "K3",
+      "law": "the tools term: the seed's system blocks plus a tool the seed did not carry",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [
+          {
+            "name": "receipt_note",
+            "description": "Records a note for the token-count receipt.",
+            "input_schema": {
+              "type": "object",
+              "properties": {
+                "note": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "note"
+              ]
+            }
+          }
+        ],
+        "system": [
+          {
+            "text": "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+            "chars": 69
+          },
+          {
+            "text": "the product's CLI system-prompt prefix",
+            "chars": 105,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "text": "You are a careful arithmetic assistant answering for a token…",
+            "chars": 144,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2428
+              },
+              {
+                "type": "text",
+                "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:48.409Z",
+        "status": 200,
+        "ms": 195,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-thinking-prefix-mismatch": "kind=tools_changed; pattern=tool_set_changed; block=messages.1.content.0; sections=tools; changed_validated=tools; position=at; item=tools; removed=0; inserted=0; modified=0; messages_delta=0",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "server-timing": "x-originResponse;dur=95",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "input_tokens": 1411,
+        "body": {
+          "input_tokens": 1411
+        }
+      }
+    },
+    {
+      "leg": "K4",
+      "law": "the thinking's size: the seed's system blocks, no tools, the thinking block removed from the history",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "system": [
+          {
+            "text": "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+            "chars": 69
+          },
+          {
+            "text": "the product's CLI system-prompt prefix",
+            "chars": 105,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "text": "You are a careful arithmetic assistant answering for a token…",
+            "chars": 144,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:52.598Z",
+        "status": 200,
+        "ms": 189,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "server-timing": "x-originResponse;dur=81",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "input_tokens": 1049,
+        "body": {
+          "input_tokens": 1049
+        }
+      }
+    },
+    {
+      "leg": "K5",
+      "law": "the product road: countMessagesTokensWithAPI on the same history with the main-loop model set to the row, carrying the same system blocks",
+      "road": "countMessagesTokensWithAPI",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": "absent",
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "system": [
+          {
+            "text": "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+            "chars": 69
+          },
+          {
+            "text": "You are Mercury, a private source-built terminal coding harn…",
+            "chars": 105,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          },
+          {
+            "text": "You are a careful arithmetic assistant answering for a token…",
+            "chars": 144,
+            "cache_control": {
+              "type": "ephemeral"
+            }
+          }
+        ],
+        "system_byte_equal_to_seed": true,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2428
+              },
+              {
+                "type": "text",
+                "text": "I solved the congruences with the Chinese Remainder Theorem, combining two moduli at a time.\n\n**Step 1: combine mod 101 and mod 103.**\nWrite n = 17 + 101k. The second congruence needs 17 + 101k ≡ 29 (mod 103), so 101k ≡ 12 (mod 103). Since 101 ≡ -2 (mod 103), this is -2k ≡ 12, so k ≡ -6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403), where 10403 = 101·103.\nCheck: 103·95 = 9785 and 9814 - 9785 = 29, as required.\n\n**Step 2: bring in mod 107.**\nWrite n = 9814 + 10403m.\n- 9814 mod 107: 107·91 = 9737, so the remainder is 77.\n- 10403 mod 107: 107·97 = 10379, so the remainder is 24.\n\nWe need 77 + 24m ≡ 43 (mod 107), so 24m ≡ -34 ≡ 73 (mod 107).\nTo invert 24 mod 107, run the Euclidean algorithm: 107 = 4·24 + 11, 24 = 2·11 + 2, 11 = 5·2 + 1. Back-substituting gives 1 = 11·107 - 49·24, so 24⁻¹ ≡ -49 ≡ 58.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107), since 107·39 = 4173 and 4234 - 4173 = 61.\nCheck: 24·61 = 1464 = 107·13 + 73, as required.\n\n**Step 3: assemble n.**\nn = 9814 + 10403·61 = 9814 + 634583 = 644397.\nThe modulus is 101·103·107 = 1,113,121, and 644397 is below it, so this is the least non-negative solution.\n\n**Verification against all three congruences:**\n- 644397 - 101·6380 = 644397 - 644380 = 17 ✓\n- 644397 - 103·6256 = 644397 - 644368 = 29 ✓\n- 644397 - 107·6022 = 644397 - 644354 = 43 ✓\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33.\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ],
+        "wire_hits": [
+          {
+            "path": "/v1/messages/count_tokens",
+            "status": 200
+          }
+        ]
+      },
+      "response": {
+        "at": "2026-09-30T20:48:56.815Z",
+        "status": 200,
+        "ms": 216,
+        "headers": {
+          "anthropic-organization-id": "<the signed-in organisation>",
+          "anthropic-workspace-id": "<the workspace>",
+          "connection": "keep-alive",
+          "content-encoding": "br",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "server-timing": "x-originResponse;dur=92",
+          "transfer-encoding": "chunked",
+          "vary": "Accept-Encoding",
+          "x-robots-tag": "none"
+        },
+        "input_tokens": 1789,
+        "count": 1789
+      }
+    },
+    {
+      "leg": "K6",
+      "law": "the request prefix: the seed's system blocks, no tools, the counter's own placeholder message — what /context counts to take the prefix back out of the request count",
+      "road": "countMessagesTokensWithAPI([], [], system)",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ],
+        "tools": [],
+        "system": "the seed's three blocks (byte-equal rebuild)"
+      },
+      "response": {
+        "status": 200,
+        "input_tokens": 122,
+        "mismatch_header": null
+      }
+    },
+    {
+      "leg": "K7",
+      "law": "the placeholder alone: what the placeholder turn itself costs, added back",
+      "road": "countMessagesTokensWithAPI([], [])",
+      "request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "hi"
+          }
+        ],
+        "tools": [],
+        "system": "absent"
+      },
+      "response": {
+        "status": 200,
+        "input_tokens": 10,
+        "mismatch_header": null
+      }
+    }
+  ]
+}

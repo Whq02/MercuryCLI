@@ -58,10 +58,7 @@ import {
 import { foldToolChoiceForModel, servesPerMessageEffort } from 'src/utils/model/capabilities.js'
 import { API_MAX_MEDIA_PER_REQUEST } from '../../../constants/apiLimits.js'
 import { MID_CONVERSATION_OUTPUT_CONFIG_BETA_HEADER } from '../../../constants/betas.js'
-import {
-  getAttributionHeader,
-  getCLISyspromptPrefix,
-} from '../../../constants/system.js'
+import { getAttributionHeader } from '../../../constants/system.js'
 import {
   getEmptyToolPermissionContext,
   type QueryChainTracking,
@@ -185,10 +182,12 @@ import {
 import type { HeldBusyRetryWait } from '../busyRetry.js'
 import {
   addCacheBreakpoints,
+  assembleTurnSystemPrompt,
   buildSystemPromptBlocks,
   type CachedMCEditsBlock,
   type CachedMCPinnedEdits,
   cleanupStream,
+  type SystemPromptPosture,
   updateUsage,
 } from './cacheAndUsage.js'
 import { getPreviousRequestIdFromMessages, stripExcessMediaItems } from './media.js'
@@ -614,15 +613,13 @@ async function* queryModel(
     messagesForAPI = [announcement, ...messagesForAPI]
   }
 
-  const systemPromptBody = [
-    getCLISyspromptPrefix({
-      isNonInteractive: options.isNonInteractiveSession,
-      hasAppendSystemPrompt: options.hasAppendSystemPrompt,
-    }),
-    ...systemPrompt,
-  ]
+  const sessionSystemPrompt = systemPrompt
+  const posture: SystemPromptPosture = {
+    isNonInteractive: options.isNonInteractiveSession,
+    hasAppendSystemPrompt: options.hasAppendSystemPrompt,
+  }
   const assembleSystemPrompt = (attribution: string): SystemPrompt =>
-    asSystemPrompt([attribution, ...systemPromptBody].filter(Boolean))
+    assembleTurnSystemPrompt(attribution, sessionSystemPrompt, posture)
   let attributionLine = getAttributionHeader(fingerprint)
   systemPrompt = assembleSystemPrompt(attributionLine)
 
