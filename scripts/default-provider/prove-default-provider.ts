@@ -179,6 +179,8 @@ section('§6 — the command vocabulary')
     ['kimi', 'moonshot'],
     ['glm', 'zai'],
     ['deepseek', 'deepseek'],
+    ['meta', 'meta'],
+    ['muse', 'meta'],
     ['custom', 'openai-compat'],
     ['local', 'local'],
     ['acme', undefined],

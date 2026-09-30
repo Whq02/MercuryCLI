@@ -119,6 +119,7 @@ section('1 · the grammar surface — the class aliases and the exact-id shapes;
     check(`'${id}' is an exact engine id shape the grammar validates`, isExactEngineModelId(id) && unrecognisedModelWordRefusal(id) === null)
   }
   check('a deprecated id is still an engine shape (the dispatch refuses it, naming the deprecation)', DEPRECATED_GPT_IDS.every(id => isExactEngineModelId(id)))
+  check('Muse is a class alias and Muse Spark ids stay exact engine ids', ENGINE_DISPATCH_MODELS.includes('muse') && isExactEngineModelId('muse-spark-1.3') && unrecognisedModelWordRefusal('muse') === null && unrecognisedModelWordRefusal('muse-spark-1.3') === null)
   check('a word no family declares is refused by the grammar, naming it', (unrecognisedModelWordRefusal('plainword') ?? '').includes("'plainword'"))
 }
 

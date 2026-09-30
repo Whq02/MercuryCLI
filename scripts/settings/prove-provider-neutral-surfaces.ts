@@ -126,6 +126,7 @@ section('(3) /config — derived account rows + the read-only model pointer')
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'zai', available: true, credentialed: false },
     { id: 'deepseek', available: true, credentialed: false },
+    { id: 'meta', available: true, credentialed: false },
   ] as never)
   check('moonshot row: the /logins moonshot route (a sign-in exists)',
     keyLaneRows[0]?.valueText === 'not signed in — /logins moonshot connects (or MOONSHOT_API_KEY)', keyLaneRows[0]?.valueText ?? '')
@@ -133,6 +134,8 @@ section('(3) /config — derived account rows + the read-only model pointer')
     keyLaneRows[1]?.valueText === 'no key — /logins zai connects (or ZAI_API_KEY)', keyLaneRows[1]?.valueText ?? '')
   check('deepseek row: the /logins deepseek route, key-only wording',
     keyLaneRows[2]?.valueText === 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', keyLaneRows[2]?.valueText ?? '')
+  check('meta row: the /logins meta route and documented key spelling', keyLaneRows[3]?.valueText === 'no key — /logins meta connects (or MODEL_API_KEY)', keyLaneRows[3]?.valueText ?? '')
+  check('Meta model pointer uses its own family', mainLoopPointerText('muse-spark-1.3').startsWith('Meta · '))
 
   const anthropicPtr = mainLoopPointerText('claude-opus-5')
   check('model pointer: provider from the routing law (anthropic)', anthropicPtr.startsWith('Anthropic · ') && anthropicPtr.endsWith('— /model'), anthropicPtr)

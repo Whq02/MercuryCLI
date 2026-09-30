@@ -30,6 +30,7 @@ const PAGES = {
   moonshot: 'platform.kimi.ai',
   zai: 'z.ai/manage-apikey',
   deepseek: 'platform.deepseek.com',
+  meta: 'dev.meta.ai',
 } as const
 type Family = keyof typeof PAGES
 const FAMILIES = Object.keys(PAGES) as Family[]
@@ -49,9 +50,11 @@ const PANE: Record<Family, string> = {
   moonshot: 'src/components/KimiConnect.tsx',
   zai: 'src/components/ZaiConnect.tsx',
   deepseek: 'src/components/DeepseekConnect.tsx',
+  meta: 'src/components/MetaConnect.tsx',
 }
 const ROAD: Partial<Record<Family, string[]>> = {
   deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
+  meta: ['src/services/providers/meta/metaLogin.ts', 'src/services/providers/meta/metaCallModel.ts'],
   moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
   huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
   zai: ['src/services/providers/zai/zaiCallModel.ts'],
@@ -66,19 +69,20 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const cardKind = (family: Family): 'pick' | 'key' => (family === 'deepseek' ? 'key' : 'pick')
+const isKeyOnly = (family: Family): family is 'deepseek' | 'meta' => family === 'deepseek' || family === 'meta'
+const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
-  family === 'deepseek' ? screen.keyPromptPaneLines('deepseek', null, 0, false) : screen.loginsPickPaneLines(family)
+  isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
 const cardFlow = (family: Family) =>
-  family === 'deepseek'
-    ? { kind: 'key' as const, leg: 'deepseek' as const, note: null, draftLen: 0, storing: false }
+  isKeyOnly(family)
+    ? { kind: 'key' as const, leg: family, note: null, draftLen: 0, storing: false }
     : { kind: 'pick' as const, pick: family, pickSel: 0 }
 
 t.section('§1 — ONE OWNER: the family-row owner spells every key page once; the guide and the line derive from it')
 {
   const pages = owner['KEY_PAGES'] as Record<string, string> | undefined
   t.check(
-    'KEY_PAGES names exactly the seven key families with these page spellings',
+    'KEY_PAGES names exactly the eight key families with these page spellings',
     pages !== undefined && JSON.stringify(Object.entries(pages).sort()) === JSON.stringify(Object.entries(PAGES).sort()),
     pages === undefined ? 'no KEY_PAGES export' : JSON.stringify(pages),
   )
@@ -117,7 +121,7 @@ t.section("§2 — THE CARDS: each key family's card carries exactly one key lin
     t.check(`${family}: the card keeps its way out last and every line inside ${DETAIL_W} columns`, lines.at(-1) === WAY_OUT[cardKind(family)] && lines.every(l => l.length <= DETAIL_W))
     const wrapped = lines.filter(l => l !== '' && line.includes(l))
     t.check(`${family}: the wrapped key line never strands a lone word on a row`, wrapped.length > 0 && wrapped.every(l => l.includes(' ')), wrapped.join(' | '))
-    if (family !== 'deepseek') {
+    if (!isKeyOnly(family)) {
       const labels = screen.loginsPickOptions(family).map(o => o.label)
       t.check(`${family}: no choice row hides the page inside its label`, labels.every(l => !l.includes(PAGES[family])), labels.join(' | '))
     }

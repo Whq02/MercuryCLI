@@ -142,7 +142,7 @@ section('§0 signed out everywhere: no list, every off-grammar id is unrecognise
   }
   check('the grammar still answers a typed id with no list: kimi-k3 · deepseek-v4-pro · gpt-5.6-sol · gemini-3-pro', declaredRouteOf('kimi-k3') === 'moonshot' && declaredRouteOf('deepseek-v4-pro') === 'deepseek' && declaredRouteOf('gpt-5.6-sol') === 'openai' && declaredRouteOf('gemini-3-pro') === 'gemini')
   const order = (idSpaces as { LIVE_LIST_FAMILIES?: readonly string[] }).LIVE_LIST_FAMILIES
-  check('the seam walks the four bare-id families in the fixed order moonshot · deepseek · openai · gemini', order?.join(',') === 'moonshot,deepseek,openai,gemini', String(order?.join(',')))
+  check('the seam walks the five bare-id families in the fixed order moonshot · deepseek · meta · openai · gemini', order?.join(',') === 'moonshot,deepseek,meta,openai,gemini', String(order?.join(',')))
 }
 
 for (const family of Object.keys(OFF_GRAMMAR) as Family[]) {

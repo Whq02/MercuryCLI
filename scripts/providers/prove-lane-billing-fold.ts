@@ -100,9 +100,10 @@ section('§3 the feeders record AND clear (structural pins)')
     check(`${file.split('/').at(-1)}: clears on a settled turn (${lane})`, source.includes(`recordLaneTurnSettled(${lane})`))
   }
   const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
+  const billingFamilies = Object.keys(resolveProviderUsability()).filter(family => family !== 'anthropic' && family !== 'huggingface')
   check(
-    'the usability resolver reads the owner for every non-HF engine lane (8 applications)',
-    usability.includes("require('./laneBillingState.js')") && (usability.match(/applyLaneBilling\(/g) ?? []).length === 8,
+    `the usability resolver reads the owner for every non-HF engine lane (${billingFamilies.length} applications)`,
+    usability.includes("require('./laneBillingState.js')") && (usability.match(/applyLaneBilling\(/g) ?? []).length === billingFamilies.length,
     String((usability.match(/applyLaneBilling\(/g) ?? []).length),
   )
 }
