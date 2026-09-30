@@ -27,12 +27,34 @@ process_end_tree() {
   kill -9 "$p" 2>/dev/null
 }
 
+process_ledger_read() {
+  local line="" tab=$'\t' n=0
+  local -a fields=()
+  [ -f "$1" ] || return 1
+  IFS= read -r line <"$1" || [ -n "$line" ] || return 1
+  while [ "$n" -lt 4 ]; do
+    case "$line" in
+      (*"$tab"*) fields+=("${line%%"$tab"*}"); line=${line#*"$tab"} ;;
+      (*) fields+=("$line"); line="" ;;
+    esac
+    n=$((n + 1))
+  done
+  fields+=("$line")
+  pid=${fields[0]}
+  runner=${fields[1]}
+  started=${fields[2]}
+  cwd=${fields[3]}
+  command=${fields[4]}
+  case "$started" in ('?') started="" ;; esac
+  return 0
+}
+
 process_ledger_reap() {
   local dir=${1:-$(process_ledger_dir)} entry pid runner started cwd command now ended=0
   [ -d "$dir" ] || return 0
   for entry in "$dir"/*.entry; do
     [ -f "$entry" ] || continue
-    IFS=$'\t' read -r pid runner started cwd command <"$entry" || true
+    process_ledger_read "$entry" || { rm -f "$entry"; continue; }
     case "$pid" in ('' | *[!0-9]*) rm -f "$entry"; continue ;; esac
     if ! process_alive "$pid"; then rm -f "$entry"; continue; fi
     now=$(process_started_at "$pid")
