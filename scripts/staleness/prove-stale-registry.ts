@@ -103,6 +103,7 @@ src/context.ts :: getUserContext :: invalidator=applyHarnessGround
 src/daemon/concourseDispatch.ts :: ledgerMemo :: keyed-by-truth
 src/daemon/concourseWorktrees.ts :: worktreeDirtCache :: ttl-bounded
 src/daemon/controlSocket.ts :: controlKeyMemo :: invalidator=clearControlKeyMemo
+src/daemon/daemonBuild.ts :: selfScriptMemo :: static-for-process
 src/daemon/handshake.ts :: clientMemo :: static-for-process
 src/daemon/ownerWatch.ts :: startTokenCache :: ttl-bounded
 src/daemon/ownerWatch.ts :: win32PsExeCached :: static-for-process

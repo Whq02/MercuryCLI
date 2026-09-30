@@ -401,7 +401,7 @@ export function handoverInFlightFor(pid: number | null): boolean {
 export async function handoverDaemonVersion(
   v: DaemonHandshakeVerdict,
   heal: { state: HealState; live: number },
-  opts: { runtime?: () => import('./handover.js').DeployedRuntimeV1 | null; spawn?: (script: string, dir: string, env: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean) => number | undefined } = {},
+  opts: { runtime?: () => import('./handover.js').DeployedRuntimeV1 | null; spawn?: (script: string, dir: string, env: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean, node?: string | null) => number | undefined } = {},
 ): Promise<string | null> {
   const d = v.daemon
   if (d === null || d.pid === null) return null
@@ -426,11 +426,11 @@ export async function handoverDaemonVersion(
   }
   const spawn =
     opts.spawn ??
-    (async (script: string, projectDir: string, extraEnv: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean) => {
+    (async (script: string, projectDir: string, extraEnv: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean, node?: string | null) => {
       const { spawnOwnedDaemon } = await import('./ownedDaemon.js')
-      return spawnOwnedDaemon(projectDir, { label: 'daemon-handover', script, extraEnv, ownerPipe, persist })
+      return spawnOwnedDaemon(projectDir, { label: 'daemon-handover', script, extraEnv, ownerPipe, persist, ...(node ? { node } : {}) })
     })
-  const pid = await spawn(runtime.script, dir, env, ownsIt, !ownsIt)
+  const pid = await spawn(runtime.script, dir, env, ownsIt, !ownsIt, runtime.node)
   if (pid === undefined) return null
   logForDebugging(`[daemon] handover: ${decision.why} — successor pid ${pid} from ${runtime.script}`)
   return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} until they finish`

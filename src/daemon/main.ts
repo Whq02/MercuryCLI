@@ -130,7 +130,10 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
-import { forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
+import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
+import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync } from './planeRecords.js'
 import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
@@ -250,12 +253,16 @@ async function daemonRestartCmd(): Promise<void> {
 async function daemonRun(args: string[]): Promise<void> {
   const dir = resolveDir(args)
   const bootBuildTree = describeArtifactIdentity(currentVersion()).buildTree
+  const bootScript = selfScriptPath()
+  const buildHold = holdBuild()
   const foreground = process.stdout.isTTY === true || process.stderr.isTTY === true
 
   process.stderr.write(
     `${stampDaemonLogLine(`[mercury-daemon] engaged v${MERCURY_VERSION} pid ${process.pid} dir ${dir}`)}\n`,
   )
   if (!foreground) installStampedDaemonLog()
+  // eslint-disable-next-line no-console
+  console.error(`[daemon] build ${bootBuildTree ?? 'unstamped'} at ${bootScript || '?'} (${buildHold === 'held' ? 'the build folder is held open for the installer' : 'no manifest beside the bundle'})`)
 
   const scrubbed = scrubSupervisorRoleEnv()
   if (scrubbed.length > 0) {
@@ -334,48 +341,46 @@ async function daemonRun(args: string[]): Promise<void> {
   let releaseHeldReading: () => void = () => {}
 
   if (controlEnabled) {
-    const successorOf = flagEnv('MERCURY_DAEMON_SUCCESSOR_OF')
-    if (successorOf && (await planeServedByThisBuild(bootBuildTree))) {
-      // eslint-disable-next-line no-console
-      console.error(`[daemon] successor of pid ${successorOf}: the plane is already served by a daemon of this build — standing down`)
-      return
-    }
+    const successorOf = parseHandoverFrom(flagEnv('MERCURY_DAEMON_SUCCESSOR_OF'))
     const handoverFrom = parseHandoverFrom(flagEnv('MERCURY_DAEMON_HANDOVER_FROM'))
-    if (handoverFrom !== null) {
-      const record = await readSupervisorState().catch(() => null)
-      if (record === null || record.pid !== handoverFrom || !isProcessAlive(handoverFrom)) {
-        // eslint-disable-next-line no-console
-        console.error(`[daemon] handover from pid ${handoverFrom}: no live predecessor owns the plane — booting as an ordinary daemon`)
-      } else if (record.buildTree !== undefined && record.buildTree !== null && bootBuildTree !== null && record.buildTree.slice(0, 12) === bootBuildTree.slice(0, 12)) {
-        // eslint-disable-next-line no-console
-        console.error(`[daemon] handover from pid ${handoverFrom}: the predecessor already runs this build — nothing to move; standing down`)
-        return
-      } else {
-        handoverPredecessor = handoverFrom
-      }
+    const stamp = successorOf !== null ? `successor of pid ${successorOf}` : handoverFrom !== null ? `handover from pid ${handoverFrom}` : 'boot'
+    const stamps = { selfBuildTree: bootBuildTree, successorOf, handoverFrom }
+    const refuse = (why: string): void => {
+      // eslint-disable-next-line no-console
+      console.error(`[daemon] ${stamp}: ${why} (${daemonDir()}) — refusing to start so the live one is not clobbered`)
     }
-    supervisorLock = await acquireSupervisorLock()
-    const predecessorPid = successorOf
-    if (!supervisorLock && predecessorPid) {
+    let decision = decidePlaneBoot(await planeBootFacts(stamps))
+    if (decision.road === 'wait-lock') {
       const deadline = Date.now() + SUCCESSOR_LOCK_WAIT_MS
-      while (!supervisorLock && Date.now() < deadline) {
+      while (decision.road === 'wait-lock' && Date.now() < deadline) {
         await new Promise(res => setTimeout(res, 100))
-        supervisorLock = await acquireSupervisorLock()
+        decision = decidePlaneBoot(await planeBootFacts(stamps))
       }
-      if (supervisorLock) {
-        // eslint-disable-next-line no-console
-        console.error(`[daemon] successor of pid ${predecessorPid} took the plane over (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO})`)
+      if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the supervisor lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
+    }
+    if (decision.road === 'serve') {
+      supervisorLock = await acquireSupervisorLock()
+      if (!supervisorLock) {
+        decision = decidePlaneBoot(await planeBootFacts(stamps))
+        if (decision.road !== 'handover') return refuse('the supervisor lock was taken while this daemon booted')
       }
     }
-    if (!supervisorLock && handoverPredecessor !== null) {
+    if (decision.road === 'handover') {
+      handoverPredecessor = decision.from
+      supervisorLock = await acquireSupervisorLock()
       // eslint-disable-next-line no-console
-      console.error(`[daemon] handover from pid ${handoverPredecessor}: it holds the supervisor lock — taken when it leaves`)
-    } else if (!supervisorLock) {
+      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${supervisorLock ? '' : `; the supervisor lock is taken when its holder leaves`}`)
+    } else if (decision.road === 'serve') {
+      if (successorOf !== null) {
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] successor of pid ${successorOf} took the plane over (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO})`)
+      }
+    } else if (decision.road === 'stand-down') {
       // eslint-disable-next-line no-console
-      console.error(
-        `[daemon] another daemon already owns this config home (${daemonDir()}) — refusing to start so the live one is not clobbered`,
-      )
+      console.error(`[daemon] ${stamp}: ${decision.why} — standing down`)
       return
+    } else {
+      return refuse(decision.why)
     }
     process.once('exit', code => {
       if (!teardownComplete) supervisorExitTeardownSync('exit-before-teardown', code)
@@ -603,6 +608,17 @@ async function daemonRun(args: string[]): Promise<void> {
         console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners().size} live session(s) until they finish`)
       }
       const handoverRef = handover
+      const concourseAdmitHandler = makeConcourseAdmitHandler({
+        roster: () => roster ?? undefined,
+        ...warmAdmitDoors,
+        onSpawned: (runnerId, spec, pid) => {
+          // eslint-disable-next-line no-console
+          console.error(
+            `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
+          )
+          if (roster !== null) onSeatSpawned(runnerId, roster)
+        },
+      })
       controlServer = await startControlServer({
         ...(handoverRef !== null
           ? {
@@ -622,17 +638,7 @@ async function daemonRun(args: string[]): Promise<void> {
         whenReady: () => readyPromise,
         nudgeAgent: agentName => idleNudges.get(agentName)?.(),
         crewSpawn: crewSpawnHandler,
-        concourseAdmit: makeConcourseAdmitHandler({
-          roster: () => roster ?? undefined,
-          ...warmAdmitDoors,
-          onSpawned: (runnerId, spec, pid) => {
-            // eslint-disable-next-line no-console
-            console.error(
-              `[daemon] concourse worker admitted: ${runnerId} (pid ${pid}) — ${spec.model}@${spec.effort}, cwd ${spec.cwd}`,
-            )
-            if (roster !== null) onSeatSpawned(runnerId, roster)
-          },
-        }),
+        concourseAdmit: concourseAdmitHandler,
         concourseDispatch: concourseDispatchHandler,
         concourseWithdraw: clientMessageId => concourseDispatchHandler.withdraw(clientMessageId),
         concourseWarm: req => ensureWarmRunner(req, warmDeps),
@@ -1091,23 +1097,28 @@ async function daemonRun(args: string[]): Promise<void> {
             const keyMissing = !existsSync(controlKeyPath())
             let foreignOwner = false
             let stateMissing = false
-            try {
-              const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
-              if (typeof raw?.pid === 'number' && raw.pid !== process.pid) {
-                foreignOwner = isProcessAlive(raw.pid)
-                stateMissing = !foreignOwner
+            let takeBack = false
+            const foreign = readPlaneOwnerSync()
+            if (foreign === null) stateMissing = true
+            else if (foreign.pid !== process.pid) {
+              foreignOwner = foreign.alive
+              stateMissing = !foreignOwner
+              if (foreignOwner) {
+                const deployed = deployedRuntime()?.buildTree ?? null
+                takeBack = sameBuildTree(deployed, bootBuildTree) && !sameBuildTree(deployed, foreign.buildTree)
               }
-            } catch {
-              stateMissing = true
             }
-            if (foreignOwner) return
-            if (!sockMissing && !keyMissing && !stateMissing) return
+            if (foreignOwner && !takeBack) return
+            if (takeBack) {
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] pid ${foreign?.pid} of build ${foreign?.buildTree ?? 'unstamped'} took the plane from the deployed build ${bootBuildTree} — taking it back`)
+            } else if (!sockMissing && !keyMissing && !stateMissing) return
             logForDebugging(
-              `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing}) — re-asserting`,
+              `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing} takeBack:${takeBack}) — re-asserting`,
             )
             await reassertControlKey(controlKey)
             await persistSupervisorRecord(currentOwnerPid)
-            if (sockMissing && daemonHomeStands('the plane heal')) await controlServer?.rebind()
+            if ((sockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
           } finally {
@@ -1230,7 +1241,7 @@ async function daemonRun(args: string[]): Promise<void> {
               onSpawned: (runnerId, _spec, pid) => {
                 // eslint-disable-next-line no-console
                 console.error(`[daemon] schedule-born session admitted: ${runnerId} (pid ${pid})`)
-                if (roster !== null) onSeatSpawned(runnerId, roster)
+            if (roster !== null) onSeatSpawned(runnerId, roster)
               },
             }),
             contract: (sessionId, text, by) => applyConcourseContractOp(sessionId, { op: 'set', text }, by),
@@ -1313,6 +1324,12 @@ async function daemonRun(args: string[]): Promise<void> {
       stopArmedBeat?.()
       stopLockBeat?.()
       stopSaturnTicker?.()
+      const supersededBy = controlEnabled ? supersededByLivePlaneOwnerSync() : null
+      if (supersededBy !== null && restartAfterTeardown) {
+        restartAfterTeardown = false
+        // eslint-disable-next-line no-console
+        console.error(`[daemon] the plane is served by pid ${supersededBy.pid} (build ${supersededBy.buildTree ?? 'unstamped'}) — no successor is spawned; this daemon simply leaves`)
+      }
       if (controlEnabled) markSupervisorStoppingSync()
       logForDebugging(`[daemon] received ${signal}, shutting down`)
       // eslint-disable-next-line no-console
@@ -1477,13 +1494,26 @@ const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 
-async function planeServedByThisBuild(bootBuildTree: string | null): Promise<boolean> {
-  if (bootBuildTree === null) return false
+async function planeAnswer(bootBuildTree: string | null): Promise<{ pid: number; buildTree: string | null } | null> {
   const reply = await daemonControlRpc(
     { op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: bootBuildTree },
     { timeoutMs: 1500, protoRetry: false },
   )
-  return reply.ok && reply.op === 'hello' && reply.pid !== process.pid && reply.buildTree !== null && reply.buildTree.slice(0, 12) === bootBuildTree.slice(0, 12)
+  if (reply.ok && reply.op === 'hello' && typeof reply.pid === 'number') return { pid: reply.pid, buildTree: reply.buildTree }
+  return null
+}
+
+async function planeBootFacts(stamps: { selfBuildTree: string | null; successorOf: number | null; handoverFrom: number | null }): Promise<PlaneBootFactsV1> {
+  const owner = readPlaneOwnerSync()
+  return {
+    selfPid: process.pid,
+    selfBuildTree: stamps.selfBuildTree,
+    successorOf: stamps.successorOf,
+    handoverFrom: stamps.handoverFrom,
+    lockHolder: lockHeldByLivePidSync(),
+    record: owner !== null && owner.alive ? { pid: owner.pid, buildTree: owner.buildTree } : null,
+    plane: await planeAnswer(stamps.selfBuildTree),
+  }
 }
 const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
@@ -1505,7 +1535,9 @@ function spawnSuccessorDaemon(): number | undefined {
         console.error(`[daemon] successor scrub — a stored sign-in exists; the successor re-resolves it (dropped: ${stripped.join(', ')})`)
       }
     }
-    const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], {
+    const script = process.argv[1]
+    const node = nodeForBuild(script ? dirname(resolveScriptPath(script)) : '')
+    const child = spawn(node, [...process.execArgv, ...process.argv.slice(1)], {
       cwd: process.cwd(),
       env,
       detached: true,
@@ -1515,7 +1547,7 @@ function spawnSuccessorDaemon(): number | undefined {
     child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
     child.unref()
     // eslint-disable-next-line no-console
-    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${process.argv[1] ?? '?'} as deployed`)
+    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script ?? '?'} as deployed on ${node}`)
     return child.pid
   } catch (e) {
     // eslint-disable-next-line no-console

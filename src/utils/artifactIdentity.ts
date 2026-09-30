@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
 export interface ArtifactIdentity {
@@ -10,8 +10,17 @@ export interface ArtifactIdentity {
   entry: string | null
 }
 
+export function realEntryPath(entry: string | null): string | null {
+  if (entry === null || entry === '') return entry
+  try {
+    return realpathSync(entry)
+  } catch {
+    return entry
+  }
+}
+
 export function describeArtifactIdentity(version: string): ArtifactIdentity {
-  const entry = process.argv[1] ?? null
+  const entry = realEntryPath(process.argv[1] ?? null)
   const base: ArtifactIdentity = {
     version,
     distribution: 'source-run',
