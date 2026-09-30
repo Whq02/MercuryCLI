@@ -40,6 +40,7 @@ mkdirSync(HOME, { recursive: true })
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }, null, 2))
 
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
 const { shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSandbox.ts')
 
@@ -49,6 +50,7 @@ const OUTSIDE = realpathSync(mkdtempSync('/tmp/shell-engine-sandbox-outside-'))
 mkdirSync(PROJECT)
 process.chdir(PROJECT)
 setCwd(PROJECT)
+setOriginalCwd(PROJECT)
 
 section('§0 the platform and the decision owner')
 const platformOk = process.platform === 'darwin' || process.platform === 'linux'
