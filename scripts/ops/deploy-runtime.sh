@@ -15,7 +15,7 @@ dist="$repo/dist"
 dirty="$(git -C "$repo" status --porcelain)"
 head_sha="$(git -C "$repo" rev-parse HEAD)"
 head_tree="$(git -C "$repo" rev-parse 'HEAD^{tree}')"
-build_tree="$(python3 -c "import json;print(json.load(open('$dist/manifest.json'))['buildTree'])")"
+build_tree="$(python3 -c "import json;print(json.load(open('$dist/manifest.json')).get('buildTree') or '')")"
 manifest_bundle_sha="$(python3 -c "import json;print(json.load(open('$dist/manifest.json')).get('bundleSha256',''))")"
 
 if [ -z "$manifest_bundle_sha" ]; then
@@ -49,12 +49,45 @@ else
   echo "deploy-runtime: --allow-dirty — publishing an UNVERIFIED tree (recorded in the runtime manifest)" >&2
 fi
 
-mkdir -p "$runtime"
-tmp="$runtime/dist.tmp.$$"
-rm -rf "$tmp"
-cp -R "$dist" "$tmp"
+runtime_folder_in_use() {
+  local dir="$1" real f pid
+  real="$(cd "$dir" 2>/dev/null && pwd -P)" || return 1
+  if ps -axo command= 2>/dev/null | grep -F -- "$real/" | grep -qv 'grep -F'; then return 0; fi
+  if command -v lsof >/dev/null 2>&1; then
+    local files=()
+    for f in "$real/manifest.json" "$real/mercury.mjs" "$real/vendor/node/bin/node" "$real/vendor/node/node.exe"; do
+      [ -f "$f" ] && files+=("$f")
+    done
+    if [ "${#files[@]}" -gt 0 ] && lsof -t -- "${files[@]}" 2>/dev/null | grep -q .; then return 0; fi
+  elif [ -d /proc ]; then
+    for pid in /proc/[0-9]*; do
+      case "$(readlink "$pid/exe" 2>/dev/null || true)" in "$real/"*) return 0 ;; esac
+      for f in "$pid"/fd/*; do
+        case "$(readlink "$f" 2>/dev/null || true)" in "$real/"*) return 0 ;; esac
+      done
+    done
+  fi
+  return 1
+}
 
-cat > "$tmp/runtime-manifest.json" <<EOF
+switch_pointer() {
+  local link="$1" target="$2" tmp
+  tmp="$link.new.$$"
+  rm -f "$tmp"
+  ln -s "$target" "$tmp"
+  python3 -c 'import os,sys; os.rename(sys.argv[1], sys.argv[2])' "$tmp" "$link"
+}
+
+builds="$runtime/builds"
+mkdir -p "$builds"
+name="${build_tree:-nogit}"
+name="${name:0:12}-${actual_bundle_sha:0:8}"
+target="$builds/$name"
+staging="$builds/.staging-$name.$$"
+rm -rf "$staging"
+cp -R "$dist" "$staging"
+
+cat > "$staging/runtime-manifest.json" <<EOF
 {
   "schema": 1,
   "sourceSha": "$head_sha",
@@ -65,11 +98,52 @@ cat > "$tmp/runtime-manifest.json" <<EOF
 }
 EOF
 
-rm -rf "$runtime/dist.prev"
-[ -d "$runtime/dist" ] && mv "$runtime/dist" "$runtime/dist.prev"
-mv "$tmp" "$runtime/dist"
+if [ -e "$target" ]; then
+  if runtime_folder_in_use "$target"; then
+    n=2
+    while [ -e "$target-$n" ] && runtime_folder_in_use "$target-$n"; do n=$((n + 1)); done
+    target="$target-$n"
+    rm -rf "$target"
+  else
+    rm -rf "$target"
+  fi
+fi
+mv "$staging" "$target"
+name="$(basename "$target")"
 
-echo "deployed runtime → $runtime/dist (source $(git -C "$repo" rev-parse --short HEAD))"
-[ -d "$runtime/dist.prev" ] && echo "previous kept   → $runtime/dist.prev (manual rollback only)"
+switch_pointer "$runtime/current" "builds/$name"
 
+if [ -d "$runtime/dist" ] && [ ! -L "$runtime/dist" ]; then
+  if runtime_folder_in_use "$runtime/dist"; then
+    echo "runtime/dist is a folder a running daemon lives in — left in place untouched; runtime/current names the new build until that daemon is gone"
+  else
+    rm -rf "$runtime/dist"
+    switch_pointer "$runtime/dist" "builds/$name"
+  fi
+else
+  switch_pointer "$runtime/dist" "builds/$name"
+fi
+
+if [ -d "$runtime/dist.prev" ] && [ ! -L "$runtime/dist.prev" ]; then
+  if runtime_folder_in_use "$runtime/dist.prev"; then
+    echo "runtime/dist.prev still has a process running from it — left until a later deploy finds it free"
+  else
+    rm -rf "$runtime/dist.prev"
+  fi
+fi
+for b in "$builds"/*/; do
+  b="${b%/}"
+  [ -d "$b" ] || continue
+  [ "$(basename "$b")" = "$name" ] && continue
+  case "$(basename "$b")" in .staging-*) rm -rf "$b"; continue ;; esac
+  if runtime_folder_in_use "$b"; then
+    echo "kept            → $b (a daemon or session still runs from it)"
+  else
+    rm -rf "$b"
+  fi
+done
+
+echo "deployed runtime → $runtime/current → builds/$name (source $(git -C "$repo" rev-parse --short HEAD))"
+
+bash "$repo/scripts/ops/deploy-launcher.sh"
 bash "$repo/scripts/splash/deploy.sh"

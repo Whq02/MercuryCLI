@@ -8,6 +8,7 @@
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
+# gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -94,6 +95,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-owner-handover.ts" || { __rc=$?; f
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-handover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-handover.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-one-daemon-per-build.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-one-daemon-per-build.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sessionless-daemon-exits.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sessionless-daemon-exits.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-install-fresh-folder.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-install-fresh-folder.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-log-stamps.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-log-stamps.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-restart-waits-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-restart-waits-live.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-stop-inside-hosted-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stop-inside-hosted-session.ts" "$__t" "$__rc"

@@ -10,6 +10,7 @@ MERCURY_HOME="$(mercury_resolve_home)"
 MCP="$MERCURY_HOME/mcp.json"
 
 MERCURY_RUNTIME_DIR="$MERCURY_HOME/runtime/dist"
+[ -f "$MERCURY_HOME/runtime/current/mercury.mjs" ] && MERCURY_RUNTIME_DIR="$MERCURY_HOME/runtime/current"
 MERCURY_DIST_OVERRIDE="${MERCURY_DIST:-}"
 MERCURY_DIST="${MERCURY_DIST_OVERRIDE:-$MERCURY_RUNTIME_DIR/mercury.mjs}"
 
