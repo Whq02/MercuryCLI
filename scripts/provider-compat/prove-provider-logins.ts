@@ -43,7 +43,7 @@ const USAGES_BODY = {
     { window: { duration: 300, timeUnit: 'TIME_UNIT_MINUTE' }, detail: { used: '1', limit: '100', resetTime: '2026-08-23T12:00:00Z' } },
     { window: { duration: 7, timeUnit: 'TIME_UNIT_DAY' }, detail: { used: '40', limit: '1000', resetTime: '2026-08-30T00:00:00Z', name: 'weekly' } },
   ],
-  boosterWallet: { balance: '0', monthlyChargeLimit: '0', monthlyUsed: '0', monthlyChargeLimitEnabled: false },
+  boosterWallet: { balance: { type: 'BOOSTER', amount: '2000000000', amountLeft: '1234000000' }, monthlyChargeLimit: { priceInCents: '5000', currency: 'USD' }, monthlyUsed: { priceInCents: '766', currency: 'USD' }, monthlyChargeLimitEnabled: false },
 }
 
 type Hit = { path: string; bearer: string | undefined; body: string }
@@ -237,7 +237,7 @@ section('§0 · the card and the vocabulary')
   check('the owner carries the Kimi row as a device-code sign-in OR API key', rows.some(r => r.label === 'Kimi (Moonshot) — device-code sign-in or API key' && r.value === 'moonshot'))
   check('the owner carries the GLM row as API key only (honest asymmetry)', rows.some(r => r.label === 'GLM (Z.AI) — API key (general or GLM Coding Plan)' && r.value === 'zai'))
   check('the owner carries the DeepSeek row as API key only', rows.some(r => r.label === 'DeepSeek — API key' && r.value === 'deepseek'))
-  check('nine family rows on one screen: the card derives rows AND count from the owner list', rows.length === 9 && card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') && card.includes('visibleOptionCount={idleRows.length}'))
+  check('ten family rows on one screen: the card derives rows AND count from the owner list', rows.length === 10 && rows.some(row => row.value === 'xai') && card.includes('loginFamilyRows({ engineLegs: onOpenaiDone !== undefined })') && card.includes('visibleOptionCount={idleRows.length}'))
   check('/logins <family> knows the vendors\' names', parseFamilyFocus('kimi') === 'moonshot' && parseFamilyFocus('moonshot') === 'moonshot' && parseFamilyFocus('glm') === 'zai' && parseFamilyFocus('z.ai') === 'zai' && parseFamilyFocus('zai') === 'zai' && parseFamilyFocus('deepseek') === 'deepseek')
   const command = readFileSync(join(import.meta.dir, '../../src/commands/login/index.ts'), 'utf8')
   check('the command names the three families and the words', command.includes('Kimi · GLM · DeepSeek') && command.includes('kimi|glm|deepseek'))
@@ -300,6 +300,7 @@ section('§1 · the Kimi device-code sign-in, end to end')
   check('the main-loop identity on a Kimi model names the sign-in', identity.route === 'moonshot' && identity.text.includes('Kimi account (device-code sign-in') && identity.basis === 'credential-present', identity.text)
   const usage = activeSourceUsage({ model: 'kimi-k3', reads: {} })
   check('the usage owner meters the plan windows on the oauth source', usage.shape === 'subscription-windows' && usage.sourceKind === 'oauth' && usage.tier === 'Kimi sign-in' && usage.windows.map(w => w.label).join(',') === '5h,7d,quota' && usage.windows[0]?.usedPct === 1, JSON.stringify(usage))
+  check('the same device sign-in usage read includes its Extra Usage balance and stamp', usage.credits?.state === 'reported' && usage.credits.display === 'USD 12.34 Extra Usage balance' && usage.credits.observedAtMs === usage.windows[0]?.observedAtMs, JSON.stringify(usage.credits))
   const usability = resolveProviderUsability().moonshot
   check('usability reads the sign-in as a usable oauth credential', usability.usable && usability.credential === 'oauth', JSON.stringify(usability))
   check('no secret rides any derived surface', !allText().includes(KIMI_ACCESS_1) && !allText().includes(KIMI_REFRESH))

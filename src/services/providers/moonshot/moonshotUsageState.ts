@@ -142,8 +142,9 @@ export function refreshMoonshotBalance(io?: MoonshotUsageIo): Promise<MoonshotOb
 export interface KimiUsageWindow {
   name?: string
   windowMinutes?: number
-  used: number
-  limit: number
+  used?: number
+  limit?: number
+  usedRatio?: number
   resetsAtMs?: number
 }
 
@@ -151,9 +152,11 @@ export interface KimiManagedUsage {
   observedAtMs: number
   quota?: KimiUsageWindow
   windows: KimiUsageWindow[]
+  extraUsage?: { balance: string; currency: string }
 }
 
 let observedManaged: KimiManagedUsage | null = null
+let lastManagedError: string | undefined
 let observedManagedIdentity = 'none'
 
 function activeSignInIdentity(): string {
@@ -164,6 +167,7 @@ function activeSignInIdentity(): string {
 function dropStaleManaged(): void {
   if (observedManagedIdentity !== activeSignInIdentity()) {
     observedManaged = null
+    lastManagedError = undefined
     observedManagedIdentity = 'none'
   }
 }
@@ -171,6 +175,11 @@ function dropStaleManaged(): void {
 export function kimiObservedManagedUsage(): KimiManagedUsage | null {
   dropStaleManaged()
   return observedManaged
+}
+
+export function kimiManagedUsageError(): string | undefined {
+  dropStaleManaged()
+  return lastManagedError
 }
 
 const TIME_UNIT_MINUTES: Record<string, number> = {
@@ -216,27 +225,62 @@ function decodeWindowDetail(raw: unknown, windowMinutes?: number): KimiUsageWind
   }
 }
 
+function record(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined
+}
+
+function wireNumber(value: unknown): number | undefined {
+  const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() !== '' ? Number(value) : NaN
+  return Number.isFinite(number) ? number : undefined
+}
+
+function decodeExtraUsage(raw: unknown): KimiManagedUsage['extraUsage'] {
+  const wallet = record(raw)
+  const balance = record(wallet?.balance)
+  if (balance?.type !== 'BOOSTER') return undefined
+  const amountLeft = wireNumber(balance.amountLeft)
+  if (amountLeft === undefined || !Number.isSafeInteger(amountLeft)) return undefined
+  const currency = [record(wallet?.monthlyChargeLimit)?.currency, record(wallet?.monthlyUsed)?.currency]
+    .find((value): value is string => typeof value === 'string' && /^[A-Z]{3}$/.test(value))
+  if (currency === undefined) return undefined
+  const cents = amountLeft > 0 && amountLeft < 1_000_000 ? 1 : Math.round(amountLeft / 1_000_000)
+  return { balance: (cents / 100).toFixed(2), currency }
+}
+
 export function decodeKimiManagedUsage(body: unknown, nowMs: number): KimiManagedUsage | undefined {
-  if (typeof body !== 'object' || body === null) return undefined
-  const o = body as Record<string, unknown>
+  const o = record(body)
+  if (o === undefined) return undefined
   const quota = decodeWindowDetail(o.usage)
   const windows: KimiUsageWindow[] = []
+  const usages = record(o.usages)
+  for (const [key, name, windowMinutes] of [
+    ['limit_5h', '5h', 300],
+    ['limit_7d', '7d', 10080],
+    ['limit_month_total', 'month', undefined],
+    ['limit_month_code', 'month code', undefined],
+  ] as const) {
+    const entry = record(usages?.[key])
+    const usedRatio = wireNumber(entry?.used_ratio)
+    if (usedRatio === undefined || usedRatio < 0) continue
+    const resetsAtMs = wireInstant(entry?.reset_time)
+    windows.push({ name, usedRatio, ...(windowMinutes !== undefined ? { windowMinutes } : {}), ...(resetsAtMs !== undefined ? { resetsAtMs } : {}) })
+  }
   if (Array.isArray(o.limits)) {
     for (const entry of o.limits) {
       if (typeof entry !== 'object' || entry === null) continue
       const e = entry as Record<string, unknown>
-      const window =
-        typeof e.window === 'object' && e.window !== null ? (e.window as Record<string, unknown>) : undefined
+      const window = record(e.window)
       const duration = wireInt(window?.duration)
       const unit = typeof window?.timeUnit === 'string' ? TIME_UNIT_MINUTES[window.timeUnit] : undefined
       const windowMinutes =
         duration !== undefined && unit !== undefined && duration > 0 ? duration * unit : undefined
       const detail = decodeWindowDetail(e.detail, windowMinutes)
-      if (detail) windows.push(detail)
+      if (detail && !windows.some(w => w.usedRatio !== undefined && w.windowMinutes === detail.windowMinutes)) windows.push(detail)
     }
   }
-  if (quota === undefined && windows.length === 0) return undefined
-  return { observedAtMs: nowMs, ...(quota ? { quota } : {}), windows }
+  const extraUsage = decodeExtraUsage(o.boosterWallet)
+  if (quota === undefined && windows.length === 0 && extraUsage === undefined && o.boosterWallet !== null && usages === undefined) return undefined
+  return { observedAtMs: nowMs, ...(quota ? { quota } : {}), windows, ...(extraUsage ? { extraUsage } : {}) }
 }
 
 export type KimiUsageProbe =
@@ -251,6 +295,14 @@ export async function fetchKimiManagedUsage(
 ): Promise<KimiUsageProbe> {
   const env = io?.env ?? process.env
   const { fetchImpl, proxyOptions } = usageFetch(io)
+  dropStaleManaged()
+  const identity = activeSignInIdentity()
+  const fail = (message: string): void => {
+    if (activeSignInIdentity() !== identity) return
+    observedManagedIdentity = identity
+    lastManagedError = message
+    noteUsageRecordChanged()
+  }
   try {
     const response = await fetchWithProviderDeadline(fetchImpl, 'moonshot', PROBE_TIMEOUT_MS, kimiUsagesUrl(region, env), {
       method: 'GET',
@@ -261,15 +313,26 @@ export async function fetchKimiManagedUsage(
       },
       ...proxyOptions,
     } as RequestInit)
-    if (!response.ok) return { state: 'refused', status: response.status }
+    if (!response.ok) {
+      fail(`Kimi /usages returned HTTP ${response.status}`)
+      return { state: 'refused', status: response.status }
+    }
     const decoded = decodeKimiManagedUsage(await response.json(), io?.now?.() ?? Date.now())
-    if (!decoded) return { state: 'refused', status: response.status }
-    observedManaged = decoded
-    observedManagedIdentity = activeSignInIdentity()
-    noteUsageRecordChanged()
+    if (!decoded) {
+      fail('Kimi /usages payload undecodable')
+      return { state: 'refused', status: response.status }
+    }
+    if (activeSignInIdentity() === identity) {
+      observedManaged = decoded
+      observedManagedIdentity = identity
+      lastManagedError = undefined
+      noteUsageRecordChanged()
+    }
     return { state: 'confirmed', usage: decoded }
   } catch (error) {
-    return { state: 'unreachable', message: error instanceof Error ? error.message : String(error) }
+    const message = error instanceof Error ? error.message : String(error)
+    fail(`Kimi /usages unavailable: ${message}`)
+    return { state: 'unreachable', message }
   }
 }
 
@@ -305,6 +368,7 @@ export function __resetMoonshotUsageForTest(): void {
   observedIdentity = 'none'
   observedManaged = null
   observedManagedIdentity = 'none'
+  lastManagedError = undefined
   inFlight = null
   managedInFlight = null
 }

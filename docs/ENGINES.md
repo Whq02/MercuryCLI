@@ -809,6 +809,9 @@ spend presented as a balance. Every figure is a reader's last observation with
 its stamp, sampled in the popup through one door and dropped the moment the
 credential it belongs to changes — never remembered, never invented.
 
+A Kimi sign-in shows its Extra Usage balance in the stated currency beside its plan windows, or says when the managed-usage endpoint reports no balance.
+OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account.
+
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on
 the rail's USAGE block and in `/usage`, read from Z.AI's own quota endpoint on

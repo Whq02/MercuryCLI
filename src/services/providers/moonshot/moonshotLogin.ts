@@ -62,8 +62,10 @@ function defaultSleep(ms: number): Promise<void> {
 export function kimiUsageReceiptLine(usage: KimiManagedUsage): string {
   const window = usage.quota ?? usage.windows[0]
   if (!window) return 'usage endpoint answered (no windows stated)'
-  const pct = window.limit > 0 ? ` (${Math.round((window.used / window.limit) * 100)}%)` : ''
   const reset = window.resetsAtMs !== undefined ? ` · resets ${new Date(window.resetsAtMs).toLocaleString()}` : ''
+  if (window.usedRatio !== undefined) return `usage ${window.name ?? 'window'} ${Math.round(window.usedRatio * 100)}%${reset}`
+  if (window.used === undefined || window.limit === undefined) return 'usage endpoint answered (no figures stated)'
+  const pct = window.limit > 0 ? ` (${Math.round((window.used / window.limit) * 100)}%)` : ''
   return `usage ${window.used}/${window.limit}${pct}${reset}`
 }
 
