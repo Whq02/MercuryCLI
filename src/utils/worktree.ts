@@ -7,9 +7,9 @@ import chalk from 'chalk'
 import { getSessionId } from '../bootstrap/state.js'
 import { getCwd } from './cwd.js'
 import { logForDebugging } from './debug.js'
-import { findCanonicalGitRoot, findGitRoot, getDefaultBranch, gitExe } from './git.js'
+import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
 import { subprocessEnv } from './subprocessEnv.js'
-import { readWorktreeHeadSha, resolveGitDir, resolveRef, getCommonDir } from './git/gitFilesystem.js'
+import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
 import { parseGitConfigValue } from './git/gitConfigParser.js'
 import { saveCurrentProjectConfig } from './config.js'
 import { containsPathTraversal } from './path.js'
@@ -122,19 +122,26 @@ type CreateOrResumeResult = {
   baseBranch?: string
 }
 
+type CreateOrResumeOptions = {
+  prNumber?: number
+  at?: string
+  baseFrom?: string
+}
+
 async function createOrResumeWorktree(
   repoRoot: string,
   slug: string,
-  options?: { prNumber?: number; at?: string },
+  options?: CreateOrResumeOptions,
 ): Promise<CreateOrResumeResult> {
   const worktreePath = worktreePathForSlug(repoRoot, slug)
   const branchName = worktreeBranchName(slug)
+  const baseFrom = options?.baseFrom ?? repoRoot
 
   if (options?.at !== undefined) {
     if (!/^[A-Za-z0-9._\/~^-]+$/.test(options.at)) {
       throw new Error(`The worktree commit ${JSON.stringify(options.at)} is not a commit spelling`)
     }
-    const resolved = await runGit(['rev-parse', '--verify', '--quiet', `${options.at}^{commit}`], repoRoot)
+    const resolved = await runGit(['rev-parse', '--verify', '--quiet', `${options.at}^{commit}`], baseFrom)
     const sha = resolved.stdout.trim()
     if (resolved.code !== 0 || !/^[0-9a-f]{40}$/.test(sha)) {
       throw new Error(`The worktree commit ${options.at} does not resolve to a commit in this repository`)
@@ -169,7 +176,7 @@ async function createOrResumeWorktree(
   await mkdir(worktreesHome(repoRoot), { recursive: true })
 
   let baseRef: string
-  let baseSha: string | null = null
+  let baseCwd: string
   let baseBranch: string | undefined
   if (options?.prNumber !== undefined) {
     const fetch = await runGit(['fetch', 'origin', `pull/${options.prNumber}/head`], repoRoot, {
@@ -183,34 +190,27 @@ async function createOrResumeWorktree(
       throw new Error(`Could not fetch PR #${options.prNumber}: ${detail}`)
     }
     baseRef = 'FETCH_HEAD'
+    baseCwd = repoRoot
   } else {
-    const [defaultBranch, gitDir] = await Promise.all([getDefaultBranch(repoRoot), resolveGitDir(repoRoot)])
-    baseBranch = `origin/${defaultBranch}`
-    const localRemoteSha = gitDir !== null ? await resolveRef(gitDir, `refs/remotes/origin/${defaultBranch}`) : null
-    if (localRemoteSha !== null) {
-      baseRef = `origin/${defaultBranch}`
-      baseSha = localRemoteSha
-    } else {
-      const fetch = await runGit(['fetch', 'origin', defaultBranch], repoRoot, { suppressPrompts: true })
-      baseRef = fetch.code === 0 ? `origin/${defaultBranch}` : 'HEAD'
-      if (fetch.code !== 0) baseBranch = 'HEAD'
-    }
+    baseRef = 'HEAD'
+    baseCwd = baseFrom
+    const gitDir = await resolveGitDir(baseFrom)
+    const head = gitDir !== null ? await readGitHead(gitDir) : null
+    baseBranch = head?.type === 'branch' ? head.name : 'HEAD'
   }
 
-  if (baseSha === null) {
-    const revParse = await runGit(['rev-parse', baseRef], repoRoot)
-    if (revParse.code !== 0) {
-      throw new Error(`Could not resolve the worktree base ref ${baseRef}`)
-    }
-    baseSha = revParse.stdout.trim()
+  const revParse = await runGit(['rev-parse', '--verify', '--quiet', `${baseRef}^{commit}`], baseCwd)
+  const baseSha = revParse.stdout.trim()
+  if (revParse.code !== 0 || !/^[0-9a-f]{40}$/.test(baseSha)) {
+    throw new Error(`Could not resolve the worktree base ref ${baseRef}`)
   }
 
   const sparsePaths = getInitialSettings().worktree?.sparsePaths ?? []
   const useSparse = sparsePaths.length > 0
 
-  const addArgs = ['worktree', 'add', '-B', branchName]
+  const addArgs = ['worktree', 'add', '-B', branchName, '--no-track']
   if (useSparse) addArgs.push('--no-checkout')
-  addArgs.push(worktreePath, baseRef)
+  addArgs.push(worktreePath, baseSha)
   const add = await runGit(addArgs, repoRoot)
   if (add.code !== 0) {
     throw new Error(`git worktree add failed: ${add.stderr.trim()}`)
@@ -532,7 +532,6 @@ export async function createWorktreeForSession(
   let originalBranch: string | undefined
   const gitDir = await resolveGitDir(gitRoot)
   if (gitDir !== null) {
-    const { readGitHead } = await import('./git/gitFilesystem.js')
     const head = await readGitHead(gitDir)
     if (head?.type === 'branch') originalBranch = head.name
   }
@@ -687,7 +686,10 @@ export async function createAgentWorktree(
         'Retry the same Agent call WITHOUT the isolation parameter; the agent will run in the current directory.',
     )
   }
-  const created = await createOrResumeWorktree(gitRoot, slug, options?.at !== undefined ? { at: options.at } : undefined)
+  const created = await createOrResumeWorktree(gitRoot, slug, {
+    ...(options?.at !== undefined ? { at: options.at } : {}),
+    baseFrom: findGitRoot(from) ?? gitRoot,
+  })
   if (!created.existed) {
     await runPostCreationSetup(gitRoot, created.worktreePath, from)
     const lock = await runGit(
@@ -1261,7 +1263,10 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
     }
     repoName = basename(gitRoot)
     try {
-      const created = await createOrResumeWorktree(gitRoot, slug, prNumber !== undefined ? { prNumber } : undefined)
+      const created = await createOrResumeWorktree(gitRoot, slug, {
+        ...(prNumber !== undefined ? { prNumber } : {}),
+        baseFrom: findGitRoot(getCwd()) ?? gitRoot,
+      })
       worktreeDir = created.worktreePath
       if (!created.existed) {
         process.stdout.write(`Created worktree ${created.worktreePath} (based on ${created.baseBranch ?? 'HEAD'})\n`)
