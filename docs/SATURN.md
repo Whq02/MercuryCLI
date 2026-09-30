@@ -32,7 +32,11 @@ fired-late / missed receipt tail; the empty board leads with the door —
 
 While a future fire stands, the session's row on the Session Concourse wears
 it in the NOW cell — "next fire in 2h · " — beside whatever the session is
-doing.
+doing. The cockpit rail's SATURN row and the Boot face's Saturn row say what
+stands across every session, in the board's own words: `2 scheduled · in 4m`
+while a real fire is ahead, `1 scheduled · 1 held` when a fire is banked and
+nothing is ahead — a held fire is never painted as due, and `due now` means a
+fire whose instant has arrived and which the next tick runs.
 
 ## Scheduling a birth
 
@@ -79,8 +83,12 @@ prompt on a recurrence or a one-shot, `onParked` included, and an optional
 chat row and the list show in place of the id), `CronList`,
 `CronDelete`, and `ScheduleWakeup` (a single self-paced wake, the tool the
 session uses to put itself down and come back). A self-paced wake takes the
-queue arm: a session parked by the operator is never woken by its own wake,
-which waits for the session's resume. The edits ride the session's own facts
+queue arm: a session parked by the operator is never woken by its own wake.
+A self-paced wake lives exactly as long as the turn that asked for it: when
+you interrupt, park or stop the session, its pending self-paced wakes — and
+any fire already held for them — are dropped with a receipt saying why, and
+the board's row goes with them; your own schedules on that session stand.
+The edits ride the session's own facts
 road to the daemon's one schedule writer. The `/loop`
 skill builds on exactly this: it schedules a short sentinel that expands at
 fire time to the loop's instructions — `loop.md` or the autonomous default —
