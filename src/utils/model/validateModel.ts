@@ -17,6 +17,7 @@ async function validateNonAnthropicModel(
     | 'zai'
     | 'moonshot'
     | 'deepseek'
+    | 'meta'
     | 'openai-compat'
     | 'openrouter'
     | 'gemini'
@@ -134,6 +135,21 @@ async function validateNonAnthropicModel(
     const { qualifyMoonshotModel } = await import('../../services/providers/moonshot/moonshotCatalogue.js')
     const verdict = await qualifyMoonshotModel(trimmed.toLowerCase())
     return verdict.kind === 'refused' ? { valid: false, error: verdict.message } : { valid: true, skipCache: true }
+  }
+  if (route === 'meta') {
+    const { resolveMetaAccount } = await import('../../services/providers/meta/metaAccounts.js')
+    if (!resolveMetaAccount()) return { valid: false, error: 'Meta is unavailable — no API key (/logins meta, or set MODEL_API_KEY).' }
+    const { readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+    await readCatalogueIfPending('meta')
+    const { getCachedMetaCatalogue, newestMetaModel } = await import('../../services/providers/meta/metaCatalogue.js')
+    const { isMetaChatModelId } = await import('../../services/providers/meta/metaPins.js')
+    const snapshot = getCachedMetaCatalogue()
+    const id = trimmed.toLowerCase()
+    if (snapshot?.lastError?.includes('refused the credential')) return { valid: false, error: `${snapshot.lastError} — /logins meta replaces the key.` }
+    if (id === 'muse') return newestMetaModel() ? { valid: true, skipCache: true } : { valid: false, error: "Meta's live list has not served a Standard Muse Spark model for 'muse' yet — /model refreshes it. Contributor models must be selected explicitly." }
+    if (!isMetaChatModelId(id)) return { valid: false, error: 'This Meta model is not on the supported Muse Spark chat road.' }
+    if (snapshot?.fetchedAtMs && !snapshot.models.some(row => row.id.toLowerCase() === id)) return { valid: false, error: `Model "${trimmed}" is not listed by the Meta account's live catalogue.` }
+    return { valid: true, skipCache: true }
   }
   if (route === 'deepseek') {
     const { resolveDeepseekApiKey } = await import(

@@ -1,7 +1,7 @@
 import { formatAge } from '../../utils/healthCertCore.js'
 import type { AnthropicDoorState } from './anthropic/anthropicCatalogue.js'
 
-export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'gemini' | 'huggingface'
+export type ModelListFamily = 'anthropic' | 'openai' | 'zai' | 'moonshot' | 'deepseek' | 'meta' | 'gemini' | 'huggingface'
 
 export interface TypedIdVerdict {
   rows: Array<{ id: string; served: boolean }>
@@ -215,6 +215,16 @@ function geminiFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   })
 }
 
+function metaFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
+  const typed = (): string[] => (require('./meta/metaPins.js') as typeof import('./meta/metaPins.js')).META_DISPLAY_PINS.map(pin => pin.id)
+  return guarded('meta', name, typed, () => {
+    const { resolveMetaAccount } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+    const { getCachedMetaCatalogue } = require('./meta/metaCatalogue.js') as typeof import('./meta/metaCatalogue.js')
+    const account = resolveMetaAccount(env)
+    return { family: 'meta', name, typed: typed(), ...(account ? { source: account.label } : {}), list: account ? cachedListSource(getCachedMetaCatalogue(env)) : { kind: 'no-credential' } }
+  })
+}
+
 function deepseekFact(name: string, env: NodeJS.ProcessEnv): ModelListFact {
   const pins = (): typeof import('./deepseek/deepseekPins.js') => require('./deepseek/deepseekPins.js') as typeof import('./deepseek/deepseekPins.js')
   const typed = (): string[] => pins().DEEPSEEK_DISPLAY_PINS.map(pin => pin.id)
@@ -282,6 +292,7 @@ export function readModelListFacts(env: NodeJS.ProcessEnv = process.env): ModelL
     zaiFact(name('zai'), env),
     moonshotFact(name('moonshot'), env),
     deepseekFact(name('deepseek'), env),
+    metaFact(name('meta'), env),
     geminiFact(name('gemini'), env),
     huggingfaceFact(name('huggingface'), env),
   ]

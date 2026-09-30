@@ -1,5 +1,6 @@
 import { setHasUnknownModelCost } from '../bootstrap/state.js'
 import { deepseekDisplayPin } from '../services/providers/deepseek/deepseekPins.js'
+import { metaDisplayPin } from '../services/providers/meta/metaPins.js'
 import { geminiPricePin, geminiPriceTierFor } from '../services/providers/gemini/geminiPins.js'
 import { huggingfaceDisplayPin } from '../services/providers/huggingface/huggingfacePins.js'
 import type { CallModelRoute } from '../services/providers/idSpaces.js'
@@ -186,6 +187,7 @@ const PRICING_OWNERS: Record<CallModelRoute, PricingOwner> = {
   zai: model => recorded(engineTier(glmPricePin(model))),
   moonshot: model => recorded(engineTier(kimiDisplayPin(model))),
   deepseek: model => recorded(engineTier(deepseekDisplayPin(model))),
+  meta: model => recorded(engineTier(metaDisplayPin(model))),
   gemini: (model, promptTokens) => {
     const pin = geminiPricePin(model)
     return pin === undefined ? undefined : recorded(engineTier(geminiPriceTierFor(pin, promptTokens)))

@@ -489,6 +489,10 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
     label: 'Moonshot',
     signIn: 'Sign in via /logins moonshot (Kimi, or an API key), or export MOONSHOT_API_KEY',
   },
+  meta: {
+    label: 'Meta',
+    signIn: 'Add a Meta Model API key via /logins meta, or export MODEL_API_KEY',
+  },
   deepseek: {
     label: 'DeepSeek',
     signIn: 'Add a DeepSeek API key via /logins deepseek, or export DEEPSEEK_API_KEY',

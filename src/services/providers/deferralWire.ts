@@ -20,6 +20,7 @@ export const DEFERRAL_WIRE_CAPABILITY: Readonly<Record<CallModelRoute, DeferralW
   zai: 'text',
   moonshot: 'text-append',
   deepseek: 'text',
+  meta: 'text',
   'openai-compat': 'text',
   openrouter: 'openrouter-native',
   gemini: 'text',

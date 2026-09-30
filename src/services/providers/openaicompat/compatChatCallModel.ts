@@ -93,6 +93,7 @@ const COMPAT_RETRY_BACKOFF_MS = 400
 export type CompatLaneId =
   | 'moonshot'
   | 'deepseek'
+  | 'meta'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'

@@ -8,6 +8,7 @@ import {
   writeStoredBraveSearchApiKey,
   writeStoredCompatApiKey,
   writeStoredDeepseekApiKey,
+  writeStoredMetaApiKey,
   writeStoredHuggingfaceApiKey,
   writeStoredLocalApiKey,
   writeStoredMoonshotApiKey,
@@ -17,7 +18,7 @@ import {
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'meta' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -39,6 +40,12 @@ const LANES: Record<
     envVar: 'MOONSHOT_API_KEY',
     write: writeStoredMoonshotApiKey,
     envShadow: () => Boolean(process.env.MOONSHOT_API_KEY?.trim()),
+  },
+  meta: {
+    title: 'Meta Model API key (pay-as-you-go)',
+    envVar: 'MODEL_API_KEY / META_API_KEY',
+    write: writeStoredMetaApiKey,
+    envShadow: () => Boolean(process.env.MODEL_API_KEY?.trim() || process.env.META_API_KEY?.trim()),
   },
   deepseek: {
     title: 'DeepSeek API key',

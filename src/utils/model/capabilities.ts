@@ -38,6 +38,7 @@ import {
   KIMI_EFFORT_MODELS,
 } from '../../services/providers/moonshot/kimiPins.js'
 import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
+import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/metaPins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -54,6 +55,7 @@ import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 
 
 export function modelSupportsTemperature(model: string): boolean {
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -66,14 +68,17 @@ export function modelSupportsTemperature(model: string): boolean {
 
 
 export function modelSupportsISP(model: string): boolean {
+  if (isMetaModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsThinking(model: string): boolean {
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
+  if (isMetaModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -95,6 +100,7 @@ export function modelSupportsAdaptiveThinking(model: string): boolean {
 }
 
 export function modelThinkingAlwaysOn(model: string): boolean {
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -199,7 +205,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'gemini' | 'openrouter' | 'local'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'meta' | 'gemini' | 'openrouter' | 'local'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -212,6 +218,7 @@ export type EffortVocabularyView =
         | 'gpt-known-empty'
         | 'glm'
         | 'kimi'
+        | 'meta'
         | 'huggingface'
         | 'openrouter'
         | 'gemini'
@@ -268,6 +275,12 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
   }
   if (isDeepseekModelId(model) || route === 'deepseek') {
     return { kind: 'provider', source: 'deepseek', vocabulary: [...DEEPSEEK_EFFORTS], thinkingGated: true }
+  }
+  if (isMetaModelId(model) || route === 'meta') {
+    const vocabulary = metaDisplayPin(model)?.efforts ?? []
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'meta', vocabulary, thinkingGated: false }
+      : { kind: 'none', source: 'meta' }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
   if (route === 'openrouter') {
@@ -471,14 +484,14 @@ export function resolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model)) {
+    if (isCarrierShapedId(model) || isMetaModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
         model,
         activation: {
           kind: 'unavailable',
-          reason: '[1m] is not a provider-verified activation path on a carrier-shaped id',
+          reason: isMetaModelId(model) ? '[1m] is not a provider-verified activation path for Meta models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
         },
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
@@ -648,6 +661,7 @@ export function resolveContextWindow(
     }
     if (isKimiModelId(id) || carrierRoute === 'moonshot') return kimiDisplayPin(id)?.contextWindow
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
+    if (isMetaModelId(id)) return metaDisplayPin(id)?.contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -707,6 +721,8 @@ export function getModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
+  const metaOut = metaDisplayPin(model)?.outputMax
+  if (metaOut !== undefined) return statedOutputTokens(metaOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -945,6 +961,8 @@ function modalitiesAdmitImages(modalities: readonly string[] | undefined): boole
 
 function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean {
   switch (route) {
+    case 'meta':
+      return metaDisplayPin(model)?.images === true
     case 'openrouter':
       return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
     case 'huggingface':

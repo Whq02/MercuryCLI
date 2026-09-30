@@ -173,7 +173,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head === 'key') {
-    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'compat', 'huggingface', 'local', 'brave', 'tavily'] as const
+    const KEY_LANES = ['zai', 'moonshot', 'deepseek', 'meta', 'compat', 'huggingface', 'local', 'brave', 'tavily'] as const
     const word = rest.find(token => token !== 'clear' && !token.startsWith('--return='))
     if (word !== undefined && !(KEY_LANES as readonly string[]).includes(word)) {
       const loginsFamilies = ['openrouter', 'gemini', 'openai', 'anthropic', 'claude', 'console']
@@ -194,6 +194,9 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
       if (providerArg === 'moonshot') {
         secrets.writeStoredMoonshotApiKey(null)
         onDone('Moonshot stored key cleared (an explicit MOONSHOT_API_KEY env pin, if set, still applies).')
+      } else if (providerArg === 'meta') {
+        secrets.writeStoredMetaApiKey(null)
+        onDone('Meta stored key cleared (MODEL_API_KEY or META_API_KEY, if set, still applies).')
       } else if (providerArg === 'deepseek') {
         secrets.writeStoredDeepseekApiKey(null)
         onDone('DeepSeek stored key cleared (an explicit DEEPSEEK_API_KEY env pin, if set, still applies).')
@@ -223,7 +226,7 @@ export const call: LocalJSXCommandCall = async (onDone, _context, args) => {
   }
 
   if (head) {
-    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|compat|huggingface|local|brave|tavily] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
+    onDone(`unknown /router argument '${head}' — usage: /router [adaptive|quality|balanced|fast|fixed | pin opus|sonnet|auto | explain | engines | source sub|api|clear | key [zai|moonshot|deepseek|meta|compat|huggingface|local|brave|tavily] [clear] | reset-history] (OpenAI sign-in lives at /logins; disconnect at /accounts; brave/tavily are web-search keys)`)
     return null
   }
 

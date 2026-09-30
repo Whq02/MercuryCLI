@@ -1,12 +1,13 @@
 import { getEssentialTrafficOnlyReason } from '../../utils/privacyLevel.js'
 import { resolveMoonshotAccount } from './moonshot/moonshotAccounts.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
+import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
 import { resolveHuggingfaceApiKey } from './huggingface/huggingfaceAccounts.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'
 import { resolveOpenrouterRequestAuth } from './openrouter/openrouterAccounts.js'
 
-export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'moonshot' | 'local'
+export type CatalogueFamily = 'anthropic' | 'huggingface' | 'openrouter' | 'gemini' | 'openai' | 'deepseek' | 'meta' | 'moonshot' | 'local'
 
 export type CatalogueGateVerdict =
   | { allowed: true; exempt?: 'local-endpoint' }
@@ -23,6 +24,7 @@ const FAMILY_NAMES: Record<Exclude<CatalogueFamily, 'local'>, string> = {
   gemini: 'Gemini',
   openai: 'OpenAI',
   deepseek: 'DeepSeek',
+  meta: 'Meta',
   moonshot: 'Moonshot',
 }
 
@@ -47,6 +49,8 @@ function credentialPresent(family: Exclude<CatalogueFamily, 'local'>, env: NodeJ
       return resolveOpenaiAccount(env) !== undefined
     case 'deepseek':
       return resolveDeepseekApiKey(env) !== undefined
+    case 'meta':
+      return resolveMetaApiKey(env) !== undefined
     case 'moonshot':
       return resolveMoonshotAccount(env) !== undefined
   }

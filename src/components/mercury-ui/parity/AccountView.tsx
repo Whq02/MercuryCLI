@@ -274,6 +274,7 @@ export function AccountView({
                 : slot.removal.route === 'zai-stored-key' ||
                     slot.removal.route === 'moonshot-stored-key' ||
                     slot.removal.route === 'deepseek-stored-key' ||
+                    slot.removal.route === 'meta-stored-key' ||
                     slot.removal.route === 'compat-stored-key'
                   ? '⌫ clears'
                 : slot.removal.route === 'anthropic-managed-key'

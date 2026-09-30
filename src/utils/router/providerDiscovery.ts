@@ -52,6 +52,13 @@ export interface DeepseekDiscovery {
   keySource?: 'env' | 'stored'
 }
 
+export interface MetaDiscovery {
+  provider: 'meta'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
+
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -88,6 +95,7 @@ export type ProviderDiscovery =
   | GeminiDiscovery
   | MoonshotDiscovery
   | DeepseekDiscovery
+  | MetaDiscovery
   | CompatDiscovery
   | HuggingfaceDiscovery
   | LocalDiscovery
@@ -218,6 +226,18 @@ function probeMoonshot(io: DiscoveryIo): MoonshotDiscovery {
   }
 }
 
+function probeMeta(io: DiscoveryIo): MetaDiscovery {
+  const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
+  const key = resolveMetaApiKey(io.env)
+  return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+export function primeMetaDiscovery(io?: DiscoveryIo): MetaDiscovery | null {
+  const record = probeMeta(io ?? defaultIo())
+  cache.set('meta', record)
+  return record
+}
+
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
   const { resolveDeepseekApiKey } =
     require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
@@ -339,6 +359,8 @@ export function refreshProviderDiscovery(
               ? probeGemini(io)
               : id === 'moonshot'
                 ? probeMoonshot(io)
+                : id === 'meta'
+                  ? probeMeta(io)
                 : id === 'deepseek'
                   ? probeDeepseek(io)
                   : id === 'openai-compat'

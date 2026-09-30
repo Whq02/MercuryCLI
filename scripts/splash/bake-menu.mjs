@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/meta/metaPins.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -34,6 +34,7 @@ const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel, renderModelSetting } =
   await import('../../src/utils/model/model.ts')
 
+const { META_DISPLAY_PINS } = await import('../../src/services/providers/meta/metaPins.ts')
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
 const escapeRe = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -70,6 +71,8 @@ function modelNamesBlock() {
     const name = getMarketingNameForModel(cfg.firstParty)
     if (name) names[cfg.firstParty.toLowerCase()] = name
   }
+  for (const pin of META_DISPLAY_PINS) names[pin.id.toLowerCase()] = pin.displayName
+  names.muse = 'Muse'
   for (const alias of MODEL_ALIASES) {
     const bare = alias.replace(/\[1m\]$/i, '')
     if (names[bare]) continue

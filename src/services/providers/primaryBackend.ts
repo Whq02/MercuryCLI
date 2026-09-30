@@ -15,6 +15,8 @@ import { moonshotCallModel, moonshotLiveProofState } from './moonshot/moonshotCa
 import { moonshotDispatchSource } from './moonshot/moonshotAccounts.js'
 import { deepseekCallModel, deepseekLiveProofState } from './deepseek/deepseekCallModel.js'
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
+import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
+import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -34,6 +36,7 @@ export type PrimaryBackendId =
   | 'openai-responses'
   | 'moonshot-chat'
   | 'deepseek-chat'
+  | 'meta-chat'
   | 'openai-compat-chat'
   | 'openrouter-chat'
   | 'gemini-generate'
@@ -49,6 +52,7 @@ export interface AgentRuntimeRef {
     | 'openai'
     | 'moonshot'
     | 'deepseek'
+    | 'meta'
     | 'openai-compat'
     | 'openrouter'
     | 'gemini'
@@ -62,6 +66,7 @@ export interface AgentRuntimeRef {
     | { kind: 'gpt'; major: number; minor: number; variant: string }
     | { kind: 'kimi' }
     | { kind: 'deepseek' }
+    | { kind: 'muse' }
     | { kind: 'compat' }
     | { kind: 'openrouter' }
     | { kind: 'gemini' }
@@ -167,6 +172,17 @@ const deepseekBackend: PrimaryAgentBackend = {
   },
 }
 
+const metaBackend: PrimaryAgentBackend = {
+  id: 'meta-chat', provider: 'meta', label: 'Meta (native, in-process)',
+  callModel: metaCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveMetaApiKey()) return { state: 'unavailable', reason: 'no API key (/logins meta, or MODEL_API_KEY)' }
+    const proof = metaLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -270,6 +286,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   openai: openaiBackend,
   moonshot: moonshotBackend,
   deepseek: deepseekBackend,
+  meta: metaBackend,
   'openai-compat': compatBackend,
   openrouter: openrouterBackend,
   gemini: geminiBackend,
@@ -307,6 +324,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'kimi' }
   } else if (route === 'deepseek') {
     family = { kind: 'deepseek' }
+  } else if (route === 'meta') {
+    family = { kind: 'muse' }
   } else if (route === 'openai-compat') {
     family = { kind: 'compat' }
   } else if (route === 'openrouter') {

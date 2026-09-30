@@ -19,6 +19,7 @@ import type {
 import { zaiProviderAdapter } from './providers/zai.js'
 import { moonshotProviderAdapter } from './providers/moonshot.js'
 import { deepseekProviderAdapter } from './providers/deepseek.js'
+import { metaProviderAdapter } from './providers/meta.js'
 import { compatProviderAdapter } from './providers/openaicompat.js'
 import { huggingfaceProviderAdapter } from './providers/huggingface.js'
 import { localProviderAdapter } from './providers/local.js'
@@ -47,6 +48,7 @@ const PROVIDER_ADAPTERS: readonly RouterProviderAdapter[] = [
   geminiProviderAdapter,
   moonshotProviderAdapter,
   deepseekProviderAdapter,
+  metaProviderAdapter,
   compatProviderAdapter,
   huggingfaceProviderAdapter,
   localProviderAdapter,

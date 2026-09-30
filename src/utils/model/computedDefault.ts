@@ -227,12 +227,13 @@ function liveFirstPartyRow(): LaneRowVerdict {
   }
 }
 
-const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek'])
+const KEY_LANES = new Set(['zai', 'moonshot', 'deepseek', 'meta'])
 
-function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek'): LaneRowVerdict {
+function keyLaneRow(family: 'zai' | 'moonshot' | 'deepseek' | 'meta'): LaneRowVerdict {
   try {
     const { keyLanePins, keyLaneListState } = require('./modelOptions.js') as typeof import('./modelOptions.js')
-    const pin = keyLanePins(family)[0]
+    const pins = keyLanePins(family)
+    const pin = family === 'meta' ? pins.find(pin => !/-contributor$/i.test(pin.id)) : pins[0]
     if (pin === undefined) {
       const list = keyLaneListState(family)
       if (list.kind === 'unread') return { usable: false, why: `the account's model list has not been read${list.error !== undefined ? ` (${list.error})` : ''}` }
@@ -387,7 +388,7 @@ export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded:
     registryOrder: providers.map(provider => provider.id),
     laneRow: family => {
       if (family === 'anthropic') return liveFirstPartyRow()
-      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek')
+      if (KEY_LANES.has(family)) return keyLaneRow(family as 'zai' | 'moonshot' | 'deepseek' | 'meta')
       if (rows === undefined) {
         rows = livePickerRows()
         if (rows === null) facts.degraded = true

@@ -46,6 +46,11 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         if (!best) return undefined
         return { modelId: best.pin.id, displayName: best.pin.displayName, observedAt: best.pin.observedAt }
       }
+      case 'meta': {
+        const { newestMetaModel, metaCatalogueRows, metaCatalogueSourceWords } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
+        const row = metaCatalogueRows().rows.find(row => row.id === newestMetaModel())
+        return row ? { modelId: row.id, displayName: row.displayName, source: metaCatalogueSourceWords() } : undefined
+      }
       case 'zai':
       case 'moonshot':
       case 'deepseek': {

@@ -22,7 +22,7 @@ import {
 import { TransitionPreviewCard } from '../../components/TransitionPreviewCard.js'
 import { resolveProviderUsability, usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { TransitionPlan } from '../../utils/model/modelTransition.js'
-import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
+import { ANTHROPIC_CONNECT_OPTION_VALUE, ANTHROPIC_MODEL_GROUP, anthropicNotSignedInReason, applyModelAllowlist, COMPAT_MODEL_GROUP, DEEPSEEK_MODEL_GROUP, META_MODEL_GROUP, focusedOptionSupports1m, getGptSeatAvailability, getModelOptions, GPT_CONNECT_OPTION_VALUE, isCatalogueDoorRow, isProviderActionRow, type ModelOption, MOONSHOT_MODEL_GROUP, OPENAI_MODEL_GROUP, parseKeyConnectValue, signInFamilyOfRow, stripContext1m, withContext1m, ZAI_MODEL_GROUP } from '../../utils/model/modelOptions.js'
 import { nextBirthModel } from '../../services/switchboard/bootBirthFacts.js'
 import {
   OPENROUTER_CONNECT_OPTION_VALUE,
@@ -84,6 +84,8 @@ import {
   type DeepseekCatalogueSnapshot,
 } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { deepseekApiBase, resolveDeepseekApiKey } from '../../services/providers/deepseek/deepseekAccounts.js'
+import { getCachedMetaCatalogue, refreshMetaCatalogue, type MetaCatalogueSnapshot } from '../../services/providers/meta/metaCatalogue.js'
+import { metaApiBase, resolveMetaApiKey } from '../../services/providers/meta/metaAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../services/providers/local/localDiscovery.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
@@ -299,6 +301,19 @@ const DEEPSEEK_ROAD: CatalogueRoad<DeepseekCatalogueSnapshot> = {
   changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
 }
 
+const META_ROAD: CatalogueRoad<MetaCatalogueSnapshot> = {
+  family: 'Meta',
+  identity: () => {
+    const key = resolveMetaApiKey()
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${metaApiBase()}` : undefined
+  },
+  cached: () => getCachedMetaCatalogue(),
+  refresh: () => refreshMetaCatalogue({ force: true }),
+  populated: snapshot => snapshot.fetchedAtMs > 0,
+  failed: snapshot => snapshot.lastError !== undefined,
+  changed: (before, after) => !isDeepStrictEqual(before.models, after.models),
+}
+
 const LOCAL_ROAD: CatalogueRoad<LocalDiscoverySnapshot> = {
   family: 'Local',
   identity: () => {
@@ -429,6 +444,7 @@ const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [ZAI_MODEL_GROUP]: 'zai',
   [MOONSHOT_MODEL_GROUP]: 'moonshot',
   [DEEPSEEK_MODEL_GROUP]: 'deepseek',
+  [META_MODEL_GROUP]: 'meta',
   [COMPAT_MODEL_GROUP]: 'openai-compat',
   [LOCAL_MODEL_GROUP]: 'local',
 }
@@ -512,7 +528,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const doorsOf = (family: string): ProviderHeading['doors'] => (presences.has(family) && presences.get(family)!.credentialed === false ? [] : signedInDoorsOf(family, slotsOf(family), presences.get(family)?.identity))
   const gptAvailability = getGptSeatAvailability()
   const usability = resolveProviderUsability()
-  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek'): ProviderHeading => {
+  const keyLaneHeading = (family: 'zai' | 'moonshot' | 'deepseek' | 'meta'): ProviderHeading => {
     const lane = usability[family]
     const doors = doorsOf(family)
     if (lane.credential === 'none' || doors.length === 0) return { name: nameOf(family), doors: [], reason: lane.blockers[0] ?? 'not connected' }
@@ -540,6 +556,7 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
     [ZAI_MODEL_GROUP]: keyLaneHeading('zai'),
     [MOONSHOT_MODEL_GROUP]: keyLaneHeading('moonshot'),
     [DEEPSEEK_MODEL_GROUP]: keyLaneHeading('deepseek'),
+    [META_MODEL_GROUP]: keyLaneHeading('meta'),
     [OPENROUTER_MODEL_GROUP]:
       openrouterAvailability.state === 'ready'
         ? { name: nameOf('openrouter'), doors: doorsOf('openrouter') }
@@ -738,6 +755,7 @@ function MercuryModelWrapper({
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -914,7 +932,7 @@ function MercuryModelWrapper({
           return
         }
         onDone(
-          `${keyLane === 'zai' ? 'GLM (Z.AI)' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
+          `${keyLane === 'zai' ? 'GLM (Z.AI)' : keyLane === 'meta' ? 'Meta' : 'DeepSeek'} sign-in — running /logins ${keyLane}; the picker re-opens when it settles`,
           { nextInput: `/logins ${keyLane} --return=/model`, submitNextInput: true },
         )
         return
@@ -1083,6 +1101,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1183,6 +1202,7 @@ export function MercurySessionModelPicker({
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)
@@ -1254,6 +1274,7 @@ export function MercuryModelChoicePicker({ leading, current, onSelect, onSignIn,
   useCatalogueRefreshOnOpen(HUGGINGFACE_ROAD, setNotice)
   useCatalogueRefreshOnOpen(MOONSHOT_ROAD, setNotice)
   useCatalogueRefreshOnOpen(DEEPSEEK_ROAD, setNotice)
+  useCatalogueRefreshOnOpen(META_ROAD, setNotice)
   useCatalogueRefreshOnOpen(LOCAL_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_SUBSCRIPTION_ROAD, setNotice)
   useCatalogueRefreshOnOpen(ANTHROPIC_KEY_ROAD, setNotice)

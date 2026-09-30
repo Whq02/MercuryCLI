@@ -10,6 +10,7 @@ export type ProviderId =
   | 'zai'
   | 'moonshot'
   | 'deepseek'
+  | 'meta'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'
@@ -38,6 +39,7 @@ export interface ProviderUsabilityReads {
   zaiKeyPresent: () => boolean
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   deepseekKeyPresent?: () => boolean
+  metaKeyPresent?: () => boolean
   compatConfigured?: () => boolean
   compatAccount?: () => { kind: 'api-key' | 'keyless' } | undefined
   huggingfaceAccount?: () => { kind: 'oauth' | 'api-key' } | undefined
@@ -122,6 +124,10 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
       const { resolveMoonshotAccount } =
         require('./moonshot/moonshotAccounts.js') as typeof import('./moonshot/moonshotAccounts.js')
       return resolveMoonshotAccount()
+    },
+    metaKeyPresent: () => {
+      const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+      return resolveMetaApiKey() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
@@ -280,6 +286,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     'no Kimi sign-in or Moonshot API key — /logins moonshot (or MOONSHOT_API_KEY)',
     moonshotAccount?.kind === 'kimi-oauth' ? 'oauth' : 'api-key',
   )
+  const meta = keyLane('meta', reads.metaKeyPresent?.() ?? false, 'no Meta API key — /logins meta (or MODEL_API_KEY)')
   const deepseek = keyLane(
     'deepseek',
     reads.deepseekKeyPresent?.() ?? false,
@@ -369,6 +376,7 @@ function resolveProviderUsabilityFrom(reads: ProviderUsabilityReads): Record<Pro
     zai: applyLaneBilling(zai),
     moonshot: applyLaneBilling(moonshot),
     deepseek: applyLaneBilling(deepseek),
+    meta: applyLaneBilling(meta),
     'openai-compat': applyLaneBilling(compat),
     openrouter: applyLaneBilling(applyObservedLimit(openrouter, reads.openrouterLimitWindow?.())),
     gemini: applyLaneBilling(applyObservedLimit(gemini, reads.geminiLimitWindow?.())),
