@@ -102,6 +102,11 @@ everything as it stands.
    15.8 GiB weights + 16.0 GiB cache of 36.9 GiB usable (48.0 GiB box)`). The
    choice is written as the per-model window setting for `local/<tag>`, the
    same setting the picker's `w` row and `/config` → Local model window write.
+   On a machine under 16 GiB of memory, a window picked there by hand that
+   fits but leaves little room (under a tenth of the usable memory, or under
+   1 GiB) is warned beside the pick with the biggest smaller window that
+   leaves room — `64k leaves 0.2 GiB of 6.0 GiB usable (8.0 GiB box) · 32k
+   leaves 1.2 GiB` — while auto stays the biggest window that fits.
    Nothing is written to the server's environment.
 6. **Pick and prove.** The session's model is set to `local/<tag>` (or the
    found server's model) through the same road `/model <id>` takes — a model

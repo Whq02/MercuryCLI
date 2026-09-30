@@ -63,7 +63,7 @@ import {
 import { isLocalModelId, LOCAL_MODEL_GROUP, localPickerWindowNotice, localRecordFor } from '../services/providers/local/localCatalogue.js'
 import { LOCAL_SETUP_PICKER_OFFER } from '../commands/localsetup/words.js'
 import { openLocalSetupPopup } from '../commands/localsetup/localsetup.js'
-import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowRefusalSpan, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
+import { LOCAL_WINDOW_CHOICES, localWindowApplication, localWindowChoiceLine, localWindowNoticeKind, localWindowRefusalSpan, localWindowSettingOf, nextLocalWindowSetting, parseLocalWindowSetting, writeLocalWindowSetting } from '../services/providers/local/localWindow.js'
 import { localServerTruthStamp, refreshLocalMachineTruth, subscribeLocalServerTruth } from '../services/localServer/localServerTruth.js'
 import {
   parseGptModelId,
@@ -509,6 +509,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
       ]
     : null
   const localWindowLine = focusedLocal !== undefined ? localWindowChoiceLine(focusedLocal, { wide: inner >= 90, ...(windowTyping !== null ? { typing: windowTyping } : {}) }) : null
+  const noticeInk = localWindowLine !== null && localWindowNoticeKind(localWindowLine) === 'warning' ? tokens.warning : tokens.failureText
   const noticeLines: string[] = compact
     ? []
     : ctxNotice
@@ -671,7 +672,7 @@ export function MercuryModelPicker({ models: listed, current = 'opus-4-8', ctxPc
         const refusal = localWindowLine !== null && ctxNotice === null && reasonLines === null ? localWindowRefusalSpan(line) : undefined
         return (
           <Text key={k} color={reasonLines !== null && ctxNotice === null ? FAINT : tokens.info} wrap="truncate-end">
-            {refusal === undefined ? line : <>{line.slice(0, refusal.start)}<Text color={tokens.failureText}>{line.slice(refusal.start, refusal.end)}</Text>{line.slice(refusal.end)}</>}
+            {refusal === undefined ? line : <>{line.slice(0, refusal.start)}<Text color={noticeInk}>{line.slice(refusal.start, refusal.end)}</Text>{line.slice(refusal.end)}</>}
           </Text>
         )
       })}
