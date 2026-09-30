@@ -34,6 +34,11 @@ export function nextAdvisorInterval(current: number, direction: 1 | -1): number 
   return above > 0 ? (ladder[above - 1] ?? current) : above === 0 ? (ladder[0] ?? current) : (ladder[ladder.length - 1] ?? current)
 }
 
+export function advisorCrewmatesValueWords(settings: Pick<AdvisorSettings, 'enabled' | 'crewmates'>): string {
+  if (!settings.crewmates) return 'off'
+  return settings.enabled ? 'on · may result in high spend' : 'on · Advisor is off · may result in high spend'
+}
+
 export function advisorModelWords(): string {
   const model = resolveAdvisorModel()
   if (model.origin === 'unset') return 'no advisor model pinned — /submodels sets one'
@@ -69,7 +74,7 @@ export function advisorConfigItems(args: {
       label: 'Advisor for crewmates',
       searchText: `${ADVISOR_SEARCH} opt in separate`,
       kind: 'boolean',
-      value: <Text color={settings.enabled && settings.crewmates ? tokens.success : tokens.textSecondary}>{settings.crewmates ? (settings.enabled ? 'on' : 'on · Advisor is off') : 'off'}</Text>,
+      value: <Text color={settings.enabled && settings.crewmates ? tokens.success : tokens.textSecondary}>{advisorCrewmatesValueWords(settings)}</Text>,
       warning: 'a separate opt-in for crewmates: both this switch and Advisor must be on for notes or AskAdvisor · off by default · workflow agents never receive advice',
       setByYou: settings.crewmates,
       change: () => {
