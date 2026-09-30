@@ -239,6 +239,44 @@ def _reaped(pid):
     return done == pid
 
 
+def _gone(pid):
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except OSError:
+        return False
+    try:
+        stat = _subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception:
+        return False
+    return stat == "" or stat.startswith("Z")
+
+
+def _ledger_drop(pids):
+    deadline = time.monotonic() + 2.0
+    pending = list(pids)
+    while pending and time.monotonic() < deadline:
+        pending = [p for p in pending if not _gone(p)]
+        if pending:
+            time.sleep(0.05)
+    gone = set("%d" % p for p in pids if p not in pending)
+    if not gone:
+        return
+    try:
+        d = _ledger_dir()
+        names = os.listdir(d)
+    except OSError:
+        return
+    for name in names:
+        if not name.endswith(".entry") or name.split(".", 1)[0] not in gone:
+            continue
+        try:
+            os.remove(os.path.join(d, name))
+        except OSError:
+            pass
+
+
 def _end_capture_child(grace_s):
     pid, fd = _child["pid"], _child["fd"]
     if pid is None:
@@ -298,6 +336,7 @@ def _end_capture_child(grace_s):
             os.remove(entry)
         except OSError:
             pass
+    _ledger_drop([pid] + [p for p, _ in before])
 
 
 def _on_signal(signum, frame):
