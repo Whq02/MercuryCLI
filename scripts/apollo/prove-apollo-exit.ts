@@ -38,7 +38,6 @@ const {
 
 type Ctx = {
   mode: string
-  additionalWorkingDirectories: Map<string, unknown>
   alwaysAllowRules: Record<string, string[]>
   alwaysDenyRules: Record<string, string[]>
   alwaysAskRules: Record<string, string[]>
@@ -46,7 +45,6 @@ type Ctx = {
 }
 const ctx = (mode: string, bypass = false): Ctx => ({
   mode,
-  additionalWorkingDirectories: new Map(),
   alwaysAllowRules: {},
   alwaysDenyRules: {},
   alwaysAskRules: {},
@@ -135,10 +133,10 @@ try {
   const planned = updates.applyPermissionUpdate(ctx('default') as never, { type: 'setMode', mode: 'strategy', destination: 'session' } as never, 'plan-entry') as unknown as Ctx
   check("the caller may name the road (/plan: 'plan-entry')", planned.mode === 'strategy' && last()?.road === 'plan-entry')
   const folded = updates.applyPermissionUpdates(ctx('default') as never, [
-    { type: 'addDirectories', directories: ['/tmp/x'], destination: 'session' } as never,
+    { type: 'addRules', rules: [{ toolName: 'Read', ruleContent: 'src/**' }], behavior: 'allow', destination: 'session' } as never,
     { type: 'setMode', mode: 'implement', destination: 'session' } as never,
   ]) as unknown as Ctx
-  check('the fold threads the road (never the reduce index)', folded.mode === 'implement' && last()?.road === 'permission-answer' && folded.additionalWorkingDirectories.size === 1)
+  check('the fold threads the road (never the reduce index) and retains the rule update', folded.mode === 'implement' && last()?.road === 'permission-answer' && folded.alwaysAllowRules.session?.includes('Read(src/**)') === true)
 } catch (e) {
   check('the road owners are loadable', false, String(e).split('\n')[0])
 }
@@ -203,10 +201,10 @@ try {
   const heldOut = updates.applyPermissionUpdates(ctx('apollo') as never, [{ type: 'setMode', mode: 'implement', destination: 'session' } as never]) as unknown as Ctx
   check("apollo: a consent answer's setMode is HELD — the mode stays apollo", heldOut.mode === 'apollo' && last()?.held === true && last()?.road === 'permission-answer' && /review card/.test(last()?.detail ?? ''))
   const mixed = updates.applyPermissionUpdates(ctx('apollo') as never, [
-    { type: 'addDirectories', directories: [join(WORLD, 'docs')], destination: 'session' } as never,
     { type: 'setMode', mode: 'default', destination: 'session' } as never,
+    { type: 'addRules', rules: [{ toolName: 'Read', ruleContent: 'docs/**' }], behavior: 'allow', destination: 'session' } as never,
   ]) as unknown as Ctx
-  check("the rest of the answer still applies (the directory grant lands, the mode holds)", mixed.mode === 'apollo' && mixed.additionalWorkingDirectories.size === 1)
+  check('the rest of the answer still applies after a held mode change (the rule lands, Apollo holds)', mixed.mode === 'apollo' && mixed.alwaysAllowRules.session?.includes('Read(docs/**)') === true && last()?.held === true && last()?.to === 'default' && last()?.road === 'permission-answer')
   const toPlan = updates.applyPermissionUpdates(ctx('apollo') as never, [{ type: 'setMode', mode: 'strategy', destination: 'session' } as never]) as unknown as Ctx
   check('strategy is admitted from apollo (plan entry stashes the mode; its exit restores it)', toPlan.mode === 'strategy' && last()?.held !== true && last()?.road === 'permission-answer')
   const byHook = updates.applyPermissionUpdate(ctx('apollo') as never, { type: 'setMode', mode: 'sovereign', destination: 'session' } as never) as unknown as Ctx
