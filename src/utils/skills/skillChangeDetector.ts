@@ -4,7 +4,6 @@ import { dirname, resolve, sep } from 'node:path'
 
 import * as chokidar from 'chokidar'
 
-import { getAddedDirectories } from '../../bootstrap/state.js'
 import { clearCommandMemoizationCaches, clearCommandsCache } from '../../commands.js'
 import { clearSkillCaches, getProjectSkillsWatchPaths, getSkillsPath, onDynamicSkillsLoaded } from '../../skills/loadSkillsDir.js'
 import { resetSentSkillNames } from '../attachments/skillListing.js'
@@ -144,9 +143,6 @@ async function armWatcher(gen: number): Promise<string[]> {
   }
   addCandidate(getSkillsPath('userSettings', 'skills'))
   for (const path of getProjectSkillsWatchPaths('skills')) addCandidate(path)
-  for (const additionalDir of getAddedDirectories()) {
-    for (const path of getProjectSkillsWatchPaths('skills', additionalDir)) addCandidate(path)
-  }
 
   if (targets.size === 0 && birthAncestors.size === 0) return []
   if (disposed || gen !== watcherGeneration) return []
@@ -154,7 +150,13 @@ async function armWatcher(gen: number): Promise<string[]> {
   const runningUnderBun = typeof Bun !== 'undefined'
 
   if (birthAncestors.size > 0) {
-    const allMissing = [...birthAncestors.values()].flatMap(set => [...set])
+    const allMissing = [...birthAncestors.values()].flatMap(set => [...set]).map(resolveWatchRoot)
+    const onMissingChain = (rawPath: string): boolean => {
+      const candidate = resolve(rawPath)
+      return allMissing.some(
+        missing => missing === candidate || missing.startsWith(candidate + sep) || candidate.startsWith(missing + sep),
+      )
+    }
     const birthBuilt = watcherFactory([...birthAncestors.keys()].map(resolveWatchRoot), {
       persistent: true,
       ignoreInitial: true,
@@ -162,15 +164,11 @@ async function armWatcher(gen: number): Promise<string[]> {
       ignorePermissionErrors: true,
       atomic: true,
       ...(runningUnderBun ? { usePolling: true, interval: bunPollIntervalMs } : {}),
-      ignored: ignoringSpecialFiles(),
+      ignored: ignoringSpecialFiles(candidatePath => !onMissingChain(candidatePath)),
     })
     const onBirth = (rawPath: string): void => {
-      const added = resolve(rawPath)
-      const onChain = allMissing.some(
-        missing => missing === added || missing.startsWith(added + sep) || added.startsWith(missing + sep),
-      )
-      if (!onChain) return
-      scheduleReload(added)
+      if (!onMissingChain(rawPath)) return
+      scheduleReload(resolve(rawPath))
       void rearmWatchRoots()
     }
     birthBuilt.on('addDir', path => onBirth(path as string))
