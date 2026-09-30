@@ -648,21 +648,72 @@ export function saturnSoonestFireMs(
   return next
 }
 
+export interface SaturnStandingV1 {
+  nextFireMs: number | null
+  held: number
+  paused: boolean
+}
+
+export function saturnStandingOf(
+  schedule: SaturnScheduleV1,
+  heldFires: ReadonlyArray<HeldFireV1> | undefined,
+): SaturnStandingV1 {
+  const held = Array.isArray(heldFires) ? heldFires.filter(h => saturnHeldRowUsable(h) && h.scheduleId === schedule.id).length : 0
+  if (schedule.paused === true) return { nextFireMs: null, held, paused: true }
+  if (held > 0) return { nextFireMs: null, held, paused: false }
+  if (schedule.when.kind === 'at') return { nextFireMs: schedule.when.atMs, held, paused: false }
+  const anchor = Math.max(schedule.createdAt, schedule.lastFiredAt ?? 0, 0)
+  return { nextFireMs: saturnNextFireMs(schedule.when, anchor), held, paused: false }
+}
+
+export function fireDeltaWords(nextFireMs: number | null, nowMs: number): string {
+  if (nextFireMs === null) return 'no future fire'
+  const deltaMs = nextFireMs - nowMs
+  if (deltaMs <= 0) return 'due now'
+  const minutes = Math.round(deltaMs / 60000)
+  if (minutes < 60) return `in ${Math.max(1, minutes)}m`
+  if (minutes < 60 * 24) return `in ${Math.round(minutes / 60)}h`
+  return `in ${Math.round(minutes / (60 * 24))}d`
+}
+
+export function saturnStandingFireWords(standing: SaturnStandingV1, nowMs: number): string {
+  return standing.paused ? 'paused' : fireDeltaWords(standing.nextFireMs, nowMs)
+}
+
+export function saturnStandingWords(standing: SaturnStandingV1, nowMs: number): string {
+  const fire = saturnStandingFireWords(standing, nowMs)
+  return standing.held > 0 ? `${fire} · ${standing.held} held` : fire
+}
+
+export interface SaturnWakeGlanceV1 {
+  count: number
+  held: number
+  nextFireMs: number | null
+}
+
 export function saturnWakeGlanceOf(
-  records: ReadonlyArray<{ schedules?: SaturnScheduleV1[] }>,
-  nowMs: number,
-): { count: number; nextFireMs: number | null } {
+  records: ReadonlyArray<{ schedules?: SaturnScheduleV1[]; heldFires?: HeldFireV1[] }>,
+): SaturnWakeGlanceV1 {
   let count = 0
+  let held = 0
   let next: number | null = null
   for (const rec of records) {
-    for (const s of rec.schedules ?? []) {
+    if (!Array.isArray(rec.schedules)) continue
+    for (const s of rec.schedules) {
+      if (!saturnScheduleRowUsable(s)) continue
       count++
-      if (s.paused === true) continue
-      const n = saturnNextFireMs(s.when, Math.max(s.createdAt, s.lastFiredAt ?? 0))
-      if (n !== null && (next === null || n < next)) next = n
+      const standing = saturnStandingOf(s, rec.heldFires)
+      held += standing.held
+      if (standing.nextFireMs !== null && (next === null || standing.nextFireMs < next)) next = standing.nextFireMs
     }
   }
-  return { count, nextFireMs: next !== null && next <= nowMs ? nowMs : next }
+  return { count, held, nextFireMs: next }
+}
+
+export function saturnWakeGlanceWords(glance: SaturnWakeGlanceV1, nowMs: number): { name: string; verb: string | undefined } {
+  const name = glance.held > 0 ? `${glance.count} scheduled · ${glance.held} held` : `${glance.count} scheduled`
+  const verb = glance.nextFireMs !== null ? fireDeltaWords(glance.nextFireMs, nowMs) : glance.held > 0 ? undefined : 'no next fire'
+  return { name, verb }
 }
 
 export function describeWhen(when: SaturnWhenV1): string {
