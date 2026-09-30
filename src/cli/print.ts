@@ -1502,7 +1502,7 @@ export async function runHeadless(
   const leadContext = AsyncLocalStorage.snapshot()
   let leadMailboxWake: { crewName: string; unsubscribe: () => void } | null = null
   const syncLeadMailboxWake = (): void => leadContext(() => {
-    const crewName = leadCrewName()
+    const crewName = Object.keys(getAppState().crewContext?.crewmates ?? {}).length === 0 ? null : leadCrewName()
     if (crewName === (leadMailboxWake?.crewName ?? null)) return
     leadMailboxWake?.unsubscribe()
     leadMailboxWake = null

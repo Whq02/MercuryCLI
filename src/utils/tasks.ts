@@ -54,13 +54,17 @@ export function isTaskToolsEnabled(): boolean {
 let leaderCrewName: string | undefined
 
 export function getTaskListId(): string {
+  return sharedBoardId() ?? getSessionId()
+}
+
+function sharedBoardId(): string | undefined {
   const override = process.env.MERCURY_TASK_LIST_ID
   if (override) return override
   if (isInProcessCrewmate()) {
     const crewName = getCrewmateContext()?.crewName
     if (crewName) return crewName
   }
-  return getCrewName() || leaderCrewName || getSessionId()
+  return getCrewName() || leaderCrewName || undefined
 }
 
 const liveLedgerWatched = new Set<string>()
@@ -102,8 +106,8 @@ async function listLiveLedger(crew: string): Promise<Task[]> {
 
 export async function listSessionMission(): Promise<Task[]> {
   const own = String(getSessionId())
-  const current = getTaskListId()
-  const lists = current === own ? [own] : [own, current]
+  const board = sharedBoardId()
+  const lists = board === undefined || board === own ? [own] : [own, board]
   const seen = new Set<string>()
   const rows: Task[] = []
   for (const listId of lists) {
@@ -127,7 +131,8 @@ export async function listSessionMission(): Promise<Task[]> {
       rows.push({ ...task, id, blocks: task.blocks.map(keyed), blockedBy: task.blockedBy.map(keyed) })
     }
   }
-  for (const task of await listLiveLedger(current)) {
+  if (board === undefined) return rows
+  for (const task of await listLiveLedger(board)) {
     if (seen.has(task.id)) continue
     seen.add(task.id)
     rows.push(task)
