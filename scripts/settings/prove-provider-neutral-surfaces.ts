@@ -99,6 +99,12 @@ section('(2) usageSectionPlan — one /usage section per family (derived, never 
     plan[2]?.title === 'acme usage' && plan[2]?.connect.includes('/capabilities') && plan[2]?.limitsNote.includes('No polled usage meter'),
   )
   check('every enumerated family mounts a section (no hidden lanes)', usageSectionPlan(fams).some(s => s.id === ('openai' as never)))
+  const xaiPlan = usageSectionPlan([{ id: 'xai', available: true, credentialed: false }] as never)
+  check(
+    'xai section: the known-id presentation — the title, the /logins xai key route, and the honest no-usage-endpoint line (console.x.ai is the view)',
+    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === "Usage bills to your xAI team's prepaid credits; the xAI API exposes no usage or balance endpoint an API key can read — console.x.ai is the view.",
+    JSON.stringify(xaiPlan[0]),
+  )
 }
 
 section('(3) /config — derived account rows + the read-only model pointer')
@@ -126,6 +132,7 @@ section('(3) /config — derived account rows + the read-only model pointer')
     { id: 'moonshot', available: true, credentialed: false },
     { id: 'zai', available: true, credentialed: false },
     { id: 'deepseek', available: true, credentialed: false },
+    { id: 'xai', available: true, credentialed: false },
   ] as never)
   check('moonshot row: the /logins moonshot route (a sign-in exists)',
     keyLaneRows[0]?.valueText === 'not signed in — /logins moonshot connects (or MOONSHOT_API_KEY)', keyLaneRows[0]?.valueText ?? '')
@@ -133,6 +140,8 @@ section('(3) /config — derived account rows + the read-only model pointer')
     keyLaneRows[1]?.valueText === 'no key — /logins zai connects (or ZAI_API_KEY)', keyLaneRows[1]?.valueText ?? '')
   check('deepseek row: the /logins deepseek route, key-only wording',
     keyLaneRows[2]?.valueText === 'no key — /logins deepseek connects (or DEEPSEEK_API_KEY)', keyLaneRows[2]?.valueText ?? '')
+  check('xai row: the /logins xai route, key-only wording, the xAI label',
+    keyLaneRows[3]?.valueText === 'no key — /logins xai connects (or XAI_API_KEY)' && keyLaneRows[3]?.label === 'xAI account', `${keyLaneRows[3]?.label ?? ''}: ${keyLaneRows[3]?.valueText ?? ''}`)
 
   const anthropicPtr = mainLoopPointerText('claude-opus-5')
   check('model pointer: provider from the routing law (anthropic)', anthropicPtr.startsWith('Anthropic · ') && anthropicPtr.endsWith('— /model'), anthropicPtr)

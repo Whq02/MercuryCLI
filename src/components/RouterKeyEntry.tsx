@@ -12,12 +12,13 @@ import {
   writeStoredLocalApiKey,
   writeStoredMoonshotApiKey,
   writeStoredTavilyApiKey,
+  writeStoredXaiApiKey,
   writeStoredZaiApiKey,
 } from '../utils/router/providerSecrets.js'
 import { zaiKeySource } from '../utils/router/providerDiscovery.js'
 
 
-export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
+export type KeyEntryProvider = 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'compat' | 'huggingface' | 'local' | 'brave' | 'tavily'
 
 const LANES: Record<
   KeyEntryProvider,
@@ -45,6 +46,12 @@ const LANES: Record<
     envVar: 'DEEPSEEK_API_KEY',
     write: writeStoredDeepseekApiKey,
     envShadow: () => Boolean(process.env.DEEPSEEK_API_KEY?.trim()),
+  },
+  xai: {
+    title: 'xAI API key',
+    envVar: 'XAI_API_KEY',
+    write: writeStoredXaiApiKey,
+    envShadow: () => Boolean(process.env.XAI_API_KEY?.trim()),
   },
   compat: {
     title: 'Custom endpoint API key',

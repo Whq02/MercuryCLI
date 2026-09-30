@@ -935,6 +935,7 @@ function backendRemedy(backendId: string): string | undefined {
   if (backendId === 'zai-glm') return 'add a Z.AI API key via /logins zai (or set ZAI_API_KEY)'
   if (backendId === 'moonshot-chat') return 'sign in with Kimi or add a Moonshot key via /logins moonshot (or set MOONSHOT_API_KEY)'
   if (backendId === 'deepseek-chat') return 'add a DeepSeek API key via /logins deepseek (or set DEEPSEEK_API_KEY)'
+  if (backendId === 'xai-chat') return 'add an xAI API key via /logins xai (or set XAI_API_KEY)'
   if (backendId === 'openai-compat-chat') return 'set MERCURY_COMPAT_BASE_URL (key optional — /router key compat)'
   if (backendId === 'openrouter-chat') return 'connect OpenRouter via /logins (OAuth mints a key) or set OPENROUTER_API_KEY'
   if (backendId === 'gemini-generate') return 'connect Gemini via /logins (API key or Google OAuth) or set GOOGLE_API_KEY / GEMINI_API_KEY'
@@ -949,6 +950,7 @@ const BACKEND_ROUTE_PROBES: readonly string[] = [
   'glm',
   'kimi',
   'deepseek',
+  'grok',
   'compat/probe',
   'openrouter/probe/probe',
   'gemini',
