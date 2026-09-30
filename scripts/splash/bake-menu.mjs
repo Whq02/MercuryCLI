@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts',
+  sources: 'src/substrate/startupMenu.ts src/services/providers/xai/xaiPins.ts src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts',
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
 
@@ -34,6 +34,11 @@ const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel, renderModelSetting } =
   await import('../../src/utils/model/model.ts')
 const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
+const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
+  await import('../../src/services/providers/deepseek/deepseekPins.ts')
+const { KIMI_DISPLAY_PINS, KIMI_PLAN_PINS } = await import('../../src/services/providers/moonshot/kimiPins.ts')
+const { GLM_STATIC_CATALOGUE } = await import('../../src/utils/router/providers/zai.ts')
+const GLM_DISPLAY_PINS = GLM_STATIC_CATALOGUE.map(entry => ({ id: entry.id, displayName: entry.displayLabel }))
 
 const SPLASH = join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs')
 
@@ -75,6 +80,14 @@ function modelNamesBlock() {
     const id = pin.id.toLowerCase()
     if (names[id] === undefined) names[id] = pin.displayName
   }
+  const take = (id, name) => {
+    const key = id.toLowerCase()
+    if (names[key] === undefined) names[key] = name
+  }
+  for (const pin of DEEPSEEK_DISPLAY_PINS) take(pin.id, pin.displayName)
+  for (const alias of DEEPSEEK_RETIRED_ALIASES.keys()) take(alias, deepseekDisplayName(alias))
+  for (const pin of [...KIMI_DISPLAY_PINS, ...KIMI_PLAN_PINS]) take(pin.id, pin.displayName)
+  for (const pin of GLM_DISPLAY_PINS) take(pin.id, pin.displayName)
   for (const alias of MODEL_ALIASES) {
     const bare = alias.replace(/\[1m\]$/i, '')
     if (names[bare]) continue
@@ -85,6 +98,10 @@ function modelNamesBlock() {
   }
   const grokHead = XAI_DISPLAY_PINS[0]
   if (grokHead !== undefined && names.grok === undefined) names.grok = grokHead.displayName
+  for (const [word, family] of [['deepseek', DEEPSEEK_DISPLAY_PINS], ['kimi', KIMI_DISPLAY_PINS], ['glm', GLM_DISPLAY_PINS]]) {
+    const head = family[0]
+    if (head !== undefined) take(word, head.displayName)
+  }
   const rows = Object.entries(names).map(([id, l]) => `  ${JSON.stringify(id)}: ${JSON.stringify(l)},`)
   return { head, close, text: `${head}\n${rows.join('\n')}\n${close}` }
 }

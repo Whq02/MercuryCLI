@@ -5,6 +5,7 @@
 # gate-watch: scripts/lib/generated-assets-map.mjs src/components/mercury-ui/focalRamp.ts
 # gate-watch: src/components/mercuryPalette.ts src/ink/colorize.ts src/substrate/* src/utils/*
 # gate-watch: src/utils/cockpit/critterData.ts src/utils/cockpit/greetingShimmer.ts src/utils/model/* src/services/providers/xai/xaiPins.ts
+# gate-watch: src/services/providers/deepseek/deepseekPins.ts src/services/providers/moonshot/kimiPins.ts src/utils/router/providers/zai.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -22,6 +23,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ramp-parity.
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-units.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-units.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sonnet-55-row.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sonnet-55-row.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-grok-row.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-grok-row.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-deepseek-kimi-glm-rows.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-deepseek-kimi-glm-rows.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-splash-receipt.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-splash-receipt.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-ripple-drain.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ripple-drain.ts" "$__t" "$__rc"
 if [ "$fail" -ne 0 ]; then
