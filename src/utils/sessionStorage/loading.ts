@@ -59,6 +59,7 @@ function copyOfFold(fold: TranscriptFoldState): TranscriptFoldState {
     prUrls: new Map(fold.prUrls),
     prRepositories: new Map(fold.prRepositories),
     modes: new Map(fold.modes),
+    advisorSwitches: new Map(fold.advisorSwitches),
     worktreeStates: new Map(fold.worktreeStates),
     fileHistorySnapshots: new Map(fold.fileHistorySnapshots),
     attributionSnapshots: new Map(fold.attributionSnapshots),

@@ -566,6 +566,48 @@ section("§2b THIS CHAT'S OWN SWITCH on the real query road: the settings on and
   check('the bare line reads the state without changing it', runAdviseCommand('') === off && storage.advisorSwitchOfSession() === false)
 }
 
+section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advisor-switch entry on the transcript beside the title and the mode; every resume road reads the last one back and seeds the chat's switch, so a resumed session remembers it was on — or off (red on the base: no per-chat record)")
+{
+  resetRig()
+  advisorOn(5, false)
+  agentScript = Array.from({ length: 6 }, (_, i) => ({ text: `reply ${i + 1}` }))
+  const messages: AnyMsg[] = []
+  await mainTurn('a line to materialize the file', messages)
+  await recordTranscript(messages as never, undefined, undefined, messages as never)
+  await flushSessionStorage()
+  const { loadConversationForResume } = await import(join(ROOT, 'src/utils/conversationRecovery.ts'))
+  const { SNAPSHOT_SCHEMA } = await import(join(ROOT, 'src/utils/sessionStorage/resumeSnapshot.ts'))
+  const transcriptPath = getTranscriptPath()
+  const recordsOf = (): Raw[] => (existsSync(transcriptPath) ? readFileSync(transcriptPath, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as Raw) : [])
+  const switchRecords = (): Raw[] => recordsOf().filter(r => JSON.stringify(r).includes('"metaKind":"advisor-switch"'))
+  const before = switchRecords().length
+  const resumedBefore = await loadConversationForResume(SESSION, transcriptPath)
+  check('the record as it stands reads the switch as last written (off from this section\'s own advisorOn)', resumedBefore?.advisor === false, j({ before, advisor: resumedBefore?.advisor }))
+  storage.saveAdvisorSwitch(true)
+  await flushSessionStorage()
+  await settle(100)
+  const resumedOn = await loadConversationForResume(SESSION, transcriptPath)
+  check("/advise on writes through at once: one more advisor-switch record reading on, and the resume loader reads advisor: true back", switchRecords().length === before + 1 && JSON.stringify(switchRecords().at(-1)).includes('"on":true') && resumedOn?.advisor === true, j({ records: switchRecords().length - before, advisor: resumedOn?.advisor }))
+  storage.saveAdvisorSwitch(false)
+  await flushSessionStorage()
+  await settle(100)
+  const resumedOff = await loadConversationForResume(SESSION, transcriptPath)
+  check('/advise off appends one more record reading off, and the loader reads the LAST one: advisor: false', switchRecords().length === before + 2 && JSON.stringify(switchRecords().at(-1)).includes('"on":false') && resumedOff?.advisor === false, j({ records: switchRecords().length - before, advisor: resumedOff?.advisor }))
+  storage.clearSessionMetadata()
+  check("the metadata cache cleared reads as off (a fresh chat's state)", storage.advisorSwitchOfSession() === false)
+  storage.restoreSessionMetadata({ advisor: true })
+  check('the resume roads seed the switch through restoreSessionMetadata: the chat reads on without anyone typing /advise', storage.advisorSwitchOfSession() === true && advisor.advisorChatSwitch() === true)
+  storage.restoreSessionMetadata({ advisor: false })
+  check('…and a record reading off seeds off', storage.advisorSwitchOfSession() === false)
+  storage.restoreSessionMetadata({})
+  check('a record with no switch leaves the cache as it stands', storage.advisorSwitchOfSession() === false)
+  const resumeRoads = [src('src/cli/headless/resume.ts'), src('src/cli/print.ts')]
+  check('every headless resume road hands the loaded facts to restoreSessionMetadata — --continue, --resume and the warm claim', resumeRoads[0]!.split('restoreSessionMetadata(').length === 3 && resumeRoads[1]!.includes('restoreSessionMetadata(resumed)'))
+  check('the resume snapshot schema moved past the one older builds wrote, so a snapshot without the switch map is never trusted', SNAPSHOT_SCHEMA === 3)
+  const reader = src('src/utils/sessionStorage/transcriptReader.ts')
+  check('the pre-boundary metadata pass keeps the advisor-switch record across a compaction, beside the mode', reader.includes(`'"metaKind":"advisor-switch"'`) && reader.includes(`'"metaKind":"mode"'`))
+}
+
 async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' | 'workflow' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {
   const ctx = makeCtx()
   const yields: AnyMsg[] = []

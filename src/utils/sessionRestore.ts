@@ -30,6 +30,7 @@ export type ResumedConversationLog = {
   customTitle?: string
   tag?: string
   mode?: 'coordinator' | 'normal'
+  advisor?: boolean
   worktreeSession?: PersistedWorktreeSession | null
   prNumber?: number
   prUrl?: string

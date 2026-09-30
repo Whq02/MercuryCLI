@@ -282,9 +282,9 @@ function seedEarlierNote(arena: Arena, sid: string): string {
 const noteOnDisk = (memory: string): boolean => rawRecordsOf(memory).some(r => r.kind === 'note' && r.text === NOTE)
 
 interface Run { exit: number | null; stdout: string; stderr: string; results: number; closedOn: string; frames: Raw[] }
-function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { results: number; also?: () => boolean; label: string }, deadlineMs: number, holdNextUntil?: (nextIndex: number) => boolean): Promise<Run> {
+function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { results: number; also?: () => boolean; label: string }, deadlineMs: number, holdNextUntil?: (nextIndex: number) => boolean, identity: 'new' | 'resume' = 'new'): Promise<Run> {
   return new Promise(resolvePromise => {
-    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', '--session-id', sid], { cwd: arena.cwd, env: arena.env })
+    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', sid], { cwd: arena.cwd, env: arena.env })
     let stdout = ''
     let stderr = ''
     let sent = 0
@@ -407,6 +407,35 @@ section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the rea
   console.log(`  the stream-json host saw ${run.frames.filter(f => f.type === 'result').length} result frames; an advisor-origin user frame on stdout: ${stdoutNote !== undefined ? 'yes' : 'no'}`)
   await paintsTheNote(chat, "the operator's second prompt", 'operator line 2')
   frameScenes.push(['advisor-note-lands', "the real runner's transcript: the note composed at turn 1's end lands beside the operator's second prompt as the muted row, then the reply that reads it", chat])
+  wire.length = 0
+  agentReplies = 0
+}
+
+section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back through -p --resume; bare /advise says on for this chat without anyone saying /advise on again, and with its memory's notes aged an hour the advisor reads the turns it never saw and the note lands inside the next turn (red on the base: no per-chat switch to remember)`)
+{
+  advisorMode = 'note'
+  agentScript = []
+  const arena = makeArena('resume')
+  const SID = 'c0ffee00-0000-4000-8000-00000000ad06'
+  const memory = seedEarlierNote(arena, SID)
+  const first = await runSession(arena, SID, [ADVISE_ON, 'operator line 1', 'operator line 2'], { results: 3, label: 'three results' }, 60_000, next => next !== 2 || noteOnDisk(memory))
+  check(`the first life took ${ADVISE_ON} and two turns, exit 0, one note on disk`, first.exit === 0 && first.results === 3 && noteOnDisk(memory), j({ exit: first.exit, results: first.results, stderr: first.stderr.slice(-300) }))
+  const file = transcriptFileOf(arena, SID)
+  const switches = rawRecordsOf(file).filter(r => JSON.stringify(r).includes('"metaKind":"advisor-switch"'))
+  check("the session's own record carries the switch as an advisor-switch entry reading on (red on the base: no such record)", file !== null && switches.length >= 1 && switches.every(r => JSON.stringify(r).includes('"on":true')), j(switches.map(r => JSON.stringify(r).slice(0, 160))))
+  const aged = rawRecordsOf(memory).map(r => (r.kind === 'note' ? { ...r, at: new Date(Date.now() - 60 * 60_000).toISOString() } : r))
+  writeFileSync(memory, `${aged.map(r => j(r)).join('\n')}\n`)
+  wire.length = 0
+  agentReplies = 0
+  const resumed = await runSession(arena, SID, ['/advise', 'operator line 3', 'operator line 4'], { results: 3, label: 'three results' }, 60_000, next => next !== 2 || wire.some(w => w.kind === 'advisor'), 'resume')
+  check(`the resumed life took bare /advise and two turns, exit 0`, resumed.exit === 0 && resumed.results === 3, j({ exit: resumed.exit, results: resumed.results, stderr: resumed.stderr.slice(-300) }))
+  check("bare /advise on the resumed session says on for this chat — nobody said /advise on in this life", adviseLineOf(resumed) === `advisor on for this chat · ${ADVISOR_MODEL} · ${CADENCE}`, adviseLineOf(resumed))
+  const advisorRequests = wire.filter(w => w.kind === 'advisor')
+  check("one advisor request left the box in the resumed life: due (the memory's note an hour old) and reading the rows since its last look — operator line 2, which the first life never digested", advisorRequests.length === 1 && bodyText(advisorRequests[0]!.body).includes('operator line 2') && !bodyText(advisorRequests[0]!.body).includes('operator line 1'), j(advisorRequests.map(w => bodyText(w.body).slice(0, 200))))
+  const chat = file === null ? [] : await chatRowsOf(file)
+  const noteRows = chat.filter(isNoteRow)
+  const lineThreeAt = chat.findIndex(r => r.type === 'user' && contentOf(r) === 'operator line 3')
+  check("the chat's reader hands back two advisor rows across both lives, the second inside the resumed life's first operator turn", noteRows.length === 2 && chat.indexOf(noteRows[1]!) > lineThreeAt && lineThreeAt >= 0, j(shapeOf(chat)))
   wire.length = 0
   agentReplies = 0
 }

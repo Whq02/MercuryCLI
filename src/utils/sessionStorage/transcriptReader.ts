@@ -978,6 +978,7 @@ const METADATA_TYPE_MARKERS = [
   '"metaKind":"agent-color"',
   '"metaKind":"agent-setting"',
   '"metaKind":"mode"',
+  '"metaKind":"advisor-switch"',
   '"metaKind":"worktree-state"',
   '"metaKind":"pr-link"',
 ]

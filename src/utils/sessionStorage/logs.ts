@@ -540,6 +540,7 @@ export type ResumeFacts = Pick<
   | 'customTitle'
   | 'tag'
   | 'mode'
+  | 'advisor'
   | 'worktreeSession'
   | 'prNumber'
   | 'prUrl'
@@ -564,6 +565,7 @@ export function resumeFactsOf(
     customTitle: fold.customTitles.get(sessionId),
     tag: fold.tags.get(sessionId),
     mode: fold.modes.get(sessionId) as LogOption['mode'],
+    advisor: fold.advisorSwitches.get(sessionId),
     worktreeSession: fold.worktreeStates.has(sessionId) ? fold.worktreeStates.get(sessionId) : undefined,
     prNumber: fold.prNumbers.get(sessionId),
     prUrl: fold.prUrls.get(sessionId),

@@ -6,7 +6,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 
-export const SNAPSHOT_SCHEMA = 2
+export const SNAPSHOT_SCHEMA = 3
 const DIGEST_TAIL_BYTES = 4096
 export const SNAPSHOT_MIN_BYTES = 256 * 1024
 
