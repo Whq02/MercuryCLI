@@ -1,0 +1,538 @@
+{
+  "model": "claude-sonnet-5-5",
+  "road": "the product's getAnthropicClient on the owner's signed-in Anthropic account, first-party host: the door's answer to the request shape, one main-stream-shaped reply with a signed thinking block, two count-tokens requests and the product's own counter",
+  "observed_at": "2026-09-30T18:05:25.285Z",
+  "product_commit": "2550a60139eb8e9241ff3774c0d7156a2797ada7",
+  "usage_window_before": {
+    "at": "2026-09-30T18:01:58.066Z",
+    "five_hour_utilization": 30,
+    "seven_day_utilization": 8,
+    "seven_day_sonnet": null
+  },
+  "redactions": [
+    "Request ids are req_***; the bearer token, the session id, the client request id, the account uuid and the client-contract fingerprint are named, not copied.",
+    "The signed thinking block rides every count leg verbatim (the seed's own text and signature, unmodified); here its text is clipped to its first 80 characters and its signature is sig_***, with both lengths kept. On this row the wire returns the block's text empty and its signature 2348 characters long.",
+    "The system prompt of every seed leg is named, not copied."
+  ],
+  "legs": [
+    {
+      "leg": "D1",
+      "law": "the door: a first-party request whose system prompt is the bare CLI prefix string — no attribution line, no metadata — is refused 429 rate_limit_error \"Error\" at once, three times 90 s apart, with no rate-limit accounting header",
+      "road": "getAnthropicClient beta.messages.create (the two earlier lanes' probe shape)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "messages": "one user turn: the reasoning prompt (see C0)",
+        "system": "the product's CLI system-prompt prefix, as one string (105 chars)",
+        "metadata": "absent",
+        "headers": {
+          "accept": "application/json",
+          "anthropic-beta": "claude-code-20250219,oauth-2025-04-20,thinking-binding-controls-2026-08-01",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "user-agent": "mercury/1.0.0-beta.25",
+          "x-app": "cli",
+          "authorization": "Bearer ***",
+          "x-claude-code-session-id": "<a session id>",
+          "x-client-request-id": "<a client request id>"
+        }
+      },
+      "response": {
+        "status": 429,
+        "refusals": [
+          {
+            "at": "2026-09-30T18:01:58.313Z",
+            "status": 429,
+            "ms": 242,
+            "headers": {
+              "content-type": "application/json",
+              "request-id": "req_***",
+              "x-should-retry": "true"
+            },
+            "ratelimit_headers_present": false,
+            "body": {
+              "type": "error",
+              "error": {
+                "type": "rate_limit_error",
+                "message": "Error"
+              },
+              "request_id": "req_***"
+            }
+          },
+          {
+            "at": "2026-09-30T18:03:28.583Z",
+            "status": 429,
+            "ms": 266,
+            "headers": {
+              "content-type": "application/json",
+              "request-id": "req_***",
+              "x-should-retry": "true"
+            },
+            "ratelimit_headers_present": false,
+            "body": {
+              "type": "error",
+              "error": {
+                "type": "rate_limit_error",
+                "message": "Error"
+              },
+              "request_id": "req_***"
+            }
+          },
+          {
+            "at": "2026-09-30T18:04:58.844Z",
+            "status": 429,
+            "ms": 258,
+            "headers": {
+              "content-type": "application/json",
+              "request-id": "req_***",
+              "x-should-retry": "true"
+            },
+            "ratelimit_headers_present": false,
+            "body": {
+              "type": "error",
+              "error": {
+                "type": "rate_limit_error",
+                "message": "Error"
+              },
+              "request_id": "req_***"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "leg": "D2",
+      "law": "the door: the same request with the attribution line and the CLI prefix as system blocks and metadata.user_id — the shape the product's own builders send — answers 200 four seconds after the third refusal, with the usage window's accounting headers",
+      "road": "getAnthropicClient beta.messages.create (the live session's shape)",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "messages": "one user turn: the reasoning prompt (see C0)",
+        "system": [
+          "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=cli;",
+          "the product's CLI system-prompt prefix"
+        ],
+        "metadata": {
+          "user_id": "{\"account_uuid\":\"<the signed-in account>\",\"session_id\":\"<a session id>\"}"
+        },
+        "headers": {
+          "accept": "application/json",
+          "anthropic-beta": "claude-code-20250219,oauth-2025-04-20,thinking-binding-controls-2026-08-01",
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+          "user-agent": "mercury/1.0.0-beta.25",
+          "x-app": "cli",
+          "authorization": "Bearer ***",
+          "x-claude-code-session-id": "<a session id>",
+          "x-client-request-id": "<a client request id>"
+        }
+      },
+      "response": {
+        "at": "2026-09-30T18:05:12.626Z",
+        "status": 200,
+        "ms": 9778,
+        "headers": {
+          "anthropic-ratelimit-unified-5h-reset": "1790807400",
+          "anthropic-ratelimit-unified-5h-status": "allowed",
+          "anthropic-ratelimit-unified-5h-utilization": "0.33",
+          "anthropic-ratelimit-unified-7d-reset": "1791388800",
+          "anthropic-ratelimit-unified-7d-status": "allowed",
+          "anthropic-ratelimit-unified-7d-utilization": "0.09",
+          "anthropic-ratelimit-unified-fallback-percentage": "0.5",
+          "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled",
+          "anthropic-ratelimit-unified-overage-status": "rejected",
+          "anthropic-ratelimit-unified-representative-claim": "five_hour",
+          "anthropic-ratelimit-unified-reset": "1790807400",
+          "anthropic-ratelimit-unified-status": "allowed",
+          "content-type": "application/json",
+          "request-id": "req_***"
+        }
+      }
+    },
+    {
+      "leg": "D3",
+      "law": "the door, isolated: the attribution line alone (no metadata) is admitted",
+      "road": "getAnthropicClient beta.messages.create",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "messages": "one user turn: the reasoning prompt (see C0)",
+        "system": [
+          "x-anthropic-billing-header: cc_version=<the client contract>.<fingerprint>;cc_entrypoint=unknown;",
+          "the product's CLI system-prompt prefix"
+        ],
+        "metadata": "absent"
+      },
+      "response": {
+        "at": "2026-09-30T18:07:40.244Z",
+        "status": 200,
+        "ms": 8610,
+        "headers": {
+          "anthropic-ratelimit-unified-5h-reset": "1790807400",
+          "anthropic-ratelimit-unified-5h-status": "allowed",
+          "anthropic-ratelimit-unified-5h-utilization": "0.34",
+          "anthropic-ratelimit-unified-7d-reset": "1791388800",
+          "anthropic-ratelimit-unified-7d-status": "allowed",
+          "anthropic-ratelimit-unified-7d-utilization": "0.09",
+          "anthropic-ratelimit-unified-fallback-percentage": "0.5",
+          "anthropic-ratelimit-unified-overage-disabled-reason": "org_level_disabled",
+          "anthropic-ratelimit-unified-overage-status": "rejected",
+          "anthropic-ratelimit-unified-representative-claim": "five_hour",
+          "anthropic-ratelimit-unified-reset": "1790807400",
+          "anthropic-ratelimit-unified-status": "allowed",
+          "content-type": "application/json",
+          "request-id": "req_***"
+        }
+      }
+    },
+    {
+      "leg": "D4",
+      "law": "the door, isolated: metadata.user_id alone, the bare prefix string and no attribution line, is refused the same way — the attribution line is the field the door reads",
+      "road": "getAnthropicClient beta.messages.create",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "messages": "one user turn: the reasoning prompt (see C0)",
+        "system": "the product's CLI system-prompt prefix, as one string (105 chars)",
+        "metadata": {
+          "user_id": "{\"account_uuid\":\"<the signed-in account>\",\"session_id\":\"<a session id>\"}"
+        }
+      },
+      "response": {
+        "status": 429,
+        "refusals": [
+          {
+            "at": "2026-09-30T18:07:44.482Z",
+            "status": 429,
+            "ms": 235,
+            "headers": {
+              "content-type": "application/json",
+              "request-id": "req_***",
+              "x-should-retry": "true"
+            },
+            "ratelimit_headers_present": false,
+            "body": {
+              "type": "error",
+              "error": {
+                "type": "rate_limit_error",
+                "message": "Error"
+              },
+              "request_id": "req_***"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "leg": "F5",
+      "law": "the product's create-probe counter as shipped (countTokensViaHaikuFallback): the small-fast model, metadata, no system prompt, and the beta headers spread into the body as anthropic_beta — refused 400 invalid_request_error on the first-party wire",
+      "road": "countTokensViaHaikuFallback (before the fix)",
+      "request": {
+        "model": "claude-haiku-4-5-20251001",
+        "max_tokens": 1,
+        "system": "absent",
+        "metadata": "present",
+        "anthropic_beta": "present (a body field the first-party wire rejects)",
+        "messages": "one user turn: the reasoning prompt"
+      },
+      "response": {
+        "at": "2026-09-30T18:07:48.712Z",
+        "status": 400,
+        "ms": 225,
+        "headers": {
+          "content-type": "application/json",
+          "request-id": "req_***",
+          "x-should-retry": "false"
+        },
+        "body": {
+          "type": "error",
+          "error": {
+            "type": "invalid_request_error",
+            "message": "anthropic_beta: Extra inputs are not permitted"
+          },
+          "request_id": "req_***"
+        }
+      }
+    },
+    {
+      "leg": "C0",
+      "law": "the seed: a reasoning prompt under the main stream's composition — adaptive thinking with the binding, effort high, the attribution line and CLI prefix as system blocks, metadata.user_id — answers with a signed thinking block",
+      "road": "client (streamCore shape) beta.messages.create",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "max_tokens": 4096,
+        "system": [
+          "the billing attribution line (cc_version, cc_entrypoint=cli)",
+          "the product's CLI system-prompt prefix"
+        ],
+        "metadata": {
+          "user_id": "{\"account_uuid\":\"<the signed-in account>\",\"session_id\":\"<a session id>\"}"
+        },
+        "thinking": {
+          "type": "adaptive",
+          "block_binding": {
+            "prefix_mismatch_behavior": "drop_block"
+          }
+        },
+        "output_config": {
+          "effort": "high"
+        },
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "thinking-binding-controls-2026-08-01"
+        ],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "model": "claude-sonnet-5-5",
+        "stop_reason": "end_turn",
+        "usage": {
+          "input_tokens": 155,
+          "cache_creation_input_tokens": 0,
+          "cache_read_input_tokens": 0,
+          "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 0
+          },
+          "output_tokens": 1323,
+          "output_tokens_details": {
+            "thinking_tokens": 720
+          },
+          "service_tier": "standard",
+          "inference_geo": "not_available"
+        },
+        "content": [
+          {
+            "type": "thinking",
+            "thinking": "",
+            "thinking_chars": 0,
+            "signature": "sig_***",
+            "signature_chars": 2348
+          },
+          {
+            "type": "text",
+            "text": "**Setup:** The moduli 101, 103 and 107 are pairwise coprime, so the Chinese Remainder Theorem gives a unique solution modulo 101·103·107 = 1,113,121.\n\n**Step 1: combine the first two congruences.**\nWrite n = 17 + 101k. Then 17 + 101k ≡ 29 (mod 103).\nSince 101 ≡ −2 (mod 103), this becomes −2k ≡ 12, so k ≡ −6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403).\n\n**Step 2: bring in the third congruence.**\nWrite n = 9814 + 10403m. Modulo 107, 9814 ≡ 77 and 10403 ≡ 24.\nSo 77 + 24m ≡ 43, which gives 24m ≡ −34 ≡ 73 (mod 107).\nThe inverse of 24 mod 107 is 58, since 24·58 = 1392 = 13·107 + 1.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107).\n\nSo n = 9814 + 10403·61 = 9814 + 634,583 = 644,397.\n\n**Check against all three congruences:**\n- 644,397 − 101·6380 = 644,397 − 644,380 = 17 ✓\n- 644,397 − 103·6256 = 644,397 − 644,368 = 29 ✓\n- 644,397 − 107·6022 = 644,397 − 644,354 = 43 ✓\n\nSince 644,397 < 1,113,121, it is the least non-negative solution.\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33\n\nn=644397 digits=33"
+          }
+        ],
+        "final_line": "n=644397 digits=33",
+        "expected_final_line": "n=644397 digits=33"
+      }
+    },
+    {
+      "leg": "C1",
+      "law": "before: the count request carries the manual budget shape the counter sent every model",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "enabled",
+          "budget_tokens": 1024
+        },
+        "tools": [],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2348
+              },
+              {
+                "type": "text",
+                "text": "**Setup:** The moduli 101, 103 and 107 are pairwise coprime, so the Chinese Remainder Theorem gives a unique solution modulo 101·103·107 = 1,113,121.\n\n**Step 1: combine the first two congruences.**\nWrite n = 17 + 101k. Then 17 + 101k ≡ 29 (mod 103).\nSince 101 ≡ −2 (mod 103), this becomes −2k ≡ 12, so k ≡ −6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403).\n\n**Step 2: bring in the third congruence.**\nWrite n = 9814 + 10403m. Modulo 107, 9814 ≡ 77 and 10403 ≡ 24.\nSo 77 + 24m ≡ 43, which gives 24m ≡ −34 ≡ 73 (mod 107).\nThe inverse of 24 mod 107 is 58, since 24·58 = 1392 = 13·107 + 1.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107).\n\nSo n = 9814 + 10403·61 = 9814 + 634,583 = 644,397.\n\n**Check against all three congruences:**\n- 644,397 − 101·6380 = 644,397 − 644,380 = 17 ✓\n- 644,397 − 103·6256 = 644,397 − 644,368 = 29 ✓\n- 644,397 − 107·6022 = 644,397 − 644,354 = 43 ✓\n\nSince 644,397 < 1,113,121, it is the least non-negative solution.\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "input_tokens": 761,
+        "body": {
+          "input_tokens": 761
+        }
+      }
+    },
+    {
+      "leg": "C2",
+      "law": "after: the count request follows the adaptive-thinking gate",
+      "road": "getAnthropicClient beta.messages.countTokens",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2348
+              },
+              {
+                "type": "text",
+                "text": "**Setup:** The moduli 101, 103 and 107 are pairwise coprime, so the Chinese Remainder Theorem gives a unique solution modulo 101·103·107 = 1,113,121.\n\n**Step 1: combine the first two congruences.**\nWrite n = 17 + 101k. Then 17 + 101k ≡ 29 (mod 103).\nSince 101 ≡ −2 (mod 103), this becomes −2k ≡ 12, so k ≡ −6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403).\n\n**Step 2: bring in the third congruence.**\nWrite n = 9814 + 10403m. Modulo 107, 9814 ≡ 77 and 10403 ≡ 24.\nSo 77 + 24m ≡ 43, which gives 24m ≡ −34 ≡ 73 (mod 107).\nThe inverse of 24 mod 107 is 58, since 24·58 = 1392 = 13·107 + 1.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107).\n\nSo n = 9814 + 10403·61 = 9814 + 634,583 = 644,397.\n\n**Check against all three congruences:**\n- 644,397 − 101·6380 = 644,397 − 644,380 = 17 ✓\n- 644,397 − 103·6256 = 644,397 − 644,368 = 29 ✓\n- 644,397 − 107·6022 = 644,397 − 644,354 = 43 ✓\n\nSince 644,397 < 1,113,121, it is the least non-negative solution.\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "input_tokens": 734,
+        "body": {
+          "input_tokens": 734
+        }
+      }
+    },
+    {
+      "leg": "C3",
+      "law": "the product road: countMessagesTokensWithAPI on the same messages with the main-loop model set to the row",
+      "road": "countMessagesTokensWithAPI",
+      "request": {
+        "model": "claude-sonnet-5-5",
+        "betas": [
+          "claude-code-20250219",
+          "oauth-2025-04-20",
+          "token-counting-2024-11-01"
+        ],
+        "thinking": {
+          "type": "adaptive"
+        },
+        "tools": [],
+        "messages": [
+          {
+            "role": "user",
+            "content": "Find the least non-negative integer n with n = 17 (mod 101), n = 29 (mod 103) and n = 43 (mod 107). Then compute the sum of the decimal digits of n. Work through the modular arithmetic carefully and check your answer against all three congruences before replying. The final line of your reply must read exactly: n=<value> digits=<sum>"
+          },
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "",
+                "thinking_chars": 0,
+                "signature": "sig_***",
+                "signature_chars": 2348
+              },
+              {
+                "type": "text",
+                "text": "**Setup:** The moduli 101, 103 and 107 are pairwise coprime, so the Chinese Remainder Theorem gives a unique solution modulo 101·103·107 = 1,113,121.\n\n**Step 1: combine the first two congruences.**\nWrite n = 17 + 101k. Then 17 + 101k ≡ 29 (mod 103).\nSince 101 ≡ −2 (mod 103), this becomes −2k ≡ 12, so k ≡ −6 ≡ 97 (mod 103).\nThat gives n = 17 + 101·97 = 9814, so n ≡ 9814 (mod 10403).\n\n**Step 2: bring in the third congruence.**\nWrite n = 9814 + 10403m. Modulo 107, 9814 ≡ 77 and 10403 ≡ 24.\nSo 77 + 24m ≡ 43, which gives 24m ≡ −34 ≡ 73 (mod 107).\nThe inverse of 24 mod 107 is 58, since 24·58 = 1392 = 13·107 + 1.\nThen m ≡ 73·58 = 4234 ≡ 61 (mod 107).\n\nSo n = 9814 + 10403·61 = 9814 + 634,583 = 644,397.\n\n**Check against all three congruences:**\n- 644,397 − 101·6380 = 644,397 − 644,380 = 17 ✓\n- 644,397 − 103·6256 = 644,397 − 644,368 = 29 ✓\n- 644,397 − 107·6022 = 644,397 − 644,354 = 43 ✓\n\nSince 644,397 < 1,113,121, it is the least non-negative solution.\n\n**Digit sum:** 6 + 4 + 4 + 3 + 9 + 7 = 33\n\nn=644397 digits=33"
+              }
+            ]
+          },
+          {
+            "role": "user",
+            "content": "Continue."
+          }
+        ],
+        "wire_hits": [
+          {
+            "path": "/v1/messages/count_tokens",
+            "status": 200
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "input_tokens": 734,
+        "count": 734
+      }
+    }
+  ]
+}
