@@ -26,7 +26,7 @@ for (const size of SIZES) {
       const result = await drive(driver, leg, size, [
         ...OPENING('check the target window'),
         { requireAwait: true, awaitText: 'Window check complete.', awaitStableTicks: 2, mark: 'result', data: '' },
-      ], 200, { MERCURY_COMPUTER_ACCESS: 'full', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' }, 'Window check complete.')
+      ], 200, { MERCURY_COMPUTER_ACCESS: 'full' }, 'Window check complete.')
       check(`${tag}: the product finished the fixture turn`, result.status === 0, `${result.status} ${result.endReason} ${result.stderr.slice(-500)}`)
       const requests = leg.fixture.messageRequests()
       const wire = JSON.stringify(requests)
