@@ -54,7 +54,8 @@ fi
 exec bash "$runner"
 }
 rm -f "$outdir/$dom.hang"
-run_checked_suite >"$out" 2>&1 &
+printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
+run_checked_suite >>"$out" 2>&1 &
 pid=$!
 runner=$$
 end_suite_tree() {

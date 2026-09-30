@@ -97,14 +97,42 @@ suite_browser_cleanup() {
   MERCURY_SUITE_BROWSER_CLEANER=1 "${MERCURY_NODE:-node}" "$(dirname "${BASH_SOURCE[0]}")/proofBrowser.cjs" "$ledger"
 }
 
+suite_socket_bound=100
+
+suite_scratch_base() {
+  local pair label cand canon probe bytes tried=""
+  __suite_scratch_base="${TMPDIR:-/tmp}"
+  __suite_scratch_note="TMPDIR as inherited; no socket bound on this host"
+  case "$(uname -s)" in (MINGW* | MSYS* | CYGWIN*) return 0 ;; esac
+  for pair in "RUNNER_TEMP=${RUNNER_TEMP:-}" "TMPDIR=${TMPDIR:-}" "fallback=/tmp"; do
+    label=${pair%%=*}
+    cand=${pair#*=}
+    [ -n "$cand" ] || continue
+    canon="$(cd -P -- "$cand" 2>/dev/null && pwd -P)" || continue
+    probe="$canon/mercury-proof-run.XXXXXX/config-home/daemon/control.sock"
+    bytes=$(printf '%s' "$probe" | wc -c | tr -d ' ')
+    if [ "$bytes" -le "$suite_socket_bound" ]; then
+      __suite_scratch_base="$canon"
+      __suite_scratch_note="${tried:+$tried; }$label $cand keeps the daemon socket path at $bytes bytes, within the $suite_socket_bound-byte bound"
+      return 0
+    fi
+    tried="${tried:+$tried; }$label $cand would put the daemon socket path at $bytes bytes, past the $suite_socket_bound-byte bound"
+  done
+  __suite_scratch_base=/tmp
+  __suite_scratch_note="$tried; no temp root keeps the daemon socket within the bound, the run root stays under /tmp"
+  return 0
+}
+
 suite_scratch_init() {
   local subject="${1:-$0}"
   if [ "${MERCURY_SUITE_SCRIPT:-}" != "$subject" ] || [ -z "${MERCURY_SUITE_TMPDIR:-}" ] || [ ! -d "$MERCURY_SUITE_TMPDIR" ]; then
-    __suite_temp_scratch=$(command mktemp -d "${TMPDIR:-/tmp}/mercury-proof-run.XXXXXX") || {
-      printf 'suite: cannot create temporary proof root under %s\n' "${TMPDIR:-/tmp}" >&2
+    suite_scratch_base
+    __suite_temp_scratch=$(command mktemp -d "${__suite_scratch_base%/}/mercury-proof-run.XXXXXX") || {
+      printf 'suite: cannot create temporary proof root under %s\n' "$__suite_scratch_base" >&2
       exit 78
     }
     export MERCURY_SUITE_TMPDIR="$__suite_temp_scratch"
+    export MERCURY_SUITE_TMPDIR_NOTE="$__suite_scratch_note"
     export MERCURY_SUITE_SCRIPT="$subject"
     export MERCURY_SUITE_RUNNER_PID="$$"
     export MERCURY_PROCESS_LEDGER_DIR="$__suite_temp_scratch/process-ledger"

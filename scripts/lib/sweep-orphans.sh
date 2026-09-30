@@ -66,12 +66,12 @@ is_ancestor_of_me() {
 }
 
 ledger_runner_of() {
-  local dir entry pid runner started rest
+  local dir entry pid runner started cwd command
   for dir in "$(process_ledger_dir)" "${MERCURY_SWEEP_LEDGER_DIRS:-}"; do
     [ -n "$dir" ] && [ -d "$dir" ] || continue
     for entry in "$dir"/"$1".*.entry; do
       [ -f "$entry" ] || continue
-      IFS=$'\t' read -r pid runner started rest <"$entry" || continue
+      process_ledger_read "$entry" || continue
       [ "$pid" = "$1" ] || continue
       [ -z "$started" ] || [ "$started" = "$(process_started_at "$1")" ] || continue
       printf '%s' "$runner"
