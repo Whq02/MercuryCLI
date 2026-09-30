@@ -68,6 +68,12 @@ export function isSessionCleared(sessionId: string | null | undefined): boolean 
   return clearedSessionIds().has(sessionId)
 }
 
+export function clearedSessionAt(sessionId: string | null | undefined): number | null {
+  if (!sessionId) return null
+  const at = readMap()[sessionId]
+  return typeof at === 'number' ? at : null
+}
+
 export function resetClearedSessionsMemo(): void {
   memo = null
 }

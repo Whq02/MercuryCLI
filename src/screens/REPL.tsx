@@ -4,7 +4,7 @@ import { FOLD_ROW_HEAD } from '../services/compact/foldStatus.js';
 import { takeResumeFoldNotice } from '../services/run/runCoordinator.js';
 import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '../utils/sessionStorage/loading.js';
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../utils/sessionStorage/writer.js';
-import { existsSync, writeFileSync } from 'node:fs';
+import { writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { basename as nodePathBasename, join } from 'node:path';
 import React, {
@@ -166,7 +166,14 @@ import { asSessionId } from '../types/ids.js';
 import { createAbortController } from '../utils/abortController.js';
 import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js';
 import type { PastedContent } from '../utils/config/schema.js';
-import { crashReportDirDisplay, markCrashReportsNoticed, unnoticedCrashReports } from '../utils/crashReport.js';
+import {
+  crashReportDirDisplay,
+  markCrashReportsNoticed,
+  resolveCrashTranscript,
+  setCrashConversationLocator,
+  unnoticedCrashReports,
+} from '../utils/crashReport.js';
+import { clearedSessionAt } from '../utils/sessionStorage/clearedSessions.js';
 import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { CrashResumeDialog } from '../components/CrashResumeDialog.js';
 import { getCwd } from '../utils/cwd.js';
@@ -245,6 +252,15 @@ const getFocusedSeatLive = (): SessionLiveV1 => {
   const connector = getFocusedSessionConnector();
   return hasSeatLive(connector) ? connector.live() : IDLE_LIVE;
 };
+setCrashConversationLocator(() => {
+  const sessionId = conversationIdHere();
+  if (!hasFocusedSession()) return { sessionId, transcriptPath: null };
+  try {
+    return { sessionId, transcriptPath: join(getProjectDir(getFocusedSessionConnector().workspace().projectRoot), `${sessionId}.jsonl`) };
+  } catch {
+    return { sessionId, transcriptPath: null };
+  }
+});
 const subscribeFocusedModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener));
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener));
 const getFocusedEffectiveModel = (): string => getFocusedSessionConnector().modelFacts().effective;
@@ -1558,29 +1574,34 @@ export function REPL({
         newest.sessionId !== null ? `session ${newest.sessionId.slice(0, 8)}` : null,
         newest.cwd !== null ? `in ${nodePathBasename(newest.cwd) || newest.cwd}` : null,
       ].filter((bit): bit is string => bit !== null);
-      if (newest.sessionId !== null) {
-        let transcriptPath: string | undefined;
-        try {
-          const candidate = join(getProjectDir(newest.cwd ?? getCwd()), `${newest.sessionId}.jsonl`);
-          if (existsSync(candidate)) transcriptPath = candidate;
-        } catch {
-        }
-        if (transcriptPath !== undefined) {
-          setCrashResumeStaged({
-            origin: newest.origin,
-            component: newest.component,
-            message: newest.message,
-            sessionId: newest.sessionId,
-            cwd: newest.cwd,
-            transcriptPath,
-            moreCount: more,
-          });
-          return;
-        }
+      let resolved: ReturnType<typeof resolveCrashTranscript> = null;
+      try {
+        resolved = resolveCrashTranscript(newest, {
+          projectDirOf: getProjectDir,
+          currentCwd: getCwd(),
+          excludeSessionIds: [String(getSessionId())],
+          clearedAt: clearedSessionAt,
+          notAfterMs: Date.now() - process.uptime() * 1000,
+        });
+      } catch {
       }
+      const backInside = resolved !== null && resolved.sessionId === conversationIdHere();
+      if (resolved !== null && !backInside) {
+        setCrashResumeStaged({
+          origin: newest.origin,
+          component: newest.component,
+          message: newest.message,
+          sessionId: resolved.sessionId,
+          cwd: newest.cwd,
+          transcriptPath: resolved.transcriptPath,
+          moreCount: more,
+        });
+        return;
+      }
+      const wayBack = backInside ? ' — this is that session, back in' : ' — its transcript is gone, so no re-entry is offered';
       addNotification({
         key: 'crash-reports',
-        text: `a previous session crashed (${newest.origin}${newest.component ? ` in ${newest.component}` : ''} — ${newest.message.slice(0, 80)})${identityBits.length > 0 ? ` · ${identityBits.join(' ')}` : ''}${newest.sessionId !== null ? ' — its transcript is gone, so no re-entry is offered' : ''}${more > 0 ? ` +${more} more` : ''} · reports in ${crashReportDirDisplay()}`,
+        text: `a previous session crashed (${newest.origin}${newest.component ? ` in ${newest.component}` : ''} — ${newest.message.slice(0, 80)})${identityBits.length > 0 ? ` · ${identityBits.join(' ')}` : ''}${wayBack}${more > 0 ? ` +${more} more` : ''} · reports in ${crashReportDirDisplay()}`,
         priority: 'high',
         timeoutMs: 60_000,
       });
