@@ -7,6 +7,7 @@ import {
   AUTOCOMPACT_THRASH_MESSAGE,
   calculateTokenWarningState,
   getBlockingLimit,
+  isAutoCompactEnabled,
   type AutoCompactTrackingState,
 } from '../services/compact/autoCompact.js'
 import { buildPostCompactMessages } from '../services/compact/compact.js'
@@ -1194,12 +1195,15 @@ export async function* runEventCore(
             pruneSavingTokens: pruneSaving,
             fold: foldAvailability({
               tracking,
-              headFold: headFoldFailed ? 'failed' : 'did-not-land',
+              headFold: headFoldFailed ? 'failed' : isAutoCompactEnabled() ? 'did-not-land' : undefined,
               ...(headFoldFailed && compactionRefusal !== undefined ? { headFoldDetail: compactionRefusal } : {}),
               hasHistory: splitCarriedOperatorTail(messagesForQuery).hasHistory,
             }),
           })
-          if (decision.kind === 'recover' && decision.rung === 'prune') {
+          if (decision.kind === 'recover') {
+            if (decision.rung === 'fold') {
+              yield emit({ kind: 'notice', message: createSystemMessage(overflowRecoveryNotice(signal, 'fold'), 'warning') })
+            }
             const next: TurnState = {
               messages: messagesForQuery,
               toolUseContext,
@@ -1211,9 +1215,12 @@ export async function* runEventCore(
               pendingToolUseSummary,
               stopHookActive,
               turnCount,
-              overflowEpisode: { pruned: true, folded: overflowEpisode.folded },
-              pendingOverflow: { signal, rung: 'prune' },
-              transition: { reason: 'overflow_recovery', rung: 'prune', source: 'estimate' },
+              overflowEpisode: {
+                pruned: overflowEpisode.pruned || decision.rung === 'prune',
+                folded: overflowEpisode.folded || decision.rung === 'fold',
+              },
+              pendingOverflow: { signal, rung: decision.rung },
+              transition: { reason: 'overflow_recovery', rung: decision.rung, source: 'estimate' },
             }
             yield emit({ kind: 'turn_settled', transition: next.transition! })
             state = next

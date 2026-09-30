@@ -2195,9 +2195,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
         {
           id: 'context',
           label: 'Context & resume',
-          run: () => {
+          run: async () => {
+            const { compactionSettingsText } = await import('../services/compact/autoCompact.js')
             const usage = getLiveContextUsage()
             const arms = [
+              compactionSettingsText(),
               `keep-tail ${isMercuryCompactKeepTailEnabled() ? 'on' : 'off'}`,
               `away-summary ${isAwaySummaryEnabled() ? 'on' : 'off'}`,
               `carry-forward ${flagEnabled('MERCURY_CARRY_FORWARD') ? 'on' : 'off'}`,

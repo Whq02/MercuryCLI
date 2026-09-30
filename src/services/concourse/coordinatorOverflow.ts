@@ -14,7 +14,7 @@ export function coordinatorOverflowOf(err: unknown): OverflowSignal | null {
   return err instanceof CoordinatorOverflowError ? err.overflow : null
 }
 
-export type CoordinatorOverflowWhy = 'retry-overflowed' | 'auto-compact-off' | 'fold-refused' | 'nothing-to-fold'
+export type CoordinatorOverflowWhy = 'retry-overflowed' | 'compaction-off' | 'fold-refused' | 'nothing-to-fold'
 
 export function coordinatorOverflowRefusal(signal: OverflowSignal, why: CoordinatorOverflowWhy, detail?: string): string {
   const head = `context overflowed (${overflowWhoClause(signal)})`
@@ -22,8 +22,8 @@ export function coordinatorOverflowRefusal(signal: OverflowSignal, why: Coordina
   switch (why) {
     case 'retry-overflowed':
       return `${head} — the conversation was folded and the turn retried once, and it still overflows; ${remedy}`
-    case 'auto-compact-off':
-      return `${head} — automatic compaction is off, so the emergency fold did not run; /compact folds the conversation by hand, ${remedy}`
+    case 'compaction-off':
+      return `${head} — compaction is disabled (MERCURY_COMPACT=0), so nothing could fold; ${remedy}`
     case 'fold-refused':
       return `${head} — the fold was refused${detail !== undefined && detail !== '' ? ` (${detail})` : ''}; ${remedy}`
     case 'nothing-to-fold':

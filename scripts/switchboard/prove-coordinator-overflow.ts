@@ -129,25 +129,27 @@ section('§2 — exhausted: the retry overflows too → one fold, two calls, the
   check('the fold stands in the store (the marker survives the refusal)', rows.some(row => row.summary === true))
 }
 
-section('§3 — the automatic-fold switch off: no fold, the refusal names /compact')
+section('§3 — turning off early folds leaves emergency recovery enabled')
 {
   await reseed(12)
   process.env.MERCURY_AUTO_COMPACT = '0'
   const r = await drive({ id: 'ovf-3', script: ['overflow', 'reply'] })
   delete process.env.MERCURY_AUTO_COMPACT
-  const reason = String(r.receipt.reason ?? '')
-  check('refused after ONE call, no fold', r.receipt.outcome === 'refused' && r.seen.length === 1 && r.summarizeCalls === 0, `outcome=${String(r.receipt.outcome)} calls=${r.seen.length} folds=${r.summarizeCalls}`)
-  check('the refusal names /compact by hand', reason.includes('automatic compaction is off, so the emergency fold did not run; /compact folds the conversation by hand'), reason)
+  check('one emergency fold and two calls complete the turn with early folding off', r.seen.length === 2 && r.summarizeCalls === 1 && r.receipt.outcome !== 'refused', `outcome=${String(r.receipt.outcome)} calls=${r.seen.length} folds=${r.summarizeCalls}`)
+  await reseed(12)
+  process.env.MERCURY_COMPACT = '0'
+  const stopped = await drive({ id: 'ovf-3-master', script: ['overflow', 'reply'] })
+  delete process.env.MERCURY_COMPACT
+  check('the master switch still refuses by name without folding', stopped.receipt.outcome === 'refused' && stopped.summarizeCalls === 0 && String(stopped.receipt.reason).includes('MERCURY_COMPACT=0'))
 }
 
-section('§4 — the flag off: today\'s surface, the raw failure text, no fold')
+section('§4 — the legacy recovery switch cannot disable emergency folding')
 {
   await reseed(12)
   process.env.MERCURY_OVERFLOW_RECOVERY = '0'
   const r = await drive({ id: 'ovf-4', script: ['overflow', 'reply'] })
   delete process.env.MERCURY_OVERFLOW_RECOVERY
-  const reason = String(r.receipt.reason ?? '')
-  check('refused after one call, no fold, the thrown text as the reason', r.receipt.outcome === 'refused' && r.seen.length === 1 && r.summarizeCalls === 0 && reason === 'coordinator turn failed — API Error: OpenAI stream failed (openai-context_length_exceeded) — raw sentence', reason)
+  check('the coordinator still folds once and completes after the retry', r.receipt.outcome !== 'refused' && r.seen.length === 2 && r.summarizeCalls === 1, JSON.stringify(r.receipt))
 }
 
 section('§5 — a non-overflow failure is untouched')
