@@ -105,6 +105,36 @@ try {
   const fallback = await countTokensViaHaikuFallback(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), [])
   const hit = seen.at(-1)
   check('the Haiku fallback stays on the create endpoint with its 1024-token budget', seen.length === before + 1 && hit?.path === '/v1/messages' && hit.body.model === 'claude-haiku-4-5-20251001' && show(hit.body.thinking) === show(budget) && fallback === 37, hit)
+
+  const { assembleTurnSystemPrompt, buildSystemPromptBlocks, buildTurnSystemBlocks } = await import('../../src/services/providers/anthropic/cacheAndUsage.js')
+  const { getAttributionHeader, getCLISyspromptPrefix } = await import('../../src/constants/system.js')
+  const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
+  const { computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.js')
+  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.js')
+  const { readFileSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  const attribution = getAttributionHeader(computeFingerprintFromMessages([createUserMessage({ content: 'Say OK.' })]))
+  const posture = { isNonInteractive: false, hasAppendSystemPrompt: false }
+  const session = asSystemPrompt(['# Session\nA session prompt for the count proof.', 'A second part.'])
+  const turnBlocks = buildTurnSystemBlocks(attribution, session, posture, true)
+  check('the shared builder assembles the attribution line, the CLI prefix for the posture, then the session prompt, and marks the cached blocks as the stream always did', show(turnBlocks) === show(buildSystemPromptBlocks(asSystemPrompt([attribution, getCLISyspromptPrefix(posture), ...session]), true)) && turnBlocks.length === 3 && turnBlocks[0]!.text === attribution && turnBlocks[1]!.text === getCLISyspromptPrefix(posture) && !('cache_control' in turnBlocks[0]!) && 'cache_control' in turnBlocks[1]! && 'cache_control' in turnBlocks[2]!, turnBlocks.map(block => Object.keys(block)))
+  check('an empty attribution line drops out of the join, as the stream\'s own filter did', show(assembleTurnSystemPrompt('', session, posture)) === show([getCLISyspromptPrefix(posture), ...session]))
+  const streamCore = readFileSync(join(import.meta.dir, '..', '..', 'src', 'services', 'providers', 'anthropic', 'streamCore.ts'), 'utf8')
+  check('the main stream assembles its system prompt through the shared owner and nowhere else (one spelling)', streamCore.includes('assembleTurnSystemPrompt(attribution, sessionSystemPrompt, posture)') && !streamCore.includes('systemPromptBody') && !streamCore.includes('getCLISyspromptPrefix('))
+  const withSystemBefore = seen.length
+  const counted = await countMessagesTokensWithAPI(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), tools, turnBlocks)
+  const carried = seen.at(-1)
+  check('the count body carries the shared builder\'s system blocks byte-for-byte, beside the history and tools (base: no system field at all)', seen.length === withSystemBefore + 1 && carried?.path === '/v1/messages/count_tokens' && show((carried.body as { system?: unknown }).system) === show(turnBlocks) && show(carried.body.tools) === show(tools) && counted === 37, carried?.body)
+  const bareBefore = seen.length
+  await countMessagesTokensWithAPI(history(), tools)
+  check('a count given no system blocks sends no system field', seen.length === bareBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), seen.at(-1)?.body)
+  const emptyBefore = seen.length
+  await countMessagesTokensWithAPI(history(), tools, [])
+  check('an empty block list sends no system field either', seen.length === emptyBefore + 1 && !Object.hasOwn(seen.at(-1)!.body, 'system'), seen.at(-1)?.body)
+  const stringBefore = seen.length
+  const stringCount = await countTokensWithAPI('a file body '.repeat(50))
+  check('the no-session string counter (the file-read cap\'s road) counts one user message with no system field and no tools', seen.length === stringBefore + 1 && stringCount === 37 && !Object.hasOwn(seen.at(-1)!.body, 'system') && seen.at(-1)!.body.messages.length === 1 && show(seen.at(-1)!.body.tools) === show([]), seen.at(-1)?.body)
 } finally {
   if (origin.listening) await new Promise<void>(resolve => origin.close(() => resolve()))
   rmSync(home, { recursive: true, force: true })

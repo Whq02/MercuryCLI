@@ -327,6 +327,10 @@ export function boundSignature(body: { system?: unknown; tools?: unknown; messag
   return `${BOUND_SIGNATURE_PREFIX}${prefixHashOf(body, Array.isArray(body.messages) ? body.messages : [])}:${String(body.model ?? '')}`
 }
 
+export function countTokensFixtureFigure(raw: string): number {
+  return Math.ceil(Buffer.byteLength(raw, 'utf8') / 4)
+}
+
 export function bindingDropsFor(current: unknown): unknown[] {
   const cur = current as { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string } | null
   if (!cur || !Array.isArray(cur.messages)) return []
@@ -524,6 +528,12 @@ export async function startFixtureApi(
       if (!(req.url ?? '').includes('/v1/messages')) {
         res.writeHead(200, { 'content-type': 'application/json' })
         res.end('{}')
+        return
+      }
+
+      if ((req.url ?? '').includes('/v1/messages/count_tokens')) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ input_tokens: countTokensFixtureFigure(raw) }))
         return
       }
 
