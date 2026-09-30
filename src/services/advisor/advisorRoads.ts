@@ -23,7 +23,7 @@ export async function advisorRound(
   road: AdvisorRoad = {},
 ): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return 'off'
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return 'off'
   const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return 'waiting'
   if (inFlight.has(agentId)) {

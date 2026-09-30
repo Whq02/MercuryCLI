@@ -118,6 +118,7 @@ const rows = await import(join(ROOT, 'src/utils/messages/noticeRows.ts'))
 const text = await import(join(ROOT, 'src/utils/messages/text.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { getTranscriptPath } = await import(join(ROOT, 'src/utils/sessionStorage/paths.ts'))
+const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 const { calculateTokenWarningState, getEffectiveContextWindowSize } = await import(join(ROOT, 'src/services/compact/autoCompact.ts'))
 const { getMaxOutputTokensForModel } = await import(join(ROOT, 'src/services/providers/anthropic/streamCore.ts'))
 const { modelThinkingAlwaysOn } = await import(join(ROOT, 'src/utils/model/capabilities.ts'))
@@ -216,27 +217,75 @@ section('§0b seat admission: the main chat follows Advisor; crewmates and workf
       const allowed = enabled && seat === 'main'
       const id = `scope-${seat}-${enabled}`
       const { call, calls } = makeCall(['Check the base before the next edit.'])
-      const road = { seat, settings, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now }
+      const road = { seat, chat: true, settings, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now }
       const transcript = [operatorRow(1, 'which seam?')] as never
       await advisor.advisorTurnSettled(id, transcript, road)
       tick(1)
       const note = await advisor.advisorTurnSettled(id, transcript, road)
       const ask = await advisor.askAdvisor(id, 'which seam?', transcript, road)
-      check(`${seat}, settings=${enabled}: notes and asks share admission`, allowed ? note !== null && ask.ok && calls.length === 2 : note === null && !ask.ok && calls.length === 0, j({ note, ask, calls: calls.length }))
+      check(`${seat}, settings=${enabled}, chat on: notes and asks share admission`, allowed ? note !== null && ask.ok && calls.length === 2 : note === null && !ask.ok && calls.length === 0, j({ note, ask, calls: calls.length }))
       if (!allowed) check(`${id}: refusal opens no advisor context`, advisor.peekAdvisorContext(id) === undefined)
     }
   }
-  check('the refusals name their reason: crewmates and workflow agents are never served, and the settings switch is /config → Advisor', advisor.advisorSeatRefusal('crewmate', { enabled: true, minutes: 1 }) === advisor.ADVISOR_CREWMATE_REFUSAL && advisor.ADVISOR_CREWMATE_REFUSAL.includes('not available to crewmates') && advisor.advisorSeatRefusal('workflow', { enabled: true, minutes: 1 }) === advisor.ADVISOR_WORKFLOW_REFUSAL && advisor.advisorSeatRefusal('main', { enabled: false, minutes: 1 }) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL && advisor.ADVISOR_SETTINGS_OFF_REFUSAL.includes('/config'), j([advisor.ADVISOR_CREWMATE_REFUSAL, advisor.ADVISOR_WORKFLOW_REFUSAL, advisor.ADVISOR_SETTINGS_OFF_REFUSAL]))
+  check('the refusals name their reason: crewmates and workflow agents are never served, and the settings switch is /config → Advisor', advisor.advisorSeatRefusal('crewmate', { enabled: true, minutes: 1 }, true) === advisor.ADVISOR_CREWMATE_REFUSAL && advisor.ADVISOR_CREWMATE_REFUSAL.includes('not available to crewmates') && advisor.advisorSeatRefusal('workflow', { enabled: true, minutes: 1 }, true) === advisor.ADVISOR_WORKFLOW_REFUSAL && advisor.advisorSeatRefusal('main', { enabled: false, minutes: 1 }, true) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL && advisor.ADVISOR_SETTINGS_OFF_REFUSAL.includes('/config'), j([advisor.ADVISOR_CREWMATE_REFUSAL, advisor.ADVISOR_WORKFLOW_REFUSAL, advisor.ADVISOR_SETTINGS_OFF_REFUSAL]))
   advisor.setAdvisorEnabled(true)
   advisor.setAdvisorMinutes(20)
   check('the switch and the interval persist together, nothing else', j(config.getGlobalConfig().advisor) === j({ enabled: true, minutes: 20 }))
   config.saveGlobalConfig(c => ({ ...c, advisor: { enabled: true, crewmates: true, minutes: 20 } as never }))
-  check('a crewmates key written by hand never changes a crewmate\'s answer', advisor.advisorSeatRefusal('crewmate') === advisor.ADVISOR_CREWMATE_REFUSAL)
+  check('a crewmates key written by hand never changes a crewmate\'s answer', advisor.advisorSeatRefusal('crewmate', undefined, true) === advisor.ADVISOR_CREWMATE_REFUSAL)
   advisor.setAdvisorMinutes(30)
   check('the next save drops the crewmates key from the file', j(config.getGlobalConfig().advisor) === j({ enabled: true, minutes: 30 }), j(config.getGlobalConfig().advisor))
   advisor.setAdvisorEnabled(false)
   advisor.setAdvisorMinutes(10)
   check('returning the switch and the interval to defaults trims the whole block', config.getGlobalConfig().advisor === undefined)
+}
+
+section("§0c THE EFFECTIVE TEST: the advisor runs for a chat only when the settings are on AND the chat's own switch is on — a new chat starts off even with the settings on; /advise on turns it on for this chat alone; /config → Advisor off stops every chat at once; the settings back on turn no chat on (red on the base: the settings alone ran every session)")
+{
+  const ON = { enabled: true, minutes: 10 }
+  const OFF = { enabled: false, minutes: 10 }
+  check("a fresh session's own switch is off, so the main chat is refused with the settings on, naming /advise on", storage.advisorSwitchOfSession() === false && advisor.advisorChatSwitch() === false && advisor.advisorSeatRefusal('main', ON) === advisor.ADVISOR_CHAT_OFF_REFUSAL && advisor.ADVISOR_CHAT_OFF_REFUSAL.includes('/advise on'), j(advisor.advisorSeatRefusal('main', ON)))
+  check('with the settings off the refusal names the settings first, whatever the chat says', advisor.advisorSeatRefusal('main', OFF, true) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL && advisor.advisorSeatRefusal('main', OFF, false) === advisor.ADVISOR_SETTINGS_OFF_REFUSAL)
+  check('a chat whose switch is on with the settings on is served', advisor.advisorSeatRefusal('main', ON, true) === undefined)
+  const { call, calls } = makeCall(['never for a chat that did not ask'])
+  const transcript = [operatorRow(1, 'hello'), replyRow(2, 'hi')]
+  const offRoad = { settings: ON, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now }
+  const first = await advisor.advisorTurnSettled('chat-off', transcript as never, offRoad)
+  tick(10)
+  const second = await advisor.advisorTurnSettled('chat-off', transcript as never, offRoad)
+  const askOff = await advisor.askAdvisor('chat-off', 'anyone?', transcript as never, offRoad)
+  check("the settings on alone spend nothing: two boundaries ten minutes apart, no call, no note, no context, and the ask refuses naming this chat's switch", first === null && second === null && calls.length === 0 && advisor.peekAdvisorContext('chat-off') === undefined && !askOff.ok && askOff.reason === advisor.ADVISOR_CHAT_OFF_REFUSAL, j({ first, second, calls: calls.length, askOff }))
+  storage.saveAdvisorSwitch(true)
+  check("/advise on: the session's own record reads on and the main chat is served", storage.advisorSwitchOfSession() === true && advisor.advisorChatSwitch() === true && advisor.advisorSeatRefusal('main', ON) === undefined)
+  const onRoad = { settings: ON, call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now }
+  await advisor.advisorTurnSettled('chat-on', transcript as never, onRoad)
+  tick(10)
+  const served = await advisor.advisorTurnSettled('chat-on', transcript as never, onRoad)
+  check('once the chat is on, the same boundaries compose the note', served !== null && calls.length === 1, j({ served, calls: calls.length }))
+  advisor.setAdvisorEnabled(true)
+  check('advisorEnabled() — the tool gate — is the same effective test through the live settings', advisor.advisorEnabled() === true)
+  advisor.setAdvisorEnabled(false)
+  const stopped = await advisor.advisorTurnSettled('chat-on', [...transcript, replyRow(3, 'more')] as never, { call: call as never, model: ADVISOR_MODEL, dir: DIR, persist: false, now })
+  check('/config → Advisor off stops a chat that is on: the live settings refuse, no call, and the tool gate closes', advisor.advisorEnabled() === false && stopped === null && calls.length === 1 && advisor.advisorSeatRefusal('main') === advisor.ADVISOR_SETTINGS_OFF_REFUSAL)
+  storage.saveAdvisorSwitch(false)
+  advisor.setAdvisorEnabled(true)
+  check("the settings back on turn no chat on: this chat's switch stands off as it was", advisor.advisorEnabled() === false && advisor.advisorSeatRefusal('main') === advisor.ADVISOR_CHAT_OFF_REFUSAL)
+  advisor.setAdvisorEnabled(false)
+  const unpinned = { origin: 'unset', hint: 'x' } as never
+  const pinned = { origin: 'saved', model: ADVISOR_MODEL, route: 'anthropic' } as never
+  check('the bare /advise line: on or off for this chat, the model, the minutes — and when the settings are off, that /config → Advisor must be on for any chat to get notes', advisor.advisorChatLine({ chat: true, settings: ON, model: pinned }) === `advisor on for this chat · ${ADVISOR_MODEL} · every 10 minutes` && advisor.advisorChatLine({ chat: false, settings: { enabled: true, minutes: 20 }, model: pinned }) === `advisor off for this chat — /advise on turns it on · ${ADVISOR_MODEL} · every 20 minutes` && advisor.advisorChatLine({ chat: true, settings: OFF, model: unpinned }) === 'advisor on for this chat · no advisor model pinned — /submodels sets one · every 10 minutes · off in the settings — /config → Advisor must be on for any chat to get notes', j([advisor.advisorChatLine({ chat: true, settings: ON, model: pinned }), advisor.advisorChatLine({ chat: false, settings: { enabled: true, minutes: 20 }, model: pinned }), advisor.advisorChatLine({ chat: true, settings: OFF, model: unpinned })]))
+  const { runAdviseCommand, ADVISE_USAGE, parseAdviseArg } = await import(join(ROOT, 'src/commands/advise/advise.ts'))
+  check('the command parses on, off, bare and nothing else', parseAdviseArg(' ON ') === 'on' && parseAdviseArg('off') === 'off' && parseAdviseArg('') === 'show' && parseAdviseArg('maybe') === 'unknown' && runAdviseCommand('maybe') === ADVISE_USAGE && ADVISE_USAGE.includes('/advise on|off'))
+  advisor.setAdvisorEnabled(true)
+  check("/advise on writes this chat's switch and answers the state line; /advise alone says the same; /advise off turns it off", runAdviseCommand('on').startsWith('advisor on for this chat') && storage.advisorSwitchOfSession() === true && runAdviseCommand('') === runAdviseCommand('on') && runAdviseCommand('off').startsWith('advisor off for this chat — /advise on turns it on') && storage.advisorSwitchOfSession() === false, runAdviseCommand(''))
+  advisor.setAdvisorEnabled(false)
+  check('the command is a session-seat local command that the headless runner may execute, curated under model & effort in /help', await (async () => {
+    const command = (await import(join(ROOT, 'src/commands/advise/index.ts'))).default as { type: string; name: string; supportsNonInteractive: boolean; seat?: string; argumentHint?: string }
+    const { commandSeat, builtinCommands } = await import(join(ROOT, 'src/commands.ts'))
+    const { COMMAND_DOMAINS } = await import(join(ROOT, 'src/components/HelpV2/commandDomains.ts'))
+    return command.type === 'local' && command.name === 'advise' && command.supportsNonInteractive === true && command.argumentHint === '[on|off]' && commandSeat(command as never) === 'session' && builtinCommands().some((c: { name: string }) => c.name === 'advise') && COMMAND_DOMAINS.some((d: { key: string; names: readonly string[] }) => d.key === 'model' && d.names.includes('advise'))
+  })())
+  storage.saveAdvisorSwitch(true)
 }
 
 section("§1 off by default: with advisor.enabled false nothing runs — no context, no call, no note")
@@ -325,6 +374,14 @@ section('§2b the digest: tool calls with their results clipped, meta rows and a
   check('nothing new ⇒ an empty digest, count 0, the cursor kept', none.count === 0 && none.text === '' && none.cursor === uuidAt(7))
   const gone = advisor.renderAgentDigest(messages as never, 'no-such-uuid')
   check('a cursor the list no longer holds (a compacted agent) reads the whole list again', gone.count === 5)
+  const slashRows = [
+    operatorRow(8, '<command-message>advise is running…</command-message>\n<command-name>/advise</command-name>\n<command-args>on</command-args>'),
+    operatorRow(9, '<local-command-stdout>advisor on for this chat · m · every 10 minutes</local-command-stdout>'),
+  ]
+  const slashOnly = advisor.renderAgentDigest(slashRows as never, undefined)
+  check("a slash command's own rows — the echo and its stdout — are not the agent's conversation: no digest line, a count of nothing new, the cursor past them (so /advise itself never earns a note)", slashOnly.count === 0 && slashOnly.text === '' && slashOnly.cursor === uuidAt(9), j(slashOnly))
+  const mixed = advisor.renderAgentDigest([...slashRows, operatorRow(10, 'a real line')] as never, undefined)
+  check('the operator line after them is the one line the advisor reads', mixed.count === 1 && mixed.text === '[operator] a real line', mixed.text)
 }
 
 section('§3 the memory on disk: beside the transcript under <session>/advisor/<agentId>.jsonl; a fresh load reads the rows and the cursor back')

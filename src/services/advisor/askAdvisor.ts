@@ -44,7 +44,7 @@ export async function askAdvisor(
   road: AdvisorRoad = {},
 ): Promise<AskAdvisorResult> {
   const settings = road.settings ?? readAdvisorSettings()
-  const refusal = advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings)
+  const refusal = advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat)
   if (refusal !== undefined) return { ok: false, reason: refusal }
   const trimmed = question.trim()
   if (trimmed === '') return { ok: false, reason: 'the question is empty' }

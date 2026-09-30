@@ -1,4 +1,6 @@
 export {
+  ADVISOR_CHAT_OFF_REFUSAL,
+  ADVISOR_COMMAND,
   ADVISOR_CONTAINER,
   ADVISOR_CREWMATE_REFUSAL,
   ADVISOR_DEFAULT_MINUTES,
@@ -7,8 +9,12 @@ export {
   ADVISOR_ENV_VAR,
   ADVISOR_MINUTES_FLOOR,
   ADVISOR_MINUTES_LADDER,
+  ADVISOR_SETTINGS_OFF_NOTE,
   ADVISOR_SETTINGS_OFF_REFUSAL,
   ADVISOR_WORKFLOW_REFUSAL,
+  advisorChatLine,
+  advisorChatState,
+  advisorChatSwitch,
   advisorDispatchEffort,
   advisorEnabled,
   advisorIntervalWords,
@@ -21,6 +27,7 @@ export {
   resolveAdvisorModel,
   setAdvisorEnabled,
   setAdvisorMinutes,
+  type AdvisorChatState,
   type AdvisorSeat,
   type AdvisorSettings,
 } from './advisorSettings.js'

@@ -212,11 +212,14 @@ section("§4 the note between turns: the drain's attachment paints one visible a
   const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/utils/attachments/queuedCommands.ts'))
   const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
   queue.resetCommandQueue()
+  const { saveAdvisorSwitch } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
   advisor.setAdvisorEnabled(true)
+  saveAdvisorSwitch(true)
   advisor.stashAdvisorNote(String(state.getSessionId()), note as never)
   advisor.stashAdvisorNote(String(state.getSessionId()), { text: '/no-such-words-here stand as words', origin: advisorOrigin() } as never)
   const drained = getAdvisorNoteAttachments({ agentId: undefined }, { querySource: 'sdk' }) as Raw[]
   advisor.setAdvisorEnabled(false)
+  saveAdvisorSwitch(false)
   check('the drain hands back both notes as queued_command attachments with the origin, no meta, no command mode, and the queue stays empty', drained.length === 2 && drained.every(a => a.type === 'queued_command' && JSON.stringify(a.origin) === JSON.stringify(advisorOrigin()) && a.isMeta === undefined && a.commandMode === undefined) && queue.getCommandQueue().length === 0, JSON.stringify(drained))
   const row = { ...(createAttachmentMessage(drained[0] as never) as unknown as Raw), timestamp: ROW_AT }
   const slashLed = { ...(createAttachmentMessage(drained[1] as never) as unknown as Raw), timestamp: ROW_AT }

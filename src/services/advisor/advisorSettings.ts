@@ -8,6 +8,7 @@ import {
 import type { EffortLevel } from '../../utils/effort.js'
 import { isCrewmate } from '../../utils/crewmate.js'
 import { advisorMinutesWords } from '../../utils/messages/noticeRows.js'
+import { advisorSwitchOfSession } from '../../utils/sessionStorage/writer.js'
 import { isCrewRole } from '../../utils/workerRole.js'
 
 export type AdvisorSeat = 'main' | 'crewmate' | 'workflow'
@@ -31,6 +32,9 @@ export const ADVISOR_DEFAULT_SETTINGS: Readonly<AdvisorSettings> = Object.freeze
 export const ADVISOR_WORKFLOW_REFUSAL = 'the advisor is not available to workflow agents'
 export const ADVISOR_CREWMATE_REFUSAL = 'the advisor is not available to crewmates'
 export const ADVISOR_SETTINGS_OFF_REFUSAL = 'the advisor is off in the settings — /config → Advisor turns it on'
+export const ADVISOR_CHAT_OFF_REFUSAL = 'the advisor is off for this chat — /advise on turns it on'
+export const ADVISOR_COMMAND = '/advise'
+export const ADVISOR_SETTINGS_OFF_NOTE = '/config → Advisor must be on for any chat to get notes'
 
 type StoredAdvisor = NonNullable<ReturnType<typeof getGlobalConfig>['advisor']>
 
@@ -54,15 +58,45 @@ export function advisorSessionSeat(): AdvisorSeat {
   return isCrewRole() || isCrewmate() ? 'crewmate' : 'main'
 }
 
+export function advisorChatSwitch(): boolean {
+  return advisorSwitchOfSession()
+}
+
 export function advisorEnabled(): boolean {
   return advisorSeatRefusal(advisorSessionSeat()) === undefined
 }
 
-export function advisorSeatRefusal(seat: AdvisorSeat, settings: AdvisorSettings = readAdvisorSettings()): string | undefined {
+export function advisorSeatRefusal(
+  seat: AdvisorSeat,
+  settings: AdvisorSettings = readAdvisorSettings(),
+  chat: boolean = advisorChatSwitch(),
+): string | undefined {
   if (seat === 'workflow') return ADVISOR_WORKFLOW_REFUSAL
   if (seat === 'crewmate') return ADVISOR_CREWMATE_REFUSAL
   if (!settings.enabled) return ADVISOR_SETTINGS_OFF_REFUSAL
+  if (!chat) return ADVISOR_CHAT_OFF_REFUSAL
   return undefined
+}
+
+export interface AdvisorChatState {
+  chat: boolean
+  settings: AdvisorSettings
+  model: SubModelResolution
+}
+
+export function advisorChatState(): AdvisorChatState {
+  return { chat: advisorChatSwitch(), settings: readAdvisorSettings(), model: resolveAdvisorModel() }
+}
+
+export function advisorChatLine(state: AdvisorChatState = advisorChatState()): string {
+  const modelWords = state.model.origin === 'unset' ? 'no advisor model pinned — /submodels sets one' : state.model.model
+  const parts = [
+    state.chat ? 'advisor on for this chat' : `advisor off for this chat — ${ADVISOR_COMMAND} on turns it on`,
+    modelWords,
+    advisorIntervalWords(state.settings.minutes),
+  ]
+  if (!state.settings.enabled) parts.push(`off in the settings — ${ADVISOR_SETTINGS_OFF_NOTE}`)
+  return parts.join(' · ')
 }
 
 function writeAdvisor(mutate: (stored: StoredAdvisor) => StoredAdvisor): AdvisorSettings {

@@ -13,7 +13,7 @@ const COMMAND_ECHO_PREFIXES = [
   `<${LOCAL_COMMAND_STDERR_TAG}>`,
 ]
 
-function isCommandEcho(text: string): boolean {
+export function isCommandEcho(text: string): boolean {
   const s = text.trimStart()
   return COMMAND_ECHO_PREFIXES.some(prefix => s.startsWith(prefix))
 }

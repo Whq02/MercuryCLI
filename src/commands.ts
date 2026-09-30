@@ -4,6 +4,7 @@ import type { Command, CommandSeat } from './types/command.js'
 import { getCommandName } from './types/command.js'
 import { isCommandEnabled } from './commands/enablement.js'
 import verify from './commands/verify.js'
+import advise from './commands/advise/index.js'
 import agents from './commands/agents/index.js'
 import branch from './commands/branch/index.js'
 import branches from './commands/branches/index.js'
@@ -192,6 +193,7 @@ const insightsShim = {
 
 const COMMANDS = memoize((): Command[] => [
   verify,
+  advise,
   agents,
   branch,
   branches,

@@ -186,6 +186,7 @@ const { getAgentTranscriptPath, getTranscriptPath } = await import(join(ROOT, 's
 const { flushSessionStorage, recordTranscript } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
 const { recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
 const { getAttachments, createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
+const storage = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
 type AnyMsg = Record<string, unknown> & { type?: string }
 advisor.setAdvisorClockForTests(() => clock.now)
 
@@ -320,9 +321,10 @@ section('§0 the wiring: one road per seat into one drain, the framing, the tool
 
 const SESSION = String(state.getSessionId())
 const memoryOf = (agentId: string): string => (existsSync(advisor.advisorContextPath(agentId)) ? readFileSync(advisor.advisorContextPath(agentId), 'utf8') : '')
-const advisorOn = (minutes: number): void => {
+const advisorOn = (minutes: number, chat = true): void => {
   advisor.setAdvisorEnabled(true)
   advisor.setAdvisorMinutes(minutes)
+  storage.saveAdvisorSwitch(chat)
   config.saveGlobalConfig(c => ({ ...c, subModels: { ...c.subModels, advisor: ADVISOR_MODEL } }))
 }
 const resetRig = (): void => {
@@ -528,6 +530,40 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
   check('a call while off answers the refusal in words, never a throw', (refused as { data: { status: string; text: string } }).data.status === 'refused' && (refused as { data: { text: string } }).data.text.includes('the advisor is off'), j(refused))
   check("the session's advisor memory from §1 gained no row", memoryOf(SESSION) === memoryBefore)
   check('the advisor turns never counted (no context opened)', advisor.peekAdvisorContext(SESSION) === undefined)
+}
+
+section("§2b THIS CHAT'S OWN SWITCH on the real query road: the settings on and the chat's switch off — twelve turns two hours apart spend nothing and AskAdvisor is out of the catalogue; /advise on inside the session turns it on from the next boundary, the tool joins the catalogue, and /advise off stops it again (red on the base: the settings alone served every session)")
+{
+  resetRig()
+  advisorOn(5, false)
+  agentScript = Array.from({ length: 30 }, (_, i) => ({ text: `reply ${i + 1}` }))
+  const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
+  const { runAdviseCommand } = await import(join(ROOT, 'src/commands/advise/advise.ts'))
+  const messages: AnyMsg[] = []
+  const verdicts: string[] = []
+  for (let turn = 1; turn <= 12; turn++) {
+    await mainTurn(`operator line ${turn}`, messages)
+    tick(10)
+    verdicts.push(await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never))
+  }
+  check("with the settings on and this chat's switch off, every turn end reads off: no advisor request, no advisor row, no context, no bucket", verdicts.every(v => v === 'off') && wire.every(w => w.kind === 'agent') && messages.every(m => !isNoteRow(m)) && advisor.peekAdvisorContext(SESSION) === undefined && (state.getWorkloadUsage() as Raw).advisor === undefined, j(verdicts))
+  check('AskAdvisor is out of the catalogue and disabled while the chat is off', !getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && !AskAdvisorTool.isEnabled())
+  const refused = await AskAdvisorTool.call({ question: 'anyone there?' }, makeCtx() as never)
+  check("a stale tool call refuses naming this chat's switch", (refused as { data: { status: string; text: string } }).data.status === 'refused' && (refused as { data: { text: string } }).data.text.includes(advisor.ADVISOR_CHAT_OFF_REFUSAL), j(refused))
+  const line = runAdviseCommand('on')
+  check('/advise on in the session answers the state line for this chat and flips its record', line === `advisor on for this chat · ${ADVISOR_MODEL} · every 5 minutes` && storage.advisorSwitchOfSession() === true, line)
+  check('the tool joins the catalogue at once and is enabled', getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && AskAdvisorTool.isEnabled())
+  const opened = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never)
+  const { landed } = await mainTurn('operator line 13', messages)
+  check("from the very next boundary the chat is advised: the record's last note is hours old, so the note is composed at once (delivered) and lands inside the next turn beside the operator's prompt", opened === 'delivered' && landed.length === 1 && wire.filter(w => w.kind === 'advisor-note').length === 1, j({ opened, landed: landed.length }))
+  tick(5)
+  const again = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never)
+  const off = runAdviseCommand('off')
+  tick(10)
+  await mainTurn('operator line 14', messages)
+  const stopped = await advisor.advisorMainTurnSettled(SESSION, { mode: 'prompt' } as never, messages as never)
+  check('five minutes on the next boundary composes again; /advise off then stops it from the boundary after and the tool leaves the catalogue', again === 'delivered' && off.startsWith('advisor off for this chat') && stopped === 'off' && wire.filter(w => w.kind === 'advisor-note').length === 2 && !getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME), j({ again, off, stopped, notes: wire.filter(w => w.kind === 'advisor-note').length }))
+  check('the bare line reads the state without changing it', runAdviseCommand('') === off && storage.advisorSwitchOfSession() === false)
 }
 
 async function driveAgent(opts: { agentId: string; isAsync: boolean; transcriptSubdir?: string; querySource: string; agentKind?: 'crewmate' | 'workflow' }): Promise<{ yields: AnyMsg[]; threw?: string; childContext?: Raw }> {

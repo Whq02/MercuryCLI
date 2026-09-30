@@ -59,6 +59,8 @@ const EARLIER_NOTE = 'An earlier note, written an hour ago.'
 const QUIET_WORDS = 'had nothing to say this round — answered with no text, twice'
 const PLATE = '[advisor]'
 const CADENCE = `every ${MINUTES} minutes`
+const ADVISE_ON = '/advise on'
+const adviseLineOf = (run: { frames: Raw[] }): string => String(run.frames.find(f => f.type === 'result' && typeof f.result === 'string' && String(f.result).startsWith('advisor '))?.result ?? '')
 const HANDLE = '[sam]'
 const DOT = '●'
 
@@ -364,22 +366,22 @@ const paintsTheNote = async (chat: Raw[], beneathWords: string, sceneWords: stri
   }
 }
 
-section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the real headless runner, ${ADVISOR_MODEL} advising ${AGENT_MODEL} ${CADENCE} with its memory holding an hour-old note, the advisor thinking ${THINK} tokens before it writes — the note composed after turn 1 lands beside the operator's second prompt as an attachment row with the advisor origin, framed for the model as advice from a second model, and the agent takes no extra turn (red on the base: the note was queued as a prompt and started a turn of its own)`)
+section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the real headless runner with the settings on in its home and ${ADVISE_ON} typed as the chat's first line, ${ADVISOR_MODEL} advising ${AGENT_MODEL} ${CADENCE} with its memory holding an hour-old note, the advisor thinking ${THINK} tokens before it writes — the note composed after turn 1 lands beside the operator's second prompt as an attachment row with the advisor origin, framed for the model as advice from a second model, and the agent takes no extra turn (red on the base: the note was queued as a prompt and started a turn of its own)`)
 {
   advisorMode = 'note'
   agentScript = []
   const arena = makeArena('note')
   const SID = 'c0ffee00-0000-4000-8000-00000000ad01'
   const memory = seedEarlierNote(arena, SID)
-  const prompts = ['operator line 1', 'operator line 2', 'operator line 3']
+  const prompts = [ADVISE_ON, 'operator line 1', 'operator line 2', 'operator line 3']
   let releasedAt = 0
-  const run = await runSession(arena, SID, prompts, { results: 3, label: 'three results' }, 60_000, next => {
-    if (next !== 1) return true
+  const run = await runSession(arena, SID, prompts, { results: 4, label: 'four results' }, 60_000, next => {
+    if (next !== 2) return true
     if (!noteOnDisk(memory)) return false
     if (releasedAt === 0) releasedAt = Date.now()
     return Date.now() - releasedAt >= 400
   })
-  check(`the session took the three operator turns and no more, then exit 0 (closed on ${run.closedOn}) — the note cost the agent no turn`, run.exit === 0 && run.results === 3, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
+  check(`the session took ${ADVISE_ON} and the three operator turns and no more, then exit 0 (closed on ${run.closedOn}) — the note cost the agent no turn`, run.exit === 0 && run.results === 4 && adviseLineOf(run) === `advisor on for this chat · ${ADVISOR_MODEL} · ${CADENCE}`, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
   const agentRequests = wire.filter(w => w.kind === 'agent')
   check(`ONE advisor request left the box — at turn 1's end, the hour-old note making it due — on ${ADVISOR_MODEL}, under the advisor's system prompt, carrying the first operator row and the earlier note as memory; the later turn ends were within the interval`, advisorRequests.length === 1 && j(advisorRequests[0]!.body.system).includes('You are the Advisor') && bodyText(advisorRequests[0]!.body).includes('operator line 1') && !bodyText(advisorRequests[0]!.body).includes('operator line 2') && bodyText(advisorRequests[0]!.body).includes(EARLIER_NOTE), j(advisorRequests.map(w => [w.model, w.body.max_tokens, bodyText(w.body).slice(0, 200)])))
@@ -418,9 +420,9 @@ section(`§1b A NOTE COMPOSED INSIDE A RUNNING TURN LANDS AT ITS NEXT TOOL-ROUND
   const file = join(arena.cwd, 'notes.txt')
   agentScript = [{ read: file }, { read: file }, { text: 'done after two reads' }]
   agentDelayMs = 400
-  const run = await runSession(arena, SID, ['operator line 1'], { results: 1, label: 'one result' }, 60_000)
+  const run = await runSession(arena, SID, [ADVISE_ON, 'operator line 1'], { results: 2, label: 'two results' }, 60_000)
   agentDelayMs = 0
-  check(`the session took the one operator turn and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 1, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
+  check(`the session took ${ADVISE_ON} and the one operator turn and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 2, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
   const agentRequests = wire.filter(w => w.kind === 'agent')
   check("ONE advisor request left the box — at the boundary after the first read, inside the turn — carrying the first tool call", advisorRequests.length === 1 && bodyText(advisorRequests[0]!.body).includes('[tool] Read'), j(advisorRequests.map(w => bodyText(w.body).slice(0, 200))))
@@ -450,14 +452,14 @@ section(`§2 THE ADVISOR HAD NOTHING: the fixture answers thinking only, twice, 
   const arena = makeArena('quiet')
   const SID = 'c0ffee00-0000-4000-8000-00000000ad02'
   seedEarlierNote(arena, SID)
-  const prompts = ['operator line 1', 'operator line 2']
+  const prompts = [ADVISE_ON, 'operator line 1', 'operator line 2']
   let file: string | null = null
   const quietOnDisk = (): boolean => {
     if (file === null) file = transcriptFileOf(arena, SID)
     return rawRecordsOf(file).some(r => JSON.stringify(r).includes('"advisor_quiet"'))
   }
-  const run = await runSession(arena, SID, prompts, { results: 2, also: quietOnDisk, label: 'the quiet row on disk while the session was still open' }, 30_000, next => next !== 1 || quietOnDisk())
-  check(`the session took the two operator turns and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 2, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
+  const run = await runSession(arena, SID, prompts, { results: 3, also: quietOnDisk, label: 'the quiet row on disk while the session was still open' }, 30_000, next => next !== 2 || quietOnDisk())
+  check(`the session took ${ADVISE_ON} and the two operator turns and no more, then exit 0 (closed on ${run.closedOn})`, run.exit === 0 && run.results === 3, `exit=${run.exit} results=${run.results} closedOn=${run.closedOn} stderr=${run.stderr.slice(-400)}`)
   check("the quiet row reached the transcript file while the session was still open — the chat's reader would have painted it then", run.closedOn === 'the quiet row on disk while the session was still open', run.closedOn)
   const advisorRequests = wire.filter(w => w.kind === 'advisor')
   const agentRequests = wire.filter(w => w.kind === 'agent')
