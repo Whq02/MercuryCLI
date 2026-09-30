@@ -33,7 +33,7 @@ section('§1 the strip set derives from the route-law family table')
       check(`  '${name}' lands in the flat derived set`, spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name))
     }
   }
-  const seven = ['ZAI_API_KEY', 'DEEPSEEK_API_KEY', 'MOONSHOT_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_API_KEY']
+  const seven = ['ZAI_API_KEY', 'DEEPSEEK_API_KEY', 'MODEL_API_KEY', 'META_API_KEY', 'MOONSHOT_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'MERCURY_COMPAT_API_KEY', 'MERCURY_LOCAL_API_KEY']
   check('the seven previously-missing spellings are all covered', seven.every(name => spellings.ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes(name)))
 }
 

@@ -101,7 +101,9 @@ section('§3 the feeders record AND clear (structural pins)')
   }
   const usability = readFileSync(join(ROOT, 'src/services/providers/providerUsability.ts'), 'utf8')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
+  const billingFamilies = Object.keys(resolveProviderUsability()).filter(family => family !== 'anthropic' && family !== 'huggingface')
   const count = PROVIDER_ID_SPACES.filter(space => space.route !== 'huggingface').length
+  check('the route and usability owners agree on billing-family count', billingFamilies.length === count)
   check(
     `the usability resolver reads the owner for every non-HF engine lane (${count} applications)`,
     usability.includes("require('./laneBillingState.js')") && (usability.match(/applyLaneBilling\(/g) ?? []).length === count,

@@ -373,6 +373,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **GLM (Z.AI):** API key.
 - **DeepSeek:** API key.
 - **xAI (Grok):** API key.
+- **Meta (Muse):** pay-as-you-go Model API key; Muse Code subscriptions are for Muse Code only.
 
 Local model servers and custom OpenAI-compatible endpoints are discovered or
 configured separately, without a provider sign-in. Each provider has its own

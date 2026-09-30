@@ -15,7 +15,7 @@ const arg = (name: string): string | undefined => {
 const DIST = path.resolve(arg('--dist') ?? path.join(REPO, 'dist/mercury.mjs'))
 const VENDORED_NODE = path.join(path.dirname(DIST), 'vendor/node', process.platform === 'win32' ? 'node.exe' : path.join('bin', 'node'))
 const NODE = existsSync(VENDORED_NODE) ? VENDORED_NODE : 'node'
-const ONLY = new Set((arg('--only') ?? 'list,pool,wire').split(','))
+const ONLY = new Set((arg('--only') ?? 'list,pool,wire,xai,meta').split(','))
 const FRAMES = arg('--frames')
 const SIZES = (arg('--sizes') ?? '80x21,80x14,82x17,120x40').split(',').map(size => size.split('x').map(Number) as [number, number])
 const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
@@ -191,6 +191,10 @@ function baseEnv(home: string): NodeJS.ProcessEnv {
   delete env.ANTHROPIC_AUTH_TOKEN
   delete env.ANTHROPIC_API_KEY
   delete env.OPENAI_API_KEY
+  delete env.XAI_API_KEY
+  delete env.XAI_MANAGEMENT_API_KEY
+  delete env.MODEL_API_KEY
+  delete env.META_API_KEY
   delete env.MOONSHOT_API_KEY
   delete env.MERCURY_CAP_FAILOVER
   delete env.MERCURY_MOCK_USAGE_PAYLOAD
@@ -462,6 +466,37 @@ if (wire !== null) {
   const gptWall = [finalGrid, end].some(grid => grid.includes('GPT work on this source pauses'))
   check('the GPT turn reached Responses and its explicit provider wall painted', captured.some(c => c.kind === 'openai' && isMainTurn(c, 'hello sol')) && gptWall && transcriptCarries(wireWorld!.home, 'openai-usage_limit_reached'), `kinds=${kinds}\n${tail(end, 8)}`)
   check('no request after the switch reached the Anthropic wires', !captured.some(c => (c.kind === 'anthropic' || c.kind === 'anthropic-capped') && isMainTurn(c, 'hello sol')), `kinds=${kinds}`)
+}
+
+for (const lane of [
+  { family: 'xai', name: 'xAI', model: 'grok-4.7', key: 'XAI_API_KEY', baseKey: 'MERCURY_XAI_API_BASE' },
+  { family: 'meta', name: 'Meta', model: 'muse-spark-1.3', key: 'MODEL_API_KEY', baseKey: 'MERCURY_META_API_BASE' },
+]) {
+  if (!ONLY.has(lane.family)) continue
+  const world = seedWorld(lane.family, { openaiSubscription: true, claudeSubscription: false, anthropicKeyApproved: false })
+  const env = baseEnv(world.home)
+  delete env.ZAI_API_KEY
+  delete env.DEEPSEEK_API_KEY
+  env[lane.key] = `${lane.family}-fixture-key`
+  env[lane.baseKey] = `${base}/${lane.family}/v1`
+  const ask = `pickup-${lane.family}-from-capped-openai`
+  const shot = drive(lane.family, world, env, 'gpt-5.6-sol', [
+    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '? for shortcuts', minTick: 8, awaitSettleTicks: 3, data: 'hello sol\r' },
+    { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 8, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
+    { requireAwait: true, awaitText: 'Set model to', minTick: 8, awaitSettleTicks: 3, data: `${ask}\r`, mark: 'selected' },
+    { requireAwait: true, awaitText: `${lane.family} picked up the handoff`, minTick: 8, awaitSettleTicks: 4, data: '', mark: 'reply' },
+  ], 600, [120, 40])
+  const offer = markGrid(shot.payload, 'offer')
+  const reply = markGrid(shot.payload, 'reply')
+  check(`${lane.family}: the cap offer names its signed-in family and exact live landing row`, shot.status === 0 && offer.includes(`⇄ ${lane.model}`) && offer.includes(`the ${lane.name} lane bills per token under your ${lane.name} account`), offer)
+  const main = shot.wire.filter(capture => isMainTurn(capture, ask))
+  check(`${lane.family}: selecting the offer sends the next turn only to its own wire`, main.length === 1 && main[0]?.kind === lane.family && main[0]?.body?.model === lane.model, JSON.stringify(main))
+  check(`${lane.family}: the selected lane's answer paints after the handoff`, reply.includes(`${lane.family} picked up the handoff`), reply)
+  if (FRAMES !== undefined) {
+    writeFileSync(path.join(FRAMES, `${lane.family}-offer.txt`), offer + '\n')
+    writeFileSync(path.join(FRAMES, `${lane.family}-reply.txt`), reply + '\n')
+  }
 }
 
 if (FRAMES !== undefined && wireWorld !== null) {

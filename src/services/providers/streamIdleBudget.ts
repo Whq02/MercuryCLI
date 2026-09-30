@@ -103,6 +103,7 @@ export function silentAfterHeadersMsForRoute(route: string | null): number | nul
     case 'moonshot':
     case 'deepseek':
     case 'xai':
+    case 'meta':
     case 'openrouter':
     case 'gemini':
     case 'huggingface':

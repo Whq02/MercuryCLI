@@ -105,6 +105,19 @@ for (const family of families) {
   const fault = mapOpenaiHttpFailure(400, { error: { message: "This model's maximum context length is 128000 tokens. However, your messages resulted in 135000 tokens. Please reduce the length of the messages.", type: 'invalid_request_error', param: 'messages', code: 'context_length_exceeded' } })
   const signal = classifyOverflowFault({ family: 'openai', status: fault.status, code: fault.code, message: fault.message })
   check('openai (chat sentence): code word + numbers', signal?.shape === 'context-length-exceeded' && signal.actualTokens === 135_000 && signal.limitTokens === 128_000, JSON.stringify(signal))
+  const metaBody = { error: { message: "You passed 1200064 input tokens and requested 1 output tokens. However, the model's context length is only 1048576 tokens, resulting in a maximum input length of 1048575 tokens. Please reduce the length of the input prompt", type: 'invalid_request_error', code: null, param: null } }
+  const metaFault = mapCompatHttpFailure(400, metaBody)
+  const metaSignal = classifyOverflowFault({ family: 'meta', status: metaFault.status, code: metaFault.code, message: metaFault.message })
+  check('Meta documented null-code 400: input count against the stated maximum input budget', metaSignal?.shape === 'context-length-exceeded' && metaSignal.family === 'meta' && metaSignal.actualTokens === 1_200_064 && metaSignal.limitTokens === 1_048_575 && overflowGapTokens(metaSignal) === 151_489, JSON.stringify(metaSignal))
+  for (const status of [401, 402, 403, 429, 500, 503]) {
+    check(`Meta overflow words on HTTP ${status} never override the status`, classifyOverflowFault({ family: 'meta', status, message: metaBody.error.message }) === null)
+  }
+  for (const message of [
+    "The model's context length is only 1048576 tokens; the tool schema is invalid",
+    'A maximum input length of 1048575 tokens is available; unsupported parameter: top_p',
+    'Please reduce the length of the input prompt',
+    metaBody.error.message.replace('Please reduce the length of the input prompt', 'Unsupported parameter: tools'),
+  ]) check('partial input-budget words do not turn an unrelated 400 into overflow', classifyOverflowFault({ family: 'meta', status: 400, message }) === null, message)
   const err413 = new APIError(413, { type: 'error', error: { type: 'request_too_large', message: 'Request entity too large' } } as never, undefined, undefined as never)
   const minted413 = getAssistantMessageFromError(err413, 'claude-opus-4-8')
   check('anthropic 413: the body cap is its own overflow shape', overflowSignalOf(minted413)?.shape === 'request-too-large', JSON.stringify(overflowSignalOf(minted413)))

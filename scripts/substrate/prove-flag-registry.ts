@@ -36,9 +36,9 @@ const SWEPT_SPELLINGS = new Set([
 
 section('§1 every literal env read in src is REGISTERED')
 const literalReads = new Set(
-  grep(`process\\.env\\.${FLAG_NAME}`)
+  grep(`(process\\.)?env\\.${FLAG_NAME}`)
     .split('\n')
-    .map(l => l.replace('process.env.', '').trim())
+    .map(l => l.replace(/^(?:process\.)?env\./, '').trim())
     .filter(Boolean),
 )
 const quotedFlagLiterals = new Set(

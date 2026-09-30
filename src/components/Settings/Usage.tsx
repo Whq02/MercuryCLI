@@ -319,6 +319,11 @@ const ENGINE_USAGE_PRESENTATION: Record<
     connect: '/logins moonshot adds Kimi (device-code sign-in, or a Moonshot API key; MOONSHOT_API_KEY works too)',
     limitsNote: 'A Kimi sign-in meters its plan windows; a key bills to your Moonshot account balance.',
   },
+  meta: {
+    title: 'Meta usage',
+    connect: '/logins meta adds a Meta Model API key (MODEL_API_KEY works too)',
+    limitsNote: 'API keys bill pay-as-you-go; dev.meta.ai shows account usage. Muse Code subscriptions are for Muse Code only.',
+  },
   deepseek: {
     title: 'DeepSeek usage',
     connect: '/logins deepseek adds a DeepSeek API key (DEEPSEEK_API_KEY works too)',

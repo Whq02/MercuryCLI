@@ -17,6 +17,8 @@ import { deepseekCallModel, deepseekLiveProofState } from './deepseek/deepseekCa
 import { resolveDeepseekApiKey } from './deepseek/deepseekAccounts.js'
 import { xaiCallModel, xaiLiveProofState } from './xai/xaiCallModel.js'
 import { resolveXaiApiKey } from './xai/xaiAccounts.js'
+import { metaCallModel, metaLiveProofState } from './meta/metaCallModel.js'
+import { resolveMetaApiKey } from './meta/metaAccounts.js'
 import { compatCallModel, compatSlotLiveProofState } from './openaicompat/compatCallModel.js'
 import { resolveCompatSlotConfig } from './openaicompat/compatAccounts.js'
 import {
@@ -37,6 +39,7 @@ export type PrimaryBackendId =
   | 'moonshot-chat'
   | 'deepseek-chat'
   | 'xai-chat'
+  | 'meta-chat'
   | 'openai-compat-chat'
   | 'openrouter-chat'
   | 'gemini-generate'
@@ -53,6 +56,7 @@ export interface AgentRuntimeRef {
     | 'moonshot'
     | 'deepseek'
     | 'xai'
+    | 'meta'
     | 'openai-compat'
     | 'openrouter'
     | 'gemini'
@@ -67,6 +71,7 @@ export interface AgentRuntimeRef {
     | { kind: 'kimi' }
     | { kind: 'deepseek' }
     | { kind: 'grok' }
+    | { kind: 'muse' }
     | { kind: 'compat' }
     | { kind: 'openrouter' }
     | { kind: 'gemini' }
@@ -184,6 +189,17 @@ const xaiBackend: PrimaryAgentBackend = {
   },
 }
 
+const metaBackend: PrimaryAgentBackend = {
+  id: 'meta-chat', provider: 'meta', label: 'Meta (native, in-process)',
+  callModel: metaCallModel as unknown as typeof queryModelWithStreaming,
+  readiness: (): BackendReadiness => {
+    if (!resolveMetaApiKey()) return { state: 'unavailable', reason: 'no API key (/logins meta, or MODEL_API_KEY)' }
+    const proof = metaLiveProofState()
+    return proof
+      ? { state: 'ready', detail: `live turn settled this session (${proof.model})` }
+      : { state: 'configured', detail: 'key present · no live turn proven this session' }
+  },
+}
 const compatBackend: PrimaryAgentBackend = {
   id: 'openai-compat-chat',
   provider: 'openai-compat',
@@ -288,6 +304,7 @@ const BACKENDS: Record<CallModelRoute, PrimaryAgentBackend> = {
   moonshot: moonshotBackend,
   deepseek: deepseekBackend,
   xai: xaiBackend,
+  meta: metaBackend,
   'openai-compat': compatBackend,
   openrouter: openrouterBackend,
   gemini: geminiBackend,
@@ -327,6 +344,8 @@ export function describeAgentRuntimeRef(model: string | undefined): AgentRuntime
     family = { kind: 'deepseek' }
   } else if (route === 'xai') {
     family = { kind: 'grok' }
+  } else if (route === 'meta') {
+    family = { kind: 'muse' }
   } else if (route === 'openai-compat') {
     family = { kind: 'compat' }
   } else if (route === 'openrouter') {

@@ -65,6 +65,10 @@ export function buildHarnessModelFacts(
     modelFamily = 'grok'
     const { xaiModelFacts } = require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')
     modelKnown = xaiModelFacts(bare) !== undefined
+  } else if (providerFamily === 'meta') {
+    modelFamily = 'muse'
+    const { metaDisplayPin } = require('../providers/meta/metaPins.js') as typeof import('../providers/meta/metaPins.js')
+    modelKnown = metaDisplayPin(bare) !== undefined
   } else if (providerFamily === 'deepseek') {
     modelFamily = 'deepseek'
     modelKnown = ((): boolean => {

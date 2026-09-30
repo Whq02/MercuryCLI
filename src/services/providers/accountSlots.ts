@@ -35,6 +35,8 @@ import {
   writeStoredXaiApiKey,
   readStoredXaiManagementApiKey,
   writeStoredXaiManagementApiKey,
+  readStoredMetaApiKey,
+  writeStoredMetaApiKey,
   readStoredHuggingfaceApiKey,
   readStoredLocalApiKey,
   readStoredMoonshotApiKey,
@@ -111,6 +113,7 @@ export type SlotRemoval =
   | { route: 'deepseek-stored-key' }
   | { route: 'xai-stored-key' }
   | { route: 'xai-management-key' }
+  | { route: 'meta-stored-key' }
   | { route: 'compat-stored-key' }
   | { route: 'huggingface-oauth' }
   | { route: 'huggingface-stored-key' }
@@ -173,6 +176,8 @@ export interface AccountSlotReads {
   xaiStoredKey?: () => string | undefined
   xaiManagementEnvKey?: () => string | undefined
   xaiManagementStoredKey?: () => string | undefined
+  metaEnvKey?: () => string | undefined
+  metaStoredKey?: () => string | undefined
   compatEnvKey?: () => string | undefined
   compatStoredKey?: () => string | undefined
   huggingfaceEnvKey?: () => string | undefined
@@ -888,6 +893,14 @@ function moonshotSlots(reads: AccountSlotReads): AccountSlot[] {
   return slots
 }
 
+function metaSlots(reads: AccountSlotReads): AccountSlot[] {
+  const { metaEnvKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+  const ambient = reads.metaEnvKey ? undefined : metaEnvKey()
+  const envKey = reads.metaEnvKey ? reads.metaEnvKey() : ambient?.key
+  const storedKey = (reads.metaStoredKey ?? readStoredMetaApiKey)()
+  return keyLaneSlots({ family: 'meta', envVar: ambient?.name ?? 'MODEL_API_KEY', envKey, storedKey, storedRemoval: { route: 'meta-stored-key' } })
+}
+
 function deepseekSlots(reads: AccountSlotReads): AccountSlot[] {
   const envKey =
     reads.deepseekEnvKey ? reads.deepseekEnvKey() : process.env.DEEPSEEK_API_KEY?.trim() || undefined
@@ -1093,16 +1106,18 @@ export function deriveFamilySlotGroups(
                       ? deepseekSlots(reads)
                       : family.id === 'xai'
                         ? xaiSlots(reads)
-                      : family.id === 'openai-compat'
-                        ? compatSlots(reads)
-                        : family.id === 'huggingface'
-                          ? huggingfaceSlots(reads)
-                          : family.id === 'local'
-                            ? localSlots(reads)
-                            : genericSlots(
-                            family,
-                            providers.find(provider => provider.id === family.id),
-                          )
+                        : family.id === 'meta'
+                          ? metaSlots(reads)
+                          : family.id === 'openai-compat'
+                            ? compatSlots(reads)
+                            : family.id === 'huggingface'
+                              ? huggingfaceSlots(reads)
+                              : family.id === 'local'
+                                ? localSlots(reads)
+                                : genericSlots(
+                                    family,
+                                    providers.find(provider => provider.id === family.id),
+                                  )
       return { family, slots }
     })
 }
@@ -1121,6 +1136,7 @@ export interface SlotRemovalOwners {
   clearStoredDeepseekKey?: () => void
   clearStoredXaiKey?: () => void
   clearStoredXaiManagementKey?: () => void
+  clearStoredMetaKey?: () => void
   clearStoredCompatKey?: () => void
   disconnectHuggingfaceOauth?: () => void
   clearStoredHuggingfaceKey?: () => void
@@ -1314,6 +1330,9 @@ function routeSlotRemoval(
         note: 'Kimi sign-in disconnected — tokens dropped (the region choice stays remembered for the next /logins moonshot).',
         mutated: true,
       }
+    case 'meta-stored-key':
+      ;(owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null)))()
+      return { note: 'stored Meta API key cleared from the auth-scoped store', mutated: true }
     case 'deepseek-stored-key':
       ;(owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null)))()
       return { note: 'stored DeepSeek API key cleared from the auth-scoped store', mutated: true }
@@ -1356,6 +1375,7 @@ export function signOutEveryEngineCredential(owners: SlotRemovalOwners = {}): vo
     ['deepseek-stored-key', owners.clearStoredDeepseekKey ?? (() => writeStoredDeepseekApiKey(null))],
     ['xai-stored-key', owners.clearStoredXaiKey ?? (() => writeStoredXaiApiKey(null))],
     ['xai-management-key', owners.clearStoredXaiManagementKey ?? (() => writeStoredXaiManagementApiKey(null))],
+    ['meta-stored-key', owners.clearStoredMetaKey ?? (() => writeStoredMetaApiKey(null))],
     ['compat-stored-key', owners.clearStoredCompatKey ?? (() => writeStoredCompatApiKey(null))],
     ['huggingface-oauth', owners.disconnectHuggingfaceOauth ?? disconnectHuggingfaceOauth],
     ['huggingface-stored-key', owners.clearStoredHuggingfaceKey ?? (() => writeStoredHuggingfaceApiKey(null))],

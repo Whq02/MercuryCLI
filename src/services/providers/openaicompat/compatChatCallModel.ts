@@ -94,6 +94,7 @@ export type CompatLaneId =
   | 'moonshot'
   | 'deepseek'
   | 'xai'
+  | 'meta'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'

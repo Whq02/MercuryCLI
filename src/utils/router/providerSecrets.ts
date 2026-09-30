@@ -21,6 +21,7 @@ interface ProviderSecretsFile {
   deepseekApiKey?: string
   xaiApiKey?: string
   xaiManagementApiKey?: string
+  metaApiKey?: string
   compatApiKey?: string
   huggingfaceApiKey?: string
   localApiKey?: string
@@ -165,6 +166,7 @@ type StoredKeyField =
   | 'deepseekApiKey'
   | 'xaiApiKey'
   | 'xaiManagementApiKey'
+  | 'metaApiKey'
   | 'compatApiKey'
   | 'openrouterApiKey'
   | 'geminiApiKey'
@@ -184,6 +186,7 @@ const KEY_FIELD_FAMILY: Partial<Record<StoredKeyField, string>> = {
   moonshotApiKey: 'moonshot',
   deepseekApiKey: 'deepseek',
   xaiApiKey: 'xai',
+  metaApiKey: 'meta',
   compatApiKey: 'openai-compat',
   openrouterApiKey: 'openrouter',
   geminiApiKey: 'gemini',
@@ -241,6 +244,13 @@ export function readStoredXaiManagementApiKey(): string | undefined {
 }
 export function writeStoredXaiManagementApiKey(key: string | null): void {
   writeStoredKey('xaiManagementApiKey', key)
+}
+
+export function readStoredMetaApiKey(): string | undefined {
+  return readStoredKey('metaApiKey')
+}
+export function writeStoredMetaApiKey(key: string | null): void {
+  writeStoredKey('metaApiKey', key)
 }
 
 export function readStoredCompatApiKey(): string | undefined {
@@ -306,6 +316,8 @@ export function credentialEnvNames(): readonly string[] {
     'DEEPSEEK_API_KEY',
     'XAI_API_KEY',
     'XAI_MANAGEMENT_API_KEY',
+    'MODEL_API_KEY',
+    'META_API_KEY',
     'MERCURY_COMPAT_API_KEY',
     'MERCURY_COMPAT_BASE_URL',
     'HF_TOKEN',

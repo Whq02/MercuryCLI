@@ -123,7 +123,7 @@ retired name is never a registered flag.
 
 AUTH carries the `Model lists` row: for every provider family Mercury
 carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
-xAI, Gemini, Hugging Face), whether each typed id is still served by the live
+xAI, Meta, Gemini, Hugging Face), whether each typed id is still served by the live
 model list the product has already read for that family's signed-in source.
 The row never fetches: it reads the catalogue already fetched by `/model`,
 `/logins` or a chat naming the family. A family nothing has asked about reads

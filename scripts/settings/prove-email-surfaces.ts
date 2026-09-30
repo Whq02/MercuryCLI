@@ -393,7 +393,9 @@ const boardRow = (frame: string): string => frame.split('\n').find(line => /\bcl
 async function paintBoard(size: { columns: number; rows: number }, tag: string, read?: ScopeRead): Promise<string> {
   probe = read === undefined ? () => new Promise<ScopeRead>(() => {}) : async () => read
   const frame = await paint(
-    React.createElement(ModalContext.Provider, { value: { rows: size.rows, columns: size.columns, scrollRef: null } }, React.createElement(AppStateProvider, null, React.createElement(AccountView, { onClose: () => {} }))),
+    React.createElement(ModalContext.Provider, { value: { rows: size.rows, columns: size.columns, scrollRef: null } },
+      React.createElement(AppStateProvider, null,
+        React.createElement(ink.Box, { flexShrink: 0, flexDirection: 'column' }, React.createElement(AccountView, { onClose: () => {} })))),
     size.columns,
     size.rows,
   )

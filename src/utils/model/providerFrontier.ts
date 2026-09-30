@@ -51,6 +51,11 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         const row = xaiCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName, source: xaiCatalogueSourceWords() } : undefined
       }
+      case 'meta': {
+        const { newestMetaModel, metaCatalogueRows, metaCatalogueSourceWords } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
+        const row = metaCatalogueRows().rows.find(row => row.id === newestMetaModel())
+        return row ? { modelId: row.id, displayName: row.displayName, source: metaCatalogueSourceWords() } : undefined
+      }
       case 'zai':
       case 'moonshot':
       case 'deepseek': {

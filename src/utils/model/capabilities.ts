@@ -40,6 +40,7 @@ import {
 import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
 import { isXaiModelId } from '../../services/providers/xai/xaiPins.js'
 import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/xai/xaiCatalogue.js'
+import { isMetaModelId, metaDisplayPin } from '../../services/providers/meta/metaPins.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
@@ -57,6 +58,7 @@ import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 
 export function modelSupportsTemperature(model: string): boolean {
   if (isXaiModelId(model)) return xaiModelFacts(model)?.temperature === true
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   const m = /claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(model)
   if (!m) return true
   const family = m[1]!
@@ -70,6 +72,7 @@ export function modelSupportsTemperature(model: string): boolean {
 
 export function modelSupportsISP(model: string): boolean {
   if (isXaiModelId(model)) return modelSupportsThinking(model)
+  if (isMetaModelId(model)) return false
   return !getCanonicalName(model).includes('claude-3-')
 }
 
@@ -78,11 +81,13 @@ export function modelSupportsThinking(model: string): boolean {
     const facts = xaiModelFacts(model)
     return facts?.reasoning ?? (facts?.efforts?.some(effort => effort !== 'none') === true)
   }
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   return !getCanonicalName(model).includes('claude-3-')
 }
 
 export function modelSupportsAdaptiveThinking(model: string): boolean {
   if (isXaiModelId(model)) return false
+  if (isMetaModelId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   if (canonical.includes('sonnet-5') || canonical.includes('opus-5')) {
     return true
@@ -108,6 +113,7 @@ export function modelThinkingAlwaysOn(model: string): boolean {
     const facts = xaiModelFacts(model)
     return modelSupportsThinking(model) && !facts?.efforts?.includes('none')
   }
+  if (isMetaModelId(model)) return metaDisplayPin(model) !== undefined
   if (isCarrierShapedId(model)) return false
   const canonical = getCanonicalName(familyDefaultsModel(model))
   return canonical.includes('fable-5') || canonical.includes('mythos-5') || canonical === 'claude-opus-5-5' || canonical === 'claude-sonnet-5-5'
@@ -212,7 +218,7 @@ export type EffortVocabularyView =
   | { kind: 'ladder'; source: 'first-party' | 'unknown-id'; vocabulary: readonly EffortLevel[] }
   | {
       kind: 'provider'
-      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'gemini' | 'openrouter' | 'local'
+      source: 'gpt-live' | 'glm' | 'kimi' | 'deepseek' | 'xai' | 'meta' | 'gemini' | 'openrouter' | 'local'
       vocabulary: readonly string[]
       defaultEffort?: string
       thinkingGated: boolean
@@ -226,6 +232,7 @@ export type EffortVocabularyView =
         | 'glm'
         | 'kimi'
         | 'xai'
+        | 'meta'
         | 'huggingface'
         | 'openrouter'
         | 'gemini'
@@ -289,6 +296,12 @@ export function effortVocabularyFor(model: string): EffortVocabularyView {
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'xai', vocabulary, defaultEffort: facts?.defaultEffort, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'xai' }
+  }
+  if (isMetaModelId(model) || route === 'meta') {
+    const vocabulary = metaDisplayPin(model)?.efforts ?? []
+    return vocabulary.length > 0
+      ? { kind: 'provider', source: 'meta', vocabulary, thinkingGated: false }
+      : { kind: 'none', source: 'meta' }
   }
   if (isHuggingfaceModelId(model)) return { kind: 'none', source: 'huggingface' }
   if (route === 'openrouter') {
@@ -492,14 +505,14 @@ export function resolveContextWindow(
   }
 
   if (has1mContext(model)) {
-    if (isCarrierShapedId(model) || isXaiModelId(model)) {
+    if (isCarrierShapedId(model) || isXaiModelId(model) || isMetaModelId(model)) {
       const base = resolveContextWindow(model.replace(/\[1m\]/i, ''), betas, requestedMode)
       return {
         ...base,
         model,
         activation: {
           kind: 'unavailable',
-          reason: isXaiModelId(model) ? '[1m] is not a provider-verified activation path for xAI models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
+          reason: isXaiModelId(model) ? '[1m] is not a provider-verified activation path for xAI models' : isMetaModelId(model) ? '[1m] is not a provider-verified activation path for Meta models' : '[1m] is not a provider-verified activation path on a carrier-shaped id',
         },
         fallbackReason: 'unverified [1m] suffix ignored; resolved as the base id',
       }
@@ -677,6 +690,7 @@ export function resolveContextWindow(
     if (isKimiModelId(id) || carrierRoute === 'moonshot') return kimiDisplayPin(id)?.contextWindow
     if (isDeepseekModelId(id)) return deepseekDisplayPin(id)?.contextWindow
     if (isXaiModelId(id)) return xaiModelFacts(id)?.contextWindow
+    if (isMetaModelId(id)) return metaDisplayPin(id)?.contextWindow
     return undefined
   })()
   if (enginePinnedWindow !== undefined) {
@@ -736,6 +750,8 @@ export function getModelMaxOutputTokens(model: string): {
   default: number
   upperLimit: number
 } {
+  const metaOut = metaDisplayPin(model)?.outputMax
+  if (metaOut !== undefined) return statedOutputTokens(metaOut)
   let upperLimit: number | undefined
 
   const gptPinOut = gptDisplayPin(model)?.outputMax
@@ -976,6 +992,8 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
   switch (route) {
     case 'xai':
       return xaiModelFacts(model)?.images === true
+    case 'meta':
+      return metaDisplayPin(model)?.images === true
     case 'openrouter':
       return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
     case 'huggingface':

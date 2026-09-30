@@ -51,6 +51,8 @@ const ZAI_LIVE_ROWS = [{ id: 'glm-5.3', object: 'model', owned_by: 'zai' }]
 function liveListFor(url: string): unknown[] {
   if (url.includes('/deepseek/')) return DEEPSEEK_LIVE_ROWS
   if (url.includes('/zai/')) return ZAI_LIVE_ROWS
+  if (url.includes('/xai/')) return [{ id: 'grok-4.7', object: 'model', owned_by: 'xai', created: 3 }]
+  if (url.includes('/meta/')) return [{ id: 'muse-spark-1.3', object: 'model', owned_by: 'meta', created: 3 }]
   return [GPT_LIVE_ROW]
 }
 
@@ -155,10 +157,10 @@ const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       return
     }
     if (req.method === 'POST' && url.endsWith('/chat/completions')) {
-      const lane = url.includes('/zai/') ? 'zai' : url.includes('/deepseek/') ? 'deepseek' : 'compat'
+      const lane = url.includes('/zai/') ? 'zai' : url.includes('/deepseek/') ? 'deepseek' : url.includes('/xai/') ? 'xai' : url.includes('/meta/') ? 'meta' : 'compat'
       record({ kind: lane, url, body, at: Date.now() })
       res.writeHead(200, { 'content-type': 'text/event-stream' })
-      res.end(chatCompletionsSse(lane === 'zai' ? ZAI_REPLY : DEEPSEEK_REPLY))
+      res.end(chatCompletionsSse(lane === 'zai' ? ZAI_REPLY : lane === 'xai' || lane === 'meta' ? `${lane} picked up the handoff` : DEEPSEEK_REPLY))
       return
     }
     record({ kind: 'hit', method: req.method, url, at: Date.now() })

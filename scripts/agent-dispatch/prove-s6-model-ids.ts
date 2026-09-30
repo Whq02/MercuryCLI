@@ -120,6 +120,7 @@ section('1 · the grammar surface — the class aliases and the exact-id shapes;
   }
   check('a deprecated id is still an engine shape (the dispatch refuses it, naming the deprecation)', DEPRECATED_GPT_IDS.every(id => isExactEngineModelId(id)))
   check("the grammar carries the 'grok' class alias beside 'deepseek', and a grok-* id is an exact engine shape", (ENGINE_DISPATCH_MODELS as readonly string[]).includes('grok') && ENGINE_DISPATCH_MODELS.indexOf('grok' as never) === ENGINE_DISPATCH_MODELS.indexOf('deepseek' as never) + 1 && isExactEngineModelId('grok-4.7') && unrecognisedModelWordRefusal('grok-4.7') === null && unrecognisedModelWordRefusal('grok') === null)
+  check('Muse is a class alias and Muse Spark ids stay exact engine ids', ENGINE_DISPATCH_MODELS.includes('muse') && isExactEngineModelId('muse-spark-1.3') && unrecognisedModelWordRefusal('muse') === null && unrecognisedModelWordRefusal('muse-spark-1.3') === null)
   check('a word no family declares is refused by the grammar, naming it', (unrecognisedModelWordRefusal('plainword') ?? '').includes("'plainword'"))
 }
 

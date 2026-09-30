@@ -181,6 +181,8 @@ section('§6 — the command vocabulary')
     ['deepseek', 'deepseek'],
     ['grok', 'xai'],
     ['x.ai', 'xai'],
+    ['meta', 'meta'],
+    ['muse', 'meta'],
     ['custom', 'openai-compat'],
     ['local', 'local'],
     ['acme', undefined],

@@ -15,6 +15,8 @@ import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonsh
 import { kimiDisplayName } from '../../services/providers/moonshot/kimiPins.js'
 import { deepseekCatalogueEntries, deepseekCatalogueEntry } from '../router/providers/deepseek.js'
 import { xaiCatalogueEntries, xaiCatalogueEntry } from '../router/providers/xai.js'
+import { metaCatalogueEntries, metaCatalogueEntry } from '../router/providers/meta.js'
+import { newestMetaModel } from '../../services/providers/meta/metaCatalogue.js'
 import {
   compatSlotModelIds,
   resolveCompatSlotConfig,
@@ -43,7 +45,7 @@ import {
 import { resolveOpenrouterAccount } from '../../services/providers/openrouter/openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from '../../services/providers/openrouter/openrouterCatalogue.js'
 
-export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
+export const ENGINE_DISPATCH_MODELS = ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'compat', 'huggingface', 'local', 'gemini', 'openrouter'] as const
 export type EngineDispatchModel = (typeof ENGINE_DISPATCH_MODELS)[number]
 
 export function isEngineDispatchModel(v: unknown): v is EngineDispatchModel {
@@ -60,7 +62,7 @@ export function isExactEngineModelId(v: unknown): v is string {
   if (typeof v !== 'string') return false
   return (
     liveListedRouteOf(v) !== undefined ||
-    /^(gpt|glm|kimi|moonshot|deepseek|grok|gemini)-/i.test(v.trim()) ||
+    /^(gpt|glm|kimi|moonshot|deepseek|grok|muse|gemini)-/i.test(v.trim()) ||
     isCompatModelId(v) ||
     isHuggingfaceModelId(v) ||
     isLocalModelId(v) ||
@@ -68,13 +70,14 @@ export function isExactEngineModelId(v: unknown): v is string {
   )
 }
 
-function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'gemini' | undefined {
+function exactEngineFamilyOf(id: string): 'openai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'gemini' | undefined {
   const listed = liveListedRouteOf(id)
   if (listed !== undefined) return listed
   if (/^gpt-/i.test(id)) return 'openai'
   if (/^(kimi|moonshot)-/i.test(id)) return 'moonshot'
   if (/^deepseek-/i.test(id)) return 'deepseek'
   if (/^grok-/i.test(id)) return 'xai'
+  if (/^muse-/i.test(id)) return 'meta'
   if (/^gemini-/i.test(id)) return 'gemini'
   return undefined
 }
@@ -88,7 +91,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
   await Promise.all(LIVE_LIST_FAMILIES.map(family => readCatalogueIfPending(family)))
 }
 
-const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
+const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*'
 
 export function unrecognisedModelWordRefusal(model: string | undefined): string | null {
   if (model === undefined) return null
@@ -108,6 +111,7 @@ type EngineProvider =
   | 'moonshot'
   | 'deepseek'
   | 'xai'
+  | 'meta'
   | 'openai-compat'
   | 'huggingface'
   | 'local'
@@ -354,6 +358,13 @@ export async function resolveEngineDispatch(
       }
       return { backend: 'moonshot', model: pin.id, displayLabel: pin.displayLabel }
     }
+    if (modelParam === 'muse') {
+      await requireProviderAvailable('meta')
+      const id = newestMetaModel()
+      const pin = id ? metaCatalogueEntry(id) : undefined
+      if (!pin) throw new Error('Meta has no live Standard Muse Spark row for muse; Contributor rows must be selected explicitly.')
+      return { backend: 'meta', model: pin.id, displayLabel: pin.displayLabel }
+    }
     if (modelParam === 'deepseek') {
       await requireProviderAvailable('deepseek')
       const pin = deepseekCatalogueEntries()[0]
@@ -407,6 +418,12 @@ export async function resolveEngineDispatch(
         backend: 'moonshot', model: qualification.modelId,
         displayLabel: `${kimiDisplayName(qualification.modelId) ?? kimiDisplayName(id) ?? qualification.modelId}${qualification.kind === 'degraded' ? ` (${qualification.note})` : ''}`,
       }
+    }
+    if (family === 'meta') {
+      await requireProviderAvailable('meta')
+      const pin = metaCatalogueEntry(id)
+      if (!pin) throw new Error(`Meta model '${id}' is not listed by the account (listed: ${metaCatalogueEntries().map(row => row.id).join(', ')}) — never dispatching an unverified id.`)
+      return { backend: 'meta', model: pin.id, displayLabel: pin.displayLabel }
     }
     if (family === 'deepseek') {
       await requireProviderAvailable('deepseek')

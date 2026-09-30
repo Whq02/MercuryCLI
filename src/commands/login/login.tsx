@@ -107,6 +107,9 @@ export function parseFamilyFocus(token: string | undefined): LoginFamilyFocus | 
     case 'x.ai':
     case 'grok':
       return 'xai'
+    case 'meta':
+    case 'muse':
+      return 'meta'
     default:
       return undefined
   }

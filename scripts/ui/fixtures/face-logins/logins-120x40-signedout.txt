@@ -20,12 +20,12 @@
    │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ · no sign-in on this arm yet               │
    │   DeepSeek — API key                             not signed in │  │                                            │
    │   xAI — API key (Grok)                           not signed in │  │ · no credential for this family            │
-   ╰────────────────────────────────────────────────────────────────╯  │                                            │
-                                                                       ╰────────────────────────────────────────────╯
+   │   Meta — API key (Muse)                          not signed in │  │                                            │
+   ╰────────────────────────────────────────────────────────────────╯  ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮
                                                                        │ LOGINS                                     │
-                                                                       │ Families   9                               │
-                                                                       │ Signed in  0 of 9                          │
+                                                                       │ Families   10                              │
+                                                                       │ Signed in  0 of 10                         │
                                                                        │ Ready      0 lanes                         │
                                                                        ╰────────────────────────────────────────────╯
                                                                        ╭────────────────────────────────────────────╮

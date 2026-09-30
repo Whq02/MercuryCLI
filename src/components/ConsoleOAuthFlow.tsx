@@ -30,6 +30,7 @@ import { KimiConnect } from './KimiConnect.js'
 import { ZaiConnect } from './ZaiConnect.js'
 import { DeepseekConnect } from './DeepseekConnect.js'
 import { XaiConnect } from './XaiConnect.js'
+import { MetaConnect } from './MetaConnect.js'
 import { storeOpenaiApiKeyLogin } from '../services/providers/openai/openaiLogin.js'
 import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
@@ -53,6 +54,7 @@ type EngineLeg =
   | 'zai'
   | 'deepseek'
   | 'xai'
+  | 'meta'
 
 export type LoginFamilyFocus = LoginFamilyValue
 
@@ -201,6 +203,10 @@ export function ConsoleOAuthFlow({
         if (onOpenaiDone === undefined) return frame(<Text dimColor>GLM (Z.AI) login unavailable here.</Text>)
         return frame(<ZaiConnect onResult={settleLeg} />)
 
+      case 'meta':
+        if (onOpenaiDone === undefined) return frame(<Text dimColor>Meta login unavailable here.</Text>)
+        return frame(<MetaConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
+
       case 'deepseek':
         if (onOpenaiDone === undefined) return frame(<Text dimColor>DeepSeek login unavailable here.</Text>)
         return frame(<DeepseekConnect onResult={settleLeg} onBack={() => setLeg(null)} />)
@@ -227,7 +233,7 @@ export function ConsoleOAuthFlow({
         <Box flexDirection="column" gap={1}>
           <Text>
             {startingMessage ??
-              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI). An API key also connects from the terminal: /router key <provider>.'}
+              'Mercury can run on a Claude or OpenAI subscription, on usage-based billing, or on a connected engine (OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta). An API key also connects from the terminal: /router key <provider>.'}
           </Text>
           <Select
             visibleOptionCount={idleRows.length}
@@ -242,7 +248,7 @@ export function ConsoleOAuthFlow({
                 setLeg('openai')
                 return
               }
-              if (value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai') {
+              if (value === 'moonshot' || value === 'zai' || value === 'deepseek' || value === 'xai' || value === 'meta') {
                 setLeg(value)
                 return
               }
@@ -477,6 +483,7 @@ const READINESS_ROWS: ReadonlyArray<{ id: ProviderId; label: string }> = [
   { id: 'zai', label: 'GLM (Z.AI)' },
   { id: 'deepseek', label: 'DeepSeek' },
   { id: 'xai', label: 'xAI' },
+  { id: 'meta', label: 'Meta' },
   { id: 'local', label: 'Local servers' },
   { id: 'openai-compat', label: 'OpenAI-compatible' },
 ]

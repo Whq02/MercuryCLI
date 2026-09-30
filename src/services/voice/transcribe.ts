@@ -30,6 +30,7 @@ export const FAMILY_TRANSCRIBER: Record<CallModelRoute, { slot: 'api-key' } | { 
   moonshot: { slot: 'none', why: 'no speech-to-text endpoint' },
   deepseek: { slot: 'none', why: 'no speech-to-text endpoint' },
   xai: { slot: 'none', why: 'no speech-to-text endpoint wired' },
+  meta: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   openrouter: { slot: 'none', why: 'no speech-to-text endpoint' },
   huggingface: { slot: 'none', why: 'no speech-to-text endpoint wired' },
   'openai-compat': { slot: 'none', why: 'no speech-to-text endpoint declared' },

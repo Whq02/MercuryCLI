@@ -562,14 +562,17 @@
     "withMainLoopModel"
    ],
    "src/services/compact/autoCompact.ts": [
+    "AUTOCOMPACT_BUFFER_TOKENS",
     "AUTOCOMPACT_THRASH_MESSAGE",
     "ERROR_THRESHOLD_BUFFER_TOKENS",
     "MANUAL_COMPACT_BUFFER_TOKENS",
     "MAX_AUTOCOMPACT_WINDOW",
     "MIN_AUTOCOMPACT_WINDOW",
     "WARNING_THRESHOLD_BUFFER_TOKENS",
+    "autoCompactDisabledReason",
     "autoCompactIfNeeded",
     "calculateTokenWarningState",
+    "compactionSettingsText",
     "detectFixedPrefixOverflow",
     "foldModelFor",
     "getAutoCompactThreshold",

@@ -597,6 +597,10 @@ function laneCredentialedLive(provider: RouterProviderId): boolean {
     const { resolveXaiApiKey } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
     return resolveXaiApiKey() !== undefined
   }
+  if (provider === 'meta') {
+    const { resolveMetaApiKey } = require('./meta/metaAccounts.js') as typeof import('./meta/metaAccounts.js')
+    return resolveMetaApiKey() !== undefined
+  }
   if (provider === 'deepseek') {
     const { resolveDeepseekApiKey } =
       require('./deepseek/deepseekAccounts.js') as typeof import('./deepseek/deepseekAccounts.js')
@@ -1517,6 +1521,13 @@ function deriveUsageForProvider(
       ...(figures.length ? { figures } : {}),
       ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
     }
+  }
+  if (provider === 'meta') {
+    const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
+    const { META_USAGE_ABSENCE } = require('./meta/metaUsageState.js') as typeof import('./meta/metaUsageState.js')
+    return credentialed
+      ? { provider, sourceKind: 'api-key', label: 'API usage', shape: 'api-spend', windows: [], pools: [], credits: CREDITS_UNREPORTED, spend, tier: API_BILLING_TIER, absence: META_USAGE_ABSENCE }
+      : { provider, sourceKind: 'none', label: 'Meta usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins meta adds a key' }
   }
   if (provider === 'deepseek' || provider === 'openai-compat') {
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)

@@ -58,6 +58,13 @@ export interface XaiDiscovery {
   keyPresent: boolean
   keySource?: 'env' | 'stored'
 }
+
+export interface MetaDiscovery {
+  provider: 'meta'
+  probedAtMs: number
+  keyPresent: boolean
+  keySource?: 'env' | 'stored'
+}
 export interface CompatDiscovery {
   provider: 'openai-compat'
   probedAtMs: number
@@ -95,6 +102,7 @@ export type ProviderDiscovery =
   | MoonshotDiscovery
   | DeepseekDiscovery
   | XaiDiscovery
+  | MetaDiscovery
   | CompatDiscovery
   | HuggingfaceDiscovery
   | LocalDiscovery
@@ -223,6 +231,18 @@ function probeMoonshot(io: DiscoveryIo): MoonshotDiscovery {
     ...(key ? { keySource: key.source } : {}),
     ...(account ? { account } : {}),
   }
+}
+
+function probeMeta(io: DiscoveryIo): MetaDiscovery {
+  const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
+  const key = resolveMetaApiKey(io.env)
+  return { provider: 'meta', probedAtMs: io.now(), keyPresent: key !== undefined, ...(key ? { keySource: key.source } : {}) }
+}
+
+export function primeMetaDiscovery(io?: DiscoveryIo): MetaDiscovery | null {
+  const record = probeMeta(io ?? defaultIo())
+  cache.set('meta', record)
+  return record
 }
 
 function probeDeepseek(io: DiscoveryIo): DeepseekDiscovery {
@@ -362,13 +382,15 @@ export function refreshProviderDiscovery(
                   ? probeDeepseek(io)
                   : id === 'xai'
                     ? probeXai(io)
-                  : id === 'openai-compat'
-                    ? probeCompat(io)
-                    : id === 'huggingface'
-                      ? probeHuggingface(io)
-                      : id === 'local'
-                        ? probeLocal(io)
-                        : probeZai(io)
+                    : id === 'meta'
+                      ? probeMeta(io)
+                      : id === 'openai-compat'
+                        ? probeCompat(io)
+                        : id === 'huggingface'
+                          ? probeHuggingface(io)
+                          : id === 'local'
+                            ? probeLocal(io)
+                            : probeZai(io)
       cache.set(id, record)
       return record
     } finally {

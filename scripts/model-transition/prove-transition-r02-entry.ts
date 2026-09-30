@@ -23,7 +23,7 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
   const card = readFileSync(join(ROOT, 'src/components/ConsoleOAuthFlow.tsx'), 'utf8')
 
   const families = loginFamilyRows({ engineLegs: true })
-  check('the owner carries the full nine-family catalogue', families.length === 9, `families=${families.length}`)
+  check('the owner carries eleven sign-in rows (two Anthropic doors)', families.length === 11 && ['xai', 'meta'].every(id => families.some(row => row.value === id)), `families=${families.length}`)
   check(
     'every owner family is nameable — /logins <family> resolves each row value',
     families.every(row => parseFamilyFocus(row.value) === row.value),

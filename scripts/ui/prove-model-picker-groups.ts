@@ -55,6 +55,7 @@ const GEMINI = 'Mercury — Gemini models'
 const ZAI = 'Mercury — Z.AI models'
 const DEEPSEEK = 'Mercury — DeepSeek models'
 const XAI = 'Mercury — xAI models'
+const META = 'Mercury — Meta models'
 const LOGIN = 'Claude Max login'
 const KEY = 'API key'
 const EMAIL = 'operator@example.com'
@@ -102,6 +103,7 @@ const zai: ModelChoice[] = [
 ]
 const deepseek: ModelChoice[] = [row('deepseek-v4-pro', 'DeepSeek V4 Pro', '128k ctx', DEEPSEEK), row('deepseek-v4-flash', 'DeepSeek V4 Flash', '128k ctx', DEEPSEEK)]
 const xai: ModelChoice[] = [row('grok-4.7', 'Grok 4.7', '500k ctx', XAI), row('grok-4.3', 'Grok 4.3', '1M ctx', XAI)]
+const meta: ModelChoice[] = [row('muse-spark-1.3', 'Muse Spark 1.3', '1.05M ctx', META), row('muse-spark-1.2', 'Muse Spark 1.2', '1.05M ctx', META)]
 
 type Heading = { name: string; doors: Array<{ door: string; account?: string; active?: boolean }>; reason?: string }
 const headings: Record<string, Heading> = {
@@ -113,6 +115,7 @@ const headings: Record<string, Heading> = {
   [ZAI]: { name: 'Z.AI', doors: [{ door: 'Coding Plan key', account: '…41aa', active: true }] },
   [DEEPSEEK]: { name: 'DEEPSEEK', doors: [{ door: 'API key', account: '…07b3', active: true }] },
   [XAI]: { name: 'XAI', doors: [{ door: 'API key', account: '…c4e1', active: true }] },
+  [META]: { name: 'META', doors: [{ door: 'API key', account: '…3a17', active: true }] },
 }
 
 const groupsInTodaysOrder: Array<[string, ModelChoice[]]> = [
@@ -124,6 +127,7 @@ const groupsInTodaysOrder: Array<[string, ModelChoice[]]> = [
   [MOONSHOT, moonshot],
   [DEEPSEEK, deepseek],
   [XAI, xai],
+  [META, meta],
 ]
 function orderedRows(top: string, recent: string[]): ModelChoice[] {
   const rank = (group: string): number => (group === top ? -1 : recent.indexOf(group) >= 0 ? recent.indexOf(group) : 100 + groupsInTodaysOrder.findIndex(([name]) => name === group))
@@ -348,7 +352,7 @@ section('§8 the pure composition (the module the picker derives its lines from)
     const rows = orderedRows(OPENAI, [])
     const groups = pure.groupPickerRows(rows)
     const ordered = pure.orderPickerGroups(groups, { top: ANTHROPIC, recentAt: group => ({ [MOONSHOT]: 300, [OPENROUTER]: 200, [OPENAI]: 100 } as Record<string, number>)[group] })
-    check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK, XAI].join(' > '), ordered.map(group => group.group).join(' > '))
+    check('the order rule: the seat first, then most recent use, then today\'s order', ordered.map(group => group.group).join(' > ') === [ANTHROPIC, MOONSHOT, OPENROUTER, OPENAI, GEMINI, ZAI, DEEPSEEK, XAI, META].join(' > '), ordered.map(group => group.group).join(' > '))
     const folds = pure.initialPickerFolds(ordered, ANTHROPIC, 'claude-fable-5-1@' + LOGIN)
     check('the fold rule: over twelve rows opens folded unless top; the rest open', folds[GEMINI] === 'folded' && folds[ANTHROPIC] === 'top' && folds[OPENROUTER] === 'folded' && folds[OPENAI] === 'top', JSON.stringify(folds))
     const lines = pure.composePickerLines(ordered, folds, '', group => (group === OPENROUTER ? openrouterFull : undefined))

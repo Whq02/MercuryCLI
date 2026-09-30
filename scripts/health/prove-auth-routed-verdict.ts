@@ -27,6 +27,10 @@ const SCRUB = [
   'GOOGLE_API_KEY',
   'ZAI_API_KEY',
   'DEEPSEEK_API_KEY',
+  'XAI_API_KEY',
+  'XAI_MANAGEMENT_API_KEY',
+  'MODEL_API_KEY',
+  'META_API_KEY',
   'MOONSHOT_API_KEY',
   'OPENROUTER_API_KEY',
   'HF_TOKEN',
@@ -41,6 +45,9 @@ function run(verb: string[], env: Record<string, string>): { status: number; jso
     MERCURY_CONFIG_DIR: join(scratchHome, '.mercury'),
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:1',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
+    MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1',
+    MERCURY_XAI_MANAGEMENT_API_BASE: 'http://127.0.0.1:1',
+    MERCURY_META_API_BASE: 'http://127.0.0.1:1/v1',
   }
   for (const name of SCRUB) delete childEnv[name]
   Object.assign(childEnv, env)
@@ -123,7 +130,7 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
   })
   check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}`)
   const providers = (engineRouted.json?.providers ?? []) as Array<{ id: string; kind: string; source: string; present: boolean }>
-  check('one row per declared family (ten)', providers.length === 10, String(providers.length))
+  check('one row per declared family (twelve including Anthropic)', providers.length === 12 && ['xai', 'meta'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
   check(
     'each row carries id, kind, source, present — and no value is secret-shaped',
     providers.every(p => typeof p.id === 'string' && typeof p.kind === 'string' && typeof p.source === 'string' && typeof p.present === 'boolean') &&
@@ -143,6 +150,23 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
 
   const anthropicDefault = run(['auth', 'status', '--json'], { ANTHROPIC_API_KEY: 'fixture-anthropic-key' })
   check('the Anthropic-routed default exits 0 exactly as before', anthropicDefault.status === 0 && anthropicDefault.json?.loggedIn === true, `status=${anthropicDefault.status}`)
+}
+
+for (const lane of [
+  { family: 'xai', model: 'grok-4.7', key: 'XAI_API_KEY' },
+  { family: 'meta', model: 'muse-spark-1.3', key: 'MODEL_API_KEY' },
+]) {
+  const key = `fixture-${lane.family}-key`
+  for (const present of [true, false]) {
+    const env = { MERCURY_MODEL: lane.model, ...(present ? { [lane.key]: key } : { ANTHROPIC_API_KEY: 'fixture-anthropic-key' }) }
+    const health = run(['health', '--json'], env)
+    const row = rowOf(health.json, `auth-${lane.family}`)
+    check(`${lane.family}: health follows its own ${present ? 'present' : 'missing'} credential`, row !== undefined && (present ? row.status !== 'fail' && health.status === 0 : row.status === 'fail' && health.status === 3), JSON.stringify({ row, exit: health.status }))
+    const auth = run(['auth', 'status', '--json'], { ...env, CI: 'true' })
+    const providers = (auth.json?.providers ?? []) as Array<{ id: string; present: boolean }>
+    check(`${lane.family}: auth status names the routed family and its own presence`, auth.json?.routedProvider === lane.family && providers.find(provider => provider.id === lane.family)?.present === present && auth.status === (present ? 0 : 1), auth.stdout)
+    check(`${lane.family}: neither machine surface reveals the fixture credential`, !health.stdout.includes(key) && !auth.stdout.includes(key))
+  }
 }
 
 rmSync(scratchHome, { recursive: true, force: true })

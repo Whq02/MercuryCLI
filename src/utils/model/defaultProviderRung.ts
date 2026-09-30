@@ -7,6 +7,7 @@ const KNOWN_FAMILIES = new Set([
   'moonshot',
   'deepseek',
   'xai',
+  'meta',
   'openai-compat',
   'openrouter',
   'gemini',

@@ -31,6 +31,7 @@ const PAGES = {
   zai: 'z.ai/manage-apikey',
   deepseek: 'platform.deepseek.com',
   xai: 'console.x.ai',
+  meta: 'dev.meta.ai',
 } as const
 type Family = keyof typeof PAGES
 const FAMILIES = Object.keys(PAGES) as Family[]
@@ -51,10 +52,12 @@ const PANE: Record<Family, string> = {
   zai: 'src/components/ZaiConnect.tsx',
   deepseek: 'src/components/DeepseekConnect.tsx',
   xai: 'src/components/XaiConnect.tsx',
+  meta: 'src/components/MetaConnect.tsx',
 }
 const ROAD: Partial<Record<Family, string[]>> = {
   deepseek: ['src/services/providers/deepseek/deepseekLogin.ts', 'src/services/providers/deepseek/deepseekCallModel.ts'],
   xai: ['src/services/providers/xai/xaiLogin.ts', 'src/services/providers/xai/xaiCallModel.ts'],
+  meta: ['src/services/providers/meta/metaLogin.ts', 'src/services/providers/meta/metaCallModel.ts'],
   moonshot: ['src/services/providers/moonshot/moonshotLogin.ts'],
   huggingface: ['src/services/providers/huggingface/huggingfaceLogin.ts'],
   zai: ['src/services/providers/zai/zaiCallModel.ts'],
@@ -69,12 +72,12 @@ const { composeLogins, renderStill, signedOutFacts } = await import('./face-logi
 
 const DETAIL_W = 38
 const WAY_OUT: Record<'pick' | 'key', string> = { pick: 'esc — back to the roster', key: '↵ stores it · esc back' }
-const KEY_ONLY = new Set<Family>(['deepseek', 'xai'])
-const cardKind = (family: Family): 'pick' | 'key' => (KEY_ONLY.has(family) ? 'key' : 'pick')
+const isKeyOnly = (family: Family): family is 'deepseek' | 'xai' | 'meta' => family === 'deepseek' || family === 'xai' || family === 'meta'
+const cardKind = (family: Family): 'pick' | 'key' => (isKeyOnly(family) ? 'key' : 'pick')
 const cardLines = (family: Family): string[] =>
-  family === 'deepseek' || family === 'xai' ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
+  isKeyOnly(family) ? screen.keyPromptPaneLines(family, null, 0, false) : screen.loginsPickPaneLines(family)
 const cardFlow = (family: Family) =>
-  family === 'deepseek' || family === 'xai'
+  isKeyOnly(family)
     ? { kind: 'key' as const, leg: family, note: null, draftLen: 0, storing: false }
     : { kind: 'pick' as const, pick: family, pickSel: 0 }
 
@@ -121,7 +124,7 @@ t.section("§2 — THE CARDS: each key family's card carries exactly one key lin
     t.check(`${family}: the card keeps its way out last and every line inside ${DETAIL_W} columns`, lines.at(-1) === WAY_OUT[cardKind(family)] && lines.every(l => l.length <= DETAIL_W))
     const wrapped = lines.filter(l => l !== '' && line.includes(l))
     t.check(`${family}: the wrapped key line never strands a lone word on a row`, wrapped.length > 0 && wrapped.every(l => l.includes(' ')), wrapped.join(' | '))
-    if (!KEY_ONLY.has(family)) {
+    if (!isKeyOnly(family)) {
       const labels = screen.loginsPickOptions(family).map(o => o.label)
       t.check(`${family}: no choice row hides the page inside its label`, labels.every(l => !l.includes(PAGES[family])), labels.join(' | '))
     }

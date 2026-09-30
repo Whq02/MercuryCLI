@@ -239,7 +239,7 @@ section('§4 the display string follows the same owner')
 section('§5 the shape')
 {
   const src = readFileSync(join(ROOT, 'src/utils/modelCost.ts'), 'utf8')
-  for (const route of ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'gemini', 'openrouter', 'huggingface', 'local', "'openai-compat'"]) {
+  for (const route of ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', "'openai-compat'"]) {
     check(`the owner table carries a row for ${route}`, new RegExp(`^\\s+${route}: `, 'm').test(src))
   }
   check('the owner table is typed over every route (a new family without a row is a type error)', src.includes('Record<CallModelRoute, PricingOwner>'))
@@ -248,7 +248,7 @@ section('§5 the shape')
   const ownersTable = src.slice(ownersStart, src.indexOf('\n}\n', ownersStart))
   const ownerRows = ownersTable.split('\n').filter(l => /^\s+[a-z'-]+: /.test(l))
   const offFirstParty = ownersTable.split('\n').filter(l => !/^\s+anthropic: /.test(l))
-  check('the owners table has one row per route (ten), the first-party owner on its anthropic row alone', ownerRows.length === 10 && ownerRows.filter(l => l.includes('firstPartyPricing')).length === 1 && /^\s+anthropic: model => firstPartyPricing\(model\),$/m.test(ownersTable), ownerRows.join(' | '))
+  check('the owners table has one row per route (twelve), the first-party owner on its anthropic row alone', ownerRows.length === 12 && ownerRows.filter(l => l.includes('firstPartyPricing')).length === 1 && /^\s+anthropic: model => firstPartyPricing\(model\),$/m.test(ownersTable), ownerRows.join(' | '))
   check('no first-party tier is reachable for a non-first-party route: no other line of the owners table touches the first-party table, a first-party tier constant or the first-party fallback', offFirstParty.every(l => !/firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)), offFirstParty.filter(l => /firstPartyPricing|COST_TIER_|MODEL_COSTS|FIRST_PARTY_FALLBACK_TIER|COST_FABLE|COST_HAIKU/.test(l)).join(' | '))
   const fpStart = src.indexOf('function firstPartyPricing')
   const fpBody = src.slice(fpStart, src.indexOf('\n}\n', fpStart))

@@ -254,8 +254,8 @@ section('4 · snapshot — additive surface; uncredentialed never resolves an en
 {
   const snap = buildRouterModelSnapshot()
   check(
-    'providers[] carries the ten families (the Hugging Face router and the local servers included)',
-    snap.providers.length === 10,
+    'providers[] carries twelve families (Anthropic and eleven engine spaces)',
+    snap.providers.length === 12 && ['xai', 'meta'].every(id => snap.providers.some(provider => provider.id === id)),
   )
   for (const p of snap.providers) {
     check(

@@ -7,6 +7,7 @@ export type CallModelRoute =
   | 'moonshot'
   | 'deepseek'
   | 'xai'
+  | 'meta'
   | 'openai-compat'
   | 'openrouter'
   | 'gemini'
@@ -31,14 +32,15 @@ export const PROVIDER_ID_SPACES: readonly ProviderIdSpace[] = [
   { route: 'moonshot', barePrefixes: ['kimi-', 'moonshot-'], bareAliases: ['kimi'] },
   { route: 'deepseek', barePrefixes: ['deepseek-'], bareAliases: ['deepseek'] },
   { route: 'xai', barePrefixes: ['grok-'], bareAliases: ['grok'] },
+  { route: 'meta', barePrefixes: ['muse-'], bareAliases: ['muse'] },
   { route: 'gemini', barePrefixes: ['gemini-'], bareAliases: ['gemini'] },
 ]
 
 export const COMPAT_MODEL_PREFIX = 'compat/'
 
-export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'openai' | 'gemini'
+export type LiveListFamily = 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'openai' | 'gemini'
 
-export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'openai', 'gemini']
+export const LIVE_LIST_FAMILIES: readonly LiveListFamily[] = ['moonshot', 'deepseek', 'xai', 'meta', 'openai', 'gemini']
 
 type LiveIdsReader = { cachedLiveIds?: (env?: NodeJS.ProcessEnv) => ReadonlySet<string> }
 
@@ -50,6 +52,8 @@ function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
       return require('./deepseek/deepseekCatalogue.js') as LiveIdsReader
     case 'xai':
       return require('./xai/xaiCatalogue.js') as LiveIdsReader
+    case 'meta':
+      return require('./meta/metaCatalogue.js') as LiveIdsReader
     case 'openai':
       return require('./openai/openaiCatalogue.js') as LiveIdsReader
     case 'gemini':
