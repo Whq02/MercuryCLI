@@ -23,7 +23,7 @@ export async function advisorRound(
   road: AdvisorRoad = {},
 ): Promise<AdvisorRoundVerdict> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return 'off'
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return 'off'
   const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return 'waiting'
   if (inFlight.has(agentId)) {
@@ -80,10 +80,6 @@ export function advisorMainTurnSettled(
 ): Promise<AdvisorRoundVerdict | 'skipped'> {
   if (!advisorMainTurnIsBoundary(command)) return Promise.resolve('skipped')
   return advisorMainRound(sessionId, rows, road)
-}
-
-export function advisorAgentRound(agentId: string, rows: readonly Message[], road: AdvisorRoad = {}): Promise<AdvisorRoundVerdict> {
-  return advisorRound(agentId, rows, note => stashAdvisorNote(agentId, note), { ...road, seat: road.seat ?? 'crewmate' })
 }
 
 export function resetAdvisorRoadsForTests(): void {

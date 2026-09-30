@@ -8,6 +8,7 @@ import { formatSessionCost } from '../utils/spendSpelling.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { getRunSnapshot, subscribeRuns } from '../services/run/runCoordinator.js'
 import { countOperatorTurns } from '../utils/messages/operatorTurns.js'
+import { advisorChipWords } from '../services/advisor/advisorSettings.js'
 import { Box, Text } from '../ink.js'
 import { contextFillView, contextPercentLabel } from '../utils/contextFill.js'
 import { needsYouCount } from '../utils/needsYouCount.js'
@@ -99,6 +100,7 @@ export const MercuryFrame = React.memo(MercuryFrameImpl)
 
 const subscribeFocusedModelFacts = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedSessionPin = (): string | null => getFocusedSessionConnector().modelFacts().sessionPin
+const getFocusedAdvisorChip = (): string | null => advisorChipWords(getFocusedSessionConnector().advisorFacts())
 const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, listener) => connector.subscribePermissionMode(listener))
 const getFocusedPermissionMode = (): PermissionMode | null => getFocusedSessionConnector().permissionMode()
 
@@ -236,6 +238,14 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       >
         {contextPercentLabel(used, fill.fillSource)}
       </Text>
+    </Text>
+  ) : null
+
+  const advisorChip = useSyncExternalStore(subscribeFocusedModelFacts, getFocusedAdvisorChip, getFocusedAdvisorChip)
+  const advisorNode = advisorChip !== null ? (
+    <Text>
+      <Sep />
+      <Text color={tok.textSecondary}>{advisorChip}</Text>
     </Text>
   ) : null
 
@@ -471,6 +481,7 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
         {ctxNode}
         {!deckOwnsVitals ? costNode : null}
         {!usageOwnedElsewhere ? usageNode : null}
+        {advisorNode}
         {
 }
         {healthNode}

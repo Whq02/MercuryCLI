@@ -1,6 +1,7 @@
 import type { Message, UserMessage } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { isAdvisorOrigin, type AdvisorOrigin } from '../../utils/messages/noticeRows.js'
+import { isCommandEcho } from '../../utils/messages/operatorTurns.js'
 import { callAdvisorOnceMore, liveAdvisorCall, type AdvisorCall } from './advisorCall.js'
 import type { AdvisorQuiet } from './advisorQuiet.js'
 import {
@@ -75,7 +76,7 @@ function digestLinesOf(message: Message): string[] {
   if (isAdvisorOrigin(origin)) return []
   const content = user.message.content
   if (typeof content === 'string') {
-    if (user.isMeta) return []
+    if (user.isMeta || isCommandEcho(content)) return []
     return content.trim() === '' ? [] : [`[operator] ${clip(content, DIGEST_ROW_CLIP)}`]
   }
   const lines: string[] = []
@@ -84,7 +85,7 @@ function digestLinesOf(message: Message): string[] {
       const raw = block.content
       const text = typeof raw === 'string' ? raw : textOfBlocks(raw)
       lines.push(`[result${block.is_error === true ? ' error' : ''}] ${clip(text, DIGEST_RESULT_CLIP)}`)
-    } else if (block.type === 'text' && typeof block.text === 'string' && !user.isMeta && block.text.trim() !== '') {
+    } else if (block.type === 'text' && typeof block.text === 'string' && !user.isMeta && block.text.trim() !== '' && !isCommandEcho(block.text)) {
       lines.push(`[operator] ${clip(block.text, DIGEST_ROW_CLIP)}`)
     }
   }
@@ -176,6 +177,7 @@ export interface AdvisorNote {
 
 export interface AdvisorRoad {
   seat?: AdvisorSeat
+  chat?: boolean
   call?: AdvisorCall
   summarize?: AdvisorSummarizer
   settings?: AdvisorSettings
@@ -206,7 +208,7 @@ export async function composeAdvisorNote(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
   const now = advisorClock(road)
   let model = road.model
   if (model === undefined) {
@@ -253,7 +255,7 @@ export async function advisorTurnSettled(
   road: AdvisorRoad = {},
 ): Promise<AdvisorNote | null> {
   const settings = road.settings ?? readAdvisorSettings()
-  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings) !== undefined) return null
+  if (advisorSeatRefusal(road.seat ?? advisorSessionSeat(), settings, road.chat) !== undefined) return null
   const context = await loadAdvisorContext(agentId, advisorContextOptions(road))
   if (!advisorNoteDue(context, settings.minutes, advisorClock(road)())) return null
   return composeAdvisorNote(context, messages, { ...road, settings })

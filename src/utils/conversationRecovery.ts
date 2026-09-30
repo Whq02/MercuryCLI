@@ -519,6 +519,7 @@ export async function loadConversationForResume(
         customTitle: log.customTitle,
         tag: log.tag,
         mode: log.mode,
+        advisor: log.advisor,
         worktreeSession: log.worktreeSession,
         prNumber: log.prNumber,
         prUrl: log.prUrl,

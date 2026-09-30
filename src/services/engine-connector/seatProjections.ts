@@ -10,6 +10,7 @@ import type { TextPhase } from '../../types/wire.js'
 import type { DecisionReasonWireV1 } from '../../utils/permissions/decisionReasonWire.js'
 import type { PromptInputMode, QueuePriority } from '../../types/textInputTypes.js'
 import type {
+  AdvisorFactsV1,
   McpRosterEntryV1,
   MissionRowV1,
   NoticeRowV1,
@@ -58,6 +59,7 @@ export interface SessionFactsAnswerV1 {
   box?: BoxReadingV1
   openaiCatalogue?: OpenaiCatalogueFactV1
   pauseGate?: PauseGateFactsV1
+  advisor?: AdvisorFactsV1
 }
 
 export interface FileCheckpointFactsV1 {

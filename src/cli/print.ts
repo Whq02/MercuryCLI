@@ -135,7 +135,7 @@ import {
   takePendingScheduleEdits,
 } from '../services/saturn/sessionScheduleBridge.js'
 import { saturnQueueStamp } from '../utils/messages/noticeRows.js'
-import { advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
+import { advisorFacts, advisorMainRound, advisorMainTurnSettled, createAdvisorQuietMessage, type AdvisorQuiet, type AdvisorRoad } from '../services/advisor/index.js'
 import { localWakeStep, type LocalWakeFacts } from '../tools/ScheduleWakeupTool/localWake.js'
 import { offSkillNamesOf } from '../skills/kitGovernance.js'
 import { disabledMcpServerNamesIn } from '../services/mcp/disabledRecord.js'
@@ -243,6 +243,7 @@ import { extractReadFilesFromMessages } from '../utils/queryHelpers.js'
 import {
   cacheSessionTitle,
   doesMessageExistInSession,
+  saveAdvisorSwitch,
   saveAgentSetting,
 } from '../utils/sessionStorage.js'
 import { restoreAgentFromSession, restoreConversationModelFromMessages, restoreSessionStateFromLog } from '../utils/sessionRestore.js'
@@ -331,6 +332,7 @@ type HeadlessOptions = {
   rewindFiles?: string
   agent?: string
   workload?: string
+  advise?: boolean
   setupTrigger?: 'init' | 'maintenance'
   bootSessionIdPinned?: boolean
   subscribeAppState?: (listener: () => void) => () => void
@@ -729,6 +731,7 @@ export async function runHeadless(
       saveAgentSetting(restored.agentType)
     }
   }
+  if (options.advise === true) saveAdvisorSwitch(true)
 
   if (messages.length === 0 && process.exitCode !== undefined && process.exitCode !== 0) {
     return
@@ -2304,6 +2307,7 @@ export async function runHeadless(
             })),
             work: projectWorkRoster(state.tasks),
             pauseGate: { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length },
+            advisor: advisorFacts(),
             notices: noticeRows(),
             mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
               id: task.id,

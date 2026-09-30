@@ -26,16 +26,14 @@ export function isMainChatAdvisorDrain(args: { agentId: string | undefined; quer
 }
 
 export function getAdvisorNoteAttachments(
-  toolUseContext: Pick<ToolUseContext, 'agentId' | 'agentKind'>,
+  toolUseContext: Pick<ToolUseContext, 'agentId'>,
   drain: { querySource?: QuerySource; localSubmission?: boolean } = {},
 ): Attachment[] {
   const agentId = toolUseContext.agentId
-  const seat = agentId !== undefined && agentId !== '' ? { id: String(agentId), kind: toolUseContext.agentKind ?? ('crewmate' as const) } : null
-  if (seat === null && !isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []
-  const id = seat?.id ?? String(getSessionId())
-  const notes = takeAdvisorNotes(id)
+  if (!isMainChatAdvisorDrain({ agentId, querySource: drain.querySource, localSubmission: drain.localSubmission })) return []
+  const notes = takeAdvisorNotes(String(getSessionId()))
   if (notes.length === 0) return []
-  if (advisorSeatRefusal(seat?.kind ?? advisorSessionSeat()) !== undefined) return []
+  if (advisorSeatRefusal(advisorSessionSeat()) !== undefined) return []
   return notes.map(note => ({
     type: 'queued_command' as const,
     prompt: note.text,

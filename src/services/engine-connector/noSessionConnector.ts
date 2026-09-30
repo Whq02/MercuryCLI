@@ -156,6 +156,9 @@ export class NoSessionConnector implements EngineConnectorV1 {
   async setSpawnSwitch(): Promise<SpawnSwitchReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
+  advisorFacts(): null {
+    return null
+  }
   checkpointFacts(): CheckpointFactsV1 {
     return NO_CHECKPOINTS
   }

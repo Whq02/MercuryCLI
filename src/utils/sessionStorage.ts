@@ -56,6 +56,7 @@ import { loadSessionFile, loadTranscriptFile } from './sessionStorage/loading.js
 export { loadTranscriptFile } from './sessionStorage/loading.js'
 export {
   adoptResumedSessionFile,
+  advisorSwitchOfSession,
   flushSessionStorage,
   recordAttributionSnapshot,
   recordContentReplacement,
@@ -118,6 +119,7 @@ export {
   loadTranscriptFromFile,
   reAppendSessionMetadata,
   restoreSessionMetadata,
+  saveAdvisorSwitch,
   saveAgentColor,
   saveAgentName,
   saveAgentSetting,

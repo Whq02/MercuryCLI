@@ -543,6 +543,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--resume-session-at <message-id>', 'Truncate the resumed session at a message').hideHelp())
     .addOption(new Option('--rewind-files <user-message-id>', 'Rewind files to a user message').hideHelp())
     .option('--model <model>', 'The model for the session')
+    .option('--advise', 'Turn the advisor on for this print run at birth — the headless form of /advise on; the settings (/config → Advisor) must be on in the run\'s config home')
     .option(`--effort <level>`, `Reasoning effort level (${EFFORT_LEVELS.join(', ')})`, value => {
       const { level } = parseCliEffort(value)
       if (level === undefined) {
@@ -1190,6 +1191,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
   if (opts.forkSession && !printMode) {
     failCli('--fork-session is a print-mode option: a managed resume continues the session as itself')
+  }
+  if (opts.advise === true && !printMode) {
+    failCli('--advise is a print-mode option: in a chat, /advise on turns the advisor on for that chat')
   }
   const sessionIdOpt = typedString(opts.sessionId)
   if (sessionIdOpt) {
@@ -2288,6 +2292,7 @@ async function printLaunch(args: {
         rewindFiles: typedString(opts.rewindFiles),
         agent: typedString(opts.agent),
         workload: typedString(opts.workload),
+        advise: opts.advise === true,
         setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),
         subscribeAppState: store.subscribe,

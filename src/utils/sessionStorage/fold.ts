@@ -27,6 +27,7 @@ export type TranscriptFoldState = {
   prUrls: Map<UUID, string>
   prRepositories: Map<UUID, string>
   modes: Map<UUID, string>
+  advisorSwitches: Map<UUID, boolean>
   worktreeStates: Map<UUID, PersistedWorktreeSession | null>
   fileHistorySnapshots: Map<UUID, FileHistorySnapshotMessage>
   attributionSnapshots: Map<UUID, AttributionSnapshotMessage>
@@ -50,6 +51,7 @@ export function emptyFoldState(): TranscriptFoldState {
     prUrls: new Map(),
     prRepositories: new Map(),
     modes: new Map(),
+    advisorSwitches: new Map(),
     worktreeStates: new Map(),
     fileHistorySnapshots: new Map(),
     attributionSnapshots: new Map(),
@@ -65,7 +67,7 @@ export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): voi
   entry = migrateTranscriptEntryKind(entry)
   const {
     messages, summaries, customTitles, tags, agentNames, agentColors,
-    agentSettings, prNumbers, prUrls, prRepositories, modes, worktreeStates,
+    agentSettings, prNumbers, prUrls, prRepositories, modes, advisorSwitches, worktreeStates,
     fileHistorySnapshots, attributionSnapshots, contentReplacements,
     agentContentReplacements, contextCollapseCommits, progressBridge,
   } = st
@@ -103,6 +105,8 @@ export function applyTranscriptEntry(st: TranscriptFoldState, entry: Entry): voi
     agentSettings.set(entry.sessionId, entry.agentSetting)
   } else if (entry.type === 'mode' && entry.sessionId) {
     modes.set(entry.sessionId, entry.mode)
+  } else if (entry.type === 'advisor-switch' && entry.sessionId) {
+    advisorSwitches.set(entry.sessionId, entry.on === true)
   } else if (entry.type === 'worktree-state' && entry.sessionId) {
     worktreeStates.set(entry.sessionId, entry.worktreeSession)
   } else if (entry.type === 'pr-link' && entry.sessionId) {

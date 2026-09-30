@@ -96,6 +96,12 @@ export type ModeEntry = {
   sessionId: UUID
 }
 
+export type AdvisorSwitchEntry = {
+  type: 'advisor-switch'
+  on: boolean
+  sessionId: UUID
+}
+
 export type PersistedWorktreeSession = {
   originalCwd: string
   worktreePath: string
@@ -191,6 +197,7 @@ export type Entry =
   | AgentSettingMessage
   | PRLinkMessage
   | ModeEntry
+  | AdvisorSwitchEntry
   | WorktreeStateEntry
   | ContentReplacementEntry
   | FileHistorySnapshotMessage
@@ -233,6 +240,7 @@ export type LogOption = {
   prRepository?: string
   endedOnError?: boolean
   mode?: 'coordinator' | 'normal'
+  advisor?: boolean
   worktreeSession?: PersistedWorktreeSession | null
   contentReplacements?: ContentReplacementRecord[]
 }

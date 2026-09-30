@@ -2,7 +2,6 @@ import React from 'react'
 import { Text } from '../../ink.js'
 import {
   ADVISOR_DEFAULT_MINUTES,
-  ADVISOR_DOORS,
   ADVISOR_MINUTES_LADDER,
   advisorIntervalWords,
   advisorReceiptWords,
@@ -12,8 +11,8 @@ import {
   type AdvisorSettings,
 } from '../../services/advisor/advisorSettings.js'
 
-export const ADVISOR_SEARCH = 'advisor second model advises working model note cadence interval minutes submodels ask crewmates'
-export const ADVISOR_ROW_IDS = ['advisor', 'advisorCrewmates', 'advisorInterval'] as const
+export const ADVISOR_SEARCH = 'advisor second model advises working model note cadence interval minutes submodels ask'
+export const ADVISOR_ROW_IDS = ['advisor', 'advisorInterval'] as const
 
 export type AdvisorConfigItem = {
   id: string
@@ -39,11 +38,6 @@ export function advisorIntervalValueWords(minutes: number): string {
   return `${minutes} minute${minutes === 1 ? '' : 's'}`
 }
 
-export function advisorCrewmatesValueWords(settings: Pick<AdvisorSettings, 'enabled' | 'crewmates'>): string {
-  if (!settings.crewmates) return 'off'
-  return settings.enabled ? 'on · may result in high spend' : 'on · Advisor is off · may result in high spend'
-}
-
 export function advisorModelWords(): string {
   const model = resolveAdvisorModel()
   if (model.origin === 'unset') return 'no advisor model pinned — /submodels sets one'
@@ -54,10 +48,9 @@ export function advisorConfigItems(args: {
   tokens: { success: string; textSecondary: string }
   settings?: AdvisorSettings
   onToggle: (next: boolean, words: string) => void
-  onCrewmates: (next: boolean, words: string) => void
   onInterval: (next: number, words: string) => void
 }): AdvisorConfigItem[] {
-  const { tokens, onToggle, onCrewmates, onInterval } = args
+  const { tokens, onToggle, onInterval } = args
   const settings = args.settings ?? readAdvisorSettings()
   const modelWords = advisorModelWords()
   return [
@@ -67,24 +60,11 @@ export function advisorConfigItems(args: {
       searchText: ADVISOR_SEARCH,
       kind: 'boolean',
       value: <Text color={settings.enabled ? tokens.success : tokens.textSecondary}>{advisorValueWords(settings)}</Text>,
-      warning: `a second model reads this conversation ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you; the agent can ask it between notes · crewmates opt in separately; never workflow agents · ${modelWords} · off by default · doors: ${ADVISOR_DOORS}`,
+      warning: `the settings for every chat: a second model reads a chat ${advisorIntervalWords(settings.minutes)} and writes the agent one note, addressed to the agent, never to you · each chat turns its own advisor on with /advise (a new chat starts off); off here stops every chat at once · never crewmates or workflow agents · ${modelWords} · off by default`,
       setByYou: settings.enabled,
       change: () => {
         const next = !settings.enabled
         onToggle(next, `set the advisor to ${advisorValueWords({ ...settings, enabled: next })}`)
-      },
-    },
-    {
-      id: 'advisorCrewmates',
-      label: 'Advisor for crewmates',
-      searchText: `${ADVISOR_SEARCH} opt in separate`,
-      kind: 'boolean',
-      value: <Text color={settings.enabled && settings.crewmates ? tokens.success : tokens.textSecondary}>{advisorCrewmatesValueWords(settings)}</Text>,
-      warning: 'a separate opt-in for crewmates: both this switch and Advisor must be on for notes or AskAdvisor · off by default · workflow agents never receive advice',
-      setByYou: settings.crewmates,
-      change: () => {
-        const next = !settings.crewmates
-        onCrewmates(next, `set the advisor for crewmates to ${next ? 'on' : 'off'}`)
       },
     },
     {
