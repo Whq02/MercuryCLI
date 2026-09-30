@@ -49,6 +49,7 @@ try {
       const frame = board.frame()
       world.save(`credits-${name}`, frame, at)
       check(`${name} at ${columns}: the subscription balance is visible`, frame.includes('62,500'), frame)
+      if (name === 'usage') check(`usage at ${columns}: the balance belongs to the account, not the absent key`, frame.indexOf('62,500') < frame.indexOf('API key'), frame)
       check(`${name} at ${columns}: the frame fits`, world.inBounds(frame, at) && !frame.includes('RENDER ERROR'), frame)
       board.close()
     }
