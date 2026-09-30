@@ -84,7 +84,7 @@ import {
 import { stopConcourseSession, reviveConcourseWorker, setConcourseSessionTitle } from './concourseSupervisor.js'
 import { readSessionWorkersSnapshot } from './concourseSupervisor.js'
 import { applyConcourseContractOp } from './sessionContract.js'
-import { applyConcourseScheduleOp } from './saturn.js'
+import { applyConcourseScheduleOp, dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from './saturn.js'
 import { deriveScheduleAccountForModel, liveFactsForSessionFire, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { composeSignInView, refreshSignInReads } from './signInView.js'
 import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
@@ -141,6 +141,20 @@ import { GLYPH } from '../components/mercury-ui/glyphs.js'
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
   return arg ? resolve(arg) : process.cwd()
+}
+
+function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy): void {
+  try {
+    const gone = dropSaturnSelfWakes(sessionId, by, why)
+    if (gone.dropped.length > 0) {
+      // eslint-disable-next-line no-console
+      console.error(
+        `[daemon] ${sessionId}: ${gone.dropped.length} self-paced wake${gone.dropped.length === 1 ? '' : 's'} dropped (${why}) — ${gone.dropped.join(', ')}${gone.droppedHolds > 0 ? `, ${gone.droppedHolds} held fire${gone.droppedHolds === 1 ? '' : 's'} with ${gone.dropped.length === 1 ? 'it' : 'them'}` : ''}`,
+      )
+    }
+  } catch (err) {
+    logForDebugging(`[daemon] ${sessionId}: self-paced wake drop (${why}) failed — ${err instanceof Error ? err.message : String(err)}; the ticker converges it`)
+  }
 }
 
 
@@ -438,6 +452,8 @@ async function daemonRun(args: string[]): Promise<void> {
             if (completeRequestedPark(short, roster)) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] ${short} finished its turn and parked (a park was requested while it worked)`)
+              const parkedRec = readSessionWorkers()[short]
+              if (parkedRec !== undefined) dropSelfWakesAtFlip(parkedRec.sessionId, parkedRec.parkedBy ?? 'daemon', 'parked')
             }
             onSeatIdle(short, roster)
           }
@@ -772,6 +788,11 @@ async function daemonRun(args: string[]): Promise<void> {
             console.error(
               `[daemon] park-all by ${by}: parked ${all.parked.length}, draining ${all.draining.length}, released ${all.released.length} newborn(s), skipped ${all.skipped.length}${all.refused.length > 0 ? `, refused ${all.refused.join(', ')}` : ''}`,
             )
+            const parkedNow = readSessionWorkers()
+            for (const short of all.parked) {
+              const parkedRec = parkedNow[short]
+              if (parkedRec !== undefined) dropSelfWakesAtFlip(parkedRec.sessionId, by, 'parked')
+            }
             return {
               outcome: 'applied' as const,
               detail: `parked ${all.parked.join(', ') || '-'} · draining ${all.draining.join(', ') || '-'} · released ${all.released.join(', ') || '-'} · skipped ${all.skipped.join(', ') || '-'}`,
@@ -784,11 +805,13 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'park') {
             if (roster && rec.pid !== undefined && !isNewbornRecord(rec) && !turnInFlightOf(rec) && workerPidAlive(rec) && rec.attachedAt === undefined) {
               const retired = await retireConcourseSession(sessionId, by, roster)
+              if (retired.outcome === 'parked') dropSelfWakesAtFlip(sessionId, by, 'parked')
               return retired.outcome === 'parked'
                 ? { outcome: 'applied' as const, detail: `parked ${retired.runnerId}` }
                 : { outcome: 'refused' as const, detail: `${retired.runnerId ?? rec.runnerId}: ${retired.reason}` }
             }
             const out = parkConcourseSession(sessionId, by, roster ?? undefined)
+            if (out.outcome === 'applied' && !out.released) dropSelfWakesAtFlip(sessionId, by, 'parked')
             return out.outcome === 'refused'
               ? { outcome: 'refused' as const, detail: out.detail ?? out.reason }
               : out.outcome === 'noop'
@@ -868,6 +891,7 @@ async function daemonRun(args: string[]): Promise<void> {
                   request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
                 }),
               )
+            if (delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')
             return settle(
               delivered
                 ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` }
@@ -905,6 +929,7 @@ async function daemonRun(args: string[]): Promise<void> {
               )
             }
             const out = stopConcourseSession(sessionId, by, roster ?? undefined)
+            if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')
             return out.outcome === 'refused'
               ? { outcome: 'refused' as const, detail: out.reason }
               : out.outcome === 'noop'
@@ -1310,7 +1335,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         r => {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed`)
+          console.error(`[daemon] saturn tick: ${r.fired} fired, ${r.replayed} replayed, ${r.held} held, ${r.missed} missed${r.dropped > 0 ? `, ${r.dropped} self-paced wake${r.dropped === 1 ? '' : 's'} dropped (parked)` : ''}`)
         },
       )
       if (parseOwnerPid() !== null && flagEnv('MERCURY_DAEMON_NO_SELF_WARM') !== '1') {

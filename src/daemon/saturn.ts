@@ -7,6 +7,7 @@ import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'
 import { CONTRACT_TEXT_CAP } from './sessionContract.js'
 import { updateConcourseWorkers } from './concourseSupervisor.js'
+import { wakeDelayOfSpelling } from '../utils/messages/noticeRows.js'
 
 
 export interface ScheduleAccountV1 {
@@ -579,6 +580,62 @@ export function rowSaturnTickReceipt(
     })
   } catch {
   }
+}
+
+export function isSaturnSelfWake(s: SaturnScheduleV1): boolean {
+  return (
+    typeof s.createdBy === 'string' &&
+    s.createdBy.startsWith('model:') &&
+    s.when.kind === 'at' &&
+    s.action.kind === 'fire' &&
+    wakeDelayOfSpelling(s.when.spelling) !== null
+  )
+}
+
+export type SaturnSelfWakeDropWhy = 'parked' | 'stopped' | 'interrupted'
+
+const SELF_WAKE_DROP_CLAUSE: Record<SaturnSelfWakeDropWhy, string> = {
+  parked: 'the session was parked',
+  stopped: 'the session was stopped',
+  interrupted: 'the turn was interrupted',
+}
+
+export function dropSaturnSelfWakes(
+  sessionId: string,
+  by: string | ((scheduleId: string) => string),
+  why: SaturnSelfWakeDropWhy,
+  dir?: string,
+): { dropped: string[]; droppedHolds: number } {
+  const out: { dropped: string[]; droppedHolds: number } = { dropped: [], droppedHolds: 0 }
+  updateConcourseWorkers(workers => {
+    const rec = Object.values(workers).find(r => r.sessionId === sessionId && r.endedAt === undefined)
+    if (!rec || !Array.isArray(rec.schedules)) return
+    const wakes = rec.schedules.filter(s => saturnScheduleRowUsable(s) && isSaturnSelfWake(s))
+    if (wakes.length === 0) return
+    const ids = new Set(wakes.map(s => s.id))
+    const keptSchedules = rec.schedules.filter(s => !(saturnScheduleRowUsable(s) && ids.has(s.id)))
+    if (keptSchedules.length === 0) delete rec.schedules
+    else rec.schedules = keptSchedules
+    const holds = Array.isArray(rec.heldFires) ? rec.heldFires : []
+    const holdsOf = (id: string): number => holds.filter(h => saturnHeldRowUsable(h) && h.scheduleId === id).length
+    const keptHolds = holds.filter(h => !(saturnHeldRowUsable(h) && ids.has(h.scheduleId)))
+    if (keptHolds.length !== holds.length) {
+      if (keptHolds.length === 0) delete rec.heldFires
+      else rec.heldFires = keptHolds
+    }
+    for (const s of wakes) {
+      const droppedHolds = holdsOf(s.id)
+      out.dropped.push(s.id)
+      out.droppedHolds += droppedHolds
+      rowScheduleReceipt(
+        rec,
+        typeof by === 'function' ? by(s.id) : by,
+        `schedule '${s.id}' removed — ${SELF_WAKE_DROP_CLAUSE[why]}; its self-paced wake (${describeWhen(s.when)}) paced a turn that is over${droppedHolds > 0 ? ` (${droppedHolds} held fire${droppedHolds === 1 ? '' : 's'} dropped with it)` : ''}`,
+        { op: 'remove', id: s.id, selfWake: true, why, ...(droppedHolds > 0 ? { droppedHolds } : {}) },
+      )
+    }
+  }, dir)
+  return out
 }
 
 
