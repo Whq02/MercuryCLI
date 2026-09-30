@@ -4,7 +4,6 @@ import React from 'react'
 import {
   getIsInteractive,
   getSessionId,
-  setAddedDirectories,
   setClientType,
   setInitialMainLoopModel,
   setSessionExtensions,
@@ -482,7 +481,7 @@ async function run(): Promise<void> {
     )
     .option(
       '--bare',
-      `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_BARE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config, --allowed-tools and --add-dir.`,
+      `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_BARE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config and --allowed-tools.`,
     )
     .addOption(new Option('--init', 'Run initialization only').hideHelp())
     .addOption(new Option('--init-only', 'Run initialization and exit').hideHelp())
@@ -561,7 +560,6 @@ async function run(): Promise<void> {
       throw new Error('--project-root must appear before all other arguments')
     })
     .option('--settings <file-or-json>', 'Extra settings (path or inline JSON)')
-    .option('--add-dir <directories...>', "Additional working directories: each joins the session's scope for reads, writes and the shell's directory (a sibling worktree the session works in); /add-dir declares one in the session")
     .option('--ide', 'Auto-connect to the IDE')
     .option('--session-id <uuid>', 'Use a specific session id')
     .option('-n, --name <name>', 'Session title')
@@ -1277,14 +1275,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     baseToolsCli: opts.tools as string[] | undefined,
     permissionMode,
     allowDangerouslySkipPermissions: allowDangerousSkip,
-    addDirs: (opts.addDir as string[] | undefined) ?? [],
   })
   let toolPermissionContext = permissionInit.toolPermissionContext
   for (const warning of permissionInit.warnings) console.error(warning)
   if (permissionInit.dangerousPermissions.length > 0) {
     toolPermissionContext = stripDangerousPermissionsForAutoMode(toolPermissionContext)
   }
-  setAddedDirectories(permissionInit.admittedDirectories)
 
   const assistantBootActive = false
   setAssistantModeActive(assistantBootActive)
@@ -1417,7 +1413,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       ['--disallowed-tools', opts.disallowedTools],
       ['--tools', opts.tools],
       ['--mcp-config', opts.mcpConfig],
-      ['--add-dir', opts.addDir],
       ['--betas', opts.betas],
     ]
     const multi = variadicCandidates.filter(

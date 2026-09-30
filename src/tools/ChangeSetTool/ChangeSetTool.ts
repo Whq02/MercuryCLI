@@ -71,7 +71,7 @@ import {
 } from '../../utils/fileHistory.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
-import { checkWritePermissionForTool, describeWriteScope, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
+import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
 import { reasonForRule, refusalWithReason } from '../../utils/permissions/ruleReason.js'
 import {
@@ -157,13 +157,6 @@ const pathShim = {
   getPath: (i: { file_path: string }) => i.file_path,
 } as unknown as Parameters<typeof checkWritePermissionForTool>[0]
 
-function isWithinWriteScope(
-  abs: string,
-  permCtx: Parameters<typeof pathInAllowedWorkingPath>[1],
-): boolean {
-  return pathInAllowedWorkingPath(abs, permCtx)
-}
-
 function displayPath(abs: string): string {
   const rel = relative(getCwd(), abs)
   return rel.startsWith('..') ? abs : rel
@@ -242,10 +235,7 @@ function planContext(
     scopeCheck: (canonicalPath: string) => {
       const decision = checkWritePermissionForTool(pathShim, { file_path: canonicalPath }, permCtx)
       if (decision.behavior === 'deny') return 'blocked by a permission deny rule'
-      if (decision.behavior === 'allow') return null
-      return isWithinWriteScope(canonicalPath, permCtx)
-        ? null
-        : "outside the session's write scope — add the directory with /add-dir (or an explicit allow rule)"
+      return null
     },
     ...(lowered
       ? {
@@ -633,7 +623,6 @@ async function runApply(
   }
 
   const denied: string[] = []
-  const outOfScope: string[] = []
   for (const t of changedTargets) {
     const decision = checkWritePermissionForTool(pathShim, { file_path: t.canonicalPath }, permCtx)
     if (decision.behavior === 'allow') continue
@@ -641,18 +630,14 @@ async function runApply(
       denied.push(t.canonicalPath)
       continue
     }
-    if (!isWithinWriteScope(t.canonicalPath, permCtx)) outOfScope.push(t.canonicalPath)
   }
-  if (denied.length > 0 || outOfScope.length > 0) {
-    const lines = [
-      ...denied.map(p => `  ${displayPath(p)} — blocked by a deny rule`),
-      ...outOfScope.map(p => `  ${displayPath(p)} — outside the session's write scope`),
-    ]
+  if (denied.length > 0) {
+    const lines = denied.map(p => `  ${displayPath(p)} — blocked by a deny rule`)
     return {
       op: 'apply',
       result:
         `Apply refused — ${lines.length} file(s) not writable:\n${lines.join('\n')}\n` +
-        `Nothing was written (a denied path refuses the WHOLE set). ${outOfScope.length > 0 ? `${describeWriteScope(permCtx)} ` : ''}Add the directory with /add-dir or adjust permission rules, then re-apply.`,
+        `Nothing was written (a denied path refuses the WHOLE set). Adjust permission rules, then re-apply.`,
       outcome: 'failed',
       planId: plan.id,
       effectOperation: 'file.changeSet',

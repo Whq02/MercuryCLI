@@ -19,12 +19,13 @@ enableConfigs()
 const fsPerm = await import('../../src/utils/permissions/filesystem.ts')
 
 const SHARE = '//fileserver/dev/proj'
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+setOriginalCwd(SHARE)
 const inside = `${SHARE}/src/app.ts`
 const incidental = '//other-server/backup/notes.txt'
 const tool = { name: 'Read', getPath: (i: { file_path: string }) => i.file_path }
 const ctx = (mode: 'default' | 'implement') => ({
   mode,
-  additionalWorkingDirectories: new Map([[SHARE, { path: SHARE, source: 'session' }]]),
   alwaysAllowRules: {},
   alwaysDenyRules: {},
   alwaysAskRules: {},

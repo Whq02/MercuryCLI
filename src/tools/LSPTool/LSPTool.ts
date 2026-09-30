@@ -2,6 +2,7 @@ import type { UUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { open } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
+import { isDeepStrictEqual } from 'node:util'
 
 import { z } from 'zod/v4'
 
@@ -381,7 +382,7 @@ function documentSymbolCounts(result: unknown[]): { resultCount: number; fileCou
 }
 
 
-async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined) {
+async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>) {
   const startedAt = Date.now()
   const operation = input.operation
   const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
@@ -417,6 +418,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
         manager,
         tool: lspPermissionShim as never,
         context,
+        requestWritePermission,
         ...(messageId !== undefined ? { messageId } : {}),
       })
       const data: Output = {
@@ -783,9 +785,16 @@ export const LSPTool = buildTool({
     }
     return { result: true as const }
   },
-  async call(input: Input, context: ToolUseContext, _canUseTool, parentMessage) {
+  async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
     const messageId = parentMessage?.uuid as UUID | undefined
-    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context, messageId))
+    const requestWritePermission = typeof canUseTool === 'function' && parentMessage
+      ? async (path: string): Promise<boolean> => {
+          const requested = { ...input, filePath: path }
+          const decision = await canUseTool(LSPTool, requested, context, parentMessage, context.toolUseId ?? 'lsp-write')
+          return decision.behavior === 'allow' && isDeepStrictEqual(decision.updatedInput ?? requested, requested)
+        }
+      : undefined
+    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context, messageId, requestWritePermission))
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.result }

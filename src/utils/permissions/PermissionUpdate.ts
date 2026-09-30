@@ -1,22 +1,15 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
 import type {
-  AdditionalWorkingDirectory,
   PermissionBehavior,
   PermissionRuleValue,
   PermissionUpdate,
   PermissionUpdateDestination,
-  WorkingDirectorySource,
 } from '../../types/permissions.js'
 import { getSettingsForSource, updateSettingsForSource } from '../settings/settings.js'
 import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
-
-export type {
-  AdditionalWorkingDirectory,
-  WorkingDirectorySource,
-} from '../../types/permissions.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -45,7 +38,6 @@ type MutableContext = {
   alwaysDenyRules: Record<string, string[]>
   alwaysAskRules: Record<string, string[]>
   ruleReasons?: Record<string, Record<string, string>>
-  additionalWorkingDirectories: Map<string, AdditionalWorkingDirectory>
   mode: ToolPermissionContext['mode']
 }
 
@@ -118,19 +110,6 @@ export function applyPermissionUpdate(
       next.mode = update.mode
       logForDebugging(`permission update setMode → ${update.mode} (${update.destination})`)
       break
-    case 'addDirectories':
-      for (const dir of update.directories) {
-        next.additionalWorkingDirectories.set(dir, {
-          path: dir,
-          source: update.destination as WorkingDirectorySource,
-        })
-      }
-      logDirs('addDirectories', update.destination, update.directories)
-      break
-    case 'removeDirectories':
-      for (const dir of update.directories) next.additionalWorkingDirectories.delete(dir)
-      logDirs('removeDirectories', update.destination, update.directories)
-      break
     default:
       return context
   }
@@ -190,19 +169,6 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
     }
     case 'setMode':
       return writePartial(source, { permissions: { defaultMode: update.mode } })
-    case 'addDirectories': {
-      return writePartial(source, base => {
-        const existing = rawPermissionArray(base, 'additionalDirectories')
-        for (const dir of update.directories) if (!existing.includes(dir)) existing.push(dir)
-        return { permissions: { additionalDirectories: existing } } as never
-      })
-    }
-    case 'removeDirectories': {
-      const remove = new Set(update.directories)
-      return writePartial(source, base => ({
-        permissions: { additionalDirectories: rawPermissionArray(base, 'additionalDirectories').filter(dir => !remove.has(dir)) },
-      }) as never)
-    }
     default:
       return LANDED
   }
@@ -288,7 +254,6 @@ function structuredCloneContext(context: ToolPermissionContext): MutableContext 
     alwaysDenyRules: cloneRuleMap(c.alwaysDenyRules),
     alwaysAskRules: cloneRuleMap(c.alwaysAskRules),
     ...(c.ruleReasons === undefined ? {} : { ruleReasons: cloneReasonMap(c.ruleReasons) }),
-    additionalWorkingDirectories: new Map(c.additionalWorkingDirectories),
     mode: c.mode,
   } as MutableContext
 }
@@ -328,9 +293,4 @@ function logUpdate(
   logForDebugging(
     `permission update ${type} · ${destination} · ${behavior} · ${rules.length} rule(s): ${rules.join(', ')}`,
   )
-}
-
-function logDirs(type: string, destination: string, dirs: string[]): void {
-  const noun = dirs.length === 1 ? 'directory' : 'directories'
-  logForDebugging(`permission update ${type} · ${destination} · ${dirs.length} ${noun}: ${dirs.join(', ')}`)
 }

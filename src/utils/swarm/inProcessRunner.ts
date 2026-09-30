@@ -617,7 +617,6 @@ export async function runInProcessCrewmate(
       const base = await getSystemPrompt(
         options.tools,
         options.mainLoopModel,
-        undefined,
         options.mcpClients,
       )
       const parts: string[] = [base.join('\n'), buildCrewmateAddendum()]

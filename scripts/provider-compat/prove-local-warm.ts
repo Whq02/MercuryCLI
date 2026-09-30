@@ -229,7 +229,7 @@ await refreshLocalDiscovery({ force: true })
 const record = localRecordFor(PERSISTED)
 const permissionContext = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
 const tools = getTools(permissionContext as never)
-const systemPromptSections = await getSystemPrompt(tools, PERSISTED, [], [], 'default')
+const systemPromptSections = await getSystemPrompt(tools, PERSISTED, [], 'default')
 const systemContext = await getSystemContext()
 const userContext = await getUserContext()
 const systemPrompt = asSystemPrompt(systemPromptSections)

@@ -19,14 +19,12 @@ import { shouldEnableThinkingByDefault } from './thinking.js'
 export async function fetchSystemPromptParts({
   tools,
   mainLoopModel,
-  additionalWorkingDirectories,
   mcpClients,
   customSystemPrompt,
   permissionMode,
 }: {
   tools: Tools
   mainLoopModel: string
-  additionalWorkingDirectories: string[]
   mcpClients: MCPServerConnection[]
   customSystemPrompt?: string
   permissionMode?: import('../types/permissions.js').InternalPermissionMode
@@ -34,7 +32,7 @@ export async function fetchSystemPromptParts({
   const [defaultSystemPrompt, userContext, systemContext] = await Promise.all([
     customSystemPrompt !== undefined
       ? Promise.resolve([] as string[])
-      : getSystemPrompt(tools, mainLoopModel, additionalWorkingDirectories, mcpClients, permissionMode),
+      : getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode),
     getUserContext(),
     customSystemPrompt !== undefined ? Promise.resolve({} as { [k: string]: string }) : getSystemContext(),
   ])
@@ -68,11 +66,9 @@ export async function buildSideQuestionFallbackParams({
 }): Promise<CacheSafeParams> {
   const mainLoopModel = getMainLoopModel()
   const appState = getAppState()
-  const additionalWorkingDirectories = Array.from(appState.toolPermissionContext.additionalWorkingDirectories.keys())
   const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
     tools,
     mainLoopModel,
-    additionalWorkingDirectories,
     mcpClients,
     customSystemPrompt,
     permissionMode: appState.toolPermissionContext.mode,

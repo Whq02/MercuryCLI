@@ -1,233 +1,75 @@
 #!/usr/bin/env bun
-;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-
+// gate-watch: src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/permissions/permissionSetup.ts src/Tool.ts src/types/permissions.ts
+// gate-watch: src/commands.ts src/main.tsx src/services/switchboard/runnerArgv.ts src/context.ts src/skills/loadSkillsDir.ts src/bootstrap/state.ts
+// gate-watch: src/components/permissions/rules/PermissionRuleList.tsx src/services/instructions/engine.ts docs/TRUST.md
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import * as path from 'node:path'
+import { join, resolve } from 'node:path'
 
-const REPO = path.resolve(import.meta.dir, '../..')
-const BUN = process.env.BUN ?? process.execPath
-
-let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
-  if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-}
-const section = (t: string): void => {
-  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
-}
-
-const SCRATCH = mkdtempSync(path.join(realpathSync(tmpdir()), 'mercury-boot-adddirs-'))
-const HOME = path.join(SCRATCH, 'home')
-const PROJECT = path.join(SCRATCH, 'project')
-const OUTSIDE = path.join(SCRATCH, 'outside-root')
-const INSIDE = path.join(PROJECT, 'inside-root')
-mkdirSync(HOME, { recursive: true })
-mkdirSync(PROJECT, { recursive: true })
-mkdirSync(OUTSIDE, { recursive: true })
-mkdirSync(INSIDE, { recursive: true })
-writeFileSync(path.join(OUTSIDE, 'note.md'), 'outside note\n')
-
-process.on('exit', () => {
-  if (failures === 0) {
-    try {
-      rmSync(SCRATCH, { recursive: true, force: true })
-    } catch {
-    }
-  } else {
-    console.log(`[forensics] scratch kept: ${SCRATCH}`)
-  }
-})
-
-const DRIVER = path.join(SCRATCH, 'driver.ts')
-writeFileSync(
-  DRIVER,
-  `
+const repo = resolve(import.meta.dir, '../..')
+const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'starting-folder-estate-')))
+const home = join(scratch, 'home')
+const project = join(scratch, 'project')
+mkdirSync(home)
+mkdirSync(project)
+const cwd = process.cwd()
+process.chdir(project)
+process.env.MERCURY_CONFIG_DIR = home
+process.env.MERCURY_CREDENTIAL_STORE = 'file'
+process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { enableConfigs } from ${JSON.stringify(path.join(REPO, 'src/utils/config/globalConfig.js'))}
-enableConfigs()
-const { initializeToolPermissionContext } = await import(${JSON.stringify(path.join(REPO, 'src/utils/permissions/permissionSetup.js'))})
-const { pathInAllowedWorkingPath } = await import(${JSON.stringify(path.join(REPO, 'src/utils/permissions/filesystem.js'))})
-const init = await initializeToolPermissionContext({
-  allowedToolsCli: [],
-  disallowedToolsCli: [],
-  permissionMode: 'default',
-  allowDangerouslySkipPermissions: false,
-  addDirs: JSON.parse(process.env.DRV_ADD_DIRS ?? '[]'),
-})
-const ctx = init.toolPermissionContext
-const probe = process.env.DRV_PROBE
-console.log(
-  JSON.stringify({
-    dirs: [...ctx.additionalWorkingDirectories.entries()],
-    warnings: init.warnings,
-    probeAllowed: probe ? pathInAllowedWorkingPath(probe, ctx) : null,
-    addedDirectories: init.admittedDirectories,
-  }),
-)
-`,
-)
-
-interface DriverReport {
-  dirs: Array<[string, { path: string; source: string }]>
-  warnings: string[]
-  probeAllowed: boolean | null
-  addedDirectories: string[]
+let passed = 0
+let failed = 0
+function check(label: string, ok: boolean, detail = ''): void {
+  ok ? passed++ : failed++
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-
-function boot(env: Record<string, string>): DriverReport | null {
-  const res = spawnSync(BUN, ['run', DRIVER], {
-    encoding: 'utf8',
-    timeout: 60_000,
-    cwd: PROJECT,
-    env: {
-      ...Object.fromEntries(
-        Object.entries(process.env).filter(
-          ([k]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(k),
-        ),
-      ),
-      MERCURY_CONFIG_DIR: HOME,
-      ...env,
-    },
-  })
-  const lastLine = res.stdout.trim().split('\n').pop() ?? ''
-  try {
-    return JSON.parse(lastLine) as DriverReport
-  } catch {
-    check('driver produced a report', false, `stdout: ${res.stdout.slice(-200)} stderr: ${String(res.stderr).slice(-300)}`)
-    return null
+const source = (file: string): string => readFileSync(join(repo, file), 'utf8')
+try {
+  const { PermissionsSchema } = await import('../../src/utils/settings/types.js')
+  for (const value of [[scratch], 'old-invalid-value', null, 17]) {
+    const parsed = PermissionsSchema().safeParse({ defaultMode: 'implement', additionalDirectories: value })
+    check('a retired saved directory key is accepted without validation errors', parsed.success, JSON.stringify(value))
+    check('the read-side result ignores the retired key', parsed.success && !Object.hasOwn(parsed.data, 'additionalDirectories'))
+    check('the remaining permission settings survive', parsed.success && parsed.data.defaultMode === 'implement')
   }
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [scratch], defaultMode: 'implement' } }))
+  const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+  enableConfigs()
+  const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.js')
+  const loaded = getSettingsWithErrors()
+  check('an old settings file boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors))
+  check('the loaded permission map has no additional directory', !Object.hasOwn(loaded.settings.permissions ?? {}, 'additionalDirectories'))
+  const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.js')
+  const init = await initializeToolPermissionContext({ allowedToolsCli: [], disallowedToolsCli: [], permissionMode: 'implement', allowDangerouslySkipPermissions: false })
+  check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'))
+  check('boot has no directory admission pass', !Object.hasOwn(init, 'admittedDirectories'))
+  for (const file of [
+    'src/Tool.ts', 'src/types/permissions.ts', 'src/commands.ts', 'src/main.tsx',
+    'src/services/switchboard/runnerArgv.ts', 'src/context.ts', 'src/skills/loadSkillsDir.ts',
+    'src/components/permissions/rules/PermissionRuleList.tsx', 'src/services/instructions/engine.ts',
+  ]) {
+    check(`${file}: no added-directory surface or reader`, !/additionalWorkingDirectories|--add-dir|\/add-dir|AddWorkspaceDirectory|getAddedDirectories/.test(source(file)))
+  }
+  check('the retired settings reader says it was ignored in debug output', /logForDebugging\([^;]*additionalDirectories[^;]*ignored/s.test(source('src/utils/settings/types.ts')))
+  check('the workspace permission tab is absent', !source('src/components/permissions/rules/PermissionRuleList.tsx').includes('id="workspace"'))
+  const trust = source('docs/TRUST.md')
+  check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode/.test(trust) && /outside/.test(trust))
+  const dist = join(repo, 'dist/mercury.mjs')
+  check('the CLI artifact is available', existsSync(dist))
+  if (existsSync(dist)) {
+    const result = spawnSync('node', [dist, '--add-dir'], {
+      cwd: project,
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', MERCURY_LOCAL_PROBE_TARGETS: 'none' },
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
+    check('the CLI refuses --add-dir as an unknown option before any request', result.status !== 0 && /unknown option ['"]--add-dir['"]/.test(result.stderr + result.stdout), (result.stderr + result.stdout).slice(0, 250))
+  }
+  console.log(`starting-folder-estate: ${passed} passed, ${failed} failed`)
+} finally {
+  process.chdir(cwd)
+  rmSync(scratch, { recursive: true, force: true })
 }
-
-console.log('============================================================')
-console.log(' boot add-dirs — the flag reaches the tool-permission context')
-console.log('============================================================')
-
-section('(1) --add-dir X: X enters the map (source cliArg) and grants read scope pre-admit')
-{
-  const report = boot({
-    DRV_ADD_DIRS: JSON.stringify([OUTSIDE]),
-    DRV_PROBE: path.join(OUTSIDE, 'note.md'),
-  })
-  if (report) {
-    const entry = report.dirs.find(([key]) => key === OUTSIDE)
-    check('the directory is IN additionalWorkingDirectories', entry !== undefined, JSON.stringify(report.dirs))
-    check('…keyed by its resolved absolute path', entry?.[1]?.path === OUTSIDE)
-    check("…attributed to source 'cliArg'", entry?.[1]?.source === 'cliArg', entry?.[1]?.source)
-    check(
-      'a file under X passes the REAL read-scope predicate at boot (pre-admit)',
-      report.probeAllowed === true,
-    )
-    check('no warnings for a valid directory', report.warnings.length === 0, JSON.stringify(report.warnings))
-  }
-}
-
-section('(2) containment + trailing separator: a dir inside cwd is silently absorbed; /x/ keys as /x')
-{
-  const report = boot({
-    DRV_ADD_DIRS: JSON.stringify([INSIDE, `${OUTSIDE}${path.sep}`]),
-    DRV_PROBE: path.join(INSIDE, 'anything.txt'),
-  })
-  if (report) {
-    check('a dir inside the launch cwd never duplicates into the map', !report.dirs.some(([k]) => k === INSIDE))
-    check('…and its scope is already granted through cwd', report.probeAllowed === true)
-    check('a trailing separator resolves to the same single key', report.dirs.some(([k]) => k === OUTSIDE))
-    check('no warnings for either spelling', report.warnings.length === 0, JSON.stringify(report.warnings))
-  }
-}
-
-section('(3) an invalid entry warns and is skipped — the boot never aborts')
-{
-  const missing = path.join(SCRATCH, 'no-such-dir')
-  const report = boot({ DRV_ADD_DIRS: JSON.stringify([missing, OUTSIDE]) })
-  if (report) {
-    check('the missing dir is NOT admitted', !report.dirs.some(([k]) => k === missing))
-    check(
-      'a warning names it',
-      report.warnings.some(w => w.includes('no-such-dir') && w.includes('skipped')),
-      JSON.stringify(report.warnings),
-    )
-    check('the valid sibling still lands (no abort)', report.dirs.some(([k]) => k === OUTSIDE))
-  }
-}
-
-section("(4) `/add-dir --remember` boot reader: a remembered dir is present at the next boot")
-{
-  const remembered = path.join(SCRATCH, 'remembered-root')
-  mkdirSync(remembered, { recursive: true })
-  writeFileSync(path.join(remembered, 'fact.md'), 'remembered fact\n')
-  const localDir = path.join(PROJECT, '.mercury')
-  mkdirSync(localDir, { recursive: true })
-  const settingsPath = path.join(localDir, 'settings.local.json')
-  writeFileSync(settingsPath, JSON.stringify({ permissions: { additionalDirectories: [remembered] } }))
-  const report = boot({ DRV_PROBE: path.join(remembered, 'fact.md') })
-  if (report) {
-    const entry = report.dirs.find(([key]) => key === remembered)
-    check('the remembered dir is IN the permission context', entry !== undefined, JSON.stringify(report.dirs))
-    check("…attributed to its settings source ('localSettings')", entry?.[1]?.source === 'localSettings', entry?.[1]?.source)
-    check('…its read scope is granted at boot', report.probeAllowed === true)
-    check(
-      '…and it returns to the WORKSPACE list (instruction roots)',
-      (report.addedDirectories ?? []).includes(remembered),
-      JSON.stringify(report.addedDirectories ?? null),
-    )
-  }
-
-  const report2 = boot({ DRV_ADD_DIRS: JSON.stringify([OUTSIDE]) })
-  if (report2) {
-    check('flag + remembered BOTH admitted', report2.dirs.some(([k]) => k === OUTSIDE) && report2.dirs.some(([k]) => k === remembered))
-    check(
-      'the workspace list carries both, flag first',
-      (report2.addedDirectories ?? [])[0] === OUTSIDE && (report2.addedDirectories ?? []).includes(remembered),
-      JSON.stringify(report2.addedDirectories ?? null),
-    )
-  }
-
-  writeFileSync(
-    settingsPath,
-    JSON.stringify({ permissions: { additionalDirectories: [path.join(SCRATCH, 'vanished-root'), remembered] } }),
-  )
-  const report3 = boot({})
-  if (report3) {
-    check('a vanished remembered dir is skipped', !report3.dirs.some(([k]) => k.endsWith('vanished-root')))
-    check(
-      '…with a warning naming the key and source',
-      report3.warnings.some(w => w.includes('permissions.additionalDirectories (localSettings)') && w.includes('vanished-root')),
-      JSON.stringify(report3.warnings),
-    )
-    check('…and the surviving sibling still lands', report3.dirs.some(([k]) => k === remembered))
-  }
-  rmSync(settingsPath, { force: true })
-}
-
-section('(5) the bare-mode law: an explicitly named dir inside cwd still joins the WORKSPACE list')
-{
-  const report = boot({ DRV_ADD_DIRS: JSON.stringify([INSIDE]) })
-  if (report) {
-    check('the contained dir stays OUT of the permission map (scope already granted)', !report.dirs.some(([k]) => k === INSIDE))
-    check(
-      '…but the workspace list records the explicit naming (bare mode must not refuse it)',
-      (report.addedDirectories ?? []).includes(INSIDE),
-      JSON.stringify(report.addedDirectories ?? null),
-    )
-  }
-}
-
-section('(6) main.tsx wires the returned list into setAddedDirectories (not the raw flag values)')
-{
-  const mainSrc = (await import('node:fs')).readFileSync(path.join(REPO, 'src/main.tsx'), 'utf8')
-  check(
-    'setAddedDirectories consumes the admission pass (permissionInit.admittedDirectories)',
-    mainSrc.includes('setAddedDirectories(permissionInit.admittedDirectories)'),
-  )
-  check(
-    'the raw-flag spelling is gone',
-    !mainSrc.includes('setAddedDirectories((opts.addDir as string[] | undefined) ?? [])'),
-  )
-}
-
-console.log('\n' + '═'.repeat(76))
-console.log(failures === 0 ? '✅ BOOT ADD-DIRS GREEN' : `❌ ${failures} BOOT-ADD-DIRS CHECK(S) FAILED`)
-console.log('═'.repeat(76))
-process.exit(failures === 0 ? 0 : 1)
+process.exit(failed ? 1 : 0)

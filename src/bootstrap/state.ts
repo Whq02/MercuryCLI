@@ -600,16 +600,6 @@ export function setMainThreadAgentType(agentType: string | undefined): void {
   bootConfig.mainThreadAgentType = agentType
 }
 
-export function getAddedDirectories(): string[] {
-  return bootConfig.addedDirectories
-}
-
-export function setAddedDirectories(
-  directories: string[],
-): void {
-  bootConfig.addedDirectories = directories
-}
-
 export function getAllowedChannels(): ChannelEntry[] {
   return bootConfig.allowedChannels
 }

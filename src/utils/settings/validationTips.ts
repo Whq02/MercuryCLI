@@ -77,12 +77,6 @@ function matchTip(context: TipContext): ValidationTip | null {
         'Check for missing commas, unmatched brackets, or trailing commas — a JSON validator can pinpoint the problem',
     }
   }
-  if (context.path === 'permissions.additionalDirectories' && context.code === 'invalid_type') {
-    return {
-      suggestion:
-        'additionalDirectories must be an array of directory paths, e.g. ["/home/user/other-project"]. The --add-dir flag and the /add-dir command do the same thing',
-    }
-  }
   return null
 }
 

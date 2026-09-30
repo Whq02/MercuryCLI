@@ -3,7 +3,6 @@ import { memoize } from 'lodash-es'
 import type { Command, CommandSeat } from './types/command.js'
 import { getCommandName } from './types/command.js'
 import { isCommandEnabled } from './commands/enablement.js'
-import addDir from './commands/add-dir/index.js'
 import verify from './commands/verify.js'
 import agents from './commands/agents/index.js'
 import branch from './commands/branch/index.js'
@@ -192,7 +191,6 @@ const insightsShim = {
 } satisfies Command
 
 const COMMANDS = memoize((): Command[] => [
-  addDir,
   verify,
   agents,
   branch,

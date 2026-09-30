@@ -86,7 +86,6 @@ export async function runConsoleAsk({
       getSystemPrompt(
         context.options.tools,
         context.options.mainLoopModel,
-        [],
         context.options.mcpClients,
       ),
       getUserContext(),

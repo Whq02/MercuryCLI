@@ -61,7 +61,7 @@ const schema = agentTool.inputSchema()
 const shape = schema.shape as Record<string, { description?: string }>
 check('the schema carries cwd', 'cwd' in shape, Object.keys(shape).join(','))
 const words = shape.cwd?.description ?? ''
-check('…and its words name the trust bound and the worktree', words.includes('trusts') && words.includes("isolation 'worktree'"), words)
+check('…and its words name the trust bound and the worktree', words.includes('starting folder') && words.includes("isolation 'worktree'"), words)
 const parsed = schema.safeParse({ description: 'd', prompt: 'p', cwd: '/x' })
 check('a cwd on the wire reaches the call', parsed.success && (parsed.data as { cwd?: string }).cwd === '/x', JSON.stringify(parsed.success ? parsed.data : parsed.error.issues))
 
@@ -87,16 +87,15 @@ check('a missing directory is refused typed, naming the session folder', missing
 check('a file is refused as not a folder', (await refusal(() => resolveCwd(join(work, 'a-file')))).includes('cwd is not a folder'))
 check('a directory under the session folder is accepted, as its real path', resolveCwd(inside) === realpathSync(inside))
 const outside = await refusal(() => resolveCwd(sibling))
-check('a directory outside every trusted workspace is refused with the write-scope sentence', outside.includes('outside every workspace this session trusts') && outside.includes("The session's write scope is") && outside.includes(work), outside)
+check('path resolution leaves folder consent to the ordinary permission check', outside === '' && resolveCwd(sibling) === sibling, outside)
 trust.setPathTrusted(sibling)
 check('…and accepted once the operator trusted it', resolveCwd(sibling) === sibling)
-const widened = { ...context, additionalWorkingDirectories: new Map([[added, { source: 'cliArg' }]]) } as typeof context
-check('a directory the session added as a working directory is accepted', resolveCwd(added, widened) === added)
+check('another valid directory resolves without declaring another root', resolveCwd(added) === added)
 const repo = join(scratch, 'repo')
 initRepo(repo, { 'a.txt': 'one\n' })
 const repoLane = join(scratch, 'repo-lane')
 git(repo, 'worktree', 'add', '-q', '-b', 'lane', repoLane)
-check('a linked worktree of an untrusted repository is refused', (await refusal(() => resolveCwd(repoLane))).includes('outside every workspace'))
+check('a sibling worktree resolves for an ordinarily approved launch', resolveCwd(repoLane) === repoLane)
 trust.setPathTrusted(repo)
 check('…and accepted once its repository is trusted (the record is keyed by the canonical root)', resolveCwd(repoLane) === repoLane)
 
@@ -164,7 +163,7 @@ check('the launch resolves cwd before any spawn', source.includes('resolveAgentC
 check('a named crewmate spawn takes cwd through the same trust resolver (no refusal)', !source.includes('cwd applies to a sub-agent launch') && source.includes('const crewmateCwd = input.cwd !== undefined ? resolveAgentCwd(input.cwd, context.getAppState().toolPermissionContext, { admit: true }) : undefined'))
 check('the worktree preflight and the cut read the named directory', source.includes('preflightWorktreeCapability(cwdParam)') && source.includes('from: cwdParam'))
 check('the helper runs in the worktree when both are named', source.includes('worktreeInfo?.worktreePath ?? cwdParam'))
-check("the session-only home-folder trust arm reads the slot the boot's trust check reads", source.includes('getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())'))
+check('the launch no longer carries a second folder-trust system', !source.includes('getSessionTrustAccepted() && pathInWorkingPath(dir, homedir())') && !source.includes('admittedAgentDirectories'))
 const model = 'claude-fable-5-1'
 const plainBlock = await computeEnvInfo(model)
 check('with no override the env block names the boot directory', plainBlock.includes(`Working directory: ${state.getOriginalCwd()}\n`), plainBlock.split('\n').slice(0, 4).join(' | '))

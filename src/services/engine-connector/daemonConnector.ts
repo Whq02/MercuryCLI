@@ -2205,7 +2205,7 @@ export class DaemonSessionConnector implements EngineConnectorV1, SeatLiveExtens
   workspace(): WorkspaceFactsV1 {
     if (this.facts !== null) return this.facts.workspace
     const cwd = this.record.worktreePath ?? this.record.workspaceId
-    return { cwd, originalCwd: cwd, projectRoot: this.record.workspaceId, instructionRoots: [] }
+    return { cwd, originalCwd: cwd, projectRoot: this.record.workspaceId }
   }
 
   dispatchSlash(line: string): Promise<SendReceiptV1> {

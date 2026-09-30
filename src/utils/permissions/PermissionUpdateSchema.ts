@@ -27,7 +27,5 @@ export function permissionUpdateSchema() {
       ),
       destination,
     }),
-    z.object({ type: z.literal('addDirectories'), directories: z.array(z.string()), destination }),
-    z.object({ type: z.literal('removeDirectories'), directories: z.array(z.string()), destination }),
   ])
 }

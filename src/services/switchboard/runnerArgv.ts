@@ -12,7 +12,6 @@ const RUNNER_OPTIONS: Readonly<Record<string, 0 | 1 | 'many'>> = {
   '--tools': 'many',
   '--mcp-config': 'many',
   '--strict-mcp-config': 0,
-  '--add-dir': 'many',
   '--settings': 1,
   '--setting-sources': 1,
   '--fallback-model': 1,

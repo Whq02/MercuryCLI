@@ -30,7 +30,6 @@ export type InstructionOrigin =
   | 'user'
   | 'user-rules'
   | 'project-walk'
-  | 'additional-dir'
   | 'automem'
 
 export type InstructionConvention = {

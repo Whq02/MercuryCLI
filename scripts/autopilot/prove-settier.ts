@@ -177,7 +177,7 @@ check(
 )
 check(
   'the one owner forwards the mode into getSystemPrompt',
-  src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, mainLoopModel, additionalWorkingDirectories, mcpClients, permissionMode)'),
+  src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode)'),
 )
 
 console.log(`\n${failures === 0 ? 'GREEN' : `RED — ${failures} failure(s)`}`)

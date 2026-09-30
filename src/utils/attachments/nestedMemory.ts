@@ -2,13 +2,12 @@
 import { dirname, parse, relative, resolve } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
-import { getAddedDirectories, getOriginalCwd } from '../../bootstrap/state.js'
+import { getOriginalCwd } from '../../bootstrap/state.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
 import {
   getConditionalInstructionRulesForCwdLevelDirectory,
   getManagedAndUserConditionalInstructionRules,
   getInstructionFilesForNestedDirectory,
-  instructionRootForPath,
 } from '../../services/instructions/engine.js'
 import {
   executeInstructionsLoadedHooks,
@@ -22,10 +21,9 @@ import type { Attachment } from './types.js'
 export function getDirectoriesToProcess(
   targetPath: string,
   originalCwd: string,
-  addedRoots: readonly string[] = [],
 ): { nestedDirs: string[]; cwdLevelDirs: string[] } {
   const targetDir = dirname(resolve(targetPath))
-  const root = instructionRootForPath(targetDir, originalCwd, addedRoots)
+  const root = originalCwd
   const nestedDirs: string[] = []
   let currentDir = targetDir
 
@@ -143,7 +141,6 @@ export async function getNestedMemoryAttachmentsForFile(
     const { nestedDirs, cwdLevelDirs } = getDirectoriesToProcess(
       filePath,
       originalCwd,
-      getAddedDirectories(),
     )
 
     for (const dir of nestedDirs) {

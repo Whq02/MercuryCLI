@@ -495,11 +495,9 @@ function attachSuggestions(result: PermissionResult, operationType: FileOperatio
   if (operationType === 'read') {
     const readRule = createReadRuleSuggestion(containingDir)
     if (readRule) suggestions.push(readRule)
-  } else {
-    suggestions.push({ type: 'addDirectories', destination: 'localSettings', directories: [containingDir] })
   }
   if (operationType === 'write' || operationType === 'create') {
-    const editRule = createEditRuleSuggestion(containingDir)
+    const editRule = createEditRuleSuggestion(containingDir, 'localSettings')
     if (editRule) suggestions.push(editRule)
   }
   return { ...result, suggestions }
@@ -617,7 +615,7 @@ function validateRedirections(
         message,
         blockedPath: check.resolvedPath,
         decisionReason: check.decisionReason,
-        suggestions: [{ type: 'addDirectories', destination: 'localSettings', directories: [getDirectoryForPath(check.resolvedPath)] }],
+        suggestions: [createEditRuleSuggestion(getDirectoryForPath(check.resolvedPath), 'localSettings')].filter((rule): rule is PermissionUpdate => rule !== undefined),
       }
     }
   }

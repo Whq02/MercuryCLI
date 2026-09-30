@@ -22,7 +22,7 @@ import type {
   WrapWithSandboxOptions,
 } from '@anthropic-ai/sandbox-runtime'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import { getCwd } from '../cwd.js'
+import { getCwd, getStartingCwd } from '../cwd.js'
 import { logForDebugging } from '../debug.js'
 import { memoize } from 'lodash-es'
 import { getMercuryHome } from '../envUtils.js'
@@ -164,7 +164,7 @@ export function shouldAllowManagedSandboxDomainsOnly(): boolean {
 
 type SettingsShape = {
   sandbox?: Record<string, unknown>
-  permissions?: { allow?: string[]; deny?: string[]; additionalDirectories?: string[] }
+  permissions?: { allow?: string[]; deny?: string[] }
 }
 
 function safeGetSettings(source: string): SettingsShape {
@@ -304,7 +304,7 @@ const platformUserTempDir = memoize((): string | null => {
 })
 
 function buildAllowWrite(): string[] {
-  const allowWrite = new Set<string>(['.'])
+  const allowWrite = new Set<string>([getStartingCwd()])
   try {
     const { getMercuryTempDir, getProjectTempDir } = require('../permissions/filesystem.js') as {
       getMercuryTempDir(): string
@@ -316,11 +316,9 @@ function buildAllowWrite(): string[] {
   }
   const platformTemp = platformUserTempDir()
   if (platformTemp) allowWrite.add(platformTemp)
-  const sessionDir = getCwd()
+  const sessionDir = getStartingCwd()
   const mainRepo = resolveWorktreeMainRepo(sessionDir)
   if (mainRepo && mainRepo !== sessionDir) allowWrite.add(mainRepo)
-  const merged = getMergedSettings()
-  for (const dir of merged.permissions?.additionalDirectories ?? []) allowWrite.add(dir)
   return [...allowWrite]
 }
 

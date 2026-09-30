@@ -142,7 +142,7 @@ show('a seat that asks, with no operator to answer: the launch outside the trust
 console.log(`\npwd seen by the helpers of the asking seat: ${JSON.stringify(pwdsAsked)}`)
 tally.section('a seat that asks: the question with nobody to answer it keeps the helper unlaunched')
 tally.check('a trusted directory launches with no question', seen.askedLane !== undefined && !seen.askedLane.isError && pwdsAsked[0] === lane, `${seen.askedLane?.text.slice(0, 200)} pwd=${pwdsAsked[0] ?? '(none)'}`)
-tally.check('the launch outside the trusted workspace is a question the seat cannot ask, so it is refused with the existing sentence', seen.askedOutside !== undefined && seen.askedOutside.isError && /outside every workspace this session trusts/.test(seen.askedOutside.text) && /write scope/.test(seen.askedOutside.text) && /cannot ask for approval/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
+tally.check('the outside launch is an ordinary question the headless seat cannot answer', seen.askedOutside !== undefined && seen.askedOutside.isError && /outside this session's starting folder/.test(seen.askedOutside.text) && /cannot ask for approval/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
 tally.check('the refused launch ran no helper', pwdsAsked.length === 1, JSON.stringify(pwdsAsked))
 
 const repo = join(scratch, 'repo')

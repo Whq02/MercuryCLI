@@ -54,7 +54,7 @@ section('§1 THE WRITE-ARM SUGGESTIONS')
     suggestions.some(s => s.type === 'addRules' && (s.rules ?? []).some(r => r.toolName === 'Edit')),
     JSON.stringify(suggestions),
   )
-  check('the directory grant itself still rides', suggestions.some(s => s.type === 'addDirectories'))
+  check('no added-root grant rides the permission card', !suggestions.some(s => s.type === 'addDirectories'))
 }
 
 section('§2 THE MINTED RULE UNBLOCKS THE WRITE')

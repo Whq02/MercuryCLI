@@ -180,7 +180,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   workspace(): WorkspaceFactsV1 {
     const cwd = getCwd()
     if (this.cachedWorkspace === null || this.cachedWorkspace.cwd !== cwd) {
-      this.cachedWorkspace = { cwd, originalCwd: cwd, projectRoot: cwd, instructionRoots: EMPTY_ROOTS }
+      this.cachedWorkspace = { cwd, originalCwd: cwd, projectRoot: cwd }
     }
     return this.cachedWorkspace
   }

@@ -163,7 +163,7 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
     mcp: [{ name: 'mercury', type: 'connected' as const }, { name: 'ghost', type: 'failed' as const, error: 'gone' }],
     permissionMode: 'default' as never,
     effortSent: 'high',
-    workspace: { cwd: '/w', originalCwd: '/w', projectRoot: '/w', instructionRoots: ['/x'] },
+    workspace: { cwd: '/w', originalCwd: '/w', projectRoot: '/w' },
     queue: [{ uuid: 'u1', value: 'hi', mode: 'prompt' as never, priority: 'next' as const }],
     work: [
       {

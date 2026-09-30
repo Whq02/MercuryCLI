@@ -47,6 +47,7 @@ import {
   checkWritePermissionForTool,
   pathInAllowedWorkingPath,
 } from '../../utils/permissions/filesystem.js'
+import { postureBypassesAsks } from '../../utils/permissions/decision/engine.js'
 import { MAX_LINES_TO_READ } from '../FileReadTool/prompt.js'
 
 
@@ -132,6 +133,7 @@ type OpEnv = {
   tool: { name: string; getPath?: (input: unknown) => string | undefined }
   context: ToolUseContext
   messageId?: UUID
+  requestWritePermission?: (path: string) => Promise<boolean>
 }
 
 
@@ -944,16 +946,16 @@ async function applyPrepared(
       refusals.push(`${display}: blocked by a permission deny rule`)
       continue
     }
-    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(abs, permissionContext)) {
-      refusals.push(
-        `${display}: outside the session's working directories — a server edit can never ride one approval outside the scope`,
-      )
+    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(abs, permissionContext) && abs !== env.absolutePath && !postureBypassesAsks(permissionContext)) {
+      if (await env.requestWritePermission?.(abs) !== true) {
+        refusals.push(`${display}: permission to edit this additional file was not granted`)
+      }
     }
   }
   if (refusals.length > 0) {
     const result =
       `Apply refused — nothing written:\n${refusals.map(line => `  ${line}`).join('\n')}\n` +
-      `Add a directory to the session with /add-dir to bring an out-of-scope file into the write scope.`
+      `Approve the requested file edits or adjust permission rules, then apply again.`
     return {
       output: {
         result,
@@ -2291,9 +2293,9 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
         },
       }
     }
-    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(endpoint, permissionContext)) {
+    if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(endpoint, permissionContext) && endpoint !== env.absolutePath && !postureBypassesAsks(permissionContext) && await env.requestWritePermission?.(endpoint) !== true) {
       return {
-        result: `pathRename refused: ${endpointDisplay} is outside the session's working directories. Add its directory with /add-dir first. Nothing moved.`,
+        result: `pathRename refused: permission to write ${endpointDisplay} was not granted. Nothing moved.`,
         resultCount: 0,
         fileCount: 0,
         effect: {

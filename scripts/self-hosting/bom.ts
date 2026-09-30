@@ -77,7 +77,6 @@ if (mode === 'subagent') {
     tools,
     model,
     undefined,
-    undefined,
     mode === 'plan' ? 'strategy' : undefined,
   )
   const provenance = readPromptProvenance()

@@ -3,10 +3,8 @@ import memoize from 'lodash-es/memoize.js'
 import { basename, dirname, parse, resolve } from 'path'
 
 import {
-  getAddedDirectories,
   getOriginalCwd,
   getSdkBetas,
-  setAddedDirectories,
   setCachedInstructionPrompt,
 } from '../../bootstrap/state.js'
 import {
@@ -338,9 +336,6 @@ async function walkConventions(
   }
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
-  for (const added of getAddedDirectories()) {
-    await walkRootChain(added, 'additional-dir', false)
-  }
 
   if (isAutoMemoryEnabled()) {
     const { info: memdirEntry } = await safelyReadInstructionFileAsync(
@@ -480,58 +475,6 @@ export function resetInstructionFilesCache(
   clearInstructionFileCaches()
 }
 
-
-export function instructionRoots(): string[] {
-  return [getOriginalCwd(), ...getAddedDirectories()]
-}
-
-function dirInsideRoot(dir: string, root: string): boolean {
-  const d = normalizePathForComparison(dir)
-  const r = normalizePathForComparison(root)
-  return d === r || d.startsWith(r.endsWith('/') ? r : `${r}/`)
-}
-
-export function instructionRootForPath(
-  dir: string,
-  originalCwd: string = getOriginalCwd(),
-  addedRoots: readonly string[] = getAddedDirectories(),
-): string {
-  if (dirInsideRoot(dir, originalCwd)) return originalCwd
-  let deepest: string | undefined
-  for (const added of addedRoots) {
-    const root = resolve(added)
-    if (dirInsideRoot(dir, root) && (deepest === undefined || root.length > deepest.length)) {
-      deepest = root
-    }
-  }
-  return deepest ?? originalCwd
-}
-
-let mirroredWorkspace = new Set<string>()
-
-export function syncInstructionRootsWithWorkspace(
-  workspace: ReadonlyMap<string, unknown>,
-): boolean {
-  const current = new Set(workspace.keys())
-  const joined = [...current].filter(dir => !mirroredWorkspace.has(dir))
-  const left = [...mirroredWorkspace].filter(dir => !current.has(dir))
-  mirroredWorkspace = current
-  if (joined.length === 0 && left.length === 0) return false
-
-  const list = getAddedDirectories()
-  const next = [
-    ...list.filter(dir => !left.includes(dir)),
-    ...joined.filter(dir => !list.includes(dir)),
-  ]
-  if (next.length === list.length && next.every((dir, i) => dir === list[i])) {
-    return false
-  }
-  setAddedDirectories(next)
-  setCachedInstructionPrompt(null)
-  resetInstructionFilesCache()
-  return true
-}
-
 export function getLargeMemoryFiles(
   files: InstructionSourceEntry[],
 ): InstructionSourceEntry[] {
@@ -572,11 +515,6 @@ export const composeInstructionPrompt = (
 }
 
 function describeInstructionSource(file: InstructionSourceEntry): string {
-  if (file.origin === 'additional-dir' && file.root) {
-    return file.type === 'Local'
-      ? ` (user's private project instructions for the added directory ${file.root}, not checked in)`
-      : ` (project instructions for the added directory ${file.root}, checked into that codebase)`
-  }
   return file.type === 'Project'
     ? ' (project instructions, checked into the codebase)'
     : file.type === 'Local'

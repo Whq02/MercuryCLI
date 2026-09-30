@@ -419,9 +419,6 @@ async function buildAgentSystemPrompt(
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],
     resolvedAgentModel,
-    Array.from(
-      toolUseContext.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
-    ),
     enabledToolNames,
     agentId,
   )

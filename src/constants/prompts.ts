@@ -100,14 +100,9 @@ function knowledgeCutoffSentence(modelId: string): string | null {
 
 export async function computeEnvInfo(
   modelId: string,
-  additionalWorkingDirectories?: string[],
   agentId?: string,
 ): Promise<string> {
   const cwd = getCwd()
-  const extraDirs =
-    additionalWorkingDirectories && additionalWorkingDirectories.length > 0
-      ? `\nAdditional working directories: ${additionalWorkingDirectories.join(', ')}`
-      : ''
   const scratchpad =
     agentId === undefined
       ? scratchpadPromptLine(ensureScratchpadDir())
@@ -116,7 +111,7 @@ export async function computeEnvInfo(
   const currency = `\n\n${MODEL_CURRENCY_NOTE} ${PROVIDER_SKILL_PRECEDENCE}`
   return `The environment this session runs in:
 <env>
-Working directory: ${cwd}${extraDirs}
+Working directory: ${cwd}
 ${scratchpad}
 Platform: ${platform()}
 ${shellLine()}
@@ -127,7 +122,6 @@ ${modelIdentitySentence(modelId)}${cutoff ? `\n\n${cutoff}` : ''}${currency}`
 
 export async function computeSimpleEnvInfo(
   modelId: string,
-  additionalWorkingDirectories?: string[],
 ): Promise<string> {
   const cwd = getOriginalCwd()
   const items: Array<string | string[]> = []
@@ -136,10 +130,6 @@ export async function computeSimpleEnvInfo(
     items.push(
       'This is an isolated copy of the repository (a git worktree). All commands run from this directory — do NOT change directory to the original repository root.',
     )
-  }
-  if (additionalWorkingDirectories && additionalWorkingDirectories.length > 0) {
-    items.push('Additional working directories:')
-    items.push(additionalWorkingDirectories.map(dir => dir))
   }
   items.push(scratchpadPromptLine(ensureScratchpadDir()))
   items.push(`Platform: ${platform()}`)
@@ -410,7 +400,6 @@ export const DEFAULT_AGENT_PROMPT =
 export async function enhanceSystemPromptWithEnvDetails(
   existing: string[],
   model: string,
-  additionalWorkingDirectories?: string[],
   enabledToolNames?: readonly string[] | ReadonlySet<string>,
   agentId?: string,
 ): Promise<string[]> {
@@ -425,7 +414,7 @@ export async function enhanceSystemPromptWithEnvDetails(
       'Do not write a colon before a tool call: "Let me read the file:" followed by a read becomes "Let me read the file." with a period.',
     ]),
   ].join('\n')
-  const envBlock = await computeEnvInfo(model, additionalWorkingDirectories, agentId)
+  const envBlock = await computeEnvInfo(model, agentId)
   return [...existing, notes, envBlock]
 }
 
@@ -436,7 +425,6 @@ const SUMMARIZE_TOOL_RESULTS_LINE =
 export async function getSystemPrompt(
   tools: Tools,
   model: string,
-  additionalWorkingDirectories?: string[],
   mcpClients?: MCPServerConnection[],
   permissionMode?: import('../types/permissions.js').InternalPermissionMode,
 ): Promise<string[]> {
@@ -483,7 +471,7 @@ export async function getSystemPrompt(
     keyedSystemPromptSection(
       'env_info_simple',
       () => model,
-      () => computeSimpleEnvInfo(model, additionalWorkingDirectories),
+      () => computeSimpleEnvInfo(model),
     ),
     systemPromptSection('model_currency', () => getModelCurrencySection()),
     systemPromptSection('language', () => {

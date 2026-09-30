@@ -54,10 +54,8 @@ async function main(): Promise<void> {
     segments = await prompts.getSystemPrompt(
       tools,
       spec.model,
-      undefined,
       [],
       spec.permissionMode as never,
-      undefined,
     )
   } else {
     const doctrine = await import('../../src/constants/subagentDoctrine.js')
@@ -80,7 +78,6 @@ async function main(): Promise<void> {
         agentPrompt,
       ],
       spec.model,
-      undefined,
       new Set(toolNames),
     )
   }

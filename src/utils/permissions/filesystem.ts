@@ -23,7 +23,7 @@ import { getEnabledSettingSources } from '../settings/constants.js'
 import type { PermissionRule, PermissionUpdate } from '../../types/permissions.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionDecision, PermissionResult } from './PermissionResult.js'
-import { createReadRuleSuggestion } from './PermissionUpdate.js'
+import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
 import { refusalWithReason, withRuleReason } from './ruleReason.js'
 
 
@@ -89,10 +89,6 @@ function normalizeForWorkingDirCompare(path: string): string {
 
 export function allWorkingDirectories(_context: ToolPermissionContext): Set<string> {
   return new Set([getStartingCwd()])
-}
-
-export function describeWriteScope(_context: ToolPermissionContext): string {
-  return `The starting folder is ${getStartingCwd()}. Implement mode asks before writing outside it; Sovereign mode does not ask.`
 }
 
 export function pathInWorkingPath(path: string, workingPath: string): boolean {
@@ -736,7 +732,7 @@ export function checkReadPermissionForTool(
   return {
     behavior: 'ask',
     message: `Permission to read from ${path} has not been granted.`,
-    decisionReason: { type: 'workingDir', reason: 'the path is outside the allowed working directories' },
+    decisionReason: { type: 'workingDir', reason: 'the path is outside the starting folder' },
     suggestions: generateSuggestions(path, 'read', context, resolutionSet),
   } as unknown as PermissionDecision
 }
@@ -807,7 +803,7 @@ export function checkWritePermissionForTool(
     message: `Permission to write to ${path} has not been granted.`,
     suggestions: generateSuggestions(path, 'write', context, resolutionSet),
     decisionReason: outsideWorkingDir
-      ? { type: 'workingDir', reason: 'the path is outside the allowed working directories' }
+      ? { type: 'workingDir', reason: 'the path is outside the starting folder' }
       : undefined,
   } as unknown as PermissionDecision
 }
@@ -881,11 +877,8 @@ export function generateSuggestions(
 
   const suggestions = modeSuggestion(context)
   if (outside) {
-    suggestions.push({
-      type: 'addDirectories',
-      directories: getResolvedWorkingDirPaths(parent),
-      destination: 'session',
-    } as unknown as PermissionUpdate)
+    const grant = createEditRuleSuggestion(parent)
+    if (grant) suggestions.push(grant)
   }
   return suggestions
 }

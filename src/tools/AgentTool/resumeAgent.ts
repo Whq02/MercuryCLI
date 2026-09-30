@@ -188,11 +188,6 @@ export async function resumeAgentBackground(args: {
         systemPromptOverride = await getSystemPrompt(
           toolUseContext.options.tools,
           toolUseContext.options.mainLoopModel,
-          Array.from(
-            toolUseContext
-              .getAppState()
-              .toolPermissionContext.additionalWorkingDirectories.keys(),
-          ),
           toolUseContext.options.mcpClients,
         )
       } catch (error) {

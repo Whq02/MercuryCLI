@@ -472,7 +472,7 @@ function skeletonAnswer(rec: ConcourseWorkerRecordV1): Omit<SessionFactsAnswerV1
     skills: [],
     mcp: [],
     ...spawnPostureWordOf(rec),
-    workspace: { cwd, originalCwd: cwd, projectRoot: rec.workspaceId, instructionRoots: [] },
+    workspace: { cwd, originalCwd: cwd, projectRoot: rec.workspaceId },
     queue: [],
   }
 }

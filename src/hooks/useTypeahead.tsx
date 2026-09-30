@@ -562,26 +562,6 @@ export function useTypeahead(props: UseTypeaheadProps): UseTypeaheadResult {
     }
 
     if (mode === 'prompt') {
-      const addDir = input.match(/^\/add-dir\s+(\S.*)$/)
-      if (addDir) {
-        const argument = addDir[1]!
-        if (/\s$/.test(input)) {
-          clearSuggestions()
-          return
-        }
-        void getDirectoryCompletions(argument)
-          .then(entries => {
-            if (inputRef.current !== input) return
-            if (entries.length === 0) {
-              clearSuggestions()
-              return
-            }
-            publish(entries, 'directory')
-          })
-          .catch(error => logError(error))
-        return
-      }
-
       const resume = input.match(/^\/resume\s+(.*)$/)
       if (resume) {
         void searchSessionsByCustomTitle(resume[1]!, { limit: RESUME_TITLE_LIMIT })

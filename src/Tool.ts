@@ -92,7 +92,6 @@ type ReadonlyRuleReasonsBySource = {
 
 export type ToolPermissionContext = {
   readonly mode: InternalPermissionMode
-  readonly additionalWorkingDirectories: ReadonlyMap<string, unknown>
   readonly alwaysAllowRules: ReadonlyRulesBySource
   readonly alwaysDenyRules: ReadonlyRulesBySource
   readonly alwaysAskRules: ReadonlyRulesBySource
@@ -108,7 +107,6 @@ export type ToolPermissionContext = {
 export function getEmptyToolPermissionContext(): ToolPermissionContext {
   return {
     mode: 'default',
-    additionalWorkingDirectories: new Map(),
     alwaysAllowRules: {},
     alwaysDenyRules: {},
     alwaysAskRules: {},

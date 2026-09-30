@@ -20,7 +20,6 @@ export class BootConfigOwner {
   sessionExtensions: Array<string> = []
   allowedChannels: ChannelEntry[] = []
   hasDevChannels = false
-  addedDirectories: string[] = []
   mainThreadAgentType: string | undefined = undefined
   directConnectServerUrl: string | undefined = undefined
 }

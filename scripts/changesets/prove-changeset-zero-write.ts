@@ -147,17 +147,17 @@ console.log('── Z2 one invalid member ⇒ NO member written (fast apply path
   check('no journal operation minted', (await journalOps()).length === 0)
 }
 
-console.log('── Z3 one out-of-scope member ⇒ NO member written ──')
+console.log('── Z3 an outside member uses ordinary permission ──')
 {
   const ctx = makeContext()
   primeRead(ctx, aPath, outsidePath)
-  const before = treeDigest()
-  const r = await callTool(
-    { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'A1-scope' }]), member(outsidePath, [{ lines: '1', replace: 'O1-scope' }])] },
-    ctx,
-  )
-  check('the set refuses with the scope law named', r.effect.outcome === 'failed' && /scope/.test(r.data.result))
-  check('NO member written (including the in-scope one)', treeDigest() === before)
+  const input = { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'A1-scope' }]), member(outsidePath, [{ lines: '1', replace: 'O1-scope' }])] }
+  const decision = await ChangeSetTool.checkPermissions(input as never, ctx as never)
+  check('the outside member asks instead of refusing by folder', decision.behavior === 'ask')
+  const r = await callTool(input, ctx)
+  check('after approval both members are written', r.effect.outcome === 'succeeded' && r.effect.changedPaths.includes(outsidePath), r.data.result)
+  writeFileSync(aPath, A)
+  writeFileSync(outsidePath, 'o1\n')
 }
 
 console.log('── Z4 one deny-rule member ⇒ NO member written ──')
@@ -223,6 +223,7 @@ console.log('── Z7 all-no-change ⇒ ONE truthful no-change effect, zero wri
   primeRead(ctx, aPath, bPath)
   const before = treeDigest()
   const mtimeBefore = statSync(aPath).mtimeMs
+  const journalBefore = (await journalOps()).length
   const r = await callTool(
     { op: 'apply', changes: [member(aPath, [{ lines: '1', replace: 'a1' }]), member(bPath, [{ lines: '2', replace: 'b2' }])] },
     ctx,
@@ -231,7 +232,7 @@ console.log('── Z7 all-no-change ⇒ ONE truthful no-change effect, zero wri
   check('changedPaths is EMPTY', r.effect.changedPaths.length === 0)
   check('noChangePaths are NAMED in the details', Array.isArray(r.effect.details?.noChangePaths) && (r.effect.details!.noChangePaths as string[]).length === 2)
   check('zero filesystem writes (bytes + mtime untouched)', treeDigest() === before && statSync(aPath).mtimeMs === mtimeBefore)
-  check('zero journal activity for a no-change set', (await journalOps()).length === 0)
+  check('zero journal activity for a no-change set', (await journalOps()).length === journalBefore)
 }
 
 console.log('── Z8 no refusal path leaves staged temps ──')

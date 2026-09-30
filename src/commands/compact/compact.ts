@@ -44,13 +44,9 @@ async function buildCompactCacheSafeParams(
   if (lastSent !== null) {
     return { ...lastSent, toolUseContext: context, forkContextMessages: messages }
   }
-  const additionalWorkingDirectories = Array.from(
-    context.getAppState().toolPermissionContext.additionalWorkingDirectories.keys(),
-  )
   const { defaultSystemPrompt, userContext, systemContext } = await fetchSystemPromptParts({
     tools: options.tools,
     mainLoopModel: options.mainLoopModel,
-    additionalWorkingDirectories,
     mcpClients: options.mcpClients,
     customSystemPrompt: options.customSystemPrompt,
     permissionMode: context.getAppState().toolPermissionContext.mode,

@@ -1,4 +1,3 @@
-import { getCwd } from '../../utils/cwd.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { setCwd } from '../../utils/Shell.js'
 import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'

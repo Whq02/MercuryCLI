@@ -46,20 +46,6 @@ console.log('§3 C3 — the hard-80 fields follow the terminal; the dialog caret
     sel.includes('const inputColumns = Math.max(20, Math.min(INPUT_WRAP_COLUMNS, termCols - 6))') && sel.includes('columns={inputColumns}'),
   )
   check('no fixed-width TextInput survives there', !sel.includes('columns={INPUT_WRAP_COLUMNS}'))
-  const add = read('src/components/permissions/rules/AddWorkspaceDirectory.tsx')
-  check(
-    'the add-directory field wraps live under the same cap',
-    add.includes('const fieldColumns = Math.max(20, Math.min(80, termCols - 6))') && add.includes('columns={fieldColumns}'),
-  )
-  check(
-    'the caret is REAL state, not a pin to the end',
-    add.includes('const [cursorOffset, setCursorOffset] = useState(0)') &&
-      add.includes('cursorOffset={cursorOffset}') &&
-      add.includes('onChangeCursorOffset={setCursorOffset}') &&
-      !add.includes('cursorOffset={value.length}') &&
-      !add.includes('onChangeCursorOffset={() => {}}'),
-  )
-  check('a completion swap parks the caret at the new end', add.includes('setCursorOffset(completed.length)'))
 }
 
 console.log("§4 C4 — the tool row's tails price themselves against the row")

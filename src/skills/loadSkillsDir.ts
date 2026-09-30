@@ -38,7 +38,7 @@ import {
 } from '../utils/settings/constants.js'
 import { isRestrictedToExtensionsOnly } from '../utils/settings/extensionOnlyPolicy.js'
 import { isPathGitignored } from '../utils/git/gitignore.js'
-import { getSessionId, getAddedDirectories } from '../bootstrap/state.js'
+import { getSessionId } from '../bootstrap/state.js'
 import { createSignal } from '../utils/signal.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { errorMessage, isENOENT, isFsInaccessible } from '../utils/errors.js'
@@ -426,12 +426,6 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
   const userDir = getSkillsPath('userSettings', 'skills')
   const managedDir = getSkillsPath('policySettings', 'skills')
   const projectDirs = getProjectDirsUpToHome('skills', cwd)
-  const additionalDirs: string[] = []
-  for (const added of getAddedDirectories()) {
-    for (const home of PROJECT_CONFIG_DIR_NAMES) {
-      additionalDirs.push(join(added, home, 'skills'))
-    }
-  }
   logForDebugging(
     `skills: managed=${managedDir} user=${userDir} project=[${projectDirs.join(', ')}]`,
   )
@@ -439,20 +433,7 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
   const extensionsOnly = isRestrictedToExtensionsOnly('skills')
   const projectEnabled = isSettingSourceEnabled('projectSettings') && !extensionsOnly
 
-  if (isBareMode()) {
-    if (additionalDirs.length === 0 || !projectEnabled) {
-      logForDebugging(
-        additionalDirs.length === 0
-          ? 'skills: bare mode with no added directories — none loaded'
-          : 'skills: bare mode and project settings disabled or skill-locked — none loaded',
-      )
-      return []
-    }
-    const groups = await Promise.all(
-      additionalDirs.map(dir => loadSkillsFromDir(dir, 'projectSettings', 'additional')),
-    )
-    return splitConditional(groups.flat().map(s => s.command))
-  }
+  if (isBareMode()) return []
 
   const managedPromise = loadSkillsFromDir(managedDir, 'policySettings', 'managed')
   const userPromise =
@@ -464,18 +445,12 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
         projectDirs.map(dir => loadSkillsFromDir(dir, 'projectSettings', 'project')),
       ).then(groups => groups.flat())
     : Promise.resolve([] as LoadedSkill[])
-  const additionalPromise = projectEnabled
-    ? Promise.all(
-        additionalDirs.map(dir => loadSkillsFromDir(dir, 'projectSettings', 'additional')),
-      ).then(groups => groups.flat())
-    : Promise.resolve([] as LoadedSkill[])
-  const [managed, user, project, additional] = await Promise.all([
+  const [managed, user, project] = await Promise.all([
     managedPromise,
     userPromise,
     projectPromise,
-    additionalPromise,
   ])
-  const ordered = [...managed, ...user, ...project, ...additional]
+  const ordered = [...managed, ...user, ...project]
 
   const identities = await Promise.all(
     ordered.map(async skill => {
