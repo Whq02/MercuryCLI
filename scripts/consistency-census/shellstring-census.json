@@ -563,6 +563,13 @@
       "why": "script-land shell program — the shell is named explicitly at the call"
     },
     {
+      "file": "scripts/gate/prove-proof-scratch.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "return spawnSync('bash', ['-c', 'cd \"$1\" && /bin/rmdir \"$1\" && exec \"$2\" -e \\'console.log(\"alive\")\\'', 'bash', gone, runtime], { env, encodi",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/gate/prove-skip-census.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const PYTHON = '/usr/bin/python3'",

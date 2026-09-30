@@ -17,12 +17,13 @@ const ok = (cond: boolean, label: string) => {
   if (!cond) failures++
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
+const BUDGET_SCALE = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1') || 1
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-storerev-'))
 const home = join(tmp, 'home')
 mkdirSync(home, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = home
 
-const { defineStore } = await import('../../src/substrate/fileStore.ts')
+const { defineStore, _setEmitReadGateForProofs } = await import('../../src/substrate/fileStore.ts')
 const { readStoreRecoveryEvents } = await import('../../src/substrate/storeRecovery.ts')
 const BUN = process.execPath
 
@@ -138,19 +139,29 @@ const counterAt = (p: string) =>
   const p = join(tmp, 's5.json')
   const s = counterAt(p)
   const changes: Array<{ cause: string; rev: number | null; skipped: number }> = []
+  const parked: Array<() => void> = []
+  _setEmitReadGateForProofs(() => new Promise<void>(release => parked.push(release)))
   const unsub = s.subscribeChanges(
     c => changes.push({ cause: c.cause, rev: c.revision?.revision ?? null, skipped: c.skippedRevisions }),
     { immediate: false },
   )
   await s.write({ n: 1 })
-  await sleep(150)
+  const delivered = changes.length
+  _setEmitReadGateForProofs(null)
+  for (const release of parked.splice(0)) release()
+  const echoBy = Date.now() + 5_000 * BUDGET_SCALE
+  while (s._statsForProofs().lastStatKey === null && Date.now() < echoBy) await sleep(10)
+  const echoRead = s._statsForProofs().lastStatKey !== null
+  await sleep(0)
   unsub()
   ok(
-    changes.length === 1 &&
+    delivered === 1 &&
+      echoRead &&
+      changes.length === 1 &&
       changes[0]!.cause === 'local-commit' &&
       changes[0]!.rev === 1 &&
       changes[0]!.skipped === 0,
-    `§5 one local-commit emission (rev 1, skipped 0) — watcher echo deduped by operation id (${JSON.stringify(changes)})`,
+    `§5 one local-commit emission (rev 1, skipped 0) — watcher echo deduped by operation id (${JSON.stringify(changes)}; delivered before the write settled: ${delivered}; the echo read landed: ${echoRead})`,
   )
 }
 

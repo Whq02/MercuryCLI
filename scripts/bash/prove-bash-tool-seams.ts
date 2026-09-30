@@ -48,6 +48,7 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null
 
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
+const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 const { SandboxManager } = await import('../../src/utils/sandbox/sandbox-adapter.ts')
 const { shouldUseSandbox } = await import('../../src/tools/BashTool/shouldUseSandbox.ts')
 const { getMercuryTempDirName } = await import('../../src/utils/permissions/filesystem.ts')
@@ -60,6 +61,7 @@ const OUTSIDE = realpathSync(mkdtempSync('/tmp/bash-tool-seams-outside-'))
 mkdirSync(join(PROJECT, 'sub'), { recursive: true })
 process.chdir(PROJECT)
 setCwd(PROJECT)
+setOriginalCwd(PROJECT)
 
 interface Outcome {
   code: number
@@ -388,6 +390,7 @@ if (!existsSync(DIST) || !nodeBin) {
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_VERIFY_EVIDENCE: '0',
+    ...(process.env.MERCURY_TMPDIR ? { MERCURY_TMPDIR: process.env.MERCURY_TMPDIR } : {}),
     ANTHROPIC_BASE_URL: fixture.url,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
   }

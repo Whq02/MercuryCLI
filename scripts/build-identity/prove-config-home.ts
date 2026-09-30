@@ -134,7 +134,7 @@ const gateUnit = readFileSync(join(ROOT, 'scripts', 'gate', 'run-suite.sh'), 'ut
 check(
   'gate unit pins an explicit home for every suite (inherited pin, else its own seeded scratch)',
   gateUnit.includes('if [ -z "${MERCURY_CONFIG_DIR:-}" ]; then') &&
-    gateUnit.includes('export MERCURY_CONFIG_DIR="$outdir/$dom.config-home"') &&
+    gateUnit.includes('export MERCURY_CONFIG_DIR="$MERCURY_SUITE_TMPDIR/config-home"') &&
     gateUnit.includes('scripts/lib/firstRunSeed.ts" "$MERCURY_CONFIG_DIR"'),
 )
 check('gate unit carries no ~/.claude fallback', !gateUnit.includes('$HOME/.claude'))

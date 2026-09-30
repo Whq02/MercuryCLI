@@ -1,7 +1,7 @@
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
 const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '../..'))
 const world = mkdtempSync(join(tmpdir(), 'proof-scratch-pin-'))
@@ -11,15 +11,20 @@ const check = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`)
 }
 const paths = (file: string): string[] => existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n').filter(Boolean) : []
+const legacyRoot = ['/private/tmp/mw', '/tmp/mw'].find(candidate => existsSync(candidate))
+const runEnv = { ...process.env, ...(legacyRoot ? { TMPDIR: legacyRoot } : {}) }
 try {
   for (const mode of ['normal', 'wall', 'term', 'direct'] as const) {
     const dir = join(world, mode)
     mkdirSync(dir)
     const receipt = join(dir, 'paths')
+    const nested = join(dir, 'nested')
     const fixture = join(dir, 'fixture.cjs')
     writeFileSync(fixture, `const fs = require('node:fs'); const os = require('node:os'); const path = require('node:path');
 const record = p => fs.appendFileSync(${JSON.stringify(receipt)}, p + '\\n');
 record(fs.mkdtempSync(path.join(os.tmpdir(), 'sync-')));
+const nest = path.join(os.tmpdir(), 'nest'); fs.mkdirSync(nest, {recursive:true});
+const inner = fs.mkdtempSync(path.join(nest, 'inner-')); record(inner); fs.appendFileSync(${JSON.stringify(nested)}, inner + '\\n');
 record(fs.mkdtempSync(path.join(fs.existsSync('/private/tmp/mw') ? '/private/tmp/mw' : os.tmpdir(), 'legacy-')));
 fs.mkdtemp(path.join(os.tmpdir(), 'callback-'), (e, p) => { if (e) throw e; record(p) });
 fs.promises.mkdtemp(path.join(os.tmpdir(), 'promise-')).then(record);
@@ -32,8 +37,8 @@ if (!refused) throw new Error('missing callback was not rejected synchronously')
 if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR, 'mercury-product', 'scratchpad'); fs.mkdirSync(p, {recursive:true}); record(p) }
 `)
     const runner = join(dir, 'run-all.sh')
-    writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmissing=0\nwhile IFS= read -r path; do [ -d "$path" ] || missing=1; done < ${JSON.stringify(receipt)}\n[ "$missing" = 1 ] || touch ${JSON.stringify(join(dir, 'handoff'))}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
-    const child = spawn('bash', mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: { ...process.env }, stdio: ['ignore', 'pipe', 'pipe'] })
+    writeFileSync(runner, `#!/usr/bin/env bash\n# gate-class: pure\nset -eu\n. ${JSON.stringify(join(root, 'scripts/lib/suite-env.sh'))}\nsuite_env_guard "$0"\nnode ${JSON.stringify(fixture)}\n"${process.execPath}" ${JSON.stringify(fixture)}\nmissing=0\nwhile IFS= read -r path; do [ -d "$path" ] || missing=1; done < ${JSON.stringify(receipt)}\n[ "$missing" = 1 ] || touch ${JSON.stringify(join(dir, 'handoff'))}\nmktemp -d "\${TMPDIR%/}/shell.XXXXXX" >> ${JSON.stringify(receipt)}\nmkdir -p "\${TMPDIR%/}/nest"\ninner=$(mktemp -d "\${TMPDIR%/}/nest/shell-inner.XXXXXX")\nprintf '%s\\n' "$inner" >> ${JSON.stringify(receipt)}\nprintf '%s\\n' "$inner" >> ${JSON.stringify(nested)}\nif [ -d /private/tmp/mw ]; then mktemp -d /private/tmp/mw/legacy-shell.XXXXXX >> ${JSON.stringify(receipt)}; fi\n${mode === 'wall' || mode === 'term' ? `touch ${JSON.stringify(join(dir, 'ready'))}\nsleep 600 &\nwait` : 'exit 0'}\n`)
+    const child = spawn('bash', mode === 'direct' ? [runner] : [join(root, 'scripts/gate/run-suite.sh'), runner, mode === 'wall' ? '4' : '30', dir], { cwd: root, env: runEnv, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     child.stdout.on('data', b => { output += b })
     child.stderr.on('data', b => { output += b })
@@ -47,11 +52,39 @@ if (process.env.MERCURY_TMPDIR) { const p = path.join(process.env.MERCURY_TMPDIR
     const code = await exited
     const made = paths(receipt)
     const left = made.filter(p => existsSync(p))
+    const kept = paths(nested)
     check(`${mode} exercised all scratch classes`, made.length >= 10, `made=${made.length}, rc=${code}`)
+    check(`${mode} an allocation nested under the run root keeps its directory (run root under ${legacyRoot ?? 'the ambient temp dir'})`, kept.length === 3 && kept.every(p => basename(dirname(p)) === 'nest'), JSON.stringify(kept))
     check(`${mode} the parent can read a child allocation after the child exits`, existsSync(join(dir, 'handoff')))
     check(`${mode} leaves no scratch folders`, left.length === 0, `created=${made.length}, leftovers=${left.length}`)
     check(`${mode} preserves the result`, mode === 'wall' ? code === 137 : mode === 'term' ? code === 143 : code === 0, `rc=${code} ${output}`)
     for (const p of made) rmSync(p, { recursive: true, force: true })
+  }
+  const boots = join(world, 'boots')
+  const emptyBin = join(boots, 'empty-bin')
+  mkdirSync(emptyBin, { recursive: true })
+  const ledger = join(boots, 'ledger')
+  const { NODE_OPTIONS: _options, MERCURY_SUITE_TMPDIR: _root, MERCURY_PROCESS_LEDGER_DIR: _ledger, MERCURY_SUITE_RUNNER_PID: _runner, MERCURY_SUITE_SCRIPT: _script, ...bareEnv } = process.env as Record<string, string>
+  const preloadEnv = { ...bareEnv, MERCURY_SUITE_TMPDIR: boots, MERCURY_PROCESS_LEDGER_DIR: ledger, MERCURY_SUITE_RUNNER_PID: String(process.pid), NODE_OPTIONS: `--require=${JSON.stringify(join(root, 'scripts/lib/proofScratch.cjs'))}` }
+  const summary = (r: ReturnType<typeof spawnSync>) => JSON.stringify({ status: r.status, signal: r.signal, stdout: String(r.stdout), stderr: String(r.stderr) })
+  const entryOf = (pid: number | undefined) => (pid && existsSync(join(ledger, `${pid}.entry`)) ? readFileSync(join(ledger, `${pid}.entry`), 'utf8').trimEnd().split('\t') : [])
+  const shapes = {
+    'a fresh process whose PATH carries no ps': (runtime: string, env: Record<string, string>) => spawnSync(runtime, ['-e', 'console.log("alive")'], { cwd: root, env: { ...env, PATH: emptyBin }, encoding: 'utf8' }),
+    'a process whose folder was deleted': (runtime: string, env: Record<string, string>) => {
+      const gone = join(boots, `gone-${Math.random().toString(36).slice(2)}`)
+      mkdirSync(gone)
+      return spawnSync('bash', ['-c', 'cd "$1" && /bin/rmdir "$1" && exec "$2" -e \'console.log("alive")\'', 'bash', gone, runtime], { env, encoding: 'utf8' })
+    },
+  }
+  for (const runtime of [Bun.which('node') ?? 'node', process.execPath]) {
+    for (const [shape, boot] of Object.entries(shapes)) {
+      const bare = boot(runtime, bareEnv)
+      const loaded = boot(runtime, preloadEnv)
+      const label = `${basename(runtime)}: ${shape}`
+      check(`${label} boots unchanged under the preload`, summary(loaded) === summary(bare), `preload ${summary(loaded)} vs bare ${summary(bare)}`)
+      const entry = entryOf(loaded.pid)
+      check(`${label} still registers in the process ledger`, loaded.status !== 0 || (entry.length === 5 && entry[0] === String(loaded.pid) && entry.every(field => field !== '')), `entry ${JSON.stringify(entry)}`)
+    }
   }
 } finally {
   rmSync(world, { recursive: true, force: true })

@@ -125,12 +125,15 @@ suite_scratch_init() {
 }
 
 mktemp() {
-  local arg
+  local arg root="${MERCURY_SUITE_TMPDIR:-}"
   local -a args=()
   for arg in "$@"; do
-    case "$arg" in
-      /private/tmp/mw/*|/tmp/mw/*) [ -z "${MERCURY_SUITE_TMPDIR:-}" ] || arg="$MERCURY_SUITE_TMPDIR/${arg##*/}" ;;
-    esac
+    if [ -n "$root" ]; then
+      case "$arg" in
+        "$root"/*|"/private$root"/*|"${root#/private}"/*) ;;
+        /private/tmp/mw/*|/tmp/mw/*) arg="$root/${arg##*/}" ;;
+      esac
+    fi
     args+=("$arg")
   done
   command mktemp "${args[@]}"
