@@ -38,7 +38,7 @@ import {
   type AccountSlot,
   type SlotIdentities,
 } from '../../../services/providers/accountSlots.js'
-import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
+import { refreshProviderUsage, usageCreditsLine, usageForProvider, type ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
 import { getMainLoopModel, renderModelName } from '../../../utils/model/model.js'
 import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
@@ -97,6 +97,18 @@ export function AccountView({
   void version
   const groups = deriveFamilySlotGroups()
   const scopeSlots = groups.flatMap(group => group.slots.filter(slot => slot.scope !== undefined))
+  const [, setUsageVersion] = useState(0)
+  const usageFamiliesKey = groups.filter(group => group.slots.some(slot => slot.active && slot.signedIn)).map(group => group.family.id).join('|')
+  useEffect(() => {
+    let alive = true
+    for (const group of groups) {
+      if (!group.slots.some(slot => slot.active && slot.signedIn)) continue
+      void refreshProviderUsage(group.family.id, { reason: 'open' }).then(() => {
+        if (alive) setUsageVersion(value => value + 1)
+      })
+    }
+    return () => { alive = false }
+  }, [usageFamiliesKey])
 
   const scopeDirsKey = scopeSlots.map(slot => slot.id).join('|')
   useEffect(() => {
@@ -290,15 +302,20 @@ export function AccountView({
           .join(' · ')
       }
     }
+    const family = row.type === 'slot' && row.slot.active && row.slot.signedIn ? groups.find(group => group.family.id === row.slot.family)?.family.id : undefined
+    const credits = family === undefined ? undefined : usageCreditsLine(usageForProvider(family).credits)
     return (
       <InteractiveRow key={rowKey(row)} {...rowProps(row, index)}>
-        <Text>
-          <Text color={selected ? accent : FAINT}>{selected ? '▸ ' : '  '}</Text>
-          <Text color={color}>{glyph} </Text>
-          <Text color={selected ? IVORY : SECOND}>{padTo(name, 12)}</Text>
-          <Text color={FAINT}>{padTo(kindLabel, 15)}</Text>
-          <Text color={FAINT} wrap="truncate-end">{truncateToWidth(tail, tailWidth)}</Text>
-        </Text>
+        <Box flexDirection="column">
+          <Text>
+            <Text color={selected ? accent : FAINT}>{selected ? '▸ ' : '  '}</Text>
+            <Text color={color}>{glyph} </Text>
+            <Text color={selected ? IVORY : SECOND}>{padTo(name, 12)}</Text>
+            <Text color={FAINT}>{padTo(kindLabel, 15)}</Text>
+            <Text color={FAINT} wrap="truncate-end">{truncateToWidth(tail, tailWidth)}</Text>
+          </Text>
+          {credits !== undefined ? <Box paddingLeft={4}><Text color={FAINT}>{credits}</Text></Box> : null}
+        </Box>
       </InteractiveRow>
     )
   }

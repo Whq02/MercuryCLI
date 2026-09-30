@@ -206,7 +206,7 @@ section('§4 credits: the provider-stated balance with feed + age, or the honest
   const local = owner.usageForProvider('local', { localAccount: () => ({ kind: 'keyless', label: 'Ollama', serverCount: 1, modelCount: 2 }) as never, spend: () => spend })
   check('a subscription, a Kimi sign-in and a local server carry no credits line (windows or nothing are their meter)', sub.credits === undefined && kimi.credits === undefined && local.credits === undefined && line(sub) === undefined)
   const tab = src('src/components/Settings/Usage.tsx')
-  check('every API-key slot on the tab carries the owner\'s credits line', (tab.match(/creditsLine: usageCreditsLine\(/g) ?? []).length >= 6 && tab.includes('{isActive && creditsLine !== undefined ? <Text dimColor>{creditsLine}</Text> : null}'))
+  check('every source on the tab carries the owner\'s credits line regardless of its shape', (tab.match(/<UsageCredits usage=/g) ?? []).length >= 6 && tab.includes('const line = usageCreditsLine(usage.credits)'))
   const rail = src('src/components/HelmTelemetryRail.tsx')
   check('the rail\'s api-key block carries the compact credits line', rail.includes("usageCreditsLine(usage.credits, now, 'compact')"))
   const deck = src('src/components/Deck.tsx')
