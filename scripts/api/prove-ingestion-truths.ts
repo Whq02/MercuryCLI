@@ -157,13 +157,22 @@ section('§3 N-05 · TERMINAL STATUS DERIVES FROM AGENT FAILURES')
   )
 }
 
-section('§4 H-19 · ONE WRITE-SCOPE PREDICATE ACROSS THE THREE TOOLS')
+section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
 {
   const changeSet = src('src/tools/ChangeSetTool/ChangeSetTool.ts')
   const lspOps = src('src/tools/LSPTool/mercuryOps.ts')
   check(
-    'ChangeSet delegates to pathInAllowedWorkingPath',
-    changeSet.includes('return pathInAllowedWorkingPath(abs, permCtx)'),
+    'ChangeSet planning delegates each canonical path to the shared write-permission engine',
+    changeSet.includes("import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'") &&
+      /scopeCheck: \(canonicalPath: string\) => \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: canonicalPath \}, permCtx\)/.test(changeSet),
+  )
+  check(
+    'the plan blocks deny decisions, not an outside path awaiting ordinary approval',
+    /scopeCheck:[\s\S]*?if \(decision.behavior === 'deny'\) return 'blocked by a permission deny rule'\s*return null/.test(changeSet),
+  )
+  check(
+    'the aggregate permission decision delegates every path to the same write engine',
+    /for \(const p of paths\) \{\s*const decision = checkWritePermissionForTool\(pathShim, \{ file_path: p \}, permCtx\)/.test(changeSet),
   )
   check(
     'the LSP ops delegate to pathInAllowedWorkingPath',
@@ -178,7 +187,6 @@ section('§4 H-19 · ONE WRITE-SCOPE PREDICATE ACROSS THE THREE TOOLS')
   const { getOriginalCwd } = await import('../../src/bootstrap/state.ts')
   const ctx = {
     mode: 'default',
-    additionalWorkingDirectories: new Map(),
     alwaysAllowRules: {},
     alwaysDenyRules: {},
     alwaysAskRules: {},
