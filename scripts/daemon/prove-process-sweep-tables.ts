@@ -156,7 +156,7 @@ const linuxTable = [
 const linuxArgs = [
   ' 2001 -bash',
   ' 2002 node /opt/mercury/dist/mercury.mjs daemon run /work',
-  ' 2003 /opt/hostedtoolcache/node/24.20.0/x64/bin/node /opt/mercury/dist/mercury.mjs -p --output-format stream-json',
+  ' 2003 /opt/hostedtoolcache/node/24.20.0/x64/bin/node /opt/mercury/dist/mercury.mjs run --format rows',
   ' 2004 node -e setInterval(() => {}, 1000000)',
   ' 2005 /usr/bin/vim /opt/mercury/dist/mercury.mjs',
   ' 2006 nodejs /opt/mercury/dist/mercury.mjs',

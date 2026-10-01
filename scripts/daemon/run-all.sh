@@ -34,6 +34,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-reconfigure-respawn.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-roster-stdin.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-roster-stdin.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-crash-evidence-kept.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-crash-evidence-kept.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-headless-permission-mode.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-headless-permission-mode.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-run-workers.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-run-workers.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-dir-seam.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-dir-seam.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-worker-census.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-worker-census.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-halt-roster.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-halt-roster.ts" "$__t" "$__rc"

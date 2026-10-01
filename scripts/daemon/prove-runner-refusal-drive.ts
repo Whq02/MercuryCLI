@@ -69,7 +69,7 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
     MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_DAP_ADAPTERS_FILE: join(home, 'dap-adapters.json'),
   }
-  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', MODEL, ...extraArgs], { cwd, env })
+  const child = spawn(nodeBin!, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', MODEL, ...extraArgs], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 150_000)
   const envelopes: Envelope[] = []
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []

@@ -34,7 +34,7 @@ const SPEC = {
 }
 const buildArgv = (): string[] => buildStreamJsonInvocation(SPEC).argv
 const hasPair = (argv: string[], mode: string): boolean => {
-  const i = argv.indexOf('--permission-mode')
+  const i = argv.indexOf('--mode')
   return i >= 0 && argv[i + 1] === mode
 }
 
@@ -50,9 +50,9 @@ section('default posture (env unset) — the fix itself')
   )
   check('resolver: unset env ⇒ flow', getHeadlessPermissionMode() === 'flow')
   const argv = buildArgv()
-  check('long-lived argv carries --permission-mode flow', hasPair(argv, 'flow'))
-  check('no bypass flag by default', !argv.includes('--dangerously-bypass-permissions'))
-  check('argv still stream-json shaped', argv.includes('--input-format=stream-json'))
+  check('long-lived argv carries --mode flow', hasPair(argv, 'flow'))
+  check('no bypass flag by default', !argv.includes('--sovereign'))
+  check('argv still stream-json shaped', argv.includes('--input=rows'))
   check('argv still carries the floored --model', argv.includes('--model'))
   check('the stream-json feed is complete on its own: argv carries no --verbose', !argv.includes('--verbose'))
 }
@@ -69,7 +69,7 @@ section('operator overrides — live-read per spawn, no re-import')
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'auto'
   check("retired 'auto' decodes to 'flow'", getHeadlessPermissionMode() === 'flow' && hasPair(buildArgv(), 'flow'))
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'bypassPermissions'
-  check("retired 'bypassPermissions' decodes to 'sovereign' (spells the bypass arm)", buildArgv().includes('--dangerously-bypass-permissions'))
+  check("the mode reader selects the sovereign launch arm", buildArgv().includes('--sovereign'))
 
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'dontAsk'
   check("'dontAsk' argv pair (live re-read between spawns)", hasPair(buildArgv(), 'dontAsk'))
@@ -77,20 +77,20 @@ section('operator overrides — live-read per spawn, no re-import')
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'sovereign'
   const bypass = buildArgv()
   check(
-    "'sovereign' spells --dangerously-bypass-permissions (spawnMultiAgent mapping)",
-    bypass.includes('--dangerously-bypass-permissions'),
+    "'sovereign' spells --sovereign (spawnMultiAgent mapping)",
+    bypass.includes('--sovereign'),
   )
-  check("'sovereign' never also emits --permission-mode", !bypass.includes('--permission-mode'))
+  check("'sovereign' never also emits --mode", !bypass.includes('--mode'))
 
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'default'
   const bare = buildArgv()
   check(
     "'default' restores the bare pre-fix boot (no posture words)",
-    !bare.includes('--permission-mode') && !bare.includes('--dangerously-bypass-permissions'),
+    !bare.includes('--mode') && !bare.includes('--sovereign'),
   )
   delete process.env.MERCURY_DAEMON_PERMISSION_MODE
   const withPair = buildArgv()
-  const stripped = withPair.filter((w, i, a) => !(w === '--permission-mode' || a[i - 1] === '--permission-mode'))
+  const stripped = withPair.filter((w, i, a) => !(w === '--mode' || a[i - 1] === '--mode'))
   check(
     'posture pair is the ONLY argv delta vs the bare boot',
     JSON.stringify(stripped) === JSON.stringify(bare),
@@ -115,7 +115,7 @@ section('cross-checks against the real CLI + the one-shot seam')
   for (const m of HEADLESS_PERMISSION_MODES) {
     if (m === 'default' || m === 'sovereign') continue
     check(
-      `CLI accepts --permission-mode ${m}`,
+      `CLI accepts --mode ${m}`,
       (PERMISSION_MODES as readonly string[]).includes(m),
     )
   }

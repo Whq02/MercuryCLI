@@ -88,7 +88,7 @@ const env: NodeJS.ProcessEnv = {
 delete env.NODE_ENV
 delete env.ANTHROPIC_AUTH_TOKEN
 
-const runner = spawn('node', [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--model', 'claude-opus-4-8'], {
+const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--model', 'claude-opus-4-8'], {
   cwd: CWD,
   env,
   stdio: ['pipe', 'pipe', 'pipe'],
