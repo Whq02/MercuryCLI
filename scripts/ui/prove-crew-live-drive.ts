@@ -337,8 +337,10 @@ const crewPopup = (text: string): string => {
 }
 const agentRow = (text: string, name: string, ...words: Array<string | RegExp>): boolean =>
   text.split('\n').some(line => line.includes(name) && words.every(w => (typeof w === 'string' ? line.includes(w) : w.test(line))))
-const rowTokens = (text: string, name: string): boolean =>
-  text.split('\n').some(line => line.includes(name) && nonZeroTokens(line))
+const rowTokens = (text: string, name: string): boolean => {
+  const lines = text.split('\n')
+  return lines.some((line, at) => line.includes(name) && (nonZeroTokens(line) || nonZeroTokens(lines[at + 1] ?? '')))
+}
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const COLS = 160
 const ROWS = 44
