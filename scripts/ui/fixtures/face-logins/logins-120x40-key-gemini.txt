@@ -1,0 +1,40 @@
+
+                                    ■ ────────────────··· (>_) ···──────────────── ■
+
+                                 ██▄██   █▀▀▀▀   █▀▀▀█   █▀▀▀▀   █   █   █▀▀▀█   █   █
+                                 █   █   █▀▀▀    █▀▀█    █       █   █   █▀▀█     ▀█▀
+                                 ▀   ▀   ▀▀▀▀▀   ▀   ▀   ▀▀▀▀▀   ▀▀▀▀▀   ▀   ▀     ▀
+
+                                                        ⌁ logins
+
+   ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
+   │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
+   │ signed in                                                      │  │ ❯ Google Gemini — API key or Google OAuth  │
+   │   OpenAI — ChatGPT subscription or API key        ChatGPT Plus │  │                                            │
+   │   Claude subscription account                   op@example.com │  │ Gemini API key                             │
+   │   Hugging Face — device-code sign-in or a…      keyed-op …k9f2 │  │ AI Studio opened: create a key there.      │
+   │   Kimi (Moonshot) — device-code sign-in o… kimi.ai (global) ·… │  │ https://aistudio.google.com/apikey         │
+   │                                                                │  │ Cloud project: free Flash ~20/day, Pro     │
+   │ available                                                      │  │ 0; pay for more.                           │
+   │   Usage-based billing — Anthropic Console…       not signed in │  │ Stored auth-scoped (mode 600), never       │
+   │   OpenRouter — one credential, the whole …       not signed in │  │ logged; GOOGLE_API_KEY /                   │
+   │ ❯ Google Gemini — API key or Google OAuth        not signed in │  │ GEMINI_API_KEY win over the store.         │
+   │   GLM (Z.AI) — API key (general or GLM Co…       not signed in │  │ key: ▌                                     │
+   │   DeepSeek — API key                             not signed in │  │ ↵ stores it · esc back                     │
+   │   xAI — Grok subscription sign-in or API …       not signed in │  ╰────────────────────────────────────────────╯
+   │   Meta — API key (Muse)                          not signed in │  ╭────────────────────────────────────────────╮
+   ╰────────────────────────────────────────────────────────────────╯  │ LOGINS                                     │
+                                                                       │ Families   10                              │
+                                                                       │ Signed in  4 of 10                         │
+                                                                       │ Ready      4 lanes                         │
+                                                                       ╰────────────────────────────────────────────╯
+                                                                       ╭────────────────────────────────────────────╮
+                                                                       │ ENVIRONMENT                                │
+                                                                       │ Mercury    Opus 5                          │
+                                                                       │ Theme      Octopus                         │
+                                                                       │ Dir        orchard-src                     │
+                                                                       ╰────────────────────────────────────────────╯
+   ╭────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+   │ ● System ready  │  paste Gemini API key                                                                        │
+   ╰────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+                                                 ↵ store key · esc back

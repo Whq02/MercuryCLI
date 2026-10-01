@@ -152,6 +152,7 @@ export const FLOW_SUCCESS_SNAP: AnthropicLoginSnapshot = {
 }
 
 export const STILLS: ReadonlyArray<{ id: string; compose: () => string[] }> = [
+  { id: 'logins-120x40-key-gemini', compose: () => composeLogins(120, 40, { sel: 6, flow: { kind: 'key', leg: 'gemini-key', note: null, draftLen: 0, storing: false, opened: 'opened' } }) },
   { id: 'logins-120x40-pick-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
   { id: 'logins-80x24-pick-xai', compose: () => composeLogins(80, 24, { sel: 9, flow: { kind: 'pick', pick: 'xai', pickSel: 0 } }) },
   { id: 'logins-120x40-device-xai', compose: () => composeLogins(120, 40, { sel: 9, flow: { kind: 'device', nowMs: 0, device: { family: 'xai', phase: 'waiting', userCode: 'GROK-TEST', verificationUri: 'https://accounts.x.ai/device', expiresAtMs: 300000, polls: 1, copied: false } } }) },
