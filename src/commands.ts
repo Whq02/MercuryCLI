@@ -175,22 +175,6 @@ const clearSkillIndexCache: (() => void) | null = (() => {
   }
 })()
 
-const insightsShim = {
-  type: 'prompt',
-  name: 'insights',
-  description: 'Analyse your recent sessions and generate a usage-insights report',
-  progressMessage: 'analysing recent sessions',
-  contentLength: 0,
-  source: 'builtin',
-  async getPromptForCommand(args, context) {
-    const realCommand = (await import('./commands/insights.js')).default
-    if (realCommand.type !== 'prompt') {
-      throw new Error('insights command module did not resolve to a prompt command')
-    }
-    return realCommand.getPromptForCommand(args, context)
-  },
-} satisfies Command
-
 const COMMANDS = memoize((): Command[] => [
   verify,
   advise,
@@ -270,7 +254,6 @@ const COMMANDS = memoize((): Command[] => [
   jevor,
   localsetup,
   defaultprovider,
-  insightsShim,
   vim,
   permissions,
   plan,

@@ -32,7 +32,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'export', 'cost', 'usage',
       'debrief', 'summary', 'rename', 'title', 'tag', 'contract', 'think-back',
       'thinkback-play', 'copy', 'files',
-      'realms', 'insights',
+      'realms',
     ],
   },
   {

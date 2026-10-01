@@ -73,7 +73,6 @@ const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [new RegExp(J('Team', 'Mem\\b|TEAM', 'MEM\\b|team', 'Memory'), ''), 'team memory: the memory of the people who share a repository'],
   [new RegExp(J('team', 'work'), 'i'), 'a plain English word'],
   [new RegExp(J('your ', 'team'), ''), 'the people whose code it is (the trust question, the memory file header)'],
-  [new RegExp(J('Team', ' feedback'), ''), 'the insights section for the people who use the product'],
   [new RegExp(J('The ', 'team', ' scope'), ''), 'the memory scope of the people who share a repository'],
   [new RegExp(J("'max'/'pro'/'", 'team', "'"), ''), 'the plan tiers'],
   [new RegExp(J('max/enterprise/', 'team'), ''), 'the plan tiers'],

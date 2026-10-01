@@ -78,7 +78,6 @@ const ALLOW: Row[] = [
   { path: 'src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx', fragment: 'team-creation tool', why: 'the implement-the-plan turn is sent to the model; its create-step hint leaves with the create step' },
   { path: 'src/utils/capability/declarations.ts', fragment: 'charter', why: 'the rows of the create, delete and brief tools leave with them' },
   { path: 'src/components/TrustDialog/TrustDialog.tsx', fragment: 'your own code, your team', why: "the trust question speaks of the people's team, not the crew" },
-  { path: 'src/commands/insights.ts', fragment: 'Team feedback', why: "the insights report's section for the people's team, not the crew" },
 ]
 
 type Hit = { rel: string; line: number; text: string; allowed: Row | null }

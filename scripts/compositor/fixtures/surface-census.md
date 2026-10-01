@@ -118,6 +118,6 @@ the interaction primitives the view actually mounts (1-hop join).
 
 `/init` · `/review` · `/verify`
 
-## Other route types (5)
+## Other route types (4)
 
-`/crew` (text) · `/party` (text) · `/pr-comments` (text) · `/project_areas` (asyncAgent) · `/security-review` (addRules)
+`/crew` (text) · `/party` (text) · `/pr-comments` (text) · `/security-review` (addRules)
