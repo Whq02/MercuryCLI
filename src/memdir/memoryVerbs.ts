@@ -48,11 +48,11 @@ export function _resetMemoryVerbSessionStateForTesting(): void {
 
 export function retainItems(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean },
   dir: string = mnemeLibraryDir(),
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
-  const sourceBase = `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
+  const sourceBase = provenance.source ?? `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
   items.forEach((item, index) => {
     const content = (item.content ?? '').trim()
     if (!content) {
@@ -68,7 +68,7 @@ export function retainItems(
     }
     const before = pendingRows(dir).length
     const written = appendObservation(
-      { text, source: sourceBase, ...(item.topic ? { topicHint: item.topic } : {}) },
+      { text, source: sourceBase, ...(item.topic ? { topicHint: item.topic } : {}), ...(provenance.pin ? { pin: true } : {}) },
       dir,
     )
     if (!written) {

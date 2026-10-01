@@ -53,12 +53,19 @@ export function isPinned(seq: number, dir: string = mnemeLibraryDir()): boolean 
   return readPins(dir).some(p => p.seq === seq)
 }
 
-export function pinFact(seq: number, dir: string = mnemeLibraryDir(), now: Date = new Date()): { ok: boolean; pinned: number } {
+export type PinOutcome = { ok: true; pinned: number } | { ok: false; code: 'limit'; pinned: number; limit: number }
+
+export function pinFact(
+  seq: number,
+  dir: string = mnemeLibraryDir(),
+  now: Date = new Date(),
+  opts: { pastLimit?: boolean } = {},
+): PinOutcome {
   const pins = readPins(dir)
-  if (!pins.some(p => p.seq === seq)) {
-    pins.push({ seq, at: now.toISOString() })
-    writePins(pins, dir)
-  }
+  if (pins.some(p => p.seq === seq)) return { ok: true, pinned: pins.length }
+  if (!opts.pastLimit && pins.length >= PINNED_LIMIT) return { ok: false, code: 'limit', pinned: pins.length, limit: PINNED_LIMIT }
+  pins.push({ seq, at: now.toISOString() })
+  writePins(pins, dir)
   return { ok: true, pinned: pins.length }
 }
 

@@ -6,7 +6,7 @@ import { indexTopics, liveCount } from './mnemeArchive.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import type { MnemeEntry, MnemeTopicDoc } from './mnemeTopicDocs.js'
-import { PINNED_LIMIT, readPins, readUsage, usageOf, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+import { PINNED_LIMIT, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
 
 export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
@@ -15,14 +15,13 @@ const INDEX_LINE_CAP = 160
 export interface PinnedStatus {
   pinned: number
   limit: number
+  over: boolean
   loaded: number[]
-  sittingOut: Array<{ seq: number; text: string }>
   renderedAt: string
 }
 
 export interface PinnedView {
   loaded: Array<{ pin: PinRecord; entry: MnemeEntry; slug: string }>
-  sittingOut: Array<{ pin: PinRecord; entry: MnemeEntry; slug: string }>
   missing: number[]
 }
 
@@ -32,27 +31,10 @@ export function liveEntryIndex(docs: Iterable<MnemeTopicDoc>): Map<number, { ent
   return out
 }
 
-export function rankPins(
-  pins: readonly PinRecord[],
-  live: Map<number, { entry: MnemeEntry; slug: string }>,
-  usage: Record<string, UsageRecord>,
-  limit: number = PINNED_LIMIT,
-): PinnedView {
-  const present = pins.filter(p => live.has(p.seq))
+export function pinnedView(pins: readonly PinRecord[], live: Map<number, { entry: MnemeEntry; slug: string }>): PinnedView {
+  const present = [...pins.filter(p => live.has(p.seq))].sort((a, b) => a.at.localeCompare(b.at) || a.seq - b.seq)
   const missing = pins.filter(p => !live.has(p.seq)).map(p => p.seq)
-  const byRecency = [...present].sort((a, b) => b.at.localeCompare(a.at) || b.seq - a.seq)
-  const byUse = [...present].sort((a, b) => usageOf(b.seq, usage).count - usageOf(a.seq, usage).count || b.at.localeCompare(a.at) || b.seq - a.seq)
-  const recencyRank = new Map(byRecency.map((p, i) => [p.seq, i]))
-  const useRank = new Map(byUse.map((p, i) => [p.seq, i]))
-  const ranked = [...present].sort((a, b) => {
-    const sa = recencyRank.get(a.seq)! + useRank.get(a.seq)!
-    const sb = recencyRank.get(b.seq)! + useRank.get(b.seq)!
-    return sa - sb || b.at.localeCompare(a.at) || b.seq - a.seq
-  })
-  const shape = (p: PinRecord): { pin: PinRecord; entry: MnemeEntry; slug: string } => ({ pin: p, ...live.get(p.seq)! })
-  const loaded = ranked.slice(0, limit).sort((a, b) => a.at.localeCompare(b.at) || a.seq - b.seq).map(shape)
-  const sittingOut = ranked.slice(limit).map(shape)
-  return { loaded, sittingOut, missing }
+  return { loaded: present.map(p => ({ pin: p, ...live.get(p.seq)! })), missing }
 }
 
 function clipLine(text: string, cap: number): string {
@@ -95,27 +77,26 @@ export function renderFrontPage(input: {
   }
   lines.push('', '## Pinned')
   const live = liveEntryIndex(topics)
-  const view = rankPins(pins, live, usage)
+  const view = pinnedView(pins, live)
   if (view.loaded.length === 0) {
     lines.push('(no pinned rules — the user pins standing rules and preferences in /memory; follow a pinned rule word for word)')
   } else {
     lines.push('Standing rules and preferences the user pinned — follow them word for word:')
     for (const row of view.loaded) lines.push(`- ${row.entry.text} <seq=${row.entry.seq}>`)
   }
-  if (view.sittingOut.length > 0) {
-    lines.push(
-      `(${pins.length - view.missing.length} pinned rules, limit ${PINNED_LIMIT}; the newest and most used are loaded — sitting out: ${view.sittingOut.map(r => `seq ${r.entry.seq}`).join(', ')})`,
-    )
+  if (view.loaded.length > PINNED_LIMIT) {
+    lines.push(`(${view.loaded.length} pinned rules, limit ${PINNED_LIMIT} — all loaded; the user trims in /memory)`)
   }
   lines.push('')
   const status: PinnedStatus = {
-    pinned: pins.length - view.missing.length,
+    pinned: view.loaded.length,
     limit: PINNED_LIMIT,
+    over: view.loaded.length > PINNED_LIMIT,
     loaded: view.loaded.map(r => r.entry.seq),
-    sittingOut: view.sittingOut.map(r => ({ seq: r.entry.seq, text: clipLine(r.entry.text, 60) })),
     renderedAt: now.toISOString(),
   }
   void factCount
+  void usage
   return { text: lines.join('\n'), status }
 }
 

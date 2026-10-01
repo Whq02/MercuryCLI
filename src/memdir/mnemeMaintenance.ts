@@ -218,6 +218,13 @@ export function scheduleMnemeMaintenance(trigger: MnemeMaintenanceTrigger): void
   if (!mnemeEnabled()) return
   const delay = trigger === 'boot' ? 3000 : 500
   setTimeout(() => {
+    if (trigger === 'boot') {
+      void import('./mnemeHandover.js')
+        .then(m => m.handoverIfDue())
+        .catch(e => logForDebugging(`memory intake failed: ${String(e)}`))
+        .finally(() => void runDueMaintenance(trigger))
+      return
+    }
     void runDueMaintenance(trigger)
   }, delay).unref()
 }

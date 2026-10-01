@@ -27,7 +27,7 @@ import {
 import { listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
-import { movePin, readPins, readUsage } from './mnemeUsage.js'
+import { movePin, pinFact, readPins, readUsage } from './mnemeUsage.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -428,6 +428,7 @@ export function maybeConsolidate(
         }
       }
     }
+    const supersededInBatch = new Set(supersededBatchSeqs)
     const touched = new Set<string>()
     const pinnedSeqs = new Set(readPins(dir).map(p => p.seq))
     const pinMoves: Array<[number, number]> = []
@@ -512,6 +513,9 @@ export function maybeConsolidate(
     let tidy: TidyResult = { archived: 0, restored: 0, topicsArchived: [], conserved: true, touchedTopics: new Set(), touchedArchives: new Set(), removedTopics: new Set() }
     try {
       for (const [from, to] of pinMoves) movePin(from, to, dir)
+      for (const row of assigned) {
+        if (row.pin === true && !supersededInBatch.has(row.seq)) pinFact(row.seq, dir, now, { pastLimit: true })
+      }
       tidy = tidyUp(dir, now, touched)
       publishFrontPage(dir, now)
     } catch (e) {

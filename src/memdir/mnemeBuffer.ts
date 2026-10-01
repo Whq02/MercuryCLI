@@ -12,6 +12,7 @@ export interface MnemeObservation {
   source: string
   text: string
   topicHint?: string
+  pin?: true
 }
 
 const CAP = { text: 2000, source: 60, topicHint: 60 } as const
@@ -24,7 +25,7 @@ export function currentBufferPath(dir: string = mnemeLibraryDir()): string {
 }
 
 export function appendObservation(
-  input: { text: string; source: string; topicHint?: string },
+  input: { text: string; source: string; topicHint?: string; pin?: boolean },
   dir: string = mnemeLibraryDir(),
 ): boolean {
   if (!mnemeEnabled()) return false
@@ -37,6 +38,7 @@ export function appendObservation(
       source,
       text,
       ...(input.topicHint ? { topicHint: clamp(String(input.topicHint).trim(), CAP.topicHint) } : {}),
+      ...(input.pin === true ? { pin: true as const } : {}),
     }
     mkdirSync(dir, { recursive: true })
     appendFileSync(currentBufferPath(dir), JSON.stringify(row) + '\n', 'utf8')

@@ -19,6 +19,8 @@ import { binaryName } from './config/derived.js'
 import { getCwd } from './cwd.js'
 import { formatNumber } from './format.js'
 import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from './statusNoticeHelpers.js'
+import { readPinnedStatus } from '../memdir/mnemeFrontPage.js'
+import { mnemeEnabled } from '../memdir/mnemeGates.js'
 
 
 export type StatusNoticeType = 'warning' | 'info'
@@ -170,9 +172,43 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   },
 }
 
+function pinnedOverLimit(): { pinned: number; limit: number } | null {
+  try {
+    if (!mnemeEnabled()) return null
+    const status = readPinnedStatus()
+    return status && status.over ? { pinned: status.pinned, limit: status.limit } : null
+  } catch {
+    return null
+  }
+}
+
+export function pinnedOverLimitLine(status: { pinned: number; limit: number }): string {
+  return `${status.pinned} pinned memory rules, limit ${status.limit} — all still loaded. Trim in /memory.`
+}
+
+const pinnedOverLimitNotice: StatusNoticeDefinition = {
+  id: 'pinned-over-limit',
+  type: 'info',
+  isActive: (context: StatusNoticeContext) => {
+    void context
+    return pinnedOverLimit() !== null
+  },
+  render: (context: StatusNoticeContext) => {
+    void context
+    const status = pinnedOverLimit()
+    if (!status) return null
+    return (
+      <Text dimColor>
+        {GLYPH.info} {pinnedOverLimitLine(status)}
+      </Text>
+    )
+  },
+}
+
 export const statusNoticeDefinitions: StatusNoticeDefinition[] = [
   largeMemoryFilesNotice,
   largeAgentDescriptionsNotice,
+  pinnedOverLimitNotice,
   claudeAiExternalTokenNotice,
   apiKeyConflictNotice,
   bothAuthMethodsNotice,
