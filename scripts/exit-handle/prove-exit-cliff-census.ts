@@ -112,7 +112,7 @@ async function runCase(
   if (arm === 'poison') env.MERCURY_EXIT_CLIFF_DRAIN = '0'
   const child = spawn(
     nodeBin,
-    ['--import', PRELOAD, DIST, '-p', 'please do the scripted thing', '--allowed-tools', ...allowed],
+    ['--import', PRELOAD, DIST, 'run', 'please do the scripted thing', '--allowed-tools', ...allowed],
     { cwd: fix, env, stdio: ['ignore', 'pipe', 'pipe'] },
   )
   let stdout = ''
@@ -157,7 +157,7 @@ for (const script of [ANSWER_TEXT_SCRIPT, ...ONE_TOOL_SCRIPTS]) {
 drainRuns.push(await runCase('tool-bash-write', 'drain', ['Read', 'Glob']))
 const poison = await runCase(ANSWER_TEXT_SCRIPT, 'poison')
 
-section('§1 — the DRAIN arm: six -p runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch), the census BEFORE the drain and AT the cliff')
+section('§1 — the DRAIN arm: six runs (control · Read · Glob · Bash · Bash write · Bash write DENIED at dispatch), the census BEFORE the drain and AT the cliff')
 for (const run of drainRuns) {
   cleanups.push(run.home, run.fix)
   const denied = run.script === 'tool-bash-write' && !run.allowed.includes('Bash')
