@@ -39,8 +39,8 @@ const projDir = join(PROJ, '.mercury')
 mkdirSync(projDir, { recursive: true })
 const projPath = join(projDir, 'settings.json')
 
-writeFileSync(userPath, JSON.stringify({ model: 'from-user', env: { A: 'user', B: 'user' } }))
-writeFileSync(projPath, JSON.stringify({ env: { B: 'proj' }, permissions: { allow: ['Read(x)'] } }))
+writeFileSync(userPath, JSON.stringify({ engine: { model: 'from-user' }, environment: { values: { A: 'user', B: 'user' } } }))
+writeFileSync(projPath, JSON.stringify({ environment: { values: { B: 'proj' } }, guardrails: { allow: ['Read(x)'] } }))
 _resetSettingsSnapshotForTesting()
 resetSettingsCache()
 
@@ -52,14 +52,14 @@ section('(1) snapshot shape, immutability, and stability')
 {
   const snap = getSettingsSnapshot()
   check('first snapshot is revision 1', snap.revision === 1, String(snap.revision))
-  check('effective settings present', snap.settings.model === 'from-user')
+  check('effective settings present', snap.settings.engine?.model === 'from-user')
   let threw = false
   try {
-    ;(snap.settings as { model?: string }).model = 'MUTATED'
+    ;(snap.settings.engine as { model?: string }).model = 'MUTATED'
   } catch {
     threw = true
   }
-  check('snapshot is deep-frozen (mutation throws or is inert)', threw || snap.settings.model === 'from-user')
+  check('snapshot is deep-frozen (mutation throws or is inert)', threw || snap.settings.engine?.model === 'from-user')
   const attempt = (fn: () => void): boolean => {
     try {
       fn()
@@ -68,22 +68,22 @@ section('(1) snapshot shape, immutability, and stability')
     }
     return false
   }
-  const env = snap.settings.env as Record<string, string>
+  const env = snap.settings.environment?.values as Record<string, string>
   const envThrew = attempt(() => { env.A = 'MUTATED' })
-  check('nested object (env.A) is frozen too — deep, not shallow', Object.isFrozen(env) && (envThrew || env.A === 'user'), j(env))
+  check('nested object (environment.values.A) is frozen too — deep, not shallow', Object.isFrozen(env) && (envThrew || env.A === 'user'), j(env))
   const envAddThrew = attempt(() => { env.NEW = 'x' })
   check('nested object refuses a NEW key as well', envAddThrew || !('NEW' in env))
-  const allow = (snap.settings.permissions as { allow: string[] }).allow
+  const allow = (snap.settings.guardrails as { allow: string[] }).allow
   const pushThrew = attempt(() => { allow.push('Write(y)') })
   const idxThrew = attempt(() => { allow[0] = 'MUTATED' })
-  check('nested array (permissions.allow) is frozen — push and index write both refused', Object.isFrozen(allow) && (pushThrew || allow.length === 1) && (idxThrew || allow[0] === 'Read(x)'), j(allow))
+  check('nested array (guardrails.allow) is frozen — push and index write both refused', Object.isFrozen(allow) && (pushThrew || allow.length === 1) && (idxThrew || allow[0] === 'Read(x)'), j(allow))
   const prov = snap.provenance as Record<string, Record<string, unknown>>
-  const provThrew = attempt(() => { prov['model']!.winner = 'MUTATED' })
-  check('provenance rows are frozen (the recursion reaches them)', Object.isFrozen(prov) && Object.isFrozen(prov['model']) && (provThrew || prov['model']!.winner === 'userSettings'))
-  const shallow = Object.freeze({ model: 'top', env: { A: 'inner' }, permissions: { allow: ['Read(x)'] } })
-  ;(shallow.env as Record<string, string>).A = 'MUTATED'
-  ;(shallow.permissions.allow as string[]).push('Write(y)')
-  check('negative: a SHALLOW freeze leaves env and allow mutable — the rows above would red on it', !Object.isFrozen(shallow.env) && shallow.env.A === 'MUTATED' && shallow.permissions.allow.length === 2)
+  const provThrew = attempt(() => { prov['engine.model']!.winner = 'MUTATED' })
+  check('provenance rows are frozen (the recursion reaches them)', Object.isFrozen(prov) && Object.isFrozen(prov['engine.model']) && (provThrew || prov['engine.model']!.winner === 'userSettings'))
+  const shallow = Object.freeze({ engine: { model: 'top' }, environment: { values: { A: 'inner' } }, guardrails: { allow: ['Read(x)'] } })
+  ;(shallow.environment.values as Record<string, string>).A = 'MUTATED'
+  ;(shallow.guardrails.allow as string[]).push('Write(y)')
+  check('negative: a SHALLOW freeze leaves the values and allow mutable — the rows above would red on it', !Object.isFrozen(shallow.environment.values) && shallow.environment.values.A === 'MUTATED' && shallow.guardrails.allow.length === 2)
   const again = getSettingsSnapshot()
   check('same underlying state → the SAME snapshot object (cached)', again === snap)
 }
@@ -91,14 +91,14 @@ section('(1) snapshot shape, immutability, and stability')
 section('(2) provenance — winners, contributors, merge detection')
 {
   const { provenance } = getSettingsSnapshot()
-  check('scalar from one source: winner=user', provenance['model']?.winner === 'userSettings' && provenance['model']?.merged === false, j(provenance['model']))
+  check('scalar from one source: winner=user', provenance['engine.model']?.winner === 'userSettings' && provenance['engine.model']?.merged === false, j(provenance['engine.model']))
   check(
-    'nested env key overridden by project: winner=project, both contribute',
-    provenance['env.B']?.winner === 'projectSettings' && j(provenance['env.B']?.contributors) === j(['userSettings', 'projectSettings']),
-    j(provenance['env.B']),
+    'nested environment value overridden by project: winner=project, both contribute',
+    provenance['environment.values.B']?.winner === 'projectSettings' && j(provenance['environment.values.B']?.contributors) === j(['userSettings', 'projectSettings']),
+    j(provenance['environment.values.B']),
   )
-  check('nested env key from user only', provenance['env.A']?.winner === 'userSettings', j(provenance['env.A']))
-  check('permissions.allow provenance present', provenance['permissions.allow']?.winner === 'projectSettings', j(provenance['permissions.allow']))
+  check('nested environment value from user only', provenance['environment.values.A']?.winner === 'userSettings', j(provenance['environment.values.A']))
+  check('guardrails.allow provenance present', provenance['guardrails.allow']?.winner === 'projectSettings', j(provenance['guardrails.allow']))
 }
 
 section('(3) revisions — monotonic, content-keyed')
@@ -108,23 +108,23 @@ section('(3) revisions — monotonic, content-keyed')
   const r2 = settingsRevision()
   check('same-content reload keeps the revision', r2 === r1, `${r1} → ${r2}`)
 
-  writeFileSync(userPath, JSON.stringify({ model: 'changed', env: { A: 'user', B: 'user' } }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'changed' }, environment: { values: { A: 'user', B: 'user' } } }))
   resetSettingsCache()
   const r3 = settingsRevision()
   check('changed content advances the revision', r3 === r1 + 1, `${r1} → ${r3}`)
-  check('snapshot reflects the change', getSettingsSnapshot().settings.model === 'changed')
+  check('snapshot reflects the change', getSettingsSnapshot().settings.engine?.model === 'changed')
 
-  updateSettingsForSource('userSettings', { model: 'written-through' })
+  updateSettingsForSource('userSettings', { engine: { model: 'written-through' } })
   const r4 = settingsRevision()
   check('a settings WRITE advances the revision without a manual reset', r4 === r3 + 1, `${r3} → ${r4}`)
 }
 
 section('(4) atomic persistence — no durable temp orphans beside settings')
 {
-  updateSettingsForSource('userSettings', { env: { A: 'atomic' } })
+  updateSettingsForSource('userSettings', { environment: { values: { A: 'atomic' } } })
   const leftovers = readdirSync(HOME).filter(f => f.includes('.tmp') || f.includes('durable'))
   check('no temp/orphan files beside settings.json after writes', leftovers.length === 0, j(leftovers))
-  check('write landed', getSettingsSnapshot().settings.env?.A === 'atomic')
+  check('write landed', getSettingsSnapshot().settings.environment?.values?.A === 'atomic')
 }
 
 console.log('\n============================================================')
