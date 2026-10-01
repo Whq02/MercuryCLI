@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/engine-connector/**
+# gate-watch: src/fabric/transcriptDecode.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
+# gate-watch: src/ink/components/TerminalSizeContext.tsx
 # gate-watch: src/services/engine-connector/** src/hooks/useSessionConnector.ts
 # gate-watch: src/screens/REPL.tsx src/components/MercuryFrame.tsx src/components/PromptInput/**
 # gate-watch: src/components/permissions/** src/hooks/useCancelRequest.ts src/hooks/useDisplayedSessionModel.ts

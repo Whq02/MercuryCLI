@@ -97,6 +97,7 @@ const WORK_ROW: KeyTable = {
   inputTokens: 'input_tokens',
   outputTokens: 'output_tokens',
   contextTokens: 'context_tokens',
+  cacheReadTokens: 'cache_read_tokens',
   costUSD: 'cost_usd',
   unpricedTurns: 'unpriced_turns',
   toolUses: 'tool_uses',

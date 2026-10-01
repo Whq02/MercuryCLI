@@ -35,7 +35,7 @@ import {
   crewModelLabel,
   crewPhaseWords,
   crewStateLabel,
-  crewTokensLabel,
+  crewTokensSummary,
   crewToolUsesLabel,
   type CrewAgentFacts,
 } from '../../services/engine-connector/crewFacts.js'
@@ -655,7 +655,7 @@ function CrewAgentRows({ entries, animate }: { entries: GroupedEntry[]; animate:
         const receiptTokens = (entry.output?.totalTokens ?? 0) > 0 ? entry.output!.totalTokens : undefined
         const tokensLabel =
           facts !== null
-            ? (crewTokensLabel(facts) ?? undefined)
+            ? (crewTokensSummary(facts) ?? undefined)
             : receiptTokens !== undefined
               ? `${formatTokens(receiptTokens)} spent`
               : entry.tokens > 0
@@ -704,7 +704,7 @@ function AgentFactsOrInitialising({ toolUseID }: { toolUseID?: string }): React.
     crewModelLabel(facts),
     crewStateLabel(facts),
     crewToolUsesLabel(facts) ?? undefined,
-    crewTokensLabel(facts) ?? undefined,
+    crewTokensSummary(facts) ?? undefined,
     crewElapsedLabel(facts, now),
     facts.activity ?? undefined,
   ].filter((part): part is string => part !== undefined)
