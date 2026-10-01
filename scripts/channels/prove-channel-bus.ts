@@ -169,7 +169,7 @@ if (!existsSync(distPath)) {
     } = process.env
     const r = spawnSync(
       (process.execPath.includes('bun') ? 'node' : process.execPath),
-      [distPath, '-p', '/say hello-from-proof'],
+      [distPath, 'run', '/say hello-from-proof'],
       {
         env: {
           ...cleanEnv,
@@ -185,7 +185,7 @@ if (!existsSync(distPath)) {
     )
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`
     check(
-      'the -p turn refuses with the honest rc (typed sentence + exit 1, no error envelope)',
+      'the run turn refuses with the honest rc (typed sentence + exit 1, no error envelope)',
       r.status === 1 && !/error_during_execution/.test(out),
       `status=${r.status} ${out.slice(0, 160)}`,
     )
@@ -233,7 +233,7 @@ check(
 section('/say — the retired door: one stub owner, no direct registration, no body')
 const retiredCmds = src('commands', 'retired.ts')
 check(
-  "the retired-stub module owns the 'say' name (typed answer, hidden, -p capable)",
+  "the stub module owns the 'say' name (typed answer, hidden, run capable)",
   /\{ name: 'say',/.test(retiredCmds),
 )
 const cmds = src('commands.ts')
