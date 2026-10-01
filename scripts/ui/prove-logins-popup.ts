@@ -224,7 +224,7 @@ for (const s of sizes) {
     check(`${family} ${arm}: its device/browser wait stays reachable`, await walk(board.m, code!))
     if (compact) {
       const body = bodyRows(board.m, s).filter(line => line !== '')
-      const wait = family === 'huggingface' ? [/^HF-CODE · https:\/\/example\.com\/hf\/device$/, /^c copies the URL · ESC cancels\.$/] : [/^https:\/\/example\.com\/authorize\?state=fixture/, /^(or paste the redirected URL|paste the code):/, /^c copies the URL/]
+      const wait = family === 'huggingface' ? [/^HF-CODE · https:\/\/example\.com\/hf\/device$/, /^c copies the URL · ESC cancels\.$/] : family === 'xai' ? [/^GROK-CODE · https:\/\/example\.com\/grok\/device$/, /^c copies the URL · esc cancels$/] : [/^https:\/\/example\.com\/authorize\?state=fixture/, /^(or paste the redirected URL|paste the code):/, /^c copies the URL/]
       check(`${family} ${arm} compact: the wait is the code or URL line, the paste line and the way out, nothing else`, body.length === wait.length && wait.every((pattern, index) => pattern.test(body[index] ?? '')), body.join(' | '))
     }
     fits(board.m, s, `${family} wait`); save(board.m, s, `${family}-wait-${arm}`)
