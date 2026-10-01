@@ -16,7 +16,7 @@ TELEMETRY           │ │   Session concourse                 on              
                     │ │   JEV                               off · official                       │ │
                     │ │   Instruction profile               auto                                 │ │
                     │ │   Shell engine                      system                               │ │
-                    │ │   Patience with a quiet model       normal · idle 2m (OpenAI 15m) ·      │ │
+                    │ │   Patience with a quiet model       normal · idle 2m (quiet 15m) ·       │ │
                     │ │ ↓ 47 more                                                                │ │
                     │ │                                                                          │ │
                     │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │

@@ -16,7 +16,7 @@ TELEMETRY               │ │   Reduced motion                    off         
   · ctx — · —           │ │   JEV                               off · official                                       │ │
   · health — run /health│ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
-                        │ │   Patience with a quiet model       normal · idle 2m (OpenAI 15m) · fallback 15m · retry │ │
+                        │ │   Patience with a quiet model       normal · idle 2m (quiet 15m) · fallback 15m · retry  │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
                         │ │   Thinking mode                     off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
