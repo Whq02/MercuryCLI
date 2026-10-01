@@ -9,15 +9,19 @@ const required = new Set([
 const optional = new Set(['-d', '--debug', '-r', '--resume', '--from-pr', '-w', '--worktree'])
 const variadic = new Set(['--allowed-tools', '--tools', '--disallowed-tools', '--mcp-config', '--betas'])
 
-export function inspectRunArgs(args: readonly string[]): { command?: string; format?: string; runner: boolean } {
+export function inspectRunArgs(args: readonly string[]): { command?: string; format?: string; input?: string; runner: boolean; outputRequest: boolean } {
   let command: string | undefined
   let format: string | undefined
+  let input: string | undefined
+  let outputRequest = false
   for (let i = 0; i < args.length; i++) {
     const token = args[i]!
     if (token === '--') break
     const equal = token.indexOf('=')
     const flag = equal < 0 ? token : token.slice(0, equal)
+    if (['--help', '-h', '--version', '-v', '-V'].includes(flag)) outputRequest = true
     if (flag === '--format') format = equal < 0 ? args[i + 1] : token.slice(equal + 1)
+    if (flag === '--input') input = equal < 0 ? args[i + 1] : token.slice(equal + 1)
     if (equal >= 0) continue
     if (required.has(flag)) { i++; continue }
     if (optional.has(flag)) {
@@ -30,7 +34,7 @@ export function inspectRunArgs(args: readonly string[]): { command?: string; for
     }
     if (!token.startsWith('-') && command === undefined) command = token
   }
-  return { command, format, runner: command === 'run' }
+  return { command, format, input, runner: command === 'run', outputRequest }
 }
 
 export function isRunArgv(argv: readonly string[] = process.argv): boolean {

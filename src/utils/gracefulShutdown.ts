@@ -248,9 +248,21 @@ function isPrintMode(): boolean {
 }
 
 let printModeSignalsOwned = false
+let preflightSignalWriter: ((code: number) => void) | undefined
+
+export function setRunPreflightSignalWriter(writer: (code: number) => void): void {
+  preflightSignalWriter = writer
+}
+
+function writePreflightSignal(code: number): void {
+  const writer = preflightSignalWriter
+  preflightSignalWriter = undefined
+  try { writer?.(code) } catch {}
+}
 
 export function markPrintModeSignalsOwned(): void {
   printModeSignalsOwned = true
+  preflightSignalWriter = undefined
 }
 
 function printModeOwnsSignals(): boolean {
@@ -277,11 +289,13 @@ export const setupGracefulShutdown = (): void => {
     process.on('SIGINT', () => {
       if (printModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGINT' })
+      writePreflightSignal(130)
       gracefulShutdownSync(130)
     })
     process.on('SIGTERM', () => {
       if (printModeOwnsSignals()) return
       logForDiagnosticsNoPII('info', 'shutdown_signal', { signal: 'SIGTERM' })
+      writePreflightSignal(143)
       gracefulShutdownSync(143)
     })
     process.on('SIGHUP', () => {
