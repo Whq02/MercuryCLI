@@ -2,11 +2,13 @@ import type { LegacyQueryYield } from '../../run-core/project-legacy.js'
 
 export async function* settledSidechainMessages(
   stream: AsyncIterable<LegacyQueryYield>,
+  onProgress?: (item: LegacyQueryYield) => void,
 ): AsyncGenerator<LegacyQueryYield, void> {
   let responseOpen = false
   let pending: LegacyQueryYield[] = []
   try {
     for await (const item of stream) {
+      onProgress?.(item)
       if (item.type === 'stream_event') {
         if (item.event.type === 'message_start') {
           yield* pending.splice(0)
