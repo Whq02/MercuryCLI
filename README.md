@@ -367,7 +367,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **Claude:** subscription account.
 - **Anthropic usage-based billing:** Console sign-in or API key.
 - **OpenRouter:** catalogue access through OAuth or an API key.
-- **Google Gemini:** API key or Google OAuth.
+- **Google Gemini:** API key or your own OAuth client, both billed to your Cloud project—not Google AI Pro/Ultra; Google ended consumer Gemini CLI sign-in on June 18, 2026.
 - **Hugging Face:** device-code sign-in or Hub token.
 - **Kimi (Moonshot):** device-code sign-in or API key.
 - **GLM (Z.AI):** API key.

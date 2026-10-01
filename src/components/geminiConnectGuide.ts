@@ -1,5 +1,5 @@
 import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
-import { KEY_PAGES } from './loginFamilyRows.js'
+import { GEMINI_API_ACCESS_NOTE, KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
   address: string
@@ -94,8 +94,7 @@ export interface GeminiConnectFacts {
 export type GeminiConnectRowValue = 'key' | 'google' | 'client'
 
 export const GEMINI_CONNECT_TITLE = 'Connect Google Gemini'
-export const GEMINI_CONNECT_INTRO =
-  'An API key connects in one paste. A Google account takes six numbered steps, each on its own Console page.'
+export const GEMINI_CONNECT_INTRO = GEMINI_API_ACCESS_NOTE
 export const GEMINI_KEY_ROW = 'API key — the easiest: create one in AI Studio, paste it here'
 
 export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: string; value: GeminiConnectRowValue }> {

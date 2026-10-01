@@ -490,12 +490,12 @@ export function loginsPickPaneLines(pick: LoginsPickId): string[] {
       case 'openrouter':
         return "One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).";
       case 'gemini':
-        return 'API-key sign-in works immediately; Google OAuth needs your own OAuth client (a one-time Google Cloud setup).';
+        return '';
     }
   })();
   return [
-    ...wrapPlain(body, DETAIL_W),
-    ...(pick === 'kimi-region' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
+    ...(body ? wrapPlain(body, DETAIL_W) : []),
+    ...(pick === 'kimi-region' ? [] : pick === 'gemini' ? keyPageLine(pick).split('\n').flatMap(line => wrapPlain(line, DETAIL_W)) : wrapClauses(keyPageLine(pick), DETAIL_W)),
     '',
     pick === 'kimi-region' ? 'esc — back to the Kimi choice' : 'esc — back to the roster',
   ];
