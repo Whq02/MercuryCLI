@@ -18,6 +18,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a tool row's counter running on after the tool had finished
 - Fixed a very long single-line prompt hanging before anything was sent
 - Fixed the exact token count running low after a thinking turn
+- Fixed a very long GPT conversation getting stuck at the context limit because its emergency fold was cut off while the model was still reading the prompt
 - Fixed /logins opening as a bottom panel instead of a popup
 - Fixed an idle session polling a crew file when it had no crew
 - Fixed a parked session's own wake reading "due now" for as long as it stood

@@ -153,7 +153,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 
-const READY = ['esc or click outside closes']
+const readyFor = (rows: number): string[] => (rows <= 17 ? ['esc closes'] : ['esc or click outside closes'])
 function openConfig(cols: number): Send[] {
   return [
     { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -180,7 +180,7 @@ for (const [cols, rows] of SIZES) {
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: AGENT_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
-  ], { total: 420, ready: READY })
+  ], { total: 420, ready: readyFor(rows) })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const before = c.marks.get('row-before') ?? []
   const picker = c.marks.get('picker') ?? []
@@ -219,7 +219,7 @@ for (const [cols, rows] of SIZES.slice(0, 1)) {
     { afterPrevTicks: 3, data: '', mark: 'focused' },
     { afterPrevTicks: 1, data: '\r' },
     { requireAwait: true, awaitText: CREWMATE_ROW, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'row-after', data: '' },
-  ], { total: 420, ready: READY })
+  ], { total: 420, ready: readyFor(rows) })
   check('the drive delivered every send (exit 0)', c.status === 0, `exit ${c.status}`)
   const before = c.marks.get('row-before') ?? []
   const picker = c.marks.get('picker') ?? []
