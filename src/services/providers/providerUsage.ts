@@ -1102,6 +1102,15 @@ function xaiSubscriptionCredits(pool: XaiSubscriptionCredits | null, failed: boo
   return { state: 'reported', display: `${amount} purchased credits`, compact: `${amount} purchased`, source: 'endpoint', observedAtMs: pool.observedAtMs, freshForMs: usageStaleAfterMs() }
 }
 
+export function xaiPurchasedCreditsCarry(pool: XaiSubscriptionCredits | null, failed: boolean): UsageCarryView {
+  if (pool === null) return { state: 'unstated', display: failed ? 'not read — see the usage reader note' : XAI_POOL_NOT_READ_WORDS, compact: failed ? 'not read' : 'not read yet' }
+  const stamp = { source: 'endpoint' as const, observedAtMs: pool.observedAtMs, freshForMs: usageStaleAfterMs() }
+  if (pool.prepaidBalanceUsd === undefined) return { state: 'unstated', display: 'the Grok pool endpoint stated no purchased-credits balance', compact: CARRY_UNSTATED_COMPACT, ...stamp }
+  const amount = `USD ${pool.prepaidBalanceUsd.toFixed(2)}`
+  if (pool.prepaidBalanceUsd <= 0) return { state: 'nothing', display: `purchased credits ${amount} — ${CARRY_NOTHING_TAIL}`, compact: `purchased credits ${amount}`, ...stamp }
+  return { state: 'carries', display: `on purchased credits · ${amount} left`, compact: `on purchased credits ${amount}`, ...stamp }
+}
+
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
     ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
@@ -1543,6 +1552,7 @@ function deriveUsageForProvider(
       return {
         provider, sourceKind: 'subscription-oauth', label: 'Grok subscription', shape: 'subscription-windows', windows, pools: [], spend,
         tier: pool?.tier ?? 'Grok subscription', credits: xaiSubscriptionCredits(pool, poolFailure !== null),
+        carry: xaiPurchasedCreditsCarry(pool, poolFailure !== null),
         ...(pool && windows.length === 0 ? { absence: XAI_POOL_UNSTATED_WORDS } : {}),
         ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
       }
