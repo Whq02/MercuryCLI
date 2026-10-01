@@ -118,6 +118,7 @@ const MODEL_NAMES = {
   "claude-fable-5-1": "Fable 5.1",
   "claude-mythos-5": "Mythos 5",
   "grok-4.7": "Grok 4.7",
+  "grok-4.7-build-fast": "Grok 4.7 Fast",
   "grok-4.6": "Grok 4.6",
   "grok-4.5": "Grok 4.5",
   "grok-4.3": "Grok 4.3",
