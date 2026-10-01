@@ -231,6 +231,7 @@ function staticImports(src: string): {
   const sh = staticImports(shutdownSrc)
   const expected = [
     '../bootstrap/state.js',
+    '../cli/runArgs.js',
     './cleanupRegistry.js',
     './deadline.js',
     './debug.js',
