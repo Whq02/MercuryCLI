@@ -52,10 +52,10 @@ console.log('§P7 — the eager settings scan stops at `--` and takes the last o
   }
   check('the = form is read', eager(['--settings=x'], '--settings') === 'x')
   check('the space form is read', eager(['--settings', 'y'], '--settings') === 'y')
-  check('a flag after `--` is NOT read', eager(['-p', 'hi', '--', '--settings', 'bad'], '--settings') === undefined)
+  check('a flag after `--` is NOT read', eager(['run', 'hi', '--', '--settings', 'bad'], '--settings') === undefined)
   check('a repeated flag is last-wins', eager(['--settings', 'a', '--settings', 'b'], '--settings') === 'b')
   check('last-wins spans the two spellings', eager(['--settings=a', '--settings', 'b'], '--settings') === 'b')
-  check('absent flag is undefined', eager(['-p', 'hi'], '--settings') === undefined)
+  check('absent flag is undefined', eager(['run', 'hi'], '--settings') === undefined)
 }
 
 process.exit(failures === 0 ? 0 : 1)

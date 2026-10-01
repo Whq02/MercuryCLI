@@ -3,7 +3,7 @@
 runtime crash. This is the gate that would have caught the `n is not defined` regression
 (REPL.tsx away-summary effect referenced an undefined var): it crashed every interactive
 mount, but every other gate missed it — REPL.tsx is outside the strict typecheck floor,
-and `-p`/transcript-render proofs never mount the live REPL effects.
+and run/transcript-render proofs never mount the live REPL effects.
 
 Tests the CURRENT dist/mercury.mjs (build it first; the gate runs after a build). A fresh
 session mounts the full REPL + its mount-time effects (incl. the default-ON
