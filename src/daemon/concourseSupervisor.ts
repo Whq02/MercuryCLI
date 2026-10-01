@@ -567,7 +567,7 @@ export function buildConcourseWorkerSpec(args: {
         : [
             '--session-id',
             args.sessionId!,
-            ...(args.title !== undefined ? ['--name', args.title] : []),
+            ...(args.title !== undefined ? ['--title', args.title] : []),
             ...wireArgv,
             ...runnerArgv.rest,
           ],

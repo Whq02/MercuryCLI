@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { memoize } from 'lodash-es'
 
 import { getSessionId } from '../bootstrap/state.js'
+import { readSessionOption } from '../cli/sessionArgs.js'
 import { renameWithWin32Retry } from '../substrate/durablePublish.js'
 import { createBufferedWriter, type BufferedWriter } from './bufferedWriter.js'
 import { registerCleanup } from './cleanupRegistry.js'
@@ -50,21 +51,11 @@ export const getDebugFilter = memoize((): DebugFilter | null => {
 })
 
 export const isDebugToStdErr = memoize((): boolean => {
-  return process.argv.includes('--debug-to-stderr') || process.argv.includes('--d2e') || process.argv.includes('-d2e')
+  return readSessionOption(process.argv.slice(2), '--log-stderr').present
 })
 
 export const getDebugFilePath = memoize((): string | null => {
-  const argv = process.argv
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i] as string
-    if (arg.startsWith('--debug-file=')) {
-      return arg.slice('--debug-file='.length)
-    }
-    if (arg === '--debug-file' && i + 1 < argv.length) {
-      return argv[i + 1] as string
-    }
-  }
-  return null
+  return readSessionOption(process.argv.slice(2), '--log-file').value ?? null
 })
 
 let hasFormattedOutput = false

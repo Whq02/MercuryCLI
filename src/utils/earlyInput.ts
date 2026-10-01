@@ -1,5 +1,5 @@
 import { lastGrapheme } from './intl.js'
-import { isRunArgv } from '../cli/runArgs.js'
+import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 
 
 let capturing = false

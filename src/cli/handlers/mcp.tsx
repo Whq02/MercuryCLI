@@ -296,7 +296,7 @@ export async function mcpAddJsonHandler(
       clientSecret = await readClientSecret()
     }
     if (!validated.success) {
-      cliError(`mcp add-json ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`)
+      cliError(`mcp import ${name}: the config does not match the server schema — ${describeMcpConfigIssues(validated.error.issues, parsed)}`)
       return
     }
     await addMcpConfig(name, parsed, scope)

@@ -334,7 +334,7 @@ function IdeConnectFlow({
         ) : null}
         {!isSupportedTerminal() ? (
           <Text color={tokens.textMuted}>
-            Tip: auto-connect at launch with the --ide flag, or set it in /config.
+            Tip: auto-connect at launch with the --editor-link flag, or set it in /config.
           </Text>
         ) : null}
         {unavailable.length > 0 ? (

@@ -1,5 +1,5 @@
 import { writeSync } from 'node:fs'
-import { isRunArgv } from '../cli/runArgs.js'
+import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 
 import { onExit } from 'signal-exit'
 
@@ -189,7 +189,7 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     ? 'redeploy the runtime (scripts/ops/deploy-runtime.sh) or roll back (mercury update --rollback); `mercury health` names the runtime in use'
     : reportPath !== null
       ? 'run again with --debug for the full trace; the report below carries it'
-      : `run again with --debug --debug-to-stderr for the full trace on this console — no crash report could be written (${reportRefusal})`
+      : `run again with --debug --log-stderr for the full trace on this console — no crash report could be written (${reportRefusal})`
   const lines = [
     '',
     'MERCURY COULD NOT START',
@@ -270,7 +270,7 @@ function printModeOwnsSignals(): boolean {
 }
 
 function isDaemonSubcommand(): boolean {
-  return process.argv[2] === 'daemon'
+  return process.argv[2] === 'steward'
 }
 
 function truncate(text: string, max: number): string {

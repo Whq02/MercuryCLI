@@ -82,7 +82,7 @@ export class MercuryChildSession {
       ...(opts.model ? ['--model', opts.model] : []),
       ...(opts.resumeSessionId ? ['--resume', opts.resumeSessionId] : []),
       ...(opts.sessionId && !opts.resumeSessionId ? ['--session-id', opts.sessionId] : []),
-      ...(opts.mcpConfig ? ['--mcp-config', opts.mcpConfig] : []),
+      ...(opts.mcpConfig ? ['--mcp', opts.mcpConfig] : []),
     ]
     const env: NodeJS.ProcessEnv = {
       ...process.env,

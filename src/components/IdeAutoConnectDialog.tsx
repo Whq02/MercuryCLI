@@ -54,7 +54,7 @@ export function IdeAutoConnectDialog({
         onCancel={() => onComplete()}
       />
       <Text dimColor>
-        You can change this any time in /settings or with the --ide flag.
+        You can change this any time in /settings or with the --editor-link flag.
       </Text>
     </Box>
   )
@@ -97,7 +97,7 @@ export function IdeDisableAutoConnectDialog({
         onCancel={() => onComplete(false)}
       />
       <Text dimColor>
-        You can change this any time in /settings or with the --ide flag.
+        You can change this any time in /settings or with the --editor-link flag.
       </Text>
     </Box>
   )

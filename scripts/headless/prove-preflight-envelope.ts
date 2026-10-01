@@ -36,10 +36,10 @@ if (!existsSync(DIST)) {
   }
   const SJ = ['run', '--format', 'rows']
 
-  const settingsRefusal = run([...SJ, '--settings', '/no/such/settings-file.json', 'hi'])
+  const settingsRefusal = run([...SJ, '--config', '/no/such/settings-file.json', 'hi'])
   const settingsEnvelope = envelopeOf(settingsRefusal.out)
   check(
-    'a product-composed refusal (missing --settings) rides ONE result envelope',
+    'a product-composed refusal (missing --config) rides ONE result envelope',
     settingsRefusal.status !== 0 &&
       settingsEnvelope !== null &&
       settingsEnvelope.type === 'result' &&
@@ -68,7 +68,7 @@ if (!existsSync(DIST)) {
     `rc=${argParserRefusal.status} out=${argParserRefusal.out.slice(0, 100).replace(/\s+/g, ' ')}`,
   )
 
-  const textControl = run(['run', '--settings', '/no/such/settings-file.json', 'hi'])
+  const textControl = run(['run', '--config', '/no/such/settings-file.json', 'hi'])
   check(
     'the text format keeps its prose refusal (control: stderr, no stdout envelope)',
     textControl.status !== 0 &&

@@ -217,16 +217,16 @@ export function buildStreamJsonInvocation(
     '--input=rows',
     '--format=rows',
     ...(spec.keyless ? [] : ['--model', model]),
-    '--append-system-prompt',
+    '--brief-add',
     spec.appendSystemPrompt,
     ...(spec.plainIdentity
       ? []
       : [
-          '--crew-name',
+          '--crew',
           crewName,
-          '--agent-name',
+          '--seat',
           spec.agentName,
-          '--agent-id',
+          '--seat-id',
           spec.agentId,
         ]),
     ...((opts?.respawn ? (spec.respawnExtraArgv ?? spec.extraArgv) : spec.extraArgv) ?? []),

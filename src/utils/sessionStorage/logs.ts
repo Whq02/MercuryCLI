@@ -290,6 +290,7 @@ export function getCurrentSessionAgentColor(): string | undefined {
   return getProject().currentSessionAgentColor
 }
 
+
 export function restoreSessionMetadata(meta: {
   customTitle?: string
   tag?: string

@@ -142,7 +142,7 @@ export function agentFaceDetailLines(
         ? 'built-in (no file)'
         : agent.source === 'extension'
           ? `extension: ${(agent as { extensionName?: string }).extensionName ?? '?'}`
-          : 'in-memory (--agents flag)'),
+          : 'in-memory (--agent-defs flag)'),
     `scope: ${getAgentSourceDisplayName(agent.source)}`,
   ];
   if (eff !== null) {

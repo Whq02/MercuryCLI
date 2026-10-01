@@ -85,7 +85,7 @@ export interface LocalFitRefusalFacts {
 }
 
 export function localFitRefusalSentence(facts: LocalFitRefusalFacts): string {
-  return `the composed request (≈${Math.round(facts.estTokens / 1000)}k tokens, ${facts.toolCount} tool schemas included) cannot fit '${facts.id}'s served context window (${facts.window} tokens — ${facts.sourceWords}) and the server would silently truncate it. ${LOCAL_WINDOW_REMEDY}, restrict the tool catalog (--disallowed-tools / --strict-mcp-config), or pick a larger-window local model.`
+  return `the composed request (≈${Math.round(facts.estTokens / 1000)}k tokens, ${facts.toolCount} tool schemas included) cannot fit '${facts.id}'s served context window (${facts.window} tokens — ${facts.sourceWords}) and the server would silently truncate it. ${LOCAL_WINDOW_REMEDY}, restrict the tool catalog (--block-tools / --only-mcp), or pick a larger-window local model.`
 }
 
 const FIT_REFUSAL_RE = /the composed request \(≈(\d+)k tokens, (\d+) tool schemas included\) cannot fit '(.+?)'s served context window \((\d+) tokens — ([^)]+)\) and the server would silently truncate it/

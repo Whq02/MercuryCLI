@@ -21,9 +21,9 @@ async function main(): Promise<void> {
     return
   }
 
-  const { inspectRunArgs } = await import('../cli/runArgs.js')
-  const runArgs = inspectRunArgs(args)
-  const hasProjectRoot = args[0] === '--project-root' || args[0]?.startsWith('--project-root=')
+  const { inspectSessionArgs, readSessionOption } = await import('../cli/sessionArgs.js')
+  const runArgs = inspectSessionArgs(args)
+  const hasProjectRoot = args[0] === '--project' || args[0]?.startsWith('--project=')
   if (hasProjectRoot) {
     try {
       const { applyProjectRoot } = await import('./projectRoot.js')
@@ -63,9 +63,8 @@ async function main(): Promise<void> {
   }
 
   {
-    const { applyBankedFlagSpellings, DEBUG_FLAG_SPELLINGS } = await import('../substrate/argvSpellings.js')
+    const { applyBankedFlagSpellings } = await import('../substrate/argvSpellings.js')
     applyBankedFlagSpellings(process.argv)
-    applyBankedFlagSpellings(process.argv, DEBUG_FLAG_SPELLINGS)
   }
 
   try {
@@ -109,7 +108,7 @@ async function main(): Promise<void> {
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
-      ['daemon', 'join', 'join-kit', 'acp'].includes(args[0] ?? '')
+      ['steward', 'acp'].includes(args[0] ?? '')
     if (nonTakeover) {
       const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
       releaseLauncherAltHoldNow()
@@ -156,24 +155,12 @@ async function main(): Promise<void> {
     const { runTcpBridgeEntry } = await import('../services/tcpBridge/entry.js')
     return runTcpBridgeEntry(process.argv.slice(3))
   }
-  if (args[0] === 'daemon') {
+  if (args[0] === 'steward') {
     profileCheckpoint('route_daemon')
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
     const { daemonMain } = await import('../daemon/main.js')
     return daemonMain(args.slice(1))
-  }
-  if (args[0] === 'join' || args[0] === 'join-kit') {
-    profileCheckpoint('route_retired_verb')
-    const [{ writeSync }, { RETIRED_MULTIPLAYER_REASON }] = await Promise.all([
-      import('node:fs'),
-      import('../commands/retired.js'),
-    ])
-    try {
-      writeSync(2, `mercury ${args[0]} is retired — ${RETIRED_MULTIPLAYER_REASON}.\n`)
-    } catch {
-    }
-    process.exit(2)
   }
   if (args[0] === 'acp') {
     profileCheckpoint('route_acp')
@@ -192,10 +179,8 @@ async function main(): Promise<void> {
   }
 
   if (
-    (args.includes('--tmux') || args.includes('--tmux=classic')) &&
-    (args.includes('-w') ||
-      args.includes('--worktree') ||
-      args.some(arg => arg.startsWith('--worktree=')))
+    readSessionOption(args, '--multiplex').present &&
+    (readSessionOption(args, '-w').present || readSessionOption(args, '--worktree').present)
   ) {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
@@ -208,11 +193,7 @@ async function main(): Promise<void> {
     }
   }
 
-  if (args.length === 1 && (args[0] === '--update' || args[0] === '--upgrade')) {
-    process.argv = [...process.argv.slice(0, 2), 'update']
-  }
-
-  if (args.includes('--bare')) {
+  if (readSessionOption(args, '--lean').present) {
     process.env.MERCURY_BARE = '1'
   }
 

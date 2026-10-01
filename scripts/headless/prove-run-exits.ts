@@ -19,7 +19,7 @@ for (const road of ['success', 'failure', 'startup', 'usage', 'SIGINT', 'SIGTERM
   const stdinSignal = road.startsWith('stdin-') ? road.slice(6) : undefined
   const preload = join(home, 'input-signal.cjs')
   if (stdinSignal) writeFileSync(preload, `const on = process.stdin.on.bind(process.stdin); let sent = false; process.stdin.on = function(event, listener) { const value = on(event, listener); if (event === 'data' && !sent) { sent = true; setImmediate(() => process.kill(process.pid, ${JSON.stringify(stdinSignal)})); } return value; };`)
-  const args = [...(road === 'startup' ? ['--project-root', join(home, 'absent')] : []), 'run', stdinSignal ? '-' : 'hello', '--format', 'rows', ...(road === 'usage' ? ['--max-turns', '0'] : [])]
+  const args = [...(road === 'startup' ? ['--project', join(home, 'absent')] : []), 'run', stdinSignal ? '-' : 'hello', '--format', 'rows', ...(road === 'usage' ? ['--max-turns', '0'] : [])]
   const child = spawn('node', [...(stdinSignal ? ['--require', preload] : []), dist, ...args], { cwd: home, env: { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key', ANTHROPIC_BASE_URL: api.url }, stdio: [stdinSignal ? 'pipe' : 'ignore', 'pipe', 'pipe'] })
   let out = '', err = '', buffer = '', finalAt = 0
   child.stdout.on('data', data => {

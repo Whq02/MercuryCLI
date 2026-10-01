@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { memoize } from 'lodash-es'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { readSessionOption } from '../cli/sessionArgs.js'
 import { RETIRED_CREWS_DIR_NAME } from '../migrations/retiredCrewSpellings.js'
 
 
@@ -113,7 +114,7 @@ export function isEnvDefinedFalsy(v: string | boolean | undefined): boolean {
 }
 
 export function isBareMode(): boolean {
-  return isEnvTruthy(process.env.MERCURY_BARE) || process.argv.includes('--bare')
+  return isEnvTruthy(process.env.MERCURY_BARE) || readSessionOption(process.argv.slice(2), '--lean').present
 }
 
 export function parseEnvVars(raw: string[] | undefined): Record<string, string> {

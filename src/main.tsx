@@ -140,8 +140,7 @@ import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
-import { inspectRunArgs, isRunArgv } from './cli/runArgs.js'
-import { readRetiredCliFlags } from './migrations/retiredCrewSpellings.js'
+import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
 
 profileCheckpoint('main_tsx_entry')
 startMdmRawRead();
@@ -312,7 +311,7 @@ export async function main(): Promise<void> {
   profileCheckpoint('main_warning_handler_initialized')
 
   const printFlag = isPrintModeArgv()
-  const initOnlyFlag = process.argv.includes('--init-only')
+  const initOnlyFlag = readSessionOption(process.argv.slice(2), '--prepare-only').present
   const stdoutTty = Boolean(process.stdout.isTTY)
   const isNonInteractive = printFlag || initOnlyFlag || !stdoutTty
   if (isNonInteractive) {
@@ -351,16 +350,8 @@ function eagerLoadSettings(): void {
   const argv = process.argv
   const ddIndex = argv.indexOf('--')
   const optionArgv = ddIndex >= 0 ? argv.slice(0, ddIndex) : argv
-  const eagerFlagValue = (name: string): string | undefined => {
-    let value: string | undefined
-    for (let i = 0; i < optionArgv.length; i++) {
-      const token = optionArgv[i]
-      if (token === name) value = optionArgv[i + 1]
-      else if (token !== undefined && token.startsWith(`${name}=`)) value = token.slice(name.length + 1)
-    }
-    return value
-  }
-  const settingsValue = eagerFlagValue('--settings')
+  const eagerFlagValue = (name: string): string | undefined => readSessionOption(optionArgv.slice(2), name).value
+  const settingsValue = eagerFlagValue('--config')
   if (settingsValue !== undefined) {
     const value = settingsValue
     if (value && value.length > 0) {
@@ -370,7 +361,7 @@ function eagerLoadSettings(): void {
         try {
           parsed = JSON.parse(trimmed) as Record<string, unknown>
         } catch {
-          failCli('The JSON supplied to --settings is invalid.')
+          failCli('The JSON supplied to --config is invalid.')
         }
         const serialized = JSON.stringify(parsed).replace(
           /[-]/g,
@@ -400,20 +391,20 @@ function eagerLoadSettings(): void {
         } catch (error) {
           if (error instanceof Error && error.message.startsWith('Settings file not found')) throw error
           logError(error)
-          failCli(`Failed while processing --settings: ${error instanceof Error ? error.message : String(error)}`, 1)
+          failCli(`Failed while processing --config: ${error instanceof Error ? error.message : String(error)}`, 1)
         }
       }
     }
   }
-  const sourcesValue = eagerFlagValue('--setting-sources')
-  if (sourcesValue !== undefined || optionArgv.includes('--setting-sources')) {
+  const sourcesValue = eagerFlagValue('--config-layers')
+  if (sourcesValue !== undefined || readSessionOption(optionArgv.slice(2), '--config-layers').present) {
     try {
       const value = sourcesValue ?? ''
       setAllowedSettingSources(parseSettingSourcesFlag(value))
       resetSettingsCache()
     } catch (error) {
       logError(error)
-      failCli(`Failed to process --setting-sources: ${error instanceof Error ? error.message : String(error)}`, 1)
+      failCli(`Failed to process --config-layers: ${error instanceof Error ? error.message : String(error)}`, 1)
     }
   }
   profileCheckpoint('eagerLoadSettings_end')
@@ -477,53 +468,51 @@ async function run(): Promise<void> {
 
   program
     .argument('[prompt]', 'The prompt to start with')
-    .option('-d, --debug [filter]', 'Enable debug output (with an optional category filter)')
-    .addOption(new Option('--d2e, --debug-to-stderr', 'Mirror debug output to stderr').hideHelp())
-    .option('--debug-file <path>', 'Write debug output to a file')
-    .option(
-      '--bare',
-      `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_BARE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config and --allowed-tools.`,
-    )
-    .addOption(new Option('--init', 'Run initialization only').hideHelp())
-    .addOption(new Option('--init-only', 'Run initialization and exit').hideHelp())
-    .addOption(new Option('--maintenance', 'Run maintenance hooks and exit').hideHelp())
+    .option('-d', 'Enable debug output')
+    .option('--debug [filter]', 'Enable debug output (with an optional category filter)')
+    .addOption(new Option('--log-stderr', 'Mirror debug output to stderr').hideHelp())
+    .option('--log-file <path>', 'Write debug output to a file')
+    .option('--lean', 'Minimal session: skips hooks, LSP, extensions, attribution, auto-memory, background discovery, keychain reads and automatic project instructions. Supply context with --brief, --brief-add, --mcp and --allowed-tools; supply API-key settings with --config.')
+    .addOption(new Option('--prepare', 'Run setup hooks before the session').hideHelp())
+    .addOption(new Option('--prepare-only', 'Run setup hooks and exit').hideHelp())
+    .addOption(new Option('--upkeep', 'Run maintenance hooks').hideHelp())
     .addOption(new Option('--format <format>', 'Answer format for run: text, one JSON result, or JSON-line rows').choices(['text', 'json', 'rows']))
     .addOption(new Option('--input <format>', 'Read JSON-line rows from stdin with run').choices(['rows']))
-    .option('--json-schema <schema>', 'JSON schema for structured output')
+    .option('--schema <schema>', 'JSON schema for structured output')
     .option('--partial', 'Include partial rows while run streams')
     .option('--sovereign', 'Run without permission prompts')
     .option('--allow-sovereign', 'Allow the session to enter sovereign mode')
-    .addOption(new Option('--thinking <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
-    .addOption(new Option('--max-turns <turns>', 'Maximum turns for a print run').argParser((value: string) => {
+    .addOption(new Option('--reasoning-mode <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
+    .addOption(new Option('--max-turns <turns>', 'Maximum turns for a run').argParser((value: string) => {
       const parsed = Number(value)
       if (!Number.isInteger(parsed) || parsed <= 0) {
         failCli(`--max-turns must be a positive integer (got '${value}')`)
       }
       return parsed
     }).hideHelp())
-    .option('--max-budget-usd <amount>', 'Maximum spend for a print run', value => {
+    .option('--budget <amount>', 'Maximum spend for a run', value => {
       const parsed = Number(value)
       if (!Number.isFinite(parsed) || parsed <= 0) {
-        failCli('--max-budget-usd must be a positive number greater than 0')
+        failCli('--budget must be a positive number greater than 0')
       }
       return parsed
     })
     .option('--replay-user-messages', 'Replay user messages on the stream-json output')
     .option('--allowed-tools <tools...>', 'Allowed tool rules')
-    .option('--tools <tools...>', 'Base tool set')
-    .option('--disallowed-tools <tools...>', 'Denied tool rules')
-    .option('--mcp-config <configs...>', 'MCP server configs (JSON or file paths)')
-    .option('--strict-mcp-config', 'Only use MCP servers from --mcp-config')
+    .option('--toolset <tools...>', 'Base tool set')
+    .option('--block-tools <tools...>', 'Denied tool rules')
+    .option('--mcp <configs...>', 'MCP server configs (JSON or file paths)')
+    .option('--only-mcp', 'Only use MCP servers from --mcp')
     .addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool for permission prompts').hideHelp())
     .addOption(
       new Option('--permission-channel <channel>', 'The road a permission ask takes: stdio (the control protocol on stdin) or prompt-tool (the MCP tool named by --permission-prompt-tool)')
         .choices(['stdio', 'prompt-tool'])
         .hideHelp(),
     )
-    .option('--system-prompt <prompt>', 'Replace the system prompt')
-    .addOption(new Option('--system-prompt-file <file>', 'Replace the system prompt from a file').hideHelp())
-    .option('--append-system-prompt <prompt>', 'Append to the system prompt')
-    .addOption(new Option('--append-system-prompt-file <file>', 'Append to the system prompt from a file').hideHelp())
+    .option('--brief <prompt>', 'Set the session system brief')
+    .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
+    .option('--brief-add <prompt>', 'Append to the system prompt')
+    .addOption(new Option('--brief-add-file <file>', 'Append to the system prompt from a file').hideHelp())
     .addOption(
       new Option('--mode <mode>', 'Permission mode')
         .choices(PERMISSION_MODES)
@@ -537,14 +526,14 @@ async function run(): Promise<void> {
     )
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
-    .option('--fork-session', 'Fork to a new session id on resume')
-    .option('--from-pr [value]', 'Resume a session linked to a PR')
-    .addOption(new Option('--prefill <text>', 'Prefill the input buffer').hideHelp())
-    .option('--no-session-persistence', 'Do not persist the session transcript')
-    .addOption(new Option('--resume-session-at <message-id>', 'Truncate the resumed session at a message').hideHelp())
-    .addOption(new Option('--rewind-files <user-message-id>', 'Rewind files to a user message').hideHelp())
+    .option('--fork', 'Fork to a new session id on resume')
+    .option('--pr [value]', 'Resume a session linked to a PR')
+    .addOption(new Option('--draft <text>', 'Prefill the input buffer').hideHelp())
+    .option('--ephemeral', 'Do not persist the session transcript')
+    .addOption(new Option('--replay-to <message-id>', 'Truncate the resumed session at a message').hideHelp())
+    .addOption(new Option('--restore-files <user-message-id>', 'Rewind files to a user message').hideHelp())
     .option('--model <model>', 'The model for the session')
-    .option('--advise', 'Turn the advisor on for this print run at birth — the headless form of /advise on; the settings (/config → Advisor) must be on in the run\'s config home')
+    .option('--advise', 'Turn the advisor on for this run at birth — the headless form of /advise on; the settings (/config → Advisor) must be on in the run\'s config home')
     .option(`--effort <level>`, `Reasoning effort level (${EFFORT_LEVELS.join(', ')})`, value => {
       const { level } = parseCliEffort(value)
       if (level === undefined) {
@@ -555,38 +544,38 @@ async function run(): Promise<void> {
       return level
     })
     .option('--agent <agent>', 'The agent to run as')
-    .option('--betas <betas...>', 'Provider beta headers')
-    .option('--fallback-model <model>', 'Fallback model when the primary is overloaded')
-    .addOption(new Option('--workload <tag>', 'Workload tag').hideHelp())
-    .option('--project-root <directory>', 'Start in this project; place this option before all other arguments', () => {
-      throw new Error('--project-root must appear before all other arguments')
+    .option('--provider-preview <betas...>', 'Provider beta headers')
+    .option('--backup-model <model>', 'Fallback model when the primary is overloaded')
+    .addOption(new Option('--meter-tag <tag>', 'Workload tag').hideHelp())
+    .option('--project <directory>', 'Start in this project; place this option before all other arguments', () => {
+      throw new Error('--project must appear before all other arguments')
     })
-    .option('--settings <file-or-json>', 'Extra settings (path or inline JSON)')
-    .option('--ide', 'Auto-connect to the IDE')
+    .option('--config <file-or-json>', 'Extra settings (path or inline JSON)')
+    .option('--editor-link', 'Auto-connect to the IDE')
     .option('--session-id <uuid>', 'Use a specific session id')
-    .option('-n, --name <name>', 'Session title')
+    .option('--title <name>', 'Session title')
     .option('--chat', 'Boot the plain world: the Boot face and a chat, nothing else on the strip — no concourse in this boot; ↵ New Session on the menu starts the chat (the classic feel; `-chat` is the same switch)')
     .option('--concourse-off', 'Turn the session concourse off for this and every future boot (persisted; the strip is the boot face and the chat alone; the boot face\'s Session Concourse row keeps a plain live view of your sessions; `-concourse-off` is the same switch)')
     .option('--concourse-on', 'Turn the session concourse back on for this and every future boot (persisted; the default is on; `-concourse-on` is the same switch)')
-    .option('--agents <json>', 'Extra agent definitions (JSON)')
-    .option('--setting-sources <sources>', 'Comma-separated allowed setting sources')
+    .option('--agent-defs <json>', 'Extra agent definitions (JSON)')
+    .option('--config-layers <sources>', 'Comma-separated allowed setting sources')
     .option('--extension <path>', 'An extension folder approved for this session only (repeatable)', (value, previous: string[]) => [...previous, value], [] as string[])
-    .option('--disable-slash-commands', 'Disable all slash commands')
+    .option('--no-commands', 'Disable all slash commands')
     .option('-v, --version', 'Print the version')
     .option('-w, --worktree [name]', 'Run inside a managed worktree')
-    .option('--tmux', 'Create a tmux session for the worktree')
+    .option('--multiplex', 'Create a tmux session for the worktree')
 
   for (const [flags, description] of [
-    ['--agent-id <id>', 'Crewmate agent id'],
-    ['--agent-name <name>', 'Crewmate agent name'],
-    ['--crew-name <name>', 'Crewmate crew name'],
-    ['--agent-color <color>', 'Crewmate color'],
-    ['--parent-session-id <id>', 'Parent session id'],
-    ['--agent-type <type>', 'Crewmate agent type'],
+    ['--seat-id <id>', 'Crewmate agent id'],
+    ['--seat <name>', 'Crewmate agent name'],
+    ['--crew <name>', 'Crewmate crew name'],
+    ['--seat-color <color>', 'Crewmate color'],
+    ['--parent <id>', 'Parent session id'],
+    ['--role <type>', 'Crewmate agent type'],
   ] as const) {
     program.addOption(new Option(flags, description).hideHelp())
   }
-  program.addOption(new Option('--strategy-mode-required', 'Crewmate requires strategy mode').hideHelp())
+  program.addOption(new Option('--require-strategy', 'Crewmate requires strategy mode').hideHelp())
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
@@ -598,15 +587,6 @@ async function run(): Promise<void> {
     process.exit(0)
   })
   profileCheckpoint('run_main_options_built')
-
-  if (process.argv[2] === '--rollback' || process.argv[2] === '-rollback') {
-    releaseLauncherAltHoldNow()
-    try {
-      writeSync(2, 'Rollback is an update operation — run `mercury update --rollback`\n')
-    } catch {
-    }
-    process.exit(2)
-  }
 
   program.hook('preAction', async (_thisCommand, actionCommand) => {
     profileCheckpoint('preAction_start')
@@ -665,7 +645,7 @@ async function run(): Promise<void> {
     })
   for (const option of program.options) runCommand.addOption(option)
 
-  const parseProgram = () => program.parseAsync(readRetiredCliFlags(process.argv))
+  const parseProgram = () => program.parseAsync(process.argv)
 
   if (isPrintModeArgv()) {
     profileCheckpoint('run_before_parse')
@@ -759,7 +739,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await mcpGetHandler(name)
     })
   mcp
-    .command('add-json <name> <json>')
+    .command('import <name> <json>')
     .description('Add an MCP server from a JSON definition')
     .option('-s, --scope <scope>', 'Configuration scope', 'local')
     .option('--client-secret', 'Prompt for a client secret')
@@ -768,7 +748,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       await mcpAddJsonHandler(name, json, options)
     })
   mcp
-    .command('reset-project-choices')
+    .command('trust-reset')
     .description('Reset project MCP server approval choices')
     .action(async () => {
       const { mcpResetChoicesHandler } = await import('./cli/handlers/mcp.js')
@@ -777,7 +757,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   const auth = program.command('auth').description('Manage authentication')
   auth
-    .command('token')
+    .command('mint')
     .description('Create a long-lived authentication token')
     .action(async () => {
       const { setupTokenHandler } = await import('./cli/handlers/util.js')
@@ -846,7 +826,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await removeVerb(label, options)).exit
     })
   extensions
-    .command('check [label]')
+    .command('refresh [label]')
     .description('Refresh one or every source; prints the updates found (installs nothing)')
     .option('--json', 'JSON output')
     .action(async (label, options) => {
@@ -863,7 +843,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await installVerb(name, options)).exit
     })
   extensions
-    .command('approve <id>')
+    .command('trust <id>')
     .description('The approval card for an installed-off or found extension')
     .option('--yes', 'Approve without asking')
     .option('--project', 'Switch on for this project only')
@@ -907,21 +887,21 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await uninstallVerb(id, options)).exit
     })
   extensions
-    .command('block <entry>')
+    .command('fence <entry>')
     .description('Block an extension id, a source label, a URL or a host')
     .action(async entry => {
       const { blockVerb } = await import('./extensions/cli.js')
       process.exitCode = (await blockVerb(entry)).exit
     })
   extensions
-    .command('unblock <entry>')
+    .command('unfence <entry>')
     .description('Remove an entry from the blocklist')
     .action(async entry => {
       const { unblockVerb } = await import('./extensions/cli.js')
       process.exitCode = (await unblockVerb(entry)).exit
     })
   extensions
-    .command('validate <path>')
+    .command('inspect <path>')
     .description("The maker's linter: a manifest or a catalogue, its contributions, the ignored side files")
     .option('--json', 'JSON output')
     .action(async (path, options) => {
@@ -929,7 +909,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exitCode = (await validateVerb(path, options)).exit
     })
   extensions
-    .command('init <name>')
+    .command('scaffold <name>')
     .description('Scaffold an extension folder (or, with --source, a source root) that validates clean')
     .option('--source', 'Scaffold a source root with a catalogue and the README template')
     .option('--dir <dir>', 'Where to create it (default: the current directory)')
@@ -939,9 +919,9 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   program
-    .command('agents')
+    .command('roster')
     .description('Print the agent inventory')
-    .option('--setting-sources <sources>', 'Comma-separated allowed setting sources')
+    .option('--config-layers <sources>', 'Comma-separated allowed setting sources')
     .action(async () => {
       const { agentsHandler } = await import('./cli/handlers/agents.js')
       await agentsHandler()
@@ -987,7 +967,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   for (const [name, usage] of [
-    ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
+    ['steward [subcommand]', `Usage: ${cliName} steward <run|status|stop>`],
     ['acp', `Usage: ${cliName} acp [--stdio]`],
   ] as const) {
     program
@@ -1001,7 +981,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
   }
 
   program
-    .command('show <image>')
+    .command('image <image>')
     .description('Render an image to the terminal')
     .option('--protocol <p>', 'Force a display protocol')
     .option('--cols <n>', 'Cells-tier column budget', Number)
@@ -1010,7 +990,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   program
-    .command('editor <action>')
+    .command('bridge <action>')
     .description('IDE bridge editor actions')
     .action(async (action: string) => {
       const { editorBridgeMain } = await import('./cli/editorBridge.js')
@@ -1174,9 +1154,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const printMode = Boolean(opts.print)
 
   const worktreeOpt = opts.worktree as string | boolean | undefined
-  const tmuxEnabled = Boolean(opts.tmux)
-  if (tmuxEnabled && !worktreeOpt) failCli('--tmux requires --worktree')
-  if (tmuxEnabled && process.platform === 'win32') failCli('--tmux is not supported on Windows')
+  const tmuxEnabled = Boolean(opts.multiplex)
+  if (tmuxEnabled && !worktreeOpt) failCli('--multiplex requires --worktree')
+  if (tmuxEnabled && process.platform === 'win32') failCli('--multiplex is not supported on Windows')
   if (tmuxEnabled) {
     const { isTmuxAvailable, getTmuxInstallInstructions } = await import('./utils/worktree.js')
     if (!(await isTmuxAvailable())) {
@@ -1184,34 +1164,34 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const agentId = typedString(opts.agentId)
-  const agentName = typedString(opts.agentName)
-  const crewName = typedString(opts.crewName)
-  const agentColor = typedString(opts.agentColor)
-  const planModeRequired = typedBoolean(opts.strategyModeRequired)
-  const parentSessionId = typedString(opts.parentSessionId)
-  const agentTypeOpt = typedString(opts.agentType)
+  const agentId = typedString(opts.seatId)
+  const agentName = typedString(opts.seat)
+  const crewName = typedString(opts.crew)
+  const agentColor = typedString(opts.seatColor)
+  const planModeRequired = typedBoolean(opts.requireStrategy)
+  const parentSessionId = typedString(opts.parent)
+  const agentTypeOpt = typedString(opts.role)
   const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
   if (isAgentSwarmsEnabled()) {
     const identityCount = [agentId, agentName, crewName].filter(Boolean).length
     if (identityCount > 0 && identityCount < 3) {
-      failCli('--agent-id, --agent-name and --crew-name must be provided together')
+      failCli('--seat-id, --seat and --crew must be provided together')
     }
   }
 
   if (opts.continue && opts.resume) {
     failCli('--continue and --resume name two different sessions — give exactly one')
   }
-  if (opts.forkSession && !printMode) {
-    failCli('--fork-session is a print-mode option: a managed resume continues the session as itself')
+  if (opts.fork && !printMode) {
+    failCli('--fork requires mercury run: a managed resume continues the session as itself')
   }
   if (opts.advise === true && !printMode) {
-    failCli('--advise is a print-mode option: in a chat, /advise on turns the advisor on for that chat')
+    failCli('--advise requires mercury run: in a chat, /advise on turns the advisor on for that chat')
   }
   const sessionIdOpt = typedString(opts.sessionId)
   if (sessionIdOpt) {
-    if ((opts.continue || opts.resume) && !opts.forkSession) {
-      failCli('--session-id cannot be combined with --continue/--resume unless --fork-session is given')
+    if ((opts.continue || opts.resume) && !opts.fork) {
+      failCli('--session-id cannot be combined with --continue/--resume unless --fork is given')
     }
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
@@ -1219,18 +1199,18 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (printMode && opts.mode === 'apollo' && permissionChannelOf(opts) === undefined) {
     failCli('mercury run: apollo needs a permission channel')
   }
-  if (opts.fallbackModel && opts.fallbackModel === opts.model) {
-    failCli('--fallback-model cannot equal --model')
+  if (opts.backupModel && opts.backupModel === opts.model) {
+    failCli('--backup-model cannot equal --model')
   }
-  if (opts.systemPrompt && opts.systemPromptFile) failCli('Use either --system-prompt or --system-prompt-file, not both')
-  if (opts.appendSystemPrompt && opts.appendSystemPromptFile) {
-    failCli('Use either --append-system-prompt or --append-system-prompt-file, not both')
+  if (opts.brief && opts.briefFile) failCli('Use either --brief or --brief-file, not both')
+  if (opts.briefAdd && opts.briefAddFile) {
+    failCli('Use either --brief-add or --brief-add-file, not both')
   }
-  let customSystemPrompt = typedString(opts.systemPrompt)
-  let appendSystemPrompt = typedString(opts.appendSystemPrompt)
+  let customSystemPrompt = typedString(opts.brief)
+  let appendSystemPrompt = typedString(opts.briefAdd)
   for (const [fileOpt, assign] of [
-    [typedString(opts.systemPromptFile), (text: string) => (customSystemPrompt = text)],
-    [typedString(opts.appendSystemPromptFile), (text: string) => (appendSystemPrompt = text)],
+    [typedString(opts.briefFile), (text: string) => (customSystemPrompt = text)],
+    [typedString(opts.briefAddFile), (text: string) => (appendSystemPrompt = text)],
   ] as const) {
     if (fileOpt) {
       const { resolve } = await import('node:path')
@@ -1264,17 +1244,17 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (opts.partial && (!printMode || outputFormat !== 'stream-json')) {
     failCli('--partial requires run --format rows')
   }
-  if (opts.sessionPersistence === false && !printMode) {
-    failCli('--no-session-persistence is a print-mode option: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
+  if (opts.ephemeral === true && !printMode) {
+    failCli('--ephemeral requires mercury run: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
   }
 
-  if (opts.bare) {
+  if (opts.lean) {
     setFlagEnv('MERCURY_BARE', '1')
   }
   let inputPrompt = printMode && inputPromptArg === '-' ? undefined : inputPromptArg
-  if (typedString(opts.prefill)) {
+  if (typedString(opts.draft)) {
     startCapturingEarlyInput()
-    process.stdin.unshift?.(Buffer.from(String(opts.prefill)))
+    process.stdin.unshift?.(Buffer.from(String(opts.draft)))
   }
 
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isPrintModeArgv()
@@ -1299,8 +1279,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   const permissionInit = await initializeToolPermissionContext({
     allowedToolsCli: (opts.allowedTools as string[] | undefined) ?? [],
-    disallowedToolsCli: (opts.disallowedTools as string[] | undefined) ?? [],
-    baseToolsCli: opts.tools as string[] | undefined,
+    disallowedToolsCli: (opts.blockTools as string[] | undefined) ?? [],
+    baseToolsCli: opts.toolset as string[] | undefined,
     permissionMode,
     allowDangerouslySkipPermissions: allowDangerousSkip,
   })
@@ -1325,7 +1305,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const { isWorktreeModeEnabled } = await import('./utils/worktreeModeEnabled.js')
   const worktreeEnabled = Boolean(worktreeOpt) && isWorktreeModeEnabled()
 
-  const thinkingOpt = typedString(opts.thinking)
+  const thinkingOpt = typedString(opts.reasoningMode)
   const { noteSessionThinkingConfig, shouldEnableThinkingByDefault } = await import('./utils/thinking.js')
   let thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   if (thinkingOpt === 'enabled' || thinkingOpt === 'adaptive') thinkingConfig = { type: 'adaptive' }
@@ -1346,9 +1326,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentInfo = await getAgentDefinitionsWithOverrides()
   let activeAgents = agentInfo.activeAgents
   let allAgents = agentInfo.allAgents
-  if (typedString(opts.agents)) {
+  if (typedString(opts.agentDefs)) {
     try {
-      const cliAgents = parseAgentsFromJson(JSON.parse(typedString(opts.agents)!) as unknown)
+      const cliAgents = parseAgentsFromJson(JSON.parse(typedString(opts.agentDefs)!) as unknown)
       allAgents = [...allAgents, ...cliAgents]
       activeAgents = computeActiveAgents(allAgents)
     } catch (error) {
@@ -1377,7 +1357,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   let userSpecifiedModel = typedString(opts.model)
   if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultMainLoopModelSetting() ?? undefined
-  let fallbackModel = typedString(opts.fallbackModel)
+  let fallbackModel = typedString(opts.backupModel)
   if (fallbackModel === 'default') fallbackModel = getDefaultMainLoopModelSetting() ?? undefined
   if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
     userSpecifiedModel = mainThreadAgentDefinition.model
@@ -1407,7 +1387,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const sessionTitle = typedString(opts.name)?.trim() || undefined
+  const sessionTitle = typedString(opts.title)?.trim() || undefined
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
   let syntaxInput: string | undefined
@@ -1437,16 +1417,16 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     prompt === undefined &&
     !opts.resume &&
     !opts.continue &&
-    !opts.fromPr &&
+    !opts.pr &&
     inputFormat !== 'stream-json' &&
     mainThreadAgentDefinition?.initialPrompt == null
   ) {
     const variadicCandidates: Array<[string, unknown]> = [
       ['--allowed-tools', opts.allowedTools],
-      ['--disallowed-tools', opts.disallowedTools],
-      ['--tools', opts.tools],
-      ['--mcp-config', opts.mcpConfig],
-      ['--betas', opts.betas],
+      ['--block-tools', opts.blockTools],
+      ['--toolset', opts.toolset],
+      ['--mcp', opts.mcp],
+      ['--provider-preview', opts.providerPreview],
     ]
     const multi = variadicCandidates.filter(
       (pair): pair is [string, string[]] => Array.isArray(pair[1]) && pair[1].length >= 2,
@@ -1477,7 +1457,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  if (printMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.fromPr) {
+  if (printMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.pr) {
     const usage = 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
     if (process.stdin.isTTY) {
       writeSync(2, `${usage}\n`)
@@ -1487,7 +1467,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   consumeSessionKitPin()
-  const dynamicConfigResult = parseDynamicMcpConfigs((opts.mcpConfig as string[] | undefined) ?? [])
+  const dynamicConfigResult = parseDynamicMcpConfigs((opts.mcp as string[] | undefined) ?? [])
   if (dynamicConfigResult.errors.length > 0) {
     logForDebugging(
       `${dynamicConfigResult.errors.length} MCP config error(s): ${dynamicConfigResult.errors.join('; ')}`,
@@ -1520,7 +1500,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   dynamicMcpConfig = policyFiltered.allowed as typeof dynamicMcpConfig
 
   if (doesEnterpriseMcpConfigExist()) {
-    if (opts.strictMcpConfig) failCli('--strict-mcp-config is not available when an enterprise MCP configuration exists', 1)
+    if (opts.onlyMcp) failCli('--only-mcp is not available when an enterprise MCP configuration exists', 1)
     const allowedCheck = areMcpConfigsAllowedWithEnterpriseMcpConfig(dynamicMcpConfig)
     if (allowedCheck !== true) {
       failCli('Dynamic MCP servers are not allowed when an enterprise MCP configuration exists', 1)
@@ -1543,7 +1523,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const strictOrBare = Boolean(opts.strictMcpConfig) || isBareMode()
+  const strictOrBare = Boolean(opts.onlyMcp) || isBareMode()
   const mcpResolutionStartedAt = Date.now()
   const discoveredMcpPromise: Promise<Record<string, ScopedMcpServerConfig>> = strictOrBare
     ? Promise.resolve({})
@@ -1613,7 +1593,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   })
 
   const setupTrigger: 'init' | 'maintenance' | undefined =
-    opts.initOnly || opts.init ? 'init' : opts.maintenance ? 'maintenance' : undefined
+    opts.prepareOnly || opts.prepare ? 'init' : opts.upkeep ? 'maintenance' : undefined
 
   if (opts.concourseOff === true || opts.concourseOn === true) {
     const { setConcourseEnabled } = await import('./services/concourse/concourseEnabled.js')
@@ -1749,7 +1729,7 @@ async function interactiveLaunch(args: {
   const { opts, commands } = args
   let inputPrompt = args.prompt
 
-  if (opts.initOnly) {
+  if (opts.prepareOnly) {
     applyMergedConfigEnv()
     await processSetupHooks('init', { forceSyncExecution: true })
     await processSessionStartHooks('startup', { forceSyncExecution: true })
@@ -1937,7 +1917,7 @@ async function interactiveLaunch(args: {
     const { armQuitParksAll } = await import('./services/switchboard/quitParksAll.js')
     armQuitParksAll()
   }
-  if (opts.continue || opts.resume || opts.fromPr || inputPrompt) {
+  if (opts.continue || opts.resume || opts.pr || inputPrompt) {
     markExplicitBootJourney()
   }
   if (opts.chat === true) {
@@ -1953,8 +1933,8 @@ async function interactiveLaunch(args: {
   const replProps: REPLProps = {
     commands,
     initialTools: [...getTools(effectiveContext)],
-    debug: Boolean(opts.debug),
-    disableSlashCommands: Boolean(opts.disableSlashCommands),
+    debug: Boolean(opts.debug || opts.d),
+    disableSlashCommands: opts.commands === false,
   }
 
   if (!getIsInteractive()) return
@@ -1994,9 +1974,9 @@ async function interactiveLaunch(args: {
         return
       }
       if (!(await resumeAtBoot(String(sessionId), lastLog as ResumeLog))) return
-    } else if (opts.resume || opts.fromPr) {
+    } else if (opts.resume || opts.pr) {
       const resumeValue = opts.resume
-      const fromPr = opts.fromPr
+      const fromPr = opts.pr
       let searchTerm: string | undefined
       let resumeLog: ResumeLog | null = null
       let resumeSessionId: string | undefined
@@ -2025,7 +2005,7 @@ async function interactiveLaunch(args: {
         await launchResumeChooser(root, appProps, worktreePathsPromise, {
           ...replProps,
           initialSearchQuery: searchTerm,
-          forkSession: Boolean(opts.forkSession),
+          forkSession: Boolean(opts.fork),
           filterByPr: fromPr === true ? true : typeof fromPr === 'string' ? fromPr : undefined,
         })
         return
@@ -2048,8 +2028,8 @@ async function interactiveLaunch(args: {
 
     await launchRepl(root, appProps, replProps, renderAndRun, {
       dynamicMcpConfig: args.dynamicMcpConfig,
-      isStrictMcpConfig: Boolean(args.opts.strictMcpConfig),
-      ...(args.opts.ide !== undefined ? { ideAutoConnect: Boolean(args.opts.ide) } : {}),
+      isStrictMcpConfig: Boolean(args.opts.onlyMcp),
+      ...(args.opts.editorLink !== undefined ? { ideAutoConnect: Boolean(args.opts.editorLink) } : {}),
     })
   } catch (error) {
     logError(error)
@@ -2166,7 +2146,7 @@ async function printLaunch(args: {
   }
 
   let tools = [...getTools(args.toolPermissionContext)]
-  const jsonSchemaOpt = typedString(opts.jsonSchema)
+  const jsonSchemaOpt = typedString(opts.schema)
   let parsedJsonSchema: Record<string, unknown> | undefined
   if (jsonSchemaOpt) {
     const { isSyntheticOutputToolEnabled, createSyntheticOutputTool } = await import(
@@ -2204,7 +2184,7 @@ async function printLaunch(args: {
   }
 
   const sessionRunner = flagEnv('MERCURY_CONCOURSE_WORKER') === '1'
-  const headlessCommands = opts.disableSlashCommands
+  const headlessCommands = opts.commands === false
     ? []
     : sessionRunner
       ? sessionSeatCommandTable(args.commands)
@@ -2245,14 +2225,14 @@ async function printLaunch(args: {
       .catch(() => {})
   }
 
-  if (opts.sessionPersistence === false) {
+  if (opts.ephemeral === true) {
     setSessionPersistenceDisabled(true)
   }
 
-  if (Array.isArray(opts.betas) && opts.betas.length > 0) {
+  if (Array.isArray(opts.providerPreview) && opts.providerPreview.length > 0) {
     const { filterAllowedSdkBetas } = await import('./utils/model/capabilities.js')
     const { setSdkBetas } = await import('./bootstrap/state.js')
-    setSdkBetas(filterAllowedSdkBetas(opts.betas.filter((beta): beta is string => typeof beta === 'string')))
+    setSdkBetas(filterAllowedSdkBetas(opts.providerPreview.filter((beta): beta is string => typeof beta === 'string')))
   }
 
   profileCheckpoint('action_before_mcp_configs_await')
@@ -2310,18 +2290,18 @@ async function printLaunch(args: {
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,
-        maxBudgetUsd: opts.maxBudgetUsd as number | undefined,
+        maxBudgetUsd: opts.budget as number | undefined,
         systemPrompt: args.customSystemPrompt,
         appendSystemPrompt: args.appendSystemPrompt,
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,
         fallbackModel: args.fallbackModel,
         replayUserMessages: Boolean(opts.replayUserMessages),
         includePartialMessages: args.includePartialMessages,
-        forkSession: Boolean(opts.forkSession),
-        resumeSessionAt: typedString(opts.resumeSessionAt),
-        rewindFiles: typedString(opts.rewindFiles),
+        forkSession: Boolean(opts.fork),
+        resumeSessionAt: typedString(opts.replayTo),
+        rewindFiles: typedString(opts.restoreFiles),
         agent: typedString(opts.agent),
-        workload: typedString(opts.workload),
+        workload: typedString(opts.meterTag),
         advise: opts.advise === true,
         setupTrigger: args.setupTrigger,
         bootSessionIdPinned: Boolean(typedString(opts.sessionId)),

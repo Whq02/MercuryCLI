@@ -332,7 +332,7 @@ export async function installVerb(target: string, options: { yes?: boolean; proj
   }
   const ok = await consent(io, card, options.yes)
   if (!ok) {
-    io.out(`${installed.id} ${installed.record.version} installed, off — mercury extensions approve ${installed.id} --yes approves`)
+    io.out(`${installed.id} ${installed.record.version} installed, off — mercury extensions trust ${installed.id} --yes approves`)
     return { exit: options.yes ? 0 : 1 }
   }
   const approved = approve(installed.id, { scope: options.project ? 'project' : 'everywhere' })
@@ -470,7 +470,7 @@ export async function updateVerb(target: string | undefined, options: { all?: bo
       optionSet: key => isOptionSet(id, outcome.newManifest.needs?.options, key),
     })
     if (options.all && !options.yes && !io.interactive) {
-      io.out(`${id}: ${outcome.from} → ${outcome.to} needs approval — mercury extensions approve ${id} --yes`)
+      io.out(`${id}: ${outcome.from} → ${outcome.to} needs approval — mercury extensions trust ${id} --yes`)
       continue
     }
     const ok = await consent(io, card, options.yes)
@@ -592,7 +592,7 @@ export async function initVerb(name: string, options: { source?: boolean; dir?: 
     writeExtensionScaffold(root, name, `${name} — say what it adds in one line`)
     io.out(`extension scaffolded at ${root}: ${MANIFEST_FILE}, README.md, skills/`)
   }
-  io.out(`validate it: mercury extensions validate ${root}`)
+  io.out(`validate it: mercury extensions inspect ${root}`)
   return { exit: 0 }
 }
 

@@ -908,7 +908,7 @@ async function sendBroadcast(
   if (!crewName) {
     throw new Error(
       `Cannot broadcast: this session is not in a crew. Create one with the crew-spawn tool, or launch with ` +
-        `the --crew-name identity arguments.`,
+        `the --crew identity arguments.`,
     )
   }
   const roster = await readRoster(crewName)
@@ -917,7 +917,7 @@ async function sendBroadcast(
   }
   const from = senderName()
   if (!from) {
-    throw new Error('Cannot broadcast: no sender name. Launch with the --agent-name identity argument.')
+    throw new Error('Cannot broadcast: no sender name. Launch with the --seat identity argument.')
   }
 
   const leadDenial = checkBroadcastAllowed(roster as CrewFileWithGovernance, isCrewLead(crewContext))
