@@ -10,6 +10,7 @@ import {
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -72,6 +73,7 @@ function drive(
   probes: [string, string][] = [],
 ): { paths: string[]; probes: boolean[]; warnings: Array<{ path: string; message: string }> } {
   const home = mkdtempSync(join(tmpdir(), 'excl-prove-home-'))
+  seedFirstRun(home, [proj])
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   const env: Record<string, string | undefined> = {}
   for (const [k, v] of Object.entries(process.env)) {

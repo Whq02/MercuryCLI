@@ -12,6 +12,7 @@ function check(label: string, ok: boolean): void {
 const bearer = 'fixtureBearer0123456789'
 const key = 'sk-fixture0123456789012345'
 const stored = 'opaqueStoredFixtureValue'
+const pemLine = (word: string, kind = ''): string => ['-----', word, ' ', kind, 'PRIVATE KEY', '-----'].join('')
 const samples = [
   ['bearer', bearer, `Bearer ${bearer}`],
   ['authorization', 'BasicFixturePrivateValue', 'Authorization: Basic BasicFixturePrivateValue'],
@@ -31,7 +32,7 @@ const samples = [
   ['token-env', 'fixtureTokenValue', 'SERVICE_TOKEN=fixtureTokenValue'],
   ['password-env', 'fixturePasswordValue', 'password="fixturePasswordValue"'],
   ['secret-env', 'fixtureSecretValue', "secret='fixtureSecretValue'"],
-  ['pem', 'privateKeyFixtureBody', '-----BEGIN PRIVATE KEY-----\nprivateKeyFixtureBody\n-----END PRIVATE KEY-----'],
+  ['pem', 'privateKeyFixtureBody', `${pemLine('BEGIN')}\nprivateKeyFixtureBody\n${pemLine('END')}`],
   ['stored', stored, stored],
 ]
 const fixture = await exportFixture(samples.map(([, , text]) => text).join('\n'))
@@ -89,7 +90,7 @@ try {
     check('a key ending in hyphens leaves no credential suffix', redact('"sk-' + 'a'.repeat(24) + '--"') === '"[redacted]"' && redact('AIza' + 'a'.repeat(34) + '-') === '[redacted]')
     check('redaction is idempotent', redact(redact(samples.map(([, , text]) => text).join('\n'))) === redact(samples.map(([, , text]) => text).join('\n')))
     check('an existing unrelated uppercase marker stays unchanged', redact('A literal [REDACTED] is unchanged.') === 'A literal [REDACTED] is unchanged.')
-    check('a partial PEM block still masks its body', redact('before\n-----BEGIN RSA PRIVATE KEY-----\npartial-body') === 'before\n[redacted]')
+    check('a partial PEM block still masks its body', redact(`before\n${pemLine('BEGIN', 'RSA ')}\npartial-body`) === 'before\n[redacted]')
     check('nested secret arrays retain shape and ordinary values', JSON.stringify(redactSecretValues({ password: ['short', 'two words'], ok: 3 }, redact)) === '{"password":["[redacted]","[redacted]"],"ok":3}')
     check('known credentials are masked in raw and JSON-escaped forms', !redact('opaque\\"Credential\\\\Value').includes('opaque') && !redact(JSON.stringify('opaque\\"Credential\\\\Value')).includes('opaque'))
     const resultRow = fixture.messages[2] as any

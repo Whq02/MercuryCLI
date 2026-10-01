@@ -2,6 +2,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'nested-ext-home-'))
 delete process.env.MERCURY_HOME
@@ -24,6 +25,7 @@ writeFileSync(guide, '# Crew guide\n\nOUTSIDE-GUIDE-MARKER: land every change be
 const nested = join(project, 'packages', 'core')
 mkdirSync(nested, { recursive: true })
 writeFileSync(join(nested, 'MERCURY.md'), `# Core package rules\n\nNESTED-MARKER: this package has its own rules.\n\n@${guide}\n`)
+seedFirstRun(process.env.MERCURY_CONFIG_DIR, [project])
 process.chdir(project)
 
 const globalConfig = await import('../../src/utils/config/globalConfig.js')
