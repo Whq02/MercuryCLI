@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
-writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ instructionExcludes: ['**/MERCURY.md'] }))
+writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 process.chdir(PROJ)
 
 const adapter = await import('../../src/services/instructions/adapters/mercuryNative.ts')
@@ -36,7 +36,7 @@ check(
   convention.isExcluded(projectFile, 'Project' as never) === true,
 )
 
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ instructionExcludes: ['**/MERCURY.md'] }))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ briefs: { exclude: ['**/MERCURY.md'] } }))
 resetSettingsCache()
 check(
   "the operator's USER-scope exclude still governs the user file",

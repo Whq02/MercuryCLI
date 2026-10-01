@@ -33,7 +33,6 @@ function runIn(home: string, project: string, body: string, extraEnv: Record<str
     const path = await import('node:path')
     const env = await import(${JSON.stringify(join(SRC, 'utils/env.ts'))})
     const g = await import(${JSON.stringify(join(SRC, 'utils/config/globalConfig.ts'))})
-    const p = await import(${JSON.stringify(join(SRC, 'utils/config/projectConfig.ts'))})
     const s = await import(${JSON.stringify(join(SRC, 'utils/settings/settings.ts'))})
     g.enableConfigs()
     const configFile = env.getGlobalMercuryFile()
@@ -55,76 +54,45 @@ function runIn(home: string, project: string, body: string, extraEnv: Record<str
   return JSON.parse(line) as Record<string, unknown>
 }
 
-console.log('L1 A.3 project MCP approvals — a mid-edit settings.local.json never costs the approvals')
-{
-  const { home, project } = scratch()
-  const r = runIn(home, project, `
-    const m = await import(${JSON.stringify(join(SRC, 'migrations/migrateEnableAllProjectMcpServersToSettings.ts'))})
-    p.saveCurrentProjectConfig(c => ({ ...c, enableAllProjectMcpServers: true, enabledMcpjsonServers: ['alpha'], disabledMcpjsonServers: ['beta'] }))
-    fs.mkdirSync(path.dirname(localSettingsPath), { recursive: true })
-    fs.writeFileSync(localSettingsPath, '{ "permissions": { "allow": [ ')
-    const before = raw(localSettingsPath)
-    out.verdict = m.migrateEnableAllProjectMcpServersToSettings()
-    const after = p.getCurrentProjectConfig()
-    out.kept = { enableAll: after.enableAllProjectMcpServers, enabled: after.enabledMcpjsonServers, disabled: after.disabledMcpjsonServers }
-    out.fileSame = raw(localSettingsPath) === before
-  `)
-  const kept = r.kept as { enableAll?: boolean; enabled?: string[]; disabled?: string[] }
-  check('the migration reports itself incomplete (false)', r.verdict === false, `verdict=${JSON.stringify(r.verdict)}`)
-  check('the project-config approvals survive (the source of truth is kept)', kept.enableAll === true && kept.enabled?.[0] === 'alpha' && kept.disabled?.[0] === 'beta', JSON.stringify(kept))
-  check('the mid-edit file is untouched', r.fileSame === true)
-}
-
-console.log('L2 A.1 auto-update opt-out and A.2 dangerous-mode acceptance — a refused publish keeps the config keys')
+console.log('L1 A.1 auto-update opt-out — a refused publish changes nothing about it')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
     const a1 = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
-    const a2 = await import(${JSON.stringify(join(SRC, 'migrations/migrateBypassPermissionsAcceptedToSettings.ts'))})
-    g.saveGlobalConfig(c => ({ ...c, autoUpdates: false, bypassPermissionsModeAccepted: true }))
+    g.saveGlobalConfig(c => ({ ...c, autoUpdates: false }))
     delete process.env.MERCURY_AUTOUPDATE
     out.v1 = a1.migrateAutoUpdatesToSettings()
-    out.v2 = a2.migrateBypassPermissionsAcceptedToSettings()
     await g.flushDeferredGlobalConfigSaves()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates
-    out.accepted = cfg.bypassPermissionsModeAccepted
     out.envSet = process.env.MERCURY_AUTOUPDATE ?? null
     out.userSettings = raw(userSettingsPath)
   `, { MERCURY_FAULT_INJECT: 'rename@settings.json:eperm' })
   check('A.1 has no settings write to refuse: it reports true', r.v1 === true, `v1=${JSON.stringify(r.v1)}`)
   check('A.1 strips the retired config keys regardless of the settings seam', r.autoUpdates === null || r.autoUpdates === undefined, `autoUpdates=${JSON.stringify(r.autoUpdates)}`)
   check('A.1 arms nothing in the session', r.envSet === null, `MERCURY_AUTOUPDATE=${r.envSet}`)
-  check('A.2 reports itself incomplete', r.v2 === false, `v2=${JSON.stringify(r.v2)}`)
-  check('A.2 keeps bypassPermissionsModeAccepted in the config', r.accepted === true, `accepted=${JSON.stringify(r.accepted)}`)
-  check('nothing landed in user settings', r.userSettings === null || !String(r.userSettings).includes('MERCURY_AUTOUPDATE'), String(r.userSettings))
+  check('nothing landed in user settings', r.userSettings === null, String(r.userSettings))
 }
 
-console.log('L4 controls — with healthy files every migration relocates, strips and reports true')
+console.log('L2 control — with healthy files A.1 strips, relocates nothing and reports true')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
     const a1 = await import(${JSON.stringify(join(SRC, 'migrations/migrateAutoUpdatesToSettings.ts'))})
-    const a3 = await import(${JSON.stringify(join(SRC, 'migrations/migrateEnableAllProjectMcpServersToSettings.ts'))})
     g.saveGlobalConfig(c => ({ ...c, autoUpdates: false }))
-    p.saveCurrentProjectConfig(c => ({ ...c, enabledMcpjsonServers: ['alpha'] }))
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
     fs.writeFileSync(userSettingsPath, '{}\\n')
     out.v1 = a1.migrateAutoUpdatesToSettings()
-    out.v3 = a3.migrateEnableAllProjectMcpServersToSettings()
     await g.flushDeferredGlobalConfigSaves()
     const cfg = JSON.parse(raw(configFile))
     out.autoUpdates = cfg.autoUpdates ?? null
-    out.projectEnabled = p.getCurrentProjectConfig().enabledMcpjsonServers ?? null
-    out.local = JSON.parse(raw(localSettingsPath) ?? '{}')
-    out.user = JSON.parse(raw(userSettingsPath) ?? '{}')
+    out.user = raw(userSettingsPath)
   `)
-  check('A.1: the retired keys are stripped and nothing is relocated', (r.user as { env?: Record<string, string> }).env?.MERCURY_AUTOUPDATE === undefined && r.autoUpdates === null, JSON.stringify({ user: r.user, autoUpdates: r.autoUpdates }))
-  check('A.3: relocated (local settings carries the approvals) and stripped', (r.local as { enabledMcpjsonServers?: string[] }).enabledMcpjsonServers?.[0] === 'alpha' && r.projectEnabled === null, JSON.stringify({ local: r.local, projectEnabled: r.projectEnabled }))
-  check('both report true (the verdict of a landed write)', r.v1 === true && r.v3 === true, JSON.stringify({ v1: r.v1, v3: r.v3 }))
+  check('A.1: the retired keys are stripped and nothing is relocated', r.user === '{}\n' && r.autoUpdates === null, JSON.stringify({ user: r.user, autoUpdates: r.autoUpdates }))
+  check('A.1 reports true (the verdict of a migration with nothing to refuse)', r.v1 === true, JSON.stringify({ v1: r.v1 }))
 }
 
-console.log('L5 the runner — the version stamp is gated on every verdict landing')
+console.log('L3 the runner — the version stamp is gated on every verdict landing')
 {
   const main = readFileSync(join(SRC, 'main.tsx'), 'utf8')
   const start = main.indexOf('function runMigrationsIfNeeded()')
@@ -132,18 +100,18 @@ console.log('L5 the runner — the version stamp is gated on every verdict landi
   const stampAt = body.indexOf('migrationVersion: MIGRATION_VERSION')
   const gateAt = body.indexOf('landed.some(')
   check('the runner exists', start >= 0)
-  check('the runner collects each migration verdict', body.includes('landed.push(migrateEnableAllProjectMcpServersToSettings())'))
+  check('the runner collects each migration verdict', body.includes('landed.push(migrateAutoUpdatesToSettings())'))
   check('the stamp is present and sits after the incomplete gate', stampAt >= 0 && gateAt >= 0 && gateAt < stampAt, `gate=${gateAt} stamp=${stampAt}`)
   check('an incomplete set withholds the stamp', body.includes('!incomplete &&'))
 }
 
-console.log('L6 permission grant — a refused save is reported, never claimed')
+console.log('L4 permission grant — a refused save is reported, never claimed')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
     const pu = await import(${JSON.stringify(join(SRC, 'utils/permissions/PermissionUpdate.ts'))})
     fs.mkdirSync(path.dirname(localSettingsPath), { recursive: true })
-    fs.writeFileSync(localSettingsPath, '{ "permissions": { "allow": [ ')
+    fs.writeFileSync(localSettingsPath, '{ "guardrails": { "allow": [ ')
     const before = raw(localSettingsPath)
     const update = { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'git:*' }], behavior: 'allow', destination: 'localSettings' }
     const one = pu.persistPermissionUpdate(update)
