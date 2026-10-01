@@ -16,8 +16,17 @@ const WORDS: Array<[string, RegExp]> = [
     'i',
   )],
   ['it comes from a source', new RegExp(J('market', 'place'), 'i')],
+  ['run-short', /(?<![\w-])-p(?![\w-])/],
+  ['run-print', /--print(?![\w-])/],
+  ['run-format', /--output-format(?![\w-])/],
+  ['run-input', /--input-format(?![\w-])/],
+  ['run-partial', /--include-partial-messages(?![\w-])/],
+  ['run-sovereign', /--dangerously-bypass-permissions(?![\w-])/],
+  ['run-allow-sovereign', /--allow-dangerously-bypass-permissions(?![\w-])/],
+  ['run-mode', /--permission-mode(?![\w-])/],
 ]
 
+const RUN_SCOPE = /^(?:src\/|docs\/|README\.md$|bench\/|\.github\/)/
 const CONCOURSE_HOME = new RegExp('^src/(components|services)/concourse/')
 const crumbUpperRe = new RegExp('[Mm]ain[- ]' + J('RE', 'PL'))
 const crumbSpacedRe = new RegExp(J('main', '[ ]', 'repl'), 'i')
@@ -25,6 +34,17 @@ const isCommentLine = (line: string): boolean => /^\s*(\/\/|\*|\/\*)/.test(line)
 
 const ALLOW: Array<[string, string, string]> = [
   ['scripts/identity/prove-vocabulary.ts', '*', 'this check composes the needles it holds'],
+  ['src/services/ide/pythonTests.ts', 'run-short', 'pytest selects its own modules'],
+  ['src/tools/BashTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
+  ['src/tools/BashTool/strategyMutation.ts', 'run-short', 'sudo argument grammar'],
+  ['src/tools/PowerShellTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
+  ['src/utils/shell/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
+  ['src/utils/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],
+  ['src/utils/bash/specs/pyright.ts', 'run-short', 'pyright project selection'],
+  ['src/tools/AgentTool/reviewerPolicy.ts', 'run-short', 'mktemp scratch selection'],
+  ['src/utils/processGroup.ts', 'run-short', 'POSIX process inspection'],
+  ['src/daemon/processSweepPosix.ts', 'run-short', 'POSIX process inspection'],
+  ['src/daemon/ownerWatch.ts', 'run-short', 'POSIX process inspection'],
   ['scripts/interview/baselines/', 'enter-glyph', 'frozen journey capture records keep their recorded bytes by design'],
   ['scripts/visual-contract/baselines/', 'enter-glyph', 'frozen capture records of earlier screens — diff anchors, deliberately never regenerated'],
   ['assets/vulcan/', 'words', "Godot's editor addon API (EditorPlugin, plugin.cfg, plugin.gd) — the engine's own vocabulary"],
@@ -63,6 +83,11 @@ const XAI_CLIENT_REFERENCES = new Set([
   'src/skills/bundled/provider-apis/references/live-sources.md',
   'scripts/providers/fixtures/xai-subscription-contract.json',
 ])
+const RELEASE_RUN_LINES: Readonly<Record<string, string>> = {
+  'src/constants/changelog.ts': '- Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session',
+  'docs/releases/1.0.0-beta.26.md': '- Fixed mercury -p /usage (and the other screen-only commands) printing',
+}
+
 function ownWords(path: string, line: string): string {
   if (!XAI_CLIENT_REFERENCES.has(path)) return line
   return line.replaceAll('packages/opencode/src/plugin/xai.ts', '')
@@ -85,12 +110,18 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
       if ((line.includes(OTHER_ENTER_GLYPH) || otherEnterEscapeRe.test(line)) && !allowed(f.path, 'enter-glyph')) {
         out.push({ path: f.path, line: i + 1, rule: 'enter-glyph', text: line.trim().slice(0, 140) })
       }
-      if (!allowed(f.path, 'words')) {
-        for (const [label, re] of WORDS) {
-          if (re.test(ownWords(f.path, line))) {
-            out.push({ path: f.path, line: i + 1, rule: `words:${label}`, text: line.trim().slice(0, 140) })
-            break
-          }
+      for (const [label, re] of WORDS) {
+        const runRule = label.startsWith('run-')
+        if (runRule ? !RUN_SCOPE.test(f.path) || allowed(f.path, 'run') || allowed(f.path, label) : allowed(f.path, 'words')) continue
+        if (runRule && RELEASE_RUN_LINES[f.path] === line) continue
+        let checked = ownWords(f.path, line)
+        if (label === 'run-short') {
+          checked = checked.replace(/\b(?:spawnSync|spawn|execFileSync|run)\(['"](?:ps|node|unzip|lsof|tmux)['"],\s*\[[^\n]*?['"]-p['"]/g, value => value.replace(/['"]-p['"]/, ''))
+          checked = checked.replace(/\b(?:mkdir|ps|shopt|mktemp)\s+[^;&|\n]*?(?<![\w-])-p(?![\w-])/g, value => value.slice(0, -2))
+        }
+        if (re.test(checked)) {
+          out.push({ path: f.path, line: i + 1, rule: `words:${label}`, text: line.trim().slice(0, 140) })
+          break
         }
       }
       if (srcCode && (concourse || !isCommentLine(line)) && (crumbUpperRe.test(line) || crumbSpacedRe.test(line))) {
@@ -140,6 +171,15 @@ console.log('============================================================')
     [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: `${foreignReferences}; Mercury plugin` }]).length === 1))
   const product = scan([{ path: 'fixture/product.md', content: 'An extension comes from a source; add one with /extensions.' }])
   check('§2 self-test: the product words pass', product.length === 0, product.map(v => v.rule).join(','))
+
+  const runInputs = ['mercury -p "hello"', '--print', '--output-format', '--input-format', '--include-partial-messages', '--dangerously-bypass-permissions', '--allow-dangerously-bypass-permissions', '--permission-mode']
+  const runHomes = ['src/run-fixture.ts', 'docs/run-fixture.md', 'README.md', 'bench/run-fixture.py', '.github/run-fixture.yml']
+  check('the run words are enforced on every owned surface', runHomes.every(path => runInputs.every(content => scan([{ path, content }]).some(hit => hit.rule.startsWith('words:run-')))))
+  check('the script estate is outside the run-word scope', runInputs.every(content => scan([{ path: 'scripts/run-fixture.ts', content }]).length === 0))
+  check('run words and other programs remain distinct', scan([{ path: 'src/run-fixture.ts', content: 'mercury run --format rows --input rows --partial --sovereign --allow-sovereign --mode flow' }, { path: 'bench/run-fixture.ts', content: "spawnSync('ps', ['-p', pid])" }, { path: '.github/run-fixture.yml', content: 'mkdir -p output' }]).length === 0)
+  check('the argv reader has no run-word exemption', scan([{ path: 'src/cli/runArgs.ts', content: '--print' }]).length === 1)
+  check('the two published release lines keep their recorded bytes', Object.entries(RELEASE_RUN_LINES).every(([path, content]) => scan([{ path, content }]).length === 0))
+  check('release records and foreign commands do not exempt new run spellings', scan([{ path: 'docs/releases/fixture.md', content: 'mercury -p' }, { path: 'src/constants/changelog.ts', content: 'mercury -p' }, { path: '.github/fixture.yml', content: 'mkdir -p out && mercury -p hello' }]).length === 3)
 
   const crumb = 'esc ' + J('main', ' ', 'RE', 'PL')
   const crumbHits = scan([{ path: 'src/components/x.tsx', content: "const label = '" + crumb + "'" }])
