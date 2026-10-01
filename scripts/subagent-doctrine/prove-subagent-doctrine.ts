@@ -99,7 +99,9 @@ section('(e2) API-currency: doctrine line for ALL agents + env-block currency no
   for (const a of EXEMPT) {
     check(`${a}: carries the API-currency line (fact line, not a register)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
   }
-  check('the line names the supersession (claude-api → provider-apis)', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('claude-api'))
+  const doctrine = join(buildSubagentMercurySections({ agentDefinition: GP }))
+  check('the line ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', doctrine.includes('it outranks any external provider-API skill, and Mercury\'s bundled skills outrank external skills of the same name'))
+  check('the line names no external skill', !doctrine.includes(['claude', '-api'].join('')) && !doctrine.includes('legacy variants'))
   const pr = read('../../src/constants/prompts.ts')
   const envFn = pr.slice(pr.indexOf('export async function computeEnvInfo'), pr.indexOf('export async function computeSimpleEnvInfo'))
   check('computeEnvInfo interpolates MODEL_CURRENCY_NOTE', envFn.includes('${MODEL_CURRENCY_NOTE}'))

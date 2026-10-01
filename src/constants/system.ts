@@ -5,7 +5,7 @@ import { getAnthropicClientContractVersion } from './oauth.js'
 const DEFAULT_PREFIX =
   'You are Mercury, a private source-built terminal coding harness, working interactively with its operator.'
 const PRESET_PREFIX =
-  'You are Mercury, a private source-built terminal coding harness, operating through the Agent SDK.'
+  'You are Mercury, a private source-built terminal coding harness, running a headless session for its operator.'
 const AGENT_PREFIX = 'You are a Mercury agent.'
 
 export type CLISyspromptPrefix =
