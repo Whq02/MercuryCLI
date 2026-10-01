@@ -248,7 +248,8 @@ section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usag
   check('the public result schema keeps workload_usage (red on the base: an undeclared key is stripped)', parsed.success && j((parsed.data as Raw).workload_usage) === j(frame.workload_usage), parsed.success ? j(Object.keys(parsed.data as Raw)) : j(parsed.error.issues))
   const engine = src('src/QueryEngine.ts')
   const envelope = between(engine, 'const buildResultEnvelope = ', 'permission_denials:')
-  check("the engine's result envelope carries workload_usage beside model_usage", envelope.includes('model_usage: toSDKModelUsage(getModelUsage())') && envelope.includes('workload_usage: toSDKWorkloadUsage('), envelope.slice(-240))
+  check('the engine captures both usage baselines before the run', engine.includes('const modelUsageAtStart = toSDKModelUsage(getModelUsage())') && engine.includes('const workloadUsageAtStart = toSDKWorkloadUsage(getWorkloadUsage())'))
+  check("the engine's result envelope carries both usage breakdowns in the run window", envelope.includes('model_usage: usageSince(toSDKModelUsage(getModelUsage()), modelUsageAtStart)') && envelope.includes('workload_usage: usageSince(toSDKWorkloadUsage(getWorkloadUsage()), workloadUsageAtStart)'), envelope.slice(-340))
 }
 
 async function mountPopup(columns: number, rowCount: number, width: number, rowBudget: number, openToken: number): Promise<{ frame: () => string; close: () => void }> {
