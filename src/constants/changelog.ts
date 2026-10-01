@@ -1,6 +1,28 @@
 
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
+## 1.0.0-beta.26
+- Added xAI Grok models, with a Grok subscription sign-in or an API key from /logins
+- Added an xAI usage meter in /usage through an optional management key
+- Added Meta Muse models with a Model API key from /logins
+- Added /advise, a per-chat advisor switch that survives a resume, with /config → Advisor as the settings for every chat
+- Added the advisor's interval in minutes and a status-row chip while it is on
+- Added the credit balance beside every sign-in's usage meter
+- Added deepseek, kimi and glm as model words for each family's newest model
+- Added the DeepSeek, Kimi and GLM model names to the start screen's strip
+- Added a warning on machines under 16 GB when a picked local window leaves too little memory
+- Fixed the advisor running in every session at once; crewmates are never advised
+- Fixed a full conversation getting stuck when Auto-compact was off
+- Fixed automatic compaction starting too close to the context limit
+- Fixed a full usage window not saying what carries your requests from there
+- Fixed a tool row's counter running on after the tool had finished
+- Fixed a very long single-line prompt hanging before anything was sent
+- Fixed the exact token count running low after a thinking turn
+- Fixed /logins opening as a bottom panel instead of a popup
+- Fixed an idle session polling a crew file when it had no crew
+- Fixed a parked session's own wake reading "due now" for as long as it stood
+- Fixed agent worktrees starting from a stale main or colliding on the repository lock
+
 ## 1.0.0-beta.25
 - Fixed a session keeping every file beside its working folder open for its whole life, which could run a machine out of file handles
 - Fixed a lost terminal crashing the session with a read error: the session closes cleanly, keeps its transcript, and the next boot offers the way back into it
