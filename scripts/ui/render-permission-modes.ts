@@ -42,15 +42,15 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
     : ['--mode', mode === 'strategy' ? 'default' : mode]
   const sends: Array<Record<string, unknown>> = mode === 'sovereign'
     ? [
-        { atTick: 120, awaitText: 'Yes, I accept', awaitSettleTicks: 3, data: '\x1b[B' },
-        { afterPrevTicks: 2, data: '\r' },
+        { atTick: 120, requireAwait: true, awaitText: 'Yes, I accept', awaitSettleTicks: 3, data: '\x1b[B' },
+        { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ 2. Yes, I accept', data: '\r' },
       ]
     : []
-  sends.push({ atTick: 120, afterPrevTicks: 120, awaitText: '↵ start', awaitSettleTicks: 5, data: '\r' })
+  sends.push({ atTick: 120, afterPrevTicks: 120, requireAwait: true, awaitText: '↵ start', awaitSettleTicks: 5, data: '\r' })
   if (mode === 'strategy') sends.push(
-    { afterPrevTicks: 120, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'hello' },
-    { afterPrevTicks: 2, data: '\r' },
-    { afterPrevTicks: 120, awaitText: 'Band ready.', awaitSettleTicks: 2, data: '' },
+    { afterPrevTicks: 120, requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'hello' },
+    { afterPrevTicks: 2, requireAwait: true, awaitText: 'hello', data: '\r' },
+    { afterPrevTicks: 120, requireAwait: true, awaitText: 'Band ready.', awaitSettleTicks: 2, data: '' },
   )
   const cfgPath = join(tmpdir(), `vshot-pm-${mode}-${cols}.json`)
   writeFileSync(cfgPath, JSON.stringify({

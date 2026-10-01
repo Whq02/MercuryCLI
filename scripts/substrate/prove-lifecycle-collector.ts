@@ -331,7 +331,7 @@ section('§9 WIRING')
   )
   check(
     'the delivery flag row documents the headless gate',
-    src('src/substrate/flagRegistry.ts').includes('headless -p completion mints nothing'),
+    src('src/substrate/flagRegistry.ts').includes('headless run completion mints nothing'),
   )
   check(
     'the sentinel is stamped ONLY by the complete-success path',
