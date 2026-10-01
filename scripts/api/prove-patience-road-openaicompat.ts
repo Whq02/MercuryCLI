@@ -64,14 +64,17 @@ section('R2 — silence: the response opens, then nothing — cut at the budget 
   check('the read was cancelled: no socket outlives the cut', run.fixture.cancelled())
 }
 
-section('R3 — the number: the fed road lives under the fed budget; the pin outranks it; the other roads keep the shared number')
+section('R3 — the number: each road follows its patience budget; the pin outranks it')
 {
-  const otherRoads = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface']
+  const fedRoads = ['deepseek', 'openrouter']
+  const quietRoads = ['moonshot', 'xai', 'meta', 'gemini', 'huggingface']
+  const otherRoads = [...fedRoads, ...quietRoads]
   check('normal: 2 min', idle.streamIdleTimeoutMsForRoute('openai-compat') === 120_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
   check('patient: 4 min', error === null && idle.streamIdleTimeoutMsForRoute('openai-compat') === 240_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
-  check('the other roads on this transport keep the shared 2 min under patient', otherRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 120_000), otherRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
+  check('the other fed roads on this transport take 4 min under patient', fedRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 240_000), fedRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
+  check('the quiet roads on this transport take 30 min under patient', quietRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 1_800_000), quietRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
   check('the local road on this transport takes the quiet number: 30 min under patient (a busy local server is silent while it works)', idle.streamIdleTimeoutMsForRoute('local') === 1_800_000, String(idle.streamIdleTimeoutMsForRoute('local')))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
   check('the env pin outranks the setting, the other roads and local included', idle.streamIdleTimeoutMsForRoute('openai-compat') === 2_000 && otherRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 2_000) && idle.streamIdleTimeoutMsForRoute('local') === 2_000)
