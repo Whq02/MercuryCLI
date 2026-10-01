@@ -369,6 +369,9 @@ if (import.meta.main) {
   const wrong = c.suites.filter(s => s.chain.length > 0 && s.cls !== 'pty')
   const quiet = c.suites.filter(s => s.chain.length === 0 && s.cls === 'pty')
   const unclassed = c.suites.filter(s => !CLASSES.has(s.cls))
+  const wrongDrive = c.suites.filter(s => s.suite.endsWith('-drives') && s.cls !== 'pty')
+  failures += wrongDrive.length
+  console.log(`  [${wrongDrive.length ? 'FAIL' : 'PASS'}] every local *-drives suite declares the hosted pty class${wrongDrive.length ? `: ${wrongDrive.map(s => s.suite).join(', ')}` : ''}`)
   if (REPORT) {
     for (const s of c.suites) {
       const mark = s.chain.length > 0 ? 'drive' : '     '

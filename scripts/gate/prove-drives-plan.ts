@@ -162,6 +162,15 @@ console.log('\n§2 the real drives plan')
         `missing: ${missing.join(' ') || 'none'}; planned twice: ${twice.join(' ') || 'none'}`,
       )
       check('no suite outside the pty class is in the drives plan', foreign.length === 0, foreign.join(' '))
+      const localDrives = readdirSync(SCRIPTS).filter(d => d.endsWith('-drives') && existsSync(join(SCRIPTS, d, 'run-all.sh')))
+      check('every local *-drives suite is in the hosted drives plan', localDrives.every(d => planned.get(d) === 1), localDrives.filter(d => planned.get(d) !== 1).join(' '))
+      const localPlan = (cls: string): string[] => {
+        const result = spawnSync('bash', ['scripts/run-all-suites.sh', '--class', cls, '--plan-only'], { cwd: ROOT, env, encoding: 'utf8' })
+        if (result.status !== 0) throw new Error(`local ${cls} plan exited ${result.status}: ${result.stderr}`)
+        return result.stdout.trim().split('\n').filter(Boolean)
+      }
+      check('the local release plan contains no drive suffix', localPlan('release').every(d => !d.endsWith('-drives')))
+      check('the local drives plan is exactly the declared suffix set', localPlan('drives').sort().join(',') === localDrives.sort().join(','))
       const strayDarwin = darwin.filter(s => !darwinList.has(s))
       check('the darwin lane holds only suites the straggler list names', strayDarwin.length === 0, strayDarwin.join(' '))
       const thin = buckets.flat().filter(r => r.budget < 2 * (r.seed ?? 30))

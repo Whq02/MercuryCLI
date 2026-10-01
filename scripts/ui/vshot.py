@@ -128,16 +128,11 @@ os.environ["VSHOT_ACTIVE"] = "1"
 
 def _acquire_capture_slot():
     try:
-        try:
-            n = int(os.environ.get("VSHOT_SLOTS", "3"))
-        except ValueError:
-            n = 3
+        from box_shape import capture_slots, capture_slot_dir
+        n = capture_slots()
         if n <= 0:
             return None
-        import tempfile
-        slot_dir = os.path.join(
-            tempfile.gettempdir(), f"mercury-vshot-slots-{os.getuid()}"
-        )
+        slot_dir = capture_slot_dir()
         os.makedirs(slot_dir, exist_ok=True)
         deadline = time.monotonic() + 300
         while time.monotonic() < deadline:

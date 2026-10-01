@@ -63,10 +63,34 @@ def main() -> None:
         at, cols_s, rows_s = spec.split(":")
         resizes.append((float(at) * scale, int(cols_s), int(rows_s)))
     resizes.sort(key=lambda x: x[0])
+    walk = None
+    screen = None
+    walk_stream = None
     if a.send_file:
         with open(a.send_file) as f:
-            for row in json.load(f):
+            records = json.load(f)
+        steps = [row for row in records if "awaitText" in row]
+        for row in records:
+            if "awaitText" not in row:
                 sends.append((float(row["atMs"]) * scale, unescape(row["text"])))
+        if steps:
+            import subprocess
+            lib = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib")
+            sys.path.insert(0, lib)
+            from observed_walk import ObservedWalk
+            engine = os.path.join(lib, "..", "ui", "vshot.py")
+            preflight = subprocess.run([sys.executable, engine, "--preflight"], capture_output=True, text=True)
+            if preflight.returncode != 0:
+                sys.stderr.write(preflight.stderr)
+                sys.exit(preflight.returncode)
+            prefix = "ok " + sys.executable + " "
+            if not preflight.stdout.startswith(prefix):
+                raise RuntimeError("capture preflight returned an invalid emulator receipt")
+            sys.path.insert(0, os.path.dirname(preflight.stdout[len(prefix):].strip()))
+            import pyte
+            screen = pyte.Screen(a.cols, a.rows)
+            walk_stream = pyte.ByteStream(screen)
+            walk = ObservedWalk(steps, scale)
     sends.sort(key=lambda x: x[0])
     anchor = None
     if a.anchor:
@@ -160,6 +184,15 @@ def main() -> None:
                                               "b64": base64.b64encode(af["payload"]).decode()}) + "\n")
                         out.flush()
                     af["fired"] = True
+            if walk is not None:
+                observed = walk.next(screen.display, now_ms)
+                if observed is not None:
+                    payload, receipt = observed
+                    os.write(fd, payload)
+                    if out:
+                        out.write(json.dumps({"sent": int(time.time() * 1000), "atMs": now_ms,
+                                              "b64": base64.b64encode(payload).decode(), **receipt}) + "\n")
+                        out.flush()
             next_send = sends[si][0] / 1000.0 + t0 if si < len(sends) and not held(sends[si][0]) else deadline
             wait = min(0.05, max(0.001, min(deadline, next_send) - time.time()))
             r, _, _ = select.select([fd], [], [], wait)
@@ -173,6 +206,8 @@ def main() -> None:
             if not data:
                 ended = "eof"
                 break
+            if walk_stream is not None:
+                walk_stream.feed(data)
             nbytes += len(data)
             nreads += 1
             last_read_ms = (time.time() - t0) * 1000.0
@@ -251,7 +286,7 @@ def main() -> None:
                 trace("waitpid done")
         except ChildProcessError:
             trace("waitpid: ChildProcessError")
-    unfired = []
+    unfired = walk.pending() if walk is not None else []
     for af in afters:
         if not af["fired"]:
             state = ("never painted" if af["seen_ms"] is None
@@ -262,9 +297,9 @@ def main() -> None:
         unfired.append("at %dms: never reached" % atms)
     if unfired:
         sys.stderr.write("[ptydrive] UNFIRED-SENDS: %d of %d sends never became due — %s\n"
-                         % (len(unfired), len(sends) + len(afters), " · ".join(unfired)))
+                         % (len(unfired), len(sends) + len(afters) + (len(walk.steps) if walk is not None else 0), " · ".join(unfired)))
     print(json.dumps({"raw_bytes": nbytes, "raw_reads": nreads,
-                      "sends": si + sum(1 for af in afters if af["fired"]),
+                      "sends": si + sum(1 for af in afters if af["fired"]) + (walk.index if walk is not None else 0),
                       "unfired": unfired, "ended": ended,
                       "elapsed_ms": int((time.time() - t0) * 1000)}))
 

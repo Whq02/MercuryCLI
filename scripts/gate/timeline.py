@@ -141,6 +141,14 @@ def main(outdir: str, wall_s: int) -> int:
     for r in run_list:
         sub = {'pool': '', 'retry-in-pool': 'retry1', 'retry-solo': 'retry2'}[r['kind']]
         path = os.path.join(outdir, sub, r['suite'] + '.out')
+        start_path = os.path.join(outdir, sub, r['suite'] + '.start.json')
+        try:
+            with open(start_path) as receipt:
+                r['box'] = json.load(receipt)
+                r['authoredBudgetS'] = r['budgetS']
+                r['budgetS'] = r['box'].get('budgetS', r['budgetS'])
+        except (OSError, ValueError):
+            r['box'] = None
         if not os.path.exists(path):
             continue
         killed = False

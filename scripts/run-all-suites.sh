@@ -8,6 +8,18 @@ SUITES_DIR=${MERCURY_GATE_SUITES_DIR:-scripts}
 HERMETIC=0
 [ "$SUITES_DIR" != "scripts" ] && HERMETIC=1
 
+CLASS=release
+PLAN_ONLY=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --class) CLASS=${2:?--class wants release|drives|all}; shift 2 ;;
+    --plan-only) PLAN_ONLY=1; shift ;;
+    --*) printf 'unknown pool option: %s\n' "$1" >&2; exit 2 ;;
+    *) break ;;
+  esac
+done
+case "$CLASS" in release|drives|all) ;; *) printf 'unknown pool class: %s\n' "$CLASS" >&2; exit 2 ;; esac
+is_drive_suite() { case "$1" in *-drives) return 0 ;; *) return 1 ;; esac; }
 want=("$@")
 in_want() {
   [ "${#want[@]}" -eq 0 ] && return 0
@@ -18,18 +30,15 @@ in_want() {
 
 T_START=$SECONDS
 
-CORES=$( (sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8) | head -1 )
-case "$CORES" in ('' | *[!0-9]*) CORES=8 ;; esac
-case "${MERCURY_GATE_CORES:-}" in ('' | *[!0-9]* | 0) ;; (*) CORES=$MERCURY_GATE_CORES ;; esac
+shape=$(python3 scripts/lib/box_shape.py --shell) || exit 78
+read -r CORES PTY_MAX <<<"$shape"
+export MERCURY_GATE_PTY_MAX="$PTY_MAX" VSHOT_SLOTS="$PTY_MAX"
 JOBS=${MERCURY_GATE_JOBS:-}
 case "$JOBS" in (*[!0-9]*) JOBS= ;; esac
 SEQUENTIAL=0
 SLOTS_TOTAL=$CORES
 [ "${JOBS:-}" = "1" ] && SEQUENTIAL=1
 if [ -n "${JOBS:-}" ] && [ "$JOBS" -gt 1 ]; then SLOTS_TOTAL=$(( JOBS * 2 )); fi
-PTY_MAX=${MERCURY_GATE_PTY_MAX:-3}
-case "$PTY_MAX" in ('' | *[!0-9]*) PTY_MAX=3 ;; esac
-[ "$PTY_MAX" -lt 1 ] && PTY_MAX=1
 PURE_MAX=$(( CORES - 2 )); [ "$PURE_MAX" -lt 1 ] && PURE_MAX=1
 
 RETRY_MODE=${MERCURY_GATE_RETRY:-escalate}
@@ -43,13 +52,24 @@ BUDGET_OVERRIDE=${MERCURY_SUITE_TIMEOUT:-}
 case "$BUDGET_OVERRIDE" in (*[!0-9]*) BUDGET_OVERRIDE= ;; esac
 [ -n "$BUDGET_OVERRIDE" ] && [ "$BUDGET_OVERRIDE" -lt 1 ] && BUDGET_OVERRIDE=
 
-suites=()
+suites=(); deferred=()
 for runner in "$SUITES_DIR"/*/run-all.sh; do
   [ -e "$runner" ] || continue
   dom=$(basename "$(dirname "$runner")")
   in_want "$dom" || continue
+  if [ "${#want[@]}" -eq 0 ]; then
+    if { [ "$CLASS" = release ] && is_drive_suite "$dom"; } || { [ "$CLASS" = drives ] && ! is_drive_suite "$dom"; }; then
+      deferred+=("$dom")
+      continue
+    fi
+  fi
   suites+=("$dom")
 done
+if [ "$PLAN_ONLY" -eq 1 ]; then
+  for dom in ${suites[@]+"${suites[@]}"}; do printf '%s\n' "$dom"; done
+  exit 0
+fi
+[ "$CLASS" = drives ] && RETRY_MODE=none
 total=${#suites[@]}
 if [ "$total" -eq 0 ]; then echo "no suites matched: ${want[*]:-}"; exit 1; fi
 
@@ -63,6 +83,8 @@ pty_lane() { # $1=class → 0 when the class rides the pty lane (declared or und
 }
 
 VERDICT_FILE="$(project_store_dir "$PWD" gate)/verdict.json"
+[ "$CLASS" = drives ] && VERDICT_FILE="${VERDICT_FILE%/*}/drives-verdict.json"
+[ "$CLASS" = all ] && VERDICT_FILE="${VERDICT_FILE%/*}/all-verdict.json"
 SEED_FILE=scripts/gate/duration-seed.tsv
 CEILING_FILE=scripts/gate/suite-ceilings.tsv
 if [ "$HERMETIC" -eq 1 ]; then
@@ -133,7 +155,14 @@ done <<<"$sorted_by_dur"
 PREBUILD_KIND=none   # none | hit | built | skipped
 PREBUILD_S=0
 if [ "${#want[@]}" -eq 0 ]; then
-  if [ "${MERCURY_GATE_NO_PREBUILD:-0}" = "1" ]; then
+  if [ "$CLASS" = drives ]; then
+    if [ "$HERMETIC" -eq 0 ] && [ ! -f dist/mercury.mjs ]; then
+      printf 'drives: build dist first; the background guide never rebuilds under a release pool\n' >&2
+      exit 1
+    fi
+    export MERCURY_GATE_PREBUILT=1
+    PREBUILD_KIND=skipped
+  elif [ "${MERCURY_GATE_NO_PREBUILD:-0}" = "1" ]; then
     if [ "$HERMETIC" -eq 0 ] && [ ! -f dist/manifest.json ]; then
       echo "  ⚠  MERCURY_GATE_NO_PREBUILD=1 but dist/manifest.json is absent — dist-bound suites will build for themselves (and race); unset it or build first"
     fi
@@ -273,7 +302,7 @@ finish() { # $1=dom $2=lane $3=attempt $4=dir
   ev finish "$dom" "$att" "$lane" - - "rc=$rc,secs=$secs,cpu=$cpu"
   if [ "$att" -eq 1 ]; then
     print_done "$dom" "$dir"
-    if [ "$rc" -ne 0 ] && [ "$SEQUENTIAL" -eq 0 ] && pty_lane "$(suite_class "$dom")"; then
+    if [ "$rc" -ne 0 ] && [ "$SEQUENTIAL" -eq 0 ] && [ "$RETRY_MODE" != none ] && pty_lane "$(suite_class "$dom")"; then
       FLK_DOM+=("$dom"); FLK_PRC+=("$rc"); FLK_PSEC+=("$secs"); FLK_R1RC+=(-); FLK_R1SEC+=(-); FLK_R1T0+=(-); FLK_R2RC+=(-); FLK_R2SEC+=(-); FLK_R2T0+=(-)
       if [ "$RETRY_MODE" = "after-drain" ]; then
         solo_doms+=("$dom")
@@ -514,7 +543,8 @@ if [ "$write_verdict" -eq 1 ]; then
       done
       printf '{%s}' "${out%,}"
     )
-    printf '{\n  "ok": %s,\n  "pass": %s,\n  "fail": %s,\n  "ranAt": "%s",\n  "headSha": %s,\n  "dirty": %s,\n  "treeSha": %s,\n  "durationS": %d,\n  "durations": %s,\n  "classes": %s,\n  "flakes": [%s],\n  "timeline": %s\n}\n' \
+    printf '{\n  "scope": "%s",\n  "deferred": {"%s": %s},\n  "ok": %s,\n  "pass": %s,\n  "fail": %s,\n  "ranAt": "%s",\n  "headSha": %s,\n  "dirty": %s,\n  "treeSha": %s,\n  "durationS": %d,\n  "durations": %s,\n  "classes": %s,\n  "flakes": [%s],\n  "timeline": %s\n}\n' \
+      "$CLASS" "$([ "$CLASS" = drives ] && echo release || echo drives)" "$(json_list ${deferred[@]+"${deferred[@]}"})" \
       "$([ "${#FAIL[@]}" -eq 0 ] && echo true || echo false)" \
       "$(json_list ${PASS[@]+"${PASS[@]}"})" \
       "$(json_list ${FAIL[@]+"${FAIL[@]}"})" \
@@ -528,6 +558,15 @@ if [ "$write_verdict" -eq 1 ]; then
       "${FLAKE_ROWS%,}" \
       "$TIMELINE_JSON" > "$VERDICT_FILE.tmp" \
       && mv "$VERDICT_FILE.tmp" "$VERDICT_FILE"
+    if [ "$CLASS" = drives ]; then
+      python3 - "$VERDICT_FILE" "${VERDICT_FILE%/*}/drives-ledger.jsonl" <<'PY'
+import json, sys
+with open(sys.argv[1]) as source:
+    verdict = json.load(source)
+with open(sys.argv[2], 'a') as ledger:
+    ledger.write(json.dumps(verdict, separators=(',', ':')) + '\n')
+PY
+    fi
   } 2>/dev/null || true
 fi
 if [ "$nflk" -gt 0 ]; then

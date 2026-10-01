@@ -206,7 +206,7 @@ export NODE_COMPILE_CACHE="${NODE_COMPILE_CACHE:-$(mktemp -d "${RUNNER_TEMP:-${T
 [ -f dist/mercury.mjs ] && node dist/mercury.mjs --version >/dev/null 2>&1 || true
 for dom in ${MINE[@]+"${MINE[@]}"}; do
   cls=$(suite_class "$dom")
-  bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT" "$(budget_note_of "$dom")" >/dev/null 2>&1
+  bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
   rc=$(cat "$OUT/$dom.rc" 2>/dev/null || echo 1)
   secs=$(cat "$OUT/$dom.secs" 2>/dev/null || echo 0)
   case "$rc" in ('' | *[!0-9]*) rc=1 ;; esac
@@ -222,7 +222,7 @@ for dom in ${MINE[@]+"${MINE[@]}"}; do
   elif [ "$rc" -ne 0 ] && { [ "$cls" = "pty" ] || [ "$cls" = "undeclared" ]; }; then
     printf '  ⚠  %-18s RED (rc %s, %ss) — recorded solo re-run, once…\n' "$dom" "$rc" "$secs"
     mkdir -p "$OUT/retry"
-    bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" >/dev/null 2>&1
+    bash scripts/gate/run-suite.sh "$SUITES_DIR/$dom/run-all.sh" "$(budget_of "$dom")" "$OUT/retry" "$(budget_note_of "$dom")" fixed >/dev/null 2>&1
     retry_rc=$(cat "$OUT/retry/$dom.rc" 2>/dev/null || echo 1)
     retry_secs=$(cat "$OUT/retry/$dom.secs" 2>/dev/null || echo 0)
     case "$retry_rc" in ('' | *[!0-9]*) retry_rc=1 ;; esac
