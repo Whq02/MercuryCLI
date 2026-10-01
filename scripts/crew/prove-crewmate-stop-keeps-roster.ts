@@ -41,7 +41,7 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: 'CONTINUED-1' }, MESSAGE_1),
 ]
 const world = await makeWorld('crewmate-stop-keeps-roster', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
 const rosterPath = join(world.crews, crew, 'config.json')
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (id: string, request: Frame): Promise<Frame> => {

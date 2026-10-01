@@ -41,11 +41,11 @@ section('§1 — the capture gate: the seat runner captures under the interactiv
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
-  check('the -p posture reads non-interactive (the premise)', getIsNonInteractiveSession())
-  check('a plain -p process keeps the SDK contract: capture OFF (control)', fileHistoryEnabled() === false)
+  check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession())
+  check('a plain run process keeps the SDK contract: capture OFF (control)', fileHistoryEnabled() === false)
 
   process.env.MERCURY_CONCOURSE_WORKER = '1'
-  check('THE FIX: the seat runner (worker stamp under -p) captures — the audit red', fileHistoryEnabled() === true)
+  check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true)
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: false }))
   check("the operator's Settings off-switch reaches the seat runner", fileHistoryEnabled() === false)
@@ -115,11 +115,11 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     nodeBin,
     [
       DIST,
-      '-p',
-      '--output-format',
-      'stream-json',
-      '--input-format',
-      'stream-json',
+      'run',
+      '--format',
+      'rows',
+      '--input',
+      'rows',
       '--model',
       'claude-opus-4-8',
       '--session-id',
@@ -228,7 +228,7 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}`)
     check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | '))
   } else {
-    check('§3 CONTROL — the plain -p run captured no blob (the SDK contract keeps its truth)', blobs.length === 0, j(blobs))
+    check('§3 CONTROL — the plain run captured no blob (the SDK contract keeps its truth)', blobs.length === 0, j(blobs))
     check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length))
   }
 }
@@ -244,7 +244,7 @@ if (!Bun.which('node')) {
 
 section('§2 — the real seat runner captures a checkpoint after a tool turn (built dist, fixture provider)')
 await driveRunner({ stamp: true, label: 'seat' })
-section('§3 — the control: the plain -p run keeps the headless contract (nothing captured)')
+section('§3 — the control: the plain run keeps the headless contract (nothing captured)')
 await driveRunner({ stamp: false, label: 'plain' })
 
 console.log('\n' + '═'.repeat(76))

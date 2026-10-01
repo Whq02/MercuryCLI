@@ -157,11 +157,11 @@ section('§8 boundedness scan: quoted retired mode ids appear ONLY in the alias 
   check('the home keys all four retired spellings', ['acceptEdits:', 'auto:', 'bypassPermissions:', 'plan:'].every(k => home.includes(k)))
 }
 
-section('§9 CLI --permission-mode: decodes old spellings, advertises only new ids')
+section('§9 CLI --mode: validates permission ids and advertises its choices')
 {
   const main = srcText('main.tsx')
-  check('argParser routes through decodePermissionModeSpelling before validating', /--permission-mode <mode>[\s\S]{0,600}decodePermissionModeSpelling/.test(main))
-  check('choices come from PERMISSION_MODES (new ids only in help)', /--permission-mode <mode>[\s\S]{0,400}\.choices\(PERMISSION_MODES\)/.test(main))
+  check('argParser routes through decodePermissionModeSpelling before validating', /--mode <mode>[\s\S]{0,600}decodePermissionModeSpelling/.test(main))
+  check('choices come from PERMISSION_MODES (new ids only in help)', /--mode <mode>[\s\S]{0,400}\.choices\(PERMISSION_MODES\)/.test(main))
   const setup = srcText('utils', 'permissions', 'permissionSetup.ts')
   check('the CLI resolve + settings defaultMode funnel through permissionModeFromString', (setup.match(/permissionModeFromString\(/g) || []).length >= 2)
 }

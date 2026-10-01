@@ -97,7 +97,7 @@ console.log('============================================================')
 
 const out = path.join(RUN_HOME, 'grid-flow.json')
 const cfg = {
-  argv: ['node', DIST, '--model', 'gpt-5.6-sol', '--permission-mode', 'flow'],
+  argv: ['node', DIST, '--model', 'gpt-5.6-sol', '--mode', 'flow'],
   cwd: FIXTURE_CWD,
   sends: [
     { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },

@@ -85,7 +85,7 @@ try {
       MERCURY_LSP_SERVERS: JSON.stringify({ fixture: { command: node, args: [join(root, 'scripts/lsp/fixtures/fake-lsp-server.mjs')], extensionToLanguage: { '.fk': 'fixture' }, transport: 'stdio' } }),
       ...(!enabled && mode !== 'bare' ? { MERCURY_LSP: '0' } : {}),
     }
-    const argv = [dist, '-p', ...(mode === 'stream-json' ? ['--input-format=stream-json'] : [edits ? 'RUNNER-LSP-EDIT: Change value from 1 to 2 in file.ts.' : 'Reply with ready.']), '--output-format=stream-json', '--model', 'claude-sonnet-5', '--allowed-tools', 'Read,Edit', '--permission-mode', 'sovereign', ...(mode === 'bare' ? ['--bare'] : [])]
+    const argv = [dist, 'run', ...(mode === 'stream-json' ? ['--input=rows'] : [edits ? 'RUNNER-LSP-EDIT: Change value from 1 to 2 in file.ts.' : 'Reply with ready.']), '--format=rows', '--model', 'claude-sonnet-5', '--allowed-tools', 'Read,Edit', '--mode', 'sovereign', ...(mode === 'bare' ? ['--bare'] : [])]
     const before = captured.length
     const start = performance.now()
     const result = await new Promise<{ code: number | null; out: string; err: string }>(done => {

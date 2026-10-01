@@ -38,7 +38,7 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'paced', deltas: ['STILL-WORKING', '.', '.', '.', '.', '.'], gapMs: 5000 }),
 ]
 const world = await makeWorld('crewmate-resume-keeps-folder', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage'])
 const rosterPath = join(world.crews, crew, 'config.json')
 const leadPlace = realpathSync(world.project)
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)

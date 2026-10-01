@@ -38,7 +38,7 @@ const fixture = await startScriptedFixture(req => {
   }
 })
 
-const turn = await runScriptedTurn({ runHome, cwd: work, base: fixture.base, ask: ASK, timeoutMs: 180_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+const turn = await runScriptedTurn({ runHome, cwd: work, base: fixture.base, ask: ASK, timeoutMs: 180_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
 await fixture.close()
 
 tally.section('the shell moved below the session folder before the launch')

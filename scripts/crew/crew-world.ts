@@ -74,11 +74,11 @@ export type Session = {
 export function bootLead(world: World, extraArgv: string[], allowedTools: string[]): Session {
   const argv = [
     DIST,
-    '-p',
-    '--input-format',
-    'stream-json',
-    '--output-format',
-    'stream-json',
+    'run',
+    '--input',
+    'rows',
+    '--format',
+    'rows',
     '--model',
     LEAD_MODEL,
     '--allowed-tools',

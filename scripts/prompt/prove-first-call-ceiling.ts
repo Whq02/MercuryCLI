@@ -86,7 +86,7 @@ try {
       ...(route === 'anthropic' ? { ANTHROPIC_API_KEY: key, MERCURY_TOOL_SEARCH: 'on' } : { OPENAI_API_KEY: key, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, MERCURY_OPENAI_CHATGPT_BASE: `${base}/openai/chatgpt`, MERCURY_OPENAI_AUTH_BASE: `${base}/openai/auth` }),
     }
     const result = await new Promise<{ code: number | null; stdout: string; stderr: string }>(resolveRun => {
-      const child = spawn(node, [dist, '-p', 'Read README.md and state its first heading.', '--model', model, '--output-format', 'stream-json', '--permission-mode', 'default', '--max-turns', '2'], { cwd, env })
+      const child = spawn(node, [dist, 'run', 'Read README.md and state its first heading.', '--model', model, '--format', 'rows', '--mode', 'default', '--max-turns', '2'], { cwd, env })
       let stdout = ''
       let stderr = ''
       child.stdout.on('data', data => { stdout += data })

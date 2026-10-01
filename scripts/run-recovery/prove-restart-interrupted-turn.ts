@@ -72,7 +72,7 @@ function transcriptFiles(): Array<{ path: string; text: string }> {
 }
 
 const kill1 = await new Promise<{ exit: number | null; signal: string | null; stdout: string }>(resolvePromise => {
-  const child = spawn(nodeBin!, [DIST, '-p', 'interrupted prompt', '--model', 'claude-opus-4-8', '--session-id', SID], {
+  const child = spawn(nodeBin!, [DIST, 'run', 'interrupted prompt', '--model', 'claude-opus-4-8', '--session-id', SID], {
     cwd,
     env,
     detached: true,
@@ -118,7 +118,7 @@ check('turn 1 printed no completion', !kill1.stdout.includes(PARTIAL), JSON.stri
 }
 
 const r2 = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(resolvePromise => {
-  const child = spawn(nodeBin!, [DIST, '-p', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID], { cwd, env })
+  const child = spawn(nodeBin!, [DIST, 'run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID], { cwd, env })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', d => (stdout += d))

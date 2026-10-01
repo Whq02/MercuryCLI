@@ -84,7 +84,7 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   delete process.env.MERCURY_HOST_DISABLE_BUILTIN_AGENTS
   process.env.MERCURY_ENTRYPOINT = 'headless'
   setIsInteractive(false)
-  check('§7 the guide is mounted under the sdk entrypoint (a headless -p run)', isGuideAgentMounted() && mounted())
+  check('§7 the guide is mounted under the sdk entrypoint (a headless run)', isGuideAgentMounted() && mounted())
   process.env.MERCURY_ENTRYPOINT = 'cli'
   setIsInteractive(true)
   check('§7 the guide is mounted in an interactive session', isGuideAgentMounted() && mounted())

@@ -18,7 +18,7 @@ function launch(flag: string, format: string | null, inline: boolean) {
   mkdirSync(cwd, { recursive: true })
   seedFirstRun(home, [cwd])
   const env = { ...childEnv(home, 1), HOME: home, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' }
-  const result = spawnSync(NODE, [DIST, '-p', '/nosuchcommandxyz', '--agent-id', 'x@y', '--agent-name', 'x', ...(inline ? [`${flag}=y`] : [flag, 'y']), ...(format === null ? [] : ['--output-format', format])], {
+  const result = spawnSync(NODE, [DIST, 'run', '/nosuchcommandxyz', '--agent-id', 'x@y', '--agent-name', 'x', ...(inline ? [`${flag}=y`] : [flag, 'y']), ...(format === null ? [] : ['--format', format])], {
     cwd, env, encoding: 'utf8', timeout: 45_000, stdio: ['ignore', 'pipe', 'pipe'],
   })
   let words = (result.stdout ?? '').trim()
@@ -34,7 +34,7 @@ function launch(flag: string, format: string | null, inline: boolean) {
 }
 
 try {
-  for (const format of [null, 'json', 'stream-json']) {
+  for (const format of [null, 'json', 'rows']) {
     const label = format ?? 'text'
     const current = launch('--crew-name', format, false)
     console.log(`${label} current: ${JSON.stringify(current)}`)

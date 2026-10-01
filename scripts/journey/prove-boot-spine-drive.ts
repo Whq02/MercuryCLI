@@ -141,9 +141,9 @@ console.log('============================================================')
 
 {
   const interactive = lastInteractiveSpine()
-  const p = spawnSync('node', [BIN, '-p', 'spine: hello'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 60_000 })
+  const p = spawnSync('node', [BIN, 'run', 'spine: hello'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 60_000 })
   const spine = lastSpine()
-  check('B3 the -p run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${p.status})`)
+  check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${p.status})`)
   check('B3 the headless run is a new pid after the interactive spine', spine[0]?.pid !== interactive[0]?.pid)
   const d = spawnSync('node', [BIN, 'doctor', '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 120_000 })
   let row: { status?: string; evidence?: string } | undefined

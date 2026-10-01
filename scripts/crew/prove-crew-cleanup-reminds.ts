@@ -92,7 +92,7 @@ const fixture = await startScriptedFixture(req => {
 let exitCode: number | null = null
 let stderr = ''
 try {
-  const turn = await runScriptedTurn({ runHome: join(scratch, 'home-drive'), cwd: driveRepo, base: fixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions'] })
+  const turn = await runScriptedTurn({ runHome: join(scratch, 'home-drive'), cwd: driveRepo, base: fixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign'] })
   exitCode = turn.exitCode
   stderr = turn.stderr
 } finally {

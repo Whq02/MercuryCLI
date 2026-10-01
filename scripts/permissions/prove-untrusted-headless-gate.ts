@@ -214,11 +214,11 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
       return { stdout: result.stdout ?? '', stderr: result.stderr ?? '', status: result.status }
     }
 
-    const untrustedRun = run(['-p', 'hi'])
-    check('untrusted -p: the checkout SessionStart hook did NOT fire', !existsSync(marker('proj-marker')))
-    check('untrusted -p: the checkout apiKeyHelper did NOT execute', !existsSync(marker('helper-marker')))
+    const untrustedRun = run(['run', 'hi'])
+    check('untrusted run: the checkout SessionStart hook did NOT fire', !existsSync(marker('proj-marker')))
+    check('untrusted run: the checkout apiKeyHelper did NOT execute', !existsSync(marker('helper-marker')))
     check(
-      'untrusted -p: the config-home SessionStart hook DID fire (source-scoped, not blanket)',
+      'untrusted run: the config-home SessionStart hook DID fire (source-scoped, not blanket)',
       existsSync(marker('user-marker')),
       `rc=${untrustedRun.status} err=${untrustedRun.stderr.slice(0, 120).replace(/\s+/g, ' ')}`,
     )
@@ -234,13 +234,13 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
       JSON.stringify({ projects: { [LIVE_PROJ]: { hasTrustDialogAccepted: true } } }),
     )
     rmSync(marker('user-marker'), { force: true })
-    const trustedRun = run(['-p', 'hi'])
+    const trustedRun = run(['run', 'hi'])
     check(
-      'trusted -p: the checkout hook fires (the historical behavior)',
+      'trusted run: the checkout hook fires (the historical behavior)',
       existsSync(marker('proj-marker')),
       `rc=${trustedRun.status} err=${trustedRun.stderr.slice(0, 120).replace(/\s+/g, ' ')}`,
     )
-    check('trusted -p: the config-home hook still fires', existsSync(marker('user-marker')))
+    check('trusted run: the config-home hook still fires', existsSync(marker('user-marker')))
     const trustedList = run(['mcp', 'list'])
     check('trusted mcp list: the checkout server is listed', trustedList.stdout.includes('fixsrv'))
 

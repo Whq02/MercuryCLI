@@ -23,7 +23,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-agent-record-rows')
 const world = await makeWorld('agent-record-rows', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash', 'SendMessage'])
+const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'Bash', 'SendMessage'])
 type Entry = { type?: string; uuid?: string; message?: { content?: unknown; usage?: { input_tokens?: number; output_tokens?: number } } }
 type Block = { type?: string; text?: string; id?: string; tool_use_id?: string }
 type Item = { role?: string; content?: unknown }

@@ -147,8 +147,8 @@ const env: NodeJS.ProcessEnv = {
   ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
 }
 delete env.ANTHROPIC_AUTH_TOKEN
-const proc = spawn(existsSync(node) ? node : 'node', [dist, '-p', '--model', model,
-  '--allowed-tools', 'Edit', '--output-format', 'stream-json',
+const proc = spawn(existsSync(node) ? node : 'node', [dist, 'run', '--model', model,
+  '--allowed-tools', 'Edit', '--format', 'rows',
   'Read and update the scratch files until the requested revisions are complete.'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
 let stdout = ''
 let stderr = ''

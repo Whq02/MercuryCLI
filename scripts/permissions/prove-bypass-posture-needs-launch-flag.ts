@@ -26,20 +26,20 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
-section('§1 THE CLI SPELLING')
+section('§1 THE BOOT RESOLVER')
 {
   const flagless = initialPermissionModeFromCLI({
     permissionModeCli: 'bypassPermissions',
     dangerouslySkipPermissions: false,
   })
   check(
-    'flagless --permission-mode bypassPermissions does NOT boot sovereign',
+    'a sovereign candidate without launch consent does NOT boot sovereign',
     flagless.mode !== 'sovereign',
     `mode=${flagless.mode}`,
   )
   check(
     'the refusal is NAMED (a notification, not silence)',
-    typeof flagless.notification === 'string' && flagless.notification.includes('--dangerously-bypass-permissions'),
+    typeof flagless.notification === 'string' && flagless.notification.includes('--sovereign'),
     JSON.stringify(flagless.notification),
   )
 
@@ -63,7 +63,7 @@ section('§2 THE SETTINGS ROAD')
   )
   check(
     'the settings-borne refusal is named too',
-    typeof settingsBorne.notification === 'string' && settingsBorne.notification.includes('--dangerously-bypass-permissions'),
+    typeof settingsBorne.notification === 'string' && settingsBorne.notification.includes('--sovereign'),
     JSON.stringify(settingsBorne.notification),
   )
 

@@ -284,7 +284,7 @@ const noteOnDisk = (memory: string): boolean => rawRecordsOf(memory).some(r => r
 interface Run { exit: number | null; stdout: string; stderr: string; results: number; closedOn: string; frames: Raw[] }
 function runSession(arena: Arena, sid: string, prompts: string[], closeWhen: { results: number; also?: () => boolean; label: string }, deadlineMs: number, holdNextUntil?: (nextIndex: number) => boolean, identity: 'new' | 'resume' = 'new', extraArgv: string[] = []): Promise<Run> {
   return new Promise(resolvePromise => {
-    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', sid, ...extraArgv], { cwd: arena.cwd, env: arena.env })
+    const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', AGENT_MODEL, '--mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', sid, ...extraArgv], { cwd: arena.cwd, env: arena.env })
     let stdout = ''
     let stderr = ''
     let sent = 0
@@ -411,7 +411,7 @@ section(`§1 A NOTE COMPOSED AT A TURN'S END LANDS INSIDE THE NEXT TURN: the rea
   agentReplies = 0
 }
 
-section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back through -p --resume; bare /advise says on for this chat without anyone saying /advise on again, and with its memory's notes aged an hour the advisor reads the turns it never saw and the note lands inside the next turn (red on the base: no per-chat switch to remember)`)
+section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back through run --resume; bare /advise says on for this chat without anyone saying /advise on again, and with its memory's notes aged an hour the advisor reads the turns it never saw and the note lands inside the next turn (red on the base: no per-chat switch to remember)`)
 {
   advisorMode = 'note'
   agentScript = []
@@ -440,7 +440,7 @@ section(`§1c A RESUMED SESSION REMEMBERS ITS SWITCH: the §1 session comes back
   agentReplies = 0
 }
 
-section(`§1d THE HEADLESS FLAG: a -p run with --advise has its chat's switch on at birth — the note lands with no /advise typed — and the same run without the flag, the settings on in its home, makes no advisor call at all (red on the base: the settings alone ran it, and no flag existed)`)
+section(`§1d THE HEADLESS FLAG: a headless run with --advise has its chat's switch on at birth — the note lands with no /advise typed — and the same run without the flag, the settings on in its home, makes no advisor call at all (red on the base: the settings alone ran it, and no flag existed)`)
 {
   advisorMode = 'note'
   agentScript = []

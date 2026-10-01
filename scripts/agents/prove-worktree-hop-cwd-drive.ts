@@ -63,7 +63,7 @@ const fixture = await startScriptedFixture(req => {
 })
 let turn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  turn = await runScriptedTurn({ runHome: join(scratch, 'home'), cwd: repo, base: fixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions'] })
+  turn = await runScriptedTurn({ runHome: join(scratch, 'home'), cwd: repo, base: fixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign'] })
 } finally {
   await fixture.close()
 }

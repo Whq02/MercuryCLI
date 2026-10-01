@@ -352,9 +352,9 @@ export interface InteractiveSend {
 export const RESUME_PROMPT = 'Continue the task exactly where it left off and finish it completely.'
 
 export function launchArgs(policy: HelixPolicy, brief: string, resumeSessionId?: string): string[] {
-  const args = [join(repoRoot, 'dist/mercury.mjs')]
+  const args = [join(repoRoot, 'dist/mercury.mjs'), 'run']
   if (resumeSessionId) args.push('--resume', resumeSessionId)
-  args.push('-p', brief, '--model', policy.model, '--permission-mode', 'flow', '--output-format', 'json')
+  args.push(brief, '--model', policy.model, '--mode', 'flow', '--format', 'json')
   return args
 }
 
@@ -456,7 +456,7 @@ export function runTaskWithPolicy(
     writeFileSync(tapePath, JSON.stringify(lane.tape.map(s => ({ atMs: s.atMs, text: s.text }))), 'utf8')
     const child = agentCmd
       ? ['bash', '-c', agentCmd]
-      : ['node', join(repoRoot, 'dist/mercury.mjs'), '--model', policy.model, '--permission-mode', 'flow']
+      : ['node', join(repoRoot, 'dist/mercury.mjs'), '--model', policy.model, '--mode', 'flow']
     const result = spawnSync(
       'python3',
       [

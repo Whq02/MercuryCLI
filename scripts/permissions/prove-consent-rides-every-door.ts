@@ -41,8 +41,8 @@ const warm = await import('../../src/daemon/warmRunner.ts')
 const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
-const SKIP = '--dangerously-bypass-permissions'
-const ALLOW = '--allow-dangerously-bypass-permissions'
+const SKIP = '--sovereign'
+const ALLOW = '--allow-sovereign'
 
 console.log('============================================================')
 console.log(' the launch consent rides every door — the unit half')
@@ -88,9 +88,9 @@ section('§3 the seat spec carries the consent into the runner argv')
   const consentedDefault = argvOf({ permissionMode: 'default', bypassConsent: true })
   check('consent + default posture ⇒ the allow flag rides, the skip flag does not', consentedDefault.includes(ALLOW) && !consentedDefault.includes(SKIP))
   const consentedSovereign = argvOf({ permissionMode: 'sovereign', bypassConsent: true })
-  check('consent + sovereign posture ⇒ the skip flag alone (it implies the consent)', consentedSovereign.includes(SKIP) && !consentedSovereign.includes(ALLOW) && !consentedSovereign.includes('--permission-mode'))
+  check('consent + sovereign posture ⇒ the skip flag alone (it implies the consent)', consentedSovereign.includes(SKIP) && !consentedSovereign.includes(ALLOW) && !consentedSovereign.includes('--mode'))
   const consentedFlow = argvOf({ permissionMode: 'flow', bypassConsent: true })
-  check('consent + flow posture ⇒ --permission-mode flow AND the allow flag', consentedFlow.includes(ALLOW) && consentedFlow[consentedFlow.indexOf('--permission-mode') + 1] === 'flow')
+  check('consent + flow posture ⇒ --mode flow AND the allow flag', consentedFlow.includes(ALLOW) && consentedFlow[consentedFlow.indexOf('--mode') + 1] === 'flow')
   const plain = argvOf({ permissionMode: 'default' })
   check('no consent ⇒ neither bypass word (the control)', !plain.includes(ALLOW) && !plain.includes(SKIP))
   const warmConsented = argvOf({ bypassConsent: true, warm: true })
@@ -103,11 +103,11 @@ section('§4 headlessPermissionArgv: posture words plus the allow flag when cons
 {
   const same = (a: string[], b: string[]): boolean => JSON.stringify(a) === JSON.stringify(b)
   check('(default, consent) ⇒ [allow]', same(headlessPermissionArgv('default', true), [ALLOW]))
-  check('(flow, consent) ⇒ [--permission-mode, flow, allow]', same(headlessPermissionArgv('flow', true), ['--permission-mode', 'flow', ALLOW]))
+  check('(flow, consent) ⇒ [--mode, flow, allow]', same(headlessPermissionArgv('flow', true), ['--mode', 'flow', ALLOW]))
   check('(sovereign, consent) ⇒ [skip] alone', same(headlessPermissionArgv('sovereign', true), [SKIP]))
   check('(sovereign, no consent) ⇒ [skip] — unchanged', same(headlessPermissionArgv('sovereign'), [SKIP]))
   check('(default, no consent) ⇒ [] — unchanged', same(headlessPermissionArgv('default'), []))
-  check('(implement, no consent) ⇒ [--permission-mode, implement] — unchanged', same(headlessPermissionArgv('implement'), ['--permission-mode', 'implement']))
+  check('(implement, no consent) ⇒ [--mode, implement] — unchanged', same(headlessPermissionArgv('implement'), ['--mode', 'implement']))
 }
 
 section("§5 the warm pool's consent gate (the kit gate's twin) on the real policy")

@@ -86,7 +86,7 @@ const enterFixture = await startScriptedFixture(req => {
 })
 let enterTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  enterTurn = await runScriptedTurn({ runHome: join(scratch, 'home-enter'), cwd: repoEnter, base: enterFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions'] })
+  enterTurn = await runScriptedTurn({ runHome: join(scratch, 'home-enter'), cwd: repoEnter, base: enterFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign'] })
 } finally {
   await enterFixture.close()
 }
@@ -109,7 +109,7 @@ const bootFixture = await startScriptedFixture(req => {
 })
 let bootTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  bootTurn = await runScriptedTurn({ runHome: join(scratch, 'home-boot'), cwd: repoBoot, base: bootFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--dangerously-bypass-permissions', '--worktree', 'boot-lane'] })
+  bootTurn = await runScriptedTurn({ runHome: join(scratch, 'home-boot'), cwd: repoBoot, base: bootFixture.base, ask: ASK, timeoutMs: 240_000, extraArgv: ['--sovereign', '--worktree', 'boot-lane'] })
 } finally {
   await bootFixture.close()
 }

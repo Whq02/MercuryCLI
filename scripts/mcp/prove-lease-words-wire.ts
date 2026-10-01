@@ -57,7 +57,7 @@ try {
     base: fixture.base,
     ask: ASK,
     timeoutMs: 120_000,
-    extraArgv: ['--dangerously-bypass-permissions'],
+    extraArgv: ['--sovereign'],
   })
 } finally {
   await fixture.close()

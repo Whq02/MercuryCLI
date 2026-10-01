@@ -140,7 +140,7 @@ async function main(): Promise<void> {
     )
     const cli = src('src/entrypoints/cli.tsx')
     check(
-      'F04 audit pin: the -p route reaches print through the main.js graph (the recorded residue the F07 battery prices)',
+      'F04 audit pin: the run route reaches print through the main.js graph (the recorded residue the F07 battery prices)',
       cli.includes("await import('../main.js')"),
     )
   }

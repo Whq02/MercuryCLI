@@ -207,7 +207,7 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   writeFileSync(join(config, 'settings.json'), '{}')
   const fixture = await startEmptyReplyFixture(readme)
   const env = routeEnv(fixture.base, home, config)
-  const proc = spawn(existsSync(NODE) ? NODE : 'node', [DIST, '-p', '--model', route.model, '--allowed-tools', 'Read', '--output-format', 'stream-json', EMPTY_REPLY_ASK], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const proc = spawn(existsSync(NODE) ? NODE : 'node', [DIST, 'run', EMPTY_REPLY_ASK, '--model', route.model, '--allowed-tools', 'Read', '--format', 'rows'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   proc.stdout.on('data', chunk => { stdout += String(chunk) })

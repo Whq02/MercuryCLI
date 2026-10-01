@@ -175,7 +175,7 @@ section('§2 the remedy\'s spelling follows whether a client can act on a slash 
   setAskChannel('sdk')
   check('an SDK client that answers asks can act too: not headless', foldRemedyIsHeadless(true) === false)
   setAskChannel('none')
-  check('a true -p run with no attached client is headless', foldRemedyIsHeadless(true) === true)
+  check('a run with no attached client is headless', foldRemedyIsHeadless(true) === true)
   const headless = overflowRefusalText(signal, 'fold-failed', { nonInteractive: foldRemedyIsHeadless(true) })
   check('…and only then the CLI spelling (a fresh run, --model)', headless.includes('Start a fresh run, or pass --model with a larger window.') && !headless.includes('/compact folds'), headless)
   check('an interactive session is never headless, whatever the channel', foldRemedyIsHeadless(false) === false && foldRemedyIsHeadless(undefined) === false)

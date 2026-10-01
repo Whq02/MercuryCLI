@@ -299,13 +299,13 @@ export const TASKS: TaskDef[] = [
     probeTools: [],
     script: () => [
       call('Agent', { description: 'Ask the Mercury guide', prompt: '[ax-seat:guide] How do I change the permission mode in Mercury?', subagent_type: 'mercury-guide' }),
-      final('The guide says: in an interactive session the mode cycles on the shift+tab carousel; /authority is the control surface; a headless run sets it with --permission-mode <mode>.'),
+      final('The guide says: in an interactive session the mode cycles on the shift+tab carousel; /authority is the control surface; a headless run sets it with --mode <mode>.'),
     ],
     seats: () => ({
-      guide: [final('Interactive sessions cycle the permission mode on the shift+tab carousel; /authority is the control surface; a headless run sets it at launch with --permission-mode <mode>.')],
+      guide: [final('Interactive sessions cycle the permission mode on the shift+tab carousel; /authority is the control surface; a headless run sets it at launch with --mode <mode>.')],
     }),
     oracle: (ctx, { run, hits }) => {
-      const surfaces = /shift\s*\+?\s*tab|\/authority|--permission-mode|\/sovereign/i
+      const surfaces = /shift\s*\+?\s*tab|\/authority|--mode|\/sovereign/i
       const relayed = surfaces.test(run.finalText)
       if (!ctx.mechanical) {
         const asked = run.toolUses.some(u => u.name === 'Agent' && String(u.input.subagent_type ?? '') === 'mercury-guide')

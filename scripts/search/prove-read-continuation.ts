@@ -30,7 +30,7 @@ const fixture = await startScriptedFixture(req => {
 })
 let turn
 try {
-  turn = await runScriptedTurn({ runHome: join(scratch, 'home'), cwd, base: fixture.base, ask: 'read continuation proof', timeoutMs: 90_000, extraArgv: ['--dangerously-bypass-permissions'], extraEnv: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
+  turn = await runScriptedTurn({ runHome: join(scratch, 'home'), cwd, base: fixture.base, ask: 'read continuation proof', timeoutMs: 90_000, extraArgv: ['--sovereign'], extraEnv: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
 } finally {
   await fixture.close()
 }

@@ -48,7 +48,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-livecomms-live')
 const world = await makeWorld('livecomms-live', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const lastUser = (request: Request): string => {

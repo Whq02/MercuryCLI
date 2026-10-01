@@ -263,7 +263,7 @@ section('§6 — the runner handler: every typed refusal arm, and the conversati
   const folded = await handleRewindSession({ subtype: 'rewind_session', user_message_id: t1.uuid, mode: 'both' }, ctx([t1, r1, boundary, t2, r2]))
   check("before-compaction: a point before the last fold refuses typed BEFORE any file is touched ('both' included)", folded.outcome === 'refused' && folded.refusal === 'before-compaction', j(folded))
   const off = await handleRewindSession({ subtype: 'rewind_session', user_message_id: t2.uuid, mode: 'code' }, ctx([t1, r1, t2, r2]))
-  check("capture-off: a plain -p process (no worker stamp) refuses the code half typed, naming Settings", off.outcome === 'refused' && off.refusal === 'capture-off' && (off.detail ?? '').includes('Settings'), j(off))
+  check("capture-off: a plain run process (no worker stamp) refuses the code half typed, naming Settings", off.outcome === 'refused' && off.refusal === 'capture-off' && (off.detail ?? '').includes('Settings'), j(off))
   process.env.MERCURY_CONCOURSE_WORKER = '1'
   const none = await handleRewindSession({ subtype: 'rewind_session', user_message_id: t2.uuid, mode: 'code' }, ctx([t1, r1, t2, r2]))
   check("no-checkpoint: a point with no saved files refuses typed", none.outcome === 'refused' && none.refusal === 'no-checkpoint', j(none))

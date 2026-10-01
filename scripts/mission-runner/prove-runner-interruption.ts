@@ -54,8 +54,8 @@ check('§3 no duplicate side effects', readFileSync(progressPath, 'utf8') === 'p
 check('§3 grading ran in the kept workdir', Array.isArray(resumed.graderComponents) && resumed.graderComponents.length > 0)
 
 const argv = launchArgs(policy, 'go', 'sess-9')
-check('§4 --resume rides the real launch', argv[1] === '--resume' && argv[2] === 'sess-9')
-check('§4 the brief + model still ride', argv.includes('-p') && argv.includes('go') && argv.includes('--model'))
+check('§4 --resume rides the real launch', argv[1] === 'run' && argv[2] === '--resume' && argv[3] === 'sess-9')
+check('§4 the brief + model still ride', argv[4] === 'go' && argv[5] === '--model' && argv[6] === policy.model)
 const plain = launchArgs(policy, 'go')
 check('§4 no resume flag without a session', !plain.includes('--resume'))
 
