@@ -713,7 +713,7 @@ function InspectorPane({
       {line(
         'path',
         (agent as { filePath?: string }).filePath ??
-          (agent.source === 'built-in' ? 'built-in (no file)' : agent.source === 'extension' ? `extension: ${(agent as { extensionName?: string }).extensionName ?? '?'}` : 'in-memory (--agents flag)'),
+          (agent.source === 'built-in' ? 'built-in (no file)' : agent.source === 'extension' ? `extension: ${(agent as { extensionName?: string }).extensionName ?? '?'}` : 'in-memory (--agent-defs flag)'),
       )}
       {(agent as { revision?: string }).revision
         ? line('revision', (agent as { revision?: string }).revision!)

@@ -57,7 +57,7 @@ function parseSubcommands(help: string): string[] {
 
 const rootOptions = parseLongOptions(rootHelp)
 const subcommands = parseSubcommands(rootHelp)
-const SIDE_EFFECTFUL_SUBS = new Set(['daemon'])
+const SIDE_EFFECTFUL_SUBS = new Set(['steward'])
 const subOptions: Record<string, string[]> = {}
 for (const sub of subcommands) {
   subOptions[sub] = SIDE_EFFECTFUL_SUBS.has(sub) ? [] : parseLongOptions(helpOf([sub]))
@@ -108,7 +108,7 @@ _mercury() {
 ${subcommands
   .map(
     s => `    ${s})
-      compadd -- ${(subOptions[s] ?? []).map(o => `'${o}'`).join(' ')}
+      compadd --${(subOptions[s] ?? []).map(o => ` '${o}'`).join('')}
       ;;`,
   )
   .join('\n')}

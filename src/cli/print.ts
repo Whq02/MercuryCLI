@@ -442,12 +442,12 @@ export async function runHeadless(
   notePrintPhase('cli_parse')
 
   if (options.resumeSessionAt !== undefined && !options.resume) {
-    process.stderr.write('--resume-session-at requires --resume\n')
+    process.stderr.write('--replay-to requires --resume\n')
     gracefulShutdownSync(1)
     return
   }
   if (options.rewindFiles !== undefined && !options.resume) {
-    process.stderr.write('--rewind-files requires --resume\n')
+    process.stderr.write('--restore-files requires --resume\n')
     gracefulShutdownSync(1)
     return
   }
@@ -456,7 +456,7 @@ export async function runHeadless(
     typeof inputPrompt === 'string' &&
     inputPrompt.trim().length > 0
   ) {
-    process.stderr.write('--rewind-files is a standalone operation and cannot be combined with a prompt\n')
+    process.stderr.write('--restore-files is a standalone operation and cannot be combined with a prompt\n')
     gracefulShutdownSync(1)
     return
   }

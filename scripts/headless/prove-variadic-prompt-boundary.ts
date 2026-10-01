@@ -145,7 +145,7 @@ section('(5) `-p --agent <with initialPrompt> --allowed-tools A B` still runs (t
       initialPrompt: 'say the boundary phrase delta',
     },
   })
-  const res = await run(fixture, ['run', '--agents', agents, '--agent', 'runner', '--allowed-tools', 'Bash', 'Edit'])
+  const res = await run(fixture, ['run', '--agent-defs', agents, '--agent', 'runner', '--allowed-tools', 'Bash', 'Edit'])
   check('exit 0', res.exit === 0, `exit ${res.exit} stderr ${res.stderr.slice(-300)}`)
   check('no refusal fired (the agent initialPrompt is the input)', !res.stderr.includes('captured'), res.stderr.slice(-300))
   check('the agent initialPrompt reached the wire', messagesBodies(fixture).some(b => b.includes('say the boundary phrase delta')))

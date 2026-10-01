@@ -60,7 +60,7 @@ try {
     const result = await run(['run', 'hello', '--sovereign', '--mode', mode])
     check(`sovereign refuses the conflicting ${mode} posture`, result.code === 2 && result.out === '' && result.err.trim().split('\n').length === 1 && result.err.includes('--sovereign') && result.err.includes('--mode'), JSON.stringify(result))
   }
-  const policy = await run(['run', 'hello', '--sovereign', '--settings', JSON.stringify({ permissions: { disableSovereignMode: true } })])
+  const policy = await run(['run', 'hello', '--sovereign', '--config', JSON.stringify({ permissions: { disableSovereignMode: true } })])
   check('the permissions policy refuses sovereign rather than changing its posture', policy.code === 2 && policy.out === '' && /policy/i.test(policy.err) && policy.err.trim().split('\n').length === 1, JSON.stringify(policy))
   const apollo = await run(['run', 'hello', '--mode', 'apollo'])
   check('apollo without a channel refuses with its reason', apollo.code === 2 && apollo.out === '' && /apollo.*channel/.test(apollo.err), JSON.stringify(apollo))
@@ -104,7 +104,7 @@ try {
   check('explicit stdin waits for the prompt producer', late.code === 0 && late.out.trim() === 'The run answered.' && !late.err.includes('No stdin'), JSON.stringify(late))
   const literal = await run(['run', '--', '--print'])
   check('the option boundary admits literal prompt text', literal.code === 0, JSON.stringify(literal))
-  const value = await run(['run', '--system-prompt', '--print', 'hello'])
+  const value = await run(['run', '--brief', '--print', 'hello'])
   check('a required option value is not an option', value.code === 0, JSON.stringify(value))
   const named = await run(['run', 'constructor'])
   check('ordinary object-property words stay prompt text', named.code === 0, JSON.stringify(named))

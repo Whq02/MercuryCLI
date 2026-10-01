@@ -109,8 +109,9 @@ function sockPathOrPlaceholder(): string {
   }
 }
 
+
 export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
-  const lines: string[] = ['', 'mercury daemon:']
+  const lines: string[] = ['', 'mercury steward:']
 
   if (status.supervisor) {
     const s = status.supervisor
@@ -172,7 +173,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
   if (status.supervisor && !status.controlReachable) {
     lines.push(
       '  warning:      supervisor record present but control socket unreachable — ' +
-        'the process may have crashed; run `mercury daemon stop` to clear it',
+        'the process may have crashed; run `mercury steward stop` to clear it',
     )
   }
 

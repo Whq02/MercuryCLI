@@ -107,7 +107,7 @@ fi
 
 MERCURY_TAKEOVER=1
 case "${1:-}" in
-  acp|agents|auth|daemon|doctor|editor|extensions|godot|health|install|join|join-kit|mcp|run|show|update|upgrade) MERCURY_TAKEOVER=0 ;;
+  acp|auth|bridge|doctor|extensions|godot|health|image|install|mcp|roster|run|steward|update|upgrade) MERCURY_TAKEOVER=0 ;;
 esac
 for _mercury_arg in "$@"; do
   case "$_mercury_arg" in
@@ -147,6 +147,6 @@ fi
 : mercury-splash-action-end
 
 args=()
-[ -f "$MCP" ] && args+=(--mcp-config "$MCP" --strict-mcp-config)
+[ -f "$MCP" ] && args+=(--mcp "$MCP" --only-mcp)
 
 exec env MERCURY_CONFIG_DIR="$MERCURY_HOME" "$MERCURY_NODE_BIN" "$MERCURY_DIST" ${args[@]+"${args[@]}"} "$@"

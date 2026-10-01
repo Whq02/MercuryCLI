@@ -1,26 +1,26 @@
 
 const RUNNER_OPTIONS: Readonly<Record<string, 0 | 1 | 'many'>> = {
-  '--system-prompt': 1,
-  '--system-prompt-file': 1,
-  '--append-system-prompt': 1,
-  '--append-system-prompt-file': 1,
-  '--thinking': 1,
+  '--brief': 1,
+  '--brief-file': 1,
+  '--brief-add': 1,
+  '--brief-add-file': 1,
+  '--reasoning-mode': 1,
   '--agent': 1,
-  '--agents': 1,
+  '--agent-defs': 1,
   '--allowed-tools': 'many',
-  '--disallowed-tools': 'many',
-  '--tools': 'many',
-  '--mcp-config': 'many',
-  '--strict-mcp-config': 0,
-  '--settings': 1,
-  '--setting-sources': 1,
-  '--fallback-model': 1,
-  '--betas': 'many',
-  '--bare': 0,
+  '--block-tools': 'many',
+  '--toolset': 'many',
+  '--mcp': 'many',
+  '--only-mcp': 0,
+  '--config': 1,
+  '--config-layers': 1,
+  '--backup-model': 1,
+  '--provider-preview': 'many',
+  '--lean': 0,
   '--extension': 1,
-  '--disable-slash-commands': 0,
-  '--workload': 1,
-  '--debug-file': 1,
+  '--no-commands': 0,
+  '--meter-tag': 1,
+  '--log-file': 1,
 }
 
 export function runnerArgvFromBoot(argv: readonly string[]): string[] {
@@ -79,13 +79,13 @@ export function splitAppendSystemPrompt(argv: readonly string[]): { rest: string
   let append: string | null = null
   for (let i = 0; i < argv.length; i++) {
     const token = argv[i]!
-    if (token === '--append-system-prompt' && argv[i + 1] !== undefined) {
+    if (token === '--brief-add' && argv[i + 1] !== undefined) {
       append = argv[i + 1]!
       i += 1
       continue
     }
-    if (token.startsWith('--append-system-prompt=')) {
-      append = token.slice('--append-system-prompt='.length)
+    if (token.startsWith('--brief-add=')) {
+      append = token.slice('--brief-add='.length)
       continue
     }
     rest.push(token)

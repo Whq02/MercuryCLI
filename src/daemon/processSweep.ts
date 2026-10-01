@@ -1,4 +1,4 @@
-import { inspectRunArgs } from '../cli/runArgs.js'
+import { inspectSessionArgs as inspectRunArgs } from '../cli/sessionArgs.js'
 
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null
@@ -308,7 +308,7 @@ function kindFromArgs(args: readonly string[]): ProcessSweepKind {
   const inspected = inspectRunArgs(rest)
   if (inspected.runner) return 'runner'
   const word = inspected.command
-  if (word === 'daemon') return 'daemon'
+  if (word === 'steward') return 'daemon'
   if (word !== undefined) return 'command'
   return 'window'
 }

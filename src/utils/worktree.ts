@@ -1235,7 +1235,7 @@ function throwawayWorktreeName(): string {
 
 export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: boolean; error?: string }> {
   if (process.platform === 'win32') {
-    return { handled: false, error: '--tmux is not supported on Windows' }
+    return { handled: false, error: '--multiplex is not supported on Windows' }
   }
   if (runTmuxSync(['-V']).status !== 0) {
     const hint =
@@ -1252,7 +1252,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
       if (next !== undefined && !next.startsWith('-')) requestedName = next
     } else if (arg.startsWith('--worktree=')) {
       requestedName = arg.slice('--worktree='.length)
-    } else if (arg === '--tmux=classic') {
+    } else if (arg === '--multiplex=classic') {
       classicMode = true
     }
   }
@@ -1314,7 +1314,7 @@ export async function execIntoTmuxWorktree(args: string[]): Promise<{ handled: b
   const relaunchArgs: string[] = []
   for (let index = 0; index < args.length; index++) {
     const arg = args[index] as string
-    if (arg === '--tmux' || arg === '--tmux=classic' || arg.startsWith('--worktree=')) continue
+    if (arg === '--multiplex' || arg === '--multiplex=classic' || arg.startsWith('--worktree=')) continue
     if (arg === '-w' || arg === '--worktree') {
       const next = args[index + 1]
       if (next !== undefined && !next.startsWith('-')) index++

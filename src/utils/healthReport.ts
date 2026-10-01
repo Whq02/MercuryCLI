@@ -3256,7 +3256,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'info' as const,
                 evidence,
-                fix: 'mercury editor install (installs the extension from this build), then reload the editor window.',
+                fix: 'mercury bridge install (installs the extension from this build), then reload the editor window.',
               }
             }
             return {

@@ -473,8 +473,8 @@ export async function restartDaemon(opts: {
     }
     const posture =
       opts.posture === 'owned'
-        ? "this Mercury's own daemon — it stops when this Mercury exits; a `mercury daemon` you had started yourself for cron needs starting again"
-        : 'persistent — `mercury daemon stop` ends it'
+        ? "this Mercury's own daemon — it stops when this Mercury exits; a `mercury steward` you had started yourself for cron needs starting again"
+        : 'persistent — `mercury steward stop` ends it'
     const back = await waitForHandshake(v => v.state === 'matched', opts)
     return back
       ? { state: 'restarted', line: `daemon restarted as v${first.client.version} · protocol ${first.client.proto} (${posture})` }

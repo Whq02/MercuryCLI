@@ -2,31 +2,23 @@ _mercury_completions() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[1]}"
-  local subcommands="acp agents auth daemon doctor editor extensions godot health install mcp run show update upgrade"
-  local root_opts="--advise --agent --agents --allow-sovereign --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --format --from-pr --help --ide --input --json-schema --max-budget-usd --mcp-config --mode --model --name --no-session-persistence --partial --project-root --replay-user-messages --resume --session-id --setting-sources --settings --sovereign --strict-mcp-config --system-prompt --tmux --tools --version --worktree"
+  local subcommands="acp auth bridge doctor extensions godot health image install mcp roster run steward update upgrade"
+  local root_opts="--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --editor-link --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree"
   case "$prev" in
     acp)
       COMPREPLY=( $(compgen -W "" -- "$cur") )
-      return 0
-      ;;
-    agents)
-      COMPREPLY=( $(compgen -W "--help --setting-sources" -- "$cur") )
       return 0
       ;;
     auth)
       COMPREPLY=( $(compgen -W "--help" -- "$cur") )
       return 0
       ;;
-    daemon)
-      COMPREPLY=( $(compgen -W "" -- "$cur") )
+    bridge)
+      COMPREPLY=( $(compgen -W "--help" -- "$cur") )
       return 0
       ;;
     doctor)
       COMPREPLY=( $(compgen -W "--deep --end-stale --fix --help --json --only --yes" -- "$cur") )
-      return 0
-      ;;
-    editor)
-      COMPREPLY=( $(compgen -W "--help" -- "$cur") )
       return 0
       ;;
     extensions)
@@ -41,6 +33,10 @@ _mercury_completions() {
       COMPREPLY=( $(compgen -W "--deep --end-stale --fix --help --json --only --yes" -- "$cur") )
       return 0
       ;;
+    image)
+      COMPREPLY=( $(compgen -W "--cols --help --protocol" -- "$cur") )
+      return 0
+      ;;
     install)
       COMPREPLY=( $(compgen -W "--allow-unsigned --dry-run --force --help --json --uninstall" -- "$cur") )
       return 0
@@ -49,12 +45,16 @@ _mercury_completions() {
       COMPREPLY=( $(compgen -W "--help" -- "$cur") )
       return 0
       ;;
-    run)
-      COMPREPLY=( $(compgen -W "--advise --agent --agents --allow-sovereign --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --format --from-pr --help --ide --input --json-schema --max-budget-usd --mcp-config --mode --model --name --no-session-persistence --partial --project-root --replay-user-messages --resume --session-id --setting-sources --settings --sovereign --strict-mcp-config --system-prompt --tmux --tools --version --worktree" -- "$cur") )
+    roster)
+      COMPREPLY=( $(compgen -W "--config-layers --help" -- "$cur") )
       return 0
       ;;
-    show)
-      COMPREPLY=( $(compgen -W "--cols --help --protocol" -- "$cur") )
+    run)
+      COMPREPLY=( $(compgen -W "--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --editor-link --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree" -- "$cur") )
+      return 0
+      ;;
+    steward)
+      COMPREPLY=( $(compgen -W "" -- "$cur") )
       return 0
       ;;
     update)

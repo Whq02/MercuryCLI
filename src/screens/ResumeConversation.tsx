@@ -235,7 +235,7 @@ export function ResumeConversation({
       }
       if (forkSession) {
         setIsResuming(false)
-        setResumeRefusal('--fork-session is not available here — pick the session without the flag; it resumes as itself')
+        setResumeRefusal('--fork is not available here — pick the session without the flag; it resumes as itself')
         return
       }
 

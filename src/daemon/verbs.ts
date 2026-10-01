@@ -11,7 +11,7 @@ export type DaemonVerb =
   | { kind: 'unknown-flag'; verb: 'stop'; word: string }
 
 export const DAEMON_USAGE = [
-  'usage: mercury daemon [run [dir] | status | stop | restart | --help]',
+  'usage: mercury steward [run [dir] | status | stop | restart | --help]',
   '  (bare)          start the supervisor for the current folder (same as run)',
   '  run [dir]       start the supervisor scheduling for dir (default: the current folder)',
   '  status          probe the running supervisor and print its state',

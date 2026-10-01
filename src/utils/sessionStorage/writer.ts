@@ -1237,7 +1237,7 @@ function describeTranscriptStoreFailure(filePath: string, error: unknown): Error
   const raw = error instanceof Error ? error.message : String(error)
   return new Error(
     `the session transcript store is unwritable (${dirname(filePath)}): ${raw}. ` +
-      `Repair the directory, or run with --no-session-persistence to skip transcripts for this run.`,
+      `Repair the directory, or run with --ephemeral to skip transcripts for this run.`,
     { cause: error },
   )
 }

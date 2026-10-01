@@ -64,8 +64,8 @@ tally.check('the resumed close still saved the cumulative session total', (store
 const savedAfter = JSON.parse(readFileSync(configPath, 'utf8')).projects[configKeyOf(cwd)]
 tally.check('the persisted session API time still includes the earlier run', savedAfter.lastAPIDuration >= 600_000 + api, JSON.stringify({ lastAPIDuration: savedAfter.lastAPIDuration, api }))
 
-tally.section('turn 3: a fork of the session (-p --resume --fork-session) keeps its own fresh ledger')
-const fork = await runTurn('cost probe third', ['--resume', sid, '--fork-session'])
+tally.section('turn 3: a fork of the session (-p --resume --fork) keeps its own fresh ledger')
+const fork = await runTurn('cost probe third', ['--resume', sid, '--fork'])
 const c3 = Number(fork.result?.total_cost_usd ?? NaN)
 const forkSid = String(fork.result?.session_id ?? '')
 tally.check('the fork settled under a session id of its own', fork.result?.subtype === 'success' && forkSid !== '' && forkSid !== sid, `session ${forkSid} vs ${sid}`)

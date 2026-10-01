@@ -25,6 +25,7 @@ export function seedDynamicMcpConfig(
   bump()
 }
 
+
 export function ideAutoConnectSeed(): boolean | undefined {
   return ideAutoConnect
 }

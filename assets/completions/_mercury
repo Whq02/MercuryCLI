@@ -4,8 +4,8 @@
 # (the prove-completions-current.ts gate enforces this).
 _mercury() {
   local -a subcommands root_opts
-  subcommands=('acp' 'agents' 'auth' 'daemon' 'doctor' 'editor' 'extensions' 'godot' 'health' 'install' 'mcp' 'run' 'show' 'update' 'upgrade')
-  root_opts=('--advise' '--agent' '--agents' '--allow-sovereign' '--allowed-tools' '--append-system-prompt' '--bare' '--betas' '--chat' '--concourse-off' '--concourse-on' '--continue' '--debug' '--debug-file' '--disable-slash-commands' '--disallowed-tools' '--effort' '--extension' '--fallback-model' '--fork-session' '--format' '--from-pr' '--help' '--ide' '--input' '--json-schema' '--max-budget-usd' '--mcp-config' '--mode' '--model' '--name' '--no-session-persistence' '--partial' '--project-root' '--replay-user-messages' '--resume' '--session-id' '--setting-sources' '--settings' '--sovereign' '--strict-mcp-config' '--system-prompt' '--tmux' '--tools' '--version' '--worktree')
+  subcommands=('acp' 'auth' 'bridge' 'doctor' 'extensions' 'godot' 'health' 'image' 'install' 'mcp' 'roster' 'run' 'steward' 'update' 'upgrade')
+  root_opts=('--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--editor-link' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--partial' '--pr' '--project' '--provider-preview' '--replay-user-messages' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree')
   if (( CURRENT == 2 )); then
     _describe 'mercury command' subcommands
     compadd -- ${root_opts[@]}
@@ -13,22 +13,16 @@ _mercury() {
   fi
   case "${words[2]}" in
     acp)
-      compadd -- 
-      ;;
-    agents)
-      compadd -- '--help' '--setting-sources'
+      compadd --
       ;;
     auth)
       compadd -- '--help'
       ;;
-    daemon)
-      compadd -- 
+    bridge)
+      compadd -- '--help'
       ;;
     doctor)
       compadd -- '--deep' '--end-stale' '--fix' '--help' '--json' '--only' '--yes'
-      ;;
-    editor)
-      compadd -- '--help'
       ;;
     extensions)
       compadd -- '--help' '--previous' '--source' '--yes'
@@ -39,17 +33,23 @@ _mercury() {
     health)
       compadd -- '--deep' '--end-stale' '--fix' '--help' '--json' '--only' '--yes'
       ;;
+    image)
+      compadd -- '--cols' '--help' '--protocol'
+      ;;
     install)
       compadd -- '--allow-unsigned' '--dry-run' '--force' '--help' '--json' '--uninstall'
       ;;
     mcp)
       compadd -- '--help'
       ;;
-    run)
-      compadd -- '--advise' '--agent' '--agents' '--allow-sovereign' '--allowed-tools' '--append-system-prompt' '--bare' '--betas' '--chat' '--concourse-off' '--concourse-on' '--continue' '--debug' '--debug-file' '--disable-slash-commands' '--disallowed-tools' '--effort' '--extension' '--fallback-model' '--fork-session' '--format' '--from-pr' '--help' '--ide' '--input' '--json-schema' '--max-budget-usd' '--mcp-config' '--mode' '--model' '--name' '--no-session-persistence' '--partial' '--project-root' '--replay-user-messages' '--resume' '--session-id' '--setting-sources' '--settings' '--sovereign' '--strict-mcp-config' '--system-prompt' '--tmux' '--tools' '--version' '--worktree'
+    roster)
+      compadd -- '--config-layers' '--help'
       ;;
-    show)
-      compadd -- '--cols' '--help' '--protocol'
+    run)
+      compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--editor-link' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--partial' '--pr' '--project' '--provider-preview' '--replay-user-messages' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
+      ;;
+    steward)
+      compadd --
       ;;
     update)
       compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'
