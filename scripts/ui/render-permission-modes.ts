@@ -38,8 +38,8 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
     ? compactModeChip(mode)!.text
     : `${permissionModeSymbol(mode)} ${permissionModeTitle(mode).toLowerCase()} on`
   const args = mode === 'sovereign'
-    ? ['--dangerously-bypass-permissions']
-    : ['--permission-mode', mode === 'strategy' ? 'default' : mode]
+    ? ['--sovereign']
+    : ['--mode', mode === 'strategy' ? 'default' : mode]
   const sends: Array<Record<string, unknown>> = mode === 'sovereign'
     ? [
         { atTick: 120, awaitText: 'Yes, I accept', awaitSettleTicks: 3, data: '\x1b[B' },
