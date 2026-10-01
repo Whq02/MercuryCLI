@@ -51,6 +51,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_MOONSHOT_OAUTH_BASE: ['', 'https://sweep.example'],
   MERCURY_MOONSHOT_OAUTH_CLIENT_ID: ['', 'client-sweep'],
   MERCURY_MOONSHOT_CODING_BASE: ['', 'https://sweep.example/coding/v1'],
+  MERCURY_XAI_API_BASE: ['', 'http://127.0.0.1:9/api/v1'],
+  MERCURY_XAI_GROK_PROXY_BASE: ['', 'http://127.0.0.1:9/proxy/v1'],
   MERCURY_SELECTION_BUDGET: ['', '3'],
   MERCURY_CAP_FAILOVER: ['', 'auto'],
   MERCURY_MOCK_LIMITS: ['', '1'],

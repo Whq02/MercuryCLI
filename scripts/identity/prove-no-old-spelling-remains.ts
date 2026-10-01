@@ -48,6 +48,7 @@ const MESSAGE_ROW_READERS = ['src/utils/attachments/types.ts', 'src/fabric/valid
 
 const XAI_BILLING_SURFACES = new Set([
   'docs/ENGINES.md',
+  'scripts/providers/fixtures/xai-subscription-contract.json',
   'scripts/providers/lib/xai-usage-fixture.ts',
   'scripts/providers/prove-usage-owner-per-family.ts',
   'scripts/providers/prove-xai-usage.ts',
@@ -63,7 +64,7 @@ const XAI_BILLING_SURFACES = new Set([
   'src/skills/bundled/provider-apis/references/chat-completions.md',
   'src/substrate/flagRegistry.ts',
 ])
-const XAI_BILLING_WORDS = /team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
+const XAI_BILLING_WORDS = /\bpersonal-team-blocked:spending-limit\b|team(?:_id|Id|-fixture|-cycle)|\/teams\/|\/team\/default\/management-keys|\bteam (?:usage|balance|permissions|meter|credits|record|spend|lookup|billing)|team[’']s prepaid credits|prepaid-only teams|identifies the team|optional management key for the (?:API )?team\b(?:[’']s)?|xAI's team|These are team/i
 const NOT_THE_CREW: Array<[RegExp, string, ((rel: string) => boolean)?]> = [
   [XAI_BILLING_WORDS, "xAI's billing account and documented wire fields, not a Mercury crew", rel => XAI_BILLING_SURFACES.has(rel)],
   [new RegExp(J('s', 'team'), 'i'), 'Steam, the games store the Aseprite and Godot bridges look in'],
@@ -106,6 +107,11 @@ check('the xAI billing vocabulary is excused only on its named surfaces',
     OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'team usage')))
 check('a crew spelling beside xAI billing words still trips',
   OLD.test(crewRemainder('src/services/providers/xai/xaiUsageState.ts', 'team usage; ask a teammate')))
+check('the xAI spending refusal stays literal only on its recorded billing surfaces',
+  ['scripts/providers/fixtures/xai-subscription-contract.json', 'src/substrate/flagRegistry.ts'].every(rel =>
+    !OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit')) &&
+      OLD.test(crewRemainder(rel, 'personal-team-blocked:spending-limit; ask a teammate'))) &&
+    OLD.test(crewRemainder('src/daemon/crewSpawn.ts', 'personal-team-blocked:spending-limit')))
 check('the API billing possessive stays scoped to its documented account',
   !OLD.test(crewRemainder('docs/ENGINES.md', "an optional management key for the API team's")) &&
     OLD.test(crewRemainder('src/daemon/crewSpawn.ts', "an optional management key for the API team's")) &&

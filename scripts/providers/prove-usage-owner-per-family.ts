@@ -13,6 +13,7 @@ process.env.MERCURY_EVOLUTION_LEDGER = '0'
 process.env.MERCURY_OPENROUTER_API_BASE = 'https://fixture.invalid/api/v1'
 process.env.MERCURY_DEEPSEEK_API_BASE = 'https://fixture.invalid/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'https://fixture.invalid/moonshot/v1'
+process.env.MERCURY_MOONSHOT_CODING_BASE = 'http://127.0.0.1:9/coding/v1'
 process.env.MERCURY_GEMINI_API_BASE = 'https://fixture.invalid/v1beta'
 process.env.MERCURY_ZAI_API_BASE = 'https://fixture.invalid/zai'
 const CREDENTIAL_ENVS = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'XAI_API_KEY', 'XAI_MANAGEMENT_API_KEY', 'MERCURY_COMPAT_BASE_URL', 'HF_TOKEN', 'HUGGINGFACE_TOKEN'] as const
