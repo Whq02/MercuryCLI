@@ -1,0 +1,40 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │ ✶ VIEW · cedar · viewing                                                        popup review │
+  no prompts sent yet   │                                                                                              │
+                        │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
+  · /workflows — agent …│ │ orchard · 57 settings · 0 set by you                                                     │ │
+  · /health — health ce…│ │                                                                                          │ │
+  · /cards — memory     │ │ / Search settings…                                                                       │ │
+  · /mission — set a mi…│ │                                                                                          │ │
+                        │ │ › Auto-compact                      on                                                   │ │
+FILES · orchard         │ │   Session concourse                 on                                                   │ │
+  ↵ or click · browse   │ │   Seats                             17 · this machine's reading                          │ │
+                        │ │   Tips                              on                                                   │ │
+TELEMETRY               │ │   Reduced motion                    off                                                  │ │
+  · spend —             │ │   Motion                            auto · off                                           │ │
+  · ctx — · —           │ │   JEV                               off · official                                       │ │
+  · health — run /health│ │   Instruction profile               auto                                                 │ │
+                        │ │   Shell engine                      system                                               │ │
+                        │ │   Patience with a quiet model       normal · idle 2m (OpenAI 15m) · fallback 15m · retry │ │
+                        │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
+                        │ │   Thinking mode                     off                                                  │ │
+                        │ │   Tool output                       compact                                              │ │
+                        │ │   Terminal progress bar             on                                                   │ │
+                        │ │   Turn duration                     on                                                   │ │
+                        │ │   Default permission mode           Default                                              │ │
+                        │ │   Respect .gitignore in file picker on                                                   │ │
+                        │ │   Always copy full response         off                                                  │ │
+                        │ │   Theme                             True Black                                           │ │
+                        │ │   Notifications channel             auto (pick per terminal)                             │ │
+                        │ │ ↓ 37 more                                                                                │ │
+                        │ │                                                                                          │ │
+                        │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
+                        │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

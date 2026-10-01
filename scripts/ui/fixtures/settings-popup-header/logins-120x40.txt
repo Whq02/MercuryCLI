@@ -1,0 +1,40 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │ ✶ VIEW · cedar · viewing                                                        popup review │
+  no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │                                                                                              │
+NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
+  · /health — health ce…│ │ esc back · from the menu, esc closes /logins                                             │ │
+  · /cards — memory     │ │                                                                                          │ │
+  · /mission — set a mi…│ │ Sign in                                                                                  │ │
+                        │ │                                                                                          │ │
+FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, │ │
+  ↵ or click · browse   │ │ Hugging Face, Kimi, GLM, DeepSeek, xAI or Meta. To add an API key from the terminal,     │ │
+                        │ │ run /router key <provider>.                                                              │ │
+TELEMETRY               │ │                                                                                          │ │
+  · spend —             │ │   OpenAI — ChatGPT subscription or API key                                               │ │
+  · ctx — · —           │ │ ❯ Claude subscription account                                                            │ │
+  · health — run /health│ │   Usage-based billing — Anthropic Console sign-in or API key                             │ │
+                        │ │     ANTHROPIC_API_KEY (env) ……                                                           │ │
+                        │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)                        │ │
+                        │ │   Google Gemini — API key or Google OAuth                                                │ │
+                        │ │   Hugging Face — device-code sign-in or a Hub token (open models)                        │ │
+                        │ │   Kimi (Moonshot) — device-code sign-in or API key                                       │ │
+                        │ │   GLM (Z.AI) — API key (general or GLM Coding Plan)                                      │ │
+                        │ │   DeepSeek — API key                                                                     │ │
+                        │ │   xAI — Grok subscription sign-in or API key                                             │ │
+                        │ │   Meta — API key (Muse)                                                                  │ │
+                        │ │                                                                                          │ │
+                        │ │ Provider readiness                                                                       │ │
+                        │ │   Anthropic          ready · api-key                                                     │ │
+                        │ │   OpenAI             connect OpenAI to browse its models — /logins connects              │ │
+                        │ │                                                                                          │ │
+                        │ │ esc or click outside closes                                                              │ │
+                        │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

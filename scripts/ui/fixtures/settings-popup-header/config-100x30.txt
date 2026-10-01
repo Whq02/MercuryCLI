@@ -1,0 +1,30 @@
+  lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH           │ ✶ VIEW · cedar · viewing                                        popup review │
+  no prompts sent y…│                                                                              │
+                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+NEXT                │ │ ▖▟▆▙▗ Mercury · config                                                   │ │
+  · /workflows — ag…│ │ orchard · 57 settings · 0 set by you                                     │ │
+                    │ │                                                                          │ │
+FILES · orchard     │ │ / Search settings…                                                       │ │
+  ↵ or click · brow…│ │                                                                          │ │
+                    │ │ › Auto-compact                      on                                   │ │
+TELEMETRY           │ │   Session concourse                 on                                   │ │
+  · spend —         │ │   Seats                             17 · this machine's reading          │ │
+  · ctx — · —       │ │   Tips                              on                                   │ │
+  · health — run /h…│ │   Reduced motion                    off                                  │ │
+                    │ │   Motion                            auto · off                           │ │
+                    │ │   JEV                               off · official                       │ │
+                    │ │   Instruction profile               auto                                 │ │
+                    │ │   Shell engine                      system                               │ │
+                    │ │   Patience with a quiet model       normal · idle 2m (OpenAI 15m) ·      │ │
+                    │ │ ↓ 47 more                                                                │ │
+                    │ │                                                                          │ │
+                    │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes │ │
+                    │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+                    │                                                                              │
+                    ╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

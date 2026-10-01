@@ -35,8 +35,9 @@ export function settingsPopupHost(element: DOMElement, framed: boolean): Setting
   const measured = measureElement(element)
   const columns = measured.width - 2 * inset
   if (columns <= 0) return null
-  const rows = measured.height - 2 * inset
-  return { left: elementScreenLeft(element) + inset, columns, ...(rows > 0 ? { top: elementScreenTop(element) + inset, rows } : {}) }
+  const headerRows = framed ? 1 : 0
+  const rows = Math.max(0, measured.height - 2 * inset - headerRows)
+  return { left: elementScreenLeft(element) + inset, columns, top: elementScreenTop(element) + inset + headerRows, rows }
 }
 
 export function settingsPopupGeometry(
