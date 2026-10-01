@@ -232,10 +232,16 @@ figure. The many-images cap is applied when each request is composed: the
 images the request carries are counted, the earlier turns' included, and
 every image over the cap that count implies rides as a sized copy while
 the conversation file keeps the original, so a long image-heavy session
-carries on past its twentieth image. A session the API refused for that
-limit carries on at its next send, on the same model or after a `/model`
-switch, with no `/clear`: the refusal's words say the images are sized on
-retry and nothing is dropped. Should a provider still refuse an
+carries on past its twentieth image. An image the image library cannot
+size (a JPEG or an interlaced PNG where only the JavaScript road serves)
+rides as a one-line note in its place instead of going out over the cap;
+the conversation file keeps the original, the session is told once, and
+the Image processor row of `/health` names the road. A session the API
+refused for that limit carries on at its next send, on the same model or
+after a `/model` switch, with no `/clear`: the refusal's words say the
+images are sized at the next send, an image that cannot be sized is left
+out of the request, and nothing is dropped from the transcript. Should a
+provider still refuse an
 attached file's image, that image leaves every later request of the
 session, a resumed one included, on the OpenAI route as on the Anthropic
 one.

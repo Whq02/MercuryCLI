@@ -597,7 +597,7 @@ async function* queryModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model })
+  const fittedImages = await fitImagesToRequestCap(messagesForAPI, { model: options.model, owner: rosterOwnerKey })
   messagesForAPI =
     fittedImages.firstEdited === -1
       ? fittedImages.messages

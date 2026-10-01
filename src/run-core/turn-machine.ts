@@ -68,7 +68,7 @@ import {
   type OverflowSignal,
 } from '../services/api/overflowSignal.js'
 import { ImageSizeError } from '../utils/imageValidation.js'
-import { ImageResizeError } from '../utils/imageResizer.js'
+import { ImageResizeError, imagesLeftOutNoticeLine, takeImagesLeftOutNoticeOnce, takeImagesLeftOutReceipt } from '../utils/imageResizer.js'
 import { describeInvalidArgTypeError } from '../utils/errors.js'
 import { findToolByName, type ToolUseContext } from '../Tool.js'
 import {
@@ -760,6 +760,13 @@ async function* streamModel(
             kind: 'notice',
             message: createSystemMessage(effortAdjustedReceiptLine(adjusted), 'warning'),
           })
+        }
+        {
+          const owner = String(rosterOwnerFromToolUseContext(toolUseContext))
+          const leftOut = takeImagesLeftOutReceipt(owner)
+          if (leftOut !== null && takeImagesLeftOutNoticeOnce(owner)) {
+            yield emit({ kind: 'notice', message: createSystemMessage(imagesLeftOutNoticeLine(leftOut), 'warning') })
+          }
         }
       } catch (innerError) {
         if (innerError instanceof FallbackTriggeredError && run.fallbackModel) {

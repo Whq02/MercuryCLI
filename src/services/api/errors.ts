@@ -589,7 +589,7 @@ function composeAssistantMessageFromError(
 
   if (status === 400 && message.includes('image dimensions exceed') && isManyImageRefusal(message)) {
     const base =
-      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit on retry; nothing is dropped.'
+      'An image exceeds the API\'s stricter 2000-pixel limit for a request with more than 20 images. The images in this conversation are sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.'
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base
@@ -606,7 +606,7 @@ function composeAssistantMessageFromError(
     error.message.includes('max allowed size')
   ) {
     const base =
-      'An image exceeds the API limit of 8000px on any side. The oversized image is sized to that limit on retry; nothing is dropped.'
+      'An image exceeds the API limit of 8000px on any side. The oversized image is sized to that limit at the next send, and an image that cannot be sized is left out of the request; nothing is dropped from the transcript.'
     return createAssistantAPIErrorMessage({
       content: nonInteractive
         ? base

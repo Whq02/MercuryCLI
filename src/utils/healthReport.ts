@@ -2797,7 +2797,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
             const road = await describeImageProcessor()
-            return { status: road.ready ? ('ok' as const) : ('info' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
+            return { status: road.ready ? ('ok' as const) : ('warn' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
           },
         },
         {
