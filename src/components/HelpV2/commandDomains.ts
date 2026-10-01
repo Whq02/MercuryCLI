@@ -48,7 +48,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'model',
     label: 'model & effort',
     names: [
-      'model', 'effort', 'strategy', 'submodels', 'advise',
+      'model', 'effort', 'submodels', 'advise',
       'counsel', 'harness', 'caching',
     ],
   },

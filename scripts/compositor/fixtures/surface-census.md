@@ -97,7 +97,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /showcase | — | `src/commands/showcase` |
 | /skills | ilist irow | `src/commands/skills` |
 | /sovereign | — | `src/commands/sovereign` |
-| /strategy | — | `src/commands/plan` |
 | /submodels | ilist irow | `src/commands/submodels` |
 | /substrate | — | `src/commands/substrate` |
 | /surfaces | ilist irow | `src/commands/manager` |

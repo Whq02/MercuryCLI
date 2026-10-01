@@ -18,11 +18,6 @@ function chordForChatAction(action: string, fallback: string): string {
   }
 }
 
-function daysSince(timestamp: number | undefined): number {
-  if (timestamp === undefined) return Number.POSITIVE_INFINITY
-  return (Date.now() - timestamp) / (24 * 60 * 60 * 1000)
-}
-
 
 const GENERAL_TIPS: Tip[] = [
   {
@@ -105,16 +100,6 @@ const GENERAL_TIPS: Tip[] = [
     },
     async isRelevant() {
       return true
-    },
-  },
-  {
-    id: 'strategy-first',
-    cooldownSessions: 12,
-    async content() {
-      return '/strategy enters strategy mode — the plan comes first, the build only on your yes.'
-    },
-    async isRelevant() {
-      return daysSince(getGlobalConfig().lastStrategyModeUse) > 7
     },
   },
   {
