@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
@@ -35,6 +35,26 @@ const guard = setTimeout(() => {
   process.exit(1)
 }, 180_000)
 guard.unref?.()
+
+{
+  const { bootRunner } = await import('../daemon/dupline-world.ts')
+  const home = mkdtempSync(join(tmpdir(), 'headless-closed-'))
+  const runner = bootRunner({ cwd: home, env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' }, extraArgv: ['--frobnicate'] })
+  const pending = runner.waitFor('a row after an option refusal', () => false, 5_000).then(() => '', error => String(error))
+  const code = await runner.exited
+  const started = performance.now()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const deadline = new Promise<string>(resolve => { timer = setTimeout(() => resolve('deadline'), 1_000) })
+  const rejection = await Promise.race([pending, deadline])
+  clearTimeout(timer)
+  check('the fixture wait ends when its child exits and names the refusal', code === 2 && rejection.includes('2') && rejection.includes('--frobnicate') && rejection !== 'deadline' && performance.now() - started < 1_000, rejection)
+  if (rejection !== 'deadline') {
+    const after = await runner.waitFor('an already closed child', () => false, 5_000).then(() => '', error => String(error))
+    check('a wait started after exit is refused immediately', after.includes('2') && after.includes('--frobnicate'), after)
+  }
+  await runner.stop(100)
+  rmSync(home, { recursive: true, force: true })
+}
 
 section('§1 — joinPromptValues / canBatchWith (pure)')
 {
