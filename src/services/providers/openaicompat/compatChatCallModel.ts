@@ -362,6 +362,7 @@ const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_
   length: 'max_tokens',
   content_filter: 'end_turn',
   insufficient_system_resource: 'end_turn',
+  network_error: 'end_turn',
   other: 'end_turn',
 }
 
@@ -956,6 +957,8 @@ async function* streamOneCompatAttempt(ctx: {
         return `[${profile.lane}] the provider ended this response under its content filter — the turn is incomplete by provider policy, not finished.`
       case 'insufficient_system_resource':
         return `[${profile.lane}] the provider ended this response: insufficient system resources (a documented transient) — the turn was cut short by the provider, not finished; continue or retry as needed.`
+      case 'network_error':
+        return `[${profile.lane}] the provider ended this response with a network error — the turn was cut short by the provider, not finished.`
       case 'other':
         return `[${profile.lane}] the provider ended this response with an unmapped finish reason ('${finish?.rawReason ?? 'none stated'}') — the turn may be incomplete; continue or retry as needed.`
       default:

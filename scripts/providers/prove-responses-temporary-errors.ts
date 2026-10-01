@@ -24,7 +24,7 @@ for (const [index, event] of probe.entries()) {
   check(`probe ${index + 1} retries its temporary failure`, faults.length === 1 && faults[0]!.fault.retryable)
   check(`probe ${index + 1} takes the existing six-step ladder`, faults.length === 1 && takesBusyLadder(faults[0]!.fault, 'server_error'))
 }
-for (const type of ['error', 'response.failed']) {
+for (const type of ['error', 'response.error', 'response.failed']) {
   for (const error of [
     { code: 'authentication', message: 'try again later' },
     { code: 'invalid_api_key', message: 'at capacity' },
@@ -41,10 +41,23 @@ for (const type of ['error', 'response.failed']) {
     { message: 'Content policy violation. Try again later.' },
     { message: 'Something else failed.' },
   ]) {
-    const event = type === 'error' ? { ...error, type, error } : { type, response: { error } }
+    const event = type === 'response.failed' ? { type, response: { error } } : { ...error, type, error }
     const faults = new ResponsesStreamFold().fold(event).filter(row => row.type === 'stream-fault')
     check(`${type} keeps ${JSON.stringify(error)} final`, faults.length === 1 && !faults[0]!.fault.retryable)
   }
+}
+for (const type of ['response.failed', 'response.error', 'error']) {
+  for (const errorType of ['authentication', 'payment_required', 'invalid_request', 'content_policy_violation']) {
+    const error = { code: 'server_error', message: 'Internal server error. Try again later.' }
+    const payload = { error, error_type: errorType }
+    const event = type === 'response.failed' ? { type, response: payload } : { type, ...payload }
+    const faults = new ResponsesStreamFold().fold(event).filter(row => row.type === 'stream-fault')
+    check(`${type} canonical ${errorType} outranks collapsed server_error`, faults.length === 1 && !faults[0]!.fault.retryable)
+  }
+}
+for (const error of [{ type: 'authentication_error' }, { type: 'billing_error' }, { code: 'image_content_policy_violation', message: 'try again later' }, { code: 'invalid_authentication_error', message: 'at capacity' }]) {
+  const faults = new ResponsesStreamFold().fold({ type: 'error', error }).filter(row => row.type === 'stream-fault')
+  check(`type-only or namespaced permanent error stays final: ${JSON.stringify(error)}`, faults.length === 1 && !faults[0]!.fault.retryable)
 }
 for (const error of [
   { code: 503, message: 'Provider is overloaded', metadata: { error_type: 'provider_overloaded' } },

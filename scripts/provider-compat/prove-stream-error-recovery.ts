@@ -72,15 +72,19 @@ try {
         mode = scenario
         partial = afterContent
         const items: any[] = []
-        for await (const item of road.call()) items.push(item)
+        for await (const item of road.call()) items.push(JSON.parse(JSON.stringify(item)))
         const assistants = items.filter(item => item.type === 'assistant')
         const completed = assistants.some(item => item.message.content.some((block: any) => block.text === 'completed fixture answer'))
         const tools = assistants.flatMap(item => item.message.content).filter((block: any) => block.type === 'tool_use')
         const expected = scenario === 'recover' ? 2 : scenario === 'exhaust' || scenario === 'resources' ? 7 : 1
         check(`${road.name} ${scenario} ${afterContent ? 'after content' : 'before content'}: ${expected} requests`, hits === expected, `${hits} requests`)
         if (scenario === 'recover') check(`${road.name} recovers without a terminal error row`, completed && !assistants.some(item => item.isApiErrorMessage), JSON.stringify(assistants.map(item => item.message.content)))
-        if (scenario === 'tools' || scenario === 'unknown-tools') check(`${road.name} keeps its tool call exactly once and continues`, tools.length === 1 && assistants.some(item => item.message.stop_reason === 'tool_use'), JSON.stringify(assistants.map(item => item.message)))
+        if (scenario === 'tools' || scenario === 'unknown-tools') check(`${road.name} keeps its tool call exactly once and continues`, tools.length === 1 && items.some(item => item.type === 'stream_event' && item.event?.type === 'message_delta' && item.event.delta.stop_reason === 'tool_use'), JSON.stringify(assistants.map(item => item.message)))
         check(`${road.name} yields every settled block at most once`, new Set(assistants.map(item => item.uuid)).size === assistants.length)
+        if (scenario === 'recover' && afterContent) {
+          check(`${road.name} keeps the interrupted text once beside the completed reply`, assistants.flatMap(item => item.message.content).filter((block: any) => block.text === 'partial fixture answer').length === 1)
+          if (!road.responses) check(`${road.name} yields both attempts with their final usage already attached`, assistants.filter(item => !item.isApiErrorMessage).reduce((sum, item) => sum + item.message.usage.input_tokens, 0) === 10)
+        }
       }
     }
   }

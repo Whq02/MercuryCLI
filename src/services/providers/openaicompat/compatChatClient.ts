@@ -4,6 +4,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { SseDecoder } from '../sseDecoder.js'
 import { outageCauseOfFetchFailure, type OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
+import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import {
   createStreamActivityRelay,
   createStreamIdleWatchdog,
@@ -89,6 +90,7 @@ export type CompatFinishReason =
   | 'length'
   | 'content_filter'
   | 'insufficient_system_resource'
+  | 'network_error'
   | 'other'
 
 export interface CompatUsage {
@@ -663,14 +665,15 @@ export async function* streamCompatChat(
           }
           if (event.type === 'finish') {
             finished = true
-            if (event.reason === 'content_filter' || event.reason === 'insufficient_system_resource') {
+            if (event.reason === 'content_filter' || event.reason === 'insufficient_system_resource' || event.reason === 'network_error') {
               yield {
                 type: 'stream-fault',
                 fault: {
                   kind: 'provider-termination',
                   code: `finish:${event.rawReason}`,
                   message: `stream terminated by the provider: ${event.rawReason}`,
-                  retryable: event.reason === 'insufficient_system_resource',
+                  retryable: isTemporaryStreamError({ code: event.rawReason }),
+                  inStream: true,
                 },
               }
             }
@@ -722,6 +725,7 @@ const KNOWN_FINISH: readonly CompatFinishReason[] = [
   'length',
   'content_filter',
   'insufficient_system_resource',
+  'network_error',
 ]
 
 export function decodeCompatUsage(usage: Record<string, unknown>): CompatUsage | undefined {

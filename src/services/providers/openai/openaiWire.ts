@@ -206,6 +206,7 @@ export function mapOpenaiHttpFailure(
   const code = typeof err?.code === 'string' ? err.code : undefined
   const errType = typeof err?.type === 'string' ? err.type : undefined
   const message = String(err?.message ?? o?.detail ?? `HTTP ${status}`)
+  const retryable = isTemporaryStreamError({ code, type: errType, error_type: o?.error_type ?? err?.error_type ?? asRecord(err?.metadata)?.error_type, message, status })
   if (status === 429) {
     const resetFacts: string[] = []
     let resetsAtMs: number | undefined
@@ -256,7 +257,7 @@ export function mapOpenaiHttpFailure(
       kind: 'usage-limit',
       code: code || errType ? `openai-${code ?? errType}` : 'http-429',
       message: resetFacts.length > 0 ? `${message} (${resetFacts.join(' · ')})` : message,
-      retryable: true,
+      retryable,
       ...(resetsAtMs !== undefined ? { resetsAtMs } : {}),
       ...((): { retryAfterMs?: number } => {
         const asked = retryAfterHeaderMs(headers?.get('retry-after') ?? undefined)
@@ -271,7 +272,7 @@ export function mapOpenaiHttpFailure(
       kind: 'api-error',
       code: `openai-${code ?? errType}`,
       message,
-      retryable: isTemporaryStreamError({ code, type: errType, message, status }),
+      retryable,
       status,
     }
   }
@@ -279,7 +280,7 @@ export function mapOpenaiHttpFailure(
     kind: 'http-error',
     code: `http-${status}`,
     message,
-    retryable: status >= 500,
+    retryable,
     status,
   }
 }
@@ -579,7 +580,7 @@ export class ResponsesStreamFold {
               kind: 'response-failed',
               code: `openai-${code}`,
               message: String(error?.message ?? 'the provider marked the response failed'),
-              retryable: isTemporaryStreamError({ ...error, type: error?.type ?? asRecord(error?.metadata)?.error_type }),
+              retryable: isTemporaryStreamError({ ...error, error_type: response?.error_type ?? error?.error_type ?? asRecord(error?.metadata)?.error_type }),
               inStream: true,
               ...(typeof error?.code === 'number' ? { status: error.code } : {}),
             },
@@ -589,6 +590,7 @@ export class ResponsesStreamFold {
         out.push(this.buildFinish(eventType, response))
         break
       }
+      case 'response.error':
       case 'error': {
         try {
           logForDebugging(`[openai-wire] raw stream error event: ${JSON.stringify(o)}`)
@@ -599,7 +601,9 @@ export class ResponsesStreamFold {
         const hadCode = typeof error.code === 'string' || typeof error.code === 'number'
         const code = hadCode ? String(error.code) : 'stream-error'
         const hadMessage = error.message !== undefined && error.message !== null
-        if (!hadCode && !hadMessage) {
+        const type = error === o ? undefined : error.type
+        const errorType = o.error_type ?? error.error_type ?? asRecord(error.metadata)?.error_type
+        if (!hadCode && !hadMessage && typeof type !== 'string' && typeof errorType !== 'string') {
           bareStreamErrors += 1
           this.bareStreamError = bareStreamErrorFault(bareStreamErrors)
           break
@@ -610,7 +614,7 @@ export class ResponsesStreamFold {
             kind: 'response-failed',
             code: `openai-${code}`,
             message: hadMessage ? String(error.message) : 'the provider sent a stream error event with no message',
-            retryable: isTemporaryStreamError({ ...error, type: asRecord(error.metadata)?.error_type ?? (error === o ? undefined : error.type) }),
+            retryable: isTemporaryStreamError({ ...error, type, error_type: errorType }),
             inStream: true,
             ...(typeof error.code === 'number' ? { status: error.code } : {}),
           },
