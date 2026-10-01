@@ -17,8 +17,8 @@ export interface SetupRailStep {
   state: 'done' | 'current' | 'pending'
 }
 
-export function firstRunCardsCentred(settings: { firstRunCards?: string } | undefined): boolean {
-  return settings?.firstRunCards !== 'top-left'
+export function firstRunCardsCentred(settings: { view?: { firstRunCards?: string } } | undefined): boolean {
+  return settings?.view?.firstRunCards !== 'top-left'
 }
 
 export function useFirstRunCardsCentred(): boolean {

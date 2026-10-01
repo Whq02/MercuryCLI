@@ -13,7 +13,7 @@ export function applyExtraCACertsFromConfig(): void {
     logError(err)
   }
   try {
-    const userEnv = getSettingsForSource('userSettings')?.env
+    const userEnv = getSettingsForSource('userSettings')?.environment?.values
     const settingsPath = userEnv?.NODE_EXTRA_CA_CERTS
     if (settingsPath) configPath = settingsPath
   } catch (err) {

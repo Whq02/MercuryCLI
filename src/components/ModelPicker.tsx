@@ -155,7 +155,7 @@ export function ModelPicker({
           effortToggled,
         )
         if (persisted !== undefined) {
-          updateSettingsForSource('userSettings', { effortLevel: persisted })
+          updateSettingsForSource('userSettings', { engine: { effort: persisted } })
         }
         setAppState((previous: AppState) => ({
           ...previous,

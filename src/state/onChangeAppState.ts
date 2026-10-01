@@ -26,10 +26,10 @@ export function onChangeAppState({
 
   if (newState.mainLoopModel !== oldState.mainLoopModel) {
     if (newState.mainLoopModel === null) {
-      updateSettingsForSource('userSettings', { model: undefined })
+      updateSettingsForSource('userSettings', { engine: { model: undefined } })
       setMainLoopModelOverride(undefined)
     } else {
-      updateSettingsForSource('userSettings', { model: newState.mainLoopModel })
+      updateSettingsForSource('userSettings', { engine: { model: newState.mainLoopModel } })
       setMainLoopModelOverride(newState.mainLoopModel)
     }
   }
@@ -60,7 +60,7 @@ export function onChangeAppState({
   if (newState.settings !== oldState.settings) {
     try {
       clearApiKeyHelperCache()
-      if (newState.settings?.env !== oldState.settings?.env) {
+      if (newState.settings?.environment?.values !== oldState.settings?.environment?.values) {
         applyConfigEnvironmentVariables()
       }
     } catch (error) {

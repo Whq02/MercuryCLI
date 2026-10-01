@@ -128,11 +128,11 @@ export async function authLogin(opts: {
   sso?: boolean
   console?: boolean
 }): Promise<void> {
-  const forcedMethod = getInitialSettings().forceLoginMethod
+  const forcedMethod = getInitialSettings().credentials?.signInRoute
   const loginWithClaudeAi = forcedMethod
     ? forcedMethod === 'claudeai'
     : !opts.console
-  const forcedOrgUUID = getInitialSettings().forceLoginOrgUUID
+  const forcedOrgUUID = getInitialSettings().credentials?.organisation
 
   const envRefreshToken = process.env.MERCURY_OAUTH_REFRESH_TOKEN
   if (envRefreshToken) {

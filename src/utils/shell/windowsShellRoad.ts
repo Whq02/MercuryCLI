@@ -45,7 +45,7 @@ export function windowsBashAbsent(): boolean {
 function resolvedShellEngine(): ShellEngineResolution {
   const { resolveShellEngine } = require('./engineSession.js') as typeof import('./engineSession.js')
   const { getInitialSettings } = require('../settings/settings.js') as typeof import('../settings/settings.js')
-  return resolveShellEngine(getInitialSettings().shellEngine)
+  return resolveShellEngine(getInitialSettings().shell?.engine)
 }
 
 function armedShellEngine(): ShellEngineBinary {

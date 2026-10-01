@@ -1,6 +1,6 @@
 import type { SettingsJson } from '../../../utils/settings/types.js'
 
-export function openrouterProviderObject(setting: SettingsJson['openrouterRouting'] = {}): Record<string, unknown> | undefined {
+export function openrouterProviderObject(setting: NonNullable<SettingsJson['routing']>['openrouter'] = {}): Record<string, unknown> | undefined {
   const provider = {
     ...((setting.dataCollection ?? 'deny') === 'deny' ? { data_collection: 'deny' } : {}),
     ...((setting.requireParameters ?? true) ? { require_parameters: true } : {}),

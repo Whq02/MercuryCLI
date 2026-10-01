@@ -4,7 +4,7 @@ export const SESSION_DEFAULTS_KEY_HINT = 'to select model-default'
 
 export function sessionDefaultsKeyOn(): boolean {
   try {
-    return getInitialSettings().sessionDefaultsKey !== false
+    return getInitialSettings().engine?.sessionDefaults !== false
   } catch {
     return true
   }

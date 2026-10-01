@@ -789,7 +789,7 @@ export function REPL({
     [addNotification],
   );
 
-  const prefersReducedMotion = useAppState(state => state.settings.prefersReducedMotion === true);
+  const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true);
   const reducedMotion = prefersReducedMotion || isEnvTruthy(process.env.MERCURY_REDUCED_MOTION);
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 

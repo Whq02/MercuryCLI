@@ -94,7 +94,7 @@ const GENERAL_TIPS: Tip[] = [
       return "/effort picks the model's reasoning effort — low is fastest, high is thorough."
     },
     async isRelevant() {
-      return getSettingsForSource('policySettings')?.effortLevel === undefined
+      return getSettingsForSource('policySettings')?.engine?.effort === undefined
     },
   },
   {
@@ -318,7 +318,7 @@ const CATALOGUE: Tip[] = [...GENERAL_TIPS, ...INTERNAL_TIPS]
 
 
 function getCustomTips(): { tips: Tip[]; excludeDefault: boolean } {
-  const override = getInitialSettings().spinnerTipsOverride as
+  const override = getInitialSettings().activity?.tips?.words as
     | { tips?: unknown; excludeDefault?: unknown }
     | undefined
   const rawTips = Array.isArray(override?.tips) ? (override?.tips as unknown[]) : []

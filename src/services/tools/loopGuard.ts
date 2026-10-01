@@ -108,7 +108,7 @@ registerOwnerScopedStore(store)
 
 export function isLoopGuardStopEnabled(): boolean {
   try {
-    return getInitialSettings().loopGuardStopEnabled === true
+    return getInitialSettings().turns?.loopGuard === true
   } catch {
     return false
   }

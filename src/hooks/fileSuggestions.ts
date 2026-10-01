@@ -435,9 +435,7 @@ export async function generateFileSuggestions(
   try {
     if (partialPath === '' && !showOnEmpty) return []
 
-    const custom = (getInitialSettings() as {
-      fileSuggestion?: { type?: string }
-    }).fileSuggestion
+    const custom = getInitialSettings().files?.suggester
     if (custom?.type === 'command') {
       const paths = await executeFileSuggestionCommand({
         ...createBaseHookInput(),

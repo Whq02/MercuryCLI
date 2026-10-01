@@ -19,7 +19,7 @@ export const HighlightedCode = memo(function HighlightedCode({
   dim?: boolean
 }): React.ReactNode {
   const highlightingDisabled = useAppState(
-    state => state.settings.syntaxHighlightingDisabled === true,
+    state => state.settings.view?.syntaxOff === true,
   )
   const boxRef = useRef<DOMElement | null>(null)
   const [measured, setMeasured] = useState<number | null>(null)

@@ -93,8 +93,8 @@ export function retireOnceHookFromSettings(event: HookEvent, fired: HookCommand)
       const path = getSettingsFilePathForSource(source)
       if (path === undefined || !existsSync(path)) continue
       const raw = JSON.parse(stripBOM(readFileSync(path, 'utf-8'))) as unknown
-      if (!isPlainObject(raw) || !isPlainObject(raw.hooks)) continue
-      groups = raw.hooks[event]
+      if (!isPlainObject(raw) || !isPlainObject(raw.events) || !isPlainObject(raw.events.hooks)) continue
+      groups = raw.events.hooks[event]
     } catch {
       continue
     }
@@ -114,7 +114,7 @@ export function retireOnceHookFromSettings(event: HookEvent, fired: HookCommand)
         .map((row, i) => (i === g ? { ...group, hooks: keptEntries } : row))
         .filter(row => !(isPlainObject(row) && Array.isArray(row.hooks) && row.hooks.length === 0))
       const { error } = updateSettingsForSource(source, {
-        hooks: { [event]: keptGroups.length > 0 ? keptGroups : undefined },
+        events: { hooks: { [event]: keptGroups.length > 0 ? keptGroups : undefined } },
       } as never)
       return error ? null : source
     }
@@ -124,7 +124,7 @@ export function retireOnceHookFromSettings(event: HookEvent, fired: HookCommand)
 
 export function getAllHooks(appState: AppState): IndividualHookConfig[] {
   const rows: IndividualHookConfig[] = []
-  const managedOnlyRaw = getSettingsForSource('policySettings')?.allowManagedHooksOnly === true
+  const managedOnlyRaw = getSettingsForSource('policySettings')?.events?.managedOnly === true
 
   if (!managedOnlyRaw) {
     const seenPaths = new Set<string>()
@@ -135,7 +135,7 @@ export function getAllHooks(appState: AppState): IndividualHookConfig[] {
         if (seenPaths.has(resolved)) continue
         seenPaths.add(resolved)
       }
-      const hooks = getSettingsForSource(source)?.hooks
+      const hooks = getSettingsForSource(source)?.events?.hooks
       if (!hooks) continue
       for (const [event, matchers] of Object.entries(hooks) as [HookEvent, Array<{ matcher?: string; hooks: HookCommand[] }>][]) {
         for (const matcherGroup of matchers ?? []) {

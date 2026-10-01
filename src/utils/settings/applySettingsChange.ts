@@ -28,8 +28,8 @@ export function applySettingsChange(
     }
     toolPermissionContext = transitionPlanAutoMode(toolPermissionContext as never) as never
 
-    const previousEffort = (prev.settings as { effortLevel?: string } | undefined)?.effortLevel
-    const nextEffort = settings.effortLevel
+    const previousEffort = prev.settings?.engine?.effort
+    const nextEffort = settings.engine?.effort
     const effortChanged = previousEffort !== nextEffort && nextEffort !== undefined
 
     return {

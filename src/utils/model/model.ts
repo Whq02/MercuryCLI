@@ -188,7 +188,7 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
     if (envModel) {
       setting = envModel
     } else {
-      const saved = getSettings_DEPRECATED().model
+      const saved = getSettings_DEPRECATED().engine?.model
       setting = saved && saved !== '' ? saved : null
     }
   }

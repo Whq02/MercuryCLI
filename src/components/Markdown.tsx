@@ -123,7 +123,7 @@ export function Markdown({
   const [themeName] = useTheme()
   const { accent } = useSessionAccent()
   const highlightingDisabled = useAppState(
-    state => state.settings.syntaxHighlightingDisabled === true,
+    state => state.settings.view?.syntaxOff === true,
   )
   const highlight = useCliHighlight(highlightingDisabled)
 

@@ -29,7 +29,7 @@ export function ToolUseLoader({
 }: Props): React.ReactNode {
   const [ref, isBlinking] = useBlink(false);
   const { accentSoft } = useMercuryTokens();
-  const reducedMotion = useSettings().prefersReducedMotion ?? false;
+  const reducedMotion = useSettings().view?.reducedMotion ?? false;
   const focused = useTerminalFocus();
   const motionLevel = useIdleMotion('glyphs');
   const breathStep = glyphTickMs(motionLevel, BREATH_STEP_MS) ?? BREATH_STEP_MS;

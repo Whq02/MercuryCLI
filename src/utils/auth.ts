@@ -68,7 +68,7 @@ export function isAnthropicAuthEnabled(): boolean {
   }
 
   if (process.env.ANTHROPIC_AUTH_TOKEN) return false
-  if (getSettings_DEPRECATED().apiKeyHelper) return false
+  if (getSettings_DEPRECATED().credentials?.keyCommand) return false
   if (process.env.MERCURY_API_KEY_FILE_DESCRIPTOR) return false
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
@@ -117,7 +117,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
     hasToken: source !== 'none',
   })
   if (isBareMode()) {
-    return getSettingsForSource('flagSettings')?.apiKeyHelper ? wrap('apiKeyHelper') : wrap('none')
+    return getSettingsForSource('flagSettings')?.credentials?.keyCommand ? wrap('apiKeyHelper') : wrap('none')
   }
   if (process.env.ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
   if (process.env.MERCURY_OAUTH_TOKEN) return wrap('MERCURY_OAUTH_TOKEN')
@@ -187,7 +187,7 @@ export function getAnthropicApiKeyWithSource(opts?: {
     if (process.env.ANTHROPIC_API_KEY) {
       return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
     }
-    if (getSettingsForSource('flagSettings')?.apiKeyHelper) {
+    if (getSettingsForSource('flagSettings')?.credentials?.keyCommand) {
       if (skipHelper) return { key: null, source: 'apiKeyHelper' }
       return { key: getApiKeyFromApiKeyHelperCached(), source: 'apiKeyHelper' }
     }
@@ -265,9 +265,9 @@ export function isCustomApiKeyApproved(key: string): boolean {
 
 
 export function getConfiguredApiKeyHelper(): string | undefined {
-  if (isBareMode()) return getSettingsForSource('flagSettings')?.apiKeyHelper
+  if (isBareMode()) return getSettingsForSource('flagSettings')?.credentials?.keyCommand
   if (untrustedWorkspaceHeadless()) return getApiKeyHelperFromOutsideCheckoutSources()
-  return getSettings_DEPRECATED().apiKeyHelper
+  return getSettings_DEPRECATED().credentials?.keyCommand
 }
 
 const DEFAULT_HELPER_TTL_MS = 5 * 60 * 1000
@@ -349,8 +349,8 @@ function helperBlockedByTrust(): boolean {
   const configured = getConfiguredApiKeyHelper()
   if (!configured) return false
   const fromProjectScope =
-    configured === getSettingsForSource('projectSettings')?.apiKeyHelper ||
-    configured === getSettingsForSource('localSettings')?.apiKeyHelper
+    configured === getSettingsForSource('projectSettings')?.credentials?.keyCommand ||
+    configured === getSettingsForSource('localSettings')?.credentials?.keyCommand
   if (!fromProjectScope) return false
   if (getIsNonInteractiveSession()) return false
   return !checkHasTrustDialogAccepted()
@@ -1028,7 +1028,7 @@ export type OrgValidationResult = { valid: true } | { valid: false; message: str
 export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
   if (process.env.MERCURY_API_UNIX_SOCKET) return { valid: true }
   if (!isAnthropicAuthEnabled()) return { valid: true }
-  const requiredOrg = getSettingsForSource('policySettings')?.forceLoginOrgUUID
+  const requiredOrg = getSettingsForSource('policySettings')?.credentials?.organisation
   if (!requiredOrg) return { valid: true }
 
   await checkAndRefreshOAuthTokenIfNeeded()

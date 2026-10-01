@@ -334,7 +334,7 @@ export function isProviderActionRow(value: string): boolean {
 }
 
 export function applyModelAllowlist(options: ModelOption[]): ModelOption[] {
-  if (getSettings_DEPRECATED().availableModels === undefined) return options
+  if (getSettings_DEPRECATED().engine?.roster === undefined) return options
   return options.filter(opt => {
     if (isProviderActionRow(opt.value)) return true
     return isModelAllowed(opt.value)

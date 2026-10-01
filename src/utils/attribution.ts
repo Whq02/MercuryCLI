@@ -26,14 +26,14 @@ const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury <https://mercury-cli.ai>
 
 export function getAttributionTexts(): AttributionTexts {
   const settings = getInitialSettings()
-  const attribution = settings.attribution
+  const attribution = settings.credit?.lines
   if (attribution) {
     return {
       commit: attribution.commit ?? DEFAULT_COMMIT_TRAILER,
       pr: attribution.pr ?? DEFAULT_PR_ATTRIBUTION,
     }
   }
-  if (settings.includeMercuryCoAuthor === false) {
+  if (settings.credit?.mercury === false) {
     return { commit: '', pr: '' }
   }
   return { commit: DEFAULT_COMMIT_TRAILER, pr: DEFAULT_PR_ATTRIBUTION }
@@ -167,9 +167,9 @@ async function computePRAttributionData(getAppState: () => AppState): Promise<At
 
 export async function getEnhancedPRAttribution(getAppState: () => AppState): Promise<string> {
   const settings = getInitialSettings()
-  const customPr = settings.attribution?.pr
+  const customPr = settings.credit?.lines?.pr
   if (customPr) return customPr
-  if (settings.includeMercuryCoAuthor === false) return ''
+  if (settings.credit?.mercury === false) return ''
 
   const [attributionData, statistics] = await Promise.all([
     computePRAttributionData(getAppState),

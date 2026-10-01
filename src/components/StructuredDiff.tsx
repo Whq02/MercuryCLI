@@ -125,7 +125,7 @@ export const StructuredDiff = React.memo(function StructuredDiff({
   const settings = useSettings()
   const renderWidth = Math.max(1, Math.floor(width))
   const highlightingOff =
-    skipHighlighting || Boolean(settings.syntaxHighlightingDisabled)
+    skipHighlighting || Boolean(settings.view?.syntaxOff)
 
   const bounded = expandPatchTabs(boundPatchForRender(patch))
   const boundedFirstLine =

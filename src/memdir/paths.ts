@@ -10,7 +10,7 @@ import { sanitizePathComponent } from '../utils/tasks.js'
 
 export function isAutoMemoryEnabled(): boolean {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return false
-  const setting = getInitialSettings().autoMemoryEnabled
+  const setting = getInitialSettings().memory?.enabled
   if (setting !== undefined) return setting
   return true
 }
@@ -33,8 +33,7 @@ export function getMemoryBaseDir(): string {
 
 function readAutoMemoryDirectoryOverride(): string | undefined {
   for (const source of ['policySettings', 'flagSettings', 'localSettings', 'userSettings'] as const) {
-    const value = (getSettingsForSource(source) as { autoMemoryDirectory?: string } | undefined)
-      ?.autoMemoryDirectory
+    const value = getSettingsForSource(source)?.memory?.directory
     if (value !== undefined) return value
   }
   return undefined

@@ -31,8 +31,7 @@ function isEditableSource(source: PermissionRuleSource): source is EditableSetti
 }
 
 export function shouldAllowManagedPermissionRulesOnly(): boolean {
-  const policy = getSettingsForSource('policySettings') as { allowManagedPermissionRulesOnly?: boolean } | undefined
-  return policy?.allowManagedPermissionRulesOnly === true
+  return getSettingsForSource('policySettings')?.guardrails?.managedOnly === true
 }
 
 export function shouldShowAlwaysAllowOptions(): boolean {
@@ -41,14 +40,14 @@ export function shouldShowAlwaysAllowOptions(): boolean {
 
 export function getPermissionRulesForSource(source: PermissionRuleSource): PermissionRule[] {
   const settings = getSettingsForSource(source as never) as
-    | { permissions?: { allow?: string[]; deny?: string[]; ask?: string[]; reasons?: unknown } }
+    | { guardrails?: { allow?: string[]; deny?: string[]; ask?: string[]; reasons?: unknown } }
     | undefined
-  const permissions = settings?.permissions
-  if (!permissions) return []
-  const reasons = normaliseRuleReasons(permissions.reasons)
+  const guardrails = settings?.guardrails
+  if (!guardrails) return []
+  const reasons = normaliseRuleReasons(guardrails.reasons)
   const rules: PermissionRule[] = []
   for (const behavior of BEHAVIORS) {
-    for (const entry of permissions[behavior] ?? []) {
+    for (const entry of guardrails[behavior] ?? []) {
       const ruleValue = permissionRuleValueFromString(entry)
       const reason = reasons[ruleSpelling(ruleValue)]
       rules.push({ source, ruleBehavior: behavior, ruleValue: reason === undefined ? ruleValue : { ...ruleValue, reason } })
@@ -82,9 +81,9 @@ function loadSettingsLenient(source: EditableSettingSource): SettingsJson {
   }
 }
 
-function permissionsArray(settings: SettingsJson, behavior: PermissionBehavior): string[] {
-  const permissions = (settings as { permissions?: Record<string, string[] | undefined> }).permissions
-  return permissions?.[behavior] ?? []
+function guardrailsArray(settings: SettingsJson, behavior: PermissionBehavior): string[] {
+  const guardrails = (settings as { guardrails?: Record<string, string[] | undefined> }).guardrails
+  return guardrails?.[behavior] ?? []
 }
 
 export function addPermissionRulesToSettings(
@@ -116,18 +115,18 @@ export function addPermissionRulesToSettings(
     }
 
     const existing = loadSettingsLenient(source)
-    const currentArray = permissionsArray(existing, ruleBehavior)
+    const currentArray = guardrailsArray(existing, ruleBehavior)
     const normalisedExisting = new Set(
       currentArray.map(entry => permissionRuleValueToString(permissionRuleValueFromString(entry))),
     )
     const additions = serialized.filter(rule => !normalisedExisting.has(rule))
     if (additions.length === 0) return true
 
-    const permissions = {
-      ...((existing as { permissions?: Record<string, unknown> }).permissions ?? {}),
+    const guardrails = {
+      ...((existing as { guardrails?: Record<string, unknown> }).guardrails ?? {}),
       [ruleBehavior]: [...currentArray, ...additions],
     }
-    const { error } = updateSettingsForSource(source, { ...existing, permissions } as SettingsJson)
+    const { error } = updateSettingsForSource(source, { ...existing, guardrails } as SettingsJson)
     if (error) {
       logError(error)
       return false
@@ -142,10 +141,10 @@ export function addPermissionRulesToSettings(
 export function deletePermissionRuleFromSettings(rule: PermissionRuleFromEditableSettings): boolean {
   if (!isEditableSource(rule.source)) return false
   const settings = getSettingsForSource(rule.source) as
-    | { permissions?: Record<string, string[] | undefined> }
+    | { guardrails?: Record<string, string[] | undefined> }
     | undefined
-  if (!settings?.permissions) return false
-  const array = settings.permissions[rule.ruleBehavior]
+  if (!settings?.guardrails) return false
+  const array = settings.guardrails[rule.ruleBehavior]
   if (!array) return false
 
   const target = permissionRuleValueToString(rule.ruleValue)
@@ -154,8 +153,8 @@ export function deletePermissionRuleFromSettings(rule: PermissionRuleFromEditabl
   )
   if (filtered.length === array.length) return false
 
-  const permissions = { ...settings.permissions, [rule.ruleBehavior]: filtered }
-  const { error } = updateSettingsForSource(rule.source, { ...settings, permissions } as SettingsJson)
+  const guardrails = { ...settings.guardrails, [rule.ruleBehavior]: filtered }
+  const { error } = updateSettingsForSource(rule.source, { ...settings, guardrails } as SettingsJson)
   if (error) {
     logError(error)
     return false

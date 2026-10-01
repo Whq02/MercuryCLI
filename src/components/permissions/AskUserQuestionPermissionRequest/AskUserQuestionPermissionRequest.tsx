@@ -70,7 +70,7 @@ const CONTENT_CHROME_OVERHEAD = 15
 
 export function AskUserQuestionPermissionRequest(props: PermissionRequestProps) {
   const settings = useSettings()
-  if (settings.syntaxHighlightingDisabled) {
+  if (settings.view?.syntaxOff) {
     return <AskUserQuestionPermissionRequestBody {...props} highlight={null} />
   }
   return (

@@ -1078,9 +1078,9 @@ export async function executeFileSuggestionCommand(
 
   let fileSuggestion
   if (shouldAllowManagedHooksOnly()) {
-    fileSuggestion = getSettingsForSource('policySettings')?.fileSuggestion
+    fileSuggestion = getSettingsForSource('policySettings')?.files?.suggester
   } else {
-    fileSuggestion = getSettings_DEPRECATED()?.fileSuggestion
+    fileSuggestion = getSettings_DEPRECATED()?.files?.suggester
   }
 
   if (!fileSuggestion || fileSuggestion.type !== 'command') {

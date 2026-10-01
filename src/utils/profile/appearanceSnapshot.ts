@@ -61,7 +61,7 @@ export function getMercuryAppearanceSnapshot(
     concreteTheme: resolveThemeSetting(requestedTheme),
     colorLevel: (chalk.level ?? 0) as 0 | 1 | 2 | 3,
     accent: getSessionAccent().accent,
-    reducedMotion: getInitialSettings().prefersReducedMotion ?? false,
+    reducedMotion: getInitialSettings().view?.reducedMotion ?? false,
     changedAt,
   })
 }

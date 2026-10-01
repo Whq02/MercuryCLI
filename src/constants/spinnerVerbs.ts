@@ -168,7 +168,7 @@ export function getSpinnerVerbs(): string[] {
   } else {
     pool = [...desert, ...quicksilver]
   }
-  const setting = getInitialSettings().spinnerVerbs
+  const setting = getInitialSettings().activity?.verbs
   if (setting) {
     if (setting.mode === 'replace') {
       return setting.verbs.length > 0 ? [...setting.verbs] : pool

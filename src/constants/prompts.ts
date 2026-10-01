@@ -475,7 +475,7 @@ export async function getSystemPrompt(
     ),
     systemPromptSection('model_currency', () => getModelCurrencySection()),
     systemPromptSection('language', () => {
-      const language = getInitialSettings().language
+      const language = getInitialSettings().voice?.language
       if (!language) return null
       return `# Language\nAlways respond in ${language}. Use it for explanations, comments and communications; leave technical terms and code identifiers in their original form.`
     }),

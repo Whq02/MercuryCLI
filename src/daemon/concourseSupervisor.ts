@@ -510,7 +510,7 @@ export function seatInitialPermissionMode(override?: PermissionMode): SeatPermis
   const carried = asHeadless(override)
   if (carried !== undefined) return carried
   try {
-    const saved = asHeadless(getInitialSettings().permissions?.defaultMode)
+    const saved = asHeadless(getInitialSettings().guardrails?.mode)
     if (saved !== undefined) return saved
   } catch {
   }

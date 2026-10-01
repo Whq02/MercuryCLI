@@ -237,7 +237,7 @@ async function createOrResumeWorktreeNow(
     throw new Error(`Could not resolve the worktree base ref ${baseRef}`)
   }
 
-  const sparsePaths = getInitialSettings().worktree?.sparsePaths ?? []
+  const sparsePaths = getInitialSettings().workspace?.worktree?.sparsePaths ?? []
   const useSparse = sparsePaths.length > 0
 
   const addArgs = ['worktree', 'add', '-B', branchName, '--no-track']
@@ -475,7 +475,7 @@ async function runPostCreationSetup(repoRoot: string, worktreePath: string, depe
     logForDebugging(`worktree hooks-path setup failed: ${String(error)}`)
   }
 
-  const symlinkDirectories = getInitialSettings().worktree?.symlinkDirectories ?? []
+  const symlinkDirectories = getInitialSettings().workspace?.worktree?.symlinkDirectories ?? []
   const sourceRoot = dependencyLinksFrom !== undefined ? (findGitRoot(dependencyLinksFrom) ?? repoRoot) : repoRoot
   const dependencyLinks = dependencyLinksFrom !== undefined ? await dependencyLinkCandidates(sourceRoot) : []
   const linked = await linkCheckoutDirectories(sourceRoot, worktreePath, [...new Set([...dependencyLinks, ...symlinkDirectories])])
@@ -579,7 +579,7 @@ export async function createWorktreeForSession(
     await runPostCreationSetup(gitRoot, created.worktreePath, originalCwd)
   }
 
-  const usedSparse = (getInitialSettings().worktree?.sparsePaths ?? []).length > 0
+  const usedSparse = (getInitialSettings().workspace?.worktree?.sparsePaths ?? []).length > 0
   const session: WorktreeSession = {
     originalCwd,
     worktreePath: created.worktreePath,

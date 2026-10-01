@@ -332,7 +332,7 @@ export function EffortSlider({
   const onSupercode = level?.value === 'supercode'
 
   const sweepGated =
-    (useSettings().prefersReducedMotion ?? false) || CHALK_DISABLED_FOR_NO_COLOR
+    (useSettings().view?.reducedMotion ?? false) || CHALK_DISABLED_FOR_NO_COLOR
 
   const [done, setDone] = React.useState(false)
   const [animRef, time] = useAnimationFrame(done ? null : 33)

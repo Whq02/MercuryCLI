@@ -21,28 +21,28 @@ const DEFAULT_MODE_SUGGESTION =
   '"autopilot" (bypass posture; requires arming)'
 
 function matchTip(context: TipContext): ValidationTip | null {
-  if (context.path === 'permissions.defaultMode' && context.code === 'invalid_value') {
+  if (context.path === 'guardrails.mode' && context.code === 'invalid_value') {
     return { suggestion: DEFAULT_MODE_SUGGESTION }
   }
-  if (context.path === 'apiKeyHelper' && context.code === 'invalid_type') {
+  if (context.path === 'credentials.keyCommand' && context.code === 'invalid_type') {
     return {
       suggestion:
-        'apiKeyHelper must be a shell command that prints only the API key to stdout, e.g. "/usr/local/bin/print-api-key.sh"',
+        'credentials.keyCommand must be a shell command that prints only the API key to stdout, e.g. "/usr/local/bin/print-api-key.sh"',
     }
   }
-  if (context.path === 'cleanupPeriodDays' && context.code === 'too_small' && context.expected === '0') {
+  if (context.path === 'records.retentionDays' && context.code === 'too_small' && context.expected === '0') {
     return {
       suggestion:
-        'cleanupPeriodDays must be 0 or greater. A positive number is the transcript retention period in days (default 30); 0 disables session persistence entirely — no transcripts are written and existing transcripts are deleted at startup',
+        'records.retentionDays must be 0 or greater. A positive number is the transcript retention period in days (default 30); 0 disables session persistence entirely — no transcripts are written and existing transcripts are deleted at startup',
     }
   }
-  if (context.path.startsWith('env.') && context.code === 'invalid_type') {
+  if (context.path.startsWith('environment.values.') && context.code === 'invalid_type') {
     return {
       suggestion: 'Environment values must be strings — quote numbers and booleans, e.g. "MY_FLAG": "true"',
     }
   }
   if (
-    (context.path === 'permissions.allow' || context.path === 'permissions.deny') &&
+    (context.path === 'guardrails.allow' || context.path === 'guardrails.deny') &&
     context.code === 'invalid_type' &&
     context.expected === 'array'
   ) {
@@ -58,7 +58,7 @@ function matchTip(context: TipContext): ValidationTip | null {
     }
   }
   if (context.code === 'invalid_type' && context.expected === 'boolean') {
-    return { suggestion: 'Use unquoted true or false, e.g. "alwaysThinkingEnabled": true' }
+    return { suggestion: 'Use unquoted true or false, e.g. "engine": { "reasoning": true }' }
   }
   if (context.code === 'unrecognized_keys') {
     return { suggestion: 'Check for typos, or consult the settings documentation for the supported fields' }

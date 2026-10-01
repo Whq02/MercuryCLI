@@ -20,7 +20,7 @@ import { cleanupStaleAgentWorktrees } from './worktree.js'
 const DEFAULT_CLEANUP_PERIOD_DAYS = 30
 
 export function retentionWindowDays(): number {
-  return getInitialSettings().cleanupPeriodDays ?? DEFAULT_CLEANUP_PERIOD_DAYS
+  return getInitialSettings().records?.retentionDays ?? DEFAULT_CLEANUP_PERIOD_DAYS
 }
 
 export type CleanupResult = {
@@ -407,9 +407,9 @@ async function recallablePasteHashes(): Promise<Set<string>> {
 
 export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResult> {
   const { errors: settingsErrors } = getSettingsWithAllErrors()
-  if (settingsErrors.length > 0 && rawSettingsContainsKey('cleanupPeriodDays')) {
+  if (settingsErrors.length > 0 && rawSettingsContainsKey('records.retentionDays')) {
     logForDebugging(
-      'cleanup: skipped — settings have validation errors and cleanupPeriodDays is (or may be) configured',
+      'cleanup: skipped — settings have validation errors and records.retentionDays is (or may be) configured',
     )
     return { messages: 0, errors: 1 }
   }

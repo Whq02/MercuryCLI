@@ -24,25 +24,10 @@ export function MCPServerMultiselectDialog({
   const commit = useCallback(
     (enabled: string[], disabled: string[]) => {
       const current = getSettingsForSource('localSettings') ?? {}
-      const updates: {
-        enabledMcpjsonServers?: string[]
-        disabledMcpjsonServers?: string[]
-      } = {}
-      if (enabled.length > 0) {
-        updates.enabledMcpjsonServers = unionInto(
-          current.enabledMcpjsonServers,
-          enabled,
-        )
-      }
-      if (disabled.length > 0) {
-        updates.disabledMcpjsonServers = unionInto(
-          current.disabledMcpjsonServers,
-          disabled,
-        )
-      }
-      if (updates.enabledMcpjsonServers || updates.disabledMcpjsonServers) {
-        updateSettingsForSource('localSettings', updates)
-      }
+      const kit: { projectOn?: string[]; projectOff?: string[] } = {}
+      if (enabled.length > 0) kit.projectOn = unionInto(current.kit?.projectOn, enabled)
+      if (disabled.length > 0) kit.projectOff = unionInto(current.kit?.projectOff, disabled)
+      if (kit.projectOn || kit.projectOff) updateSettingsForSource('localSettings', { kit })
       onDone()
     },
     [onDone],

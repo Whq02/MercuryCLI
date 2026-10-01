@@ -382,8 +382,7 @@ const autoModeStateModule =
   (require('./autoModeState.js') as typeof import('./autoModeState.js') | null) ?? null
 
 function isAutoModeDisabledBySettings(): boolean {
-  const settings = getSettings_DEPRECATED() as { permissions?: { disableFlowMode?: boolean } }
-  return settings.permissions?.disableFlowMode === true
+  return getSettings_DEPRECATED().guardrails?.disableFlowMode === true
 }
 
 export function isAutoModeGateEnabled(): boolean {
@@ -482,8 +481,7 @@ function kickOutOfAuto(context: ToolPermissionContext, available: boolean): Tool
 
 
 function isBypassDisabledBySettingsOrPolicy(): boolean {
-  const settings = getSettings_DEPRECATED() as { permissions?: { disableSovereignMode?: boolean } }
-  return settings.permissions?.disableSovereignMode === true
+  return getSettings_DEPRECATED().guardrails?.disableSovereignMode === true
 }
 
 export function isBypassPermissionsModeDisabled(): boolean {
@@ -595,8 +593,7 @@ export function initialPermissionModeFromCLI({
 }
 
 function settingsDefaultMode(): PermissionMode | undefined {
-  const settings = getSettings_DEPRECATED() as { permissions?: { defaultMode?: string } }
-  const raw = settings.permissions?.defaultMode
+  const raw = getSettings_DEPRECATED().guardrails?.mode
   if (!raw) return undefined
   const mode = permissionModeFromString(raw)
   return mode

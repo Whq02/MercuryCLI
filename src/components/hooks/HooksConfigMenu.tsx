@@ -46,7 +46,7 @@ function readPolicyAnswers(): {
 } {
   return {
     policyDisablesAll:
-      getSettingsForSource('policySettings')?.disableAllHooks === true,
+      getSettingsForSource('policySettings')?.events?.disabled === true,
     managedOnly: shouldAllowManagedHooksOnly(),
   }
 }

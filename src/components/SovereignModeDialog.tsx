@@ -45,9 +45,7 @@ export function SovereignModeDialog({
         ]}
         onChange={value => {
           if (value === 'accept') {
-            updateSettingsForSource('userSettings', {
-              skipSovereignConsentPrompt: true,
-            })
+            updateSettingsForSource('userSettings', { guardrails: { sovereignConsentSeen: true } })
             onAccept()
           } else {
             gracefulShutdownSync(1)

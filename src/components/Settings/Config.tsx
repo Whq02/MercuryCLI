@@ -360,22 +360,8 @@ export function Config({
     snapshotsRef.current = {
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
-      local: {
-        spinnerTipsEnabled: local.spinnerTipsEnabled,
-        prefersReducedMotion: local.prefersReducedMotion,
-        instructionProfile: local.instructionProfile,
-        shellEngine: local.shellEngine,
-      },
-      user: {
-        alwaysThinkingEnabled: user.alwaysThinkingEnabled,
-        promptSuggestionEnabled: user.promptSuggestionEnabled,
-        language: user.language,
-        syntaxHighlightingDisabled: user.syntaxHighlightingDisabled,
-        permissions: user.permissions,
-        patience: user.patience,
-        openrouterRouting: user.openrouterRouting,
-        localServer: localServerSettingsOf(user),
-      },
+      local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine } },
+      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -442,11 +428,11 @@ export function Config({
         (client as { name?: string; type?: string }).name === 'ide' &&
         (client as { connected?: boolean; type?: string }).type === 'connected',
     )
-  const thinkingOn = merged.alwaysThinkingEnabled === true
-  const permissions = merged.permissions ?? {}
+  const thinkingOn = merged.engine?.reasoning === true
+  const permissions = merged.guardrails ?? {}
   const defaultMode = validated(
     EXTERNAL_PERMISSION_MODES,
-    permissions.defaultMode,
+    permissions.mode,
     'default',
   )
   const modeOptions: readonly ExternalPermissionMode[] = [
@@ -544,10 +530,10 @@ export function Config({
     id: 'tips',
     label: 'Tips',
     kind: 'boolean',
-    value: boolValue(merged.spinnerTipsEnabled !== false),
+    value: boolValue(merged.activity?.tips?.enabled !== false),
     change: () => {
-      const next = merged.spinnerTipsEnabled === false
-      if (writeSource('localSettings', { spinnerTipsEnabled: next ? undefined : false })) {
+      const next = merged.activity?.tips?.enabled === false
+      if (writeSource('localSettings', { activity: { tips: { enabled: next ? undefined : false } } })) {
         snapshots.dirty = true
         recordToggle('tips', `set tips to ${next ? 'on' : 'off'}`)
         bump()
@@ -558,10 +544,10 @@ export function Config({
     id: 'reducedMotion',
     label: 'Reduced motion',
     kind: 'boolean',
-    value: boolValue(merged.prefersReducedMotion === true),
+    value: boolValue(merged.view?.reducedMotion === true),
     change: () => {
-      const next = merged.prefersReducedMotion !== true
-      if (writeSource('localSettings', { prefersReducedMotion: next ? true : undefined })) {
+      const next = merged.view?.reducedMotion !== true
+      if (writeSource('localSettings', { view: { reducedMotion: next ? true : undefined } })) {
         snapshots.dirty = true
         recordToggle('reducedMotion', `set reduced motion to ${next ? 'on' : 'off'}`)
         bump()
@@ -609,12 +595,12 @@ export function Config({
     id: 'instructionProfile',
     label: 'Instruction profile',
     kind: 'enum',
-    value: <Text>{merged.instructionProfile ?? 'auto'}</Text>,
+    value: <Text>{merged.briefs?.profile ?? 'auto'}</Text>,
     change: direction => {
       const profiles = ['auto', 'native'] as const
-      const current = validated(profiles, merged.instructionProfile, 'auto')
+      const current = validated(profiles, merged.briefs?.profile, 'auto')
       const next = cycleIn(profiles, current, direction)
-      if (writeSource('localSettings', { instructionProfile: next })) {
+      if (writeSource('localSettings', { briefs: { profile: next } })) {
         snapshots.dirty = true
         setSessionInstructionProfile(next === 'auto' ? null : isInstructionProfile(next) ? next : null)
         clearInstructionFileCaches()
@@ -624,7 +610,7 @@ export function Config({
     },
   })
   {
-    const engineSetting = validated(['system', 'brush'] as const, merged.shellEngine, 'system')
+    const engineSetting = validated(['system', 'brush'] as const, merged.shell?.engine, 'system')
     const resolved = resolveShellEngine(engineSetting)
     const detail =
       engineSetting === 'brush' && resolved.engine !== 'brush'
@@ -644,7 +630,7 @@ export function Config({
       change: direction => {
         const engines = ['system', 'brush'] as const
         const next = cycleIn(engines, engineSetting, direction)
-        if (writeSource('localSettings', { shellEngine: next === 'system' ? undefined : next })) {
+        if (writeSource('localSettings', { shell: { engine: next === 'system' ? undefined : next } })) {
           snapshots.dirty = true
           recordSet('shellEngine', `set shell engine to ${next}`)
           resetShellEngineResolution()
@@ -687,7 +673,7 @@ export function Config({
     })
   }
   {
-    const routing = merged.openrouterRouting
+    const routing = merged.routing?.openrouter
     const collection = routing?.dataCollection ?? 'deny'
     const parameters = routing?.requireParameters ?? true
     const fallbacks = routing?.allowFallbacks ?? true
@@ -709,7 +695,7 @@ export function Config({
           allowFallbacks: next !== 'strict',
           zeroDataRetention: next === 'strict',
         }
-        if (writeSource('userSettings', { openrouterRouting: value })) {
+        if (writeSource('userSettings', { routing: { openrouter: value } })) {
           snapshots.dirty = true
           recordSet('openrouterRouting', `set OpenRouter routing policy to ${next}`)
           bump()
@@ -718,7 +704,7 @@ export function Config({
     }, 'openrouter'))
   }
   {
-    const ceiling = resolveEngineSessionCeiling(merged.shellEngineSessions)
+    const ceiling = resolveEngineSessionCeiling(merged.shell?.sessions)
     const pinned = engineSessionCeilingPinned()
     const share = ceiling === 1 ? 'no session for sub-agents' : `the conversation + ${ceiling - 1} sub-agent${ceiling === 2 ? '' : 's'}`
     items.push({
@@ -732,8 +718,8 @@ export function Config({
           ? "A ceiling of 1 keeps the main conversation's session only: a sub-agent's engine call is refused with the reason (a run_in_background call still runs, in its own system shell)."
           : undefined,
       change: direction => {
-        const next = nextSessionCeiling(merged.shellEngineSessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
-        if (writeSource('localSettings', { shellEngineSessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next })) {
+        const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
+        if (writeSource('localSettings', { shell: { sessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next } })) {
           snapshots.dirty = true
           recordSet('shellEngineSessions', `set shell engine sessions to ${next}`)
           bump()
@@ -752,11 +738,11 @@ export function Config({
         : undefined,
     change: () => {
       const next = !thinkingOn
-      if (writeSource('userSettings', { alwaysThinkingEnabled: next ? undefined : false })) {
+      if (writeSource('userSettings', { engine: { reasoning: next ? undefined : false } })) {
         snapshots.dirty = true
         recordToggle('thinking', `set thinking mode to ${next ? 'on' : 'off'}`)
         if (conversationHasAssistantTurn) {
-          const initial = snapshots.user.alwaysThinkingEnabled === true
+          const initial = snapshots.user.engine?.reasoning === true
           setThinkingWarning(next !== initial)
         }
         bump()
@@ -804,9 +790,7 @@ export function Config({
     change: direction => {
       const next = cycleIn(modeOptions, defaultMode, direction)
       if (
-        writeSource('userSettings', {
-          permissions: { defaultMode: next },
-        })
+        writeSource('userSettings', { guardrails: { mode: next } })
       ) {
         snapshots.dirty = true
         recordSet('defaultPermissionMode', `set default permission mode to ${permissionModeTitle(next)}`)
@@ -875,7 +859,7 @@ export function Config({
     id: 'language',
     label: 'Language',
     kind: 'managed-enum',
-    value: <Text>{merged.language ?? 'auto'}</Text>,
+    value: <Text>{merged.voice?.language ?? 'auto'}</Text>,
     open: 'language',
   })
   items.push({
@@ -949,7 +933,7 @@ export function Config({
       nowMs: Date.now(),
       tokens,
       onSet: (id, value, words) => {
-        if (writeSource('userSettings', { localServer: { [id]: value } } as never)) {
+        if (writeSource('userSettings', { local: { server: { [id]: value } } })) {
           snapshots.dirty = true
           recordSet(`localServer.${id}`, words)
           bump()
@@ -1266,30 +1250,17 @@ export function Config({
       globalTouchedRef.current.clear()
       if (motionTouched) noteMotionSettingChanged()
     }
-    writeSource('localSettings', {
-      spinnerTipsEnabled: snapshots.local.spinnerTipsEnabled,
-      prefersReducedMotion: snapshots.local.prefersReducedMotion,
-      instructionProfile: snapshots.local.instructionProfile,
-      shellEngine: snapshots.local.shellEngine,
-    })
-    writeSource('userSettings', {
-      alwaysThinkingEnabled: snapshots.user.alwaysThinkingEnabled,
-      promptSuggestionEnabled: snapshots.user.promptSuggestionEnabled,
-      language: snapshots.user.language,
-      syntaxHighlightingDisabled: snapshots.user.syntaxHighlightingDisabled,
-      patience: snapshots.user.patience,
-      openrouterRouting: snapshots.user.openrouterRouting === undefined ? undefined : {
+    writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine } })
+    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
         dataCollection: undefined,
         requireParameters: undefined,
         allowFallbacks: undefined,
         zeroDataRetention: undefined,
-        ...snapshots.user.openrouterRouting,
-      },
-      permissions: { defaultMode: snapshots.user.permissions?.defaultMode } as never,
-    })
-    writeSource('userSettings', localServerRevertPartial(snapshots.user.localServer))
+        ...snapshots.user.routing?.openrouter,
+      } }, guardrails: { defaultMode: snapshots.user.guardrails?.mode } as never })
+    writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
-    const restoredProfile = snapshots.local.instructionProfile
+    const restoredProfile = snapshots.local.briefs?.profile
     setSessionInstructionProfile(
       isInstructionProfile(restoredProfile) ? restoredProfile : null,
     )
@@ -1494,9 +1465,9 @@ export function Config({
   if (subMenu === 'language') {
     return (
       <LanguagePicker
-        initialLanguage={merged.language}
+        initialLanguage={merged.voice?.language}
         onComplete={language => {
-          if (writeSource('userSettings', { language })) {
+          if (writeSource('userSettings', { voice: { language: language } })) {
             snapshots.dirty = true
             recordSet('language', `set language to ${language ?? 'auto'}`)
           }

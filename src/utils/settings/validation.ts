@@ -156,18 +156,18 @@ export function validateSettingsFileContent(
 export function filterInvalidPermissionRules(data: unknown, filePath: string): ValidationError[] {
   const warnings: ValidationError[] = []
   if (typeof data !== 'object' || data === null) return warnings
-  const permissions = (data as { permissions?: unknown }).permissions
-  if (typeof permissions !== 'object' || permissions === null) return warnings
+  const guardrails = (data as { guardrails?: unknown }).guardrails
+  if (typeof guardrails !== 'object' || guardrails === null) return warnings
   for (const key of ['allow', 'deny', 'ask'] as const) {
-    const rules = (permissions as Record<string, unknown>)[key]
+    const rules = (guardrails as Record<string, unknown>)[key]
     if (!Array.isArray(rules)) continue
     const kept: unknown[] = []
     for (const rule of rules) {
       if (typeof rule !== 'string') {
         warnings.push({
           file: filePath,
-          path: `permissions.${key}`,
-          message: `Removed a non-string value from permissions.${key}`,
+          path: `guardrails.${key}`,
+          message: `Removed a non-string value from guardrails.${key}`,
           invalidValue: rule,
           severity: 'warning',
         })
@@ -180,7 +180,7 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
         if (result.suggestion) message += `. ${result.suggestion}`
         warnings.push({
           file: filePath,
-          path: `permissions.${key}`,
+          path: `guardrails.${key}`,
           message,
           invalidValue: rule,
           severity: 'warning',
@@ -189,7 +189,7 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
       }
       kept.push(rule)
     }
-    ;(permissions as Record<string, unknown>)[key] = kept
+    ;(guardrails as Record<string, unknown>)[key] = kept
   }
   return warnings
 }

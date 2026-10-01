@@ -129,20 +129,20 @@ export function ThemePicker({
   useKeybinding(
     'theme:toggleSyntaxHighlighting',
     () => {
-      const next = !settings.syntaxHighlightingDisabled
+      const next = !settings.view?.syntaxOff
       updateSettingsForSource('userSettings', {
-        syntaxHighlightingDisabled: next,
+        view: { syntaxOff: next },
       })
       setAppState(prev => ({
         ...prev,
-        settings: { ...prev.settings, syntaxHighlightingDisabled: next },
+        settings: { ...prev.settings, view: { ...prev.settings.view, syntaxOff: next } },
       }))
     },
     { context: 'ThemePicker', isActive: colorModuleAvailable },
   )
 
   let statusLine: string
-  if (settings.syntaxHighlightingDisabled) {
+  if (settings.view?.syntaxOff) {
     statusLine = `Syntax highlighting disabled (${toggleChord} to enable)`
   } else {
     const syntaxTheme = getSyntaxTheme(themeName)

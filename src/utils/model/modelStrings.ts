@@ -12,8 +12,7 @@ export type ModelStrings = Record<ModelKey, string>
 
 function readOverrides(): Record<string, string> {
   try {
-    const raw = (getInitialSettings() as { modelOverrides?: Record<string, string> })
-      .modelOverrides
+    const raw = getInitialSettings().engine?.pins
     if (!raw) return {}
     const filtered: Record<string, string> = {}
     for (const [key, value] of Object.entries(raw)) {

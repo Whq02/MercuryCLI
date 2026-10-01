@@ -14,7 +14,7 @@ export function selectTipWithLongestTimeSinceShown(tips: Tip[]): Tip | undefined
 }
 
 export async function getTipToShowOnSpinner(context?: TipContext): Promise<Tip | undefined> {
-  if (getSettings_DEPRECATED().spinnerTipsEnabled === false) return undefined
+  if (getSettings_DEPRECATED().activity?.tips?.enabled === false) return undefined
   const tips = await getRelevantTips(context)
   return selectTipWithLongestTimeSinceShown(tips)
 }

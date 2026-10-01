@@ -1,5 +1,5 @@
 import { getInitialSettings } from '../settings/settings.js'
 
 export function resolveDefaultShell(): 'bash' | 'powershell' {
-  return getInitialSettings().defaultShell ?? 'bash'
+  return getInitialSettings().shell?.kind ?? 'bash'
 }

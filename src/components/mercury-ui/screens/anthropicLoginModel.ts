@@ -110,7 +110,7 @@ export interface AnthropicLoginDeps {
   fetchRoles?: typeof fetchAndStoreUserRoles
   shadowWarning: () => string | null
   recordSignIn: (kind: SignInKind) => void
-  settings: () => { forceLoginMethod?: 'claudeai' | 'console' | null; forceLoginOrgUUID?: string | null }
+  settings: () => { credentials?: { signInRoute?: 'claudeai' | 'console' | null; organisation?: string | null } }
   notify?: (notice: typeof LOGIN_SUCCESS_NOTICE) => void
   clipboard: (text: string) => Promise<string | null>
   writeStdout: (sequence: string) => void
@@ -163,9 +163,9 @@ export function createAnthropicLoginMachine(
 ): AnthropicLoginMachine {
   const deps: AnthropicLoginDeps = { ...liveDeps(), ...injected }
   const setupToken = options.mode === 'setup-token'
-  const settingsForced = deps.settings().forceLoginMethod ?? null
+  const settingsForced = deps.settings().credentials?.signInRoute ?? null
   const forcedMethod = options.forceLoginMethod ?? settingsForced ?? null
-  const forcedOrg = deps.settings().forceLoginOrgUUID ?? null
+  const forcedOrg = deps.settings().credentials?.organisation ?? null
 
   let flow: AnthropicFlowState = setupToken
     ? { name: 'ready', loginWithClaudeAi: true }

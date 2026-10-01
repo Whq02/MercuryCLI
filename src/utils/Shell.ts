@@ -184,7 +184,7 @@ export async function exec(
   const useSandbox = options.shouldUseSandbox === true
 
   if (shellType === 'bash' && options.onStdout === undefined && options.backgroundIntent !== true && options.inheritSessionEnv !== true) {
-    const engine = resolveShellEngine(getInitialSettings().shellEngine)
+    const engine = resolveShellEngine(getInitialSettings().shell?.engine)
     if (engine.engine === 'brush') {
       if (abortSignal.aborted) return createAbortedCommand()
       return runEngineCommand(engine.binaryPath, command, {
@@ -193,7 +193,7 @@ export async function exec(
         sandbox: useSandbox ? { enabled: true, tmpDir: sandboxTmpDir } : { enabled: false },
         onProgress: options.onProgress,
         owner: options.owner,
-        sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shellEngineSessions),
+        sessionCeiling: resolveEngineSessionCeiling(getInitialSettings().shell?.sessions),
         onCwd: reported => {
           if (options.preventCwdChanges) return
           try {

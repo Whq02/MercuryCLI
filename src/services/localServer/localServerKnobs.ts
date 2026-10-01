@@ -38,7 +38,7 @@ export interface LocalServerSettings {
 }
 
 export function localServerSettingsOf(merged: SettingsJson | undefined): LocalServerSettings {
-  const raw = (merged as { localServer?: LocalServerSettings } | undefined)?.localServer
+  const raw = merged?.local?.server
   if (!raw || typeof raw !== 'object') return {}
   const out: LocalServerSettings = {}
   if (typeof raw.maxLoadedModels === 'number' && Number.isInteger(raw.maxLoadedModels) && raw.maxLoadedModels >= 1) out.maxLoadedModels = raw.maxLoadedModels
@@ -53,12 +53,12 @@ export function readLocalServerSettings(): LocalServerSettings {
 }
 
 export function writeLocalServerSetting(id: LocalServerKnobId, value: number | string | undefined): { error: Error | null } {
-  return updateSettingsForSource('userSettings', { localServer: { [id]: value } } as Partial<SettingsJson>)
+  return updateSettingsForSource('userSettings', { local: { server: { [id]: value } } } as Partial<SettingsJson>)
 }
 
 export function localServerRevertPartial(snapshot: LocalServerSettings | undefined): Partial<SettingsJson> {
-  if (snapshot === undefined || Object.keys(snapshot).length === 0) return { localServer: undefined } as Partial<SettingsJson>
-  return { localServer: { maxLoadedModels: snapshot.maxLoadedModels, parallelSlots: snapshot.parallelSlots, keepAlive: snapshot.keepAlive, contextLength: snapshot.contextLength } } as Partial<SettingsJson>
+  if (snapshot === undefined || Object.keys(snapshot).length === 0) return { local: { server: undefined } } as Partial<SettingsJson>
+  return { local: { server: { maxLoadedModels: snapshot.maxLoadedModels, parallelSlots: snapshot.parallelSlots, keepAlive: snapshot.keepAlive, contextLength: snapshot.contextLength } } } as Partial<SettingsJson>
 }
 
 export function knobEnvValue(id: LocalServerKnobId, value: number | string): string {

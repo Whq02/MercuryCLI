@@ -81,10 +81,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   const token = args.toLowerCase()
 
   if (token === 'auto' || token === 'unset') {
-    const { error } = updateSettingsForSource('userSettings', {
-      effortLevel: undefined,
-      supercodeEffort: undefined,
-    })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: undefined, supercode: undefined } })
     if (error) {
       return { message: `Could not clear the effort settings: ${error.message}` }
     }
@@ -109,10 +106,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
         message: `${model} does not support the maximum effort tier, and supercode runs at max. Switch to a max-capable model${familyClause} first. Options: ${OPTION_LIST}.`,
       }
     }
-    const { error } = updateSettingsForSource('userSettings', {
-      effortLevel: 'max',
-      supercodeEffort: true,
-    })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: 'max', supercode: true } })
     if (error) {
       return { message: `Could not save the supercode setting: ${error.message}` }
     }
@@ -132,10 +126,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
 
   const persistable = toPersistableEffort(level) !== undefined
   if (persistable) {
-    const { error } = updateSettingsForSource('userSettings', {
-      effortLevel: toPersistableEffort(level),
-      supercodeEffort: undefined,
-    })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: toPersistableEffort(level), supercode: undefined } })
     if (error) {
       return { message: `Could not save the effort level: ${error.message}` }
     }

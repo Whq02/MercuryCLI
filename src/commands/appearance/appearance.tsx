@@ -22,7 +22,7 @@ type Props = {
 function AppearanceCenter({ onDone }: Props): React.ReactNode {
   const tokens = useMercuryTokens()
   const accent = useSessionAccent()
-  const settingsReduced = useSettings().prefersReducedMotion ?? false
+  const settingsReduced = useSettings().view?.reducedMotion ?? false
   const [motionOverride, setMotionOverride] = useState<boolean | null>(null)
   const reduced = motionOverride ?? settingsReduced
   const [motionNote, setMotionNote] = useState<string | null>(null)
@@ -30,9 +30,7 @@ function AppearanceCenter({ onDone }: Props): React.ReactNode {
   useInput(input => {
     if (input === 'm') {
       const next = !reduced
-      const { error } = updateSettingsForSource('userSettings', {
-        prefersReducedMotion: next,
-      })
+      const { error } = updateSettingsForSource('userSettings', { view: { reducedMotion: next } })
       if (!error) setMotionOverride(next)
       setMotionNote(
         error

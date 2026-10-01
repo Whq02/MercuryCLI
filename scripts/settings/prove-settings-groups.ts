@@ -1,0 +1,167 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { isDeepStrictEqual } from 'node:util'
+
+;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const root = mkdtempSync(join(tmpdir(), 'settings-groups-'))
+process.env.MERCURY_CONFIG_DIR = join(root, 'home')
+mkdirSync(process.env.MERCURY_CONFIG_DIR)
+const project = join(root, 'project')
+mkdirSync(join(project, '.mercury'), { recursive: true })
+const { SettingsSchema } = await import('../../src/utils/settings/types.js')
+const pipeline = await import('../../src/utils/settings/settings.js')
+const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
+const { setMdmSettingsCache } = await import('../../src/utils/settings/mdm/settings.js')
+const state = await import('../../src/bootstrap/state.js')
+state.setOriginalCwd(project)
+state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
+const files = [
+  join(process.env.MERCURY_CONFIG_DIR, 'settings.json'),
+  join(project, '.mercury', 'settings.json'),
+  join(project, '.mercury', 'settings.local.json'),
+  join(root, 'flag.json'),
+]
+state.setFlagSettingsPath(files[3])
+
+type Row = [string, unknown[], unknown[]]
+const rows: Row[] = [
+  ['credentials.keyCommand', ['printf fixture-key', ''], [false, 0]],
+  ['credentials.proxyCommand', ['printf fixture-token', ''], [false, 0]],
+  ['credentials.signInRoute', ['console', 'claudeai'], ['', false, 0]],
+  ['credentials.organisation', ['fixture-org', ''], [false, 0]],
+  ['files.suggester', [{ type: 'command', command: 'printf fixture' }], [false, 0, '']],
+  ['files.honourGitignore', [true, false], [0, '']],
+  ['records.retentionDays', [0, 3], [false, '', -1]],
+  ['briefs.exclude', [[], ['**/notes.md']], [false, 0, '']],
+  ['strategy.directory', ['plans', ''], [false, 0]],
+  ['memory.enabled', [true, false], [0, '']],
+  ['memory.directory', ['memory', ''], [false, 0]],
+  ['memory.upkeep', [true, false], [0, '']],
+  ['turns.loopGuard', [true, false], [0, '']],
+  ['environment.values', [{ FIXTURE: 'one' }, {}], [false, 0, '']],
+  ['credit.lines', [{ commit: '', pr: '' }, {}], [false, 0, '']],
+  ['credit.mercury', [true, false], [0, '']],
+  ['briefs.git', [true, false], [0, '']],
+  ['guardrails', [{ allow: ['Read'] }, {}], [false, 0, '']],
+  ['engine.model', ['fixture-model', ''], [false, 0]],
+  ['engine.roster', [[], ['fixture-model']], [false, 0, '']],
+  ['engine.pins', [{ fixture: 'pinned' }, {}], [false, 0, '']],
+  ['engine.effort', ['high', 'max'], []],
+  ['engine.supercode', [true, false], [0, '']],
+  ['engine.sessionDefaults', [true, false], [0, '']],
+  ['engine.reasoning', [true, false], [0, '']],
+  ['kit.trustProjectServers', [true, false], [0, '']],
+  ['kit.projectOn', [[], ['fixture-server']], [false, 0, '']],
+  ['kit.projectOff', [[], ['fixture-server']], [false, 0, '']],
+  ['kit.permit', [[], [{ serverName: 'fixture' }]], [false, 0, '']],
+  ['kit.deny', [[], [{ serverName: 'fixture' }]], [false, 0, '']],
+  ['kit.managedOnly', [true, false], [0, '']],
+  ['events.hooks', [{}, { Stop: [{ hooks: [{ type: 'command', command: 'true' }] }] }], [false, 0, '']],
+  ['events.disabled', [true, false], [0, '']],
+  ['events.managedOnly', [true, false], [0, '']],
+  ['events.httpDestinations', [[], ['https://example.invalid/hook']], [false, 0, '']],
+  ['events.httpEnvironment', [[], ['FIXTURE']], [false, 0, '']],
+  ['guardrails.managedOnly', [true, false], [0, '']],
+  ['extensions.exclusive', [true, false, [], ['agents']], []],
+  ['voice.language', ['English', ''], [false, 0]],
+  ['activity.tips.enabled', [true, false], [0, '']],
+  ['view.files', [true, false], [0, '']],
+  ['view.modelPicker.centred', [true, false], [0, '']],
+  ['activity.verbs', [{ mode: 'append', verbs: [] }, { mode: 'replace', verbs: ['Working'] }], [false, 0, '']],
+  ['activity.tips.words', [{ tips: [] }, { excludeDefault: true, tips: ['Fixture tip'] }], [false, 0, '']],
+  ['view.syntaxOff', [true, false], [0, '']],
+  ['view.reducedMotion', [true, false], [0, '']],
+  ['context.wayBack', [true, false], [0, '']],
+  ['view.backgroundKey', [true, false], [0, '']],
+  ['view.sessionsBar', [true, false], [0, '']],
+  ['view.firstRunCards', ['centred', 'top-left'], [false, 0, '']],
+  ['strategy.offerFreshContext', [true, false], [0, '']],
+  ['activity.progress', [true, false], [0, '']],
+  ['input.suggestions', [true, false], [0, '']],
+  ['engine.agent', ['fixture-agent', ''], [false, 0]],
+  ['guardrails.sovereignConsentSeen', [true, false], [0, '']],
+  ['shell.kind', ['bash', 'powershell'], [false, 0, '']],
+  ['shell.engine', ['system', 'brush'], [false, 0, '']],
+  ['routing.openrouter', [{ dataCollection: 'allow', requireParameters: false }, {}], [false, 0, '']],
+  ['shell.sessions', [1, 64], [false, 0, '']],
+  ['briefs.profile', ['auto', 'native'], [false, 0, '']],
+  ['channels.enabled', [true, false], [0, '']],
+  ['guardrails.sandbox', [{ enabled: true }, { enabled: false }], [false, 0, '']],
+  ['workspace.worktree', [{ symlinkDirectories: [] }, { sparsePaths: ['src'] }], [false, 0, '']],
+  ['local.server', [{ parallelSlots: 1 }, { parallelSlots: 2 }], [false, 0, '']],
+]
+const objectAt = (path: string, value: unknown): Record<string, unknown> =>
+  path.split('.').reduceRight<unknown>((child, key) => ({ [key]: child }), value) as Record<string, unknown>
+const valueAt = (object: unknown, path: string): unknown =>
+  path.split('.').reduce<unknown>((node, key) => node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined, object)
+function declared(path: string): boolean {
+  let schema: any = SettingsSchema()
+  for (const key of path.split('.')) {
+    while (!schema?.shape && typeof schema?.unwrap === 'function') schema = schema.unwrap()
+    if (!schema?.shape?.[key]) return false
+    schema = schema.shape[key]
+  }
+  return true
+}
+let failures = 0
+function check(label: string, ok: boolean): void {
+  if (!ok) failures++
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+}
+function fixture(values: object[]): void {
+  files.forEach((file, index) => writeFileSync(file, JSON.stringify(values[index] ?? {})))
+  setMdmSettingsCache({ settings: (values[4] ?? {}) as never, errors: [] }, { settings: {}, errors: [] })
+  resetSettingsCache()
+}
+try {
+  for (const [path, values, invalid] of rows) {
+    check(`${path} is declared`, declared(path))
+    check(`${path} absent remains absent`, valueAt(SettingsSchema().parse({}), path) === undefined)
+    for (const value of values) {
+      const input = objectAt(path, value)
+      const result = SettingsSchema().safeParse(input)
+      check(`${path} accepts ${JSON.stringify(value)}`, result.success && isDeepStrictEqual(valueAt(result.data, path), value))
+      fixture([input])
+      const before = readFileSync(files[0]!, 'utf8')
+      check(`${path} loader and source agree`, isDeepStrictEqual(valueAt(pipeline.getInitialSettings(), path), value) && isDeepStrictEqual(valueAt(pipeline.getSettingsForSource('userSettings'), path), value))
+      resetSettingsCache()
+      pipeline.getInitialSettings()
+      check(`${path} reads leave bytes unchanged`, readFileSync(files[0]!, 'utf8') === before)
+      fixture([])
+      const written = pipeline.updateSettingsForSource('userSettings', input)
+      check(`${path} explicit write and read agree`, written.error === null && isDeepStrictEqual(valueAt(pipeline.getSettingsForSource('userSettings'), path), value))
+    }
+    for (const value of invalid) check(`${path} rejects ${JSON.stringify(value)}`, !SettingsSchema().safeParse(objectAt(path, value)).success)
+    for (let low = 0; low < 5; low++) {
+      for (let high = low + 1; high < 5; high++) {
+        const sources: object[] = []
+        const lowValue = values[0]
+        const highValue = values[values.length - 1]
+        sources[low] = objectAt(path, lowValue)
+        sources[high] = objectAt(path, highValue)
+        fixture(sources)
+        const { default: mergeWith } = await import('lodash-es/mergeWith.js')
+        const expected = mergeWith({}, sources[low], sources[high], pipeline.settingsMergeCustomizer)
+        check(`${path} source pair ${low}<${high}`, isDeepStrictEqual(valueAt(pipeline.getInitialSettings(), path), valueAt(expected, path)))
+      }
+    }
+  }
+  check('engine effort invalid value degrades to absence', valueAt(SettingsSchema().parse({ engine: { effort: 'not-an-effort' } }), 'engine.effort') === undefined)
+  for (const value of [1, null, {}, 'not-a-boolean']) {
+    check('extension lock fails closed', valueAt(SettingsSchema().parse({ extensions: { exclusive: value } }), 'extensions.exclusive') === true)
+  }
+  fixture([{ futureSetting: { keep: [false, 0, ''] } }])
+  pipeline.updateSettingsForSource('userSettings', { engine: { model: 'fixture-model' } } as never)
+  check('unknown fields survive an explicit write', isDeepStrictEqual(JSON.parse(readFileSync(files[0]!, 'utf8')).futureSetting, { keep: [false, 0, ''] }))
+  for (let source = 0; source < 5; source++) {
+    const sources: object[] = []
+    sources[source] = { guardrails: { sovereignConsentSeen: true } }
+    fixture(sources)
+    check(`consent source ${source} respects trust`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1))
+  }
+} finally {
+  rmSync(root, { recursive: true, force: true })
+}
+console.log(`settings groups: ${rows.length} paths; ${failures} failures`)
+process.exitCode = failures ? 1 : 0

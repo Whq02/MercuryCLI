@@ -822,7 +822,7 @@ class Project {
   private shouldSkipPersistence(): boolean {
     return (
       getNodeEnv() === 'test' ||
-      getSettings_DEPRECATED()?.cleanupPeriodDays === 0 ||
+      getSettings_DEPRECATED()?.records?.retentionDays === 0 ||
       isSessionPersistenceDisabled() ||
       isEnvTruthy(process.env.MERCURY_SKIP_PROMPT_HISTORY)
     )

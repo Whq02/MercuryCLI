@@ -92,9 +92,7 @@ export function MemoryFileSelector({
     {
       id: 'auto-memory',
       flip: () => {
-        updateSettingsForSource('userSettings', {
-          autoMemoryEnabled: !autoMemoryOn,
-        })
+        updateSettingsForSource('userSettings', { memory: { enabled: !autoMemoryOn } })
         setAutoMemoryOn(value => !value)
       },
     },
@@ -103,9 +101,7 @@ export function MemoryFileSelector({
           {
             id: 'upkeep' as const,
             flip: () => {
-              updateSettingsForSource('userSettings', {
-                memoryUpkeepEnabled: !upkeepOn,
-              })
+              updateSettingsForSource('userSettings', { memory: { upkeep: !upkeepOn } })
               setUpkeepOn(value => !value)
             },
           },
