@@ -90,7 +90,7 @@ section('§1 the projection law — appended rows extend the view, never rewrite
     }
     return { ok: true, at: -1 }
   }
-  const REMINDER = '<system-reminder>\n# claudeMd\nbe brief\n</system-reminder>'
+  const REMINDER = '<system-reminder>\n# instructions\nbe brief\n</system-reminder>'
   const ctxRow = (): Record<string, unknown> => attachmentRow({ type: 'user_context', body: REMINDER })
 
   const h1 = [ctxRow(), user('first prompt')]

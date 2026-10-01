@@ -35,7 +35,7 @@ const bundle = await getInstructionBundle()
 const state = { toolPermissionContext: getEmptyToolPermissionContext() }
 const context = { readFileState: createFileStateCacheWithSizeLimit(100), loadedNestedMemoryPaths: new Set(), nestedMemoryAttachmentTriggers: new Set(), getAppState: () => state }
 const touched = process.env.DRV_TOUCH ? await getNestedMemoryAttachmentsForFile(process.env.DRV_TOUCH, context as never, state) : []
-writeFileSync(process.argv[2]!, JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).claudeMd ?? '', touched: touched.map(a => a.path) }))
+writeFileSync(process.argv[2]!, JSON.stringify({ paths: files.map(f => f.path), composed, resolution: bundle.resolution.resolved, entries: bundle.entries.map(e => ({ path: e.path, root: e.root, origin: e.origin })), cap: getMaxMemoryCharacterCount(), large: getLargeMemoryFiles(files).map(f => f.path), disabled: isInstructionDiscoveryDisabled(), user: (await getUserContext()).instructions ?? '', touched: touched.map(a => a.path) }))
 `)
 let passed = 0
 let failed = 0

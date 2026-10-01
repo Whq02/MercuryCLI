@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stale-instr-home-'))
 delete process.env.MERCURY_HOME
@@ -19,9 +20,10 @@ function section(t: string): void {
 
 const repoRoot = process.cwd()
 
-const project = mkdtempSync(join(tmpdir(), 'stale-instr-project-'))
+const project = realpathSync(mkdtempSync(join(tmpdir(), 'stale-instr-project-')))
 const estate = join(project, 'MERCURY.md')
 writeFileSync(estate, '# Project rules\n\nMARKER-ALPHA: the first estate.\n')
+seedFirstRun(process.env.MERCURY_CONFIG_DIR, [project])
 process.chdir(project)
 
 console.log('the one instruction invalidation reaches the composed block')
@@ -56,16 +58,16 @@ const engine = await import('../../src/services/instructions/engine.js')
 section('§1 prime on estate A · move to B · invalidate through the one call · read B')
 {
   const first = await context.getUserContext()
-  const firstBlock = first.claudeMd ?? ''
+  const firstBlock = first.instructions ?? ''
   check('the composed block carries estate A (the memo primes from the walk)', firstBlock.includes('MARKER-ALPHA'), `keys: ${Object.keys(first).join(',')} block: ${firstBlock.slice(0, 80)}`)
 
   writeFileSync(estate, '# Project rules\n\nMARKER-BETA: the estate moved.\n')
   const stale = await context.getUserContext()
-  check('control: with NO invalidation the memo answers A (a memo is a memo — this is the road every caller rides between turns)', (stale.claudeMd ?? '').includes('MARKER-ALPHA'))
+  check('control: with NO invalidation the memo answers A (a memo is a memo — this is the road every caller rides between turns)', (stale.instructions ?? '').includes('MARKER-ALPHA'))
 
   engine.clearInstructionFileCaches()
   const fresh = await context.getUserContext()
-  const freshBlock = fresh.claudeMd ?? ''
+  const freshBlock = fresh.instructions ?? ''
   check('THE ONE INVALIDATION REACHES THE COMPOSED BLOCK: the next read carries B (the base kept answering A for the session\'s life)', freshBlock.includes('MARKER-BETA') && !freshBlock.includes('MARKER-ALPHA'), freshBlock.slice(0, 120))
   check('…and the discovery walk moved with it (the half the base already cleared)', (await engine.getInstructionFiles()).some(f => f.content.includes('MARKER-BETA')))
 }

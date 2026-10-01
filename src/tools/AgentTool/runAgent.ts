@@ -28,6 +28,7 @@ import type { InstructionProfile } from '../../services/instructions/contracts.j
 import type { CacheSafeParams } from '../../utils/forkedAgent.js'
 import { killShellTasksForAgent } from '../../tasks/LocalShellTask/killShellTasks.js'
 import { endEngineSessionFor } from '../../utils/shell/engineSession.js'
+import { INSTRUCTIONS_CONTEXT_KEY } from '../../utils/userContextReminder.js'
 import { disposeBrowserOwner } from '../../services/browser/browserSession.js'
 import { processOwnerForLane } from '../../services/run/resolveOwner.js'
 import type { Message } from '../../types/message.js'
@@ -186,7 +187,7 @@ function withoutInstructionBlob(context: {
 }): { [k: string]: string } {
   const next: { [k: string]: string } = {}
   for (const [key, value] of Object.entries(context)) {
-    if (/claudemd/i.test(key)) continue
+    if (key === INSTRUCTIONS_CONTEXT_KEY) continue
     next[key] = value
   }
   return next
@@ -751,7 +752,7 @@ export async function* runAgent(
           const slice = await getInstructionSliceForProfile(requestedProfile)
           userContext = { ...userContext }
           if (slice.instructionPrompt) {
-            userContext['claudeMd'] = slice.instructionPrompt
+            userContext[INSTRUCTIONS_CONTEXT_KEY] = slice.instructionPrompt
           } else {
             userContext = withoutInstructionBlob(userContext)
           }

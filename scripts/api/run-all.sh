@@ -53,6 +53,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-model-refusa
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-heal.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-client-contract-heal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-client-contract-boot.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-client-contract-boot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-transcript-binding.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-transcript-binding.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-instructions-heading.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-instructions-heading.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-credential-refusal-words.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-credential-refusal-words.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sent-prefix-frozen.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sent-prefix-frozen.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-dead-thinking-in-turn.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-dead-thinking-in-turn.ts" "$__t" "$__rc"

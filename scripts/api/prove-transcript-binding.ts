@@ -248,9 +248,9 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
 
   const { userContextReminderBody, USER_CONTEXT_REMINDER_OPEN } = await import('../../src/utils/userContextReminder.ts')
   const { getUserContextAttachment, latestUserContextBody } = await import('../../src/utils/attachments/userContext.ts')
-  const ctx = { claudeMd: 'be brief', currentDate: "Today's date is 2026-09-01." }
+  const ctx = { instructions: 'be brief', currentDate: "Today's date is 2026-09-01." }
   const body = userContextReminderBody(ctx)!
-  check('the reminder body wears its envelope and every entry', body.startsWith(USER_CONTEXT_REMINDER_OPEN) && body.includes('# claudeMd\nbe brief') && body.includes('# currentDate') && body.endsWith('</system-reminder>'))
+  check('the reminder body wears its envelope and every entry', body.startsWith(USER_CONTEXT_REMINDER_OPEN) && body.includes('# instructions\nbe brief') && body.includes('# currentDate') && body.endsWith('</system-reminder>'))
   check('an empty context renders nothing', userContextReminderBody({}) === null)
   const fresh = await getUserContextAttachment([user('hi')] as never, ctx)
   check('a history without the row ⇒ one user_context row carrying the body', fresh.length === 1 && fresh[0]!.type === 'user_context' && (fresh[0] as { body: string }).body === body)
