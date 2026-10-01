@@ -149,7 +149,7 @@ for (const { cols, rows } of sizes) {
         rows,
         total: 300,
         cwd,
-        argv: ['node', DIST, '--dangerously-bypass-permissions'],
+        argv: ['node', DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: LANDED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },
@@ -219,7 +219,7 @@ for (const { cols, rows } of sizes) {
         rows,
         total: 300,
         cwd,
-        argv: ['node', DIST, '--dangerously-bypass-permissions'],
+        argv: ['node', DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK2),
           { data: '', afterPrevTicks: 20 * PACE, mark: 'settled-chat' },

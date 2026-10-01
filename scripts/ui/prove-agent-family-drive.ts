@@ -70,7 +70,7 @@ try {
     const base = `http://127.0.0.1:${address.port}`
     const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', OPENAI_API_KEY: 'fixture-openai-key', ANTHROPIC_BASE_URL: base, MERCURY_OPENAI_API_BASE: `${base}/openai/v1`, MERCURY_OPENAI_CHATGPT_BASE: `${base}/chatgpt`, MERCURY_TASKS: '1', MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none' }
     for (const key of ['ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_AUTH_SCOPE_DIR', 'MERCURY_HOME', 'MERCURY_MODEL', 'NODE_ENV']) delete (env as Record<string, unknown>)[key]
-    const proc = spawn(node, [BIN, '-p', '--model', parent!, '--output-format', 'json', '--permission-mode', 'bypassPermissions', 'Delegate the fixture arithmetic task.'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn(node, [BIN, 'run', '--model', parent!, '--format', 'json', '--mode', 'sovereign', 'Delegate the fixture arithmetic task.'], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
     let stdout = '', stderr = ''
     proc.stdout.on('data', chunk => { stdout += chunk })
     proc.stderr.on('data', chunk => { stderr += chunk })

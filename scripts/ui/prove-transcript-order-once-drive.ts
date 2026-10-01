@@ -338,7 +338,7 @@ async function capture(leg: Leg, fixtureUrl: string): Promise<{ status: number |
   ]
   const resizes = leg.journey.resizeAtTick === undefined ? [] : [{ afterMark: 'sent', afterMs: leg.journey.resizeAtTick * 200, cols: other.cols, rows: other.rows }]
   const cfg = {
-    argv: [NODE, DIST, '--dangerously-bypass-permissions'],
+    argv: [NODE, DIST, '--sovereign'],
     cwd: leg.cwd,
     cols: leg.size.cols,
     rows: leg.size.rows,
