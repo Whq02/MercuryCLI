@@ -230,10 +230,8 @@ export async function* streamOpenaiResponses(
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
-      const eventCount = results.reduce((n, item) => n + (item.kind === 'event' ? 1 : 0), 0)
-      events += eventCount
-      if (eventCount > 0) relay.noteEvent()
-      else relay.noteChunk()
+      events += results.reduce((n, item) => n + (item.kind === 'event' ? 1 : 0), 0)
+      relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
           yield {
@@ -265,6 +263,7 @@ export async function* streamOpenaiResponses(
           continue
         }
         for (const event of fold.fold(parsed)) {
+          relay.noteEvent()
           noteEvent(event)
           yield event
         }
