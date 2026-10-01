@@ -560,18 +560,18 @@ export async function moveDaemonToDeployedBuild(opts: {
   if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on ${to}` }
   const d = first.daemon
   if (first.state === 'starting' || d === null) {
-    return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to ${to} once it answers` }
+    return { state: 'unknown', line: `background daemon: still starting — \`mercury steward restart\` moves it to ${to} once it answers` }
   }
   const old = `v${d.version}${d.pid !== null ? ` (pid ${d.pid})` : ''}`
-  if (d.buildTree === null) return { state: 'unknown', line: `background daemon: ${old} carries no build tree (a source run) — \`mercury daemon restart\` moves it by hand` }
+  if (d.buildTree === null) return { state: 'unknown', line: `background daemon: ${old} carries no build tree (a source run) — \`mercury steward restart\` moves it by hand` }
   if (sameBuildTree(d.buildTree, runtime.buildTree)) return { state: 'current', line: `background daemon: already on ${to} (${old})` }
   const stopLine = (why: string): DaemonMoveReceipt => ({
     state: 'stop',
-    line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on ${to}`,
+    line: `background daemon: ${old} could not be moved — ${why}; \`mercury steward stop\` ends it and the next session starts one on ${to}`,
   })
   const hosted = opts.hosted !== undefined ? opts.hosted : (await (await import('./hostedCaller.js')).hostedCallerOf(d.pid)).hosted
   if (hosted && (first.heal === 'operator' || first.live === 0)) {
-    return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
+    return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury steward restart` from a plain shell')
   }
   if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
   const liveWords = (live: number): string => liveNoun({ live, liveSessions: Math.min(first.liveSessions, live) })
@@ -607,7 +607,7 @@ export async function moveDaemonToDeployedBuild(opts: {
   if (firstTry !== null) return firstTry
   const back = await handshakeDaemon()
   if (back.daemon === null || back.state === 'absent' || back.state === 'starting') {
-    return { state: 'moving', line: `background daemon: ${old} restarted on its old build and is not answering yet — \`mercury daemon restart\` moves it to ${to}` }
+    return { state: 'moving', line: `background daemon: ${old} restarted on its old build and is not answering yet — \`mercury steward restart\` moves it to ${to}` }
   }
   const second = await ask(back)
   return second ?? stopLine(`it restarted on its old build (v${back.daemon.version}) and would not hand over`)

@@ -129,7 +129,7 @@ type Daemon = { child: ChildProcess; log: string[]; pid: number }
 function startDaemon(script: string, extraEnv: Record<string, string> = {}): Daemon {
   const env: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_PERSIST: '1', MERCURY_DAEMON_NO_SELF_WARM: '1', MERCURY_EVOLUTION_LEDGER: '0', ...extraEnv }
   const log: string[] = []
-  const child = spawn('node', [script, 'daemon', 'run', work], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn('node', [script, 'steward', 'run', work], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] })
   child.stdout?.on('data', d => log.push(String(d)))
   child.stderr?.on('data', d => log.push(String(d)))
   return { child, log, pid: child.pid ?? -1 }
