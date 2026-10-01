@@ -7,7 +7,7 @@ import {
 import type { Command } from './commands.js'
 import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from './constants/xml.js'
 import { armWorkerParentWatch } from './daemon/workerParentWatch.js'
-import type { SDKMessage } from './entrypoints/agentSdkTypes.js'
+import type { ModelUsage as SDKModelUsage, SDKMessage } from './entrypoints/agentSdkTypes.js'
 import { MERCURY_IDENTITY_FLOOR } from './prompt/mercuryContract.js'
 import { queryEvents } from './query.js'
 import { legacyYieldsOf } from './run-core/project-legacy.js'
@@ -133,6 +133,22 @@ function isLocalCommandOutputText(text: string): boolean {
   )
 }
 
+function usageSince(
+  current: Record<string, SDKModelUsage>,
+  baseline: Record<string, SDKModelUsage>,
+): Record<string, SDKModelUsage> {
+  const result: Record<string, SDKModelUsage> = {}
+  const counters = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens', 'web_search_requests', 'cost_usd'] as const
+  for (const [model, row] of Object.entries(current)) {
+    const delta = { ...row }
+    for (const counter of counters) {
+      delta[counter] = Math.max(0, row[counter] - (baseline[model]?.[counter] ?? 0))
+    }
+    if (counters.some(counter => delta[counter] > 0)) result[model] = delta
+  }
+  return result
+}
+
 export class QueryEngine {
   readonly #config: QueryEngineConfig
   private readonly mutableMessages: Message[]
@@ -211,6 +227,10 @@ export class QueryEngine {
     setCwd(config.cwd)
     const persistenceDisabled = isSessionPersistenceDisabled()
     const turnStartedAt = Date.now()
+    const apiDurationAtStart = getTotalAPIDuration()
+    const costAtStart = getTotalCostUSD()
+    const modelUsageAtStart = toSDKModelUsage(getModelUsage())
+    const workloadUsageAtStart = toSDKWorkloadUsage(getWorkloadUsage())
     const eagerFlush = isEnvTruthy(process.env.MERCURY_EAGER_FLUSH)
     const errorWatermark = getInMemoryErrors().at(-1)
 
@@ -441,12 +461,12 @@ export class QueryEngine {
       notePrintPhase('settlement')
       return {
         duration_ms: Date.now() - turnStartedAt,
-        duration_api_ms: getTotalAPIDuration(),
+        duration_api_ms: Math.max(0, getTotalAPIDuration() - apiDurationAtStart),
         session_id: getSessionId(),
-        total_cost_usd: getTotalCostUSD(),
+        total_cost_usd: Math.max(0, getTotalCostUSD() - costAtStart),
         usage: this.#accumulatedUsage,
-        model_usage: toSDKModelUsage(getModelUsage()),
-        workload_usage: toSDKWorkloadUsage(getWorkloadUsage()),
+        model_usage: usageSince(toSDKModelUsage(getModelUsage()), modelUsageAtStart),
+        workload_usage: usageSince(toSDKWorkloadUsage(getWorkloadUsage()), workloadUsageAtStart),
         permission_denials: [...this.#permissionDenials],
         uuid: randomUUID(),
       }

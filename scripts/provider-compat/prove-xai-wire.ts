@@ -38,7 +38,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
       + sse({ type: 'response.output_item.done', output_index: 0, item: encrypted })
       + (mode === 'tools' ? '' : sse({ type: 'response.output_text.delta', item_id: 'msg_sub', output_index: 1, content_index: 0, delta: 'GROK-SUBSCRIPTION-SETTLED' }))
       + sse({ type: 'response.output_item.done', output_index: 1, item })
-      + sse({ type: 'response.completed', response: { id: 'resp_sub', model: body.model, status: 'completed', output, usage: { input_tokens: 30, output_tokens: 10, total_tokens: 40 } } })
+      + sse({ type: 'response.completed', response: { id: 'resp_sub', model: body.model, status: 'completed', output, usage: { input_tokens: 30, output_tokens: 10, total_tokens: 40, output_tokens_details: { reasoning_tokens: 7 } } } })
     return new Response(stream, { headers: { 'content-type': 'text/event-stream' } })
   }
   assert.equal(path, '/v1/chat/completions')
@@ -100,6 +100,7 @@ try {
   check('text and reasoning settle through the shared stream', first.some(row => row.message.content.some(block => block.type === 'text' && block.text.includes('GROK-FIXTURE-SETTLED'))) && first.some(row => row.message.content.some(block => block.type === 'thinking')))
   const usage = first.at(-1)?.message.usage
   check('cached input and total-stated reasoning are accounted once', usage?.input_tokens === 28 && usage.cache_read_input_tokens === 4 && usage.output_tokens === 103)
+  check('the API-key reasoning subset survives normalization', usage?.output_tokens_details?.thinking_tokens === 94)
   const decoded = decodeCompatUsage({ prompt_tokens: 32, completion_tokens: 9, total_tokens: 135, completion_tokens_details: { reasoning_tokens: 94 }, cost_in_usd_ticks: 37756000 })!
   check('xAI exact cost ticks decode without changing standard USD cost precedence', decoded.statedCostUSD === 0.0037756 && decodeCompatUsage({ prompt_tokens: 1, cost: 0.2, cost_in_usd_ticks: 1 })?.statedCostUSD === 0.2)
   check('a host already counting reasoning in completion is not double-counted', xaiLaneProfile.usageForSettlement!({ inputTokens: 32, outputTokens: 103, reasoningTokens: 94, totalTokens: 135 }).outputTokens === 103)
@@ -178,6 +179,7 @@ try {
   const input = captures.at(-1)!.body.input
   check('subscription replay preserves encrypted reasoning and pairs tool output by call id as a string the proxy accepts', input.some((row: any) => row.type === 'reasoning' && row.encrypted_content === 'fixture-encrypted') && input.some((row: any) => row.type === 'function_call_output' && row.call_id === 'call_sub' && row.output === 'subscription result'))
   check('subscription Responses text and usage settle under xAI', subText.some(row => JSON.stringify(row.message.content).includes('GROK-SUBSCRIPTION-SETTLED')) && subText.at(-1)?.message.usage?.output_tokens === 10)
+  check('the proxy reasoning subset reaches the same thinking field', subText.at(-1)?.message.usage?.output_tokens_details?.thinking_tokens === 7)
   const { xaiProxyToolOutputs } = await import('../../src/services/providers/xai/xaiResponsesTransport.ts')
   const rehomed = xaiProxyToolOutputs([
     { type: 'function_call_output', call_id: 'call_a', output: [{ type: 'input_text', text: 'shot taken' }, { type: 'input_image', image_url: 'data:image/png;base64,AAAA' }] },

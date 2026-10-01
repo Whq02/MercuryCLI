@@ -120,7 +120,9 @@ export function accumulateUsage(
     inference_geo: messageUsage.inference_geo,
     iterations: messageUsage.iterations,
     speed: messageUsage.speed,
-    output_tokens_details: messageUsage.output_tokens_details,
+    output_tokens_details: totalUsage.output_tokens_details || messageUsage.output_tokens_details
+      ? { thinking_tokens: (totalUsage.output_tokens_details?.thinking_tokens ?? 0) + (messageUsage.output_tokens_details?.thinking_tokens ?? 0) }
+      : null,
   }
 }
 
