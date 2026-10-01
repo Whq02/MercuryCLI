@@ -1,26 +1,53 @@
 import { strict as assert } from 'node:assert'
+import { XAI_GROK_PROXY_BILLING_REPLY, XAI_GROK_PROXY_MODELS_REPLY } from './xai-auth-fixture.ts'
 
 export const XAI_FIXTURE_API_KEY = 'xai-inference-fixture-not-a-real-key'
 export const XAI_FIXTURE_MANAGEMENT_KEY = 'xai-management-fixture-not-a-real-key'
+export const XAI_FIXTURE_SUBSCRIPTION_TOKEN = 'xai-subscription-fixture-not-a-real-token'
 export const XAI_FIXTURE_NOW = Date.UTC(2026, 8, 30, 12, 34, 56)
 
 export function xaiUsageFixture() {
-  const requests: Array<{ path: string; method: string }> = []
+  const requests: Array<{ path: string; method: string; headers: Record<string, string> }> = []
   const state = {
     status: 200,
     partial: false,
     prepaidOnly: false,
     malformed: false,
     balanceCents: '-1234',
+    poolStatus: 200,
+    poolMalformed: false,
+    poolPercent: 100 as number | undefined,
+    poolPrepaidCents: 500 as number | string,
+    poolHold: undefined as Promise<void> | undefined,
+    hitPool: undefined as (() => void) | undefined,
     hold: undefined as Promise<void> | undefined,
     hitUsage: undefined as (() => void) | undefined,
   }
   const server = Bun.serve({
     hostname: '127.0.0.1', port: 0,
     async fetch(req) {
-      const path = new URL(req.url).pathname
-      requests.push({ path, method: req.method })
+      const url = new URL(req.url)
+      const path = url.pathname
+      requests.push({ path, method: req.method, headers: Object.fromEntries(req.headers.entries()) })
       const auth = req.headers.get('authorization')
+      if (path === '/proxy/v1/models') {
+        assert.equal(auth, `Bearer ${XAI_FIXTURE_SUBSCRIPTION_TOKEN}`)
+        return Response.json(XAI_GROK_PROXY_MODELS_REPLY)
+      }
+      if (path === '/proxy/v1/billing') {
+        assert.equal(auth, `Bearer ${XAI_FIXTURE_SUBSCRIPTION_TOKEN}`)
+        assert.equal(req.method, 'GET')
+        assert.equal(url.searchParams.get('format'), 'credits')
+        assert.equal(req.headers.get('x-grok-client-mode'), 'cli')
+        assert.ok(req.headers.get('x-grok-client-version'))
+        state.hitPool?.()
+        await state.poolHold
+        if (state.poolStatus !== 200) return Response.json({ error: 'fixture refusal' }, { status: state.poolStatus })
+        if (state.poolMalformed) return Response.json({ nothing: true })
+        const { creditUsagePercent, ...config } = XAI_GROK_PROXY_BILLING_REPLY.config
+        return Response.json({ config: { ...config, ...(state.poolPercent !== undefined ? { creditUsagePercent: state.poolPercent } : {}), prepaidBalance: { val: state.poolPrepaidCents } } })
+      }
+      assert.ok(auth !== `Bearer ${XAI_FIXTURE_SUBSCRIPTION_TOKEN}`, 'a Grok subscription never reads the API-key or management roads')
       if (path === '/inference/v1/models') {
         assert.equal(auth, `Bearer ${XAI_FIXTURE_API_KEY}`)
         return Response.json({ data: [{ id: 'grok-4.7' }] })
@@ -65,6 +92,6 @@ export function xaiUsageFixture() {
     },
   })
   const base = `http://127.0.0.1:${server.port}`
-  const env = { XAI_API_KEY: XAI_FIXTURE_API_KEY, XAI_MANAGEMENT_API_KEY: XAI_FIXTURE_MANAGEMENT_KEY, MERCURY_XAI_API_BASE: `${base}/inference/v1`, MERCURY_XAI_MANAGEMENT_API_BASE: base }
+  const env = { XAI_API_KEY: XAI_FIXTURE_API_KEY, XAI_MANAGEMENT_API_KEY: XAI_FIXTURE_MANAGEMENT_KEY, MERCURY_XAI_API_BASE: `${base}/inference/v1`, MERCURY_XAI_GROK_PROXY_BASE: `${base}/proxy/v1`, MERCURY_XAI_MANAGEMENT_API_BASE: base }
   return { env, state, requests, stop: () => server.stop(true) }
 }

@@ -44,6 +44,7 @@ import {
   resolveMoonshotAccount,
   resolveMoonshotApiKey,
 } from '../../services/providers/moonshot/moonshotAccounts.js'
+import { resolveXaiAccount, resolveXaiApiKey } from '../../services/providers/xai/xaiAccounts.js'
 import { resolveHuggingfaceAccount } from '../../services/providers/huggingface/huggingfaceAccounts.js'
 import { getHuggingfaceAvailability } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { HUGGINGFACE_UNVERIFIED_NOTE } from '../../services/providers/huggingface/huggingfaceCallModel.js'
@@ -334,8 +335,8 @@ const ENGINE_USAGE_PRESENTATION: Record<
   },
   xai: {
     title: 'xAI usage',
-    connect: '/logins xai adds an xAI API key (XAI_API_KEY works too)',
-    limitsNote: 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
+    connect: '/logins xai adds a Grok subscription sign-in or an xAI API key (XAI_API_KEY works too)',
+    limitsNote: 'A Grok subscription meters its included pool and purchased credits from the Grok proxy; a management key reads the API team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
   },
   'openai-compat': {
     title: 'Custom endpoint usage',
@@ -674,6 +675,7 @@ function EngineUsageSection({ section, width }: { section: UsageSection; width?:
   if (section.id === 'huggingface') return <HuggingfaceUsageSection />
   if (section.id === 'moonshot') return <MoonshotUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'zai') return <ZaiUsageSection {...(width !== undefined ? { width } : {})} {...(section.family.credentialLabel !== undefined ? { credentialLabel: section.family.credentialLabel } : {})} />
+  if (section.id === 'xai') return <XaiUsageSection {...(width !== undefined ? { width } : {})} />
   if (section.id === 'local') return <LocalUsageSection />
   const spend = providerSessionSpend(section.id)
   return (
@@ -747,6 +749,62 @@ function MoonshotUsageSection({ width }: { width?: number }): React.ReactNode {
         {account
           ? ENGINE_USAGE_PRESENTATION.moonshot!.limitsNote
           : `Not connected — ${ENGINE_USAGE_PRESENTATION.moonshot!.connect}.`}
+      </Text>
+    </Box>
+  )
+}
+
+function XaiUsageSection({ width }: { width?: number }): React.ReactNode {
+  const account = resolveXaiAccount()
+  const key = resolveXaiApiKey()
+  const subscription = account?.kind === 'grok-subscription'
+  const spend = providerSessionSpend('xai')
+  const usage = useOwnerUsage('xai', account !== undefined)
+  const windows = usage.windows
+  const figures = figuresLine(usage)
+  return (
+    <Box flexDirection="column">
+      <Text bold>xAI usage</Text>
+      <IdentityLine family="xai" />
+      <Box flexDirection="column" marginTop={1}>
+        <SlotHeading text="Grok subscription" />
+        {subscription ? (
+          <Box flexDirection="column">
+            <Text dimColor>{[account.label, usage.tier !== account.label ? usage.tier : undefined].filter((part): part is string => part !== undefined).join(' · ')}</Text>
+            <Text dimColor>{spendLine(spend, false)}</Text>
+            {usage.absence !== undefined ? (
+              <Text dimColor>{usage.absence}</Text>
+            ) : windows.length > 0 ? (
+              windows.map(window => (
+                <ObservedWindowMeter
+                  key={window.key}
+                  window={window}
+                  {...(width !== undefined ? { maxWidth: width } : {})}
+                />
+              ))
+            ) : (
+              <Text dimColor>{usage.readerNote ?? 'Included pool: not yet observed — the Grok pool endpoint is asked on this tab.'}</Text>
+            )}
+            {windows.length > 0 && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
+            <FullWindowLine usage={usage} />
+          </Box>
+        ) : (
+          <Text dimColor>{absentSlotLine('/logins xai signs in with a device code')}</Text>
+        )}
+      </Box>
+      <ApiKeySlot
+        presentLabel={key ? (key.source === 'env' ? 'XAI_API_KEY (env)' : 'xAI API key (stored, auth-scoped)') : undefined}
+        isActive={account?.kind === 'api-key'}
+        spend={spend}
+      />
+      {!subscription && figures !== undefined ? <Text dimColor>{figures}</Text> : null}
+      {!subscription && account !== undefined && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
+      <Text dimColor>
+        {account === undefined
+          ? `Not connected — ${ENGINE_USAGE_PRESENTATION.xai!.connect}.`
+          : subscription
+            ? ENGINE_USAGE_PRESENTATION.xai!.limitsNote
+            : (usage.absence ?? ENGINE_USAGE_PRESENTATION.xai!.limitsNote)}
       </Text>
     </Box>
   )

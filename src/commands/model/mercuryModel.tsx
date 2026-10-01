@@ -89,7 +89,7 @@ import {
   refreshXaiCatalogue,
   type XaiCatalogueSnapshot,
 } from '../../services/providers/xai/xaiCatalogue.js'
-import { resolveXaiCredentialSnapshot, xaiApiBase } from '../../services/providers/xai/xaiAccounts.js'
+import { resolveXaiCredentialSnapshot, xaiInferenceBase } from '../../services/providers/xai/xaiAccounts.js'
 import { getCachedMetaCatalogue, refreshMetaCatalogue, type MetaCatalogueSnapshot } from '../../services/providers/meta/metaCatalogue.js'
 import { metaApiBase, resolveMetaApiKey } from '../../services/providers/meta/metaAccounts.js'
 import { LOCAL_MODEL_GROUP, localDiscoverySummary } from '../../services/providers/local/localCatalogue.js'
@@ -311,7 +311,7 @@ const XAI_ROAD: CatalogueRoad<XaiCatalogueSnapshot> = {
   family: 'xAI',
   identity: () => {
     const key = resolveXaiCredentialSnapshot()
-    return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiApiBase()}` : undefined
+    return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiInferenceBase(key.source)}` : undefined
   },
   cached: () => getCachedXaiCatalogue(),
   refresh: () => refreshXaiCatalogue({ force: true }),

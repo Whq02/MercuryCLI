@@ -6,7 +6,7 @@ import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
 import { compatChatCallModel, compatLaneLiveProofState, type CompatCallModelParams, type CompatLaneProfile } from '../openaicompat/compatChatCallModel.js'
 import { buildXaiExtras } from '../openaicompat/compatWire.js'
-import { xaiChatCompletionsUrl, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
+import { xaiChatCompletionsUrl, xaiGrokProxyChatHeaders, resolveXaiCredential, resolveXaiAccount } from './xaiAccounts.js'
 import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
 import { isXaiChatModelId } from './xaiPins.js'
 import { refreshXaiTokens } from './xaiOauth.js'
@@ -18,7 +18,7 @@ export const xaiLaneProfile: CompatLaneProfile = {
   resolveCredential: async () => {
     try {
       const key = await resolveXaiCredential()
-      return key ? { apiKey: key.key } : undefined
+      return key ? { apiKey: key.key, requestUrl: xaiChatCompletionsUrl(undefined, key.source) } : undefined
     } catch { return undefined }
   },
   credentialHint: 'no usable Grok sign-in or xAI API key — /logins xai reconnects the subscription or stores a key; XAI_API_KEY works too.',
@@ -70,10 +70,11 @@ export async function* xaiCallModel(params: CompatCallModelParams): AsyncGenerat
   const subscription = account.kind === 'grok-subscription'
   yield* compatChatCallModel({ ...xaiLaneProfile,
     ...(subscription ? { streamTransport: xaiResponsesTransport,
+      extraHeaders: () => xaiGrokProxyChatHeaders(model!),
       recoverCredential: async () => {
         if (resolveXaiAccount()?.kind !== 'grok-subscription') return undefined
         const tokens = await refreshXaiTokens(undefined, true)
-        return tokens ? { apiKey: tokens.accessToken } : undefined
+        return tokens ? { apiKey: tokens.accessToken, requestUrl: xaiChatCompletionsUrl(undefined, 'oauth') } : undefined
       },
       authRemedy: '/logins xai reconnects your Grok subscription; xAI decides eligibility for this account.',
       billingRemedy: 'check the subscription pool in your Grok account; /model picks another model meanwhile.',

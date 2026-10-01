@@ -81,7 +81,7 @@ paints under its own name at the conservative window Mercury budgets for an
 unrecorded id; while the list is unreachable the recorded rows stand in
 with their date.
 
-`/logins xai` offers Grok subscription sign-in (SuperGrok / X Premium) beside the API key, with the subscription selected by default and its unreported usage pool named plainly.
+`/logins xai` offers Grok subscription sign-in (SuperGrok / X Premium) beside the API key, with the subscription selected by default; a subscription lists, chats and reads its included weekly pool on cli-chat-proxy.grok.com, while an API key stays on api.x.ai.
 
 xAI's Grok rows follow the same road: with a Grok sign-in or xAI key present, Mercury reads
 the account's model list when the picker composes its rows and paints the

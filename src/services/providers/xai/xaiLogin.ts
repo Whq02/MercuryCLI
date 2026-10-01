@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredXaiApiKey, writeStoredXaiManagementApiKey } from '../../../utils/router/providerSecrets.js'
-import { resolveXaiApiKey, xaiApiBase } from './xaiAccounts.js'
+import { resolveXaiApiKey, xaiApiBase, xaiInferenceBase } from './xaiAccounts.js'
 import { startXaiDeviceAuth, pollXaiDeviceToken, writeXaiTokens, writePreferredXaiSource, type XaiDeviceAuthStart, type XaiOauthIo } from './xaiOauth.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
 import { fetchXaiUsage, xaiUsageFailureWords, type XaiUsageIo } from './xaiUsageState.js'
@@ -106,13 +106,13 @@ export async function runXaiDeviceLogin(args: {
     if (cancelled()) return late()
     let note = 'UNVERIFIED — the model list did not answer; the first turn proves access'
     try {
-      const list = await fetchXaiLiveModels({ baseUrl: xaiApiBase(args.io?.env), key: result.tokens.accessToken, fetchImpl: args.io?.fetchImpl })
+      const list = await fetchXaiLiveModels({ baseUrl: xaiInferenceBase('oauth', args.io?.env), key: result.tokens.accessToken, fetchImpl: args.io?.fetchImpl })
       note = `${list.models.length} chat models listed; inference is not yet verified`
     } catch (error) {
       if (error instanceof XaiCatalogueHttpError) note = `UNVERIFIED — model list HTTP ${error.status}; xAI decides subscription eligibility`
     }
     if (cancelled()) return late()
-    return { ok: true, receipt: `Grok subscription sign-in stored (auth-scoped, mode 600) · ${note}. Subscription wins over API keys; /accounts manages it. The consent page may call the shared public client Grok Build.` }
+    return { ok: true, receipt: `Grok subscription sign-in stored (auth-scoped, mode 600) · ${note}. Requests use cli-chat-proxy.grok.com on the subscription's included pool. Subscription wins over API keys; /accounts manages it. The consent page may call the shared public client Grok Build.` }
   }
   return { ok: false, receipt: cancelled() ? 'Grok sign-in cancelled — nothing stored.' : 'Grok device code expired — /logins xai retries.' }
 }

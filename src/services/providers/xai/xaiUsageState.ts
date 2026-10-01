@@ -5,7 +5,8 @@ import { noteUsageRecordChanged } from '../../claudeAiLimits.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
-import { resolveXaiApiKey, resolveXaiManagementApiKey, xaiApiBase, xaiManagementBase } from './xaiAccounts.js'
+import { resolveXaiAccount, resolveXaiApiKey, resolveXaiCredential, resolveXaiManagementApiKey, xaiApiBase, xaiGrokProxyBase, xaiGrokProxyBillingHeaders, xaiManagementBase } from './xaiAccounts.js'
+import { xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 
 export const XAI_MANAGEMENT_KEY_HINT = "add a management key from the console's settings page to read usage — /logins xai"
 export const XAI_MANAGEMENT_KEY_PAGE = "Optional management key from console.x.ai's settings page unlocks the team usage meter."
@@ -31,9 +32,21 @@ export interface XaiObservedUsage {
 export interface XaiUsageFailure {
   atMs: number
   kind: 'refused' | 'unreachable' | 'invalid'
-  endpoint: 'inference' | 'management'
+  endpoint: 'inference' | 'management' | 'subscription'
   status?: number
 }
+
+export interface XaiSubscriptionCredits {
+  observedAtMs: number
+  usedPercent?: number
+  period?: { type: string; startMs?: number; endMs?: number }
+  prepaidBalanceUsd?: number
+  tier?: string
+}
+
+export type XaiSubscriptionProbe =
+  | { state: 'confirmed'; credits: XaiSubscriptionCredits }
+  | { state: 'failed'; failure: XaiUsageFailure }
 
 export type XaiUsageProbe =
   | { state: 'confirmed'; usage: XaiObservedUsage }
@@ -96,12 +109,79 @@ export function xaiUsageRequest(cycle: XaiObservedUsage['cycle'], nowMs: number)
 }
 
 export function xaiUsageFailureWords(failure: XaiUsageFailure): string {
+  if (failure.endpoint === 'subscription') {
+    if (failure.kind === 'refused') return `Grok refused the subscription pool read${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — /logins xai reconnects the subscription`
+    if (failure.kind === 'invalid') return 'Grok subscription pool read returned an unrecognised response — no new usage recorded'
+    return `Grok subscription pool read unavailable${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — retry /usage`
+  }
   const credential = failure.endpoint === 'management' ? 'management key' : 'API key team lookup'
   if (failure.kind === 'refused') {
     return `xAI refused the ${credential} (HTTP ${failure.status}) — check the key and its team permissions; /logins xai`
   }
   if (failure.kind === 'invalid') return `xAI ${credential} usage read returned an unrecognised response — no new usage recorded`
   return `xAI ${credential} usage read unavailable${failure.status !== undefined ? ` (HTTP ${failure.status})` : ''} — retry /usage`
+}
+
+function wireCents(value: unknown): number | undefined {
+  const raw = object(value)?.val
+  if (raw === undefined || raw === null) return 0
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' && /^-?\d+$/.test(raw) ? Number(raw) : Number.NaN
+  return Number.isSafeInteger(n) ? n : undefined
+}
+
+function wireInstant(value: unknown): number | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const parsed = Date.parse(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+export function decodeXaiSubscriptionCredits(body: unknown, observedAtMs: number): XaiSubscriptionCredits | undefined {
+  const payload = object(body)
+  const config = object(payload?.config)
+  if (!config) return undefined
+  const period = object(config.currentPeriod ?? config.current_period)
+  const type = typeof period?.type === 'string' ? period.type : undefined
+  const startMs = wireInstant(period?.start ?? config.billingPeriodStart ?? config.billing_period_start)
+  const endMs = wireInstant(period?.end ?? config.billingPeriodEnd ?? config.billing_period_end)
+  const explicit = config.creditUsagePercent ?? config.credit_usage_percent
+  let usedPercent = typeof explicit === 'number' && Number.isFinite(explicit) && explicit >= 0 ? Math.min(100, explicit) : undefined
+  if (usedPercent === undefined) {
+    const used = wireCents(config.used)
+    const limit = wireCents(config.monthlyLimit ?? config.monthly_limit)
+    if (used !== undefined && limit !== undefined && limit > 0) usedPercent = Math.min(100, Math.max(0, (used / limit) * 100))
+  }
+  const prepaidCents = object(config.prepaidBalance ?? config.prepaid_balance) ? wireCents(config.prepaidBalance ?? config.prepaid_balance) : undefined
+  const tierRaw = payload?.subscription_tier ?? payload?.subscriptionTier
+  const tier = typeof tierRaw === 'string' && tierRaw.trim() !== '' && tierRaw.length <= 128 && !/[\x00-\x1f\x7f]/.test(tierRaw) ? tierRaw.trim() : undefined
+  return {
+    observedAtMs,
+    ...(usedPercent !== undefined ? { usedPercent } : {}),
+    ...(type !== undefined || startMs !== undefined || endMs !== undefined ? { period: { type: type ?? '', ...(startMs !== undefined ? { startMs } : {}), ...(endMs !== undefined ? { endMs } : {}) } } : {}),
+    ...(prepaidCents !== undefined && prepaidCents >= 0 ? { prepaidBalanceUsd: prepaidCents / 100 } : {}),
+    ...(tier !== undefined ? { tier } : {}),
+  }
+}
+
+export async function fetchXaiSubscriptionCredits(token: string, io?: XaiUsageIo): Promise<XaiSubscriptionProbe> {
+  const env = io?.env ?? process.env
+  const now = io?.now?.() ?? Date.now()
+  const fetchImpl = io?.fetchImpl ?? getApiFetch()
+  const proxy = io?.fetchImpl ? {} : getProxyFetchOptions()
+  const failed = (kind: XaiUsageFailure['kind'], status?: number): XaiSubscriptionProbe => ({ state: 'failed', failure: { kind, endpoint: 'subscription', atMs: now, ...(status !== undefined ? { status } : {}) } })
+  let response: Response
+  try {
+    response = await fetchWithProviderDeadline(fetchImpl, 'xai', 10_000, `${xaiGrokProxyBase(env)}/billing?format=credits`, {
+      method: 'GET',
+      redirect: 'error',
+      headers: { accept: 'application/json', authorization: `Bearer ${token}`, 'user-agent': getUserAgent(), ...xaiGrokProxyBillingHeaders() },
+      ...proxy,
+    } as RequestInit)
+  } catch { return failed('unreachable') }
+  if (!response.ok) return failed(response.status === 401 || response.status === 403 ? 'refused' : 'unreachable', response.status)
+  let body: unknown
+  try { body = await response.json() } catch { return failed('invalid') }
+  const credits = decodeXaiSubscriptionCredits(body, now)
+  return credits ? { state: 'confirmed', credits } : failed('invalid')
 }
 
 class UsageReadError extends Error {
@@ -224,6 +304,71 @@ export function refreshXaiUsage(io?: XaiUsageIo): Promise<XaiObservedUsage | nul
   return work
 }
 
+let poolObserved: XaiSubscriptionCredits | null = null
+let poolFailure: XaiUsageFailure | null = null
+let poolIdentity = ''
+let poolLastAttempt: number | undefined
+let poolGeneration = 0
+let poolInFlight: { identity: string; work: Promise<XaiSubscriptionCredits | null> } | null = null
+
+function poolIdentityOf(env: NodeJS.ProcessEnv): string {
+  const tokens = xaiStoredTokens()
+  return [tokens ? 'grok-subscription' : 'none', tokens?.email ?? '', xaiGrokProxyBase(env)].join('|')
+}
+
+function syncPoolIdentity(env: NodeJS.ProcessEnv): string {
+  const next = poolIdentityOf(env)
+  if (next !== poolIdentity) {
+    poolIdentity = next
+    poolGeneration += 1
+    poolObserved = null
+    poolFailure = null
+    poolLastAttempt = undefined
+    poolInFlight = null
+    noteUsageRecordChanged()
+  }
+  return next
+}
+
+export function xaiObservedSubscriptionCredits(env: NodeJS.ProcessEnv = process.env): { credits: XaiSubscriptionCredits | null; failure: XaiUsageFailure | null } {
+  syncPoolIdentity(env)
+  return { credits: poolObserved, failure: poolFailure }
+}
+
+export function refreshXaiSubscriptionCredits(io?: XaiUsageIo & XaiOauthIo): Promise<XaiSubscriptionCredits | null> {
+  const env = io?.env ?? process.env
+  const id = syncPoolIdentity(env)
+  if (resolveXaiAccount(env)?.kind !== 'grok-subscription') return Promise.resolve(null)
+  if (poolInFlight?.identity === id) return poolInFlight.work
+  const now = io?.now?.() ?? Date.now()
+  if (!io?.force && io?.reason !== 'operator' && io?.reason !== 'sign-in' && poolLastAttempt !== undefined && now - poolLastAttempt < USAGE_POLL_TTL_MS) return Promise.resolve(poolObserved)
+  const epoch = poolGeneration
+  poolLastAttempt = now
+  const work = (async (): Promise<XaiSubscriptionCredits | null> => {
+    await Promise.resolve()
+    try {
+      let result: XaiSubscriptionProbe
+      try {
+        const credential = await resolveXaiCredential(io)
+        result = credential?.source === 'oauth'
+          ? await fetchXaiSubscriptionCredits(credential.key, io)
+          : { state: 'failed', failure: { kind: 'refused', endpoint: 'subscription', atMs: now } }
+      } catch {
+        result = { state: 'failed', failure: { kind: 'unreachable', endpoint: 'subscription', atMs: now } }
+      }
+      if (epoch !== poolGeneration || poolIdentityOf(env) !== id) return null
+      if (result.state === 'confirmed') { poolObserved = result.credits; poolFailure = null }
+      else poolFailure = result.failure
+      noteUsageRecordChanged()
+      return poolObserved
+    } finally {
+      if (epoch === poolGeneration) poolInFlight = null
+    }
+  })()
+  poolInFlight = { identity: id, work }
+  return work
+}
+
 export function __resetXaiUsageForTest(): void {
   generation += 1
   observed = null
@@ -231,5 +376,11 @@ export function __resetXaiUsageForTest(): void {
   identity = ''
   lastAttempt = undefined
   inFlight = null
+  poolGeneration += 1
+  poolObserved = null
+  poolFailure = null
+  poolIdentity = ''
+  poolLastAttempt = undefined
+  poolInFlight = null
   noteUsageRecordChanged()
 }

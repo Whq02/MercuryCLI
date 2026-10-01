@@ -56,6 +56,19 @@ try {
   delete process.env.XAI_MANAGEMENT_API_KEY
   const missing = await capture('xai-usage-api-only', 116)
   check('API-only usage paints the exact management-key remedy without a failure or an old balance', missing.includes("add a management key from the console's settings page to read usage — /logins xai") && !missing.includes('refused') && !missing.includes('USD 12.34'))
+  const oauth = await import('../../src/services/providers/xai/xaiOauth.ts')
+  const { XAI_FIXTURE_SUBSCRIPTION_TOKEN } = await import('../providers/lib/xai-usage-fixture.ts')
+  oauth.writeXaiTokens({ accessToken: XAI_FIXTURE_SUBSCRIPTION_TOKEN, refreshToken: 'fixture-subscription-refresh', expiresAtMs: now + 3600_000, email: 'fixture@example.invalid' })
+  oauth.writePreferredXaiSource('grok-subscription')
+  try {
+    await owner.refreshProviderUsage('xai', { now: () => now, force: true })
+    const subscription = (await capture('xai-usage-subscription', 116)).split('DeepSeek usage')[0] ?? ''
+    check('a Grok subscription paints its included weekly pool as a meter beside its purchased credits, and the key slot stays inactive', subscription.includes('Grok subscription') && subscription.includes('Current week') && subscription.includes('100%') && subscription.includes('resets Oct 4, 2026') && subscription.includes('credits: USD 5.00 purchased credits') && subscription.includes('not the active billing source this session') && !subscription.includes('not reported'))
+    fixture.state.poolStatus = 403
+    await owner.refreshProviderUsage('xai', { now: () => now, force: true })
+    const poolRefused = await capture('xai-usage-subscription-refused', 116)
+    check('a refused pool read paints the reconnect remedy beside the last observed window', poolRefused.includes('refused the subscription pool read (HTTP 403)') && poolRefused.includes('Current week'))
+  } finally { oauth.clearStoredXaiSubscription(); fixture.state.poolStatus = 200 }
   console.log(`XAI USAGE POPUP GREEN (${checks} checks; source-rendered fixtures)`)
 } finally {
   Date.now = originalNow
