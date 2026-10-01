@@ -34,8 +34,10 @@ const check = (label: string, ok: unknown): void => { assert.ok(ok, label); chec
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)
   try {
-    for (let i = 0; i < 12; i++) await settle(10)
+    const deadline = originalNow() + 5000
+    while (!board.screen().includes('xAI usage') && originalNow() < deadline) await settle(10)
     const frame = board.lines().join('\n')
+    check(`${name}: the usage board paints before the capture deadline`, frame.includes('xAI usage'))
     check(`${name}: source-rendered usage board fits ${width} columns without a render error`, !frame.includes('RENDER ERROR') && frame.split('\n').every(line => stringWidth(line) <= width))
     if (frames) writeFileSync(join(frames, `${name}-${width}.txt`), frame + '\n')
     return (width >= 120 ? frame.split('\n').map(line => line.slice(0, 46).trimEnd()).join('\n') : frame).replace(/\s+/g, ' ')

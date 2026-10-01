@@ -20,7 +20,7 @@
     },
     {
       "url": "https://github.com/jenslys/opencode-gemini-auth/blob/0836e2024c42142804e6aa9ee0a007d9693670a1/src/constants.ts",
-      "finding": "This independently published OpenCode plugin uses Gemini CLI's client pair, scopes and Code Assist base. It is not evidence that current consumer accounts can use that service."
+      "finding": "This independently published OpenCode extension uses Gemini CLI's client pair, scopes and Code Assist base. It is not evidence that current consumer accounts can use that service."
     },
     {
       "url": "https://github.com/openclaw/openclaw/blob/be052821d69c581a94c39f91623419bdfc1093b1/docs/providers/google.md",
