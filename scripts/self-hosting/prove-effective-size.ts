@@ -3,6 +3,7 @@ import { execSync, spawnSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync, mkdirSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const repo = join(import.meta.dir, '..', '..')
 
@@ -59,6 +60,7 @@ writeFileSync(driverPath, driverSrc)
 
 function drive(cwd: string): { lines: number; armed: boolean } {
   const home = mkdtempSync(join(tmpdir(), 'effsize-home-'))
+  seedFirstRun(home, [cwd])
   const env: Record<string, string | undefined> = {}
   for (const [k, v] of Object.entries(process.env)) {
     if (/^(MERCURY_|CLAUDE_)/.test(k)) continue

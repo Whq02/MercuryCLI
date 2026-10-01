@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const repo = join(import.meta.dir, '../..')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'one-root-guides-')))
@@ -44,6 +45,7 @@ function check(label: string, ok: boolean): void {
 }
 function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = {}) {
   const home = mkdtempSync(join(scratch, 'home-'))
+  seedFirstRun(home, [project])
   const result = join(home, 'result.json')
   if (options.retired) writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [outside] } }))
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
