@@ -2,6 +2,7 @@ import json
 import math
 import os
 import sys
+import tempfile
 import time
 
 DEFAULT_PTY_MAX = 3
@@ -28,8 +29,10 @@ def capture_slots(env=None):
         return DEFAULT_PTY_MAX
 
 
-def capture_slot_dir():
-    return os.path.join(os.path.realpath('/tmp'), 'mercury-vshot-slots-%s' % os.getuid())
+def capture_slot_dir(env=None):
+    env = os.environ if env is None else env
+    root = os.path.realpath('/tmp') if env.get('MERCURY_GATE_PTY_MAX') else tempfile.gettempdir()
+    return os.path.join(root, 'mercury-vshot-slots-%s' % os.getuid())
 
 
 def adaptive_scale(pace, load, cores):

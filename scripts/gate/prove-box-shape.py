@@ -13,14 +13,23 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'scripts/lib'))
 from box_shape import shape, capture_slots, capture_slot_dir
 
-slot_dir = capture_slot_dir()
+pinned = capture_slot_dir({'MERCURY_GATE_PTY_MAX': '3'})
+assert pinned == os.path.join(os.path.realpath('/tmp'), 'mercury-vshot-slots-%s' % os.getuid())
 old_tmp = os.environ.get('TMPDIR')
-os.environ['TMPDIR'] = '/a/per-suite/run-root'
-assert capture_slot_dir() == slot_dir
+with tempfile.TemporaryDirectory(prefix='box-shape-run-root-') as run_root:
+    os.environ['TMPDIR'] = run_root
+    tempfile.tempdir = None
+    assert capture_slot_dir({'MERCURY_GATE_PTY_MAX': '3'}) == pinned
+    standalone = capture_slot_dir({'VSHOT_SLOTS': '999'})
+    assert standalone != pinned
+    assert os.path.dirname(standalone) in (run_root, os.path.realpath(run_root))
+    assert capture_slot_dir({}) == standalone
 if old_tmp is None:
     del os.environ['TMPDIR']
 else:
     os.environ['TMPDIR'] = old_tmp
+tempfile.tempdir = None
+print('[PASS] the pool pin shares one machine-wide slot directory; a standalone run serializes under its own TMPDIR and never takes the pool slots')
 
 assert shape({})[1] == 3
 assert shape({'MERCURY_GATE_CORES': '4', 'MERCURY_GATE_PTY_MAX': '8'}) == (4, 8)
