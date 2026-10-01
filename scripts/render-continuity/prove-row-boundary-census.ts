@@ -11,7 +11,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const hits = execSync(`grep -rln '<MessageRow' src/components src/screens src/tools 2>/dev/null || true`, {
+const hits = execSync(`grep -rlnE '<MessageRow($|[[:space:]>/])' src/components src/screens src/tools 2>/dev/null || true`, {
   cwd: ROOT,
   encoding: 'utf8',
 })
@@ -27,7 +27,7 @@ for (const file of INVENTORY) {
   const lines = readFileSync(join(ROOT, file), 'utf8').split('\n')
   const mounts: number[] = []
   lines.forEach((l, i) => {
-    if (l.includes('<MessageRow') && !l.includes('import')) mounts.push(i)
+    if (/<MessageRow(?:$|[\s>/])/.test(l) && !l.includes('import')) mounts.push(i)
   })
   t(`§2 ${file} mounts MessageRow at least once`, mounts.length > 0)
   for (const at of mounts) {
