@@ -110,7 +110,7 @@ export function gateChannelServer(
       return {
         register: false,
         kind: 'policy',
-        reason: 'your organization has not enabled channels (managed setting channelsEnabled)',
+        reason: 'your organization has not enabled channels (managed setting channels.enabled)',
       }
     }
   }

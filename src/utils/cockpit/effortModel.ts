@@ -1,4 +1,5 @@
 
+
 import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
 
 export const EFFORT_AXIS: readonly EffortLevel[] = EFFORT_LEVELS

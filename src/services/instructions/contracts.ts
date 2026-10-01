@@ -43,6 +43,7 @@ export type InstructionConvention = {
   userRulesDir(): string | null
   managedFile(): string | null
   managedRulesDir(): string | null
+  
   isExcluded(filePath: string, type: MemoryType): boolean
   readonly instructionFileNames: readonly string[]
   readonly rulesPathMarkers: readonly string[]

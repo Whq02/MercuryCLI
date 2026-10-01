@@ -103,6 +103,7 @@ export const INVALID_API_KEY_ERROR_MESSAGE =
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
   'Invalid API key · Fix external API key'
 
+
 export function invalidCredentialWords(source: WireCredentialSource): string {
   switch (source.kind) {
     case 'env':
@@ -110,7 +111,7 @@ export function invalidCredentialWords(source: WireCredentialSource): string {
         ? `Invalid API key · Fix ${source.name}`
         : `Invalid credential · Fix ${source.name}`
     case 'helper':
-      return 'Invalid API key · Fix the apiKeyHelper'
+      return 'Invalid API key · Fix the credentials.keyCommand'
     default:
       return INVALID_API_KEY_ERROR_MESSAGE
   }
@@ -686,11 +687,12 @@ function composeAssistantMessageFromError(
     }
   }
 
+  
   if (status === 401 || message.toLowerCase().includes('x-api-key')) {
     const helperFailure = getApiKeyHelperFailure()
-    if (helperFailure !== null && getAnthropicApiKeyWithSource().source === 'apiKeyHelper') {
+    if (helperFailure !== null && getAnthropicApiKeyWithSource().source === 'credentials.keyCommand') {
       return createAssistantAPIErrorMessage({
-        content: `${API_ERROR_MESSAGE_PREFIX}: the configured apiKeyHelper failed (${helperFailure.message}) — no credential was sent; fix the helper and retry`,
+        content: `${API_ERROR_MESSAGE_PREFIX}: the configured credentials.keyCommand failed (${helperFailure.message}) — no credential was sent; fix the helper and retry`,
         error: 'authentication_failed',
       })
     }
@@ -755,7 +757,7 @@ function composeAssistantMessageFromError(
         error: 'authentication_failed',
       })
     }
-    const credentialSource: WireCredentialSource = authSource === 'apiKeyHelper'
+    const credentialSource: WireCredentialSource = authSource === 'credentials.keyCommand'
       ? { kind: 'helper' }
       : wireCredentialSource(authSource === 'ANTHROPIC_AUTH_TOKEN' ? 'authorization' : 'x-api-key')
     if (status === 401 && (credentialSource.kind === 'env' || credentialSource.kind === 'helper')) {

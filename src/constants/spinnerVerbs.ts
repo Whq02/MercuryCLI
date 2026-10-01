@@ -155,6 +155,7 @@ export function isQuicksilverLine(verb: string): boolean {
   return quicksilverLookup.has(verb)
 }
 
+
 export function getSpinnerVerbs(): string[] {
   const desert: readonly string[] =
     flagEnv('MERCURY_DESERT_VERBS') === '0' ? STOCK_VERBS : MERCURY_DESERT_VERBS

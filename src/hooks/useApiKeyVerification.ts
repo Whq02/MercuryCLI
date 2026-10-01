@@ -31,7 +31,7 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
         skipRetrievingKeyFromApiKeyHelper: true,
       })
       if (key !== null) return 'loading'
-      if (source === 'apiKeyHelper') return 'loading'
+      if (source === 'credentials.keyCommand') return 'loading'
       return 'missing'
     } catch {
       return 'missing'
@@ -57,10 +57,10 @@ export function useApiKeyVerification(): ApiKeyVerificationResult {
       }
       const { key, source } = resolved
       if (key === null) {
-        if (source === 'apiKeyHelper') {
+        if (source === 'credentials.keyCommand') {
           const failure = getApiKeyHelperFailure()
           setStatus('error')
-          setError(new Error(`the configured apiKeyHelper returned no valid key${failure ? `: ${failure.message}` : ''}`))
+          setError(new Error(`the configured credentials.keyCommand returned no valid key${failure ? `: ${failure.message}` : ''}`))
           return
         }
         setStatus('missing')

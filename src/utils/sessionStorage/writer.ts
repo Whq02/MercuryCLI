@@ -819,6 +819,7 @@ class Project {
     )
   }
 
+  
   private shouldSkipPersistence(): boolean {
     return (
       getNodeEnv() === 'test' ||

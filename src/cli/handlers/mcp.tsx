@@ -29,7 +29,8 @@ import type {
   ScopedMcpServerConfig,
 } from '../../services/mcp/types.js'
 import { McpServerConfigSchema } from '../../services/mcp/types.js'
-import { binaryName, getCurrentProjectConfig, saveCurrentProjectConfig } from '../../utils/config.js'
+import { binaryName } from '../../utils/config.js'
+import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
 import { safeParseJSONC } from '../../utils/json.js'
@@ -312,13 +313,10 @@ export async function mcpAddJsonHandler(
 
 
 export async function mcpResetChoicesHandler(): Promise<void> {
-  saveCurrentProjectConfig(current => ({
-    ...current,
-    enabledMcpjsonServers: [],
-    disabledMcpjsonServers: [],
-    enableAllProjectMcpServers: false,
-  }))
-  void getCurrentProjectConfig
+  const { error } = updateSettingsForSource('localSettings', {
+    kit: { projectOn: [], projectOff: [], trustProjectServers: false },
+  })
+  if (error) return cliError(error.message)
   return cliOk(
     'All project-scoped MCP server approvals and rejections were reset. You will be asked to approve them again on the next start.',
   )

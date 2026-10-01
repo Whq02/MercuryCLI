@@ -2807,7 +2807,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'ok' as const,
                 evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
-                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shellEngineSessions setting'})`,
+                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
               }
             }
             const wanted = resolved.requested === 'brush'

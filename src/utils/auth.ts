@@ -72,7 +72,7 @@ export function isAnthropicAuthEnabled(): boolean {
   if (process.env.MERCURY_API_KEY_FILE_DESCRIPTOR) return false
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
-    if (source === 'ANTHROPIC_API_KEY' || source === 'apiKeyHelper') return false
+    if (source === 'ANTHROPIC_API_KEY' || source === 'credentials.keyCommand') return false
   } catch {
   }
   return true
@@ -104,7 +104,7 @@ function subscriptionYieldsToManagedKey(): boolean {
 }
 
 export type AuthTokenSource =
-  | 'apiKeyHelper'
+  | 'credentials.keyCommand'
   | 'ANTHROPIC_AUTH_TOKEN'
   | 'MERCURY_OAUTH_TOKEN'
   | 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR'
@@ -117,14 +117,14 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
     hasToken: source !== 'none',
   })
   if (isBareMode()) {
-    return getSettingsForSource('flagSettings')?.credentials?.keyCommand ? wrap('apiKeyHelper') : wrap('none')
+    return getSettingsForSource('flagSettings')?.credentials?.keyCommand ? wrap('credentials.keyCommand') : wrap('none')
   }
   if (process.env.ANTHROPIC_AUTH_TOKEN) return wrap('ANTHROPIC_AUTH_TOKEN')
   if (process.env.MERCURY_OAUTH_TOKEN) return wrap('MERCURY_OAUTH_TOKEN')
   if (getOAuthTokenFromFileDescriptor() !== null) {
     return wrap('MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR')
   }
-  if (getConfiguredApiKeyHelper()) return wrap('apiKeyHelper')
+  if (getConfiguredApiKeyHelper()) return wrap('credentials.keyCommand')
   const tokens = getClaudeAIOAuthTokens()
   if (
     tokens?.accessToken &&
@@ -139,6 +139,7 @@ export function getAuthTokenSource(): { source: AuthTokenSource; hasToken: boole
 export function loginShadowWarning(): string | null {
   return loginShadowWarningFor(getAuthTokenSource().source)
 }
+
 
 export type WireCredentialSource =
   | { kind: 'env'; name: 'ANTHROPIC_API_KEY' | 'ANTHROPIC_AUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR' }
@@ -166,13 +167,13 @@ function keyCredentialSource(bearer: string): WireCredentialSource | null {
   } catch {
   }
   if (key === 'ANTHROPIC_API_KEY') return { kind: 'env', name: 'ANTHROPIC_API_KEY' }
-  if (key === 'apiKeyHelper' || bearer === 'apiKeyHelper') return { kind: 'helper' }
+  if (key === 'credentials.keyCommand' || bearer === 'credentials.keyCommand') return { kind: 'helper' }
   if (key === '/logins managed key') return { kind: 'managed' }
   return null
 }
 
 
-export type ApiKeySource = 'ANTHROPIC_API_KEY' | 'apiKeyHelper' | '/logins managed key' | 'none'
+export type ApiKeySource = 'ANTHROPIC_API_KEY' | 'credentials.keyCommand' | '/logins managed key' | 'none'
 
 function isCiOrTest(): boolean {
   return isEnvTruthy(process.env.CI) || process.env.NODE_ENV === 'test'
@@ -188,8 +189,8 @@ export function getAnthropicApiKeyWithSource(opts?: {
       return { key: process.env.ANTHROPIC_API_KEY, source: 'ANTHROPIC_API_KEY' }
     }
     if (getSettingsForSource('flagSettings')?.credentials?.keyCommand) {
-      if (skipHelper) return { key: null, source: 'apiKeyHelper' }
-      return { key: getApiKeyFromApiKeyHelperCached(), source: 'apiKeyHelper' }
+      if (skipHelper) return { key: null, source: 'credentials.keyCommand' }
+      return { key: getApiKeyFromApiKeyHelperCached(), source: 'credentials.keyCommand' }
     }
     return { key: null, source: 'none' }
   }
@@ -224,8 +225,8 @@ export function getAnthropicApiKeyWithSource(opts?: {
   if (fromFd !== null) return { key: fromFd, source: 'ANTHROPIC_API_KEY' }
 
   if (getConfiguredApiKeyHelper()) {
-    if (skipHelper) return { key: null, source: 'apiKeyHelper' }
-    return { key: getApiKeyFromApiKeyHelperCached(), source: 'apiKeyHelper' }
+    if (skipHelper) return { key: null, source: 'credentials.keyCommand' }
+    return { key: getApiKeyFromApiKeyHelperCached(), source: 'credentials.keyCommand' }
   }
 
   const managed = getApiKeyFromConfigOrMacOSKeychain()
@@ -338,10 +339,10 @@ async function executeApiKeyHelper(helper: string): Promise<string> {
   if (result.code !== 0) {
     const stderr = result.stderr.trim()
     const why = execOutcomeTimedOut(result.error) ? 'timed out' : `exited with code ${result.code}`
-    throw new Error(`apiKeyHelper ${why}${stderr ? `: ${stderr}` : ''}`)
+    throw new Error(`credentials.keyCommand ${why}${stderr ? `: ${stderr}` : ''}`)
   }
   const value = result.stdout.trim()
-  if (value === '') throw new Error('apiKeyHelper returned no value')
+  if (value === '') throw new Error('credentials.keyCommand returned no value')
   return value
 }
 
@@ -365,7 +366,7 @@ export async function getApiKeyFromApiKeyHelper(
 
   if (helperBlockedByTrust()) {
     logError(
-      `The apiKeyHelper was invoked before workspace trust was confirmed and was not executed. ${binaryName()} — report issues via /feedback.`,
+      `The credentials.keyCommand was invoked before workspace trust was confirmed and was not executed. ${binaryName()} — report issues via /feedback.`,
     )
     return null
   }
@@ -402,7 +403,7 @@ function startHelperExecution(helper: string, isBackground: boolean): void {
       return value
     } catch (error) {
       if (getIsNonInteractiveSession()) {
-        process.stderr.write(`\x1b[31mapiKeyHelper failed: ${errorMessage(error)}\x1b[0m\n`)
+        process.stderr.write(`\x1b[31mcredentials.keyCommand failed: ${errorMessage(error)}\x1b[0m\n`)
       }
       logError(error)
       helperCache.failure = { message: errorMessage(error), at: Date.now() }

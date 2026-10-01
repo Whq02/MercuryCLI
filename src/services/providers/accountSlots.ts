@@ -501,10 +501,10 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
       }
     })
   const apiKey = reads.anthropicApiKey ? reads.anthropicApiKey() : readAnthropicApiKey()
-  if (apiKey.key !== null || apiKey.source === 'apiKeyHelper') {
+  if (apiKey.key !== null || apiKey.source === 'credentials.keyCommand') {
     const subscriber = subscriberSeat
     const env = apiKey.source === 'ANTHROPIC_API_KEY'
-    const helper = apiKey.source === 'apiKeyHelper'
+    const helper = apiKey.source === 'credentials.keyCommand'
     slots.push({
       family: 'anthropic',
       id: 'anthropic:api-key',
@@ -512,7 +512,7 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
       kind: 'api-key',
       kindLabel: env ? 'API key · env' : helper ? 'API key · helper' : 'API key',
       identity: label([
-        env ? 'ANTHROPIC_API_KEY (env)' : helper ? 'apiKeyHelper (settings)' : apiKey.source,
+        env ? 'ANTHROPIC_API_KEY (env)' : helper ? 'credentials.keyCommand (settings)' : apiKey.source,
         maskedKeyTail(apiKey.key ?? undefined),
       ]),
       active: !subscriber,
@@ -523,7 +523,7 @@ function anthropicSlots(reads: AccountSlotReads): AccountSlot[] {
         : helper
           ? {
               route: 'settings',
-              note: 'the apiKeyHelper setting owns this key — remove the helper from settings to remove it',
+              note: 'the credentials.keyCommand setting owns this key — remove the helper from settings to remove it',
             }
           : { route: 'anthropic-managed-key' },
     })

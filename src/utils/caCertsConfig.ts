@@ -1,4 +1,3 @@
-import { getGlobalConfig } from './config.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
 import { getSettingsForSource } from './settings/settings.js'
@@ -7,11 +6,6 @@ export function applyExtraCACertsFromConfig(): void {
   if (process.env.NODE_EXTRA_CA_CERTS) return
 
   let configPath: string | undefined
-  try {
-    configPath = getGlobalConfig().env?.NODE_EXTRA_CA_CERTS
-  } catch (err) {
-    logError(err)
-  }
   try {
     const userEnv = getSettingsForSource('userSettings')?.environment?.values
     const settingsPath = userEnv?.NODE_EXTRA_CA_CERTS

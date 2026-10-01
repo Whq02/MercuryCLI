@@ -239,7 +239,7 @@ export async function* withRetry<T>(
       client = await getClient()
     }
     const failedAccessToken = client.authToken
-    const failedHelperToken = !failedAccessToken && getAuthTokenSource().source === 'apiKeyHelper'
+    const failedHelperToken = !failedAccessToken && getAuthTokenSource().source === 'credentials.keyCommand'
       ? getApiKeyFromApiKeyHelperCached()
       : null
 

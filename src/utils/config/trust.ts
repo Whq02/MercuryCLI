@@ -19,6 +19,7 @@ export function checkHasTrustDialogAccepted(): boolean {
   return (_trustAccepted ||= computeTrustDialogAccepted())
 }
 
+
 export function untrustedWorkspaceHeadless(): boolean {
   try {
     if (!getIsNonInteractiveSession()) return false

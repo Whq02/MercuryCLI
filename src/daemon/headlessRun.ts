@@ -312,6 +312,7 @@ export function runTaskHeadless(
     logForDebugging(`[daemon] running ${spec.id} headlessly`)
     let child: ChildProcess
     try {
+      
       const oneShotEnv = cloneEnvWithoutRoles()
       stampFlagOnEnv(oneShotEnv, WORKER_PARENT_PID_ENV, String(process.pid))
       stampFlagOnEnv(oneShotEnv, SPAWNED_BY_ENV, spawnedByStamp('daemon-fire', spec.id))

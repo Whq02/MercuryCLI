@@ -205,6 +205,7 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   const credentials = await readCredentialPresences()
   const entries: WorkerModelEntryV1[] = []
   const seen = new Set<string>()
+  
   let operatorDefaultId: string | undefined
   try {
     const { getMainLoopModel } = await import('../../utils/model/model.js')
@@ -375,7 +376,7 @@ export async function validateWorkerModelChoice(
         return {
           ok: false,
           reason: 'not-runnable:not-allowed',
-          detail: `'${id}' is outside this organization's availableModels`,
+          detail: `'${id}' is outside this organization's engine.roster`,
           action: unrecognisedRefusalAction(),
         }
       }

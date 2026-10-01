@@ -479,6 +479,7 @@ export function getHooksFromOutsideCheckoutSources(): NonNullable<NonNullable<Se
   return merged.events?.hooks ?? {}
 }
 
+
 export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined {
   let helper: string | undefined
   for (const source of getEnabledSettingSources()) {
@@ -527,14 +528,13 @@ function applyWriteMerge(target: Record<string, unknown>, partial: Record<string
       continue
     }
     const existing = target[key]
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof existing === 'object' &&
-      existing !== null &&
-      !Array.isArray(existing)
-    ) {
-      applyWriteMerge(existing as Record<string, unknown>, value as Record<string, unknown>)
+    if (typeof value === 'object' && value !== null) {
+      const nested = typeof existing === 'object' && existing !== null && !Array.isArray(existing)
+        ? existing as Record<string, unknown>
+        : {}
+      applyWriteMerge(nested, value as Record<string, unknown>)
+      if (Object.keys(nested).length > 0 || Object.keys(value).length === 0) target[key] = nested
+      else delete target[key]
       continue
     }
     target[key] = value

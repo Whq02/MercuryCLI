@@ -1,3 +1,5 @@
+
+
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
@@ -41,6 +43,7 @@ function pinnedEngineSessionCeiling(): number | null {
   const value = Number(text.trim())
   return Number.isSafeInteger(value) && value >= 1 ? value : null
 }
+
 
 export function resolveEngineSessionCeiling(setting?: number): number {
   const pinned = pinnedEngineSessionCeiling()
@@ -156,7 +159,7 @@ function announceRelease(): void {
   for (const wake of wakes) wake()
 }
 
-const CEILING_WORDS = 'the shellEngineSessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
+const CEILING_WORDS = 'the shell.sessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
 
 async function admitAgentSession(
   owned: OwnerSession,

@@ -30,7 +30,7 @@ Four hook kinds, discriminated on "type":
 - command: { "type": "command", "command": "<shell command>" } — plus optional shell ("bash" | "powershell"), async (background, non-blocking), asyncRewake (background, wakes the model when the hook exits blocking).
 - prompt: { "type": "prompt", "prompt": "..." } — a model evaluates the prompt; $ARGUMENTS receives the hook input JSON.
 - agent: { "type": "agent", "prompt": "..." } — a small agent runs with tools; $ARGUMENTS as above; its timeout defaults to 60s.
-- http: { "type": "http", "url": "https://..." } — POSTs the hook input JSON; header values may reference $VARS only when allowedEnvVars lists them, and the URL must be allowed by the allowedHttpHookUrls setting.
+- http: { "type": "http", "url": "https://..." } — POSTs the hook input JSON; header values may reference $VARS only when allowedEnvVars lists them, and the URL must be allowed by the events.httpDestinations setting.
 Every kind also takes: "if" (a permission-rule-syntax condition over the tool name and input — the hook is skipped, never spawned, when it does not match), "timeout" (seconds), "statusMessage" (spinner text), "once" (run once, then remove).
 
 Hook standard input is one JSON object: session_id, transcript_path, cwd, permission_mode, plus agent_id/agent_type inside agents; tool events add tool_name and tool_input, and PostToolUse adds tool_response.
@@ -40,7 +40,7 @@ A command hook answers in one of two ways:
 - A JSON object on stdout: continue (false stops the turn) with stopReason; suppressOutput; decision "approve"/"block" with reason; systemMessage (user-visible note); hookSpecificOutput per event — PreToolUse takes permissionDecision "allow"/"deny"/"ask", permissionDecisionReason and updatedInput (a rewritten tool input); UserPromptSubmit takes additionalContext; PostToolUse takes additionalContext. Malformed JSON is reported back with the offending paths named — it never silently downgrades to prose.
 HTTP hooks answer in JSON or not at all (an empty body reads as {}).
 
-Related settings keys: disableAllHooks, allowManagedHooksOnly, allowedHttpHookUrls, httpHookAllowedEnvVars.`
+Related settings keys: events.disabled, events.managedOnly, events.httpDestinations, events.httpEnvironment.`
 
 const HOOK_CONSTRUCTION_FLOW = `## Building a hook, with proof
 
@@ -75,7 +75,7 @@ EDITING RULES:
 PERMISSION RULES (the guardrails.allow / deny / ask arrays):
 - A rule is a tool name, or a tool name with a parenthesised pattern: "Bash", "Bash(npm run test:*)" (prefix rules for Bash end in :*), "Read(src/**)" and glob forms for the file tools, "WebFetch(domain:example.com)", "WebSearch(exact terms)".
 - guardrails.reasons gives a rule its own words, keyed by the rule spelling exactly as it appears in allow, deny or ask: { "Read(secrets/**)": "production keys live there; use the .example files" }. A refusal ends with the words ("Permission to read … has been denied: production keys live there; use the .example files.") and a consent card shows them under the rule; a rule without a reason keeps the plain sentence. Where two rules match, the more specific spelling's words are used.
-- defaultMode sets the session's starting permission mode. Implement mode allows writes inside the starting folder and asks outside it; Default asks for writes in either place; Sovereign does not ask. A shell directory change does not move the starting folder.
+- guardrails.mode sets the session's starting permission mode. Implement mode allows writes inside the starting folder and asks outside it; Default asks for writes in either place; Sovereign does not ask. A shell directory change does not move the starting folder.
 
 WORKFLOW: clarify → read → merge → write → show the result and where it landed.
 
@@ -84,9 +84,9 @@ ${HOOKS_DOCUMENTATION}
 ${HOOK_CONSTRUCTION_FLOW}
 
 WORKED SHAPES:
-1. "Format after every write" → hooks.PostToolUse, matcher Write|Edit, a command hook built and proven per the flow above.
+1. "Format after every write" → events.hooks.PostToolUse, matcher Write|Edit, a command hook built and proven per the flow above.
 2. "Allow npm test without asking" → read the chosen scope's file, append "Bash(npm test:*)" to guardrails.allow, show the merged result.
-3. "Set DEBUG=1 for every session" → env: { "DEBUG": "1" } in the scope the user picks.`
+3. "Set DEBUG=1 for every session" → environment: { "values": { "DEBUG": "1" } } in the scope the user picks.`
 
 function generatedSchemaSection(): string {
   const jsonSchema = z.toJSONSchema(SettingsSchema(), { io: 'input' })

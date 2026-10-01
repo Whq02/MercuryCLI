@@ -156,10 +156,10 @@ function composeWalletEntries(): WalletEntry[] {
     const { key, source } = getAnthropicApiKeyWithSource({
       skipRetrievingKeyFromApiKeyHelper: true,
     })
-    if ((key !== null || source === 'apiKeyHelper') && source !== 'none' && !isClaudeAISubscriber()) {
+    if ((key !== null || source === 'credentials.keyCommand') && source !== 'none' && !isClaudeAISubscriber()) {
       const keyTail = maskedKeyTail(key ?? undefined)
       entries.push({
-        id: `anthropic:api-key:${source === 'ANTHROPIC_API_KEY' ? 'env' : source === 'apiKeyHelper' ? 'helper' : 'managed'}`,
+        id: `anthropic:api-key:${source === 'ANTHROPIC_API_KEY' ? 'env' : source === 'credentials.keyCommand' ? 'helper' : 'managed'}`,
         provider: 'anthropic',
         kind: 'api-key',
         label: `Anthropic API key (${source})`,

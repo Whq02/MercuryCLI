@@ -1338,7 +1338,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       if (typedString(opts.agent) !== undefined) {
         failCli(refusal)
       }
-      process.stderr.write(`${refusal} (from settings.agent — running without it)\n`)
+      process.stderr.write(`${refusal} (from settings.engine.agent — running without it)\n`)
       logForDebugging(refusal)
     } else {
       if (mainThreadAgentDefinition.agentType === 'mercury-reviewer') failCli('mercury-reviewer requires an isolated Agent dispatch with worktree_at and review_receipt')

@@ -8,6 +8,7 @@ import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
 import { sanitizePathComponent } from '../utils/tasks.js'
 
+
 export function isAutoMemoryEnabled(): boolean {
   if (isEnvTruthy(process.env.MERCURY_BARE)) return false
   const setting = getInitialSettings().memory?.enabled
@@ -30,6 +31,7 @@ export function filterInjectedMemoryFilesByRecall<T extends { type: string }>(
 export function getMemoryBaseDir(): string {
   return getMercuryHome()
 }
+
 
 function readAutoMemoryDirectoryOverride(): string | undefined {
   for (const source of ['policySettings', 'flagSettings', 'localSettings', 'userSettings'] as const) {

@@ -108,7 +108,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       kind: 'info',
       label: autoOn
         ? `auto-memory notes: on — the agent saves typed notes + MEMORY.md index here`
-        : 'auto-memory notes: off (settings autoMemoryEnabled)',
+        : 'auto-memory notes: off (settings memory.enabled)',
     })
     rows.push({
       id: 'dream',

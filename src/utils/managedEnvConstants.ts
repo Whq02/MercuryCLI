@@ -58,5 +58,5 @@ export const SAFE_ENV_VARS: Set<string> = new Set(
 )
 
 export const DANGEROUS_SHELL_SETTINGS: readonly string[] = [
-  'apiKeyHelper',
+  'credentials.keyCommand',
 ]

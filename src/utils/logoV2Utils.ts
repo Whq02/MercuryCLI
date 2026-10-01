@@ -166,7 +166,7 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
     }
     return isClaudeAISubscriber() ? getSubscriptionName() : 'API usage billing'
   })()
-  const agentName = (getInitialSettings() as { agent?: string }).agent
+  const agentName = getInitialSettings().engine?.agent
   return { version, cwd, billingType, ...(agentName ? { agentName } : {}) }
 }
 

@@ -24,6 +24,7 @@ export type AttributionTexts = {
 const DEFAULT_PR_ATTRIBUTION = 'Generated with [Mercury CLI](https://mercury-cli.ai)'
 const DEFAULT_COMMIT_TRAILER = 'Co-Authored-By: Mercury <https://mercury-cli.ai>'
 
+
 export function getAttributionTexts(): AttributionTexts {
   const settings = getInitialSettings()
   const attribution = settings.credit?.lines
@@ -164,6 +165,7 @@ async function computePRAttributionData(getAppState: () => AppState): Promise<At
     return null
   }
 }
+
 
 export async function getEnhancedPRAttribution(getAppState: () => AppState): Promise<string> {
   const settings = getInitialSettings()

@@ -500,6 +500,7 @@ export function concourseWorkerStripEnv(): string[] {
   ].flatMap(flagSpellings)
 }
 
+
 export function seatInitialPermissionMode(override?: PermissionMode): SeatPermissionMode {
   const asHeadless = (mode: string | undefined): HeadlessPermissionMode | undefined => {
     if (mode === undefined || mode.length === 0) return undefined
@@ -678,6 +679,7 @@ export interface ConcourseAdmitRequest {
   agentName?: string
   seatsMax?: 1 | 2
   resumeSessionId?: string
+  
   permissionMode?: PermissionMode
   runnerArgv?: string[]
   bornBlank?: boolean

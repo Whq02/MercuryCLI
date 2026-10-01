@@ -46,14 +46,19 @@ export function isMcpServerUrlEntry(entry: AllowedMcpServerEntry | DeniedMcpServ
   return typeof (entry as { serverUrl?: unknown }).serverUrl === 'string'
 }
 
+const modeLockSchema = () => z.preprocess(
+  value => value === undefined || typeof value === 'boolean' ? value : true,
+  z.boolean(),
+).optional()
+
 export const PermissionsSchema = lazySchema(() =>
   z.object({
     allow: z.array(PermissionRuleSchema()).optional(),
     deny: z.array(PermissionRuleSchema()).optional(),
     ask: z.array(PermissionRuleSchema()).optional(),
     mode: z.preprocess(v => typeof v === 'string' ? decodePermissionModeSpelling(v) : v, z.enum(PERMISSION_MODES)).optional(),
-    disableSovereignMode: z.boolean().optional().describe('True closes Sovereign mode for every session that reads this file'),
-    disableFlowMode: z.boolean().optional().describe('True closes Flow for every session that reads this file'),
+    disableSovereignMode: modeLockSchema().describe('True closes Sovereign mode for every session that reads this file'),
+    disableFlowMode: modeLockSchema().describe('True closes Flow for every session that reads this file'),
     reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),
     managedOnly: z.boolean().optional(),
     sovereignConsentSeen: z.boolean().optional().describe('True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)'),

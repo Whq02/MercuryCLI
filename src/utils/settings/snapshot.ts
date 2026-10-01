@@ -40,7 +40,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 const NESTED_PROVENANCE_KEYS = new Set([
   'credentials', 'files', 'records', 'briefs', 'strategy', 'memory', 'turns',
   'environment', 'credit', 'guardrails', 'engine', 'kit', 'events', 'voice',
-  'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
+  'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local', 'extensions',
 ])
 const NESTED_PROVENANCE_PATHS = new Set(['environment.values', 'activity.tips', 'view.modelPicker'])
 

@@ -361,7 +361,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine } },
-      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -684,7 +684,7 @@ export function Config({
       searchText: 'openrouter routing policy privacy collection parameters fallbacks zero data retention zdr',
       kind: 'enum',
       value: <Text>{`${collection} · parameters ${parameters ? 'required' : 'optional'} · fallbacks ${fallbacks ? 'on' : 'off'} · ZDR ${zdr ? 'on' : 'off'}`}</Text>,
-      warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced is on from the start: denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit openrouterRouting in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
+      warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced is on from the start: denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit routing.openrouter in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
       change: direction => {
         const modes = ['strict', 'balanced', 'open'] as const
         const current = collection === 'allow' && !parameters && fallbacks && !zdr ? 'open' : collection === 'deny' && parameters && !fallbacks && zdr ? 'strict' : 'balanced'
@@ -799,13 +799,16 @@ export function Config({
     },
   })
   items.push({
-    id: 'respectGitignore',
+    id: 'files.honourGitignore',
     label: 'Respect .gitignore in file picker',
     kind: 'boolean',
-    value: boolValue(config.respectGitignore !== false),
+    value: boolValue(merged.files?.honourGitignore !== false),
     change: () => {
-      writeGlobal(c => ({ ...c, respectGitignore: c.respectGitignore === false }))
-      recordToggle('respectGitignore', `set respect-gitignore to ${config.respectGitignore === false ? 'on' : 'off'}`)
+      const next = merged.files?.honourGitignore === false
+      if (writeSource('userSettings', { files: { honourGitignore: next } })) {
+        recordToggle('files.honourGitignore', `set honour-gitignore to ${next ? 'on' : 'off'}`)
+        bump()
+      }
     },
   })
   items.push({
@@ -1257,7 +1260,7 @@ export function Config({
         allowFallbacks: undefined,
         zeroDataRetention: undefined,
         ...snapshots.user.routing?.openrouter,
-      } }, guardrails: { defaultMode: snapshots.user.guardrails?.mode } as never })
+      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore } })
     writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
     const restoredProfile = snapshots.local.briefs?.profile

@@ -12,7 +12,7 @@ mkdirSync(join(project, '.mercury'), { recursive: true })
 const { SettingsSchema } = await import('../../src/utils/settings/types.js')
 const pipeline = await import('../../src/utils/settings/settings.js')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
-const { setMdmSettingsCache } = await import('../../src/utils/settings/mdm/settings.js')
+const { setMdmSettingsCache, parseCommandOutputAsSettings } = await import('../../src/utils/settings/mdm/settings.js')
 const state = await import('../../src/bootstrap/state.js')
 state.setOriginalCwd(project)
 state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
@@ -111,7 +111,7 @@ function check(label: string, ok: boolean): void {
 }
 function fixture(values: object[]): void {
   files.forEach((file, index) => writeFileSync(file, JSON.stringify(values[index] ?? {})))
-  setMdmSettingsCache({ settings: (values[4] ?? {}) as never, errors: [] }, { settings: {}, errors: [] })
+  setMdmSettingsCache(parseCommandOutputAsSettings(JSON.stringify(values[4] ?? {}), 'fixture-policy'), { settings: {}, errors: [] })
   resetSettingsCache()
 }
 try {
@@ -160,6 +160,46 @@ try {
     fixture(sources)
     check(`consent source ${source} respects trust`, pipeline.hasSkipSovereignConsentPrompt() === (source !== 1))
   }
+  const { isAutoMemoryEnabled, getAutoMemPath } = await import('../../src/memdir/paths.js')
+  const { getSettingsSnapshot, _resetSettingsSnapshotForTesting } = await import('../../src/utils/settings/snapshot.js')
+  delete process.env.MERCURY_BARE
+  fixture([{ memory: { enabled: false } }])
+  check('memory.enabled reaches the memory gate', isAutoMemoryEnabled() === false)
+  fixture([{ memory: { enabled: true } }])
+  check('memory.enabled true reaches the memory gate', isAutoMemoryEnabled() === true)
+  for (let source = 0; source < 5; source++) {
+    const sources: object[] = []
+    const directory = join(root, `memory-${source}`)
+    const hooks = { Stop: [{ hooks: [{ type: 'command', command: 'true' }] }] }
+    sources[source] = { memory: { directory }, credentials: { keyCommand: `fixture-${source}` }, events: { hooks } }
+    fixture(sources)
+    getAutoMemPath.cache.clear?.()
+    check(`memory directory source ${source} respects trust`, getAutoMemPath().startsWith(directory) === (source !== 1))
+    const executable = source !== 1 && source !== 2
+    check(`key command source ${source} respects checkout trust`, pipeline.getApiKeyHelperFromOutsideCheckoutSources() === (executable ? `fixture-${source}` : undefined))
+    check(`hook source ${source} respects checkout trust`, isDeepStrictEqual(pipeline.getHooksFromOutsideCheckoutSources(), executable ? hooks : {}))
+  }
+  for (const lock of ['disableSovereignMode', 'disableFlowMode']) {
+    for (const value of [1, null, {}, 'not-a-boolean']) {
+      fixture([{ guardrails: { [lock]: value, deny: ['Read(secret)'] } }])
+      check(`malformed ${lock} fails closed`, valueAt(pipeline.getInitialSettings(), `guardrails.${lock}`) === true)
+      check('a malformed lock preserves denial rules', isDeepStrictEqual(pipeline.getInitialSettings().guardrails?.deny, ['Read(secret)']))
+    }
+  }
+  fixture([{ engine: { model: 'user' } }, { engine: { effort: 'high' } }, { engine: { model: 'local' } }])
+  _resetSettingsSnapshotForTesting()
+  const provenance = getSettingsSnapshot().provenance
+  check('provenance names the winning model leaf', provenance['engine.model']?.winner === 'localSettings')
+  check('provenance does not assign sibling effort to the model source', provenance['engine.effort']?.winner === 'projectSettings')
+  fixture([{ engine: { futureLeaf: { keep: [false, 0, ''] } }, guardrails: { deny: ['Read(secret)'] } }])
+  pipeline.updateSettingsForSource('userSettings', { engine: { effort: 'high' } })
+  const nested = JSON.parse(readFileSync(files[0]!, 'utf8'))
+  check('nested unknown fields survive an unrelated settings write', isDeepStrictEqual(nested.engine.futureLeaf, { keep: [false, 0, ''] }))
+  check('nested writes preserve sibling security settings', isDeepStrictEqual(nested.guardrails.deny, ['Read(secret)']))
+  fixture([{ records: { retentionDays: 'invalid' }, engine: { model: 'fixture-model' } }])
+  check('retention raw-presence guard sees a malformed nested setting', pipeline.rawSettingsContainsKey('records.retentionDays'))
+  const salvaged = pipeline.getSettingsWithErrors()
+  check('a malformed nested value is salvaged without voiding siblings', salvaged.settings.engine?.model === 'fixture-model' && salvaged.errors.some(error => error.path === 'records.retentionDays'))
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

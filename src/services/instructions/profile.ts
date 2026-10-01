@@ -1,3 +1,4 @@
+
 import { getInitialSettings } from '../../utils/settings/settings.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type {
@@ -23,6 +24,7 @@ export function setSessionInstructionProfile(
 ): void {
   sessionProfile = profile
 }
+
 
 export function setAgentInstructionProfile(
   profile: InstructionProfile | null,

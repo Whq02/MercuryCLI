@@ -55,11 +55,11 @@ export async function execHttpHook(
 
   const allowlist = getInitialSettings().events?.httpDestinations
   if (allowlist !== undefined && !allowlist.some(pattern => matchesAllowlistPattern(hook.url, pattern))) {
-    logForDebugging(`http hook blocked: ${hook.url} matched no pattern in allowedHttpHookUrls`, { level: 'warn' })
+    logForDebugging(`http hook blocked: ${hook.url} matched no pattern in events.httpDestinations`, { level: 'warn' })
     return {
       ok: false,
       body: '',
-      error: `URL ${hook.url} matched no pattern in the allowedHttpHookUrls setting`,
+      error: `URL ${hook.url} matched no pattern in the events.httpDestinations setting`,
     }
   }
 

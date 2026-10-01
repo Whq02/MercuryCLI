@@ -157,6 +157,7 @@ export function getHooksConfig(
     }
   }
 
+  
   if (!managedOnly && appState !== undefined) {
     const sessionHooks = getSessionHooks(appState, sessionId, hookEvent).get(
       hookEvent,

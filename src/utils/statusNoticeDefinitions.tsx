@@ -83,7 +83,7 @@ const claudeAiExternalTokenNotice: StatusNoticeDefinition = {
     void context
     if (!isClaudeAISubscriber()) return false
     const tokenSource = getAuthTokenSource().source
-    return tokenSource === 'ANTHROPIC_AUTH_TOKEN' || tokenSource === 'apiKeyHelper'
+    return tokenSource === 'ANTHROPIC_AUTH_TOKEN' || tokenSource === 'credentials.keyCommand'
   },
   render: (context: StatusNoticeContext) => {
     void context
@@ -108,7 +108,7 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
       const storedKey = getApiKeyFromConfigOrMacOSKeychain()
       if (storedKey === null) return false
       const resolved = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
-      return resolved.source === 'ANTHROPIC_API_KEY' || resolved.source === 'apiKeyHelper'
+      return resolved.source === 'ANTHROPIC_API_KEY' || resolved.source === 'credentials.keyCommand'
     } catch {
       return false
     }
@@ -136,7 +136,7 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
       const apiKeySource = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source
       const tokenSource = getAuthTokenSource().source
       if (apiKeySource === 'none' || tokenSource === 'none') return false
-      return !(apiKeySource === 'apiKeyHelper' && tokenSource === 'apiKeyHelper')
+      return !(apiKeySource === 'credentials.keyCommand' && tokenSource === 'credentials.keyCommand')
     } catch {
       return false
     }
@@ -149,8 +149,8 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
     const tokenRemedy =
       apiKeySource === 'ANTHROPIC_API_KEY'
         ? `unset ANTHROPIC_API_KEY, or run \`${binaryName()} /logout\`, decline the API-key approval, and log in again`
-        : apiKeySource === 'apiKeyHelper'
-          ? 'unset the apiKeyHelper setting'
+        : apiKeySource === 'credentials.keyCommand'
+          ? 'unset the credentials.keyCommand setting'
           : `run \`${binaryName()} /logout\``
     const keyRemedy = tokenIsSubscription
       ? `run \`${binaryName()} /logout\` to sign out of ${describeTokenSource(tokenSource)}`

@@ -234,7 +234,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
   const authMethod =
     tokenSource.hasToken && tokenSource.source === 'claude.ai'
       ? 'claude.ai'
-      : tokenSource.hasToken && tokenSource.source === 'apiKeyHelper'
+      : tokenSource.hasToken && tokenSource.source === 'credentials.keyCommand'
         ? 'api_key_helper'
         : tokenSource.hasToken && tokenSource.source !== 'none'
           ? 'oauth_token'

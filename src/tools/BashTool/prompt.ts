@@ -50,8 +50,8 @@ export function getSimplePrompt(offered: ReadonlySet<string> | null = null): str
     const ceiling = resolveEngineSessionCeiling(getInitialSettings().shell?.sessions)
     sections.push(
       ceiling === 1
-        ? 'The shellEngineSessions setting is 1: only the main conversation has an engine session. A sub-agent\'s call is refused with the reason; a `run_in_background` call still runs, in its own system shell.'
-        : `At most ${ceiling} engine sessions are kept alive at once (the shellEngineSessions setting): the main conversation's own and ${ceiling - 1} for sub-agents. A sub-agent that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
+        ? 'The shell.sessions setting is 1: only the main conversation has an engine session. A sub-agent\'s call is refused with the reason; a `run_in_background` call still runs, in its own system shell.'
+        : `At most ${ceiling} engine sessions are kept alive at once (the shell.sessions setting): the main conversation's own and ${ceiling - 1} for sub-agents. A sub-agent that needs one when all are in use waits for a free session — never sharing another's — and the wait is bounded by the call's timeout.`,
     )
     if (getPlatform() === 'windows') {
       sections.push(
