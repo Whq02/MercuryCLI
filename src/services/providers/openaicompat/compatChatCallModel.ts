@@ -758,8 +758,9 @@ async function* streamOneCompatAttempt(ctx: {
     blocks.open = null
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(settled)
+    const previous = minted.at(-1)
     minted.push(m)
-    yield m
+    if (previous) yield previous
   }
   function* openNewBlock(kind: 'thinking' | 'text'): Generator<StreamEvent | AssistantMessage> {
     yield* closeOpenBlock()
@@ -789,8 +790,9 @@ async function* streamOneCompatAttempt(ctx: {
     yield streamEvent({ type: 'content_block_stop', index: blocks.index })
     const m = mintBlock(block)
     decorate?.(m)
+    const previous = minted.at(-1)
     minted.push(m)
-    yield m
+    if (previous) yield previous
   }
   let leadingNotesEmitted = false
   function* emitLeadingNotes(): Generator<StreamEvent | AssistantMessage> {
@@ -884,6 +886,8 @@ async function* streamOneCompatAttempt(ctx: {
   }
 
   if (fault?.kind === 'cancelled' || signal.aborted) {
+    const pending = minted.at(-1)
+    if (pending) yield pending
     return { kind: 'cancelled' }
   }
   const nothingYielded = !messageStarted && minted.length === 0
@@ -998,6 +1002,7 @@ async function* streamOneCompatAttempt(ctx: {
     lastMessage.message.stop_reason = stopReason as AssistantMessage['message']['stop_reason']
     if (typedEnd !== null) lastMessage.streamEnd = typedEnd
     transport?.settle?.(minted)
+    yield lastMessage
     void settleTranscriptMessage(lastMessage)
   }
   yield streamEvent({
