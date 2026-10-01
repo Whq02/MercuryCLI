@@ -82,16 +82,16 @@ section('R1 — flag typo: release first, error readable on the main screen')
   check('the error prints AFTER the (last) release — on the main screen', rel !== -1 && err > rel, `rel=${rel} err=${err}`)
 }
 
-section('R2 — -p: release precedes the result; the result lands on the main screen')
+section('R2 — run: release precedes the result; the result lands on the main screen')
 {
   const { startFixtureApi } = await import('../lib/fixtureApi.ts')
   const fx = await startFixtureApi([{ kind: 'text', text: 'PROOF-TR-RESULT.' }])
-  const bytes = await drivePty(['-p', 'say it'], 45, { ANTHROPIC_BASE_URL: fx.url })
+  const bytes = await drivePty(['run', 'say it'], 45, { ANTHROPIC_BASE_URL: fx.url })
   await fx.close().catch(() => {})
   const rel = bytes.indexOf('\x1b[?1049l')
   const result = bytes.indexOf('PROOF-TR-RESULT.')
   check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)))
-  check('the -p result appears', result !== -1, JSON.stringify(bytes.slice(-300)))
+  check('the run result appears', result !== -1, JSON.stringify(bytes.slice(-300)))
   check('the release PRECEDES the result', rel !== -1 && result > rel, `rel=${rel} result=${result}`)
 }
 
