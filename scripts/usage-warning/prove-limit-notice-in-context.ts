@@ -223,7 +223,7 @@ function runPrint(home: string, args: string[], extraEnv: Record<string, string>
       BROWSER: '/usr/bin/true',
       ...extraEnv,
     }
-    const child = spawn(NODE, [DIST, '-p', ...args], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] })
+    const child = spawn(NODE, [DIST, 'run', ...args], { cwd: work, env, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''
     let err = ''
     child.stdout.on('data', d => (out += String(d)))
