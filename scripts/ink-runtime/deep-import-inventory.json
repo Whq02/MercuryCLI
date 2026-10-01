@@ -73,6 +73,7 @@
       "modules": [
         "Ansi",
         "components/AlternateScreen",
+        "components/CursorDeclarationContext",
         "components/InkInstanceContext",
         "components/Link",
         "components/NoSelect",
