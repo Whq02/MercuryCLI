@@ -136,7 +136,7 @@ for (const { cols, rows } of sizes) {
         rows,
         total: 260,
         cwd,
-        argv: ['node', DIST, '--dangerously-bypass-permissions'],
+        argv: ['node', DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: LANDED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'landed' },

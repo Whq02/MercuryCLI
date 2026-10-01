@@ -101,7 +101,7 @@ const outcome = await new Promise<{ exit: number | null; out: string }>(resolveR
       '--send', 'after:↑↓ choose:900:\\r',
       '--send', 'after:Type a prompt:800:run the guard probe',
       '--send', 'after:run the guard probe:600:\\r',
-      '--', nodeBin, dist, '--dangerously-bypass-permissions', '--model', MODEL,
+      '--', nodeBin, dist, '--sovereign', '--model', MODEL,
     ],
     { cwd, env },
   )

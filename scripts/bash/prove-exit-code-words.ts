@@ -92,7 +92,7 @@ if (!existsSync(DIST) || !nodeBin) {
   }
   const startedAt = Date.now()
   const outcome = await new Promise<{ exit: number | null; stdout: string; stderr: string; ms: number }>(resolveRun => {
-    const child = spawn(nodeBin, [DIST, '-p', 'exit-code-probe: run the six', '--model', MODEL, '--dangerously-bypass-permissions'], { cwd, env, detached: true })
+    const child = spawn(nodeBin, [DIST, 'run', 'exit-code-probe: run the six', '--model', MODEL, '--sovereign'], { cwd, env, detached: true })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', d => (stdout += d))
