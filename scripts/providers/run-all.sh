@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/busyRetry.ts src/services/providers/openai/openaiWire.ts src/services/api/retryJitter.ts
 # gate-watch: scripts/gate/ci-shard.sh scripts/lib/hermetic.ts
 # gate-watch: scripts/provider-compat/fixtures/gemini-usage-roads-2026-09-30.json scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json
 # gate-watch: src/commands/defaultprovider/defaultprovider.tsx src/commands/status/mercuryStatus.tsx src/state/AppState.tsx

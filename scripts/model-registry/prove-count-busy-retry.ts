@@ -27,6 +27,8 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-not-a-real-key'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.01'
 process.env.DEBUG = '1'
 
+const realRandom = Math.random
+Math.random = () => 0.5
 let failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
@@ -167,6 +169,7 @@ try {
     check('the debug log names the refusal as not retryable', i.lines.some(line => line.includes('count_tokens (create probe): HTTP 400') && line.includes('not retried: not a retryable refusal')), i.lines)
   }
 } finally {
+  Math.random = realRandom
   if (origin.listening) await new Promise<void>(resolve => origin.close(() => resolve()))
   rmSync(home, { recursive: true, force: true })
 }

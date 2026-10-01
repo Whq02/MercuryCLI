@@ -90,6 +90,7 @@ import { providerWaitIsWindow, retrySeconds, stampProviderWait } from '../../api
 import { NetworkOutageError, nextReconnect, openReconnectLadder, ReconnectBudgetSpentError, type ReconnectLadder } from '../../api/reconnectLadder.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import {
   buildOpenaiResponsesRequest,
@@ -1227,11 +1228,12 @@ export async function* streamOneOpenaiAttempt(ctx: {
     return { kind: 'cancelled' }
   }
   const nothingYielded = !messageStarted && minted.length === 0
-  if (fault && nothingYielded && !finish) {
+  const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
+  if (fault && nothingYielded && (!finish || retryTemporary)) {
     return { kind: 'fault', fault, retryEligible: true }
   }
   const typedEnd =
-    fault !== undefined && !finish
+    fault !== undefined && !finish && !retryTemporary
       ? typedStreamEndOf({
           fault,
           provider: 'OpenAI',
@@ -1388,6 +1390,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
+  if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(auth.account.label, fault.code, fault.message),

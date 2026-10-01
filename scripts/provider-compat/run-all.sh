@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
+# gate-watch: src/services/providers/busyRetry.ts src/services/providers/temporaryStreamError.ts src/services/providers/openai/** src/services/providers/xai/xaiResponsesTransport.ts src/services/providers/openrouter/openrouterResponsesTransport.ts
 # gate-watch: src/services/providers/routeLaw* src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/moonshot/** src/services/providers/deepseek/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**

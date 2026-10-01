@@ -14,6 +14,7 @@ for (const key of [
 ]) delete process.env[key]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'bare-stream-error-'))
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -220,8 +221,10 @@ try {
   const coded = await drive()
   const codedText = apiErrorText(coded)
   check('an error carrying a code keeps its road: the row names the code and the message', codedText !== null && codedText.includes('(openai-server_error) — the fixture broke the stream'), codedText ?? '(none)')
-  check('one request per drive (no reissue after content)', posts.length === 4, JSON.stringify(posts))
-  check('the session count advanced by the three bare errors', wire.bareStreamErrorCount() === countBefore + 3, `${countBefore} → ${wire.bareStreamErrorCount()}`)
+  for (const [name, count] of [['bare-eof', 1], ['bare-then-failed', 7], ['bare-then-completed', 1], ['coded', 7]] as const) {
+    check(`${name}: only stated temporary errors reissue after content, bounded at six retries`, posts.filter(post => post === name).length === count, JSON.stringify(posts))
+  }
+  check('the session count advances for every bare event, including the seven failed attempts', wire.bareStreamErrorCount() === countBefore + 9, `${countBefore} → ${wire.bareStreamErrorCount()}`)
 
   section('§3 the model boundary: a reasoning replay recorded under another model stays off the request, said once; the same model keeps its record')
   const call = await import('../../src/services/providers/openai/openaiCallModel.ts')

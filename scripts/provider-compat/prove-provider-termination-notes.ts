@@ -10,6 +10,7 @@ const HOME = mkdtempSync(join(tmpdir(), 'termination-notes-proof-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
+process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
 for (const k of [
   'ANTHROPIC_API_KEY',
   'ANTHROPIC_AUTH_TOKEN',
@@ -166,7 +167,7 @@ function section(s: string): void {
   console.log(`\n── ${s} ──`)
 }
 
-section('§1 compat: insufficient_system_resource settles a visible note + the fault tail')
+section('§1 compat: insufficient_system_resource retries before the terminal fault tail')
 {
   wire.scenario = 'insufficient'
   const { settled, errors } = await drain(
@@ -174,8 +175,8 @@ section('§1 compat: insufficient_system_resource settles a visible note + the f
   )
   const t = text(settled)
   check('the partial content settles', t.includes('partial work…'))
-  check('the note names the provider cut', t.includes('insufficient system resources'))
-  check('the note says the turn was not finished', t.includes('not finished'))
+  check('the resource cut takes all six retries instead of ending the turn', wire.chatHits === 7)
+  check('the exhausted ladder names the provider cut, not a completed answer', text(errors).includes('finish:insufficient_system_resource') && text(errors).includes('stream terminated by the provider'))
   check('stop_reason stays end_turn (mapped)', lastStop(settled) === 'end_turn')
   check('the fault tail (ErrorCard/SDK surface) still fires', errors.length === 1)
 }

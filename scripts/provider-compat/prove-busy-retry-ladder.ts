@@ -69,6 +69,8 @@ function check(label: string, condition: boolean, detail = ''): void {
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
 }
 
+const realRandom = Math.random
+Math.random = () => 0.5
 const LADDER_SCALE = '0.05'
 const RUNGS = [50, 100, 200, 400, 800, 1500]
 const FLOOR = RUNGS.map((rung, i) => (rung + (RUNGS[i - 1] ?? 0)) / 2)
@@ -96,7 +98,7 @@ for (let i = 0; i < 7; i++) {
   if (step === null) break
   shortWaits.push(step.waitMs)
 }
-check('short asks ride in place of the small rungs and the last rung is clipped to the budget', JSON.stringify(shortWaits) === JSON.stringify([5000, 5000, 5000, 8000, 16000, 22000]) && shortAsks.spentMs === 61000)
+check('short asks ride whole while the late rungs reserve their jitter floor inside the budget', JSON.stringify(shortWaits) === JSON.stringify([5000, 5000, 5000, 8000, 15500, 22500]) && shortAsks.spentMs === 61000)
 const scaled = busy.openBusyRetryLadder(0, 0.01)
 check('the scale seam shrinks every rung and the quiet window alike', JSON.stringify(scaled.rungsMs) === JSON.stringify([10, 20, 40, 80, 160, 300]) && scaled.quietMs === 300 && scaled.budgetMs === 610)
 check('unset, empty, zero and negative scales read as 1', busy.busyRetryScale() === 1 && (process.env.MERCURY_BUSY_RETRY_SCALE = '') === '' && busy.busyRetryScale() === 1 && (process.env.MERCURY_BUSY_RETRY_SCALE = '0') === '0' && busy.busyRetryScale() === 1 && (process.env.MERCURY_BUSY_RETRY_SCALE = '-2') === '-2' && busy.busyRetryScale() === 1)
@@ -533,6 +535,7 @@ try {
   }
 } finally {
   globalThis.fetch = realFetch
+  Math.random = realRandom
   delete process.env.MERCURY_BUSY_RETRY_SCALE
 }
 console.log('── every road takes the one ladder; the lanes keep their yield union')

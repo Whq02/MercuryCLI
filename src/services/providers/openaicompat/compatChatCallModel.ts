@@ -26,6 +26,7 @@ import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -361,6 +362,7 @@ const FINISH_TO_STOP: Record<CompatFinishReason, 'end_turn' | 'tool_use' | 'max_
   length: 'max_tokens',
   content_filter: 'end_turn',
   insufficient_system_resource: 'end_turn',
+  network_error: 'end_turn',
   other: 'end_turn',
 }
 
@@ -894,11 +896,12 @@ async function* streamOneCompatAttempt(ctx: {
     return { kind: 'cancelled' }
   }
   const nothingYielded = !messageStarted && minted.length === 0
-  if (fault && nothingYielded && !finish) {
+  const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
+  if (fault && nothingYielded && (!finish || retryTemporary)) {
     return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
   }
   const typedEnd =
-    fault !== undefined && !finish
+    fault !== undefined && !finish && !retryTemporary
       ? typedStreamEndOf({
           fault,
           provider: profile.providerLabel,
@@ -948,12 +951,14 @@ async function* streamOneCompatAttempt(ctx: {
       },
     )
   }
-  const terminationNote = ((): string | undefined => {
+  const terminationNote = retryTemporary ? undefined : ((): string | undefined => {
     switch (finish?.reason) {
       case 'content_filter':
         return `[${profile.lane}] the provider ended this response under its content filter — the turn is incomplete by provider policy, not finished.`
       case 'insufficient_system_resource':
         return `[${profile.lane}] the provider ended this response: insufficient system resources (a documented transient) — the turn was cut short by the provider, not finished; continue or retry as needed.`
+      case 'network_error':
+        return `[${profile.lane}] the provider ended this response with a network error — the turn was cut short by the provider, not finished.`
       case 'other':
         return `[${profile.lane}] the provider ended this response with an unmapped finish reason ('${finish?.rawReason ?? 'none stated'}') — the turn may be incomplete; continue or retry as needed.`
       default:
@@ -1015,6 +1020,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
+  if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),
