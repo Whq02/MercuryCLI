@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 import { execSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { homedir } from 'node:os'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
@@ -43,6 +43,7 @@ section('§1 CALLER FLOOR — getAuthConfigHomeDir() only in the credential stor
     'src/utils/secureStorage/plainTextStorage.ts',
     'src/utils/secureStorage/macOsKeychainHelpers.ts',
     'src/utils/router/providerSecrets.ts',
+    'src/utils/redactSecrets.ts',
     'src/services/providers/openai/openaiAccounts.ts',
     'src/services/providers/openai/qualificationStore.ts',
     'src/services/providers/anthropic/modelRefusal.ts',
@@ -124,6 +125,38 @@ section('§6 NO RELAY RING EXISTS — the roster module and its stations are gon
     { cwd: import.meta.dir, encoding: 'utf8' },
   ).trim()
   check(hits === '', 'no live source consumes a launch-account ring', hits)
+}
+
+section('§7 EXPORT REDACTION reads the active credential scope without moving session state')
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'export-auth-scope-'))
+  const sessionHome = join(scratch, 'session')
+  const authHome = join(scratch, 'auth')
+  mkdirSync(sessionHome)
+  mkdirSync(authHome)
+  const sessionBytes = JSON.stringify({ trustedDeviceToken: 'sessionCredentialFixture' })
+  const authBytes = JSON.stringify({ trustedDeviceToken: 'scopedCredentialFixture' })
+  writeFileSync(join(sessionHome, '.credentials.json'), sessionBytes)
+  writeFileSync(join(authHome, '.credentials.json'), authBytes)
+  process.env.MERCURY_CONFIG_DIR = sessionHome
+  const credentialStore = process.env.MERCURY_CREDENTIAL_STORE
+  process.env.MERCURY_CREDENTIAL_STORE = 'file'
+  ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+  try {
+    const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
+    enableConfigs()
+    const { sessionSecretValues } = await import('../../src/utils/redactSecrets.js')
+    env.setAuthScope(authHome)
+    const values = await sessionSecretValues()
+    check(values.includes('scopedCredentialFixture') && !values.includes('sessionCredentialFixture'), 'the export masker reads credentials from the auth scope, not the session home')
+    check(env.getMercuryHome() === sessionHome, 'the export masker leaves the session home unchanged')
+    check(readFileSync(join(sessionHome, '.credentials.json'), 'utf8') === sessionBytes && readFileSync(join(authHome, '.credentials.json'), 'utf8') === authBytes, 'the export masker rewrites neither credential store')
+  } finally {
+    env.clearAuthScope()
+    if (credentialStore === undefined) delete process.env.MERCURY_CREDENTIAL_STORE
+    else process.env.MERCURY_CREDENTIAL_STORE = credentialStore
+    rmSync(scratch, { recursive: true, force: true })
+  }
 }
 
 if (PREV === undefined) delete process.env.MERCURY_CONFIG_DIR

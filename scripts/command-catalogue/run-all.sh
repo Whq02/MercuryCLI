@@ -3,6 +3,7 @@
 # gate-env: MERCURY_FEEDBACK_ROAD_CAPTURE_DIR
 # gate-watch: src/commands.ts src/commands/** src/components/HelpV2/** src/components/mercury-ui/** src/types/command* src/main* src/utils/processUserInput/** README.md
 # gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/config/globalConfig.ts src/types/message.ts
+# gate-watch: src/utils/redactSecrets.ts src/utils/secrets/secretScanner.ts src/utils/secureStorage/** src/utils/router/providerSecrets.ts src/utils/auth.ts src/services/providers/credentialEnvSpellings.ts
 # gate-watch: src/components/Feedback.tsx src/services/repoHost/** src/services/privateChannel/ghRelease.ts .github/ISSUE_TEMPLATE/**
 # gate-watch: mercury-skills/provider-apis/references/models.md package.json
 set -uo pipefail
@@ -23,4 +24,5 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-unavailable-honesty.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-builtins-unshadowable.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-builtins-unshadowable.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-settings-popup-commands.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-settings-popup-commands.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-export-json.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-export-json.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-export-masking.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-export-masking.ts" "$__t" "$__rc"
 exit $fail
