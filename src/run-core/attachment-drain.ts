@@ -4,7 +4,6 @@ export type DrainableCommand = {
   mode?: string
   agentId?: string
   value?: unknown
-  preExpansionValue?: string
 }
 
 export type DrainScope = {
@@ -23,17 +22,6 @@ export function selectDrainableCommands<C extends DrainableCommand>(
     if (isSlashCommand(cmd)) return false
     if (ownsTheQueue) return cmd.agentId === undefined
     return cmd.mode === 'task-notification' && cmd.agentId === scope.agentId
-  })
-}
-
-export function queuedDeepthinkRequested<C extends DrainableCommand>(
-  commands: C[],
-  hasKeyword: (text: string) => boolean,
-): boolean {
-  return commands.some(cmd => {
-    if (cmd.mode !== 'prompt') return false
-    const text = cmd.preExpansionValue ?? (typeof cmd.value === 'string' ? cmd.value : '')
-    return hasKeyword(text)
   })
 }
 

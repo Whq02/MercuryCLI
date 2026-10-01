@@ -16,7 +16,7 @@ import {
 import { resolveAntModel } from './model/antModels.js'
 import { familyDefaultsModel } from './model/configs.js'
 import { getInitialSettings, getSettingsForSource } from './settings/settings.js'
-import { isDeepthinkEnabled, sessionThinkingEnabled } from './thinking.js'
+import { sessionThinkingEnabled } from './thinking.js'
 
 
 export type { EffortLevel }
@@ -533,7 +533,7 @@ const DEFAULT_OPUS_EFFORT_CONFIG: OpusDefaultEffortConfig = {
   enabled: true,
   dialogTitle: 'Medium effort is recommended for Opus',
   dialogDescription:
-    'Effort determines how long Mercury thinks. Medium is recommended for most tasks to balance speed, intelligence and rate limits. The deepthink keyword is a prompt-level nudge for a single turn and leaves the configured effort level unchanged.',
+    'Effort determines how long Mercury thinks. Medium is recommended for most tasks to balance speed, intelligence and rate limits.',
 }
 
 export function getOpusDefaultEffortConfig(): OpusDefaultEffortConfig {
@@ -606,7 +606,7 @@ export function getDefaultEffortForModel(model: string): EffortValue | undefined
       return 'medium'
     }
   }
-  if (isDeepthinkEnabled() && modelSupportsEffort(model)) return 'medium'
+  if (modelSupportsEffort(model)) return 'medium'
   return undefined
 }
 

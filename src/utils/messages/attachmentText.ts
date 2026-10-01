@@ -784,13 +784,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content, isMeta: true }),
       ])
     }
-    case 'supercode_keyword': {
-      const content = `The user included the keyword "supercode" in this prompt — an explicit opt-in to multi-agent orchestration for THIS request. Default to authoring and running a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for the substantive work here — decompose, fan out where independent, adversarially verify, then synthesize — and optimize for the most exhaustive, correct answer; token cost is not a constraint for this request. Solo only if the request is truly trivial. This opt-in is per-turn (standing mode is /effort supercode) and is not a license for destructive or outward-facing actions.`
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content, isMeta: true }),
-      ])
-    }
     case 'critical_system_reminder': {
       return wrapMessagesInSystemReminder([
         createUserMessage({ content: attachment.content, isMeta: true }),
@@ -1109,15 +1102,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'compact_operator_messages': {
       if (attachment.messages.length === 0) return []
       return [createUserMessage({ content: operatorMessagesBlockText(attachment), isMeta: true })]
-    }
-    case 'deepthink_effort': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content:
-            'The user included the keyword "deepthink", requesting deeper reasoning on this turn. Reason as thoroughly as the task warrants.',
-          isMeta: true,
-        }),
-      ])
     }
     case 'held_tools':
       return wrapMessagesInSystemReminder([createUserMessage({ content: attachment.body, isMeta: true })])

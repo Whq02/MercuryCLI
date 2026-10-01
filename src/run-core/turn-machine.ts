@@ -2020,7 +2020,6 @@ export async function* runEventCore(
     )
     markDraining(queuedCommandsSnapshot)
 
-
     const yieldedCommandUuids = new Set<string>()
     let drainProduced = false
     try {

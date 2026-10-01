@@ -381,7 +381,6 @@ export class QueryEngine {
     const inputResult = await processUserInput({
       input: prompt,
       syntaxInput: options?.syntaxInput,
-      preExpansionInput: options?.syntaxInput,
       mode: options?.mode ?? 'prompt',
       setToolJSX: () => {},
       context: toolUseContext as Parameters<typeof processUserInput>[0]['context'],

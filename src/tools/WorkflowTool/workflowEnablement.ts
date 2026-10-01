@@ -5,7 +5,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 
 interface WorkflowManagedSettings {
   disableWorkflows?: boolean
-  workflowKeywordTriggerEnabled?: boolean
 }
 
 function policyWorkflowSettings(): WorkflowManagedSettings | null {
@@ -24,8 +23,4 @@ export function dynamicWorkflowsEnabled(): boolean {
 
 export function workflowsDisabled(): boolean {
   return !dynamicWorkflowsEnabled()
-}
-
-export function workflowKeywordTriggerEnabled(): boolean {
-  return policyWorkflowSettings()?.workflowKeywordTriggerEnabled ?? true
 }

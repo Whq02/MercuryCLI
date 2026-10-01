@@ -19,16 +19,12 @@ import {
   setNeedsPlanModeExitAttachment,
 } from '../../bootstrap/state.js'
 import { getLocalISODate } from '../../constants/common.js'
-import { queuedDeepthinkRequested } from '../../run-core/attachment-drain.js'
-import { hasSupercodeKeyword } from '../keywordTrigger/supercode.js'
 import { getPlan, getPlanFilePath } from '../plans.js'
 import {
   buildRepoSurfaceMap,
   hasOrientationDoc,
   repoSurfaceMapEnabled,
 } from '../cockpit/repoSurfaceMap.js'
-import { hasDeepthinkKeyword, isDeepthinkEnabled } from '../thinking.js'
-import type { QueuedCommand } from 'src/types/textInputTypes.js'
 import { hasToolResultContent } from './shared.js'
 import {
   AUTO_MODE_ATTACHMENT_CONFIG,
@@ -376,27 +372,6 @@ export function getUltraEffortExitAttachment(
   return []
 }
 
-export function getSupercodeKeywordAttachment(
-  input: string | null,
-  toolUseContext: ToolUseContext,
-  options?: { skipSkillDiscovery?: boolean },
-): Attachment[] {
-  
-  if (options?.skipSkillDiscovery) return []
-  if (!input || !hasSupercodeKeyword(input)) return []
-  if (toolUseContext.getAppState().supercode === true) return []
-  const enablement =
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    require('../../tools/WorkflowTool/workflowEnablement.js') as typeof import('../../tools/WorkflowTool/workflowEnablement.js')
-  if (
-    !enablement.dynamicWorkflowsEnabled() ||
-    !enablement.workflowKeywordTriggerEnabled()
-  ) {
-    return []
-  }
-  return [{ type: 'supercode_keyword' }]
-}
-
 export function getDateChangeAttachments(
   messages: Message[] | undefined,
 ): Attachment[] {
@@ -415,21 +390,6 @@ export function getDateChangeAttachments(
   setLastEmittedDate(currentDate)
 
   return [{ type: 'date_change', newDate: currentDate }]
-}
-
-export function getDeepthinkEffortAttachment(
-  input: string | null,
-  _toolUseContext: ToolUseContext,
-  options?: { skipSkillDiscovery?: boolean },
-  queuedCommands?: QueuedCommand[],
-): Attachment[] {
-  if (options?.skipSkillDiscovery) return []
-  if (!isDeepthinkEnabled()) return []
-  const keywordPresent =
-    (!!input && hasDeepthinkKeyword(input)) ||
-    queuedDeepthinkRequested(queuedCommands ?? [], hasDeepthinkKeyword)
-  if (!keywordPresent) return []
-  return [{ type: 'deepthink_effort' }]
 }
 
 

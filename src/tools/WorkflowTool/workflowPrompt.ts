@@ -7,7 +7,6 @@ export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration scri
 Reach for a workflow when the shape of the work wants structure across agents: breadth (split a large surface and cover the pieces concurrently), rigor (independent readings plus adversarial checking before anything is trusted), or sheer size (audits, migrations, and sweeps that no single context window holds). The script is the structure — it decides what fans out, what gets verified, and what gets merged.
 
 STRICT OPT-IN. Never launch a workflow on your own judgment that one would help. Multi-agent orchestration can fan out into dozens of billed agents, so the scale must be something the user chose. You have that choice only when one of these holds:
-- Their prompt contains the keyword "supercode" (a system-reminder will confirm it).
 - A system-reminder says supercode is enabled for the session — see the Supercode paragraph below.
 - They asked for it in their own words ("run a workflow", "orchestrate this", "fan out subagents", "use multi-agent"). The words must be theirs; the mere fact that agents would speed a task up does not qualify.
 - The instructions of a skill or slash command you are executing direct you to invoke Workflow.

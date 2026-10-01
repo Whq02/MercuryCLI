@@ -343,9 +343,6 @@ export type Attachment =
       type: 'ultra_effort_exit'
     }
   | {
-      type: 'supercode_keyword'
-    }
-  | {
       type: 'critical_system_reminder'
       content: string
     }
@@ -456,9 +453,6 @@ export type Attachment =
   | {
       type: 'date_change'
       newDate: string
-    }
-  | {
-      type: 'deepthink_effort'
     }
   | {
       type: 'deferred_tools_delta'

@@ -737,7 +737,6 @@
    ],
    "src/run-core/attachment-drain.ts": [
     "consumeDrainedCommands",
-    "queuedDeepthinkRequested",
     "selectDrainableCommands",
     "type:DrainScope",
     "type:DrainableCommand"

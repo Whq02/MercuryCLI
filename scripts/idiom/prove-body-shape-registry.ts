@@ -162,7 +162,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   },
   ultra_effort: { good: { reminderType: 'full' }, bad: [{ label: 'reminderType is null', field: 'reminderType', fields: { reminderType: null } }] },
   ultra_effort_exit: { good: {}, bad: [] },
-  supercode_keyword: { good: {}, bad: [] },
   critical_system_reminder: { good: { content: 'c' }, bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'] } }] },
   plan_file_reference: { good: { planFilePath: 'p.md', planContent: '# p' }, bad: [{ label: 'planContent is an object', field: 'planContent', fields: { planFilePath: 'p.md', planContent: {} } }] },
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
@@ -217,7 +216,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   compaction_reminder: { good: {}, bad: [] },
   context_efficiency: { good: {}, bad: [] },
   date_change: { good: { newDate: '2026-08-02' }, bad: [{ label: 'newDate is a number', field: 'newDate', fields: { newDate: 20260802 } }] },
-  deepthink_effort: { good: {}, bad: [] },
   bound_prefix: {
     good: { boundKey: 'k', rosterEnabled: true, roster: [{ name: 'Read', deferred: false }], sections: [{ name: 's', key: null, text: 't' }], systemContext: { gitStatus: 'clean' } },
     bad: [

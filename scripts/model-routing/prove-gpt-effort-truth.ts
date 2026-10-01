@@ -225,17 +225,6 @@ const liveModel = (efforts: string[], def?: string) =>
       slider.includes('supported: vocabulary.has(String(tier.value))') &&
       /modelSupportsMaxEffort\(model\)[\s\S]{0,400}value: 'supercode'/.test(slider),
   )
-
-  const effortSrc = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
-  const attachmentSrc = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
-  check(
-    "EF-11: the settings copy names the prompt-level nudge and no longer promises \"the model's deepest effort\"",
-    effortSrc.includes('prompt-level nudge') && !effortSrc.includes("the model's deepest effort"),
-  )
-  check(
-    'EF-11: the nudge mechanism exists at the attachment renderer (deepthink rendered into the turn, wire untouched)',
-    attachmentSrc.includes("'deepthink_effort'") && attachmentSrc.includes('keyword "deepthink"'),
-  )
 }
 
 {

@@ -13,14 +13,14 @@ here="$(cd "$(dirname "$0")" && pwd)"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 echo "############################################################"
-echo "# deepthink — effort-module proofs"
+echo "# effort — effort-module proofs"
 echo "############################################################"
 for f in "$here"/prove-*.ts; do
   [ -e "$f" ] || continue
   __t=$SECONDS; __rc=0; "$bun" run "$f" || { __rc=$?; fail=1; }; prover_mark "$f" "$__t" "$__rc"
 done
 if [ "$fail" -ne 0 ]; then
-  echo "deepthink suite: RED"
+  echo "effort suite: RED"
   exit 1
 fi
-echo "deepthink suite: green"
+echo "effort suite: green"

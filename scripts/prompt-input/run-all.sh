@@ -40,6 +40,7 @@ for p in \
   scripts/prompt-input/prove-pasted-prompt-row.ts \
   scripts/prompt-input/prove-stash-carries-mode.ts \
   scripts/prompt-input/prove-edit-sanitises.ts \
+  scripts/prompt-input/prove-typed-word-plain-ink.ts \
 ; do
   echo "── $p"
   __t=$SECONDS; __rc=0; "$BUN" run "$p" || { __rc=$?; overall=1; }; prover_mark "$p" "$__t" "$__rc"
