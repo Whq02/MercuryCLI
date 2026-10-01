@@ -38,15 +38,19 @@ try {
   const flags = readFileSync(join(root, 'src/substrate/flagRegistry.ts'), 'utf8')
   const shard = readFileSync(join(root, 'scripts/gate/ci-shard.sh'), 'utf8')
   assert.ok(flags.includes("env: 'MERCURY_XAI_API_BASE'"))
-  for (const base of ['MERCURY_XAI_API_BASE', 'MERCURY_XAI_AUTH_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE']) {
+  for (const base of ['MERCURY_XAI_API_BASE', 'MERCURY_XAI_GROK_PROXY_BASE', 'MERCURY_XAI_AUTH_BASE', 'MERCURY_XAI_MANAGEMENT_API_BASE']) {
     assert.ok(shard.includes(base), `${base} joins the loopback census`)
     assert.ok(flags.includes(`env: '${base}'`), `${base} is registered`)
   }
   assert.ok(flags.includes("env: 'MERCURY_XAI_MANAGEMENT_API_BASE'"))
   const accounts = exportsOf(join(root, 'src/services/providers/xai/xaiAccounts.ts'))
-  for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)
+  for (const name of ['resolveXaiApiKey', 'resolveXaiManagementApiKey', 'xaiApiBase', 'xaiGrokProxyBase', 'xaiInferenceBase', 'xaiManagementBase', 'resolveXaiAccount']) assert.ok(accounts.has(name), name)
   const usage = exportsOf(join(root, 'src/services/providers/xai/xaiUsageState.ts'))
-  for (const name of ['fetchXaiUsage', 'refreshXaiUsage', 'xaiObservedUsage', 'decodeXaiPrepaidBalance', 'decodeXaiUsageSeries']) assert.ok(usage.has(name), name)
+  for (const name of ['fetchXaiUsage', 'refreshXaiUsage', 'xaiObservedUsage', 'decodeXaiPrepaidBalance', 'decodeXaiUsageSeries', 'fetchXaiSubscriptionCredits', 'refreshXaiSubscriptionCredits', 'xaiObservedSubscriptionCredits', 'decodeXaiSubscriptionCredits']) assert.ok(usage.has(name), name)
+  const accountsSource = readFileSync(join(root, 'src/services/providers/xai/xaiAccounts.ts'), 'utf8')
+  assert.ok(accountsSource.includes("'https://cli-chat-proxy.grok.com/v1'") && accountsSource.includes("'https://api.x.ai/v1'") && accountsSource.includes("source === 'oauth' ? xaiGrokProxyBase(env) : xaiApiBase(env)"), 'one owner maps the credential kind to its inference base')
+  for (const file of ['xaiCatalogue.ts', 'xaiCallModel.ts', 'xaiUsageState.ts']) assert.ok(!readFileSync(join(root, 'src/services/providers/xai', file), 'utf8').includes('cli-chat-proxy'), `${file} never spells the proxy host itself`)
+  console.log('[PASS] the Grok proxy base has one owner beside the API-key base, with the inference base chosen by credential kind')
   console.log('[PASS] xAI has its own inference and management usage contracts, not DeepSeek balance aliases')
   console.log('[PASS] the xAI base joins the registered hermetic dead-letter census')
   console.log(`XAI CONTRACT GREEN (${count} mirrored exports; base census included)`)

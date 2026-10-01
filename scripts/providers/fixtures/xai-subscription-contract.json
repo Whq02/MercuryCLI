@@ -1,7 +1,8 @@
 {
-  "checked": "2026-09-30",
+  "checked": "2026-10-01",
   "redacted": true,
-  "liveSignIn": "Not attempted; no credentials, approval, inference or spending used for research.",
+  "liveSignIn": "2026-10-01 read-only probe with a stored Grok-subscription bearer on the owner's Mac: GET https://api.x.ai/v1/models answered 403 {\"code\":\"personal-team-blocked:spending-limit\",\"error\":\"…\"} while the account held no purchased credits (200 once credits were loaded); GET https://cli-chat-proxy.grok.com/v1/models answered 200 with the plan's models; GET https://cli-chat-proxy.grok.com/v1/billing?format=credits answered 200 with the shape under grokProxyObserved. No token, identity or spending recorded here.",
+  "decisionUpdate": "2026-10-01, the lead's ruling: a Grok-subscription sign-in rides https://cli-chat-proxy.grok.com/v1 (OpenClaw's host) for the model list, the Responses chat and the included-pool billing read; an xAI API key keeps https://api.x.ai/v1; the management key keeps management-api.x.ai. No third road spends purchased credits through the OAuth bearer on api.x.ai.",
   "preExistingCheck": { "script": "scripts/settings/prove-identity-line.ts", "isolatedTipExit": 1, "isolatedBase": "8672a5f00", "isolatedBaseExit": 1, "decisiveLine": "[FAIL] no fetch escaped the loopback box", "detail": "Both runs record the same refused fetch intents: dead loopback models/key/quota/balance routes plus https://huggingface.co/api/whoami-v2. The proof's fetch guard rejects these before network access. Not changed in this lane." },
   "redOnBase": { "base": "8672a5f00", "check": "git show 8672a5f00:src/components/loginFamilyRows.ts piped to the exact new row assertion", "exit": 1, "decisiveLine": "RED ON BASE 8672a5f00: xAI login row does not offer Grok subscription sign-in" },
   "decision": "Follow OpenCode for the wire, as the owner directed. The shared public client is permitted; Mercury sends its own User-Agent and referrer, never another product's identity.",
@@ -15,11 +16,11 @@
     { "fact": "RFC 8628 device flow, no callback or client secret: POST https://auth.x.ai/oauth2/device/code, then POST https://auth.x.ai/oauth2/token with client_id, device_code and grant_type urn:ietf:params:oauth:grant-type:device_code. Browser authorize endpoint exists but is not this flow.", "sources": ["opencode auth:7-17,108-126,148-197", "https://auth.x.ai/.well-known/openid-configuration"] },
     { "fact": "Form-encoded requests; scope openid profile email offline_access grok-cli:access api:access. Device reply carries device_code, user_code, verification_uri, optional verification_uri_complete, expires_in and interval. authorization_pending waits; slow_down increases delay at least five seconds; access_denied, authorization_denied and expired_token terminate.", "sources": ["opencode auth:46-51,94-126,143-197", "openclaw auth:306-346,354-416"] },
     { "fact": "Refresh uses the same token endpoint, form grant_type=refresh_token with refresh_token and client_id, no secret. Access expiry is expires_in when stated, otherwise JWT exp is an observed hint; no fixed token lifetime is guaranteed. OpenCode defaults missing expires_in to one hour but Mercury does not treat that as a provider fact.", "sources": ["opencode auth:28-44,54-92,232-272,318-324", "openclaw auth:187-215,268-303"] },
-    { "fact": "OpenCode leaves its SDK base at https://api.x.ai/v1 and injects Authorization: Bearer <access token> and its own User-Agent. Default transport is Responses; the LLM package also offers chat. Mercury subscription turns use /responses on that base, its own User-Agent, flat tools and stateless replay. API keys retain their existing chat road.", "sources": ["opencode auth:217-223,274-294", "opencode defaultTransport:15-19", "opencode routes:15-56"] },
-    { "fact": "Model access must be read using the selected credential; no verified account model inventory is available without sign-in. Mercury uses GET /v1/models on OpenCode's API base and never seeds a subscription-only model list from the other clients' defaults.", "sources": ["opencode auth:209-223,274-294", "https://docs.x.ai/developers/models"] },
-    { "fact": "OpenClaw differs: OAuth Responses and /models ride https://cli-chat-proxy.grok.com/v1; inference adds X-XAI-Token-Auth: xai-grok-cli, x-grok-client-version and x-grok-model-override. These alternate-host headers are NOT sent by Mercury.", "sources": ["openclaw catalogue:23-25,43-52,146-178", "openclaw headers:22-46"] },
-    { "fact": "OpenClaw reads GET https://cli-chat-proxy.grok.com/v1/billing?format=credits with bearer, x-grok-client-mode=cli and x-grok-client-version=1.0.4. It reads subscription_tier, config.creditUsagePercent, currentPeriod.type/start/end, legacy used/monthlyLimit; explicit zero is a fact, omitted percent is not zero. Prepaid balance is separate; onDemand counters are not included subscription quota. No such read appears in the pinned OpenCode auth plugin; repository code searches for cli-chat-proxy.grok.com and creditUsagePercent returned zero matches. Per owner's ruling Mercury does NOT read this alternative pool endpoint.", "sources": ["openclaw usage:16-19,71-129,147-203", "openclaw usageFixtures:6-169", "openclaw docs:85-94", "opencode auth:1-339"] },
-    { "fact": "No subscription-specific 429 body, numeric allowance, reset or plan claim is established for OpenCode's road in these sources. Mercury keeps ordinary HTTP 429 / Retry-After handling, reports the Grok pool as unread and invents no window, tier or credits.", "sources": ["opencode auth:1-339", "openclaw usage:208-215"] },
+    { "fact": "OpenCode leaves its SDK base at https://api.x.ai/v1 and injects Authorization: Bearer <access token>. Observed live 2026-10-01: that base bills the account's purchased credits per token and refuses the subscription bearer with HTTP 403 personal-team-blocked:spending-limit while no credits are loaded, so it is not the subscription's road. Mercury subscription turns use /responses on the Grok proxy base, its own User-Agent, flat function tools (no defer_loading, no tool-search type) and stateless replay. API keys retain their existing chat road on api.x.ai.", "sources": ["opencode auth:217-223,274-294", "live probe 2026-10-01"] },
+    { "fact": "Model access must be read using the selected credential; no verified account model inventory is available without sign-in. Mercury uses GET /v1/models on the credential's own base (the Grok proxy for a subscription, api.x.ai for a key) and never seeds a subscription-only model list from the other clients' defaults.", "sources": ["openclaw catalogue:23-25,146-178", "https://docs.x.ai/developers/models"] },
+    { "fact": "OpenClaw's OAuth Responses and /models ride https://cli-chat-proxy.grok.com/v1; inference adds X-XAI-Token-Auth: xai-grok-cli, x-grok-client-version and x-grok-model-override (the model id). Mercury sends exactly these three on the proxy's Responses road and nothing extra on its /models GET; neither ever rides api.x.ai. Tool outputs on the proxy are strings; an image-bearing tool result is flattened and its images re-homed into one user message after the paired outputs, as OpenClaw does.", "sources": ["openclaw catalogue:23-25,43-52,146-178", "openclaw headers:22-46,138-199"] },
+    { "fact": "OpenClaw reads GET https://cli-chat-proxy.grok.com/v1/billing?format=credits with bearer, x-grok-client-mode=cli and x-grok-client-version=1.0.4. It reads subscription_tier, config.creditUsagePercent, currentPeriod.type/start/end, legacy used/monthlyLimit; explicit zero is a fact, omitted percent is not zero. Prepaid balance is separate; onDemand counters are not included subscription quota. Mercury reads the same endpoint with the same headers for the Grok subscription's included pool (creditUsagePercent as the window's used percent, currentPeriod.end as its reset, prepaidBalance.val cents as the purchased-credits line, subscription_tier as the tier when present) and shows it where every other family's pool shows.", "sources": ["openclaw usage:16-19,71-129,147-203", "openclaw usageFixtures:6-169", "openclaw docs:85-94", "live probe 2026-10-01"] },
+    { "fact": "No subscription-specific 429 body or plan claim is established for the proxy road in these sources. Mercury keeps ordinary HTTP 429 / Retry-After handling; an unreadable pool stays an honest reader note, never a fabricated window, tier or balance.", "sources": ["openclaw usage:208-215"] },
     { "fact": "xAI announces SuperGrok or X Premium sign-in for OpenClaw on every tier and describes headless device codes; Hermes warns of backend tier eligibility refusals despite successful browser login. A login is not proof that inference is admitted.", "sources": ["https://x.ai/news/grok-openclaw", "hermes docs:9-13,38-40,206-219"] }
   ],
   "publicDiscoveryObserved": {
@@ -32,6 +33,40 @@
     "revocation_endpoint": "https://auth.x.ai/oauth2/revoke",
     "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post", "none"],
     "grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"]
+  },
+  "grokProxyObserved": {
+    "checked": "2026-10-01",
+    "apiKeyBaseWithSubscriptionBearer": { "url": "https://api.x.ai/v1/models", "http": 403, "body": { "code": "personal-team-blocked:spending-limit", "error": "<140 chars: out of credits or needs a Grok subscription; add credits at grok.com>" }, "note": "answers 200 once the account holds purchased credits (the lead's probe after a top-up); the API-key road, never the subscription's" },
+    "models": {
+      "url": "https://cli-chat-proxy.grok.com/v1/models",
+      "headers": ["Authorization: Bearer <access token>", "Accept: application/json"],
+      "http": 200,
+      "rowCount": 5,
+      "firstRow": { "id": "grok-4.7", "object": "model", "owned_by": "xAI", "model": "grok-4.7", "model_family": "xai", "name": "Grok 4.7", "description": "<string>", "context_window": 256000, "context_windows": [256000, "<second value>"], "auto_compact_threshold_percent": 80, "system_prompt_label": "Grok 4.7", "api_backend": "responses", "reasoning_effort": "high", "supports_reasoning_effort": true, "reasoning_efforts": [{ "id": "xhigh", "value": "xhigh", "label": "Extra High", "description": "<string>", "default": false }, "<4 more>"], "supports_backend_search": true, "compactions_remaining": 1, "compaction_at_tokens": true },
+      "mercuryReads": "id · name → displayName · context_window → contextWindow · reasoning_efforts[].id → efforts · reasoning_effort → defaultEffort · api_backend not in {responses, chat, language} → row dropped"
+    },
+    "billing": {
+      "url": "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
+      "headers": ["Authorization: Bearer <access token>", "Accept: application/json", "x-grok-client-mode: cli", "x-grok-client-version: 1.0.4"],
+      "http": 200,
+      "body": {
+        "config": {
+          "currentPeriod": { "type": "USAGE_PERIOD_TYPE_WEEKLY", "start": "2026-09-27T20:25:36.625288+00:00", "end": "2026-10-04T20:25:36.625288+00:00" },
+          "creditUsagePercent": 100,
+          "onDemandCap": { "val": 0 },
+          "onDemandUsed": { "val": 0 },
+          "productUsage": [{ "product": "GrokImagine", "usagePercent": 96 }, "<2 more>"],
+          "isUnifiedBillingUser": true,
+          "prepaidBalance": { "val": 0 },
+          "topUpMethod": "TOP_UP_METHOD_SAVED_PAYMENT_METHOD",
+          "billingPeriodStart": "2026-09-27T20:25:36.625288+00:00",
+          "billingPeriodEnd": "2026-10-04T20:25:36.625288+00:00"
+        }
+      },
+      "note": "no top-level subscription_tier on this account's answer; prepaidBalance.val is cents (0 before the owner's top-up); creditUsagePercent is the included pool's used percent",
+      "mercuryReads": "creditUsagePercent → the 'wk' window's usedPct · currentPeriod.end → resetsAtMs · prepaidBalance.val cents → 'USD n.nn purchased credits' · subscription_tier → tier when present"
+    },
+    "chat": { "url": "https://cli-chat-proxy.grok.com/v1/responses", "headers": ["Authorization: Bearer <access token>", "X-XAI-Token-Auth: xai-grok-cli", "x-grok-client-version: 2026.9.7", "x-grok-model-override: <model id>"], "note": "observed 2026-10-01 through the product transport with one function tool: x-grok-client-version 1.0.4 (the billing constant) draws HTTP 426 Upgrade Required (application/json, 148 bytes) before any inference; OpenClaw sends its runtime version (2026.9.7 at the pin, 2026.7.2 in its tests) on this road, so Mercury sends that value; the 2026.9.7 call is not yet observed live" }
   },
   "syntheticDeviceReply": { "device_code": "fixture-device-not-real", "user_code": "GROK-TEST", "verification_uri": "http://127.0.0.1/verify", "expires_in": 300, "interval": 1 },
   "syntheticTokenReply": { "access_token": "fixture-access-not-real", "refresh_token": "fixture-refresh-not-real", "expires_in": 3600, "token_type": "Bearer" }

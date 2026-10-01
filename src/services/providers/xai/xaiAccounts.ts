@@ -2,13 +2,33 @@ import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../../../uti
 import { readPreferredXaiSource, refreshXaiTokens, xaiStoredTokens, type XaiOauthIo } from './xaiOauth.js'
 
 const XAI_API_BASE_URL = 'https://api.x.ai/v1'
+const XAI_GROK_PROXY_BASE_URL = 'https://cli-chat-proxy.grok.com/v1'
+export const XAI_GROK_PROXY_CLIENT_VERSION = '1.0.4'
+export const XAI_GROK_PROXY_CHAT_CLIENT_VERSION = '2026.9.7'
+export type XaiCredentialSource = 'env' | 'stored' | 'oauth'
 
 export function xaiApiBase(env: NodeJS.ProcessEnv = process.env): string {
   return (env['MERCURY_XAI_API_BASE']?.trim() || XAI_API_BASE_URL).replace(/\/+$/, '')
 }
 
-export function xaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env): string {
-  return `${xaiApiBase(env)}/chat/completions`
+export function xaiGrokProxyBase(env: NodeJS.ProcessEnv = process.env): string {
+  return (env['MERCURY_XAI_GROK_PROXY_BASE']?.trim() || XAI_GROK_PROXY_BASE_URL).replace(/\/+$/, '')
+}
+
+export function xaiInferenceBase(source: XaiCredentialSource, env: NodeJS.ProcessEnv = process.env): string {
+  return source === 'oauth' ? xaiGrokProxyBase(env) : xaiApiBase(env)
+}
+
+export function xaiChatCompletionsUrl(env: NodeJS.ProcessEnv = process.env, source: XaiCredentialSource = 'stored'): string {
+  return `${xaiInferenceBase(source, env)}/chat/completions`
+}
+
+export function xaiGrokProxyChatHeaders(model: string): Record<string, string> {
+  return { 'X-XAI-Token-Auth': 'xai-grok-cli', 'x-grok-client-version': XAI_GROK_PROXY_CHAT_CLIENT_VERSION, 'x-grok-model-override': model }
+}
+
+export function xaiGrokProxyBillingHeaders(): Record<string, string> {
+  return { 'x-grok-client-mode': 'cli', 'x-grok-client-version': XAI_GROK_PROXY_CLIENT_VERSION }
 }
 
 export function xaiManagementBase(env: NodeJS.ProcessEnv = process.env): string {

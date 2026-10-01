@@ -12,19 +12,23 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.XAI_API_KEY = 'xai-fixture-wire-not-a-real-key'
 let mode: 'text' | 'tools' | 'malformed' | 'auth' | 'billing' | 'busy' = 'text'
 let modelList: unknown[] = [{ id: 'grok-4.7', created: 2 }, { id: 'grok-4.3', created: 1 }]
-const captures: Array<{ path: string; body: Record<string, any>; bearer: boolean }> = []
+const captures: Array<{ path: string; body: Record<string, any>; bearer: boolean; headers: Record<string, string> }> = []
 let listReads = 0
+const listPaths: Array<{ path: string; bearer: string | null }> = []
 let holdList: Promise<void> | undefined
 let listEntered: (() => void) | undefined
 const sse = (body: unknown): string => `data: ${JSON.stringify(body)}\n\n`
 const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const path = new URL(req.url).pathname
-  if (path === '/v1/models') { listReads++; listEntered?.(); await holdList; return Response.json({ data: modelList }) }
-  if (path === '/v1/responses') {
+  if (path === '/v1/models' || path === '/proxy/v1/models') { listReads++; listPaths.push({ path, bearer: req.headers.get('authorization') }); listEntered?.(); await holdList; return Response.json({ data: modelList }) }
+  assert.notEqual(path, '/v1/responses', 'a Grok subscription never posts Responses on the API-key base')
+  if (path === '/proxy/v1/responses') {
     const body = await req.json() as Record<string, any>
-    captures.push({ path, body, bearer: req.headers.get('authorization') === 'Bearer fixture-subscription-access' })
+    captures.push({ path, body, bearer: req.headers.get('authorization') === 'Bearer fixture-subscription-access', headers: Object.fromEntries(req.headers.entries()) })
     assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''))
-    assert.equal(req.headers.has('X-XAI-Token-Auth'), false)
+    assert.equal(req.headers.get('X-XAI-Token-Auth'), 'xai-grok-cli')
+    assert.equal(req.headers.get('x-grok-model-override'), body.model)
+    assert.ok(req.headers.get('x-grok-client-version'))
     const item = mode === 'tools'
       ? { type: 'function_call', id: 'fc_sub', call_id: 'call_sub', name: 'FixtureEcho', arguments: '{"text":"subscription"}', status: 'completed' }
       : { type: 'message', id: 'msg_sub', role: 'assistant', content: [{ type: 'output_text', text: 'GROK-SUBSCRIPTION-SETTLED', annotations: [] }], status: 'completed' }
@@ -42,7 +46,8 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   const raw = await req.text()
   assert.ok(!raw.includes(process.env.XAI_API_KEY!))
   const body = JSON.parse(raw)
-  captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.XAI_API_KEY}` })
+  assert.equal(req.headers.has('X-XAI-Token-Auth'), false)
+  captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.XAI_API_KEY}`, headers: Object.fromEntries(req.headers.entries()) })
   if (mode === 'auth' || mode === 'billing' || mode === 'busy') {
     const status = mode === 'auth' ? 401 : mode === 'billing' ? 402 : 503
     if (mode === 'busy') mode = 'text'
@@ -59,6 +64,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   return new Response(stream + 'data: [DONE]\n\n', { headers: { 'content-type': 'text/event-stream' } })
 } })
 process.env.MERCURY_XAI_API_BASE = `http://127.0.0.1:${server.port}/v1`
+process.env.MERCURY_XAI_GROK_PROXY_BASE = `http://127.0.0.1:${server.port}/proxy/v1`
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
@@ -157,19 +163,28 @@ try {
   oauth.writePreferredXaiSource('grok-subscription')
   delete process.env.XAI_API_KEY
   check('the subscription alone admits the primary backend without any API key', resolvePrimaryAgentBackend('grok-4.7')?.readiness().state !== 'unavailable')
+  const keyListPaths = listPaths.length
   mode = 'tools'
   const subscriptionTools = await run(params('grok-4.7'))
   const subscriptionBody = captures.at(-1)!.body
-  check('subscription bearer rides api-base Responses without borrowed product headers', captures.at(-1)?.path === '/v1/responses' && captures.at(-1)?.bearer)
-  check('subscription uses flat function tools, typed input and stateless encrypted reasoning', subscriptionBody.tools[0].name === 'FixtureEcho' && !subscriptionBody.tools[0].function && Array.isArray(subscriptionBody.input) && subscriptionBody.store === false && subscriptionBody.include.includes('reasoning.encrypted_content'))
+  check('the subscription lists on the Grok proxy with its bearer, never on the API-key base', listPaths.slice(keyListPaths).length >= 1 && listPaths.slice(keyListPaths).every(row => row.path === '/proxy/v1/models' && row.bearer === 'Bearer fixture-subscription-access') && listPaths.slice(0, keyListPaths).every(row => row.path === '/v1/models'))
+  check('subscription bearer rides the Grok proxy Responses road with the CLI identity headers OpenClaw sends', captures.at(-1)?.path === '/proxy/v1/responses' && captures.at(-1)?.bearer && captures.at(-1)?.headers['x-xai-token-auth'] === 'xai-grok-cli' && captures.at(-1)?.headers['x-grok-model-override'] === 'grok-4.7' && captures.at(-1)?.headers['x-grok-client-version'] === '2026.9.7')
+  check('subscription uses flat function tools, typed input and stateless encrypted reasoning', subscriptionBody.tools[0].name === 'FixtureEcho' && !subscriptionBody.tools[0].function && !('defer_loading' in subscriptionBody.tools[0]) && subscriptionBody.tools.every((tool: any) => tool.type === 'function') && Array.isArray(subscriptionBody.input) && subscriptionBody.store === false && subscriptionBody.include.includes('reasoning.encrypted_content'))
   const { foldSplitTurnsForWire } = await import('../../src/utils/messages/pairing.ts')
   check('wire normalization preserves the xAI replay record', foldSplitTurnsForWire(subscriptionTools).some(row => row.type === 'assistant' && row.xaiProviderTurn?.items.length === 2))
   check('subscription tool call settles with its own provider replay record', subscriptionTools.some(row => row.message.content.some(block => block.type === 'tool_use' && block.id === 'call_sub')) && subscriptionTools.at(-1)?.xaiProviderTurn?.items.length === 2)
   mode = 'text'
   const subText = await run(params('grok-4.7', 'high', true, [...subscriptionTools, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_sub', content: 'subscription result' }] })]))
   const input = captures.at(-1)!.body.input
-  check('subscription replay preserves encrypted reasoning and pairs tool output by call id', input.some((row: any) => row.type === 'reasoning' && row.encrypted_content === 'fixture-encrypted') && input.some((row: any) => row.type === 'function_call_output' && row.call_id === 'call_sub'))
+  check('subscription replay preserves encrypted reasoning and pairs tool output by call id as a string the proxy accepts', input.some((row: any) => row.type === 'reasoning' && row.encrypted_content === 'fixture-encrypted') && input.some((row: any) => row.type === 'function_call_output' && row.call_id === 'call_sub' && row.output === 'subscription result'))
   check('subscription Responses text and usage settle under xAI', subText.some(row => JSON.stringify(row.message.content).includes('GROK-SUBSCRIPTION-SETTLED')) && subText.at(-1)?.message.usage?.output_tokens === 10)
+  const { xaiProxyToolOutputs } = await import('../../src/services/providers/xai/xaiResponsesTransport.ts')
+  const rehomed = xaiProxyToolOutputs([
+    { type: 'function_call_output', call_id: 'call_a', output: [{ type: 'input_text', text: 'shot taken' }, { type: 'input_image', image_url: 'data:image/png;base64,AAAA' }] },
+    { type: 'function_call_output', call_id: 'call_b', output: 'plain' },
+    { type: 'message', role: 'user', content: [{ type: 'input_text', text: 'next' }] },
+  ]) as Array<Record<string, any>>
+  check('an image-bearing tool result rides the proxy as a string output with its image re-homed in one user message after the paired outputs, the way OpenClaw sends it', rehomed.length === 4 && rehomed[0]?.output === 'shot taken' && rehomed[1]?.output === 'plain' && rehomed[2]?.type === 'message' && rehomed[2].role === 'user' && rehomed[2].content[0].text === 'Image(s) from tool result call_a:' && rehomed[2].content[1].type === 'input_image' && rehomed[3]?.content[0].text === 'next')
   oauth.clearStoredXaiSubscription()
   console.log(`XAI WIRE GREEN (${checks} checks; loopback fixture only)`)
 } finally { server.stop(true); rmSync(proofHome, { recursive: true, force: true }) }

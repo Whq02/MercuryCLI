@@ -5,7 +5,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
-import { xaiApiBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
+import { xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
 import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -25,6 +25,13 @@ export interface XaiLiveModel {
 const str = (value: unknown): string | undefined => typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined
 const positive = (value: unknown): number | undefined => typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : undefined
 
+const PROXY_CHAT_BACKENDS: ReadonlySet<string> = new Set(['responses', 'chat', 'language'])
+function proxyEfforts(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const ids = value.map(row => typeof row === 'object' && row !== null ? str((row as Record<string, unknown>).id) : undefined)
+  return ids.filter((v): v is string => v !== undefined)
+}
+
 export function decodeXaiModel(raw: unknown): XaiLiveModel | undefined {
   if (typeof raw !== 'object' || raw === null) return undefined
   const r = raw as Record<string, unknown>
@@ -32,17 +39,22 @@ export function decodeXaiModel(raw: unknown): XaiLiveModel | undefined {
   if (!id || !isXaiChatModelId(id)) return undefined
   if (Array.isArray(r.output_modalities) && !r.output_modalities.includes('text')) return undefined
   if (r.image_price !== undefined && r.image_price !== null) return undefined
+  const backend = str(r.api_backend)
+  if (backend !== undefined && !PROXY_CHAT_BACKENDS.has(backend.toLowerCase())) return undefined
   const caps = typeof r.capabilities === 'object' && r.capabilities !== null ? r.capabilities as Record<string, unknown> : undefined
-  const efforts = Array.isArray(caps?.reasoning_effort) ? caps.reasoning_effort.filter((v): v is string => typeof v === 'string') : undefined
+  const efforts = Array.isArray(caps?.reasoning_effort) ? caps.reasoning_effort.filter((v): v is string => typeof v === 'string') : proxyEfforts(r.reasoning_efforts)
+  const displayName = str(r.display_name) ?? str(r.name)
+  const contextWindow = positive(r.context_length) ?? positive(r.context_window)
+  const defaultEffort = str(caps?.default_reasoning_effort) ?? (efforts !== undefined ? str(r.reasoning_effort) : undefined)
   return {
     id,
     ...(str(r.owned_by) ? { ownedBy: str(r.owned_by) } : {}),
-    ...(str(r.display_name) ? { displayName: str(r.display_name) } : {}),
+    ...(displayName ? { displayName } : {}),
     ...(positive(r.created) ? { created: positive(r.created) } : {}),
-    ...(positive(r.context_length) ? { contextWindow: positive(r.context_length) } : {}),
+    ...(contextWindow ? { contextWindow } : {}),
     ...(Array.isArray(r.aliases) ? { aliases: r.aliases.filter((v): v is string => typeof v === 'string') } : {}),
     ...(efforts !== undefined ? { efforts } : {}),
-    ...(str(caps?.default_reasoning_effort) ? { defaultEffort: str(caps?.default_reasoning_effort) } : {}),
+    ...(defaultEffort ? { defaultEffort } : {}),
   }
 }
 
@@ -93,7 +105,7 @@ const catalogueCache = new Map<string, XaiCatalogueSnapshot>()
 const catalogueInFlight = new Map<string, Promise<XaiCatalogueSnapshot | null>>()
 function catalogueIdentity(env: NodeJS.ProcessEnv): string {
   const key = resolveXaiCredentialSnapshot(env)
-  return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiApiBase(env)}` : 'none'
+  return key ? `${key.source}:${credentialFingerprint(key.key)}:${xaiInferenceBase(key.source, env)}` : 'none'
 }
 export function getCachedXaiCatalogue(env: NodeJS.ProcessEnv = process.env): XaiCatalogueSnapshot | null {
   return resolveXaiCredentialSnapshot(env) ? catalogueCache.get(catalogueIdentity(env)) ?? null : null
@@ -134,7 +146,7 @@ export function refreshXaiCatalogue(opts?: {
       const credential = await resolveXaiCredential({ ...opts, env })
       if (!credential) throw new Error('Grok sign-in expired — /logins xai reconnects it')
       resolvedKey = credential
-      const result = await fetchXaiLiveModels({ baseUrl: xaiApiBase(env), key: credential.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
+      const result = await fetchXaiLiveModels({ baseUrl: xaiInferenceBase(credential.source, env), key: credential.key, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) })
       if (resolveXaiCredentialSnapshot(env)?.key !== credential.key) return null
       const snapshot: XaiCatalogueSnapshot = { keySource: credential.source, models: result.models, fetchedAtMs: now() }
       catalogueCache.set(catalogueIdentity(env), snapshot)

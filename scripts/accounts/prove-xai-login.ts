@@ -98,6 +98,7 @@ try {
     const signed = await runXaiDeviceLogin({ io, sleep, onEvent: event => events.push(event.phase) })
     check('device code polls pending and slow_down before storing the approved grant', signed.ok && oauth.state.polls === 3 && waits.join(',') === '1000,1000,6000' && events.includes('waiting') && events.includes('finishing'))
     check('Grok token file is auth-scoped mode 600; receipt contains no token or device secret', auth.xaiAuthPathForDisplay() === `${proofHome}/scoped-grok/.xai-auth.json` && (statSync(auth.xaiAuthPathForDisplay()).mode & 0o777) === 0o600 && !signed.receipt.includes(oauth.token) && !signed.receipt.includes('fixture-device'))
+    check('the sign-in receipt lists on the Grok proxy and names that host, never api.x.ai', signed.receipt.includes('1 chat models listed') && signed.receipt.includes('cli-chat-proxy.grok.com') && !signed.receipt.includes('api.x.ai') && oauth.seen.some(row => row.path === '/proxy/v1/models' && row.bearer === `Bearer ${oauth.token}`) && !oauth.seen.some(row => row.path === '/v1/models'))
     check('OAuth ledger and account identity name Grok, never an invented plan', readSignInLedger().xai?.kind === 'oauth' && resolveXaiAccount()?.kind === 'grok-subscription' && resolveXaiAccount()?.email === 'fixture@example.invalid')
     process.env.XAI_API_KEY = key
     check('subscription wins even over the env key like OpenAI', resolveXaiAccount()?.kind === 'grok-subscription')
@@ -111,6 +112,16 @@ try {
     await listing
     check('expired subscription refreshes once with rotating tokens and no key fallback', oauth.state.refreshes === 1 && refreshed.every(row => row?.key === oauth.rotated) && auth.xaiStoredTokens()?.refreshToken === 'fixture-rotated-refresh')
     check('catalogue fetched through refresh is immediately visible under the rotated credential', catalogue.getCachedXaiCatalogue(io.env)?.models[0]?.id === 'grok-4.7')
+    const proxyRow = catalogue.getCachedXaiCatalogue(io.env)?.models ?? []
+    check('the proxy list decodes its own row shape (name, context_window, reasoning_efforts, the default effort) and drops non-chat backends', proxyRow.length === 1 && proxyRow[0]?.displayName === 'Grok 4.7' && proxyRow[0].contextWindow === 256000 && proxyRow[0].efforts?.join(',') === 'xhigh,high,low' && proxyRow[0].defaultEffort === 'high' && oauth.seen.filter(row => row.path === '/proxy/v1/models').every(row => row.bearer === `Bearer ${oauth.token}` || row.bearer === `Bearer ${oauth.rotated}`))
+    const owner = await import('../../src/services/providers/providerUsage.ts')
+    process.env.MERCURY_XAI_GROK_PROXY_BASE = oauth.env.MERCURY_XAI_GROK_PROXY_BASE
+    try {
+      await owner.refreshProviderUsage('xai', { ...io, force: true })
+      const pool = owner.usageForProvider('xai')
+      const billing = oauth.seen.find(row => row.path === '/proxy/v1/billing')
+      check('the subscription pool reads GET {proxy}/billing?format=credits with the rotated bearer and the CLI client headers, and paints the weekly window with its purchased credits', billing?.bearer === `Bearer ${oauth.rotated}` && billing.headers['x-grok-client-mode'] === 'cli' && pool.sourceKind === 'subscription-oauth' && pool.windows[0]?.label === 'wk' && pool.windows[0].usedPct === 100 && pool.windows[0].resetsAtMs === Date.parse('2026-10-04T20:25:36.625288+00:00') && pool.credits?.display === 'USD 0.00 purchased credits' && pool.tier === 'Grok subscription')
+    } finally { delete process.env.MERCURY_XAI_GROK_PROXY_BASE }
     const oauthSlot = deriveFamilySlotGroups().find(group => group.family.id === 'xai')?.slots.find(slot => slot.kind === 'oauth')
     check('account board shows an active OAuth slot with its own removal door', oauthSlot?.active && oauthSlot.removal.route === 'xai-oauth')
     executeSlotRemoval(oauthSlot!)

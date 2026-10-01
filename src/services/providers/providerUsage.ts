@@ -84,7 +84,7 @@ import {
 import { resolveLocalAccount, type LocalAccountRef } from './local/localAccounts.js'
 import { refreshLocalDiscovery } from './local/localDiscovery.js'
 import { resolveXaiManagementApiKey } from './xai/xaiAccounts.js'
-import { refreshXaiUsage, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT } from './xai/xaiUsageState.js'
+import { refreshXaiSubscriptionCredits, refreshXaiUsage, xaiObservedSubscriptionCredits, xaiObservedUsage, xaiUsageFailureWords, XAI_MANAGEMENT_KEY_HINT, type XaiSubscriptionCredits } from './xai/xaiUsageState.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
 
@@ -431,6 +431,7 @@ export interface ActiveUsageReads {
   xaiAccount?: () => { kind: 'grok-subscription' | 'api-key' } | undefined
   xaiManagementKeyPresent?: () => boolean
   xaiObserved?: typeof xaiObservedUsage
+  xaiSubscriptionCredits?: typeof xaiObservedSubscriptionCredits
   moonshotAccount?: () => { kind: 'kimi-oauth' | 'api-key' } | undefined
   moonshotBalance?: () => MoonshotObservedBalanceView | null
   kimiManagedUsage?: () => KimiManagedUsageView | null
@@ -466,7 +467,8 @@ export async function refreshProviderUsage(provider: RouterProviderId, io?: Usag
         return
       case 'xai': {
         const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-        if (resolveXaiAccount()?.kind !== 'grok-subscription') await refreshXaiUsage(io)
+        if (resolveXaiAccount()?.kind === 'grok-subscription') await refreshXaiSubscriptionCredits(io)
+        else await refreshXaiUsage(io)
         return
       }
       case 'deepseek': {
@@ -1071,6 +1073,35 @@ function kimiExtraUsageCarry(usage: KimiManagedUsageView | null, error?: string)
   return { state: 'carries', display: `on Extra Usage · ${amount} left`, compact: `on Extra Usage ${amount}`, ...stamp }
 }
 
+export function xaiSubscriptionWindowViews(pool: XaiSubscriptionCredits | null): UsageWindowView[] {
+  if (!pool || pool.usedPercent === undefined) return []
+  const type = pool.period?.type ?? ''
+  const span = pool.period?.startMs !== undefined && pool.period.endMs !== undefined && pool.period.endMs > pool.period.startMs
+    ? (pool.period.endMs - pool.period.startMs) / 60_000
+    : type.endsWith('WEEKLY') ? 7 * 24 * 60 : type.endsWith('MONTHLY') ? 30 * 24 * 60 : undefined
+  const label = usageWindowLabel(span)
+  return [{
+    key: label,
+    label,
+    state: 'live',
+    usedPct: Math.min(100, Math.max(0, pool.usedPercent)),
+    ...(pool.period?.endMs !== undefined ? { resetsAtMs: pool.period.endMs } : {}),
+    observedAtMs: pool.observedAtMs,
+    source: 'endpoint',
+    freshForMs: usageStaleAfterMs(),
+  }]
+}
+
+export const XAI_POOL_NOT_READ_WORDS = 'not read yet — /usage samples the Grok pool endpoint'
+export const XAI_POOL_UNSTATED_WORDS = 'the Grok pool endpoint stated no included usage for this period'
+
+function xaiSubscriptionCredits(pool: XaiSubscriptionCredits | null, failed: boolean): UsageCreditsView {
+  if (pool === null) return { state: 'unreported', reason: failed ? 'not read — see the usage reader note' : XAI_POOL_NOT_READ_WORDS, compact: failed ? 'not read' : 'not read yet' }
+  if (pool.prepaidBalanceUsd === undefined) return { state: 'unreported', reason: 'the Grok pool endpoint stated no purchased-credits balance', compact: 'not stated' }
+  const amount = `USD ${pool.prepaidBalanceUsd.toFixed(2)}`
+  return { state: 'reported', display: `${amount} purchased credits`, compact: `${amount} purchased`, source: 'endpoint', observedAtMs: pool.observedAtMs, freshForMs: usageStaleAfterMs() }
+}
+
 function polledBalanceCredits(balance: { display: string; observedAtMs: number } | undefined): UsageCreditsView {
   return balance !== undefined
     ? { state: 'reported', display: balance.display, compact: balance.display, source: 'endpoint', observedAtMs: balance.observedAtMs, freshForMs: usageStaleAfterMs() }
@@ -1505,10 +1536,16 @@ function deriveUsageForProvider(
     const credentialed = reads?.laneCredentialed?.(provider) ?? laneCredentialedLive(provider)
     if (!credentialed) return { provider, sourceKind: 'none', label: 'xAI usage', shape: 'none', windows: [], pools: [], spend, whyNot: 'not connected — /logins xai adds a key' }
     const { resolveXaiAccount } = require('./xai/xaiAccounts.js') as typeof import('./xai/xaiAccounts.js')
-    if ((reads?.xaiAccount ?? resolveXaiAccount)()?.kind === 'grok-subscription') return {
-      provider, sourceKind: 'subscription-oauth', label: 'Grok subscription', shape: 'subscription-windows', windows: [], pools: [], spend,
-      tier: 'Grok subscription', credits: CREDITS_UNREPORTED,
-      absence: 'Grok subscription pool not reported on this route; cli-chat-proxy.grok.com/v1/billing?format=credits is a separate billing endpoint, not read here. Check your Grok account for remaining usage.',
+    if ((reads?.xaiAccount ?? resolveXaiAccount)()?.kind === 'grok-subscription') {
+      const { credits: pool, failure: poolFailure } = (reads?.xaiSubscriptionCredits ?? xaiObservedSubscriptionCredits)()
+      const windows = xaiSubscriptionWindowViews(pool)
+      const note = poolFailure ? xaiUsageFailureWords(poolFailure) : undefined
+      return {
+        provider, sourceKind: 'subscription-oauth', label: 'Grok subscription', shape: 'subscription-windows', windows, pools: [], spend,
+        tier: pool?.tier ?? 'Grok subscription', credits: xaiSubscriptionCredits(pool, poolFailure !== null),
+        ...(pool && windows.length === 0 ? { absence: XAI_POOL_UNSTATED_WORDS } : {}),
+        ...(note ? { readerNote: note, readerNoteCompact: note } : {}),
+      }
     }
     const management = reads?.xaiManagementKeyPresent?.() ?? resolveXaiManagementApiKey() !== undefined
     if (!management) return {

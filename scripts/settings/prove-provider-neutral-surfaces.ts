@@ -101,8 +101,8 @@ section('(2) usageSectionPlan — one /usage section per family (derived, never 
   check('every enumerated family mounts a section (no hidden lanes)', usageSectionPlan(fams).some(s => s.id === ('openai' as never)))
   const xaiPlan = usageSectionPlan([{ id: 'xai', available: true, credentialed: false }] as never)
   check(
-    'xai section: the title and key route stay while the management key unlocks team billing reads',
-    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === 'A management key reads the team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
+    'xai section: the title and both connect roads stay while the subscription meters its pool and the management key unlocks team billing reads',
+    xaiPlan[0]?.kind === 'engine' && xaiPlan[0]?.title === 'xAI usage' && xaiPlan[0]?.connect === '/logins xai adds a Grok subscription sign-in or an xAI API key (XAI_API_KEY works too)' && xaiPlan[0]?.limitsNote === 'A Grok subscription meters its included pool and purchased credits from the Grok proxy; a management key reads the API team’s prepaid credits, billing-cycle usage and postpaid spending limit.',
     JSON.stringify(xaiPlan[0]),
   )
 }

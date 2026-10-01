@@ -47,9 +47,10 @@ const xaiAuth = await import('../../src/services/providers/xai/xaiOauth.ts')
 xaiAuth.writeXaiTokens({ accessToken: 'fixture-grok', refreshToken: 'fixture-refresh', expiresAtMs: Date.now() + 3600_000 })
 xaiAuth.writePreferredXaiSource('grok-subscription')
 let grokReads = 0
-await owner.refreshProviderUsage('xai', { fetchImpl: (async () => { grokReads++; throw new Error('unexpected subscription meter request') }) as typeof fetch })
+const grokUrls: string[] = []
+await owner.refreshProviderUsage('xai', { fetchImpl: (async (url: string | URL | Request) => { grokReads++; grokUrls.push(String(url)); throw new Error('fixture: the pool endpoint is unreachable') }) as typeof fetch })
 const grokUsage = owner.usageForProvider('xai')
-check('Grok subscription names its unread pool and separate billing endpoint without fabricating allowance or reading another road', grokReads === 0 && grokUsage.sourceKind === 'subscription-oauth' && grokUsage.windows.length === 0 && grokUsage.pools.length === 0 && grokUsage.absence?.includes('cli-chat-proxy.grok.com') === true && grokUsage.tier === 'Grok subscription')
+check('Grok subscription asks only the proxy pool endpoint and, unreachable, names the failed read without fabricating a window or a balance', grokReads === 1 && grokUrls[0]?.endsWith('/billing?format=credits') === true && !grokUrls[0].includes('api.x.ai') && grokUsage.sourceKind === 'subscription-oauth' && grokUsage.windows.length === 0 && grokUsage.pools.length === 0 && grokUsage.credits?.state === 'unreported' && grokUsage.readerNote?.includes('Grok subscription pool read unavailable') === true && grokUsage.tier === 'Grok subscription')
 xaiAuth.clearStoredXaiSubscription()
 
 const WHOAMI = JSON.parse(readFileSync(join(ROOT, 'scripts/provider-compat/fixtures/huggingface-whoami-v2-documented.json'), 'utf8')) as { user: Record<string, unknown>; freeUser: Record<string, unknown> }
