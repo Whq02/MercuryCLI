@@ -235,7 +235,7 @@ function walkSends(): Send[] {
   return [
     ...openCard(),
     gate('Connect Google Gemini', '\r', 'card'),
-    gate('Create API key', FIXTURE_KEY, 'key-leg'),
+    gate('create a key', FIXTURE_KEY, 'key-leg'),
     after(4, '\r'),
     gate('Gemini API key stored', '', 'key-receipt'),
     ...reopenCard(),
@@ -476,7 +476,7 @@ if (LEG === 'walk' || LEG === 'all') {
   record('browser opens', r.opens.map(u => (isAuthorize(u) ? 'authorize(state)' : u)).join(' | ') || 'none')
   check('the walk delivered every step and returned to status', r.status === 0 && r.payload !== null && gridText(r.payload.grid).includes('Mercury · status'), r.stderr.slice(-600))
   check('the card offers the API key first, with the ruled words, and the Google account second', card.includes('1. API key — the easiest: create one in AI Studio, paste it here') && card.includes('2. Google account — six steps, each opens its Console page'), tail(markText(r.payload, 'card'), 16) || r.stderr.slice(-600))
-  check('the key row opened AI Studio in the browser before the paste', r.opens[0] === AI_STUDIO && keyLeg.includes('AI Studio opened in your browser') && keyLeg.includes(AI_STUDIO), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'key-leg'), 8)}`)
+  check('the key row opened AI Studio in the browser before the paste', r.opens[0] === AI_STUDIO && keyLeg.includes('AI Studio opened: create a key there.') && keyLeg.includes(AI_STUDIO), `${r.opens[0] ?? 'no open'} · ${tail(markText(r.payload, 'key-leg'), 8)}`)
   check('the pasted key was stored and proved on the live catalogue with the key itself', r.keyStored && r.hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && keyReceipt.includes('Gemini API key stored'), r.hits.join(' | '))
   check('the reopened card shows the key row as connected', cardConnected.includes('API key — connected (stored locally)'), tail(markText(r.payload, 'card-connected'), 12))
   check('step 1 opened the project page and names it', step1.includes('step 1 of 6') && step1.includes(STEP_PAGES[0]!) && r.opens.includes(STEP_PAGES[0]!), tail(markText(r.payload, 'step1'), 12))
