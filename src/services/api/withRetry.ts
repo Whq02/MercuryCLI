@@ -28,6 +28,7 @@ import { REPEATED_529_ERROR_MESSAGE } from './errors.js'
 import { NetworkOutageError, nextReconnect, openReconnectLadder, outageCauseOf, ReconnectBudgetSpentError, type ReconnectLadder } from './reconnectLadder.js'
 import { isSpentUsageWindowAnswer, providerAskedWaitMs, providerWaitIsWindow } from './recoveryBudget.js'
 import { errorHeaders, headerValue, retryAfterHeaderMs, retryAfterOf } from './retryAfter.js'
+import { jitterRetryDelay } from './retryJitter.js'
 import { APIConnectionError, APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 
@@ -189,7 +190,7 @@ export function getRetryDelay(
   const asked = retryAfterHeaderMs(retryAfterHeader)
   if (asked !== undefined) return Math.min(asked, MAX_RETRY_AFTER_MS)
   const base = Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), maxDelayMs)
-  return base + Math.random() * 0.25 * base
+  return jitterRetryDelay(base)
 }
 
 

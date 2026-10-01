@@ -1,5 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { retrySeconds } from '../api/recoveryBudget.js'
+import { jitterRetryDelay } from '../api/retryJitter.js'
 import { isTemporaryStreamFault } from './temporaryStreamError.js'
 import type { BusyRefusalV1, SystemAPIErrorMessage } from '../../types/message.js'
 import type { RequestWaitV1 } from './streamIdleBudget.js'
@@ -71,7 +72,11 @@ export interface BusyRetryStep {
 export function nextBusyRetry(ladder: BusyRetryLadder, askedMs: number | undefined, nowMs: number): BusyRetryStep | null {
   const left = ladder.budgetMs - ladder.spentMs
   if (ladder.rung >= ladder.rungsMs.length || left <= 0) return null
-  let waitMs = Math.min(ladder.rungsMs[ladder.rung]!, left)
+  const rungMs = ladder.rungsMs[ladder.rung]!
+  const floorMs = Math.max(1, Math.ceil(rungMs * 0.75))
+  const reserveMs = ladder.rungsMs.slice(ladder.rung + 1).reduce((sum, ms) => sum + Math.max(1, Math.ceil(ms * 0.75)), 0)
+  const availableMs = left >= floorMs + reserveMs ? left - reserveMs : left
+  let waitMs = Math.min(Math.max(floorMs, Math.round(jitterRetryDelay(rungMs, 'symmetric'))), ladder.rungsMs.at(-1)!, availableMs)
   if (askedMs !== undefined && Number.isFinite(askedMs) && askedMs > waitMs) waitMs = askedMs
   const attempt = ladder.rung + 1
   let of = attempt
