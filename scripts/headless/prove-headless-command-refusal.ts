@@ -68,6 +68,15 @@ check('the family sentence, on STDERR', SENTENCE.test(ref.stderr), ref.stderr.tr
 check('stdout carries no sentence (the requested-result channel stays clean)', !SENTENCE.test(ref.stdout), ref.stdout.trim().slice(0, 80))
 check('no model turn was spent (zero new message requests)', api.requests.slice(before).every(r => !r.path.startsWith('/v1/messages') || r.method === 'HEAD'), api.requests.slice(before).map(r => `${r.method} ${r.path}`).join(','))
 
+console.log('§1b a user-private popup surface (/usage) refuses the same way — never a silent empty success')
+const USAGE_SENTENCE = /The \/usage command is an interactive surface — it needs the foreground session and has no headless form\./
+const usageBefore = api.requests.length
+const usage = await run(w, ['-p', '/usage'])
+check('exit 1 (the popup has no headless form)', usage.code === 1, String(usage.code))
+check('the family sentence names /usage, on STDERR', USAGE_SENTENCE.test(usage.stderr), usage.stderr.trim().slice(0, 110))
+check('stdout carries no sentence', !USAGE_SENTENCE.test(usage.stdout), usage.stdout.trim().slice(0, 80))
+check('no model turn was spent', api.requests.slice(usageBefore).every(r => !r.path.startsWith('/v1/messages') || r.method === 'HEAD'), api.requests.slice(usageBefore).map(r => `${r.method} ${r.path}`).join(','))
+
 console.log('§2 json mode carries the typed envelope: subtype success · is_error true · the sentence as result')
 const js = await run(w, ['-p', '/help', '--output-format', 'json'])
 let envelope: { type?: string; subtype?: string; is_error?: boolean; result?: string } = {}
@@ -80,10 +89,11 @@ console.log('§3 the positive control: a real -p prompt still succeeds on stdout
 const ok = await run(w, ['-p', 'hello control'])
 check('exit 0 with the model answer on stdout', ok.code === 0 && /Control answered\./.test(ok.stdout), `${ok.code} · ${ok.stdout.trim().slice(0, 60)}`)
 
-console.log('§4 the source seams: ONE refusal door, marked at both call sites, read at the envelope')
+console.log('§4 the source seams: ONE refusal door, marked at all three call sites, read at the envelope')
 const { readFileSync } = await import('node:fs')
 const slash = readFileSync(join(REPO, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
-check('both unavailableCommandLine call sites mark commandRefused', (slash.match(/const line = unavailableCommandLine\((?:command|registered)\)\n    (?:.*\n){1,5}?\s*commandRefused: true,/g) ?? []).length === 2, String((slash.match(/commandRefused: true/g) ?? []).length))
+check('all three unavailableCommandLine call sites mark commandRefused', (slash.match(/const line = unavailableCommandLine\((?:command|registered)\)\n\s*(?:.*\n){1,5}?\s*commandRefused: true,/g) ?? []).length === 3, String((slash.match(/commandRefused: true/g) ?? []).length))
+check('the user-private popup door checks the seat before it executes', /registered\.seat === 'screen' && getIsNonInteractiveSession\(\)/.test(slash), 'processSlashCommand user-private branch')
 const engine = readFileSync(join(REPO, 'src/QueryEngine.ts'), 'utf8')
 check("the no-query envelope reads the mark (is_error: inputResult.commandRefused === true)", engine.includes('is_error: inputResult.commandRefused === true'), 'QueryEngine no-query envelope')
 
