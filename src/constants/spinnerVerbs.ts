@@ -42,6 +42,10 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Thermal-climbing',
   'Sandstorm-threading',
   'Flint-striking',
+  'Rim-skirting',
+  'Glare-cutting',
+  'Hawk-circling',
+  'Ember-kicking',
 ]
 
 const STOCK_VERBS: readonly string[] = [
@@ -94,6 +98,8 @@ const MERCURY_QUICKSILVER: readonly string[] = [
   'Open throttle',
   'Clean strike',
   'Flash point',
+  'Redlining',
+  'Steel ringing',
 ]
 
 export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
@@ -113,6 +119,9 @@ export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
   'Shell at a sprint',
   'Loop at a boil',
   'Diff still warm',
+  'Regex at a run',
+  'Fans spinning up',
+  'Branch at a gallop',
 ]
 
 export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
@@ -125,6 +134,8 @@ export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
   'Eyes up, hands fast',
   'Nothing cools until it ships',
   'Two hands, one direction',
+  'Every key pulling weight',
+  'Fencing the wolves',
 ]
 
 const QUICKSILVER_SET: readonly string[] = [
