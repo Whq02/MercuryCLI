@@ -68,7 +68,7 @@ const identityRecovered = runFacts.visibility !== 'not-visible'
 
 
 const beforePrint = readRunSidecar(sid)
-spawnSync('node', [DIST, '-p', 'continue the work', '--resume', sid], {
+spawnSync('node', [DIST, 'run', 'continue the work', '--resume', sid], {
   encoding: 'utf-8',
   timeout: 120_000,
   cwd: FIXTURE_CWD,
