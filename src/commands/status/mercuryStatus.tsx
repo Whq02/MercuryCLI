@@ -83,9 +83,15 @@ function providerAccountFacts(reads: typeof liveReads): StatusFact[] {
   const limited = openai?.limited
   const keyIds = ['zai', 'moonshot', 'deepseek', 'xai', 'meta']
   const keyValues = keyIds.map(id => account(id).replace(new RegExp(`^${familyDisplayName(id as Parameters<typeof familyDisplayName>[0]).replace('.', '\\.')} `), '') + windows(id))
-  const keys = keyValues.every(value => value === keyValues[0])
-    ? `Z.AI · Moonshot · DeepSeek · xAI · Meta     ${keyValues[0]!.replace(/^API key\b/, 'API keys')}`
-    : keyIds.map((id, i) => `${familyDisplayName(id as Parameters<typeof familyDisplayName>[0])}  ${keyValues[i]}`).join(' · ')
+  const keyGroups = new Map<string, string[]>()
+  keyIds.forEach((id, i) => {
+    const names = keyGroups.get(keyValues[i]!) ?? []
+    names.push(familyDisplayName(id as Parameters<typeof familyDisplayName>[0]))
+    keyGroups.set(keyValues[i]!, names)
+  })
+  const keys = [...keyGroups.entries()]
+    .map(([value, names], index) => `${names.join(' · ')}${index === 0 && names.length > 1 ? '     ' : '  '}${names.length > 1 ? value.replace(/^API key\b/, 'API keys') : value}`)
+    .join(' · ')
   const custom = account('openai-compat') + windows('openai-compat')
   const local = account('local') + windows('local')
   return [
