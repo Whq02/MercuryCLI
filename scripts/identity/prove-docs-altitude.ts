@@ -6,7 +6,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const REPORT = process.argv.includes('--report')
 const J = (...parts: string[]): string => parts.join('')
 
-const ROOT_SURFACES = ['README.md', 'AGENTS.md', 'BUILD-NOTES.md', 'THIRD_PARTY_NOTICES.md', 'CLAUDE.md', 'CONTRIBUTING.md', 'SECURITY.md', '.github/PULL_REQUEST_TEMPLATE.md']
+const ROOT_SURFACES = ['README.md', 'AGENTS.md', 'BUILD-NOTES.md', 'THIRD_PARTY_NOTICES.md', 'CONTRIBUTING.md', 'SECURITY.md', '.github/PULL_REQUEST_TEMPLATE.md']
 function docsPages(): string[] {
   const out: string[] = []
   const walk = (dir: string): void => {

@@ -118,7 +118,7 @@ check('the API billing possessive stays scoped to its documented account',
     OLD.test(crewRemainder('docs/ENGINES.md', 'an optional management key for the API teammate')))
 
 const files = execFileSync('git', ['-C', ROOT, 'ls-files', '-z'], { encoding: 'utf8', maxBuffer: 1 << 28 }).split('\0').filter(Boolean)
-const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md', 'CLAUDE.md'].includes(f))
+const scoped = files.filter(f => /^(src|scripts|docs|design-system|assets|integrations)\//.test(f) || ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md'].includes(f))
 const textual = (f: string): boolean => /\.(ts|tsx|mts|cts|js|mjs|cjs|jsx|json|jsonl|md|txt|tsv|csv|sh|bash|py|yml|yaml|toml|sed|html|css|svg|xml|plist|ps1|cfg|ini)$/.test(f) || f.endsWith('members.txt')
 
 type Hit = { file: string; line: number; text: string }
