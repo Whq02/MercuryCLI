@@ -380,7 +380,7 @@ async function runDist(tag: string, extra: Record<string, string>): Promise<Chil
   seedHome(home, cwd)
   const proc = spawn(
     NODE,
-    [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--model', WIRE_MODEL, '--permission-mode', 'bypassPermissions'],
+    [DIST, 'run', '--input=rows', '--format=rows', '--model', WIRE_MODEL, '--mode', 'sovereign'],
     { cwd, env: childEnv(home, cwd, extra), stdio: ['pipe', 'pipe', 'pipe'] },
   )
   const frames: Record<string, unknown>[] = []
