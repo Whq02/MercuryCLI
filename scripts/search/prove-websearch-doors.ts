@@ -630,7 +630,7 @@ section("§13 THE BUILT BUNDLE — a headless gpt session on dist/mercury.mjs: t
         ...fixture.env,
       }
       return new Promise(resolve => {
-        const child = spawn(nodeBin, [DIST, '-p', prompt, '--model', 'gpt-5.5', '--output-format', 'stream-json', '--allowed-tools', 'WebSearch', 'ProviderSearch'], { cwd, env })
+        const child = spawn(nodeBin, [DIST, 'run', prompt, '--model', 'gpt-5.5', '--format', 'rows', '--allowed-tools', 'WebSearch', 'ProviderSearch'], { cwd, env })
         let stdout = ''
         let stderr = ''
         child.stdout.on('data', d => (stdout += d))
