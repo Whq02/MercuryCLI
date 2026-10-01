@@ -34,7 +34,7 @@ console.log('§2 the door, live (preflight — credential-free)')
   } else {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'maxturns-home-')))
     const run = (value: string): { status: number | null; err: string } => {
-      const result = spawnSync('node', [DIST, '-p', '--max-turns', value, 'hi'], {
+      const result = spawnSync('node', [DIST, 'run', '--max-turns', value, 'hi'], {
         env: { ...process.env, MERCURY_CONFIG_DIR: home, NODE_ENV: undefined } as NodeJS.ProcessEnv,
         encoding: 'utf8',
         timeout: 60000,
