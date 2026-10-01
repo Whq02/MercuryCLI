@@ -111,6 +111,7 @@ export function buildOpenrouterResponsesBody(options: CompatStreamOptions, facts
   const reasoning = asRecord(extra.reasoning)
   return {
     model: request.model,
+    ...(extra.provider !== undefined ? { provider: extra.provider } : {}),
     ...(instructions !== undefined ? { instructions } : {}),
     input: openrouterResponsesInput(messages, request.model, facts.imagesSupported),
     tools: openrouterNativeTools(request.tools ?? [], facts.deferredNames),

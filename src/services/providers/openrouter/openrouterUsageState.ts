@@ -57,6 +57,15 @@ function num(v: unknown): number | undefined {
   return typeof v === 'number' && Number.isFinite(v) ? v : undefined
 }
 
+export const OPENROUTER_LOW_BALANCE_FLOOR_USD = 10
+
+export function openrouterLowBalanceNote(usage: OpenrouterKeyUsage | null): string | undefined {
+  const remaining = usage?.limitRemaining
+  if (usage?.limit === null || typeof remaining !== 'number' || !Number.isFinite(remaining) || remaining >= OPENROUTER_LOW_BALANCE_FLOOR_USD) return undefined
+  const amount = Number(remaining.toFixed(2)) >= OPENROUTER_LOW_BALANCE_FLOOR_USD ? String(remaining) : remaining.toFixed(2)
+  return `remaining under the key cap is $${amount} — below Mercury’s $${OPENROUTER_LOW_BALANCE_FLOOR_USD} floor; check the key cap and credits at openrouter.ai/settings/credits`
+}
+
 function decodeKeyPayload(parsed: unknown, now: () => number): OpenrouterKeyUsage | undefined {
   if (typeof parsed !== 'object' || parsed === null) return undefined
   const data = (parsed as Record<string, unknown>).data

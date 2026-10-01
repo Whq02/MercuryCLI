@@ -90,7 +90,7 @@ export const OPENROUTER_REASONING_EFFORTS: readonly string[] = [
 ]
 
 export function buildOpenrouterExtras(
-  args: LaneExtrasArgs & { vocabulary: readonly string[] },
+  args: LaneExtrasArgs & { vocabulary: readonly string[]; providerPolicy?: Record<string, unknown> },
 ): Record<string, unknown> {
   const wireEffort = !args.thinkingEnabled
     ? thinkingOffWireEffort(args.vocabulary)
@@ -103,6 +103,7 @@ export function buildOpenrouterExtras(
     stream_options: { include_usage: true },
     ...(wireEffort !== undefined ? { reasoning: { effort: wireEffort } } : {}),
     ...(args.maxOutputTokensOverride !== undefined ? { max_tokens: args.maxOutputTokensOverride } : {}),
+    ...(args.providerPolicy !== undefined ? { provider: args.providerPolicy } : {}),
   }
 }
 

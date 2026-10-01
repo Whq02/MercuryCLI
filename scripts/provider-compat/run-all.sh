@@ -2,6 +2,7 @@
 # gate-class: pure
 # gate-watch: src/services/providers/busyRetry.ts src/services/providers/temporaryStreamError.ts src/services/providers/openai/** src/services/providers/xai/xaiResponsesTransport.ts src/services/providers/openrouter/openrouterResponsesTransport.ts
 # gate-watch: src/services/providers/routeLaw* src/services/providers/openaicompat/**
+# gate-watch: src/services/providers/openrouter/** src/utils/settings/settings.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: src/services/providers/moonshot/** src/services/providers/deepseek/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
 # gate-watch: src/services/providers/zai/glmPins* src/utils/router/providers/**

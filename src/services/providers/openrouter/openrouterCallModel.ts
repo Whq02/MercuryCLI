@@ -24,6 +24,8 @@ import {
   refreshOpenrouterKeyUsage,
 } from './openrouterUsageState.js'
 import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
+import { getInitialSettings } from '../../../utils/settings/settings.js'
+import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
 
 export function openrouterWireModelId(modelId: string): string {
   const slug = qualifiedWireId(modelId)
@@ -69,9 +71,14 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     buildOpenrouterExtras({
       ...args,
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
+      providerPolicy: openrouterProviderObject(getInitialSettings().openrouterRouting),
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),
+  policyFaultNote: (fault, extra) =>
+    fault.status === 503 && /no available (model )?provider/i.test(fault.message) && extra?.provider !== undefined
+      ? ' — no OpenRouter endpoint met your routing policy; /config → OpenRouter routing policy widens it'
+      : undefined,
   onResponseHeaders: headers => {
     recordOpenrouterRateHeaders(headers)
     void refreshOpenrouterKeyUsage().catch(() => {})

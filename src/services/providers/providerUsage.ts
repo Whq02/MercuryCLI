@@ -56,6 +56,7 @@ import { readMintedOpenrouterKey, resolveOpenrouterApiKey, type OpenrouterKeySou
 import {
   openrouterLimitWindow,
   openrouterObservedKeyUsage,
+  openrouterLowBalanceNote,
   refreshOpenrouterKeyUsage,
   type OpenrouterKeyUsage,
   type OpenrouterLimitWindow,
@@ -1392,7 +1393,7 @@ function deriveUsageForProvider(
     const figures = openrouterFigures(observed.usage)
     const source = observed.errorSource ?? resolveOpenrouterApiKey()?.source
     const slot = source === 'oauth' ? 'OAuth-minted key' : source === 'env' ? 'API key (env)' : 'API key (stored)'
-    const readerNote = observed.lastError !== undefined ? `credit truth unavailable for ${slot}` : undefined
+    const readerNote = observed.lastError !== undefined ? `credit truth unavailable for ${slot}` : openrouterLowBalanceNote(observed.usage)
     return {
       provider,
       sourceKind: 'api-key',

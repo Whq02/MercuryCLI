@@ -366,7 +366,7 @@ during setup. `/accounts` manages connected provider slots afterwards.
 - **OpenAI:** ChatGPT subscription or API key.
 - **Claude:** subscription account.
 - **Anthropic usage-based billing:** Console sign-in or API key.
-- **OpenRouter:** catalogue access through OAuth or an API key.
+- **OpenRouter:** catalogue access through OAuth or an API key; model requests deny data collection and require every parameter from the start. `/config → OpenRouter routing policy` offers fallback and zero-data-retention choices; choose open to relax the policy and leave routing to OpenRouter.
 - **Google Gemini:** API key or your own OAuth client; Cloud project billing, not AI Pro/Ultra. Consumer Google sign-in ended June 18, 2026 (Gemini CLI too).
 - **Hugging Face:** device-code sign-in or Hub token.
 - **Kimi (Moonshot):** device-code sign-in or API key.

@@ -207,7 +207,7 @@ const CONFIG_PROVIDER_PRESENTATION: Record<
 
 
 export function configRowApplicability(
-  appliesTo: 'anthropic',
+  appliesTo: 'anthropic' | 'openrouter',
   route: string,
 ): { applies: true } | { applies: false; naText: string; refuseNote: string } {
   if (route === appliesTo) return { applies: true }
@@ -373,6 +373,7 @@ export function Config({
         syntaxHighlightingDisabled: user.syntaxHighlightingDisabled,
         permissions: user.permissions,
         patience: user.patience,
+        openrouterRouting: user.openrouterRouting,
         localServer: localServerSettingsOf(user),
       },
       appVerbose: appState.verbose === true,
@@ -466,7 +467,7 @@ export function Config({
   const mainRoute = declaredRouteOf(
     servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
   )
-  const providerScoped = (item: SettingsItem, appliesTo: 'anthropic'): SettingsItem => {
+  const providerScoped = (item: SettingsItem, appliesTo: 'anthropic' | 'openrouter'): SettingsItem => {
     const applicability = configRowApplicability(appliesTo, mainRoute ?? 'unrecognised')
     if (applicability.applies) return item
     return {
@@ -684,6 +685,37 @@ export function Config({
         }
       },
     })
+  }
+  {
+    const routing = merged.openrouterRouting
+    const collection = routing?.dataCollection ?? 'deny'
+    const parameters = routing?.requireParameters ?? true
+    const fallbacks = routing?.allowFallbacks ?? true
+    const zdr = routing?.zeroDataRetention ?? false
+    items.push(providerScoped({
+      id: 'openrouterRouting',
+      label: 'OpenRouter routing policy',
+      searchText: 'openrouter routing policy privacy collection parameters fallbacks zero data retention zdr',
+      kind: 'enum',
+      value: <Text>{`${collection} · parameters ${parameters ? 'required' : 'optional'} · fallbacks ${fallbacks ? 'on' : 'off'} · ZDR ${zdr ? 'on' : 'off'}`}</Text>,
+      warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced is on from the start: denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit openrouterRouting in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
+      change: direction => {
+        const modes = ['strict', 'balanced', 'open'] as const
+        const current = collection === 'allow' && !parameters && fallbacks && !zdr ? 'open' : collection === 'deny' && parameters && !fallbacks && zdr ? 'strict' : 'balanced'
+        const next = cycleIn(modes, current, direction)
+        const value = {
+          dataCollection: next === 'open' ? 'allow' as const : 'deny' as const,
+          requireParameters: next !== 'open',
+          allowFallbacks: next !== 'strict',
+          zeroDataRetention: next === 'strict',
+        }
+        if (writeSource('userSettings', { openrouterRouting: value })) {
+          snapshots.dirty = true
+          recordSet('openrouterRouting', `set OpenRouter routing policy to ${next}`)
+          bump()
+        }
+      },
+    }, 'openrouter'))
   }
   {
     const ceiling = resolveEngineSessionCeiling(merged.shellEngineSessions)
@@ -1246,6 +1278,13 @@ export function Config({
       language: snapshots.user.language,
       syntaxHighlightingDisabled: snapshots.user.syntaxHighlightingDisabled,
       patience: snapshots.user.patience,
+      openrouterRouting: snapshots.user.openrouterRouting === undefined ? undefined : {
+        dataCollection: undefined,
+        requireParameters: undefined,
+        allowFallbacks: undefined,
+        zeroDataRetention: undefined,
+        ...snapshots.user.openrouterRouting,
+      },
       permissions: { defaultMode: snapshots.user.permissions?.defaultMode } as never,
     })
     writeSource('userSettings', localServerRevertPartial(snapshots.user.localServer))

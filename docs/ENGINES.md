@@ -481,6 +481,7 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
+  `/config → OpenRouter routing policy` chooses strict, balanced or open routing. Balanced is on from the start: model requests deny data collection and require every parameter, with fallbacks on and zero data retention off. An absent or empty `openrouterRouting` setting selects these defaults; strict turns fallbacks off and zero data retention on. Choose open to allow collection and make parameters optional, leaving routing to OpenRouter; only an explicit all-off policy sends no request-level routing preference. A no-provider refusal points back to this row to widen the policy;
 - **xai** — a Grok subscription sign-in or an API key, with an optional management key for the API team's
   usage meter. The API-key leg of `/logins xai` offers the management key as its second step;
   leave it empty or press escape to keep using just the API key. An existing
@@ -897,7 +898,7 @@ used and left are not stated to a token and the absence line names the billing
 page.
 
 A Kimi sign-in shows its Extra Usage balance in the stated currency beside its plan windows, or says when the managed-usage endpoint reports no balance.
-OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account.
+OpenRouter OAuth-minted keys show the same remaining credit under the key cap as API keys, with the read's age and any refusal under the affected account. Below Mercury's $10 floor, `/usage` names the remaining amount and the credits page; an uncapped key has no balance notice. This is the key's remaining allowance, not the account balance.
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
 

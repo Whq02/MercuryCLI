@@ -30,7 +30,7 @@
 # gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts
 # gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/router/providerDiscovery.ts
 # gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/utils/router/providerSecrets.ts src/utils/router/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
-# gate-watch: src/services/localServer/**
+# gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts
 # gate-watch: src/commands/localsetup/** src/components/LocalSetupDialog.tsx src/components/BootSaturnScreen.tsx src/components/HelpV2/commandDomains.ts src/components/MercuryModelPicker.tsx
 # gate-watch: src/utils/model/modelOptions.ts
 # gate-watch: src/components/DeckPane.tsx src/hooks/useDisplayedSessionModel.ts src/hooks/useMainLoopModel.ts src/hooks/useProviderUsageOnShow.ts src/services/advisor/index.ts
