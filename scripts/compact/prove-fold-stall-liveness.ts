@@ -371,8 +371,8 @@ section('§4 (b) a wire with no bytes at all → cut at the first-byte allowance
   check(`the cut came at the allowance (${allowance} ms): fold ${run.ms} ms, within [${allowance}, ${allowance + 2_000}) and well before the ${DEADLINE_MS} ms wall`, run.ms >= allowance && run.ms < allowance + 2_000, String(run.ms))
   check('the conversation stands untouched (read state intact)', run.readFileState.size === 1, String(run.readFileState.size))
   check('the server saw the request and wrote not one byte', req !== undefined && req.plan === 'dead' && req.wrote.length === 0, j(req))
-  const closed = await awaitClose(req, 3_000)
-  console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 3 s after the cut (the transport pool reaps it later)'}`)
+  const closed = await awaitClose(req, 1_000)
+  console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 1 s after the cut (the transport pool reaps it later)'}`)
   check('the debug log names the clock: silence on the wire', lines.some(l => /direct lane cut for silence on the wire after \d+ ms — nothing folded/.test(l)), j(lines))
 }
 
@@ -413,8 +413,8 @@ section('§6 (d) a wire that heartbeats forever without finishing → the wall-c
   check(`the cut came at the wall (${SHORT_WALL_MS} ms): fold ${run.ms} ms, within [${SHORT_WALL_MS}, ${SHORT_WALL_MS + 2_500})`, run.ms >= SHORT_WALL_MS && run.ms < SHORT_WALL_MS + 2_500, String(run.ms))
   const beats = req?.wrote.filter(w => w === 'comment').length ?? 0
   check(`the server wrote comment lines the whole time (${beats} of them, never a summary)`, req !== undefined && req.plan === 'forever' && beats >= Math.floor((SHORT_WALL_MS - 500) / TICK_MS) && !req.finished, j(req))
-  const closed = await awaitClose(req, 3_000)
-  console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 3 s after the cut (the transport pool reaps it later)'}`)
+  const closed = await awaitClose(req, 1_000)
+  console.log(`  [NOTE] the cut client's socket ${closed ? `closed ${(req?.closedAt ?? 0) - (req?.startedAt ?? 0)} ms after the request opened` : 'was still open 1 s after the cut (the transport pool reaps it later)'}`)
   check('the debug log names the clock: the wall-clock deadline', lines.some(l => /direct lane cut for the wall-clock deadline after \d+ ms — nothing folded/.test(l)), j(lines))
   check('the conversation stands untouched', run.readFileState.size === 1, String(run.readFileState.size))
   setFoldBoundsForTests(null)
