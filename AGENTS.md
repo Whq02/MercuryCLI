@@ -59,12 +59,14 @@ install` and `mercury update` instead; neither touches sessions.
 ```sh
 bun run typecheck                  # strict; zero baseline
 bash scripts/<suite>/run-all.sh    # one suite; they sit side by side under scripts/
-bun run verify                     # every suite, pooled; exit 0 is green
+bun run verify                     # every suite but the drives, pooled; exit 0 is green
+bash scripts/run-drives.sh         # the drive suites (*-drives), once, as a background guide
 bun run artifact:smoke             # the built bundle, isolated, outside the repo
 ```
 
 Run the suite nearest your change while iterating; `bun run verify` closes,
-and its exit status is the verdict. A suite run by hand gets a fresh scratch
+and its exit status is the verdict; the drive suites run apart, once, through
+`scripts/run-drives.sh`. A suite run by hand gets a fresh scratch
 config home unless MERCURY_CONFIG_DIR names one; the operator's ~/.mercury is
 never a proof's home. `git config core.hooksPath .githooks`
 turns on the committed pre-push guard; the build never sets it.

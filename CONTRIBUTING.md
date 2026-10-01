@@ -25,7 +25,7 @@ be read.
 Build, run and check as [AGENTS.md](AGENTS.md) says: `bun run setup` once
 (bun install plus the vendored packs), `bun run build.ts`, then the check
 nearest the change while iterating; `bun run verify` closes and its exit
-status is the verdict. [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
+status is the verdict (the drive suites run apart through `scripts/run-drives.sh`). [BUILD-NOTES.md](BUILD-NOTES.md) covers the build itself.
 
 ## Conventions
 
