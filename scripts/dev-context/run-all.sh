@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: AGENTS.md CLAUDE.md scripts/dev-context/** scripts/git-hooks/**
+# gate-watch: AGENTS.md scripts/dev-context/** scripts/git-hooks/**
 # gate-watch: package.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

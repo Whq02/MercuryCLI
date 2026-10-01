@@ -65,8 +65,7 @@ bun run artifact:smoke             # the built bundle, isolated, outside the rep
 ```
 
 Run the suite nearest your change while iterating; `bun run verify` closes,
-and its exit status is the verdict; the drive suites run apart, once, through
-`scripts/run-drives.sh`. A suite run by hand gets a fresh scratch
+and its exit status is the verdict. A suite run by hand gets a fresh scratch
 config home unless MERCURY_CONFIG_DIR names one; the operator's ~/.mercury is
 never a proof's home. `git config core.hooksPath .githooks`
 turns on the committed pre-push guard; the build never sets it.

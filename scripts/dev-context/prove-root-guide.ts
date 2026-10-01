@@ -36,14 +36,9 @@ section('(1) AGENTS.md — the one root guide, a screen long, complete')
   check('AGENTS.md names the build command', guide.includes('bun run build.ts'))
 }
 
-section('(2) CLAUDE.md — a two-line pointer at AGENTS.md')
+section('(2) AGENTS.md stands alone at the root')
 {
-  const path = join(ROOT, 'CLAUDE.md')
-  const text = existsSync(path) ? readFileSync(path, 'utf8') : ''
-  const lines = text.replace(/\n$/, '').split('\n')
-  check('CLAUDE.md exists', text !== '')
-  check('CLAUDE.md is two lines', lines.length === 2, `${lines.length} lines`)
-  check('the first line is @AGENTS.md', lines[0] === '@AGENTS.md')
+  check('no second guide file sits beside AGENTS.md', !existsSync(join(ROOT, 'CLAUDE.md')))
 }
 
 section('(3) no tool-specific developer estate is tracked')
