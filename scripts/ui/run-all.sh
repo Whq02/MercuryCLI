@@ -27,6 +27,9 @@
 # gate-watch: scripts/voice/voice-transcriber-fixture-server.ts
 # gate-watch: scripts/interview/baseline-capture.ts scripts/typecheck/run-all.sh
 # gate-watch: scripts/visual-contract/baseline-capture.ts
+# gate-watch: src/commands/status/mercuryStatus.tsx src/commands/config/config.tsx src/commands/login/login.tsx src/commands/usage/usage.tsx
+# gate-watch: scripts/cockpit-interaction/status-popup-fixture.ts scripts/ui/fixtures/settings-popup-header/*
+# gate-watch: src/services/switchboard/capacityCheck.ts src/context/surfaceRoute.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

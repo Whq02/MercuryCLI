@@ -1,0 +1,40 @@
+  lanes                 ╭──────────────────────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH               │ ✶ VIEW · cedar · viewing                                                        popup review │
+  no prompts sent yet   │ transcript row 49 · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·… │
+                        │                                                                                              │
+NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
+  · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
+  · /health — health ce…│ │ 12 providers · 0 subscriptions signed in                                                 │ │
+  · /cards — memory     │ │                                                                                          │ │
+  · /mission — set a mi…│ │ Anthropic usage                                                                          │ │
+                        │ │ API key · …-key                                                                          │ │
+FILES · orchard         │ │ credits: not reported by the provider                                                    │ │
+  ↵ or click · browse   │ │                                                                                          │ │
+                        │ │ Subscription                                                                             │ │
+TELEMETRY               │ │ none — /logins anthropic connects a subscription account · n/a                           │ │
+  · spend —             │ │                                                                                          │ │
+  · ctx — · —           │ │ API key                                                                                  │ │
+  · health — run /health│ │ Anthropic API key (ANTHROPIC_API_KEY)                                                    │ │
+                        │ │ This session: 0 tokens.                                                                  │ │
+                        │ │ no usage endpoint is read for an API key on this lane — the provider console is the view │ │
+                        │ │                                                                                          │ │
+                        │ │ OpenAI usage                                                                             │ │
+                        │ │ no account                                                                               │ │
+                        │ │ not connected — /logins adds an OpenAI account.                                          │ │
+                        │ │                                                                                          │ │
+                        │ │ Z.AI usage                                                                               │ │
+                        │ │ no account                                                                               │ │
+                        │ │ not connected — /logins zai adds a Z.AI API key (general or GLM Coding Plan; ZAI_API_KEY │ │
+                        │ │ works too).                                                                              │ │
+                        │ │ JEV official · Mercury's count: no chat open · allowance $20.00 · off · credits: not re… │ │
+                        │ │ ↓ 9 more · OpenRouter · Gemini · Moonshot · DeepSeek · xAI · Meta · Custom endpoint · H… │ │
+                        │ │                                                                                          │ │
+                        │ │ ↑↓ scroll · esc or click outside closes                                                  │ │
+                        │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
+                        │                                                                                              │
+                        ╰──────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                                     │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

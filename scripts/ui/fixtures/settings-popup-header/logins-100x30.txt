@@ -1,0 +1,30 @@
+  lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH           │ ✶ VIEW · cedar · viewing                                        popup review │
+  no prompts sent y…│                                                                              │
+                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+NEXT                │ │ ▖▟▆▙▗ Mercury · logins                                                   │ │
+  · /workflows — ag…│ │ esc back · from the menu, esc closes /logins                             │ │
+                    │ │                                                                          │ │
+FILES · orchard     │ │ Sign in                                                                  │ │
+  ↵ or click · brow…│ │                                                                          │ │
+                    │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect     │ │
+TELEMETRY           │ │ OpenRouter, Gemini, Hugging Face, Kimi, GLM, DeepSeek, xAI or Meta. To   │ │
+  · spend —         │ │ add an API key from the terminal, run /router key <provider>.            │ │
+  · ctx — · —       │ │                                                                          │ │
+  · health — run /h…│ │   OpenAI — ChatGPT subscription or API key                               │ │
+                    │ │ ❯ Claude subscription account                                            │ │
+                    │ │   Usage-based billing — Anthropic Console sign-in or API key             │ │
+                    │ │     ANTHROPIC_API_KEY (env) ……                                           │ │
+                    │ │   OpenRouter — one credential, the whole catalogue (OAuth or key)        │ │
+                    │ │   Google Gemini — API key or Google OAuth                                │ │
+                    │ │   Hugging Face — device-code sign-in or a Hub token (open models)        │ │
+                    │ │                                                                          │ │
+                    │ │ esc or click outside closes                                              │ │
+                    │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+                    │                                                                              │
+                    ╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line

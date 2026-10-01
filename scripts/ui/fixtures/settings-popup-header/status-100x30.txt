@@ -1,0 +1,30 @@
+  lanes             ╭──────────────────────────────────────────────────────────────────────────────╮
+WORKBENCH           │ ✶ VIEW · cedar · viewing                                        popup review │
+  no prompts sent y…│                                                                              │
+                    │ ╭──────────────────────────────────────────────────────────────────────────╮ │
+NEXT                │ │ ▖▟▆▙▗ Mercury · status                                                   │ │
+  · /workflows — ag…│ │ session snapshot · 12:00 · orchard · main                                │ │
+                    │ │                                                                          │ │
+FILES · orchard     │ │ Session & environment                                                    │ │
+  ↵ or click · brow…│ │   Mercury 1.0.0 · runtime tree 12345678 · daemon running · 1 session on  │ │
+                    │ │   model Fable 5.1 · max effort · context 12% of 1000k · sovereign mode   │ │
+TELEMETRY           │ │ on                                                                       │ │
+  · spend —         │ │   seats 17 · shell engine system · checkpoints capturing · 0 restore     │ │
+  · ctx — · —       │ │ points                                                                   │ │
+  · health — run /h…│ │                                                                          │ │
+                    │ │ Accounts                                                                 │ │
+                    │ │   Anthropic     Claude subscription (max) · session 52% · week 49%       │ │
+                    │ │   OpenAI        ChatGPT pro subscription · usage limit reached · resets  │ │
+                    │ │ 30 Sep                                                                   │ │
+                    │ │   Z.AI  GLM Coding Plan key (stored, auth-scoped) · Window (5h) 17% ·    │ │
+                    │ │ ↓ 18 more                                                                │ │
+                    │ │                                                                          │ │
+                    │ │ esc or click outside closes · /accounts · /usage · /health               │ │
+                    │ ╰──────────────────────────────────────────────────────────────────────────╯ │
+                    │                                                                              │
+                    ╰──────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│❯ Type a prompt, start a slash command, or Tab to focus the rails                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+? for shortcuts · ctrl+x p for commands + files
+shift + ↵ for a new line
