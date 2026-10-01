@@ -64,7 +64,7 @@ export const SPLASH_SKIP_VERBS = splashSkipVerbsFrom(
   ),
 )
 
-export const SPLASH_SKIP_FLAGS = ['-p', '--print', '-h', '--help', '-v', '-V', '--version']
+export const SPLASH_SKIP_FLAGS = ['-h', '--help', '-v', '-V', '--version']
 
 
 export const SPLASH_VERSION_TTY_PROBE_JS =

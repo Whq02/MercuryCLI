@@ -110,14 +110,14 @@ export function getRuntimePostureSection(): string | null {
 
   if (nonInteractive && canAnswerAsks()) {
     lines.push(
-      '- Session: NON-INTERACTIVE (headless `-p`/stream-json) with a permission channel: a tool call that needs approval is put to the connected client, which answers allow or deny; a question to the operator travels the same channel. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
+      '- Session: NON-INTERACTIVE (mercury run / rows) with a permission channel: a tool call that needs approval is put to the connected client, which answers allow or deny; a question to the operator travels the same channel. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
     const needs = composeOperatorNeedsLine(bootPermissionMode, bootRules)
     if (needs !== null) lines.push(needs)
   } else if (nonInteractive) {
     lines.push(
-      '- Session: NON-INTERACTIVE (headless `-p`/stream-json). There is no human at a prompt and no permission channel: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
+      '- Session: NON-INTERACTIVE (mercury run / rows). There is no human at a prompt and no permission channel: any tool call that would need an interactive permission approval is DENIED automatically, and no question can reach the operator — choose the most reasonable option, state the assumption, and continue. Do not retry a denied call unchanged and do not invent tool failure as the cause — prefer tools your rules allow, or state the policy blocker plainly in your output.' +
         (bootPermissionMode ? ` Permission mode for this run: ${bootPermissionMode}.` : ''),
     )
   } else {

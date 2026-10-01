@@ -21,6 +21,14 @@ async function main(): Promise<void> {
     return
   }
 
+  const { inspectRunArgs } = await import('../cli/runArgs.js')
+  const runArgs = inspectRunArgs(args)
+  if (runArgs.refusal) {
+    const { writeSync } = await import('node:fs')
+    writeSync(2, `${runArgs.refusal}\n`)
+    process.exit(2)
+  }
+
   const hasProjectRoot = args[0] === '--project-root' || args[0]?.startsWith('--project-root=')
   if (hasProjectRoot) {
     try {
@@ -99,8 +107,7 @@ async function main(): Promise<void> {
   if (process.env.MERCURY_ALT_HELD === '1') {
     const nonTakeover =
       !process.stdout.isTTY ||
-      args.includes('-p') ||
-      args.includes('--print') ||
+      runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
       ['daemon', 'join', 'join-kit', 'acp'].includes(args[0] ?? '')

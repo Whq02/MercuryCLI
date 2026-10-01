@@ -2,8 +2,8 @@ _mercury_completions() {
   local cur prev
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[1]}"
-  local subcommands="acp agents auth daemon doctor editor extensions godot health install mcp show update upgrade"
-  local root_opts="--advise --agent --agents --allow-dangerously-bypass-permissions --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --dangerously-bypass-permissions --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --from-pr --help --ide --include-partial-messages --input-format --json-schema --max-budget-usd --mcp-config --model --name --no-session-persistence --output-format --permission-mode --print --project-root --replay-user-messages --resume --session-id --setting-sources --settings --strict-mcp-config --system-prompt --tmux --tools --version --worktree"
+  local subcommands="acp agents auth daemon doctor editor extensions godot health install mcp run show update upgrade"
+  local root_opts="--advise --agent --agents --allow-sovereign --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --format --from-pr --help --ide --input --json-schema --max-budget-usd --mcp-config --mode --model --name --no-session-persistence --partial --project-root --replay-user-messages --resume --session-id --setting-sources --settings --sovereign --strict-mcp-config --system-prompt --tmux --tools --version --worktree"
   case "$prev" in
     acp)
       COMPREPLY=( $(compgen -W "" -- "$cur") )
@@ -47,6 +47,10 @@ _mercury_completions() {
       ;;
     mcp)
       COMPREPLY=( $(compgen -W "--help" -- "$cur") )
+      return 0
+      ;;
+    run)
+      COMPREPLY=( $(compgen -W "--advise --agent --agents --allow-sovereign --allowed-tools --append-system-prompt --bare --betas --chat --concourse-off --concourse-on --continue --debug --debug-file --disable-slash-commands --disallowed-tools --effort --extension --fallback-model --fork-session --format --from-pr --help --ide --input --json-schema --max-budget-usd --mcp-config --mode --model --name --no-session-persistence --partial --project-root --replay-user-messages --resume --session-id --setting-sources --settings --sovereign --strict-mcp-config --system-prompt --tmux --tools --version --worktree" -- "$cur") )
       return 0
       ;;
     show)

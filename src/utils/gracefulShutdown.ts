@@ -1,4 +1,5 @@
 import { writeSync } from 'node:fs'
+import { isRunArgv } from '../cli/runArgs.js'
 
 import { onExit } from 'signal-exit'
 
@@ -243,7 +244,7 @@ export function isUncaughtBreakerTripped(): boolean {
 
 
 function isPrintMode(): boolean {
-  return process.argv.includes('-p') || process.argv.includes('--print')
+  return isRunArgv()
 }
 
 let printModeSignalsOwned = false

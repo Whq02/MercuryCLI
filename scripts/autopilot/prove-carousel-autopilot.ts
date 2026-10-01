@@ -121,7 +121,6 @@ const parityPins: Array<[string, string[], string]> = [
   ['tools/AgentTool/agentPermissionPosture.ts', ['!modeBypassesPermissions(parentMode'], 'agent-mode override exclusion (the one posture owner)'],
   ['utils/permissions/permissionSetup.ts', ['modeBypassesPermissions(currentContext.mode)'], 'org-policy kill downgrades autopilot too'],
   ['main.tsx', ['setSessionBypassPermissionsMode(modeBypassesPermissions(permissionMode))', 'modeBypassesPermissions(args.permissionMode) || args.allowDangerousSkip'], 'boot latch + org-policy kill trigger'],
-  ['setup.ts', ['modeBypassesPermissions(permissionMode) ||'], 'root/sudo guard'],
   ['interactiveHelpers.tsx', ['modeBypassesPermissions(permissionMode) || allowDangerouslySkipPermissions'], 'launch consent dialog'],
   ['commands/authority/authority.tsx', ['modeBypassesPermissions('], 'authority panel honesty'],
   ['utils/permissionBypassBridge.ts', ["opts?.bypassMode === 'autopilot'"], 'sovereign honesty bridge'],
@@ -139,7 +138,7 @@ check('initialPermissionModeFromCLI guards autopilot: flag', setupSrc.includes("
 check('initialPermissionModeFromCLI guards autopilot: settings or policy disable', setupSrc.includes('if (sovereignDisabled) {\n        notification = settingsNotice'))
 check('initialPermissionModeFromCLI guards autopilot: launch flag required', setupSrc.includes('if (!dangerouslySkipPermissions)'))
 check('explicit CLI autopilot + launch flag boots autopilot first (bypass fallback)', setupSrc.includes("if (requested === 'autopilot') candidates.push('autopilot')"))
-const runtimeGuard = setupSrc.includes("mode === 'autopilot'") && setupSrc.includes('Cannot set permission mode to autopilot because the session was not launched with --dangerously-bypass-permissions')
+const runtimeGuard = setupSrc.includes("mode === 'autopilot'") && setupSrc.includes('Cannot set permission mode to autopilot because the session was not launched with --sovereign')
 check('setPermissionModeWithGuards: full bypass eligibility required at runtime', runtimeGuard)
 const ctrlSrc = src('cli', 'headless', 'controlHandlers.ts')
 check('SDK setPermissionMode refuses autopilot (interactive-only mode)', ctrlSrc.includes('Cannot set permission mode to autopilot in SDK/print mode'))

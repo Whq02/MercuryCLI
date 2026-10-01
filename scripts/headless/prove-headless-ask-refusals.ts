@@ -94,7 +94,7 @@ async function runOneShot(tag: string, turns: ScriptedTurn[], extraArgs: string[
   const fixture = await startFixtureApi(turns)
   const world = makeWorld(tag, fixture.url)
   const result = await new Promise<{ code: number | null; stderr: string }>(resolveRun => {
-    const child = spawn(NODE, [DIST, '-p', `probe ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
+    const child = spawn(NODE, [DIST, 'run', `probe ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
     let stderr = ''
     child.stderr.on('data', chunk => (stderr += chunk))
     child.stdout.on('data', () => {})
@@ -111,7 +111,7 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
   const fixture = await startFixtureApi(turns)
   const world = makeWorld(tag, fixture.url)
   const asks: Array<Record<string, unknown>> = []
-  const child = spawn(NODE, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio', '--model', MODEL], { cwd: world.cwd, env: world.env })
+  const child = spawn(NODE, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio', '--model', MODEL], { cwd: world.cwd, env: world.env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
   let buffer = ''
   let sawResult = false

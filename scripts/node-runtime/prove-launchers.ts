@@ -334,7 +334,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
   check('PS1 resolves its directory via $PSScriptRoot (E5 — dot-source/-Command safe)', ps1T.includes('$dir = $PSScriptRoot') && !ps1T.includes('$MyInvocation.MyCommand.Path'))
   check('CMD sets the console-UTF-8 preset marker for the runtime seam (D2)', cmdT.includes('set "MERCURY_WIN32_UTF8_PRESET=1"'))
   check('PS1 sets the console-UTF-8 preset marker for the runtime seam (D2)', ps1T.includes("$env:MERCURY_WIN32_UTF8_PRESET = '1'"))
-  check('the skip lists are non-trivial and mirror the operator launcher', SPLASH_SKIP_VERBS.length >= 16 && SPLASH_SKIP_FLAGS.includes('-p') && SPLASH_SKIP_FLAGS.includes('--version'))
+  check('the skip lists are non-trivial and mirror the operator launcher', SPLASH_SKIP_VERBS.length >= 17 && SPLASH_SKIP_VERBS.includes('run') && SPLASH_SKIP_FLAGS.includes('--version'))
 }
 
 section('(7) POSIX chain — skip laws both directions (pipes + a real PTY)')

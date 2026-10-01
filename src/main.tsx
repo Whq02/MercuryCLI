@@ -140,6 +140,7 @@ import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
+import { inspectRunArgs, isRunArgv } from './cli/runArgs.js'
 import { readRetiredCliFlags } from './migrations/retiredCrewSpellings.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -169,7 +170,7 @@ function refuseDebugger(): void {
 refuseDebugger()
 
 function isPrintModeArgv(argv: readonly string[] = process.argv): boolean {
-  return argv.includes('-p') || argv.includes('--print')
+  return isRunArgv(argv)
 }
 
 function applyMergedConfigEnv(): void {
@@ -229,14 +230,8 @@ function writeErr(text: string): void {
 }
 
 function wantsStreamJsonEnvelope(): boolean {
-  const argv = process.argv
-  if (!argv.includes('-p') && !argv.includes('--print')) return false
-  const flagIndex = argv.indexOf('--output-format')
-  const spelled =
-    flagIndex >= 0
-      ? argv[flagIndex + 1]
-      : argv.find(arg => arg.startsWith('--output-format='))?.slice('--output-format='.length)
-  return spelled === 'stream-json'
+  const args = inspectRunArgs(process.argv.slice(2))
+  return args.command === 'run' && args.format === 'rows'
 }
 
 const USAGE_ERROR_CODES = new Set([
@@ -326,7 +321,7 @@ export async function main(): Promise<void> {
   setIsInteractive(!isNonInteractive)
   if (!stdoutTty && !printFlag && !initOnlyFlag && process.stdin.isTTY) {
     writeErr(
-      'stdout is not attached to a terminal, so this run is non-interactive. Pass -p to silence this note, or attach a terminal to get the interactive session.',
+      'stdout is not attached to a terminal, so this run is non-interactive. Pass run to silence this note, or attach a terminal to get the interactive session.',
     )
   }
 
@@ -430,8 +425,18 @@ async function run(): Promise<void> {
   profileCheckpoint('run_function_start')
   const cliName = binaryName()
   const program = new CommanderCommand()
+  const sessionOptions = (command: CommanderCommand): RootOptions => {
+    const values: RootOptions = { ...program.opts() }
+    for (const [key, value] of Object.entries(command.opts())) {
+      if (command.getOptionValueSource(key) !== 'default' || !(key in values)) values[key] = value
+    }
+    if (command !== program && program.getOptionValueSource('extension') === 'cli' && command.getOptionValueSource('extension') === 'cli') {
+      values.extension = [...program.opts().extension, ...command.opts().extension]
+    }
+    return values
+  }
   program.hook('preAction', async (_thisCommand, actionCommand) => {
-    if (actionCommand === (program as unknown)) return
+    if (actionCommand === (program as unknown) || actionCommand.name() === 'run') return
     try {
       const names: string[] = []
       type CommandNode = { name(): string; parent: CommandNode | null }
@@ -452,7 +457,7 @@ async function run(): Promise<void> {
   program
     .name(cliName)
     .description(
-      `${cliName} — an interactive session starts by default; -p/--print gives non-interactive output.`,
+      `${cliName} — an interactive session starts by default; run answers a prompt without a terminal UI.`,
     )
     .enablePositionalOptions()
     .configureHelp({ sortSubcommands: true, sortOptions: true })
@@ -476,22 +481,18 @@ async function run(): Promise<void> {
     .addOption(new Option('--d2e, --debug-to-stderr', 'Mirror debug output to stderr').hideHelp())
     .option('--debug-file <path>', 'Write debug output to a file')
     .option(
-      '-p, --print',
-      'Non-interactive output. A slash command this seat cannot serve (an interactive-only surface, a retired or unavailable command) answers its typed refusal on stderr and exits 1. The workspace-trust dialog is skipped in this mode — use it only in directories you trust.',
-    )
-    .option(
       '--bare',
       `Minimal mode: skips hooks, LSP, the extensions load, attribution, auto-memory, background prefetches, keychain reads and project instruction auto-discovery, and sets MERCURY_BARE=1. First-party auth is strictly an API key (or an API-key helper supplied via --settings); OAuth and the keychain are never read; third-party gateways use their own credentials. Skills still resolve by name. Supply context explicitly with --system-prompt, --append-system-prompt, --mcp-config and --allowed-tools.`,
     )
     .addOption(new Option('--init', 'Run initialization only').hideHelp())
     .addOption(new Option('--init-only', 'Run initialization and exit').hideHelp())
     .addOption(new Option('--maintenance', 'Run maintenance hooks and exit').hideHelp())
-    .addOption(new Option('--output-format <format>', 'Output format').choices(['text', 'json', 'stream-json']))
-    .addOption(new Option('--input-format <format>', 'Input format').choices(['text', 'stream-json']))
+    .addOption(new Option('--format <format>', 'Answer format for run: text, one JSON result, or JSON-line rows').choices(['text', 'json', 'rows']))
+    .addOption(new Option('--input <format>', 'Read JSON-line rows from stdin with run').choices(['rows']))
     .option('--json-schema <schema>', 'JSON schema for structured output')
-    .option('--include-partial-messages', 'Emit partial message stream events')
-    .option('--dangerously-bypass-permissions', 'Bypass all permission checks')
-    .option('--allow-dangerously-bypass-permissions', 'Allow the bypass mode to be toggled')
+    .option('--partial', 'Include partial rows while run streams')
+    .option('--sovereign', 'Run without permission prompts')
+    .option('--allow-sovereign', 'Allow the session to enter sovereign mode')
     .addOption(new Option('--thinking <mode>', 'Thinking mode').choices(['enabled', 'adaptive', 'disabled']).hideHelp())
     .addOption(new Option('--max-turns <turns>', 'Maximum turns for a print run').argParser((value: string) => {
       const parsed = Number(value)
@@ -524,7 +525,7 @@ async function run(): Promise<void> {
     .option('--append-system-prompt <prompt>', 'Append to the system prompt')
     .addOption(new Option('--append-system-prompt-file <file>', 'Append to the system prompt from a file').hideHelp())
     .addOption(
-      new Option('--permission-mode <mode>', 'Permission mode')
+      new Option('--mode <mode>', 'Permission mode')
         .choices(PERMISSION_MODES)
         .argParser((value: string) => {
           const decoded = decodePermissionModeSpelling(value)
@@ -639,7 +640,7 @@ async function run(): Promise<void> {
     }
     initSinks()
     profileCheckpoint('preAction_after_sinks')
-    const extensionPaths = program.opts().extension as unknown
+    const extensionPaths = sessionOptions(actionCommand).extension as unknown
     if (Array.isArray(extensionPaths) && extensionPaths.length > 0 && extensionPaths.every(entry => typeof entry === 'string')) {
       const { existsSync: extensionDirExists } = require('node:fs') as typeof import('node:fs')
       const missing = (extensionPaths as string[]).filter(entry => !extensionDirExists(entry))
@@ -655,6 +656,14 @@ async function run(): Promise<void> {
   program.action(async (prompt: string | undefined) => {
     await defaultAction(prompt, program.opts())
   })
+  const runCommand = program.command('run')
+    .description('Run a prompt without a terminal UI; use only in directories you trust')
+    .argument('[prompt]', 'Prompt text; - or no argument reads stdin to EOF; an argument takes up to 1s of piped context')
+    .configureHelp({ sortOptions: true })
+    .action(async (prompt: string | undefined) => {
+      await defaultAction(prompt, { ...sessionOptions(runCommand), print: true })
+    })
+  for (const option of program.options) runCommand.addOption(option)
 
   const parseProgram = () => program.parseAsync(readRetiredCliFlags(process.argv))
 
@@ -662,6 +671,7 @@ async function run(): Promise<void> {
     profileCheckpoint('run_before_parse')
     if (wantsStreamJsonEnvelope()) {
       program.exitOverride()
+      runCommand.exitOverride()
       try {
         await parseProgram()
       } catch (error) {
@@ -1203,6 +1213,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
+  if (printMode && opts.mode === 'apollo' && permissionChannelOf(opts) === undefined) {
+    failCli('mercury run: apollo needs a permission channel')
+  }
   if (opts.fallbackModel && opts.fallbackModel === opts.model) {
     failCli('--fallback-model cannot equal --model')
   }
@@ -1229,14 +1242,14 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     }
   }
 
-  const inputFormat = typedString(opts.inputFormat) ?? 'text'
-  const outputFormat = typedString(opts.outputFormat) ?? 'text'
-  if (inputFormat !== 'text' && inputFormat !== 'stream-json') failCli(`Invalid --input-format: ${inputFormat}`)
+  const inputFormat = opts.input === 'rows' ? 'stream-json' : 'text'
+  const outputFormat = opts.format === 'rows' ? 'stream-json' : typedString(opts.format) ?? 'text'
+  if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
   if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
-    failCli('--input-format=stream-json requires --output-format=stream-json')
+    failCli('--input rows requires run --format rows')
   }
   if (opts.replayUserMessages && outputFormat !== 'stream-json') {
-    failCli('--replay-user-messages requires --output-format=stream-json')
+    failCli('--replay-user-messages requires run --format rows')
   }
   if (typedString(opts.permissionPromptTool) === 'stdio') {
     failCli('stdio is not an MCP tool name: ask over the control protocol with --permission-channel stdio')
@@ -1244,9 +1257,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (typedString(opts.permissionChannel) === 'prompt-tool' && typedString(opts.permissionPromptTool) === undefined) {
     failCli('--permission-channel prompt-tool needs --permission-prompt-tool <tool>')
   }
-  const includePartialMessages = Boolean(opts.includePartialMessages)
-  if (opts.includePartialMessages && (!printMode || outputFormat !== 'stream-json')) {
-    failCli('--include-partial-messages requires --print with --output-format=stream-json')
+  const includePartialMessages = Boolean(opts.partial)
+  if (opts.partial && (!printMode || outputFormat !== 'stream-json')) {
+    failCli('--partial requires run --format rows')
   }
   if (opts.sessionPersistence === false && !printMode) {
     failCli('--no-session-persistence is a print-mode option: an interactive session is hosted by the daemon and resumed from its transcript, so it always writes one')
@@ -1255,18 +1268,26 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (opts.bare) {
     setFlagEnv('MERCURY_BARE', '1')
   }
-  let inputPrompt = inputPromptArg
+  let inputPrompt = printMode && inputPromptArg === '-' ? undefined : inputPromptArg
   if (typedString(opts.prefill)) {
     startCapturingEarlyInput()
     process.stdin.unshift?.(Buffer.from(String(opts.prefill)))
   }
 
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isPrintModeArgv()
-  const dangerouslySkipPermissions = Boolean(opts.dangerouslyBypassPermissions) || bypassFromRegistry
-  const allowDangerousSkip = Boolean(opts.allowDangerouslyBypassPermissions)
-  const { initialPermissionModeFromCLI } = await import('./utils/permissions/permissionSetup.js')
+  const dangerouslySkipPermissions = Boolean(opts.sovereign) || opts.mode === 'sovereign' || bypassFromRegistry
+  const allowDangerousSkip = Boolean(opts.allowSovereign)
+  const { initialPermissionModeFromCLI, isBypassPermissionsModeDisabled } = await import('./utils/permissions/permissionSetup.js')
+  const explicitMode = typedString(opts.mode) as PermissionMode | undefined
+  if (opts.sovereign && explicitMode && !modeBypassesPermissions(explicitMode)) {
+    failCli(`mercury run: --sovereign conflicts with --mode ${explicitMode}; choose one permission posture`)
+  }
+  if ((opts.sovereign || opts.mode === 'sovereign' || allowDangerousSkip) && isBypassPermissionsModeDisabled()) {
+    const word = opts.sovereign ? '--sovereign' : opts.mode === 'sovereign' ? '--mode sovereign' : '--allow-sovereign'
+    failCli(`mercury run: ${word} is disabled by permissions policy`)
+  }
   const resolved = initialPermissionModeFromCLI({
-    permissionModeCli: typedString(opts.permissionMode),
+    permissionModeCli: typedString(opts.mode),
     dangerouslySkipPermissions,
   })
   const permissionMode: PermissionMode = resolved.mode
@@ -1386,11 +1407,12 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const sessionTitle = typedString(opts.name)?.trim() || undefined
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
-  if (!process.stdin.isTTY && !process.argv.includes('mcp')) {
+  if (!process.stdin.isTTY) {
     if (inputFormat === 'stream-json') {
       prompt = readStdinChunks()
     } else {
-      const collected = await readStdinWithPeek(3000)
+      const collected = await readStdinWithPeek(printMode ? (inputPrompt === undefined ? -1 : 1_000) : 3000)
+      if (collected === null && printMode && inputPrompt === undefined) failCli('mercury run could not read its prompt from stdin', 1)
       if (collected === null && inputPrompt === undefined) {
         writeErr(
           'No stdin data arrived within 3s; proceeding without piped input. Redirect from the null device to skip the wait, or keep the pipe open longer to include its data.',
@@ -1399,7 +1421,9 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       const pieces = [inputPrompt, collected ?? undefined].filter(
         (piece): piece is string => typeof piece === 'string' && piece.length > 0,
       )
-      prompt = pieces.length > 0 ? pieces.join('\n') : undefined
+      prompt = printMode && inputPrompt && collected
+        ? `${inputPrompt}\n\n<stdin>\n${collected}${collected.endsWith('\n') ? '' : '\n'}</stdin>`
+        : pieces.length > 0 ? pieces.join('\n') : undefined
     }
   }
 
@@ -1429,11 +1453,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       const [flag, values] = swallower
       const lastValue = values[values.length - 1] ?? ''
       failCli(
-        `No prompt reached --print, and the list flag ${flag} captured ${values.length} values — ` +
+        `No prompt reached run, and the list flag ${flag} captured ${values.length} values — ` +
           `its last value ${JSON.stringify(lastValue)} may have been meant as the prompt ` +
           `(a variadic flag consumes every following bare argument). ` +
           `Put the prompt before the flag, or end the list with -- : ` +
-          `${cliName} -p ${flag} "..." -- "your prompt". ` +
+          `${cliName} run ${flag} "..." -- "your prompt". ` +
           `If every value really is a list entry, provide the prompt via stdin or as a positional argument.`,
       )
     }
@@ -1445,6 +1469,10 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     } else if (prompt === undefined) {
       prompt = mainThreadAgentDefinition.initialPrompt
     }
+  }
+
+  if (printMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.fromPr) {
+    failCli('Usage: mercury run "<prompt>" or pipe a prompt to mercury run -')
   }
 
   consumeSessionKitPin()
@@ -1635,35 +1663,23 @@ async function* readStdinChunks(): AsyncIterable<string> {
 
 function readStdinWithPeek(timeoutMs: number): Promise<string | null> {
   return new Promise(resolvePeek => {
-    let settled = false
-    let sawData = false
-    const chunks: Buffer[] = []
-    const timer = setTimeout(() => {
-      if (!sawData && !settled) {
-        settled = true
-        process.stdin.pause()
-        resolvePeek(null)
-      }
-    }, timeoutMs)
-    timer.unref?.()
-    process.stdin.on('data', chunk => {
-      sawData = true
-      chunks.push(Buffer.from(chunk))
-    })
-    process.stdin.on('end', () => {
-      if (!settled) {
-        settled = true
-        clearTimeout(timer)
-        resolvePeek(Buffer.concat(chunks).toString('utf8'))
-      }
-    })
-    process.stdin.on('error', () => {
-      if (!settled) {
-        settled = true
-        clearTimeout(timer)
-        resolvePeek(chunks.length > 0 ? Buffer.concat(chunks).toString('utf8') : null)
-      }
-    })
+    const chunks: string[] = []
+    const onData = (chunk: string): void => { chunks.push(chunk) }
+    const finish = (empty: string | null): void => {
+      clearTimeout(timer)
+      process.stdin.pause()
+      process.stdin.off('data', onData)
+      process.stdin.off('end', onEnd)
+      process.stdin.off('error', onError)
+      resolvePeek(chunks.length > 0 ? chunks.join('') : empty)
+    }
+    const onEnd = (): void => finish('')
+    const onError = (): void => finish(null)
+    const timer = timeoutMs < 0 ? undefined : setTimeout(() => finish(null), timeoutMs)
+    process.stdin.setEncoding('utf8')
+    process.stdin.on('data', onData)
+    process.stdin.once('end', onEnd)
+    process.stdin.once('error', onError)
   })
 }
 
@@ -1827,7 +1843,7 @@ async function interactiveLaunch(args: {
   const notifications: { key: string; text: string; color?: string }[] = []
   const { initialPermissionModeFromCLI } = await import('./utils/permissions/permissionSetup.js')
   const modeNotification = initialPermissionModeFromCLI({
-    permissionModeCli: typedString(opts.permissionMode),
+    permissionModeCli: typedString(opts.mode),
     dangerouslySkipPermissions: modeBypassesPermissions(args.permissionMode),
   }).notification
   if (modeNotification) {

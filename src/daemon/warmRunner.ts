@@ -426,7 +426,7 @@ export async function claimWarmRunner(
   const spec = roster.patchSeatClaim(entry.short, {
     model: args.modelKey,
     effort: args.effort,
-    respawnExtraArgv: ['--resume', args.sessionId, '--permission-channel', 'stdio', '--include-partial-messages'],
+    respawnExtraArgv: ['--resume', args.sessionId, '--permission-channel', 'stdio', '--partial'],
   })
   if (spec === null) {
     roster.kill(entry.short)

@@ -73,12 +73,12 @@ export class MercuryChildSession {
     const script = opts.entry?.script ?? process.argv[1] ?? ''
     const argv = [
       script,
-      '-p',
-      '--input-format=stream-json',
-      '--output-format=stream-json',
+      'run',
+      '--input=rows',
+      '--format=rows',
       '--permission-channel',
       'stdio',
-      ...(opts.permissionMode ? ['--permission-mode', opts.permissionMode] : []),
+      ...(opts.permissionMode ? ['--mode', opts.permissionMode] : []),
       ...(opts.model ? ['--model', opts.model] : []),
       ...(opts.resumeSessionId ? ['--resume', opts.resumeSessionId] : []),
       ...(opts.sessionId && !opts.resumeSessionId ? ['--session-id', opts.sessionId] : []),

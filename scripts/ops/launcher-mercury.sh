@@ -107,11 +107,11 @@ fi
 
 MERCURY_TAKEOVER=1
 case "${1:-}" in
-  acp|agents|auth|daemon|doctor|editor|extensions|godot|health|install|join|join-kit|mcp|show|update|upgrade) MERCURY_TAKEOVER=0 ;;
+  acp|agents|auth|daemon|doctor|editor|extensions|godot|health|install|join|join-kit|mcp|run|show|update|upgrade) MERCURY_TAKEOVER=0 ;;
 esac
 for _mercury_arg in "$@"; do
   case "$_mercury_arg" in
-    -p|--print|-h|--help|-v|-V|--version) MERCURY_TAKEOVER=0 ;;
+    -h|--help|-v|-V|--version) MERCURY_TAKEOVER=0 ;;
     --chat|-chat) export MERCURY_SPLASH_CHAT=1 ;;
   esac
 done

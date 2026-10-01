@@ -34,7 +34,7 @@ if (!existsSync(DIST)) {
       return null
     }
   }
-  const SJ = ['-p', '--output-format', 'stream-json']
+  const SJ = ['run', '--format', 'rows']
 
   const settingsRefusal = run([...SJ, '--settings', '/no/such/settings-file.json', 'hi'])
   const settingsEnvelope = envelopeOf(settingsRefusal.out)
@@ -71,7 +71,7 @@ if (!existsSync(DIST)) {
     `rc=${argParserRefusal.status} out=${argParserRefusal.out.slice(0, 100).replace(/\s+/g, ' ')}`,
   )
 
-  const textControl = run(['-p', '--settings', '/no/such/settings-file.json', 'hi'])
+  const textControl = run(['run', '--settings', '/no/such/settings-file.json', 'hi'])
   check(
     'the text format keeps its prose refusal (control: stderr, no stdout envelope)',
     textControl.status !== 0 &&

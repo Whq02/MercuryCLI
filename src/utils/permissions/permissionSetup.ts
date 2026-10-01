@@ -345,7 +345,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
     if (!bypassAvailable) {
       return {
         ok: false,
-        error: 'Sovereign Mode requires launching with --dangerously-bypass-permissions.',
+        error: 'Sovereign Mode requires launching with --sovereign.',
       }
     }
   }
@@ -370,7 +370,7 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
       return {
         ok: false,
         error:
-          'Cannot set permission mode to autopilot because the session was not launched with --dangerously-bypass-permissions',
+          'Cannot set permission mode to autopilot because the session was not launched with --sovereign',
       }
     }
   }
@@ -560,7 +560,7 @@ export function initialPermissionModeFromCLI({
       }
       if (!dangerouslySkipPermissions) {
         notification =
-          'Sovereign Mode requires launching with --dangerously-bypass-permissions because it is a bypass-posture mode.'
+          'Sovereign Mode requires launching with --sovereign because it is a bypass-posture mode.'
         continue
       }
     }
@@ -574,7 +574,7 @@ export function initialPermissionModeFromCLI({
         continue
       }
       if (!dangerouslySkipPermissions) {
-        notification = 'Autopilot requires launching with --dangerously-bypass-permissions because it is a bypass-posture mode.'
+        notification = 'Autopilot requires launching with --sovereign because it is a bypass-posture mode.'
         continue
       }
     }

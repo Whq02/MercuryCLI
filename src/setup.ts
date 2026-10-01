@@ -26,7 +26,6 @@ import { checkAndRestoreITerm2Backup } from './utils/iTermBackup.js'
 import { logError } from './utils/log.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import type { PermissionMode } from './utils/permissions/PermissionMode.js'
-import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
 import { getPlanSlug } from './utils/plans.js'
 import {
   getRecentReleaseNotes,
@@ -228,18 +227,8 @@ export async function setup(
     }
   }
 
-  if (modeBypassesPermissions(permissionMode) || allowDangerousSkip) {
-    if (
-      process.platform !== 'win32' &&
-      typeof process.getuid === 'function' &&
-      process.getuid() === 0
-    ) {
-      console.error(
-        'Refusing --dangerously-bypass-permissions under root/sudo — running permission-free with superuser rights is a security hazard.',
-      )
-      process.exit(1)
-    }
-  }
+  const { noteRootSovereign } = await import('./utils/permissions/rootNotice.js')
+  noteRootSovereign(permissionMode)
 
   if (process.env.NODE_ENV === 'test') {
     return

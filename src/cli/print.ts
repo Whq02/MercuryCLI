@@ -776,7 +776,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'No prompt reached --print: give one as the argument or on stdin',
+      'No prompt reached run: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
