@@ -442,11 +442,11 @@ async function runLeg(leg: Leg): Promise<void> {
   const fixture = await startFixture({ agent: leg.agent, verdict: leg.verdict })
   const world = seedWorld()
   const argv = [
-    '-p',
-    '--permission-mode',
+    'run',
+    '--mode',
     'flow',
-    '--input-format=stream-json',
-    '--output-format=stream-json',
+    '--input=rows',
+    '--format=rows',
     ...(leg.channel ? ['--permission-channel', 'stdio'] : []),
     '--model',
     MODEL,
