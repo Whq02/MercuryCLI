@@ -17,14 +17,15 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 const { SettingsSchema } = await import('../../src/utils/settings/types.js')
 const schema = SettingsSchema()
-check('routing setting is a declared schema property', 'openrouterRouting' in schema.shape)
+const routingShape = (schema.shape.routing as { unwrap?: () => { shape?: Record<string, unknown> } }).unwrap?.()?.shape ?? {}
+check('routing setting is a declared schema property', 'openrouter' in routingShape)
 for (const value of [null, true, 'deny', { dataCollection: 'log' }, { requireParameters: 'true' }, { allowFallbacks: 0 }, { zeroDataRetention: 1 }]) {
-  check(`invalid routing setting refused: ${JSON.stringify(value)}`, !schema.safeParse({ openrouterRouting: value }).success)
+  check(`invalid routing setting refused: ${JSON.stringify(value)}`, !schema.safeParse({ routing: { openrouter: value } }).success)
 }
 for (const dataCollection of ['allow', 'deny']) for (const requireParameters of [false, true]) for (const allowFallbacks of [false, true]) for (const zeroDataRetention of [false, true]) {
-  check('all four valid knobs pass validation', schema.safeParse({ openrouterRouting: { dataCollection, requireParameters, allowFallbacks, zeroDataRetention } }).success)
+  check('all four valid knobs pass validation', schema.safeParse({ routing: { openrouter: { dataCollection, requireParameters, allowFallbacks, zeroDataRetention } } }).success)
 }
-check('absent and empty routing settings validate', schema.safeParse({}).success && schema.safeParse({ openrouterRouting: {} }).success)
+check('absent and empty routing settings validate', schema.safeParse({}).success && schema.safeParse({ routing: { openrouter: {} } }).success)
 const React = await import('react')
 const { Box } = await import('../../src/ink.js')
 const { AppStateProvider } = await import('../../src/state/AppState.js')
@@ -38,9 +39,9 @@ const { getInitialSettings, updateSettingsForSource } = await import('../../src/
 enableConfigs()
 check('OpenRouter row applies on its own road', configRowApplicability('openrouter' as never, 'openrouter').applies)
 check('OpenRouter row refuses other roads', !configRowApplicability('openrouter' as never, 'deepseek').applies)
-const stored = (): unknown => getInitialSettings().openrouterRouting
+const stored = (): unknown => getInitialSettings().routing?.openrouter
 for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
-  updateSettingsForSource('userSettings', { model: 'openrouter/fixture/model', openrouterRouting: undefined } as never)
+  updateSettingsForSource('userSettings', { engine: { model: 'openrouter/fixture/model' }, routing: { openrouter: undefined } })
   const element = React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: columns, height: rows }, React.createElement(SettingsPopupSlot, { overlay: true }))))
   const m = await mountOffscreen(element, columns, rows)
   store.openSettingsPopup(configPopupRequest({ messages: [], options: {} } as never))
@@ -57,7 +58,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     for (let i = 0; i < 3; i++) {
       const before = JSON.stringify(stored())
       m.push(KEY.right)
-      check(`${columns}x${rows}: cycle ${i + 1} persists a valid user setting`, await waitFor(() => JSON.stringify(stored()) !== before, 5000) && schema.safeParse({ openrouterRouting: stored() }).success, JSON.stringify(stored()))
+      check(`${columns}x${rows}: cycle ${i + 1} persists a valid user setting`, await waitFor(() => JSON.stringify(stored()) !== before, 5000) && schema.safeParse({ routing: { openrouter: stored() } }).success, JSON.stringify(stored()))
       if (i === 0) check('right from the absent balanced default explicitly relaxes all four knobs', JSON.stringify(stored()) === '{"dataCollection":"allow","requireParameters":false,"allowFallbacks":true,"zeroDataRetention":false}', JSON.stringify(stored()))
     }
     check(`${columns}x${rows}: all four fields persisted`, Object.keys((stored() ?? {}) as object).length === 4)
@@ -67,7 +68,7 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   m.unmount()
   store.closeSettingsPopup()
 }
-check('Config snapshots the user setting for escape', readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8').includes('openrouterRouting: user.openrouterRouting'))
+check('Config snapshots the user setting for escape', readFileSync(join(import.meta.dir, '../../src/components/Settings/Config.tsx'), 'utf8').includes('routing: { openrouter: user.routing?.openrouter }'))
 await releaseScratchHome(home)
 console.log(`prove-openrouter-routing-setting: ${failures === 0 ? 'ALL PASS' : `${failures} FAILED`}`)
 process.exit(failures === 0 ? 0 : 1)
