@@ -18,7 +18,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-transcript-resume')
 const world = await makeWorld('crewmate-transcript-resume', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'Bash'])
+const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'Bash'])
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
 const control = async (id: string, request: Frame): Promise<Frame> => {
   session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')

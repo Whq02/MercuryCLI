@@ -79,7 +79,7 @@ const fixture = await startFixtureApi(script)
 const vendoredNode = join(ROOT, 'dist/vendor/node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
 const node = existsSync(vendoredNode) ? vendoredNode : (Bun.which('node') ?? 'node')
 const run = await new Promise<{ status: number | null; out: string }>(resolveRun => {
-  const child = spawn(node, [DIST, '-p', '--output-format', 'json', '--model', lead, '--permission-mode', 'sovereign', '--', 'say LEAD-DONE'], {
+  const child = spawn(node, [DIST, 'run', '--format', 'json', '--model', lead, '--mode', 'sovereign', '--', 'say LEAD-DONE'], {
     cwd: project,
     env: {
       HOME: scratch,

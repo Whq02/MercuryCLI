@@ -28,7 +28,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crew-messages-row')
 const world = await makeWorld('crew-messages-row', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage'])
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const leadRequests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === LEAD_MODEL)
 const lastUser = (request: Request): string => {

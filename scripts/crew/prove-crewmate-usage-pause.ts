@@ -61,7 +61,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-usage-pause')
 const world = await makeWorld('crewmate-usage-pause', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'SendMessage'])
 const rosterPath = join(world.crews, crew, 'config.json')
 let seq = 0
 const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)

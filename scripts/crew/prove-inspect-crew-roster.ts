@@ -46,7 +46,7 @@ const world = await makeWorld('inspect-crew-roster', script)
 const work = join(world.project, 'worker-place')
 mkdirSync(work)
 spawnInput.cwd = work
-const session = bootLead(world, ['--permission-mode', 'sovereign', '--session-id', crew], ['Agent', 'Bash', 'TaskStop', 'SendMessage', 'LiveComms', 'Inspect'])
+const session = bootLead(world, ['--mode', 'sovereign', '--session-id', crew], ['Agent', 'Bash', 'TaskStop', 'SendMessage', 'LiveComms', 'Inspect'])
 type Member = { name: string; agentId: string; cwd?: string; isActive?: boolean; stoppedAt?: number }
 const members = (): Member[] => readJson<{ members: Member[] }>(join(world.crews, crew, 'config.json'))?.members ?? []
 const taskIds = (): string[] => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').map(frame => String(frame.task_id))

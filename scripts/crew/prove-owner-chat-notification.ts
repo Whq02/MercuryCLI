@@ -22,7 +22,7 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-owner-chat-notification')
 const world = await makeWorld('owner-chat-notification', script)
-const session = bootLead(world, ['--permission-mode', 'sovereign'], ['Agent', 'SendMessage'])
+const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'SendMessage'])
 const control = async (id: string, request: Frame): Promise<Frame> => {
   session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
   const response = (): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)?.response as Frame | undefined
