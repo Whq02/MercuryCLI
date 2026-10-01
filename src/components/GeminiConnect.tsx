@@ -27,7 +27,9 @@ import { keyPasteGuardNote } from './mercury-ui/screens/keyPasteGuards.js'
 import {
   GEMINI_API_KEY_PAGE,
   GEMINI_CONNECT_INTRO,
+  GEMINI_CONNECT_COMPACT_INTRO,
   GEMINI_CONNECT_TITLE,
+  GEMINI_KEY_BILLING_NOTE,
   geminiConnectRows,
   geminiGuideHint,
   geminiGuideOpeningStep,
@@ -295,8 +297,8 @@ export function GeminiConnect({
         <Text bold color={tokens.accent} wrap="truncate-end">
           {GEMINI_CONNECT_TITLE}
         </Text>
-        <Text color={tokens.textSecondary} wrap="wrap">
-          {GEMINI_CONNECT_INTRO}
+        <Text color={tokens.textSecondary} wrap={popupCompact ? 'truncate-end' : 'wrap'}>
+          {popupCompact ? GEMINI_CONNECT_COMPACT_INTRO : GEMINI_CONNECT_INTRO}
         </Text>
         <Select
           options={geminiConnectRows(facts)}
@@ -482,6 +484,7 @@ function GeminiKeyLeg({
           onEscape={onBack}
         />
       </Box>
+      {compact ? <Text color={tokens.textSecondary} wrap="truncate-end">{GEMINI_KEY_BILLING_NOTE}</Text> : null}
       {storing ? <Text dimColor>Storing and checking the live catalogue…</Text> : null}
       {note !== null ? <Text color={tokens.warning}>{note}</Text> : null}
       {compact ? null : <Text dimColor>esc back</Text>}

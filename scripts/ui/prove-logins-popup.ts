@@ -219,11 +219,18 @@ for (const s of sizes) {
     await key(board.m, KEY.enter)
     save(board.m, s, `${family}-choice`)
     if (arm) check(`${family}: the short credential choice keeps its digit shortcuts`, board.m.screen().includes('❯ 1.'))
-    if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows without the intro paragraph`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' ? 3 : 2) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
+    if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows with at most one Gemini note`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' ? 3 : 2) + (family === 'gemini' ? 1 : 0) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
+    if (family === 'gemini') {
+      const words = board.m.lines().map(line => line.split('│').slice(1, -1).join(' ')).join(' ').replace(/\s+/g, ' ')
+      const note = compact ? "AI Pro/Ultra plans don't apply; OAuth needs your client." : "Google ended consumer Login with Google on June 18, 2026 (Gemini CLI too); AI Pro/Ultra plans don't apply. Sign-in needs your own OAuth client."
+      check(`Gemini ${s.columns}x${s.rows}: the title, both choices and the per-screen note are on screen together`, words.includes('Connect Google Gemini') && words.includes('API key — the easiest') && words.includes('Google account — six steps') && words.includes(note), board.m.screen())
+      if (compact) check('Gemini compact: exactly the title, one note and both single-line choices', rowsVisible(board.m, s) === 4 && bodyRows(board.m, s).filter(line => line.includes('OAuth needs your client.')).length === 1, bodyRows(board.m, s).join(' | '))
+    }
     if (arm) await key(board.m, arm)
     await key(board.m, 'fixture-draft-with-caret-0123456789')
     check(`${family}: its key field remains visible inside the popup`, /Key:|key:|Token:/.test(board.m.screen()))
-    if (compact) check(`${family} compact: the key card is two lines, the label with its key page and esc back, then the input`, rowsVisible(board.m, s) === 2 && /esc back/.test(bodyRows(board.m, s)[0] ?? '') && /^(Key|Token): \*+/.test(bodyRows(board.m, s)[1] ?? ''), bodyRows(board.m, s).join(' | '))
+    if (compact) check(`${family} compact: the key card keeps its label with key page and esc back, input, and only Gemini adds a billing line`, rowsVisible(board.m, s) === (family === 'gemini' ? 3 : 2) && /esc back/.test(bodyRows(board.m, s)[0] ?? '') && /^(Key|Token): \*+/.test(bodyRows(board.m, s)[1] ?? ''), bodyRows(board.m, s).join(' | '))
+    if (family === 'gemini') check(`Gemini key ${s.columns}x${s.rows}: billing, address, provider, input and back are visible without OAuth prose`, board.m.screen().includes('Cloud project: free Flash ~20/day, Pro 0; pay for more.') && board.m.screen().includes('aistudio.google.com/apikey') && board.m.screen().includes('Gemini') && board.m.screen().includes('esc back') && !/OAuth|consumer|Pro\/Ultra/.test(board.m.screen()), board.m.screen())
     fits(board.m, s, `${family} key`); save(board.m, s, `${family}-key`)
     board.close()
   }

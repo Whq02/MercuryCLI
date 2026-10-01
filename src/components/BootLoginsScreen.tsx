@@ -53,6 +53,8 @@ import {
 } from '../services/providers/gemini/geminiAccounts.js';
 import {
   GEMINI_API_KEY_PAGE,
+  GEMINI_CONNECT_INTRO,
+  GEMINI_KEY_BILLING_NOTE,
   geminiConnectRows,
   geminiGuideOpeningStep,
   geminiGuidePaneLines,
@@ -472,7 +474,7 @@ export function loginsPickOptions(
   }
 }
 
-export function loginsPickPaneLines(pick: LoginsPickId): string[] {
+export function loginsPickPaneLines(pick: LoginsPickId, pickSel = 0): string[] {
   const body = ((): string => {
     switch (pick) {
       case 'xai':
@@ -490,12 +492,12 @@ export function loginsPickPaneLines(pick: LoginsPickId): string[] {
       case 'openrouter':
         return "One credential unlocks OpenRouter's whole multi-model catalogue (credits-billed).";
       case 'gemini':
-        return '';
+        return pickSel === 0 ? GEMINI_KEY_BILLING_NOTE : GEMINI_CONNECT_INTRO;
     }
   })();
   return [
     ...(body ? wrapPlain(body, DETAIL_W) : []),
-    ...(pick === 'kimi-region' ? [] : pick === 'gemini' ? keyPageLine(pick).split('\n').flatMap(line => wrapPlain(line, DETAIL_W)) : wrapClauses(keyPageLine(pick), DETAIL_W)),
+    ...(pick === 'kimi-region' ? [] : wrapClauses(keyPageLine(pick), DETAIL_W)),
     '',
     pick === 'kimi-region' ? 'esc — back to the Kimi choice' : 'esc — back to the roster',
   ];
@@ -585,7 +587,7 @@ export function keyPromptPaneLines(leg: FaceKeyLegId, note: string | null, draft
   const lines: string[] = [keyLegTitle(leg)];
   if (leg === 'gemini-key') {
     const [, sentence, address] = geminiKeyLegLines(opened);
-    lines.push(...wrapPlain(sentence!.text, DETAIL_W), ...wrapHard(address!.text, DETAIL_W));
+    lines.push(...wrapPlain(sentence!.text, DETAIL_W), ...wrapHard(address!.text, DETAIL_W), ...wrapPlain(GEMINI_KEY_BILLING_NOTE, DETAIL_W));
   }
   if (leg === 'deepseek' && note === null) lines.push(...wrapClauses(keyPageLine('deepseek'), DETAIL_W));
   if (leg === 'xai' && note === null) lines.push(...wrapClauses(keyPageLine('xai'), DETAIL_W));
@@ -866,7 +868,7 @@ export function loginsFlowPaneLines(pane: LoginsFlowPaneV1): string[] {
     case 'anthropic':
       return anthropicFlowPaneLines(pane.snap, pane.draftLen, pane.backToPicker === true);
     case 'pick':
-      return loginsPickPaneLines(pane.pick);
+      return loginsPickPaneLines(pane.pick, pane.pickSel);
     case 'key':
       return keyPromptPaneLines(pane.leg, pane.note, pane.draftLen, pane.storing, pane.opened);
     case 'device':

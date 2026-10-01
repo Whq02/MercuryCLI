@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs'
+import { closeSync, existsSync, fstatSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, readSync, realpathSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
@@ -26,8 +26,43 @@ if (!existsSync(DIST)) {
 }
 
 const guardPids = new Set<number>()
+const daemonLog = join(SCRATCH, 'daemon.log')
+const p5Stages: Array<{ name: string; started: number; elapsed?: number }> = []
+function p5Stage(name: string): void {
+  const now = performance.now()
+  const previous = p5Stages.at(-1)
+  if (previous) {
+    previous.elapsed = now - previous.started
+    console.log(`[P5 stage] ${previous.name}: ${Math.round(previous.elapsed)}ms`)
+  }
+  p5Stages.push({ name, started: now })
+  console.log(`[P5 stage] starting ${name}`)
+}
+function p5TimeoutDiagnostics(): void {
+  console.log(`[P5 timeout] in flight: ${p5Stages.at(-1)?.name ?? 'P5 not started'}`)
+  for (const stage of p5Stages) console.log(`[P5 elapsed] ${stage.name}: ${Math.round(stage.elapsed ?? performance.now() - stage.started)}ms${stage.elapsed === undefined ? ' (in flight)' : ''}`)
+  console.log(`[P5 log] ${daemonLog} — last 40 lines (at most 64 KiB, 2000 characters per line)`)
+  let fd: number | undefined
+  try {
+    fd = openSync(daemonLog, 'r')
+    const size = fstatSync(fd).size
+    const length = Math.min(size, 65_536)
+    const bytes = Buffer.alloc(length)
+    const read = readSync(fd, bytes, 0, length, size - length)
+    const text = bytes.subarray(0, read).toString('utf8').replace(/\n$/, '')
+    const lines = text.split('\n')
+    if (size > length) lines.shift()
+    for (const line of lines.slice(-40)) console.log(line.length > 2000 ? `${line.slice(0, 2000)} [line clipped]` : line)
+  } catch (error) {
+    console.log(`[P5 log] unavailable: ${String(error)}`)
+  } finally {
+    if (fd !== undefined) closeSync(fd)
+  }
+  console.log(`[keep] ${SCRATCH}`)
+}
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — proof exceeded 240s')
+  p5TimeoutDiagnostics()
   for (const pid of guardPids) {
     try {
       process.kill(pid, 'SIGKILL')
@@ -289,16 +324,22 @@ section('P3/P4 the connector: content-keyed rows · retire clears · the hop law
 }
 
 section('P5 end-to-end: two sessions, one workspace — A\'s run paints, B stays empty')
+p5Stage('reset projections and import first-run seeder')
 proj.resetSeatProjections()
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
+p5Stage('seed scratch home and workspace trust')
 seedFirstRun(home, [work])
+p5Stage('write scratch tool permissions')
 const { writeFileSync } = await import('node:fs')
 writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Workflow', 'Agent', 'Task'] } }))
 {
   const { execFileSync } = await import('node:child_process')
   const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'pin', GIT_AUTHOR_EMAIL: 'pin@scratch', GIT_COMMITTER_NAME: 'pin', GIT_COMMITTER_EMAIL: 'pin@scratch' }
+  p5Stage('git init scratch workspace')
   execFileSync('git', ['init', '-q'], { cwd: work, env: gitEnv })
+  p5Stage('git add scratch seed')
   execFileSync('git', ['add', '-A'], { cwd: work, env: gitEnv })
+  p5Stage('git commit scratch seed')
   execFileSync('git', ['commit', '-qm', 'seed', '--allow-empty'], { cwd: work, env: gitEnv })
 }
 
@@ -311,7 +352,9 @@ const WORKFLOW_SCRIPT = [
 
 const HOLD_SECONDS = 40
 
+p5Stage('import fixture API')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+p5Stage('bind fixture API loopback port')
 const api = await startFixtureApi([
   { kind: 'text', whenModel: 'opus', whenBody: 'say ready', text: 'ready.' },
   { kind: 'tool_use', whenModel: 'opus', whenBody: 'say ready', name: 'Workflow', input: { script: WORKFLOW_SCRIPT }, preText: 'launching the probe. ' },
@@ -330,7 +373,9 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'done.' },
 ])
 
-const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
+p5Stage('open daemon log')
+const logFd = openSync(daemonLog, 'a')
+p5Stage('spawn artifact daemon')
 const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
   cwd: work,
   env: {
@@ -348,9 +393,12 @@ const daemon = spawn('node', [DIST, 'daemon', 'run', work], {
 if (daemon.pid !== undefined) guardPids.add(daemon.pid)
 const workerPids: number[] = []
 try {
+  p5Stage('import daemon RPC and handshake')
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const { clientVersionFacts } = await import('../../src/daemon/handshake.ts')
+  p5Stage('read client version facts')
   const client = clientVersionFacts()
+  p5Stage('wait for daemon hello.ready')
   check(
     'P5 the daemon serves and is READY (hello.ready — past adoption / lock acquisition)',
     await untilAsync(async () => {
@@ -373,6 +421,7 @@ try {
     return { sessionId: d.sessionId ?? '', runnerId: d.runnerId ?? '' }
   }
 
+  p5Stage('dispatch session A')
   const A = await dispatch2('say ready', 'A', DEFAULT_OPUS, work)
   {
     const root = join(home, 'projects')
@@ -384,9 +433,11 @@ try {
       }
       return false
     }
+    p5Stage('wait for A first-turn transcript')
     check('P5 A\'s first turn settles', await untilAsync(aReplied, 60_000))
   }
 
+  p5Stage('read A worker pid')
   const sup = await import('../../src/daemon/concourseSupervisor.ts')
   const pidOf = (sid: string): number | undefined =>
     Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sid && r.endedAt === undefined)?.pid
@@ -399,6 +450,7 @@ try {
     }
   }
 
+  p5Stage('attach and focus A connector')
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const recordFor = (sid: string, runnerId: string, title: string) => ({
@@ -413,9 +465,11 @@ try {
   const connA = await seat.focusDaemonSession(recordFor(A.sessionId, A.runnerId, 'A'))
   const rowsA = (): readonly { kind: string; status: string; name: string; phases?: readonly { agents: readonly { state: string }[] }[] }[] => connA.workRoster().rows
 
+  p5Stage('grant A workflows')
   const grant = (await daemonControlRpc({ op: 'concourseControl', action: 'grant-workflows', sessionId: A.sessionId, by: 'operator' } as never)) as { ok?: boolean }
   check('P5 the workflows-allowed tag grants', grant.ok === true, JSON.stringify(grant))
 
+  p5Stage('wait for A live workflow roster')
   check(
     'P5 A\'s live workflow paints on A\'s connector (running, named)',
     await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && r.status === 'running' && r.name === 'scope-probe'), 90_000),
@@ -445,18 +499,22 @@ try {
     }
     return { served: opusRequests >= 3 || ids.size > 0, results }
   }
+  p5Stage('wait for agent Sleep hold to stand')
   check(
     'P5 the agent\'s Sleep hold was served and STANDS (the agent\'s own request went out, no result yet)',
     (await untilAsync(() => holdLedger().served, 30_000)) && holdLedger().results.length === 0,
     JSON.stringify(holdLedger()),
   )
+  p5Stage('wait for workflow agents in roster')
   check(
     'P5 the run\'s agents reach the roster while it runs',
     await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && (r.phases ?? []).some(p => p.agents.length > 0)), 60_000),
     JSON.stringify(rowsA()),
   )
 
+  p5Stage('dispatch session B')
   const B = await dispatch2('just say hi', 'B', 'claude-sonnet-5', work2)
+  p5Stage('read B worker pid')
   await untilAsync(() => pidOf(B.sessionId) !== undefined, 30_000)
   {
     const p = pidOf(B.sessionId)
@@ -465,12 +523,14 @@ try {
       guardPids.add(p)
     }
   }
+  p5Stage('attach B connector and check scoped roster')
   const connB = seat.daemonSessionConnectorFor(recordFor(B.sessionId, B.runnerId, 'B'))
   await connB.attach()
   const stillRunning = rowsA().some(r => r.kind === 'workflow' && r.status === 'running')
   check('P5 A\'s run is still live as B opens', stillRunning)
   check('P5 B\'s roster carries ZERO of A\'s rows while A runs', connB.workRoster().rows.length === 0, JSON.stringify(connB.workRoster().rows))
 
+  p5Stage('read workflow manifest and owner-pid isolation')
   const { workflowRunsRoot } = await import('../../src/tools/WorkflowTool/runManifest.js')
   const runsRoot = workflowRunsRoot(work)
   check('P5 the run manifest exists in the SHARED workspace', await untilAsync(() => existsSync(runsRoot) && readdirSync(runsRoot).length > 0, 30_000))
@@ -495,11 +555,13 @@ try {
   )
 
   check('P5 the run is still held open after the B checks (running, named — the Sleep stands)', rowsA().some(r => r.kind === 'workflow' && r.status === 'running' && r.name === 'scope-probe'), JSON.stringify({ rows: rowsA(), hold: holdLedger() }))
+  p5Stage('wait for A workflow to settle')
   check(
     'P5 the run settles on A\'s roster',
     await untilAsync(() => rowsA().some(r => r.kind === 'workflow' && r.status !== 'running' && r.status !== 'pending'), 90_000),
     JSON.stringify(rowsA()),
   )
+  p5Stage('wait for Sleep result')
   check(
     'P5 the hold RETURNED through the tool (the Sleep result carries slept_seconds — a denial or a missing tool would read here verbatim)',
     await untilAsync(() => holdLedger().results.some(t => t.includes('slept_seconds')), 30_000),
@@ -517,13 +579,18 @@ try {
       }
       return false
     }
+    p5Stage('wait for A completion transcript')
     check('P5 A reads its run\'s completion before the switch (the runner holds a completion for its settle window, and a switch sent inside that window parks behind the queued words)', await untilAsync(completionRead, 60_000))
+    p5Stage('wait for A idle after completion')
     check('P5 A reads idle after the completion turn', await untilAsync(() => connA.live().inFlight === false, 30_000), JSON.stringify(connA.live()))
   }
+  p5Stage('apply idle model switch')
   const switched = await connA.setModel('claude-haiku-4-5')
   check('P5 the model switch applies while idle', switched.state === 'applied', JSON.stringify(switched))
+  p5Stage('send helper words')
   const sentAgent = await connA.sendWords('dispatch a background helper')
   check('P5 the helper words deliver', sentAgent.state === 'accepted' || sentAgent.state === 'queued', JSON.stringify(sentAgent))
+  p5Stage('wait for helper agent roster')
   check(
     'P5 the helper\'s agent row rides A\'s roster',
     await untilAsync(() => rowsA().some(r => r.kind === 'agent'), 60_000),
@@ -540,15 +607,18 @@ try {
     }
     return null
   }
+  p5Stage('wait for B own-turn transcript')
   check('P5 B answered its own turn (empty = scoped, not dead)', await untilAsync(() => {
     const p = transcriptB()
     return p !== null && readFileSync(p, 'utf8').includes('"kind":"output"')
   }, 60_000))
 } finally {
+  p5Stage('shutdown daemon and workers')
   try {
     await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
   } catch {
   }
+  p5Stage('reap exact child pids')
   daemon.kill('SIGTERM')
   await wait(500)
   for (const pid of workerPids) {
@@ -561,10 +631,13 @@ try {
     daemon.kill('SIGKILL')
   } catch {
   }
+  p5Stage('close fixture API')
   await api.close()
+  p5Stage('release scratch')
   if (process.env.WORKSCOPE_KEEP === '1' || failures > 0) console.log(`[keep] ${SCRATCH}`)
   else rmSync(SCRATCH, { recursive: true, force: true })
 }
 
+p5Stage('complete')
 console.log(failures === 0 ? '\nprove-work-scope: ALL LAWS HOLD' : `\nprove-work-scope: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)
