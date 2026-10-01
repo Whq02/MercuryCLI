@@ -24,7 +24,6 @@ export function getNextPermissionMode(
     case 'default':
       return 'implement'
     case 'implement':
-      return 'strategy'
     case 'strategy':
       return 'apollo'
     case 'apollo':

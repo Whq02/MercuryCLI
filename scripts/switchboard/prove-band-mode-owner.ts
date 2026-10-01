@@ -243,8 +243,9 @@ section('§6 the carousel lists every station the seat may hold, Sovereign in a 
   const plain = walk(false)
   console.log(`  consented ring from default: ${consented.join(' → ')}`)
   console.log(`  unconsented ring from default: ${plain.join(' → ')}`)
-  check('a consented ring holds default · implement · strategy · apollo · flow · sovereign and closes', consented.join(',') === 'implement,strategy,apollo,flow,sovereign,default', consented.join(' → '))
-  check("an unconsented ring is the same less Sovereign", plain.join(',') === 'implement,strategy,apollo,flow,default', plain.join(' → '))
+  check('a consented ring holds default · implement · apollo · flow · sovereign and closes', consented.join(',') === 'implement,apollo,flow,sovereign,default', consented.join(' → '))
+  check("an unconsented ring is the same less Sovereign", plain.join(',') === 'implement,apollo,flow,default', plain.join(' → '))
+  check('an explicit Strategy session rejoins the ring at Apollo', getNextPermissionMode(ctx('strategy', false)) === 'apollo' && getNextPermissionMode(ctx('strategy', true)) === 'apollo')
   check("a consented seat's ring includes Sovereign from the FIRST station (born sovereign, the walk returns through it)", walk(true, 'sovereign').includes('sovereign') && walk(true, 'implement').includes('sovereign'))
   check('Sovereign never appears without consent from any start', (['default', 'implement', 'strategy', 'apollo', 'flow'] as PermissionMode[]).every(m => !walk(false, m).includes('sovereign')))
   process.env.MERCURY_CONCOURSE_WORKER = '1'

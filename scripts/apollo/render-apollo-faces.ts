@@ -1,6 +1,8 @@
 #!/usr/bin/env bun
 
 import { writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -91,9 +93,9 @@ for (const cols of [80, 120]) {
     check(`renders complete at ${cols} cols`, false, String(e).split('\n')[0])
     continue
   }
-  writeFileSync(`/tmp/apollo-poll-${cols}.txt`, poll)
-  writeFileSync(`/tmp/apollo-review-clean-${cols}.txt`, clean)
-  writeFileSync(`/tmp/apollo-review-blocked-${cols}.txt`, blocked)
+  writeFileSync(join(tmpdir(), `apollo-poll-${cols}.txt`), poll)
+  writeFileSync(join(tmpdir(), `apollo-review-clean-${cols}.txt`), clean)
+  writeFileSync(join(tmpdir(), `apollo-review-blocked-${cols}.txt`), blocked)
 
   check(
     'the poll letters every authored option A–D ("A. label" — letters replace the numeric ordinals)',
@@ -103,7 +105,7 @@ for (const cols of [80, 120]) {
   check('no numeric ordinals leak beside the letters', !/[1-5]\.\s*(Top-down|Side|First|Isometric|Other|Type something)/.test(poll) && !poll.includes('5.'))
   check('the poll ties the plain question to its technical bridge', poll.includes('camera'))
 
-  check('the review card leads with the ∵ seal + title', clean.includes('∵') && clean.includes('Apollo pre-flight review'))
+  check('the review card leads with the ◇ seal + title', clean.includes('◇ Apollo pre-flight review') && blocked.includes('◇ Apollo pre-flight review'))
   check('the clean card says no blockers', clean.includes('No blockers'))
   check('the clean card links the spec files', clean.includes('spec.md') && clean.includes('levels.md'))
   check('the clean card says where to run', clean.includes('Run it:') && clean.includes('index.html'))
@@ -111,6 +113,6 @@ for (const cols of [80, 120]) {
   check('the blockered card lists each blocker', blocked.includes('Art direction') && blocked.includes('sound'))
 }
 
-console.log('\nText dumps: /tmp/apollo-{poll,review-clean,review-blocked}-{80,120}.txt')
+console.log(`\nText dumps: ${join(tmpdir(), 'apollo-{poll,review-clean,review-blocked}-{80,120}.txt')}`)
 console.log(failures === 0 ? '\n✅ APOLLO FACES RENDER-VERIFY PASS' : `\n❌ ${failures} RENDER CHECK(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

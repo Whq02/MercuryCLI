@@ -87,6 +87,8 @@ const ctx = (mode: string, bypassAvail: boolean) => ({
   isAutoModeAvailable: false,
 })
 process.env.MERCURY_AUTOPILOT = '1'
+check('implement reaches apollo with autopilot armed', getNextPermissionMode(ctx('implement', true) as never) === 'apollo')
+check('an explicit strategy session exits to apollo', getNextPermissionMode(ctx('strategy', true) as never) === 'apollo')
 check('flag ON + bypass available: bypass → autopilot', getNextPermissionMode(ctx('sovereign', true) as never) === 'autopilot')
 check('autopilot wraps to default', getNextPermissionMode(ctx('autopilot', true) as never) === 'default')
 check('flag ON + bypass NOT available: bypass → default (availability can never exceed bypass)', getNextPermissionMode(ctx('sovereign', false) as never) === 'default')
