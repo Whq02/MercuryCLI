@@ -19,6 +19,7 @@ export interface CrewAgentTokens {
   context: number | null
   input: number | null
   output: number | null
+  cached?: number | null
 }
 
 export interface CrewAgentFacts {
@@ -65,11 +66,12 @@ function tokensOf(row: WorkRowV1): CrewAgentTokens | null {
   const input = typeof row.inputTokens === 'number' && Number.isFinite(row.inputTokens) ? row.inputTokens : null
   const output = typeof row.outputTokens === 'number' && Number.isFinite(row.outputTokens) ? row.outputTokens : null
   const context = positive(row.contextTokens)
-  if (input !== null && output !== null && input + output > 0) {
-    return { total: input + output, context, input, output }
+  const cached = typeof row.cacheReadTokens === 'number' && Number.isFinite(row.cacheReadTokens) && row.cacheReadTokens >= 0 ? row.cacheReadTokens : null
+  if (input !== null && output !== null && (input + output > 0 || context !== null)) {
+    return { total: input + output, context, input, output, cached }
   }
   const total = positive(row.totalTokens)
-  return total === null ? null : { total, context, input: null, output: null }
+  return total === null ? null : { total, context, input: null, output: null, cached }
 }
 
 export function crewStateOf(row: Pick<WorkRowV1, 'status' | 'paused' | 'stopReason' | 'idle'>): CrewAgentState {
@@ -287,7 +289,14 @@ export function crewSpendLabel(facts: CrewAgentFacts): string | null {
 export function crewTokensBreakdown(facts: CrewAgentFacts): string | null {
   const t = facts.tokens
   if (t === null || t.input === null || t.output === null) return null
-  return `${formatTokens(t.input)} in · ${formatTokens(t.output)} out`
+  return `${formatTokens(t.input)} in · ${formatTokens(t.output)} out${(t.cached ?? 0) > 0 ? ` · ${formatTokens(t.cached!)} cached` : ''}`
+}
+
+export function crewTokensSummary(facts: CrewAgentFacts): string {
+  const label = crewTokensLabel(facts)
+  if (label === null) return 'usage not reported'
+  const breakdown = crewTokensBreakdown(facts)
+  return breakdown === null ? label : `${label} · ${breakdown}`
 }
 
 export function crewCostLabel(facts: CrewAgentFacts): string | null {

@@ -1,0 +1,3 @@
+◐ Running 1 agents… (ctrl+o to expand)
+└─  agent  (scout)  · fixture/crew · 0 tool uses
+   14.3k context · 9.8k in · 2.5k out · 42k cached · landed…

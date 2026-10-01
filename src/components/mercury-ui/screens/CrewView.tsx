@@ -16,7 +16,7 @@ import {
   crewSettled,
   crewStatusWords,
   crewWaitLine,
-  crewTokensLabel,
+  crewTokensSummary,
   crewUnreadLabel,
   type CrewAgentFacts,
   crewWaitHolders,
@@ -73,7 +73,9 @@ const OPEN_GATE = { paused: false, parked: 0 } as const
 const NAME_W = 20
 const MODEL_W = 18
 const STATUS_W = 34
-const TOKENS_W = 14
+function crewRowWidths(width: number, status: string): { name: number; status: number } {
+  return { name: width >= 94 && width < 110 ? 12 : NAME_W, status: Math.min(STATUS_W, Math.max(8, status.length)) }
+}
 
 export function CrewView({
   onClose,
@@ -298,7 +300,7 @@ export function CrewView({
     )
   }
 
-  const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, Math.min((columns || 80) - 6, 120))
+  const width = popup ? Math.max(0, Math.min(columns, 120)) : Math.max(56, (columns || 80) - 6)
   const visible = Math.max(4, (termRows || 24) - 9)
   const win = paneWindow(rows.length, sel, visible)
   const selectedRow = rows[sel]
@@ -389,6 +391,8 @@ function AgentRow({
   const holders = crewWaitHolders(facts)
   const unread = crewUnreadLabel(facts)
   const parkedByOperator = crewOperatorPauseParts(facts)
+  const status = crewStatusWords(facts, now)
+  const cells = crewRowWidths(width, status)
   return (
     <Box width={width}>
       <Text wrap="truncate-end">
@@ -396,11 +400,11 @@ function AgentRow({
         {facts.running && !pending && wait === null ? <WorkingGlyph color={tokens.success} active /> : <Text color={wait !== null ? tokens.warning : tone}>{wait !== null ? GLYPH.pending : glyph}</Text>}
         <Text bold={on} color={nameColor}>
           {' '}
-          {padTo(truncateToWidth(facts.name, NAME_W), NAME_W)}
+          {padTo(truncateToWidth(facts.name, cells.name), cells.name)}
         </Text>
         <Text color={settled ? tokens.textMuted : tokens.textSecondary}> {padTo(truncateToWidth(crewModelLabel(facts), MODEL_W), MODEL_W)}</Text>
-        <Text color={tone}> {padTo(truncateToWidth(crewStatusWords(facts, now), STATUS_W), STATUS_W)}</Text>
-        <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
+        <Text color={tone}> {padTo(truncateToWidth(status, cells.status), cells.status)}</Text>
+        <Text color={tokens.textPrimary}> {crewTokensSummary(facts)}</Text>
         <Text color={tokens.textMuted}>
           {' '}
           {crewElapsedLabel(facts, now)}
@@ -448,7 +452,7 @@ function NamedRow({
           {' '}
           {padTo(truncateToWidth(paused && facts.paused !== null ? pauseStatusWords(facts.paused, now) : facts.status, STATUS_W), STATUS_W)}
         </Text>
-        <Text color={tokens.textPrimary}> {padTo(crewTokensLabel(facts) ?? CREW_MODEL_UNKNOWN, TOKENS_W)}</Text>
+        <Text color={tokens.textPrimary}> {crewTokensSummary(facts)}</Text>
         <Text color={tokens.textMuted}> {member.online ? crewElapsedLabel(facts, now) : CREW_MODEL_UNKNOWN}</Text>
         <Text color={member.unread > 0 ? tokens.warning : tokens.textMuted}>
           {' · '}

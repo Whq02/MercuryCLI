@@ -246,6 +246,7 @@ export type WorkRowV1 = {
   totalTokens?: number
   inputTokens?: number
   outputTokens?: number
+  cacheReadTokens?: number
   contextTokens?: number
   costUSD?: number
   unpricedTurns?: number

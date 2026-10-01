@@ -74,7 +74,6 @@ export function AgentProgressLine({
       {' '}
       {model !== undefined ? `· ${model} ` : ''}
       · {toolUseCount} {plural(toolUseCount, 'tool use')}
-      {tokensLabel !== undefined ? ` · ${tokensLabel}` : ''}
     </Text>
   )
 
@@ -98,6 +97,7 @@ export function AgentProgressLine({
       {backgrounded ? null : (
         <Text dimColor wrap="truncate-end">
           {isLast ? '   ' : '│  '}
+          {tokensLabel !== undefined ? `${tokensLabel} · ` : ''}
           {status}
         </Text>
       )}
