@@ -14,12 +14,12 @@ symlinkSync(target, link)
 let checks = 0
 const check = (label: string, ok: unknown): void => { assert(ok, label); checks++; console.log(`PASS ${label}`) }
 try {
-  const plain = ['node', 'app', '-p', 'hello']
-  check('an undeclared launch changes neither cwd nor arguments', !applyProjectRoot(plain) && process.cwd() === original && plain.join('|') === 'node|app|-p|hello')
-  const args = ['node', 'app', '--project-root', link, '-p', 'hello']
+  const plain = ['node', 'app', 'run', 'hello']
+  check('an undeclared launch changes neither cwd nor arguments', !applyProjectRoot(plain) && process.cwd() === original && plain.join('|') === 'node|app|run|hello')
+  const args = ['node', 'app', '--project-root', link, 'run', 'hello']
   check('the declaration applies before ordinary arguments', applyProjectRoot(args))
   check('the declared project is canonical and supports spaces', process.cwd() === target)
-  assert.deepEqual(args, ['node', 'app', '-p', 'hello'])
+  assert.deepEqual(args, ['node', 'app', 'run', 'hello'])
   process.chdir(original)
   const equals = ['node', 'app', `--project-root=${target}`, '--help']
   check('the equals spelling selects the same root', applyProjectRoot(equals) && process.cwd() === target)
@@ -28,7 +28,7 @@ try {
   const file = join(scratch, 'file.txt')
   writeFileSync(file, 'not a directory')
   for (const value of ['', '--help', join(scratch, 'missing'), file]) {
-    const invalid = ['node', 'app', '--project-root', value, '-p']
+    const invalid = ['node', 'app', '--project-root', value, 'run']
     const before = [...invalid]
     assert.throws(() => applyProjectRoot(invalid))
     assert.deepEqual(invalid, before)

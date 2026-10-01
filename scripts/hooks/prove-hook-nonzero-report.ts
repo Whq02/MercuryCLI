@@ -70,7 +70,7 @@ console.log('§1 LIVE — the settled turn reports the failed hook')
         },
       }),
     )
-    const run = spawnSync('node', [DIST, '-p', 'hi'], {
+    const run = spawnSync('node', [DIST, 'run', 'hi'], {
       cwd: proj,
       env: {
         ...process.env,

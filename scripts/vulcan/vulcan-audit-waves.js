@@ -67,7 +67,7 @@ YOUR LENS — UI/UX + docs/registry honesty. The boot-menu miscellaneous group (
 
 phase('A5 skeptic sweep')
 const a5 = !want('A5') ? null : await agent(COMMON + `
-YOUR LENS — full-system skeptic. Assume the other four auditors missed something. Hunt cross-cutting failures: proof gaps (what do scripts/vulcan proofs NOT pin that could regress silently?), the optable-to-schema-to-addon triple agreement, concurrency (isConcurrencySafe false — but two Mercury sessions on one project? the shared token file? two clients one addon?), the events ring dropping under flood, install/uninstall idempotence + partial-failure states, lite-mode bypass via frontier ops, headless (-p) behavior of all new prompt seams, build.ts bundling of the generated modules, and anything in the previous waves' blind spots. Also sanity-check the surrounding files these changes touched for collateral damage.`,
+YOUR LENS — full-system skeptic. Assume the other four auditors missed something. Hunt cross-cutting failures: proof gaps (what do scripts/vulcan proofs NOT pin that could regress silently?), the optable-to-schema-to-addon triple agreement, concurrency (isConcurrencySafe false — but two Mercury sessions on one project? the shared token file? two clients one addon?), the events ring dropping under flood, install/uninstall idempotence + partial-failure states, lite-mode bypass via frontier ops, headless run behavior of all new prompt seams, build.ts bundling of the generated modules, and anything in the previous waves' blind spots. Also sanity-check the surrounding files these changes touched for collateral damage.`,
   { label: 'A5', model: 'fable', phase: 'A5 skeptic sweep', schema: SCHEMA })
 
 return { a1, a2, a3, a4, a5 }

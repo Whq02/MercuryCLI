@@ -11,7 +11,7 @@ const fixture = await startScriptedFixture(textScript('settings probe answered')
 const port = Number(new URL(fixture.base).port)
 
 async function bootExits(label: string, runHome: string, cwd: string): Promise<{ exited: boolean; code: number | null; ms: number; stdout: string }> {
-  const proc = spawn(NODE, [DIST, '-p', 'settings probe', '--output-format', 'json', '--model', 'claude-opus-4-8'], {
+  const proc = spawn(NODE, [DIST, 'run', 'settings probe', '--format', 'json', '--model', 'claude-opus-4-8'], {
     cwd,
     env: childEnv(runHome, port),
     stdio: ['ignore', 'pipe', 'pipe'],

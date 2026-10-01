@@ -85,7 +85,7 @@ section('§1 THE OVERRUN')
   captureStderr(false)
   setIsInteractive(true)
   check(
-    'headless: the overrun is ONE stderr line naming the hook, the event and the timeout (a -p run has no other channel)',
+    'headless: the overrun is ONE stderr line naming the hook, the event and the timeout (run has no other channel)',
     stderrLines.some(line => /^hook .* \(PreToolUse\) timed out after 1s and was killed; the PreToolUse it guarded proceeded\n$/.test(line)),
     JSON.stringify(stderrLines).slice(0, 300),
   )

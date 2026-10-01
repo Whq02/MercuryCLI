@@ -179,7 +179,7 @@ console.log('── the headless road prints every release ──')
 {
   const runHeadless = (command: string): string => {
     const w = world(`headless-${command.slice(1)}`)
-    const res = spawnSync(w.node, [dist, '-p', command], { cwd: w.cwd, encoding: 'utf8', env: w.env, timeout: vshotBudgetMs(120000) })
+    const res = spawnSync(w.node, [dist, 'run', command], { cwd: w.cwd, encoding: 'utf8', env: w.env, timeout: vshotBudgetMs(120000) })
     return res.stdout ?? ''
   }
   const printed = runHeadless('/update-notes')

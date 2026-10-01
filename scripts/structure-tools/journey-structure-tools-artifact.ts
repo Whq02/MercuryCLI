@@ -19,8 +19,8 @@ writeFileSync(join(dir, 'util.ts'), 'export const x = 1\n')
 
 const prompt = `Use ToolSearch to load the Structure tool, then call Structure exactly once with op:"query" and pattern:"legacy_log($X)". Reply with ONLY the matched file path and the captured $X value, nothing else.`
 
-console.log('journey: one -p turn through the built artifact (billed)')
-const out = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, '-p', prompt, '--allowed-tools', 'ToolSearch,Structure'], {
+console.log('journey: one run through the built artifact (billed)')
+const out = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'run', prompt, '--allowed-tools', 'ToolSearch,Structure'], {
   cwd: dir,
   encoding: 'utf8',
   timeout: 240_000,

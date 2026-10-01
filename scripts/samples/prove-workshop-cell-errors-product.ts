@@ -85,7 +85,7 @@ const env = {
   ANTHROPIC_API_KEY: API_KEY,
 }
 const run = await new Promise<{ code: number | null; stderr: string }>(resolveRun => {
-  const child = spawn(NODE, [DIST, '-p', 'run the five cells', '--model', MODEL, '--allowed-tools', 'Workshop,Bash'], { cwd, env })
+  const child = spawn(NODE, [DIST, 'run', 'run the five cells', '--model', MODEL, '--allowed-tools', 'Workshop,Bash'], { cwd, env })
   let stderr = ''
   child.stderr.on('data', chunk => (stderr += chunk))
   child.stdout.on('data', () => {})
