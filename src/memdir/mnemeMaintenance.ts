@@ -177,7 +177,7 @@ export function runDueMaintenance(
   trigger: MnemeMaintenanceTrigger,
   opts: { dir?: string; force?: boolean } = {},
 ): Promise<MnemeMaintenanceOutcome> {
-  if (!mnemeEnabled()) return Promise.resolve({ ran: false, trigger, reason: 'mneme off' })
+  if (!mnemeEnabled()) return Promise.resolve({ ran: false, trigger, reason: 'memory off' })
   if (inflight) return inflight
   const dir = opts.dir ?? mnemeLibraryDir()
   const run = (async (): Promise<MnemeMaintenanceOutcome> => {

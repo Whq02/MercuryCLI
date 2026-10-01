@@ -165,20 +165,6 @@ export const STARTUP_MENU: readonly MenuRow[] = [
     },
   },
   {
-    env: 'MERCURY_MNEME',
-    label: 'Project facts & decisions (MNEME)',
-    group: 'memory & missions',
-    kind: 'toggle',
-    options: ['1'],
-    defaultLabel: 'off',
-    summary: 'long-term memory organized by topic — the agent saves and recalls notes across sessions',
-    detail: {
-      controls: "Long-term facts and decisions organized as hand-inspectable topic documents beside the always-on notes and lessons. A just-recorded fact is findable immediately; corrections supersede (the old value stays as history, never as current truth); maintenance runs itself at boot and turn end. Inspect, search, correct and maintain it all from /memory. Needs auto-memory on (it is, unless you disabled it). No model calls, no spend — capture is explicit.",
-      on: ["the agent gains record/search/read/correct memory tools", "facts consolidate into topic documents automatically (boot + turn-end upkeep)", "/memory shows status, search, corrections and maintenance; /health has a Memory row"],
-      off: ["nothing written, no memory tools added", "the always-on notes + experience-card lessons keep working"],
-    },
-  },
-  {
     env: 'MERCURY_SESSION_SUBAGENTS',
     label: 'Sub-agents',
     group: 'agents',

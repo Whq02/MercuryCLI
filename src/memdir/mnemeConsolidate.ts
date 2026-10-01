@@ -349,7 +349,7 @@ export function maybeConsolidate(
   } = {},
 ): ConsolidateResult {
   const none = (reason: string): ConsolidateResult => ({ consolidated: false, reason, docsTouched: [], entries: 0 })
-  if (!mnemeEnabled()) return none('mneme off')
+  if (!mnemeEnabled()) return none('memory off')
   const dir = opts.dir ?? mnemeLibraryDir()
   const peek = readBuffer(dir)
   let staleConsuming = false

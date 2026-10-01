@@ -76,7 +76,7 @@ export function correctFact(input: {
   dir?: string
   now?: Date
 }): MnemeCorrectResult {
-  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'MNEME is disabled (MERCURY_MNEME is not on).' }
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (autoMemoryEnabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
   const text = oneLine(String(input.text ?? '')).trim()
   const source = sigSafe(String(input.source ?? '')).trim()
@@ -137,7 +137,7 @@ export function retireFact(input: {
   dir?: string
   now?: Date
 }): MnemeCorrectResult {
-  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'MNEME is disabled (MERCURY_MNEME is not on).' }
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (autoMemoryEnabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
   const reason = oneLine(String(input.reason ?? '')).trim()
   const source = sigSafe(String(input.source ?? '')).trim()

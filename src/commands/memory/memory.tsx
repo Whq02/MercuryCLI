@@ -119,7 +119,7 @@ async function statsReply(): Promise<string> {
   const { memoryVerbsEnabled, memoryVerbsWhyNot } = await import('../../memdir/memoryVerbs.js')
   const status = mnemeStatus()
   if (!status.enabled) {
-    return 'MNEME is off (MERCURY_MNEME) — no buffer, no topic docs, no memory verbs.'
+    return 'memory is off (autoMemoryEnabled is false in settings) — no buffer, no topic pages, no memory verbs.'
   }
   const receipts = readMaintenanceReceipts(undefined, 50)
   const refusals = receipts.filter(r => /refus/i.test(r.reason ?? '')).length

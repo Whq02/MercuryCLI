@@ -108,7 +108,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
           summary: cap(`${d.slug}: ${d.summary}`),
           capturedAt: d.updated,
           why: `topic matches '${hit}'`,
-          deref: `mneme_read slug=${d.slug}`,
+          deref: `Recall read:"doc:${d.slug}"`,
           tier: 1,
         })
       }
@@ -126,7 +126,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
           capturedAt: sig?.[2]?.trim(),
           source: sig?.[3]?.trim(),
           why: `content matches '${t}'`,
-          deref: `mneme_read slug=${h.slug}`,
+          deref: `Recall read:"doc:${h.slug}"`,
           tier: 2,
         })
       }
@@ -139,7 +139,7 @@ export function collectMemoryRefs(query: string, opts: CollectOpts = {}): Memory
           status: 'unconsolidated',
           summary: cap(h.text.replace(/ \[unconsolidated.*$/, '')),
           why: `recent unconsolidated matches '${t}'`,
-          deref: `mneme_grep pattern=${t}`,
+          deref: `Recall query:"${t}"`,
           tier: 2,
         })
       }

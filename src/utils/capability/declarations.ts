@@ -52,7 +52,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     operations: ['supersede', 'amend', 'retract'],
     cancellation: 'not-applicable',
     latency: 'fast',
-    gate: 'MERCURY_MNEME',
     proof: 'scripts/memory/prove-verbs-lifecycle.ts',
   },
   Checkpoint: {
@@ -165,7 +164,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'observation',
     cancellation: 'not-applicable',
     latency: 'fast',
-    gate: 'MERCURY_MNEME',
     proof: 'scripts/memory/prove-verbs-lifecycle.ts',
   },
   Reflect: {
@@ -174,7 +172,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'observation',
     cancellation: 'cooperative',
     latency: 'interactive',
-    gate: 'MERCURY_MNEME',
     proof: 'scripts/memory/prove-reflect-grounding.ts',
   },
   Retain: {
@@ -183,7 +180,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     class: 'mutation',
     cancellation: 'not-applicable',
     latency: 'fast',
-    gate: 'MERCURY_MNEME',
     proof: 'scripts/memory/prove-retain-honesty.ts',
   },
   Glob: {

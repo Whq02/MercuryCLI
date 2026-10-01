@@ -7,16 +7,14 @@ import { listTopicDocs } from './mnemeConsolidate.js'
 import { grepAll, readDocLines, catalogDocs, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, retireFact, type MnemeCorrectResult } from './mnemeCorrect.js'
 import { docFileName, parseEntryLine, liveSeqs } from './mnemeTopicDocs.js'
-import { isAutoMemoryEnabled } from './paths.js'
 
 
 export function memoryVerbsEnabled(): boolean {
-  return mnemeEnabled() && isAutoMemoryEnabled()
+  return mnemeEnabled()
 }
 
 export function memoryVerbsWhyNot(): string | null {
-  if (!mnemeEnabled()) return 'MERCURY_MNEME is off (the verbs ride the MNEME backend)'
-  if (!isAutoMemoryEnabled()) return 'auto-memory is disabled in settings'
+  if (!mnemeEnabled()) return 'memory is off (autoMemoryEnabled is false in settings)'
   return null
 }
 
@@ -70,7 +68,7 @@ export function retainItems(
         status: 'refused',
         reason: mnemeEnabled()
           ? 'the buffer append failed (disk error or over-cap content) — the fact was NOT stored'
-          : 'MNEME is off — nothing was stored',
+          : 'memory is off — nothing was stored',
       })
       return
     }

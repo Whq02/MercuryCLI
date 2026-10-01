@@ -133,7 +133,7 @@ export function computeHarnessMapLines(): string[] {
       ? '- Aseprite lanes are ARMED: the `Aseprite` tool drives the local Aseprite in BATCH mode per operation (sprite census via op:"info", PNG/GIF/sprite-sheet exports, new sprites, Lua run-script — exports and creates ask naming their files, run-script always asks; a GUI is never launched). The tool joins the catalog beside sprite files or wherever the app is located; no Aseprite on the box ⇒ ops teach the install roads. Nothing is installed or launched for you.'
       : null,
     mnemeEnabled()
-      ? '- Topic memory (MNEME) is ARMED: the mneme_* tools maintain long-term topic documents beside auto-memory — prefer them for durable facts/decisions. Record with mneme_observe (findable IMMEDIATELY via mneme_grep, even before consolidation); when a fact CHANGES, use mneme_correct (supersede by seq — never record a contradicting duplicate); mneme_retire marks a fact no longer current.'
+      ? '- Memory: Retain saves a durable fact (findable at once through Recall, before it is consolidated into a topic page); when a fact CHANGES, Correct supersedes it by id — never record a contradicting duplicate; retract marks a fact no longer current. /memory is the front door.'
       : null,
     crewEnabled() ? `- Crews: ${CREW_VIEW_DOOR} manages named crew workers.` : null,
   ]

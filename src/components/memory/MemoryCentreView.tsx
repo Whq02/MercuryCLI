@@ -54,7 +54,7 @@ interface CentreRow {
 function refDetail(ref: MemoryRef): string[] {
   const lines: string[] = []
   if (ref.kind === 'mneme-topic' || ref.kind === 'mneme-fact') {
-    const slug = ref.kind === 'mneme-topic' ? ref.refId.slice('mneme-topic:'.length) : ref.deref.replace(/^mneme_read slug=/, '')
+    const slug = ref.kind === 'mneme-topic' ? ref.refId.slice('mneme-topic:'.length) : ref.deref.replace(/^Recall read:"doc:/, '').replace(/"$/, '')
     const r = readDocLines(slug, {})
     if (r) {
       lines.push(...r.content.split('\n').slice(0, 14))
@@ -96,7 +96,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       kind: 'info',
       label: st.enabled
         ? `project facts & decisions (mneme): ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`
-        : 'project facts & decisions (mneme): off — enable in the boot menu (MERCURY_MNEME)',
+        : 'project facts & decisions: off — memory is disabled in settings (autoMemoryEnabled)',
     })
     rows.push({
       id: 'lessons',

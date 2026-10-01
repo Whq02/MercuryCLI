@@ -203,19 +203,6 @@ export async function* handleStopHooks(
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }
       mneme.scheduleMnemeMaintenance('turn-end')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const observe = require('../memdir/mnemeObserveTurn.js') as {
-        flushMnemeTurnObservation: (owner: string) => boolean
-      }
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const ownerResolve = require('../services/run/resolveOwner.js') as {
-        ownerFromToolUseContext: (context: { owner?: unknown; agentId?: string }) => unknown
-      }
-      try {
-        observe.flushMnemeTurnObservation(String(ownerResolve.ownerFromToolUseContext(toolUseContext)))
-      } catch (error) {
-        logForDebugging(`mneme turn observation failed: ${errorMessage(error)}`)
-      }
     }
   }
 
