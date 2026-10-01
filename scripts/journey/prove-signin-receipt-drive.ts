@@ -239,6 +239,7 @@ function chatSends(): Send[] {
     { minTick: 10, ...composerGate, data: '/logins anthropic', mark: 'composer' },
     { afterPrevTicks: 4, data: '\r' },
     { atTick: 320, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
+    { requireAwait: true, awaitText: 'Sign in / re-login', awaitSettleTicks: 3, data: '\r', mark: 'card' },
     { atTick: 560, awaitText: 'Signed in as', awaitSettleTicks: 5, data: '\r', mark: 'pane' },
     { atTick: 640, awaitText: 'Login successful', awaitSettleTicks: 4, data: '/status', mark: 'receipt' },
     { afterPrevTicks: 4, data: '\r' },
