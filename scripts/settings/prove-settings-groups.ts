@@ -234,6 +234,25 @@ try {
   check('nested writes delete and add leaves two levels down', isDeepStrictEqual(file().environment, { values: { KEEP: 'one', ADD: 'three' } }))
   write({ environment: { values: { KEEP: undefined, ADD: undefined } } })
   check('emptying a nested map removes it and its emptied parent', !('environment' in file()))
+  const { validateSettingsFileContent } = await import('../../src/utils/settings/validation.js')
+  const editVerdict = (document: object): string => {
+    const verdict = validateSettingsFileContent(JSON.stringify(document))
+    return verdict.isValid ? 'valid' : verdict.error.split('\n').slice(1).join(' ').trim()
+  }
+  check('an edit keeping every declared key is valid', editVerdict({ engine: { model: 'fixture-model' }, view: { files: true } }) === 'valid')
+  check('an edit adding an unknown root key is refused', editVerdict({ notASetting: true }).includes('Unrecognized field: notASetting'))
+  check('an edit adding an unknown key inside a group is refused', editVerdict({ engine: { notASetting: true } }).includes('engine: Unrecognized field: notASetting'))
+  check('a group refusal names the group, never a replacement', !/instead|use |rename|was/i.test(editVerdict({ engine: { notASetting: true } })))
+  check('an unknown key in guardrails keeps its latitude', editVerdict({ guardrails: { allow: [], futureRule: true } }) === 'valid')
+  const unknownFile = { notASetting: { keep: [false, 0, ''] }, engine: { notASetting: true, model: 'fixture-model' } }
+  fixture([unknownFile])
+  const unknownBytes = readFileSync(files[0]!, 'utf8')
+  const loaded = pipeline.getSettingsWithErrors()
+  check('a file with unknown keys loads without error', loaded.errors.length === 0, JSON.stringify(loaded.errors))
+  check('the declared sibling of an unknown key applies', loaded.settings.engine?.model === 'fixture-model')
+  check('unknown keys are carried, not read', isDeepStrictEqual((loaded.settings as Record<string, unknown>).notASetting, { keep: [false, 0, ''] }) && (loaded.settings.engine as Record<string, unknown>).notASetting === true)
+  check('loading a file with unknown keys writes no byte', readFileSync(files[0]!, 'utf8') === unknownBytes)
+  check('the unknown keys appear in no tip', JSON.stringify(loaded.errors).includes('notASetting') === false)
 } finally {
   rmSync(root, { recursive: true, force: true })
 }

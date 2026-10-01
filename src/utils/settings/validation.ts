@@ -129,6 +129,21 @@ export function formatZodError(error: z.ZodError, filePath: string): ValidationE
   return records
 }
 
+const EDIT_STRICT_GROUPS = [
+  'credentials', 'files', 'records', 'briefs', 'strategy', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
+  'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
+] as const
+
+export function editTimeSettingsSchema(): z.ZodObject {
+  const shape: Record<string, z.ZodType> = { ...SettingsSchema().shape }
+  for (const group of EDIT_STRICT_GROUPS) {
+    const declared = shape[group]
+    const inner = declared instanceof z.ZodOptional ? declared.unwrap() : declared
+    if (inner instanceof z.ZodObject) shape[group] = z.strictObject(inner.shape).optional()
+  }
+  return z.strictObject(shape)
+}
+
 export function validateSettingsFileContent(
   content: string,
 ): { isValid: true } | { isValid: false; error: string; fullSchema: string } {
@@ -142,8 +157,7 @@ export function validateSettingsFileContent(
       fullSchema: generateSettingsJSONSchema(),
     }
   }
-  const strictSchema = z.strictObject(SettingsSchema().shape)
-  const result = strictSchema.safeParse(parsed)
+  const result = editTimeSettingsSchema().safeParse(parsed)
   if (result.success) return { isValid: true }
   const lines = formatZodError(result.error, '').map(record => `  - ${record.path || '(root)'}: ${record.message}`)
   return {
