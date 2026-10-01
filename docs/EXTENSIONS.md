@@ -154,8 +154,7 @@ model reads and arrives for real only in hook and server environments.
    manifest's contributions changed, the row reads `changed — re-approve` and the card
    shows the diff.
 4. `mercury extensions validate .mercury/extensions/review-tools` lints everything the
-   runtime tolerates (unknown top-level keys, side files the runtime ignores, a hook
-   whose script is missing).
+   runtime tolerates (unknown top-level keys, a hook whose script is missing).
 5. Publish: push the folder as its own repository — a single-extension source — or add
    it to a catalogue. Others add the URL.
 

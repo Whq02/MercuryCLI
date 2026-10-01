@@ -116,14 +116,18 @@ console.log('[3] init scaffolds an extension and a source that validate clean')
   check('the source scaffold validates clean', validatedSource.code === 0, validatedSource.stdout.slice(0, 200))
 }
 
-console.log('[4] validate reports the ignored side files')
+console.log('[4] inspect reads the one manifest: other files beside it are never named')
 {
+  const J = (...parts: string[]): string => parts.join('')
+  const SIDE = [J('hooks/', 'hooks.json'), J('.mcp', '.json')] as const
   const noisy = join(scratch, 'my-tools')
   mkdirSync(join(noisy, 'hooks'), { recursive: true })
-  writeFileSync(join(noisy, 'hooks', 'hooks.json'), '{}')
-  writeFileSync(join(noisy, '.mcp.json'), '{}')
-  const report = run(['extensions', 'validate', noisy])
-  check('hooks/hooks.json and .mcp.json are named as ignored', report.stdout.includes('ignored: hooks/hooks.json') && report.stdout.includes('ignored: .mcp.json'), report.stdout.slice(0, 300))
+  for (const rel of SIDE) writeFileSync(join(noisy, rel), '{}')
+  const report = run(['extensions', 'inspect', noisy])
+  check('the folder validates clean with exit 0', report.code === 0 && report.stdout.includes('valid'), (report.stderr + report.stdout).slice(0, 300))
+  check('the text names neither file', SIDE.every(rel => !report.stdout.includes(rel)), report.stdout.slice(0, 300))
+  const asJson = json<Record<string, unknown>>(run(['extensions', 'inspect', noisy, '--json']).stdout)
+  check('--json carries no list of other files and no warnings', !('ignored' in asJson) && Array.isArray(asJson.warnings) && asJson.warnings.length === 0, JSON.stringify(asJson).slice(0, 300))
 }
 
 console.log('[5] /extensions is in the catalogue with its help-domain row; the retired routes are gone')

@@ -895,7 +895,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
   extensions
     .command('inspect <path>')
-    .description("The maker's linter: a manifest or a catalogue, its contributions, the ignored side files")
+    .description("The maker's linter: a manifest or a catalogue and its contributions")
     .option('--json', 'JSON output')
     .action(async (path, options) => {
       const { validateVerb } = await import('./extensions/cli.js')
