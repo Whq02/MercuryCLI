@@ -78,7 +78,7 @@ export const HELIX_POLICIES: HelixPolicy[] = [
     effort: 'high',
     env: {},
     headlessUnavailableReason:
-      'Route compilation engages via the operator-engaged routing surfaces (RouteWork over the coordination bus); a headless -p run has no routing seat — no current product path',
+      'Route compilation engages via the operator-engaged routing surfaces (RouteWork over the coordination bus); a headless run has no routing seat — no current product path',
   },
   {
     id: 'collaboration',
