@@ -37,7 +37,7 @@ for (const [name, needle] of chain) {
 const sigintIdx = mainBody.indexOf("process.on('SIGINT'")
 const sigintBand = mainBody.slice(Math.max(0, sigintIdx - 240), sigintIdx)
 check(
-  'the SIGINT handler carves out -p/--print (print.ts owns SIGINT there)',
+  'the SIGINT handler carves out run (print.ts owns SIGINT there)',
   sigintBand.includes('if (!isPrintModeArgv()) {'),
   sigintBand.slice(-160),
 )
