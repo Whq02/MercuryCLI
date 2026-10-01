@@ -682,6 +682,9 @@ async function run(): Promise<void> {
         ) {
           process.exit(commanderError.exitCode ?? 0)
         }
+        if (commanderError.code === 'commander.unknownOption') {
+          exitForCommanderError(commanderError)
+        }
         const { emitLoadError } = await import('./cli/headless/resume.js')
         emitLoadError(String(commanderError.message ?? error), 'stream-json')
         process.exit(

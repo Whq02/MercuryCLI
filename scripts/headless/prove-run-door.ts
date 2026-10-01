@@ -46,16 +46,13 @@ async function run(argv: string[], input = '', stdin: 'close' | 'open' | 'late' 
   return await new Promise(resolve => child.on('close', code => { clearTimeout(timeout); resolve({ code, out, err }) }))
 }
 try {
-  const flags = [
-    ['-p', '<prompt>'], ['--print', '<prompt>'],
-    ['--output-format', '--format text|json|rows'], ['--input-format', '--input rows'],
-    ['--include-partial-messages', '--partial'], ['--dangerously-bypass-permissions', '--sovereign'],
-    ['--allow-dangerously-bypass-permissions', '--allow-sovereign'], ['--permission-mode', '--mode <mode>'],
-  ] as const
-  for (const [flag, word] of flags) {
-    for (const argv of [[flag, '--help'], ['run', flag, '--format', 'rows', '--help']]) {
-      const result = await run(argv)
-      check(`run directs ${flag} to ${word} with exit 2 and only stderr`, result.code === 2 && result.out === '' && result.err === `Use mercury run ${word}.\n`, JSON.stringify(result))
+  const flags = ['-p', '--print', '--output-format', '--input-format', '--include-partial-messages', '--dangerously-bypass-permissions', '--allow-dangerously-bypass-permissions', '--permission-mode']
+  for (const prefix of [[], ['run'], ['run', '--format', 'rows']]) {
+    const control = await run([...prefix, '--frobnicate', 'hello'])
+    check('an unknown option is a parser error on stderr', control.code !== 0 && control.out === '' && control.err.startsWith("error: unknown option '--frobnicate'"), JSON.stringify(control))
+    for (const flag of flags) {
+      const result = await run([...prefix, flag, 'hello'])
+      check(`${flag} follows the ordinary unknown-option path`, result.code === control.code && result.out === '' && result.err === control.err.replaceAll('--frobnicate', flag), JSON.stringify(result))
     }
   }
   const beforeRefusals = api.messageRequests().length
@@ -69,7 +66,7 @@ try {
   check('apollo without a channel refuses with its reason', apollo.code === 2 && apollo.out === '' && /apollo.*channel/.test(apollo.err), JSON.stringify(apollo))
   check('permission refusals make no model requests', api.messageRequests().length === beforeRefusals)
   const help = await run(['run', '--help'])
-  check('run help names its prompt and formats', help.code === 0 && /run.*\[prompt\]/.test(help.out) && help.out.includes('--format') && help.out.includes('rows') && !flags.some(([flag]) => flag.startsWith('--') && help.out.includes(flag)), JSON.stringify(help))
+  check('run help names its prompt and formats', help.code === 0 && /run.*\[prompt\]/.test(help.out) && help.out.includes('--format') && help.out.includes('rows') && !flags.some(flag => flag.startsWith('--') && help.out.includes(flag)), JSON.stringify(help))
   const empty = await run(['run'])
   check('run with empty input exits 2 without an answer', empty.code === 2 && empty.out === '' && /mercury run/.test(empty.err), JSON.stringify(empty))
   for (const format of ['text', 'json', 'rows']) {

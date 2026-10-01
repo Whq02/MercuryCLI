@@ -23,12 +23,6 @@ async function main(): Promise<void> {
 
   const { inspectRunArgs } = await import('../cli/runArgs.js')
   const runArgs = inspectRunArgs(args)
-  if (runArgs.refusal) {
-    const { writeSync } = await import('node:fs')
-    writeSync(2, `${runArgs.refusal}\n`)
-    process.exit(2)
-  }
-
   const hasProjectRoot = args[0] === '--project-root' || args[0]?.startsWith('--project-root=')
   if (hasProjectRoot) {
     try {
