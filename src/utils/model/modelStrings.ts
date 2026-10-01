@@ -1,4 +1,3 @@
-
 import { getModelStrings as getModelStringsSlot, setModelStrings } from '../../bootstrap/state.js'
 import { getInitialSettings } from '../settings/settings.js'
 import {

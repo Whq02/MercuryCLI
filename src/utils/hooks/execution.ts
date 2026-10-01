@@ -213,7 +213,6 @@ export async function execCommandHook(
 
   const isWindows = getPlatform() === 'windows'
 
-  
   const shellType = hook.shell ?? DEFAULT_HOOK_SHELL
 
   const isPowerShell = shellType === 'powershell'

@@ -694,8 +694,6 @@ function MercuryModelWrapper({
   function handleEffort(mode: string): void {
     setEffort(mode)
     if (mode === 'supercode') {
-      
-      
       unpinAllLaunchEffort()
       updateSettingsForSource('userSettings', { engine: { effort: 'max', supercode: true } })
       if (settleOnSeat('max', () => setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true })))) return

@@ -205,7 +205,6 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   const credentials = await readCredentialPresences()
   const entries: WorkerModelEntryV1[] = []
   const seen = new Set<string>()
-  
   let operatorDefaultId: string | undefined
   try {
     const { getMainLoopModel } = await import('../../utils/model/model.js')

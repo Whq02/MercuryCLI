@@ -40,7 +40,6 @@ function useIdleAnimation<T extends string | number>(
   derive: (timeMs: number) => T,
   enabled = true,
 ): { animate: boolean; ref: unknown; value: T } {
-  
   const motionOk =
     intervalMs !== null && !(getInitialSettings().view?.reducedMotion ?? false)
   const animate = motionOk && enabled

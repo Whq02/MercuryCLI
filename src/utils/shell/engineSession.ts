@@ -1,5 +1,3 @@
-
-
 import { spawn, type ChildProcess } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
@@ -43,7 +41,6 @@ function pinnedEngineSessionCeiling(): number | null {
   const value = Number(text.trim())
   return Number.isSafeInteger(value) && value >= 1 ? value : null
 }
-
 
 export function resolveEngineSessionCeiling(setting?: number): number {
   const pinned = pinnedEngineSessionCeiling()

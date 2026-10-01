@@ -166,7 +166,6 @@ export function anthropicCredentialPresence(
         return false
       }
     })()
-  
   const bearer = reads?.bearerTokenSource?.() ?? readBearerTokenSource()
   const envBearer =
     bearer.hasToken && bearer.source !== 'claude.ai' && bearer.source !== 'credentials.keyCommand' && bearer.source !== 'none'

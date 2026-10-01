@@ -140,7 +140,6 @@ export function loginShadowWarning(): string | null {
   return loginShadowWarningFor(getAuthTokenSource().source)
 }
 
-
 export type WireCredentialSource =
   | { kind: 'env'; name: 'ANTHROPIC_API_KEY' | 'ANTHROPIC_AUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN' | 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR' }
   | { kind: 'helper' }

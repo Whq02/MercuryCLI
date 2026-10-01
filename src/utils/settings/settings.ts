@@ -479,7 +479,6 @@ export function getHooksFromOutsideCheckoutSources(): NonNullable<NonNullable<Se
   return merged.events?.hooks ?? {}
 }
 
-
 export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined {
   let helper: string | undefined
   for (const source of getEnabledSettingSources()) {

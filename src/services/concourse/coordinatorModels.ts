@@ -296,7 +296,6 @@ export function coordinatorEffortDetail(model: string, level: import('../../util
   return undefined
 }
 
-
 export function resolveCoordinatorEffort(): import('../../utils/effort.js').EffortLevel | undefined {
   const { getGlobalConfig } = require('../../utils/config.js') as typeof import('../../utils/config.js')
   const { normalizeEffortLevelString, getInitialEffortSetting } = require('../../utils/effort.js') as typeof import('../../utils/effort.js')

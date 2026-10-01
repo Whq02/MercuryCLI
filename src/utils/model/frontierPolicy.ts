@@ -1,6 +1,4 @@
 
-
-
 import {
   getRateLimitTier,
   isClaudeAISubscriber,
@@ -22,13 +20,13 @@ export const FRONTIER_MAX_20X_TIER = 'default_claude_max_20x'
 
 export type FrontierEligibilityCode =
   | 'eligible-env-pin'
-  | 'eligible-allowlist' 
+  | 'eligible-allowlist'
   | 'eligible-max-20x'
   | 'not-subscriber'
   | 'not-max'
   | 'unknown-rate-limit-tier'
   | 'not-20x'
-  | 'allowlist-excluded' 
+  | 'allowlist-excluded'
 
 export type FrontierCandidateVerdict = {
   id: string
@@ -50,7 +48,6 @@ export type FrontierFacts = {
   fableEnvPin: boolean
   fableId: string
   fableNatively1M?: boolean
-  
   allowlistPresent: boolean
   allowlistNamesFable: boolean
   allowlistPermits: (id: string) => boolean
@@ -68,7 +65,6 @@ function evaluateFableCandidate(f: FrontierFacts): FrontierCandidateVerdict {
     code: FrontierEligibilityCode,
   ): FrontierCandidateVerdict => ({ ...base, eligible, code })
 
-  
   if (f.allowlistPresent && !f.allowlistPermits(f.fableId)) {
     return verdict(false, 'allowlist-excluded')
   }

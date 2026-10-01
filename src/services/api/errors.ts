@@ -103,7 +103,6 @@ export const INVALID_API_KEY_ERROR_MESSAGE =
 export const INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL =
   'Invalid API key · Fix external API key'
 
-
 export function invalidCredentialWords(source: WireCredentialSource): string {
   switch (source.kind) {
     case 'env':
@@ -687,7 +686,6 @@ function composeAssistantMessageFromError(
     }
   }
 
-  
   if (status === 401 || message.toLowerCase().includes('x-api-key')) {
     const helperFailure = getApiKeyHelperFailure()
     if (helperFailure !== null && getAnthropicApiKeyWithSource().source === 'credentials.keyCommand') {

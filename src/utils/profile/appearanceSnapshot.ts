@@ -13,7 +13,6 @@ export type MercuryAppearanceSnapshot = {
   concreteTheme: ThemeName
   colorMode: TerminalColorMode
   accent: string
-  
   motion: 'full' | 'reduced'
   changedAt: number
 }
