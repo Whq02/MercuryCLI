@@ -1356,7 +1356,7 @@
     {
       "file": "scripts/render-continuity/prove-row-boundary-census.ts",
       "mechanism": "execSync-string",
-      "excerpt": "const hits = execSync(`grep -rln '<MessageRow' src/components src/screens src/tools 2>/dev/null || true`, {",
+      "excerpt": "const hits = execSync(`grep -rlnE '<MessageRow($|[[:space:]>/])' src/components src/screens src/tools 2>/dev/null || true`, {",
       "cls": "intentional-shell",
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
