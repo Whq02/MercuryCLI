@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-env: MERCURY_PROOF_POISON_GUARD MERCURY_PYTHON
-# gate-watch: scripts/run-all-suites.sh scripts/typecheck/fingerprint.sed
+# gate-watch: scripts/run-all-suites.sh scripts/run-drives.sh scripts/typecheck/fingerprint.sed
 # gate-watch: scripts/typecheck/prove-warm-replay.sh scripts/typecheck/run-all.sh
 # gate-watch: .github/workflows/gate.yml .github/workflows/drives.yml scripts/*/run-all.sh scripts/*/members.txt
 # gate-watch: scripts/lib/** scripts/ui/vshot.py
@@ -34,6 +34,7 @@ run_proof "$here/prove-gate-ledger.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/p
 run_proof "$here/prove-suite-class-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-suite-class-census.ts" || fail=1
 run_proof "$here/prove-drives-plan.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drives-plan.ts" || fail=1
 run_proof "$here/prove-observed-walk.py" /usr/bin/python3 "$here/prove-observed-walk.py" || fail=1
+run_proof "$here/prove-local-drives.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-local-drives.ts" || fail=1
 run_proof "$here/prove-hermetic-shard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hermetic-shard.ts" || fail=1
 run_proof "$here/prove-skip-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skip-census.ts" || fail=1
 run_proof "$here/prove-comment-anchor-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-comment-anchor-census.ts" || fail=1
