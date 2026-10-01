@@ -1,7 +1,7 @@
 # agent-experience — the cold-start benchmark
 
 How well does a model drive Mercury's tools in its first session? This suite
-measures it: thirteen realistic first-session tasks, run headless (`-p`) on the
+measures it: thirteen realistic first-session tasks, run headless (`run`) on the
 built bundle in a scratch project with a scratch config home, scored per run.
 
 ```sh
@@ -51,7 +51,7 @@ fixture received beside the run (`<out>/<family>/runs/<task>.hit-N.<kind>.json`)
 | delegate-agent | a subagent reads the test file and reports coverage; relay it | the Agent result mentions median; the relay names mean and median |
 | ide-diagnostics | open src/stats.js in the language server, report diagnostics | an LSP call whose result is not failed/unavailable |
 | browser-page | open the fixture page, report its title, screenshot | a Browser result carries the title; the title is reported (skipped by name when no browser resolves or the resolved browser does not come up within the launch probe's budget) |
-| guide-question | ask the guide agent how to change the permission mode | mechanical: the guide seat ran with the command roster; live: a real surface named (shift+tab, /authority, --permission-mode) |
+| guide-question | ask the guide agent how to change the permission mode | mechanical: the guide seat ran with the command roster; live: a real surface named (shift+tab, /authority, --mode) |
 | two-seats | two seats at once (count tests · list exports), merged | one assistant message with two Agent calls; both answered; both facts merged |
 | structural-rename | rename normalizeRecord to normaliseRecord structurally across the three source files (declaration, imports, uses) with AstSearch/AstEdit | no normalizeRecord left in src; normaliseRecord in all three files; only the three source files changed; README untouched; an AstEdit apply with a plan token happened; node --test still loads the modules (2 pass, the pre-existing 1 fail) |
 | resume-a / resume-b | remember a codeword; a second run resumes the session and recalls it | phase 2 recalls PELICAN-42; the resumed request carried the prior turn |
