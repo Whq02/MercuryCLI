@@ -563,6 +563,15 @@ export async function processSlashCommand(
     const registered = findCommand([...builtinCommands()], commandName)
     if (registered) {
       if (registered.type === 'local' && registered.userPrivate === true && isCommandEnabled(registered)) {
+        if (registered.seat === 'screen' && getIsNonInteractiveSession()) {
+          const line = unavailableCommandLine(registered)
+          return {
+            messages: [],
+            shouldQuery: false,
+            resultText: line,
+            commandRefused: true,
+          }
+        }
         try {
           const module = await registered.load()
           const result = await module.call(args, context as unknown as Parameters<typeof module.call>[1])
