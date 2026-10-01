@@ -107,6 +107,8 @@ const { SettingsPopupSlot, settingsPopupGeometry } = await import('../../src/com
 const { ScrollKeybindingHandler } = await import('../../src/components/ScrollKeybindingHandler.js')
 const store = await import('../../src/utils/cockpit/settingsPopup.js')
 const { call } = await import('../../src/commands/login/login.js')
+const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.js')
+const familyRows = loginFamilyRows({ engineLegs: true })
 let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
@@ -177,6 +179,12 @@ for (const s of sizes) {
   seed = 'idle'; estate = 'absent'
   let board = await mount(s)
   fits(board.m, s, 'menu'); save(board.m, s, 'menu')
+  check(`${s.columns}x${s.rows}: the eleven-family list starts without a digit or a reserved ordinal column`, familyRows.length === 11 && board.m.screen().includes('❯ OpenAI — ChatGPT'))
+  const menu = board.m.screen()
+  for (const digit of ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '１', '９']) {
+    await key(board.m, digit)
+    check(`${s.columns}x${s.rows}: hidden shortcut ${digit} neither selects nor opens a family`, board.m.screen() === menu)
+  }
   const compact = isCompact(s)
   if (compact) {
     const body = bodyRows(board.m, s)
@@ -185,12 +193,12 @@ for (const s of sizes) {
   }
   for (let index = 1; index < 11; index++) {
     await key(board.m, KEY.down)
-    check(`${s.columns}x${s.rows}: menu focus ${index + 1} is visible`, /❯|›/.test(board.m.screen()))
+    check(`${s.columns}x${s.rows}: arrows reach family ${index + 1} without a digit or a reserved ordinal column`, board.m.screen().includes(`❯ ${familyRows[index]!.label.slice(0, 24)}`))
     if (compact) check(`${s.columns}x${s.rows} compact: the marker follows the focus to ${index + 1} of 11`, markerOf(board.m) === `${index + 1} of 11`, markerOf(board.m))
   }
+  save(board.m, s, 'menu-bottom')
   if (compact) {
     check(`${s.columns}x${s.rows} compact: the last family row is reached by arrows with the title row still pinned`, board.m.screen().includes('Meta — API key (Muse)') && board.m.lines().some(line => line.includes(compactHint)))
-    save(board.m, s, 'menu-bottom')
     for (let index = 0; index < 10; index++) await key(board.m, KEY.up)
     check(`${s.columns}x${s.rows} compact: arrows return to the first row and the marker reads 1 of 11`, markerOf(board.m) === '1 of 11' && board.m.screen().includes('OpenAI — ChatGPT'), markerOf(board.m))
   } else {
@@ -210,6 +218,7 @@ for (const s of sizes) {
     board = await mount(s, family)
     await key(board.m, KEY.enter)
     save(board.m, s, `${family}-choice`)
+    if (arm) check(`${family}: the short credential choice keeps its digit shortcuts`, board.m.screen().includes('❯ 1.'))
     if (compact && arm) check(`${family} compact: the choice screen keeps its title and single-line rows without the intro paragraph`, rowsVisible(board.m, s) <= 1 + (family === 'openrouter' ? 3 : 2) && bodyRows(board.m, s).every(line => stringWidth(line) <= geometryOf(s).inner), bodyRows(board.m, s).join(' | '))
     if (arm) await key(board.m, arm)
     await key(board.m, 'fixture-draft-with-caret-0123456789')
@@ -318,6 +327,7 @@ for (const s of sizes) {
       board = await mount(s, family)
       await key(board.m, KEY.enter)
       check(`${estate} ${family}: the account actions stay inside the popup`, await walk(board.m, 'Sign in / re-login'))
+      check(`${estate} ${family}: the account actions keep their digit shortcuts`, /1\.\s+Sign in \/ re-login/.test(board.m.screen()))
       save(board.m, s, `${estate}-${family}-actions`)
       for (let i = 0; i < 35; i++) { const before = board.m.screen(); await key(board.m, '\x1b[5~'); if (before === board.m.screen()) break }
       check(`${estate} ${family}: the boot owner's account identity is reachable`, await walk(board.m, `${id}@example.com`))

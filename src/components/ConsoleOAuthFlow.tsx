@@ -281,6 +281,8 @@ export function ConsoleOAuthFlow({
             </Text>
           )}
           <Select
+            hideIndexes
+            disableSelection="numeric"
             visibleOptionCount={compact ? Math.max(1, Math.min(rows, idleRows.length)) : idleRows.length}
             defaultFocusValue={defaultFocus}
             layout={popup ? 'compact-vertical' : 'compact'}
