@@ -6,7 +6,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Added an xAI usage meter in /usage through an optional management key
 - Added Meta Muse models with a Model API key from /logins
 - Added /advise, a per-chat advisor switch that survives a resume, with /config → Advisor as the settings for every chat
-- Added the advisor's interval in minutes and a status-row chip while it is on
+- Added an advisor interval in minutes, and a chip in the status row while the advisor is on
 - Added the credit balance beside every sign-in's usage meter
 - Added deepseek, kimi and glm as model words for each family's newest model
 - Added the DeepSeek, Kimi and GLM model names to the start screen's strip
@@ -14,14 +14,14 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the advisor running in every session at once; crewmates are never advised
 - Fixed a full conversation getting stuck when Auto-compact was off
 - Fixed automatic compaction starting too close to the context limit
-- Fixed a full usage window not saying what carries your requests from there
+- Fixed a full usage window not saying what takes your requests until it resets
 - Fixed a tool row's counter running on after the tool had finished
 - Fixed a very long single-line prompt hanging before anything was sent
 - Fixed the exact token count running low after a thinking turn
-- Fixed a very long GPT conversation getting stuck at the context limit because its emergency compaction was cut off while the model was still reading the prompt
+- Fixed a very long GPT conversation getting stuck at the context limit instead of compacting
 - Fixed /logins opening as a bottom panel instead of a popup
 - Fixed an idle session polling a crew file when it had no crew
-- Fixed a parked session's own wake reading "due now" for as long as it stood
+- Fixed a parked session's scheduled wake showing "due now" the whole time it was parked
 - Fixed agent worktrees starting from a stale main or colliding on the repository lock
 
 ## 1.0.0-beta.25
