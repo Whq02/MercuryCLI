@@ -21,6 +21,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a very long GPT conversation getting stuck at the context limit instead of compacting
 - Fixed /logins opening as a bottom panel instead of a popup
 - Fixed the /logins list showing numbers on nine rows and none on the last two: every row is plain and the arrow keys and Enter pick
+- Fixed the /status Accounts row listing every key family separately once xAI and Meta joined; families in the same state share one line again
 - Fixed an idle session polling a crew file when it had no crew
 - Fixed a parked session's scheduled wake showing "due now" the whole time it was parked
 - Fixed agent worktrees starting from a stale main or colliding on the repository lock
