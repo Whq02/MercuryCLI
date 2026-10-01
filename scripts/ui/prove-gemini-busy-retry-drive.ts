@@ -324,20 +324,17 @@ const retryLineOf = (frame: string): { seconds: number; attempt: number; of: num
 }
 const debugLinesOf = (home: string): string[] => {
   const debugDir = join(home, 'debug')
-  return existsSync(debugDir) ? readdirSync(debugDir).flatMap(name => readFileSync(join(debugDir, name), 'utf8').split('\n')) : []
+  return existsSync(debugDir) ? readdirSync(debugDir).filter(name => name.endsWith('.txt')).flatMap(name => readFileSync(join(debugDir, name), 'utf8').split('\n')) : []
 }
-const DEBUG_FLUSH_MS = 1200
-async function settledDebugLines(home: string): Promise<string[]> {
+async function retryDebugLines(home: string, isAttempt: (line: string) => boolean, expected: number): Promise<string[]> {
+  const deadline = Date.now() + vshotBudgetMs(30_000)
   let lines = debugLinesOf(home)
-  for (let round = 0; round < 5; round++) {
-    await new Promise(resolveWait => setTimeout(resolveWait, DEBUG_FLUSH_MS))
-    const again = debugLinesOf(home)
-    if (again.length === lines.length) return again
-    lines = again
+  while (lines.filter(isAttempt).length < expected && Date.now() < deadline) {
+    await new Promise(resolveWait => setTimeout(resolveWait, 50))
+    lines = debugLinesOf(home)
   }
   return lines
 }
-const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const sizesFor = (road: Road): Array<[number, number]> => (SIZES_ARG !== undefined || road.name === 'gemini' ? SIZES : [SIZES[0]!])
 
 console.log("a provider's 'try again later' refusal is retried quietly on a growing wait on every road; the retry line only past the quiet window, the red line only when the ladder is spent, one calm line naming the provider on a recovery, and the operator's stop ends a wait at once — the built cockpit in a PTY")
@@ -410,8 +407,9 @@ try {
         check(`${tag}: every send became due`, shot.receipts === shot.sends, `${shot.receipts}/${shot.sends}`)
         check(`${tag}: the warm-up turn answered at once and painted`, seenAll[0]?.status === 200 && (shot.marks.warm ?? '').includes(WARM_ANSWER), `${seenAll[0]?.status}`)
         const seen = seenAll.slice(1)
-        const debugLines = await settledDebugLines(home)
-        const attemptLines = debugLines.filter(line => new RegExp(`${escape(road.tag)} busy refusal .* — retry \\d+ of \\d+ after `).test(line))
+        const isAttempt = (line: string): boolean => line.includes(`${road.tag} busy refusal `) && / — retry \d+ of \d+ after /.test(line)
+        const debugLines = await retryDebugLines(home, isAttempt, world === 'spent' ? 6 : world === 'recover' ? 2 : 0)
+        const attemptLines = debugLines.filter(isAttempt)
         if (world === 'spent') {
           const quiet = shot.marks.quiet ?? ''
           const quietAt = shot.spawnedAtMs + (shot.markMs.quiet ?? 0)
