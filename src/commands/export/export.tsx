@@ -9,7 +9,7 @@ import type {
 import type { Message, UserMessage } from '../../types/message.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { errorMessage } from '../../utils/errors.js'
-import { renderMessagesToPlainText } from '../../utils/exportRenderer.js'
+import { transcriptExport, transcriptExportText, truncateExportResults } from './transcript.js'
 
 export function extractFirstPrompt(messages: Message[]): string {
   const first = messages.find(message => message.type === 'user') as UserMessage | undefined
@@ -60,14 +60,19 @@ export async function call(
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
-  const content = await renderMessagesToPlainText(context.messages, context.options.tools ?? [])
-
   const trimmed = args.trim()
+  const json = /\.json$/i.test(trimmed)
+  const connector = getFocusedSessionConnector()
+  const document = truncateExportResults(transcriptExport(context.messages, {
+    id: connector.sessionId(),
+    cwd: connector.workspace().cwd,
+  }))
+  const content = json ? JSON.stringify(document, null, 2) + '\n' : transcriptExportText(document)
   if (trimmed) {
     try {
       const path = resolve(
-        getFocusedSessionConnector().workspace().cwd,
-        forceTxtExtension(trimmed),
+        connector.workspace().cwd,
+        json ? trimmed : forceTxtExtension(trimmed),
       )
       writeFileSync(path, content, { encoding: 'utf8', flush: true })
       onDone(`Conversation exported to: ${path}`)

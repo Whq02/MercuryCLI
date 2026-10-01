@@ -4,8 +4,8 @@ import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
 const exportCommand = {
   type: 'local-jsx',
   name: 'export',
-  description: 'Save this conversation to a file, or copy it whole',
-  argumentHint: '[filename]',
+  description: 'Save this conversation as text or JSON (.json), with tool results trimmed and thinking left out',
+  argumentHint: '[filename.txt|filename.json]',
   get immediate() {
     return shouldNavCommandBeImmediate()
   },
