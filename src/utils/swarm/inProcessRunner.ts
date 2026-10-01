@@ -663,6 +663,9 @@ export async function runInProcessCrewmate(
     )
 
     const accumulated: Message[] = [...(config.resume?.messages ?? [])]
+    const progressTracker = createProgressTracker()
+    const resolveActivity = createActivityDescriptionResolver(options.tools)
+    for (const message of accumulated) updateProgressFromMessage(progressTracker, message, resolveActivity, options.tools)
     let exitRequested = false
 
     while (!config.abortController.signal.aborted && !exitRequested) {
@@ -712,8 +715,6 @@ export async function runInProcessCrewmate(
       const forkContextMessages = accumulated.length > 0 ? [...accumulated] : undefined
       accumulated.push(userMessage)
 
-      const progressTracker = createProgressTracker()
-      const resolveActivity = createActivityDescriptionResolver(options.tools)
       const turnMessages: Message[] = []
 
       const stateNow = toolUseContext.getAppState()
@@ -808,6 +809,7 @@ export async function runInProcessCrewmate(
 
       updateCrewmateTask(taskId, setAppState, task => ({
         ...task,
+        progress: getProgressUpdate(progressTracker),
         currentWorkAbortController: undefined,
       }))
       if (config.abortController.signal.aborted) {
