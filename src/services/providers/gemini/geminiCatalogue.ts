@@ -244,7 +244,7 @@ export function geminiListedModel(
   if (declaredRouteOf(model) !== 'gemini') return undefined
   const account = resolveGeminiAccount(env)
   if (!account) return undefined
-  const snapshot = getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key')
+  const snapshot = getCachedGeminiCatalogue(account.kind === 'oauth' ? 'oauth' : 'api-key', env)
   if (!snapshot || snapshot.models.length === 0) return undefined
   const id = model.trim().replace(/\[[^\]]*\]/g, '').toLowerCase()
   return snapshot.models.find(m => m.id.toLowerCase() === id)
@@ -299,7 +299,7 @@ export type GeminiAvailability =
 
 export function geminiGenerateModels(snapshot: GeminiCatalogueSnapshot | null): GeminiLiveModel[] {
   if (!snapshot) return []
-  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent'))
+  return snapshot.models.filter(m => m.supportedGenerationMethods?.includes('generateContent') && !/^(?:antigravity|deep-research)(?:-|$)/i.test(m.id))
 }
 
 const EMPTY_LIVE_IDS: ReadonlySet<string> = new Set<string>()
@@ -354,13 +354,13 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     }
   }
   const sourceKind: GeminiSourceKind = account.kind === 'oauth' ? 'oauth' : 'api-key'
-  const snapshot = getCachedGeminiCatalogue(sourceKind)
+  const snapshot = getCachedGeminiCatalogue(sourceKind, env)
   const verdict = catalogueTrafficVerdict('gemini', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) {
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
-    void refreshGeminiCatalogue(sourceKind).catch(() => {})
+    void refreshGeminiCatalogue(sourceKind, { env }).catch(() => {})
     return {
       state: 'disabled',
       why: 'catalogue-pending',
@@ -368,7 +368,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    void refreshGeminiCatalogue(sourceKind).catch(() => {})
+    void refreshGeminiCatalogue(sourceKind, { env }).catch(() => {})
     if (/refused the credential/.test(snapshot.lastError)) {
       return {
         state: 'disabled',
@@ -440,7 +440,7 @@ export function getGeminiModelOptions(env: NodeJS.ProcessEnv = process.env): Mod
   }
   const wireReady = geminiDispatchReady()
   const pendingReason = 'dispatch wire pending — the provider-wire fold routes Gemini turns'
-  const snapshot = getCachedGeminiCatalogue(availability.sourceKind)
+  const snapshot = getCachedGeminiCatalogue(availability.sourceKind, env)
   return geminiGenerateModels(snapshot).map(model => {
     const routed = declaredRouteOf(model.id) === 'gemini'
     const unroutableReason = `outside the routable gemini-* id space — selecting it would misroute; not selectable`

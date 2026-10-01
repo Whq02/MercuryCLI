@@ -82,8 +82,13 @@ export function keyPageMenuWord(family: KeyFamilyValue): string {
   return family === 'huggingface' ? 'Access Tokens' : 'API Keys'
 }
 
+export const GEMINI_API_ACCESS_NOTE =
+  'Google AI Pro/Ultra does not cover the Gemini API. Google ended consumer "Login with Google" (Gemini CLI too) on June 18, 2026.\n' +
+  'The Cloud project is billed: free Flash can allow ~20 requests/day, Pro 0; billing enables paid limits. OAuth needs your own client; API keys do not.'
+
 export function keyPageLine(family: KeyFamilyValue): string {
-  return `${family === 'huggingface' ? 'Token' : 'API key'}: ${KEY_PAGES[family]} — sign in, ${keyPageMenuWord(family)}, create, paste it here.`
+  const page = `${family === 'huggingface' ? 'Token' : 'API key'}: ${KEY_PAGES[family]} — sign in, ${keyPageMenuWord(family)}, create, paste it here.`
+  return family === 'gemini' ? `${GEMINI_API_ACCESS_NOTE}\n${page}` : page
 }
 
 export function loginFamilyFocusFor(defaultProvider: string | undefined): LoginFamilyValue | undefined {

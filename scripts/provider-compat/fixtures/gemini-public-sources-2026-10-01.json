@@ -1,0 +1,62 @@
+{
+  "observedAt": "2026-10-01",
+  "sources": [
+    {
+      "url": "https://developers.google.com/gemini-code-assist/docs/deprecations/code-assist-individuals",
+      "updatedAt": "2026-09-02",
+      "finding": "Starting June 18, 2026, Gemini Code Assist IDE extensions stopped serving requests for individuals, Google AI Pro and Google AI Ultra. This includes Gemini CLI and Login with Google. Standard and Enterprise subscriptions are unchanged."
+    },
+    {
+      "url": "https://antigravity.google/terms",
+      "finding": "The terms expressly prohibit third-party software accessing the service through Antigravity OAuth, naming OpenClaw as an example. Mercury does not implement that route."
+    },
+    {
+      "url": "https://antigravity.google/pricing",
+      "finding": "Google AI Pro advertises more rate limits and a flexible AI credit pool; Ultra advertises even more. This is not permission to reuse Antigravity OAuth in a third-party client."
+    },
+    {
+      "url": "https://github.com/google-gemini/gemini-cli/tree/c6bccb7ecbf6d8368d995455dd725ed34466faad",
+      "finding": "oauth2.ts lines 75-92 publishes the installed-app client pair and cloud-platform/userinfo.email/userinfo.profile scopes. server.ts lines 73-74 and 470-537 sends Code Assist to cloudcode-pa.googleapis.com/v1internal; converter.ts lines 33-82 and 129-160 wraps content in model/project/request and unwraps response; setup.ts lines 167-304 loads/onboards a project; types.ts lines 250-265 declares live quota buckets with modelId. Public source availability does not restore consumer access."
+    },
+    {
+      "url": "https://github.com/jenslys/opencode-gemini-auth/blob/0836e2024c42142804e6aa9ee0a007d9693670a1/src/constants.ts",
+      "finding": "This independently published OpenCode plugin uses Gemini CLI's client pair, scopes and Code Assist base. It is not evidence that current consumer accounts can use that service."
+    },
+    {
+      "url": "https://github.com/openclaw/openclaw/blob/be052821d69c581a94c39f91623419bdfc1093b1/docs/providers/google.md",
+      "finding": "Current OpenClaw offers no new Gemini CLI OAuth or Antigravity OAuth setup, citing Google's deprecation and Antigravity terms. Valid legacy Gemini CLI grants remain executable for compatibility."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/models",
+      "updatedAt": "2026-10-01",
+      "finding": "No Argon or Gemini 4 specification found in the fetched model catalogue."
+    },
+    {
+      "url": "https://ai.google.dev/gemini-api/docs/changelog",
+      "updatedAt": "2026-09-23",
+      "finding": "No Argon or Gemini 4 specification found in the fetched Gemini API changelog."
+    },
+    {
+      "url": "https://cloud.google.com/vertex-ai/generative-ai/docs/model-garden/explore-models",
+      "finding": "No Argon or Gemini 4 specification found on the fetched Model Garden page."
+    },
+    {
+      "url": "https://github.com/google-gemini/gemini-cli/blob/c6bccb7ecbf6d8368d995455dd725ed34466faad/packages/core/src/config/models.ts",
+      "finding": "The pinned model constants name Gemini 3.x Flash/Pro and Gemma 4, not Gemini 4 Argon. No Argon-specific model, price or wire fields are invented."
+    }
+  ],
+  "operatorObservation": {
+    "date": "2026-10-01",
+    "source": "Owner's AI Studio project rate-limit screen and Gemini request errors, relayed by the lead",
+    "finding": "The free project showed Gemini 3.8 Flash at 20 requests/day and Pro requests refused with limit 0. Antigravity and Deep Research Pro Preview were listed as agents, not chat models. Limits are project/model-specific, not a promise for every Flash or Pro model."
+  },
+  "fixtureOnly": {
+    "models": [
+      { "name": "models/gemini-fixture-next", "displayName": "Fixture next model", "inputTokenLimit": 1234567, "outputTokenLimit": 43210, "thinking": true, "supportedGenerationMethods": ["generateContent"], "futureField": "ignored" },
+      { "name": "models/gemini-fixture-defaults", "supportedGenerationMethods": ["generateContent"] },
+      { "name": "models/antigravity-preview-latest", "supportedGenerationMethods": ["generateContent"] },
+      { "name": "models/deep-research-pro-preview", "supportedGenerationMethods": ["generateContent"] },
+      { "name": "models/gemini-fixture-embedding", "supportedGenerationMethods": ["embedContent"] }
+    ]
+  }
+}

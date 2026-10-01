@@ -295,11 +295,9 @@ export function GeminiConnect({
         <Text bold color={tokens.accent} wrap="truncate-end">
           {GEMINI_CONNECT_TITLE}
         </Text>
-        {popupCompact ? null : (
-          <Text color={tokens.textSecondary} wrap="wrap">
-            {GEMINI_CONNECT_INTRO}
-          </Text>
-        )}
+        <Text color={tokens.textSecondary} wrap="wrap">
+          {GEMINI_CONNECT_INTRO}
+        </Text>
         <Select
           options={geminiConnectRows(facts)}
           onChange={value => {

@@ -416,7 +416,7 @@ come from its owning account resolvers:
 
 - **anthropic** — the account scope ring plus the API-key ladder, source-honest;
 - **openai** — the subscription store and the stored key, both shown when both exist;
-- **gemini** — Google OAuth or an API key. The cockpit, daemon and session
+- **gemini** — your own OAuth client or an API key, both billed to the Cloud project, not Google AI Pro/Ultra; Google ended consumer "Login with Google" (Gemini CLI included) on June 18, 2026. Free project limits can be about 20 Flash requests/day and 0 Pro; project billing enables paid limits, and API keys need no OAuth client. The cockpit, daemon and session
   runner read OAuth and locally stored keys from the same auth-scoped store.
   The `/logins` card offers the API key first, as
   `API key — the easiest: create one in AI Studio, paste it here`: choosing it
