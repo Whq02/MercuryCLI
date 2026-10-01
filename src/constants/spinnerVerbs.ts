@@ -32,6 +32,16 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Arroyo-tracing',
   'Basking',
   'Molting',
+  'Dust-devilling',
+  'Hot-footing',
+  'Scree-skating',
+  'Noon-crossing',
+  'Mesa-topping',
+  'Gulch-jumping',
+  'Lizard-darting',
+  'Thermal-climbing',
+  'Sandstorm-threading',
+  'Flint-striking',
 ]
 
 const STOCK_VERBS: readonly string[] = [
@@ -78,6 +88,12 @@ const MERCURY_QUICKSILVER: readonly string[] = [
   'Heat rising',
   'Straight through',
   'Zero drag',
+  'Flat out',
+  'Blue flame',
+  'Hot iron',
+  'Open throttle',
+  'Clean strike',
+  'Flash point',
 ]
 
 export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
@@ -89,6 +105,14 @@ export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
   'Stack lit',
   'Cursor blur',
   'Compile and go',
+  'Hot path',
+  'Build glowing',
+  'Keys smoking',
+  'Pipe at pressure',
+  'Patch in flight',
+  'Shell at a sprint',
+  'Loop at a boil',
+  'Diff still warm',
 ]
 
 export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
@@ -98,6 +122,9 @@ export const MERCURY_QUICKSILVER_FLOW: readonly string[] = [
   'Fast hands, clean lines',
   'Momentum is the plan',
   'Straight line to done',
+  'Eyes up, hands fast',
+  'Nothing cools until it ships',
+  'Two hands, one direction',
 ]
 
 const QUICKSILVER_SET: readonly string[] = [
