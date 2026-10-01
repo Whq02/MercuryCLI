@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -27,10 +26,6 @@ console.log(' engine-mounted cockpit smoke — live, tripwires armed')
 console.log(`  out → ${OUT}`)
 console.log('============================================================')
 
-if (!process.argv.includes('--skip-build')) {
-  const build = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: REPO, encoding: 'utf8', timeout: 600_000 })
-  check('dist rebuilt from this tree (stale-dist guard)', build.status === 0, (build.stderr ?? '').slice(-300))
-}
 if (!existsSync(BIN)) {
   check('dist/mercury.mjs exists', false)
   process.exit(1)

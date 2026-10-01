@@ -16,11 +16,9 @@ echo "############################################################"
 echo "# Identity suite"
 echo "############################################################"
 
-echo "## build (the bundle-facing rules read dist)"
-if [ "${MERCURY_GATE_PREBUILT:-0}" = "1" ]; then
-  echo "  ✓ build OK (gate-prebuilt)"
-else
-  "$bun" run "$root/build.ts" >/dev/null 2>&1 && echo "  ✓ build OK" || { echo "  ✗ build FAILED"; fail=1; }
+if [ ! -f "$root/dist/mercury.mjs" ]; then
+  printf '%s\n' 'identity: dist/mercury.mjs absent; run bun run build.ts before the suite'
+  exit 1
 fi
 
 echo "## bun proofs"

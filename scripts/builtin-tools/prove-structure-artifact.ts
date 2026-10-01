@@ -14,12 +14,8 @@ function check(label: string, ok: boolean, detail = ''): void {
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const dist = join(repoRoot, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
-  console.log('dist/mercury.mjs missing — building once')
-  execFileSync(`${process.env.HOME}/.bun/bin/bun`, ['run', 'build.ts'], {
-    cwd: repoRoot,
-    stdio: 'inherit',
-    timeout: 300_000,
-  })
+  console.error('dist/mercury.mjs missing — run bun run build.ts before the proof')
+  process.exit(1)
 }
 
 const outsideCwd = mkdtempSync(join(tmpdir(), 'builtin-tools-structure-artifact-'))

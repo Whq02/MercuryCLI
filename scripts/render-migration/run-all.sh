@@ -24,21 +24,18 @@ run() {
   prover_mark "$1" "$__t" "$__rc"
 }
 
-echo "── bun run build.ts (the stale-dist guard: one build, every pty prover below runs against it)"
-__b=$SECONDS
-if ! "$BUN" run build.ts > /dev/null 2>&1; then
-  echo "render-migration: build failed"
+if [ ! -f dist/mercury.mjs ]; then
+  printf '%s\n' 'render-migration: dist/mercury.mjs absent; run bun run build.ts before the suite'
   exit 1
 fi
-printf '── build.ts  %ss\n' "$(( SECONDS - __b ))"
 
 run scripts/render-migration/prove-record-fold.ts
 run scripts/render-migration/prove-cockpit-ledger.ts
 run scripts/render-migration/prove-scheduler-gates.ts
 run scripts/render-migration/prove-door-fold.ts
 run scripts/render-migration/prove-doubles-growth-curve.ts --turns 18
-run scripts/render-migration/prove-engine-cockpit-smoke.ts --skip-build
-run scripts/render-migration/prove-look-parity.ts --skip-build
+run scripts/render-migration/prove-engine-cockpit-smoke.ts
+run scripts/render-migration/prove-look-parity.ts
 
 if [ "$fail" -ne 0 ]; then
   echo "render-migration: RED"

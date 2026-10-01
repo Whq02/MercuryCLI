@@ -13,8 +13,8 @@ bun="${BUN:-$HOME/.bun/bin/bun}"
 here="scripts/local-setup-drives"
 dist="${MERCURY_DIST:-dist/mercury.mjs}"
 if [ ! -f "$dist" ]; then
-  echo "── local-setup-drives: no bundle at $dist — building it (the drive proves the BUILT product)"
-  "$bun" run build.ts >/dev/null || { echo "❌ local-setup-drives: the build failed"; exit 1; }
+  printf 'local-setup-drives: bundle absent at %s; run bun run build.ts before the suite\n' "$dist"
+  exit 1
 fi
 
 failed=0
