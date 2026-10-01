@@ -900,6 +900,7 @@ export async function deliverOperatorMessagesAfterStop(
     const resumed = await resumeAgentBackground({
       agentId: taskId,
       prompt: queued.join('\n\n'),
+      replyTarget: 'operator',
       toolUseContext: { ...toolUseContext, abortController: new AbortController() },
       canUseTool,
     })
@@ -935,6 +936,7 @@ export async function runAsyncAgentLifecycle(args: {
   agentIdForCleanup: string
   enableSummarization: boolean
   automaticResume?: boolean
+  replyTarget?: 'parent' | 'operator'
   getWorktreeResult: () => Promise<{
     worktreePath?: string
     worktreeBranch?: string
@@ -1079,16 +1081,15 @@ export async function runAsyncAgentLifecycle(args: {
               NonNullable<ToolUseContext['getAppState']>
             >
           })
-        const queued = (() => {
-          const state = stateReader()
-          const task = state.tasks[taskId]
-          return isLocalAgentTask(task) ? [...(task.pendingMessages ?? []), ...peekOperatorMessages(task)] : []
-        })()
+        const queuedTask = stateReader().tasks[taskId]
+        const pending = isLocalAgentTask(queuedTask) ? queuedTask.pendingMessages ?? [] : []
+        const queued = [...pending, ...peekOperatorMessages(queuedTask)]
         if (queued.length > 0) {
           const { resumeAgentBackground } = await import('./resumeAgent.js')
           const resumed = await resumeAgentBackground({
             agentId: taskId,
             prompt: queued.join('\n\n'),
+            replyTarget: pending.length > 0 ? 'parent' : 'operator',
             toolUseContext,
             canUseTool: args.canUseTool,
           })
@@ -1154,6 +1155,7 @@ export async function runAsyncAgentLifecycle(args: {
         : {}),
       setAppState: rootSetAppState,
       controller: args.abortController,
+      replyTarget: args.replyTarget,
       finalMessage,
       usage: {
         totalTokens: getTokenCountFromTracker(tracker),
@@ -1192,6 +1194,7 @@ export async function runAsyncAgentLifecycle(args: {
         status: 'killed',
         setAppState: rootSetAppState,
         controller: args.abortController,
+        replyTarget: args.replyTarget,
         toolUseId: toolUseContext.toolUseId,
         finalMessage: partialResult,
         usage,
@@ -1237,6 +1240,7 @@ export async function runAsyncAgentLifecycle(args: {
       landedWrites: landedWritesOf(accumulated),
       setAppState: rootSetAppState,
       controller: args.abortController,
+      replyTarget: args.replyTarget,
       toolUseId: toolUseContext.toolUseId,
       ...worktreeResult,
       ...(envelopeBlock ? { envelopeBlock } : {}),

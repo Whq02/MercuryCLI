@@ -284,6 +284,7 @@ export type LocalAgentTaskState = ReturnType<typeof createTaskStateBase> & {
   isBackgrounded: boolean
   pendingMessages?: string[]
   operatorMessages?: string[]
+  replyTarget?: 'parent' | 'operator'
   retain?: boolean
   diskLoaded?: boolean
   evictAfter?: number
@@ -515,6 +516,8 @@ export function resetSiblingEnds(): void {
   siblingEnds.clear()
 }
 
+const registrationReplyTargets = new WeakMap<AbortController, 'parent' | 'operator'>()
+
 export function registerAsyncAgent(args: {
   agentId: string
   description: string
@@ -523,6 +526,7 @@ export function registerAsyncAgent(args: {
   selectedAgent?: AgentDefinition
   model?: string
   toolUseId?: string
+  replyTarget?: 'parent' | 'operator'
 }): LocalAgentTaskState {
   const taskId = args.agentId
   void initTaskOutputAsSymlink(taskId, getAgentTranscriptPath(taskId as AgentId))
@@ -543,8 +547,10 @@ export function registerAsyncAgent(args: {
     registration: abortController,
     cleanup,
     isBackgrounded: true,
+    replyTarget: args.replyTarget ?? 'parent',
     retain: false,
   }
+  registrationReplyTargets.set(abortController, state.replyTarget!)
   registerTask(state, args.setAppState)
   return state
 }
@@ -945,8 +951,10 @@ export function drainPendingMessages(
   if (!task || !isLocalAgentTask(task)) return []
   const pending = task.pendingMessages ?? []
   if (pending.length === 0) return []
+  if (task.registration !== undefined && task.status === 'running') registrationReplyTargets.set(task.registration, 'parent')
   updateTaskState<LocalAgentTaskState>(taskId, setAppState, current => ({
     ...current,
+    ...(current.status === 'running' ? { replyTarget: 'parent' as const } : {}),
     pendingMessages: [],
   }))
   consumeAgentMessages(taskId)
@@ -997,18 +1005,21 @@ export function enqueueAgentNotification(args: {
   statusWord?: string
   landedWrites?: readonly string[]
   controller?: AbortController
+  replyTarget?: 'parent' | 'operator'
 }): void {
   let shouldEnqueue = false
+  let replyTarget = (args.controller !== undefined ? registrationReplyTargets.get(args.controller) : undefined) ?? args.replyTarget
   updateTaskState<LocalAgentTaskState>(args.taskId, args.setAppState, task => {
     if (heldByAnotherRegistration(task, args.controller)) {
       shouldEnqueue = true
       return task
     }
+    replyTarget ??= task.replyTarget
     if (task.notified) return task
     shouldEnqueue = true
     return { ...task, notified: true }
   })
-  if (!shouldEnqueue) return
+  if (!shouldEnqueue || replyTarget === 'operator') return
 
   abortSpeculation(args.setAppState)
 

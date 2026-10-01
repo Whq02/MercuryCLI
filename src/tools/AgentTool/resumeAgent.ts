@@ -86,6 +86,7 @@ export async function resumeAgentBackground(args: {
   toolUseContext: ToolUseContext
   canUseTool?: CanUseToolFn
   invokingRequestId?: string
+  replyTarget?: 'parent' | 'operator'
   automatic?: boolean
 }): Promise<ResumeAgentResult> {
   const { agentId, prompt, toolUseContext, canUseTool } = args
@@ -256,6 +257,8 @@ export async function resumeAgentBackground(args: {
   const owner = liveAgentOwner(agentId, tasksNow)
   if (owner !== null) throw new Error(owner.words)
   if (args.automatic !== true) cancelAutomaticResume(agentId)
+  const previousTask = tasksNow?.[agentId]
+  const replyTarget = args.replyTarget ?? (args.automatic === true && isLocalAgentTask(previousTask) ? previousTask.replyTarget : undefined) ?? 'parent'
   const task = registerAsyncAgent({
     agentId,
     description,
@@ -264,6 +267,7 @@ export async function resumeAgentBackground(args: {
     selectedAgent: definition,
     model: lifecycleModel,
     toolUseId: toolUseContext.toolUseId,
+    replyTarget,
   })
 
   const querySource = getQuerySourceForAgent(
@@ -320,6 +324,7 @@ export async function resumeAgentBackground(args: {
       rootSetAppState,
       agentIdForCleanup: agentId,
       automaticResume: args.automatic === true,
+      replyTarget,
       enableSummarization:
         isForkSubagentEnabled() || getSdkAgentProgressSummariesEnabled(),
       getWorktreeResult: async () =>

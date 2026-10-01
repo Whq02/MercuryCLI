@@ -2980,11 +2980,12 @@ export async function runHeadless(
             const resumed = await resumeAgentBackground({
               agentId: request.task_id,
               prompt: request.note !== undefined && request.note.trim() !== '' ? request.note : AGENT_RESUME_NOTE,
+              replyTarget: request.note?.trim() ? 'operator' : 'parent',
               toolUseContext: { ...lastContext, abortController: new AbortController() } as typeof params.toolUseContext,
               canUseTool,
             })
             const { operatorResumeWords } = await import('../services/agents/operatorResume.js')
-            enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
+            if (!request.note?.trim()) enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })
             respondSuccess(requestId, {
               agent_id: resumed.agentId,
               output_file: resumed.outputFile,
