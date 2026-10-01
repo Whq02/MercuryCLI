@@ -22,7 +22,7 @@ machine and what it adds to the model's reach, and approve it. Nothing runs unti
 
 ## Updates
 
-Refresh the source (`u` on its row, or `mercury extensions check {{SOURCE_NAME}}`) to learn of a
+Refresh the source (`u` on its row, or `mercury extensions refresh {{SOURCE_NAME}}`) to learn of a
 newer version; `U` on the extension's row (or `mercury extensions update <name>@{{SOURCE_NAME}}`)
 applies it. Mercury never updates on its own.
 

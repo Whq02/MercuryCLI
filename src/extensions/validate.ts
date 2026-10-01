@@ -28,7 +28,7 @@ export function validateExtensionFolder(root: string, probes: Probes = realProbe
   }
   report.warnings.push(...read.warnings)
   const manifest = read.manifest
-  const resolution = resolveContributions(manifest, root, extensionId(manifest.name, 'validate'), probes)
+  const resolution = resolveContributions(manifest, root, extensionId(manifest.name, 'inspect'), probes)
   for (const defect of resolution.defects) report.warnings.push(`would load partial: ${defect}`)
   for (const note of resolution.notes) report.warnings.push(`note: ${note}`)
   const counts: string[] = []
