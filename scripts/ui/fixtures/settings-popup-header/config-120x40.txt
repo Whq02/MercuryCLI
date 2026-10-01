@@ -3,7 +3,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 57 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │ orchard · 58 settings · 0 set by you                                                     │ │
   · /health — health ce…│ │                                                                                          │ │
   · /cards — memory     │ │ / Search settings…                                                                       │ │
   · /mission — set a mi…│ │                                                                                          │ │
@@ -17,6 +17,7 @@ TELEMETRY               │ │   Reduced motion                    off         
   · health — run /health│ │   Instruction profile               auto                                                 │ │
                         │ │   Shell engine                      system                                               │ │
                         │ │   Patience with a quiet model       normal · idle 6m (quiet 15m) · fallback 15m · retry  │ │
+                        │ │   OpenRouter routing policy         n/a — applies to OpenRouter models (Anthropic is     │ │
                         │ │   Shell engine sessions             8 · the conversation + 7 sub-agents                  │ │
                         │ │   Thinking mode                     off                                                  │ │
                         │ │   Tool output                       compact                                              │ │
@@ -26,8 +27,7 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Respect .gitignore in file picker on                                                   │ │
                         │ │   Always copy full response         off                                                  │ │
                         │ │   Theme                             True Black                                           │ │
-                        │ │   Notifications channel             auto (pick per terminal)                             │ │
-                        │ │ ↓ 37 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │
