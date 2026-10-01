@@ -86,7 +86,7 @@ const whereFixture = await startScriptedFixture(req => {
 })
 let whereTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+  whereTurn = await runScriptedTurn({ runHome: join(scratch, 'home-where'), cwd: work, base: whereFixture.base, ask: ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
 } finally {
   await whereFixture.close()
 }
@@ -133,7 +133,7 @@ const askFixture = await startScriptedFixture(req => {
 })
 let askTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--permission-mode', 'default', '--allowed-tools', 'Bash'] })
+  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--mode', 'default', '--allowed-tools', 'Bash'] })
 } finally {
   await askFixture.close()
 }
@@ -180,7 +180,7 @@ const buildFixture = await startScriptedFixture(req => {
 })
 let buildTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--dangerously-bypass-permissions'] })
+  buildTurn = await runScriptedTurn({ runHome: join(scratch, 'home-build'), cwd: repo, base: buildFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--sovereign'] })
 } finally {
   await buildFixture.close()
 }
@@ -292,7 +292,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   })
   let workerTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
   try {
-    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+    workerTurn = await runScriptedTurn({ runHome: workerHome, cwd: wfRepo, base: workerFixture.base, ask: WORKER_ASK, timeoutMs: 300_000, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
   } finally {
     await workerFixture.close()
   }
@@ -366,7 +366,7 @@ const sidecarFor = (runHome: string, description: string): Record<string, unknow
   })
   let effortTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
   try {
-    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--dangerously-bypass-permissions'] })
+    effortTurn = await runScriptedTurn({ runHome: effortHome, cwd: repo, base: effortFixture.base, ask: EFFORT_ASK, timeoutMs: TURN_MS, extraEnv: { MERCURY_TASKS: '1' }, extraArgv: ['--sovereign'] })
   } finally {
     await effortFixture.close()
   }
