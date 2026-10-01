@@ -262,7 +262,7 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
     return [{ type: 'text', text: 'carried on without the answer' }]
   })
   const env = { ...childEnv(runHome, Number(new URL(fixture.base).port)), ...(road === 'watchdog' ? { MERCURY_HEADLESS_IDLE_MINUTES: '0.05' } : {}) }
-  const argv = ['run', launcher, '-p', '--input-format=stream-json', '--output-format=stream-json', '--permission-channel', 'stdio', '--model', 'claude-opus-4-8']
+  const argv = ['run', launcher, 'run', '--input=rows', '--format=rows', '--permission-channel', 'stdio', '--model', 'claude-opus-4-8']
   const proc = spawn(BUN, argv, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
   proc.stdin.on('error', () => {})
   const run: SeatRun = { frames: [], askAt: 0, goneAt: 0, resultAt: 0, resultText: '', cancelSeen: false, requests: 0, exitCode: null, stderrTail: '' }

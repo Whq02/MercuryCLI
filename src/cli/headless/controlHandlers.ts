@@ -331,7 +331,7 @@ function decidePermissionModeTransition(
     if (!toolPermissionContext.isBypassPermissionsModeAvailable) {
       return {
         ok: false,
-        error: 'Cannot set permission mode to sovereign because the session was not launched with --dangerously-bypass-permissions',
+        error: 'Cannot set permission mode to sovereign because the session was not launched with --sovereign',
       }
     }
   }

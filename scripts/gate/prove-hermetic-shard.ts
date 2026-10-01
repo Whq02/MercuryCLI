@@ -115,7 +115,7 @@ function turnScript(opts: { cwd: string; netlog: string; out: string; err: strin
     `cd '${opts.cwd}' || exit 9`,
     `rm -f '${opts.netlog}'`,
     `t0=$(perl -MTime::HiRes=time -e 'printf "%d", time*1000')`,
-    `NODE_OPTIONS='--require ${preload}' PROOF_NETLOG='${opts.netlog}' perl -e 'alarm 90; exec @ARGV' -- '${nodeBin}' '${DIST}' -p 'say hi' --output-format json >'${opts.out}' 2>'${opts.err}'`,
+    `NODE_OPTIONS='--require ${preload}' PROOF_NETLOG='${opts.netlog}' perl -e 'alarm 90; exec @ARGV' -- '${nodeBin}' '${DIST}' run 'say hi' --format json >'${opts.out}' 2>'${opts.err}'`,
     `echo $? >'${opts.rc}'`,
     `t1=$(perl -MTime::HiRes=time -e 'printf "%d", time*1000')`,
     `echo $(( t1 - t0 )) >'${opts.ms}'`,

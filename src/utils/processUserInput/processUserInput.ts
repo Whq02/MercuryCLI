@@ -57,6 +57,7 @@ function truncateHookText(text: string): string {
 
 type ProcessUserInputOptions = {
   input: string | ContentBlockParam[]
+  syntaxInput?: string
   preExpansionInput?: string
   mode: string
   setToolJSX: SetToolJSXFn
@@ -107,6 +108,7 @@ export async function processUserInput(
           bridgeOrigin: false,
           origin: prompt.origin,
           preExpansionInput: undefined,
+          syntaxInput: undefined,
           pastedContents: undefined,
           ideSelection: undefined,
           setUserInputOnProcessing: undefined,
@@ -346,6 +348,8 @@ async function processUserInputBase(
     }
   }
 
+  const syntaxPrompt = options.syntaxInput ?? prompt
+
   if (bridgeOrigin === true && typeof prompt === 'string' && prompt.startsWith('/')) {
     const { parseSlashCommand } = await import('../slashCommandParsing.js')
     const parsed = parseSlashCommand(prompt)
@@ -376,12 +380,12 @@ async function processUserInputBase(
   const attachmentMessages: AttachmentMessage[] = []
   const collectAttachments =
     skipAttachments !== true &&
-    typeof prompt === 'string' &&
-    (mode !== 'prompt' || skipSlashCommands || !prompt.startsWith('/'))
+    typeof syntaxPrompt === 'string' &&
+    (mode !== 'prompt' || skipSlashCommands || !syntaxPrompt.startsWith('/'))
   if (collectAttachments) {
     try {
       for await (const attachment of getAttachmentMessages(
-        prompt,
+        syntaxPrompt,
         context,
         ideSelection ?? null,
         [],
@@ -409,14 +413,17 @@ async function processUserInputBase(
     )
   } else if (
     mode === 'prompt' &&
-    typeof prompt === 'string' &&
-    prompt.startsWith('/') &&
+    typeof syntaxPrompt === 'string' &&
+    syntaxPrompt.startsWith('/') &&
     !skipSlashCommands
   ) {
     const { processSlashCommand } = await import('./processSlashCommand.js')
+    const literalBlocks: ContentBlockParam[] = options.syntaxInput !== undefined && typeof prompt === 'string' && prompt.startsWith(syntaxPrompt)
+      ? [{ type: 'text', text: prompt.slice(syntaxPrompt.length).trimStart() }]
+      : []
     result = await processSlashCommand(
-      prompt,
-      precedingBlocks,
+      syntaxPrompt,
+      [...precedingBlocks, ...literalBlocks],
       imageContentBlocks,
       attachmentMessages,
       context,

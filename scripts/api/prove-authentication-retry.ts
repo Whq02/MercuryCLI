@@ -18,7 +18,7 @@ for (const arm of arms.filter(arm => !only || arm === only)) {
   const world = await authWorld(arm, process.argv.includes('--natural-backoff') ? '' : '0.001')
   try {
     const started = Date.now()
-    const result = await runChild([nodeFor(dist), dist, '-p', '--output-format', 'stream-json', '--model', MODEL, ASK], world.cwd, world.env, 270_000)
+    const result = await runChild([nodeFor(dist), dist, 'run', '--format', 'rows', '--model', MODEL, ASK], world.cwd, world.env, 270_000)
     const frames = result.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line))
     const terminal = frames.filter(row => row.type === 'result')
     const errors = frames.filter(row => row.type === 'assistant' && row.error === 'authentication_failed')

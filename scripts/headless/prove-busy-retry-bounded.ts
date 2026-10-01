@@ -221,7 +221,7 @@ type Run = { code: number | null; signal: string | null; frames: Frame[]; stdout
 async function run(home: string, scale: number, road: Road): Promise<Run> {
   const ladderMs = BUSY_RETRY_RUNGS_MS.reduce((sum, ms) => sum + ms, 0) * scale
   const deadlineMs = BOOT_ALLOWANCE_MS + ladderMs + (BUSY_RETRY_RUNGS_MS.length + 1) * ANSWER_DELAY_MS + IDLE_LIMIT_MINUTES * 60_000 * 2
-  const child = spawn(node, [DIST, '-p', PROMPT, '--model', road.model, '--output-format', 'stream-json'], { cwd: work, env: childEnv(home, String(scale), road), stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(node, [DIST, 'run', PROMPT, '--model', road.model, '--format', 'rows'], { cwd: work, env: childEnv(home, String(scale), road), stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', chunk => { stdout += chunk.toString() })

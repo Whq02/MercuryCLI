@@ -18,7 +18,7 @@ The verdict is one of:
 - `unsupported` — a required row failed. Interactive boot shows the
   requirement card **before** the main interface: the operator can exit (with the missing
   labels named, and the pointer that non-interactive use works anywhere via
-  `--print`) or continue knowingly — never a silently degraded cockpit. The
+  `mercury run`) or continue knowingly — never a silently degraded cockpit. The
   exit guidance is written as plain lines below the card, so a terminal
   without cursor addressing shows it whole.
 
@@ -29,7 +29,7 @@ report card, and the trace view.
 
 | id | What it checks |
 |---|---|
-| `interactive-tty` | stdout is a TTY (piped and scripted use goes through `-p`) |
+| `interactive-tty` | stdout is a TTY (piped and scripted use goes through `mercury run`) |
 | `term-vocabulary` | a cursor-addressable terminal (`TERM=dumb` fails; win32 hosts legitimately run without `TERM` and are judged by their own rows) |
 | `win32-conpty-host` (win32) | a ConPTY-era console — an OS-build fact first (Windows 10 build 17763 or newer means every console session is VT-capable), with host fingerprints only rescuing exotic builds |
 | `win32-first-class-host` (win32) | the full Windows profile: Windows Terminal (stable) or the VS Code integrated terminal. Env fingerprints (`WT_SESSION`, `TERM_PROGRAM=vscode`) decide first; a fingerprint-less host is judged by the live synchronized-output latch, because Windows Terminal running as the OS default terminal attaches after the process starts and injects no fingerprint — the latch is the env-free witness that separates it from the legacy console. A host that announces a non-first-class identity (mintty/MSYS) never rides the latch through |

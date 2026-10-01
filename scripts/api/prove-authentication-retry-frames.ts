@@ -18,7 +18,7 @@ for (const [cols, rows] of sizes) {
   const env = { ...world.env, TMPDIR: '.', MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE, VSHOT_SLOTS: process.env.VSHOT_SLOTS }
   const session = randomUUID()
   try {
-    const seed = await runChild([nodeFor(dist), dist, '-p', '--output-format', 'json', '--model', MODEL, '--session-id', session, 'seed fixture session'], world.cwd, env, 60_000)
+    const seed = await runChild([nodeFor(dist), dist, 'run', '--format', 'json', '--model', MODEL, '--session-id', session, 'seed fixture session'], world.cwd, env, 60_000)
     if (seed.code !== 0) throw new Error(`seed failed: ${seed.stderr}\n${seed.stdout}`)
     const out = join(root, `${cols}x${rows}.json`)
     const needle = before ? 'Retrying in' : 'sign-in expired'

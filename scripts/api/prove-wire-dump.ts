@@ -361,8 +361,8 @@ if (!existsSync(DIST)) {
         })
       })
     const SID = 'd0d0d0d0-0000-4000-8000-00000000d0d0'
-    const common = ['--model', 'claude-opus-4-8', '--output-format', 'stream-json']
-    const r1 = await run(['-p', 'wire dump probe; the key sk-ant-api03-QRSTUVWXYZ0123456789 must never land', ...common, '--session-id', SID], { MERCURY_WIRE_DUMP: dumpDir })
+    const common = ['--model', 'claude-opus-4-8', '--format', 'rows']
+    const r1 = await run(['run', 'wire dump probe; the key sk-ant-api03-QRSTUVWXYZ0123456789 must never land', ...common, '--session-id', SID], { MERCURY_WIRE_DUMP: dumpDir })
     check('the armed turn exits 0 and answers', r1.exit === 0 && r1.stdout.includes('DUMP-WIRE-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     const file = join(dumpDir, `${SID}.jsonl`)
     const rows = await waitForRows(file, 1)
@@ -371,12 +371,12 @@ if (!existsSync(DIST)) {
     check('the row carries the full body (model, the prompt), the source, and no headers', main !== undefined && main.headers === undefined && main.source !== undefined, main ? j(main).slice(0, 300) : 'no main row')
     check('the key in the prompt is scrubbed on the way to the file', main !== undefined && j(main.body).includes('sk-ant-***') && !j(main).includes('QRSTUVWXYZ0123456789'))
     check("the fixture's usage rides the row (cache_read 7) with status 200 and the reply head", main?.response.status === 200 && main?.response.usage?.cache_read_input_tokens === 7 && main?.response.text === 'DUMP-WIRE-DONE', j(main?.response))
-    const r2 = await run(['-p', 'second turn', ...common, '--resume', SID], { MERCURY_WIRE_DUMP: dumpDir })
+    const r2 = await run(['run', 'second turn', ...common, '--resume', SID], { MERCURY_WIRE_DUMP: dumpDir })
     check('a resumed turn appends to the same file', r2.exit === 0 && (await waitForRows(file, 2)).length >= 2, `exit=${r2.exit}`)
     const capture = readCapture(file)
     const pairs = reportPairs(capture.filter(r => r.model === 'claude-opus-4-8'))
     check('the replay tool reads the dump as it is and diffs the pair', capture.length >= 2 && pairs.length >= 1 && typeof pairs[0]!.verdict.held === 'boolean' && pairs[0]!.cacheRead === 40, pairs.map(p => `${p.verdict.held} cache=${p.cacheRead}`).join(' | '))
-    const r3 = await run(['-p', 'unarmed turn', ...common, '--session-id', 'd0d0d0d0-0000-4000-8000-00000000d0d1'], {})
+    const r3 = await run(['run', 'unarmed turn', ...common, '--session-id', 'd0d0d0d0-0000-4000-8000-00000000d0d1'], {})
     check('unarmed: the turn runs and no file is written', r3.exit === 0 && !existsSync(join(dumpDir, 'd0d0d0d0-0000-4000-8000-00000000d0d1.jsonl')), `exit=${r3.exit}`)
     await fixture.close()
   }

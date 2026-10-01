@@ -601,7 +601,7 @@ if (!existsSync(DIST)) {
       }
       return notices
     }
-    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--output-format', 'stream-json']
+    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
 
     section('manual MCP reconnects apply only the selected schema change')
     {
@@ -640,7 +640,7 @@ process.stdin.on('end', () => process.exit(0))
         writeFileSync(config, j({ mcpServers: { fixture: { type: 'stdio', command: nodeBin, args: [server, marker] } } }))
         const sid = 'c0ffee00-0000-4000-8000-00000000c113'
         const result = await new Promise<RunResult>(resolveRun => {
-          const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', model, '--session-id', sid, '--mcp-config', config, '--strict-mcp-config', '--allowed-tools', 'ToolSearch', toolName], { cwd: arena.cwd, env: arena.env })
+          const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', model, '--session-id', sid, '--mcp-config', config, '--strict-mcp-config', '--allowed-tools', 'ToolSearch', toolName], { cwd: arena.cwd, env: arena.env })
           let stdout = ''
           let stderr = ''
           let buffer = ''
@@ -701,10 +701,10 @@ process.stdin.on('end', () => process.exit(0))
       try {
         const arena = makeArena(fixture)
         const sid = 'c0ffee00-0000-4000-8000-00000000c112'
-        const args = ['--model', model, '--allowed-tools', 'Read', '--output-format', 'stream-json']
-        const first = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--session-id', sid], [{ prompt: 'Begin without tools.' }])
-        const resumed = await run(arena, ['-p', 'Continue without tools.', ...args, '--resume', sid])
-        const returned = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
+        const args = ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
+        const first = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--session-id', sid], [{ prompt: 'Begin without tools.' }])
+        const resumed = await run(arena, ['run', 'Continue without tools.', ...args, '--resume', sid])
+        const returned = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
         check('all three entry-mode transitions settle successfully', first.exit === 0 && first.stdout.includes('MIXED-FIRST') && resumed.exit === 0 && resumed.stdout.includes('MIXED-RESUMED') && returned.exit === 0 && returned.stdout.includes('MIXED-RETURNED'), [first.stderr, resumed.stderr, returned.stderr].join('\n').slice(-600))
         const requests = fixture.messageRequests()
         check('every transition makes its expected request', requests.length === 3, String(requests.length))
@@ -738,25 +738,25 @@ process.stdin.on('end', () => process.exit(0))
           ;(turns[i] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: file }
         }
         const sid = 'c0ffee00-0000-4000-8000-00000000c108'
-        const args = ['--model', model, '--allowed-tools', 'Read', '--output-format', 'stream-json']
-        const live = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--session-id', sid], [
+        const args = ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
+        const live = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--session-id', sid], [
           { prompt: 'Read each file in order: ' + files.join(', ') },
           { prompt: 'Continue without tools.' },
           { prompt: 'Continue once more without tools.' },
         ])
         check('§11 the live conversation settles all three turns', live.exit === 0 && ['PRUNE-READY', 'PRUNE-APPLIED', 'PRUNE-NEXT'].every(text => live.stdout.includes(text)), live.stderr.slice(-300))
-        const resumed = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
+        const resumed = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
         check('§11 a new process resumes the cleared conversation', resumed.exit === 0 && resumed.stdout.includes('PRUNE-RESUMED'), resumed.stderr.slice(-300))
-        const forked = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', sid, '--fork-session'], [{ prompt: 'Fork and continue without tools.' }])
+        const forked = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid, '--fork-session'], [{ prompt: 'Fork and continue without tools.' }])
         const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
           try { return [JSON.parse(line)] } catch { return [] }
         })
         const forkId = envelopes.find(row => row.type === 'result')?.session_id
         check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
         if (typeof forkId === 'string' && forkId !== sid) {
-          const again = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
+          const again = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
           check('§11 the fork persists inherited replacements for its next resume', again.exit === 0 && again.stdout.includes('PRUNE-FORK-RESUMED'), again.stderr.slice(-300))
-          const continued = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...args, '--continue'], [{ prompt: 'Continue without tools.' }])
+          const continued = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--continue'], [{ prompt: 'Continue without tools.' }])
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
         const requests = fixture.messageRequests()
@@ -791,7 +791,7 @@ process.stdin.on('end', () => process.exit(0))
       ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       ;(turns[2] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       const SID = 'c0ffee00-0000-4000-8000-00000000c0ff'
-      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID, '--debug-file', join(arena.home, 's2.debug.log')], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--debug-file', join(arena.home, 's2.debug.log')], [
         { prompt: 'read @note.txt and tell me what it says' },
         { prompt: 'the note changed — read @note.txt again', before: () => writeFileSync(notePath, 'REWRITTEN bytes of the note, longer than before\n') },
         { prompt: 'anything else?' },
@@ -824,12 +824,12 @@ process.stdin.on('end', () => process.exit(0))
       const notePath = join(arena.cwd, 'note.txt')
       writeFileSync(notePath, 'resume: first bytes\n')
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f3'
-      const r1 = await run(arena, ['-p', 'summarize @note.txt', ...common, '--session-id', SID])
+      const r1 = await run(arena, ['run', 'summarize @note.txt', ...common, '--session-id', SID])
       check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       writeFileSync(notePath, 'resume: REWRITTEN bytes, a different length\n')
-      const r2 = await run(arena, ['-p', 'and @note.txt now?', ...common, '--resume', SID])
+      const r2 = await run(arena, ['run', 'and @note.txt now?', ...common, '--resume', SID])
       check('turn 2 (resumed, file rewritten) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
-      const r3 = await run(arena, ['-p', 'thanks', ...common, '--resume', SID])
+      const r3 = await run(arena, ['run', 'thanks', ...common, '--resume', SID])
       check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests()
       check('three message requests', reqs.length === 3, String(reqs.length))
@@ -851,7 +851,7 @@ process.stdin.on('end', () => process.exit(0))
       const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f4'
       const debugFile = join(arena.home, 's4.debug.log')
-      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID, '--debug-file', debugFile], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--debug-file', debugFile], [
         { prompt: 'hi big' },
         { prompt: 'hi after' },
       ])
@@ -875,7 +875,7 @@ process.stdin.on('end', () => process.exit(0))
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const thinkingBlocksOf = (body: Body): number =>
       ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
-    const switchArgs = (model: string): string[] => ['--model', model, '--allowed-tools', 'Read', '--output-format', 'stream-json']
+    const switchArgs = (model: string): string[] => ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
     {
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S5-OPUS-1', thinking: 'opus one', model: 'claude-opus-4-8' },
@@ -886,12 +886,12 @@ process.stdin.on('end', () => process.exit(0))
       const fixture = await startFixtureApi(turns)
       const arena = makeArena(fixture)
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f5'
-      const r1 = await run(arena, ['-p', 'first on opus', ...switchArgs('claude-opus-4-8'), '--session-id', SID])
-      const r2 = await run(arena, ['-p', 'second on opus', ...switchArgs('claude-opus-4-8'), '--resume', SID])
+      const r1 = await run(arena, ['run', 'first on opus', ...switchArgs('claude-opus-4-8'), '--session-id', SID])
+      const r2 = await run(arena, ['run', 'second on opus', ...switchArgs('claude-opus-4-8'), '--resume', SID])
       const debug3 = join(arena.home, 's5-switch-3.debug.log')
       const debug4 = join(arena.home, 's5-switch-4.debug.log')
-      const r3 = await run(arena, ['-p', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug3])
-      const r4 = await run(arena, ['-p', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug4])
+      const r3 = await run(arena, ['run', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug3])
+      const r4 = await run(arena, ['run', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug4])
       check('four turns exit 0', [r1, r2, r3, r4].every(r => r.exit === 0), [r1, r2, r3, r4].map(r => `${r.exit}:${r.stderr.slice(0, 120)}`).join(' | '))
       const reqs = fixture.messageRequests()
       check('four message requests', reqs.length === 4, String(reqs.length))
@@ -922,7 +922,7 @@ process.stdin.on('end', () => process.exit(0))
         const SID = `c0ffee00-0000-4000-8000-0000000${leg.wire.includes('fable') ? '0c0f6' : '0c0f7'}`
         const runs: RunResult[] = []
         for (let i = 0; i < leg.spellings.length; i++) {
-          runs.push(await run(arena, ['-p', `turn ${i + 1}`, ...switchArgs(leg.spellings[i]!), ...(i === 0 ? ['--session-id', SID] : ['--resume', SID])]))
+          runs.push(await run(arena, ['run', `turn ${i + 1}`, ...switchArgs(leg.spellings[i]!), ...(i === 0 ? ['--session-id', SID] : ['--resume', SID])]))
         }
         check(`${leg.label}: every spelling's turn exits 0`, runs.every(r => r.exit === 0), runs.map(r => `${r.exit}:${r.stderr.slice(0, 100)}`).join(' | '))
         const reqs = fixture.messageRequests()
@@ -951,7 +951,7 @@ process.stdin.on('end', () => process.exit(0))
       const fixture = await startFixtureApi(turns)
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f8'
-      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID], [
         { prompt: 'start a game' },
         { prompt: 'the project exists now — probe the Godot surface', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
         { prompt: 'carry on' },
@@ -975,7 +975,7 @@ process.stdin.on('end', () => process.exit(0))
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f9'
-      const r = await runStreaming(arena, ['-p', '--input-format', 'stream-json', ...common, '--session-id', SID], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID], [
         { prompt: 'inspect the scene' },
         { prompt: 'the project file is gone', before: () => rmSync(join(arena.cwd, 'project.godot'), { force: true }) },
         { prompt: 'carry on' },
@@ -1003,12 +1003,12 @@ process.stdin.on('end', () => process.exit(0))
       const arena = makeArena(fixture, { MERCURY_THINKING_BINDING: 'error' })
       delete arena.env.MERCURY_GODOT_TOOLS
       const SID = 'c0ffee00-0000-4000-8000-00000000c06c'
-      const r1 = await run(arena, ['-p', 'start a game', ...common, '--session-id', SID])
+      const r1 = await run(arena, ['run', 'start a game', ...common, '--session-id', SID])
       check('§6c turn 1 (the flag off, no project) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       check('§6c the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
       arena.env.MERCURY_GODOT_TOOLS = '1'
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
-      const r2 = await run(arena, ['-p', 'inspect the scene', ...common, '--resume', SID])
+      const r2 = await run(arena, ['run', 'inspect the scene', ...common, '--resume', SID])
       check('§6c turn 2 (resumed, the flag armed, the project born) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
       const reqs = fixture.messageRequests()
       check('§6c two message requests', reqs.length === 2, String(reqs.length))
@@ -1033,14 +1033,14 @@ process.stdin.on('end', () => process.exit(0))
       git(['add', '.'])
       git(['commit', '-q', '-m', 'seed'])
       const SID = 'c0ffee00-0000-4000-8000-00000000c06d'
-      const r1 = await run(arena, ['-p', 'look around', ...common, '--session-id', SID])
+      const r1 = await run(arena, ['run', 'look around', ...common, '--session-id', SID])
       check('§6d turn 1 (a clean repository) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       const reqs1 = fixture.messageRequests()
       const sysA = systemTextOf(reqs1[0]!.body as Body)
       check('§6d the first request appended the git-status snapshot as its last system block', sysA.includes('gitStatus:'), sysA.slice(-200))
       check('§6d the record carries that snapshot', /"systemContext":\{"gitStatus":/.test(transcriptText(arena, SID)) || transcriptText(arena, SID).includes('"gitStatus"'), transcriptText(arena, SID).includes('bound_prefix') ? 'record present, snapshot absent' : 'no record')
       writeFileSync(join(arena.cwd, 'notes.txt'), 'saved between the turns\n')
-      const r2 = await run(arena, ['-p', 'and now?', ...common, '--resume', SID])
+      const r2 = await run(arena, ['run', 'and now?', ...common, '--resume', SID])
       check('§6d turn 2 (resumed, the tree moved) exit 0 — the binding check refused nothing', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
       const reqs = fixture.messageRequests()
       check('§6d two message requests', reqs.length === 2, String(reqs.length))
@@ -1064,13 +1064,13 @@ process.stdin.on('end', () => process.exit(0))
       const arena = makeArena(fixture)
       delete arena.env.MERCURY_TASKS
       const SID = 'c0ffee00-0000-4000-8000-00000000c06e'
-      const r1 = await run(arena, ['-p', 'start the work', ...common, '--session-id', SID])
+      const r1 = await run(arena, ['run', 'start the work', ...common, '--session-id', SID])
       check('§6e turn 1 (the task tools off in this process) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
       check('§6e the first exchange record persisted (a bound_prefix attachment)', transcriptText(arena, SID).includes('bound_prefix'), transcriptText(arena, SID).slice(0, 120))
       const sysA = systemTextOf(fixture.messageRequests()[0]!.body as Body)
       check('§6e the control: the first request named no task tool in its system prompt and carried none in its tools array', !sysA.includes('TaskCreate') && !toolNamesOf(fixture.messageRequests()[0]!.body as Body).includes('TaskCreate'), `taskCreateInSystem=${sysA.includes('TaskCreate')}`)
       arena.env.MERCURY_TASKS = '1'
-      const r2 = await run(arena, ['-p', 'carry on', ...common, '--resume', SID])
+      const r2 = await run(arena, ['run', 'carry on', ...common, '--resume', SID])
       check('§6e turn 2 (resumed with the task tools in the pool) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 400)}`)
       const reqs = fixture.messageRequests()
       check('§6e two message requests', reqs.length === 2, String(reqs.length))
@@ -1113,7 +1113,7 @@ process.stdin.on('end', () => process.exit(0))
       }))
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--permission-mode', 'apollo', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--permission-channel', 'stdio', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },
@@ -1197,7 +1197,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, 's8.debug.log')
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--allowed-tools', 'Read', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--allowed-tools', 'Read', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
         [
           { prompt: 'first on fable' },
           { prompt: 'read the note' },
@@ -1259,7 +1259,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, 's9.debug.log')
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
         [{ prompt: 'launch the seat and carry on' }],
       )
       check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
@@ -1329,7 +1329,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, `s10-${tag}.debug.log`)
       const r = await runStreaming(
         arena,
-        ['-p', '--input-format', 'stream-json', '--model', FABLE, '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
         [{ prompt: 'dispatch three agents and carry on' }, { prompt: 'and now say noted' }],
       )
       check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)

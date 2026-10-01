@@ -62,7 +62,7 @@ const SENTENCE = /The \/help command is an interactive surface — it needs the 
 console.log('§1 an interactive-only surface refuses typed: sentence on stderr, exit 1, no wire turn')
 const w = mkHome('main')
 const before = api.requests.length
-const ref = await run(w, ['-p', '/help'])
+const ref = await run(w, ['run', '/help'])
 check('exit 1 (a refusal is not a result)', ref.code === 1, String(ref.code))
 check('the family sentence, on STDERR', SENTENCE.test(ref.stderr), ref.stderr.trim().slice(0, 110))
 check('stdout carries no sentence (the requested-result channel stays clean)', !SENTENCE.test(ref.stdout), ref.stdout.trim().slice(0, 80))
@@ -71,14 +71,14 @@ check('no model turn was spent (zero new message requests)', api.requests.slice(
 console.log('§1b a user-private popup surface (/usage) refuses the same way — never a silent empty success')
 const USAGE_SENTENCE = /The \/usage command is an interactive surface — it needs the foreground session and has no headless form\./
 const usageBefore = api.requests.length
-const usage = await run(w, ['-p', '/usage'])
+const usage = await run(w, ['run', '/usage'])
 check('exit 1 (the popup has no headless form)', usage.code === 1, String(usage.code))
 check('the family sentence names /usage, on STDERR', USAGE_SENTENCE.test(usage.stderr), usage.stderr.trim().slice(0, 110))
 check('stdout carries no sentence', !USAGE_SENTENCE.test(usage.stdout), usage.stdout.trim().slice(0, 80))
 check('no model turn was spent', api.requests.slice(usageBefore).every(r => !r.path.startsWith('/v1/messages') || r.method === 'HEAD'), api.requests.slice(usageBefore).map(r => `${r.method} ${r.path}`).join(','))
 
 console.log('§2 json mode carries the typed envelope: subtype success · is_error true · the sentence as result')
-const js = await run(w, ['-p', '/help', '--output-format', 'json'])
+const js = await run(w, ['run', '/help', '--format', 'json'])
 let envelope: { type?: string; subtype?: string; is_error?: boolean; result?: string } = {}
 try { envelope = JSON.parse(js.stdout) } catch {  }
 check('exit 1 in json mode too', js.code === 1, String(js.code))
@@ -86,7 +86,7 @@ check('the envelope is typed: result · success · is_error', envelope.type === 
 check('the sentence rides result', SENTENCE.test(envelope.result ?? ''), (envelope.result ?? '').slice(0, 90))
 
 console.log('§3 the positive control: a real -p prompt still succeeds on stdout, exit 0')
-const ok = await run(w, ['-p', 'hello control'])
+const ok = await run(w, ['run', 'hello control'])
 check('exit 0 with the model answer on stdout', ok.code === 0 && /Control answered\./.test(ok.stdout), `${ok.code} · ${ok.stdout.trim().slice(0, 60)}`)
 
 console.log('§4 the source seams: ONE refusal door, marked at all three call sites, read at the envelope')

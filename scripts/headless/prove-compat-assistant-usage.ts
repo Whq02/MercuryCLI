@@ -45,7 +45,7 @@ export async function compatUsageReply(usage: Record<string, unknown>, thinking 
     MERCURY_COMPAT_API_KEY: 'fixture-key',
   }
   delete env.MERCURY_HOME
-  const child = spawn(NODE, [DIST, '-p', 'Answer with the fixture sentence.', '--model', 'compat/fixture-usage', '--output-format', 'stream-json', '--include-partial-messages', '--tools', ''], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const child = spawn(NODE, [DIST, 'run', 'Answer with the fixture sentence.', '--model', 'compat/fixture-usage', '--format', 'rows', '--partial', '--tools', ''], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', chunk => { stdout += String(chunk) })

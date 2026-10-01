@@ -308,10 +308,10 @@ export type Runner = {
   kill: () => void
 }
 export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[] }): Runner {
-  const argv = [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--model', MODEL, '--permission-mode', 'bypassPermissions', ...(args.extraArgv ?? [])]
+  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'bypassPermissions', ...(args.extraArgv ?? [])]
   const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
-  const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void }> = []
+  const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void; reject: (error: Error) => void }> = []
   let stdoutBuffer = ''
   let stderrText = ''
   proc.stdout!.on('data', (chunk: Buffer) => {
@@ -332,11 +332,18 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
-  const exited = new Promise<number | null>(resolve => proc.on('exit', code => resolve(code)))
+  let closedError: Error | undefined
+  const exited = new Promise<number | null>(resolve => proc.on('close', (code, signal) => {
+    closedError = new Error(`runner exited ${code ?? signal ?? 'without a code'}: ${stderrText.trim()}`)
+    for (const waiter of waiters.splice(0)) waiter.reject(closedError)
+    resolve(code)
+  }))
+  proc.stdin!.on('error', () => {})
   const waitFor = (label: string, test: (f: Frame) => boolean, timeoutMs: number, after = 0): Promise<Frame | null> => {
     const seen = frames.slice(after).find(test)
     if (seen !== undefined) return Promise.resolve(seen)
-    return new Promise(resolve => {
+    if (closedError) return Promise.reject(closedError)
+    return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         const at = waiters.findIndex(w => w.resolve === done)
         if (at >= 0) waiters.splice(at, 1)
@@ -347,7 +354,7 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
         clearTimeout(timer)
         resolve(f)
       }
-      waiters.push({ test, resolve: done })
+      waiters.push({ test, resolve: done, reject: error => { clearTimeout(timer); reject(error) } })
     })
   }
   const kill = (): void => {

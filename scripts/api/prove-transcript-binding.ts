@@ -345,14 +345,14 @@ if (!existsSync(DIST)) {
     writeFileSync(notePath, 'hello-from-the-fixture-file\n')
     ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
     const debugFile = (n: number): string => join(arena.home, `turn-${n}.debug.log`)
-    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--output-format', 'stream-json']
-    const r1 = await run(arena, ['-p', 'read the note', ...common, '--session-id', SID, '--debug-file', debugFile(1)])
+    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
+    const r1 = await run(arena, ['run', 'read the note', ...common, '--session-id', SID, '--debug-file', debugFile(1)])
     check('turn 1 (a tool round) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     check('turn 1 answered with the post-tool text', r1.stdout.includes('B-TURN-1-DONE'), j(r1.stdout.slice(0, 200)))
-    const r2 = await run(arena, ['-p', 'second prompt', ...common, '--resume', SID, '--debug-file', debugFile(2)])
+    const r2 = await run(arena, ['run', 'second prompt', ...common, '--resume', SID, '--debug-file', debugFile(2)])
     check('turn 2 (resumed) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
     check('turn 2 answered', r2.stdout.includes('B-TURN-2-DONE'), j(r2.stdout.slice(0, 200)))
-    const r3 = await run(arena, ['-p', 'third prompt', ...common, '--resume', SID, '--debug-file', debugFile(3)])
+    const r3 = await run(arena, ['run', 'third prompt', ...common, '--resume', SID, '--debug-file', debugFile(3)])
     check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
     check('turn 3 answered', r3.stdout.includes('B-TURN-3-DONE'), j(r3.stdout.slice(0, 200)))
 

@@ -129,7 +129,7 @@ Mercury at start with a message saying so — fix the path.
 Mercury runs on Node **24.x** — not 22, not 25 — and within 24, at least
 **24.20.0**. The floor matters on Windows specifically: 24.20.0 is the first
 Node 24 that carries the fix for nodejs/node#56645, and below it a headless
-`-p` run that dispatched any tool aborts at exit with 0xC0000409. The exact
+`run` command that dispatched any tool aborts at exit with 0xC0000409. The exact
 patch the project builds with is written in the repository file
 `.node-version` (currently `24.20.0`); any 24.20.0 or newer 24.x works.
 
@@ -429,6 +429,6 @@ Common cases:
 | `The engine "node" is incompatible` or a Node version error | wrong Node major | step 3 — must be 24.x |
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
 | compact controls or clipped detail | the window has little space | enlarge it to show more; the input and exit keys remain available |
-| an immediate exit that mentions `--print` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
+| an immediate exit that names `mercury run` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
 | a "Bash tool absent" notice, or the `doctor` **Bash tool shell** row warns | neither `bash.exe` nor the shell engine serves: Git for Windows is missing or not where Mercury looks, and this source build has no engine pack (a release archive always carries one) or `MERCURY_SHELL_ENGINE=system` turned the engine off | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe`, or build the engine (step 7), or unset `MERCURY_SHELL_ENGINE` |
 | Mercury stops at start naming `MERCURY_GIT_BASH_PATH` | that variable points at a file that does not exist | fix or remove the variable |

@@ -1,3 +1,5 @@
+import { inspectRunArgs } from '../cli/runArgs.js'
+
 export type ProcessSweepClass = 'running' | 'stale' | 'cannot-end' | 'not-ours'
 export type ProcessSweepRead = boolean | null
 export type ProcessSweepKind = 'window' | 'daemon' | 'runner' | 'command' | 'unknown'
@@ -303,8 +305,9 @@ function kindFromArgs(args: readonly string[]): ProcessSweepKind {
   const bundleAt = args.findIndex(arg => /(^|[\\/])mercury\.mjs$/i.test(arg.trim()))
   if (bundleAt < 0) return 'unknown'
   const rest = args.slice(bundleAt + 1)
-  if (rest.some(arg => arg === '--print' || arg === '-p' || arg === '--output-format' || arg.startsWith('--output-format='))) return 'runner'
-  const word = rest.find(arg => !arg.startsWith('-'))
+  const inspected = inspectRunArgs(rest)
+  if (inspected.runner) return 'runner'
+  const word = inspected.command
   if (word === 'daemon') return 'daemon'
   if (word !== undefined) return 'command'
   return 'window'

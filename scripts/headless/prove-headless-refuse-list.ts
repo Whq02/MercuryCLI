@@ -115,8 +115,8 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, scrip
   const world = makeWorld(tag, fixture.url)
   Object.assign(world.env, extraEnv)
   const args = channel
-    ? [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio', '--model', MODEL, ...extraArgs]
-    : [DIST, '-p', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs]
+    ? [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio', '--model', MODEL, ...extraArgs]
+    : [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs]
   const started = Date.now()
   const child = spawn(NODE, args, { cwd: world.cwd, env: world.env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)

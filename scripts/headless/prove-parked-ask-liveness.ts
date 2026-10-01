@@ -46,7 +46,7 @@ type Seat = {
 }
 
 function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
-  const argv = [DIST, '-p', '--input-format=stream-json', '--output-format=stream-json', '--permission-channel', 'stdio', '--permission-mode', 'default', '--model', MODEL]
+  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--permission-channel', 'stdio', '--mode', 'default', '--model', MODEL]
   const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Array<{ frame: Frame; at: number }> = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void }> = []

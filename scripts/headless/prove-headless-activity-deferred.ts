@@ -143,10 +143,10 @@ section("§3 the built artifact: a -p run's note is on disk after the process ex
         return undefined
       }
     }
-    const first = await run(['-p', 'hello'])
+    const first = await run(['run', 'hello'])
     check('the -p run completed (exit 0, the scripted text)', first.code === 0 && /First answered\./.test(first.out), `${first.code} · ${first.out.trim().slice(0, 160)}`)
     check('after the exit the note is on disk: print = 1, last kind print', activity()?.print === 1 && activity()?.lastKind === 'print', j(activity()))
-    const second = await run(['-p', 'again'])
+    const second = await run(['run', 'again'])
     check('a second run completed', second.code === 0 && /Second answered\./.test(second.out), `${second.code} · ${second.out.trim().slice(0, 160)}`)
     check('…and the ledger counts two', activity()?.print === 2, j(activity()))
     await api.close()

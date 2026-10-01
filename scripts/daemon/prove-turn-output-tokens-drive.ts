@@ -260,7 +260,7 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17], [120, 40]] as const) {
       { requireAwait: true, awaitText: firstLeg, awaitSettleTicks: 12, data: '', mark: 'fact' },
       { requireAwait: true, awaitText: secondLeg, awaitSettleTicks: 5, data: '', mark: 'complete' },
     ]
-    writeFileSync(config, JSON.stringify({ argv: [resolveCaptureArgv0(runtime, driver), dist, '--model', model, '--permission-mode', 'default'], cwd, cols, rows, sends, out, total: 300, readyText: secondLeg, readySettleTicks: 2, liveSeat: true, ...(process.platform === 'win32' ? { hostProfile: 'wt' } : {}) }))
+    writeFileSync(config, JSON.stringify({ argv: [resolveCaptureArgv0(runtime, driver), dist, '--model', model, '--mode', 'default'], cwd, cols, rows, sends, out, total: 300, readyText: secondLeg, readySettleTicks: 2, liveSeat: true, ...(process.platform === 'win32' ? { hostProfile: 'wt' } : {}) }))
     const startedAt = Date.now()
     const status = await new Promise<number | null>((resolve, reject) => {
       capture = spawn(driver.python, [captureEngineEntry(driver, repo), config], { cwd, env: { ...env, VSHOT_TEE: tee }, stdio: ['ignore', 'pipe', 'pipe'] })

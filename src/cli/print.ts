@@ -315,6 +315,7 @@ type HeadlessOptions = {
   resume?: string | boolean
   resumeSessionAt?: string
   outputFormat?: string
+  syntaxInput?: string
   jsonSchema?: Record<string, unknown>
   permissionPromptToolName?: string
   permissionChannel?: PermissionChannel
@@ -776,7 +777,7 @@ export async function runHeadless(
     !resumeTargetValid
   ) {
     emitLoadError(
-      'No prompt reached --print: give one as the argument or on stdin',
+      'No prompt reached run: give one as the argument or on stdin',
       options.outputFormat,
     )
     gracefulShutdownSync(1)
@@ -1294,6 +1295,7 @@ export async function runHeadless(
         for await (const message of ask({
           commands: dedupedCommands,
           prompt: command.value,
+          ...(options.syntaxInput !== undefined && command.value === inputPrompt ? { syntaxInput: options.syntaxInput } : {}),
           promptUuid: command.uuid,
           ...(batchUuids.length > 0 ? { batchUuids } : {}),
           ...(batchTail.length > 0 ? { batchTail } : {}),

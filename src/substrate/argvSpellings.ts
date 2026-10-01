@@ -25,7 +25,7 @@ export function normalizeBankedFlagSpellings(
       out.push(token)
       continue
     }
-    out.push(table[token] ?? token)
+    out.push(Object.hasOwn(table, token) ? table[token]! : token)
   }
   return out
 }

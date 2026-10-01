@@ -1,4 +1,5 @@
 import { lastGrapheme } from './intl.js'
+import { isRunArgv } from '../cli/runArgs.js'
 
 
 let capturing = false
@@ -49,7 +50,7 @@ function processChunk(chunk: string): void {
 export function startCapturingEarlyInput(): void {
   if (!process.stdin.isTTY) return
   if (capturing) return
-  if (process.argv.includes('--print') || process.argv.includes('-p')) return
+  if (isRunArgv()) return
   try {
     capturing = true
     capturedBuffer = ''

@@ -34,7 +34,7 @@ if (!existsSync(DIST)) {
       return null
     }
   }
-  const SJ = ['-p', '--output-format', 'stream-json']
+  const SJ = ['run', '--format', 'rows']
 
   const settingsRefusal = run([...SJ, '--settings', '/no/such/settings-file.json', 'hi'])
   const settingsEnvelope = envelopeOf(settingsRefusal.out)
@@ -52,12 +52,9 @@ if (!existsSync(DIST)) {
   const unknownOption = run([...SJ, '--zzz-not-an-option', 'hi'])
   const unknownEnvelope = envelopeOf(unknownOption.out)
   check(
-    "the option table's own refusal (unknown option) rides the envelope too",
-    unknownOption.status !== 0 &&
-      unknownEnvelope !== null &&
-      unknownEnvelope.is_error === true &&
-      (unknownEnvelope.errors ?? []).some(e => e.includes('zzz-not-an-option')),
-    `rc=${unknownOption.status} out=${unknownOption.out.slice(0, 100).replace(/\s+/g, ' ')}`,
+    "an unknown option stays on the parser's stderr road",
+    unknownOption.status !== 0 && unknownOption.out === '' && unknownEnvelope === null && unknownOption.err.includes("unknown option '--zzz-not-an-option'"),
+    `rc=${unknownOption.status} out=${unknownOption.out} err=${unknownOption.err}`,
   )
 
   const argParserRefusal = run([...SJ, '--max-turns', '0', 'hi'])
@@ -71,7 +68,7 @@ if (!existsSync(DIST)) {
     `rc=${argParserRefusal.status} out=${argParserRefusal.out.slice(0, 100).replace(/\s+/g, ' ')}`,
   )
 
-  const textControl = run(['-p', '--settings', '/no/such/settings-file.json', 'hi'])
+  const textControl = run(['run', '--settings', '/no/such/settings-file.json', 'hi'])
   check(
     'the text format keeps its prose refusal (control: stderr, no stdout envelope)',
     textControl.status !== 0 &&

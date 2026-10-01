@@ -223,7 +223,7 @@ export function readRetiredCliFlags(argv: readonly string[]): string[] {
   return argv.map(arg => {
     const eq = arg.indexOf('=')
     const head = eq === -1 ? arg : arg.slice(0, eq)
-    const current = RETIRED_CLI_FLAGS[head]
+    const current = Object.hasOwn(RETIRED_CLI_FLAGS, head) ? RETIRED_CLI_FLAGS[head] : undefined
     return current === undefined ? arg : eq === -1 ? current : current + arg.slice(eq)
   })
 }

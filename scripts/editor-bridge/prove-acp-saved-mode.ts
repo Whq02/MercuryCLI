@@ -34,7 +34,7 @@ import { existsSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 const arg = name => process.argv[process.argv.indexOf(name) + 1]
 const sessionId = arg(process.argv.includes('--resume') ? '--resume' : '--session-id')
-const mode = arg('--permission-mode')
+const mode = arg('--mode')
 const bootPath = join(process.cwd(), sessionId + '.boot.json')
 writeFileSync(bootPath + '.tmp', JSON.stringify({ mode, pid: process.pid }))
 renameSync(bootPath + '.tmp', bootPath)

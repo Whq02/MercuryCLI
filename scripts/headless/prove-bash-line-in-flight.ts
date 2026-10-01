@@ -153,7 +153,7 @@ async function drive(): Promise<void> {
 
   const child = spawn(
     nodeBin!,
-    [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--model', 'claude-opus-4-8'],
+    [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'],
     { cwd, env },
   )
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)

@@ -21,6 +21,8 @@ async function main(): Promise<void> {
     return
   }
 
+  const { inspectRunArgs } = await import('../cli/runArgs.js')
+  const runArgs = inspectRunArgs(args)
   const hasProjectRoot = args[0] === '--project-root' || args[0]?.startsWith('--project-root=')
   if (hasProjectRoot) {
     try {
@@ -28,7 +30,12 @@ async function main(): Promise<void> {
       applyProjectRoot(process.argv)
       args.splice(0, args.length, ...process.argv.slice(2))
     } catch (error) {
-      console.error(`Project root: ${error instanceof Error ? error.message : String(error)}`)
+      const message = `Project root: ${error instanceof Error ? error.message : String(error)}`
+      console.error(message)
+      if (runArgs.command === 'run' && runArgs.format === 'rows') {
+        const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+        writeSync(1, `${JSON.stringify(refusalEnvelope([message]))}\n`)
+      }
       process.exitCode = 1
       return
     }
@@ -99,8 +106,7 @@ async function main(): Promise<void> {
   if (process.env.MERCURY_ALT_HELD === '1') {
     const nonTakeover =
       !process.stdout.isTTY ||
-      args.includes('-p') ||
-      args.includes('--print') ||
+      runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
       ['daemon', 'join', 'join-kit', 'acp'].includes(args[0] ?? '')
@@ -119,8 +125,15 @@ async function main(): Promise<void> {
   }
 
   {
-    const { setupGracefulShutdown } = await import('../utils/gracefulShutdown.js')
+    const { setupGracefulShutdown, setRunPreflightSignalWriter } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
+    if (runArgs.command === 'run' && runArgs.format === 'rows' && runArgs.input !== 'rows' && !runArgs.outputRequest) {
+      const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+      setRunPreflightSignalWriter(code => {
+        const signal = code === 130 ? 'SIGINT' : 'SIGTERM'
+        writeSync(1, `${JSON.stringify(refusalEnvelope([`mercury run stopped before the turn (${signal})`]))}\n`)
+      })
+    }
   }
 
   {
@@ -225,6 +238,14 @@ async function resolveCompileCacheHome(): Promise<string | null> {
 }
 
 main().catch(async (error: unknown) => {
+  try {
+    const { inspectRunArgs } = await import('../cli/runArgs.js')
+    const run = inspectRunArgs(process.argv.slice(2))
+    if (run.command === 'run' && run.format === 'rows' && run.input !== 'rows' && !run.outputRequest) {
+      const [{ refusalEnvelope }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
+      writeSync(1, `${JSON.stringify(refusalEnvelope([error instanceof Error ? error.message : String(error)]))}\n`)
+    }
+  } catch {}
   try {
     const { failLoud } = await import('../utils/gracefulShutdown.js')
     failLoud(error, 'boot')

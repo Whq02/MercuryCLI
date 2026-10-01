@@ -63,15 +63,15 @@ const run = (world: { cwd: string; env: Record<string, string> }, args: string[]
 console.log('§1 the empty home refuses')
 const w1 = mkHome('empty')
 const before = api.requests.length
-const empty = await run(w1, ['--continue', '-p', 'and then?'])
+const empty = await run(w1, ['--continue', 'run', 'and then?'])
 check('exit 1 with the interactive door\'s sentence', empty.code === 1 && /No conversation found to continue/.test(empty.out), `${empty.code} · ${empty.out.trim().slice(0, 90)}`)
 check('no model turn was spent pretending (zero new message requests)', api.requests.slice(before).every(r => !r.path.startsWith('/v1/messages') || r.method === 'HEAD'), api.requests.slice(before).map(r => `${r.method} ${r.path}`).join(','))
 
 console.log('§2 a real prior conversation continues')
 const w2 = mkHome('real')
-const first = await run(w2, ['-p', 'hello first'])
+const first = await run(w2, ['run', 'hello first'])
 check('the seed turn ran', first.code === 0 && /First answered\./.test(first.out), first.out.trim().slice(0, 80))
-const cont = await run(w2, ['--continue', '-p', 'and then?'])
+const cont = await run(w2, ['--continue', 'run', 'and then?'])
 check('--continue continues it (the next scripted turn, exit 0)', cont.code === 0 && /Continued\./.test(cont.out), `${cont.code} · ${cont.out.trim().slice(0, 80)}`)
 
 await api.close()

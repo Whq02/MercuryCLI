@@ -114,9 +114,9 @@ export function headlessPermissionArgv(
   mode: SeatPermissionMode = getHeadlessPermissionMode(),
   allowBypass = false,
 ): string[] {
-  if (mode === 'sovereign') return ['--dangerously-bypass-permissions']
-  const words = mode === 'default' ? [] : ['--permission-mode', mode]
-  return allowBypass ? [...words, '--allow-dangerously-bypass-permissions'] : words
+  if (mode === 'sovereign') return ['--sovereign']
+  const words = mode === 'default' ? [] : ['--mode', mode]
+  return allowBypass ? [...words, '--allow-sovereign'] : words
 }
 
 export function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
@@ -209,13 +209,13 @@ export function buildStreamJsonInvocation(
   const crewName = spec.crewName ?? 'default'
   const argv = [
     script,
-    '-p',
+    'run',
     ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode), spec.allowBypass === true),
     ...(spec.allowedTools && spec.allowedTools.length > 0
       ? ['--allowed-tools', ...spec.allowedTools]
       : []),
-    '--input-format=stream-json',
-    '--output-format=stream-json',
+    '--input=rows',
+    '--format=rows',
     ...(spec.keyless ? [] : ['--model', model]),
     '--append-system-prompt',
     spec.appendSystemPrompt,
@@ -328,12 +328,13 @@ export function runTaskHeadless(
         node,
         [
           script,
-          '-p',
+          'run',
           ...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),
           ...(spec.allowedTools && spec.allowedTools.length > 0
             ? ['--allowed-tools', ...spec.allowedTools]
             : []),
           ...(spec.resumeSessionId ? ['--resume', spec.resumeSessionId] : []),
+          '--',
           spec.prompt,
         ],
         {

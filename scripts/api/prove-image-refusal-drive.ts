@@ -252,12 +252,12 @@ if (process.argv[2] === '--serve') {
   function runProduct(port: number, args: { prompt: string; sessionId?: string; resume?: string }): Run {
     const argv = [
       DIST,
-      '-p',
-      '--output-format',
-      'stream-json',
+      'run',
+      '--format',
+      'rows',
       '--model',
       MODEL,
-      '--permission-mode',
+      '--mode',
       'bypassPermissions',
       ...(args.sessionId ? ['--session-id', args.sessionId] : []),
       ...(args.resume ? ['--resume', args.resume] : []),

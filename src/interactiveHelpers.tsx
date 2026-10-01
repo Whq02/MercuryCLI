@@ -211,7 +211,7 @@ export async function showSetupScreens(
         root,
         `This terminal is missing required capabilities: ${missing || 'see the card above'}.\n` +
           `Use a supported terminal${process.platform === 'win32' ? ' (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred)' : ''}.\n` +
-          'Non-interactive use works anywhere via --print.',
+          'Non-interactive use works anywhere via mercury run.',
         { exitCode: 1, plainLines: true },
       )
     }

@@ -327,7 +327,7 @@ export async function createCoordinationServer(): Promise<{
       description:
         'Capture the real Mercury TUI in a PTY and return it as a PNG image. ' +
         'Use to visually verify a UI/Ink change before claiming it works ' +
-        '(REPL/Ink changes do not show in headless -p output). ' +
+        '(REPL/Ink changes do not show in mercury run output). ' +
         'Args: scenario (default resume-2turn), cols (default 120), rows ' +
         '(default 44). Returns an inline image block.',
       inputSchema: {

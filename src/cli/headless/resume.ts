@@ -130,7 +130,7 @@ export async function loadInitialMessages(
       if (!parsedSessionId) {
         const given = typeof options.resume === 'string' ? options.resume : ''
         emitLoadError(
-          `--resume in print mode needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither (${binaryName()} -p --resume <session-id>)`,
+          `--resume in print mode needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither (${binaryName()} run --resume <session-id>)`,
           options.outputFormat,
         )
         gracefulShutdownSync(1)
@@ -208,7 +208,7 @@ export async function loadInitialMessages(
       const errorMessage =
         error instanceof Error
           ? `Failed to resume session: ${error.message}`
-          : 'Failed to resume session with --print mode'
+          : 'Failed to resume session with mercury run'
       emitLoadError(errorMessage, options.outputFormat)
       gracefulShutdownSync(1)
       return { messages: [] }

@@ -99,7 +99,7 @@ if (!existsSync(DIST)) {
     }
 
     let from = fixture.messageRequests().length
-    const r1 = await run(['-p', 'display probe one', '--model', ROW, '--output-format', 'stream-json'], { MERCURY_THINKING_DISPLAY: 'updates' })
+    const r1 = await run(['run', 'display probe one', '--model', ROW, '--format', 'rows'], { MERCURY_THINKING_DISPLAY: 'updates' })
     check('the turn on the row exits 0 and answers', r1.exit === 0 && r1.stdout.includes('OPUS-55-DISPLAY-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     const b1 = mainRequest(from, ROW, 'display probe one')
     check('the request names the row', b1?.model === ROW, j(b1?.model))
@@ -110,17 +110,17 @@ if (!existsSync(DIST)) {
     check("the launch effort rides 'high' in output_config (the owner's ruling; the vendor's default is medium)", b1?.output_config?.effort === 'high', j(b1?.output_config))
 
     from = fixture.messageRequests().length
-    const r2 = await run(['-p', 'display probe two', '--model', ROW, '--output-format', 'stream-json'], { MERCURY_THINKING_DISPLAY: 'off' })
+    const r2 = await run(['run', 'display probe two', '--model', ROW, '--format', 'rows'], { MERCURY_THINKING_DISPLAY: 'off' })
     const b2 = mainRequest(from, ROW, 'display probe two')
     check("an explicit 'off' sends no display field and no display beta; thinking still rides adaptive", r2.exit === 0 && b2?.thinking?.type === 'adaptive' && b2?.thinking?.display === undefined && !headersOf(from, ROW, 'display probe two').includes(DISPLAY_HEADER), `exit=${r2.exit} ${j(b2?.thinking)} ${headersOf(from, ROW, 'display probe two')}`)
 
     from = fixture.messageRequests().length
-    const r3 = await run(['-p', 'display probe three', '--model', ROW, '--output-format', 'stream-json'], { MERCURY_THINKING_DISPLAY: 'updates', MERCURY_THINKING_BUDGET: '0' })
+    const r3 = await run(['run', 'display probe three', '--model', ROW, '--format', 'rows'], { MERCURY_THINKING_DISPLAY: 'updates', MERCURY_THINKING_BUDGET: '0' })
     const b3 = mainRequest(from, ROW, 'display probe three')
     check('a disabled thinking config sends NO thinking object to the row (the always-on law: never the disabled shape)', r3.exit === 0 && b3 !== undefined && b3.thinking === undefined, `exit=${r3.exit} ${j(b3?.thinking)}`)
 
     from = fixture.messageRequests().length
-    const r4 = await run(['-p', 'display probe four', '--model', PREVIOUS, '--output-format', 'stream-json'], { MERCURY_THINKING_DISPLAY: 'updates' })
+    const r4 = await run(['run', 'display probe four', '--model', PREVIOUS, '--format', 'rows'], { MERCURY_THINKING_DISPLAY: 'updates' })
     const b4 = mainRequest(from, PREVIOUS, 'display probe four')
     check('Opus 5 is untouched: adaptive thinking, no display field, no display beta', r4.exit === 0 && b4?.thinking?.type === 'adaptive' && b4?.thinking?.display === undefined && !headersOf(from, PREVIOUS, 'display probe four').includes(DISPLAY_HEADER), `exit=${r4.exit} ${j(b4?.thinking)} ${headersOf(from, PREVIOUS, 'display probe four')}`)
     await fixture.close()

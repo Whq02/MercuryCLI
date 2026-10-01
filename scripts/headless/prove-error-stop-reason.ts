@@ -33,9 +33,9 @@ const run = (args: string[]): { status: number | null; out: string } => {
   return { status: result.status, out: result.stdout ?? '' }
 }
 
-console.log('§1 --output-format json')
+console.log('§1 --format json')
 {
-  const r = run(['-p', 'hi', '--model', 'compat/w17-mock', '--output-format', 'json'])
+  const r = run(['run', 'hi', '--model', 'compat/w17-mock', '--format', 'json'])
   let frame: Record<string, unknown> | null = null
   try {
     frame = JSON.parse(r.out) as Record<string, unknown>
@@ -50,9 +50,9 @@ console.log('§1 --output-format json')
   )
 }
 
-console.log('\n§2 --output-format stream-json')
+console.log('\n§2 --format stream-json')
 {
-  const r = run(['-p', 'hi', '--model', 'compat/w17-mock', '--output-format', 'stream-json'])
+  const r = run(['run', 'hi', '--model', 'compat/w17-mock', '--format', 'rows'])
   const frames = r.out
     .split('\n')
     .filter(l => l.trim() !== '')

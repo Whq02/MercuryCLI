@@ -2,6 +2,7 @@ import { getGlobalConfig, saveGlobalConfig } from '../utils/config.js'
 import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { notifyPermissionModeChanged } from '../utils/sessionState.js'
 import { auditModeChange } from '../utils/permissions/modeTransitions.js'
+import { noteRootSovereign } from '../utils/permissions/rootNotice.js'
 import { setMainLoopModelOverride } from '../bootstrap/state.js'
 import { clearApiKeyHelperCache } from '../utils/auth.js'
 import { applyConfigEnvironmentVariables } from '../utils/managedEnv.js'
@@ -19,6 +20,7 @@ export function onChangeAppState({
   const oldMode = oldState.toolPermissionContext.mode
   if (newMode !== oldMode) {
     auditModeChange(oldMode, newMode)
+    noteRootSovereign(newMode)
     notifyPermissionModeChanged(newMode)
   }
 
