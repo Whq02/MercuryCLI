@@ -152,6 +152,8 @@ process.env.MERCURY_MODEL = MODEL
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
+const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
+updateSettingsForSource('userSettings', { openrouterRouting: {} })
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const wire = await import('../../src/services/providers/deferralWire.ts')
@@ -270,6 +272,7 @@ const firstChat = first.captures.find(c => c.path === '/api/v1/chat/completions'
 {
   check('the request landed on /api/v1/responses, not /chat/completions (the docs: Chat Completions returns 400 for tool search)', firstResponses !== undefined && firstChat === undefined, `${first.captures.map(c => c.path).join(',')} ${first.errors.join(' | ')}`)
   const body = firstResponses?.body ?? {}
+  check('the native road carries the same routing policy as chat', JSON.stringify(body.provider) === '{"data_collection":"deny","require_parameters":true}')
   const tools = toolsOf(body)
   check('tools[0] is { type: "openrouter:tool_search" }', tools[0] !== undefined && tools[0].type === SEARCH_TYPE && Object.keys(tools[0]).join(',') === 'type', JSON.stringify(tools[0] ?? null))
   const rest = tools.slice(1)

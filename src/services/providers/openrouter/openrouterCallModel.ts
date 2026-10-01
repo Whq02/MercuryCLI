@@ -24,6 +24,8 @@ import {
   refreshOpenrouterKeyUsage,
 } from './openrouterUsageState.js'
 import { openrouterResponsesTransport } from './openrouterResponsesTransport.js'
+import { getInitialSettings } from '../../../utils/settings/settings.js'
+import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
 
 export function openrouterWireModelId(modelId: string): string {
   const slug = qualifiedWireId(modelId)
@@ -69,6 +71,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     buildOpenrouterExtras({
       ...args,
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
+      providerPolicy: openrouterProviderObject(getInitialSettings().openrouterRouting),
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),
