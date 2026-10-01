@@ -73,7 +73,7 @@ const envClient = guide.geminiConnectRows({ clientSource: 'env', oauthConnected:
 check('an environment client id names its variable and offers no change row', envClient.length === 2 && envClient[1]!.label.includes('MERCURY_GEMINI_OAUTH_CLIENT_ID') && envClient[1]!.label.includes('(step 6)'), JSON.stringify(envClient))
 const connected = guide.geminiConnectRows({ clientSource: 'stored', oauthConnected: true })
 check('a connected Google account reads connected and signs in again from step 6', connected[1]!.label === 'Google account — connected · ↵ signs in again (step 6)' && connected.length === 3, connected[1]!.label)
-check('the card title and intro state project billing, not a consumer plan', guide.GEMINI_CONNECT_TITLE === 'Connect Google Gemini' && guide.GEMINI_CONNECT_INTRO.includes('Google AI Pro/Ultra does not cover the Gemini API') && guide.GEMINI_CONNECT_INTRO.includes('June 18, 2026') && guide.GEMINI_CONNECT_INTRO.includes('Cloud project is billed') && guide.GEMINI_CONNECT_INTRO.includes('OAuth needs your own client; API keys do not'))
+check('the card title and Google-account note name the ended consumer road and the own-client requirement', guide.GEMINI_CONNECT_TITLE === 'Connect Google Gemini' && guide.GEMINI_CONNECT_INTRO === "Google ended consumer Login with Google on June 18, 2026 (Gemini CLI too); AI Pro/Ultra plans don't apply. Sign-in needs your own OAuth client.")
 
 section('§3 the opening step and the return after a refusal')
 check('no client: the walk starts at step 1', guide.geminiGuideOpeningStep({ oauthConnected: false }) === 1)
@@ -105,8 +105,8 @@ check('the hints: next and reopen on the page steps, the fields at step 5, the c
 
 section('§5 the key leg: AI Studio opened, the address printed, the paste awaited')
 const opened = guide.geminiKeyLegLines('opened')
-check('the key leg names AI Studio, its opened state and the paste', opened[0]!.text === 'Connect Google Gemini — API key' && opened[1]!.text === 'AI Studio opened in your browser: press Create API key there, then paste the key here.' && opened[2]!.tone === 'address' && opened[2]!.text === 'https://aistudio.google.com/apikey', JSON.stringify(opened))
-check('a box without a browser is told to open the address itself', guide.geminiKeyLegLines('failed')[1]!.text === 'Open AI Studio at the address below, press Create API key there, then paste the key here.' && guide.geminiKeyLegLines(undefined)[1]!.text.startsWith('Open AI Studio'))
+check('the key leg names AI Studio, its opened state and its key address', opened[0]!.text === 'Connect Google Gemini — API key' && opened[1]!.text === 'AI Studio opened: create a key there.' && opened[2]!.tone === 'address' && opened[2]!.text === 'https://aistudio.google.com/apikey', JSON.stringify(opened))
+check('a box without a browser is told to open the address itself', guide.geminiKeyLegLines('failed')[1]!.text === 'Open AI Studio below; create a key.' && guide.geminiKeyLegLines(undefined)[1]!.text.startsWith('Open AI Studio'))
 check("the storage sentence is the previous card's, byte for byte", opened[3]!.text === 'Stored auth-scoped (mode 600), never logged; GOOGLE_API_KEY / GEMINI_API_KEY env vars always win over the store (GOOGLE_API_KEY outranks — the documented precedence).')
 
 section('§6 one owner of the addresses and the words; the card consumes the model')
@@ -126,32 +126,46 @@ check('every step title is in docs/ENGINES.md', steps.every(s => docs.includes(s
 check('the titles read in step order', titleAt.every(at => at >= 0) && titleAt.every((at, i) => i === 0 || at > titleAt[i - 1]!), titleAt.join(','))
 check('the docs name the key row, the AI Studio page, the test-user reason and the return to step 3', docs.includes(guide.GEMINI_KEY_ROW) && docs.includes('https://aistudio.google.com/apikey') && docs.includes('Google lets an unpublished app sign in only its listed test users') && docs.includes('access_denied') && docs.includes('step 3'))
 
-section('§8 both sign-in surfaces state project billing and the ended consumer road')
-const { GEMINI_API_ACCESS_NOTE, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
-const { loginsPickPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
+section('§8 each screen carries its own note and nothing is displaced')
+const { keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
+const { loginsPickPaneLines, keyPromptPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
+const { wrapPlain } = await import('../../src/components/BootHealthScreen.tsx')
 const flatWords = (text: string): string => text.replace(/\s+/g, ' ').trim()
-check('the /logins page line and boot Gemini pane carry the same disclosure as the card', guide.GEMINI_CONNECT_INTRO === GEMINI_API_ACCESS_NOTE && keyPageLine('gemini').startsWith(GEMINI_API_ACCESS_NOTE) && flatWords(loginsPickPaneLines('gemini').join(' ')).includes(flatWords(GEMINI_API_ACCESS_NOTE)))
+check('the key note is one short billing sentence with no OAuth words', guide.GEMINI_KEY_BILLING_NOTE === 'Cloud project: free Flash ~20/day, Pro 0; pay for more.' && guide.GEMINI_KEY_BILLING_NOTE.length <= 58 && opened.filter(l => l.text === guide.GEMINI_KEY_BILLING_NOTE).length === 1 && !opened.some(l => /OAuth|consumer|Pro\/Ultra/.test(l.text)))
+check('the Google-account note fits two lines at 100 columns; the compact choice gets one short note', wrapPlain(guide.GEMINI_CONNECT_INTRO, 96).length <= 2 && guide.GEMINI_CONNECT_COMPACT_INTRO === "AI Pro/Ultra plans don't apply; OAuth needs your client." && guide.GEMINI_CONNECT_COMPACT_INTRO.length <= 58)
+check('the /logins page line is one line, not a second disclosure', keyPageLine('gemini') === 'API key: aistudio.google.com/apikey — create a key, paste it here.')
+check('the boot key and Google-account selections carry their own notes', flatWords(loginsPickPaneLines('gemini', 0).join(' ')).includes(guide.GEMINI_KEY_BILLING_NOTE) && flatWords(loginsPickPaneLines('gemini', 1).join(' ')).includes(guide.GEMINI_CONNECT_INTRO))
 const { createElement } = await import('react')
 const { GeminiConnect } = await import('../../src/components/GeminiConnect.tsx')
 const { PopupCompactContext } = await import('../../src/context/popupFormContext.ts')
 const { mountOffscreen, waitFor } = await import('../lib/settingsPopupHarness.ts')
 const framesAt = process.argv.indexOf('--frames')
 const frames = framesAt >= 0 ? process.argv[framesAt + 1] : undefined
-const { writeFileSync } = await import('node:fs')
-for (const [columns, rows, popupCompact] of [[120, 40, false], [80, 24, true]] as const) {
+const { mkdirSync, writeFileSync } = await import('node:fs')
+if (frames) mkdirSync(frames, { recursive: true })
+for (const [columns, rows, popupCompact] of [[64, 12, true], [80, 24, false], [120, 40, false], [178, 51, false]] as const) {
   const board = await mountOffscreen(createElement(PopupCompactContext.Provider, { value: { compact: popupCompact, setMarker: () => {} } }, createElement(GeminiConnect, { onResult: () => {} })), columns, rows)
   try {
-    await waitFor(() => board.screen().includes('June 18, 2026'), 2000)
+    await waitFor(() => board.screen().includes('Connect Google Gemini'), 2000)
     const screen = board.lines().join('\n')
     if (frames) writeFileSync(join(frames, `gemini-access-${columns}x${rows}.txt`), screen + '\n')
     const words = flatWords(screen)
-    check(`${columns}x${rows}: the real card shows the whole note even in a compact popup`, words.includes(flatWords(GEMINI_API_ACCESS_NOTE)) && !words.includes('RENDER ERROR'))
-    check(`${columns}x${rows}: both existing sign-in choices remain visible`, words.includes('API key — the easiest') && words.includes('Google account — six steps'))
+    const note = popupCompact ? guide.GEMINI_CONNECT_COMPACT_INTRO : guide.GEMINI_CONNECT_INTRO
+    check(`${columns}x${rows}: the card shows its own whole note`, words.includes(note) && !words.includes('RENDER ERROR'))
+    check(`${columns}x${rows}: the title and both sign-in choices remain visible`, words.includes('Connect Google Gemini') && words.includes('API key — the easiest') && words.includes('Google account — six steps'))
+    if (popupCompact) check('the compact card has only its title, one note and two single-line choices', board.lines().filter(l => l.trim()).length === 4)
   } finally { board.unmount() }
 }
 const { composeLogins } = await import('./face-logins-stills.ts')
-const bootFrame = composeLogins(120, 40, { flow: { kind: 'pick', pick: 'gemini', pickSel: 0 } }).join('\n')
-check('the boot face paints the note through the own-client/API-key distinction without clipping it', ['Google AI Pro/Ultra does not cover', 'on June 18, 2026.', '~20 requests/day', 'billing enables paid limits', 'needs your own client; API keys do', 'not.'].every(words => bootFrame.includes(words)))
-if (frames) writeFileSync(join(frames, 'gemini-boot-120x40.txt'), bootFrame + '\n')
+for (const [columns, rows] of [[120, 40], [178, 51]] as const) {
+  for (const pickSel of [0, 1]) {
+    const bootFrame = composeLogins(columns, rows, { flow: { kind: 'pick', pick: 'gemini', pickSel } }).join('\n')
+    check(`boot ${columns}x${rows}, choice ${pickSel + 1}: its whole note, key address and back line fit without a clamp`, loginsPickPaneLines('gemini', pickSel).every(line => bootFrame.includes(line)) && bootFrame.includes('Google Gemini') && bootFrame.includes('Google account — six steps') && !bootFrame.includes('the trail continues'))
+    if (frames) writeFileSync(join(frames, `gemini-boot-choice-${pickSel}-${columns}x${rows}.txt`), bootFrame + '\n')
+  }
+  const bootKey = composeLogins(columns, rows, { flow: { kind: 'key', leg: 'gemini-key', note: null, draftLen: 0, storing: false } }).join('\n')
+  check(`boot ${columns}x${rows}: the key card keeps its billing note, address, input and way out`, keyPromptPaneLines('gemini-key', null, 0, false).every(line => bootKey.includes(line)) && !bootKey.includes('the trail continues'))
+  if (frames) writeFileSync(join(frames, `gemini-boot-key-${columns}x${rows}.txt`), bootKey + '\n')
+}
 console.log(`\n ${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

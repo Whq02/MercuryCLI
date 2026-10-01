@@ -1,5 +1,5 @@
 import { geminiOauthClientConfig, geminiOauthConnected, resolveGeminiApiKey } from '../services/providers/gemini/geminiAccounts.js'
-import { GEMINI_API_ACCESS_NOTE, KEY_PAGES } from './loginFamilyRows.js'
+import { KEY_PAGES } from './loginFamilyRows.js'
 
 export interface GeminiGuidePage {
   address: string
@@ -94,7 +94,10 @@ export interface GeminiConnectFacts {
 export type GeminiConnectRowValue = 'key' | 'google' | 'client'
 
 export const GEMINI_CONNECT_TITLE = 'Connect Google Gemini'
-export const GEMINI_CONNECT_INTRO = GEMINI_API_ACCESS_NOTE
+export const GEMINI_CONNECT_INTRO =
+  "Google ended consumer Login with Google on June 18, 2026 (Gemini CLI too); AI Pro/Ultra plans don't apply. Sign-in needs your own OAuth client."
+export const GEMINI_CONNECT_COMPACT_INTRO = "AI Pro/Ultra plans don't apply; OAuth needs your client."
+export const GEMINI_KEY_BILLING_NOTE = 'Cloud project: free Flash ~20/day, Pro 0; pay for more.'
 export const GEMINI_KEY_ROW = 'API key — the easiest: create one in AI Studio, paste it here'
 
 export function geminiConnectRows(facts: GeminiConnectFacts): Array<{ label: string; value: GeminiConnectRowValue }> {
@@ -191,14 +194,15 @@ export function geminiKeyLegLines(opened: GeminiGuideOpenState | undefined): Gem
   lines.push({
     text:
       opened === 'opened'
-        ? 'AI Studio opened in your browser: press Create API key there, then paste the key here.'
+        ? 'AI Studio opened: create a key there.'
         : opened === 'opening'
-          ? 'Opening AI Studio in your browser: press Create API key there, then paste the key here.'
-          : 'Open AI Studio at the address below, press Create API key there, then paste the key here.',
+          ? 'Opening AI Studio: create a key there.'
+          : 'Open AI Studio below; create a key.',
     tone: 'detail',
   })
   lines.push({ text: GEMINI_API_KEY_PAGE.address, tone: 'address' })
   lines.push({ text: GEMINI_KEY_STORAGE_SENTENCE, tone: 'detail' })
+  lines.push({ text: GEMINI_KEY_BILLING_NOTE, tone: 'detail' })
   return lines
 }
 

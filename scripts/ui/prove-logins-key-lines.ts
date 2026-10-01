@@ -37,7 +37,9 @@ type Family = keyof typeof PAGES
 const FAMILIES = Object.keys(PAGES) as Family[]
 const menuWord = (family: Family): string => (family === 'huggingface' ? 'Access Tokens' : 'API Keys')
 const expectedLine = (family: Family): string =>
-  `${family === 'huggingface' ? 'Token' : 'API key'}: ${PAGES[family]} — sign in, ${menuWord(family)}, create, paste it here.`
+  family === 'gemini'
+    ? 'API key: aistudio.google.com/apikey — create a key, paste it here.'
+    : `${family === 'huggingface' ? 'Token' : 'API key'}: ${PAGES[family]} — sign in, ${menuWord(family)}, create, paste it here.`
 const LINE_SHAPE = /^(API key|Token): \S+ — sign in, (API Keys|Access Tokens), create, paste it here\.$/
 
 const OWNER = 'src/components/loginFamilyRows.ts'
@@ -100,7 +102,7 @@ t.section('§1 — ONE OWNER: the family-row owner spells every key page once; t
   const line = owner['keyPageLine'] as ((f: string) => string) | undefined
   const drift = FAMILIES.filter(f => line === undefined || line(f) !== expectedLine(f))
   t.check('keyPageLine spells the one plain line — the page, then sign in · the menu word · create · paste', drift.length === 0, drift.join(','))
-  t.check('every expected line has the ruled shape', FAMILIES.every(f => LINE_SHAPE.test(expectedLine(f))))
+  t.check('every expected line has the ruled shape and remains a single line', FAMILIES.every(f => !line?.(f).includes('\n') && (f === 'gemini' ? line(f) === 'API key: aistudio.google.com/apikey — create a key, paste it here.' : LINE_SHAPE.test(expectedLine(f)))))
   t.check(
     "the Gemini guide's key page IS the owner's page (scheme added, nothing respelled)",
     guide.GEMINI_API_KEY_PAGE.address === `https://${PAGES.gemini}` && code(GUIDE).includes('KEY_PAGES.gemini') && !code(GUIDE).includes(PAGES.gemini),
