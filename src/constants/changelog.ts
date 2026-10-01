@@ -2,7 +2,7 @@
 export const MERCURY_CHANGELOG = `# Mercury changelog
 
 ## 1.0.0-beta.26
-- Added xAI Grok models, with a Grok subscription sign-in or an API key from /logins
+- Added xAI Grok models, with a Grok subscription sign-in or an API key from /logins; a subscription shows its weekly pool and purchased credits in /usage
 - Added an xAI usage meter in /usage through an optional management key
 - Added Meta Muse models with a Model API key from /logins
 - Added /advise, a per-chat advisor switch that survives a resume, with /config → Advisor as the settings for every chat
@@ -20,8 +20,6 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed the exact token count running low after a thinking turn
 - Fixed a very long GPT conversation getting stuck at the context limit instead of compacting
 - Fixed /logins opening as a bottom panel instead of a popup
-- Fixed the /logins list showing numbers on nine rows and none on the last two: every row is plain and the arrow keys and Enter pick
-- Fixed the /status Accounts row listing every key family separately once xAI and Meta joined; families in the same state share one line again
 - Fixed an idle session polling a crew file when it had no crew
 - Fixed a parked session's scheduled wake showing "due now" the whole time it was parked
 - Fixed agent worktrees starting from a stale main or colliding on the repository lock
