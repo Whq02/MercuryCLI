@@ -53,6 +53,7 @@ import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLo
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
 import { routedCallModel } from '../providers/callModelRouter.js'
+import { COLD_INGEST_MS_PER_1K_TOKENS } from '../providers/streamIdleBudget.js'
 import { markPostCompaction } from '../api/logging.js'
 import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { recordWireFoldRow, type WireFoldRow } from '../api/dumpPrompts.js'
@@ -224,50 +225,89 @@ const FOLD_STALL_MS = 120_000
 export const ERROR_MESSAGE_FOLD_TIMEOUT =
   'The summary call stalled and was stopped — nothing was folded; the conversation stands as it was. Try again, or start fresh with /clear.'
 
-let foldBoundsOverride: { deadlineMs: number; stallMs: number } | null = null
-export function setFoldBoundsForTests(bounds: { deadlineMs: number; stallMs: number } | null): void {
+export type FoldBounds = { deadlineMs: number; stallMs: number; ingestMsPer1kTokens: number }
+
+let foldBoundsOverride: { deadlineMs: number; stallMs: number; ingestMsPer1kTokens?: number } | null = null
+export function setFoldBoundsForTests(bounds: { deadlineMs: number; stallMs: number; ingestMsPer1kTokens?: number } | null): void {
   foldBoundsOverride = bounds
 }
+
+function foldBounds(): FoldBounds {
+  return {
+    deadlineMs: foldBoundsOverride?.deadlineMs ?? FOLD_DEADLINE_MS,
+    stallMs: foldBoundsOverride?.stallMs ?? FOLD_STALL_MS,
+    ingestMsPer1kTokens: foldBoundsOverride?.ingestMsPer1kTokens ?? COLD_INGEST_MS_PER_1K_TOKENS,
+  }
+}
+
+export function foldFirstByteAllowanceMs(estTokens: number, bounds: FoldBounds = foldBounds()): number {
+  const tokens = Number.isFinite(estTokens) && estTokens > 0 ? estTokens : 0
+  return Math.min(bounds.deadlineMs, bounds.stallMs + Math.round((tokens / 1000) * bounds.ingestMsPer1kTokens))
+}
+
+export type FoldCut = 'silence' | 'wall'
 
 type FoldBound = {
   controller: AbortController
   signal: AbortSignal
   touch(): void
+  content(): void
+  request(): void
   hitDeadline(): boolean
+  cutBy(): FoldCut | null
   dispose(): void
 }
 
-function armFoldBound(parent: AbortSignal): FoldBound {
-  const deadlineMs = foldBoundsOverride?.deadlineMs ?? FOLD_DEADLINE_MS
-  const stallMs = foldBoundsOverride?.stallMs ?? FOLD_STALL_MS
+function armFoldBound(parent: AbortSignal, road: WireFoldRow['road'], estTokens: number): FoldBound {
+  const { deadlineMs, stallMs } = foldBounds()
+  const firstByteMs = foldFirstByteAllowanceMs(estTokens)
   const controller = new AbortController()
   let timedOut = false
+  let cut: FoldCut | null = null
+  let contentSeen = false
   const onParentAbort = (): void => controller.abort()
   if (parent.aborted) controller.abort()
   else parent.addEventListener('abort', onParentAbort, { once: true })
-  const expire = (): void => {
+  const expire = (clock: FoldCut): void => {
+    if (timedOut) return
     timedOut = true
+    cut = clock
     controller.abort()
   }
-  const deadline = setTimeout(expire, deadlineMs)
+  const deadline = setTimeout(() => expire('wall'), deadlineMs)
   deadline.unref?.()
-  let stall: NodeJS.Timeout | null = setTimeout(expire, stallMs)
+  let stall: NodeJS.Timeout | null = setTimeout(() => expire('silence'), firstByteMs)
   stall.unref?.()
+  const rearm = (): void => {
+    if (stall !== null) clearTimeout(stall)
+    stall = setTimeout(() => expire('silence'), contentSeen ? stallMs : firstByteMs)
+    stall.unref?.()
+  }
+  logForDebugging(`compact: ${road} lane bound armed — first-byte allowance ${firstByteMs} ms for ≈${Math.round(estTokens)} tokens, stall ${stallMs} ms after the first event, wall ${deadlineMs} ms`)
   return {
     controller,
     signal: controller.signal,
-    touch(): void {
-      if (stall !== null) clearTimeout(stall)
-      stall = setTimeout(expire, stallMs)
-      stall.unref?.()
+    touch: rearm,
+    content(): void {
+      contentSeen = true
+      rearm()
+    },
+    request(): void {
+      contentSeen = false
+      rearm()
     },
     hitDeadline: () => timedOut,
+    cutBy: () => cut,
     dispose(): void {
       clearTimeout(deadline)
       if (stall !== null) clearTimeout(stall)
       parent.removeEventListener('abort', onParentAbort)
     },
   }
+}
+
+function foldCutWords(bound: FoldBound): string {
+  return bound.cutBy() === 'wall' ? 'the wall-clock deadline' : 'silence on the wire'
 }
 
 export function shouldRideCacheSharingFork(model: string, thinkingConfig?: { type: string }): boolean {
@@ -705,7 +745,7 @@ async function summarizeViaCacheSharingFork(
   promptMessage: UserMessage,
   context: ToolUseContext,
 ): Promise<AssistantMessage | null> {
-  const bound = armFoldBound(context.abortController.signal)
+  const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages))
   const startedAt = Date.now()
   const model = context.options.mainLoopModel
   try {
@@ -720,7 +760,7 @@ async function summarizeViaCacheSharingFork(
       skipCacheWrite: true,
       effortMessage: foldEffortMessageFor(context.options.mainLoopModel),
       onStreamEvent: event => {
-        bound.touch()
+        bound.content()
         const inner = event as { type?: string; delta?: { type?: string; text?: string } }
         if (inner.type === 'content_block_delta' && inner.delta?.type === 'text_delta') {
           const length = inner.delta.text?.length ?? 0
@@ -742,7 +782,7 @@ async function summarizeViaCacheSharingFork(
     })
     if (bound.hitDeadline()) {
       const elapsedMs = Date.now() - startedAt
-      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
+      logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsedMs} ms mid-stream — its partial output is discarded; handing over to the direct call`, { level: 'warn' })
       recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms (partial output discarded)`)
       return null
     }
@@ -783,7 +823,7 @@ async function summarizeViaCacheSharingFork(
     if (err instanceof CompactionRefusedForHistoryError) throw err
     const elapsedMs = Date.now() - startedAt
     if (bound.hitDeadline()) {
-      logForDebugging(`compact: fork lane hit its fold bound after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })
+      logForDebugging(`compact: fork lane hit its fold bound (${foldCutWords(bound)}) after ${elapsedMs} ms — handing over to the direct call`, { level: 'warn' })
       recordFoldRoad(model, 'fork', startedAt, 'handover', `fold bound after ${elapsedMs} ms`)
       return null
     }
@@ -806,7 +846,7 @@ async function summarizeViaStreamingFallback(
   promptMessage: UserMessage,
   context: ToolUseContext,
 ): Promise<AssistantMessage> {
-  const bound = armFoldBound(context.abortController.signal)
+  const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages))
   const startedAt = Date.now()
   const model = context.options.mainLoopModel
   try {
@@ -815,6 +855,9 @@ async function summarizeViaStreamingFallback(
     return settled
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
+    if (message === ERROR_MESSAGE_FOLD_TIMEOUT) {
+      logForDebugging(`compact: direct lane cut for ${foldCutWords(bound)} after ${Date.now() - startedAt} ms — nothing folded`, { level: 'warn' })
+    }
     recordFoldRoad(
       model,
       'direct',
@@ -888,6 +931,7 @@ async function streamingFallbackAttempts(
           )
 
     let captured: AssistantMessage | undefined
+    bound.request()
     const stream = routedCallModel({
       messages: apiMessages,
       systemPrompt: asSystemPrompt(appendSystemContext([...cacheSafeParams.systemPrompt], cacheSafeParams.systemContext ?? {})),
@@ -905,12 +949,13 @@ async function streamingFallbackAttempts(
         mcpTools: [],
         effortValue: foldEffortFor(model, context.getAppState().effortValue),
         effortMessage: foldEffortMessageFor(model),
+        onStreamActivity: () => bound.touch(),
         ownerKey: String(rosterOwnerFromToolUseContext(context)),
       },
     })
     try {
       for await (const event of stream) {
-        bound.touch()
+        bound.content()
         if (event.type === 'stream_event') {
           const inner = event.event as { type?: string; content_block?: { type?: string }; delta?: { type?: string; text?: string } }
           if (inner.type === 'content_block_start' && inner.content_block?.type === 'text') {

@@ -350,8 +350,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))
-      if (results.some(item => item.kind === 'event')) relay.noteEvent()
-      else relay.noteChunk()
+      relay.noteChunk()
       for (const item of results) {
         if (item.kind === 'fault') {
           yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'sse-dangling-event', message: `dangling SSE fragment: ${item.preview}`, retryable: false } }
@@ -366,9 +365,15 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
           yield { type: 'stream-fault', fault: { kind: 'truncated-stream', code: 'bad-json-chunk', message: `unparseable SSE chunk: ${payload.slice(0, 160)}`, retryable: false } }
           continue
         }
-        for (const event of tapRaw(parsed, state)) yield event
+        for (const event of tapRaw(parsed, state)) {
+          relay.noteEvent()
+          yield event
+        }
         for (const event of fold.fold(parsed)) {
-          for (const translated of translate(event, state, slots)) yield translated
+          for (const translated of translate(event, state, slots)) {
+            relay.noteEvent()
+            yield translated
+          }
         }
         if (fold.finished) break readLoop
       }
