@@ -9,6 +9,7 @@
 # gate-watch: src/utils/suggestions/shellHistoryCompletion.ts
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink.ts src/state/AppState.tsx src/utils/config/globalConfig.ts
 # gate-watch: scripts/lib/platformPath.ts
+# gate-watch: src/utils/conversationRecovery.ts src/cli/headless/resume.ts
 # gate-watch: src/utils/sessionClass.ts src/utils/messages/attachmentText.ts src/components/messages/nullRenderingAttachments.ts src/utils/sessionStorage/vnext.ts
 # gate-watch: src/migrations/retiredCrewSpellings.ts src/utils/attachments/types.ts src/keybindings/loadUserBindings.ts src/fabric/transcriptDecode.ts src/commands/crewmates/index.ts src/keybindings/actionGraph.ts src/keybindings/parser.ts src/main.tsx src/state/AppStateStore.ts src/substrate/operationJournal.ts src/tools/AgentTool/AgentTool.tsx src/utils/crew/crewConvert.ts src/utils/swarm/constants.ts src/utils/swarm/crewHelpers.ts src/utils/swarm/crewOperations.ts src/utils/envUtils.ts src/utils/agentSwarmsEnabled.ts src/utils/zodToJsonSchema.ts
 set -uo pipefail
@@ -27,6 +28,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-history-flus
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-first-prompt-extractor.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-first-prompt-extractor.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-writer-hardening.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-writer-hardening.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-record-branch-pruning.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-record-branch-pruning.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-field-e004-parallel-batch-resume.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-field-e004-parallel-batch-resume.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-torn-tail-heal.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-torn-tail-heal.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-store-not-cross-adopted.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-store-not-cross-adopted.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-concurrent-chain-fork.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-concurrent-chain-fork.ts" "$__t" "$__rc"
