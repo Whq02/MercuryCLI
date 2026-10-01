@@ -88,6 +88,7 @@ import {
   setAgentTranscriptSubdir,
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
+import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -1033,7 +1034,7 @@ export async function* runAgent(
     }
 
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
-      const stream = query(queryParams)
+      const stream = settledSidechainMessages(query(queryParams))
       let atRequestBoundary = true
       try {
         for (;;) {

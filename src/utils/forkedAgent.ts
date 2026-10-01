@@ -25,6 +25,7 @@ import { createUserMessage, extractTextContent, getLastAssistantMessage } from '
 import { createDenialTrackingState } from './permissions/denialTracking.js'
 import { parseToolListFromCLI } from './permissions/permissionSetup.js'
 import { recordSidechainTranscript } from './sessionStorage.js'
+import { settledSidechainMessages } from './sessionStorage/settledSidechainMessages.js'
 import type { SystemPrompt } from './systemPromptType.js'
 import { cloneContentReplacementState, type ContentReplacementState } from './toolResultStorage.js'
 import { createAgentId } from './uuid.js'
@@ -309,7 +310,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
     }
   }
   try {
-    for await (const item of query({
+    for await (const item of settledSidechainMessages(query({
       messages,
       systemPrompt: cacheSafeParams.systemPrompt,
       userContext: cacheSafeParams.userContext,
@@ -321,7 +322,7 @@ export async function runForkedAgent(params: ForkedAgentParams): Promise<ForkedA
       maxTurns,
       skipCacheWrite,
       effortMessage,
-    })) {
+    }))) {
       if (item.type === 'stream_event') {
         fold = foldForkUsageEvent(fold, item.event as { type?: string; usage?: unknown; message?: { usage?: unknown } })
         onStreamEvent?.(item.event)
