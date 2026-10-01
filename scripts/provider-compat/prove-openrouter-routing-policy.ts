@@ -105,15 +105,21 @@ function setting(value: Routing): void {
   updateSettingsForSource('userSettings', { openrouterRouting: undefined })
   if (value !== undefined) updateSettingsForSource('userSettings', { openrouterRouting: value })
 }
+const allOff: Routing = { dataCollection: 'allow', requireParameters: false, allowFallbacks: true, zeroDataRetention: false }
+const policyBytes = '{"data_collection":"deny","require_parameters":true}'
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
+const withoutPolicy = (body: Body | undefined): string => {
+  const { provider: _provider, ...rest } = body ?? {}
+  return JSON.stringify(rest)
+}
 const receipts: Record<string, unknown> = {}
 try {
   if (!process.argv.includes('--faults-only')) {
   setting(undefined)
   const absentChat = await drive('openrouter/fixture/model')
   const absentResponses = await drive('openrouter/fixture/model', true)
-  check('untouched chat sends no provider object', absentChat !== undefined && !('provider' in absentChat.body))
-  check('untouched responses sends no provider object', absentResponses !== undefined && !('provider' in absentResponses.body))
+  check('untouched chat sends exactly the deny and require policy bytes', JSON.stringify(absentChat?.body.provider) === policyBytes && absentChat?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentChat?.body.provider))
+  check('untouched responses sends exactly the deny and require policy bytes', JSON.stringify(absentResponses?.body.provider) === policyBytes && absentResponses?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentResponses?.body.provider))
   receipts.chat = absentChat?.raw
   receipts.responses = absentResponses?.raw
   for (const model of ['deepseek-v4-pro', 'kimi-k3', 'compat/fixture-model']) {
@@ -127,11 +133,13 @@ try {
   for (const responses of [false, true]) {
     setting({})
     const defaults = await drive('openrouter/fixture/model', responses)
-    check(`${responses ? 'responses' : 'chat'}: present empty setting sends deny and require`, same(defaults?.body.provider, { data_collection: 'deny', require_parameters: true }), JSON.stringify(defaults?.body))
-    setting({ dataCollection: 'allow', requireParameters: false, allowFallbacks: true, zeroDataRetention: false })
-    const off = await drive('openrouter/fixture/model', responses)
+    check(`${responses ? 'responses' : 'chat'}: present empty setting sends deny and require`, JSON.stringify(defaults?.body.provider) === policyBytes, JSON.stringify(defaults?.body))
     const absent = responses ? absentResponses : absentChat
-    check(`${responses ? 'responses' : 'chat'}: all-off keeps untouched bytes`, off !== undefined && off.raw === absent?.raw, JSON.stringify([off?.body, absent?.body]))
+    check(`${responses ? 'responses' : 'chat'}: absent and empty settings produce byte-identical bodies`, defaults !== undefined && defaults.raw === absent?.raw)
+    setting(allOff)
+    const off = await drive('openrouter/fixture/model', responses)
+    check(`${responses ? 'responses' : 'chat'}: explicit all-off removes only the policy bytes`, off !== undefined && !('provider' in off.body) && off.raw === withoutPolicy(absent?.body), JSON.stringify([off?.body, absent?.body]))
+    receipts[responses ? 'responsesAllOff' : 'chatAllOff'] = off?.raw
     for (const dataCollection of ['allow', 'deny'] as const) for (const requireParameters of [false, true]) for (const allowFallbacks of [false, true]) for (const zeroDataRetention of [false, true]) {
       setting({ dataCollection, requireParameters, allowFallbacks, zeroDataRetention })
       const expected = { ...(dataCollection === 'deny' ? { data_collection: 'deny' } : {}), ...(requireParameters ? { require_parameters: true } : {}), ...(!allowFallbacks ? { allow_fallbacks: false } : {}), ...(zeroDataRetention ? { zdr: true } : {}) }
@@ -147,9 +155,9 @@ try {
   for (const responses of [false, true]) {
     for (const message of noProvider) {
       faultReply = { status: 503, message }
-      setting(undefined)
+      setting(allOff)
       const off = await turn('openrouter/fixture/model', responses, true)
-      setting({})
+      setting(undefined)
       const on = await turn('openrouter/fixture/model', responses, true)
       check(`${responses ? 'responses' : 'chat'}: policy 503 adds only the remedy to the existing error`, off.errors.length === 1 && on.errors.length === 1 && on.errors[0] === off.errors[0] + remedy, JSON.stringify({ off: off.errors, on: on.errors }))
       check('policy-off 503 never names the config row', !off.errors.join('').includes('OpenRouter routing policy'))
@@ -166,18 +174,18 @@ try {
     }
     process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
     for (const message of [overloaded, noProvider[0]!]) {
-      setting({})
+      setting(undefined)
       faultReply = { status: 503, message }
-      onPosted = () => setting(undefined)
+      onPosted = () => setting(allOff)
       const retried = await turn('openrouter/fixture/model', responses)
       const wantsNote = message !== overloaded
       check(`${responses ? 'responses' : 'chat'}: ${wantsNote ? 'policy miss' : 'overload'} keeps all six busy retries`, retried.captures.length === 7 && retried.errors.length === 1 && retried.errors[0]!.includes('stayed busy through 6 retries'), `${retried.captures.length} ${retried.errors.join('')}`)
       check('terminal note describes the request snapshot, not a later settings edit', retried.errors[0]?.endsWith(remedy) === wantsNote, retried.errors.join(''))
       check('each retry keeps the identical request policy and tools', retried.captures.every(c => c.raw === retried.captures[0]?.raw && Array.isArray(c.body.tools) && (c.body.provider as Body)?.require_parameters === true))
     }
-    setting(undefined)
+    setting(allOff)
     faultReply = { status: 503, message: noProvider[0]! }
-    onPosted = () => setting({})
+    onPosted = () => setting(undefined)
     const after = await turn('openrouter/fixture/model', responses, true)
     check('turning policy on after posting cannot relabel an unfiltered request', after.errors.length === 1 && !after.errors[0]!.includes('OpenRouter routing policy'))
   }

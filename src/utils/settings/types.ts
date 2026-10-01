@@ -271,7 +271,7 @@ export const SettingsSchema = lazySchema(() => {
         zeroDataRetention: z.boolean().optional(),
       })
       .optional()
-      .describe('OpenRouter routing policy: when set, denies data collection and requires every parameter by default, with fallbacks on and zero data retention off; when absent, leaves OpenRouter routing unchanged'),
+      .describe('OpenRouter routing policy: denies data collection and requires every parameter by default, even when absent, with fallbacks on and zero data retention off; an explicit all-off setting (dataCollection: allow, requireParameters: false, allowFallbacks: true, zeroDataRetention: false) sends no routing preference'),
     shellEngineSessions: z
       .number()
       .int()

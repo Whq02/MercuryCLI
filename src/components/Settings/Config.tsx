@@ -697,11 +697,11 @@ export function Config({
       label: 'OpenRouter routing policy',
       searchText: 'openrouter routing policy privacy collection parameters fallbacks zero data retention zdr',
       kind: 'enum',
-      value: <Text>{routing === undefined ? 'OpenRouter defaults · no request policy' : `${collection} · parameters ${parameters ? 'required' : 'optional'} · fallbacks ${fallbacks ? 'on' : 'off'} · ZDR ${zdr ? 'on' : 'off'}`}</Text>,
-      warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit openrouterRouting in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
+      value: <Text>{`${collection} · parameters ${parameters ? 'required' : 'optional'} · fallbacks ${fallbacks ? 'on' : 'off'} · ZDR ${zdr ? 'on' : 'off'}`}</Text>,
+      warning: 'the endpoints OpenRouter may use · strict denies data collection, requires every parameter, turns fallbacks off and zero data retention on · balanced is on from the start: denies collection and requires parameters, with fallbacks on and ZDR off · open leaves routing to OpenRouter · a model with no matching endpoint refuses with the no-provider error; allow collection or relax parameters to widen the pool · ←/→ walk strict, balanced, open · edit openrouterRouting in your user settings for each switch: dataCollection, requireParameters, allowFallbacks, zeroDataRetention',
       change: direction => {
         const modes = ['strict', 'balanced', 'open'] as const
-        const current = routing === undefined || (collection === 'allow' && !parameters && fallbacks && !zdr) ? 'open' : collection === 'deny' && parameters && !fallbacks && zdr ? 'strict' : 'balanced'
+        const current = collection === 'allow' && !parameters && fallbacks && !zdr ? 'open' : collection === 'deny' && parameters && !fallbacks && zdr ? 'strict' : 'balanced'
         const next = cycleIn(modes, current, direction)
         const value = {
           dataCollection: next === 'open' ? 'allow' as const : 'deny' as const,

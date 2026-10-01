@@ -50,12 +50,15 @@ for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
   m.push(KEY.enter)
   const found = await waitFor(() => m.screen().includes(`${CONFIG_ROW_MARK} OpenRouter routing policy`), 5000)
   check(`${columns}x${rows}: routing row exists`, found, m.screen())
+  check(`${columns}x${rows}: absent setting displays deny and required parameters, never no policy`, m.screen().includes('deny · parameters required') && !m.screen().includes('no request policy'), m.screen())
+  if (columns >= 100) check('the absent setting displays fallbacks on and ZDR off', m.screen().includes('fallbacks on · ZDR off'))
   if (frames) writeFileSync(join(frames, `config-routing-${columns}x${rows}.txt`), m.lines().join('\n') + '\n')
   if (found) {
     for (let i = 0; i < 3; i++) {
       const before = JSON.stringify(stored())
       m.push(KEY.right)
       check(`${columns}x${rows}: cycle ${i + 1} persists a valid user setting`, await waitFor(() => JSON.stringify(stored()) !== before, 5000) && schema.safeParse({ openrouterRouting: stored() }).success, JSON.stringify(stored()))
+      if (i === 0) check('right from the absent balanced default explicitly relaxes all four knobs', JSON.stringify(stored()) === '{"dataCollection":"allow","requireParameters":false,"allowFallbacks":true,"zeroDataRetention":false}', JSON.stringify(stored()))
     }
     check(`${columns}x${rows}: all four fields persisted`, Object.keys((stored() ?? {}) as object).length === 4)
     m.push(KEY.esc)
