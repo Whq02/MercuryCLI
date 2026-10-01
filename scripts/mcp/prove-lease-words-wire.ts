@@ -81,10 +81,10 @@ const parsed = (r: SeenResult | undefined): Record<string, unknown> => {
 }
 for (const [k, v] of Object.entries(seen)) show(k, v)
 
-const claimsInTheCrew = (r: SeenResult | undefined, path: string): boolean => r !== undefined && !r.isError && parsed(r).ok === true && Array.isArray(parsed(r).globs) && (parsed(r).globs as string[]).includes(path)
+const soloNoOp = (r: SeenResult | undefined): boolean => r !== undefined && !r.isError && parsed(r).ok === false && parsed(r).reason === 'NOT_IN_CREW'
 tally.section('A. on the built product, a claim reaches the verb under either spelling')
-tally.check('A1 a claim sent as paths, with the reason the model adds, is no longer refused: it claims in the session’s own crew (every session has a crew from birth)', claimsInTheCrew(seen.claimPaths, 'src/a.ts'), seen.claimPaths?.text.slice(0, 300))
-tally.check('A2 a claim sent as globs claims the same way', claimsInTheCrew(seen.claimGlobs, 'src/b.ts'), seen.claimGlobs?.text.slice(0, 300))
+tally.check('A1 a claim sent as paths, with the reason the model adds, reaches the verb and answers the typed not-in-crew result, not a tool error: a session with no crewmates has no crew to claim in', soloNoOp(seen.claimPaths), seen.claimPaths?.text.slice(0, 300))
+tally.check('A2 a claim sent as globs answers the same way', soloNoOp(seen.claimGlobs), seen.claimGlobs?.text.slice(0, 300))
 tally.check('A3 a claim with no list is refused, naming both spellings', seen.claimNone !== undefined && seen.claimNone.isError && /\bpaths\b/.test(seen.claimNone.text) && /\bglobs\b/.test(seen.claimNone.text), seen.claimNone?.text.slice(0, 300))
 tally.check('A4 the refusal is the tool’s own, not the schema’s', seen.claimNone !== undefined && !/Invalid arguments for tool/.test(seen.claimNone.text), seen.claimNone?.text.slice(0, 300))
 
@@ -93,7 +93,7 @@ tally.check('B1 the exact project lease on x.txt is taken', seen.takeX !== undef
 tally.check('B2 a release sent as paths releases it', seen.releasePaths !== undefined && !seen.releasePaths.isError && parsed(seen.releasePaths).released === true, seen.releasePaths?.text.slice(0, 300))
 tally.check('B3 the exact project lease on y.txt is taken', seen.takeY !== undefined && !seen.takeY.isError && parsed(seen.takeY).ok === true, seen.takeY?.text.slice(0, 300))
 tally.check('B4 a release sent as globs releases the named project lease', seen.releaseGlobs !== undefined && !seen.releaseGlobs.isError && parsed(seen.releaseGlobs).released === true, seen.releaseGlobs?.text.slice(0, 300))
-tally.check('B5 no project lease is left on the list, and the crew claim from A2 still stands (a release names what it releases)', seen.listAfter !== undefined && !seen.listAfter.isError && Array.isArray(parsed(seen.listAfter).projectLeases) && (parsed(seen.listAfter).projectLeases as unknown[]).length === 0 && Array.isArray(parsed(seen.listAfter).leases) && (parsed(seen.listAfter).leases as Array<{ globs?: string[] }>).some(l => (l.globs ?? []).includes('src/b.ts')), seen.listAfter?.text.slice(0, 300))
+tally.check('B5 no project lease is left on the list, and no crew claim stands: the list is the solo project-lease shape with no rows (a release names what it releases; A1 and A2 claimed nothing)', seen.listAfter !== undefined && !seen.listAfter.isError && parsed(seen.listAfter).ok === true && Array.isArray(parsed(seen.listAfter).leases) && (parsed(seen.listAfter).leases as unknown[]).length === 0 && parsed(seen.listAfter).projectLeases === undefined, seen.listAfter?.text.slice(0, 300))
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`\nworld kept: ${scratch}`)

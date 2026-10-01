@@ -18,9 +18,9 @@ import {
   checkBroadcastFairness,
   listOpenQuestions,
 } from '../../utils/swarm/sendMessageGovernance.js'
-import { readCrewFileAsync } from '../../utils/swarm/crewHelpers.js'
+import { crewRosterExists, readCrewFileAsync } from '../../utils/swarm/crewHelpers.js'
 import { getAgentStatuses, listTasks, type AgentStatus } from '../../utils/tasks.js'
-import { getCrewmateColor, resolveCoordAgentId, resolveLeadAwareCrewName } from '../../utils/crewmate.js'
+import { getCrewmateColor, isCrewmate, resolveCoordAgentId, resolveLeadAwareCrewName } from '../../utils/crewmate.js'
 import { unreadLiveMessagesFor, sendLiveMessage } from '../crew/liveComms.js'
 import { isStructuredProtocolMessage } from '../crew/liveMessages.js'
 
@@ -44,6 +44,7 @@ export const notInCrew = (): NotInCrew => ({ ok: false, reason: 'NOT_IN_CREW', m
 export function resolveCoordinationContext(crewContext?: { crewName: string } | null): CoordinationContext | null {
   const crew = resolveLeadAwareCrewName(crewContext ?? undefined) ?? null
   if (!crew) return null
+  if (!isCrewmate() && !crewRosterExists(crew)) return null
   return { crew, agentId: resolveCoordAgentId() }
 }
 
