@@ -95,7 +95,7 @@ cpSync(join(REPO, 'scripts/gate/run-suite.sh'), join(scratch, 'scripts/gate/run-
 cpSync(join(REPO, 'scripts/gate/suite-grants.sh'), join(scratch, 'scripts/gate/suite-grants.sh'))
 cpSync(join(REPO, 'scripts/gate/timeline.py'), join(scratch, 'scripts/gate/timeline.py'))
 mkdirSync(join(scratch, 'scripts', 'lib'), { recursive: true })
-for (const file of ['suite-env.sh', 'firstRunSeed.ts', 'project-home.sh', 'process-ledger.sh', 'proofScratch.cjs', 'proofBrowser.cjs']) cpSync(join(REPO, 'scripts/lib', file), join(scratch, 'scripts/lib', file))
+for (const file of ['suite-env.sh', 'firstRunSeed.ts', 'project-home.sh', 'process-ledger.sh', 'proofScratch.cjs', 'proofBrowser.cjs', 'box_shape.py']) cpSync(join(REPO, 'scripts/lib', file), join(scratch, 'scripts/lib', file))
 writeFileSync(
   join(scratch, 'scripts/gate/duration-seed.tsv'),
   'alpha\t5\nbeta\t5\ngamma\t5\ntypecheck\t5\nomega\t300\n',
