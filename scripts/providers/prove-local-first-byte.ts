@@ -350,9 +350,9 @@ section('cap · the hard cap on the local road is two hours, and only there')
   check('the constants', liveness !== null && liveness.LOCAL_FIRST_BYTE_CAP_MS === 7_200_000 && liveness.LOCAL_REQUEST_CAP_MS === 7_200_000, String(liveness?.LOCAL_FIRST_BYTE_CAP_MS))
 }
 
-section('every other road keeps its numbers to the byte')
+section('the other roads take their normal patience numbers')
 {
-  check('openai: the quiet number (15 min); zai, anthropic, openai-compat: the fed number (2 min); a road with no number: the shared 2 min', budget.streamIdleTimeoutMsForRoute('openai') === 900_000 && budget.streamIdleTimeoutMsForRoute('zai') === 120_000 && budget.streamIdleTimeoutMsForRoute('anthropic') === 120_000 && budget.streamIdleTimeoutMsForRoute('openai-compat') === 120_000 && budget.streamIdleTimeoutMsForRoute('moonshot') === 120_000 && budget.streamIdleTimeoutMsForRoute(null) === 120_000)
+  check('openai and moonshot: the quiet number (15 min); zai, anthropic, openai-compat: the fed number (2 min); no route: the shared 2 min', budget.streamIdleTimeoutMsForRoute('openai') === 900_000 && budget.streamIdleTimeoutMsForRoute('zai') === 120_000 && budget.streamIdleTimeoutMsForRoute('anthropic') === 120_000 && budget.streamIdleTimeoutMsForRoute('openai-compat') === 120_000 && budget.streamIdleTimeoutMsForRoute('moonshot') === 900_000 && budget.streamIdleTimeoutMsForRoute(null) === 120_000)
   check('the local road takes the quiet number, never the 2-minute default', IDLE_MS === 900_000, String(IDLE_MS))
   check('the first-byte budget arithmetic on the other roads is untouched: 1,200 ms per 1k, a 300 s floor, twice the idle budget', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 120_000 }) === 198_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 900_000 }) === 978_000)
   check('the shared default and the warning floor stand', budget.STREAM_IDLE_DEFAULT_MS === 120_000 && budget.STREAM_IDLE_WARNING_FLOOR_MS === 300_000)

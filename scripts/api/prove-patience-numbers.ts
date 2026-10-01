@@ -34,9 +34,9 @@ function setPatience(value: unknown): void {
   settingsCache.resetSettingsCache()
 }
 
-const FED_ROADS = ['anthropic', 'zai', 'openai-compat'] as const
-const QUIET_ROADS = ['openai', 'local'] as const
-const OWN_ROADS = ['moonshot', 'deepseek', 'openrouter', 'gemini', 'huggingface', 'unrecognised', null] as const
+const FED_ROADS = ['anthropic', 'zai', 'openai-compat', 'deepseek', 'openrouter'] as const
+const QUIET_ROADS = ['openai', 'local', 'moonshot', 'xai', 'meta', 'gemini', 'huggingface'] as const
+const OWN_ROADS = ['unrecognised', null] as const
 const everyRoad = (roads: ReadonlyArray<string | null>, ms: number): boolean => roads.every(road => idle.streamIdleTimeoutMsForRoute(road) === ms)
 const roadsRead = (roads: ReadonlyArray<string | null>): string => roads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' ')
 
@@ -60,17 +60,17 @@ section('P1 — the modes: normal, patient, custom; junk reads as normal')
 section('P2 — per road, through the real settings pipeline')
 {
   check('unset: the fed roads read 2 min', everyRoad(FED_ROADS, 120_000), roadsRead(FED_ROADS))
-  check('unset: the openai and local roads read the quiet number, 15 min', everyRoad(QUIET_ROADS, 900_000), roadsRead(QUIET_ROADS))
+  check('unset: the quiet roads read the quiet number, 15 min', everyRoad(QUIET_ROADS, 900_000), roadsRead(QUIET_ROADS))
   check('unset: a road with no number of its own reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
   check('the caller with no road reads the shared 2 min', idle.streamIdleTimeoutMs() === 120_000)
   setPatience('patient')
   check('patient: the fed roads read 4 min', everyRoad(FED_ROADS, 240_000), roadsRead(FED_ROADS))
-  check('patient: the openai and local roads read 30 min', everyRoad(QUIET_ROADS, 1_800_000), roadsRead(QUIET_ROADS))
+  check('patient: the quiet roads read 30 min', everyRoad(QUIET_ROADS, 1_800_000), roadsRead(QUIET_ROADS))
   check('patient: a road with no number of its own still reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
   check('patient: the caller with no road still reads the shared 2 min', idle.streamIdleTimeoutMs() === 120_000)
   setPatience({ streamIdleSeconds: 45, quietStreamIdleSeconds: 600, fallbackCeilingSeconds: 1200, recoveryBudgetMinutes: 3 })
   check('custom: the fed roads read the custom idle number', everyRoad(FED_ROADS, 45_000), roadsRead(FED_ROADS))
-  check('custom: the openai and local roads read the custom quiet number', everyRoad(QUIET_ROADS, 600_000), roadsRead(QUIET_ROADS))
+  check('custom: the quiet roads read the custom quiet number', everyRoad(QUIET_ROADS, 600_000), roadsRead(QUIET_ROADS))
   check('custom: a road with no number of its own reads the shared 2 min', everyRoad(OWN_ROADS, 120_000), roadsRead(OWN_ROADS))
   check('the current patience reads the file', patience.currentPatience().mode === 'custom' && patience.currentPatience().numbers.streamIdleMs === 45_000)
   setPatience(undefined)
@@ -122,10 +122,10 @@ section('P4 — the env pins outrank the setting, every road alike')
 
 section('P5 — the words, the custom form, the pins named, the schema')
 {
-  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 2m (OpenAI 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
-  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 4m (OpenAI 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
+  check('the normal row', patience.patienceWords(patience.PATIENCE_NORMAL) === 'idle 2m (quiet 15m) · fallback 15m · retry budget 20m', patience.patienceWords(patience.PATIENCE_NORMAL))
+  check('the patient row', patience.patienceWords(patience.PATIENCE_PATIENT) === 'idle 4m (quiet 30m) · fallback 30m · retry budget 40m', patience.patienceWords(patience.PATIENCE_PATIENT))
   const off = patience.patienceOf({ streamIdleSeconds: 45, recoveryBudgetMinutes: 0 }).numbers
-  check('a custom row with the budget off says so', patience.patienceWords(off) === 'idle 45 s (OpenAI 15m) · fallback 15m · no retry budget', patience.patienceWords(off))
+  check('a custom row with the budget off says so', patience.patienceWords(off) === 'idle 45 s (quiet 15m) · fallback 15m · no retry budget', patience.patienceWords(off))
   check('the custom form /config writes carries every number in the file\'s units', JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)) === JSON.stringify({ streamIdleSeconds: 120, quietStreamIdleSeconds: 900, fallbackCeilingSeconds: 900, recoveryBudgetMinutes: 20 }), JSON.stringify(patience.customPatienceSetting(patience.PATIENCE_NORMAL)))
   check('…and reads back as the same numbers', JSON.stringify(patience.patienceOf(patience.customPatienceSetting(patience.PATIENCE_PATIENT)).numbers) === JSON.stringify(patience.PATIENCE_PATIENT))
   check('no pin set: none named', patience.patienceEnvPins().length === 0, JSON.stringify(patience.patienceEnvPins()))

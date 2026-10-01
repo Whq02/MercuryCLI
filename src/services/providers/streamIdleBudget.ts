@@ -1,6 +1,6 @@
 import { outageCauseWordsOf } from '../api/recoveryBudget.js'
 import type { SystemAPIErrorMessage } from '../../types/message.js'
-import { currentPatience } from './patience.js'
+import { currentPatience, PATIENCE_NORMAL } from './patience.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 
@@ -22,20 +22,32 @@ export function streamIdleWarningMsOf(timeoutMs: number): number {
   return Math.min(timeoutMs, Math.max(STREAM_IDLE_WARNING_FLOOR_MS, timeoutMs / 2))
 }
 
-export function streamIdleTimeoutMsForRoute(route: string | null): number {
-  const pinned = pinnedStreamIdleTimeoutMs()
-  if (pinned !== null) return pinned
+function streamIdleSettingForRoute(route: string | null): 'streamIdleMs' | 'quietStreamIdleMs' | null {
   switch (route) {
     case 'anthropic':
     case 'zai':
     case 'openai-compat':
-      return currentPatience().numbers.streamIdleMs
+    case 'deepseek':
+    case 'openrouter':
+      return 'streamIdleMs'
     case 'openai':
     case 'local':
-      return currentPatience().numbers.quietStreamIdleMs
+    case 'moonshot':
+    case 'xai':
+    case 'meta':
+    case 'gemini':
+    case 'huggingface':
+      return 'quietStreamIdleMs'
     default:
-      return STREAM_IDLE_DEFAULT_MS
+      return null
   }
+}
+
+export function streamIdleTimeoutMsForRoute(route: string | null): number {
+  const pinned = pinnedStreamIdleTimeoutMs()
+  if (pinned !== null) return pinned
+  const setting = streamIdleSettingForRoute(route)
+  return setting === null ? STREAM_IDLE_DEFAULT_MS : currentPatience().numbers[setting]
 }
 
 export interface StreamTimers {
@@ -96,22 +108,12 @@ function pinnedSilentAfterHeadersMs(): number | null {
 }
 
 export function silentAfterHeadersMsForRoute(route: string | null): number | null {
-  switch (route) {
-    case 'anthropic':
-    case 'openai':
-    case 'zai':
-    case 'moonshot':
-    case 'deepseek':
-    case 'xai':
-    case 'meta':
-    case 'openrouter':
-    case 'gemini':
-    case 'huggingface':
-    case 'openai-compat':
-      return pinnedSilentAfterHeadersMs() ?? SILENT_AFTER_HEADERS_DEFAULT_MS
-    default:
-      return null
-  }
+  const setting = streamIdleSettingForRoute(route)
+  if (setting === null || route === 'local') return null
+  const pinned = pinnedSilentAfterHeadersMs()
+  if (pinned !== null) return pinned
+  const scale = currentPatience().numbers[setting] / PATIENCE_NORMAL[setting]
+  return Math.max(SILENT_AFTER_HEADERS_DEFAULT_MS, Math.round(SILENT_AFTER_HEADERS_DEFAULT_MS * scale))
 }
 
 export function silentAfterHeadersWindowMs(args: { route: string | null; cold: boolean; promptTokens: number; idleMs: number }): number | null {

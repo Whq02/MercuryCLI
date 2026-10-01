@@ -26,6 +26,7 @@
 # gate-watch: src/utils/cockpit/runProtocol.ts src/utils/config/globalConfig.ts src/utils/messages/*
 # gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
 # gate-watch: src/utils/settings/*
+# gate-watch: src/components/Settings/Config.tsx src/services/providers/idSpaces.ts src/services/providers/patience.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
 set -uo pipefail
@@ -69,6 +70,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-reconnect-la
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-cut-road.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-cut-road.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-stream-liveness-tap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-stream-liveness-tap.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-numbers.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-numbers.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-every-route.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-every-route.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-anthropic.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-anthropic.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-road-openai.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-patience-road-openai.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-reply-cases.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-reply-cases.ts" "$__t" "$__rc"
