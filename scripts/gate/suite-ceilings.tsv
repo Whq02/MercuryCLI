@@ -1,6 +1,9 @@
-# scripts/gate/suite-ceilings.tsv — per-suite HARD CEILINGS for the CI gate
-# (scripts/gate/ci-shard.sh, the hang law). One `dom<TAB>seconds` row per
-# suite; every unlisted suite gets the 900 s default. A suite earns a row by
+# scripts/gate/suite-ceilings.tsv — measured per-suite grants, read by both
+# the CI shard and local pool through scripts/gate/suite-grants.sh.
+# CI uses the rows as hard ceilings; the local pool raises a named suite's
+# max(600 s, 2 x last) budget to its grant, never the global default.
+# One `dom<TAB>seconds` row per suite; CI's unlisted ceiling is 900 s.
+# A suite earns a row by
 # a MEASURED healthy wall over ~600 s (hosted seconds, run 33148028015's tsv
 # or later), never by suspicion — the ceiling is the wedge-stopper, not the
 # budget: a listed suite that hangs still dies at ITS row, with slack over

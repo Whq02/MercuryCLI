@@ -2,6 +2,7 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 . scripts/lib/project-home.sh
+. scripts/gate/suite-grants.sh
 
 SUITES_DIR=${MERCURY_GATE_SUITES_DIR:-scripts}
 HERMETIC=0
@@ -63,8 +64,10 @@ pty_lane() { # $1=class → 0 when the class rides the pty lane (declared or und
 
 VERDICT_FILE="$(project_store_dir "$PWD" gate)/verdict.json"
 SEED_FILE=scripts/gate/duration-seed.tsv
+CEILING_FILE=scripts/gate/suite-ceilings.tsv
 if [ "$HERMETIC" -eq 1 ]; then
   [ -n "${MERCURY_GATE_SEED_FILE:-}" ] && SEED_FILE=$MERCURY_GATE_SEED_FILE
+  CEILING_FILE=${MERCURY_GATE_CEILING_FILE:-/dev/null}
 fi
 DUR_TABLE=$(
   {
@@ -91,18 +94,23 @@ dur_of() { # $1=dom → seconds for ordering (30 when unknown)
   printf '%s' "${d:-30}"
 }
 budget_of() { # $1=dom → the watchdog seconds this suite runs under
-  local last b
+  local last b grant
   if [ -n "$BUDGET_OVERRIDE" ]; then printf '%s' "$BUDGET_OVERRIDE"; return; fi
   last=$(dur_row "$1")
   b=$(( ${last:-0} * BUDGET_K ))
   [ "$b" -lt "$BUDGET_FLOOR" ] && b=$BUDGET_FLOOR
+  grant=$(suite_grant "$1" "$CEILING_FILE")
+  [ "${grant:-0}" -gt "$b" ] && b=$grant
   printf '%s' "$b"
 }
 budget_note() { # $1=dom → the rule text the kill marker carries
-  local last
+  local last grant
   if [ -n "$BUDGET_OVERRIDE" ]; then printf 'MERCURY_SUITE_TIMEOUT=%s' "$BUDGET_OVERRIDE"; return; fi
   last=$(dur_row "$1")
-  if [ -n "$last" ]; then
+  grant=$(suite_grant "$1" "$CEILING_FILE")
+  if [ -n "$grant" ]; then
+    printf 'budget = max(%s s floor, %s × %s s last pooled, %s s suite grant from scripts/gate/suite-ceilings.tsv); MERCURY_SUITE_TIMEOUT overrides' "$BUDGET_FLOOR" "$BUDGET_K" "${last:-0}" "$grant"
+  elif [ -n "$last" ]; then
     printf 'budget = max(%s s floor, %s × %s s last pooled); MERCURY_SUITE_TIMEOUT overrides' "$BUDGET_FLOOR" "$BUDGET_K" "$last"
   else
     printf 'budget = the %s s floor (no duration row — a first appearance; seed it in scripts/gate/duration-seed.tsv or set MERCURY_SUITE_TIMEOUT)' "$BUDGET_FLOOR"

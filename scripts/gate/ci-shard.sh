@@ -22,6 +22,7 @@ OUT="${MERCURY_CI_SHARD_OUT:-ci-gate-out}"
 SUITES_DIR="${MERCURY_CI_SHARD_SUITES_DIR:-scripts}"
 SEED_FILE="${MERCURY_CI_SHARD_SEED_FILE:-scripts/gate/duration-seed.tsv}"
 CEILING_FILE="${MERCURY_CI_SHARD_CEILING_FILE:-scripts/gate/suite-ceilings.tsv}"
+. scripts/gate/suite-grants.sh
 
 export MERCURY_GATE_PREBUILT=1
 
@@ -46,7 +47,7 @@ seed_ceiling_of() { # $1=dom → DRIVE_CEILING_K × the seeded wall (0 without a
 }
 ceiling_of() { # $1=dom → ceiling seconds: the grant or the default, raised to the seed rule under the drives plan
   local c s
-  c=$(sed -n "s/^$1	\([0-9][0-9]*\)$/\1/p" "$CEILING_FILE" 2>/dev/null | head -1)
+  c=$(suite_grant "$1" "$CEILING_FILE")
   c=${c:-$CEILING_DEFAULT}
   s=$(seed_ceiling_of "$1")
   [ "$s" -gt "$c" ] && c=$s
