@@ -15,6 +15,8 @@
 # gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts src/hooks/useIdeSelection.ts
 # gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
 # gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/utils/sessionStorage/paths.ts src/types/permissions.ts src/types/ids.ts
+# gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/utils/permissions/autoModeState.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 
