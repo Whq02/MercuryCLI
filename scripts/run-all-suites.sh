@@ -30,18 +30,15 @@ in_want() {
 
 T_START=$SECONDS
 
-CORES=$( (sysctl -n hw.ncpu 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8) | head -1 )
-case "$CORES" in ('' | *[!0-9]*) CORES=8 ;; esac
-case "${MERCURY_GATE_CORES:-}" in ('' | *[!0-9]* | 0) ;; (*) CORES=$MERCURY_GATE_CORES ;; esac
+shape=$(python3 scripts/lib/box_shape.py --shell) || exit 78
+read -r CORES PTY_MAX <<<"$shape"
+export MERCURY_GATE_PTY_MAX="$PTY_MAX" VSHOT_SLOTS="$PTY_MAX"
 JOBS=${MERCURY_GATE_JOBS:-}
 case "$JOBS" in (*[!0-9]*) JOBS= ;; esac
 SEQUENTIAL=0
 SLOTS_TOTAL=$CORES
 [ "${JOBS:-}" = "1" ] && SEQUENTIAL=1
 if [ -n "${JOBS:-}" ] && [ "$JOBS" -gt 1 ]; then SLOTS_TOTAL=$(( JOBS * 2 )); fi
-PTY_MAX=${MERCURY_GATE_PTY_MAX:-3}
-case "$PTY_MAX" in ('' | *[!0-9]*) PTY_MAX=3 ;; esac
-[ "$PTY_MAX" -lt 1 ] && PTY_MAX=1
 PURE_MAX=$(( CORES - 2 )); [ "$PURE_MAX" -lt 1 ] && PURE_MAX=1
 
 RETRY_MODE=${MERCURY_GATE_RETRY:-escalate}

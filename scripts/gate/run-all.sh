@@ -35,6 +35,7 @@ run_proof "$here/prove-suite-class-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "
 run_proof "$here/prove-drives-plan.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-drives-plan.ts" || fail=1
 run_proof "$here/prove-observed-walk.py" /usr/bin/python3 "$here/prove-observed-walk.py" || fail=1
 run_proof "$here/prove-local-drives.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-local-drives.ts" || fail=1
+run_proof "$here/prove-box-shape.py" /usr/bin/python3 "$here/prove-box-shape.py" || fail=1
 run_proof "$here/prove-hermetic-shard.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-hermetic-shard.ts" || fail=1
 run_proof "$here/prove-skip-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-skip-census.ts" || fail=1
 run_proof "$here/prove-comment-anchor-census.ts" "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-comment-anchor-census.ts" || fail=1

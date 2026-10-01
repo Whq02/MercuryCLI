@@ -55,6 +55,7 @@ exec bash "$runner"
 }
 rm -f "$outdir/$dom.hang"
 printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
+python3 "$repo_root/scripts/lib/box_shape.py" --start "$outdir/$dom.start.json" "$secs" >>"$out" || exit 78
 run_checked_suite >>"$out" 2>&1 &
 pid=$!
 runner=$$
