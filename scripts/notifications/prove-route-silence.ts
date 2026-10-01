@@ -15,12 +15,7 @@ const t = checker()
 scratchRoot('route-silence')
 requireDist()
 
-
-const OPEN_AT = 6500
-const SUBMIT_AT = 8000
-const LAYER_ESC_AT = 10000
-const ESC_AT = 11500
-const WINDOW_FROM = 7600
+const ROUTE_SECONDS = 16
 
 const HEAL_FENCE_EVERY_MS = 1400
 const healFence = (fromMs: number, toMs: number): string[] => {
@@ -32,14 +27,16 @@ const healFence = (fromMs: number, toMs: number): string[] => {
 const run: ArenaRun = await runArtifactArena({
   turns: [],
   sends: [
-    `${OPEN_AT}:/bootmenu`,
-    `${SUBMIT_AT}:\r`,
-    `${LAYER_ESC_AT}:\x1b`,
-    `${ESC_AT}:\x1b`,
-    `${ESC_AT + 1500}:\x1b`,
-    ...healFence(OPEN_AT + 850, ESC_AT + 1500),
+    { awaitText: 'Type a prompt', text: '/bootmenu', afterPrevMs: 800 },
+    { awaitText: '/bootmenu', text: '\r' },
+    { awaitText: 'What it controls', text: '\x1b' },
+    { awaitText: ['start fresh here', 'configure boot env'], text: '\x1b' },
+    { awaitText: 'start fresh here', awaitAbsent: '❯', text: '\x1b' },
+    { awaitText: 'Boot Settings opened', text: '' },
+    ...healFence(850, ROUTE_SECONDS * 1000),
   ],
-  seconds: 16,
+  anchor: null,
+  seconds: ROUTE_SECONDS,
   cols: 120,
   rows: 36,
   keep: true,
@@ -64,13 +61,9 @@ try {
   const chunks = entries
     .filter(e => typeof e.ts === 'number' && typeof e.b64 === 'string')
     .map(e => ({ ts: e.ts as number, text: Buffer.from(e.b64 as string, 'base64').toString('latin1') }))
-  const sentStamps = entries.filter(
-    (e): e is DriveEntry & { sent: number; atMs: number } =>
-      typeof (e as { sent?: unknown }).sent === 'number' && typeof (e as { atMs?: unknown }).atMs === 'number',
-  )
-  const submitSent = sentStamps.find(e => e.atMs === S(SUBMIT_AT))?.sent
-  const base = chunks.length ? chunks[0]!.ts : 0
-  const windowStart = submitSent !== undefined ? submitSent - 200 : base + S(WINDOW_FROM)
+  const submitSent = run.sendLog.find(e => e.step === 1)?.sent
+  t.check('every route step reached its observed frame, including the receipt', run.sendLog.filter(e => e.step !== undefined).length === 6 && run.outcome.complete, run.driverOut)
+  const windowStart = submitSent !== undefined ? submitSent - 200 : 0
   const windowText = chunks
     .filter(c => c.ts >= windowStart)
     .map(c => c.text)
@@ -80,15 +73,8 @@ try {
   {
     const squash = (rows: { rows: unknown[] } | undefined): string =>
       ((rows?.rows ?? []) as Parameters<typeof visibleText>[0][]).map(visibleText).join('\n').replace(/\s+/g, '')
-    const openFrom = submitSent !== undefined ? submitSent - base : S(SUBMIT_AT)
-    const OPEN_LADDER = [400, 800, 1200, 1600, 2000, 2400, 3200, 4800, 7000, 10_000].map(d => S(d))
-    const openReady = (s: string): boolean => s.includes('startfreshhere') && s.includes('configurebootenv')
-    const openOffsets = OPEN_LADDER.map(d => Math.round(openFrom + d))
-    const grabbed1 = grabScreens(run, 120, 36, [...openOffsets, -1])
-    const byAt1 = new Map(grabbed1.map(g => [g.atMs, squash(g)]))
-    const openRungs = openOffsets.map(o => byAt1.get(o)).filter((s): s is string => s !== undefined)
-    const open = openRungs.find(openReady) ?? openRungs[openRungs.length - 1]!
-    const final = byAt1.get(-1)!
+    const open = squash({ rows: run.sendLog.find(e => e.step === 3)?.screen ?? [] })
+    const final = squash(grabScreens(run, 120, 36, [-1])[0])
     t.check('the canonical Boot face painted on the route (settings esc → face)', open.includes('startfreshhere'), open.slice(0, 200) || '(blank)')
     t.check('a second card action row painted (the face came WHOLE)', open.includes('configurebootenv'), 'action row needle')
     t.check('the second Esc restored the session frame (the face gone)', !final.includes('startfreshhere'), final.slice(0, 200) || '(blank)')

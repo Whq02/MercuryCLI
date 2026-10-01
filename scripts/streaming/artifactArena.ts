@@ -35,7 +35,19 @@ export interface PtyRead {
   text: string
 }
 
+export interface ObservedSend {
+  awaitText: string | string[]
+  awaitAbsent?: string | string[]
+  afterPrevMs?: number
+  text?: string
+  targetText?: string
+}
+
 export interface SendRecord {
+  step?: number
+  awaitText?: string | string[]
+  targetText?: string
+  screen?: string[]
   sent: number
   atMs: number
   b64: string
@@ -96,7 +108,7 @@ export interface ArenaRun {
 
 export interface ArenaOpts {
   turns: ScriptedTurn[] | ((cwd: string) => ScriptedTurn[])
-  sends: string[]
+  sends: Array<string | ObservedSend>
   seconds: number
   cols?: number
   rows?: number
@@ -163,7 +175,13 @@ export async function runArtifactArena(opts: ArenaOpts): Promise<ArenaRun> {
   sendArgs.push('--send', `after:${FACE_READY_NEEDLE}:900:\\r`)
   const anchor = opts.anchor === undefined ? { needle: COMPOSER_READY_NEEDLE, atMs: COMPOSER_NOMINAL_MS } : opts.anchor
   if (anchor !== null) sendArgs.push('--anchor', `${anchor.needle}:${anchor.atMs}`)
-  for (const s of opts.sends) sendArgs.push('--send', s)
+  for (const s of opts.sends) if (typeof s === 'string') sendArgs.push('--send', s)
+  const observed = opts.sends.filter((s): s is ObservedSend => typeof s !== 'string')
+  if (observed.length > 0) {
+    const walkFile = join(home, 'walk.json')
+    writeFileSync(walkFile, JSON.stringify(observed))
+    sendArgs.push('--send-file', walkFile)
+  }
   for (const r of opts.resizes ?? []) sendArgs.push('--resize', r)
 
   const child = spawn(
