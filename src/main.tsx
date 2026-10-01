@@ -1410,6 +1410,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const sessionTitle = typedString(opts.name)?.trim() || undefined
 
   let prompt: string | AsyncIterable<string> | undefined = inputPrompt
+  let syntaxInput: string | undefined
   if (!process.stdin.isTTY) {
     if (inputFormat === 'stream-json') {
       prompt = readStdinChunks()
@@ -1424,6 +1425,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       const pieces = [inputPrompt, collected ?? undefined].filter(
         (piece): piece is string => typeof piece === 'string' && piece.length > 0,
       )
+      if (printMode && collected) syntaxInput = inputPrompt ?? ''
       prompt = printMode && inputPrompt && collected
         ? `${inputPrompt}\n\n<stdin>\n${collected}${collected.endsWith('\n') ? '' : '\n'}</stdin>`
         : pieces.length > 0 ? pieces.join('\n') : undefined
@@ -1469,13 +1471,19 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (mainThreadAgentDefinition?.initialPrompt) {
     if (typeof prompt === 'string') {
       prompt = `${mainThreadAgentDefinition.initialPrompt}\n${prompt}`
+      if (syntaxInput !== undefined) syntaxInput = `${mainThreadAgentDefinition.initialPrompt}\n${syntaxInput}`
     } else if (prompt === undefined) {
       prompt = mainThreadAgentDefinition.initialPrompt
     }
   }
 
   if (printMode && inputFormat === 'text' && (prompt === undefined || (typeof prompt === 'string' && !prompt.trim())) && !opts.resume && !opts.continue && !opts.fromPr) {
-    failCli('Usage: mercury run "<prompt>" or pipe a prompt to mercury run -')
+    const usage = 'Usage: mercury run "<prompt>" or pipe a prompt to mercury run -'
+    if (process.stdin.isTTY) {
+      writeSync(2, `${usage}\n`)
+      process.exit(2)
+    }
+    failCli(usage)
   }
 
   consumeSessionKitPin()
@@ -1640,6 +1648,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     opts,
     commands,
     prompt,
+    syntaxInput,
     permissionMode,
     toolPermissionContext,
     allowDangerousSkip,
@@ -2129,6 +2138,7 @@ async function printLaunch(args: {
   opts: RootOptions
   commands: import('./commands.js').Command[]
   prompt: string | AsyncIterable<string> | undefined
+  syntaxInput?: string
   permissionMode: PermissionMode
   toolPermissionContext: AppState['toolPermissionContext']
   allowDangerousSkip: boolean
@@ -2293,6 +2303,7 @@ async function printLaunch(args: {
         continue: Boolean(opts.continue),
         resume: opts.resume as string | boolean | undefined,
         outputFormat: args.outputFormat,
+        syntaxInput: args.syntaxInput,
         jsonSchema: parsedJsonSchema,
         permissionPromptToolName: typedString(opts.permissionPromptTool),
         permissionChannel: permissionChannelOf(opts),

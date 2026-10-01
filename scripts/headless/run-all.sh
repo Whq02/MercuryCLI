@@ -13,6 +13,7 @@
 # gate-watch: src/utils/messages/rejectionText.ts src/utils/processUserInput/processUserInput.ts
 # gate-watch: src/utils/task/framework.ts
 # gate-watch: src/entrypoints/cli.tsx src/main.tsx src/setup.ts src/cli/runArgs.ts src/state/onChangeAppState.ts src/utils/permissions/rootNotice.ts
+# gate-watch: src/services/instructions/** src/utils/processUserInput/** src/utils/config/trust.ts
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/anthropic/cacheAndUsage.ts
 set -u

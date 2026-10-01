@@ -220,7 +220,7 @@ export class QueryEngine {
 
   async *submitMessage(
     prompt: string | ContentBlockParam[],
-    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; initialNotices?: QueuedCommand[]; origin?: MessageOrigin; skipSlashCommands?: boolean },
+    options?: { uuid?: string; isMeta?: boolean; mode?: 'prompt' | 'bash'; batchUuids?: string[]; batchTail?: BatchedPrompt[]; initialNotices?: QueuedCommand[]; origin?: MessageOrigin; skipSlashCommands?: boolean; syntaxInput?: string },
   ): AsyncGenerator<SDKMessage, void, unknown> {
     const config = this.#config
     this.#discoveredSkillNames.clear()
@@ -381,6 +381,8 @@ export class QueryEngine {
 
     const inputResult = await processUserInput({
       input: prompt,
+      syntaxInput: options?.syntaxInput,
+      preExpansionInput: options?.syntaxInput,
       mode: options?.mode ?? 'prompt',
       setToolJSX: () => {},
       context: toolUseContext as Parameters<typeof processUserInput>[0]['context'],
@@ -1031,6 +1033,7 @@ type AskOptions = Omit<QueryEngineConfig, 'readFileState' | 'initialMessages'> &
   isMeta?: boolean
   origin?: MessageOrigin
   skipSlashCommands?: boolean
+  syntaxInput?: string
   batchUuids?: string[]
   batchTail?: BatchedPrompt[]
   initialNotices?: QueuedCommand[]
@@ -1049,6 +1052,7 @@ export async function* ask(
     isMeta,
     origin,
     skipSlashCommands,
+    syntaxInput,
     batchUuids,
     batchTail,
     initialNotices,
@@ -1066,6 +1070,7 @@ export async function* ask(
   const seedLength = mutableMessages.length
   try {
     yield* engine.submitMessage(prompt, {
+      syntaxInput,
       uuid: promptUuid,
       isMeta,
       ...(origin !== undefined ? { origin } : {}),
