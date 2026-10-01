@@ -156,7 +156,7 @@ for (const [cols, rows] of SIZES) {
     const sends = [
       { requireAwait: true, awaitText: 'Choose your theme', minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'theme', data: '\r' },
       { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'provider', data: CLAUDE_REMNANT ? '\x1b[A' : '' },
-      { requireAwait: true, awaitText: '❯ 1.  OpenAI', awaitSettleTicks: 2, awaitStableTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '❯ OpenAI', awaitSettleTicks: 2, awaitStableTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'browser sign-in', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'arm', data: '\r' },
       { requireAwait: true, awaitText: 'd device code', awaitSettleTicks: 2, mark: 'browser', data: 'd' },
       { requireAwait: true, awaitText: 'FX-CODE', awaitSettleTicks: 1, mark: 'device', data: '' },
