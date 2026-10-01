@@ -19,7 +19,7 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 delete process.env.MERCURY_SHELL_ENGINE
-delete process.env.BASH_MAX_OUTPUT_LENGTH
+delete process.env.MERCURY_SHELL_MAX_OUTPUT
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'output-budget-')))
 process.env.MERCURY_TMPDIR = join(SCRATCH, 'tmp')
@@ -136,9 +136,9 @@ check('999999 clamps to the cap and says maximum', resolveOutputBudget?.(999_999
 check('10 clamps up to the floor and says minimum', resolveOutputBudget?.(10).effective === floor && resolveOutputBudget?.(10).clampedTo === 'minimum', JSON.stringify(resolveOutputBudget?.(10)))
 check('the cap itself and the floor itself pass unclamped', resolveOutputBudget?.(cap).clampedTo === undefined && resolveOutputBudget?.(floor).clampedTo === undefined)
 check('the resolver reads numbers only — a raw string is not its business', resolveOutputBudget?.('2000' as never).requested === undefined && resolveOutputBudget?.('2000' as never).effective === cap)
-process.env.BASH_MAX_OUTPUT_LENGTH = '100'
+process.env.MERCURY_SHELL_MAX_OUTPUT = '100'
 check('an operator cap under the floor lowers the floor to it (the cap is the law)', resolveOutputBudget?.(10).effective === 100 && resolveOutputBudget?.(10).clampedTo === 'minimum' && resolveOutputBudget?.(2000).effective === 100 && resolveOutputBudget?.(2000).clampedTo === 'maximum', JSON.stringify(resolveOutputBudget?.(10)))
-delete process.env.BASH_MAX_OUTPUT_LENGTH
+delete process.env.MERCURY_SHELL_MAX_OUTPUT
 
 section('§4 the Bash tool end to end on the system shell: the inline window, the clause, today’s bytes')
 let appState = getDefaultAppState()

@@ -31,6 +31,8 @@
 # gate-watch: src/utils/crew/crewBirth.ts src/replLauncher.tsx
 # gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/types/command.ts
+# gate-watch: src/utils/timeouts.ts src/utils/shell/outputLimits.ts src/utils/managedEnvConstants.ts
+# gate-watch: src/utils/subprocessEnv.ts src/tools/AgentTool/reviewerPolicy.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -59,6 +61,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock.ts" || { __rc=$?; fail=1; 
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mailbox-reaper.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mailbox-reaper.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-registry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-registry.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-old-env-spellings-read.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-env-spellings-read.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-switches.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-switches.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-provenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-provenance.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-runtime-posture.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-runtime-posture.ts" "$__t" "$__rc"
