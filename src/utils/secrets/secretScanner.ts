@@ -67,13 +67,13 @@ function getRedactionRules(): Array<{ id: string; regex: RegExp }> {
   return redactionRules
 }
 
-export function redactSecrets(content: string): string {
+export function redactSecrets(content: string, replacement = '[REDACTED]'): string {
   let result = content
   for (const { regex } of getRedactionRules()) {
     result = result.replace(regex, (match: string, ...args: unknown[]) => {
       const groups = args.slice(0, -2).filter((value): value is string => typeof value === 'string')
-      if (groups.length === 0 || groups[0] === undefined) return '[REDACTED]'
-      return match.replace(groups[0], () => '[REDACTED]')
+      if (groups.length === 0 || groups[0] === undefined) return replacement
+      return match.replace(groups[0], () => replacement)
     })
   }
   return result

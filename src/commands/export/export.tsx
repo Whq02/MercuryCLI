@@ -9,9 +9,10 @@ import type {
 import type { Message, UserMessage } from '../../types/message.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { errorMessage } from '../../utils/errors.js'
-import { renderMessagesToPlainText } from '../../utils/exportRenderer.js'
+import { transcriptExport, transcriptExportText, truncateExportResults } from './transcript.js'
+import { createSecretRedactor, redactSecretValues, sessionSecretValues } from '../../utils/redactSecrets.js'
 
-export function extractFirstPrompt(messages: Message[]): string {
+export function extractFirstPrompt(messages: Message[], transform: (text: string) => string = text => text): string {
   const first = messages.find(message => message.type === 'user') as UserMessage | undefined
   if (!first) return ''
   const content = first.message.content
@@ -24,7 +25,7 @@ export function extractFirstPrompt(messages: Message[]): string {
       | undefined
     text = block?.text ?? ''
   }
-  const firstLine = text.trim().split('\n', 1)[0] ?? ''
+  const firstLine = transform(text).trim().split('\n', 1)[0] ?? ''
   return firstLine.length > 50 ? `${firstLine.slice(0, 49)}…` : firstLine
 }
 
@@ -43,9 +44,9 @@ function localTimestamp(): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
 }
 
-function defaultFilename(messages: Message[]): string {
+function defaultFilename(messages: Message[], redact: (text: string) => string): string {
   const timestamp = localTimestamp()
-  const slug = sanitizeFilename(extractFirstPrompt(messages))
+  const slug = sanitizeFilename(extractFirstPrompt(messages, redact))
   return slug ? `${timestamp}-${slug}.txt` : `conversation-${timestamp}.txt`
 }
 
@@ -60,14 +61,28 @@ export async function call(
   context: LocalJSXCommandContext,
   args: string,
 ): Promise<React.ReactNode> {
-  const content = await renderMessagesToPlainText(context.messages, context.options.tools ?? [])
-
   const trimmed = args.trim()
+  const json = /\.json$/i.test(trimmed)
+  const connector = getFocusedSessionConnector()
+  const transcript = transcriptExport(context.messages, {
+    id: connector.sessionId(),
+    cwd: connector.workspace().cwd,
+  })
+  let secrets: string[]
+  try {
+    secrets = await sessionSecretValues()
+  } catch {
+    onDone('The credential store could not be read; nothing was exported.')
+    return null
+  }
+  const redact = createSecretRedactor(secrets)
+  const document = truncateExportResults(redactSecretValues(transcript, redact))
+  const content = json ? JSON.stringify(document, null, 2) + '\n' : transcriptExportText(document)
   if (trimmed) {
     try {
       const path = resolve(
-        getFocusedSessionConnector().workspace().cwd,
-        forceTxtExtension(trimmed),
+        connector.workspace().cwd,
+        json ? trimmed : forceTxtExtension(trimmed),
       )
       writeFileSync(path, content, { encoding: 'utf8', flush: true })
       onDone(`Conversation exported to: ${path}`)
@@ -82,7 +97,7 @@ export async function call(
   return (
     <ExportDialog
       content={content}
-      defaultFilename={defaultFilename(context.messages)}
+      defaultFilename={defaultFilename(context.messages, redact)}
       onDone={result => onDone(result.message)}
     />
   )
