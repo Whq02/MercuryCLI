@@ -159,7 +159,7 @@ process.env.MERCURY_CONCOURSE_WORKER = '1'
   check('R2 the card metadata names the kept count', meta?.keptMessages === kept, JSON.stringify({ meta, kept }))
 }
 
-section('R3 the plain -p world — the transcript-only summary stands (SDK contract)')
+section('R3 the plain run world — the transcript-only summary stands (SDK contract)')
 delete process.env.MERCURY_CONCOURSE_WORKER
 {
   const result = (await call('', makeCommandContext('claude-opus-4-8') as never)) as CompactCallResult

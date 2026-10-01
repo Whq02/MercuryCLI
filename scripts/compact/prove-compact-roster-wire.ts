@@ -319,7 +319,7 @@ if (!existsSync(DIST)) {
     const r = await runStreaming(
       nodeBin,
       arena,
-      ['-p', '--input-format', 'stream-json', '--model', 'claude-fable-5-1', '--dangerously-bypass-permissions', '--output-format', 'stream-json', '--session-id', SID, '--debug-file', debugFile],
+      ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
       ASK,
       150_000,
     )
