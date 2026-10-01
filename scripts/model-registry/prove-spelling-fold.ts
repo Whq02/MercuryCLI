@@ -101,7 +101,7 @@ check(
 )
 
 {
-  console.log('\n§4 the -p road takes the fold too (FC-073)')
+  console.log('\n§4 the run road takes the fold too (FC-073)')
   const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
   check(
     'the entry seed folds (call-shaped)',
@@ -126,7 +126,7 @@ check(
     const refused = { kind: 'error', status: 401, errorType: 'authentication_error', message: 'invalid x-api-key' } as const
     const fixture = await startFixtureApi(Array.from({ length: 8 }, () => refused), { messageHeaders: { 'x-should-retry': 'false' } })
     const run = await new Promise<{ exit: number | null; stdout: string; stderr: string }>(resolvePromise => {
-      const child = spawn('node', [DIST, '-p', '--model', 'Sonnet 5', 'hi'], {
+      const child = spawn('node', [DIST, 'run', '--model', 'Sonnet 5', 'hi'], {
         env: {
           ...process.env,
           MERCURY_CONFIG_DIR: home,
@@ -151,7 +151,7 @@ check(
     await fixture.close()
     const err = `${run.stderr}${run.stdout}`
     check(
-      "-p --model 'Sonnet 5' resolves through the fold (reaches auth; never 'no family declares')",
+      "run --model 'Sonnet 5' resolves through the fold (reaches auth; never 'no family declares')",
       !err.includes('not a model id any provider family declares') && /Authentication|401|Not logged in|Invalid (API key|credential)/i.test(err),
       err.slice(0, 140).replace(/\s+/g, ' '),
     )
