@@ -130,10 +130,12 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
   }
   const counts = { live: r.live, liveSessions: r.liveSessions }
   if (!r.ready) return { ...base, state: 'starting', daemon, ...counts, heal: 'wait', line: null }
+  const healState: HealState = r.restartArmed === true ? 'armed' : 'none'
   if (r.proto === client.proto) {
     const rebuilt = r.buildTree !== null && client.buildTree !== null && r.buildTree !== client.buildTree
     if (!rebuilt) return { ...base, state: 'matched', daemon, ...counts, heal: 'none', line: null }
-    return { ...base, state: 'rebuilt', daemon, ...counts, heal: 'restart-when-idle', line: null }
+    const v: DaemonHandshakeVerdict = { ...base, state: 'rebuilt', daemon, ...counts, heal: 'restart-when-idle', healState, line: null }
+    return { ...v, line: honestLine(v) }
   }
   const v: DaemonHandshakeVerdict = {
     ...base,
@@ -141,6 +143,7 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     daemon,
     ...counts,
     heal: 'restart-when-idle',
+    healState,
     line: null,
   }
   return { ...v, line: honestLine(v) }
@@ -170,6 +173,11 @@ export function liveNoun(v: { live: number; liveSessions: number }): string {
 export function honestLine(v: DaemonHandshakeVerdict): string | null {
   const d = v.daemon
   if (d === null) return null
+  if (v.state === 'rebuilt') {
+    if (v.healState === 'refused') return `${rebuiltWho(v)} — ${REBUILT_UNTIL} · ${v.healDetail ?? 'it cannot restart itself'}`
+    if (v.healState === 'armed' && v.live > 0) return `${rebuiltWho(v)} running with ${liveNoun(v)} — ${REBUILT_UNTIL} · /daemon restart when ready`
+    return null
+  }
   if (v.state !== 'older' && v.state !== 'newer') return null
   const who = v.state === 'newer' ? `daemon v${d.version} (newer than this Mercury v${v.client.version})` : `daemon v${d.version}`
   const wait = v.state === 'newer' ? "this Mercury's features wait until it restarts" : 'new features wait until it restarts'
@@ -192,12 +200,32 @@ export function daemonHandshakeEvidence(v: DaemonHandshakeVerdict | null): strin
     case 'matched':
       return `version matched — daemon v${d!.version} · protocol ${d!.proto}${d!.buildTree ? ` · tree ${d!.buildTree}` : ''}`
     case 'rebuilt':
-      return `daemon v${d!.version} is another build of protocol ${d!.proto} (tree ${d!.buildTree} vs ${v.client.buildTree}) — ${healWords(v)}`
+      return `daemon v${d!.version} is another build of protocol ${d!.proto} (tree ${d!.buildTree} vs ${v.client.buildTree} of this Mercury v${v.client.version}) — ${healWords(v)}`
     case 'older':
       return `daemon v${d!.version} · protocol ${d!.proto}${d!.preHandshake ? ' (pre-handshake)' : ''} vs ${c} — ${healWords(v)}`
     case 'newer':
       return `daemon v${d!.version} · protocol ${d!.proto} is newer than ${c} — ${healWords(v)}`
   }
+}
+
+const REBUILT_UNTIL = 'new sessions run on its build until it restarts'
+
+function rebuiltWho(v: DaemonHandshakeVerdict): string {
+  return `daemon v${v.daemon?.version ?? '?'} is another build of this Mercury v${v.client.version}`
+}
+
+export function daemonSkewLine(v: DaemonHandshakeVerdict | null): string | null {
+  if (v === null || v.daemon === null || v.state !== 'rebuilt') return null
+  if (v.line !== null) return v.line
+  if (v.healState === 'restarting') return null
+  return `${rebuiltWho(v)} — ${REBUILT_UNTIL} · /daemon restart moves it`
+}
+
+export function daemonBuildBesideScreen(v: DaemonHandshakeVerdict | null): string | null {
+  const d = v?.daemon ?? null
+  if (v === null || d === null) return null
+  if (v.state !== 'rebuilt' && v.state !== 'older' && v.state !== 'newer') return null
+  return `daemon v${d.version}${d.buildTree ? ` · tree ${d.buildTree}` : ''} (another build — new sessions run on it until it restarts)`
 }
 
 function healWords(v: DaemonHandshakeVerdict): string {
@@ -506,6 +534,83 @@ export async function restartDaemon(opts: {
   return back
     ? { state: 'restarted', line: `daemon restarted — v${back.daemon!.version} · protocol ${back.daemon!.proto} (pid ${back.daemon!.pid})` }
     : { state: 'restarting', line: `daemon v${d.version} is restarting — not back yet` }
+}
+
+export type DaemonMoveState = 'absent' | 'current' | 'moved' | 'moving' | 'when-idle' | 'stop' | 'unknown'
+
+export interface DaemonMoveReceipt {
+  state: DaemonMoveState
+  line: string
+}
+
+export async function moveDaemonToDeployedBuild(opts: {
+  by: string
+  runtime?: import('./handover.js').DeployedRuntimeV1 | null
+  hosted?: boolean
+  spawn?: (script: string, dir: string, env: Record<string, string | undefined>, ownerPipe: boolean, persist: boolean, node?: string | null) => number | undefined
+  pollMs?: number
+  tries?: number
+}): Promise<DaemonMoveReceipt> {
+  const { deployedRuntime } = await import('./handover.js')
+  const { sameBuildTree } = await import('./planeBoot.js')
+  const runtime = opts.runtime === undefined ? deployedRuntime() : opts.runtime
+  if (runtime === null) return { state: 'unknown', line: 'background daemon: no installed build to move it onto' }
+  const to = runtime.version !== null ? `v${runtime.version}` : `tree ${runtime.buildTree ?? '?'}`
+  const first = await handshakeDaemon()
+  if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on ${to}` }
+  const d = first.daemon
+  if (first.state === 'starting' || d === null) {
+    return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to ${to} once it answers` }
+  }
+  const old = `v${d.version}${d.pid !== null ? ` (pid ${d.pid})` : ''}`
+  if (d.buildTree === null) return { state: 'unknown', line: `background daemon: ${old} carries no build tree (a source run) — \`mercury daemon restart\` moves it by hand` }
+  if (sameBuildTree(d.buildTree, runtime.buildTree)) return { state: 'current', line: `background daemon: already on ${to} (${old})` }
+  const stopLine = (why: string): DaemonMoveReceipt => ({
+    state: 'stop',
+    line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on ${to}`,
+  })
+  const hosted = opts.hosted !== undefined ? opts.hosted : (await (await import('./hostedCaller.js')).hostedCallerOf(d.pid)).hosted
+  if (hosted && (first.heal === 'operator' || first.live === 0)) {
+    return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
+  }
+  if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
+  const liveWords = (live: number): string => liveNoun({ live, liveSessions: Math.min(first.liveSessions, live) })
+  const settled = async (verdict: DaemonHandshakeVerdict, reply: { state: HealState; live: number }): Promise<DaemonMoveReceipt | null> => {
+    const handedOver = await handoverDaemonVersion(verdict, reply, { runtime: () => runtime, ...(opts.spawn !== undefined ? { spawn: opts.spawn } : {}) })
+    if (handedOver === null) return null
+    const successor = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== verdict.daemon?.pid && v.state !== 'starting', opts)
+    if (successor === null || successor.daemon === null) return { state: 'moving', line: `background daemon: ${handedOver} — the successor is not answering yet` }
+    const next = `v${successor.daemon.version} (pid ${successor.daemon.pid})`
+    return {
+      state: 'moved',
+      line: reply.live > 0
+        ? `background daemon: ${next} takes new sessions; daemon ${old} keeps its ${liveWords(reply.live)} until they finish`
+        : `background daemon: moved to ${next} — new sessions run on it`,
+    }
+  }
+  const ask = async (verdict: DaemonHandshakeVerdict): Promise<DaemonMoveReceipt | null> => {
+    const reply = await daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: opts.by }, { timeoutMs: 3000 })
+    if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
+    publish(applyHeal(verdict, reply))
+    if (reply.state === 'armed') {
+      return (await settled(verdict, reply)) ?? { state: 'when-idle', line: `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} finish` }
+    }
+    if (reply.state === 'refused') return (await settled(verdict, reply)) ?? stopLine(reply.detail ?? 'the restart was refused')
+    const back = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== verdict.daemon?.pid && v.state !== 'starting', opts)
+    if (back === null || back.daemon === null) return { state: 'moving', line: `background daemon: ${old} is restarting as ${to} — not back yet; the next session finds it` }
+    if (sameBuildTree(back.daemon.buildTree, runtime.buildTree)) {
+      return { state: 'moved', line: `background daemon: moved to v${back.daemon.version} (pid ${back.daemon.pid}) — new sessions run on it` }
+    }
+    return null
+  }
+  const firstTry = await ask(first)
+  if (firstTry !== null) return firstTry
+  const back = await handshakeDaemon()
+  if (back.daemon === null || back.state === 'absent' || back.state === 'starting') {
+    return { state: 'moving', line: `background daemon: ${old} restarted on its old build and is not answering yet — \`mercury daemon restart\` moves it to ${to}` }
+  }
+  const second = await ask(back)
+  return second ?? stopLine(`it restarted on its old build (v${back.daemon.version}) and would not hand over`)
 }
 
 async function waitForHandshake(

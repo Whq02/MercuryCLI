@@ -9,6 +9,7 @@
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts
 # gate-watch: scripts/ops/deploy-runtime.sh scripts/ops/launcher-mercury.sh scripts/ops/deploy-launcher.sh scripts/splash/deploy.sh docs/TERMINAL-RUNTIME.md
+# gate-watch: src/utils/healthReport.ts src/cli/update.ts src/services/privateChannel/installLayout.ts src/services/privateChannel/vendoredRuntime.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -121,6 +122,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-model-landing-facts.ts" || { __rc=
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-facts-stamp-order.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-facts-stamp-order.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-process-sweep-tables.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-process-sweep-tables.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-field-e004-daemon-skew.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-field-e004-daemon-skew.ts" "$__t" "$__rc"
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL DAEMON PROOFS PASS"; else echo "# ❌ SOME DAEMON PROOFS FAILED"; fi
 echo "############################################################"

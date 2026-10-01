@@ -43,6 +43,15 @@ const progressToStderr: Progress = (state, detail) => {
 const emitJson = (value: unknown): never => cliOk(jsonStringify(value, null, 1) ?? '{}')
 const failJson = (value: unknown): never => cliError(jsonStringify(value, null, 1) ?? '{}')
 
+async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } | null> {
+  try {
+    const { moveDaemonToDeployedBuild } = await import('../daemon/handshake.js')
+    return await moveDaemonToDeployedBuild({ by: 'mercury update' })
+  } catch (error) {
+    return { state: 'unknown', line: `background daemon: not moved — ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
 function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null): string {
   const installer = foreignInstallerOf(p)
   if (installer) return `installed by ${installer.name} at ${p.activeRoot} — ${installerRoadWords(installer)}`
@@ -241,9 +250,12 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
 
   if (installer) return installerRoad(installer, options, roots, provenanceRecord)
   const result = await performUpdate(roots, progress, { allowUnsigned: options.allowUnsigned })
-  if (result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')) {
+  const installCurrent = result.state === 'updated' || (result.state === 'no-update' && result.check.state === 'current')
+  if (installCurrent) {
     reconcileManagedShims(roots)
   }
+  const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
+  const daemonLine = daemon === null ? '' : `\n${daemon.line}`
   const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
@@ -254,7 +266,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     const ok =
       result.state === 'updated' ||
       (result.state === 'no-update' && (result.check.state === 'current' || result.check.state === 'no-releases'))
-    const record = shellCommand ? { mode: 'update', ...result, commandOnPath: shellCommand } : { mode: 'update', ...result }
+    const base = shellCommand ? { mode: 'update', ...result, commandOnPath: shellCommand } : { mode: 'update', ...result }
+    const record = daemon === null ? base : { ...base, daemon }
     return ok ? emitJson(record) : failJson(record)
   }
   switch (result.state) {
@@ -268,13 +281,13 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
       const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}${daemonLine}`,
       )
     }
     case 'no-update':
       switch (result.check.state) {
         case 'current':
-          return cliOk(`Mercury is current: ${result.check.installed} (channel: ${result.check.channelRepo}, ${describeChannelRoad(result.check.road)})`)
+          return cliOk(`Mercury is current: ${result.check.installed} (channel: ${result.check.channelRepo}, ${describeChannelRoad(result.check.road)})${daemonLine}`)
         case 'no-releases':
           return cliOk(`no releases found on ${result.check.channelRepo} (${describeChannelRoad(result.check.road)}); installed: ${result.check.installed}`)
         case 'access-unavailable':
