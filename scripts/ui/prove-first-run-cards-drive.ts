@@ -112,9 +112,8 @@ const BROWN_FG = 'c8a882'
 
 const WALK: Send[] = [
   { requireAwait: true, awaitText: 'Choose your theme', awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'theme', data: '\r' },
-  { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'provider', data: '\x1b[B' },
-  ...Array.from({ length: 8 }, (): Send => ({ afterPrevTicks: 2, data: '\x1b[B' })),
-  { afterPrevTicks: 3, data: '\r' },
+  { requireAwait: true, awaitText: 'Sign in later', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'provider', data: '\x1b[F' },
+  { requireAwait: true, awaitText: 'Sign in later', awaitPattern: '❯[^\\n]*Sign in later', awaitSettleTicks: 3, data: '\r' },
   { requireAwait: true, awaitText: 'Guardrails', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'guardrails', data: '\r' },
   { requireAwait: true, awaitText: 'Terminal keys', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'terminal', data: '\x1b[B' },
   { afterPrevTicks: 2, data: '\r' },
@@ -270,10 +269,12 @@ try {
         if (box === null) continue
         const width = Math.max(Math.min(cols - 2, 100), 40)
         check(`${label}: the card keeps its width ${width}`, box.width === width, `width ${box.width}`)
+        const clippedProvider = station === 'provider' && rows - 1 < 43
+        if (station === 'provider') check(`${label}: the twelve-row sign-in card uses its measured height or the frame cap`, box.height === Math.min(43, rows - 1), `height ${box.height}`)
         if (state === 'centred') {
-          const left = Math.round((cols - box.width) / 2)
-          const top = Math.floor((rows - box.height) / 2)
-          check(`${label}: centred at row ${top}, column ${left}`, box.top === top && box.left === left, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)
+          const left = clippedProvider ? 0 : Math.round((cols - box.width) / 2)
+          const top = clippedProvider ? 0 : Math.floor((rows - box.height) / 2)
+          check(`${label}: ${clippedProvider ? 'clipped at the shipped anchor' : 'centred'} at row ${top}, column ${left}`, box.top === top && box.left === left, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)
           check(`${label}: no amber cell remains`, countFg(grid, AMBER_FG) === 0, `${countFg(grid, AMBER_FG)} amber cells`)
         } else {
           check(`${label}: top-left as shipped`, box.top === 0 && box.left === 0, `card ${box.width}x${box.height} at row ${box.top}, column ${box.left}`)

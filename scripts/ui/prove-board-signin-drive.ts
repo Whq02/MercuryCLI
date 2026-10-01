@@ -5,7 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
-import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const arg = (name: string): string | undefined => {
@@ -131,7 +131,7 @@ try {
       const home = join(ROOT, id)
       seedFirstRun(home, [CWD])
       writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false, availableModels: kind === 'signin' || kind === 'roster' ? ['claude-opus-5', 'gemini'] : ['claude-opus-5'] }))
-      const env: NodeJS.ProcessEnv = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'), MERCURY_HOME: join(home, 'home'), MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_IDE_SKIP_AUTO_INSTALL: '1', MERCURY_GEMINI_API_BASE: kind === 'signin' || kind === 'roster' ? `http://127.0.0.1:${fixture.port}/v1beta` : 'http://127.0.0.1:1' }
+      const env: NodeJS.ProcessEnv = { ...process.env, ANTHROPIC_API_KEY: FIXTURE_API_KEY, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'), MERCURY_HOME: join(home, 'home'), MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_IDE_SKIP_AUTO_INSTALL: '1', MERCURY_GEMINI_API_BASE: kind === 'signin' || kind === 'roster' ? `http://127.0.0.1:${fixture.port}/v1beta` : 'http://127.0.0.1:1' }
       for (const k of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'NODE_ENV']) delete env[k]
       const row = kind === 'signin' ? 'Gemini — sign in' : 'GPT — sign in'
       const geminiRow = 'Google Gemini — API key or Google OAuth'
@@ -154,8 +154,8 @@ try {
       const hitsBefore = fixture.hits.length
       const result = await capture(cfg, env, vshotBudgetMs(kind === 'signin' || kind === 'roster' ? 240_000 : 180_000))
       await endOwnedDaemon(home)
-      const captured = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) as { grid: Grid; marks: Array<{ label: string; grid: Grid }> } : null
-      const marks = new Map(captured?.marks.map(m => [m.label, textOf(m.grid)]) ?? [])
+      const captured = existsSync(out) ? JSON.parse(readFileSync(out, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> } : null
+      const marks = new Map(captured?.marks?.map(m => [m.label, textOf(m.grid)]) ?? [])
       const landed = marks.get('landed') ?? ''
       const returned = marks.get('returned') ?? ''
       const excerpt = (text: string): string => text.split('\n').filter(l => l.trim()).slice(0, 8).join('\n')
@@ -173,7 +173,7 @@ try {
         check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
         check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
         check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
-        check(`${id}: the completed sign-in stays on the roster, the family signed in`, returned.includes('LOGINS') && returned.includes('Families') && returned.includes('Signed in  2 of 8') && !returned.includes('Mercury · model'), excerpt(returned))
+        check(`${id}: the completed sign-in stays on the roster, the family signed in`, returned.includes('LOGINS') && returned.includes('Families') && returned.includes('Signed in  2 of 10') && !returned.includes('Mercury · model'), excerpt(returned))
         keepFrames()
         continue
       }
