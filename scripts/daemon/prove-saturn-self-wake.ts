@@ -273,7 +273,7 @@ console.log('§E the doors drop at the flip; the surfaces paint the glance words
   const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
   const main = read('src/daemon/main.ts')
   const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
-  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("if (delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("request: { subtype: 'interrupt'"))
+  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("if (delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.includes("request: { subtype: 'interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("request: { subtype: 'interrupt'"))
   const parkArm = main.slice(main.indexOf("if (action === 'park')"), main.indexOf("if (action === 'set-title')"))
   check('E2 the park door drops on both arms that flip the close state (retire · park) and never on a released newborn', parkArm.includes("if (retired.outcome === 'parked') dropSelfWakesAtFlip(sessionId, by, 'parked')") && parkArm.includes("if (out.outcome === 'applied' && !out.released) dropSelfWakesAtFlip(sessionId, by, 'parked')"))
   const stopArm = main.slice(main.indexOf("if (action === 'stop')"), main.indexOf("if (action === 'attach')"))
@@ -285,7 +285,7 @@ console.log('§E the doors drop at the flip; the surfaces paint the glance words
   check('E6 the door helper rides the one writer, fail-soft, and names the drop in the daemon log', main.includes('function dropSelfWakesAtFlip(sessionId: string, by: string, why: SaturnSelfWakeDropWhy): void') && main.includes('const gone = dropSaturnSelfWakes(sessionId, by, why)') && main.includes('self-paced wake') )
 
   const ticker = read('src/daemon/saturnTicker.ts')
-  check("E7 the ticker's walk drops a parked record's self-wakes through the pen before the ladder runs, and counts them", ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, rec.parkedAt !== undefined ? 'parked' : 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && ticker.indexOf('if (parked && scheduleList.some(isSaturnSelfWake))') < ticker.indexOf('// ── replay standing holds whose block lifted ──'))
+  check("E7 the ticker's walk drops a parked record's self-wakes through the pen before the ladder runs, and counts them", ticker.includes('if (parked && scheduleList.some(isSaturnSelfWake))') && ticker.includes("dropSaturnSelfWakes(sessionId, id => `saturn:${id}`, rec.parkedAt !== undefined ? 'parked' : 'stopped', ports.dir)") && ticker.includes('report.dropped += gone.dropped.length') && ticker.indexOf('if (parked && scheduleList.some(isSaturnSelfWake))') < ticker.indexOf('if (heldList.length > 0) {'))
 
   const rail = read('src/components/HelmLanesRail.tsx')
   check('E8 the rail row paints the glance words and nothing else (name + verb from one home; no local clamp)', rail.includes('saturnWakeGlanceWords(wakeGlance, Date.now())') && rail.includes('name={wakeWords.name}') && rail.includes('verb={wakeWords.verb}') && !rail.includes("'due now'") && !rail.includes("'no next fire'"))

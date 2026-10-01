@@ -136,6 +136,7 @@ reg(
     'src/components/VirtualMessageList.tsx',
     'src/components/mercury-ui/screens/SettingsStatusView.tsx',
     'src/components/Settings/Usage.tsx',
+    'src/components/PopupForm.tsx',
   ],
   'scroll-owner',
 )
@@ -164,6 +165,10 @@ reg(
     'src/components/HuggingfaceConnect.tsx',
     'src/components/RouterOpenrouterConnect.tsx',
     'src/components/KimiConnect.tsx',
+    'src/components/XaiConnect.tsx',
+    'src/components/MetaConnect.tsx',
+    'src/commands/login/login.tsx',
+    'src/components/LoginAccountCard.tsx',
     'src/components/ZaiConnect.tsx',
     'src/components/DeepseekConnect.tsx',
     'src/components/SubModelPicker.tsx',

@@ -129,7 +129,7 @@ export function Settings({
         ) : null}
       </Box>
       <Box height={(tight && geometry.rows! < 3) || compact ? 0 : 1} flexShrink={0} overflow="hidden">
-        <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(tight ? 'Window too small · resize to continue' : line ?? request.line, inner)}</Text>
+        <Text color={tok.textMuted} wrap="truncate-end">{cutToWidth(tight ? `wants at least ${SETTINGS_POPUP_COMPACT_CHROME_ROWS + 1} rows` : line ?? request.line, inner)}</Text>
       </Box>
       <Box height={folded ? 0 : 1} flexShrink={0} />
       <Box flexDirection="column" width={inner + 2} marginLeft={-1} marginRight={-1} paddingX={1} overflow="hidden" {...(fixed ? { flexGrow: 1, flexShrink: 1, minHeight: 0 } : { flexShrink: 0, maxHeight: geometry.rowBudget })}>

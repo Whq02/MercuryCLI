@@ -273,6 +273,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/concourse/SessionMirror.tsx': 'a Concourse pane — ConcourseScreen owns esc for the whole board',
     'src/components/permissions/rules/RecentDenialsTab.tsx': 'a tab body inside the permissions dialog — the dialog owns esc',
     'src/components/Settings/Usage.tsx': 'the usage popup body (its keys scroll the window) — the settings shell owns esc and the click outside',
+    'src/components/PopupForm.tsx': 'the popup body frame (its keys page the window) — the settings shell owns esc and the click outside',
   }
   const HINT_ROSTER: Record<string, { reason: string; witness?: string }> = {
     'src/components/BaseTextInput.tsx': { reason: 'a primitive; the host prints the hint' },
@@ -283,6 +284,7 @@ section('§4 raw-input census — every useInput surface decodes an exit and pri
     'src/components/permissions/rules/RecentDenialsTab.tsx': { reason: 'the permissions dialog prints the way out', witness: 'src/components/MercuryPermissionsPanel.tsx' },
     'src/components/CustomSelect/use-multi-select-state.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
     'src/components/CustomSelect/use-select-input.ts': { reason: 'the Select engine; the hosting dialog prints', witness: 'src/components/design-system/Dialog.tsx' },
+    'src/components/PopupForm.tsx': { reason: 'the settings shell prints the request\'s hint; its words come from the popup owner', witness: 'src/utils/cockpit/settingsPopup.ts' },
     'src/components/mercury-ui/useFlatList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useInteractiveList.ts': { reason: 'a list engine; its host prints the composed hints' },
     'src/components/mercury-ui/useNavigablePanes.ts': { reason: 'the panes engine; NavigablePanes prints the footer', witness: 'src/components/mercury-ui/NavigablePanes.tsx' },

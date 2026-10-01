@@ -91,7 +91,7 @@ export function ConsoleOAuthFlow({
   const tokens = useMercuryTokens()
   const { columns, rows } = useTerminalSize()
   const popup = React.useContext(PopupFormContext)
-  const compact = popup && usePopupCompact().compact
+  const compact = usePopupCompact().compact && popup
   const { addNotification } = useNotifications()
   const setupToken = mode === 'setup-token'
 

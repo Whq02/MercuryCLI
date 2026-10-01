@@ -291,7 +291,7 @@ section("§3 — failed compact + blocked level: the preempt surfaces PTL, {reas
   check("Terminal reason 'blocking_limit'", r.terminal?.reason === 'blocking_limit', r.terminal?.reason)
 }
 
-section('§4 — autocompact disabled + blocked level: the preempt fires with ZERO API calls')
+section('§4 — autocompact disabled + blocked level: early folding is off, the emergency fold still runs ONE compact round, then the preempt fires')
 {
   const r = await runQuery({
     turns: [],
@@ -302,7 +302,8 @@ section('§4 — autocompact disabled + blocked level: the preempt fires with ZE
     },
   })
   const reqs = r.api.messageRequests()
-  check('ZERO model calls — the preempt returns before the API', reqs.length === 0, `${reqs.length}`)
+  check('exactly two model calls — the emergency fold\'s compact round (fork + fallback); the main call is never made', reqs.length === 2, `${reqs.length}`)
+  check('both calls are the compact round (the summary instruction rides each)', reqs.length === 2 && reqs.every(isCompactRequest), `${reqs.filter(isCompactRequest).length} compact`)
   check(
     'the synthetic PTL assistant error yields',
     r.messages.some(m => m.type === 'assistant' && (m as { isApiErrorMessage?: boolean }).isApiErrorMessage === true && j(m).includes(PROMPT_TOO_LONG_ERROR_MESSAGE)),

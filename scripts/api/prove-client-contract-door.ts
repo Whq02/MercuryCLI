@@ -103,13 +103,13 @@ const srcOf = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
   check('no agent owner composes a borrowed agent token', !/claude-cli\/\$\{/.test(httpSrc))
 }
 
-section('§2b THIRD-PARTY ROUTES — the line has two composers, both first-party legs')
+section('§2b THIRD-PARTY ROUTES — the line has three composers, all first-party legs')
 {
   const PREFIX = 'x-anthropic-billing-header'
   const composers = tracked.filter(p => p !== 'src/constants/system.ts' && /getAttributionHeader\(/.test(srcOf(p))).sort()
   check(
-    'the attribution line is composed in exactly two places: the Anthropic runtime and the side query',
-    JSON.stringify(composers) === JSON.stringify(['src/services/providers/anthropic/streamCore.ts', 'src/utils/sideQuery.ts']),
+    'the attribution line is composed in exactly three places: the Anthropic runtime, the side query and the exact count that carries the turn\'s own system prompt',
+    JSON.stringify(composers) === JSON.stringify(['src/services/providers/anthropic/streamCore.ts', 'src/utils/analyzeContext.ts', 'src/utils/sideQuery.ts']),
     composers.join(', '),
   )
   check('the side query takes the first-party client', srcOf('src/utils/sideQuery.ts').includes('getAnthropicClient('))

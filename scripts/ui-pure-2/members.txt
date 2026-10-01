@@ -30,6 +30,7 @@ prove-launchripple-deletion.ts
 prove-live-counter.ts
 prove-live-glyphs.ts
 prove-logins-key-lines.ts
+prove-logins-popup.ts
 prove-markdown-marker-gate.ts
 prove-model-picker-layout.ts
 prove-no-emoji.ts

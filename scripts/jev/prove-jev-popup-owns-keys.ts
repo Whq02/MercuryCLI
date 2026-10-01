@@ -345,7 +345,7 @@ section('§8 the source pins')
   const cancel = readFileSync(join(REPO, 'src/hooks/useCancelRequest.ts'), 'utf8')
   check('the escape ladder stands down under any registered overlay (the popups register one)', cancel.includes('const overlayActive = useIsOverlayActive()') && cancel.includes('!overlayActive &&'))
   const settings = readFileSync(join(REPO, 'src/components/Settings/Settings.tsx'), 'utf8')
-  check('the popup shell registers on the overlay stack and owns esc through its own road', settings.includes("useRegisterOverlay('settings')") && settings.includes("'confirm:no'"))
+  check('the popup shell registers on the overlay stack and owns esc through its own road', settings.includes("useRegisterOverlay('settings', !request.bodyOwnsEscape)") && settings.includes("'confirm:no'"))
 }
 
 if (frameDir !== undefined) {

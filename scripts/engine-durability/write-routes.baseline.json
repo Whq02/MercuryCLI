@@ -32,6 +32,7 @@
     "src/services/providers/moonshot/moonshotAccounts.ts",
     "src/services/providers/openai/openaiAccounts.ts",
     "src/services/providers/openrouter/openrouterAccounts.ts",
+    "src/services/providers/xai/xaiOauth.ts",
     "src/services/repoHost/repoHost.ts",
     "src/services/run/runSidecar.ts",
     "src/services/samples/store.ts",

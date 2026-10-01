@@ -76,7 +76,7 @@ section('mechanism pins')
 
   const login = read('src/commands/login/login.tsx')
   check('a closed /logins says so', login.includes("onDone('/logins closed — no credential changed', chain)") && !login.includes('Login interrupted'))
-  check('the /logins popup keeps its back/close context and the shared popup hint', login.includes("line: 'esc back · from the menu, esc closes /logins'") && login.includes("hint: '↕ scroll · esc or click outside closes'"))
+  check('the /logins popup keeps its back/close context and the shared popup hint', login.includes("line: 'esc back · from the menu, esc closes /logins'") && login.includes("hint: 'esc or click outside closes'"))
 
   const host = read('src/utils/cockpit/settingsPopup.ts')
   check('the settings host folds to the compact layout below one constant of measured full-layout body rows', host.includes('export const SETTINGS_POPUP_COMPACT_BELOW_ROWS = 8') && host.includes('return fullBodyRows < SETTINGS_POPUP_COMPACT_BELOW_ROWS') && host.includes('compact: boolean'))
@@ -124,9 +124,7 @@ if (driver.kind !== 'posix-pty') {
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
-      { afterPrevTicks: 4, data: '\u001b[6~' },
-      { afterPrevTicks: 2, data: '\u001b[6~' },
-      { afterPrevTicks: 2, data: '\u001b[6~' },
+      { afterPrevTicks: 4, data: '\u001b[6~\u001b[6~\u001b[6~' },
       { requireAwait: true, awaitText: 'OpenAI-compatible', awaitStableTicks: 3, mark: 'paged', data: '' },
       { afterPrevTicks: 3, data: '\u001b' },
     ], 70)

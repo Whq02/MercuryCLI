@@ -51,7 +51,7 @@ export function XaiConnect({
       else if (management) keep()
       else setStep('choice')
     }
-    if (input === 'c' && step === 'device' && event.phase === 'waiting') {
+    if (input === 'c' && !key.ctrl && !key.meta && step === 'device' && event.phase === 'waiting') {
       keyEvent.stopImmediatePropagation()
       void setClipboard(event.start.verificationUriComplete ?? event.start.verificationUri).then(sequence => { if (sequence) process.stdout.write(sequence) })
     }

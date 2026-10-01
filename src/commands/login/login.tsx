@@ -171,7 +171,7 @@ export async function call(
     width: 100,
     rows: 29,
     line: 'esc back · from the menu, esc closes /logins',
-    hint: '↕ scroll · esc or click outside closes',
+    hint: 'esc or click outside closes',
     bodyOwnsEscape: true,
     body: geometry => (
       <Login

@@ -10,6 +10,7 @@
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json
 # gate-watch: scripts/streaming/artifactArena.ts
 # gate-watch: src/commands/login/login.tsx src/constants/figures.ts src/fabric/entryCodec.ts
+# gate-watch: src/commands/config/config.tsx src/commands/usage/usage.tsx
 # gate-watch: src/fabric/ordinal.ts src/services/api/errors.ts src/services/tips/tipRegistry.ts
 # gate-watch: src/substrate/startupMenu.ts src/tools/GlobTool/GlobTool.ts src/tools/GlobTool/prompt.ts
 # gate-watch: src/tools/WorkflowTool/runManifest.ts

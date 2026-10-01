@@ -51,6 +51,7 @@ const DOORS = [
   'setSpawnSwitch',
   'recallableSend',
   'withdrawSend',
+  'advisorFacts',
 ] as const
 
 {
