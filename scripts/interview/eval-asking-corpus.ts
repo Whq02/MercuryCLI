@@ -169,7 +169,7 @@ for (const sc of SCENARIOS) {
     }
     const r = spawnSync(
       process.env.NODE_BIN ?? 'node',
-      [DIST, '-p', sc.task, '--permission-mode', 'strategy', '--output-format', 'stream-json', '--max-turns', '3'],
+      [DIST, 'run', sc.task, '--mode', 'strategy', '--format', 'rows', '--max-turns', '3'],
       {
         cwd,
         encoding: 'utf8',
@@ -240,7 +240,7 @@ const verdict = {
   schema: 1,
   ranAt: new Date().toISOString(),
   method:
-    'candidate dist/mercury.mjs headless (-p, plan mode, stream-json, max 3 turns) with the operator config home — the assembled prompt and model are the product’s own; AskUserQuestion tool_use calls judged per scenario',
+    'candidate dist/mercury.mjs run (strategy mode, rows, max 3 turns) with the operator config home — the assembled prompt and model are the product’s own; AskUserQuestion tool_use calls judged per scenario',
   scenarios: results,
   totals: {
     scenarios: results.length,
