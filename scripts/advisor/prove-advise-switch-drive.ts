@@ -277,7 +277,7 @@ function runSession(s: Session): Promise<Run> {
   const identity = s.identity ?? 'new'
   const deadlineMs = s.deadlineMs ?? 120_000
   return new Promise(resolvePromise => {
-    const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', AGENT_MODEL, '--permission-mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', s.sid, ...(s.argv ?? [])], { cwd: arena.cwd, env: arena.env })
+    const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', AGENT_MODEL, '--mode', 'sovereign', identity === 'resume' ? '--resume' : '--session-id', s.sid, ...(s.argv ?? [])], { cwd: arena.cwd, env: arena.env })
     let stdout = ''
     let stderr = ''
     let sent = 0
@@ -418,7 +418,7 @@ check('no advisor request left the box after the settings went off — from A (o
 check("A's memory holds exactly the one note of this life beside the seeded one", notesOnDisk(A) === 1 && memoryKindsOf(A).join(',') === 'head,note,digest,note', j(memoryKindsOf(A)))
 check("A's record carries its switch on (the chat's own switch stands through the settings going off)", switchRecordsOf(A).length >= 1 && switchRecordsOf(A).every(s => s === 'on') && switchRecordsOf(B).length === 0, j({ a: switchRecordsOf(A), b: switchRecordsOf(B) }))
 
-section(`§3 THE ON-SESSION RESUMED: the settings back on (which turns no chat on), then -p --resume of A: bare /advise says on for this chat, and with its memory's notes aged an hour the next note lands inside the next turn`)
+section(`§3 THE ON-SESSION RESUMED: the settings back on (which turns no chat on), then run --resume of A: bare /advise says on for this chat, and with its memory's notes aged an hour the next note lands inside the next turn`)
 settingsRow(true)
 {
   const aged = rawRecordsOf(memoryA).map(r => (r.kind === 'note' ? { ...r, at: new Date(Date.now() - 60 * 60_000).toISOString() } : r))
@@ -445,7 +445,7 @@ check('the second note landed inside the A line 4 turn of the resumed life — a
 await printFrame(chatA2.slice(Math.max(0, lineFourAt - 4)), 'session A resumed, from A line 4')
 frameScenes.push(['advise-switch-a-resumed', 'session A resumed: bare /advise says on, the next note lands beside A line 4', chatA2])
 
-section(`§4 HEADLESS: a -p run with --advise gets a note; the same run without the flag, the settings on, makes no advisor call`)
+section(`§4 HEADLESS: a headless run with --advise gets a note; the same run without the flag, the settings on, makes no advisor call`)
 seedEarlierNote(E)
 seedEarlierNote(F)
 const wireBeforeE = wire.length
