@@ -6,6 +6,7 @@
 # gate-watch: scripts/ui/vshot.py src/daemon/** src/utils/crew/crewClient*
 # gate-watch: src/utils/daemonBreaker* src/utils/swarm/crewHelpers*
 # gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
+# gate-watch: src/fabric/transcriptDecode.ts src/utils/sessionStorage/settledSidechainMessages.ts src/run-core/project-legacy.ts
 # gate-watch: src/tasks/LocalAgentTask/launchReceipts* src/tools/AgentTool/resumeAgent*
 # gate-watch: src/tools/SendMessageTool/**
 # gate-watch: docs/SESSIONS.md scripts/daemon/dupline-world.ts scripts/lib/firstRunSeed.ts

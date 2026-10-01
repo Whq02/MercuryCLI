@@ -59,7 +59,7 @@ section('§1 the operator lane is its own queue: the tool-boundary drain never t
 section('§2 the turn-end and stop roads deliver the lane; the running resume queues it (source pins)')
 {
   const lifecycle = readFileSync(join(ROOT, 'src/tools/AgentTool/agentToolUtils.ts'), 'utf8')
-  check('the completion drain reads both lanes and resumes with them', /\[\.\.\.\(task\.pendingMessages \?\? \[\]\), \.\.\.peekOperatorMessages\(task\)\]/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState\)/.test(lifecycle))
+  check('the completion drain reads both lanes and resumes with their reply target', /const pending = isLocalAgentTask\(queuedTask\) \? queuedTask\.pendingMessages \?\? \[\] : \[\]/.test(lifecycle) && /const queued = \[\.\.\.pending, \.\.\.peekOperatorMessages\(queuedTask\)\]/.test(lifecycle) && /prompt: queued\.join\('\\n\\n'\),\s*replyTarget: pending\.length > 0 \? 'parent' : 'operator'/.test(lifecycle) && /takeOperatorMessages\(taskId, stateReader, rootSetAppState\)/.test(lifecycle))
   check('the operator\'s stop (the abort road) delivers the lane after the kill notice', /killAsyncAgent\(taskId, rootSetAppState, stopReason, args\.abortController\)[\s\S]*deliverOperatorMessagesAfterStop\(taskId, description, toolUseContext, rootSetAppState, args\.canUseTool\)/.test(lifecycle))
   check('the stop-road delivery resumes with a fresh controller and only then takes the lane', /abortController: new AbortController\(\)[\s\S]*takeOperatorMessages\(taskId, stateReader, rootSetAppState\)/.test(lifecycle))
   const queued = readFileSync(join(ROOT, 'src/utils/attachments/queuedCommands.ts'), 'utf8')

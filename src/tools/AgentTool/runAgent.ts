@@ -88,6 +88,7 @@ import {
   setAgentTranscriptSubdir,
   writeAgentMetadata,
 } from '../../utils/sessionStorage.js'
+import { settledSidechainMessages } from '../../utils/sessionStorage/settledSidechainMessages.js'
 import { asSystemPrompt, type SystemPrompt } from '../../utils/systemPromptType.js'
 import {
   isRestrictedToExtensionsOnly,
@@ -1032,8 +1033,26 @@ export async function* runAgent(
       ...(effectiveMaxTurns !== undefined ? { maxTurns: effectiveMaxTurns } : {}),
     }
 
+    const observeProgress = (message: LegacyQueryYield): void => {
+      eventsSeen++
+      touchThrough(declaredRecoveryWaitMs(message))
+      const notice = recoveryNoticeFacts(message)
+      if (notice !== null) {
+        accountant.wait(notice, true)
+      } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
+        accountant.spoke()
+      }
+      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
+      if ((message as { type?: string }).type === 'assistant') {
+        const content = (message as { message?: { content?: unknown } }).message?.content
+        if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
+          toolUsesSeen++
+        }
+      }
+      onQueryProgress?.(message as Message)
+    }
     const pausableQuery = async function* (): AsyncGenerator<LegacyQueryYield, void> {
-      const stream = query(queryParams)
+      const stream = settledSidechainMessages(query(queryParams), observeProgress)
       let atRequestBoundary = true
       try {
         for (;;) {
@@ -1064,23 +1083,6 @@ export async function* runAgent(
     }
 
     for await (const message of pausableQuery()) {
-      eventsSeen++
-      touchThrough(declaredRecoveryWaitMs(message))
-      const notice = recoveryNoticeFacts(message)
-      if (notice !== null) {
-        accountant.wait(notice, true)
-      } else if (accountant.standing() && (message as { type?: string }).type !== 'progress') {
-        accountant.spoke()
-      }
-      if (recoveryAnswerRefills(message)) refillRecoveryBudget(recovery)
-      if ((message as { type?: string }).type === 'assistant') {
-        const content = (message as { message?: { content?: unknown } }).message?.content
-        if (Array.isArray(content) && content.some(block => (block as { type?: string })?.type === 'tool_use')) {
-          toolUsesSeen++
-        }
-      }
-      onQueryProgress?.(message as Message)
-
       const anyMessage = message as Message & {
         subtype?: string
         attachment?: { type?: string }
