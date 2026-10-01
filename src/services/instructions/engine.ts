@@ -14,6 +14,7 @@ import {
   relevantMemoryRecallEnabled,
 } from '../../memdir/paths.js'
 import { getCurrentProjectConfig } from '../../utils/config.js'
+import { untrustedWorkspaceHeadless } from '../../utils/config/trust.js'
 import {
   getContextWindowForModel,
   MODEL_CONTEXT_WINDOW_DEFAULT,
@@ -245,6 +246,7 @@ async function walkConventions(
     origin: InstructionOrigin,
     ancestry: boolean,
   ): Promise<void> => {
+    if (untrustedWorkspaceHeadless()) return
     const chainRoot = resolve(root)
     const dirs: string[] = []
     if (ancestry) {
@@ -571,6 +573,7 @@ export async function getInstructionFilesForNestedDirectory(
   processedPaths: Set<string>,
   diagnostics?: InstructionDiagnostic[],
 ): Promise<InstructionSourceEntry[]> {
+  if (untrustedWorkspaceHeadless()) return []
   const result: InstructionSourceEntry[] = []
   const conventions = activeConventions()
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
@@ -651,6 +654,7 @@ export async function getConditionalInstructionRulesForCwdLevelDirectory(
   targetPath: string,
   processedPaths: Set<string>,
 ): Promise<InstructionSourceEntry[]> {
+  if (untrustedWorkspaceHeadless()) return []
   const results: InstructionSourceEntry[] = []
   const composedDigests = new Set<string>()
   for (const convention of activeConventions()) {
