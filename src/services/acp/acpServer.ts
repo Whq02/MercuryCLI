@@ -1,5 +1,5 @@
 
-import { randomUUID, type UUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { Readable, Writable } from 'node:stream'
 import {
   agent,
@@ -21,8 +21,10 @@ import { processMainOwner } from '../run/resolveOwner.js'
 import { isOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { getCwd } from '../../utils/cwd.js'
 import { listSessionsImpl } from '../../utils/listSessionsImpl.js'
-import { sessionIdExists } from '../../utils/sessionStorage.js'
-import { loadSessionFile } from '../../utils/sessionStorage/loading.js'
+import { getProjectDir } from '../../utils/sessionStorage/paths.js'
+import { loadTranscriptFile } from '../../utils/sessionStorage/loading.js'
+import { defineStore } from '../../substrate/fileStore.js'
+import { join } from 'node:path'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import { resolveWorkbenchSnapshot } from '../workbench/projection.js'
 import { workbenchFactsOf } from '../workbench/attentionBridge.js'
@@ -45,6 +47,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
+import { isAutoModeGateEnabled } from '../../utils/permissions/permissionSetup.js'
 
 const PERMISSION_MODES = [
   { id: 'default', name: 'Default', description: 'ask before consequential tools' },
@@ -55,6 +58,32 @@ const PERMISSION_MODES = [
 
 function decodeAcpModeId(raw: string): string {
   return decodePermissionModeSpelling(raw)
+}
+
+function savedModePath(cwd: string, sessionId: string): string {
+  return join(getProjectDir(cwd), `${encodeURIComponent(sessionId)}.acp.json`)
+}
+
+const savedModeStore = defineStore<{ permissionMode?: string }, [path: string]>({
+  name: 'acp-session-mode',
+  path: path => path,
+  schemaVersion: 1,
+  empty: () => ({}),
+  onReadFailure: 'throw',
+  decode: raw => {
+    if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const mode = (raw as { permissionMode?: unknown }).permissionMode
+    return mode === undefined ? {} : typeof mode === 'string' ? { permissionMode: mode } : null
+  },
+})
+
+async function readSavedMode(cwd: string, sessionId: string): Promise<string | undefined> {
+  try {
+    return (await savedModeStore(savedModePath(cwd, sessionId)).read()).permissionMode
+  } catch (error) {
+    process.stderr.write(`[acp] saved permission mode unreadable: ${error instanceof Error ? error.message : String(error)}\n`)
+    return undefined
+  }
 }
 
 
@@ -650,6 +679,8 @@ interface AcpSessionState {
   child: MercuryChildSession
   cwd: string
   modeId: string
+  modePath: string
+  modeChanges: Promise<void>
   turnResolve: ((outcome: 'success' | 'error' | 'cancelled', detail?: TurnEndDetail) => void) | null
   cancelled: boolean
   editorContext: EditorContextWire | null
@@ -667,6 +698,7 @@ export interface AcpServerOptions {
 
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const sessions = new Map<string, AcpSessionState>()
+  let transportClosed = false
 
   const attachSession = (
     ctx: AgentContext,
@@ -683,6 +715,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       child: null as unknown as MercuryChildSession,
       cwd: args.cwd,
       modeId: args.modeId ?? 'default',
+      modePath: savedModePath(args.cwd, acpSessionId),
+      modeChanges: Promise.resolve(),
       turnResolve: null,
       cancelled: false,
       editorContext: null,
@@ -868,6 +902,24 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     })
   }
 
+  const setSessionMode = (ctx: AgentContext, sessionId: string, state: AcpSessionState, modeId: string): Promise<void> => {
+    const change = state.modeChanges.catch(() => {}).then(async () => {
+      if (!(await state.child.setPermissionMode(modeId))) {
+        throw new Error(`the session did not confirm mode '${modeId}' — state unchanged`)
+      }
+      state.modeId = modeId
+      notifyModeChanged(ctx, sessionId, modeId)
+      await savedModeStore(state.modePath).write({ permissionMode: modeId })
+    })
+    state.modeChanges = change
+    return change
+  }
+
+  const pendingLoads = new Map<string, Promise<{
+    modes: ReturnType<typeof modesFor>
+    configOptions: ReturnType<typeof configOptionsFor>
+  }>>()
+
   const app = agent({ name: 'mercury' })
     .onRequest('initialize', () => ({
       protocolVersion: PROTOCOL_VERSION,
@@ -895,32 +947,59 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     })
     .onRequest('session/load', async ctx => {
       const requested = ctx.params.sessionId
+      const pending = pendingLoads.get(requested)
+      if (pending) return pending
       if (sessions.has(requested)) {
         const modeId = sessions.get(requested)!.modeId
         return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
       }
-      if (!sessionIdExists(requested)) {
-        throw new Error(`unknown session '${requested}' — no transcript exists for it here`)
-      }
-      attachSession(ctx.client, {
-        cwd: ctx.params.cwd,
-        acpSessionId: requested,
-        resumeSessionId: requested,
-        mcpServers: ctx.params.mcpServers,
-      })
-      try {
-        const { messages } = await loadSessionFile(requested as UUID)
-        for (const update of replayUpdatesOf(messages.values() as unknown as Iterable<Record<string, unknown>>)) {
-          await ctx.client.notify(methods.client.session.update, {
-            sessionId: requested,
-            update: update as never,
-          })
+      const loading = (async () => {
+        const transcriptPath = join(getProjectDir(ctx.params.cwd), `${requested}.jsonl`)
+        const savedMode = await readSavedMode(ctx.params.cwd, requested)
+        const hasTranscript = existsSync(transcriptPath)
+        if (!hasTranscript && savedMode === undefined) {
+          throw new Error(`unknown session '${requested}' — no transcript or saved mode exists for it here`)
         }
-      } catch (e) {
-        process.stderr.write(`[acp] session/load replay skipped: ${e instanceof Error ? e.message : String(e)}\n`)
+        const { messages } = await loadTranscriptFile(transcriptPath)
+        if (transportClosed) throw new Error('the ACP connection closed during session/load')
+        let modeId = savedMode
+        if (modeId === undefined) {
+          for (const message of messages.values()) {
+            if (message.type === 'user' && !message.isSidechain && !message.isMeta && typeof message.permissionMode === 'string') {
+              modeId = message.permissionMode
+            }
+          }
+        }
+        modeId = decodeAcpModeId(modeId ?? 'default')
+        if (!PERMISSION_MODES.some(mode => mode.id === modeId) || (modeId === 'flow' && !isAutoModeGateEnabled())) {
+          process.stderr.write(`[acp] saved permission mode '${modeId}' is unavailable here — resuming in the default mode\n`)
+          modeId = 'default'
+        }
+        attachSession(ctx.client, {
+          cwd: ctx.params.cwd,
+          acpSessionId: requested,
+          ...(hasTranscript ? { resumeSessionId: requested } : {}),
+          modeId,
+          mcpServers: ctx.params.mcpServers,
+        })
+        try {
+          for (const update of replayUpdatesOf(messages.values() as unknown as Iterable<Record<string, unknown>>)) {
+            await ctx.client.notify(methods.client.session.update, {
+              sessionId: requested,
+              update: update as never,
+            })
+          }
+        } catch (e) {
+          process.stderr.write(`[acp] session/load replay skipped: ${e instanceof Error ? e.message : String(e)}\n`)
+        }
+        return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
+      })()
+      pendingLoads.set(requested, loading)
+      try {
+        return await loading
+      } finally {
+        pendingLoads.delete(requested)
       }
-      const modeId = sessions.get(requested)?.modeId ?? 'default'
-      return { modes: modesFor(modeId), configOptions: configOptionsFor(modeId) }
     })
     .onRequest('session/list', async ctx => {
       const cursor = ctx.params?.cursor ? Number(ctx.params.cursor) : 0
@@ -982,11 +1061,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       if (!PERMISSION_MODES.some(m => m.id === modeId)) {
         throw new Error(`unknown mode '${modeId}' — modes: ${PERMISSION_MODES.map(m => m.id).join(', ')}`)
       }
-      if (!(await state.child.setPermissionMode(modeId))) {
-        throw new Error(`the session did not confirm mode '${modeId}' — state unchanged`)
-      }
-      state.modeId = modeId
-      notifyModeChanged(ctx.client, ctx.params.sessionId, modeId)
+      await setSessionMode(ctx.client, ctx.params.sessionId, state, modeId)
       return {}
     })
     .onRequest('session/set_config_option', async ctx => {
@@ -1001,11 +1076,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           `unknown permission-mode value '${String(value)}' — values: ${PERMISSION_MODES.map(m => m.id).join(', ')}`,
         )
       }
-      if (!(await state.child.setPermissionMode(value))) {
-        throw new Error(`the session did not confirm mode '${value}' — state unchanged`)
-      }
-      state.modeId = value
-      notifyModeChanged(ctx.client, ctx.params.sessionId, value)
+      await setSessionMode(ctx.client, ctx.params.sessionId, state, value)
       return { configOptions: configOptionsFor(value) }
     })
     .onRequest('session/close', async ctx => {
@@ -1263,6 +1334,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   ) as ReadableStream<Uint8Array>
   const connection = app.connect(ndJsonStream(input, output))
   await connection.closed
+  transportClosed = true
   const closes: Promise<void>[] = []
   for (const state of new Set(sessions.values())) {
     if (state.turnResolve) {
