@@ -27,7 +27,7 @@
 | exit/error messages (exitWithMessage/exitWithError) | `src/interactiveHelpers.tsx` | releases the hold before inline render |
 | Resume Session picker (bare --resume: loading · picker · resuming · REPL swap) | `src/screens/ResumeConversation.tsx` | claims the held screen (<AlternateScreen> host; REPL swap rides the nested path) |
 | REPL cockpit (direct boot / --continue / --resume <id>) | `src/screens/REPL.tsx → src/ink/components/AlternateScreen.tsx` | claims the held screen (outermost mount consumes + arms the takeover erase) |
-| non-takeover argv paths (-p · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
+| non-takeover argv paths (run · --help · subcommands · piped stdout) | `src/entrypoints/cli.tsx` | releases the hold before any output |
 
 ## Slash routes — modal-slot views (local-jsx: 71)
 

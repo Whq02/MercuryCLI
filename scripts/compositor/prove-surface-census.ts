@@ -149,7 +149,7 @@ function collectBoot(): BootRow[] {
 
   const cli = read('src/entrypoints/cli.tsx')
   rows.push({
-    surface: 'non-takeover argv paths (-p · --help · subcommands · piped stdout)',
+    surface: 'non-takeover argv paths (run · --help · subcommands · piped stdout)',
     source: 'src/entrypoints/cli.tsx',
     discipline: 'releases the hold before any output',
     ok: /releaseLauncherAltHoldNow/.test(cli),
