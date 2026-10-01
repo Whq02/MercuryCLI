@@ -136,6 +136,7 @@ const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
 const REQUEST_TIMEOUT_MS = 60_000
 const LONG_CALL_LOG_INTERVAL_MS = 30_000
+export const MCP_TOOL_USE_ID_META_KEY = 'mercury/toolUseId'
 const STDERR_FLUSH_BYTES = 1024 * 1024
 const INSTRUCTIONS_MAX_CHARS = 2048
 const TOOLS_MAX_PAGES = 50
@@ -1330,7 +1331,7 @@ async function callToolOnce(
       {
         name: tool,
         arguments: args,
-        ...(toolUseId ? { _meta: { 'claudecode/toolUseId': toolUseId, ...(progressToken ? { progressToken } : {}) } } : {}),
+        ...(toolUseId ? { _meta: { [MCP_TOOL_USE_ID_META_KEY]: toolUseId, ...(progressToken ? { progressToken } : {}) } } : {}),
       },
       { signal: requestController.signal, timeout: timeoutMs, ...(toolDefinition ? { toolDefinition } : {}) },
     )
