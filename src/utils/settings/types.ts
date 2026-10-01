@@ -263,6 +263,15 @@ export const SettingsSchema = lazySchema(() => {
       .describe(
         'Patience with a quiet model: normal (a 2 min stream-idle budget where keep-alives feed the watchdog, 15 min on the OpenAI road, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it',
       ),
+    openrouterRouting: z
+      .object({
+        dataCollection: z.enum(['allow', 'deny']).optional(),
+        requireParameters: z.boolean().optional(),
+        allowFallbacks: z.boolean().optional(),
+        zeroDataRetention: z.boolean().optional(),
+      })
+      .optional()
+      .describe('OpenRouter routing policy: when set, denies data collection and requires every parameter by default, with fallbacks on and zero data retention off; when absent, leaves OpenRouter routing unchanged'),
     shellEngineSessions: z
       .number()
       .int()
