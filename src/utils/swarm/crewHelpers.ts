@@ -186,6 +186,10 @@ export async function readCrewFileAsync(crewName: string): Promise<CrewFile | nu
   }
 }
 
+export function crewRosterExists(crewName: string): boolean {
+  return existsSync(readableCrewFilePath(crewName))
+}
+
 async function writeCrewFileAtomic(path: string, crewFile: CrewFile): Promise<void> {
   await mkdir(dirname(path), { recursive: true })
   await durableAtomicPublish(path, jsonStringify(crewFile, null, 2))
