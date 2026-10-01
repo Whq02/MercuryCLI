@@ -251,7 +251,7 @@ export async function runCase(kind: EmptyReplyCase, dist = DIST): Promise<CaseRu
   const fixture = await startCasesFixture(kind)
   const env = casesEnv(fixture.base, home, config)
   const node = join(dirname(dist), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
-  const proc = spawn(existsSync(node) ? node : 'node', [dist, '-p', '--model', EMPTY_REPLY_CASES_MODEL, '--output-format', 'stream-json', EMPTY_REPLY_CASES_ASK], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const proc = spawn(existsSync(node) ? node : 'node', [dist, 'run', '--model', EMPTY_REPLY_CASES_MODEL, '--format', 'rows', EMPTY_REPLY_CASES_ASK], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   proc.stdout.on('data', chunk => { stdout += String(chunk) })

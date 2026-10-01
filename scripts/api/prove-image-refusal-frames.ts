@@ -260,7 +260,7 @@ if (process.argv[2] === '--serve') {
   const sessionId = randomUUID()
   {
     const fixture = await startFixture('seed', [{ text: 'I see a flat image.' }])
-    const result = spawnSync(nodeFor(SEED_DIST), [SEED_DIST, '-p', '--output-format', 'json', '--model', MODEL, '--permission-mode', 'bypassPermissions', '--session-id', sessionId, `describe @${BIG}`], {
+    const result = spawnSync(nodeFor(SEED_DIST), [SEED_DIST, 'run', '--format', 'json', '--model', MODEL, '--mode', 'bypassPermissions', '--session-id', sessionId, `describe @${BIG}`], {
       cwd: CWD,
       env: childEnv(SEED_HOME, fixture.port),
       encoding: 'utf8',

@@ -128,7 +128,7 @@ function arena(name: string, extra: Record<string, string> = {}): Arena {
 
 type Run = { send: (prompt: string) => void; end: () => void; results: () => number; stdout: () => string; stderr: () => string; exit: Promise<number | null> }
 function boot(a: Arena, sid: string): Run {
-  const child = spawn(nodeBin!, [DIST, '-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', MODEL, '--session-id', sid], { cwd: a.cwd, env: a.env })
+  const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--session-id', sid], { cwd: a.cwd, env: a.env })
   let stdout = ''
   let stderr = ''
   child.stdout.on('data', d => {

@@ -125,13 +125,13 @@ function runStreaming(args: string[], prompts: string[], debugFile: string): Pro
   })
 }
 
-const common = ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', MODEL, '--allowed-tools', 'ToolSearch,WebFetch']
+const common = ['run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--allowed-tools', 'ToolSearch,WebFetch']
 const scratch = mkdtempSync(path.join(tmpdir(), 'wire-truth-live-logs-'))
 const debugA = path.join(scratch, 'a.debug.log')
 const debugB = path.join(scratch, 'b.debug.log')
 
 console.log(`\nsession ${SID} on ${MODEL}: three turns born in apollo, then two more resumed in flow`)
-const a = await runStreaming(['--session-id', SID, '--permission-mode', 'apollo', ...common], [
+const a = await runStreaming(['--session-id', SID, '--mode', 'apollo', ...common], [
   'wire truth live. Reply with exactly the word ALPHA and nothing else.',
   'Use the ToolSearch tool once with the query select:WebFetch to load the WebFetch tool, then reply with exactly LOOKUP-DONE and nothing else. Do not call any other tool.',
   'Reply with exactly the word GAMMA and nothing else.',
@@ -140,14 +140,14 @@ const rowsA = rowsOf(a.stdout, i => ['t1', 't2 (lookup call)', 't2 (after the lo
 console.log(`process A exit ${a.exit}; ${rowsA.length} request(s)${a.exit !== 0 ? ` stderr: ${a.stderr.slice(0, 300)}` : ''}`)
 
 let switchedTo = 'flow'
-let b = await runStreaming(['--resume', SID, '--permission-mode', 'flow', ...common], [
+let b = await runStreaming(['--resume', SID, '--mode', 'flow', ...common], [
   'Reply with exactly the word DELTA and nothing else.',
   'Reply with exactly the word EPSILON and nothing else.',
 ])
 if (b.exit !== 0 || !b.stdout.includes('"type":"result"')) {
   console.log(`flow was refused headless (exit ${b.exit}: ${b.stderr.slice(0, 200)}); switching to implement instead`)
   switchedTo = 'implement'
-  b = await runStreaming(['--resume', SID, '--permission-mode', 'implement', ...common], [
+  b = await runStreaming(['--resume', SID, '--mode', 'implement', ...common], [
     'Reply with exactly the word DELTA and nothing else.',
     'Reply with exactly the word EPSILON and nothing else.',
   ])

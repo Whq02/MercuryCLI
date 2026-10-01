@@ -173,7 +173,7 @@ export async function runZaiCase(kind: ZaiEmptyReplyCase, dist = DIST): Promise<
   const fixture = await startZaiCasesFixture(kind)
   const env = zaiCasesEnv(fixture.base, home, config)
   const node = join(dirname(dist), 'vendor', 'node', process.platform === 'win32' ? 'node.exe' : 'bin/node')
-  const proc = spawn(existsSync(node) ? node : 'node', [dist, '-p', '--model', ZAI_CASES_MODEL, '--output-format', 'stream-json', ZAI_CASES_ASK], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
+  const proc = spawn(existsSync(node) ? node : 'node', [dist, 'run', '--model', ZAI_CASES_MODEL, '--format', 'rows', ZAI_CASES_ASK], { cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })
   let stdout = ''
   let stderr = ''
   proc.stdout.on('data', chunk => { stdout += String(chunk) })

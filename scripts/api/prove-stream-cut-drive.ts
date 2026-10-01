@@ -125,7 +125,7 @@ function runProduct(fixture: Fixture, prompt: string): Run {
   delete env.MERCURY_MODEL
   delete env.MERCURY_DISABLE_NONSTREAMING_FALLBACK
   const debugFile = join(fixture.dir, 'debug.txt')
-  const result = spawnSync(NODE, [DIST, '-p', prompt, '--model', 'claude-sonnet-5', '--permission-mode', 'sovereign', '--output-format', 'text', '--debug-file', debugFile], { cwd, env, encoding: 'utf8', timeout: 120_000 })
+  const result = spawnSync(NODE, [DIST, 'run', prompt, '--model', 'claude-sonnet-5', '--mode', 'sovereign', '--format', 'text', '--debug-file', debugFile], { cwd, env, encoding: 'utf8', timeout: 120_000 })
   const rows: Array<Record<string, unknown>> = []
   const projects = join(home, 'projects')
   if (existsSync(projects)) {
