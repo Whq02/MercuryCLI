@@ -132,7 +132,7 @@ section('§1 the readers land in the owner through the one refresh door, stamped
   check('openrouter: the credit figures ride the owner in the provider\'s own units', orKeys === 'credits-all-time,credits-week,cap-remaining', orKeys)
   check('openrouter: each figure is the stated number to two decimals, stamped', or.figures?.[0]?.value === '12.50' && or.figures?.[1]?.value === '1.25' && or.figures?.[2]?.value === '7.50' && or.figures?.every(f => f.observedAtMs === NOW) === true, JSON.stringify(or.figures))
   check('openrouter: the per-key cap is the one percent window (62.5% of 20 used)', or.windows.length === 1 && or.windows[0]?.key === 'cap' && or.windows[0]?.state === 'live' && Math.abs((or.windows[0]?.usedPct ?? 0) - 62.5) < 1e-9, JSON.stringify(or.windows))
-  check('openrouter: no absence line, no reader note while the reader answered', or.absence === undefined && or.readerNote === undefined)
+  check('openrouter: a low key cap keeps the figures and adds Mercury’s ten-dollar notice', or.absence === undefined && or.readerNote === 'remaining under the key cap is $7.50 — below Mercury’s $10 floor; check the key cap and credits at openrouter.ai/settings/credits' && or.readerNoteCompact === or.readerNote)
 
   process.env.HF_TOKEN = 'hf_fixture000'
   huggingfaceState.recordHuggingfaceRateHeaders(new Headers({ ratelimit: '"default";r=950;t=3600' }), 200, now)

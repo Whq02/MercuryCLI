@@ -75,6 +75,10 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),
+  policyFaultNote: (fault, extra) =>
+    fault.status === 503 && /no available (model )?provider/i.test(fault.message) && extra?.provider !== undefined
+      ? ' — no OpenRouter endpoint met your routing policy; /config → OpenRouter routing policy widens it'
+      : undefined,
   onResponseHeaders: headers => {
     recordOpenrouterRateHeaders(headers)
     void refreshOpenrouterKeyUsage().catch(() => {})

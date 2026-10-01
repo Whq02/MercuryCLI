@@ -514,6 +514,7 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
         <ObservedWindowMeter key={w.key} window={w} title="Key credit cap" {...(width !== undefined ? { maxWidth: width } : {})} />
       ))}
       <Text dimColor>{creditLine}</Text>
+      {usage.readerNote !== undefined && usage.readerNote !== creditLine ? <Text dimColor>{usage.readerNote}</Text> : null}
       <Text dimColor>One credential serves the whole OpenRouter multi-model catalogue.</Text>
     </Box>
   )
@@ -1127,6 +1128,9 @@ export function usageCompactLines(
     for (const line of windows) lines.push({ text: line, heading: false })
     const credits = usageCreditsLine(usage.credits) ?? figuresLine(usage)
     if (credits !== undefined) lines.push({ text: `  ${credits}`, heading: false })
+    if (section.id === 'openrouter' && usage.readerNote !== undefined) {
+      for (const note of usage.readerNote.split('; ')) lines.push({ text: `  ${note}`, heading: false })
+    }
     const full = fullWindowLine(usage)
     if (full !== undefined) lines.push({ text: `  ${full}`, heading: false })
   }

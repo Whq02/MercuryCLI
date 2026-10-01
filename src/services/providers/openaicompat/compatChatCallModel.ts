@@ -123,6 +123,7 @@ export interface CompatLaneProfile {
   } | undefined
   effortOnWire?(extra: Record<string, unknown>): EffortWireFact
   usageForSettlement?(usage: CompatUsage): CompatUsage
+  policyFaultNote?(fault: CompatFault, extra: Record<string, unknown> | undefined): string | undefined
   leadingNotes?: readonly string[]
   providerLabel: string
   resolveCredential(): CompatCredential | undefined | Promise<CompatCredential | undefined>
@@ -647,7 +648,7 @@ export async function* compatChatCallModel(
       ))
       return
     }
-    const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined)
+    const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, recovery ? { recovery } : undefined) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
     const stayedBusy =
       busy !== undefined && takesBusyLadder(outcome.fault, typed)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`

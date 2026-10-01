@@ -21,6 +21,9 @@ function check(label: string, ok: boolean, detail = ''): void {
 type Body = Record<string, unknown>
 type Capture = { path: string; raw: string; body: Body }
 const captured: Capture[] = []
+let faultReply: { status: number; message: string } | undefined
+let onPosted: (() => void) | undefined
+let rejectUnsupportedTools = false
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const server = createServer(async (req, res) => {
   const chunks: Buffer[] = []
@@ -34,6 +37,15 @@ const server = createServer(async (req, res) => {
   const raw = Buffer.concat(chunks).toString()
   const body = JSON.parse(raw) as Body
   captured.push({ path, raw, body })
+  const posted = onPosted
+  onPosted = undefined
+  posted?.()
+  const reply = faultReply ?? (rejectUnsupportedTools && Array.isArray(body.tools) && body.tools.length > 0 && (body.provider as Body)?.require_parameters === true ? { status: 503, message: 'There is no available model provider that meets your routing requirements.' } : undefined)
+  if (reply !== undefined) {
+    res.writeHead(reply.status, { 'content-type': 'application/json' })
+    res.end(JSON.stringify({ error: { code: reply.status, message: reply.message } }))
+    return
+  }
   res.writeHead(200, { 'content-type': 'text/event-stream' })
   if (path.endsWith('/responses')) {
     const item = { id: 'msg_fixture', type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'OK', annotations: [] }] }
@@ -70,21 +82,24 @@ type Tool = import('../../src/Tool.js').Tool
 type Routing = import('../../src/utils/settings/types.js').SettingsJson['openrouterRouting']
 const deferred = { name: 'FixtureRead', shouldDefer: true, prompt: async () => 'Read a fixture', description: async () => 'Read a fixture', inputSchema: z.object({ path: z.string() }), isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, userFacingName: () => 'FixtureRead', call: async () => ({ data: 'fixture' }) } as unknown as Tool
 const messages = [createUserMessage({ content: 'Say OK' })]
-async function drive(model: string, responses = false): Promise<Capture | undefined> {
+async function turn(model: string, responses = false, singleShot = false): Promise<{ captures: Capture[]; errors: string[]; settled: boolean }> {
   clearToolRosterLatches()
   process.env.MERCURY_TOOL_DEFER = responses ? '1' : '0'
   const before = captured.length
   let settled = false
   const errors: string[] = []
-  for await (const item of routedCallModel({ messages: messages as never, systemPrompt: ['Fixture system'] as never, thinkingConfig: { type: 'disabled' }, tools: [ToolSearchTool, deferred] as never, signal: new AbortController().signal, options: { model, querySource: 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], hasPendingMcpServers: false } as never })) {
+  for await (const item of routedCallModel({ messages: messages as never, systemPrompt: ['Fixture system'] as never, thinkingConfig: { type: 'disabled' }, tools: [ToolSearchTool, deferred] as never, signal: new AbortController().signal, options: { model, querySource: singleShot ? 'overload_probe' : 'repl_main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], hasPendingMcpServers: false } as never })) {
     if (item.type === 'assistant') {
-      if (item.isApiErrorMessage) errors.push(JSON.stringify(item.message.content))
+      if (item.isApiErrorMessage) errors.push(item.message.content.filter(b => b.type === 'text').map(b => (b as { text: string }).text).join(''))
       else settled ||= item.message.stop_reason === 'end_turn'
     }
   }
-  const result = captured[before]
-  check(`${model}: ${responses ? 'responses' : 'chat'} turn settles once`, settled && captured.length === before + 1 && !!result?.path.endsWith(responses ? '/responses' : '/chat/completions'), errors.join(' | '))
-  return result
+  return { captures: captured.slice(before), errors, settled }
+}
+async function drive(model: string, responses = false): Promise<Capture | undefined> {
+  const result = await turn(model, responses)
+  check(`${model}: ${responses ? 'responses' : 'chat'} turn settles once`, result.settled && result.captures.length === 1 && !!result.captures[0]?.path.endsWith(responses ? '/responses' : '/chat/completions'), result.errors.join(' | '))
+  return result.captures[0]
 }
 function setting(value: Routing): void {
   updateSettingsForSource('userSettings', { openrouterRouting: undefined })
@@ -93,6 +108,7 @@ function setting(value: Routing): void {
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const receipts: Record<string, unknown> = {}
 try {
+  if (!process.argv.includes('--faults-only')) {
   setting(undefined)
   const absentChat = await drive('openrouter/fixture/model')
   const absentResponses = await drive('openrouter/fixture/model', true)
@@ -123,6 +139,61 @@ try {
       check(`${responses ? 'responses' : 'chat'}: exact policy ${JSON.stringify(expected)}`, same(result?.body.provider, Object.keys(expected).length > 0 ? expected : undefined), JSON.stringify(result?.body.provider))
       check('ZDR off is absent, never false', zeroDataRetention || !('zdr' in ((result?.body.provider ?? {}) as Body)))
     }
+  }
+  }
+  const remedy = ' — no OpenRouter endpoint met your routing policy; /config → OpenRouter routing policy widens it'
+  const noProvider = ['There is no available model provider that meets your routing requirements.', 'No available provider meets your routing requirements']
+  const overloaded = 'The upstream provider is temporarily overloaded. Retry after a short delay.'
+  for (const responses of [false, true]) {
+    for (const message of noProvider) {
+      faultReply = { status: 503, message }
+      setting(undefined)
+      const off = await turn('openrouter/fixture/model', responses, true)
+      setting({})
+      const on = await turn('openrouter/fixture/model', responses, true)
+      check(`${responses ? 'responses' : 'chat'}: policy 503 adds only the remedy to the existing error`, off.errors.length === 1 && on.errors.length === 1 && on.errors[0] === off.errors[0] + remedy, JSON.stringify({ off: off.errors, on: on.errors }))
+      check('policy-off 503 never names the config row', !off.errors.join('').includes('OpenRouter routing policy'))
+      if (!responses) check('policy-off chat keeps exact terminal words', off.errors[0] === `API Error: OpenRouter stream failed (http-503) — ${message}`, off.errors[0])
+    }
+    setting({})
+    faultReply = { status: 503, message: overloaded }
+    const busy = await turn('openrouter/fixture/model', responses, true)
+    check('the documented overloaded sentence never gets a policy label', busy.errors.length === 1 && busy.errors[0]!.includes(overloaded) && !busy.errors[0]!.includes('OpenRouter routing policy'), busy.errors.join(''))
+    for (const status of [400, 404, 500]) {
+      faultReply = { status, message: noProvider[0]! }
+      const other = await turn('openrouter/fixture/model', responses, true)
+      check(`${status} is not relabelled as the policy 503`, other.errors.length === 1 && !other.errors[0]!.includes('OpenRouter routing policy'), other.errors.join(''))
+    }
+    process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
+    for (const message of [overloaded, noProvider[0]!]) {
+      setting({})
+      faultReply = { status: 503, message }
+      onPosted = () => setting(undefined)
+      const retried = await turn('openrouter/fixture/model', responses)
+      const wantsNote = message !== overloaded
+      check(`${responses ? 'responses' : 'chat'}: ${wantsNote ? 'policy miss' : 'overload'} keeps all six busy retries`, retried.captures.length === 7 && retried.errors.length === 1 && retried.errors[0]!.includes('stayed busy through 6 retries'), `${retried.captures.length} ${retried.errors.join('')}`)
+      check('terminal note describes the request snapshot, not a later settings edit', retried.errors[0]?.endsWith(remedy) === wantsNote, retried.errors.join(''))
+      check('each retry keeps the identical request policy and tools', retried.captures.every(c => c.raw === retried.captures[0]?.raw && Array.isArray(c.body.tools) && (c.body.provider as Body)?.require_parameters === true))
+    }
+    setting(undefined)
+    faultReply = { status: 503, message: noProvider[0]! }
+    onPosted = () => setting({})
+    const after = await turn('openrouter/fixture/model', responses, true)
+    check('turning policy on after posting cannot relabel an unfiltered request', after.errors.length === 1 && !after.errors[0]!.includes('OpenRouter routing policy'))
+  }
+  faultReply = { status: 503, message: noProvider[0]! }
+  setting({})
+  const otherLane = await turn('deepseek-v4-pro', false, true)
+  check('the same 503 on DeepSeek has no OpenRouter remedy', otherLane.errors.length === 1 && !otherLane.errors[0]!.includes('OpenRouter routing policy'))
+  faultReply = undefined
+  rejectUnsupportedTools = true
+  for (const responses of [false, true]) {
+    setting({})
+    const required = await turn('openrouter/fixture/model', responses, true)
+    check('tools with no supporting endpoint fail with the policy remedy when parameters are required', required.errors.length === 1 && required.errors[0]!.endsWith(remedy) && !required.settled)
+    setting({ requireParameters: false })
+    const relaxed = await turn('openrouter/fixture/model', responses, true)
+    check('relaxing parameters widens the fixture pool without relaxing collection', relaxed.settled && relaxed.errors.length === 0 && (relaxed.captures[0]?.body.provider as Body)?.data_collection === 'deny' && !('require_parameters' in (relaxed.captures[0]?.body.provider as Body)))
   }
   const at = process.argv.indexOf('--wire-receipt')
   if (at >= 0 && process.argv[at + 1]) writeFileSync(process.argv[at + 1]!, JSON.stringify(receipts, null, 2) + '\n')
