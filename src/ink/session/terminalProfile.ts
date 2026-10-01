@@ -65,7 +65,7 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
     requirement: 'required',
     ok: isTTY,
     evidence: `stdout.isTTY=${isTTY}`,
-    remediation: 'Run Mercury in an interactive terminal; piped/scripted use goes through -p (print mode).',
+    remediation: 'Run Mercury in an interactive terminal; piped/scripted use goes through mercury run.',
   })
 
   const term = env.TERM

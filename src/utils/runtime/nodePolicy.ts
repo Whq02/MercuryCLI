@@ -10,7 +10,7 @@ export const NODE_SUPPORT = {
   label: 'Node 24 LTS',
 } as const
 
-export const NODE_FLOOR_REASON = `Node ${MINIMUM} carries the fix for nodejs/node#56645 — below it, a headless -p run that dispatched any tool aborts at exit on win32 with 0xC0000409`
+export const NODE_FLOOR_REASON = `Node ${MINIMUM} carries the fix for nodejs/node#56645 — below it, a headless run that dispatched any tool aborts at exit on win32 with 0xC0000409`
 
 export type NodeRuntimeVerdict =
   | 'supported'

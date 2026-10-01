@@ -71,7 +71,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         id: 'where',
         label: 'Where it happened',
         source: 'ask',
-        prompt: 'The first-run walk, /logins or /accounts, /model, a chat turn, a headless -p run, /health or doctor, or somewhere else.',
+        prompt: 'The first-run walk, /logins or /accounts, /model, a chat turn, a mercury run command, /health or doctor, or somewhere else.',
       },
       {
         id: 'text',

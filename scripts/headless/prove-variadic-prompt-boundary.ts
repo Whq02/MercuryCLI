@@ -96,7 +96,7 @@ section('(1) `-p --allowed-tools "Bash" "do the thing"` refuses loudly — never
   check('…and echoes the swallowed value', res.stderr.includes('"do the thing"'), res.stderr.slice(-400))
   check('…and names the -- remedy', res.stderr.includes('--allowed-tools "..." -- '), res.stderr.slice(-400))
   check('…and the prompt-before-the-flag remedy', res.stderr.includes('before the flag'), res.stderr.slice(-400))
-  check('the generic no-prompt line is NOT the answer', !res.stderr.includes('No prompt reached --print: give one'), res.stderr.slice(-400))
+  check('the generic no-prompt line is NOT the answer', !res.stderr.includes('No prompt reached run: give one'), res.stderr.slice(-400))
   check('nothing reached the wire', messagesBodies(fixture).length === 0)
   await fixture.close()
 }
