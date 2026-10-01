@@ -349,6 +349,9 @@ export function mapCompatUsageToAnthropic(usage: CompatUsage | undefined): typeo
     input_tokens: Math.max(0, total - cached),
     output_tokens: usage?.outputTokens ?? 0,
     cache_read_input_tokens: cached,
+    output_tokens_details: usage?.reasoningTokens !== undefined
+      ? { thinking_tokens: usage.reasoningTokens }
+      : null,
   }
 }
 
