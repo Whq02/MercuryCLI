@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 export function generateTempFilePath(
-  prefix: string = 'claude-prompt',
+  prefix: string = 'mercury-prompt',
   extension: string = '.md',
   options?: { contentHash?: string },
 ): string {
