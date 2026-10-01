@@ -42,7 +42,7 @@ body:
         - /logins or /accounts
         - /model or /defaultprovider
         - A chat turn
-        - A headless -p run
+        - A mercury run command
         - /health or doctor
         - Somewhere else (say where in the steps)
     validations:

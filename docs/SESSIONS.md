@@ -730,8 +730,8 @@ operator changes it, and the turn may not end without accounting for the
 message. Several lines sent before one boundary arrive together, each its
 own message, in the order sent. The row then lands in the transcript where
 the delivery happened, between the tool rows, and carries the clock the line
-was sent at, not the boundary's; a headless run (`-p
---input-format=stream-json`) reads that clock from the user frame's
+was sent at, not the boundary's; a headless run (`run
+--input rows --format rows`) reads that clock from the user frame's
 `timestamp` and stamps the arrival when the frame carries none. A line sent
 after the turn's last tool round waits for the turn's end, as does a slash
 command sent at any point of the turn, and so does a line sent after a

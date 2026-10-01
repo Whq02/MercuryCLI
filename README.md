@@ -155,7 +155,7 @@ To build from source, you need:
   [docs/INSTALL-WINDOWS-FROM-SOURCE.md](docs/INSTALL-WINDOWS-FROM-SOURCE.md).
 
 The Node minimum includes the fix for nodejs/node#56645. Below 24.20.0,
-headless `-p` runs that call a tool abort on exit on Windows.
+headless `run` commands that call a tool abort on exit on Windows.
 
 Launchers select Node in this order: the explicit `MERCURY_NODE` binary, the
 bundled runtime, then a compatible Node installation on PATH. If the runtime
@@ -400,10 +400,21 @@ Mercury's licence does not replace them.
 The same build runs without the interactive interface.
 `node dist/mercury.mjs --help` lists every flag.
 
-`-p "<prompt>"` runs one non-interactive turn. Choose its output with
-`--output-format text|json|stream-json`. `json` returns the result envelope;
-`stream-json` includes every event from initialisation to the final result,
-without needing another flag.
+`mercury run "<prompt>"` runs one non-interactive turn. Choose its output with
+`--format text|json|rows`: `text` is the answer, `json` is one final result
+object, and `rows` is one JSON line per event. `--partial` includes partial
+rows while the turn streams. `--input rows` reads JSON-line input on stdin
+and requires `--format rows`.
+
+Use `mercury run -` or pipe text into `mercury run` to read the whole prompt
+from stdin. Beside a prompt argument, piped text is collected for up to one
+second and appended as delimited context. With no prompt and a terminal on
+stdin, `run` prints its usage and exits 2.
+
+`--mode <mode>` selects the permission posture. `--sovereign` runs without
+permission prompts, and `--allow-sovereign` makes that posture available for
+a later switch. Permission policy and deny rules still apply. A root user
+entering sovereign mode gets one notice on stderr; the run continues.
 
 Use `-c` to continue the most recent conversation, `-r` to resume by ID, title
 or picker, `-w` to run in a managed worktree, and `--bare` for minimal mode.

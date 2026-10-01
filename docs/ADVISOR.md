@@ -37,7 +37,7 @@ switch above every chat. The advisor runs for a chat only when both are on.
   and the local catalogue, carriers included. `tab` moves between the CONSOLE
   and ADVISOR containers; `↵` pins a row; `e` sets the container's own effort.
   `MERCURY_ADVISOR_MODEL` pins it from the environment and locks the picker.
-- **`mercury -p --advise`** — a headless run has no chat to type `/advise on`
+- **`mercury run --advise`** — a headless run has no chat to type `/advise on`
   in, so the flag turns its advisor on at birth. The settings in the run's
   own config home still hold the master switch.
 
