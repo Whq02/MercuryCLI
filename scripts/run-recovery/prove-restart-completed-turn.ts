@@ -98,7 +98,7 @@ const target = join(arena.cwd, 's16-effect.txt')
   content: 'S16-EFFECT-ONCE',
 }
 
-const r1 = await run(arena, ['-p', 'write the file', '--model', 'claude-opus-4-8', '--session-id', SID, '--permission-mode', 'implement'])
+const r1 = await run(arena, ['run', 'write the file', '--model', 'claude-opus-4-8', '--session-id', SID, '--mode', 'implement'])
 check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
 check('turn 1 completed with the scripted text', r1.stdout.includes(MARKER), JSON.stringify(r1.stdout.slice(0, 160)))
 check('the tool effect landed', existsSync(target))
@@ -123,7 +123,7 @@ const t1Files = transcriptFiles()
 check('turn 1 persisted: the user prompt is in a transcript', t1Files.some(f => countOf(f.text, 'write the file') >= 1))
 check('turn 1 persisted: the completion is in a transcript', t1Files.some(f => countOf(f.text, MARKER) >= 1))
 
-const r2 = await run(arena, ['-p', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
+const r2 = await run(arena, ['run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
 check('resume exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
 check('turn 2 completed', r2.stdout.includes('S16-SECOND-REPLY'), JSON.stringify(r2.stdout.slice(0, 160)))
 

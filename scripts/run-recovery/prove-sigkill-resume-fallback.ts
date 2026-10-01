@@ -172,7 +172,7 @@ async function killRun(label: string, sid: string): Promise<KilledWorld> {
   const arena = makeArena(label.toLowerCase(), fixture.url)
   const killed = await runKillAt(
     arena,
-    ['-p', PROMPT, '--model', 'claude-opus-4-8', '--session-id', sid],
+    ['run', PROMPT, '--model', 'claude-opus-4-8', '--session-id', sid],
     'T2-FIRST-REPLY-COMPLETE',
   )
   check(`${label}: the first run reached its completion marker`, killed.sawMarker,
@@ -187,7 +187,7 @@ async function killRun(label: string, sid: string): Promise<KilledWorld> {
 
 async function resumeAndAssert(label: string, w: KilledWorld): Promise<void> {
   const resumed = await run(w.arena, [
-    '-p', 'what did you reply?', '--model', 'claude-opus-4-8', '--resume', w.sid,
+    'run', 'what did you reply?', '--model', 'claude-opus-4-8', '--resume', w.sid,
   ])
   check(`${label}: --resume completes (exit 0, never "No conversation found")`,
     resumed.exit === 0 && !resumed.stdout.includes('No conversation found') &&
@@ -222,7 +222,7 @@ console.log('\n-- leg 0: the source pin — the pump flushes before a result fra
 {
   const pump = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   check(
-    'the -p message pump awaits the transcript flush on a result frame BEFORE routing it (the turn-boundary flush)',
+    'the run pump awaits the transcript flush on a result frame BEFORE routing it (the turn-boundary flush)',
     /for await \(const outboundMessage of io\.outbound\) \{[\s\S]{0,900}?if \(outboundMessage\.type === 'result'\) await peekProject\(\)\?\.flush\(\)\s*\n\s*routeOutbound\(outboundMessage\)/.test(pump),
   )
 }
@@ -245,7 +245,7 @@ console.log('\n-- leg A2: the metadata-only-jsonl world, pinned deterministicall
   ] as ScriptedTurn[])
   const arena = makeArena('a2', fixture.url)
   const first = await run(arena, [
-    '-p', PROMPT, '--model', 'claude-opus-4-8', '--session-id', sid,
+    'run', PROMPT, '--model', 'claude-opus-4-8', '--session-id', sid,
   ])
   check('A2: the seed run completed gracefully', first.exit === 0 && first.stdout.includes('T2-FIRST-REPLY-COMPLETE'),
     `exit=${first.exit}`)
@@ -262,7 +262,7 @@ console.log('\n-- leg A2: the metadata-only-jsonl world, pinned deterministicall
     check('A2: the stripped world is the metadata-only shape (jsonl present, zero conv records)',
       findJsonl(arena, sid) !== null && jsonlConversationRecords(arena, sid) === 0)
     const refused = await run(arena, [
-      '-p', 'what did you reply?', '--model', 'claude-opus-4-8', '--resume', sid,
+      'run', 'what did you reply?', '--model', 'claude-opus-4-8', '--resume', sid,
     ])
     check('A2: resume refuses cleanly on the metadata-only world (honest floor)',
       refused.exit === 1 &&
