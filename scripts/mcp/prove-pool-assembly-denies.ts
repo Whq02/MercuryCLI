@@ -38,12 +38,12 @@ section('§1 THE LAW')
   )
 }
 
-section('§2 THE -p ASSEMBLY')
+section('§2 THE RUN ASSEMBLY')
 {
   const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   const seamAt = print.indexOf('const assembleTools')
   const seam = print.slice(seamAt, seamAt + 1400)
-  check('the -p per-turn assembly exists', seamAt !== -1)
+  check('the run per-turn assembly exists', seamAt !== -1)
   check('startup extras cannot shadow the current filtered MCP collection', /sessionTools\.filter\(tool => !baseToolNames\.has\(tool\.name\) && !tool\.isMcp\)/.test(seam))
   check(
     'the MCP partitions ride filterToolsByDenyRules (FC-026, call-shaped)',

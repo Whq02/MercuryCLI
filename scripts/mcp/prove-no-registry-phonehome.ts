@@ -164,7 +164,7 @@ function boot(dist: string, home: string): Boot {
   let stdout = ''
   let stderr = ''
   try {
-    stdout = execFileSync('node', [dist, '-p', PROMPT], {
+    stdout = execFileSync('node', [dist, 'run', PROMPT], {
       encoding: 'utf8',
       env: childEnv(home),
       cwd,
