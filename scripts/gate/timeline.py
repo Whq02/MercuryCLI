@@ -145,6 +145,8 @@ def main(outdir: str, wall_s: int) -> int:
         try:
             with open(start_path) as receipt:
                 r['box'] = json.load(receipt)
+                r['authoredBudgetS'] = r['budgetS']
+                r['budgetS'] = r['box'].get('budgetS', r['budgetS'])
         except (OSError, ValueError):
             r['box'] = None
         if not os.path.exists(path):

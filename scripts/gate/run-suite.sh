@@ -55,7 +55,16 @@ exec bash "$runner"
 }
 rm -f "$outdir/$dom.hang"
 printf 'suite %s: proof run root %s (%s)\n' "$dom" "$MERCURY_SUITE_TMPDIR" "${MERCURY_SUITE_TMPDIR_NOTE:-}" >"$out"
-python3 "$repo_root/scripts/lib/box_shape.py" --start "$outdir/$dom.start.json" "$secs" >>"$out" || exit 78
+resource=$(sed -n 's/^# gate-class:[[:space:]]*//p' "$runner" | head -1 | tr -d '[:space:]')
+case "$resource" in pure|cpu|pty|exclusive) ;; *) resource=undeclared ;; esac
+python3 "$repo_root/scripts/lib/box_shape.py" --start "$outdir/$dom.start.json" "$secs" "$resource" "${5:-adaptive}" >>"$out" || exit 78
+budget=$(python3 "$repo_root/scripts/lib/box_shape.py" --budget "$outdir/$dom.start.json") || exit 78
+read -r wall scale <<<"$budget"
+if [ "$wall" -gt "$secs" ]; then
+  note="${note:+$note; }authored wall ${secs}s stretched for the recorded start load (scale $scale)"
+fi
+secs=$wall
+export MERCURY_VSHOT_BUDGET_SCALE="$scale"
 run_checked_suite >>"$out" 2>&1 &
 pid=$!
 runner=$$
