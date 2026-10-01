@@ -1,5 +1,5 @@
 import { stat } from 'node:fs/promises'
-import { describeHeadersRedacted } from '../../utils/redactHeaders.js'
+import { describeEnvRedacted, describeHeadersRedacted, describeUrlRedacted } from '../../utils/redactHeaders.js'
 import pMap from 'p-map'
 import { cliError, cliOk } from '../exit.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
@@ -204,14 +204,14 @@ export async function mcpListHandler(): Promise<void> {
     }
     const status = renderStatus(outcomes[index]!)
     if (config.type === 'sse' || config.type === 'http') {
-      process.stdout.write(`${name}: ${config.url} (${config.type.toUpperCase()}) — ${status}\n`)
+      process.stdout.write(`${name}: ${describeUrlRedacted(config.url ?? '')} (${config.type.toUpperCase()}) — ${status}\n`)
     } else if (config.type === 'claudeai-proxy') {
-      process.stdout.write(`${name}: ${config.url} — ${status}\n`)
+      process.stdout.write(`${name}: ${describeUrlRedacted(config.url ?? '')} — ${status}\n`)
     } else if (config.type === 'stdio' || config.type === undefined) {
       const args = Array.isArray(config.args) ? (config.args as string[]).join(' ') : ''
       process.stdout.write(`${name}: ${config.command ?? ''} ${args} — ${status}\n`)
     } else {
-      const target = typeof (config as { url?: unknown }).url === 'string' ? ` ${(config as { url: string }).url}` : ''
+      const target = typeof (config as { url?: unknown }).url === 'string' ? ` ${describeUrlRedacted((config as { url: string }).url)}` : ''
       process.stdout.write(`${name}:${target} (${String(config.type)}) — ${status}\n`)
     }
   })
@@ -230,7 +230,7 @@ export async function mcpGetHandler(name: string): Promise<void> {
   process.stdout.write(`  Status: ${renderStatus(outcome)}\n`)
   if (config.type === 'sse' || config.type === 'http') {
     process.stdout.write(`  Type: ${config.type}\n`)
-    process.stdout.write(`  URL: ${config.url}\n`)
+    process.stdout.write(`  URL: ${describeUrlRedacted(config.url ?? '')}\n`)
     if (config.headers && Object.keys(config.headers).length > 0) {
       process.stdout.write('  Headers:\n')
       for (const line of describeHeadersRedacted(config.headers).split(', ')) {
@@ -256,14 +256,14 @@ export async function mcpGetHandler(name: string): Promise<void> {
     process.stdout.write(`  Args: ${args}\n`)
     if (config.env && Object.keys(config.env).length > 0) {
       process.stdout.write('  Environment:\n')
-      for (const [key, value] of Object.entries(config.env)) {
-        process.stdout.write(`    ${key}=${value}\n`)
+      for (const line of describeEnvRedacted(config.env)) {
+        process.stdout.write(`    ${line}\n`)
       }
     }
   } else {
     process.stdout.write(`  Type: ${String(config.type)}\n`)
     if (typeof (config as { url?: unknown }).url === 'string') {
-      process.stdout.write(`  URL: ${(config as { url: string }).url}\n`)
+      process.stdout.write(`  URL: ${describeUrlRedacted((config as { url: string }).url)}\n`)
     }
   }
   process.stdout.write('\n')

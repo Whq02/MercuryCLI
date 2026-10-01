@@ -10,7 +10,7 @@ import {
   parseHeaders,
 } from '../../services/mcp/utils.js'
 import { binaryName } from '../../utils/config/derived.js'
-import { describeHeadersRedacted } from '../../utils/redactHeaders.js'
+import { describeHeadersRedacted, describeUrlRedacted } from '../../utils/redactHeaders.js'
 
 function looksLikeUrl(command: string): boolean {
   return (
@@ -115,7 +115,7 @@ Examples:
             if (clientSecret !== undefined) {
               saveMcpClientSecret(name, config, clientSecret)
             }
-            let confirmation = `Added ${transport.toUpperCase()} MCP server ${name} at ${commandOrUrl} (${scope} scope)`
+            let confirmation = `Added ${transport.toUpperCase()} MCP server ${name} at ${describeUrlRedacted(commandOrUrl)} (${scope} scope)`
             if (headers) {
               confirmation += `\nheaders: ${describeHeadersRedacted(headers)}`
             }

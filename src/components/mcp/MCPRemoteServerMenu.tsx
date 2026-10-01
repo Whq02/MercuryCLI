@@ -27,6 +27,7 @@ import { useAppState, useSetAppState } from '../../state/AppState.js'
 import { getOauthAccountInfo } from '../../utils/auth.js'
 import { openBrowser } from '../../utils/browser.js'
 import { copyAnsiToClipboard } from '../../utils/screenshotClipboard.js'
+import { describeUrlRedacted } from '../../utils/redactHeaders.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Select } from '../CustomSelect/select.js'
 import { Spinner } from '../Spinner.js'
@@ -427,7 +428,7 @@ export function MCPRemoteServerMenu({
         ) : null}
         <Text>
           <Text dimColor>URL: </Text>
-          {remote.config.url}
+          {describeUrlRedacted(remote.config.url)}
         </Text>
         <Text>
           <Text dimColor>Config: </Text>

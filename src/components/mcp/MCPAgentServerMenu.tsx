@@ -9,6 +9,7 @@ import {
   performMCPOAuthFlow,
 } from '../../services/mcp/auth.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
+import { describeUrlRedacted } from '../../utils/redactHeaders.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Select } from '../CustomSelect/select.js'
 import { Spinner } from '../Spinner.js'
@@ -160,7 +161,7 @@ export function MCPAgentServerMenu({
         {agentServer.url ? (
           <Text>
             <Text dimColor>URL: </Text>
-            {agentServer.url}
+            {describeUrlRedacted(agentServer.url)}
           </Text>
         ) : null}
         {agentServer.command ? (
