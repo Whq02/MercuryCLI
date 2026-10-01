@@ -24,6 +24,7 @@ export const MERCURY_CHANGELOG = `# Mercury changelog
 - Fixed a parked session's scheduled wake showing "due now" the whole time it was parked
 - Fixed agent worktrees starting from a stale main or colliding on the repository lock
 - Fixed mercury -p /usage (and the other screen-only commands) printing nothing instead of saying they need the interactive session
+- Fixed the Gemini sign-in screens to say what Google ended and what the API bills, with Gemini's agent-only products kept out of the model picker
 
 ## 1.0.0-beta.25
 - Fixed a session keeping every file beside its working folder open for its whole life, which could run a machine out of file handles
