@@ -34,8 +34,8 @@ function setPatience(value: unknown): void {
 
 try {
   for (const mode of [
-    { label: 'normal', setting: 'normal', fed: 120_000, quiet: 900_000 },
-    { label: 'patient', setting: 'patient', fed: 240_000, quiet: 1_800_000 },
+    { label: 'normal', setting: 'normal', fed: 360_000, quiet: 900_000 },
+    { label: 'patient', setting: 'patient', fed: 720_000, quiet: 1_800_000 },
     { label: 'custom', setting: { streamIdleSeconds: 369, quietStreamIdleSeconds: 1234 }, fed: 369_000, quiet: 1_234_000 },
   ]) {
     setPatience(mode.setting)
@@ -45,7 +45,7 @@ try {
       const actual = idle.streamIdleTimeoutMsForRoute(route)
       check(`${mode.label} ${route} idle`, actual === expected, `actual=${actual} expected=${expected}`)
       if (mode.label !== 'normal') check(`${mode.label} ${route} never takes the unknown-route default`, actual !== idle.STREAM_IDLE_DEFAULT_MS)
-      const normal = fed.has(route) ? 120_000 : 900_000
+      const normal = fed.has(route) ? 360_000 : 900_000
       const fence = route === 'local' ? null : Math.max(30_000, Math.round(30_000 * expected / normal))
       check(`${mode.label} ${route} first body byte`, idle.silentAfterHeadersMsForRoute(route) === fence, `actual=${idle.silentAfterHeadersMsForRoute(route)} expected=${fence}`)
       check(`${mode.label} ${route} warm window`, idle.silentAfterHeadersWindowMs({ route, cold: false, promptTokens: 20_000, idleMs: expected }) === fence)
@@ -64,7 +64,7 @@ try {
     process.env.MERCURY_SILENT_AFTER_HEADERS_MS = '5'
     for (const route of routes) {
       const expected = fed.has(route) ? mode.fed : mode.quiet
-      check(`${mode.label} ${route} invalid pins fall through`, idle.streamIdleTimeoutMsForRoute(route) === expected && idle.silentAfterHeadersMsForRoute(route) === (route === 'local' ? null : Math.max(30_000, Math.round(30_000 * expected / (fed.has(route) ? 120_000 : 900_000)))))
+      check(`${mode.label} ${route} invalid pins fall through`, idle.streamIdleTimeoutMsForRoute(route) === expected && idle.silentAfterHeadersMsForRoute(route) === (route === 'local' ? null : Math.max(30_000, Math.round(30_000 * expected / (fed.has(route) ? 360_000 : 900_000)))))
     }
     delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
     delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS

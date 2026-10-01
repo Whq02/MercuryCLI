@@ -671,7 +671,7 @@ export function Config({
         </Text>
       ),
       warning:
-        'applies to every provider: stream idle (2 min with keep-alives; 15 min on quiet roads), the non-streamed fallback ceiling and the retry budget · patient doubles the waits, including the 30 s wait for a first body byte after headers · custom raises that first-byte wait in proportion to the road\'s idle budget and writes the numbers to your user settings file to edit (patience: streamIdleSeconds · quietStreamIdleSeconds · fallbackCeilingSeconds · recoveryBudgetMinutes) · ←/→ walk the modes',
+        'applies to every provider: stream idle (6 min with keep-alives; 15 min on quiet roads), the non-streamed fallback ceiling and the retry budget · patient doubles the waits, including the 30 s wait for a first body byte after headers · custom raises that first-byte wait in proportion to the road\'s idle budget and writes the numbers to your user settings file to edit (patience: streamIdleSeconds · quietStreamIdleSeconds · fallbackCeilingSeconds · recoveryBudgetMinutes) · ←/→ walk the modes',
       change: direction => {
         const modes = ['normal', 'patient', 'custom'] as const
         const next = cycleIn(modes, patience.mode, direction)

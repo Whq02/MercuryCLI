@@ -299,15 +299,16 @@ task whose output arrives as a notification; with a draft in the composer
 the key types its letter. `backgroundKey: false` in settings.json turns the
 key and both hints off, and esc keeps its meaning either way. The row's
 warnings stay its own: a request wait names what the runner waits on and the budget that
-fires ("waiting for the first byte from Opus 5.5 — within 2m"); a held turn
+fires ("waiting for the first byte from Opus 5.5 — within 6m"); a held turn
 names what it waits on ("waiting on 1 workflow · 2 agents"); an interrupt
 says the request is torn down. The row says the session may be stuck only
 when the runner's stream has carried no event of any kind — the provider's
 heartbeats included — for longer than its own watchdog's warning point:
 never sooner than five minutes of silence, and never later than the
 watchdog's own cut. On the routes whose keep-alives feed the watchdog the
-budget is two minutes (four in patient mode), so the cut comes first and
-the row never says it there; on the OpenAI route, whose budget is fifteen
+budget is six minutes (twelve in patient mode), so the row can name the
+silence from five: "no stream events for 5m — the session may be stuck (the
+watchdog aborts at 6m)"; on the quiet routes, whose budget is fifteen
 minutes, the row names what it saw from seven and a half: "no stream events
 for 8m — the session may be stuck (the watchdog aborts at 15m)". Every
 wait, warning and reissue line spells a minute or more in minutes ("within

@@ -69,11 +69,11 @@ section('R3 — the number: each road follows its patience budget; the pin outra
   const fedRoads = ['deepseek', 'openrouter']
   const quietRoads = ['moonshot', 'xai', 'meta', 'gemini', 'huggingface']
   const otherRoads = [...fedRoads, ...quietRoads]
-  check('normal: 2 min', idle.streamIdleTimeoutMsForRoute('openai-compat') === 120_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
+  check('normal: 6 min', idle.streamIdleTimeoutMsForRoute('openai-compat') === 360_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
   const { error } = settings.updateSettingsForSource('userSettings', { patience: 'patient' } as never)
   settingsCache.resetSettingsCache()
-  check('patient: 4 min', error === null && idle.streamIdleTimeoutMsForRoute('openai-compat') === 240_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
-  check('the other fed roads on this transport take 4 min under patient', fedRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 240_000), fedRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
+  check('patient: 12 min', error === null && idle.streamIdleTimeoutMsForRoute('openai-compat') === 720_000, String(idle.streamIdleTimeoutMsForRoute('openai-compat')))
+  check('the other fed roads on this transport take 12 min under patient', fedRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 720_000), fedRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
   check('the quiet roads on this transport take 30 min under patient', quietRoads.every(road => idle.streamIdleTimeoutMsForRoute(road) === 1_800_000), quietRoads.map(road => `${road}=${idle.streamIdleTimeoutMsForRoute(road)}`).join(' '))
   check('the local road on this transport takes the quiet number: 30 min under patient (a busy local server is silent while it works)', idle.streamIdleTimeoutMsForRoute('local') === 1_800_000, String(idle.streamIdleTimeoutMsForRoute('local')))
   process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS = '2000'
