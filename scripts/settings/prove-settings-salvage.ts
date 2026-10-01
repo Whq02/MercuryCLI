@@ -26,54 +26,54 @@ const parseBlob = (blob: unknown): ReturnType<typeof parseSettingsFile> => {
 
 section('§1 THE CARD REPRO — a quoted number beside a deny list')
 {
-  const { settings, errors } = parseBlob({ permissions: { deny: ['Bash'] }, cleanupPeriodDays: '30' })
+  const { settings, errors } = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: '30' } })
   check('the file is NOT discarded (FC-004)', settings !== null)
   check(
     'the deny rules the operator wrote still apply',
-    JSON.stringify(settings?.permissions?.deny) === JSON.stringify(['Bash']),
-    JSON.stringify(settings?.permissions),
+    JSON.stringify(settings?.guardrails?.deny) === JSON.stringify(['Bash']),
+    JSON.stringify(settings?.guardrails),
   )
   check(
-    'exactly the invalid key is dropped',
-    settings !== null && !('cleanupPeriodDays' in (settings as Record<string, unknown>)),
+    'exactly the invalid leaf is dropped',
+    settings !== null && settings.records?.retentionDays === undefined,
   )
   check(
     'the validation error still surfaces (names the bad key)',
-    errors.length > 0 && errors.some(e => JSON.stringify(e).includes('cleanupPeriodDays')),
+    errors.length > 0 && errors.some(e => e.path === 'records.retentionDays'),
     JSON.stringify(errors).slice(0, 200),
   )
 }
 
-section('§2 A MISTYPED defaultMode')
+section('§2 A MISTYPED guardrails.mode')
 {
-  const { settings } = parseBlob({ permissions: { defaultMode: 'bogus-mode', deny: ['Bash'] } })
-  check('the file survives a bad defaultMode', settings !== null)
+  const { settings } = parseBlob({ guardrails: { mode: 'bogus-mode', deny: ['Bash'] } })
+  check('the file survives a bad mode', settings !== null)
   check(
     'the sibling deny rules survive beside the dropped mode',
-    JSON.stringify(settings?.permissions?.deny) === JSON.stringify(['Bash']),
-    JSON.stringify(settings?.permissions),
+    JSON.stringify(settings?.guardrails?.deny) === JSON.stringify(['Bash']),
+    JSON.stringify(settings?.guardrails),
   )
   check(
     'the bad mode itself is dropped, not kept',
-    settings?.permissions?.defaultMode === undefined,
-    JSON.stringify(settings?.permissions?.defaultMode),
+    settings?.guardrails?.mode === undefined,
+    JSON.stringify(settings?.guardrails?.mode),
   )
 }
 
 section('§3 ONE MALFORMED HOOK ENTRY')
 {
   const { settings } = parseBlob({
-    model: 'claude-sonnet-5',
-    hooks: {
+    engine: { model: 'claude-sonnet-5' },
+    events: { hooks: {
       SessionStart: [
         { hooks: [{ type: 'command' }] },
         { hooks: [{ type: 'command', command: 'echo ok' }] },
       ],
-    },
+    } },
   })
   check('the file survives one malformed hook entry', settings !== null)
-  check('the unrelated model pin survives', settings?.model === 'claude-sonnet-5', JSON.stringify(settings?.model))
-  const sessionStart = (settings?.hooks as Record<string, unknown[]> | undefined)?.SessionStart
+  check('the unrelated model pin survives', settings?.engine?.model === 'claude-sonnet-5', JSON.stringify(settings?.engine?.model))
+  const sessionStart = (settings?.events?.hooks as Record<string, unknown[]> | undefined)?.SessionStart
   check(
     'the VALID sibling hook entry survives the prune',
     Array.isArray(sessionStart) &&
@@ -85,8 +85,8 @@ section('§3 ONE MALFORMED HOOK ENTRY')
 
 section('§4 CONTROL — a fully valid file')
 {
-  const { settings, errors } = parseBlob({ permissions: { deny: ['Bash'] }, cleanupPeriodDays: 30 })
-  check('a valid file parses exactly as before', settings !== null && settings.cleanupPeriodDays === 30)
+  const { settings, errors } = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: 30 } })
+  check('a valid file parses exactly as before', settings !== null && settings.records?.retentionDays === 30)
   check('zero errors on a valid file', errors.length === 0, JSON.stringify(errors))
 }
 
@@ -99,11 +99,11 @@ section('§5 ROOT-MALFORMED JSON')
 
 section('§6 THE SEVERITY CHANNEL (B9) — the loader grades what it knows')
 {
-  const salvagedCase = parseBlob({ permissions: { deny: ['Bash'] }, cleanupPeriodDays: '30' })
+  const salvagedCase = parseBlob({ guardrails: { deny: ['Bash'] }, records: { retentionDays: '30' } })
   check('a salvaged file grades every error warning', salvagedCase.settings !== null && salvagedCase.errors.length > 0 && salvagedCase.errors.every(e => e.severity === 'warning'), JSON.stringify(salvagedCase.errors).slice(0, 200))
   const voided = parseBlob('{nope')
   check('a voided file keeps the hard default', voided.settings === null && voided.errors.length > 0 && voided.errors.every(e => e.severity !== 'warning'), JSON.stringify(voided.errors).slice(0, 200))
-  const filtered = parseBlob({ permissions: { deny: ['Bash', 'Bash(rm -rf *'] } })
+  const filtered = parseBlob({ guardrails: { deny: ['Bash', 'Bash(rm -rf *'] } })
   check(
     'a dropped permission rule grades warning (the filter stamp)',
     filtered.settings !== null && filtered.errors.some(e => e.severity === 'warning' && /permission rule/.test(e.message)),
