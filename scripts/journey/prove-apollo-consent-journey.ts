@@ -121,7 +121,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
     }
     const out = path.join(RUN_HOME, `grid-${branch}-${cols}.json`)
     const cfg = {
-      argv: ['node', DIST, '--permission-mode', 'apollo'],
+      argv: ['node', DIST, '--mode', 'apollo'],
       cwd: FIXTURE_CWD,
       sends,
       readyText: [branch === 'more-questions' ? RESUME_TEXT : FINAL_TEXT],

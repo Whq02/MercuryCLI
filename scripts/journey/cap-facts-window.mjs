@@ -18,7 +18,7 @@ if (configPath && fs.existsSync(configPath)) {
   const acknowledged = join(home, 'facts-ack.json')
   const observed = join(home, 'facts-observed.json')
   const wire = join(home, 'wire.jsonl')
-  const cockpit = !process.argv.includes('-p') && !process.argv.includes('daemon')
+  const cockpit = process.argv[2] !== 'run' && !process.argv.includes('daemon')
   const factsPath = file => String(file).startsWith(join(home, 'daemon', 'session-facts') + '/') && String(file).endsWith('.json')
   const record = (event, facts = {}) => append(events, JSON.stringify({ at: Date.now(), pid: process.pid, event, ...facts }) + '\n')
   const factsOf = raw => {

@@ -517,7 +517,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     port: 0,
     background: false,
     settings: {},
-    argv: ['--permission-mode', 'flow'],
+    argv: ['--mode', 'flow'],
     sends: [],
     total: 450,
   },
@@ -526,7 +526,7 @@ const PTY_LEGS: Record<string, PtyLeg> = {
     port: 0,
     background: true,
     settings: {},
-    argv: ['--permission-mode', 'flow'],
+    argv: ['--mode', 'flow'],
     sends: [
       cardSend('card'),
       { data: '/crewmates', afterPrevTicks: 6 },
@@ -702,7 +702,7 @@ async function runHeadlessStdio(): Promise<void> {
     run = await runStreamJson(
       world,
       fixture,
-      ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--permission-channel', 'stdio', '--model', 'claude-opus-5'],
+      ['run', '--input', 'rows', '--format', 'rows', '--permission-channel', 'stdio', '--model', 'claude-opus-5'],
       [
         { prompt: ASK },
         { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') },
@@ -729,7 +729,7 @@ async function runHeadlessPlain(): Promise<void> {
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {
-    run = await runStreamJson(world, fixture, ['-p', '--input-format', 'stream-json', '--output-format', 'stream-json', '--model', 'claude-opus-5'], [{ prompt: ASK }])
+    run = await runStreamJson(world, fixture, ['run', '--input', 'rows', '--format', 'rows', '--model', 'claude-opus-5'], [{ prompt: ASK }])
   } finally {
     await fixture.close()
   }
