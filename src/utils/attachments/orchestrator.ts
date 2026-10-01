@@ -55,6 +55,7 @@ import {
   getTasteRecallAttachment,
   getUsageLimitNoticeAttachment,
 } from './sessionContext.js'
+import { getRelevantMemoryAttachments } from './memorySurfacing.js'
 import {
   getDynamicSkillAttachments,
   getSkillListingAttachments,
@@ -116,6 +117,14 @@ export async function getAttachments(
                 input,
                 toolUseContext.options.agentDefinitions.activeAgents,
               ),
+            ),
+          { inputScoped: true },
+        ),
+        maybe(
+          'relevant_memories',
+          () =>
+            Promise.resolve(
+              options?.localSubmission ? [] : getRelevantMemoryAttachments(input, messages, toolUseContext),
             ),
           { inputScoped: true },
         ),

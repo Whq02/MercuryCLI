@@ -135,9 +135,7 @@ import { prependUserContext, appendSystemContext } from '../utils/api.js'
 import { latestUserContextBody } from '../utils/attachments/userContext.js'
 import {
   createAttachmentMessage,
-  filterDuplicateMemoryAttachments,
   getAttachmentMessages,
-  startRelevantMemoryPrefetch,
 } from '../utils/attachments.js'
 import {
   remove as removeFromQueue,
@@ -891,11 +889,6 @@ export async function* runEventCore(
     querySource,
     agentId: params.toolUseContext.agentId,
   })
-
-  using pendingMemoryPrefetch = startRelevantMemoryPrefetch(
-    state.messages,
-    state.toolUseContext,
-  )
 
   let iterationOrdinal = 0
 
@@ -2061,23 +2054,6 @@ export async function* runEventCore(
           },
         ),
       )
-    }
-
-    if (
-      pendingMemoryPrefetch &&
-      pendingMemoryPrefetch.settledAt !== null &&
-      pendingMemoryPrefetch.consumedOnIteration === -1
-    ) {
-      const memoryAttachments = filterDuplicateMemoryAttachments(
-        await pendingMemoryPrefetch.promise,
-        toolUseContext.readFileState,
-      )
-      for (const memAttachment of memoryAttachments) {
-        const msg = createAttachmentMessage(memAttachment)
-        yield emit({ kind: 'attachment', message: msg })
-        toolResults.push(msg)
-      }
-      pendingMemoryPrefetch.consumedOnIteration = turnCount - 1
     }
 
     for (const cmd of queuedCommandsSnapshot) {

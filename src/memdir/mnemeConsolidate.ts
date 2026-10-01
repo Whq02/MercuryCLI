@@ -18,61 +18,24 @@ import {
   expandSeqRange,
   liveSeqs,
   mergeDocs,
-  parseTopicDoc,
   pickMergePartner,
-  serializeTopicDoc,
   slugify,
   splitDoc,
   type MnemeEntry,
   type MnemeTopicDoc,
 } from './mnemeTopicDocs.js'
+import { listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
+import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
+import { publishFrontPage } from './mnemeFrontPage.js'
+import { movePin, readPins, readUsage } from './mnemeUsage.js'
+
+export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
 export const CONSOLIDATE_TOKENS = 5000
 export const CONSOLIDATE_AGE_MS = 24 * 60 * 60 * 1000
-
-interface LibraryMeta {
-  version: 1
-  seqCounter: number
-  lastConsolidatedAt: string | null
-}
-
-export function libraryMetaPath(dir: string = mnemeLibraryDir()): string {
-  return join(dir, 'library.json')
-}
-
-export function readLibraryMeta(dir: string = mnemeLibraryDir()): LibraryMeta {
-  try {
-    const m = JSON.parse(readFileSync(libraryMetaPath(dir), 'utf8')) as LibraryMeta
-    if (typeof m?.seqCounter === 'number' && m.seqCounter >= 0) return m
-  } catch {
-  }
-  return { version: 1, seqCounter: 0, lastConsolidatedAt: null }
-}
-
-export function writeLibraryMeta(meta: LibraryMeta, dir: string): void {
-  durableAtomicPublishSync(libraryMetaPath(dir), JSON.stringify(meta, null, 1))
-}
-
-export function listTopicDocs(dir: string = mnemeLibraryDir()): MnemeTopicDoc[] {
-  if (!existsSync(dir)) return []
-  const out: MnemeTopicDoc[] = []
-  for (const name of readdirSync(dir).filter(n => /^topic-.*\.md$/.test(n)).sort()) {
-    try {
-      const doc = parseTopicDoc(readFileSync(join(dir, name), 'utf8'))
-      if (doc) out.push(doc)
-    } catch {
-      logForDebugging(`mneme: unreadable topic doc ${name}`)
-    }
-  }
-  return out
-}
-
-export function writeDoc(doc: MnemeTopicDoc, dir: string): void {
-  durableAtomicPublishSync(join(dir, docFileName(doc.slug)), serializeTopicDoc(doc))
-}
 
 export interface AssignedRow extends MnemeObservation {
   seq: number
@@ -178,6 +141,7 @@ export interface ConsolidateResult {
   docsTouched: string[]
   entries: number
   refusedDraft?: string
+  tidy?: { archived: number; restored: number; topicsArchived: string[]; conserved: boolean }
 }
 
 const LOCK_STALE_MS = 5 * 60 * 1000
@@ -255,7 +219,7 @@ function rowHash(r: { ts: string; source: string; text: string }): string {
 
 function allLibrarySeqs(dir: string): Set<number> {
   const out = new Set<number>()
-  for (const d of listTopicDocs(dir)) {
+  for (const d of [...listTopicDocs(dir), ...listArchiveDocs(dir)]) {
     for (const s of d.sections) for (const e of s.entries) out.add(e.seq)
     for (const e of d.history) out.add(e.seq)
   }
@@ -340,6 +304,38 @@ function restoreConsumed(dir: string, files: string[]): void {
   }
 }
 
+function tidySummary(tidy: TidyResult): NonNullable<ConsolidateResult['tidy']> {
+  return { archived: tidy.archived, restored: tidy.restored, topicsArchived: tidy.topicsArchived, conserved: tidy.conserved }
+}
+
+function tidyUp(dir: string, now: Date, alreadyTouched: Set<string>): TidyResult {
+  const topics = new Map(listTopicDocs(dir).map(d => [d.slug, d]))
+  const archives = new Map(listArchiveDocs(dir).map(d => [d.slug, d]))
+  const result = tidyLibrary({ topics, archives, pins: readPins(dir), usage: readUsage(dir), now })
+  if (!result.conserved) {
+    logForDebugging('memory tidy-up refused: the seq census changed — nothing written')
+    return result
+  }
+  for (const slug of result.touchedTopics) {
+    const doc = topics.get(slug)
+    if (doc) writeDoc(doc, dir)
+  }
+  for (const slug of result.touchedArchives) {
+    const doc = archives.get(slug)
+    if (doc) writeDoc(doc, dir)
+  }
+  for (const slug of result.removedTopics) {
+    const stale = join(dir, docFileName(slug))
+    try {
+      if (existsSync(stale)) unlinkSync(stale)
+    } catch {
+    }
+    alreadyTouched.delete(slug)
+  }
+  for (const slug of result.touchedTopics) alreadyTouched.add(slug)
+  return result
+}
+
 export function maybeConsolidate(
   opts: {
     rewriter?: MnemeRewriter
@@ -357,8 +353,22 @@ export function maybeConsolidate(
     staleConsuming = readdirSync(dir).some(n => /^consuming-.*\.jsonl$/.test(n))
   } catch {
   }
-  if (peek.length === 0 && !staleConsuming) return none('buffer empty')
   const now = opts.now ?? new Date()
+  if (peek.length === 0 && !staleConsuming) {
+    if (!opts.force) return none('buffer empty')
+    if (!acquireConsolidateLock(dir)) return none('consolidation in progress (lock held)')
+    try {
+      mkdirSync(dir, { recursive: true })
+      const tidy = tidyUp(dir, now, new Set())
+      publishFrontPage(dir, now)
+      return { ...none('tidy-up only (buffer empty)'), tidy: tidySummary(tidy) }
+    } catch (e) {
+      logForDebugging(`memory tidy-up failed: ${String(e)}`)
+      return none(`error: ${String(e).slice(0, 120)}`)
+    } finally {
+      releaseConsolidateLock(dir)
+    }
+  }
   if (!opts.force && !staleConsuming) {
     const oldest = Date.parse(peek[0]!.ts)
     const dueBySize = bufferTokens(dir) >= CONSOLIDATE_TOKENS
@@ -419,6 +429,8 @@ export function maybeConsolidate(
       }
     }
     const touched = new Set<string>()
+    const pinnedSeqs = new Set(readPins(dir).map(p => p.seq))
+    const pinMoves: Array<[number, number]> = []
     let entries = 0
     for (const block of draft.blocks) {
       let doc = byId.get(block.topicSlug)
@@ -432,6 +444,9 @@ export function maybeConsolidate(
         const entry: MnemeEntry = { text: oneLine(e.text).trim(), seq: e.seq, time: e.time, source: sigSafe(e.source).trim(), supersedes: e.supersedes }
         const applied = applyRevision(doc, entry, heading)
         entries++
+        for (const t of e.supersedes ? expandSeqRange(e.supersedes) : []) {
+          if (pinnedSeqs.has(t)) pinMoves.push([t, e.seq])
+        }
         const handled = new Set(applied.superseded)
         for (const t of e.supersedes ? expandSeqRange(e.supersedes) : []) {
           const origin = bySeq.get(t)
@@ -494,6 +509,14 @@ export function maybeConsolidate(
       const doc = byId.get(slug)
       if (doc) writeDoc(doc, dir)
     }
+    let tidy: TidyResult = { archived: 0, restored: 0, topicsArchived: [], conserved: true, touchedTopics: new Set(), touchedArchives: new Set(), removedTopics: new Set() }
+    try {
+      for (const [from, to] of pinMoves) movePin(from, to, dir)
+      tidy = tidyUp(dir, now, touched)
+      publishFrontPage(dir, now)
+    } catch (e) {
+      logForDebugging(`memory tidy-up after the batch failed: ${String(e)}`)
+    }
     for (const f of consumed.files) {
       try {
         unlinkSync(f)
@@ -506,7 +529,7 @@ export function maybeConsolidate(
       } catch {
       }
     }
-    return { consolidated: true, reason: 'ok', docsTouched: [...touched].sort(), entries }
+    return { consolidated: true, reason: 'ok', docsTouched: [...touched].sort(), entries, tidy: tidySummary(tidy) }
   } catch (e) {
     logForDebugging(`mneme consolidate failed: ${String(e)}`)
     restoreConsumed(dir, consumed.files)

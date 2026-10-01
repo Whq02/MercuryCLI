@@ -251,8 +251,7 @@ export type Attachment =
         content: string
         mtimeMs: number
         header?: string
-        limit?: number
-        rawContent?: string
+        ids?: string[]
       }[]
     }
   | {

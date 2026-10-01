@@ -66,6 +66,20 @@ export function docFileName(slug: string): string {
   return `topic-${slug}.md`
 }
 
+export const ARCHIVE_PREFIX = 'archive-'
+
+export function archiveFileName(slug: string): string {
+  return `${ARCHIVE_PREFIX}${slug}.md`
+}
+
+export function isArchiveDoc(doc: { id: string }): boolean {
+  return doc.id.startsWith(ARCHIVE_PREFIX)
+}
+
+export function fileNameFor(doc: { id: string; slug: string }): string {
+  return isArchiveDoc(doc) ? archiveFileName(doc.slug) : docFileName(doc.slug)
+}
+
 const SIG_RE = /\s*<seq=(\d+), time=([^,>]+), source=([^,>]*?)(?:, supersedes=([0-9,\-]+))?>\s*(?:\[superseded-by (\d+)\])?\s*$/
 
 export function serializeSignature(e: MnemeEntry): string {
@@ -123,7 +137,8 @@ export function parseTopicDoc(raw: string): MnemeTopicDoc | null {
     if (kv) meta[kv[1]!] = kv[2]!.trim()
   }
   const id = meta.id ?? ''
-  if (!id.startsWith('topic-')) return null
+  const prefix = id.startsWith('topic-') ? 'topic-' : id.startsWith(ARCHIVE_PREFIX) ? ARCHIVE_PREFIX : null
+  if (prefix === null) return null
   const sections: MnemeSection[] = []
   const history: MnemeEntry[] = []
   let current: MnemeSection | null = null
@@ -150,7 +165,7 @@ export function parseTopicDoc(raw: string): MnemeTopicDoc | null {
   }
   return {
     id,
-    slug: id.slice('topic-'.length),
+    slug: id.slice(prefix.length),
     summary: meta.summary ?? '',
     tokenCount: Number(meta.token_count ?? 0) || 0,
     created: meta.created ?? '',
@@ -229,6 +244,10 @@ export function applyRevision(
   }
   section.entries.push(entry)
   return { superseded }
+}
+
+export function emptyArchiveDoc(slug: string, summary: string, nowIso: string): MnemeTopicDoc {
+  return { ...emptyDoc(slug, summary, nowIso), id: `${ARCHIVE_PREFIX}${slug}` }
 }
 
 export function emptyDoc(slug: string, summary: string, nowIso: string): MnemeTopicDoc {

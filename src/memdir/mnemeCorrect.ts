@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import {
   acquireConsolidateLock,
+  listArchiveDocs,
   listTopicDocs,
   readLibraryMeta,
   releaseConsolidateLock,
@@ -15,12 +16,18 @@ import {
 } from './mnemeConsolidate.js'
 import {
   applyRevision,
-  docFileName,
+  fileNameFor,
   liveSeqs,
   parseTopicDoc,
   type MnemeEntry,
   type MnemeTopicDoc,
 } from './mnemeTopicDocs.js'
+import { publishFrontPage } from './mnemeFrontPage.js'
+import { isPinned, movePin, unpinFact } from './mnemeUsage.js'
+
+function allDocs(dir: string): MnemeTopicDoc[] {
+  return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
+}
 
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
@@ -44,7 +51,7 @@ function findTarget(
   targetSeq: number,
   dir: string,
 ): { live?: Holder; history?: { slug: string; supersededBy?: number } } {
-  for (const doc of listTopicDocs(dir)) {
+  for (const doc of allDocs(dir)) {
     for (const s of doc.sections) {
       const entry = s.entries.find(e => e.seq === targetSeq)
       if (entry) return { live: { doc, heading: s.heading, entry } }
@@ -55,9 +62,9 @@ function findTarget(
   return {}
 }
 
-function verifyLanded(dir: string, slug: string, newSeq: number, targetSeq: number, expectLive: boolean): boolean {
+function verifyLanded(dir: string, written: MnemeTopicDoc, newSeq: number, targetSeq: number, expectLive: boolean): boolean {
   try {
-    const p = join(dir, docFileName(slug))
+    const p = join(dir, fileNameFor(written))
     if (!existsSync(p)) return false
     const doc = parseTopicDoc(readFileSync(p, 'utf8'))
     if (!doc) return false
@@ -106,7 +113,7 @@ export function correctFact(input: {
     const nowIso = (input.now ?? new Date()).toISOString()
     const draftRow = { ts: nowIso, source, text, topicHint: doc.slug, seq: newSeq }
     const libraryLive = new Set<number>()
-    for (const d of listTopicDocs(dir)) for (const s of liveSeqs(d)) libraryLive.add(s)
+    for (const d of allDocs(dir)) for (const s of liveSeqs(d)) libraryLive.add(s)
     const verdict = validateDraft(
       { blocks: [{ topicSlug: doc.slug, heading, entries: [{ text, seq: newSeq, time: nowIso, source, supersedes: String(input.targetSeq) }] }] },
       { rows: [draftRow], libraryLiveSeqs: libraryLive },
@@ -119,8 +126,12 @@ export function correctFact(input: {
     doc.updated = nowIso
     doc.updateLog.push(`${nowIso} corrected seq ${input.targetSeq} → ${newSeq}`)
     writeDoc(doc, dir)
-    if (!verifyLanded(dir, doc.slug, newSeq, input.targetSeq, true)) {
+    if (!verifyLanded(dir, doc, newSeq, input.targetSeq, true)) {
       return { ok: false, code: 'error', message: 'post-write verification failed — the correction may not have landed; re-read and retry' }
+    }
+    if (isPinned(input.targetSeq, dir)) {
+      movePin(input.targetSeq, newSeq, dir)
+      publishFrontPage(dir, input.now ?? new Date())
     }
     return { ok: true, action: 'corrected', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
   } catch (e) {
@@ -185,8 +196,12 @@ export function retireFact(input: {
     doc.updated = nowIso
     doc.updateLog.push(`${nowIso} retired seq ${input.targetSeq} (${reason.slice(0, 60)})`)
     writeDoc(doc, dir)
-    if (!verifyLanded(dir, doc.slug, newSeq, input.targetSeq, false)) {
+    if (!verifyLanded(dir, doc, newSeq, input.targetSeq, false)) {
       return { ok: false, code: 'error', message: 'post-write verification failed — the retirement may not have landed; re-read and retry' }
+    }
+    if (isPinned(input.targetSeq, dir)) {
+      unpinFact(input.targetSeq, dir)
+      publishFrontPage(dir, input.now ?? new Date())
     }
     return { ok: true, action: 'retired', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
   } catch (e) {

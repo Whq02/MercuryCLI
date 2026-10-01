@@ -5,8 +5,12 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pendingRows, recentObservations } from './mnemeBuffer.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
-import { listTopicDocs } from './mnemeConsolidate.js'
-import { computeDocTokens, docFileName } from './mnemeTopicDocs.js'
+import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
+import { ARCHIVE_PREFIX, archiveFileName, computeDocTokens, docFileName } from './mnemeTopicDocs.js'
+
+export function pageFileForSlug(slug: string): string {
+  return slug.startsWith(ARCHIVE_PREFIX) ? archiveFileName(slug.slice(ARCHIVE_PREFIX.length)) : docFileName(slug)
+}
 
 export interface MnemeCatalogRow {
   id: string
@@ -54,6 +58,12 @@ export function grepLibrary(pattern: string, opts: { maxHits?: number; dir?: str
     if (!existsSync(p)) continue
     grepText(doc.slug, readFileSync(p, 'utf8'), pattern, maxHits, out)
     if (out.length >= maxHits) break
+  }
+  for (const doc of listArchiveDocs(dir)) {
+    if (out.length >= maxHits) break
+    const p = join(dir, archiveFileName(doc.slug))
+    if (!existsSync(p)) continue
+    grepText(`${ARCHIVE_PREFIX}${doc.slug}`, readFileSync(p, 'utf8'), pattern, maxHits, out)
   }
   return out
 }
@@ -109,7 +119,7 @@ export function pendingSummary(dir: string = mnemeLibraryDir()): MnemePendingSum
 
 export function grepDoc(slug: string, pattern: string, opts: { maxHits?: number; dir?: string } = {}): MnemeGrepHit[] {
   const dir = opts.dir ?? mnemeLibraryDir()
-  const p = join(dir, docFileName(slug))
+  const p = join(dir, pageFileForSlug(slug))
   if (!existsSync(p)) return []
   const out: MnemeGrepHit[] = []
   grepText(slug, readFileSync(p, 'utf8'), pattern, Math.min(Math.max(opts.maxHits ?? 20, 1), 100), out)
@@ -129,7 +139,7 @@ export function readDocLines(
   opts: { from?: number; to?: number; dir?: string; recent?: number } = {},
 ): MnemeReadResult | null {
   const dir = opts.dir ?? mnemeLibraryDir()
-  const p = join(dir, docFileName(slug))
+  const p = join(dir, pageFileForSlug(slug))
   if (!existsSync(p)) return null
   const lines = readFileSync(p, 'utf8').split('\n')
   const nf = Number.isFinite(opts.from ?? 1) ? Math.floor(opts.from ?? 1) : 1
