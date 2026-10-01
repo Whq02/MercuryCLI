@@ -46,6 +46,9 @@ const MERCURY_DESERT_VERBS: readonly string[] = [
   'Glare-cutting',
   'Hawk-circling',
   'Ember-kicking',
+  'Grit-grinding',
+  'Salt-burnt',
+  'Sand-slicked',
 ]
 
 const STOCK_VERBS: readonly string[] = [
@@ -100,6 +103,7 @@ const MERCURY_QUICKSILVER: readonly string[] = [
   'Flash point',
   'Redlining',
   'Steel ringing',
+  'Razor-edged',
 ]
 
 export const MERCURY_QUICKSILVER_CODE: readonly string[] = [
