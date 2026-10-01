@@ -146,6 +146,7 @@ function compatFaultOf(fault: OpenaiFault): CompatFault {
     code: fault.code,
     message: fault.message,
     retryable: fault.retryable,
+    ...(fault.inStream ? { inStream: fault.inStream } : {}),
     ...(fault.status !== undefined ? { status: fault.status } : {}),
     ...(fault.retryAfterMs !== undefined ? { retryAfterMs: fault.retryAfterMs } : {}),
     ...(fault.outage !== undefined ? { outage: fault.outage } : {}),

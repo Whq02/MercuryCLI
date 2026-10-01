@@ -135,6 +135,7 @@ export interface CompatFault {
   code: string
   message: string
   retryable: boolean
+  inStream?: true
   status?: number
   retryAfterMs?: number
   outage?: OutageCause

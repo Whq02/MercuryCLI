@@ -26,6 +26,7 @@ import { patienceSeconds } from '../patience.js'
 import { createSystemAPIErrorMessage } from '../../../utils/messages/systemMessages.js'
 import { sleep } from '../../../utils/sleep.js'
 import { busyRecoveryDetail, busyRefusalFact, heldBusyRetryWait, nextBusyRetry, openBusyRetryLadder, takesBusyLadder, type BusyRetryLadder } from '../busyRetry.js'
+import { isTemporaryStreamFault } from '../temporaryStreamError.js'
 import { getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { classifyOverflowFault, type OverflowSignal } from '../../api/overflowSignal.js'
 import { EMPTY_USAGE } from '../../api/emptyUsage.js'
@@ -894,11 +895,12 @@ async function* streamOneCompatAttempt(ctx: {
     return { kind: 'cancelled' }
   }
   const nothingYielded = !messageStarted && minted.length === 0
-  if (fault && nothingYielded && !finish) {
+  const retryTemporary = fault !== undefined && isTemporaryStreamFault(fault) && (finish?.toolCalls.length ?? 0) === 0
+  if (fault && nothingYielded && (!finish || retryTemporary)) {
     return { kind: 'fault', fault, retryEligible: !isLocalLivenessCut(fault) }
   }
   const typedEnd =
-    fault !== undefined && !finish
+    fault !== undefined && !finish && !retryTemporary
       ? typedStreamEndOf({
           fault,
           provider: profile.providerLabel,
@@ -948,7 +950,7 @@ async function* streamOneCompatAttempt(ctx: {
       },
     )
   }
-  const terminationNote = ((): string | undefined => {
+  const terminationNote = retryTemporary ? undefined : ((): string | undefined => {
     switch (finish?.reason) {
       case 'content_filter':
         return `[${profile.lane}] the provider ended this response under its content filter — the turn is incomplete by provider policy, not finished.`
@@ -1015,6 +1017,7 @@ async function* streamOneCompatAttempt(ctx: {
   })
   yield streamEvent({ type: 'message_stop' })
 
+  if (fault && retryTemporary) return { kind: 'fault', fault, retryEligible: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),

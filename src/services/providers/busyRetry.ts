@@ -1,5 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { retrySeconds } from '../api/recoveryBudget.js'
+import { isTemporaryStreamFault } from './temporaryStreamError.js'
 import type { BusyRefusalV1, SystemAPIErrorMessage } from '../../types/message.js'
 import type { RequestWaitV1 } from './streamIdleBudget.js'
 
@@ -24,9 +25,9 @@ export function isBusyRefusal(fault: { code: string; status?: number; retryable:
   return word !== fault.code && BUSY_WORD.test(word)
 }
 
-export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; retryAfterMs?: number }, typed: string): boolean {
+export function takesBusyLadder(fault: { code: string; status?: number; retryable: boolean; inStream?: true; retryAfterMs?: number }, typed: string): boolean {
   if (!fault.retryable) return false
-  if (isBusyRefusal(fault)) return true
+  if (isBusyRefusal(fault) || isTemporaryStreamFault(fault)) return true
   return typed === 'rate_limit' && fault.retryAfterMs !== undefined && Number.isFinite(fault.retryAfterMs) && fault.retryAfterMs > 0
 }
 

@@ -3,6 +3,7 @@ import type { StreamCutForensicsV1 } from './streamCutForensics.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { OutageCause } from '../../api/reconnectLadder.js'
 import { retryAfterHeaderMs } from '../../api/retryAfter.js'
+import { isTemporaryStreamError } from '../temporaryStreamError.js'
 import type { StreamCapabilityAdvertisement, TextPhase } from '../../../types/wire.js'
 
 
@@ -145,6 +146,7 @@ export interface OpenaiFault {
   code: string
   message: string
   retryable: boolean
+  inStream?: true
   resetsAtMs?: number
   retryAfterMs?: number
   status?: number
@@ -192,13 +194,6 @@ export const OPENAI_STREAM_ADVERTISEMENT: StreamCapabilityAdvertisement = {
   timing: true,
 }
 
-
-const RETRYABLE_OPENAI_CODES = new Set([
-  'rate_limit_exceeded',
-  'server_error',
-  'service_unavailable',
-  'overloaded',
-])
 
 export function mapOpenaiHttpFailure(
   status: number,
@@ -276,7 +271,7 @@ export function mapOpenaiHttpFailure(
       kind: 'api-error',
       code: `openai-${code ?? errType}`,
       message,
-      retryable: RETRYABLE_OPENAI_CODES.has(code ?? '') || status >= 500,
+      retryable: isTemporaryStreamError({ code, type: errType, message, status }),
       status,
     }
   }
@@ -577,14 +572,16 @@ export class ResponsesStreamFold {
         }
         if (eventType === 'response.failed') {
           const error = asRecord(response?.error)
-          const code = typeof error?.code === 'string' ? error.code : 'response-failed'
+          const code = typeof error?.code === 'string' || typeof error?.code === 'number' ? String(error.code) : 'response-failed'
           out.push({
             type: 'stream-fault',
             fault: {
               kind: 'response-failed',
               code: `openai-${code}`,
               message: String(error?.message ?? 'the provider marked the response failed'),
-              retryable: RETRYABLE_OPENAI_CODES.has(code),
+              retryable: isTemporaryStreamError({ ...error, type: error?.type ?? asRecord(error?.metadata)?.error_type }),
+              inStream: true,
+              ...(typeof error?.code === 'number' ? { status: error.code } : {}),
             },
           })
         }
@@ -598,9 +595,10 @@ export class ResponsesStreamFold {
         } catch {
           logForDebugging('[openai-wire] raw stream error event: <unserializable>')
         }
-        const hadCode = typeof o.code === 'string'
-        const code = hadCode ? (o.code as string) : 'stream-error'
-        const hadMessage = o.message !== undefined && o.message !== null
+        const error = asRecord(o.error) ?? o
+        const hadCode = typeof error.code === 'string' || typeof error.code === 'number'
+        const code = hadCode ? String(error.code) : 'stream-error'
+        const hadMessage = error.message !== undefined && error.message !== null
         if (!hadCode && !hadMessage) {
           bareStreamErrors += 1
           this.bareStreamError = bareStreamErrorFault(bareStreamErrors)
@@ -611,8 +609,10 @@ export class ResponsesStreamFold {
           fault: {
             kind: 'response-failed',
             code: `openai-${code}`,
-            message: hadMessage ? String(o.message) : 'the provider sent a stream error event with no message',
-            retryable: RETRYABLE_OPENAI_CODES.has(code) || !hadCode,
+            message: hadMessage ? String(error.message) : 'the provider sent a stream error event with no message',
+            retryable: isTemporaryStreamError({ ...error, type: asRecord(error.metadata)?.error_type ?? (error === o ? undefined : error.type) }),
+            inStream: true,
+            ...(typeof error.code === 'number' ? { status: error.code } : {}),
           },
         })
         break
