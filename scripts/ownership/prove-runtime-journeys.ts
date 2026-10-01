@@ -97,7 +97,7 @@ section('J1 — headless text run (exact stdout · wire shape)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'J1-FIXTURE-REPLY' }])
   const arena = makeArena(fixture)
-  const r = await run(arena, ['-p', 'journey one', '--model', 'claude-opus-4-8'])
+  const r = await run(arena, ['run', 'journey one', '--model', 'claude-opus-4-8'])
   const msgs = fixture.messageRequests()
   const body = (msgs[0]?.body ?? {}) as Record<string, unknown>
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
@@ -123,12 +123,12 @@ section('J2 — headless stream-JSON run (byte-parseable protocol · envelope ki
   const fixture = await startFixtureApi([{ kind: 'text', text: 'J2-STREAM-REPLY' }])
   const arena = makeArena(fixture)
   const r = await run(arena, [
-    '-p',
+    'run',
     'journey two',
     '--model',
     'claude-opus-4-8',
-    '--output-format',
-    'stream-json',
+    '--format',
+    'rows',
   ])
   check('exit 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 200)}`)
   const lines = r.stdout.split('\n').filter(l => l.trim().length > 0)
@@ -171,7 +171,7 @@ section('J3 — read-tool round (tool_use → local execution → tool_result �
     file_path: notePath,
   }
   const r = await run(arena, [
-    '-p',
+    'run',
     'read the note',
     '--model',
     'claude-opus-4-8',
@@ -211,11 +211,11 @@ section('J4 — mutating-tool round + the evidence-based stop evaluator (default
     content: 'WRITTEN-BY-THE-JOURNEY\n',
   }
   const r = await run(arena, [
-    '-p',
+    'run',
     'write the file',
     '--model',
     'claude-opus-4-8',
-    '--permission-mode',
+    '--mode',
     'implement',
   ])
   const msgs = fixture.messageRequests()
@@ -243,7 +243,7 @@ section('J5 — cancellation during model streaming (SIGINT tears down cleanly)'
   const fixture = await startFixtureApi([{ kind: 'hang', deltas: ['partial-', 'stream-'] }])
   const arena = makeArena(fixture)
   const startedAt = Date.now()
-  const r = await run(arena, ['-p', 'journey five', '--model', 'claude-opus-4-8'], {
+  const r = await run(arena, ['run', 'journey five', '--model', 'claude-opus-4-8'], {
     timeoutMs: 30_000,
     onSpawn: child => {
       void fixture.messageRequestStarted(1).then(() => {
@@ -271,10 +271,10 @@ section('J6 — resumed session (turn 1 persisted; --resume carries the transcri
     { kind: 'text', text: 'J6-SECOND-REPLY' },
   ])
   const arena = makeArena(fixture)
-  const r1 = await run(arena, ['-p', 'first prompt', '--model', 'claude-opus-4-8', '--session-id', SID])
+  const r1 = await run(arena, ['run', 'first prompt', '--model', 'claude-opus-4-8', '--session-id', SID])
   check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 200)}`)
   check('turn 1 stdout', r1.stdout === 'J6-FIRST-REPLY\n', JSON.stringify(r1.stdout.slice(0, 120)))
-  const r2 = await run(arena, ['-p', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
+  const r2 = await run(arena, ['run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
   check('turn 2 (resume) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 200)}`)
   check('turn 2 stdout', r2.stdout === 'J6-SECOND-REPLY\n', JSON.stringify(r2.stdout.slice(0, 120)))
   const msgs = fixture.messageRequests()
