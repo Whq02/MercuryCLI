@@ -16,7 +16,10 @@ class ObservedWalk:
         wanted = [wanted] if isinstance(wanted, str) else wanted
         absent = step.get("awaitAbsent", [])
         absent = [absent] if isinstance(absent, str) else absent
-        ready = all(word in text for word in wanted) and not any(word in text for word in absent)
+        arrived = step.get("arrivedText", [])
+        arrived = [arrived] if isinstance(arrived, str) else arrived
+        already = bool(arrived) and all(word in text for word in arrived) and step.get("arrivedAbsent", "\0") not in text
+        ready = already or (all(word in text for word in wanted) and not any(word in text for word in absent))
         snapshot = tuple(rows)
         if not ready or snapshot != self.previous:
             self.since = now_ms if ready else None
@@ -25,10 +28,23 @@ class ObservedWalk:
             return None
         if now_ms - self.last_sent < step.get("afterPrevMs", 0) * self.scale:
             return None
-        payload = step.get("text", "")
-        target = step.get("targetText")
+        payload = "" if already else step.get("text", "")
+        target = None if already else step.get("targetText")
         if target is not None:
-            hits = [(row.find(target) + 1, y + 1) for y, row in enumerate(rows) if target in row]
+            candidates = list(enumerate(rows))
+            start_x = 0
+            header = step.get("targetHeader")
+            if header is not None:
+                headers = [(y, row.find(header)) for y, row in candidates if header in row]
+                if len(headers) != 1:
+                    return None
+                start_y, start_x = headers[0]
+                candidates = []
+                for y in range(start_y + 1, len(rows)):
+                    if "╰" in rows[y][max(0, start_x - 3):start_x + 1]:
+                        break
+                    candidates.append((y, rows[y]))
+            hits = [(row.find(target, start_x) + 1, y + 1) for y, row in candidates if target in row[start_x:]]
             if len(hits) != 1:
                 return None
             x, y = hits[0]

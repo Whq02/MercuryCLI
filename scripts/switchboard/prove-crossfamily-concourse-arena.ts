@@ -84,16 +84,16 @@ try {
       'after:ask in plain words:2400:\r',
       'after:CMA Beta:9000:cma-steer: adjust the alpha seat',
       'after:CMA Beta:9700:\r',
-      'after:CMA Beta:15000:\t',
-      'after:CMA Beta:16000:\r',
-      'after:CMA Beta:17200:\r',
-      'after:CMA Beta:20000:\x1b[1;2D',
-      'after:CMA Beta:21500:\x1b[B',
-      'after:CMA Beta:22500:\r',
-      'after:CMA Beta:23700:\r',
-      'after:CMA Beta:26500:\x1b[1;2D',
+      { awaitText: ['SESSION CONCOURSE', 'message to "CMA Alpha"'], targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },
+      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha', arrivedText: ['alpha-live body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' },
+      { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D' },
+      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta' },
+      { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Beta', arrivedText: ['beta-live body', 'Type a prompt'], arrivedAbsent: 'SESSION CONCOURSE' },
+      { awaitText: ['beta-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\x1b[1;2D' },
+      { awaitText: 'SESSION CONCOURSE', text: '' },
     ],
     seconds: 31,
+    anchor: null,
     cols: COLS,
     rows: ROWS,
     keep: true,
@@ -143,7 +143,10 @@ try {
   })
   try {
     const offsets = [3000, 6000, 8000, 11000, 14000, 17000, 19000, 23000, 25000, 28000, 30000].map(m => S(m))
-    const grabs = grabScreens(run, COLS, ROWS, offsets)
+    const firstOutput = run.ptyReads[0]?.ts ?? 0
+    const observed = run.sendLog.filter(s => s.screen !== undefined).map(s => ({ atMs: s.sent - firstOutput, rows: s.screen! }))
+    const grabs = [...grabScreens(run, COLS, ROWS, offsets), ...observed].sort((a, b) => a.atMs - b.atMs)
+    check('the word-selected enter/back/other-seat walk reached every observed frame', observed.length === 7 && run.outcome.complete, run.driverOut)
     const frameText = (g: { rows: string[] }): string => g.rows.join('\n')
     const kind = (g: { rows: string[] }): 'board' | 'alpha' | 'beta' | 'other' => {
       const t = frameText(g)

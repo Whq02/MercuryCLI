@@ -41,6 +41,9 @@ export interface ObservedSend {
   afterPrevMs?: number
   text?: string
   targetText?: string
+  targetHeader?: string
+  arrivedText?: string | string[]
+  arrivedAbsent?: string
 }
 
 export interface SendRecord {

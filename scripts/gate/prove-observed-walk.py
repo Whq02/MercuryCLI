@@ -35,3 +35,17 @@ walk = ObservedWalk([{"awaitText": "Beta", "targetText": "Beta"}])
 assert walk.next(["Beta", "Beta"], 0) is None
 assert walk.next(["Beta", "Beta"], 500) is None
 print('[PASS] row targeting follows words in either order and refuses ambiguous rows')
+for names in [["Alpha", "Beta"], ["Beta", "Alpha"]]:
+    rows = ["Alpha in chat | STATUS & TITLE", "              | " + names[0], "              | " + names[1], "              ╰────────", "              | Beta preview"]
+    walk = ObservedWalk([{"awaitText": "Beta", "targetText": "Beta", "targetHeader": "STATUS & TITLE"}])
+    assert walk.next(rows, 0) is None
+    payload, receipt = walk.next(rows, 400)
+    y = names.index("Beta") + 2
+    assert payload == ("\x1b[<0;17;%dM\x1b[<0;17;%dm" % (y, y)).encode()
+print('[PASS] the row scan stays inside its named table, not the adjacent chat or preview')
+walk = ObservedWalk([{"awaitText": "board", "targetText": "Beta", "arrivedText": ["beta body", "Type a prompt"], "arrivedAbsent": "board"}])
+assert walk.next(["board beta body Type a prompt"], 0) is None
+assert walk.next(["board beta body Type a prompt"], 400) is None
+assert walk.next(["beta body Type a prompt"], 500) is None
+assert walk.next(["beta body Type a prompt"], 900)[0] == b''
+print('[PASS] an already-entered seat needs its body and chat frame, never a board preview')
