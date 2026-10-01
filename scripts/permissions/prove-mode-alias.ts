@@ -128,7 +128,8 @@ section('§7 behaviour identity: a decoded old id behaves exactly as its new id'
   const { getNextPermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.js')
   const ctx = (mode: string) => ({ mode, isBypassPermissionsModeAvailable: false, isAutoModeAvailable: false }) as never
   check("carousel: decode('plan') cycles exactly as 'strategy'", getNextPermissionMode(ctx(decode('plan'))) === getNextPermissionMode(ctx('strategy')))
-  check("carousel: decode('acceptEdits') cycles exactly as 'implement'", getNextPermissionMode(ctx(decode('acceptEdits'))) === getNextPermissionMode(ctx('implement')))
+  check("carousel: decode('acceptEdits') and 'implement' both reach apollo", getNextPermissionMode(ctx(decode('acceptEdits'))) === 'apollo' && getNextPermissionMode(ctx('implement')) === 'apollo')
+  check("carousel: decode('plan') and 'strategy' both exit to apollo", getNextPermissionMode(ctx(decode('plan'))) === 'apollo' && getNextPermissionMode(ctx('strategy')) === 'apollo')
 }
 
 section('§8 boundedness scan: quoted retired mode ids appear ONLY in the alias home')

@@ -59,7 +59,7 @@ export const GLYPH = {
   modeSovereign: '⊠',
   modeAutopilot: '⌖',
   modeScribe: '✎',
-  modeApollo: '∵',
+  modeApollo: '◇',
   modeManager: '∷',
 } as const
 

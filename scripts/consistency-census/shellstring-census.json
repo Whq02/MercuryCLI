@@ -66,27 +66,6 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/apollo/render-apollo-faces.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync(`/tmp/apollo-poll-${cols}.txt`, poll)",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/apollo/render-apollo-faces.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync(`/tmp/apollo-review-clean-${cols}.txt`, clean)",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
-      "file": "scripts/apollo/render-apollo-faces.ts",
-      "mechanism": "hardcoded-tmp",
-      "excerpt": "writeFileSync(`/tmp/apollo-review-blocked-${cols}.txt`, blocked)",
-      "cls": "platform-owner",
-      "why": "POSIX pool prover scratch/coordination root — declared POSIX profile; render-tui's /tmp default is additionally a pinned byte-identity prover expectation"
-    },
-    {
       "file": "scripts/attention/prove-attach-return.ts",
       "mechanism": "execSync-string",
       "excerpt": "const consumers = execSync(\"grep -rl 'captureReturnState(' src --include='*.ts' --include='*.tsx' || true\", { encoding: 'utf8' })",
@@ -2602,7 +2581,7 @@
     {
       "file": "scripts/ui/render-permission-modes.ts",
       "mechanism": "hardcoded-interpreter",
-      "excerpt": "const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {",
       "cls": "platform-owner",
       "why": "POSIX capture engine surfaces — interpreter/temp owned by the capture-driver resolver (W6-C); the /tmp default is a pinned byte-identity prover expectation on POSIX"
     },

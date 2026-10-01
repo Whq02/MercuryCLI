@@ -1,139 +1,135 @@
 #!/usr/bin/env bun
-import { writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { spawnSync } from 'node:child_process'
-import { sanitizePath } from '../../src/utils/sessionStoragePortable.ts'
-import { resolveProofHome } from '../lib/proofHome.ts'
+import { tmpdir } from 'node:os'
+import { spawn } from 'node:child_process'
+import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { daemonControlRpc } from '../../src/daemon/controlSocket.ts'
+import { readSessionWorkers } from '../../src/daemon/concourseSupervisor.ts'
+import { readSessionFacts } from '../../src/services/engine-connector/seatProjections.ts'
+import { compactModeChip } from '../../src/components/mercury-ui/compactModeChip.ts'
+import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-const RUNTIME_CWD = join(import.meta.dir, '..', '..')
+import type { PermissionMode } from '../../src/types/permissions.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { permissionModeSymbol, permissionModeTitle } = (await import(
-  '../../src/utils/permissions/PermissionMode.js'
-)) as typeof import('../../src/utils/permissions/PermissionMode.js')
-
-const REPO = join(import.meta.dir, '..', '..')
-const CONFIG_HOME = resolveProofHome([RUNTIME_CWD])
-const PROJECTS = join(CONFIG_HOME, 'projects', sanitizePath(RUNTIME_CWD))
-const VSHOT = new URL('./vshot.py', import.meta.url).pathname
+const { permissionModeSymbol, permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.ts')
+const REPO = realpathSync(join(import.meta.dir, '..', '..'))
+const VSHOT = join(import.meta.dir, 'vshot.py')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
+const MODES = ['strategy', 'apollo', 'implement', 'flow', 'sovereign'] as const
+const only = process.argv.find(arg => arg.startsWith('--only='))?.slice('--only='.length)
+if (only !== undefined && !MODES.some(mode => mode === only)) throw new Error(`unknown mode: ${only}`)
+let failures = 0
 
-const SID = '00000000-aaaa-bbbb-cccc-0000000000c1'
-let u = 0
-const uuid = () => `00000000-0000-4000-8000-${String(++u).padStart(12, '0')}`
-
-type Line = Record<string, unknown>
-const common = (extra: Line): Line => ({
-  isSidechain: false,
-  entrypoint: 'cli',
-  cwd: RUNTIME_CWD,
-  sessionId: SID,
-  version: '1.0.0-beta.1',
-  gitBranch: 'main',
-  ...extra,
-})
-
-function buildSession(): string {
-  const lines: Line[] = [
-    common({
-      parentUuid: null,
-      type: 'user',
-      message: { role: 'user', content: 'hello' },
-      uuid: uuid(),
-      timestamp: '2026-06-19T12:00:01.000Z',
-    }),
-  ]
-  if (!existsSync(PROJECTS)) mkdirSync(PROJECTS, { recursive: true })
-  const path = join(PROJECTS, `${SID}.jsonl`)
-  writeFileSync(path, lines.map(l => JSON.stringify(l)).join('\n') + '\n')
-  return path
+function check(label: string, passed: boolean, detail = ''): void {
+  if (!passed) failures++
+  console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-function shoot(mode: string, cols: number, args: string[]): string {
-  const out = `/tmp/permmode-${mode}-${cols}.html`
-  const cfg = {
-    argv: ['node', BIN, '--resume', SID, ...args],
-    sends: [],
-    total: 16,
+async function shoot(mode: PermissionMode, cols: number): Promise<string> {
+  const api = await startFixtureApi([{ kind: 'text', text: 'Band ready.', whenModel: 'opus' }])
+  const home = mkdtempSync(join(tmpdir(), 'permission-band-home-'))
+  const daemonDir = join(home, 'daemon')
+  process.env.MERCURY_DAEMON_DIR = daemonDir
+  seedFirstRun(home, [REPO])
+  const out = join(tmpdir(), `permmode-${mode}-${cols}.json`)
+  const expected = cols < 100
+    ? compactModeChip(mode)!.text
+    : `${permissionModeSymbol(mode)} ${permissionModeTitle(mode).toLowerCase()} on`
+  const args = mode === 'sovereign'
+    ? ['--dangerously-bypass-permissions']
+    : ['--permission-mode', mode === 'strategy' ? 'default' : mode]
+  const sends: Array<Record<string, unknown>> = mode === 'sovereign'
+    ? [
+        { atTick: 120, awaitText: 'Yes, I accept', awaitSettleTicks: 3, data: '\x1b[B' },
+        { afterPrevTicks: 2, data: '\r' },
+      ]
+    : []
+  sends.push({ atTick: 120, afterPrevTicks: 120, awaitText: '↵ start', awaitSettleTicks: 5, data: '\r' })
+  if (mode === 'strategy') sends.push(
+    { afterPrevTicks: 120, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'hello' },
+    { afterPrevTicks: 2, data: '\r' },
+    { afterPrevTicks: 120, awaitText: 'Band ready.', awaitSettleTicks: 2, data: '' },
+  )
+  const cfgPath = join(tmpdir(), `vshot-pm-${mode}-${cols}.json`)
+  writeFileSync(cfgPath, JSON.stringify({
+    argv: ['node', BIN, ...args],
+    cwd: REPO,
+    sends,
+    readyText: expected,
+    readySettleTicks: 3,
+    total: 200,
     cols,
     rows: 44,
     out,
-    title: `permmode ${mode} @ ${cols}`,
-  }
-  const cfgPath = `/tmp/vshot-pm-${mode}-${cols}.json`
-  writeFileSync(cfgPath, JSON.stringify(cfg))
-  const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
-    encoding: 'utf-8',
-    env: { ...process.env,
-    MERCURY_CONFIG_DIR: CONFIG_HOME },
-    timeout: vshotBudgetMs(30000),
+  }))
+  const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], {
+    env: { ...process.env, MERCURY_CONFIG_DIR: home, ANTHROPIC_BASE_URL: api.url },
+    stdio: ['ignore', 'ignore', 'pipe'],
+    timeout: vshotBudgetMs(60000),
   })
-  return (res.stdout || '') + (res.stderr ? `\n[stderr] ${res.stderr}` : '')
+  const capture = new Promise<{ status: number | null; stderr: string }>(resolve => {
+    let stderr = ''
+    child.stderr.on('data', data => { stderr += String(data) })
+    child.on('error', error => { stderr += String(error) })
+    child.on('close', status => resolve({ status, stderr }))
+  })
+  if (mode === 'strategy') {
+    let sessionId: string | undefined
+    const started = Date.now()
+    while (Date.now() - started < vshotBudgetMs(30000) && child.exitCode === null) {
+      sessionId = Object.values(readSessionWorkers(daemonDir)).find(record =>
+        readSessionFacts(record.sessionId, daemonDir)?.permissionMode !== undefined,
+      )?.sessionId
+      if (sessionId !== undefined) break
+      await new Promise(resolve => setTimeout(resolve, 50))
+    }
+    check(`strategy@${cols}: a real session reports its posture`, sessionId !== undefined)
+    if (sessionId !== undefined) {
+      const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-permission-mode', sessionId, by: 'operator', mode: 'strategy' }, { timeoutMs: vshotBudgetMs(10000) })
+      check(`strategy@${cols}: the guarded explicit-mode door accepts Strategy`, reply.ok && (reply.outcome === 'applied' || reply.outcome === 'noop'), JSON.stringify(reply))
+    }
+  }
+  const result = await capture
+  await api.close()
+  check(`${mode}@${cols}: capture exits cleanly`, result.status === 0, result.status === 0 ? '' : result.stderr)
+  try {
+    const frame = JSON.parse(readFileSync(out, 'utf8')) as {
+      grid: Array<Array<{ c: string }>>
+      readyAt: number | null
+      refusals?: unknown[]
+    }
+    check(`${mode}@${cols}: the mode word settled without capture refusals`, frame.readyAt !== null && (frame.refusals?.length ?? 0) === 0)
+    const text = frame.grid.map(row => row.map(cell => cell.c).join('').trimEnd()).join('\n')
+    writeFileSync(join(tmpdir(), `permmode-${mode}-${cols}.txt`), text + '\n')
+    return text
+  } catch (error) {
+    check(`${mode}@${cols}: a readable grid exists`, false, String(error))
+    return ''
+  }
 }
 
-const MODES: { mode: string; args: string[]; bypass?: boolean }[] = [
-  { mode: 'strategy', args: ['--permission-mode', 'strategy'] },
-  { mode: 'apollo', args: ['--permission-mode', 'apollo'] },
-  { mode: 'implement', args: ['--permission-mode', 'implement'] },
-  { mode: 'flow', args: ['--permission-mode', 'flow'] },
-  { mode: 'sovereign', args: ['--dangerously-bypass-permissions'], bypass: true },
-]
-
-console.log('============================================================')
-console.log(' Permission-mode carousel render-verify (modeBand → band)')
-console.log('============================================================')
-
-buildSession()
-const results: Record<string, string> = {}
 for (const cols of [80, 120]) {
-  for (const m of MODES) results[`${m.mode}-${cols}`] = shoot(m.mode, cols, m.args)
-}
-
-let failures = 0
-function expect(label: string, cond: boolean, detail = ''): void {
-  if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-}
-const flat = (s: string) => s.replace(/\s+/g, ' ')
-
-for (const cols of [80, 120]) {
-  console.log(`\n── @ ${cols} cols ──`)
-  for (const m of MODES) {
-    const scr = flat(results[`${m.mode}-${cols}`]!)
-    const sym = permissionModeSymbol(m.mode as never)
-    const title = permissionModeTitle(m.mode as never).toLowerCase()
-    if (m.bypass) {
-      expect(
-        `${m.mode}: the alarm renders ("${title} on — all tool calls auto-approved")`,
-        new RegExp(`${title} on . all tool calls auto.approved`).test(scr),
-      )
-      expect(
-        `${m.mode}: the band glyph == permissionModeSymbol('bypassPermissions') (${JSON.stringify(sym)}) — no hardcoded-glyph drift`,
-        scr.includes(`${sym} ${title} on`),
-        scr.includes('▸▸ bypass') ? 'STILL renders the legacy ▸▸ (U+25B8) — band/config diverge' : '',
-      )
+  for (const mode of MODES) {
+    if (only !== undefined && mode !== only) continue
+    const frame = await shoot(mode, cols)
+    const symbol = permissionModeSymbol(mode)
+    const title = permissionModeTitle(mode).toLowerCase()
+    if (cols < 100) {
+      check(`${mode}@${cols}: the compact band shows its symbol and words`, frame.includes(compactModeChip(mode)!.text))
+      check(`${mode}@${cols}: the compact composer remains present`, frame.includes('Type a prompt'))
     } else {
-      expect(
-        `${m.mode}: the band shows "${sym} ${title} on" (symbol+title from the helpers)`,
-        scr.includes(`${sym} ${title} on`),
-      )
-      expect(
-        `${m.mode}: the band carries the cycle hint (shift+tab to cycle)`,
-        /shift\+tab to cycle/.test(scr),
-      )
+      check(`${mode}@${cols}: the band shows "${symbol} ${title} on"`, frame.includes(`${symbol} ${title} on`))
+      check(`${mode}@${cols}: the band keeps its posture or cycle hint`, mode === 'sovereign'
+        ? frame.includes('all tool calls auto-approved')
+        : frame.includes('shift+tab to cycle'))
+    }
+    if (mode === 'apollo' || mode === 'strategy') {
+      check(`${mode}@${cols}: the shared diamond is named, not mistaken for the other mode`, frame.includes(`◇ ${title}`) && !frame.includes(`◇ ${mode === 'apollo' ? 'strategy' : 'apollo'} mode`))
     }
   }
 }
-
-try {
-  rmSync(join(PROJECTS, `${SID}.jsonl`))
-} catch {
-}
-
-console.log('\nHTML written to /tmp/permmode-{strategy,apollo,implement,flow,sovereign}-{80,120}.html')
-console.log(
-  failures === 0
-    ? '\n✅ PERMISSION-MODE RENDER-VERIFY PASS'
-    : `\n❌ ${failures} RENDER CHECK(S) FAILED`,
-)
+console.log(`Frames: ${join(tmpdir(), 'permmode-<mode>-<cols>.{json,txt}')}`)
+console.log(`permission-mode bands: ${failures === 0 ? 'GREEN' : `RED — ${failures} failures`}`)
 process.exit(failures === 0 ? 0 : 1)

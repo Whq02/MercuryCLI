@@ -20,7 +20,7 @@ console.log('============================================================')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-section('the carousel: default → implement → strategy → APOLLO → flow|sovereign|default')
+section('the carousel: default → implement → APOLLO → flow|sovereign|default')
 let carouselLoadable = true
 try {
   const { getNextPermissionMode } = (await import(
@@ -29,8 +29,8 @@ try {
   const ctx = (mode: string, bypass = false) =>
     ({ mode, isBypassPermissionsModeAvailable: bypass }) as never
   check("default → implement", getNextPermissionMode(ctx('default')) === 'implement')
-  check("implement → strategy", getNextPermissionMode(ctx('implement')) === 'strategy')
-  check("strategy → apollo (the two think-first stations sit together)", getNextPermissionMode(ctx('strategy')) === 'apollo')
+  check("implement → apollo", getNextPermissionMode(ctx('implement')) === 'apollo')
+  check("strategy → apollo (an explicit Strategy session rejoins the cycle)", getNextPermissionMode(ctx('strategy')) === 'apollo')
   check(
     'apollo → flow|sovereign|default (strategy’s old exits moved here)',
     ['flow', 'sovereign', 'default'].includes(getNextPermissionMode(ctx('apollo'))),
@@ -44,7 +44,7 @@ try {
   carouselLoadable = false
   console.log(`  [info] carousel not loadable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
   const gn = src('utils', 'permissions', 'getNextPermissionMode.ts')
-  check("case 'strategy' returns 'apollo'", /case 'strategy':[\s\S]{0,220}return 'apollo'/.test(gn))
+  check("implement and strategy return apollo", /case 'implement':\s*case 'strategy':\s*return 'apollo'/.test(gn))
   check("case 'apollo' carries the flow/sovereign/default exits", /case 'apollo':[\s\S]{0,400}return 'flow'[\s\S]{0,200}'sovereign'/.test(gn))
 }
 
@@ -58,7 +58,7 @@ try {
   const glyphs = (await import('../../src/components/mercury-ui/glyphs.js')) as typeof import('../../src/components/mercury-ui/glyphs.js')
   check("permissionModeFromString('apollo') === 'apollo'", pm.permissionModeFromString('apollo') === 'apollo')
   check("title is 'Apollo Mode'", pm.permissionModeTitle('apollo') === 'Apollo Mode')
-  check('the seal is ∵ (U+2235), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '∵')
+  check('the seal is ◇ (U+25C7), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '◇')
   check("external projection is 'default'", pm.toExternalPermissionMode('apollo') === 'default')
   check('apollo never bypasses permissions', !pm.modeBypassesPermissions('apollo'))
   check("band colour role is 'permission'", pm.getModeColor('apollo') === 'permission')

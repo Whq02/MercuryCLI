@@ -47,8 +47,8 @@ const TURNS: ScriptedTurn[] = [
 const run = await runArtifactArena({
   turns: TURNS,
   sends: [
-    '7000:\x1b[Z',
-    '7400:\x1b[Z',
+    '7000:/strategy',
+    '7400:\r',
     '8000:design the cache layer',
     '8800:\r',
     '12500:\x1b[B',

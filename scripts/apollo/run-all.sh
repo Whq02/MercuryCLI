@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/prompt/apolloMode* src/tools/ApolloReviewTool/**
 # gate-watch: src/tools/AskUserQuestionTool/apolloLetters* src/types/permissions*
-# gate-watch: src/utils/permissions/getNextPermissionMode* src/utils/permissions/PermissionMode*
+# gate-watch: src/utils/permissions/getNextPermissionMode* src/utils/permissions/PermissionMode* src/utils/permissions/autoModeState*
 # gate-watch: src/utils/permissions/modeTransitions* src/utils/permissions/PermissionUpdate* src/utils/permissions/filesystem*
 # gate-watch: src/utils/attachments/modeLifecycles* src/utils/messages/attachmentText* src/state/onChangeAppState*
 # gate-watch: src/components/CustomSelect/** src/components/permissions/AskUserQuestionPermissionRequest/**
@@ -21,6 +21,7 @@ fail=0
 echo "############################################################"
 echo "# apollo — station · pack · letters · review handoff · the one door · faces"
 echo "############################################################"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-carousel.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-carousel.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-mode.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-mode.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-apollo-exit.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-apollo-exit.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/render-apollo-faces.ts" || { __rc=$?; fail=1; }; prover_mark "$here/render-apollo-faces.ts" "$__t" "$__rc"
