@@ -58,6 +58,18 @@ function allowed(path: string, rule: string): boolean {
   return false
 }
 
+const XAI_CLIENT_REFERENCES = new Set([
+  'mercury-skills/provider-apis/references/live-sources.md',
+  'src/skills/bundled/provider-apis/references/live-sources.md',
+  'scripts/providers/fixtures/xai-subscription-contract.json',
+])
+function ownWords(path: string, line: string): string {
+  if (!XAI_CLIENT_REFERENCES.has(path)) return line
+  return line.replaceAll('packages/opencode/src/plugin/xai.ts', '')
+    .replaceAll('packages/core/src/plugin/provider/xai.ts', '')
+    .replaceAll('OpenCode auth plugin', '')
+}
+
 const BINARY_EXT = /\.(png|jpe?g|gif|ico|icns|pdf|wasm|woff2?|ttf|otf|node|zip|gz|tgz|jar|mp[34]|exe|dylib|so|bin|zst|tar|wav)$/i
 
 type Violation = { path: string; line: number; rule: string; text: string }
@@ -75,7 +87,7 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
       }
       if (!allowed(f.path, 'words')) {
         for (const [label, re] of WORDS) {
-          if (re.test(line)) {
+          if (re.test(ownWords(f.path, line))) {
             out.push({ path: f.path, line: i + 1, rule: `words:${label}`, text: line.trim().slice(0, 140) })
             break
           }
@@ -120,6 +132,12 @@ console.log('============================================================')
     'plugins: [mercury' + J('Plug', 'in') + ']',
   ].join('\n') }])
   check('§2 self-test: the third-party senses stay silent', carved.length === 0, carved.map(v => v.text).join(' | '))
+  const foreignReferences = 'packages/opencode/src/plugin/xai.ts packages/core/src/plugin/provider/xai.ts OpenCode auth plugin'
+  check('external-client references keep their own paths and vocabulary only in the recorded sources',
+    [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: foreignReferences }]).length === 0) &&
+      scan([{ path: 'docs/other.md', content: foreignReferences }]).length === 1)
+  check('the external reference carveout never excuses Mercury words beside it',
+    [...XAI_CLIENT_REFERENCES].every(path => scan([{ path, content: `${foreignReferences}; Mercury plugin` }]).length === 1))
   const product = scan([{ path: 'fixture/product.md', content: 'An extension comes from a source; add one with /extensions.' }])
   check('§2 self-test: the product words pass', product.length === 0, product.map(v => v.rule).join(','))
 
@@ -160,6 +178,7 @@ check(`tracked tree speaks the product vocabulary (${tracked.length} files)`, vi
     rows.filter(([prefix]) => !tracked.some(p => p === prefix || p.startsWith(prefix))).map(([prefix]) => prefix)
   const moot = mootRows(ALLOW)
   check('every exemption names a path the tracked tree still holds', moot.length === 0, moot.join(' · '))
+  check('every external-client reference scope names a tracked file', [...XAI_CLIENT_REFERENCES].every(path => tracked.includes(path)))
   const planted = mootRows([...ALLOW, ['src/no-such-home/', 'words', 'poison: a row for a path that is gone']])
   check('exemption self-test: a planted row for an absent path is reported', planted.length === 1 && planted[0] === 'src/no-such-home/', planted.join(' · '))
 }

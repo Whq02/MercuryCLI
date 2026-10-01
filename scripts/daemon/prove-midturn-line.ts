@@ -255,10 +255,14 @@ if (!existsSync(DIST)) {
     for (const block of blocks) {
       if (!kinds.includes(block.type) || typeof block.text !== 'string') continue
       const re = /<system-reminder>\n([\s\S]*?)\n<\/system-reminder>/g
-      for (let m = re.exec(block.text); m !== null; m = re.exec(block.text)) out.push(m[1]!)
+      for (let m = re.exec(block.text); m !== null; m = re.exec(block.text)) {
+        if (m[1]!.startsWith(`${OPENING}\n`)) out.push(m[1]!)
+      }
     }
     return out
   }
+  check('the reminder reader counts operator deliveries, not a tool-list notice beside them',
+    j(remindersIn([{ type: 'tool_result/text', text: `<system-reminder>\n${OPENING}\nfixture line\n</system-reminder>\n<system-reminder>\nTools joined after the first request.\n</system-reminder>` }])) === j([`${OPENING}\nfixture line`]))
   const wordsFor = (line: string): string => `${OPENING}\n${line}\n\nIMPORTANT: Read this message before taking your next action and respond according to its intent.\n\n${BULLETS.join('\n')}\n\n${OBJECTIVE}\n\n${ACCOUNTING}`
 
   section('R1 the runner is up')

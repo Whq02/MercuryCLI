@@ -263,9 +263,14 @@ section('§0 · the card and the vocabulary')
       card.includes("case 'creating-key':"),
   )
   const container = readFileSync(join(import.meta.dir, '../../src/commands/login/login.tsx'), 'utf8')
+  const loginBody = container.match(/export function Login\([\s\S]*?\n\}/)?.[0]
   check(
     'the /logins container owns no blanket esc/← (each leg owns its keys)',
-    !container.includes('useInput'),
+    loginBody !== undefined && !/\buseInput\s*\(/.test(loginBody),
+  )
+  check('only the settled receipt owns its enter/esc confirmation',
+    container.includes('{receipt ? <LoginReceipt') &&
+      /function LoginReceipt\([\s\S]*?useInput\(\(_input, key\) => \{ if \(key\.return \|\| key\.escape\) onDone\(\) \}\)/.test(container),
   )
 }
 
