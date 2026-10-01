@@ -169,8 +169,9 @@ try {
 
   const statusFrames = distinct.filter(f => f.text.includes('Mercury · status'))
   check('P3 the status card painted', statusFrames.length > 0)
-  const sessionRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => r.includes('✶ VIEW')))
-  check(`P3 the view box header over the status card names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))
+  const sessionRows = distinct.flatMap(f => f.text.split('\n').filter(r => r.includes('✶ VIEW')))
+  check(`P3 every view box header painted around the status card names the focused seat (${SEAT_TITLE}), never the screen's own session`, sessionRows.length > 0 && sessionRows.every(r => r.includes(SEAT_TITLE) && !r.includes('unnamed')), sessionRows.join(' | ').slice(0, 300))
+  check('P3 no status frame names an unnamed session', statusFrames.every(f => !f.text.includes('unnamed')), statusFrames.map(f => rowsWith(f.text, 'unnamed').join(' | ')).join(' ‖ ').slice(0, 300))
   check('P3 the card opens on the session snapshot line', statusFrames.every(f => f.text.includes('session snapshot ·')), statusFrames.map(f => rowsWith(f.text, 'snapshot').join(' | ')).join(' ‖ ').slice(0, 300))
   const statusModelRows = statusFrames.flatMap(f => f.text.split('\n').filter(r => (r.includes(SEAT_MODEL_LABEL) || r.includes('Fable 5')) && !r.includes('▚▛▀▜▞')))
   check(`P3 /status names the session's model (${SEAT_MODEL_LABEL}), never the screen's`, statusModelRows.some(r => r.includes(SEAT_MODEL_LABEL)) && !statusModelRows.some(r => r.includes('Fable 5')), statusModelRows.join(' | ').slice(0, 300))
