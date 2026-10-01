@@ -146,6 +146,7 @@ section('A1 the pure road: no operator client attached — the ask is denied at 
   check('...the receipt: the obligation for the ask is recorded and settled withdrawn by the daemon with the cause (never a silent disappearance)', receipt)
   const openRows = (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.ref === 'permission:req-nobody')
   check('...no open needs-you row is left for it', openRows.length === 0, openRows.map(rowWords).join(' | '))
+  await until(() => commits.length > 0, 5_000)
   unsubscribe()
   const receiptRow = (await obligations.listObligations({ scope: 'switchboard' } as never) as ReceiptRow[]).find(o => o.ref === 'permission:req-nobody')
   check('red on the base: the receipt is born settled — no commit of the needs-you store ever carried the row OPEN (the base mints it open and withdraws it in a second commit)', commits.length > 0 && commits.every(c => !c.startsWith('open')), `commits seen=${j(commits)}`)
