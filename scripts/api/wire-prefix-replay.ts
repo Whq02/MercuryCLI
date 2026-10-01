@@ -454,6 +454,7 @@ export async function startTap(opts: { out: string; upstream: string; port?: num
         body = null
       }
       const isMessages = req.method === 'POST' && url.includes('/messages')
+      const isRecorded = isMessages || (req.method === 'POST' && (url.includes('/chat/completions') || url.endsWith('/responses')))
       const at = Date.now()
       const reader = sseResponseSummary()
       let status = 0
@@ -482,7 +483,7 @@ export async function startTap(opts: { out: string; upstream: string; port?: num
         res.writeHead(502, { 'content-type': 'application/json' })
         res.end(JSON.stringify({ type: 'error', error: { type: 'tap_error', message: String(error) } }))
       }
-      if (isMessages && body !== null) {
+      if (isRecorded && body !== null) {
         seq++
         const row: CaptureRow = {
           kind: 'request',
@@ -492,7 +493,7 @@ export async function startTap(opts: { out: string; upstream: string; port?: num
           model: String((body as WireBody).model ?? ''),
           headers: keptHeaders(req.headers as Record<string, string | string[] | undefined>),
           body: body as WireBody,
-          response: { ...reader.summary(), status },
+          response: isMessages ? { ...reader.summary(), status } : { status },
         }
         appendFileSync(opts.out, `${JSON.stringify(row)}\n`)
       }
