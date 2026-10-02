@@ -1093,8 +1093,8 @@ section('P4 handleSetPermissionMode — apollo refused outside the terminal, byp
     JSON.stringify(resp2),
   )
 
-  const afterPlan = handleSetPermissionMode(
-    { mode: 'strategy' } as never,
+  const afterSwitch = handleSetPermissionMode(
+    { mode: 'implement' } as never,
     'req-3',
     baseCtx as never,
     output as never,
@@ -1103,10 +1103,10 @@ section('P4 handleSetPermissionMode — apollo refused outside the terminal, byp
   check(
     'a plain mode switch succeeds (success response carries the mode)',
     resp3.subtype === 'success' &&
-      JSON.stringify(resp3.response) === JSON.stringify({ mode: 'strategy' }),
+      JSON.stringify(resp3.response) === JSON.stringify({ mode: 'implement' }),
     JSON.stringify(resp3),
   )
-  check("the returned context carries mode 'strategy'", afterPlan.mode === 'strategy')
+  check("the returned context carries mode 'implement'", afterSwitch.mode === 'implement')
 }
 
 section('P5 getCanUseToolFn — stdio routes to StructuredIO; forceDecision passthrough')

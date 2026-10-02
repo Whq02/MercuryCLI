@@ -55,7 +55,7 @@ const last = () => modeTransitions()[modeTransitions().length - 1]
 section('the record: the road vocabulary, the announce/audit mechanics, the boot entry')
 {
   const roads = MODE_TRANSITION_ROADS as readonly string[]
-  for (const road of ['boot', 'claim', 'control-door', 'carousel', 'screen-mirror', 'review-approval', 'permission-answer', 'plan-entry', 'plan-exit', 'flow-unavailable', 'bypass-disabled', 'crew-lead', 'unnamed']) {
+  for (const road of ['boot', 'claim', 'control-door', 'carousel', 'screen-mirror', 'review-approval', 'permission-answer', 'flow-unavailable', 'bypass-disabled', 'crew-lead', 'unnamed']) {
     check(`the vocabulary names the '${road}' road`, roads.includes(road))
   }
   for (const road of roads) {
@@ -130,8 +130,8 @@ try {
   clearModeTransitions()
   const answered = updates.applyPermissionUpdates(ctx('default') as never, [{ type: 'setMode', mode: 'implement', destination: 'session' } as never]) as unknown as Ctx
   check("a consent answer's setMode records 'permission-answer' with its scope", answered.mode === 'implement' && last()?.road === 'permission-answer' && /session scope/.test(last()?.detail ?? ''))
-  const planned = updates.applyPermissionUpdate(ctx('default') as never, { type: 'setMode', mode: 'strategy', destination: 'session' } as never, 'plan-entry') as unknown as Ctx
-  check("the caller may name the road (/plan: 'plan-entry')", planned.mode === 'strategy' && last()?.road === 'plan-entry')
+  const named = updates.applyPermissionUpdate(ctx('default') as never, { type: 'setMode', mode: 'implement', destination: 'session' } as never, 'control-door') as unknown as Ctx
+  check("the caller may name the road ('control-door')", named.mode === 'implement' && last()?.road === 'control-door')
   const folded = updates.applyPermissionUpdates(ctx('default') as never, [
     { type: 'addRules', rules: [{ toolName: 'Read', ruleContent: 'src/**' }], behavior: 'allow', destination: 'session' } as never,
     { type: 'setMode', mode: 'implement', destination: 'session' } as never,
@@ -141,9 +141,6 @@ try {
   check('the road owners are loadable', false, String(e).split('\n')[0])
 }
 {
-  check("EnterPlanMode records 'plan-entry' where it writes strategy", /recordModeTransition\(\{ from: prev\.toolPermissionContext\.mode, to: 'strategy', road: 'plan-entry' \}\)/.test(src('tools', 'EnterPlanModeTool', 'EnterPlanModeTool.ts')))
-  check("ExitPlanMode records 'plan-exit' where it restores the stashed mode", /road: 'plan-exit'/.test(src('tools', 'ExitPlanModeTool', 'ExitPlanModeV2Tool.ts')))
-  check("/plan names 'plan-entry' through the update applier", /'plan-entry',\n\s*\),/.test(src('commands', 'plan', 'plan.tsx')))
   check("the flow gate's kick-out records 'flow-unavailable'", /recordModeTransition\(\{ from: 'flow', to: 'default', road: 'flow-unavailable' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
   check("the launch context records the 'boot' entry", /recordModeTransition\(\{ from: null, to: context\.mode, road: 'boot' \}\)/.test(src('utils', 'permissions', 'permissionSetup.ts')))
   check("the warm claim names 'claim'", /resolvePermissionModeTransition\(\n\s*claimedMode as WirePermissionMode,\n\s*getAppState\(\)\.toolPermissionContext,\n\s*'claim',/.test(src('cli', 'print.ts')))
@@ -190,11 +187,9 @@ try {
   check('apollo: a settings write is refused too (outside the spec directory)', decide('apollo', settingsPath).behavior === 'deny')
   const asked = decide('default', strayPath)
   check('default: the same write ASKS and its session tier still offers implement (the ask-posture modes keep it)', asked.behavior === 'ask' && (asked.suggestions ?? []).some(s => s.type === 'setMode' && s.mode === 'implement'), `${asked.behavior} ${JSON.stringify(asked.suggestions)}`)
-  const asIs = decide('strategy', strayPath)
-  check('strategy: unchanged (asks with the implement tier)', asIs.behavior === 'ask' && (asIs.suggestions ?? []).some(s => s.type === 'setMode'))
   const implementSpec = decide('implement', specPath)
   check("implement: the build posture still rides the spec consent", implementSpec.behavior === 'allow')
-  check('the session tier never offers a mode change in Apollo (structural: modeSuggestion lists the two ask-posture modes only)', /if \(context\.mode === 'default' \|\| context\.mode === 'strategy'\) \{\n\s*return \[\{ type: 'setMode', mode: 'implement'/.test(src('utils', 'permissions', 'filesystem.ts')))
+  check('the session tier never offers a mode change in Apollo (structural: modeSuggestion lists the ask posture only)', /if \(context\.mode === 'default'\) \{\n\s*return \[\{ type: 'setMode', mode: 'implement'/.test(src('utils', 'permissions', 'filesystem.ts')))
 
   const updates = (await import('../../src/utils/permissions/PermissionUpdate.js')) as typeof import('../../src/utils/permissions/PermissionUpdate.js')
   clearModeTransitions()
@@ -205,8 +200,6 @@ try {
     { type: 'addRules', rules: [{ toolName: 'Read', ruleContent: 'docs/**' }], behavior: 'allow', destination: 'session' } as never,
   ]) as unknown as Ctx
   check('the rest of the answer still applies after a held mode change (the rule lands, Apollo holds)', mixed.mode === 'apollo' && mixed.alwaysAllowRules.session?.includes('Read(docs/**)') === true && last()?.held === true && last()?.to === 'default' && last()?.road === 'permission-answer')
-  const toPlan = updates.applyPermissionUpdates(ctx('apollo') as never, [{ type: 'setMode', mode: 'strategy', destination: 'session' } as never]) as unknown as Ctx
-  check('strategy is admitted from apollo (plan entry stashes the mode; its exit restores it)', toPlan.mode === 'strategy' && last()?.held !== true && last()?.road === 'permission-answer')
   const byHook = updates.applyPermissionUpdate(ctx('apollo') as never, { type: 'setMode', mode: 'sovereign', destination: 'session' } as never) as unknown as Ctx
   check('a hook or host answer cannot leave apollo either (the hold is at the ONE apply seam)', byHook.mode === 'apollo')
   const stays = updates.applyPermissionUpdates(ctx('implement') as never, [{ type: 'setMode', mode: 'default', destination: 'session' } as never]) as unknown as Ctx

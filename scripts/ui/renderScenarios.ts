@@ -3010,8 +3010,8 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 70, cols, rows,
     }
   }
-  if (name === 'mode-band-accept' || name === 'mode-band-plan' || name === 'mode-band-auto') {
-    const mode = { 'mode-band-accept': 'implement', 'mode-band-plan': 'strategy', 'mode-band-auto': 'flow' }[name]!
+  if (name === 'mode-band-accept' || name === 'mode-band-auto') {
+    const mode = { 'mode-band-accept': 'implement', 'mode-band-auto': 'flow' }[name]!
     writeSyntheticSession('short')
     return {
       argv: ['node', BIN, '--resume', SID, '--mode', mode],

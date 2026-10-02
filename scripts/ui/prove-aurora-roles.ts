@@ -42,7 +42,7 @@ section('§1 — the INFO channel exists and owns the informational roles')
   }
   check('dark info = OASIS (the companion hue, spent at last)', dark.info === brand.OASIS)
   check('dark infoShimmer brightens toward ivory', dark.infoShimmer === themeMod.lerpHex(brand.OASIS, brand.IVORY, 0.4))
-  for (const role of ['strategyMode', 'bashBorder', 'background', 'professionalBlue', 'chromeYellow', 'ide', 'merged', 'remember', 'rate_limit_fill', 'systemSpinner'] as const) {
+  for (const role of ['bashBorder', 'background', 'professionalBlue', 'chromeYellow', 'ide', 'merged', 'remember', 'rate_limit_fill', 'systemSpinner'] as const) {
     check(`dark ${role} rides info (OASIS), not identity`, dark[role] === brand.OASIS)
   }
   check('dark promptBorderResting is STRUCTURE (DUNE)', dark.promptBorderResting === brand.DUNE)
@@ -66,14 +66,13 @@ section('§3 — the mode ladder: fixed, pairwise-distinct semantics (dark)')
 {
   const roleOf = (m: string) => permMode.getModeColor(m as never)
   const hueOf = (m: string) => dark[roleOf(m) as keyof typeof dark] as string
-  check("strategy → 'strategyMode' role", roleOf('strategy') === 'strategyMode')
+  check("apollo → 'permission' role", roleOf('apollo') === 'permission')
   check("implement → 'autoAccept' role", roleOf('implement') === 'autoAccept')
   check("sovereign → 'error' role", roleOf('sovereign') === 'error')
   check("flow → 'success' role", roleOf('flow') === 'success')
-  const hues = ['strategy', 'implement', 'sovereign', 'flow'].map(hueOf)
-  check('strategy(OASIS) · implement(AMBER) · sovereign(CRIMSON) · flow(TEAL) pairwise distinct',
+  const hues = ['apollo', 'implement', 'sovereign', 'flow'].map(hueOf)
+  check('apollo(permission) · implement(AMBER) · sovereign(CRIMSON) · flow(TEAL) pairwise distinct',
     new Set(hues).size === 4, hues.join(' '))
-  check('strategy mode resolves OASIS-info', hueOf('strategy') === brand.OASIS)
   check('implement resolves AMBER-caution', hueOf('implement') === brand.AMBER)
 }
 
