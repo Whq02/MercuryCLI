@@ -31,7 +31,7 @@ const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/start
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
-const { getMarketingNameForModel, parseUserSpecifiedModel, renderModelSetting } =
+const { getMarketingNameForModel, parseUserSpecifiedModel } =
   await import('../../src/utils/model/model.ts')
 const { XAI_DISPLAY_PINS } = await import('../../src/services/providers/xai/xaiPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
@@ -94,10 +94,7 @@ function modelNamesBlock() {
   for (const alias of MODEL_ALIASES) {
     const bare = alias.replace(/\[1m\]$/i, '')
     if (names[bare]) continue
-    names[bare] =
-      bare === 'opusplan'
-        ? renderModelSetting(bare)
-        : (getMarketingNameForModel(parseUserSpecifiedModel(bare)) ?? bare)
+    names[bare] = getMarketingNameForModel(parseUserSpecifiedModel(bare)) ?? bare
   }
   const grokHead = XAI_DISPLAY_PINS[0]
   if (grokHead !== undefined && names.grok === undefined) names.grok = grokHead.displayName

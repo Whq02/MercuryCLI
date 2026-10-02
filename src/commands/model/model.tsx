@@ -101,7 +101,7 @@ function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.Reac
     if (override !== null) {
       onDone(
         [
-          `Current model: ${renderModelLabel(override)} (session override from strategy mode)`,
+          `Current model: ${renderModelLabel(override)} (session override)`,
           `Base model: ${renderModelLabel(base)}${parenthetical}`,
         ].join('\n'),
       )

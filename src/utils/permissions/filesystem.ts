@@ -878,7 +878,7 @@ export function apolloWriteRefusal(path: string): string {
 }
 
 function modeSuggestion(context: ToolPermissionContext): PermissionUpdate[] {
-  if (context.mode === 'default' || context.mode === 'strategy') {
+  if (context.mode === 'default') {
     return [{ type: 'setMode', mode: 'implement', destination: 'session' } as unknown as PermissionUpdate]
   }
   return []

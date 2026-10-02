@@ -16,7 +16,6 @@ export {
 
 type ModeColorKey =
   | 'text'
-  | 'strategyMode'
   | 'permission'
   | 'autoAccept'
   | 'error'
@@ -32,7 +31,6 @@ type ModeConfig = {
 
 const MODE_CONFIG: Partial<Record<PermissionMode, ModeConfig>> = {
   default: { title: 'Default', symbol: GLYPH.modeDefault, color: 'text', external: 'default' },
-  strategy: { title: 'Strategy Mode', symbol: GLYPH.modeStrategy, color: 'strategyMode', external: 'strategy' },
   apollo: { title: 'Apollo Mode', symbol: GLYPH.modeApollo, color: 'permission', external: 'default' },
   implement: { title: 'Implement Mode', symbol: GLYPH.modeImplement, color: 'autoAccept', external: 'implement' },
   sovereign: { title: 'Sovereign Mode', symbol: GLYPH.modeSovereign, color: 'error', external: 'sovereign' },

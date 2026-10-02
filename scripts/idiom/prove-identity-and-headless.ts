@@ -89,10 +89,10 @@ await fixture1.close()
 
   const home2 = mkdtempSync(join(tmpdir(), 'idiom-e07b-'))
   const fixture2 = await freshFixture()
-  const r2 = await runHeadless(fixture2.url, home2, join(home2, 'proj'), 'strategy')
+  const r2 = await runHeadless(fixture2.url, home2, join(home2, 'proj'), 'implement')
   await fixture2.close()
   const init2 = r2.out.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } }).find(o => o.type === 'system' && o.subtype === 'init')
-  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { permission_mode?: string } | undefined)?.permission_mode === 'strategy', JSON.stringify(init2 ?? {}).slice(0, 200))
+  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { permission_mode?: string } | undefined)?.permission_mode === 'implement', JSON.stringify(init2 ?? {}).slice(0, 200))
 }
 
 section('§E02 — one uuid across the SDK envelope and the durable record')

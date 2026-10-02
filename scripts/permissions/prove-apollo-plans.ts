@@ -120,6 +120,44 @@ section('§3 the crew wire: a crewmate spawns in the ordinary posture and no mes
   check('control: a shutdown request is still a protocol message', live.isStructuredProtocolMessage(JSON.stringify({ type: 'shutdown_request', from: 'a', requestId: 'r', timestamp: 't' })))
 }
 
+section('§4 the mode word: --mode strategy is an unknown value, the lists and schemas carry Apollo as the planning mode')
+{
+  const control = await run(['run', '--mode', 'frobnicate', 'hello'])
+  check('control: an unknown --mode value is the parser\'s own error on stderr, exit 2', control.code === 2 && control.out === '' && control.err.startsWith("error: option '--mode <mode>' argument 'frobnicate' is invalid."), JSON.stringify(control))
+  const probe = await run(['run', '--mode', 'strategy', 'hello'])
+  check('--mode strategy answers exactly as --mode frobnicate does', sameAnswer(control, probe, 'frobnicate', 'strategy'), JSON.stringify({ control, probe }))
+  check('the allowed-choices list the parser prints names apollo and no other planning station', /Allowed choices are [^\n]*\bapollo\b/.test(control.err) && !/strateg/.test(control.err), control.err)
+
+  const vocab = await import('../../src/types/permissions.ts')
+  const pm = await import('../../src/utils/permissions/PermissionMode.ts')
+  const lists = [...vocab.PERMISSION_MODES, ...vocab.EXTERNAL_PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES]
+  check('no mode list carries a planning station other than apollo', lists.includes('apollo') && !lists.some(m => /strateg/.test(m)), lists.join(','))
+  check('the carousel never reaches a planning stop other than apollo from any mode', (vocab.PERMISSION_MODES as readonly string[]).every(mode => {
+    const { getNextPermissionMode } = require('../../src/utils/permissions/getNextPermissionMode.ts') as typeof import('../../src/utils/permissions/getNextPermissionMode.ts')
+    for (const bypass of [false, true]) {
+      const next = getNextPermissionMode({ mode, isBypassPermissionsModeAvailable: bypass, isAutoModeAvailable: false } as never)
+      if (/strateg/.test(next)) return false
+    }
+    return true
+  }))
+  check('an unknown stored mode word resolves to the default mode', pm.permissionModeFromString('strategy') === 'default' && pm.permissionModeFromString('frobnicate') === 'default')
+  const sdk = await import('../../src/entrypoints/sdk/coreSchemas.ts')
+  check('the SDK permission-mode schema refuses the word as it refuses any unknown word', !sdk.PermissionModeSchema().safeParse('strategy').success && !sdk.PermissionModeSchema().safeParse('frobnicate').success && sdk.PermissionModeSchema().safeParse('implement').success)
+  const headless = await import('../../src/daemon/headlessRun.ts')
+  check('the daemon child postures carry no planning station', !(headless.HEADLESS_PERMISSION_MODES as readonly string[]).some(m => /strateg/.test(m)))
+}
+
+section('§5 a saved chat that was in a mode this build does not know opens in default')
+{
+  const recovery = await import('../../src/utils/conversationRecovery.ts')
+  const row = (mode: string) => ({ type: 'user', uuid: '11111111-1111-4111-8111-111111111111', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'saved prompt' }, permissionMode: mode }) as never
+  const userRow = (rows: unknown[]): { permissionMode?: string } | undefined => (rows as Array<{ type: string; permissionMode?: string }>).find(r => r.type === 'user')
+  const restored = userRow(recovery.deserializeMessages([row('strategy')]))
+  check('the stored mode word is not carried into the resumed session (it reads as default)', restored !== undefined && restored.permissionMode === undefined, JSON.stringify(restored))
+  const kept = userRow(recovery.deserializeMessages([row('implement')]))
+  check('control: a mode this build knows is kept', kept?.permissionMode === 'implement')
+}
+
 await api.close?.()
 rmSync(HOME, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))

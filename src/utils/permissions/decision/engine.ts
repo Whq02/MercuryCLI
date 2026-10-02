@@ -61,10 +61,7 @@ export function postureBypassesAsks(permissionContext: {
   mode: PermissionMode
   isBypassPermissionsModeAvailable?: boolean
 }): boolean {
-  return (
-    modeBypassesPermissions(permissionContext.mode) ||
-    (permissionContext.mode === 'strategy' && permissionContext.isBypassPermissionsModeAvailable === true)
-  )
+  return modeBypassesPermissions(permissionContext.mode)
 }
 
 export async function decideToolPermission(

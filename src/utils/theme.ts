@@ -31,7 +31,6 @@ export type Theme = {
   permissionShimmer: string
   info: string
   infoShimmer: string
-  strategyMode: string
   ide: string
   promptBorder: string
   promptBorderShimmer: string
@@ -132,7 +131,6 @@ const DARK: Theme = {
   infoShimmer: 'rgb(133, 168, 178)',
   systemSpinner: 'rgb(63, 126, 150)',
   systemSpinnerShimmer: 'rgb(133, 168, 178)',
-  strategyMode: 'rgb(63, 126, 150)',
   ide: 'rgb(63, 126, 150)',
   merged: 'rgb(63, 126, 150)',
   remember: 'rgb(63, 126, 150)',
@@ -204,7 +202,6 @@ const LIGHT: Theme = {
   infoShimmer: 'rgb(94, 138, 155)',
   systemSpinner: 'rgb(43, 94, 115)',
   systemSpinnerShimmer: 'rgb(94, 138, 155)',
-  strategyMode: 'rgb(43, 94, 115)',
   ide: 'rgb(43, 94, 115)',
   merged: 'rgb(43, 94, 115)',
   remember: 'rgb(43, 94, 115)',
@@ -262,7 +259,6 @@ const DARK_DALTONIZED: Theme = {
   infoShimmer: 'rgb(146, 200, 204)',
   systemSpinner: 'rgb(85, 178, 192)',
   systemSpinnerShimmer: 'rgb(146, 200, 204)',
-  strategyMode: 'rgb(85, 178, 192)',
   ide: 'rgb(85, 178, 192)',
   merged: 'rgb(85, 178, 192)',
   remember: 'rgb(85, 178, 192)',
@@ -320,7 +316,6 @@ const LIGHT_DALTONIZED: Theme = {
   infoShimmer: 'rgb(94, 168, 176)',
   systemSpinner: 'rgb(18, 127, 138)',
   systemSpinnerShimmer: 'rgb(94, 168, 176)',
-  strategyMode: 'rgb(18, 127, 138)',
   ide: 'rgb(18, 127, 138)',
   merged: 'rgb(18, 127, 138)',
   remember: 'rgb(18, 127, 138)',
@@ -378,7 +373,6 @@ const DARK_ANSI: Theme = {
   infoShimmer: 'ansi:cyanBright',
   systemSpinner: 'ansi:cyan',
   systemSpinnerShimmer: 'ansi:cyan',
-  strategyMode: 'ansi:cyan',
   ide: 'ansi:cyan',
   merged: 'ansi:cyan',
   remember: 'ansi:cyan',
@@ -436,7 +430,6 @@ const LIGHT_ANSI: Theme = {
   infoShimmer: 'ansi:cyan',
   systemSpinner: 'ansi:blue',
   systemSpinnerShimmer: 'ansi:cyan',
-  strategyMode: 'ansi:blue',
   ide: 'ansi:blue',
   merged: 'ansi:blue',
   remember: 'ansi:blue',
@@ -525,7 +518,6 @@ function mercuryWarmInkOverlay(base: Theme, themeName: string): Theme {
     rate_limit_fill: OASIS,
     ide: OASIS,
     merged: OASIS,
-    strategyMode: OASIS,
     background: OASIS,
     professionalBlue: OASIS,
     chromeYellow: OASIS,
@@ -595,7 +587,6 @@ function roleStructureOverlay(themeName: string, base: Theme): Theme {
     rate_limit_fill: companion,
     ide: companion,
     merged: companion,
-    strategyMode: companion,
     background: companion,
     professionalBlue: companion,
     chromeYellow: companion,

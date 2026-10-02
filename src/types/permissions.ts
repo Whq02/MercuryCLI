@@ -4,7 +4,6 @@ export const EXTERNAL_PERMISSION_MODES = [
   'dontAsk',
   'implement',
   'sovereign',
-  'strategy',
 ] as const
 
 export type ExternalPermissionMode = (typeof EXTERNAL_PERMISSION_MODES)[number]
@@ -246,5 +245,4 @@ export type ToolPermissionContext = {
   strippedDangerousRules?: string[]
   shouldAvoidPermissionPrompts?: boolean
   awaitAutomatedChecksBeforeDialog?: boolean
-  preStrategyMode?: InternalPermissionMode
 }

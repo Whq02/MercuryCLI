@@ -192,8 +192,8 @@ const { homeLaneAdmissionRefusal } = await import('../../src/services/providers/
     kind('gpt-5.6-sol') === 'declared:openai' && kind('glm') === 'declared:zai' && kind('huggingface/Qwen/Qwen3') === 'declared:huggingface')
   check('a claude-* id is first-party by its mark, context rider detached', kind('claude-sonnet-5[1m]') === 'first-party:claude-mark', kind('claude-sonnet-5[1m]'))
   check('a gateway spelling keeps the mark inside the family', kind('us.anthropic.claude-opus-5-v1:0') === 'first-party:claude-mark')
-  check('the setting aliases are first-party (opus · fable[1m] · opusplan · sonnet5)',
-    kind('opus') === 'first-party:alias' && kind('fable[1m]') === 'first-party:alias' && kind('opusplan') === 'first-party:alias' && kind('sonnet5') === 'first-party:alias')
+  check('the setting aliases are first-party (opus · fable[1m] · sonnet5)',
+    kind('opus') === 'first-party:alias' && kind('fable[1m]') === 'first-party:alias' && kind('sonnet5') === 'first-party:alias')
   check('an env-pinned id is first-party by the pin\'s own name (a gateway-served spelling included)',
     kind('my-gateway-model', { MERCURY_CUSTOM_MODEL_OPTION: 'my-gateway-model' }) === 'first-party:env-pin' &&
       kind('proxy-served', { MERCURY_MODEL: 'proxy-served[1m]' }) === 'first-party:env-pin')

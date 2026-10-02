@@ -81,8 +81,8 @@ section("§3 the connector's mode read: the facts' word, else the birth posture,
   check("a skeleton without a word falls to the birth record's posture", permissionModeOf({}, { permissionMode: 'sovereign' }) === 'sovereign')
   check('no facts file + a sovereign birth record ⇒ sovereign', permissionModeOf(null, { permissionMode: 'sovereign' }) === 'sovereign')
   check('no facts file + a default birth record ⇒ default (the blank band)', permissionModeOf(null, { permissionMode: 'default' }) === 'default')
-  const seatWord = supervisor.seatInitialPermissionMode('strategy')
-  check('a birth posture the seat maps at spawn reads through the SAME resolver (one mapping owner)', permissionModeOf(null, { permissionMode: 'strategy' }) === seatWord, `resolver=${seatWord}`)
+  const seatWord = supervisor.seatInitialPermissionMode('apollo')
+  check('a birth posture the seat maps at spawn reads through the SAME resolver (one mapping owner)', permissionModeOf(null, { permissionMode: 'apollo' }) === seatWord, `resolver=${seatWord}`)
   check("no facts + a birth record carrying none ⇒ null (the honest blank), never 'flow'", permissionModeOf(null, { permissionMode: null }) === null)
   check("a skeleton without a word + no birth posture ⇒ null, never 'flow'", permissionModeOf({}, { permissionMode: null }) === null)
 }
@@ -211,14 +211,14 @@ section("§5 a mode change's receipt is the runner's own word: refused with its 
   const b = await pb
   check("(b) the runner's success comes back as 'applied' naming the mode", b.outcome === 'applied' && (b.detail ?? '').includes('implement'), JSON.stringify(b))
   const t0 = Date.now()
-  const c = await seat.setSessionPermissionMode(sid, 'strategy', roster, dir, { deadlineMs: 300 })
+  const c = await seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 300 })
   check('(c) a silent runner answers refused past the deadline, naming the silence', c.outcome === 'refused' && /did not answer/.test(c.detail ?? '') && Date.now() - t0 >= 250, JSON.stringify(c))
   const dead = { ...roster, control: () => false }
   const d = await seat.setSessionPermissionMode(sid, 'implement', dead, dir)
   check('(d) no live control channel refuses at once', d.outcome === 'refused' && /control channel/.test(d.detail ?? ''), JSON.stringify(d))
   check('(e) no waiter is left behind', seat._pendingModeWaitersForTesting() === 0)
   const p1 = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 200 })
-  const p2 = seat.setSessionPermissionMode(sid, 'strategy', roster, dir, { deadlineMs: 200 })
+  const p2 = seat.setSessionPermissionMode(sid, 'implement', roster, dir, { deadlineMs: 200 })
   const ids = controls.slice(-2).map(c => requestOf(c.frame).request_id)
   check('(f) two presses in one tick carry two distinct request ids', ids[0] !== ids[1], ids.join(' | '))
   await Promise.all([p1, p2])
@@ -244,9 +244,8 @@ section('§6 the carousel lists every station the seat may hold, Sovereign in a 
   console.log(`  unconsented ring from default: ${plain.join(' → ')}`)
   check('a consented ring holds default · implement · apollo · flow · sovereign and closes', consented.join(',') === 'implement,apollo,flow,sovereign,default', consented.join(' → '))
   check("an unconsented ring is the same less Sovereign", plain.join(',') === 'implement,apollo,flow,default', plain.join(' → '))
-  check('an explicit Strategy session rejoins the ring at Apollo', getNextPermissionMode(ctx('strategy', false)) === 'apollo' && getNextPermissionMode(ctx('strategy', true)) === 'apollo')
   check("a consented seat's ring includes Sovereign from the FIRST station (born sovereign, the walk returns through it)", walk(true, 'sovereign').includes('sovereign') && walk(true, 'implement').includes('sovereign'))
-  check('Sovereign never appears without consent from any start', (['default', 'implement', 'strategy', 'apollo', 'flow'] as PermissionMode[]).every(m => !walk(false, m).includes('sovereign')))
+  check('Sovereign never appears without consent from any start', (['default', 'implement', 'apollo', 'flow'] as PermissionMode[]).every(m => !walk(false, m).includes('sovereign')))
   process.env.MERCURY_CONCOURSE_WORKER = '1'
   const refusedConsented = consented.filter(m => !resolvePermissionModeTransition(m as never, ctx('default', true)).ok)
   const refusedPlain = plain.filter(m => !resolvePermissionModeTransition(m as never, ctx('default', false)).ok)

@@ -209,8 +209,6 @@ export async function resumeAgentBackground(args: {
   const lifecycleModel = getAgentModel(
     restoredModel ?? definition.model,
     getMainLoopModel(),
-    undefined,
-    definition.permissionMode as never,
   )
   const restoredEffort = meta?.effortOverride
   const instructionProfileOverride = meta?.instructionProfile

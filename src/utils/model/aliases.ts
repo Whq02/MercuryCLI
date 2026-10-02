@@ -10,7 +10,6 @@ export const MODEL_ALIASES = [
   'sonnet[1m]',
   'opus[1m]',
   'fable[1m]',
-  'opusplan',
 ] as const
 
 export type ModelAlias = (typeof MODEL_ALIASES)[number]

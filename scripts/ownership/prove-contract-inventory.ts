@@ -115,7 +115,6 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
     files: ['src/types/permissions.ts'],
     patterns: [
       "'default'",
-      "'strategy'",
       "'implement'",
       "'sovereign'",
       "'dontAsk'",

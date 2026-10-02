@@ -66,7 +66,7 @@ check('a genuinely unknown name still passes through (the route law refuses down
 check('canonical parity: a first-party id is byte-identical', parseUserSpecifiedModel('claude-sonnet-5') === 'claude-sonnet-5')
 check('canonical parity: a declared engine id is byte-identical', parseUserSpecifiedModel('gpt-5.2') === 'gpt-5.2')
 check('canonical parity: a carrier id is byte-identical', parseUserSpecifiedModel('openrouter/anthropic/claude-opus-5') === 'openrouter/anthropic/claude-opus-5')
-check("the alias switch is untouched ('opusplan' → the mid model)", parseUserSpecifiedModel('opusplan') === parseUserSpecifiedModelRaw('opusplan'))
+check("the alias switch is untouched ('sonnet5' → its row)", parseUserSpecifiedModel('sonnet5') === parseUserSpecifiedModelRaw('sonnet5'))
 
 const modelSrc = readFileSync('src/utils/model/model.ts', 'utf8')
 check(

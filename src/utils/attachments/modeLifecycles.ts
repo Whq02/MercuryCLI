@@ -81,11 +81,7 @@ export async function getAutoModeAttachments(
 ): Promise<Attachment[]> {
   const appState = toolUseContext.getAppState()
   const permissionContext = appState.toolPermissionContext
-  const inAuto = permissionContext.mode === 'flow'
-  const inPlanWithAuto =
-    permissionContext.mode === 'strategy' &&
-    (autoModeStateModule?.isAutoModeActive() ?? false)
-  if (!inAuto && !inPlanWithAuto) {
+  if (permissionContext.mode !== 'flow') {
     return []
   }
 

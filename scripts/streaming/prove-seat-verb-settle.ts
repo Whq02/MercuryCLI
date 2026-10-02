@@ -137,7 +137,7 @@ section('§4 the seat verbs that arm the nudge: set-model and set-permission-mod
   const verbs: Array<{ verb: string; run: (c: Record<string, unknown>) => Promise<unknown>; expectedFlip: boolean }> = [
     { verb: 'set-effort (the control: armed since the effort chip fix)', run: c => (c as { setEffort: (l: string) => Promise<unknown> }).setEffort('low'), expectedFlip: true },
     { verb: 'set-model', run: c => (c as { setModel: (m: string) => Promise<unknown> }).setModel('claude-sonnet-5'), expectedFlip: true },
-    { verb: 'set-permission-mode', run: c => (c as { setPermissionMode: (m: string) => Promise<unknown> }).setPermissionMode('strategy'), expectedFlip: true },
+    { verb: 'set-permission-mode', run: c => (c as { setPermissionMode: (m: string) => Promise<unknown> }).setPermissionMode('implement'), expectedFlip: true },
   ]
   for (const { verb, run, expectedFlip } of verbs) {
     const record = { schema: 1, sessionId: `aaaaaaaa-bbbb-4ccc-8ddd-${String(seqOf(verb)).padStart(12, '0')}`, home, workspaceId: home, isolation: 'exclusive', modelKey: 'claude-opus-5', effort: 'high', spawnedAt: Date.now(), lastLiveAt: Date.now() }

@@ -440,9 +440,8 @@ export function Config({
   )
   const modeOptions: readonly ExternalPermissionMode[] = [
     'default',
-    'strategy',
     ...EXTERNAL_PERMISSION_MODES.filter(
-      mode => mode !== 'default' && mode !== 'strategy' && mode !== 'sovereign',
+      mode => mode !== 'default' && mode !== 'sovereign',
     ),
   ]
 

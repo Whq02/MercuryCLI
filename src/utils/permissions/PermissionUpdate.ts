@@ -95,7 +95,7 @@ export function applyPermissionUpdate(
       break
     }
     case 'setMode':
-      if (next.mode === 'apollo' && update.mode !== 'strategy') {
+      if (next.mode === 'apollo') {
         holdModeTransition({
           from: 'apollo',
           to: update.mode,

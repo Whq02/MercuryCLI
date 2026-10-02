@@ -53,7 +53,6 @@ export const GLYPH = {
   chevronRight: '›',
   modeDefault: '◦',
   modeImplement: '±',
-  modeStrategy: '◇',
   modeFlow: '✦',
   modeDontAsk: '¬',
   modeSovereign: '⊠',

@@ -1760,9 +1760,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       toolPermissionContext,
       crewContext,
     )
-    if (nextMode === 'strategy') {
-      saveGlobalConfig(config => ({ ...config, lastStrategyModeUse: Date.now() }))
-    }
     setToolPermissionContext({ ...nextContext, mode: nextMode })
     syncCrewmateMode(nextMode, crewContext?.crewName)
     setHelpOpen(false)

@@ -56,7 +56,7 @@ const BG_ROLE = {
   source: 'projectSettings',
   background: true,
   isolation: 'worktree',
-  permissionMode: 'strategy',
+  permissionMode: 'dontAsk',
   getSystemPrompt: () => 'bg',
 } as never as Record<string, unknown>
 
@@ -170,7 +170,7 @@ section('§4 — isolation · the async decision law · worker permission mode')
   check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).shouldRunAsync === false)
   check('backgroundTasksDisabled kills EVERY async route', buildAgentLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
 
-  check("the worker mode is the definition's permissionMode", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'strategy')
+  check("the worker mode is the definition's permissionMode", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'dontAsk')
   check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).workerPermissionMode === 'implement')
 }
 

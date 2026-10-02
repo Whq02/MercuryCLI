@@ -55,8 +55,6 @@ function modeRoad(mode: string): string {
       return 'and under default any call no allow rule covers (the read-only lane aside)'
     case 'implement':
       return 'and under implement any call no allow rule covers (the read-only lane and workspace file edits aside)'
-    case 'strategy':
-      return 'and under strategy the plan approval itself — a shell command that would change anything is refused until the plan is approved'
     case 'sovereign':
       return `and nothing else under ${mode}: every other call runs under the bypass posture (a deny rule still refuses)`
     default:
@@ -77,7 +75,6 @@ function pushClause(mode: string, verdict: PermissionResult | null): string | nu
   const unruled = '`git push` is not pre-authorised at boot by the permission rules this seat carries'
   if (bypass) return `${unruled} and runs under the bypass posture`
   if (mode === 'dontAsk') return `${unruled} and is denied under dontAsk — ${PUSH_ROADS} lets it run`
-  if (mode === 'strategy') return `${unruled} and is refused until the plan is approved; after that a push waits on the operator unless ${PUSH_ROADS} pre-authorises it`
   return `${unruled}, so a push waits on the operator — ${PUSH_ROADS} lets it run without the channel`
 }
 

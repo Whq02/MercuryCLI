@@ -286,39 +286,6 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
   return { count, bytes }
 }
 
-export async function cleanupOldPlanFiles(): Promise<CleanupResult> {
-  const result: CleanupResult = { messages: 0, errors: 0 }
-  const fs = getFsImplementation()
-  const cutoff = computeCutoffDate()
-  const plansDir = join(getMercuryHome(), 'plans')
-  let entries: Awaited<ReturnType<typeof fs.readdir>>
-  try {
-    entries = await fs.readdir(plansDir)
-  } catch (err) {
-    if (!isENOENT(err)) logError(err)
-    return result
-  }
-  for (const entry of entries) {
-    if (!entry.isFile()) continue
-    if (!entry.name.endsWith('.md')) continue
-    const filePath = join(plansDir, entry.name)
-    try {
-      const stats = await fs.stat(filePath)
-      if (stats.mtime < cutoff) {
-        await fs.unlink(filePath)
-        result.messages++
-      }
-    } catch {
-      result.errors++
-    }
-  }
-  try {
-    await fs.rmdir(plansDir)
-  } catch {
-  }
-  return result
-}
-
 async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Promise<CleanupResult> {
   const result: CleanupResult = { messages: 0, errors: 0 }
   const fs = getFsImplementation()
@@ -416,7 +383,6 @@ export async function cleanupOldMessageFilesInBackground(): Promise<CleanupResul
 
   let result = await cleanupOldMessageFiles()
   result = addCleanupResults(result, await cleanupOldSessionFiles())
-  result = addCleanupResults(result, await cleanupOldPlanFiles())
   result = addCleanupResults(result, await cleanupOldFileHistoryBackups())
   result = addCleanupResults(result, await cleanupOldSessionEnvDirs())
   result = addCleanupResults(result, await cleanupOldDebugLogs())

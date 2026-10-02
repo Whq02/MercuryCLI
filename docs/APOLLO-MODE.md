@@ -15,15 +15,12 @@ for the user to decide whether the idea is worth continuing.
 default → implement → apollo → flow → sovereign → default
 ```
 
-Shift+Tab from an explicit Strategy session also reaches Apollo.
-
 Each step falls through when its mode is unavailable: from apollo the carousel
 lands on flow when the live flow gate allows it, else on sovereign when bypass is
 available on the context, else on default.
 
-Presentation: title "Apollo Mode", seal `◇`, its own tint; the title distinguishes
-it from Strategy's `◇`. Externally the mode projects as `default`: Apollo is never
-a bypass posture.
+Presentation: title "Apollo Mode", seal `◇`, its own tint. Externally the mode
+projects as `default`: Apollo is never a bypass posture.
 
 Apollo is interactive-only. The headless control surface refuses
 `set_permission_mode` to `apollo` in SDK/print mode — the interview needs a terminal UI.

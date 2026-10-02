@@ -132,8 +132,8 @@ section('2 · buildAgentLaunchPlan — decision laws')
     ).shouldRunAsync === false,
   )
 
-  const modeDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ permissionMode: 'strategy' })] }))
-  check("definition permissionMode wins ('strategy')", modeDef.workerPermissionMode === 'strategy')
+  const modeDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ permissionMode: 'dontAsk' })] }))
+  check("definition permissionMode wins ('dontAsk')", modeDef.workerPermissionMode === 'dontAsk')
 
   const haikuPlan = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ model: 'haiku' })] }))
   check('a haiku definition pin resolves to the haiku row', /haiku/i.test(haikuPlan.model), haikuPlan.model)

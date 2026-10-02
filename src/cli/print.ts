@@ -1063,7 +1063,7 @@ export async function runHeadless(
   }
   armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: [...getAppState().mcp.clients, ...sdkMcp.clients, ...dynamicMcp.clients], messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
 
-  const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'strategy', 'flow', 'dontAsk'])
+  const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
     if (!SDK_MODES.has(mode)) return
     io.outbound.enqueue({

@@ -262,7 +262,6 @@ export type GlobalConfig = {
 
   promptQueueUseCount: number
 
-  lastStrategyModeUse?: number
 
   showExpandedTasks?: boolean
   showSpinnerTree?: boolean

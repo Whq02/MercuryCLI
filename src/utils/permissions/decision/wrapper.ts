@@ -11,9 +11,6 @@ import { logError } from '../../log.js'
 const classifierDecisionModule =
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   (require('../classifierDecision.js') as typeof import('../classifierDecision.js'))
-const autoModeStateModule =
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  (require('../autoModeState.js') as typeof import('../autoModeState.js'))
 const workflowModule = {
   WORKFLOW_TOOL_NAME: (
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -95,12 +92,6 @@ function reasonCarriesAskRule(
     }
   }
   return false
-}
-
-function reasonIsPlanFloor(
-  reason: PermissionDecisionReason | undefined,
-): boolean {
-  return reason?.type === 'mode' && reason.mode === 'strategy'
 }
 
 function workflowRequiresConsent(toolName: string): boolean {
@@ -353,7 +344,6 @@ export type WrapperClassifierResult = Awaited<
 >
 
 export interface WrapperPorts {
-  isAutoModeActive(): boolean
   isAllowlistedTool(
     toolName: string,
     input: { action?: unknown; actions?: unknown } | null,
@@ -380,7 +370,6 @@ export interface WrapperPorts {
 }
 
 export const defaultWrapperPorts: WrapperPorts = {
-  isAutoModeActive: () => autoModeStateModule?.isAutoModeActive() ?? false,
   isAllowlistedTool: (toolName, input) =>
     classifierDecisionModule!.isAutoModeAllowlistedTool(toolName, input),
   resolveAcceptEditsVerdict: async (tool, input, context) => {
@@ -482,11 +471,7 @@ export async function decideToolPermissionWithModes(
       })
     }
 
-    if (
-      appState.toolPermissionContext.mode === 'flow' ||
-      (appState.toolPermissionContext.mode === 'strategy' &&
-        ports.isAutoModeActive())
-    ) {
+    if (appState.toolPermissionContext.mode === 'flow') {
       const headless =
         appState.toolPermissionContext.shouldAvoidPermissionPrompts
       const operatorReachable =
@@ -528,9 +513,6 @@ export async function decideToolPermissionWithModes(
       }
       if (tool.mcpInfo?.effectiveMaxPermission === 'ask') {
         floorTags.push('org-ceiling')
-      }
-      if (reasonIsPlanFloor(engineDecision.decisionReason)) {
-        floorTags.push('plan-floor')
       }
       if (workflowRequiresConsent(tool.name)) {
         floorTags.push('workflow-consent')

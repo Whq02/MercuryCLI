@@ -232,7 +232,6 @@
     "isOverlyBroadPowerShellAllowRule",
     "parseBaseToolsFromCLI",
     "parseToolListFromCLI",
-    "prepareContextForPlanMode",
     "removeDangerousPermissions",
     "restoreDangerousPermissions",
     "setPermissionModeWithGuards",

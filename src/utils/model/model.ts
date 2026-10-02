@@ -142,8 +142,6 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
       return reattach(firstPartyString('opus5'))
     case 'opus55':
       return reattach(firstPartyString('opus55'))
-    case 'opusplan':
-      return reattach(getDefaultSonnetModel())
     case 'best':
       return getBestModel()
     default:
@@ -200,25 +198,6 @@ export function getMainLoopModel(): string {
   const setting = getUserSpecifiedModelSetting()
   const fromDefault = setting === null
   return fromDefault ? getDefaultMainLoopModel() : parseUserSpecifiedModel(setting)
-}
-
-
-export function getRuntimeMainLoopModel(params: {
-  mainLoopModel: string
-  permissionMode?: string
-  exceeds200kTokens?: boolean
-}): string {
-  const { permissionMode } = params
-  const setting = getUserSpecifiedModelSetting()
-  const settingLower = (setting ?? '').trim().toLowerCase().replace(TRAILING_1M_RE, '')
-  const isPlan = permissionMode === 'strategy'
-  if (settingLower === 'opusplan' && isPlan && params.exceeds200kTokens !== true) {
-    return getDefaultOpusModel()
-  }
-  if (getUserSpecifiedModelSetting() === 'haiku' && permissionMode === 'strategy') {
-    return getDefaultSonnetModel()
-  }
-  return params.mainLoopModel
 }
 
 export function isNonCustomOpusModel(model: string): boolean {
@@ -330,7 +309,6 @@ function capitalizeFirst(value: string): string {
 
 export function renderModelSetting(setting: string): string {
   const lowered = setting.trim().toLowerCase().replace(TRAILING_1M_RE, '')
-  if (lowered === 'opusplan') return 'Opus in strategy mode, else Sonnet'
   if (CAPITALIZED_ALIASES.has(lowered)) return capitalizeFirst(setting.trim())
   return renderModelName(setting)
 }
@@ -338,10 +316,6 @@ export function renderModelSetting(setting: string): string {
 export function renderDefaultModelSetting(setting: ModelSetting): string {
   if (setting === null) {
     return computedDefault().row
-  }
-  const lowered = setting.trim().toLowerCase().replace(TRAILING_1M_RE, '')
-  if (lowered === 'opusplan') {
-    return `${renderModelName(getDefaultOpusModel())} in strategy mode, else ${renderModelName(getDefaultSonnetModel())}`
   }
   return renderModelName(parseUserSpecifiedModel(setting))
 }

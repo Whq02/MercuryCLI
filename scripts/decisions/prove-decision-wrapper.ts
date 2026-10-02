@@ -241,7 +241,7 @@ section('the consecutive denial limit falls back to prompting')
   check('limit reached + headless → AbortError', threw)
 }
 
-section('fast-path ports and the strategy+flow twin gate')
+section('fast-path ports')
 {
   let r = await run(
     makeTool(),
@@ -262,10 +262,6 @@ section('fast-path ports and the strategy+flow twin gate')
     j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
   )
 
-  r = await run(makeTool(), makeContext({ mode: 'strategy' }), makePorts({ isAutoModeActive: () => true, isAllowlistedTool: () => true }))
-  check('strategy + isAutoModeActive → the flow band engages (allowlist allow)', r.decision.behavior === 'allow', j(r.decision))
-  r = await run(makeTool(), makeContext({ mode: 'strategy' }), makePorts({ isAutoModeActive: () => false }))
-  check('strategy + flow inactive → the engine ask stands (decidedBy engine)', r.decision.behavior === 'ask' && r.wrapper.decidedBy === 'engine', j(r.wrapper))
 }
 
 section('the headless hook band')

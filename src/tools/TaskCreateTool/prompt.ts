@@ -22,7 +22,6 @@ The task list is how you track progress on complex work, organise it into steps,
 ## When to use it
 - Work that takes 3 or more steps.
 - Non-trivial tasks that need planning.
-- Strategy mode: capture the plan as tasks.
 - When the user has asked for a task list outright.
 - When the user hands you several things to do at once.
 - Immediately after receiving new instructions, so the work is captured before you start.

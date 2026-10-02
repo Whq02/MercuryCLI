@@ -22,7 +22,7 @@ out.defaults = {
   opusNatively1M: model.isDefaultOpusNatively1M(),
 }
 out.parse = Object.fromEntries(
-  ['opus', 'sonnet', 'haiku', 'fable', 'mythos', 'opusplan', 'best', 'sonnet5', 'opus5', 'fable6',
+  ['opus', 'sonnet', 'haiku', 'fable', 'mythos', 'best', 'sonnet5', 'opus5', 'fable6',
    'claude-opus-4-1', 'sonnet5[1m]', 'claude-sonnet-5', 'claude-opus-5'].map(s => [s, model.parseUserSpecifiedModel(s)]),
 )
 out.canonical = Object.fromEntries(

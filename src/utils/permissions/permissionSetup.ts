@@ -3,7 +3,6 @@ import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import {
-  isAutoModeActive,
   isAutoModeCircuitBroken,
   setAutoModeActive,
   setAutoModeCircuitBroken,
@@ -245,7 +244,7 @@ export function restoreDangerousPermissions(context: ToolPermissionContext): Too
 
 
 function modeUsesClassifier(mode: PermissionMode): boolean {
-  return mode === 'flow' || (mode === 'strategy' && isAutoModeActive())
+  return mode === 'flow'
 }
 
 export function transitionPermissionMode(
@@ -256,13 +255,6 @@ export function transitionPermissionMode(
   if (fromMode === toMode) return context
 
   let next = context
-
-  if (fromMode === 'strategy') {
-    next = clearPreStrategyMode(next)
-  }
-  if (toMode === 'strategy' && fromMode !== 'strategy') {
-    return prepareContextForPlanMode(next)
-  }
 
   const wasClassifier = modeUsesClassifier(fromMode)
   const willClassifier = modeUsesClassifier(toMode)
@@ -280,19 +272,6 @@ export function transitionPermissionMode(
   }
 
   return next
-}
-
-export function prepareContextForPlanMode(context: ToolPermissionContext): ToolPermissionContext {
-  if (context.mode === 'strategy') return context
-  logForDebugging(`strategy mode entry: stashing pre-strategy mode ${context.mode}`)
-  return { ...(context as object), preStrategyMode: context.mode } as ToolPermissionContext
-}
-
-function clearPreStrategyMode(context: ToolPermissionContext): ToolPermissionContext {
-  if ((context as { preStrategyMode?: PermissionMode }).preStrategyMode === undefined) return context
-  const next = { ...(context as object) } as { preStrategyMode?: PermissionMode }
-  delete next.preStrategyMode
-  return next as ToolPermissionContext
 }
 
 export function isDefaultPermissionModeAuto(): boolean {
@@ -416,7 +395,6 @@ export async function verifyAutoModeGateAccess(
   )
 
   const wasAuto = currentContext.mode === 'flow'
-  const wasPlanWithAuto = currentContext.mode === 'strategy' && isAutoModeActive()
 
   const explicitAvailable = !disabledBySettings && modelSupported
   if (explicitAvailable) {
@@ -429,7 +407,7 @@ export async function verifyAutoModeGateAccess(
   logForDebugging(`auto mode unavailable: ${reason}`)
 
   const notification =
-    wasAuto || wasPlanWithAuto ? getAutoModeUnavailableNotification(reason) : undefined
+    wasAuto ? getAutoModeUnavailableNotification(reason) : undefined
 
   return {
     updateContext: context => kickOutOfAuto(context, carouselAvailable),
@@ -443,19 +421,13 @@ function setAutoAvailability(context: ToolPermissionContext, available: boolean)
 }
 
 function kickOutOfAuto(context: ToolPermissionContext, available: boolean): ToolPermissionContext {
-  const mode = context.mode
-  if (mode !== 'flow' && !(mode === 'strategy' && isAutoModeActive())) {
+  if (context.mode !== 'flow') {
     return setAutoAvailability(context, available)
   }
   setAutoModeActive(false)
   setNeedsAutoModeExitAttachment(true)
-  let next = restoreDangerousPermissions(context)
-  if (mode === 'flow') {
-    recordModeTransition({ from: 'flow', to: 'default', road: 'flow-unavailable' })
-    next = { ...(next as object), mode: 'default' } as ToolPermissionContext
-  } else {
-    next = clearPreStrategyMode({ ...(next as object), preStrategyMode: 'default' } as ToolPermissionContext)
-  }
+  recordModeTransition({ from: 'flow', to: 'default', road: 'flow-unavailable' })
+  const next = { ...(restoreDangerousPermissions(context) as object), mode: 'default' } as ToolPermissionContext
   return setAutoAvailability(next, available)
 }
 
