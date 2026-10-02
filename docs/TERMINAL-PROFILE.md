@@ -117,6 +117,10 @@ tracking (`MERCURY_FULLSCREEN`) and the terminal ground (`MERCURY_OASIS_BG`
 and restored on exit, TTY-only: pure black on the True Black default, the
 oasis navy when that appearance is chosen in `/appearance`).
 
+## The ping
+
+When a chat finishes its turn while you are away — the terminal reports itself unfocused, or has seen no key of yours for a few seconds — Mercury pings the terminal once, an iTerm2 notification there and the terminal bell elsewhere; `view.ping: false` in settings.json (the Ping row of `/config`) turns it off.
+
 ## Reduced motion
 
 Two inputs, either suffices:
