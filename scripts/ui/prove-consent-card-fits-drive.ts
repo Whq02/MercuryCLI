@@ -278,7 +278,7 @@ if (!ONLY || ONLY.has('sovereign')) {
   check('sovereign + tool ask rule: the turn settled', rowsHaving(ruledRows, 'Done.'), ruled.driverOut.slice(-300))
   check('sovereign + tool ask rule: NO consent card painted', !rowsHaving(ruledRows, 'Do you want to') && !rowsHaving(ruledRows, '⦿ Edit file'))
   check('sovereign + tool ask rule: the edit landed on disk', ruledEdited.includes('gamma line two'))
-  check('sovereign + tool ask rule: the allowance row names the posture and the rule that would have asked', rowsHaving(ruledRows, 'Allowed by sovereign mode') && rowsHaving(ruledRows, "Permission rule 'Edit'"))
+  check('sovereign + tool ask rule: the allowance row names the posture and the rule that would have asked', rowsHaving(ruledRows, 'Allowed by sovereign mode') && rowsHaving(ruledRows, 'the rule Edit'))
   const persisted = sessionFiles(join(run.paths.home, '.claude', 'projects'))
     .map(f => readFileSync(f, 'utf8'))
     .some(text => text.includes('"bypassed_ask"') && text.includes('"safetyCheckAsk"') && text.includes('sensitive file'))

@@ -20,7 +20,7 @@ const rule: Reason = {
   rule: {
     source: 'userSettings',
     ruleBehavior: 'ask',
-    ruleValue: { toolName: 'Bash', ruleContent: 'rm:*' },
+    ruleValue: { toolName: 'Bash', ruleContent: 'rm *' },
   } as never,
 }
 const plain: Reason[] = [
@@ -57,7 +57,7 @@ check('R2 a part\'s mode reason is decoded', back.reasons?.get('echo done')?.dec
 check('R2 a part with no reason keeps none', back.reasons?.get('ls')?.behavior === 'passthrough' && back.reasons.get('ls')?.decisionReason === undefined)
 
 const poison: Array<[string, unknown]> = [
-  ['a string', 'The rule Bash(rm:*) requires confirmation'],
+  ['a string', 'The rule Bash(rm *) in your user settings asks first.'],
   ['null', null],
   ['an unknown type', { type: 'legend', reason: 'x' }],
   ['a rule without a ruleValue', { type: 'rule', rule: { source: 'userSettings' } }],
@@ -77,9 +77,9 @@ check('R3 poison: a subcommandResults entry that is not a pair is dropped, the w
 check('R3 encode(undefined) is undefined (no fabricated field on the wire)', encodeDecisionReasonForWire(undefined) === undefined)
 
 check(
-  'R4 the structured form carries the rule the card names (Bash(rm:*))',
+  'R4 the structured form carries the rule the card names (Bash(rm *))',
   (trip(rule) as { rule?: { ruleValue?: { toolName?: string; ruleContent?: string } } }).rule?.ruleValue?.toolName === 'Bash' &&
-    (trip(rule) as { rule?: { ruleValue?: { ruleContent?: string } } }).rule?.ruleValue?.ruleContent === 'rm:*',
+    (trip(rule) as { rule?: { ruleValue?: { ruleContent?: string } } }).rule?.ruleValue?.ruleContent === 'rm *',
 )
 
 console.log(failures === 0 ? '\n ✅ THE DECISION REASON CROSSES THE DOORWAY WHOLE' : `\n ❌ ${failures} FAILED`)

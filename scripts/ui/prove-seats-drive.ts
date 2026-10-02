@@ -323,7 +323,7 @@ function seedWorld(): { home: string; cwd: string } {
   const cfg = JSON.parse(readFileSync(cfgPath, 'utf8')) as Record<string, unknown>
   cfg.switchboardCapacity = { askedAt: Date.now() - 86_400_000, allowed: true, recommendedSeats: SEAT_CEILING }
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(sleep:*)'] } }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(sleep *)'] } }))
   return { home, cwd }
 }
 
