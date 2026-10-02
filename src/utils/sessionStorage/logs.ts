@@ -65,7 +65,6 @@ import {
   getTranscriptPathForSession,
 } from './paths.js'
 import { appendEntryToFile, getProject, getSessionMessages } from './writer.js'
-import { RETIRED_TRANSCRIPT_ROW_KEYS } from '../../migrations/retiredCrewSpellings.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request interrupted by user[^\]]*\])/
@@ -1272,7 +1271,7 @@ async function readLiteMetadata(
     typeof cwdField === 'string' && cwdField
       ? cwdField
       : extractJsonStringField(head, 'cwd')
-  const crewName = extractJsonStringField(head, 'crewName') ?? extractJsonStringField(head, Object.keys(RETIRED_TRANSCRIPT_ROW_KEYS).find(k => RETIRED_TRANSCRIPT_ROW_KEYS[k] === 'crewName')!)
+  const crewName = extractJsonStringField(head, 'crewName')
   const agentSetting = extractJsonStringField(head, 'agentSetting')
 
   const firstPrompt =

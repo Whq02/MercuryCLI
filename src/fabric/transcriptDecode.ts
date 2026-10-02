@@ -1,7 +1,6 @@
 import { parseJSONL } from '../utils/json.js'
 import { recordToEntry } from './entryCodec.js'
 import { bodyShapeIssue, validateRecord } from './validate.js'
-import { readRetiredTranscriptRow } from '../migrations/retiredCrewSpellings.js'
 
 export type MalformedLine = { line: number; snippet: string }
 export type InvalidShape = { index: number; kind: string; reason: string }
@@ -146,5 +145,5 @@ export function decodeTranscriptBuffer<T>(data: string | Buffer): DecodedTranscr
   }
   const malformed = values.length === totalLines ? [] : classifyMalformed(data)
   const { valid, invalid } = classifyInvalid(values)
-  return { entries: valid.map(row => readRetiredTranscriptRow(row)) as T[], malformed, invalid, totalLines }
+  return { entries: valid as T[], malformed, invalid, totalLines }
 }

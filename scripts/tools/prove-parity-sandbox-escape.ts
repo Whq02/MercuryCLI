@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { readFileSync } from 'node:fs'
 import { commandQualifiesForExclusion } from '../../src/tools/BashTool/shouldUseSandbox.ts'
 
 let failures = 0
@@ -7,7 +8,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
 }
 
-const patterns = ['git:*']
+const patterns = ['git *']
 
 t('pure excluded command qualifies', commandQualifiesForExclusion('git status', patterns) === true)
 t(
@@ -38,5 +39,9 @@ t(
 t('empty exclusion list never qualifies', commandQualifiesForExclusion('git status', []) === false)
 t('blank command stays sandboxed', commandQualifiesForExclusion('   ', patterns) === false)
 t('trailing separator does not defeat a legit exclusion', commandQualifiesForExclusion('git status ;', patterns) === true)
+
+const adapter = readFileSync(new URL('../../src/utils/sandbox/sandbox-adapter.ts', import.meta.url), 'utf8')
+const addRoad = adapter.slice(adapter.indexOf('export function addToExcludedCommands'), adapter.indexOf('const existing = SandboxManager.getExcludedCommands()'))
+t('the add road keeps the suggested rule as written', /pattern = bashRule\.ruleContent\n/.test(addRoad) && !/\.replace\(/.test(addRoad))
 
 process.exit(failures)

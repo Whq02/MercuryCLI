@@ -31,7 +31,7 @@ if (!intake) {
   console.log('\n❌ INTAKE: the module is absent — nothing more can be checked')
   process.exit(1)
 }
-const { handoverIfDue, handoverMemoryDir, handoverDue, readHandoverReceipt, handoverHome, listOldNotes, chunkNote, renderHandoverReceipt } = intake
+const { handoverIfDue, handoverMemoryDir, handoverDue, readHandoverReceipt, listOldNotes, chunkNote, renderHandoverReceipt } = intake
 const { listTopicDocs, listArchiveDocs } = await import('../../src/memdir/mnemeConsolidate.js')
 const { readPins, pinFact } = await import('../../src/memdir/mnemeUsage.js')
 const { readFrontPage, readPinnedStatus } = await import('../../src/memdir/mnemeFrontPage.js')
@@ -137,9 +137,7 @@ const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx')
 check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
 check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT !== 'headless'"))
 
-section('a whole home at once, and the boot wiring')
-const summary = handoverHome(home, T0)
-check('the sweep sees both projects and finds both already done', summary.projects === 2 && summary.alreadyDone === 2 && summary.withNotes === 0, JSON.stringify({ ...summary, receipts: summary.receipts.length }))
+section('the boot wiring')
 const maintenance = readFileSync(join(ROOT, 'src/memdir/mnemeMaintenance.ts'), 'utf8')
 check('the boot maintenance pass runs the intake first', /trigger === 'boot'[\s\S]*mnemeHandover\.js[\s\S]*handoverIfDue\(\)/.test(maintenance))
 

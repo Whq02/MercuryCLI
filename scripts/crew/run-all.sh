@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-watch: src/ink.ts
 # gate-watch: src/services/providers/local/ollamaChatTransport.ts src/services/providers/openaicompat/compatChatCallModel.ts
-# gate-watch: src/migrations/retiredCrewSpellings.ts src/substrate/operationJournal.ts
+# gate-watch: src/substrate/operationJournal.ts
 # gate-class: cpu
 # gate-watch: scripts/ui/vshot.py src/daemon/** src/utils/crew/crewClient*
 # gate-watch: src/utils/daemonBreaker* src/utils/swarm/crewHelpers*

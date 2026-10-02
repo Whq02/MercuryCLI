@@ -454,19 +454,19 @@ export const SandboxManager: ISandboxManager = {
     if (!SandboxManager.isSandboxEnabledInSettings()) return null
     const platform = getPlatform()
     if (platform === 'wsl' && String(getWslVersion() ?? '') === '1') {
-      return 'The sandbox (sandbox.enabled) needs WSL2; WSL1 is not supported.'
+      return 'The sandbox (guardrails.sandbox.enabled) needs WSL2; WSL1 is not supported.'
     }
     if (!isSupportedPlatformSync()) {
-      return `The sandbox (sandbox.enabled) is not supported on ${platform}; it runs on macOS, Linux and WSL2.`
+      return `The sandbox (guardrails.sandbox.enabled) is not supported on ${platform}; it runs on macOS, Linux and WSL2.`
     }
     if (!SandboxManager.isPlatformInEnabledList()) {
-      return `The sandbox (sandbox.enabled) is not enabled on ${platform} by the sandbox.enabledPlatforms setting.`
+      return `The sandbox (guardrails.sandbox.enabled) is not enabled on ${platform} by the guardrails.sandbox.enabledPlatforms setting.`
     }
     const deps = SandboxManager.checkDependencies()
     if ((deps as { errors?: string[] }).errors?.length) {
       const errors = (deps as { errors: string[] }).errors.join(', ')
       const hint = platform === 'macos' ? 'Run /sandbox and /health to diagnose.' : `Install the missing tools: ${errors}.`
-      return `The sandbox (sandbox.enabled) is missing dependencies: ${errors}. ${hint}`
+      return `The sandbox (guardrails.sandbox.enabled) is missing dependencies: ${errors}. ${hint}`
     }
     return null
   },
@@ -646,7 +646,7 @@ export function addToExcludedCommands(command: string, permissionUpdates?: Permi
         r => r.toolName === 'Bash',
       )
       if (bashRule?.ruleContent) {
-        pattern = bashRule.ruleContent.replace(/:\*$/, '')
+        pattern = bashRule.ruleContent
         break
       }
     }

@@ -219,6 +219,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
     ],
   },
   dead_thinking: { good: { dead: [{ messageId: 'm', blockIndex: 0 }] }, bad: [{ label: 'dead is text', field: 'dead', fields: { dead: 'm' } }] },
+  images_left_out: { good: { count: 1, images: 21, sidePx: 1568 }, bad: [{ label: 'count is text', field: 'count', fields: { count: 'one', images: 21, sidePx: 1568 } }] },
   run_protocol_delta: { good: { tools: ['Run'], body: 'b' }, bad: [{ label: 'tools is text', field: 'tools', fields: { tools: 'Run', body: 'b' } }] },
   lane_boundary: { good: { laneId: 'l', goal: 'g', boundary: 'b' }, bad: [{ label: 'boundary is missing', field: 'boundary', fields: { laneId: 'l', goal: 'g' } }] },
   bagel_console: { good: { errorCount: 1, warningCount: 0, sample: 's' }, bad: [{ label: 'errorCount is text', field: 'errorCount', fields: { errorCount: 'one', warningCount: 0, sample: 's' } }] },

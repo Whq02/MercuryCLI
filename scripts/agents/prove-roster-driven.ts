@@ -299,6 +299,31 @@ section("§2e the scout's tool gate itself: the pool is the read-only pool, the 
   check('the ask road answers the same: a writing form is denied, a reading form and the skill door are not', typeof askRoad === 'function' && askRoad(pool[4]!, { apply: true }) !== null && askRoad(pool[4]!, {}) === null && askRoad(pool[1]!, { skill: 'mercury-docs' }) === null && askRoad(pool[3]!, { items: [] }) !== null && askRoad(pool[5]!, {}) !== null, String(askRoad?.(pool[4]!, { apply: true })))
 }
 
+section("§2f the agents screen says the scout's tools are the read-only pool, and the crew agent's are all")
+{
+  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
+  const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
+  const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.ts')
+  const { agentFaceDetailLines } = await import('../../src/components/BootAgentsScreen.tsx')
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const { SCOUT_TOOLS_DESCRIPTION } = await import('../../src/tools/AgentTool/scoutPolicy.ts')
+  const { enableConfigs } = await import('../../src/utils/config.ts')
+  enableConfigs()
+  const tools = getAllBaseTools()
+  const lineFor = (agent: typeof MERCURY_SCOUT_AGENT): string => {
+    const eff = resolveEffectiveAgentRuntime(agent as never, { parentModel: 'claude-fable-5', sessionEffort: undefined, tools })
+    return agentFaceDetailLines({ id: `agent:${agent.agentType}`, kind: 'agent', agent } as never, new Map(), eff).find(l => l.startsWith('tools:')) ?? '(no tools line)'
+  }
+  const scoutLine = lineFor(MERCURY_SCOUT_AGENT)
+  const crewLine = lineFor(MERCURY_CREW_AGENT)
+  check("the scout's detail says the read-only pool — the same words the Agent tool's roster line uses", scoutLine === `tools: ${SCOUT_TOOLS_DESCRIPTION}` && scoutLine.includes('read-only'), scoutLine)
+  check("the scout's detail never says all", !/\ball\b/.test(scoutLine), scoutLine)
+  check("the crew agent's detail still says all", crewLine.startsWith('tools: all'), crewLine)
+  const scoutEff = resolveEffectiveAgentRuntime(MERCURY_SCOUT_AGENT as never, { parentModel: 'claude-fable-5', sessionEffort: undefined, tools })
+  const crewEff = resolveEffectiveAgentRuntime(MERCURY_CREW_AGENT as never, { parentModel: 'claude-fable-5', sessionEffort: undefined, tools })
+  check('the resolution itself carries the read-only fact for the scout alone', scoutEff.tools?.readOnly === true && crewEff.tools?.readOnly === undefined, JSON.stringify({ scout: scoutEff.tools?.readOnly, crew: crewEff.tools?.readOnly }))
+}
+
 section('§2b the scout\'s shell: a read-only command runs, a writing command is refused, nothing is written')
 {
   const word = 'shell'

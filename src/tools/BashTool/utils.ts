@@ -1,12 +1,8 @@
-import { getOriginalCwd } from '../../bootstrap/state.js'
-import { setCwd } from '../../utils/Shell.js'
-import { shouldMaintainProjectWorkingDir } from '../../utils/envUtils.js'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE, type OutputBudget } from '../../utils/shell/outputLimits.js'
 import { countCharInString, plural } from '../../utils/stringUtils.js'
 import { cutAroundSpillNotice } from '../../utils/toolErrors.js'
 import { clampClause } from '../../utils/waitCeiling.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
-import type { ToolPermissionContext } from '../../Tool.js'
 import type {
   Base64ImageSource,
   ContentBlockParam,
@@ -114,19 +110,6 @@ export function formatExcerpt(content: string, maxLength: number): string {
 export function outputBudgetClause(budget: OutputBudget): string | undefined {
   if (budget.clampedTo === undefined) return undefined
   return `[${clampClause('max_output_chars', budget.effective, budget.clampedTo, 'chars')}]`
-}
-
-
-export const stdErrAppendShellResetMessage = (stderr: string): string =>
-  `${stderr.trim()}\nShell cwd was reset to ${getOriginalCwd()}`
-
-export function resetCwdIfOutsideProject(_toolPermissionContext: ToolPermissionContext): boolean {
-  const originalCwd = getOriginalCwd()
-  if (shouldMaintainProjectWorkingDir()) {
-    setCwd(originalCwd)
-    return false
-  }
-  return false
 }
 
 

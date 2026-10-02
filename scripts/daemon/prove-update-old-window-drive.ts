@@ -56,11 +56,13 @@ const oldDist = ((): string => {
   mkdirSync(cache, { recursive: true })
   execFileSync('sh', ['-c', `git -C "${ROOT}" archive ${OLD_SHA} | tar -x -C "${cache}"`], { stdio: 'inherit' })
   symlinkSync(join(ROOT, 'node_modules'), join(cache, 'node_modules'))
-  const built = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined } })
+  const scratchDist = mkdtempSync(join(cache, 'build-'))
+  const built = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined, MERCURY_BUILD_OUTDIR: scratchDist } })
   if (built.status !== 0) {
     console.error(`✗ the ${OLD_SHA} tree did not build: ${(built.stdout + built.stderr).slice(-2000)}`)
     process.exit(1)
   }
+  renameSync(scratchDist, dist)
   return dist
 })()
 const treeOf = (sha: string): string => execFileSync('git', ['-C', ROOT, 'rev-parse', `${sha}^{tree}`], { encoding: 'utf8' }).trim()

@@ -82,10 +82,6 @@ const outcomeSchema = z
       questionId: z.string(),
     }),
     z.object({
-      kind: z.literal('finish-requested'),
-      retainedDecisionIds: z.array(z.string()).default([]),
-    }),
-    z.object({
       kind: z.literal('cancelled'),
       preserveDraft: semanticBoolean(z.boolean().default(false)),
     }),
@@ -168,11 +164,6 @@ function typedOutcomeText(output: Output): string | null {
         answersSoFarBlock(output)
       )
     }
-    case 'finish-requested':
-      return (
-        'The user has finished the interview early — they have decided enough. Stop asking further questions and proceed with the answers provided.' +
-        answersSoFarBlock(output)
-      )
     case 'cancelled':
       return (
         `The user cancelled the interview${outcome.preserveDraft ? ' (drafts preserved for resume)' : ''}. Do not re-ask these questions now.` +

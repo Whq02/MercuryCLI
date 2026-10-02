@@ -28,8 +28,9 @@ review-tools/
     └── index.mjs                 whatever the extension's own servers need
 ```
 
-Every contribution kind mirrors what the operator can already place by hand in their own
-`.mercury/` estate, with the same shapes — a maker learns one vocabulary and nothing is
+Every contribution kind keeps the shape the operator already knows from their own
+`.mercury/` estate (skills, agents, hooks and servers are placed by hand there in the same
+form; commands are the extension's own) — a maker learns one vocabulary and nothing is
 reserved to built-ins:
 
 - **skills** — directories whose child folders each hold a `SKILL.md`; registered as

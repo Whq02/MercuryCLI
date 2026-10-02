@@ -87,7 +87,7 @@ import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { AGENT_TOOL_NAME } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
@@ -125,6 +125,7 @@ export function filterToolsForAgent(args: {
 
 export type ResolvedAgentTools = {
   hasWildcard: boolean
+  readOnly?: true
   validTools: string[]
   invalidTools: string[]
   resolvedTools: Tools
@@ -144,12 +145,13 @@ export function resolveAgentTools(
   definition: Pick<
     AgentDefinition,
     'tools' | 'disallowedTools' | 'source' | 'permissionMode'
-  >,
+  > & { agentType?: string },
   availableTools: Tools,
   isAsync = false,
   isMainThread = false,
 ): ResolvedAgentTools {
   const isBuiltIn = definition.source === 'built-in'
+  const readOnly = isBuiltIn && definition.agentType === MERCURY_SCOUT_AGENT_TYPE ? { readOnly: true as const } : {}
   const filtered = isMainThread
     ? availableTools
     : filterToolsForAgent({
@@ -174,6 +176,7 @@ export function resolveAgentTools(
   ) {
     return {
       hasWildcard: true,
+      ...readOnly,
       validTools: [],
       invalidTools: [],
       resolvedTools: survivors,
@@ -213,6 +216,7 @@ export function resolveAgentTools(
 
   return {
     hasWildcard: false,
+    ...readOnly,
     validTools,
     invalidTools,
     resolvedTools,

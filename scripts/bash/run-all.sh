@@ -27,7 +27,7 @@
 # gate-watch: src/services/ide/cppProject.ts src/state/AppStateStore.ts src/tasks/taskOutcomeEnvelope.ts
 # gate-watch: src/tools/WorkflowTool/WorkflowTool.tsx src/utils/* src/utils/bash/shellQuote.ts
 # gate-watch: src/utils/bash/specs/** src/utils/hooks/execution.ts src/utils/permissions/**
-# gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/shell/*
+# gate-watch: src/utils/processUserInput/processBashCommand.tsx src/utils/settings/types.ts src/utils/settings/settings.ts src/utils/shell/*
 # gate-watch: src/utils/task/diskOutput.ts vendor/brush.lock.json
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -195,7 +195,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/editor-bridge/prove-editor-door.ts', 'option-editor-link', 'names the flags it proves unknown'],
   ['scripts/updater/prove-update-journey.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
   ['scripts/updater/prove-never-public.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
-  ['src/migrations/retiredCrewSpellings.ts', 'option-crew-words', 'a stored-spelling table that awaits the lead\'s ruling'],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {

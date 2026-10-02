@@ -131,7 +131,7 @@ const scope = await agent(
   "\\n1. Choose the diff command(s), then RUN them — the diff must come back non-empty.\\n" +
   "2. List every changed file.\\n" +
   "3. Sum up the change in a single paragraph.\\n" +
-  "4. Read the project's instruction files near the changed code (MERCURY.md and AGENTS.md) and note the conventions a reviewer needs.\\n\\n" +
+  "4. Read the project's instruction files near the changed code (MERCURY.md, or AGENTS.md where the project keeps its conventions there) and note the conventions a reviewer needs.\\n\\n" +
   "diffCommand must come back ready to paste into a shell. Answer only through the structured output.",
   withModel({ label: "scope", schema: BOUNDS_SCHEMA }, LANE_MODEL)
 )

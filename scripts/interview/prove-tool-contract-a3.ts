@@ -120,9 +120,10 @@ t.section('§4 — typed outcomes are honest on the wire')
   t.check('discussion promises the preserved session', discuss.includes('resume at this question'))
   t.check('discussion is not a fake submission', !discuss.includes('User has answered your questions'))
 
-  const finish = wire({ ...base, answers: { iq_engine: 'Redis' }, outcome: { kind: 'finish-requested', retainedDecisionIds: [] } })
-  t.check('finish says stop asking', finish.includes('finished the interview early') && finish.includes('Stop asking'))
-  t.check('finish carries the answers so far', finish.includes('"Redis"'))
+  const finish = AskUserQuestionTool.outputSchema.safeParse({ ...base, answers: { iq_engine: 'Redis' }, outcome: { kind: 'finish-requested', retainedDecisionIds: [] } })
+  t.check('there is no finish outcome: the output schema refuses the arm', !finish.success)
+  const finishWire = wire({ ...base, answers: { iq_engine: 'Redis' }, outcome: { kind: 'finish-requested', retainedDecisionIds: [] } })
+  t.check('…and the wire never says the interview finished early', !/finished the interview early|Stop asking/.test(finishWire), finishWire)
 
   const cancel = wire({ ...base, outcome: { kind: 'cancelled', preserveDraft: true } })
   t.check('cancel names itself + draft preservation', cancel.includes('cancelled the interview') && cancel.includes('drafts preserved'))

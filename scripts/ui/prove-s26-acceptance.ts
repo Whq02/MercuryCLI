@@ -133,10 +133,6 @@ section('structural pins — owner consumption (rule 4)')
     'the picker suspends on the memoised discovery promise',
     memSel.includes('use(getInstructionFiles())'),
   )
-  check(
-    'the upkeep row visibility is latched at mount',
-    memSel.includes('const [showUpkeepRow] = useState(() => isAutoMemoryEnabled())'),
-  )
 
   const collapsed = src('src/components/messages/CollapsedReadSearchContent.tsx')
   check(

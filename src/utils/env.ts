@@ -103,7 +103,6 @@ const WSL_INTEROP_MARKER = '/proc/sys/fs/binfmt_misc/WSLInterop'
 const DOCKER_MARKER = '/.dockerenv'
 const HYPERVISOR_UUID_FILE = '/sys/hypervisor/uuid'
 const DIGITALOCEAN_APP_DOMAIN = 'ondigitalocean.app'
-const CONDUCTOR_BUNDLE_ID = 'com.conductor.app'
 
 export const detectDeploymentEnvironment = memoize((): string => {
   const envVars = process.env
@@ -195,7 +194,6 @@ export const env = {
       return false
     }
   }),
-  isConductor: (): boolean => process.env.__CFBundleIdentifier === CONDUCTOR_BUNDLE_ID,
   detectDeploymentEnvironment,
 }
 

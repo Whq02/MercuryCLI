@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { buildTool, stringInputField, type ToolUseContext, type ToolResult, type ToolPermissionContext } from '../../Tool.js'
+import { buildTool, stringInputField, type ToolUseContext, type ToolResult } from '../../Tool.js'
 import { POWERSHELL_TOOL_NAME } from './toolName.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -47,8 +47,6 @@ import {
   isImageOutput,
   outputBudgetClause,
   resizeShellImageOutput,
-  resetCwdIfOutsideProject,
-  stdErrAppendShellResetMessage,
   stripEmptyLines,
 } from '../BashTool/utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from '../BashTool/maxOutputChars.js'
@@ -354,10 +352,6 @@ async function* runPowerShell(
     const interruptedByUser = result.interrupted && abortController.signal.reason === 'interrupt'
 
     let stderr = ''
-    if (isMainThread) {
-      const appContext = context.getAppState().toolPermissionContext as ToolPermissionContext
-      if (resetCwdIfOutsideProject(appContext)) stderr = stdErrAppendShellResetMessage(stderr)
-    }
 
     if (result.backgroundTaskId !== undefined) {
       return {

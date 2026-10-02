@@ -57,6 +57,7 @@ prove-select-numeric-affordance.ts
 prove-session-class.ts
 prove-session-picker-core.ts
 prove-settings-popup-frame.ts
+prove-settings-popup-header.ts
 prove-popup-gutter-frames.ts
 prove-shift-rect.ts
 prove-spinner-tips.ts

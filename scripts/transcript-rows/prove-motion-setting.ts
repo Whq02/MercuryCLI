@@ -6,7 +6,6 @@ import { join } from 'node:path'
 
 const HOME = mkdtempSync(join(tmpdir(), 'motion-setting-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
-delete process.env.CLAUDE_CONFIG_DIR
 delete process.env.MERCURY_CRITTER_IDLE
 delete process.env.MERCURY_LIVE_GLYPHS
 

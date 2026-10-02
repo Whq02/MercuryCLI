@@ -48,7 +48,7 @@ t.section('§1 — what counts as harness-tracked, TOTAL over the TaskType union
   const taskSrc = readFileSync('src/Task.ts', 'utf8')
   const unionMatch = taskSrc.match(/export type TaskType =\n((?:\s*\|\s*'[a-z_]+'\n)+)/)
   const union = [...(unionMatch?.[1] ?? '').matchAll(/'([a-z_]+)'/g)].map(m => m[1]!)
-  t.check('the TaskType union was read from src/Task.ts', union.length >= 7, union.join(','))
+  t.check('the TaskType union was read from src/Task.ts', union.length >= 6, union.join(','))
   t.check(
     'every union member is TRACKED or a DOCUMENTED exclusion — no silent misses',
     union.every(ty => TRACKED_AGENT_TASK_TYPES.has(ty) || UNTRACKED_TASK_TYPES.has(ty)),

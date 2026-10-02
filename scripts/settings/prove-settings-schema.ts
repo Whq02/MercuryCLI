@@ -17,7 +17,6 @@ function check(name: string, ok: boolean, detail?: string): void {
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'ownname-schema-'))
 process.env.MERCURY_CONFIG_DIR = scratchHome
-delete process.env.CLAUDE_CONFIG_DIR
 
 const { generateSettingsJSONSchema } = await import('../../src/utils/settings/schemaOutput.js')
 const { ensureLocalSettingsSchema, settingsSchemaLocalPath } = await import(

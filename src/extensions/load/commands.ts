@@ -15,6 +15,7 @@ import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { executeShellCommandsInPrompt } from '../../utils/promptShellExecution.js'
 import { activeFor, type ActiveExtension } from '../active.js'
 import { substituteOptionsInCommand, substituteOptionsInContent, substituteRootAndData } from '../options.js'
+import { baseDirLine } from '../../skills/baseDirLine.js'
 
 type BuildInput = {
   ext: ActiveExtension
@@ -86,7 +87,7 @@ function buildCommand(input: BuildInput): Command {
     ...(skill && skillDir ? { skillRoot: skillDir } : {}),
     async getPromptForCommand(args: string, context?: unknown): Promise<Array<{ type: 'text'; text: string }>> {
       let text = body
-      if (skill && skillDir) text = `Base directory for this skill: ${skillDir}\n\n${text}`
+      if (skill && skillDir) text = `${baseDirLine(skillDir)}${text}`
       text = substituteArguments(text, args, true, argNames)
       text = substituteRootAndData(text, root, id)
       text = substituteOptionsInContent(text, ext.options, optionSchema)

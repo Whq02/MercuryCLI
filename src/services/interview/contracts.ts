@@ -48,7 +48,6 @@ export interface InterviewContextRef {
 export type InterviewOutcome =
   | { kind: 'answers-submitted'; decisionRecordId: string }
   | { kind: 'discussion-requested'; questionId: InterviewQuestionId }
-  | { kind: 'finish-requested'; retainedDecisionIds: InterviewDecisionId[] }
   | { kind: 'cancelled'; preserveDraft: boolean }
 
 export type InterviewEvent =
@@ -119,12 +118,6 @@ export type InterviewEvent =
       atMs: number
       questionId: InterviewQuestionId
       proposedValue?: InterviewAnswerValue
-    }
-  | {
-      kind: 'finish-requested'
-      eventId: InterviewEventId
-      atMs: number
-      retainedDecisionIds: InterviewDecisionId[]
     }
   | {
       kind: 'submitted'
@@ -290,13 +283,6 @@ function applyEvent(s: InterviewSessionState, event: InterviewEvent): InterviewS
           ? { ...s.questions, [event.questionId]: { ...qs, draft: event.proposedValue } }
           : s.questions
       return { ...s, phase: 'asking', discussing: null, focus: event.questionId, questions }
-    }
-    case 'finish-requested': {
-      return {
-        ...s,
-        phase: 'completed',
-        outcome: { kind: 'finish-requested', retainedDecisionIds: event.retainedDecisionIds },
-      }
     }
     case 'submitted': {
       return {

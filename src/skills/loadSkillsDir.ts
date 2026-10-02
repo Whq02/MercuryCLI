@@ -46,6 +46,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { parseUserSpecifiedModel } from '../utils/model/model.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
+import { baseDirLine } from './baseDirLine.js'
 
 export type LoadedFrom =
   | 'skills'
@@ -248,7 +249,7 @@ export function createSkillCommand(options: {
   ) => {
     let content = markdownContent
     if (baseDir !== undefined) {
-      content = `Base directory for this skill: ${baseDir} (read or grep files under it for the skill's own references)\n\n${content}`
+      content = `${baseDirLine(baseDir)}${content}`
     }
     content = substituteArguments(content, args, true, fields.argNames)
     if (baseDir !== undefined) {

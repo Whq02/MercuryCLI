@@ -37,6 +37,12 @@ section('the registration source reads no environment')
   check('exactly two bundled scripts are imported', bundledScripts.length === 2, bundledScripts.join(','))
 }
 
+section('the review scope step reads the guide files Mercury reads')
+{
+  const review = read('src/tools/WorkflowTool/bundled/code-review.ts')
+  check("the scope step names MERCURY.md, then AGENTS.md where a project keeps its conventions there — and no other tool's guide file", review.includes('(MERCURY.md, or AGENTS.md where the project keeps its conventions there)'))
+}
+
 section('the registry after startup registration: exactly the two built-ins')
 {
   await import('../../src/tools.js')

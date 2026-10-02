@@ -29,7 +29,7 @@ const IDENTIFIERS = [
 ]
 
 const STRAY: Array<{ name: string; re: RegExp }> = [
-  { name: '/login — the command spelled without its s', re: /\/login(?=$|[^A-Za-z0-9_-])/ },
+  { name: '/login — the command spelled without its s', re: /(?<![A-Za-z0-9_-])\/login(?=$|[^A-Za-z0-9_-])/ },
   { name: '— login — a title or lockup word', re: /— login(?=$|[^A-Za-z0-9_-])/ },
   { name: 'view="login" — a CommandCenter view word', re: /view=\{?["'`]login["'`]/ },
   { name: 'the surface named as a noun', re: /\bLogin closed\b|\bcloses login\b|\blogin (card|command|screen|surface|door|face)\b/ },

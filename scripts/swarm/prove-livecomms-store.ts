@@ -67,11 +67,10 @@ console.log(' LiveComms — the live store agents read AND write (real tool, rea
 console.log('============================================================')
 console.log(`  tool module: ${toolHome}`)
 
-section('§1 the tool is LiveComms, still answers to its old name, and takes a write')
+section('§1 the tool is LiveComms, answers to no other name, and takes a write')
 {
   check('the tool is named LiveComms (RED on the base: the tool is LiveComms, a read-only snapshot)', tool.name === 'LiveComms', tool.name)
-  const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.js')
-  check('the old name is its alias (an old transcript row and an old call still land)', (tool.aliases ?? []).includes(RETIRED_LIVE_COMMS_TOOL_NAME), JSON.stringify(tool.aliases ?? []))
+  check('the tool carries no alias — a call under any other name is a call to an unknown tool', (tool.aliases ?? []).length === 0, JSON.stringify(tool.aliases ?? []))
   const write = { say: { to: 'bob', message: 'LIVE-HELLO from alice', summary: 'hello' }, task: { subject: 'LIVE-TASK wire the store' }, claim: { paths: ['src/live/**'] }, busy: { busy: true, doing: 'LIVE-DOING' } }
   check('one call may carry a message, a task, a claim and a busy flag (RED on the base: the input is an empty strict object)', tool.inputSchema.safeParse(write).success)
   check('the empty read still parses', tool.inputSchema.safeParse({}).success)

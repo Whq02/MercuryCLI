@@ -57,7 +57,7 @@ const EVENTS: InterviewEvent[] = [
   ev('context-attached', { ref: { refId: 'ref_1', kind: 'file', label: 'cache.ts' }, questionId: 'iq_engine' }),
   ev('answer-committed', { questionId: 'iq_engine', value: { optionIds: ['io_redis'] } }),
   ev('note-set', { questionId: 'iq_engine', note: 'ops runs redis' }),
-  ev('finish-requested', { retainedDecisionIds: ['id_engine'] }),
+  ev('submitted', { decisionRecordId: 'ir_test' }),
 ]
 
 const state = rebuildInterview(EVENTS)

@@ -4,7 +4,6 @@
 # gate-watch: src/services/compact/** src/run-core/turn-machine.ts
 # gate-watch: src/tools/CheckpointTool/** src/tools/RewindTool/**
 # gate-watch: src/context.ts
-# gate-watch: src/migrations/retiredCrewSpellings.ts
 # gate-watch: scripts/api/wire-prefix-replay.ts scripts/daemon/dupline-world.ts scripts/lib/*
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/* src/bootstrap/state.ts
 # gate-watch: src/commands/compact/** src/components/* src/components/PromptInput/Notifications.tsx
