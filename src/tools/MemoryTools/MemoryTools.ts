@@ -87,7 +87,7 @@ export const RetainTool = buildTool({
     return false
   },
   toAutoClassifierInput(input: z.infer<RetainSchema>) {
-    return `retain ${input.items.length} fact(s)`
+    return `retain ${Array.isArray(input.items) ? input.items.length : 0} fact(s)`
   },
   async description() {
     return RETAIN_DESCRIPTION
@@ -156,7 +156,7 @@ export const RecallTool = buildTool({
     return true
   },
   toAutoClassifierInput(input: z.infer<RecallSchema>) {
-    return `recall ${input.query ?? input.read ?? ''}`
+    return `recall ${String(input.query ?? input.read ?? '')}`
   },
   async description() {
     return RECALL_DESCRIPTION
@@ -246,7 +246,7 @@ export const ReflectTool = buildTool({
     return true
   },
   toAutoClassifierInput(input: z.infer<ReflectSchema>) {
-    return `reflect ${input.query}`
+    return `reflect ${String(input.query ?? '')}`
   },
   async description() {
     return REFLECT_DESCRIPTION
@@ -371,7 +371,7 @@ export const CorrectTool = buildTool({
     return false
   },
   toAutoClassifierInput(input: z.infer<CorrectSchema>) {
-    return `${input.op} ${input.id}`
+    return `${String(input.op ?? '')} ${String(input.id ?? '')}`
   },
   async description() {
     return CORRECT_DESCRIPTION
