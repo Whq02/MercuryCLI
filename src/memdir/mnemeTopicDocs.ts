@@ -276,11 +276,13 @@ export function splitDoc(
   const a = emptyDoc(doc.slug, doc.summary, doc.created)
   a.updated = nowIso
   a.updateLog = [...doc.updateLog]
+  const parent = /^(.*)-(\d+)$/.exec(doc.slug)
+  const base = parent && taken?.has(parent[1]!) ? parent[1]! : doc.slug
   let n = 2
-  let bSlug = `${doc.slug}-${n}`
-  while (taken?.has(bSlug) && n < 100) {
+  let bSlug = `${base}-${n}`
+  while ((taken?.has(bSlug) || bSlug === doc.slug) && n < 100) {
     n++
-    bSlug = `${doc.slug}-${n}`
+    bSlug = `${base}-${n}`
   }
   const b = emptyDoc(bSlug, `${doc.summary} (split)`, nowIso)
   let acc = 0
