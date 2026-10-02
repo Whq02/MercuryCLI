@@ -68,7 +68,7 @@ section('interactive posture (the default)')
   check('MEMOIZED — second call returns the identical string', getRuntimePostureSection() === s)
 }
 
-section('headless posture (the daemon-child / -p truth)')
+section('headless posture (the daemon-child / run truth)')
 {
   const { setAskChannel } = await import('../../src/bootstrap/state.ts')
   resetRuntimePostureForTest()

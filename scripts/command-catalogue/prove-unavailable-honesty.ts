@@ -41,7 +41,7 @@ writeFileSync(
 )
 
 function drive(prompt: string): { result: string; ok: boolean; refused: boolean; raw: string } {
-  const res = spawnSync('node', [dist, '-p', prompt, '--output-format', 'json'], {
+  const res = spawnSync('node', [dist, 'run', prompt, '--format', 'json'], {
     encoding: 'utf-8',
     timeout: vshotBudgetMs(60000),
     cwd: repo,
@@ -63,7 +63,7 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 
 {
   const { result, refused } = drive('/critter')
-  check('-p /critter answers the refusal envelope (exit 1, is_error — the command did not run)', refused)
+  check('run /critter answers the refusal envelope (exit 1, is_error — the command did not run)', refused)
   check(
     '/critter (local-jsx) answers the interactive-surface reason',
     result.includes('/critter command is an interactive surface'),

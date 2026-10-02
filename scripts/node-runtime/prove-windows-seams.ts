@@ -201,7 +201,7 @@ section('(11) the swallowed-prompt guard fires on the inferred print shape and k
   const main = readFileSync(join(ROOT, 'src', 'main.tsx'), 'utf8')
   const candidatesAt = main.indexOf('const variadicCandidates')
   const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
-  check('the guard fires for -p OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
+  check('the guard fires for run OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
   check('the guard still spares resume/continue/from-pr and stream-json input', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes("inputFormat !== 'stream-json' &&"))
   check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',") && !guard.includes("['--add-dir',"))
   const list = /const variadicCandidates[^=]*= \[([\s\S]*?)\n\s*\]/.exec(guard)?.[1] ?? ''

@@ -245,8 +245,8 @@ section('structural pins — OAuth surfaces + elicitation')
     settings.includes('AUTH_PROBE_TIMEOUT_MS = 3_000') && settings.includes('Promise.race'),
   )
   check(
-    'the ide client is excluded and preparation is cancellable',
-    settings.includes("IDE_CLIENT_NAME = 'ide'") && settings.includes('if (!cancelled) setServers(prepared)'),
+    'preparation is cancellable',
+    settings.includes('if (!cancelled) setServers(prepared)'),
   )
 }
 

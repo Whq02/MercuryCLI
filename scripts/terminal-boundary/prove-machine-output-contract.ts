@@ -100,7 +100,7 @@ function assertClean(label: string, cap: Capture): void {
 section('L1 — plain success: stdout = result + newline exactly')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-PLAIN-OK.' }])
-  const cap = await runDist(['-p', 'say the phrase'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'say the phrase'], { baseUrl: fx.url })
   check('stdout is the result plus one trailing newline', cap.stdout === 'PROOF-PLAIN-OK.\n', JSON.stringify(cap.stdout))
   check('stderr is empty', cap.stderr === '', JSON.stringify(cap.stderr.slice(0, 200)))
   check('exit 0', cap.exit === 0, String(cap.exit))
@@ -110,7 +110,7 @@ section('L1 — plain success: stdout = result + newline exactly')
 section('L2 — piped stdin: same contract')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-STDIN-OK.' }])
-  const cap = await runDist(['-p'], { baseUrl: fx.url, stdinText: 'hello from a pipe\n' })
+  const cap = await runDist(['run'], { baseUrl: fx.url, stdinText: 'hello from a pipe\n' })
   check('stdout is the result plus one trailing newline', cap.stdout === 'PROOF-STDIN-OK.\n', JSON.stringify(cap.stdout))
   check('stderr is empty', cap.stderr === '', JSON.stringify(cap.stderr.slice(0, 200)))
   check('exit 0', cap.exit === 0, String(cap.exit))
@@ -122,7 +122,7 @@ section('L3 — §8-10 preservation: internal-looking model content passes byte-
   const preserve =
     'Operator content: MERCURY_FABLE=1 [object Object] at file:///tmp/x.ts:1:1 {{UNRESOLVED}} Error: fake\n    at stack (bundle.mjs:9:9)'
   const fx = await fixture([{ kind: 'text', text: preserve }])
-  const cap = await runDist(['-p', 'echo it back'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'echo it back'], { baseUrl: fx.url })
   check('stdout preserves the content byte-exact (plus trailing newline)', cap.stdout === preserve + '\n', JSON.stringify(cap.stdout.slice(0, 200)))
   check('exit 0', cap.exit === 0, String(cap.exit))
   assertClean('L3', cap)
@@ -133,7 +133,7 @@ section('L4 — plain failure (API 400): stderr + newline; stdout ZERO bytes; ex
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-fixture-bad-request' },
   ])
-  const cap = await runDist(['-p', 'hello'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'hello'], { baseUrl: fx.url })
   check('stdout carries zero bytes', cap.stdout === '', JSON.stringify(cap.stdout.slice(0, 200)))
   check('stderr carries the failure text', cap.stderr.includes('lucid-fixture-bad-request'), JSON.stringify(cap.stderr.slice(0, 200)))
   check('stderr ends with a newline', cap.stderr.endsWith('\n'), JSON.stringify(cap.stderr.slice(-20)))
@@ -148,7 +148,7 @@ section('L5 — plain failure subtype (max turns): stderr + newline; stdout empt
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.ts' } },
     { kind: 'text', text: 'never reached' },
   ])
-  const cap = await runDist(['-p', 'list things', '--max-turns', '1'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'list things', '--max-turns', '1'], { baseUrl: fx.url })
   check('stdout carries zero bytes', cap.stdout === '', JSON.stringify(cap.stdout.slice(0, 200)))
   check('stderr names the max-turns consequence', /max(imum number of)? turns/i.test(cap.stderr), JSON.stringify(cap.stderr.slice(0, 200)))
   check('stderr ends with a newline', cap.stderr.endsWith('\n'), JSON.stringify(cap.stderr.slice(-20)))
@@ -162,7 +162,7 @@ section('L6 — tool-use round: no tool chatter on the protocol boundary')
     { kind: 'tool_use', name: 'Glob', input: { pattern: '*.zzz-none' } },
     { kind: 'text', text: 'PROOF-TOOL-DONE.' },
   ])
-  const cap = await runDist(['-p', 'glob then answer'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'glob then answer'], { baseUrl: fx.url })
   check('stdout is the final result only', cap.stdout === 'PROOF-TOOL-DONE.\n', JSON.stringify(cap.stdout.slice(0, 200)))
   check('stderr is empty', cap.stderr === '', JSON.stringify(cap.stderr.slice(0, 200)))
   check('exit 0', cap.exit === 0, String(cap.exit))
@@ -186,7 +186,7 @@ function parseLines(cap: Capture): { parsed: Record<string, unknown>[]; bad: str
 section('L7 — stream-json success: every stdout line parses; typed result envelope')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-SJ-OK.' }])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'hello', '--format', 'rows'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
   check('the feed opens with the init event, with no option asked for', parsed[0]?.type === 'system' && parsed[0]?.subtype === 'init', JSON.stringify(parsed[0] ?? {}).slice(0, 120))
@@ -202,7 +202,7 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-sj-bad-request' },
   ])
-  const cap = await runDist(['-p', 'hello', '--output-format', 'stream-json'], { baseUrl: fx.url })
+  const cap = await runDist(['run', 'hello', '--format', 'rows'], { baseUrl: fx.url })
   const { parsed, bad } = parseLines(cap)
   check('every stdout line individually JSON-parses', bad.length === 0, bad[0]?.slice(0, 120) ?? '')
   const result = parsed.find(e => e.type === 'result') as { is_error?: boolean; subtype?: string; errors?: string[] } | undefined
@@ -220,8 +220,8 @@ section('L8 — stream-json failure: framing holds; the typed error record rides
 
 section('L9 — --verbose is not an option: the plain format answers the unknown-option refusal')
 {
-  const cap = await runDist(['-p', 'hello', '--verbose'])
-  const control = await runDist(['-p', 'hello', '--zzz-not-an-option'])
+  const cap = await runDist(['run', 'hello', '--verbose'])
+  const control = await runDist(['run', 'hello', '--zzz-not-an-option'])
   check("stderr names the unknown option", cap.stderr.includes("unknown option '--verbose'"), cap.stderr.slice(0, 120))
   check('stdout carries zero bytes', cap.stdout.length === 0, cap.stdout.slice(0, 80))
   check('the exit code is the one every unknown option answers', cap.exit !== 0 && cap.exit === control.exit, `exit=${cap.exit} control=${control.exit}`)
@@ -246,7 +246,7 @@ async function driveDist(
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREWS_DIR: join(home, 'crews'),
   }
-  const child = spawn(nodeBin!, [DIST, '-p', '--output-format', 'stream-json', '--input-format', 'stream-json', '--permission-channel', 'stdio'], { cwd, env })
+  const child = spawn(nodeBin!, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio'], { cwd, env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   const frames: Record<string, unknown>[] = []
   const waiters: Array<() => void> = []
@@ -377,8 +377,8 @@ section('L10 — the one spelling: every driven frame is a declared type with sn
 
 section('L12 — every refusal of the feed is one envelope: one field set, one usage shape')
 {
-  const a = await runDist(['-p', 'hello', '--output-format', 'stream-json', '--max-turns', '0'])
-  const b = await runDist(['-p', '--resume', '', 'hello', '--output-format', 'stream-json'])
+  const a = await runDist(['run', 'hello', '--format', 'rows', '--max-turns', '0'])
+  const b = await runDist(['run', '--resume', '', 'hello', '--format', 'rows'])
   const frame = (cap: Capture): Record<string, unknown> | null => {
     try {
       return JSON.parse(cap.stdout.trim().split('\n')[0] ?? '') as Record<string, unknown>
@@ -399,11 +399,11 @@ section('L12 — every refusal of the feed is one envelope: one field set, one u
 section('L13 — no credentials: an operational error, exit 1, the refusal where the format puts it')
 {
   const noKey = { dropKeys: ['ANTHROPIC_API_KEY', 'ANTHROPIC_BASE_URL'], extraEnv: { MERCURY_CREDENTIAL_STORE: 'file' } }
-  const text = await runDist(['-p', 'hello', '--max-turns', '1'], noKey)
+  const text = await runDist(['run', 'hello', '--max-turns', '1'], noKey)
   check('text: exit 1', text.exit === 1, String(text.exit))
   check('text: the refusal rides stderr and names the sign-in', /Not logged in/.test(text.stderr), text.stderr.slice(0, 120))
   check('text: stdout carries zero bytes', text.stdout.length === 0, text.stdout.slice(0, 80))
-  const json = await runDist(['-p', 'hello', '--max-turns', '1', '--output-format', 'json'], noKey)
+  const json = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'json'], noKey)
   let parsed: { type?: string; is_error?: boolean; errors?: string[] } | null = null
   try {
     parsed = JSON.parse(json.stdout.trim()) as typeof parsed
@@ -412,7 +412,7 @@ section('L13 — no credentials: an operational error, exit 1, the refusal where
   }
   check('json: exit 1', json.exit === 1, String(json.exit))
   check('json: stdout is one error object naming the sign-in', parsed !== null && parsed.type === 'result' && parsed.is_error === true && (parsed.errors ?? []).some(e => /Not logged in/.test(e)), json.stdout.slice(0, 160))
-  const sj = await runDist(['-p', 'hello', '--max-turns', '1', '--output-format', 'stream-json'], noKey)
+  const sj = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'rows'], noKey)
   const { parsed: frames, bad } = parseLines(sj)
   const result = frames.find(f => f.type === 'result') as { is_error?: boolean } | undefined
   check('stream-json: exit 1', sj.exit === 1, String(sj.exit))
@@ -427,7 +427,7 @@ section('L14 — --help carries none of the retired option spellings and every k
   check('--help exits 0', cap.exit === 0, String(cap.exit))
   const retired = ['--include-hook-events', '--mcp-debug', '--file ', '--allowedTools', '--disallowedTools', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions', '--enable-auth-status', '--max-thinking-tokens', '--deep-link', '--verbose', 'setup-token']
   for (const spelling of retired) check(`--help does not carry ${spelling.trim()}`, !cap.stdout.includes(spelling))
-  const kept = ['--allowed-tools', '--disallowed-tools', '--dangerously-bypass-permissions', '--allow-dangerously-bypass-permissions', '--betas', '--bare', '--replay-user-messages', '--no-session-persistence']
+  const kept = ['--allowed-tools', '--disallowed-tools', '--sovereign', '--allow-sovereign', '--mode', '--format', '--input', '--partial', '--betas', '--bare', '--replay-user-messages', '--no-session-persistence']
   for (const spelling of kept) check(`--help carries ${spelling}`, cap.stdout.includes(spelling))
 }
 

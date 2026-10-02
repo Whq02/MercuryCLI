@@ -198,7 +198,7 @@ async function drive(tag: string, turns: ScriptedTurn[], sends: Send[], readyTex
   writeFileSync(
     cfgPath,
     JSON.stringify({
-      argv: [nodeBin, DIST, '--permission-mode', 'apollo'],
+      argv: [nodeBin, DIST, '--mode', 'apollo'],
       cwd,
       sends,
       readyText: [readyText],

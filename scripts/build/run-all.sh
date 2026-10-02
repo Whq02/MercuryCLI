@@ -118,13 +118,13 @@ fresh_home_smoke
 
 if [[ "${MERCURY_SMOKE_LIVE:-0}" == "1" ]]; then
   live() { local label="$1"; shift
-    local out; out=$(env "$@" "$node_bin" "$dist" -p "reply with exactly: OK" --model claude-opus-4-8 </dev/null 2>&1)
+    local out; out=$(env "$@" "$node_bin" "$dist" run "reply with exactly: OK" --model claude-opus-4-8 </dev/null 2>&1)
     local hit; hit=$(printf '%s' "$out" | grep -onE "$CRASH" | head -2 | tr '\n' ' ')
     if [[ -z "$hit" ]]; then ok "live turn clean: $label"; else bad "live turn CRASH ($label): $hit"; fi
   }
   live "normal"
 else
-  ok "live -p smoke skipped (MERCURY_SMOKE_LIVE=1 to enable turn-time coverage)"
+  ok "live run smoke skipped (MERCURY_SMOKE_LIVE=1 to enable turn-time coverage)"
 fi
 
 if [[ "$fail" == "0" ]]; then echo "✅ build-integrity proofs pass"; exit 0; else

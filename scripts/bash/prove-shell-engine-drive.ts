@@ -301,7 +301,7 @@ async function leg(engine: Engine, port: number): Promise<void> {
         rows: ROWS,
         total: 320,
         cwd,
-        argv: ['node', DIST, '--dangerously-bypass-permissions'],
+        argv: ['node', DIST, '--sovereign'],
         sends: [
           ...bootSends(ASK),
           { data: '', atTick: 999, awaitText: 'setting state', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'text' },

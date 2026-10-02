@@ -36,7 +36,7 @@ const runMercury = (home: string, args: string[]): Promise<Run> =>
 section('§1 FC-038 — the empty resume target')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'resume-honest-a-')))
-  const run = await runMercury(home, ['-p', '--resume', '', 'probe'])
+  const run = await runMercury(home, ['run', '--resume', '', 'probe'])
   check('--resume "" REFUSES (nonzero exit)', run.rc !== 0, `rc=${run.rc}`)
   check(
     'with the usage sentence, not a fresh session',
@@ -50,8 +50,8 @@ section('§2 FC-039 — the missing .jsonl target')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'resume-honest-b-')))
   const target = '/no/such/place/missing-transcript.jsonl'
-  const first = await runMercury(home, ['-p', '--resume', target, 'probe'])
-  const second = await runMercury(home, ['-p', '--resume', target, 'probe'])
+  const first = await runMercury(home, ['run', '--resume', target, 'probe'])
+  const second = await runMercury(home, ['run', '--resume', target, 'probe'])
   const line = (r: Run): string => (r.err + r.out).split('\n').find(l => /No conversation/.test(l)) ?? ''
   check('the refusal NAMES the supplied path', line(first).includes(target), JSON.stringify(line(first)))
   check('and is IDENTICAL across runs (no minted UUID)', line(first) === line(second) && line(first) !== '', JSON.stringify(line(second)))
@@ -62,7 +62,7 @@ section('§3 FC-037 — the unwritable store')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'resume-honest-c-')))
   writeFileSync(join(home, 'projects'), 'a file wearing the store directory name')
-  const run = await runMercury(home, ['-p', 'probe'])
+  const run = await runMercury(home, ['run', 'probe'])
   const all = run.err + run.out
   check('the failure NAMES the transcript store', /transcript store is unwritable/.test(all), JSON.stringify(all.slice(0, 220)))
   check('and offers the escape hatch', /--no-session-persistence/.test(all))

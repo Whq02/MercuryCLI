@@ -363,7 +363,7 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     const noLaunch = resolvePermissionModeTransition('autopilot' as never, noBypassContext)
     check(
       'autopilot on the seat WITHOUT the bypass launch flag: refused with the runtime guard sentence',
-      noLaunch.ok === false && /dangerously-bypass-permissions/.test(noLaunch.ok === false ? noLaunch.error : ''),
+      noLaunch.ok === false && /--sovereign/.test(noLaunch.ok === false ? noLaunch.error : ''),
       JSON.stringify(noLaunch),
     )
     const eligible = resolvePermissionModeTransition('autopilot' as never, bypassContext)
@@ -406,7 +406,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
   try {
     delete process.env.MERCURY_DAEMON_PERMISSION_MODE
     check("the spec's carried apollo reaches the child's posture when the daemon env is unset", getHeadlessPermissionMode('apollo') === 'apollo')
-    check("…spelled on the argv as --permission-mode apollo", JSON.stringify(headlessPermissionArgv('apollo')) === JSON.stringify(['--permission-mode', 'apollo']))
+    check("…spelled on the argv as --mode apollo", JSON.stringify(headlessPermissionArgv('apollo')) === JSON.stringify(['--mode', 'apollo']))
     process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
     check("the operator's daemon env still wins over the carried posture (the strict road)", getHeadlessPermissionMode('apollo') === 'implement')
     process.env.MERCURY_DAEMON_PERMISSION_MODE = 'apollo'
@@ -416,7 +416,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
   const supervisor = src('daemon', 'concourseSupervisor.ts')
-  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.permissions\?\.defaultMode\)/.test(supervisor))
+  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.guardrails\?\.mode\)/.test(supervisor))
   const hop = src('services', 'switchboard', 'hopIntoSession.ts')
   check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }

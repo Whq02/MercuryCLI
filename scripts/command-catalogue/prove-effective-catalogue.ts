@@ -234,7 +234,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
       )
       setIsInteractive(true)
       check(
-        `/${name}: the non-interactive member is hidden outside -p`,
+        `/${name}: the non-interactive member is hidden outside run`,
         enabledHeadless[0] !== undefined && enabledHeadless[0].isHidden === true,
       )
     }

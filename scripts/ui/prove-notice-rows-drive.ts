@@ -302,7 +302,7 @@ async function capture(leg: Leg, fixtureUrl: string): Promise<{ status: number |
     { afterPrevTicks: 2, data: '\r', mark: 'sent' },
   ]
   const cfg = {
-    argv: [NODE, DIST, '--dangerously-bypass-permissions'],
+    argv: [NODE, DIST, '--sovereign'],
     cwd: leg.cwd,
     cols: leg.size.cols,
     rows: leg.size.rows,

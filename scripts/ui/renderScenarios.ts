@@ -3021,7 +3021,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: [
         'node', BIN, '--resume', SID,
-        '--dangerously-bypass-permissions', '--settings', settingsPath,
+        '--sovereign', '--settings', settingsPath,
       ],
       sends: [{ atTick: 32, data: '\x1b[Z' }],
       total: 52, cols, rows,
@@ -3031,7 +3031,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const mode = { 'mode-band-accept': 'implement', 'mode-band-plan': 'strategy', 'mode-band-auto': 'flow' }[name]!
     writeSyntheticSession('short')
     return {
-      argv: ['node', BIN, '--resume', SID, '--permission-mode', mode],
+      argv: ['node', BIN, '--resume', SID, '--mode', mode],
       sends: [],
       readyText: 'shift+tab to cycle',
       stableTicks: 4,
@@ -3048,7 +3048,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: [
         'node', BIN, '--resume', SID,
-        '--dangerously-bypass-permissions', '--settings', settingsPath,
+        '--sovereign', '--settings', settingsPath,
       ],
       sends: [],
       readyText: 'auto-approved',

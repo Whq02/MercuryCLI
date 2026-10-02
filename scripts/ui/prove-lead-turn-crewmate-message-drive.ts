@@ -53,6 +53,8 @@ const cfgPath = join(dir, 'cfg.json')
 type Send = Record<string, unknown>
 const awaits = (needle: string, data: string, extra: Send = {}): Send => ({ requireAwait: true, awaitText: needle, awaitSettleTicks: 3, minTick: 5, data, ...extra })
 const sends: Send[] = [
+  awaits('Yes, I accept', '\x1b[B'),
+  awaits('❯ 2. Yes, I accept', '\r'),
   { atTick: 300, awaitText: '↵ start', minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'face' },
   awaits('↵ start', '\r', { mark: 'enter' }),
   awaits('Type a prompt', `${FIRST}: spawn the worker and stop.\r`),
@@ -63,7 +65,7 @@ const sends: Send[] = [
   awaits('LEAD-SECOND', '', { mark: 'final' }),
 ]
 writeFileSync(cfgPath, JSON.stringify({
-  argv: [NODE, DIST, '--model', LEAD_MODEL, '--permission-mode', 'sovereign', '--session-id', sessionId],
+  argv: [NODE, DIST, '--model', LEAD_MODEL, '--mode', 'sovereign', '--session-id', sessionId],
   cwd: project,
   sends,
   readyText: ['LEAD-SECOND'],

@@ -119,7 +119,7 @@ for (const family of FAMILIES) {
         const response = await fetch(modelsUrl, { headers: { authorization: `Bearer ${KEY}` } })
         const listed = await response.json() as typeof live
         const result = await new Promise<{ code: number; stdout: string; stderr: string }>(resolveRun => {
-          execFile(NODE, [DIST, '-p', '--model', next, '--output-format', 'json', 'hello'], { env, cwd, windowsHide: true, timeout: vshotBudgetMs(60000) }, (error, stdout, stderr) => resolveRun({ code: error ? Number(error.code) || 1 : 0, stdout, stderr }))
+          execFile(NODE, [DIST, 'run', '--model', next, '--format', 'json', 'hello'], { env, cwd, windowsHide: true, timeout: vshotBudgetMs(60000) }, (error, stdout, stderr) => resolveRun({ code: error ? Number(error.code) || 1 : 0, stdout, stderr }))
         })
         const output = JSON.stringify({ modelsUrl, listStatus: response.status, listed, ...result, wire }, null, 2)
         writeFileSync(join(OUT ?? home, `${tag}-control.json`), output)
@@ -146,7 +146,7 @@ for (const family of FAMILIES) {
           writeFileSync(join(home, 'settings.json'), JSON.stringify(test.saved ? { model: test.saved } : {}))
           const childEnv = { ...env, ...(test.envModel ? { MERCURY_MODEL: test.envModel } : {}), ...(test.dark ? { MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' } : {}) }
           const result = await new Promise<{ code: number; stdout: string; stderr: string }>(resolveRun => {
-            execFile(NODE, [DIST, '-p', ...(test.model ? ['--model', test.model] : []), '--output-format', 'stream-json', 'hello'], { env: childEnv, cwd, windowsHide: true, timeout: vshotBudgetMs(60000) }, (error, stdout, stderr) => resolveRun({ code: error ? Number(error.code) || 1 : 0, stdout, stderr }))
+            execFile(NODE, [DIST, 'run', ...(test.model ? ['--model', test.model] : []), '--format', 'rows', 'hello'], { env: childEnv, cwd, windowsHide: true, timeout: vshotBudgetMs(60000) }, (error, stdout, stderr) => resolveRun({ code: error ? Number(error.code) || 1 : 0, stdout, stderr }))
           })
           writeFileSync(join(OUT ?? home, `${tag}-${test.name}.json`), JSON.stringify({ test, ...result, wire }, null, 2))
           const chats = wire.filter(hit => hit.url.endsWith('/chat/completions'))
