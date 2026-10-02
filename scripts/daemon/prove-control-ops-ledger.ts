@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'control-ops-ledger-'))
 const DEBUG_LOG = join(scratch, 'debug.txt')
-process.argv.push(`--debug-file=${DEBUG_LOG}`)
+process.argv.push(`--log-file=${DEBUG_LOG}`)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 const { concourseControlOpsPath, readConcourseControlOps, recordConcourseControlOp } = await import(
