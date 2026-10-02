@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/types/permissions.ts src/utils/permissions/PermissionMode.ts src/utils/permissions/PermissionUpdateSchema.ts
-// gate-watch: src/utils/settings/types.ts src/entrypoints/sdk/coreSchemas.ts src/daemon/headlessRun.ts src/services/agents/codec.ts
+// gate-watch: src/utils/settings/types.ts src/daemon/headlessRun.ts src/services/agents/codec.ts
 // gate-watch: src/main.tsx src/utils/conversationRecovery.ts src/services/acp/acpServer.ts src/tools/AgentTool/AgentTool.tsx
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
@@ -35,7 +35,6 @@ const vocab = await import('../../src/types/permissions.js')
 const modes = await import('../../src/utils/permissions/PermissionMode.js')
 const updates = await import('../../src/utils/permissions/PermissionUpdateSchema.js')
 const settings = await import('../../src/utils/settings/types.js')
-const sdk = await import('../../src/entrypoints/sdk/coreSchemas.js')
 const daemon = await import('../../src/daemon/headlessRun.js')
 const codec = await import('../../src/services/agents/codec.js')
 
@@ -52,8 +51,6 @@ for (const word of WORDS) {
   t(`the external mode schema refuses '${word}' the same way`, swap(issues(modes.externalPermissionModeSchema().safeParse(word)), word) === issues(modes.externalPermissionModeSchema().safeParse(CONTROL)) && !modes.externalPermissionModeSchema().safeParse(word).success)
   const update = (mode: string) => updates.permissionUpdateSchema().safeParse({ type: 'setMode', mode, destination: 'session' })
   t(`a setMode update carrying '${word}' is refused as one carrying '${CONTROL}'`, swap(issues(update(word)), word) === issues(update(CONTROL)) && !update(word).success, issues(update(word)))
-  const wire = (mode: string) => sdk.PermissionModeSchema().safeParse(mode)
-  t(`the SDK wire enum refuses '${word}' as it refuses '${CONTROL}'`, swap(issues(wire(word)), word) === issues(wire(CONTROL)) && !wire(word).success, issues(wire(word)))
   const file = (mode: string) => settings.SettingsSchema().safeParse({ guardrails: { mode } })
   t(`a settings file with guardrails.mode '${word}' is refused as one with '${CONTROL}'`, swap(issues(file(word)), word) === issues(file(CONTROL)) && !file(word).success, issues(file(word)))
   process.env.MERCURY_DAEMON_PERMISSION_MODE = word

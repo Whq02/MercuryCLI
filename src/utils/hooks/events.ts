@@ -30,8 +30,8 @@ import type {
   CrewmateIdleHookInput,
   UserPromptExpansionHookInput,
   UserPromptSubmitHookInput,
-  PermissionUpdate,
 } from 'src/entrypoints/agentSdkTypes.js'
+import type { PermissionUpdate } from '../../types/permissions.js'
 import type { FileSuggestionCommandInput } from '../../types/fileSuggestion.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AgentId } from '../../types/ids.js'

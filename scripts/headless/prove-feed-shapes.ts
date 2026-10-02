@@ -108,7 +108,7 @@ section('F1 — the declared frame types are the ones the product writes')
   check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
 }
 
-section('F2 — every declared key is snake_case outside the riding contracts')
+section('F2 — every declared key is snake_case outside the hooks contract')
 {
   const scan = (src: string): string[] => {
     const keys: string[] = []
@@ -124,13 +124,11 @@ section('F2 — every declared key is snake_case outside the riding contracts')
     'hookSpecificOutput', 'hookEventName', 'additionalContext', 'watchPaths', 'worktreePath', 'updatedMCPToolOutput', 'updatedInput',
     'updatedPermissions', 'systemMessage', 'suppressOutput', 'stopReason', 'permissionDecision',
     'permissionDecisionReason', 'initialUserMessage', 'asyncTimeout',
-    'toolName', 'ruleContent',
-    'disallowedTools', 'standingRule', 'criticalSystemReminder_EXPERIMENTAL', 'initialPrompt', 'maxTurns', 'permissionMode', 'mcpServers',
   ])
   const camel = [...new Set([...coreKeys, ...controlKeys].filter(key => !SNAKE.test(key)))].sort()
   const unexpected = camel.filter(key => !allowed.has(key))
   const missing = [...allowed].filter(key => !camel.includes(key))
-  check('the only camelCase keys declared are the riding contracts (pinned)', unexpected.length === 0, j(unexpected))
+  check('the only camelCase keys declared are the hooks contract (pinned)', unexpected.length === 0, j(unexpected))
   check('…and every pinned exception is still declared (the list stays honest)', missing.length === 0, j(missing))
   check('the control schemas declare snake_case keys only', controlKeys.every(key => SNAKE.test(key)), j(controlKeys.filter(key => !SNAKE.test(key))))
 }
@@ -266,17 +264,13 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
   check("the catalogue snapshot encodes its own keys and leaves the provider's rows untouched", deepEq(catalogueWire, { source_kind: 'api-key', models: catalogue.models, fetched_at_ms: 7 }) && deepEq(seatWire.openaiCatalogueFromWire(JSON.parse(JSON.stringify(catalogueWire))), catalogue), j(catalogueWire))
 }
 
-section('F4 — the effort enums on the wire are the one ladder')
+section('F4 — the effort enum on the wire is the one ladder')
 {
   type EnumLike = { options?: unknown[]; def?: { options?: unknown[] }; element?: EnumLike; unwrap?: () => EnumLike }
   const shape = (core.ModelInfoSchema() as unknown as { shape: Record<string, EnumLike> }).shape
   const levels = shape.supported_effort_levels!.unwrap!().element!
   const ladder = [...runtime.EFFORT_LEVELS]
   check('a model row\'s supported effort levels enumerate the ladder', deepEq(levels.options ?? levels.def?.options, ladder), j(levels.options ?? levels.def?.options))
-  const agentShape = (core.AgentDefinitionSchema() as unknown as { shape: Record<string, EnumLike> }).shape
-  const effortUnion = agentShape.effort!.unwrap!()
-  const first = (effortUnion.options ?? effortUnion.def?.options ?? [])[0] as EnumLike
-  check('an agent definition\'s effort enumerates the ladder', deepEq(first.options ?? first.def?.options, ladder), j(first.options ?? first.def?.options))
   check('the ladder ends at max', ladder[ladder.length - 1] === 'max', j(ladder))
 }
 

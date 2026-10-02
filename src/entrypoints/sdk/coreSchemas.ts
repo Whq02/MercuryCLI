@@ -1,6 +1,9 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 import type { TurnCutKind } from '../../utils/messages/turnCut.js'
+import { ASSISTANT_MESSAGE_ERRORS } from '../../types/message.js'
+import { externalPermissionModeSchema } from '../../utils/permissions/PermissionMode.js'
+import { permissionUpdateSchema } from '../../utils/permissions/PermissionUpdateSchema.js'
 import { EFFORT_LEVELS } from './runtimeTypes.js'
 
 export const HOOK_EVENTS_SCHEMA_TUPLE = [
@@ -48,58 +51,8 @@ export const ModelUsageSchema = lazySchema(() =>
   }),
 )
 
-export const ConfigScopeSchema = lazySchema(() => z.enum(['local', 'user', 'project']))
 export const SdkBetaSchema = lazySchema(() => z.enum(['context-1m-2025-08-07']))
 
-export const McpStdioServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('stdio').optional().describe('Transport marker; stdio is assumed when absent'),
-    command: z.string().describe('The executable that starts the server'),
-    args: z.array(z.string()).optional().describe('Arguments handed to the command'),
-    env: z.record(z.string(), z.string()).optional().describe('Environment variables set for the server process'),
-    cwd: z.string().optional().describe('Working directory the server starts in'),
-  }),
-)
-export const McpSSEServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('sse'),
-    url: z.string().describe('The SSE endpoint to connect to'),
-    headers: z.record(z.string(), z.string()).optional().describe('Extra request headers, e.g. for auth'),
-  }),
-)
-export const McpHttpServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('http'),
-    url: z.string().describe('The HTTP endpoint to connect to'),
-    headers: z.record(z.string(), z.string()).optional().describe('Extra request headers, e.g. for auth'),
-  }),
-)
-export const McpHostServerConfigSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('host'),
-    name: z.string().describe('The host-served server registration to bind'),
-  }),
-)
-export const McpServerConfigForProcessTransportSchema = lazySchema(() =>
-  z.union([
-    McpStdioServerConfigSchema(),
-    McpSSEServerConfigSchema(),
-    McpHttpServerConfigSchema(),
-    McpHostServerConfigSchema(),
-  ]),
-)
-export const McpClaudeAIProxyServerConfigSchema = lazySchema(() =>
-  z.object({ type: z.literal('claudeai-proxy'), url: z.string().optional() }),
-)
-export const McpServerStatusConfigSchema = lazySchema(() =>
-  z.union([
-    McpStdioServerConfigSchema(),
-    McpSSEServerConfigSchema(),
-    McpHttpServerConfigSchema(),
-    McpHostServerConfigSchema(),
-    McpClaudeAIProxyServerConfigSchema(),
-  ]),
-)
 export const McpServerStatusSchema = lazySchema(() =>
   z.object({
     name: z.string().describe('The configured server name'),
@@ -137,43 +90,6 @@ export const McpSetServersResultSchema = lazySchema(() =>
   }),
 )
 
-export const PermissionUpdateDestinationSchema = lazySchema(() =>
-  z.enum(['userSettings', 'projectSettings', 'localSettings', 'session', 'cliArg']),
-)
-export const PermissionBehaviorSchema = lazySchema(() => z.enum(['allow', 'deny', 'ask']))
-export const PermissionRuleValueSchema = lazySchema(() =>
-  z.object({
-    toolName: z.string().describe('The tool the rule speaks for'),
-    ruleContent: z.string().optional().describe('An argument pattern narrowing the rule, e.g. a command prefix'),
-  }),
-)
-export const PermissionUpdateSchema = lazySchema(() =>
-  z.discriminatedUnion('type', [
-    z.object({
-      type: z.literal('addRules'),
-      rules: z.array(PermissionRuleValueSchema()).describe('The rules this update names'),
-      behavior: PermissionBehaviorSchema().describe('The behavior the rules carry'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
-    z.object({
-      type: z.literal('replaceRules'),
-      rules: z.array(PermissionRuleValueSchema()).describe('The rules this update names'),
-      behavior: PermissionBehaviorSchema().describe('The behavior the rules carry'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
-    z.object({
-      type: z.literal('removeRules'),
-      rules: z.array(PermissionRuleValueSchema()).describe('The rules this update names'),
-      behavior: PermissionBehaviorSchema().describe('The behavior the rules carry'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
-    z.object({
-      type: z.literal('setMode'),
-      mode: externalPermissionModeWireEnum().describe('The permission mode to switch to'),
-      destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
-    }),
-  ]),
-)
 export const PermissionResultSchema = lazySchema(() =>
   z.union([
     z.object({
@@ -183,7 +99,7 @@ export const PermissionResultSchema = lazySchema(() =>
         .optional()
         .describe('A replacement tool input to run instead of the original'),
       updated_permissions: z
-        .array(PermissionUpdateSchema())
+        .array(permissionUpdateSchema())
         .optional()
         .describe('Permission updates to apply alongside the approval'),
       tool_use_id: z.string().optional().describe('The tool call this answer belongs to'),
@@ -196,9 +112,6 @@ export const PermissionResultSchema = lazySchema(() =>
     }),
   ]),
 )
-const externalPermissionModeWireEnum = () =>
-  z.enum(['default', 'dontAsk', 'implement', 'sovereign'])
-export const PermissionModeSchema = lazySchema(() => externalPermissionModeWireEnum())
 
 const baseHookFields = {
   session_id: z.string().describe('The session the hook fired in'),
@@ -227,7 +140,7 @@ export const PermissionRequestHookInputSchema = lazySchema(() =>
     tool_input: z.unknown().describe('The input the pending call carries'),
     tool_use_id: z.string().optional().describe('The provider id of the pending call'),
     permission_suggestions: z
-      .array(PermissionUpdateSchema())
+      .array(permissionUpdateSchema())
       .optional()
       .describe('Rule updates the harness would offer for this ask'),
   }),
@@ -612,7 +525,7 @@ export const PermissionRequestHookSpecificOutputSchema = lazySchema(() =>
         z.object({
           behavior: z.literal('allow'),
           updatedInput: z.record(z.string(), z.unknown()).optional().describe('A replacement tool input to run instead'),
-          updatedPermissions: z.array(PermissionUpdateSchema()).optional().describe('Permission changes to apply alongside the allow'),
+          updatedPermissions: z.array(permissionUpdateSchema()).optional().describe('Permission changes to apply alongside the allow'),
         }),
         z.object({
           behavior: z.literal('deny'),
@@ -726,89 +639,6 @@ export const AccountInfoSchema = lazySchema(() =>
   }),
 )
 
-export const AgentMcpServerSpecSchema = lazySchema(() =>
-  z.union([
-    z.string(),
-    McpServerConfigForProcessTransportSchema(),
-  ]),
-)
-export const AgentDefinitionSchema = lazySchema(() =>
-  z.object({
-    description: z
-      .string()
-      .describe('Plain-language guidance on the situations this agent should be picked for'),
-    tools: z
-      .array(z.string())
-      .optional()
-      .describe(
-        'Tool names this agent may call; leaving it out hands the agent every tool its parent holds',
-      ),
-    disallowedTools: z
-      .array(z.string())
-      .optional()
-      .describe('Tool names withheld from this agent even when the allowed set would include them'),
-    prompt: z.string().describe('The system prompt the agent runs under'),
-    model: z
-      .string()
-      .optional()
-      .describe(
-        "A model alias or id any configured provider serves; leaving it out — or writing 'inherit' — keeps the main conversation's model",
-      ),
-    standingRule: z
-      .string()
-      .optional()
-      .describe('A standing rule attached to the agent context at every turn'),
-    criticalSystemReminder_EXPERIMENTAL: z
-      .string()
-      .optional()
-      .describe('The former spelling of standingRule; read as standingRule when that key is absent'),
-    skills: z
-      .array(z.string())
-      .optional()
-      .describe('Skill names loaded into the agent context up front, before its first turn'),
-    initialPrompt: z
-      .string()
-      .optional()
-      .describe(
-        'When this agent runs as the main thread, this text submits itself as the opening user turn — slash commands are processed — and goes ahead of whatever prompt the user supplied.',
-      ),
-    maxTurns: z
-      .number()
-      .int()
-      .positive()
-      .optional()
-      .describe(
-        'Hard ceiling on agentic turns — one API round-trip each — after which the agent stops',
-      ),
-    background: z
-      .boolean()
-      .optional()
-      .describe(
-        'Invocations run this agent as a background task: the caller is not blocked and does not wait on the result',
-      ),
-    memory: z
-      .enum(['user', 'project', 'local'])
-      .optional()
-      .describe(
-        "Where agent memory files auto-load from: 'user' - <mercury home>/agent-memory/<agentType>/, " +
-          "'project' - <project>/.mercury/agent-memory/<agentType>/, 'local' - <project>/.mercury/agent-memory-local/<agentType>/",
-      ),
-    effort: z
-      .union([z.enum(EFFORT_LEVELS), z.number().int()])
-      .optional()
-      .describe('How much reasoning effort the agent spends per turn: a rung of the one ladder, or a number'),
-    permissionMode: z
-      .string()
-      .optional()
-      .describe('The permission mode this agent starts its turns under'),
-    mcpServers: z
-      .array(AgentMcpServerSpecSchema())
-      .optional()
-      .describe('The MCP servers this agent may connect to, as a list of server specs'),
-  }),
-)
-
-export const SettingSourceSchema = lazySchema(() => z.enum(['user', 'project', 'local']))
 export const RewindFilesResultSchema = lazySchema(() =>
   z.object({
     can_rewind: z.boolean().optional().describe('Whether a rewind is possible from here'),
@@ -822,17 +652,7 @@ export const RewindFilesResultSchema = lazySchema(() =>
   }),
 )
 
-export const SDKAssistantMessageErrorSchema = lazySchema(() =>
-  z.enum([
-    'authentication_failed',
-    'billing_error',
-    'rate_limit',
-    'invalid_request',
-    'server_error',
-    'unknown',
-    'max_output_tokens',
-  ]),
-)
+export const SDKAssistantMessageErrorSchema = lazySchema(() => z.enum(ASSISTANT_MESSAGE_ERRORS))
 export const SDKStatusSchema = lazySchema(() => z.enum(['idle', 'running', 'requires_action']))
 
 export const SDKUserMessageSchema = lazySchema(() =>
@@ -958,7 +778,7 @@ export const SDKSystemMessageSchema = lazySchema(() =>
       .array(z.object({ name: z.string(), status: z.string() }))
       .describe('The configured MCP servers and their connection standing'),
     model: z.string().describe('The model the session starts on'),
-    permission_mode: externalPermissionModeWireEnum().describe(
+    permission_mode: externalPermissionModeSchema().describe(
       'The permission mode in force at start',
     ),
     slash_commands: z.array(z.string()).describe('Names of the slash commands available'),

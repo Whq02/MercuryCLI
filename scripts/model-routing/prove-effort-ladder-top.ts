@@ -52,6 +52,7 @@ const LIST_WORD = 'ultra'
   check('the /effort option list derives from the tuple and ends at max before auto', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`"))
   check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
   check("the Agent tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
+  check("an agent file's effort field takes its enum from the tuple", /effort: z\s*\.union\(\[\s*z\.enum\(EFFORT_LEVELS/.test(src('src/tools/AgentTool/loadAgentsDir.ts')))
   check('the workflow prompt spells the ladder from the tuple and no longer names a word above max', src('src/tools/WorkflowTool/workflowPrompt.ts').includes("EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')") && !/\bultra\b/.test(src('src/tools/WorkflowTool/workflowPrompt.ts')))
   const coordinator = src('src/services/concourse/coordinatorTools.ts')
   check("the coordinator's launch tool names the ladder from the tuple and says max is the top", coordinator.includes("EFFORT_LEVELS.join(' | ')") && coordinator.includes('max IS the top tier') && !/\bultra\b/.test(coordinator))
