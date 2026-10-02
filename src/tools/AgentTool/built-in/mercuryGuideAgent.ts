@@ -7,6 +7,7 @@ import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { searchToolsAvailability } from '../../../utils/ripgrep.js'
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../../SendMessageTool/constants.js'
+import { SKILL_TOOL_NAME } from '../../SkillTool/constants.js'
 
 export const MERCURY_GUIDE_AGENT_TYPE = 'mercury-guide'
 
@@ -20,7 +21,7 @@ export function isGuideAgentMounted(): boolean {
   return true
 }
 
-const DOCS_MAP_URL = 'https://docs.claude.com/llms.txt'
+const PROVIDER_API_SKILL = 'provider-apis'
 
 function clipSummary(summary: string): string {
   const sentenceEnd = summary.search(/[.!?](\s|$)/)
@@ -129,52 +130,38 @@ function buildGeneratedKnowledge(options: ToolUseContext['options']): string {
 }
 
 function buildGuidePrompt(options: ToolUseContext['options']): string {
-  return `You are Mercury's product and API guide. You answer questions in three expertise domains:
-1. Mercury's own CLI surface — commands, settings, flags, and features of this harness.
-2. The agent SDK — building custom agents against the provider's SDK.
-3. The provider API — messages, tool use, caching, and general SDK usage.
+  return `You are Mercury's product guide. You answer questions in two expertise domains:
+1. Mercury's own surface — commands, settings, flags, modes, agents, tools and features of this harness.
+2. The model-provider APIs Mercury drives — request shapes, streaming, tool use, caching and model ids for any of its providers.
 
 ## Identity
 Describe Mercury in its own terms. Mercury is the harness: a terminal software-development harness with its own commands, settings, flags, agents, and tools.
 
 ## Where knowledge comes from
-Harness knowledge comes from the running build's generated surfaces (below) plus live product introspection — not from memory. For SDK and API questions, fetch the provider's documentation map and follow it:
-
-${DOCS_MAP_URL}
-
-That one map covers both domains — the agent SDK (agent loops, tools, MCP, permissions) and the provider API (messages, streaming, tool use, prompt caching, token counting, models).
+Harness knowledge comes from the running build's generated surfaces (below) plus live product introspection — not from memory. Provider-API knowledge comes from the bundled \`${PROVIDER_API_SKILL}\` skill: invoke it through the ${SKILL_TOOL_NAME} tool and follow the references it names for the provider in question; it is provider-neutral and current where memory is not.
 
 ## Approach
 1. Classify the question's domain.
 2. Answer harness questions from the generated knowledge below and live introspection.
-3. For SDK/API questions, fetch the documentation map, identify the specific pages that apply, and fetch those.
-4. Use web search only when the documentation does not cover the question.
+3. For provider-API questions, invoke the \`${PROVIDER_API_SKILL}\` skill first and answer from its references; fetch a page only when the skill points you to it.
+4. Use web search only when neither the skill nor the generated knowledge covers the question.
 5. Reference local project files when the question is about this project's usage.
 
 ## Guidelines
-- Prefer official documentation over recollection.
+- Prefer the running build and the bundled references over recollection.
 - Be concise and actionable; include examples.
-- Cite the exact URLs you drew from.
+- Cite the exact source you drew from (a command, a setting, a reference page, a URL).
 - Proactively suggest related features the user may not know.
-${buildFeedbackGuideline()}${buildGeneratedKnowledge(options)}`
-}
-
-function buildFeedbackGuideline(): string {
-  try {
-    const baseUrl = process.env.ANTHROPIC_BASE_URL
-    if (baseUrl && !/anthropic\.com|claude\.ai/.test(baseUrl)) {
-      return '- For problems with this third-party service backend, point the user at the service\'s own issue channel rather than the product feedback command.\n'
-    }
-  } catch {
-  }
-  return '- For product problems, point the user at the in-product feedback command (/bug).\n'
+- For product problems, point the user at the in-product feedback command (/bug); for a provider's own outage or refusal, at that provider's status and support channels.
+${buildGeneratedKnowledge(options)}`
 }
 
 export const MERCURY_GUIDE_AGENT: BuiltInAgentDefinition = {
   agentType: MERCURY_GUIDE_AGENT_TYPE,
   whenToUse:
-    `Product, SDK, and API guide: questions about this harness's CLI surface (commands, settings, flags, features), building against the agent SDK, or the provider API (messages, tool use, caching, SDK usage). FIRST: when a guide agent is already running or recently finished, continue that one through the ${SEND_MESSAGE_TOOL_NAME} tool instead.`,
+    `Mercury's product guide: questions about this harness's surface (commands, settings, flags, modes, agents, tools, features) and about the model-provider APIs it drives (request shapes, tool use, caching, model ids — answered from the bundled provider-apis skill). FIRST: when a guide agent is already running or recently finished, continue that one through the ${SEND_MESSAGE_TOOL_NAME} tool instead.`,
   tools: [
+    SKILL_TOOL_NAME,
     'WebFetch',
     'WebSearch',
     'Read',

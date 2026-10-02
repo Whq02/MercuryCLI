@@ -1,4 +1,6 @@
 
+export const INSTRUCTIONS_CONTEXT_KEY = 'instructions'
+
 export const USER_CONTEXT_REMINDER_OPEN =
   '<system-reminder>\nThe material below is available to you while you answer the user.\n\n'
 

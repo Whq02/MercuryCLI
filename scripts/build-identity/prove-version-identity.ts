@@ -50,11 +50,6 @@ if (sysInit.includes('mercury_version: MACRO.VERSION'))
   ok('SDK init mercury_version stays MACRO.VERSION (machine seam)')
 else bad('systemInit.ts mercury_version must stay MACRO.VERSION')
 
-const insights = readFileSync(join(root, 'src/commands/insights.ts'), 'utf8')
-if (/mercury_version:\s*string/.test(insights))
-  ok('insights export metadata names mercury_version (the product spelling)')
-else bad('src/commands/insights.ts must name its version field mercury_version')
-
 const dist = join(root, 'dist/mercury.mjs')
 if (existsSync(dist)) {
   try {

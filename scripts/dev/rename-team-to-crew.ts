@@ -80,7 +80,6 @@ const FILE_RULES: FileRule[] = [
   { path: 'src/components/PromptInput/Notifications.tsx', protect: ['team'], why: 'the plan tier' },
   { path: 'src/utils/memoryFileDetection.ts', protect: ['team'], why: 'the memory scope shared with the people of a repository' },
   { path: 'src/components/TrustDialog/TrustDialog.tsx', protect: ['team'], why: 'the trust question speaks of the people whose code it is' },
-  { path: 'src/commands/insights.ts', protect: ['Team'], why: 'the insights section for the people who use the product' },
   { path: 'src/tools/AgentTool/agentMemory.ts', protect: ['team'], why: 'the memory file header speaks of the people who share the repository' },
   { path: 'src/utils/cockpit/fleetGauge.ts', map: { team: 'saved', teamRows: 'savedRows' }, why: 'the saved-roster source beside the living crew the gauge already lists' },
   { path: 'src/components/PromptInput/PromptInput.tsx', map: { viewedTeammate: 'viewedCrewmateTask' }, why: 'the viewed in-process task beside the viewed crewmate of the crew view' },

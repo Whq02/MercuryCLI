@@ -43,7 +43,6 @@ type UtilitySource =
   | 'prompt_suggestion'
   | 'skill_improvement'
   | 'skill_improvement_apply'
-  | 'insights'
   | 'concourse_coordinator'
   | 'feedback'
   | 'magic_docs'

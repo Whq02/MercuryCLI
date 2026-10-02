@@ -9,7 +9,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist/mercury.mjs')
 const VSHOT = join(REPO, 'scripts/ui/vshot.py')
-const FIX = join(REPO, '.claude', 'diff-fixtures', 'fx')
+const FIX = join(REPO, '.mercury', 'proof-fixtures', 'diffws', 'fx')
 const SID = 'd1ffd1ff-2222-4222-8222-222222222222'
 const CONFIG_HOME = resolveProofHome([FIX])
 
@@ -33,7 +33,7 @@ function buildFixture(): void {
   git('init', '-q')
   git('config', 'user.email', 'fixture@mercury.local')
   git('config', 'user.name', 'fixture')
-  writeFileSync(join(FIX, '.gitignore'), '.claude/\n.mercury/\n')
+  writeFileSync(join(FIX, '.gitignore'), '.mercury/\n')
 
   const multiBase = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a-multi`).join('\n')
   writeFileSync(join(FIX, 'a-multi.ts'), multiBase + '\n')
@@ -146,7 +146,7 @@ function buildFixture(): void {
 }
 
 function cleanupFixture(): void {
-  rmSync(join(REPO, '.claude', 'diff-fixtures'), { recursive: true, force: true })
+  rmSync(join(REPO, '.mercury', 'proof-fixtures', 'diffws'), { recursive: true, force: true })
   rmSync(PROJ_DIR, { recursive: true, force: true })
 }
 

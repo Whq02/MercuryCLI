@@ -313,7 +313,7 @@ export const TASKS: TaskDef[] = [
       }
       const seat = hits.find(h => h.kind === 'seat' && h.seatId === 'guide')
       const prompt = seat ? systemPromptText(seat.body, seat.dialect!) : ''
-      const isGuide = /product and API guide/i.test(prompt)
+      const isGuide = /Mercury's product guide/i.test(prompt)
       const knowsRoster = /\/authority/.test(prompt)
       return { pass: !!seat && isGuide && knowsRoster && relayed, detail: `guide seat request: ${!!seat}; guide prompt: ${isGuide}; roster carries /authority: ${knowsRoster}; relayed: ${relayed}` }
     },

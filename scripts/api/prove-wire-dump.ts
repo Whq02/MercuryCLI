@@ -332,12 +332,12 @@ if (!existsSync(DIST)) {
     const home = mkdtempSync(join(tmpdir(), 'wire-dump-home-'))
     const cwd = mkdtempSync(join(tmpdir(), 'wire-dump-cwd-'))
     const dumpDir = join(home, 'wire')
-    mkdirSync(join(home, '.claude'), { recursive: true })
+    mkdirSync(join(home, '.mercury'), { recursive: true })
     const env = (extra: Record<string, string>): Record<string, string> => ({
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'dumb',
-      MERCURY_CONFIG_DIR: join(home, '.claude'),
+      MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixture.url,

@@ -90,7 +90,7 @@ section('§1 the projection law — appended rows extend the view, never rewrite
     }
     return { ok: true, at: -1 }
   }
-  const REMINDER = '<system-reminder>\n# claudeMd\nbe brief\n</system-reminder>'
+  const REMINDER = '<system-reminder>\n# instructions\nbe brief\n</system-reminder>'
   const ctxRow = (): Record<string, unknown> => attachmentRow({ type: 'user_context', body: REMINDER })
 
   const h1 = [ctxRow(), user('first prompt')]
@@ -448,7 +448,7 @@ if (!existsSync(DIST)) {
     function makeArena(fixture: FixtureApi, extraEnv: Record<string, string> = {}): Arena {
       const home = mkdtempSync(join(tmpdir(), 'sent-prefix-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'sent-prefix-cwd-'))
-      mkdirSync(join(home, '.claude'), { recursive: true })
+      mkdirSync(join(home, '.mercury'), { recursive: true })
       const godotBin = join(home, 'godot')
       writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
       chmodSync(godotBin, 0o755)
@@ -460,7 +460,7 @@ if (!existsSync(DIST)) {
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
           MERCURY_GODOT_EXECUTABLE: godotBin,
           TERM: 'dumb',
-          MERCURY_CONFIG_DIR: join(home, '.claude'),
+          MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_BASE_URL: fixture.url,
@@ -587,7 +587,7 @@ if (!existsSync(DIST)) {
         }
         return out
       }
-      const files = existsSync(join(arena.home, '.claude', 'projects')) ? walk(join(arena.home, '.claude', 'projects')) : []
+      const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
       const notices: string[] = []
       for (const file of files) {
         for (const line of readFileSync(file, 'utf8').split('\n')) {
@@ -683,7 +683,7 @@ process.stdin.on('end', () => process.exit(0))
         const notices = transcriptNotices(arena, sid)
         check('the product attributes that drop to the manual reconnect once', notices.filter(text => text.includes('manually reconnected')).length === 1, j(notices))
         check('no rewrite notice follows the deliberate reconnect', !notices.some(text => text.includes('rewrote already-sent history')), j(notices))
-        const doctorRow = existsSync(join(arena.home, '.claude', 'preserved-thinking.json')) ? (JSON.parse(readFileSync(join(arena.home, '.claude', 'preserved-thinking.json'), 'utf8')) as { last?: { kind?: string } }) : null
+        const doctorRow = existsSync(join(arena.home, '.mercury', 'preserved-thinking.json')) ? (JSON.parse(readFileSync(join(arena.home, '.mercury', 'preserved-thinking.json'), 'utf8')) as { last?: { kind?: string } }) : null
         check("the doctor row keeps the reconnect's own kind", typeof doctorRow?.last?.kind === 'string' && doctorRow.last.kind !== 'rewrite', j(doctorRow))
       } finally {
         await fixture.close()
@@ -866,7 +866,7 @@ process.stdin.on('end', () => process.exit(0))
       const notice = notices[0] ?? ''
       check('…the receipt names compaction as the lawful cause', notice.includes('compaction'), notice.slice(0, 300))
       check('…and never the recurrence wording (nothing unlawful happened)', !notice.includes('rewriting') && !notice.includes('doctor'), notice.slice(0, 300))
-      const ledger = join(arena.home, '.claude', 'preserved-thinking.json')
+      const ledger = join(arena.home, '.mercury', 'preserved-thinking.json')
       check('the doctor ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
       await fixture.close()
     }
@@ -993,7 +993,7 @@ process.stdin.on('end', () => process.exit(0))
     const transcriptText = (arena: Arena, sessionId: string): string => {
       const files: string[] = []
       const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${sessionId}.jsonl`) files.push(f) } }
-      const root = join(arena.home, '.claude', 'projects')
+      const root = join(arena.home, '.mercury', 'projects')
       if (existsSync(root)) walk(root)
       return files.map(f => readFileSync(f, 'utf8')).join('\n')
     }
@@ -1146,7 +1146,7 @@ process.stdin.on('end', () => process.exit(0))
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
       const rows = (() => {
-        const dir = join(arena.home, '.claude', 'projects')
+        const dir = join(arena.home, '.mercury', 'projects')
         const files: string[] = []
         const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }
         if (existsSync(dir)) walk(dir)

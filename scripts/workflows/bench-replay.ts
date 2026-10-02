@@ -138,7 +138,7 @@ export function scrubCredentials(cfgDir: string): void {
 }
 
 export function scrubLingeringBenchCredentials(): number {
-  const benchRoot = join(repoRoot, '.claude', 'bench')
+  const benchRoot = join(repoRoot, '.mercury', 'bench')
   let removed = 0
   const walk = (dir: string, depth: number): void => {
     if (depth > 3) return

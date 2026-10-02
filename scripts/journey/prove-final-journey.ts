@@ -10,7 +10,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(import.meta.dir, '../ui/vshot.py')
-const FIX = join(REPO, '.claude', 'journey-fixtures', 'jx')
+const FIX = join(REPO, '.mercury', 'proof-fixtures', 'journey', 'jx')
 const { resolveProofHome } = await import('../lib/proofHome.ts')
 const CONFIG_HOME = resolveProofHome([FIX], { keep: Boolean(process.env.JOURNEY_KEEP_FIXTURE) })
 const { sanitizePath } = await import('../../src/utils/sessionStoragePortable.ts')
@@ -57,7 +57,6 @@ const SATURN_RECORDS = () => {
   }
 }
 function seedSchedules(): void {
-  mkdirSync(join(FIX, '.claude'), { recursive: true })
   const daemonDir = SCRATCH('daemon')
   mkdirSync(daemonDir, { recursive: true })
   writeFileSync(join(daemonDir, 'concourse-workers.json'), JSON.stringify(SATURN_RECORDS()))
@@ -148,7 +147,7 @@ function buildFixture(): void {
   git('init', '-q')
   git('config', 'user.email', 'fixture@mercury.local')
   git('config', 'user.name', 'fixture')
-  writeFileSync(join(FIX, '.gitignore'), '.claude/\n.mercury/\n')
+  writeFileSync(join(FIX, '.gitignore'), '.mercury/\n')
   const multiBase = Array.from({ length: 40 }, (_, i) => `line ${i + 1} of a-multi`).join('\n')
   writeFileSync(join(FIX, 'a-multi.ts'), multiBase + '\n')
   writeFileSync(join(FIX, 'file-1.ts'), 'export const v1 = 1\nexport const w1 = 1\n')
@@ -476,7 +475,7 @@ console.log('\n── source contracts ─────────────�
 }
 
 if (!process.env.JOURNEY_KEEP_FIXTURE) {
-  rmSync(join(REPO, '.claude', 'journey-fixtures'), { recursive: true, force: true })
+  rmSync(join(REPO, '.mercury', 'proof-fixtures', 'journey'), { recursive: true, force: true })
   rmSync(PROJ_DIR, { recursive: true, force: true })
   purgeDrafts()
 }

@@ -16,6 +16,7 @@ import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
 import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
 import { logError } from './utils/log.js'
+import { INSTRUCTIONS_CONTEXT_KEY } from './utils/userContextReminder.js'
 
 const GIT_STATUS_MAX_LENGTH = 2000
 
@@ -163,7 +164,7 @@ export const getUserContext = memoize(
       disabled,
     })
     return {
-      ...(instructionPrompt ? { claudeMd: instructionPrompt } : {}),
+      ...(instructionPrompt ? { [INSTRUCTIONS_CONTEXT_KEY]: instructionPrompt } : {}),
       environment: `Is a git repository: ${isGit ? 'Yes' : 'No'}`,
       currentDate: `Today's date is ${localIsoDate()}.`,
     }

@@ -248,9 +248,9 @@ section("§4b the prefix's own movers — the fingerprint source, the persisted 
 
   const { userContextReminderBody, USER_CONTEXT_REMINDER_OPEN } = await import('../../src/utils/userContextReminder.ts')
   const { getUserContextAttachment, latestUserContextBody } = await import('../../src/utils/attachments/userContext.ts')
-  const ctx = { claudeMd: 'be brief', currentDate: "Today's date is 2026-09-01." }
+  const ctx = { instructions: 'be brief', currentDate: "Today's date is 2026-09-01." }
   const body = userContextReminderBody(ctx)!
-  check('the reminder body wears its envelope and every entry', body.startsWith(USER_CONTEXT_REMINDER_OPEN) && body.includes('# claudeMd\nbe brief') && body.includes('# currentDate') && body.endsWith('</system-reminder>'))
+  check('the reminder body wears its envelope and every entry', body.startsWith(USER_CONTEXT_REMINDER_OPEN) && body.includes('# instructions\nbe brief') && body.includes('# currentDate') && body.endsWith('</system-reminder>'))
   check('an empty context renders nothing', userContextReminderBody({}) === null)
   const fresh = await getUserContextAttachment([user('hi')] as never, ctx)
   check('a history without the row ⇒ one user_context row carrying the body', fresh.length === 1 && fresh[0]!.type === 'user_context' && (fresh[0] as { body: string }).body === body)
@@ -286,7 +286,7 @@ if (!existsSync(DIST)) {
     function makeArena(fixture: FixtureApi): Arena {
       const home = mkdtempSync(join(tmpdir(), 'transcript-binding-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'transcript-binding-cwd-'))
-      mkdirSync(join(home, '.claude'), { recursive: true })
+      mkdirSync(join(home, '.mercury'), { recursive: true })
       return {
         home,
         cwd,
@@ -294,7 +294,7 @@ if (!existsSync(DIST)) {
           HOME: home,
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
           TERM: 'dumb',
-          MERCURY_CONFIG_DIR: join(home, '.claude'),
+          MERCURY_CONFIG_DIR: join(home, '.mercury'),
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: 'fixture-key-000',
           MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -437,7 +437,7 @@ if (!existsSync(DIST)) {
         }
         return out
       }
-      const root = join(arena.home, '.claude', 'projects')
+      const root = join(arena.home, '.mercury', 'projects')
       return existsSync(root) ? walk(root).flatMap(file => readFileSync(file, 'utf8').split('\n')) : []
     })()
     const receiptRows = sessionRows.filter(line => line.includes('Preserved thinking')).map(line => { try { return JSON.parse(line) as { payload?: { kind?: string; noticeKind?: string; level?: string; content?: string } } } catch { return null } }).filter((row): row is { payload: { kind?: string; noticeKind?: string; level?: string; content?: string } } => row !== null && row.payload !== undefined)

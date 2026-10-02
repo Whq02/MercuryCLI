@@ -25,7 +25,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 
 const home = mkdtempSync(join(tmpdir(), 'plainworld-honesty-home-'))
 const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'plainworld-honesty-cwd-')))
-const configDir = join(home, '.claude')
+const configDir = join(home, '.mercury')
 const daemonDir = join(home, 'daemon')
 mkdirSync(configDir, { recursive: true })
 writeFileSync(

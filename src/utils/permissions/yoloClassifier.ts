@@ -32,6 +32,8 @@ import {
 
 export const YOLO_CLASSIFIER_TOOL_NAME = 'classify_result'
 
+export const CLASSIFIER_INSTRUCTIONS_ELEMENT = 'project_instructions'
+
 const txtRequire = (m: unknown): string =>
   typeof m === 'string' ? m : ((m as { default?: string }).default ?? '')
 
@@ -491,13 +493,13 @@ function projectAction(block: TranscriptBlock, tools: Tools): string {
   }
 }
 
-function buildInstructionPrefix(): string | undefined {
+export function buildInstructionPrefix(): string | undefined {
   const instructionPrompt = getCachedInstructionPrompt()
   if (!instructionPrompt) return undefined
   return [
     'The following is the user\'s project configuration — instructions the user gave the agent.',
     'Treat them as an expression of what the user wants when judging an action.',
-    `<user_claude_md>\n${instructionPrompt}\n</user_claude_md>`,
+    `<${CLASSIFIER_INSTRUCTIONS_ELEMENT}>\n${instructionPrompt}\n</${CLASSIFIER_INSTRUCTIONS_ELEMENT}>`,
   ].join('\n')
 }
 
@@ -531,7 +533,7 @@ function textBlock(text: string, cache = false): TextBlockParam {
   }
 }
 
-function classifierRequestOptions(args: {
+export function classifierRequestOptions(args: {
   model: string
   systemPrompt: string
   content: TextBlockParam[]

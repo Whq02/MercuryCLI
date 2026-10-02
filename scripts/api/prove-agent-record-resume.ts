@@ -45,7 +45,7 @@ interface Arena { home: string; cwd: string; env: Record<string, string> }
 function makeArena(): Arena {
   const home = mkdtempSync(join(tmpdir(), 'agent-record-home-'))
   const cwd = mkdtempSync(join(tmpdir(), 'agent-record-cwd-'))
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   const dead: Record<string, string> = {}
   for (const name of ['MERCURY_OPENAI_API_BASE', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_OPENAI_CHATGPT_BASE', 'MERCURY_OPENROUTER_API_BASE', 'MERCURY_OPENROUTER_AUTH_BASE', 'MERCURY_GEMINI_API_BASE', 'MERCURY_GEMINI_OAUTH_AUTH_BASE', 'MERCURY_GEMINI_OAUTH_TOKEN_BASE', 'MERCURY_MOONSHOT_API_BASE', 'MERCURY_MOONSHOT_OAUTH_BASE', 'MERCURY_MOONSHOT_CODING_BASE', 'MERCURY_ZAI_API_BASE', 'MERCURY_DEEPSEEK_API_BASE', 'MERCURY_HUGGINGFACE_API_BASE', 'MERCURY_HUGGINGFACE_HUB_BASE', 'MERCURY_UPDATE_API_BASE_URL', 'MERCURY_CUSTOM_OAUTH_URL']) dead[name] = 'http://127.0.0.1:1'
   return {
@@ -57,7 +57,7 @@ function makeArena(): Arena {
       PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
       TERM: 'dumb',
       BROWSER: '/usr/bin/true',
-      MERCURY_CONFIG_DIR: join(home, '.claude'),
+      MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key',
@@ -110,7 +110,7 @@ function transcriptFiles(arena: Arena): string[] {
       else if (entry.name.endsWith('.jsonl')) out.push(full)
     }
   }
-  const root = join(arena.home, '.claude', 'projects')
+  const root = join(arena.home, '.mercury', 'projects')
   if (existsSync(root)) walk(root)
   return out
 }
