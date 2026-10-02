@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/statusNoticeDefinitions.tsx src/components/Settings/Config.tsx src/memdir/mnemeFrontPage.ts src/memdir/mnemeUsage.ts
-import { mkdirSync, writeFileSync } from 'node:fs'
+// gate-watch: src/components/Messages.tsx src/components/CrewmateTranscript.tsx src/components/memory/MemoryCentreView.tsx
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { KEY, mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
 
@@ -111,6 +112,56 @@ section('§3 the /config popup: the Pinned memory limit row, where it sits and h
     store.closeSettingsPopup?.()
     m.unmount()
   }
+}
+
+section("§4 the line paints in the person's chat and never in a crewmate's chat view")
+{
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.js')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
+  const { Messages } = await import('../../src/components/Messages.js')
+  const crewmateSource = readFileSync(join(REPO, 'src/components/CrewmateTranscript.tsx'), 'utf8')
+  check('the crewmate transcript mounts Messages with the notice strip suppressed', /<Messages[\s\S]*?suppressNotices[\s\S]*?\/>/.test(crewmateSource))
+  const mountMessages = async (suppressNotices: boolean): Promise<string[]> => {
+    const props = {
+      messages: [],
+      tools: [],
+      commands: [],
+      verbose: true,
+      toolJSX: null,
+      toolUseConfirmQueue: [],
+      inProgressToolUseIDs: new Set<string>(),
+      isMessageSelectorVisible: false,
+      conversationId: 'crewmate:proof',
+      screen: 'prompt' as const,
+      streamingToolUses: [],
+      showAllInTranscript: false,
+      isLoading: false,
+      streamingThinking: null,
+      hidePastReasoning: true,
+      streamingTail: null,
+      trackStickyPrompt: false,
+      disableRenderCap: true,
+      ...(suppressNotices ? { suppressNotices: true } : {}),
+    }
+    const element = React.createElement(
+      AppStateProvider as never,
+      {},
+      React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(Messages as never, props))),
+    )
+    const m: Mounted = await mountOffscreen(element, 120, 40)
+    await waitFor(() => m.lines().some(l => l.includes('Pinned memory')), 3000)
+    await settle(200)
+    const lines = m.lines()
+    m.unmount()
+    return lines
+  }
+  const person = await mountMessages(false)
+  check("the person's chat header paints the line once", person.filter(l => l.includes('Pinned memory')).length === 1, person.filter(l => l.trim()).slice(0, 6).join(' | '))
+  const crewmate = await mountMessages(true)
+  check("a crewmate's chat view (the crewmate transcript's mount) paints no line", crewmate.filter(l => l.includes('Pinned memory')).length === 0, crewmate.filter(l => l.includes('Pinned memory')).join(' | '))
+  save('crewmate-view-120x40.txt', crewmate)
 }
 
 await releaseScratchHome(HOME)

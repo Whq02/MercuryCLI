@@ -174,6 +174,7 @@ type MessagesProps = {
   showAllInTranscript?: boolean
   agentDefinitions?: AgentDefinitionsResult
   suppressLogo?: boolean
+  suppressNotices?: boolean
   isLoading: boolean
   streamingThinking?: StreamingThinking | null
   hidePastReasoning?: boolean
@@ -334,6 +335,7 @@ function MessagesInner({
   showAllInTranscript = false,
   agentDefinitions,
   suppressLogo = false,
+  suppressNotices = false,
   isLoading,
   streamingThinking = null,
   hidePastReasoning = false,
@@ -707,7 +709,12 @@ function MessagesInner({
 
   const header = useMemo(() => {
     if (suppressLogo || renderRange) return null
-    if (isCompact) return <React.Suspense fallback={null}><StatusNotices agentDefinitions={agentDefinitions} /></React.Suspense>
+    const notices = suppressNotices ? null : (
+      <React.Suspense fallback={null}>
+        <StatusNotices agentDefinitions={agentDefinitions} />
+      </React.Suspense>
+    )
+    if (isCompact) return notices
     return (
       <OffscreenFreeze>
         <Box flexDirection="column" width="100%">
@@ -740,13 +747,11 @@ function MessagesInner({
           ) : null}
           {
 }
-          <React.Suspense fallback={null}>
-            <StatusNotices agentDefinitions={agentDefinitions} />
-          </React.Suspense>
+          {notices}
         </Box>
       </OffscreenFreeze>
     )
-  }, [agentDefinitions, hasRealConversation, inCockpit, isCompact, columns, suppressLogo, renderRange])
+  }, [agentDefinitions, hasRealConversation, inCockpit, isCompact, columns, suppressLogo, suppressNotices, renderRange])
 
   const transcriptChord = useShortcutDisplay(
     'transcript:toggleShowAll',
@@ -948,6 +953,7 @@ function areMessagesPropsEqual(
   if (prev.conversationId !== next.conversationId) return false
   if (prev.disableRenderCap !== next.disableRenderCap) return false
   if (prev.suppressLogo !== next.suppressLogo) return false
+  if (prev.suppressNotices !== next.suppressNotices) return false
   if (prev.ownsCursor !== next.ownsCursor) return false
   if (prev.renderRange !== next.renderRange) return false
   if (prev.trackStickyPrompt !== next.trackStickyPrompt) return false
