@@ -108,7 +108,7 @@ export function wrapRailRows(text: string, width: number, maxRows: number): stri
   return rows.slice(0, maxRows)
 }
 
-type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'dream' | 'run'
+type RunKind = 'shell' | 'monitor' | 'workflow' | 'cloud' | 'run'
 type RunRow = { id: string; title: string; status: TaskStatus; kind: RunKind; startedAtMs: number }
 
 function runKindOf(t: TaskState): RunKind {
@@ -120,8 +120,6 @@ function runKindOf(t: TaskState): RunKind {
       return 'cloud'
     case 'monitor_mcp':
       return 'monitor'
-    case 'dream':
-      return 'dream'
     default:
       return 'run'
   }
@@ -517,7 +515,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
       id: row.id,
       title: row.name,
       status: row.status === 'pending' ? 'pending' : 'running',
-      kind: row.kind === 'workflow' ? 'workflow' : row.kind === 'monitor' ? 'monitor' : row.kind === 'dream' ? 'dream' : 'shell',
+      kind: row.kind === 'workflow' ? 'workflow' : row.kind === 'monitor' ? 'monitor' : 'shell',
       startedAtMs: row.startTime,
     }))
   const runsAll: RunRow[] = [...localRuns, ...hostedRuns]
@@ -889,7 +887,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     const hints: Array<{ command: string; label: string }> = [
       { command: '/workflows', label: '/workflows — agent runs' },
       { command: '/health', label: '/health — health cert' },
-      { command: '/cards', label: '/cards — memory' },
+      { command: '/memory', label: '/memory — memory' },
     ]
     if (!mission) hints.push({ command: '/mission', label: '/mission — set a mission' })
     for (const h of hints.slice(0, hintCap)) {

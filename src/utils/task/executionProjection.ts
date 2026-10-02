@@ -15,7 +15,6 @@ export function taskExecutionKind(type: TaskType): ExecutionKind {
     case 'local_agent':
     case 'remote_agent':
     case 'in_process_crewmate':
-    case 'dream':
       return 'agent'
   }
 }

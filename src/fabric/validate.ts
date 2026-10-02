@@ -214,7 +214,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   ultra_effort_exit: z.looseObject({}),
   supercode_keyword: z.looseObject({}),
   critical_system_reminder: z.looseObject({ content: z.string() }),
-  taste_recall: z.looseObject({ content: z.string() }),
   plan_file_reference: z.looseObject({ planFilePath: z.string(), planContent: z.string() }),
   mcp_resource: z.looseObject({ server: z.string(), uri: z.string(), name: z.string(), content: z.looseObject({}) }),
   command_permissions: z.looseObject({ allowedTools: strings }),

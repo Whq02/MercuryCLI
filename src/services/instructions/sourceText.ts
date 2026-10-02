@@ -2,7 +2,6 @@ import { Lexer } from 'marked'
 import { dirname, extname } from 'path'
 import { stripBOM } from '../../utils/jsonRead.js'
 
-import { truncateEntrypointContent } from '../../memdir/memdir.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   parseFrontmatter,
@@ -297,10 +296,7 @@ export function parseInstructionFileContent(
       ? extractIncludePathsFromTokens(tokens, includeBasePath)
       : { includePaths: [], bareMentionPaths: [] }
 
-  let finalContent = strippedContent
-  if (type === 'AutoMem' || type === 'TeamMem') {
-    finalContent = truncateEntrypointContent(strippedContent).content
-  }
+  const finalContent = strippedContent
 
   const contentDiffersFromDisk = finalContent !== rawContent
   return {

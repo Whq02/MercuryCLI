@@ -2,6 +2,8 @@
 // gate-watch: src/memdir/mnemeGates.ts src/memdir/memoryVerbs.ts src/memdir/mnemeBuffer.ts
 // gate-watch: src/memdir/mnemeConsolidate.ts src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
 // gate-watch: src/services/mcp/coordinationServer.ts src/utils/capability/declarations.ts src/query/stopHooks.ts
+// gate-watch: src/memdir/** src/tools/MemoryTools/** src/components/memory/** src/commands/memory/** src/utils/capability/**
+// gate-watch: src/utils/cockpit/** src/services/mcp/** src/substrate/** src/query/** src/utils/attachments/**
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { existsSync, mkdtempSync, readFileSync, readdirSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -60,11 +62,11 @@ function walk(dir: string, out: string[]): void {
   }
 }
 const files: string[] = []
-walk(join(ROOT, 'src'), files)
-const carriers = files
-  .filter(p => !p.endsWith('/src/utils/healthReport.ts'))
-  .filter(p => /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/.test(readFileSync(p, 'utf8')))
-check('no source file this lane owns names the retired gate or the retired verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
+for (const dir of ['src/memdir', 'src/tools/MemoryTools', 'src/components/memory', 'src/commands/memory', 'src/utils/capability', 'src/utils/cockpit', 'src/services/mcp', 'src/substrate', 'src/query', 'src/utils/attachments']) {
+  walk(join(ROOT, dir), files)
+}
+const carriers = files.filter(p => /MERCURY_MNEME|MERCURY_MEMORY_OBSERVE|mneme_observe|mneme_catalog|mneme_grep|mneme_read|mneme_correct|mneme_retire/.test(readFileSync(p, 'utf8')))
+check('no memory source names the retired gate or the retired verbs', carriers.length === 0, carriers.map(p => p.slice(ROOT.length + 1)).join(', '))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ MEMORY IS ON FOR EVERYONE' : `❌ ${failures} ALWAYS-ON CHECK(S) FAILED`)

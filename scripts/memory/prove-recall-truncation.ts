@@ -7,7 +7,6 @@ import type { MnemeEntry } from '../../src/memdir/mnemeTopicDocs.js'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-recall-truncation-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-process.env.MERCURY_MNEME = '1'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

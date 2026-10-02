@@ -234,7 +234,7 @@ export type WorkflowPulseV1 = {
 export type WorkRowV1 = {
   id: string
   agentId?: string
-  kind: 'workflow' | 'agent' | 'crewmate' | 'shell' | 'monitor' | 'dream'
+  kind: 'workflow' | 'agent' | 'crewmate' | 'shell' | 'monitor'
   name: string
   status: string
   startTime: number

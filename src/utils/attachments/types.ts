@@ -350,10 +350,6 @@ export type Attachment =
       content: string
     }
   | {
-      type: 'taste_recall'
-      content: string
-    }
-  | {
       type: 'plan_file_reference'
       planFilePath: string
       planContent: string

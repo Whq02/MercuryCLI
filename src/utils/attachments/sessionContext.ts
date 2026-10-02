@@ -2,14 +2,6 @@
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getTotalCostUSD } from '../../bootstrap/state.js'
-import {
-  getAutoMemPath,
-  isAutoMemoryEnabled,
-} from '../../memdir/paths.js'
-import {
-  getTasteRecallContent,
-  tasteLoopEnabled,
-} from '../../memdir/tasteLoop.js'
 import { providerLimitWarningFacts } from '../../services/providers/limitWarning.js'
 import type { Attachment } from './types.js'
 
@@ -58,17 +50,6 @@ function awarenessAlreadyEmittedThisTurn(
     }
   }
   return false
-}
-
-export async function getTasteRecallAttachment(
-  toolUseContext: ToolUseContext,
-  messages: Message[] | undefined,
-): Promise<Attachment[]> {
-  if (toolUseContext.agentId) return []
-  if (!tasteLoopEnabled()) return []
-  if (!isAutoMemoryEnabled()) return []
-  const content = await getTasteRecallContent(getAutoMemPath(), messages ?? [])
-  return content ? [{ type: 'taste_recall', content }] : []
 }
 
 export function getOutputTokenUsageAttachment(): Attachment[] {

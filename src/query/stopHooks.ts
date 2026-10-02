@@ -187,18 +187,6 @@ export async function* handleStopHooks(
     }
     if (!agentId) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const upkeep = require('../services/memoryUpkeep/memoryUpkeep.js') as {
-        executeMemoryUpkeep: (
-          context: REPLHookContext,
-          appendSystemMessage?: ToolUseContext['appendSystemMessage'],
-        ) => Promise<void>
-      }
-      void upkeep
-        .executeMemoryUpkeep(hookContext, toolUseContext.appendSystemMessage)
-        .catch(error => {
-          logForDebugging(`memory upkeep failed: ${errorMessage(error)}`)
-        })
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mneme = require('../memdir/mnemeMaintenance.js') as {
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }

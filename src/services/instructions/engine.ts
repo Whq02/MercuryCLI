@@ -7,12 +7,6 @@ import {
   getSdkBetas,
   setCachedInstructionPrompt,
 } from '../../bootstrap/state.js'
-import {
-  filterInjectedMemoryFilesByRecall,
-  getAutoMemEntrypoint,
-  isAutoMemoryEnabled,
-  relevantMemoryRecallEnabled,
-} from '../../memdir/paths.js'
 import { getCurrentProjectConfig } from '../../utils/config.js'
 import { untrustedWorkspaceHeadless } from '../../utils/config/trust.js'
 import {
@@ -339,22 +333,6 @@ async function walkConventions(
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  if (isAutoMemoryEnabled()) {
-    const { info: memdirEntry } = await safelyReadInstructionFileAsync(
-      getAutoMemEntrypoint(),
-      'AutoMem',
-    )
-    if (memdirEntry) {
-      const normalizedPath = normalizePathForComparison(memdirEntry.path)
-      if (!processedPaths.has(normalizedPath)) {
-        processedPaths.add(normalizedPath)
-        memdirEntry.family = 'native'
-        memdirEntry.origin = 'automem'
-        result.push(memdirEntry)
-      }
-    }
-  }
-
   return result
 }
 
@@ -487,10 +465,7 @@ export function getLargeMemoryFiles(
 export function filterInjectedInstructionFiles(
   files: InstructionSourceEntry[],
 ): InstructionSourceEntry[] {
-  return filterInjectedMemoryFilesByRecall(
-    files,
-    relevantMemoryRecallEnabled(),
-  )
+  return [...files]
 }
 
 export const composeInstructionPrompt = (
@@ -521,9 +496,7 @@ function describeInstructionSource(file: InstructionSourceEntry): string {
     ? ' (project instructions, checked into the codebase)'
     : file.type === 'Local'
       ? " (user's private project instructions, not checked in)"
-      : file.type === 'AutoMem'
-        ? " (user's auto-memory, persists across conversations)"
-        : " (user's private global instructions for all projects)"
+      : " (user's private global instructions for all projects)"
 }
 
 export async function getManagedAndUserConditionalInstructionRules(

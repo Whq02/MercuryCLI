@@ -1,9 +1,8 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 import { indexTopics, liveCount } from './mnemeArchive.js'
-import { listArchiveDocs, listTopicDocs } from './mnemeConsolidate.js'
+import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import type { MnemeEntry, MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
@@ -130,8 +129,8 @@ export function publishFrontPage(dir: string = mnemeLibraryDir(), now: Date = ne
       usage: readUsage(dir),
       now,
     })
-    durableAtomicPublishSync(frontPagePath(dir), rendered.text)
-    durableAtomicPublishSync(pinnedStatusPath(dir), JSON.stringify(rendered.status, null, 1))
+    publishLibraryFile(frontPagePath(dir), rendered.text)
+    publishLibraryFile(pinnedStatusPath(dir), JSON.stringify(rendered.status, null, 1))
     return rendered.status
   } catch (e) {
     logForDebugging(`memory front page publish failed: ${String(e)}`)

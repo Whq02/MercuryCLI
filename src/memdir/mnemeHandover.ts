@@ -1,10 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 import { stripBOM } from '../utils/jsonRead.js'
 import { retainItems } from './memoryVerbs.js'
 import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './mnemeConsolidate.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { getAutoMemPath, getMemoryBaseDir } from './paths.js'
 
@@ -196,7 +196,7 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
     if (!result.consolidated) logForDebugging(`memory hand-over: consolidation did not run — ${result.reason}`)
   }
   try {
-    durableAtomicPublishSync(handoverReceiptPath(dir), JSON.stringify(receipt, null, 1))
+    publishLibraryFile(handoverReceiptPath(dir), JSON.stringify(receipt, null, 1))
   } catch (e) {
     logForDebugging(`memory hand-over receipt failed: ${String(e)}`)
   }

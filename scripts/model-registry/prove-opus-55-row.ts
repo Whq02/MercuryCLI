@@ -179,7 +179,6 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
     ['src/QueryEngine.ts', /\(\{ type: 'disabled' \} as ThinkingConfig\)/],
     ['src/tools/AgentTool/runAgent.ts', /\{ thinkingConfig: \{ type: 'disabled' as const \} \}/],
     ['src/tools/AgentTool/agentToolUtils.ts', /thinkingConfig: \{ type: 'disabled' \},/],
-    ['src/memdir/findRelevantMemories.ts', /thinkingConfig: \{ type: 'disabled' \},/],
   ]
   for (const [rel, shape] of roads) {
     const text = src(rel)

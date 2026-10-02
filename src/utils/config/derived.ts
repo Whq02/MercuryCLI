@@ -1,6 +1,5 @@
 import { join } from 'path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
-import { getAutoMemEntrypoint } from '../../memdir/paths.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getMercuryHome,
@@ -73,10 +72,7 @@ export function getMemoryPath(memoryType: MemoryType): string {
       return join(cwd, 'MERCURY.md')
     case 'Managed':
       return join(getManagedFilePath(), 'MERCURY.md')
-    case 'AutoMem':
-      return getAutoMemEntrypoint()
   }
-  return ''
 }
 
 export function getManagedRulesDir(): string {

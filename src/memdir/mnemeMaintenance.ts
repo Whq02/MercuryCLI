@@ -4,7 +4,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { bufferTokens, readBuffer, readConsumingRows } from './mnemeBuffer.js'
 import {
   CONSOLIDATE_AGE_MS,
@@ -16,6 +15,7 @@ import {
   releaseConsolidateLock,
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
 
 export type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'observe' | 'operator'
 
@@ -165,7 +165,7 @@ function appendReceipt(dir: string, row: MnemeMaintenanceReceipt): void {
   try {
     const rows = readMaintenanceReceipts(dir, RECEIPT_RING - 1)
     rows.push(row)
-    durableAtomicPublishSync(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
+    publishLibraryFile(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
   } catch (e) {
     logForDebugging(`mneme maintenance receipt failed: ${String(e)}`)
   }

@@ -1,4 +1,3 @@
-import type { DreamTaskState } from './DreamTask/DreamTask.js'
 import type { InProcessCrewmateTaskState } from './InProcessCrewmateTask/types.js'
 import type { LocalAgentTaskState } from './LocalAgentTask/LocalAgentTask.js'
 import type { LocalShellTaskState } from './LocalShellTask/guards.js'
@@ -12,7 +11,6 @@ export type TaskState =
   | InProcessCrewmateTaskState
   | LocalWorkflowTaskState
   | MonitorMcpTaskState
-  | DreamTaskState
 
 export type BackgroundTaskState =
   | LocalShellTaskState
@@ -20,7 +18,6 @@ export type BackgroundTaskState =
   | InProcessCrewmateTaskState
   | LocalWorkflowTaskState
   | MonitorMcpTaskState
-  | DreamTaskState
 
 export function isBackgroundTask(task: TaskState): task is BackgroundTaskState {
   if (task.status !== 'running' && task.status !== 'pending') return false

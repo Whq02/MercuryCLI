@@ -30,7 +30,6 @@ export type InstructionOrigin =
   | 'user'
   | 'user-rules'
   | 'project-walk'
-  | 'automem'
 
 export type InstructionConvention = {
   readonly id: string

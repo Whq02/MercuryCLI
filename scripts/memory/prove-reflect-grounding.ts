@@ -7,7 +7,6 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-reflect-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-process.env.MERCURY_MNEME = '1'
 
 let failures = 0
 const watchdog = setTimeout(() => {

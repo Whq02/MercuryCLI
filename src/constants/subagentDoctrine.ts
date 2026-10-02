@@ -21,7 +21,7 @@ const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(
     .concat('workflow-subagent'),
 )
 
-function isFixedOutputAgent(def: Pick<AgentDefinition, 'agentType'>): boolean {
+export function isFixedOutputAgent(def: Pick<AgentDefinition, 'agentType'>): boolean {
   return FIXED_OUTPUT_AGENT_TYPES.has(def.agentType)
 }
 

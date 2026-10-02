@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/instructions/** src/constants/prompts.ts src/prompt/** AGENTS.md
-# gate-watch: src/bootstrap/state.ts src/memdir/memdir.ts src/tools.ts src/utils/cockpit/promptProvenance.ts
+# gate-watch: src/bootstrap/state.ts src/memdir/mnemeFrontPage.ts src/tools.ts src/utils/cockpit/promptProvenance.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/settings/types.ts
 # gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts
 # gate-watch: scripts/lib/firstRunSeed.ts

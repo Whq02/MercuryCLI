@@ -57,7 +57,6 @@ export const NON_VIEWABLE_TASK_TYPES = [
   'remote_agent',
   'local_workflow',
   'monitor_mcp',
-  'dream',
 ] as const
 
 type ClassifiedTaskType =

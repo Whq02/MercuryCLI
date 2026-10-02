@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -26,36 +25,28 @@ mkdirSync(join(projectRoot, 'src'), { recursive: true })
 writeFileSync(join(projectRoot, 'src', 'exists.ts'), 'export {}\n')
 
 appendObservation({ text: 'release cadence is every second Thursday', source: 'operator', topicHint: 'releases' }, libDir)
+appendObservation({ text: 'deploy rides src/exists.ts', source: 'operator', topicHint: 'deploy' }, libDir)
+appendObservation({ text: 'release logic lives in src/deleted-file.ts', source: 'operator', topicHint: 'releases' }, libDir)
 maybeConsolidate({ force: true, dir: libDir })
 appendObservation({ text: 'release hotfix window opens Fridays', source: 'operator', topicHint: 'releases' }, libDir)
-writeFileSync(join(memDir, 'card-observed-ready.md'), '---\nname: observed-ready\ndescription: prefer observed-ready waits for release verification\nmetadata:\n  type: experience-card\napproved: false\n---\nbody')
-writeFileSync(join(memDir, 'card-rg-fixed.md'), '---\nname: rg-fixed\ndescription: use rg -F for literal release-tag searches\nmetadata:\n  type: experience-card\napproved: true\n---\nbody')
-writeFileSync(join(memDir, 'project-deploy.md'), '---\nname: project-deploy\ndescription: deploy rides src/exists.ts\ntype: project\n---\nbody')
-writeFileSync(join(memDir, 'stale-anchor.md'), '---\nname: stale-anchor\ndescription: release logic lives in src/deleted-file.ts\ntype: project\n---\nbody')
-writeFileSync(join(memDir, 'MEMORY.md'), '# index\n')
-writeFileSync(join(memDir, 'card-x.superseded.20260101.abc.md'), '---\nname: superseded-release-card\ndescription: release stuff\n---\n')
 
 section('§1 deterministic selection, bounds, explainability')
 {
-  const refs = collectMemoryRefs('when is the release shipped', { memoryDir: memDir, libraryDir: libDir, projectRoot })
+  const refs = collectMemoryRefs('when is the release shipped', { libraryDir: libDir, projectRoot })
   check('topic ref ranks first (exact tier)', refs[0]?.kind === 'mneme-topic' && refs[0].refId === 'mneme-topic:releases', JSON.stringify(refs[0]))
   check('consolidated fact ref present with seq id', refs.some(r => r.kind === 'mneme-fact' && /^mneme:\d+$/.test(r.refId)))
   check('pending fact labeled unconsolidated', refs.some(r => r.kind === 'mneme-pending' && r.status === 'unconsolidated'))
-  check('candidate card labeled candidate', refs.some(r => r.refId === 'card:card-observed-ready.md' && r.status === 'candidate'))
-  check('every ref carries a why-line', refs.every(r => r.why.length > 0))
-  check('superseded audit copies excluded', !refs.some(r => r.refId.includes('.superseded.')))
+  check('every ref carries a why-line and a Recall deref', refs.every(r => r.why.length > 0 && r.deref.startsWith('Recall ')))
   check('bounded ≤8', refs.length <= 8, String(refs.length))
-  const line = renderMemoryRefLine(refs.find(r => r.status === 'candidate')!)
-  check('candidate render says UNVERIFIED', /CANDIDATE — unverified/.test(line), line)
-  const twice = collectMemoryRefs('when is the release shipped', { memoryDir: memDir, libraryDir: libDir, projectRoot })
+  const twice = collectMemoryRefs('when is the release shipped', { libraryDir: libDir, projectRoot })
   check('selection is deterministic (stable across calls)', JSON.stringify(refs) === JSON.stringify(twice))
 }
 
 section('§2 freshness: a cited path that moved demotes to needs-review')
 {
-  const refs = collectMemoryRefs('release logic deploy', { memoryDir: memDir, libraryDir: libDir, projectRoot, maxRefs: 16 })
-  const stale = refs.find(r => r.refId === 'memfile:stale-anchor.md')
-  const fresh = refs.find(r => r.refId === 'memfile:project-deploy.md')
+  const refs = collectMemoryRefs('release logic deploy', { libraryDir: libDir, projectRoot, maxRefs: 16 })
+  const stale = refs.find(r => r.kind === 'mneme-fact' && r.summary.includes('deleted-file'))
+  const fresh = refs.find(r => r.kind === 'mneme-fact' && r.summary.includes('exists.ts'))
   check('missing-path ref → needs-review', stale?.status === 'needs-review', JSON.stringify(stale))
   check('present-path ref → current', fresh?.status === 'current', JSON.stringify(fresh))
   check('needs-review ranks below current at equal tier', !stale || !fresh || refs.indexOf(fresh) !== -1 && refs.indexOf(fresh) < refs.indexOf(stale))
@@ -63,14 +54,14 @@ section('§2 freshness: a cited path that moved demotes to needs-review')
   check('render names the demotion', /needs review/.test(line), line)
 }
 
-section('§3 scope + OFF lanes')
+section('§3 scope + the memory switch')
 {
-  const refsOtherQuery = collectMemoryRefs('bloom filter internals', { memoryDir: memDir, libraryDir: libDir, projectRoot })
+  const refsOtherQuery = collectMemoryRefs('bloom filter internals', { libraryDir: libDir, projectRoot })
   check('irrelevant query → zero refs', refsOtherQuery.length === 0, JSON.stringify(refsOtherQuery))
-  delete process.env.MERCURY_MNEME
-  const refsOff = collectMemoryRefs('when is the release shipped', { memoryDir: memDir, libraryDir: libDir, projectRoot })
-  check('MNEME OFF → no mneme refs, cards/files remain', refsOff.every(r => r.store !== 'mneme') && refsOff.length > 0)
-  process.env.MERCURY_MNEME = '1'
+  process.env.MERCURY_BARE = '1'
+  const refsOff = collectMemoryRefs('when is the release shipped', { libraryDir: libDir, projectRoot })
+  check('memory off → zero refs', refsOff.length === 0)
+  delete process.env.MERCURY_BARE
   check('queryTokens bounded + deduped', queryTokens('a a the the release release ship ship').length <= 12)
 }
 

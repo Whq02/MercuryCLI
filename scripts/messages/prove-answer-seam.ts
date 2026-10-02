@@ -15,7 +15,6 @@ function section(t: string): void {
 }
 
 const SQ = await import('../../src/utils/sideQuestion.ts')
-const MJ = await import('../../src/utils/messages/modelJson.ts')
 const ERR = await import('../../src/services/api/errors.ts')
 const ASK = await import('../../src/utils/cockpit/helmConsoleAsk.ts')
 
@@ -62,22 +61,8 @@ section('§2 a real answer beside an api-error settlement stays the answer')
   check('…and reads as an answer to the console detector', ASK.consoleAskFailure(out) === null)
 }
 
-section('§3 settledProviderFailure — one classification, every consumer asks first')
+section('§3 every structured consumer asks the settlement classification first')
 {
-  const lunaFailure = `${ERR.API_ERROR_MESSAGE_PREFIX}: OpenAI stream failed (http-500) — upstream connect error`
-  const failed = MJ.settledProviderFailure(apiErrored(lunaFailure) as never)
-  check('an api-error settlement classifies as the provider failure, verbatim', failed === lunaFailure, String(failed))
-  const fine = MJ.settledProviderFailure(answered('{"ops":[],"reply":"nothing to do"}') as never)
-  check('a real answer classifies null (decode proceeds)', fine === null)
-  const empty = MJ.settledProviderFailure({ type: 'assistant', isApiErrorMessage: true, message: { content: [] } } as never)
-  check(
-    'an empty-text error settlement still yields a sentence (never a blank reason)',
-    typeof empty === 'string' && empty.length > 0,
-    String(empty),
-  )
-
-  const memories = read('src/memdir/findRelevantMemories.ts')
-  check('findRelevantMemories keeps its pre-decode api-error arm', memories.includes('isApiErrorMessage'))
   const coordinator = read('src/services/concourse/coordinatorCall.ts')
   check(
     'the coordinator round loop excludes api-error settlements from its reply text',
@@ -86,33 +71,6 @@ section('§3 settledProviderFailure — one classification, every consumer asks 
   check(
     'an error-only coordinator round throws into the fail-soft contract (never paints the refusal as words the coordinator said)',
     coordinator.includes('realAssistants.length === 0'),
-  )
-}
-
-section('§4 per-family captured-SHAPE answers decode; real garbage stays honestly named')
-{
-  const plan = '{"ops":[{"op":"add","text":"note"}],"reply":"added 1"}'
-  const families: Array<[string, string]> = [
-    ['anthropic/openai (schema-forced): bare JSON', plan],
-    ['moonshot/deepseek shape: fenced JSON', '```json\n' + plan + '\n```'],
-    ['compat-chat shape: prose-wrapped JSON', 'Here is the plan you asked for:\n' + plan],
-    ['bare fence, no language word', '```\n' + plan + '\n```'],
-    ['prose + trailing sentence around the object', 'Sure. ' + plan + ' Let me know if that works.'],
-  ]
-  for (const [label, text] of families) {
-    const decoded = MJ.decodeModelJson(text)
-    check(
-      `${label} decodes`,
-      decoded.ok === true && (decoded as { value: { reply?: string } }).value.reply === 'added 1',
-    )
-  }
-  const garbage = MJ.decodeModelJson('I cannot produce JSON for that.')
-  check('a genuinely non-JSON answer refuses decode', garbage.ok === false)
-  const line = MJ.describeUndecodableModelText('gpt-5.6-luna', 'I cannot produce JSON for that.')
-  check(
-    'the undecodable line names the model and the head of what it SAID (the honest arm, kept)',
-    line.startsWith('gpt-5.6-luna answered without decodable JSON:') && line.includes('I cannot produce JSON'),
-    line,
   )
 }
 

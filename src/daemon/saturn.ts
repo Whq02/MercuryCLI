@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { parseCronExpression, computeNextCronRun } from '../utils/cron.js'
-import { detectSecrets } from '../memdir/experienceCards.js'
+import { detectSecrets } from '../utils/detectSecrets.js'
 import { presetNameProblem } from '../services/mcp/presetStore.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { appendSessionReceipt } from '../services/switchboard/sessionReceipts.js'

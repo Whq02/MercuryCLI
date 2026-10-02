@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { cronToHuman } from '../../utils/cron.js'
-import { detectSecrets } from '../../memdir/experienceCards.js'
+import { detectSecrets } from '../../utils/detectSecrets.js'
 import { saturnSecretProseRefusal } from '../../daemon/saturn.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { wakeDelaySpelling } from '../../utils/messages/noticeRows.js'

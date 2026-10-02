@@ -6,7 +6,6 @@ import type { LocalShellTaskState } from '../../tasks/LocalShellTask/guards.js'
 import type { LocalAgentTaskState } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import type { InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
 import type { LocalWorkflowTaskState } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import type { DreamTaskState } from '../../tasks/DreamTask/DreamTask.js'
 import { plural } from '../../utils/stringUtils.js'
 import { truncateToWidth } from '../mercury-ui/glyphs.js'
 import { describeCrewmateActivity, crewmateRole } from './taskStatusUtils.js'
@@ -98,20 +97,6 @@ function WorkflowLine({
   )
 }
 
-function DreamLine({ task }: { task: DreamTaskState }): React.ReactNode {
-  const detail =
-    task.phase === 'updating' && task.filesTouched.length > 0
-      ? `${task.filesTouched.length} ${plural(task.filesTouched.length, 'file')}`
-      : `${task.sessionsReviewing} ${plural(task.sessionsReviewing, 'session')}`
-  return (
-    <Text wrap="truncate-end">
-      {task.description} <Text dimColor>{task.phase}</Text>{' '}
-      <Text dimColor>· {detail}</Text>{' '}
-      <TaskStatusText status={task.status} label={completionWord(task.status)} />
-    </Text>
-  )
-}
-
 export function BackgroundTask({
   task,
   maxActivityWidth = DEFAULT_ACTIVITY_WIDTH,
@@ -128,8 +113,6 @@ export function BackgroundTask({
       return <CrewmateLine crewmate={task} />
     case 'local_workflow':
       return <WorkflowLine workflow={task} width={maxActivityWidth} />
-    case 'dream':
-      return <DreamLine task={task} />
     default:
       return (
         <AgentLine

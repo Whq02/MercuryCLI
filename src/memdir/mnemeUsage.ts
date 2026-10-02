@@ -1,9 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
 
 export const PINNED_TEXT_LIMIT_DEFAULT = 8000
 export const PINNED_TEXT_LIMIT_MIN = 1000
@@ -64,7 +64,7 @@ export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
 
 export function writePins(pins: readonly PinRecord[], dir: string = mnemeLibraryDir()): void {
   const file: PinsFile = { version: 1, pins: [...pins] }
-  durableAtomicPublishSync(pinsPath(dir), JSON.stringify(file, null, 1))
+  publishLibraryFile(pinsPath(dir), JSON.stringify(file, null, 1))
 }
 
 export function isPinned(seq: number, dir: string = mnemeLibraryDir()): boolean {
@@ -133,7 +133,7 @@ export function bumpUsage(seqs: readonly number[], dir: string = mnemeLibraryDir
       rows[String(seq)] = { last: stamp, count: (prior?.count ?? 0) + 1 }
     }
     const file: UsageFile = { version: 1, rows }
-    durableAtomicPublishSync(usagePath(dir), JSON.stringify(file))
+    publishLibraryFile(usagePath(dir), JSON.stringify(file))
   } catch (e) {
     logForDebugging(`memory usage bump failed: ${String(e)}`)
   }

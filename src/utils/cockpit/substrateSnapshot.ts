@@ -148,11 +148,6 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
         on: isEnvTruthy(flagEnv('MERCURY_WARM_BG')),
         hint: flagEnv('MERCURY_WARM_BG') === '1' ? 'OSC-11 warm bg (unset to revert)' : 'MERCURY_WARM_BG=1 · OSC-11',
       },
-      {
-        name: 'Relevance recall (cards)',
-        on: flagEnv('MERCURY_RELEVANT_RECALL') === '1',
-        hint: flagEnv('MERCURY_RELEVANT_RECALL') === '1' ? 'ranked card recall on' : 'MERCURY_RELEVANT_RECALL=1 · /cards',
-      },
     ],
   }
 

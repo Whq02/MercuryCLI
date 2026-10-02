@@ -1,6 +1,5 @@
 
 import { crewEnabled } from '../../daemon/crewSpawn.js'
-import { experienceCardsEnabled } from '../../memdir/experienceCards.js'
 import { mnemeEnabled } from '../../memdir/mnemeGates.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { dapAdapterProbePending, isDapToolCatalogEnabled, mercuryDapEnabled, reachableDapAdapterKeys } from '../../services/dap/dapClient.js'
@@ -86,9 +85,6 @@ export function computeHarnessMapLines(): string[] {
   const lines: Array<string | null> = [
     `- Discovery: /help lists commands; /capabilities is the live capability matrix for THIS build${healthCertEnabled() ? '; /health runs the evidence-backed health certificate' : ''}.`,
     '- Provider-API reference: invoke the bundled provider-apis skill for request shapes, streaming, tool calls and caching. Model currency is covered by the model-currency instruction.',
-    isAutoMemoryEnabled() || experienceCardsEnabled()
-      ? '- Experience cards: /cards reviews the durable lessons in memory.'
-      : null,
     dynamicWorkflowsEnabled()
       ? '- Deterministic multi-agent orchestration: the Workflow tool; /workflows is its board → run → inspector.'
       : null,

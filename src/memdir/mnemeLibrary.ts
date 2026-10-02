@@ -28,8 +28,12 @@ export function readLibraryMeta(dir: string = mnemeLibraryDir()): LibraryMeta {
   return { ...FRESH_META }
 }
 
+export function publishLibraryFile(path: string, content: string): void {
+  durableAtomicPublishSync(path, content)
+}
+
 export function writeLibraryMeta(meta: LibraryMeta, dir: string): void {
-  durableAtomicPublishSync(libraryMetaPath(dir), JSON.stringify(meta, null, 1))
+  publishLibraryFile(libraryMetaPath(dir), JSON.stringify(meta, null, 1))
 }
 
 function listDocs(dir: string, pattern: RegExp): MnemeTopicDoc[] {
@@ -55,5 +59,5 @@ export function listArchiveDocs(dir: string = mnemeLibraryDir()): MnemeTopicDoc[
 }
 
 export function writeDoc(doc: MnemeTopicDoc, dir: string): void {
-  durableAtomicPublishSync(join(dir, fileNameFor(doc)), serializeTopicDoc(doc))
+  publishLibraryFile(join(dir, fileNameFor(doc)), serializeTopicDoc(doc))
 }

@@ -134,7 +134,7 @@ function rowFor(
     }
   }
   const taskType: AgentRosterRow['taskType'] =
-    row.kind === 'shell' ? 'local_bash' : row.kind === 'dream' ? 'dream' : 'monitor_mcp'
+    row.kind === 'shell' ? 'local_bash' : 'monitor_mcp'
   return {
     taskId: row.id,
     taskType,

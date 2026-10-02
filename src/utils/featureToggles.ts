@@ -20,12 +20,6 @@ type ToggleDef = Omit<FeatureToggle, 'on'> & {
 
 const TOGGLE_DEFS: ToggleDef[] = [
   {
-    key: 'relevant-recall',
-    label: 'Relevance memory recall',
-    env: 'MERCURY_RELEVANT_RECALL',
-    scope: 'applies to the next turn',
-  },
-  {
     key: 'mcp-hardening',
     label: 'MCP untrusted hardening',
     env: 'MERCURY_MCP_UNTRUSTED_HARDENING',

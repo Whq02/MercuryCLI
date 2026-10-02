@@ -29,11 +29,6 @@
       "reason": "The old screen's transcript recorder — the session RUNNER owns the transcript writer now (the w0 law pins the screen holds none). Kept unmounted: hotpath-cadence and w0-laws exercise its pure units (isTurnBoundaryRow, the engine-lane law); unit extraction owed, then delete (a named deferral)."
     },
     {
-      "file": "src/memdir/promoteRungate.ts",
-      "class": "operator-opt-in-live",
-      "reason": "Reached only from the operator-invoked promote path (scripts/memory/distill-card.ts --promote) behind MERCURY_CARD_PROMOTE_RUNGATE: the in-loop tool never runs the green-gate by design (no autonomous self-modification), so no runtime import exists. Its former runtime importer, the memory-promotion flow, retired with the two-seat coordination mode. Covered by scripts/memory/prove-card-outcome-ledger.ts section 6."
-    },
-    {
       "file": "src/render-engine/ansiText.ts",
       "class": "proof-or-fixture-only",
       "reason": "The render engine core's ANSI tokenizer + row clamp (the width law every composed row rides), landed behind MERCURY_RENDER_ENGINE with its law suite (scripts/render-engine) ahead of the cockpit mount; reached from the engine core and the proofs alone until the mount takes the core."

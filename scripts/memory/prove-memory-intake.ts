@@ -134,7 +134,6 @@ check('the calm line names the count, the fill, the limit, that all are loaded, 
 const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
 check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
 check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT === 'headless') return null"))
-check('the composer carries no pinned line', !/pinned.*limit/i.test(readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')))
 
 section('a whole home at once, and the boot wiring')
 const summary = handoverHome(home, T0)

@@ -45,7 +45,6 @@ import {
   killWorkflowTask,
   type LocalWorkflowTaskState,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
-import { isDreamTask, type DreamTaskState } from '../../tasks/DreamTask/DreamTask.js'
 import type { TaskState } from '../../tasks/types.js'
 import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
@@ -81,7 +80,6 @@ import {
 } from './useFocusedWork.js'
 import { AsyncAgentDetailDialog } from './AsyncAgentDetailDialog.js'
 import { BackgroundTask as BackgroundTaskComponent } from './BackgroundTask.js'
-import { DreamDetailDialog } from './DreamDetailDialog.js'
 import { InProcessCrewmateDetailDialog } from './InProcessCrewmateDetailDialog.js'
 import { ShellDetailDialog, shellCardFactsOfRow, shellCardFactsOfTask } from './ShellDetailDialog.js'
 import { cellCardOf } from '../../tools/WorkshopTool/cellCards.js'
@@ -102,7 +100,6 @@ type RowKind =
   | 'monitor'
   | 'agent'
   | 'workflow'
-  | 'dream'
   | 'sample'
 
 type BoardItem = {
@@ -131,7 +128,6 @@ function kindOf(task: TaskState): RowKind {
   if (isLocalAgentTask(task)) return 'agent'
   if (isInProcessCrewmateTask(task)) return 'crewmate'
   if (isLocalWorkflowTask(task)) return 'workflow'
-  if (isDreamTask(task)) return 'dream'
   if ((task as { type?: string }).type === 'monitor_mcp') return 'monitor'
   throw new Error(
     `BackgroundTasksDialog: unrecognised task kind ${(task as { type?: string }).type}`,
@@ -338,7 +334,6 @@ export function BackgroundTasksDialog({
   const monitorTasks = byKind.get('monitor') ?? []
   const agentTasks = byKind.get('agent') ?? []
   const workflowTasks = byKind.get('workflow') ?? []
-  const dreamTasks = byKind.get('dream') ?? []
 
   const leaderItem: BoardItem | null =
     crewmateTasks.length > 0 ? { id: LEADER_ROW_ID, kind: 'leader' } : null
@@ -359,8 +354,6 @@ export function BackgroundTasksDialog({
     ...rosterOf('agent'),
     ...workflowTasks.map((task): BoardItem => ({ id: task.id, kind: 'workflow', task })),
     ...rosterOf('workflow'),
-    ...dreamTasks.map((task): BoardItem => ({ id: task.id, kind: 'dream', task })),
-    ...rosterOf('dream'),
     ...(roster.samples ?? []).map((sample): BoardItem => ({ id: `sample:${sample.id}`, kind: 'sample', sample })),
   ]
   const indexById = new Map(flat.map((item, index) => [item.id, index]))
@@ -483,9 +476,6 @@ export function BackgroundTasksDialog({
         return
       case 'monitor':
         ;(task as { abortController?: AbortController }).abortController?.abort()
-        return
-      case 'dream':
-        (task as DreamTaskState).abortController?.abort()
         return
       default:
         return
@@ -628,19 +618,6 @@ export function BackgroundTasksDialog({
         />
       )
     }
-    if (isDreamTask(detailTask)) {
-      const dream = detailTask as DreamTaskState
-      return (
-        <CommandCenter elevated view="consolidation" onClose={onDone} captureInput={false}>
-          <DreamDetailDialog
-            task={dream}
-            onDone={onDone}
-            onBack={backFromDetail}
-            onKill={() => dream.abortController?.abort()}
-          />
-        </CommandCenter>
-      )
-    }
   }
   if (inDetail && detailTask === undefined && detailWork !== undefined) {
     if (detailWork.kind === 'shell' || (detailWork.kind === 'monitor' && detailWork.command !== undefined)) {
@@ -741,7 +718,6 @@ export function BackgroundTasksDialog({
   const monitorItems = flat.filter(item => item.kind === 'monitor')
   const agentItems = flat.filter(item => item.kind === 'agent')
   const workflowItems = flat.filter(item => item.kind === 'workflow')
-  const dreamItems = flat.filter(item => item.kind === 'dream')
   const sampleItems = flat.filter(item => item.kind === 'sample')
   const processItems = flat.filter(item => item.kind !== 'sample')
 
@@ -889,14 +865,6 @@ export function BackgroundTasksDialog({
                   Workflows
                 </SectionHeader>
                 {workflowItems.filter(inWin).map(rowFor)}
-              </Box>
-            ) : null}
-            {dreamItems.length > 0 ? (
-              <Box flexDirection="column">
-                <SectionHeader count={dreamItems.length}>
-                  Consolidation
-                </SectionHeader>
-                {dreamItems.filter(inWin).map(rowFor)}
               </Box>
             ) : null}
             {winEnd < flat.length ? (

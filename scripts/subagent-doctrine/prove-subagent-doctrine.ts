@@ -27,7 +27,6 @@ function section(t: string): void {
 const GP = { agentType: 'mercury-general' }
 const EXEMPT = ['mercury-verifier', 'mercury-scout', 'mercury-architect', 'mercury-reviewer', 'workflow-subagent']
 const NORMAL_MARK = 'You are a subagent OF Mercury'
-const CARD_MARK = /^## .*experience cards/im
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'
 const join = (a: string[]) => a.join('\n')
 
@@ -45,7 +44,6 @@ check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.string
 
 section('(b) stamped ⇒ floor leads, the ONE NORMAL doctrine')
 setStamp(true)
-delete process.env.MERCURY_EXPERIENCE_CARDS
 {
   const s = buildSubagentMercurySections({ agentDefinition: GP })
   check('returns a non-empty section list', s.length >= 2, `len=${s.length}`)
@@ -60,16 +58,15 @@ for (const a of EXEMPT) {
 }
 
 section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a string literal)')
-delete process.env.MERCURY_EXPERIENCE_CARDS
 {
+  const { isFixedOutputAgent } = await import('../../src/constants/subagentDoctrine.ts')
   for (const def of [VERIFICATION_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT]) {
     check(`${def.agentType}: def carries fixedOutputContract:true`, def.fixedOutputContract === true)
-    const s = join(buildSubagentMercurySections({ agentDefinition: { agentType: def.agentType } }))
-    check(`${def.agentType}: agentType ∈ derived exempt Set (card doctrine omitted)`, !CARD_MARK.test(s) && s.includes('<subagent-doctrine>'))
+    check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }))
   }
-  check("'workflow-subagent' literal ∈ derived exempt Set (card doctrine omitted)", !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: 'workflow-subagent' } }))))
-  check('a non-flagged agent (mercury-general) is NOT exempt (keeps the card doctrine)', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
-  check('a made-up agentType is NOT exempt (no drift to over-exempting)', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: 'not-a-real-fixed-output-agent' } }))))
+  check("'workflow-subagent' literal ∈ derived exempt Set", isFixedOutputAgent({ agentType: 'workflow-subagent' }))
+  check('a non-flagged agent (mercury-general) is NOT exempt', !isFixedOutputAgent(GP))
+  check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
 }
 
 section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAGENT_DEF flagged')
@@ -82,15 +79,14 @@ section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAG
   check('BaseAgentDefinition declares fixedOutputContract?: boolean', la.includes('fixedOutputContract?: boolean'))
 }
 
-section('(e) experience-card doctrine — gated on cards-enabled + omitted for exempt agents')
-delete process.env.MERCURY_EXPERIENCE_CARDS
-check('cards ON: mercury-general INCLUDES the card doctrine', CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
+section('(e) memory front page — every agent receives it; the memory switch removes it')
+check('mercury-general carries the memory front page', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
 for (const a of EXEMPT) {
-  check(`${a}: card doctrine OMITTED (fixed-output/read-only worker)`, !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: { agentType: a } }))))
+  check(`${a}: carries the memory front page (crewmates get the pinned rules)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes('# Memory'))
 }
-process.env.MERCURY_EXPERIENCE_CARDS = '0'
-check('cards OFF (=0): mercury-general drops the card doctrine', !CARD_MARK.test(join(buildSubagentMercurySections({ agentDefinition: GP }))))
-delete process.env.MERCURY_EXPERIENCE_CARDS
+process.env.MERCURY_BARE = '1'
+check('memory off: no front page in the doctrine', !join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
+delete process.env.MERCURY_BARE
 
 section('(e2) API-currency: doctrine line for ALL agents + env-block currency note')
 {

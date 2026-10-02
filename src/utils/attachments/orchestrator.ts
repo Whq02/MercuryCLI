@@ -52,7 +52,6 @@ import {
   getCriticalSystemReminderAttachment,
   getMaxBudgetUsdAttachment,
   getOutputTokenUsageAttachment,
-  getTasteRecallAttachment,
   getUsageLimitNoticeAttachment,
 } from './sessionContext.js'
 import { getRelevantMemoryAttachments } from './memorySurfacing.js'
@@ -284,7 +283,6 @@ export async function getAttachments(
         getCriticalSystemReminderAttachment(toolUseContext, messages ?? []),
       ),
     ),
-    maybe('taste_recall', () => getTasteRecallAttachment(toolUseContext, messages)),
     ...pulseFixtureProducers(abortController.signal, maybe),
   ]
 
