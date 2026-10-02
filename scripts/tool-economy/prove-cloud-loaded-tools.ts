@@ -51,7 +51,7 @@ type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 
 const TEN_NAMES = ['ChangeSet', 'AstSearch', 'AstEdit', 'LSP', 'Test', 'Git', 'Debug', 'Monitor', 'Checkpoint', 'Rewind']
-const LOCAL_SET = ['Agent', 'Bash', 'Edit', 'Eval', 'Glob', 'Grep', 'JevEval', 'PushNotification', 'Read', 'ScheduleWakeup', 'Skill', 'ToolSearch', 'Workshop', 'Write']
+const LOCAL_SET = ['Agent', 'Bash', 'Edit', 'Eval', 'Glob', 'Grep', 'JevEval', 'Read', 'ScheduleWakeup', 'Skill', 'ToolSearch', 'Workshop', 'Write']
 
 const permissionContext = getEmptyToolPermissionContext()
 const pool: Tool[] = [...assembleToolPool(permissionContext, buildFixtureMcpTools<Tool>(MCPTool))]

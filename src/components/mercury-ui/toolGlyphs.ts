@@ -111,7 +111,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   Godot: 'external',
   Unity: 'external',
   ListMcpResources: 'external',
-  PushNotification: 'external',
 }
 
 export function toolFamilyFor(toolName: string): ToolFamily {

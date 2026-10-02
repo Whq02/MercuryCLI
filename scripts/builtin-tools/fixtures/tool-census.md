@@ -6,12 +6,12 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 66 built-in production tools · 181 operations · 66 with a declared capability contract.
+Census version 1 — 65 built-in production tools · 180 operations · 65 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 44 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 21 mutation · 11 execution · 12 coordination · 0 unclassified
+- support (at generation time): 42 available · 12 conditional · 0 degraded · 11 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 21 mutation · 11 execution · 11 coordination · 0 unclassified
 - integrations: 10 declare transactions · 13 declare executions · 28 declare mercury:// outputs · 39 name a focused proof
 - capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
@@ -58,7 +58,6 @@ Census version 1 — 66 built-in production tools · 181 operations · 66 with a
 | NotebookEdit | mutation | text-mutation | — | block | yes | notebook +receipts | — | mercury://file, mercury://receipt | NAMED GAP |
 | PowerShell | execution | process-execution | — | block | no | — | background-job (external-projection) | mercury://task | NAMED GAP |
 | ProviderSearch | observation | web-access | — | block | yes | — | — | — | scripts/search/run-all.sh |
-| PushNotification | coordination | operator-io | — | block | yes | — | — | — | NAMED GAP |
 | Read | observation | source-reading | — | block | no | — | — | mercury://file | scripts/project-services/prove-change-anchors.ts |
 | ReadMcpResource | observation | resource-inspection | — | block | yes | — | — | — | NAMED GAP |
 | Recall | observation | memory | — | block | yes | — | — | — | scripts/memory/prove-verbs-lifecycle.ts |

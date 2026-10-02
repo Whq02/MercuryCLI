@@ -958,8 +958,6 @@ export function REPL({
         setToolJSX,
         addNotification,
         appendSystemMessage: (msg: Message) => paintScreenRow(msg, getUserMessageText(msg as UserMessage) ?? ''),
-        sendOSNotification: (opts: { message: string; notificationType: string }) =>
-          sendNotification({ message: opts.message, notificationType: opts.notificationType }, terminal),
         setInProgressToolUseIDs: () => {},
         setHasInterruptibleToolInProgress: () => {},
         setResponseLength: () => {},

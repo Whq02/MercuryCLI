@@ -74,7 +74,6 @@ import {
 } from './tools/MemoryTools/MemoryTools.js'
 import { memoryVerbsEnabled } from './memdir/memoryVerbs.js'
 import { PowerShellTool } from './tools/PowerShellTool/PowerShellTool.js'
-import { PushNotificationTool } from './tools/PushNotificationTool/PushNotificationTool.js'
 import { ReadMcpResourceTool } from './tools/ReadMcpResourceTool/ReadMcpResourceTool.js'
 import { RecordConventionTool } from './tools/RecordConventionTool/RecordConventionTool.js'
 import { CronCreateTool } from './tools/ScheduleCronTool/CronCreateTool.js'
@@ -156,7 +155,6 @@ const SLEEP_TOOL = cycleTolerant(() => SleepTool)
 const MONITOR_TOOL = cycleTolerant(() => MonitorTool)
 const RECORD_CONVENTION_TOOL = cycleTolerant(() => RecordConventionTool)
 const SEND_USER_FILE_TOOL = cycleTolerant(() => SendUserFileTool)
-const PUSH_NOTIFICATION_TOOL = cycleTolerant(() => PushNotificationTool)
 
 export function getAllBaseTools(): Tools {
   const search = searchToolsAvailability()
@@ -222,7 +220,6 @@ export function getAllBaseTools(): Tools {
     RECORD_CONVENTION_TOOL,
     ...(memoryVerbsEnabled() ? [RetainTool, RecallTool, ReflectTool, CorrectTool] : []),
     SEND_USER_FILE_TOOL,
-    PUSH_NOTIFICATION_TOOL,
     ...(isPowerShellToolEnabled() && powerShell ? [powerShell] : []),
     ...(process.env.NODE_ENV === 'test' ? [TestingPermissionTool] : []),
     ListMcpResourcesTool,

@@ -59,7 +59,6 @@ const COORD_NAME_HINTS = [
   'fleet',
   'sendmessage',
   'remotetrigger',
-  'pushnotification',
   'monitor',
   'worktree',
 ]

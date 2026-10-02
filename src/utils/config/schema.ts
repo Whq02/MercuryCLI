@@ -264,10 +264,6 @@ export type GlobalConfig = {
 
   terminalProgressBarEnabled: boolean
 
-  taskCompleteNotifEnabled?: boolean
-  inputNeededNotifEnabled?: boolean
-  agentPushNotifEnabled?: boolean
-
   remoteDialogSeen?: boolean
 
   bridgeOauthDeadExpiresAt?: number
@@ -366,9 +362,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'messageIdleNotifThresholdMs',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
-  'taskCompleteNotifEnabled',
-  'inputNeededNotifEnabled',
-  'agentPushNotifEnabled',
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',

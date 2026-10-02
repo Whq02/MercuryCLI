@@ -1400,29 +1400,6 @@
       }
     },
     {
-      "name": "PushNotification",
-      "category": "coord",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "operator-io"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "send the operator a push notification"
-        ],
-        "units": [
-          "operator-io"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast"
-      }
-    },
-    {
       "name": "Read",
       "category": "read",
       "risk": "low",
