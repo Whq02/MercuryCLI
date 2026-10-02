@@ -64,7 +64,7 @@ model reads and arrives for real only in hook and server environments.
 - an extension's name: lowercase letters, digits and hyphens, 1–40 characters, starting with a letter or digit; the id everywhere is `<name>@<source label>`; the reserved labels are `project`, `session`, `mercury`.
 - ONE manifest, `mercury-extension.json`, at the extension root; every path in it stays inside the root.
 - ONE catalogue, `mercury-extensions.json`, at a source root — or a single `mercury-extension.json` when the repository IS the extension.
-- unknown top-level keys: a warning at load, an error under `mercury extensions validate`; unknown keys INSIDE `contributes`/`needs` are errors at load.
+- unknown top-level keys: a warning at load, an error under `mercury extensions inspect`; unknown keys INSIDE `contributes`/`needs` are errors at load.
 - `module` is reserved: this build loads declarative extensions; `module` is reserved.
 - approval is per contributions hash — sha256 over the canonicalised `contributes` + `needs` blocks plus a digest of every delivered file under the extension root (skill, command and agent bodies, hook and server scripts), the root `mercury-extension.json` itself excepted: a version bump alone carries approval over; a changed command line, server, need, or any changed delivered byte re-asks.
 - the substitutions: `${MERCURY_EXTENSION_ROOT}`, `${MERCURY_EXTENSION_DATA}`, `${option.KEY}` in command lines, args, env values and prompt bodies; every other `${…}` stays literal. Hooks and servers receive `MERCURY_EXTENSION_ROOT`, `MERCURY_EXTENSION_DATA` and one `MERCURY_EXTENSION_OPTION_<KEY>` per option; a `sensitive` option renders a visible placeholder in prose the model reads.
@@ -145,7 +145,7 @@ model reads and arrives for real only in hook and server environments.
 
 ## The maker's loop
 
-1. `mercury extensions init review-tools` scaffolds the folder (manifest with the
+1. `mercury extensions scaffold review-tools` writes the folder (manifest with the
    required fields, an empty `skills/`, a README) — or write it by hand from this page.
 2. Put it in the project: `.mercury/extensions/review-tools/`. Open Mercury there.
    `/extensions` shows `◇ found`. Press `i`: the approval card — what it will run on
@@ -153,9 +153,8 @@ model reads and arrives for real only in hook and server environments.
 3. Edit a skill; press `r` (or `/extensions reload`): the change is live. If the
    manifest's contributions changed, the row reads `changed — re-approve` and the card
    shows the diff.
-4. `mercury extensions validate .mercury/extensions/review-tools` lints everything the
-   runtime tolerates (unknown top-level keys, side files the runtime ignores, a hook
-   whose script is missing).
+4. `mercury extensions inspect .mercury/extensions/review-tools` lints everything the
+   runtime tolerates (unknown top-level keys, a hook whose script is missing).
 5. Publish: push the folder as its own repository — a single-extension source — or add
    it to a catalogue. Others add the URL.
 
@@ -172,7 +171,7 @@ hosted in another repository. A catalogue whose `name`/`version` disagree with t
 fetched manifest is a lying catalogue: the install refuses and says so.
 
 Ship a `README.md` from the template (`docs/templates/extension-source-README.md`, also
-written by `mercury extensions init --source`): what the source offers, how to add it,
+written by `mercury extensions scaffold --source`): what the source offers, how to add it,
 what each extension needs, who maintains it, the licence.
 
 ## What the operator sees
@@ -189,7 +188,7 @@ what each extension needs, who maintains it, the licence.
   menu adds a second switch: an extension's master row there turns its
   contributions off for sessions born in that repository, and a session is
   served an extension only when both switches agree ([KIT.md](KIT.md)).
-- `u`/`check` refreshes a source — the only act that discovers a newer version;
+- `u`/`refresh` refreshes a source — the only act that discovers a newer version;
   `U`/`update` applies one; the previous version is kept until the first clean load and
   `--previous` swaps back.
 - Health lives on the row, always with the reason: `● on` · `◑ partial · server x: node
@@ -204,15 +203,15 @@ what each extension needs, who maintains it, the licence.
 | `sources [--json]` | the sources with state |
 | `add <url\|path\|archive> [--label <l>]` | add a source (installs nothing) |
 | `remove <label> [--and-extensions]` | remove a source; its copies keep working |
-| `check [<label>]` | refresh one or every source; prints the updates found |
+| `refresh [<label>]` | refresh one or every source; prints the updates found |
 | `install <name>[@label] [--yes] [--project]` | fetch + the card + the switch |
-| `approve <id> [--yes] [--project]` | the card for an installed-off or found extension |
+| `trust <id> [--yes] [--project]` | the card for an installed-off or found extension |
 | `enable <id> [--project]` / `disable <id> [--project]` | the switch |
 | `update <id>\|--all [--yes]` / `update <id> --previous` | apply a known update / swap back |
 | `uninstall <id> [--keep-data]` | remove with no residue |
-| `block <id\|label\|url>` / `unblock …` | the blocklist |
-| `validate <path>` | the maker's linter |
-| `init <name> [--source]` | scaffold an extension or a source root |
+| `fence <id\|label\|url>` / `unfence …` | the blocklist |
+| `inspect <path>` | the maker's linter |
+| `scaffold <name> [--source]` | write an extension or a source root |
 
 ## A worked example
 

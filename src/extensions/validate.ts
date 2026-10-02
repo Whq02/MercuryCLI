@@ -1,8 +1,8 @@
-import { existsSync, readdirSync, statSync } from 'node:fs'
+import { existsSync, statSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { entryDirectory, readSourceRoot } from './catalogue.js'
 import { resolveContributions, realProbes, type Probes } from './load/contributions.js'
-import { IGNORED_SIDE_FILES, contributionsHash, extensionId, readManifest, shortHash } from './manifest.js'
+import { contributionsHash, extensionId, readManifest, shortHash } from './manifest.js'
 import { CATALOGUE_FILE, MANIFEST_FILE } from './paths.js'
 
 export type ValidationReport = {
@@ -11,38 +11,11 @@ export type ValidationReport = {
   ok: boolean
   errors: string[]
   warnings: string[]
-  ignored: string[]
   summary: string[]
 }
 
-export function ignoredSideFiles(root: string): string[] {
-  const found: string[] = []
-  for (const rel of IGNORED_SIDE_FILES) {
-    if (existsSync(join(root, rel))) found.push(rel)
-  }
-  let entries: string[] = []
-  try {
-    entries = readdirSync(root)
-  } catch {
-    entries = []
-  }
-  for (const entry of entries) {
-    if (!entry.startsWith('.')) continue
-    const dir = join(root, entry)
-    try {
-      if (!statSync(dir).isDirectory()) continue
-    } catch {
-      continue
-    }
-    for (const inner of readdirSync(dir)) {
-      if (inner.endsWith('.json')) found.push(`${entry}/${inner}`)
-    }
-  }
-  return found
-}
-
 export function validateExtensionFolder(root: string, probes: Probes = realProbes({ optionSet: () => true })): ValidationReport {
-  const report: ValidationReport = { kind: 'extension', path: root, ok: false, errors: [], warnings: [], ignored: ignoredSideFiles(root), summary: [] }
+  const report: ValidationReport = { kind: 'extension', path: root, ok: false, errors: [], warnings: [], summary: [] }
   const read = readManifest(root, { strict: true })
   if (read.status === 'missing') {
     report.errors.push(`no ${MANIFEST_FILE} at ${root}`)
@@ -55,7 +28,7 @@ export function validateExtensionFolder(root: string, probes: Probes = realProbe
   }
   report.warnings.push(...read.warnings)
   const manifest = read.manifest
-  const resolution = resolveContributions(manifest, root, extensionId(manifest.name, 'validate'), probes)
+  const resolution = resolveContributions(manifest, root, extensionId(manifest.name, 'inspect'), probes)
   for (const defect of resolution.defects) report.warnings.push(`would load partial: ${defect}`)
   for (const note of resolution.notes) report.warnings.push(`note: ${note}`)
   const counts: string[] = []
@@ -70,13 +43,12 @@ export function validateExtensionFolder(root: string, probes: Probes = realProbe
   report.summary.push(`${manifest.name} ${manifest.version} — ${manifest.description}`)
   report.summary.push(`adds ${counts.length > 0 ? counts.join(' · ') : 'nothing'}`)
   report.summary.push(`contributions hash ${shortHash(contributionsHash(manifest, root))} (re-approval is asked when it changes)`)
-  for (const rel of report.ignored) report.warnings.push(`ignored: ${rel} (only ${MANIFEST_FILE} is read)`)
   report.ok = report.errors.length === 0
   return report
 }
 
 export function validateSourceFolder(root: string, probes?: Probes): ValidationReport {
-  const report: ValidationReport = { kind: 'source', path: root, ok: false, errors: [], warnings: [], ignored: [], summary: [] }
+  const report: ValidationReport = { kind: 'source', path: root, ok: false, errors: [], warnings: [], summary: [] }
   const read = readSourceRoot(root, { strict: true })
   if (read.status === 'none') {
     report.errors.push(read.reason)
@@ -118,15 +90,15 @@ export function validateSourceFolder(root: string, probes?: Probes): ValidationR
 }
 
 export function validatePath(path: string): ValidationReport {
-  if (!existsSync(path)) return { kind: 'none', path, ok: false, errors: [`${path} does not exist`], warnings: [], ignored: [], summary: [] }
+  if (!existsSync(path)) return { kind: 'none', path, ok: false, errors: [`${path} does not exist`], warnings: [], summary: [] }
   if (statSync(path).isFile()) {
     const name = basename(path)
     const dir = join(path, '..')
     if (name === CATALOGUE_FILE) return validateSourceFolder(dir)
     if (name === MANIFEST_FILE) return validateExtensionFolder(dir)
-    return { kind: 'none', path, ok: false, errors: [`${name} is neither ${MANIFEST_FILE} nor ${CATALOGUE_FILE}`], warnings: [], ignored: [], summary: [] }
+    return { kind: 'none', path, ok: false, errors: [`${name} is neither ${MANIFEST_FILE} nor ${CATALOGUE_FILE}`], warnings: [], summary: [] }
   }
   if (existsSync(join(path, CATALOGUE_FILE))) return validateSourceFolder(path)
   if (existsSync(join(path, MANIFEST_FILE))) return validateExtensionFolder(path)
-  return { kind: 'none', path, ok: false, errors: [`no ${MANIFEST_FILE} or ${CATALOGUE_FILE} at ${path}`], warnings: [], ignored: ignoredSideFiles(path), summary: [] }
+  return { kind: 'none', path, ok: false, errors: [`no ${MANIFEST_FILE} or ${CATALOGUE_FILE} at ${path}`], warnings: [], summary: [] }
 }

@@ -44,7 +44,7 @@ console.log('============================================================')
 console.log(' the CLI verbs — the same states, headless (built binary)')
 console.log('============================================================')
 
-console.log('[1] the verb walk: add → sources → list → install(--yes) → disable/enable → check → uninstall → remove')
+console.log('[1] the verb walk: add → sources → list → install(--yes) → disable/enable → refresh → uninstall → remove')
 {
   const empty = run(['extensions', 'list'])
   check('list on a fresh home exits 0 with the empty state naming the maker doc', empty.code === 0 && empty.stdout.includes('no extensions yet') && empty.stdout.includes('docs/EXTENSIONS.md'), empty.stdout.slice(0, 200))
@@ -72,16 +72,16 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   check('the row reads off', offRow?.trust === 'off')
   check('enable restores', run(['extensions', 'enable', 'kitchen-sink@fixture-source']).code === 0)
 
-  const checked = run(['extensions', 'check', 'fixture-source'])
-  check('check exits 0 and prints the offer count', checked.code === 0 && checked.stdout.includes('offered'), (checked.stderr + checked.stdout).slice(0, 160))
+  const checked = run(['extensions', 'refresh', 'fixture-source'])
+  check('refresh exits 0 and prints the offer count', checked.code === 0 && checked.stdout.includes('offered'), (checked.stderr + checked.stdout).slice(0, 160))
 
-  const blocked = run(['extensions', 'block', 'kitchen-sink@fixture-source'])
-  check('block exits 0', blocked.code === 0)
+  const blocked = run(['extensions', 'fence', 'kitchen-sink@fixture-source'])
+  check('fence exits 0', blocked.code === 0)
   const blockedRow = json<{ extensions: Array<{ id: string; trust: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the row reads blocked', blockedRow?.trust === 'blocked')
   const enableBlocked = run(['extensions', 'enable', 'kitchen-sink@fixture-source'])
   check('enable while blocked refuses naming the unblock key', enableBlocked.code === 1 && enableBlocked.stderr.includes('unblock'))
-  check('unblock exits 0', run(['extensions', 'unblock', 'kitchen-sink@fixture-source']).code === 0)
+  check('unfence exits 0', run(['extensions', 'unfence', 'kitchen-sink@fixture-source']).code === 0)
 
   const un = run(['extensions', 'uninstall', 'kitchen-sink@fixture-source', '--yes'])
   check('uninstall --yes walks the steps', un.code === 0 && un.stdout.includes('uninstalled'), (un.stderr + un.stdout).slice(0, 200))
@@ -98,32 +98,36 @@ console.log('[2] a TTY-less install without --yes: the card as text, exit 1, ins
   check('the refusal names --yes', (asked.stderr + asked.stdout).includes('--yes'))
   const row = json<{ extensions: Array<{ id: string; trust: string; approved: boolean }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the copy stays installed, off, unapproved', row?.trust === 'off' && row?.approved === false, JSON.stringify(row))
-  const envTrick = run(['extensions', 'approve', 'kitchen-sink@fixture-source'], { MERCURY_YES: '1', YES: '1', ASSUME_YES: '1' })
+  const envTrick = run(['extensions', 'trust', 'kitchen-sink@fixture-source'], { MERCURY_YES: '1', YES: '1', ASSUME_YES: '1' })
   check('no env var implies --yes (still exit 1)', envTrick.code === 1)
-  const approved = run(['extensions', 'approve', 'kitchen-sink@fixture-source', '--yes'])
+  const approved = run(['extensions', 'trust', 'kitchen-sink@fixture-source', '--yes'])
   check('approve --yes lands', approved.code === 0, (approved.stderr + approved.stdout).slice(0, 160))
 }
 
-console.log('[3] init scaffolds an extension and a source that validate clean')
+console.log('[3] scaffold writes an extension and a source that validate clean')
 {
-  const ext = run(['extensions', 'init', 'my-tools', '--dir', scratch])
-  check('init <name> exits 0', ext.code === 0, (ext.stderr + ext.stdout).slice(0, 160))
-  const validated = run(['extensions', 'validate', join(scratch, 'my-tools')])
+  const ext = run(['extensions', 'scaffold', 'my-tools', '--dir', scratch])
+  check('scaffold <name> exits 0', ext.code === 0, (ext.stderr + ext.stdout).slice(0, 160))
+  const validated = run(['extensions', 'inspect', join(scratch, 'my-tools')])
   check('the scaffold validates clean', validated.code === 0 && validated.stdout.includes('valid'), validated.stdout.slice(0, 200))
-  const src = run(['extensions', 'init', 'my-source', '--source', '--dir', scratch])
-  check('init --source exits 0 with the README template', src.code === 0 && existsSync(join(scratch, 'my-source', 'README.md')) && readFileSync(join(scratch, 'my-source', 'README.md'), 'utf8').includes('mercury extensions add'))
-  const validatedSource = run(['extensions', 'validate', join(scratch, 'my-source')])
+  const src = run(['extensions', 'scaffold', 'my-source', '--source', '--dir', scratch])
+  check('scaffold --source exits 0 with the README template', src.code === 0 && existsSync(join(scratch, 'my-source', 'README.md')) && readFileSync(join(scratch, 'my-source', 'README.md'), 'utf8').includes('mercury extensions add'))
+  const validatedSource = run(['extensions', 'inspect', join(scratch, 'my-source')])
   check('the source scaffold validates clean', validatedSource.code === 0, validatedSource.stdout.slice(0, 200))
 }
 
-console.log('[4] validate reports the ignored side files')
+console.log('[4] inspect reads the one manifest: other files beside it are never named')
 {
+  const J = (...parts: string[]): string => parts.join('')
+  const SIDE = [J('hooks/', 'hooks.json'), J('.mcp', '.json')] as const
   const noisy = join(scratch, 'my-tools')
   mkdirSync(join(noisy, 'hooks'), { recursive: true })
-  writeFileSync(join(noisy, 'hooks', 'hooks.json'), '{}')
-  writeFileSync(join(noisy, '.mcp.json'), '{}')
-  const report = run(['extensions', 'validate', noisy])
-  check('hooks/hooks.json and .mcp.json are named as ignored', report.stdout.includes('ignored: hooks/hooks.json') && report.stdout.includes('ignored: .mcp.json'), report.stdout.slice(0, 300))
+  for (const rel of SIDE) writeFileSync(join(noisy, rel), '{}')
+  const report = run(['extensions', 'inspect', noisy])
+  check('the folder validates clean with exit 0', report.code === 0 && report.stdout.includes('valid'), (report.stderr + report.stdout).slice(0, 300))
+  check('the text names neither file', SIDE.every(rel => !report.stdout.includes(rel)), report.stdout.slice(0, 300))
+  const asJson = json<Record<string, unknown>>(run(['extensions', 'inspect', noisy, '--json']).stdout)
+  check('--json carries no list of other files and no warnings', !('ignored' in asJson) && Array.isArray(asJson.warnings) && asJson.warnings.length === 0, JSON.stringify(asJson).slice(0, 300))
 }
 
 console.log('[5] /extensions is in the catalogue with its help-domain row; the retired routes are gone')

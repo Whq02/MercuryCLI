@@ -246,7 +246,10 @@ function removeSwitchHere(id: string): void {
 function pruneEmptySettings(): void {
   for (const source of ['userSettings', 'localSettings'] as const) {
     const extensions = getSettingsForSource(source)?.extensions
-    if (!extensions) continue
+    if (!extensions) {
+      removeSettingsFileIfEmpty(source)
+      continue
+    }
     const prune: Record<string, undefined> = {}
     if (extensions.enabled !== undefined && Object.keys(extensions.enabled).length === 0) prune['enabled'] = undefined
     if (extensions.options !== undefined && Object.keys(extensions.options).length === 0) prune['options'] = undefined

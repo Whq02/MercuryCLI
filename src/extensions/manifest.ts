@@ -195,8 +195,6 @@ export const KNOWN_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   'module',
 ])
 
-export const IGNORED_SIDE_FILES = ['hooks/hooks.json', '.mcp.json', '.lsp.json', 'settings.json'] as const
-
 
 export type ManifestParse =
   | { ok: true; manifest: ExtensionManifest; warnings: string[] }

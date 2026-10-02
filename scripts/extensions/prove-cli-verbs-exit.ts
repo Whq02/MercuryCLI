@@ -94,7 +94,7 @@ try {
   check('…approved and on', v2.out.includes('approved and on'), v2.out.trim().split('\n').pop() ?? '')
 
   console.log('V3 approve without --yes on a TTY-less run refuses and ends')
-  const v3 = await verb(['approve', 'kitchen-sink@fixture-source'])
+  const v3 = await verb(['trust', 'kitchen-sink@fixture-source'])
   check('approve exits 1 within the bound', v3.exited && v3.code === 1, shape(v3))
   check('…naming the scripted-approval remedy', v3.err.includes('re-run with --yes'), v3.err.trim().split('\n').pop() ?? '')
 
