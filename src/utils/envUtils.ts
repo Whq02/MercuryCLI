@@ -30,10 +30,6 @@ export function canonicalHomeSpelling(raw: string, platform: string = process.pl
   return s.length === 0 ? raw.normalize('NFC') : s
 }
 
-export function configHomeExplicitlySet(): boolean {
-  return Boolean(process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME'))
-}
-
 export function rawConfigHomePinSpelling(): string | null {
   const raw = process.env.MERCURY_CONFIG_DIR || flagEnv('MERCURY_HOME')
   return raw ? raw.normalize('NFC') : null

@@ -208,7 +208,7 @@ try {
   const op = optable.vulcanOp('project_refresh_classes')
   check('project_refresh_classes: a frontier exec op, Mercury-side', op?.cls === 'exec' && op?.category === 'frontier' && /headless --import/.test(op?.summary ?? ''))
   const tool = readFileSync(join(ROOT, 'src/tools/GodotTool/GodotTool.ts'), 'utf8')
-  check('the tool answers it locally by the optable\'s side and rides the file-history road for installs', op?.side === 'mercury' && /if \(spec\.side === 'mercury'\) return runLocalOp/.test(tool) && !/LOCAL_OPS/.test(tool) && tool.includes('fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid') && tool.includes('notifyVscodeFileUpdated(file, previous, next)'))
+  check('the tool answers it locally by the optable\'s side and rides the file-history road for installs', op?.side === 'mercury' && /if \(spec\.side === 'mercury'\) return runLocalOp/.test(tool) && !/LOCAL_OPS/.test(tool) && tool.includes('fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid'))
   check('the reload script defers the toggle so the answer leaves first', /call_deferred\("set_plugin_enabled", "mercury_vulcan", false\)/.test(installer.PLUGIN_RELOAD_SCRIPT) && /call_deferred\("set_plugin_enabled", "mercury_vulcan", true\)/.test(installer.PLUGIN_RELOAD_SCRIPT))
 } finally {
   rmSync(scratch, { recursive: true, force: true })

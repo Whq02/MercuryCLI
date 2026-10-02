@@ -5,7 +5,6 @@ import { buildTool, type ToolUseContext } from '../../Tool.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
 import { getVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../utils/fileHistory.js'
@@ -46,9 +45,6 @@ function changeRecordRoad(context: ToolUseContext, parentMessage: AssistantMessa
       if (fileHistoryEnabled()) {
         await fileHistoryTrackEdit(context.updateFileHistoryState, file, parentMessage.uuid as UUID)
       }
-    },
-    after: (file, previous, next) => {
-      notifyVscodeFileUpdated(file, previous, next)
     },
   }
 }

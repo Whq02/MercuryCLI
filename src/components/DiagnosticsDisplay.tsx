@@ -9,14 +9,9 @@ import { CtrlOToExpand } from './CtrlOToExpand.js'
 import { MessageResponse } from './MessageResponse.js'
 import { GLYPH } from './mercury-ui/glyphs.js'
 
-const IDE_RIGHT_PREFIX = '_claude_fs_right:'
-
 function splitUri(uri: string): { path: string; scheme: string } {
   if (uri.startsWith('file://')) {
     return { path: uri.slice('file://'.length), scheme: 'file://' }
-  }
-  if (uri.startsWith(IDE_RIGHT_PREFIX)) {
-    return { path: uri.slice(IDE_RIGHT_PREFIX.length), scheme: 'claude_fs_right' }
   }
   const colon = uri.indexOf(':')
   return { path: uri, scheme: colon > 0 ? uri.slice(0, colon) : uri }

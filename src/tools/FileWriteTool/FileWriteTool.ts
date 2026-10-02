@@ -9,7 +9,6 @@ import { generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '..
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
@@ -279,7 +278,6 @@ export const FileWriteTool = buildTool({
         logError(err)
       }
     }
-    notifyVscodeFileUpdated(expandedPath, fileExists ? normalizedContent : '', input.content)
 
     context.readFileState.set(expandedPath, {
       content: writtenContent,

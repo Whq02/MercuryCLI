@@ -31,7 +31,6 @@ import {
   type NormalizedFileEdits,
   type WorkspaceEditLike,
 } from '../../services/lsp/workspaceEditApply.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { noteRunEvent } from '../../services/run/runCoordinator.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { buildDiffHunks } from '../../services/structure/transform.js'
@@ -1153,11 +1152,6 @@ async function applyPrepared(
       })
     } catch (error) {
       logForDebugging(`lsp ops: read-state refresh failed for ${w.abs}: ${String(error)}`)
-    }
-    try {
-      notifyVscodeFileUpdated(w.abs, w.create ? null : w.originalText, w.newText)
-    } catch (error) {
-      logForDebugging(`lsp ops: editor notification failed for ${w.abs}: ${String(error)}`)
     }
     const sync = await syncServersAfterWrite(manager, w.abs, w.newText)
     if (!sync.ok) syncFailures.push(`${displayPathFor(env.cwd, w.abs)}: ${sync.reason}`)

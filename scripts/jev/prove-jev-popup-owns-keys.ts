@@ -163,7 +163,6 @@ function Cockpit(): React.ReactNode {
         compactWork: controls,
         compactFocus: focus,
         debug: false,
-        ideSelection: undefined,
         toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {},
         apiKeyStatus: 'valid',

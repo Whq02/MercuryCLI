@@ -83,7 +83,6 @@
     "saveProjectConfigForWorkspace",
     "setPathTrusted",
     "type:AccountInfo",
-    "type:DiffTool",
     "type:EditorMode",
     "type:GlobalConfig",
     "type:GlobalConfigKey",
