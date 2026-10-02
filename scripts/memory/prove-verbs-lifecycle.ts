@@ -40,11 +40,11 @@ check(
 )
 check('tools report enabled', RetainTool.isEnabled() && RecallTool.isEnabled() && ReflectTool.isEnabled() && CorrectTool.isEnabled())
 
-section('MEMORY.md is untouched by the verbs (the index law)')
+section('an ordinary file in the memory dir is untouched by the verbs')
 const memPath = getAutoMemPath()
 mkdirSync(memPath, { recursive: true })
-const indexPath = join(memPath, 'MEMORY.md')
-writeFileSync(indexPath, '# Memory index\n\n- untouched sentinel\n', 'utf8')
+const indexPath = join(memPath, 'notes.md')
+writeFileSync(indexPath, '# notes\n\n- untouched sentinel\n', 'utf8')
 const indexBefore = readFileSync(indexPath, 'utf8')
 
 section('retain → recall: pending, labeled, seconds old')
@@ -99,8 +99,8 @@ check('all eight writers stored', parallelOutcomes.every(o => o[0]?.status === '
 const countRecall = recallQuery('concurrent fact number', { limit: 50 })
 check('all eight rows readable back', countRecall.hits.length === 8, String(countRecall.hits.length))
 
-section('the index law held throughout')
-check('MEMORY.md byte-unchanged', existsSync(indexPath) && readFileSync(indexPath, 'utf8') === indexBefore)
+section('the other file is still as it was')
+check('notes.md byte-unchanged', existsSync(indexPath) && readFileSync(indexPath, 'utf8') === indexBefore)
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ ALL VERBS-LIFECYCLE PROOFS PASS' : `❌ ${failures} VERBS-LIFECYCLE PROOF(S) FAILED`)

@@ -31,7 +31,7 @@ walk(join(ROOT, 'src'), files)
 const rel = (p: string): string => p.slice(ROOT.length + 1)
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 
-section('the modules of the retired store are gone')
+section('memory has one store: no second set of modules')
 for (const name of ['memdir', 'memoryTypes', 'memoryScan', 'findRelevantMemories', 'experienceCards', 'curationLoop', 'tasteLoop', 'promoteRungate', 'memoryAge', 'memoryReferents']) {
   check(`src/memdir/${name}.ts is absent`, !existsSync(join(ROOT, 'src/memdir', `${name}.ts`)))
 }
@@ -40,7 +40,7 @@ for (const dir of ['src/commands/remember', 'src/commands/cards', 'src/commands/
 }
 check('the cards view is absent', !existsSync(join(ROOT, 'src/components/CardsView.tsx')))
 
-section('the words of the retired store are not in the product')
+section('the product speaks of memory in one vocabulary')
 const INTAKE = 'src/memdir/mnemeHandover.ts'
 const carriers = (re: RegExp, except: string[] = []): string[] =>
   files.filter(p => !except.includes(rel(p))).filter(p => re.test(readFileSync(p, 'utf8'))).map(rel)
@@ -50,12 +50,12 @@ check('no source names experience cards (the intake recognises the old header, n
 const SETTINGS_LANE = ['src/utils/settings/types.ts', 'src/migrations/migrateSettingsSpellings.ts']
 check('no source names the taste loop, the notes upkeep or the dream task (the settings key and its spelling row are the settings lane\'s queue row)', carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).length === 0, carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).join(', '))
 check("no source reads an 'AutoMem' instruction entry", carriers(/'AutoMem'|'TeamMem'/).length === 0, carriers(/'AutoMem'|'TeamMem'/).join(', '))
-check('no command is registered for the retired surfaces', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))
+check('no command is registered under the memory words that are not Mercury\'s', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))
 const registry = read('src/substrate/flagRegistry.ts')
 for (const flag of ['MERCURY_EXPERIENCE_CARDS', 'MERCURY_TASTE_LOOP', 'MERCURY_RELEVANT_RECALL', 'MERCURY_CARD_DEDUP', 'MERCURY_CARD_PROMOTE_GATE', 'MERCURY_CARD_PROMOTE_RUNGATE', 'MERCURY_CARD_RECALL_PRECISION', 'MERCURY_CARD_SUPERSEDE', 'MERCURY_CARD_TRACE_GROUND']) {
   check(`the registry has no ${flag} row`, !registry.includes(`env: '${flag}'`))
 }
-check('the registry remembers no retired memory flag in its retired table', !/RETIRED_FLAGS[\s\S]*MERCURY_(MNEME|EXPERIENCE_CARDS|TASTE_LOOP|RELEVANT_RECALL|CARD_)/.test(registry))
+check('the flag registry\'s table of unknown names carries no memory flag', !/RETIRED_FLAGS[\s\S]*MERCURY_(MNEME|EXPERIENCE_CARDS|TASTE_LOOP|RELEVANT_RECALL|CARD_)/.test(registry))
 const types = read('src/utils/memory/types.ts')
 check('the instruction-file type union is the four instruction kinds only', /\['User', 'Project', 'Local', 'Managed'\]/.test(types) && !types.includes('AutoMem'))
 
