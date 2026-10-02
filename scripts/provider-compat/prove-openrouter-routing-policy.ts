@@ -79,7 +79,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { createUserMessage } = await import('../../src/utils/messages.js')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
 type Tool = import('../../src/Tool.js').Tool
-type Routing = import('../../src/utils/settings/types.js').SettingsJson['openrouterRouting']
+type Routing = NonNullable<import('../../src/utils/settings/types.js').SettingsJson['routing']>['openrouter']
 const deferred = { name: 'FixtureRead', shouldDefer: true, prompt: async () => 'Read a fixture', description: async () => 'Read a fixture', inputSchema: z.object({ path: z.string() }), isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, userFacingName: () => 'FixtureRead', call: async () => ({ data: 'fixture' }) } as unknown as Tool
 const messages = [createUserMessage({ content: 'Say OK' })]
 async function turn(model: string, responses = false, singleShot = false): Promise<{ captures: Capture[]; errors: string[]; settled: boolean }> {
@@ -102,8 +102,8 @@ async function drive(model: string, responses = false): Promise<Capture | undefi
   return result.captures[0]
 }
 function setting(value: Routing): void {
-  updateSettingsForSource('userSettings', { openrouterRouting: undefined })
-  if (value !== undefined) updateSettingsForSource('userSettings', { openrouterRouting: value })
+  updateSettingsForSource('userSettings', { routing: { openrouter: undefined } })
+  if (value !== undefined) updateSettingsForSource('userSettings', { routing: { openrouter: value } })
 }
 const allOff: Routing = { dataCollection: 'allow', requireParameters: false, allowFallbacks: true, zeroDataRetention: false }
 const policyBytes = '{"data_collection":"deny","require_parameters":true}'
