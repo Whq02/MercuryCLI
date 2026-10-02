@@ -478,6 +478,7 @@ export type WorkflowNotificationArgs = {
   setAppState: SetAppState
   toolUseId?: string
   transcriptDir?: string
+  runDir?: string
   scriptPath?: string
   workflowRunId?: string
   args?: unknown
@@ -550,6 +551,7 @@ export function enqueueWorkflowNotification(args: WorkflowNotificationArgs): voi
       )
     }
     if (args.transcriptDir) lines.push(`Agent transcripts: ${args.transcriptDir}`)
+    if (args.runDir) lines.push(`Run state: ${args.runDir}`)
     if (lines.length > 0) {
       recoverySection = `\n<recovery>${lines.join('\n')}</recovery>`
     }

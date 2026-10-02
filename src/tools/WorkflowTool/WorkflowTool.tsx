@@ -143,6 +143,7 @@ type WorkflowResultData = {
   runId?: string
   summary?: string
   transcriptDir?: string
+  runDir?: string
   scriptPath?: string
   warning?: string
   error?: string
@@ -286,6 +287,7 @@ export const outputSchema = lazySchema(() =>
       .optional()
       .describe('Local workflow run identifier for resumeFromRunId.'),
     summary: z.string().optional(),
+    runDir: z.string().optional().describe('Directory containing the workflow run record, journal and control state.'),
     transcriptDir: z
       .string()
       .optional()
@@ -967,7 +969,8 @@ const WorkflowToolDef = {
               durationMs: Date.now() - task.startTime,
               setAppState,
               toolUseId: context.toolUseId,
-              transcriptDir: runDir,
+              transcriptDir: getWorkflowTranscriptDir(runId),
+              runDir,
               scriptPath,
               workflowRunId: runId,
               args: input.args,
@@ -1017,7 +1020,8 @@ const WorkflowToolDef = {
             durationMs: result.durationMs,
             setAppState,
             toolUseId: context.toolUseId,
-            transcriptDir: runDir,
+            transcriptDir: getWorkflowTranscriptDir(runId),
+            runDir,
             scriptPath,
             workflowRunId: runId,
             args: input.args,
@@ -1056,7 +1060,8 @@ const WorkflowToolDef = {
             durationMs: Date.now() - task.startTime,
             setAppState,
             toolUseId: context.toolUseId,
-            transcriptDir: runDir,
+            transcriptDir: getWorkflowTranscriptDir(runId),
+            runDir,
             scriptPath,
             workflowRunId: runId,
             args: input.args,
@@ -1080,7 +1085,8 @@ const WorkflowToolDef = {
         workflowName: meta.name,
         runId,
         summary: workflowRunLabel(meta),
-        transcriptDir: runDir,
+        transcriptDir: getWorkflowTranscriptDir(runId),
+        runDir,
         scriptPath,
       },
     }
@@ -1101,6 +1107,7 @@ const WorkflowToolDef = {
     let content = `Workflow launched in background. Task ID: ${data.taskId}`
     if (data.summary) content += `\nSummary: ${data.summary}`
     if (data.transcriptDir) content += `\nTranscript dir: ${data.transcriptDir}`
+    if (data.runDir) content += `\nRun dir: ${data.runDir}`
     if (data.scriptPath) {
       content += `\nScript file: ${data.scriptPath}\n(Edit this file with Write/Edit and re-invoke Workflow with {scriptPath: "${data.scriptPath}"} to iterate without resending the script.)`
     }
