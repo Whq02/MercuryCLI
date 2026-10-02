@@ -130,7 +130,7 @@ export function formatZodError(error: z.ZodError, filePath: string): ValidationE
 }
 
 const EDIT_STRICT_GROUPS = [
-  'credentials', 'files', 'records', 'briefs', 'strategy', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
+  'credentials', 'files', 'records', 'briefs', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
   'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
 ] as const
 

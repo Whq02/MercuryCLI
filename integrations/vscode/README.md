@@ -25,7 +25,7 @@ it shows comes from Mercury.
 - **Resume Session** — the transcript replays into the chat; nothing
   re-runs.
 - **Set Session Mode** — the modes the session reports (default, implement,
-  strategy, flow).
+  flow).
 - **Open Artifact / Show Review Comments** — artifact bodies as markdown;
   anchored diff-line comments decorate open editors (outdated anchors say
   so).

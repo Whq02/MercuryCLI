@@ -126,10 +126,6 @@ export const SettingsSchema = lazySchema(() => {
       git: z.boolean().optional(),
       profile: z.enum(['auto', 'native']).optional(),
     }).passthrough().optional(),
-    strategy: z.object({
-      directory: z.string().optional().describe('Project-root-relative directory for plan files (default plans/ under the Mercury config home)'),
-      offerFreshContext: z.boolean().optional(),
-    }).passthrough().optional(),
     memory: z.object({
       enabled: z.boolean().optional(),
       directory: z.string().optional().describe('Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
