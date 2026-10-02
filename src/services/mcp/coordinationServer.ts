@@ -104,7 +104,7 @@ export async function createCoordinationServer(): Promise<{
       instructions:
         'Mercury coordination substrate: typed tools for file leases, the ' +
         'crew brief (the same live read LiveComms gives), and crew messaging. ' +
-        'Prefer these over Bash for swarm coordination.',
+        'Prefer these over Bash for crew coordination.',
     },
   )
 

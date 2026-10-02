@@ -1234,7 +1234,7 @@ async function sendHandoff(
 
 export const SendMessageTool = buildTool({
   name: SEND_MESSAGE_TOOL_NAME,
-  searchHint: 'send messages to agent crewmates over the swarm protocol',
+  searchHint: 'send messages to agent crewmates over the crew bus',
   shouldDefer: true,
   maxResultSizeChars: 100_000,
   get inputSchema(): InputSchema {
