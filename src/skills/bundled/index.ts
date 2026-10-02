@@ -1,8 +1,10 @@
 import { registerDebugSkill } from './debug.js'
 import { registerKeybindingsSkill } from './keybindings.js'
+import { registerMercuryDocsSkill } from './mercuryDocs.js'
 import { registerSimplifySkill } from './simplify.js'
 import { registerSkillifySkill } from './skillify.js'
 import { registerUpdateConfigSkill } from './updateConfig.js'
+import { registerVerifierSkill } from './verifier.js'
 import { registerAppProofSkill } from './app-proof.js'
 import { registerExtensionMakerSkill } from './extension-maker.js'
 import { registerMcpSmithySkill } from './mcp-smithy.js'
@@ -21,6 +23,8 @@ export function initBundledSkills(): void {
   registerDebugSkill()
   registerSkillifySkill()
   registerSimplifySkill()
+  registerMercuryDocsSkill()
+  registerVerifierSkill()
 
   registerAppProofSkill()
   registerExtensionMakerSkill()

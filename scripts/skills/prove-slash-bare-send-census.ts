@@ -104,7 +104,7 @@ section('§1 THE CENSUS — every slash name the roster can carry, by what a bar
 {
   const kinds = new Set(roster.map(command => command.type))
   check('the roster carries the three kinds and no other', [...kinds].every(kind => kind === 'local' || kind === 'local-jsx' || kind === 'prompt'), [...kinds].join(','))
-  check('the sixteen bundled skills register', bundled.length === 16, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
+  check('the eighteen bundled skills register', bundled.length === 18, `bundled=${bundled.length}: ${bundled.map(command => command.name).join(' ')}`)
   console.log(`  ${builtGenerated.size} generated wrappers were compiled with the build's text loader, so their description and hint are the ones the build ships: ${[...builtGenerated.keys()].join(' ')}`)
   check('the nine generated skills are the ones with a SKILL.md source, every one built', generatedNames.length === 9 && builtGenerated.size === 9 && generatedNames.every(name => builtGenerated.has(name)), `${generatedNames.length} sources, ${builtGenerated.size} built`)
   check('every built wrapper registers the description and hint its SKILL.md declares (extension-maker alone declares no hint)', [...generatedFrontmatter.entries()].every(([name, fields]) => fields.description !== undefined && builtGenerated.get(name)?.description === fields.description && builtGenerated.get(name)?.argumentHint === fields.argumentHint && (fields.argumentHint !== undefined || name === 'extension-maker')), [...generatedFrontmatter.entries()].map(([name, fields]) => `${name}:${fields.argumentHint ?? 'none'}=${builtGenerated.get(name)?.argumentHint ?? 'none'}`).join(' '))
