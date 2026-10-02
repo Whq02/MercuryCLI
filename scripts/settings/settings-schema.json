@@ -5,99 +5,163 @@
     "$schema": {
       "type": "string"
     },
-    "apiKeyHelper": {
-      "type": "string"
-    },
-    "proxyAuthHelper": {
-      "type": "string"
-    },
-    "forceLoginMethod": {
-      "type": "string",
-      "enum": [
-        "claudeai",
-        "console"
-      ]
-    },
-    "forceLoginOrgUUID": {
-      "type": "string"
-    },
-    "fileSuggestion": {
+    "credentials": {
       "type": "object",
       "properties": {
-        "type": {
-          "type": "string",
-          "const": "command"
+        "keyCommand": {
+          "type": "string"
         },
-        "command": {
+        "proxyCommand": {
+          "type": "string"
+        },
+        "signInRoute": {
+          "type": "string",
+          "enum": [
+            "claudeai",
+            "console"
+          ]
+        },
+        "organisation": {
           "type": "string"
         }
-      },
-      "required": [
-        "type",
-        "command"
-      ],
-      "additionalProperties": false
-    },
-    "respectGitignore": {
-      "type": "boolean"
-    },
-    "cleanupPeriodDays": {
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 9007199254740991
-    },
-    "instructionExcludes": {
-      "description": "Glob patterns or absolute paths of instruction files to skip (e.g. ~/.mercury/MERCURY.md or **/.mercury/rules/*.md); managed layers cannot be excluded",
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "plansDirectory": {
-      "description": "Project-root-relative directory for plan files (replacing the default plans/ directory under the Mercury config home)",
-      "type": "string"
-    },
-    "autoMemoryEnabled": {
-      "type": "boolean"
-    },
-    "autoMemoryDirectory": {
-      "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
-      "type": "string"
-    },
-    "memoryUpkeepEnabled": {
-      "description": "Background memory upkeep: the notes consolidation pass between sessions",
-      "type": "boolean"
-    },
-    "loopGuardStopEnabled": {
-      "description": "Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls",
-      "type": "boolean"
-    },
-    "env": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string"
       },
       "additionalProperties": {}
     },
-    "attribution": {
+    "files": {
       "type": "object",
       "properties": {
-        "commit": {
-          "type": "string"
+        "suggester": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "command"
+            },
+            "command": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "command"
+          ],
+          "additionalProperties": false
         },
-        "pr": {
-          "type": "string"
+        "honourGitignore": {
+          "type": "boolean"
         }
       },
-      "additionalProperties": false
+      "additionalProperties": {}
     },
-    "includeMercuryCoAuthor": {
-      "type": "boolean"
+    "records": {
+      "type": "object",
+      "properties": {
+        "retentionDays": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "additionalProperties": {}
     },
-    "includeGitInstructions": {
-      "type": "boolean"
+    "briefs": {
+      "type": "object",
+      "properties": {
+        "exclude": {
+          "description": "Glob patterns or absolute paths of instruction files to skip (e.g. ~/.mercury/MERCURY.md or **/.mercury/rules/*.md); managed layers cannot be excluded",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "git": {
+          "type": "boolean"
+        },
+        "profile": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "native"
+          ]
+        }
+      },
+      "additionalProperties": {}
     },
-    "permissions": {
+    "strategy": {
+      "type": "object",
+      "properties": {
+        "directory": {
+          "description": "Project-root-relative directory for plan files (default plans/ under the Mercury config home)",
+          "type": "string"
+        },
+        "offerFreshContext": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "memory": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "directory": {
+          "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
+          "type": "string"
+        },
+        "upkeep": {
+          "description": "Background memory upkeep: the notes consolidation pass between sessions",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "turns": {
+      "type": "object",
+      "properties": {
+        "loopGuard": {
+          "description": "Loop guard turn end: when true, the second detection of one repeated cycle of tool calls (or one chanted stretch of reply text) ends the turn with a loop_stopped result; absent or false, these cycles only draw reminders; headless runs still end after eight consecutive identical failing tool calls",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "environment": {
+      "type": "object",
+      "properties": {
+        "values": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {}
+        }
+      },
+      "additionalProperties": {}
+    },
+    "credit": {
+      "type": "object",
+      "properties": {
+        "lines": {
+          "type": "object",
+          "properties": {
+            "commit": {
+              "type": "string"
+            },
+            "pr": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "mercury": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "guardrails": {
       "type": "object",
       "properties": {
         "allow": {
@@ -118,7 +182,7 @@
             "type": "string"
           }
         },
-        "defaultMode": {
+        "mode": {
           "type": "string",
           "enum": [
             "default",
@@ -148,377 +212,549 @@
           "additionalProperties": {
             "type": "string"
           }
+        },
+        "managedOnly": {
+          "type": "boolean"
+        },
+        "sovereignConsentSeen": {
+          "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)",
+          "type": "boolean"
+        },
+        "sandbox": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "description": "Whether sandboxing is on",
+              "type": "boolean"
+            },
+            "failIfUnavailable": {
+              "description": "Refuse to run when the sandbox cannot be established",
+              "type": "boolean"
+            },
+            "autoAllowBashIfSandboxed": {
+              "description": "Auto-approve shell commands that run sandboxed",
+              "type": "boolean"
+            },
+            "allowUnsandboxedCommands": {
+              "description": "Permit commands to escape the sandbox when needed",
+              "type": "boolean"
+            },
+            "network": {
+              "type": "object",
+              "properties": {
+                "allowedDomains": {
+                  "description": "Domains the sandboxed process may reach",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowManagedDomainsOnly": {
+                  "description": "Restrict network access to managed domains only",
+                  "type": "boolean"
+                },
+                "allowUnixSockets": {
+                  "description": "Unix socket paths reachable from the sandbox",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowAllUnixSockets": {
+                  "description": "Allow every unix socket",
+                  "type": "boolean"
+                },
+                "allowLocalBinding": {
+                  "description": "Allow binding local ports",
+                  "type": "boolean"
+                },
+                "httpProxyPort": {
+                  "description": "HTTP proxy port",
+                  "type": "number"
+                },
+                "socksProxyPort": {
+                  "description": "SOCKS proxy port",
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            },
+            "filesystem": {
+              "type": "object",
+              "properties": {
+                "allowWrite": {
+                  "description": "Writable path patterns",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "denyWrite": {
+                  "description": "Write-denied path patterns",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "denyRead": {
+                  "description": "Read-denied path patterns",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowRead": {
+                  "description": "Readable path patterns",
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowManagedReadPathsOnly": {
+                  "description": "Restrict reads to managed paths only",
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "ignoreViolations": {
+              "description": "Violation patterns to ignore, keyed by command",
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "enableWeakerNestedSandbox": {
+              "description": "Allow the weaker nested-sandbox fallback",
+              "type": "boolean"
+            },
+            "enableWeakerNetworkIsolation": {
+              "description": "Allow the weaker network-isolation fallback",
+              "type": "boolean"
+            },
+            "excludedCommands": {
+              "description": "Commands excluded from sandboxing",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "ripgrep": {
+              "description": "Search-tool binary override",
+              "type": "object",
+              "properties": {
+                "command": {
+                  "type": "string"
+                },
+                "args": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "command"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": {}
         }
       },
       "additionalProperties": {}
     },
-    "model": {
-      "type": "string"
-    },
-    "availableModels": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "modelOverrides": {
+    "engine": {
       "type": "object",
-      "propertyNames": {
-        "type": "string"
-      },
-      "additionalProperties": {
-        "type": "string"
-      }
-    },
-    "effortLevel": {
-      "type": "string",
-      "enum": [
-        "low",
-        "medium",
-        "high",
-        "xhigh",
-        "max"
-      ]
-    },
-    "supercodeEffort": {
-      "type": "boolean"
-    },
-    "sessionDefaultsKey": {
-      "type": "boolean"
-    },
-    "alwaysThinkingEnabled": {
-      "type": "boolean"
-    },
-    "enableAllProjectMcpServers": {
-      "type": "boolean"
-    },
-    "enabledMcpjsonServers": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "disabledMcpjsonServers": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "allowedMcpServers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "serverName": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$"
-          },
-          "serverCommand": {
-            "minItems": 1,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "serverUrl": {
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "roster": {
+          "type": "array",
+          "items": {
             "type": "string"
           }
         },
-        "additionalProperties": false
-      }
-    },
-    "deniedMcpServers": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "serverName": {
-            "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$"
-          },
-          "serverCommand": {
-            "minItems": 1,
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "serverUrl": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": false
-      }
-    },
-    "allowManagedMcpServersOnly": {
-      "type": "boolean"
-    },
-    "hooks": {
-      "type": "object",
-      "propertyNames": {
-        "type": "string",
-        "enum": [
-          "PreToolUse",
-          "PostToolUse",
-          "PostToolUseFailure",
-          "Notification",
-          "UserPromptSubmit",
-          "UserPromptExpansion",
-          "SessionStart",
-          "SessionEnd",
-          "Stop",
-          "StopFailure",
-          "SubagentStart",
-          "SubagentStop",
-          "PreCompact",
-          "PostCompact",
-          "PermissionRequest",
-          "PermissionDenied",
-          "Setup",
-          "CrewmateIdle",
-          "TaskCreated",
-          "TaskCompleted",
-          "Elicitation",
-          "ElicitationResult",
-          "ConfigChange",
-          "WorktreeCreate",
-          "WorktreeRemove",
-          "InstructionsLoaded",
-          "CwdChanged",
-          "FileChanged",
-          "Interrupt"
-        ]
-      },
-      "additionalProperties": {
-        "type": "array",
-        "items": {
+        "pins": {
           "type": "object",
-          "properties": {
-            "matcher": {
-              "description": "Pattern matched against event-related values, typically tool names.",
-              "type": "string"
-            },
-            "hooks": {
-              "type": "array",
-              "items": {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "command"
-                      },
-                      "command": {
-                        "type": "string",
-                        "description": "The shell command to execute."
-                      },
-                      "shell": {
-                        "description": "Shell to run the command with: 'bash' uses your login shell family; 'powershell' uses pwsh. Defaults to bash.",
-                        "type": "string",
-                        "enum": [
-                          "bash",
-                          "powershell"
-                        ]
-                      },
-                      "async": {
-                        "description": "Run in the background without blocking.",
-                        "type": "boolean"
-                      },
-                      "asyncRewake": {
-                        "description": "Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.",
-                        "type": "boolean"
-                      },
-                      "if": {
-                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                        "type": "string"
-                      },
-                      "timeout": {
-                        "description": "Timeout for this hook, in seconds.",
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 2147483
-                      },
-                      "statusMessage": {
-                        "description": "Message shown in the spinner while the hook runs.",
-                        "type": "string"
-                      },
-                      "once": {
-                        "description": "Run this hook once, then remove it.",
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "command"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "prompt"
-                      },
-                      "prompt": {
-                        "type": "string",
-                        "description": "Prompt evaluated by a model. An $ARGUMENTS placeholder receives the hook input JSON."
-                      },
-                      "model": {
-                        "description": "Model to evaluate the prompt with. Defaults to the default small fast model.",
-                        "type": "string"
-                      },
-                      "if": {
-                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                        "type": "string"
-                      },
-                      "timeout": {
-                        "description": "Timeout for this hook, in seconds.",
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 2147483
-                      },
-                      "statusMessage": {
-                        "description": "Message shown in the spinner while the hook runs.",
-                        "type": "string"
-                      },
-                      "once": {
-                        "description": "Run this hook once, then remove it.",
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "prompt"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "agent"
-                      },
-                      "prompt": {
-                        "type": "string",
-                        "description": "What the agent should verify. An $ARGUMENTS placeholder receives the hook input JSON. Timeout defaults to 60 seconds."
-                      },
-                      "model": {
-                        "description": "Model for the agent. Defaults to the default small fast model floored to the mid-tier model — agent hooks never run the smallest model.",
-                        "type": "string"
-                      },
-                      "if": {
-                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                        "type": "string"
-                      },
-                      "timeout": {
-                        "description": "Timeout for this hook, in seconds.",
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 2147483
-                      },
-                      "statusMessage": {
-                        "description": "Message shown in the spinner while the hook runs.",
-                        "type": "string"
-                      },
-                      "once": {
-                        "description": "Run this hook once, then remove it.",
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "prompt"
-                    ],
-                    "additionalProperties": false
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "const": "http"
-                      },
-                      "url": {
-                        "type": "string",
-                        "format": "uri",
-                        "description": "URL that receives a POST of the hook input JSON."
-                      },
-                      "headers": {
-                        "description": "Request headers. Values may reference environment variables as $VAR or ${VAR}; only variables named in allowedEnvVars are interpolated.",
-                        "type": "object",
-                        "propertyNames": {
-                          "type": "string"
-                        },
-                        "additionalProperties": {
-                          "type": "string"
-                        }
-                      },
-                      "allowedEnvVars": {
-                        "description": "Environment variable names allowed in header interpolation. Required for any interpolation; unlisted references resolve to empty strings.",
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      },
-                      "if": {
-                        "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
-                        "type": "string"
-                      },
-                      "timeout": {
-                        "description": "Timeout for this hook, in seconds.",
-                        "type": "number",
-                        "exclusiveMinimum": 0,
-                        "maximum": 2147483
-                      },
-                      "statusMessage": {
-                        "description": "Message shown in the spinner while the hook runs.",
-                        "type": "string"
-                      },
-                      "once": {
-                        "description": "Run this hook once, then remove it.",
-                        "type": "boolean"
-                      }
-                    },
-                    "required": [
-                      "type",
-                      "url"
-                    ],
-                    "additionalProperties": false
-                  }
-                ]
-              }
-            }
+          "propertyNames": {
+            "type": "string"
           },
-          "required": [
-            "hooks"
-          ],
-          "additionalProperties": false
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "effort": {
+          "type": "string",
+          "enum": [
+            "low",
+            "medium",
+            "high",
+            "xhigh",
+            "max"
+          ]
+        },
+        "supercode": {
+          "type": "boolean"
+        },
+        "sessionDefaults": {
+          "type": "boolean"
+        },
+        "reasoning": {
+          "type": "boolean"
+        },
+        "agent": {
+          "type": "string"
         }
-      }
+      },
+      "additionalProperties": {}
     },
-    "disableAllHooks": {
-      "type": "boolean"
+    "kit": {
+      "type": "object",
+      "properties": {
+        "trustProjectServers": {
+          "type": "boolean"
+        },
+        "projectOn": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "projectOff": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permit": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "serverName": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "serverCommand": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "serverUrl": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "deny": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "serverName": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_-]+$"
+              },
+              "serverCommand": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "serverUrl": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "managedOnly": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
     },
-    "allowManagedHooksOnly": {
-      "type": "boolean"
-    },
-    "allowedHttpHookUrls": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "httpHookAllowedEnvVars": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "allowManagedPermissionRulesOnly": {
-      "type": "boolean"
+    "events": {
+      "type": "object",
+      "properties": {
+        "hooks": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "PreToolUse",
+              "PostToolUse",
+              "PostToolUseFailure",
+              "Notification",
+              "UserPromptSubmit",
+              "UserPromptExpansion",
+              "SessionStart",
+              "SessionEnd",
+              "Stop",
+              "StopFailure",
+              "SubagentStart",
+              "SubagentStop",
+              "PreCompact",
+              "PostCompact",
+              "PermissionRequest",
+              "PermissionDenied",
+              "Setup",
+              "CrewmateIdle",
+              "TaskCreated",
+              "TaskCompleted",
+              "Elicitation",
+              "ElicitationResult",
+              "ConfigChange",
+              "WorktreeCreate",
+              "WorktreeRemove",
+              "InstructionsLoaded",
+              "CwdChanged",
+              "FileChanged",
+              "Interrupt"
+            ]
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "matcher": {
+                  "description": "Pattern matched against event-related values, typically tool names.",
+                  "type": "string"
+                },
+                "hooks": {
+                  "type": "array",
+                  "items": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "command"
+                          },
+                          "command": {
+                            "type": "string",
+                            "description": "The shell command to execute."
+                          },
+                          "shell": {
+                            "description": "Shell to run the command with: 'bash' uses your login shell family; 'powershell' uses pwsh. Defaults to bash.",
+                            "type": "string",
+                            "enum": [
+                              "bash",
+                              "powershell"
+                            ]
+                          },
+                          "async": {
+                            "description": "Run in the background without blocking.",
+                            "type": "boolean"
+                          },
+                          "asyncRewake": {
+                            "description": "Run in the background and wake the model when the hook exits with the blocking-error status. Implies async.",
+                            "type": "boolean"
+                          },
+                          "if": {
+                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                            "type": "string"
+                          },
+                          "timeout": {
+                            "description": "Timeout for this hook, in seconds.",
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 2147483
+                          },
+                          "statusMessage": {
+                            "description": "Message shown in the spinner while the hook runs.",
+                            "type": "string"
+                          },
+                          "once": {
+                            "description": "Run this hook once, then remove it.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "command"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "prompt"
+                          },
+                          "prompt": {
+                            "type": "string",
+                            "description": "Prompt evaluated by a model. An $ARGUMENTS placeholder receives the hook input JSON."
+                          },
+                          "model": {
+                            "description": "Model to evaluate the prompt with. Defaults to the default small fast model.",
+                            "type": "string"
+                          },
+                          "if": {
+                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                            "type": "string"
+                          },
+                          "timeout": {
+                            "description": "Timeout for this hook, in seconds.",
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 2147483
+                          },
+                          "statusMessage": {
+                            "description": "Message shown in the spinner while the hook runs.",
+                            "type": "string"
+                          },
+                          "once": {
+                            "description": "Run this hook once, then remove it.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "prompt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "agent"
+                          },
+                          "prompt": {
+                            "type": "string",
+                            "description": "What the agent should verify. An $ARGUMENTS placeholder receives the hook input JSON. Timeout defaults to 60 seconds."
+                          },
+                          "model": {
+                            "description": "Model for the agent. Defaults to the default small fast model floored to the mid-tier model — agent hooks never run the smallest model.",
+                            "type": "string"
+                          },
+                          "if": {
+                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                            "type": "string"
+                          },
+                          "timeout": {
+                            "description": "Timeout for this hook, in seconds.",
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 2147483
+                          },
+                          "statusMessage": {
+                            "description": "Message shown in the spinner while the hook runs.",
+                            "type": "string"
+                          },
+                          "once": {
+                            "description": "Run this hook once, then remove it.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "prompt"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "type": {
+                            "type": "string",
+                            "const": "http"
+                          },
+                          "url": {
+                            "type": "string",
+                            "format": "uri",
+                            "description": "URL that receives a POST of the hook input JSON."
+                          },
+                          "headers": {
+                            "description": "Request headers. Values may reference environment variables as $VAR or ${VAR}; only variables named in allowedEnvVars are interpolated.",
+                            "type": "object",
+                            "propertyNames": {
+                              "type": "string"
+                            },
+                            "additionalProperties": {
+                              "type": "string"
+                            }
+                          },
+                          "allowedEnvVars": {
+                            "description": "Environment variable names allowed in header interpolation. Required for any interpolation; unlisted references resolve to empty strings.",
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            }
+                          },
+                          "if": {
+                            "description": "Condition in permission-rule syntax (tool name with an optional parenthesised pattern). The hook runs only when it matches the hook input.",
+                            "type": "string"
+                          },
+                          "timeout": {
+                            "description": "Timeout for this hook, in seconds.",
+                            "type": "number",
+                            "exclusiveMinimum": 0,
+                            "maximum": 2147483
+                          },
+                          "statusMessage": {
+                            "description": "Message shown in the spinner while the hook runs.",
+                            "type": "string"
+                          },
+                          "once": {
+                            "description": "Run this hook once, then remove it.",
+                            "type": "boolean"
+                          }
+                        },
+                        "required": [
+                          "type",
+                          "url"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "hooks"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "disabled": {
+          "type": "boolean"
+        },
+        "managedOnly": {
+          "type": "boolean"
+        },
+        "httpDestinations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "httpEnvironment": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": {}
     },
     "extensions": {
       "type": "object",
@@ -590,137 +826,181 @@
               ]
             }
           }
+        },
+        "exclusive": {
+          "description": "Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)",
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "skills",
+                  "agents",
+                  "hooks",
+                  "mcp"
+                ]
+              }
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
-    "strictExtensionOnlyCustomization": {
-      "description": "Managed lock restricting customization surfaces to extensions (filesystem sources such as the config home's skills directory are skipped for locked surfaces)",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": [
-              "skills",
-              "agents",
-              "hooks",
-              "mcp"
-            ]
-          }
-        }
-      ]
-    },
-    "language": {
-      "type": "string"
-    },
-    "spinnerTipsEnabled": {
-      "type": "boolean"
-    },
-    "filesBox": {
-      "type": "boolean"
-    },
-    "modelPickerCentred": {
-      "description": "Where the model picker opens over the chat: centred (the default), or false for the left edge",
-      "type": "boolean"
-    },
-    "spinnerVerbs": {
+    "voice": {
       "type": "object",
       "properties": {
-        "mode": {
-          "type": "string",
-          "enum": [
-            "append",
-            "replace"
-          ]
+        "language": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "activity": {
+      "type": "object",
+      "properties": {
+        "tips": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "words": {
+              "type": "object",
+              "properties": {
+                "excludeDefault": {
+                  "type": "boolean"
+                },
+                "tips": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "tips"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": {}
         },
         "verbs": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "append",
+                "replace"
+              ]
+            },
+            "verbs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "mode",
+            "verbs"
+          ],
+          "additionalProperties": false
+        },
+        "progress": {
+          "type": "boolean"
         }
       },
-      "required": [
-        "mode",
-        "verbs"
-      ],
-      "additionalProperties": false
+      "additionalProperties": {}
     },
-    "spinnerTipsOverride": {
+    "view": {
       "type": "object",
       "properties": {
-        "excludeDefault": {
+        "files": {
           "type": "boolean"
         },
-        "tips": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "modelPicker": {
+          "type": "object",
+          "properties": {
+            "centred": {
+              "description": "Where the model picker opens over the chat: centred (the default), or false for the left edge",
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": {}
+        },
+        "syntaxOff": {
+          "type": "boolean"
+        },
+        "reducedMotion": {
+          "type": "boolean"
+        },
+        "backgroundKey": {
+          "type": "boolean"
+        },
+        "sessionsBar": {
+          "description": "Show the SESSIONS bar along the bottom of the chat (/view on); off unless set",
+          "type": "boolean"
+        },
+        "firstRunCards": {
+          "description": "Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone",
+          "type": "string",
+          "enum": [
+            "centred",
+            "top-left"
+          ]
         }
       },
-      "required": [
-        "tips"
-      ],
-      "additionalProperties": false
+      "additionalProperties": {}
     },
-    "syntaxHighlightingDisabled": {
-      "type": "boolean"
+    "context": {
+      "type": "object",
+      "properties": {
+        "wayBack": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
     },
-    "prefersReducedMotion": {
-      "type": "boolean"
+    "input": {
+      "type": "object",
+      "properties": {
+        "suggestions": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": {}
     },
-    "compactWayBack": {
-      "type": "boolean"
-    },
-    "backgroundKey": {
-      "type": "boolean"
-    },
-    "sessionsBar": {
-      "description": "Show the SESSIONS bar along the bottom of the chat (/view on); off unless set",
-      "type": "boolean"
-    },
-    "firstRunCards": {
-      "description": "Where the first-run cards sit: centred on the screen with the trust tone in brown (the default), or top-left with the amber tone",
-      "type": "string",
-      "enum": [
-        "centred",
-        "top-left"
-      ]
-    },
-    "showClearContextOnStrategyAccept": {
-      "type": "boolean"
-    },
-    "progressReporting": {
-      "type": "boolean"
-    },
-    "promptSuggestionEnabled": {
-      "type": "boolean"
-    },
-    "agent": {
-      "type": "string"
-    },
-    "skipSovereignConsentPrompt": {
-      "description": "True skips the consent card shown before entering Sovereign mode (honoured from the user, local, flag and policy sources)",
-      "type": "boolean"
-    },
-    "defaultShell": {
-      "type": "string",
-      "enum": [
-        "bash",
-        "powershell"
-      ]
-    },
-    "shellEngine": {
-      "type": "string",
-      "enum": [
-        "system",
-        "brush"
-      ]
+    "shell": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "bash",
+            "powershell"
+          ]
+        },
+        "engine": {
+          "type": "string",
+          "enum": [
+            "system",
+            "brush"
+          ]
+        },
+        "sessions": {
+          "description": "The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents",
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      },
+      "additionalProperties": {}
     },
     "patience": {
       "description": "Patience with a quiet model: normal (a 6 min stream-idle budget where keep-alives feed the watchdog, 15 min on the quiet roads, a 15 min non-streamed fallback ceiling, a 20 min retry budget), patient (every wait doubled), or the custom numbers; MERCURY_STREAM_IDLE_TIMEOUT_MS, MERCURY_API_TIMEOUT_MS and MERCURY_RECOVERY_BUDGET_MINUTES outrank it",
@@ -757,44 +1037,43 @@
         }
       ]
     },
-    "openrouterRouting": {
-      "description": "OpenRouter routing policy: denies data collection and requires every parameter by default, even when absent, with fallbacks on and zero data retention off; an explicit all-off setting (dataCollection: allow, requireParameters: false, allowFallbacks: true, zeroDataRetention: false) sends no routing preference",
+    "routing": {
       "type": "object",
       "properties": {
-        "dataCollection": {
-          "type": "string",
-          "enum": [
-            "allow",
-            "deny"
-          ]
-        },
-        "requireParameters": {
-          "type": "boolean"
-        },
-        "allowFallbacks": {
-          "type": "boolean"
-        },
-        "zeroDataRetention": {
+        "openrouter": {
+          "description": "OpenRouter routing policy: denies data collection and requires every parameter by default, even when absent, with fallbacks on and zero data retention off; an explicit all-off setting (dataCollection: allow, requireParameters: false, allowFallbacks: true, zeroDataRetention: false) sends no routing preference",
+          "type": "object",
+          "properties": {
+            "dataCollection": {
+              "type": "string",
+              "enum": [
+                "allow",
+                "deny"
+              ]
+            },
+            "requireParameters": {
+              "type": "boolean"
+            },
+            "allowFallbacks": {
+              "type": "boolean"
+            },
+            "zeroDataRetention": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": {}
+    },
+    "channels": {
+      "type": "object",
+      "properties": {
+        "enabled": {
           "type": "boolean"
         }
       },
-      "additionalProperties": false
-    },
-    "shellEngineSessions": {
-      "description": "The ceiling on live shell-engine sessions Mercury keeps at once: the main conversation's own plus that many minus one for sub-agents (default 8). A sub-agent past the ceiling waits for a free session, never sharing another owner's; a ceiling of 1 leaves no session for sub-agents",
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 64
-    },
-    "instructionProfile": {
-      "type": "string",
-      "enum": [
-        "auto",
-        "native"
-      ]
-    },
-    "channelsEnabled": {
-      "type": "boolean"
+      "additionalProperties": {}
     },
     "apollo": {
       "description": "Apollo Mode: pre-flight interview poll budget (default 7)",
@@ -808,200 +1087,65 @@
       },
       "additionalProperties": false
     },
-    "sandbox": {
+    "workspace": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "description": "Whether sandboxing is on",
-          "type": "boolean"
-        },
-        "failIfUnavailable": {
-          "description": "Refuse to run when the sandbox cannot be established",
-          "type": "boolean"
-        },
-        "autoAllowBashIfSandboxed": {
-          "description": "Auto-approve shell commands that run sandboxed",
-          "type": "boolean"
-        },
-        "allowUnsandboxedCommands": {
-          "description": "Permit commands to escape the sandbox when needed",
-          "type": "boolean"
-        },
-        "network": {
+        "worktree": {
           "type": "object",
           "properties": {
-            "allowedDomains": {
-              "description": "Domains the sandboxed process may reach",
+            "symlinkDirectories": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             },
-            "allowManagedDomainsOnly": {
-              "description": "Restrict network access to managed domains only",
-              "type": "boolean"
-            },
-            "allowUnixSockets": {
-              "description": "Unix socket paths reachable from the sandbox",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "allowAllUnixSockets": {
-              "description": "Allow every unix socket",
-              "type": "boolean"
-            },
-            "allowLocalBinding": {
-              "description": "Allow binding local ports",
-              "type": "boolean"
-            },
-            "httpProxyPort": {
-              "description": "HTTP proxy port",
-              "type": "number"
-            },
-            "socksProxyPort": {
-              "description": "SOCKS proxy port",
-              "type": "number"
-            }
-          },
-          "additionalProperties": false
-        },
-        "filesystem": {
-          "type": "object",
-          "properties": {
-            "allowWrite": {
-              "description": "Writable path patterns",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "denyWrite": {
-              "description": "Write-denied path patterns",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "denyRead": {
-              "description": "Read-denied path patterns",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "allowRead": {
-              "description": "Readable path patterns",
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            },
-            "allowManagedReadPathsOnly": {
-              "description": "Restrict reads to managed paths only",
-              "type": "boolean"
-            }
-          },
-          "additionalProperties": false
-        },
-        "ignoreViolations": {
-          "description": "Violation patterns to ignore, keyed by command",
-          "type": "object",
-          "propertyNames": {
-            "type": "string"
-          },
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        },
-        "enableWeakerNestedSandbox": {
-          "description": "Allow the weaker nested-sandbox fallback",
-          "type": "boolean"
-        },
-        "enableWeakerNetworkIsolation": {
-          "description": "Allow the weaker network-isolation fallback",
-          "type": "boolean"
-        },
-        "excludedCommands": {
-          "description": "Commands excluded from sandboxing",
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "ripgrep": {
-          "description": "Search-tool binary override",
-          "type": "object",
-          "properties": {
-            "command": {
-              "type": "string"
-            },
-            "args": {
+            "sparsePaths": {
               "type": "array",
               "items": {
                 "type": "string"
               }
             }
           },
-          "required": [
-            "command"
-          ],
           "additionalProperties": false
         }
       },
       "additionalProperties": {}
     },
-    "worktree": {
+    "local": {
       "type": "object",
       "properties": {
-        "symlinkDirectories": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "sparsePaths": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "server": {
+          "description": "The local model server's own knobs, written into its launch form (a launch agent plist, a systemd override) and applied by a restart only on your confirmation from /config; the values Mercury would write, beside the running server's own",
+          "type": "object",
+          "properties": {
+            "maxLoadedModels": {
+              "description": "How many models the local server keeps loaded at once (OLLAMA_MAX_LOADED_MODELS; the server documents 3 per GPU when unset)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "parallelSlots": {
+              "description": "How many requests one loaded model answers at once, each slot holding its own window of cache (OLLAMA_NUM_PARALLEL; the server documents 1 when unset)",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 64
+            },
+            "keepAlive": {
+              "description": "How long an idle model stays loaded (OLLAMA_KEEP_ALIVE; the server documents 5m when unset)",
+              "type": "string",
+              "pattern": "^(-?\\d+|-?(\\d+(\\.\\d+)?(ns|us|\\u00B5s|ms|s|m|h))+)$"
+            },
+            "contextLength": {
+              "description": "The context length a request gets when it names none (OLLAMA_CONTEXT_LENGTH; the server documents 4096 when unset)",
+              "type": "integer",
+              "minimum": 512,
+              "maximum": 10485760
+            }
+          },
+          "additionalProperties": false
         }
       },
-      "additionalProperties": false
-    },
-    "localServer": {
-      "description": "The local model server's own knobs, written into its launch form (a launch agent plist, a systemd override) and applied by a restart only on your confirmation from /config; the values Mercury would write, beside the running server's own",
-      "type": "object",
-      "properties": {
-        "maxLoadedModels": {
-          "description": "How many models the local server keeps loaded at once (OLLAMA_MAX_LOADED_MODELS; the server documents 3 per GPU when unset)",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 64
-        },
-        "parallelSlots": {
-          "description": "How many requests one loaded model answers at once, each slot holding its own window of cache (OLLAMA_NUM_PARALLEL; the server documents 1 when unset)",
-          "type": "integer",
-          "minimum": 1,
-          "maximum": 64
-        },
-        "keepAlive": {
-          "description": "How long an idle model stays loaded (OLLAMA_KEEP_ALIVE; the server documents 5m when unset)",
-          "type": "string",
-          "pattern": "^(-?\\d+|-?(\\d+(\\.\\d+)?(ns|us|\\u00B5s|ms|s|m|h))+)$"
-        },
-        "contextLength": {
-          "description": "The context length a request gets when it names none (OLLAMA_CONTEXT_LENGTH; the server documents 4096 when unset)",
-          "type": "integer",
-          "minimum": 512,
-          "maximum": 10485760
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": {}
     }
   },
   "additionalProperties": {}

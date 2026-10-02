@@ -26,21 +26,16 @@ export function MCPServerApprovalDialog({
     (choice: 'enable-all' | 'enable' | 'disable') => {
       const current = getSettingsForSource('localSettings') ?? {}
       if (choice === 'disable') {
-        updateSettingsForSource('localSettings', {
-          disabledMcpjsonServers: addTo(
-            current.disabledMcpjsonServers,
+        updateSettingsForSource('localSettings', { kit: { projectOff: addTo(
+            current.kit?.projectOff,
             serverName,
-          ),
-        })
+          ) } })
       } else {
         updateSettingsForSource('localSettings', {
-          enabledMcpjsonServers: addTo(
-            current.enabledMcpjsonServers,
-            serverName,
-          ),
-          ...(choice === 'enable-all'
-            ? { enableAllProjectMcpServers: true }
-            : {}),
+          kit: {
+            projectOn: addTo(current.kit?.projectOn, serverName),
+            ...(choice === 'enable-all' ? { trustProjectServers: true } : {}),
+          },
         })
       }
       onDone()

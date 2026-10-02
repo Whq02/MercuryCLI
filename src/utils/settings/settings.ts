@@ -7,7 +7,6 @@ import { z } from 'zod/v4'
 import { getFlagSettingsInline, getFlagSettingsPath, getOriginalCwd } from '../../bootstrap/state.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
-import { RETIRED_SETTINGS_KEYS, rewriteRetiredSettingsSpellings } from '../../migrations/migrateSettingsSpellings.js'
 import { getMercuryHome } from '../envUtils.js'
 import { errorMessage, isENOENT } from '../errors.js'
 import { readFileSync } from '../fileRead.js'
@@ -55,54 +54,6 @@ function cloneParsed(value: { settings: SettingsJson | null; errors: ValidationE
   return JSON.parse(JSON.stringify(value)) as { settings: SettingsJson | null; errors: ValidationError[] }
 }
 
-function adoptLegacySupercodeSpelling(parsed: unknown): void {
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return
-  const record = parsed as Record<string, unknown>
-  if (!('ultracodeEffort' in record)) return
-  if (record['supercodeEffort'] === undefined) record['supercodeEffort'] = record['ultracodeEffort']
-  delete record['ultracodeEffort']
-}
-
-function adoptRetiredExcludesSpelling(parsed: unknown, filePath: string): ValidationError[] {
-  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return []
-  const record = parsed as Record<string, unknown>
-  if (!('claudeMdExcludes' in record)) return []
-  const legacy = record['claudeMdExcludes']
-  if (Array.isArray(legacy) && record['instructionExcludes'] === undefined) {
-    record['instructionExcludes'] = legacy
-  }
-  delete record['claudeMdExcludes']
-  return [
-    {
-      file: filePath,
-      path: 'claudeMdExcludes',
-      message:
-        "'claudeMdExcludes' is read as 'instructionExcludes' for this run; the setting stops depending on that reading once the key is renamed 'instructionExcludes'",
-      suggestion: "rename the key to 'instructionExcludes'",
-    },
-  ]
-}
-
-function publishRewrittenSpellings(filePath: string, rewritten: unknown): ValidationError[] {
-  try {
-    markInternalWrite(filePath)
-    durableAtomicPublishSync(filePath, `${jsonStringify(rewritten, null, 2)}\n`)
-    logForDebugging(`settings: rewrote retired spellings in ${filePath}`)
-    return []
-  } catch (error) {
-    const renames = RETIRED_SETTINGS_KEYS.map(r => `${r.from.join('.')} → ${r.to.join('.')}`).join(', ')
-    return [
-      {
-        file: filePath,
-        path: '',
-        severity: 'warning',
-        message: `retired settings spellings could not be rewritten in place (${errorMessage(error)}); this run reads them as their current spellings — rename them in the file (${renames}; tool names in rules and matchers likewise)`,
-        suggestion: 'rename the keys and tool names to their current spellings',
-      },
-    ]
-  }
-}
-
 function parseSettingsFileUncached(filePath: string): { settings: SettingsJson | null; errors: ValidationError[] } {
   let raw: string
   try {
@@ -128,13 +79,8 @@ function parseSettingsFileUncached(filePath: string): { settings: SettingsJson |
     return { settings: {} as SettingsJson, errors: [] }
   }
   const shared = safeParseJSON(stripBOM(raw), false)
-  let parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
-  adoptLegacySupercodeSpelling(parsed)
-  const retiredKeyWarnings = adoptRetiredExcludesSpelling(parsed, filePath)
-  const rewritten = rewriteRetiredSettingsSpellings(parsed)
-  const spellingWarnings = rewritten === parsed ? [] : publishRewrittenSpellings(filePath, rewritten)
-  parsed = rewritten
-  const warnings = [...retiredKeyWarnings, ...spellingWarnings, ...filterInvalidPermissionRules(parsed, filePath)]
+  const parsed = typeof shared === 'object' && shared !== null ? (structuredClone(shared) as unknown) : shared
+  const warnings = filterInvalidPermissionRules(parsed, filePath)
   const result = SettingsSchema().safeParse(parsed)
   if (!result.success) {
     const salvaged = salvageValidSettings(parsed, result.error)
@@ -354,11 +300,11 @@ export function getPolicySettingsOrigin(): 'plist' | 'hklm' | 'file' | 'hkcu' | 
 function readSettingsForSourceUncached(source: SettingSource): SettingsJson | null {
   if (source === 'policySettings') {
     const mdm = getMdmSettings()
-    if (Object.keys(mdm.settings).length > 0) return rewriteRetiredSettingsSpellings(mdm.settings) as SettingsJson
+    if (Object.keys(mdm.settings).length > 0) return mdm.settings
     const file = loadManagedFileSettings()
     if (file.settings !== null) return file.settings
     const hkcu = getHkcuSettings()
-    if (Object.keys(hkcu.settings).length > 0) return rewriteRetiredSettingsSpellings(hkcu.settings) as SettingsJson
+    if (Object.keys(hkcu.settings).length > 0) return hkcu.settings
     return null
   }
   const filePath = getSettingsFilePathForSource(source)
@@ -366,7 +312,7 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
     if (source === 'flagSettings') {
       const inline = getFlagSettingsInline()
       if (inline !== null) {
-        const result = SettingsSchema().safeParse(rewriteRetiredSettingsSpellings(inline))
+        const result = SettingsSchema().safeParse(inline)
         if (result.success) return result.data as SettingsJson
       }
     }
@@ -377,7 +323,7 @@ function readSettingsForSourceUncached(source: SettingSource): SettingsJson | nu
   if (source === 'flagSettings') {
     const inline = getFlagSettingsInline()
     if (inline !== null) {
-      const result = SettingsSchema().safeParse(rewriteRetiredSettingsSpellings(inline))
+      const result = SettingsSchema().safeParse(inline)
       if (result.success) {
         settings = mergeWith(settings ?? {}, result.data, settingsMergeCustomizer) as SettingsJson
       }
@@ -479,10 +425,18 @@ export function getSettingsWithSources(): SettingsWithSources {
 }
 
 export function rawSettingsContainsKey(key: string): boolean {
+  const contains = (value: unknown): boolean => {
+    let node = value
+    for (const part of key.split('.')) {
+      if (typeof node !== 'object' || node === null || !Object.hasOwn(node, part)) return false
+      node = (node as Record<string, unknown>)[part]
+    }
+    return true
+  }
   for (const source of getEnabledSettingSources()) {
     if (source === 'policySettings') {
       const policy = getSettingsForSource('policySettings')
-      if (policy !== null && typeof policy === 'object' && key in (policy as object)) return true
+      if (contains(policy)) return true
       continue
     }
     const filePath = getSettingsFilePathForSource(source)
@@ -501,7 +455,7 @@ export function rawSettingsContainsKey(key: string): boolean {
     if (raw.trim() === '') continue
     const parsed = safeParseJSON(stripBOM(raw), false)
     if (parsed === null || typeof parsed !== 'object') return true
-    if (key in (parsed as object)) return true
+    if (contains(parsed)) return true
   }
   return false
 }
@@ -513,23 +467,23 @@ const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
   'policySettings',
 ])
 
-export function getHooksFromOutsideCheckoutSources(): NonNullable<SettingsJson['hooks']> {
+export function getHooksFromOutsideCheckoutSources(): NonNullable<NonNullable<SettingsJson['events']>['hooks']> {
   let merged: SettingsJson = {} as SettingsJson
   for (const source of getEnabledSettingSources()) {
     if (!OUTSIDE_CHECKOUT_SOURCES.has(source)) continue
     const settings = getSettingsForSource(source)
-    if (settings?.hooks) {
-      merged = mergeWith(merged, { hooks: settings.hooks } as SettingsJson, settingsMergeCustomizer) as SettingsJson
+    if (settings?.events?.hooks) {
+      merged = mergeWith(merged, { events: { hooks: settings.events?.hooks } } as SettingsJson, settingsMergeCustomizer) as SettingsJson
     }
   }
-  return merged.hooks ?? {}
+  return merged.events?.hooks ?? {}
 }
 
 export function getApiKeyHelperFromOutsideCheckoutSources(): string | undefined {
   let helper: string | undefined
   for (const source of getEnabledSettingSources()) {
     if (!OUTSIDE_CHECKOUT_SOURCES.has(source)) continue
-    const value = getSettingsForSource(source)?.apiKeyHelper
+    const value = getSettingsForSource(source)?.credentials?.keyCommand
     if (typeof value === 'string' && value) helper = value
   }
   return helper
@@ -539,7 +493,7 @@ export function hasSkipSovereignConsentPrompt(): boolean {
   const trustedSources: SettingSource[] = ['userSettings', 'localSettings', 'flagSettings', 'policySettings']
   for (const source of trustedSources) {
     const settings = getSettingsForSource(source)
-    if (settings?.skipSovereignConsentPrompt === true) return true
+    if (settings?.guardrails?.sovereignConsentSeen === true) return true
   }
   return false
 }
@@ -573,14 +527,13 @@ function applyWriteMerge(target: Record<string, unknown>, partial: Record<string
       continue
     }
     const existing = target[key]
-    if (
-      typeof value === 'object' &&
-      value !== null &&
-      typeof existing === 'object' &&
-      existing !== null &&
-      !Array.isArray(existing)
-    ) {
-      applyWriteMerge(existing as Record<string, unknown>, value as Record<string, unknown>)
+    if (typeof value === 'object' && value !== null) {
+      const nested = typeof existing === 'object' && existing !== null && !Array.isArray(existing)
+        ? existing as Record<string, unknown>
+        : {}
+      applyWriteMerge(nested, value as Record<string, unknown>)
+      if (Object.keys(nested).length > 0 || Object.keys(value).length === 0) target[key] = nested
+      else delete target[key]
       continue
     }
     target[key] = value
@@ -663,9 +616,6 @@ export function updateSettingsForSource(
         }
       }
     }
-    adoptLegacySupercodeSpelling(baseSettings)
-    baseSettings = rewriteRetiredSettingsSpellings(baseSettings) as Record<string, unknown>
-
     const resolvedPartial =
       typeof partial === 'function' ? partial(structuredClone(baseSettings)) : partial
     applyWriteMerge(baseSettings, resolvedPartial as Record<string, unknown>)
@@ -721,56 +671,23 @@ export function removeSettingsFileIfEmpty(source: EditableSettingSource): void {
 }
 
 
-const KNOWN_LOGGING_CHILDREN: Record<string, string[]> = {
-  permissions: ['allow', 'deny', 'ask', 'defaultMode', 'disableSovereignMode', 'disableFlowMode'],
-  sandbox: [
-    'enabled',
-    'failIfUnavailable',
-    'allowUnsandboxedCommands',
-    'network',
-    'filesystem',
-    'ignoreViolations',
-    'excludedCommands',
-    'autoAllowBashIfSandboxed',
-    'enableWeakerNestedSandbox',
-    'enableWeakerNetworkIsolation',
-    'ripgrep',
-  ],
-  hooks: [
-    'PreToolUse',
-    'PostToolUse',
-    'Notification',
-    'UserPromptSubmit',
-    'SessionStart',
-    'SessionEnd',
-    'Stop',
-    'SubagentStop',
-    'PreCompact',
-    'PostCompact',
-    'CrewmateIdle',
-    'TaskCreated',
-    'TaskCompleted',
-  ],
-}
-
 export function getManagedSettingsKeysForLogging(settings: SettingsJson): string[] {
-  const stripped = z.object(SettingsSchema().shape).parse(settings) as Record<string, unknown>
+  const schema = SettingsSchema()
+  const parsed = schema.parse(settings)
   const keys: string[] = []
-  for (const [key, value] of Object.entries(stripped)) {
-    if (value === undefined) continue
-    const children = KNOWN_LOGGING_CHILDREN[key]
-    if (children !== undefined && typeof value === 'object' && value !== null) {
-      let pushedChild = false
-      for (const child of children) {
-        if (child in (value as object)) {
-          keys.push(`${key}.${child}`)
-          pushedChild = true
-        }
+  const collect = (value: unknown, field: z.ZodType, path: string): void => {
+    while (field instanceof z.ZodOptional || field instanceof z.ZodNullable) field = field.unwrap() as z.ZodType
+    if (field instanceof z.ZodObject && typeof value === 'object' && value !== null) {
+      const before = keys.length
+      for (const [key, child] of Object.entries(field.shape)) {
+        const entry = (value as Record<string, unknown>)[key]
+        if (entry !== undefined) collect(entry, child as z.ZodType, path ? `${path}.${key}` : key)
       }
-      if (!pushedChild) keys.push(key)
-      continue
+      if (keys.length === before && path) keys.push(path)
+    } else if (path) {
+      keys.push(path)
     }
-    keys.push(key)
   }
+  collect(parsed, schema, '')
   return keys.sort()
 }

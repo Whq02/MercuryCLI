@@ -695,7 +695,7 @@ function MercuryModelWrapper({
     setEffort(mode)
     if (mode === 'supercode') {
       unpinAllLaunchEffort()
-      updateSettingsForSource('userSettings', { effortLevel: 'max', supercodeEffort: true })
+      updateSettingsForSource('userSettings', { engine: { effort: 'max', supercode: true } })
       if (settleOnSeat('max', () => setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true })))) return
       setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true }))
       return
@@ -703,7 +703,7 @@ function MercuryModelWrapper({
     unpinAllLaunchEffort()
     const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable !== undefined) {
-      updateSettingsForSource('userSettings', { effortLevel: persistable, supercodeEffort: undefined })
+      updateSettingsForSource('userSettings', { engine: { effort: persistable, supercode: undefined } })
       if (settleOnSeat(persistable, () => setAppState(prev => ({ ...prev, effortValue: persistable, supercode: false })))) return
     }
     setAppState(prev => ({
@@ -1137,10 +1137,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   function handleEffort(mode: string): void {
     const persistable = mode === 'supercode' ? 'max' : toPersistableEffort(mode as EffortValue)
     if (persistable === undefined) return
-    const { error } = updateSettingsForSource('userSettings', {
-      effortLevel: persistable,
-      supercodeEffort: mode === 'supercode' ? true : undefined,
-    })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: persistable, supercode: mode === 'supercode' ? true : undefined } })
     if (error) {
       setNotice(mode === 'supercode'
         ? `Could not save the supercode setting: ${error.message}`

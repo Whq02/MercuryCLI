@@ -132,8 +132,7 @@ export function autoNameSessionFromPlan(
   void (async () => {
     try {
       if (isSessionPersistenceDisabled()) return
-      const settings = getSettings_DEPRECATED() as { cleanupPeriodDays?: number }
-      if (settings.cleanupPeriodDays === 0) return
+      if (getSettings_DEPRECATED().records?.retentionDays === 0) return
       if (!isClearContext && getCurrentSessionTitle(getSessionId())) return
       const name = await generateSessionName(
         [createUserMessage({ content: plan.slice(0, 1000) })],
@@ -162,7 +161,7 @@ export function ExitPlanModePermissionRequest({
 }: PermissionRequestProps): React.ReactNode {
   const setAppState = useSetAppState()
   const showClearContext = useAppState(
-    state => state.settings.showClearContextOnStrategyAccept ?? false,
+    state => state.settings.strategy?.offerFreshContext ?? false,
   )
   const toolPermissionContext = useAppState(state => state.toolPermissionContext)
   const currentMode = toolPermissionContext.mode

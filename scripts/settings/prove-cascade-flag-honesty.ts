@@ -10,14 +10,15 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ model: 'user-pinned-model' }))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'user-pinned-model' } }))
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
-writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ model: 'project-pinned-model' }))
+writeFileSync(join(PROJ, '.mercury', 'settings.json'), JSON.stringify({ engine: { model: 'project-pinned-model' } }))
 process.chdir(PROJ)
 
 const { setFlagSettingsPath } = await import('../../src/bootstrap/state.ts')
 const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
+const { readSessionOption } = await import('../../src/cli/sessionArgs.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -31,15 +32,15 @@ section('§1 FC-027 — a cascade-member flag file keeps flag priority')
 {
   resetSettingsCache()
   const withoutFlag = getSettingsWithErrors()
-  check('control: without the flag, project wins the pin', withoutFlag.settings.model === 'project-pinned-model', String(withoutFlag.settings.model))
+  check('control: without the flag, project wins the pin', withoutFlag.settings.engine?.model === 'project-pinned-model', String(withoutFlag.settings.engine?.model))
 
   setFlagSettingsPath(join(HOME, 'settings.json'))
   resetSettingsCache()
   const withFlag = getSettingsWithErrors()
   check(
-    "--settings <the user file> applies at FLAG priority (beats project — FC-027)",
-    withFlag.settings.model === 'user-pinned-model',
-    String(withFlag.settings.model),
+    "--config <the user file> applies at FLAG priority (beats project — FC-027)",
+    withFlag.settings.engine?.model === 'user-pinned-model',
+    String(withFlag.settings.engine?.model),
   )
   check('and its errors do not double-count', withFlag.errors.length === 0, JSON.stringify(withFlag.errors))
   setFlagSettingsPath(undefined as never)
@@ -52,12 +53,19 @@ section('§2 FC-028 — both flag spellings read')
   const eagerStart = main.indexOf('function eagerLoadSettings')
   const eager = main.slice(eagerStart, main.indexOf("profileCheckpoint('eagerLoadSettings_end')", eagerStart))
   check(
-    'the eager reader resolves BOTH spellings through one helper (call-shaped)',
-    /startsWith\(`\$\{name\}=`\)/.test(eager),
+    'the eager reader resolves every option through the one session-option reader (call-shaped)',
+    /const eagerFlagValue = \(name: string\)[^\n]*readSessionOption\(optionArgv\.slice\(2\), name\)\.value/.test(eager),
     eager.slice(0, 80).replace(/\s+/g, ' '),
   )
-  check("and --settings rides it", /eagerFlagValue\('--settings'\)/.test(eager))
-  check("and --setting-sources rides it", /eagerFlagValue\('--setting-sources'\)/.test(eager))
+  check("and --config rides it", /eagerFlagValue\('--config'\)/.test(eager))
+  check("and --config-layers rides it", /eagerFlagValue\('--config-layers'\)/.test(eager))
+  for (const name of ['--config', '--config-layers']) {
+    const spaced = readSessionOption([name, 'value-a'], name)
+    const equals = readSessionOption([`${name}=value-a`], name)
+    check(`${name} reads the same through both spellings`, spaced.value === 'value-a' && equals.value === 'value-a', JSON.stringify([spaced, equals]))
+    check(`${name} after -- is an operand, not the option`, readSessionOption(['--', name, 'value-a'], name).present === false)
+    check(`a repeated ${name} is last-wins`, readSessionOption([name, 'first', `${name}=last`], name).value === 'last')
+  }
 }
 
 section('§3 FC-029 — the full env applies under standing trust, headless too')

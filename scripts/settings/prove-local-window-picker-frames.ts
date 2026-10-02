@@ -72,7 +72,7 @@ const frameDir = arg('--frames')
 await stub('../../src/hooks/useCatalogueEpoch.js', () => ({ useCatalogueEpoch: () => 0 }))
 await stub('../../src/keybindings/useKeybinding.js', () => ({ useKeybinding: () => undefined }))
 await stub('../../src/services/providers/providerUsage.js', () => ({ activeSourceUsage: () => ({ tier: 'local · no metering' }) }))
-await stub('../../src/utils/settings/settings.js', () => ({ getInitialSettings: () => ({ modelPickerCentred: false }) }))
+await stub('../../src/utils/settings/settings.js', () => ({ getInitialSettings: () => ({ view: { modelPicker: { centred: false } } }) }))
 
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.js')
 const { localRecordFor, LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')

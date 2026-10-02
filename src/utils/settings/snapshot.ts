@@ -37,29 +37,40 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-const NESTED_PROVENANCE_KEYS = new Set(['permissions', 'env'])
+const NESTED_PROVENANCE_KEYS = new Set([
+  'credentials', 'files', 'records', 'briefs', 'strategy', 'memory', 'turns',
+  'environment', 'credit', 'guardrails', 'engine', 'kit', 'events', 'voice',
+  'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local', 'extensions',
+])
+const NESTED_PROVENANCE_PATHS = new Set(['environment.values', 'activity.tips', 'view.modelPicker'])
 
 function collectPaths(settings: SettingsJson): string[] {
   const paths: string[] = []
-  for (const key of Object.keys(settings)) {
-    const value = (settings as Record<string, unknown>)[key]
-    if (NESTED_PROVENANCE_KEYS.has(key) && isPlainObject(value)) {
-      for (const nested of Object.keys(value)) {
-        paths.push(`${key}.${nested}`)
+  const collect = (record: Record<string, unknown>, prefix: string): void => {
+    for (const [key, value] of Object.entries(record)) {
+      const path = prefix ? `${prefix}.${key}` : key
+      if ((prefix === '' ? NESTED_PROVENANCE_KEYS.has(key) : NESTED_PROVENANCE_PATHS.has(path)) && isPlainObject(value)) {
+        collect(value, path)
+      } else {
+        paths.push(path)
       }
-    } else {
-      paths.push(key)
     }
   }
+  collect(settings, '')
   return paths
 }
 
 function valueAtPath(settings: SettingsJson | null, path: string): unknown {
   if (!settings) return undefined
-  const [head, tail] = path.split('.', 2) as [string, string | undefined]
-  const top = (settings as Record<string, unknown>)[head]
-  if (tail === undefined) return top
-  return isPlainObject(top) ? top[tail] : undefined
+  const parts = path.split('.')
+  let node: unknown = settings
+  for (let index = 0; index < parts.length; index++) {
+    if (!isPlainObject(node)) return undefined
+    const remainder = parts.slice(index).join('.')
+    if (Object.hasOwn(node, remainder)) return node[remainder]
+    node = node[parts[index]!]
+  }
+  return node
 }
 
 function computeProvenance(

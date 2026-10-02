@@ -20,9 +20,9 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 let n = 0
 const parseHooks = (hooks: unknown): { matchers: Array<Record<string, unknown>>; errors: unknown[] } => {
   const path = join(HOME, `case-${n++}.json`)
-  writeFileSync(path, JSON.stringify({ hooks }))
+  writeFileSync(path, JSON.stringify({ events: { hooks } }))
   const { settings, errors } = parseSettingsFile(path)
-  const matchers = ((settings?.hooks as Record<string, unknown[]> | undefined)?.PreToolUse ?? []) as Array<Record<string, unknown>>
+  const matchers = ((settings?.events?.hooks as Record<string, unknown[]> | undefined)?.PreToolUse ?? []) as Array<Record<string, unknown>>
   return { matchers, errors }
 }
 

@@ -129,6 +129,21 @@ export function formatZodError(error: z.ZodError, filePath: string): ValidationE
   return records
 }
 
+const EDIT_STRICT_GROUPS = [
+  'credentials', 'files', 'records', 'briefs', 'strategy', 'memory', 'turns', 'environment', 'credit', 'engine', 'kit',
+  'events', 'voice', 'activity', 'view', 'context', 'input', 'shell', 'routing', 'channels', 'workspace', 'local',
+] as const
+
+export function editTimeSettingsSchema(): z.ZodObject {
+  const shape: Record<string, z.ZodType> = { ...SettingsSchema().shape }
+  for (const group of EDIT_STRICT_GROUPS) {
+    const declared = shape[group]
+    const inner = declared instanceof z.ZodOptional ? declared.unwrap() : declared
+    if (inner instanceof z.ZodObject) shape[group] = z.strictObject(inner.shape).optional()
+  }
+  return z.strictObject(shape)
+}
+
 export function validateSettingsFileContent(
   content: string,
 ): { isValid: true } | { isValid: false; error: string; fullSchema: string } {
@@ -142,8 +157,7 @@ export function validateSettingsFileContent(
       fullSchema: generateSettingsJSONSchema(),
     }
   }
-  const strictSchema = z.strictObject(SettingsSchema().shape)
-  const result = strictSchema.safeParse(parsed)
+  const result = editTimeSettingsSchema().safeParse(parsed)
   if (result.success) return { isValid: true }
   const lines = formatZodError(result.error, '').map(record => `  - ${record.path || '(root)'}: ${record.message}`)
   return {
@@ -156,18 +170,18 @@ export function validateSettingsFileContent(
 export function filterInvalidPermissionRules(data: unknown, filePath: string): ValidationError[] {
   const warnings: ValidationError[] = []
   if (typeof data !== 'object' || data === null) return warnings
-  const permissions = (data as { permissions?: unknown }).permissions
-  if (typeof permissions !== 'object' || permissions === null) return warnings
+  const guardrails = (data as { guardrails?: unknown }).guardrails
+  if (typeof guardrails !== 'object' || guardrails === null) return warnings
   for (const key of ['allow', 'deny', 'ask'] as const) {
-    const rules = (permissions as Record<string, unknown>)[key]
+    const rules = (guardrails as Record<string, unknown>)[key]
     if (!Array.isArray(rules)) continue
     const kept: unknown[] = []
     for (const rule of rules) {
       if (typeof rule !== 'string') {
         warnings.push({
           file: filePath,
-          path: `permissions.${key}`,
-          message: `Removed a non-string value from permissions.${key}`,
+          path: `guardrails.${key}`,
+          message: `Removed a non-string value from guardrails.${key}`,
           invalidValue: rule,
           severity: 'warning',
         })
@@ -180,7 +194,7 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
         if (result.suggestion) message += `. ${result.suggestion}`
         warnings.push({
           file: filePath,
-          path: `permissions.${key}`,
+          path: `guardrails.${key}`,
           message,
           invalidValue: rule,
           severity: 'warning',
@@ -189,7 +203,7 @@ export function filterInvalidPermissionRules(data: unknown, filePath: string): V
       }
       kept.push(rule)
     }
-    ;(permissions as Record<string, unknown>)[key] = kept
+    ;(guardrails as Record<string, unknown>)[key] = kept
   }
   return warnings
 }

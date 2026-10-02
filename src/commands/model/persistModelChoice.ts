@@ -6,10 +6,10 @@ export type ModelChoiceOutcome = 'saved' | 'overridden' | 'refused' | 'cleared' 
 export type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string }
 
 export function persistModelChoice(setting: ModelSetting): PersistedModelChoice {
-  const stored = getInitialSettings().model
+  const stored = getInitialSettings().engine?.model
   const saved: ModelSetting = stored !== undefined && stored !== '' ? stored : null
   if (saved !== setting) {
-    const { error } = updateSettingsForSource('userSettings', { model: setting ?? undefined })
+    const { error } = updateSettingsForSource('userSettings', { engine: { model: setting ?? undefined } })
     if (error) return { outcome: 'refused', sentence: ` · not saved as your default: ${error.message}` }
   }
   if (setting === null) {

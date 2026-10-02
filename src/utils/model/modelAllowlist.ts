@@ -33,7 +33,7 @@ function hasMoreSpecificEntry(word: string, entries: string[]): boolean {
 }
 
 export function isModelAllowed(model: string): boolean {
-  const raw = getSettings_DEPRECATED().availableModels
+  const raw = getSettings_DEPRECATED().engine?.roster
   if (raw === undefined) return true
   if (!Array.isArray(raw) || raw.length === 0) return false
 

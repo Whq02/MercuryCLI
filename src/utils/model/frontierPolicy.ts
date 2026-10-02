@@ -140,7 +140,7 @@ function allowedUnderAllowlist(id: string): boolean {
 
 export function gatherFrontierFacts(): FrontierFacts {
   const settings = getSettings_DEPRECATED() || {}
-  const allowlist = settings.availableModels
+  const allowlist = settings.engine?.roster
   return {
     fableEnvPin: !!process.env.MERCURY_DEFAULT_FABLE_MODEL,
     fableId: getDefaultFableModel(),

@@ -168,7 +168,7 @@ export function anthropicCredentialPresence(
     })()
   const bearer = reads?.bearerTokenSource?.() ?? readBearerTokenSource()
   const envBearer =
-    bearer.hasToken && bearer.source !== 'claude.ai' && bearer.source !== 'apiKeyHelper' && bearer.source !== 'none'
+    bearer.hasToken && bearer.source !== 'claude.ai' && bearer.source !== 'credentials.keyCommand' && bearer.source !== 'none'
   const credentialLabel = subscriber
     ? `Claude subscription${plan ? ` (${plan})` : ''}`
     : keyPresent

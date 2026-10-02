@@ -137,7 +137,7 @@ export function buildFacts(messages: Message[], model: ModelName, overrides: Par
   const artifact = read(reads.artifact)
   const seats = read(reads.seats)
   const settings = read(reads.settings)
-  const engineSetting = settings ? settings.shellEngine === 'brush' ? 'brush' : 'system' : undefined
+  const engineSetting = settings ? settings.shell?.engine === 'brush' ? 'brush' : 'system' : undefined
   const engine = engineSetting ? read(() => reads.shell(engineSetting)) : undefined
   const shell = engineSetting === undefined || engine === undefined ? 'unavailable'
     : engineSetting === 'brush' && engine.engine !== 'brush' ? 'brush unavailable, system in use'

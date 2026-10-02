@@ -50,26 +50,25 @@ try {
   const validate = ajv.compile(JSON.parse(generatedA) as object)
   const canonical = {
     $schema: settingsSchemaLocalPath(),
-    model: 'opusplan',
-    effortLevel: 'high',
-    permissions: { allow: ['Read'], defaultMode: 'default' },
-    env: { FOO: 'bar' },
-    spinnerTipsEnabled: false,
+    engine: { model: 'opusplan', effort: 'high' },
+    guardrails: { allow: ['Read'], mode: 'default' },
+    environment: { values: { FOO: 'bar' } },
+    activity: { tips: { enabled: false } },
   }
   check('canonical Mercury settings validate', validate(canonical) === true, JSON.stringify(validate.errors ?? []).slice(0, 300))
   const foreignShaped = {
-    env: ['FOO=bar'],
-    hooks: 'on',
-    permissions: 'allow-all',
+    environment: { values: ['FOO=bar'] },
+    events: { hooks: 'on' },
+    guardrails: 'allow-all',
   }
   check('a foreign-shaped document is rejected', validate(foreignShaped) === false, 'the generated schema accepted record-as-array and object-as-string shapes')
 
-  const wrote = updateSettingsForSource('userSettings', { model: 'opusplan' })
+  const wrote = updateSettingsForSource('userSettings', { engine: { model: 'opusplan' } })
   check('userSettings write succeeds in the scratch home', wrote.error === null, String(wrote.error))
   const writePath = getSettingsWriteFilePathForSource('userSettings')
   check('write path resolves inside the scratch home', writePath !== undefined && writePath.startsWith(scratchHome), String(writePath))
   const writtenRaw = readFileSync(writePath as string, 'utf8')
-  const written = JSON.parse(writtenRaw) as { $schema?: string; model?: string }
+  const written = JSON.parse(writtenRaw) as { $schema?: string; engine?: { model?: string } }
   const localPath = settingsSchemaLocalPath()
   check('written settings reference the local schema', written.$schema === localPath, `$schema=${String(written.$schema)}`)
   check('the local schema path lives inside the config home', localPath.startsWith(scratchHome), localPath)
@@ -87,11 +86,11 @@ try {
   }
   check('ensureLocalSettingsSchema is idempotent', ensureLocalSettingsSchema() === localPath)
 
-  const legacy = SettingsSchema().safeParse({
+  const pointer = SettingsSchema().safeParse({
     $schema: 'https://json.schemastore.org/other-settings.json',
-    model: 'opusplan',
+    engine: { model: 'opusplan' },
   })
-  check('a file carrying the retired schemastore pointer still validates', legacy.success)
+  check('a file carrying another schema pointer still validates', pointer.success)
 } finally {
   rmSync(scratchHome, { recursive: true, force: true })
 }

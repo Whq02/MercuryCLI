@@ -411,21 +411,21 @@ const SETTINGS_SOURCES = [
 function getDenyList(): PolicyEntry[] {
   const entries: PolicyEntry[] = []
   for (const source of SETTINGS_SOURCES) {
-    const denied = getSettingsForSource(source)?.deniedMcpServers
+    const denied = getSettingsForSource(source)?.kit?.deny
     if (Array.isArray(denied)) entries.push(...(denied as PolicyEntry[]))
   }
   return entries
 }
 
 export function shouldAllowManagedMcpServersOnly(): boolean {
-  return getSettingsForSource('policySettings')?.allowManagedMcpServersOnly === true
+  return getSettingsForSource('policySettings')?.kit?.managedOnly === true
 }
 
 function getAllowList(): PolicyEntry[] | undefined {
   if (shouldAllowManagedMcpServersOnly()) {
-    return (getSettingsForSource('policySettings')?.allowedMcpServers ?? []) as PolicyEntry[]
+    return (getSettingsForSource('policySettings')?.kit?.permit ?? []) as PolicyEntry[]
   }
-  const allowed = getInitialSettings()?.allowedMcpServers
+  const allowed = getInitialSettings()?.kit?.permit
   return allowed === undefined ? undefined : (allowed as PolicyEntry[])
 }
 

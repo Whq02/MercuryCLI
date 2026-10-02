@@ -17,7 +17,7 @@ const BUN = process.execPath.includes('bun') ? process.execPath : join(process.e
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const SEAM_PRESENT = existsSync(join(SRC, 'utils/settings/mdm/rawRead.ts')) && readFileSync(join(SRC, 'utils/settings/mdm/rawRead.ts'), 'utf8').includes('_setMdmRawReadForProofs')
 
-const POLICY = { permissions: { deny: ['Bash(rm:*)'], disableSovereignMode: true }, allowManagedHooksOnly: true }
+const POLICY = { guardrails: { deny: ['Bash(rm:*)'], disableSovereignMode: true }, events: { managedOnly: true } }
 
 function runIn(body: string): Record<string, unknown> {
   const home = mkdtempSync(join(tmpdir(), 'mdm-boot-'))
@@ -31,7 +31,7 @@ function runIn(body: string): Record<string, unknown> {
     const cache = await import(${JSON.stringify(join(SRC, 'utils/settings/settingsCache.ts'))})
     const policy = ${JSON.stringify(POLICY)}
     const tier = () => ({ keys: Object.keys(mdm.getMdmSettings().settings), origin: s.getPolicySettingsOrigin() })
-    const merged = () => { const r = s.getSettingsWithErrors(); return { deny: r.settings?.permissions?.deny ?? null, sovereignLock: r.settings?.permissions?.disableSovereignMode ?? null, hooksLock: r.settings?.allowManagedHooksOnly ?? null } }
+    const merged = () => { const r = s.getSettingsWithErrors(); return { deny: r.settings?.guardrails?.deny ?? null, sovereignLock: r.settings?.guardrails?.disableSovereignMode ?? null, hooksLock: r.settings?.events?.managedOnly ?? null } }
     const out = {}
     ${body}
     process.stdout.write('\\n' + JSON.stringify(out))
@@ -74,7 +74,7 @@ else {
   `)
   const tier = r.tier as { keys: string[]; origin: string | null }
   const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
-  check('the mdm tier carries the policy keys', tier.keys.includes('permissions') && tier.keys.includes('allowManagedHooksOnly'), JSON.stringify(tier))
+  check('the mdm tier carries the policy keys', tier.keys.includes('guardrails') && tier.keys.includes('events'), JSON.stringify(tier))
   check('the policy origin is the plist tier', tier.origin === 'plist', `origin=${tier.origin}`)
   check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm:*)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged))
   check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`)

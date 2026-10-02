@@ -30,10 +30,7 @@ function currentMode(): SandboxMode {
 }
 
 function allowAllUnixSocketsOn(): boolean {
-  const settings = getSettings_DEPRECATED() as {
-    sandbox?: { network?: { allowAllUnixSockets?: boolean } }
-  }
-  return settings.sandbox?.network?.allowAllUnixSockets === true
+  return getSettings_DEPRECATED().guardrails?.sandbox?.network?.allowAllUnixSockets === true
 }
 
 function SandboxModeTab({

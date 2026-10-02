@@ -6,7 +6,7 @@ export type CustomizationSurface = (typeof CUSTOMIZATION_SURFACES)[number]
 
 export function isRestrictedToExtensionsOnly(surface: CustomizationSurface): boolean {
   const policy = getSettingsForSource('policySettings')
-  const lock = policy?.strictExtensionOnlyCustomization
+  const lock = policy?.extensions?.exclusive
   if (lock === true) return true
   if (Array.isArray(lock)) return (lock as string[]).includes(surface)
   return false

@@ -128,11 +128,11 @@ export async function authLogin(opts: {
   sso?: boolean
   console?: boolean
 }): Promise<void> {
-  const forcedMethod = getInitialSettings().forceLoginMethod
+  const forcedMethod = getInitialSettings().credentials?.signInRoute
   const loginWithClaudeAi = forcedMethod
     ? forcedMethod === 'claudeai'
     : !opts.console
-  const forcedOrgUUID = getInitialSettings().forceLoginOrgUUID
+  const forcedOrgUUID = getInitialSettings().credentials?.organisation
 
   const envRefreshToken = process.env.MERCURY_OAUTH_REFRESH_TOKEN
   if (envRefreshToken) {
@@ -234,7 +234,7 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
   const authMethod =
     tokenSource.hasToken && tokenSource.source === 'claude.ai'
       ? 'claude.ai'
-      : tokenSource.hasToken && tokenSource.source === 'apiKeyHelper'
+      : tokenSource.hasToken && tokenSource.source === 'credentials.keyCommand'
         ? 'api_key_helper'
         : tokenSource.hasToken && tokenSource.source !== 'none'
           ? 'oauth_token'

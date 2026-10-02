@@ -274,7 +274,7 @@ export async function connectAgentMcpServers(
       }
       if (!(name in filterMcpServersByPolicy({ [name]: inlineConfig }).allowed)) {
         logForDebugging(
-          `runAgent: inline MCP server '${name}' refused — blocked by managed policy (allowedMcpServers/deniedMcpServers)`,
+          `runAgent: inline MCP server '${name}' refused — blocked by managed policy (kit.permit/kit.deny)`,
         )
         continue
       }

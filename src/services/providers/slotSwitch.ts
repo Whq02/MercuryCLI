@@ -65,7 +65,7 @@ function liveReads(): Required<SlotSwitchReads> {
         if (source === 'ANTHROPIC_AUTH_TOKEN' || source === 'MERCURY_OAUTH_TOKEN' || source === 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR') return source
         const key = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
         if (key.source === 'ANTHROPIC_API_KEY') return 'ANTHROPIC_API_KEY'
-        if (key.source === 'apiKeyHelper') return 'apiKeyHelper (settings)'
+        if (key.source === 'credentials.keyCommand') return 'credentials.keyCommand (settings)'
         return undefined
       } catch {
         return undefined

@@ -128,7 +128,7 @@ export type PersistVerdict = { error: Error | null }
 const LANDED: PersistVerdict = { error: null }
 
 function rawPermissionArray(base: Record<string, unknown>, key: string): string[] {
-  const permissions = base.permissions
+  const permissions = base.guardrails
   if (typeof permissions !== 'object' || permissions === null) return []
   const raw = (permissions as Record<string, unknown>)[key]
   return Array.isArray(raw) ? raw.filter((entry): entry is string => typeof entry === 'string') : []
@@ -145,18 +145,18 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
       return writePartial(source, base => {
         const existing = rawPermissionArray(base, behaviorKey)
         for (const rule of additions) if (!existing.includes(rule)) existing.push(rule)
-        return { permissions: { [behaviorKey]: existing } } as never
+        return { guardrails: { [behaviorKey]: existing } } as never
       })
     }
     case 'replaceRules': {
       const behaviorKey = settingsBehaviorKey(update.behavior)
-      return writePartial(source, { permissions: { [behaviorKey]: update.rules.map(ruleString) } })
+      return writePartial(source, { guardrails: { [behaviorKey]: update.rules.map(ruleString) } })
     }
     case 'removeRules': {
       const behaviorKey = settingsBehaviorKey(update.behavior)
       const toRemove = new Set(update.rules.map(ruleString))
       return writePartial(source, base => ({
-        permissions: {
+        guardrails: {
           [behaviorKey]: rawPermissionArray(base, behaviorKey).filter(entry => {
             try {
               return !toRemove.has(permissionRuleValueToString(permissionRuleValueFromString(entry)))
@@ -168,7 +168,7 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
       }) as never)
     }
     case 'setMode':
-      return writePartial(source, { permissions: { defaultMode: update.mode } })
+      return writePartial(source, { guardrails: { mode: update.mode } })
     default:
       return LANDED
   }

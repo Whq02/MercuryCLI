@@ -8,7 +8,6 @@ import { ripgrepCommand } from '../utils/ripgrep.js'
 import { findGitRoot } from '../utils/git.js'
 import { launchFolderBoundsProject } from '../utils/projectBoundary.js'
 import { getCwd } from '../utils/cwd.js'
-import { getCurrentProjectConfig, getGlobalConfig } from '../utils/config.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -130,12 +129,8 @@ function ignoreMatcher(gitRoot: string | null, cwd: string): ((path: string) => 
   return matcher
 }
 
-function respectGitignore(): boolean {
-  const project = getCurrentProjectConfig() as { respectGitignore?: boolean }
-  if (typeof project.respectGitignore === 'boolean') return project.respectGitignore
-  const global = getGlobalConfig().respectGitignore
-  if (typeof global === 'boolean') return global
-  return true
+function honourGitignore(): boolean {
+  return getInitialSettings().files?.honourGitignore !== false
 }
 
 function boundaryPathspec(gitRoot: string, cwd: string): string[] {
@@ -160,7 +155,7 @@ async function listTracked(
 
 async function listUntracked(gitRoot: string, scope: string[]): Promise<string[]> {
   const args = ['-c', 'core.quotepath=false', 'ls-files', '--others']
-  if (respectGitignore()) args.push('--exclude-standard')
+  if (honourGitignore()) args.push('--exclude-standard')
   args.push(...scope)
   const outcome = await execFileNoThrowWithCwd('git', args, {
     cwd: gitRoot,
@@ -183,7 +178,7 @@ async function walkFiles(cwd: string, signal: AbortSignal): Promise<string[]> {
       `!${dir}`,
     ]),
   ]
-  if (!respectGitignore()) args.push('--no-ignore-vcs')
+  if (!honourGitignore()) args.push('--no-ignore-vcs')
   const outcome = await execFileNoThrowWithCwd(rgPath, args, {
     cwd,
     timeout: WALK_TIMEOUT_MS,
@@ -435,9 +430,7 @@ export async function generateFileSuggestions(
   try {
     if (partialPath === '' && !showOnEmpty) return []
 
-    const custom = (getInitialSettings() as {
-      fileSuggestion?: { type?: string }
-    }).fileSuggestion
+    const custom = getInitialSettings().files?.suggester
     if (custom?.type === 'command') {
       const paths = await executeFileSuggestionCommand({
         ...createBaseHookInput(),

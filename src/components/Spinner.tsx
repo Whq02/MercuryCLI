@@ -120,7 +120,7 @@ export function SpinnerWithVerb({
   const inWorkCapsule = useContext(WorkCapsuleContext)
   const mainLoopModel = useSyncExternalStore(subscribeFocusedSpinnerModel, getFocusedSpinnerModel, getFocusedSpinnerModel)
   const reducedMotion =
-    useAppState(state => state.settings.prefersReducedMotion === true) ||
+    useAppState(state => state.settings.view?.reducedMotion === true) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
   const expandedView = useAppState(state => state.expandedView)
   const appEffort = useAppState(state => state.effortValue)
@@ -214,7 +214,7 @@ export function SpinnerWithVerb({
   )
   const pendingNext = nextPendingTask(mission)
   const spinnerTipsDisabled = useAppState(
-    state => state.settings.spinnerTipsEnabled === false,
+    state => state.settings.activity?.tips?.enabled === false,
   )
   const effectiveTip = still
     ? null
@@ -345,7 +345,7 @@ const STAR_TICK_MS = 160
 
 export function Spinner(): React.ReactNode {
   const reducedMotion =
-    useAppState(state => state.settings.prefersReducedMotion === true) ||
+    useAppState(state => state.settings.view?.reducedMotion === true) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
   useNowTick(reducedMotion ? null : STAR_TICK_MS)
   if (reducedMotion) {

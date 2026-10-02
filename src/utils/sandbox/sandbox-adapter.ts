@@ -163,8 +163,7 @@ export function shouldAllowManagedSandboxDomainsOnly(): boolean {
 
 
 type SettingsShape = {
-  sandbox?: Record<string, unknown>
-  permissions?: { allow?: string[]; deny?: string[] }
+  guardrails?: { allow?: string[]; deny?: string[]; sandbox?: Record<string, unknown> }
 }
 
 function safeGetSettings(source: string): SettingsShape {
@@ -188,7 +187,7 @@ function getMergedSettings(): SettingsShape {
 }
 
 function getSandboxSection(settings: SettingsShape): Record<string, unknown> {
-  return (settings.sandbox as Record<string, unknown>) ?? {}
+  return (settings.guardrails?.sandbox as Record<string, unknown>) ?? {}
 }
 
 function getSandboxNetwork(settings: SettingsShape): Record<string, unknown> | undefined {
@@ -529,7 +528,7 @@ export const SandboxManager: ISandboxManager = {
       }
       const current = settingsModule.getSettingsForSource('localSettings') ?? {}
       const merged = { ...getSandboxSection(current), ...settings }
-      settingsModule.updateSettingsForSource('localSettings', { ...current, sandbox: merged })
+      settingsModule.updateSettingsForSource('localSettings', { ...current, guardrails: { ...current.guardrails, sandbox: merged } })
     } catch (error) {
       logForDebugging(`failed to write sandbox settings: ${error instanceof Error ? error.message : String(error)}`)
     }
@@ -603,7 +602,7 @@ export const SandboxManager: ISandboxManager = {
     if (platform !== 'linux' && platform !== 'wsl') return []
     if (!SandboxManager.isSandboxEnabledInSettings()) return []
     try {
-      const perms = getMergedSettings().permissions ?? {}
+      const perms = getMergedSettings().guardrails ?? {}
       const rules = [...(perms.allow ?? []), ...(perms.deny ?? [])]
       return rules.filter(rule => {
         const content = rule.replace(/^[^(]+\(/, '').replace(/\)$/, '').replace(/\/\*\*$/, '')

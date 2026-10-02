@@ -25,9 +25,9 @@ function sourcesWhere(
 
 export function getHooksSources(): string[] {
   return sourcesWhere(settings => {
-    if (settings.disableAllHooks) return false
-    if (settings.fileSuggestion) return true
-    const hooks = settings.hooks
+    if (settings.events?.disabled) return false
+    if (settings.files?.suggester) return true
+    const hooks = settings.events?.hooks
     if (!hooks) return false
     return Object.values(hooks).some(
       matchers => Array.isArray(matchers) && matchers.length > 0,
@@ -37,7 +37,7 @@ export function getHooksSources(): string[] {
 
 export function getBashPermissionSources(): string[] {
   return sourcesWhere(settings => {
-    const allow = settings.permissions?.allow
+    const allow = settings.guardrails?.allow
     if (!allow) return false
     return allow.some(
       rule =>
@@ -47,20 +47,20 @@ export function getBashPermissionSources(): string[] {
 }
 
 export function getProxyAuthHelperSources(): string[] {
-  return sourcesWhere(settings => Boolean(settings.proxyAuthHelper))
+  return sourcesWhere(settings => Boolean(settings.credentials?.proxyCommand))
 }
 
 export function getAutoMemoryDirectorySources(): string[] {
-  return sourcesWhere(settings => Boolean(settings.autoMemoryDirectory))
+  return sourcesWhere(settings => Boolean(settings.memory?.directory))
 }
 
 export function getApiKeyHelperSources(): string[] {
-  return sourcesWhere(settings => Boolean(settings.apiKeyHelper))
+  return sourcesWhere(settings => Boolean(settings.credentials?.keyCommand))
 }
 
 export function getDangerousEnvVarsSources(): string[] {
   return sourcesWhere(settings => {
-    const env = settings.env
+    const env = settings.environment?.values
     if (!env) return false
     return Object.keys(env).some(
       name => !SAFE_ENV_VARS.has(name.toUpperCase()),

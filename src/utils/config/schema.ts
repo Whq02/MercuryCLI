@@ -98,9 +98,6 @@ export type ProjectConfig = {
   projectOnboardingSeenCount: number
   hasExternalIncludesApproved?: boolean
   hasExternalIncludesWarningShown?: boolean
-  enabledMcpjsonServers?: string[]
-  disabledMcpjsonServers?: string[]
-  enableAllProjectMcpServers?: boolean
   disabledMcpServers?: string[]
   enabledMcpServers?: string[]
   skillStates?: Record<string, 'off' | 'invocable'>
@@ -118,8 +115,6 @@ export type ProjectConfig = {
 export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
   allowedTools: [],
   mcpServers: {},
-  enabledMcpjsonServers: [],
-  disabledMcpjsonServers: [],
   hasTrustDialogAccepted: false,
   projectOnboardingSeenCount: 0,
   hasExternalIncludesApproved: false,
@@ -153,7 +148,6 @@ export type EditorMode = 'emacs' | (typeof EDITOR_MODES)[number]
 export type DiffTool = 'terminal' | 'auto'
 
 export type GlobalConfig = {
-  apiKeyHelper?: string
   projects?: Record<string, ProjectConfig>
   numStartups: number
   headlessActivity?: {
@@ -233,7 +227,6 @@ export type GlobalConfig = {
   localModelWindows?: { [model: string]: 'server' | 'max' | number }
   localModelBatch?: { [model: string]: number }
   showTurnDuration: boolean
-  env: { [key: string]: string }
   hasSeenTasksHint?: boolean
   hasUsedStash?: boolean
   hasUsedBackgroundTask?: boolean
@@ -290,8 +283,6 @@ export type GlobalConfig = {
 
   bridgeOauthDeadExpiresAt?: number
   bridgeOauthDeadFailCount?: number
-
-  respectGitignore: boolean
 
   copyFullResponse: boolean
 
@@ -361,7 +352,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
       approved: [],
       rejected: [],
     },
-    env: {},
     tipsHistory: {},
     promptQueueUseCount: 0,
     showExpandedTasks: false,
@@ -370,7 +360,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     autoInstallIdeExtension: true,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
-    respectGitignore: true,
     copyFullResponse: false,
   }
 }
@@ -378,7 +367,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
 export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 
 export const GLOBAL_CONFIG_KEYS = [
-  'apiKeyHelper',
   'theme',
   'toolOutput',
   'preferredNotifChannel',
@@ -388,7 +376,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'autoCompactEnabled',
   'showTurnDuration',
   'diffTool',
-  'env',
   'tipsHistory',
   'showExpandedTasks',
   'messageIdleNotifThresholdMs',
@@ -399,7 +386,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'taskCompleteNotifEnabled',
   'inputNeededNotifEnabled',
   'agentPushNotifEnabled',
-  'respectGitignore',
   'lspRecommendationIgnoredCount',
   'copyFullResponse',
   'copyOnSelect',

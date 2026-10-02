@@ -28,7 +28,7 @@ const FRAME = {
 
 export function PreviewBox(props: PreviewBoxProps): React.ReactNode {
   const settings = useSettings()
-  if (settings.syntaxHighlightingDisabled) {
+  if (settings.view?.syntaxOff) {
     return <PreviewBoxBody {...props} highlight={null} />
   }
   return (

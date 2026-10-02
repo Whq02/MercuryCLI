@@ -53,13 +53,13 @@ export async function execHttpHook(
 ): Promise<HttpHookResult> {
   void hookEvent
 
-  const allowlist = getInitialSettings().allowedHttpHookUrls
+  const allowlist = getInitialSettings().events?.httpDestinations
   if (allowlist !== undefined && !allowlist.some(pattern => matchesAllowlistPattern(hook.url, pattern))) {
-    logForDebugging(`http hook blocked: ${hook.url} matched no pattern in allowedHttpHookUrls`, { level: 'warn' })
+    logForDebugging(`http hook blocked: ${hook.url} matched no pattern in events.httpDestinations`, { level: 'warn' })
     return {
       ok: false,
       body: '',
-      error: `URL ${hook.url} matched no pattern in the allowedHttpHookUrls setting`,
+      error: `URL ${hook.url} matched no pattern in the events.httpDestinations setting`,
     }
   }
 
@@ -68,7 +68,7 @@ export async function execHttpHook(
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (hook.headers && Object.keys(hook.headers).length > 0) {
-    const settingsList = getInitialSettings().httpHookAllowedEnvVars
+    const settingsList = getInitialSettings().events?.httpEnvironment
     const hookList = hook.allowedEnvVars ?? []
     const allowedNames = new Set(
       settingsList === undefined ? hookList : hookList.filter(name => settingsList.includes(name)),

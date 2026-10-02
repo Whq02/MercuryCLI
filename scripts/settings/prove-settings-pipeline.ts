@@ -61,52 +61,53 @@ section('(1) precedence and merge shapes across user/project/local')
 {
   writeAll({
     user: {
-      model: 'user-model',
-      env: { FROM_USER: '1', SHARED: 'user' },
-      permissions: { allow: ['Read(a.txt)'], defaultMode: 'default' },
+      engine: { model: 'user-model' },
+      environment: { values: { FROM_USER: '1', SHARED: 'user' } },
+      guardrails: { allow: ['Read(a.txt)'], mode: 'default' },
     },
     proj: {
-      model: 'proj-model',
-      env: { FROM_PROJ: '1', SHARED: 'proj' },
-      permissions: { allow: ['Read(b.txt)', 'Read(a.txt)'] },
+      engine: { model: 'proj-model' },
+      environment: { values: { FROM_PROJ: '1', SHARED: 'proj' } },
+      guardrails: { allow: ['Read(b.txt)', 'Read(a.txt)'] },
     },
     local: {
-      env: { SHARED: 'local' },
-      permissions: { defaultMode: 'implement' },
+      environment: { values: { SHARED: 'local' } },
+      guardrails: { mode: 'implement' },
     },
   })
   const s = getInitialSettings()
-  check('scalar: later source wins (project over user)', s.model === 'proj-model', j(s.model))
-  check('scalar: local wins over both (nested)', s.permissions?.defaultMode === 'implement', j(s.permissions?.defaultMode))
+  const values = (): Record<string, string> => (s.environment?.values ?? {}) as Record<string, string>
+  check('scalar: later source wins (project over user)', s.engine?.model === 'proj-model', j(s.engine?.model))
+  check('scalar: local wins over both (nested)', s.guardrails?.mode === 'implement', j(s.guardrails?.mode))
   check(
     'objects deep-merge across sources',
-    (s.env as Record<string, string>)?.FROM_USER === '1' && (s.env as Record<string, string>)?.FROM_PROJ === '1',
-    j(s.env),
+    values().FROM_USER === '1' && values().FROM_PROJ === '1',
+    j(values()),
   )
-  check('object key: highest source wins', (s.env as Record<string, string>)?.SHARED === 'local', j(s.env))
+  check('object key: highest source wins', values().SHARED === 'local', j(values()))
   check(
     'arrays concat + dedup in source order',
-    j(s.permissions?.allow) === j(['Read(a.txt)', 'Read(b.txt)']),
-    j(s.permissions?.allow),
+    j(s.guardrails?.allow) === j(['Read(a.txt)', 'Read(b.txt)']),
+    j(s.guardrails?.allow),
   )
 }
 
 section('(2) flag settings (file + inline) and policy sit above local')
 {
   const flagPath = join(PROJ, 'flag-settings.json')
-  writeFileSync(flagPath, JSON.stringify({ model: 'flag-model', env: { FROM_FLAG: '1' } }))
+  writeFileSync(flagPath, JSON.stringify({ engine: { model: 'flag-model' }, environment: { values: { FROM_FLAG: '1' } } }))
   state.setFlagSettingsPath(flagPath)
-  state.setFlagSettingsInline({ env: { FROM_INLINE: '1' } })
+  state.setFlagSettingsInline({ environment: { values: { FROM_INLINE: '1' } } })
   resetSettingsCache()
   let s = getInitialSettings()
-  check('flag file overrides local/project scalars', s.model === 'flag-model', j(s.model))
+  check('flag file overrides local/project scalars', s.engine?.model === 'flag-model', j(s.engine?.model))
   check(
     'inline SDK settings merge on top of the flag file',
-    (s.env as Record<string, string>)?.FROM_FLAG === '1' && (s.env as Record<string, string>)?.FROM_INLINE === '1',
-    j(s.env),
+    s.environment?.values?.FROM_FLAG === '1' && s.environment?.values?.FROM_INLINE === '1',
+    j(s.environment?.values),
   )
 
-  setMdmSettingsCache({ settings: { model: 'policy-model' }, errors: [] }, { settings: {}, errors: [] })
+  setMdmSettingsCache({ settings: { engine: { model: 'policy-model' } }, errors: [] }, { settings: {}, errors: [] })
   state.setAllowedSettingSources([
     'userSettings',
     'projectSettings',
@@ -116,16 +117,16 @@ section('(2) flag settings (file + inline) and policy sit above local')
   ])
   resetSettingsCache()
   s = getInitialSettings()
-  check('policy beats flag settings (default source list)', s.model === 'policy-model', j(s.model))
-  check("per-source read agrees (getSettingsForSource('policySettings'))", getSettingsForSource('policySettings')?.model === 'policy-model')
+  check('policy beats flag settings (default source list)', s.engine?.model === 'policy-model', j(s.engine?.model))
+  check("per-source read agrees (getSettingsForSource('policySettings'))", getSettingsForSource('policySettings')?.engine?.model === 'policy-model')
 
   state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSettings'])
   resetSettingsCache()
   const restricted = getInitialSettings()
   check(
-    'restricted --setting-sources keeps POLICY above flag settings',
-    restricted.model === 'policy-model',
-    j(restricted.model),
+    'restricted --config-layers keeps POLICY above flag settings',
+    restricted.engine?.model === 'policy-model',
+    j(restricted.engine?.model),
   )
 
   clearMdmSettingsCache()
@@ -143,24 +144,24 @@ section('(2) flag settings (file + inline) and policy sit above local')
 
 section('(3) Mercury value acceptance (the R1c widening class)')
 {
-  writeAll({ user: { effortLevel: 'max' }, proj: {}, local: {} })
+  writeAll({ user: { engine: { effort: 'max' } }, proj: {}, local: {} })
   const { settings, errors } = getSettingsWithErrors()
-  check('effortLevel max validates', settings.effortLevel === 'max', j({ e: settings.effortLevel, errors }))
+  check('engine.effort max validates', settings.engine?.effort === 'max', j({ e: settings.engine?.effort, errors }))
 
   for (const mode of ['flow', 'autopilot'] as const) {
-    writeAll({ user: { permissions: { defaultMode: mode } } })
+    writeAll({ user: { guardrails: { mode } } })
     const r = getSettingsWithErrors()
     check(
-      `defaultMode '${mode}' validates (user-addressable set)`,
-      r.settings.permissions?.defaultMode === mode && r.errors.length === 0,
+      `guardrails.mode '${mode}' validates (user-addressable set)`,
+      r.settings.guardrails?.mode === mode && r.errors.length === 0,
       j(r.errors),
     )
   }
-  writeAll({ user: { permissions: { defaultMode: 'bogus' } } })
+  writeAll({ user: { guardrails: { mode: 'bogus' } } })
   const bogus = getSettingsWithErrors()
   check(
-    'unknown mode still rejected with the defaultMode tip',
-    bogus.settings.permissions?.defaultMode === undefined && bogus.errors.some(e => e.path === 'permissions.defaultMode' && /auto/.test(e.suggestion ?? '')),
+    'unknown mode still rejected with the mode tip',
+    bogus.settings.guardrails?.mode === undefined && bogus.errors.some(e => e.path === 'guardrails.mode' && /sovereign/.test(e.suggestion ?? '')),
     j(bogus.errors),
   )
 }
@@ -176,49 +177,49 @@ section('(4) invalid-file taxonomy')
     j(parsed),
   )
 
-  writeFileSync(userPath, JSON.stringify({ model: 42 }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 42 } }))
   resetSettingsCache()
   const bad = parseSettingsFile(userPath)
-  check('schema violation → the file survives minus the bad key (FC-004 salvage)', bad.settings !== null && bad.settings.model === undefined, j(bad.settings))
+  check('schema violation → the file survives minus the bad leaf (FC-004 salvage)', bad.settings !== null && bad.settings.engine?.model === undefined, j(bad.settings))
   const err = bad.errors[0]
   check(
     'error carries file + dot-path + expected shape',
-    err !== undefined && err.path === 'model' && typeof err.message === 'string' && err.file !== undefined,
+    err !== undefined && err.path === 'engine.model' && typeof err.message === 'string' && err.file !== undefined,
     j(bad.errors),
   )
 
   writeFileSync(
     userPath,
-    JSON.stringify({ model: 'ok-model', permissions: { allow: ['Read(ok.txt)', 123] } }),
+    JSON.stringify({ engine: { model: 'ok-model' }, guardrails: { allow: ['Read(ok.txt)', 123] } }),
   )
   resetSettingsCache()
   const filtered = parseSettingsFile(userPath)
-  check('file with one invalid permission rule still parses', filtered.settings?.model === 'ok-model', j(filtered))
-  check('the invalid rule is dropped, valid rule kept', j(filtered.settings?.permissions?.allow) === j(['Read(ok.txt)']), j(filtered.settings?.permissions?.allow))
+  check('file with one invalid permission rule still parses', filtered.settings?.engine?.model === 'ok-model', j(filtered))
+  check('the invalid rule is dropped, valid rule kept', j(filtered.settings?.guardrails?.allow) === j(['Read(ok.txt)']), j(filtered.settings?.guardrails?.allow))
   check('a warning describes the dropped rule', filtered.errors.length >= 1, j(filtered.errors))
 }
 
 section('(5) updateSettingsForSource — merge writes, deletion, array replace')
 {
-  writeAll({ user: { model: 'before', env: { KEEP: '1', DROP: '1' }, permissions: { allow: ['Read(old.txt)'] } } })
+  writeAll({ user: { engine: { model: 'before' }, environment: { values: { KEEP: '1', DROP: '1' } }, guardrails: { allow: ['Read(old.txt)'] } } })
   const r1 = updateSettingsForSource('userSettings', {
-    model: 'after',
-    env: { DROP: undefined } as never,
-    permissions: { allow: ['Read(new.txt)'] },
+    engine: { model: 'after' },
+    environment: { values: { DROP: undefined } as never },
+    guardrails: { allow: ['Read(new.txt)'] },
   })
   check('write succeeds', r1.error === null, String(r1.error))
   const s = getSettingsForSource('userSettings')
-  check('scalar updated', s?.model === 'after', j(s?.model))
-  check('undefined deletes the key', !('DROP' in ((s?.env ?? {}) as object)) && (s?.env as Record<string, string>)?.KEEP === '1', j(s?.env))
+  check('scalar updated', s?.engine?.model === 'after', j(s?.engine?.model))
+  check('undefined deletes the key', !('DROP' in ((s?.environment?.values ?? {}) as object)) && s?.environment?.values?.KEEP === '1', j(s?.environment?.values))
   check(
     'arrays REPLACE on write (caller computes final state — no concat)',
-    j(s?.permissions?.allow) === j(['Read(new.txt)']),
-    j(s?.permissions?.allow),
+    j(s?.guardrails?.allow) === j(['Read(new.txt)']),
+    j(s?.guardrails?.allow),
   )
 
   writeFileSync(userPath, '{ broken')
   resetSettingsCache()
-  const r2 = updateSettingsForSource('userSettings', { model: 'clobber' })
+  const r2 = updateSettingsForSource('userSettings', { engine: { model: 'clobber' } })
   check('invalid-JSON file refuses the write (error, not overwrite)', r2.error !== null && String(r2.error).includes('Invalid JSON'), String(r2.error))
   check('…and the broken bytes are preserved on disk byte-for-byte (nothing clobbered, no backup swap)', rfBytes(userPath, 'utf8') === '{ broken', JSON.stringify(rfBytes(userPath, 'utf8')))
 
@@ -226,44 +227,44 @@ section('(5) updateSettingsForSource — merge writes, deletion, array replace')
   state.setFlagSettingsPath(flagFile)
   resetSettingsCache()
   const flagPathBefore = rfBytes(flagFile, 'utf8')
-  check('fixture: the flag source is ARMED on its file for the refusal test (a write has a real target to refuse)', getSettingsForSource('flagSettings')?.model === 'flag-model', j(getSettingsForSource('flagSettings')))
+  check('fixture: the flag source is ARMED on its file for the refusal test (a write has a real target to refuse)', getSettingsForSource('flagSettings')?.engine?.model === 'flag-model', j(getSettingsForSource('flagSettings')))
   const policyBefore = j(getSettingsForSource('policySettings'))
-  const r3 = updateSettingsForSource('policySettings' as never, { model: 'x' })
+  const r3 = updateSettingsForSource('policySettings' as never, { engine: { model: 'x' } })
   check('policy/flag writes are refused silently (as-is)', r3.error === null)
-  check('…the policy source reads back unchanged after the refused write', j(getSettingsForSource('policySettings')) === policyBefore && getSettingsForSource('policySettings')?.model !== 'x', j(getSettingsForSource('policySettings')))
-  const r4 = updateSettingsForSource('flagSettings' as never, { model: 'x' })
+  check('…the policy source reads back unchanged after the refused write', j(getSettingsForSource('policySettings')) === policyBefore && getSettingsForSource('policySettings')?.engine?.model !== 'x', j(getSettingsForSource('policySettings')))
+  const r4 = updateSettingsForSource('flagSettings' as never, { engine: { model: 'x' } })
   resetSettingsCache()
   check('the flag source is the SECOND read-only target: refused silently too', r4.error === null)
-  check('…and the flag file bytes are untouched, its read unchanged', rfBytes(flagFile, 'utf8') === flagPathBefore && getSettingsForSource('flagSettings')?.model === 'flag-model', rfBytes(flagFile, 'utf8'))
+  check('…and the flag file bytes are untouched, its read unchanged', rfBytes(flagFile, 'utf8') === flagPathBefore && getSettingsForSource('flagSettings')?.engine?.model === 'flag-model', rfBytes(flagFile, 'utf8'))
   state.setFlagSettingsPath(undefined)
   resetSettingsCache()
 }
 
 section('(6) cache behavior — clone isolation, session single-load, reset')
 {
-  writeAll({ user: { model: 'cache-truth', env: { A: '1' } } })
+  writeAll({ user: { engine: { model: 'cache-truth' }, environment: { values: { A: '1' } } } })
   const first = parseSettingsFile(userPath)
-  ;(first.settings as { model?: string }).model = 'MUTATED'
+  ;(first.settings?.engine as { model?: string }).model = 'MUTATED'
   const second = parseSettingsFile(userPath)
-  check('parse-cache returns clones (caller mutation cannot poison)', second.settings?.model === 'cache-truth', j(second.settings?.model))
+  check('parse-cache returns clones (caller mutation cannot poison)', second.settings?.engine?.model === 'cache-truth', j(second.settings?.engine?.model))
 
   const before = getInitialSettings()
-  writeFileSync(userPath, JSON.stringify({ model: 'disk-changed' }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'disk-changed' } }))
   const cachedRead = getInitialSettings()
-  check('session cache holds without reset (stale by design)', cachedRead.model === before.model, j(cachedRead.model))
+  check('session cache holds without reset (stale by design)', cachedRead.engine?.model === before.engine?.model, j(cachedRead.engine?.model))
   resetSettingsCache()
-  check('reset restores disk truth', getInitialSettings().model === 'disk-changed')
+  check('reset restores disk truth', getInitialSettings().engine?.model === 'disk-changed')
 }
 
 section('(7) getSettingsWithSources — effective + ordered provenance inputs')
 {
   writeAll({
-    user: { model: 'u' },
-    proj: { model: 'p' },
-    local: { model: 'l' },
+    user: { engine: { model: 'u' } },
+    proj: { engine: { model: 'p' } },
+    local: { engine: { model: 'l' } },
   })
   const { effective, sources } = getSettingsWithSources()
-  check('effective reflects the merge', effective.model === 'l', j(effective.model))
+  check('effective reflects the merge', effective.engine?.model === 'l', j(effective.engine?.model))
   const order = sources.map(s => s.source)
   check(
     'sources listed low→high priority, non-empty only',
@@ -280,38 +281,10 @@ section('(8) merge customizer unit (the exported seam)')
 
 console.log('\n============================================================')
 {
-  const { mkdtempSync: mkT, writeFileSync: wT, realpathSync: rT } = await import('node:fs')
-  const { tmpdir: tT } = await import('node:os')
-  const { join: jT } = await import('node:path')
-  const dir = rT(mkT(jT(tT(), 'fc102-')))
-  const file = jT(dir, 'settings.json')
-  wT(file, JSON.stringify({ claudeMdExcludes: ['**/MERCURY.md'], model: 'sonnet5' }))
-  const parsed = parseSettingsFile(file)
-  check(
-    'FC-102: the legacy value is ADOPTED as instructionExcludes',
-    JSON.stringify((parsed.settings as { instructionExcludes?: string[] })?.instructionExcludes) === JSON.stringify(['**/MERCURY.md']),
-    JSON.stringify(parsed.settings),
-  )
-  check(
-    'FC-102: the rename is NAMED as a validation warning',
-    parsed.errors.some(e => e.path === 'claudeMdExcludes' && e.message.includes("renamed 'instructionExcludes'")),
-    JSON.stringify(parsed.errors),
-  )
-  check('FC-102: the sibling keys survive untouched', (parsed.settings as { model?: string })?.model === 'sonnet5')
-  const file2 = jT(dir, 'settings-both.json')
-  wT(file2, JSON.stringify({ claudeMdExcludes: ['a'], instructionExcludes: ['b'] }))
-  const both = parseSettingsFile(file2)
-  check(
-    'FC-102: an existing canonical key WINS (the legacy one never clobbers)',
-    JSON.stringify((both.settings as { instructionExcludes?: string[] })?.instructionExcludes) === JSON.stringify(['b']),
-  )
-}
-
-{
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
   const lockOf = (value: unknown): unknown => {
-    const parsed = SettingsSchema().safeParse({ strictExtensionOnlyCustomization: value })
-    return parsed.success ? (parsed.data as { strictExtensionOnlyCustomization?: unknown }).strictExtensionOnlyCustomization : 'SCHEMA-REFUSED'
+    const parsed = SettingsSchema().safeParse({ extensions: { exclusive: value } })
+    return parsed.success ? (parsed.data as { extensions?: { exclusive?: unknown } }).extensions?.exclusive : 'SCHEMA-REFUSED'
   }
   check('FC-146: the stringified "true" LOCKS everything (was: silently unlocked)', lockOf('true') === true, JSON.stringify(lockOf('true')))
   check('FC-146: "TRUE"/"1" fold to the lock', lockOf('TRUE') === true && lockOf('1') === true)
@@ -325,7 +298,7 @@ console.log('\n============================================================')
   const { join: joinHealth } = await import('node:path')
   const healthPath = joinHealth(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts')
   const healthSrc = codeOnlyText(healthPath, rfHealth(healthPath, 'utf8'))
-  const lockRead = healthSrc.indexOf("getSettingsForSource('policySettings')?.strictExtensionOnlyCustomization")
+  const lockRead = healthSrc.indexOf("getSettingsForSource('policySettings')?.extensions?.exclusive")
   check('FC-146: doctor reads the lock from the policy source (code, not comment)', lockRead >= 0)
   const lockBlock = lockRead >= 0 ? healthSrc.slice(lockRead, healthSrc.indexOf('getSettingsWithAllErrors', lockRead)) : ''
   check('FC-146: doctor names the armed lock (call-shaped)', /if \(lock === true\) lockLine = ' · managed extension-only lock: ALL surfaces'/.test(lockBlock) && /Array\.isArray\(lock\) && lock\.length > 0\) lockLine = ` · managed extension-only lock: \$\{lock\.join\(', '\)\}`/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(0, 200))

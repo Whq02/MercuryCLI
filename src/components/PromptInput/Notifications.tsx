@@ -234,7 +234,7 @@ function NotificationsColumn({
       ) : null}
       {helperSlow ? (
         <Text color={tokens.warning} wrap="truncate-end">
-          waiting on apiKeyHelper{' '}
+          waiting on credentials.keyCommand{' '}
           <Text dimColor>
             ({formatDuration(helperElapsedMs, { mostSignificantOnly: true })})
           </Text>

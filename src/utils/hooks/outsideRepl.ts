@@ -39,7 +39,7 @@ export async function executeHooksOutsideREPL({
   const hookName = matchQuery ? `${hookEvent}:${matchQuery}` : hookEvent
   if (shouldDisableAllHooksIncludingManaged()) {
     logForDebugging(
-      `Skipping hooks for ${hookName} due to 'disableAllHooks' managed setting`,
+      `Skipping hooks for ${hookName} due to 'events.disabled' managed setting`,
     )
     return []
   }

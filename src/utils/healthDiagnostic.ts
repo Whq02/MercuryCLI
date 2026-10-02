@@ -74,14 +74,14 @@ export function detectManagedSettingsWarnings(): Array<{ issue: string; fix: str
     ]
   }
   try {
-    const parsed = JSON.parse(raw) as { strictExtensionOnlyCustomization?: unknown }
-    const value = parsed.strictExtensionOnlyCustomization
+    const parsed = JSON.parse(raw) as { extensions?: { exclusive?: unknown } }
+    const value = parsed.extensions?.exclusive
     if (value === undefined) return []
     const knownSurfaces = [...CUSTOMIZATION_SURFACES]
     if (typeof value !== 'boolean' && !Array.isArray(value)) {
       return [
         {
-          issue: `managed-settings.json: strictExtensionOnlyCustomization has an invalid value of type ${typeof value}.`,
+          issue: `managed-settings.json: extensions.exclusive has an invalid value of type ${typeof value}.`,
           fix: `The value is silently ignored. Acceptable forms: true, or an array of surface names (${knownSurfaces.join(', ')}).`,
         },
       ]
@@ -93,7 +93,7 @@ export function detectManagedSettingsWarnings(): Array<{ issue: string; fix: str
       if (unrecognised.length > 0) {
         return [
           {
-            issue: `managed-settings.json: strictExtensionOnlyCustomization contains ${unrecognised.length} unrecognised surface name(s): ${unrecognised.join(', ')}.`,
+            issue: `managed-settings.json: extensions.exclusive contains ${unrecognised.length} unrecognised surface name(s): ${unrecognised.join(', ')}.`,
             fix: `Unrecognised names are ignored for forwards compatibility. Known surfaces for this version: ${knownSurfaces.join(', ')}. Either remove them, or this client is older than the settings intended.`,
           },
         ]

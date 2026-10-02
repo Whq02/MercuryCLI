@@ -76,7 +76,7 @@ export function CompactWorkSummary({
   const noticeText = noticeRowText(currentNotice)
   const noticeDetail = noticeText !== null ? noticeRowDetail(currentNotice) : null
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
-  const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.compactWayBack !== false
+  const wayBackStays = noticeText !== null && getSettingsSnapshot().settings.context?.wayBack !== false
   const hint = noticeText !== null && !wayBackStays ? '' : compactSummaryHint({ focused, vimInsert, escHint: escRungHint(rung), stripHint })
   const hintWidth = hint === '' ? 0 : stringWidth(hint) + 1
   const noticeColumns = wayBackStays && hint !== '' ? Math.max(0, columns - hintWidth - 1) : null

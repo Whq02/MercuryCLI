@@ -32,7 +32,7 @@ export function WorkingGlyph({
   active?: boolean
   tickMs?: number
 }): React.ReactNode {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const tick = glyphTickMs(useIdleMotion('glyphs'), tickMs)
   const animate = active && !reducedMotion && tick !== null
   const sampleMs = tick ?? tickMs
@@ -51,7 +51,7 @@ export function AttentionPulse({
   active?: boolean
   bold?: boolean
 }): React.ReactNode {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const tick = glyphTickMs(useIdleMotion('glyphs'), ATTENTION_TICK_MS)
   const animate = active && !reducedMotion && tick !== null
   const [, bucket] = useAnimationValue(animate ? tick : null, attentionBucket)
@@ -76,7 +76,7 @@ export function ValueGlow({
   children: React.ReactNode
   ms?: number
 }): React.ReactNode {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const motion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && motion !== 'off'
   const prevRef = React.useRef(value)
@@ -115,7 +115,7 @@ export function ReadyBreath({
   active?: boolean
   dim?: boolean
 }): React.ReactNode {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const typing = useTypingPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), READY_TICK_MS)
   const animate = active && !reducedMotion && !typing && tick !== null
@@ -135,7 +135,7 @@ export function TwinkleSpark({
   color: string
   active?: boolean
 }): React.ReactNode {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const { accentSoft } = useMercuryTokens()
   const typing = useTypingPause()
   const tick = glyphTickMs(useIdleMotion('glyphs'), TWINKLE_TICK_MS)
@@ -146,7 +146,7 @@ export function TwinkleSpark({
 }
 
 export function useSettleFlash(settled: boolean): boolean {
-  const reducedMotion = useSettingsMaybe()?.prefersReducedMotion ?? false
+  const reducedMotion = useSettingsMaybe()?.view?.reducedMotion ?? false
   const motion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && motion !== 'off'
   const prevRef = React.useRef(settled)

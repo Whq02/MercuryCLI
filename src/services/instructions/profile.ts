@@ -46,7 +46,7 @@ export function resolveRequestedInstructionProfile(): {
   }
   let durable: unknown
   try {
-    durable = getInitialSettings().instructionProfile
+    durable = getInitialSettings().briefs?.profile
   } catch {
     durable = undefined
   }

@@ -46,7 +46,7 @@ function readPolicyAnswers(): {
 } {
   return {
     policyDisablesAll:
-      getSettingsForSource('policySettings')?.disableAllHooks === true,
+      getSettingsForSource('policySettings')?.events?.disabled === true,
     managedOnly: shouldAllowManagedHooksOnly(),
   }
 }
@@ -114,7 +114,7 @@ export function HooksConfigMenu({
           </Box>
           {!policy.policyDisablesAll ? (
             <Text dimColor>
-              Remove disableAllHooks from settings.json (or ask Mercury) to
+              Remove events.disabled from settings.json (or ask Mercury) to
               re-enable them.
             </Text>
           ) : null}

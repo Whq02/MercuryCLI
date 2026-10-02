@@ -52,18 +52,18 @@ console.log('L1 the probe — unknown answers yes')
 {
   const r = runIn(`
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
-    out.absent = s.rawSettingsContainsKey('cleanupPeriodDays')
+    out.absent = s.rawSettingsContainsKey('records.retentionDays')
     fs.writeFileSync(userSettingsPath, '')
-    out.empty = s.rawSettingsContainsKey('cleanupPeriodDays')
-    fs.writeFileSync(userSettingsPath, '{ "cleanupPeriodDays": 365, ')
-    out.unparseable = s.rawSettingsContainsKey('cleanupPeriodDays')
-    fs.writeFileSync(userSettingsPath, JSON.stringify({ theme: 'dark' }))
-    out.withoutKey = s.rawSettingsContainsKey('cleanupPeriodDays')
-    fs.writeFileSync(userSettingsPath, JSON.stringify({ cleanupPeriodDays: 365 }))
-    out.withKey = s.rawSettingsContainsKey('cleanupPeriodDays')
+    out.empty = s.rawSettingsContainsKey('records.retentionDays')
+    fs.writeFileSync(userSettingsPath, '{ "records": { "retentionDays": 365, ')
+    out.unparseable = s.rawSettingsContainsKey('records.retentionDays')
+    fs.writeFileSync(userSettingsPath, JSON.stringify({ theme: 'dark', records: {} }))
+    out.withoutKey = s.rawSettingsContainsKey('records.retentionDays')
+    fs.writeFileSync(userSettingsPath, JSON.stringify({ records: { retentionDays: 365 } }))
+    out.withKey = s.rawSettingsContainsKey('records.retentionDays')
     if (process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)) {
       fs.chmodSync(userSettingsPath, 0o000)
-      out.unreadable = s.rawSettingsContainsKey('cleanupPeriodDays')
+      out.unreadable = s.rawSettingsContainsKey('records.retentionDays')
       fs.chmodSync(userSettingsPath, 0o600)
     } else {
       out.unreadable = 'skipped'
@@ -81,7 +81,7 @@ console.log('L2 the sweep — a broken settings file that held the key stops the
 {
   const r = runIn(`
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
-    fs.writeFileSync(userSettingsPath, '{ "cleanupPeriodDays": 365, ')
+    fs.writeFileSync(userSettingsPath, '{ "records": { "retentionDays": 365, ')
     const planted = plantOldPlan()
     const cleanup = await import(${JSON.stringify(join(SRC, 'utils/cleanup.ts'))})
     out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
@@ -112,9 +112,9 @@ console.log('L4 policy — a registry/plist-delivered retention window is seen')
     const mdm = await import(${JSON.stringify(join(SRC, 'utils/settings/mdm/settings.ts'))})
     if (typeof raw._setMdmRawReadForProofs !== 'function') { out.skipped = true }
     else {
-      raw._setMdmRawReadForProofs({ plistStdouts: [{ stdout: JSON.stringify({ cleanupPeriodDays: 365 }), label: 'proof plist' }], hklmStdout: null, hkcuStdout: null })
+      raw._setMdmRawReadForProofs({ plistStdouts: [{ stdout: JSON.stringify({ records: { retentionDays: 365 } }), label: 'proof plist' }], hklmStdout: null, hkcuStdout: null })
       await mdm.ensureMdmSettingsLoaded()
-      out.viaPolicy = s.rawSettingsContainsKey('cleanupPeriodDays')
+      out.viaPolicy = s.rawSettingsContainsKey('records.retentionDays')
     }
   `)
   if (r.skipped === true) check('the policy tier is probed', false, 'the proof seam is absent in this src (pre-fix tree)')

@@ -2255,7 +2255,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             let lockLine = ''
             try {
-              const lock = getSettingsForSource('policySettings')?.strictExtensionOnlyCustomization
+              const lock = getSettingsForSource('policySettings')?.extensions?.exclusive
               if (lock === true) lockLine = ' · managed extension-only lock: ALL surfaces'
               else if (Array.isArray(lock) && lock.length > 0) lockLine = ` · managed extension-only lock: ${lock.join(', ')}`
             } catch {
@@ -2324,8 +2324,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const session = getMainLoopModel()
             let pin: string | undefined
             try {
-              const settings = getSettingsWithAllErrors().settings as { model?: unknown }
-              pin = typeof settings?.model === 'string' ? settings.model : undefined
+              pin = getSettingsWithAllErrors().settings.engine?.model
             } catch {
               pin = undefined
             }
@@ -2800,15 +2799,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const { shellEngineArmWords } = await import('./shell/shellEngineArm.js')
             const { getInitialSettings } = await import('./settings/settings.js')
             const settings = getInitialSettings()
-            const setting = settings.shellEngine ?? 'system'
-            const resolved = resolveShellEngine(settings.shellEngine)
+            const setting = settings.shell?.engine ?? 'system'
+            const resolved = resolveShellEngine(settings.shell?.engine)
             if (resolved.engine === 'brush') {
-              const ceiling = resolveEngineSessionCeiling(settings.shellEngineSessions)
+              const ceiling = resolveEngineSessionCeiling(settings.shell?.sessions)
               const armed = resolved.arm === 'no-bash' ? 'armed by itself: no bash.exe was found on this machine, so the bundled engine serves the Bash tool' : `armed by ${shellEngineArmWords(resolved.arm)}`
               return {
                 status: 'ok' as const,
                 evidence: `brush ${resolved.version} (${resolved.platform}, ${resolved.source}) — ${armed} — one persistent process per conversation and one per sub-agent, up to ${ceiling} at once; shell state persists between calls; a stop while a command runs resets the session`,
-                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shellEngineSessions setting'})`,
+                detail: `setting: ${setting}${process.env.MERCURY_SHELL_ENGINE ? ` · env pin MERCURY_SHELL_ENGINE=${process.env.MERCURY_SHELL_ENGINE}` : ''} · sessions ceiling ${ceiling} (${engineSessionCeilingPinned() ? 'the env pin MERCURY_SHELL_ENGINE_SESSIONS' : 'the shell.sessions setting'})`,
               }
             }
             const wanted = resolved.requested === 'brush'

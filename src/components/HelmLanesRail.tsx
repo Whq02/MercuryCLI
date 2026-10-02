@@ -595,7 +595,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
   const workbenchRows: string[] | null = lastSentPrompt
     ? wrapRailRows(lastSentPrompt.text.replace(/\s+/g, ' ').trim(), Math.max(6, rowW - 2), 2)
     : null
-  const filesOff = useAppState(s => s.settings.filesBox === false)
+  const filesOff = useAppState(s => s.settings.view?.files === false)
   const filesFolder = basename(useFocusedWorkspaceCwd())
 
   const solo =

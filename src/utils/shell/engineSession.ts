@@ -156,7 +156,7 @@ function announceRelease(): void {
   for (const wake of wakes) wake()
 }
 
-const CEILING_WORDS = 'the shellEngineSessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
+const CEILING_WORDS = 'the shell.sessions setting, or the MERCURY_SHELL_ENGINE_SESSIONS pin'
 
 async function admitAgentSession(
   owned: OwnerSession,

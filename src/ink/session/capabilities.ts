@@ -154,7 +154,7 @@ export function isProgressReportingAvailable(
   env: Record<string, string | undefined> = process.env,
   tty: boolean = process.stdout.isTTY === true,
 ): boolean {
-  const setting = getInitialSettings()?.progressReporting
+  const setting = getInitialSettings()?.activity?.progress
   if (setting !== undefined) return setting
   if (!tty) return false
   if (env.WT_SESSION) return true

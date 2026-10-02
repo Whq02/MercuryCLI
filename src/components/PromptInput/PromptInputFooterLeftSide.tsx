@@ -225,7 +225,7 @@ export function PromptInputFooterLeftSide({
       parts.push(
         <KeyboardShortcutHint key="interrupt" shortcut={cancelChord} action="interrupt" />,
       )
-      if (shellRunning && getSettingsSnapshot().settings.backgroundKey !== false) {
+      if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {
         parts.push(
           <KeyboardShortcutHint key="background" shortcut={keyHintLabel('⇧b')} action="background the command" />,
         )

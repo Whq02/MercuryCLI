@@ -1,5 +1,4 @@
 import { clearCACertsCache } from './caCerts.js'
-import { getGlobalConfig } from './config.js'
 import { isEnvTruthy } from './envUtils.js'
 import { isProviderManagedEnvVar, SAFE_ENV_VARS } from './managedEnvConstants.js'
 import { clearMTLSCache } from './mtls.js'
@@ -47,13 +46,12 @@ function applyFiltered(env: EnvObject | undefined): void {
 const TRUSTED_SOURCES_BEFORE_POLICY: readonly SettingSource[] = ['userSettings', 'flagSettings']
 
 export function applySafeConfigEnvironmentVariables(): void {
-  applyFiltered(getGlobalConfig().env as EnvObject | undefined)
   for (const source of TRUSTED_SOURCES_BEFORE_POLICY) {
     if (!isSettingSourceEnabled(source)) continue
-    applyFiltered(getSettingsForSource(source)?.env)
+    applyFiltered(getSettingsForSource(source)?.environment?.values)
   }
-  applyFiltered(getSettingsForSource('policySettings')?.env)
-  const merged = getSettings_DEPRECATED().env
+  applyFiltered(getSettingsForSource('policySettings')?.environment?.values)
+  const merged = getSettings_DEPRECATED().environment?.values
   if (merged) {
     const allowlisted: EnvObject = {}
     for (const [key, value] of Object.entries(merged)) {
@@ -65,8 +63,7 @@ export function applySafeConfigEnvironmentVariables(): void {
 
 
 export function applyConfigEnvironmentVariables(): void {
-  applyFiltered(getGlobalConfig().env as EnvObject | undefined)
-  applyFiltered(getSettings_DEPRECATED().env)
+  applyFiltered(getSettings_DEPRECATED().environment?.values)
   clearCACertsCache()
   clearMTLSCache()
   clearProxyCache()

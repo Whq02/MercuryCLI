@@ -38,7 +38,7 @@ export function shouldEnableThinkingByDefault(): boolean {
     const parsed = parseInt(envValue, 10)
     return parsed > 0
   }
-  if (getSettings_DEPRECATED().alwaysThinkingEnabled === false) {
+  if (getSettings_DEPRECATED().engine?.reasoning === false) {
     return false
   }
   return true

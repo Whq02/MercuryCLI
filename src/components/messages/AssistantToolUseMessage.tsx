@@ -68,7 +68,7 @@ export function RunningToolElapsed({
 }): React.ReactNode {
   const reducedMotion =
     useAppStateMaybeOutsideOfProvider(
-      state => state.settings.prefersReducedMotion,
+      state => state.settings.view?.reducedMotion,
     ) ?? false
   const focused = useTerminalFocus()
   const ticking = running && focused && !reducedMotion
@@ -91,14 +91,14 @@ export function RunningToolElapsed({
 export function RunningShellBackgroundHint({ id }: { id: string }): React.ReactNode {
   const reducedMotion =
     useAppStateMaybeOutsideOfProvider(
-      state => state.settings.prefersReducedMotion,
+      state => state.settings.view?.reducedMotion,
     ) ?? false
   const focused = useTerminalFocus()
   const shellHere = useFocusedShellToolRunning(id)
   useSyncExternalStore(settingsChangeDetector.subscribe, settingsRevision, settingsRevision)
   const affordance = useActionAffordance(BACKGROUND_HINT_ACTION, 'Chat')
   const chord = affordance.kind === 'bound' ? affordance.chord : null
-  const offered = shellHere && chord !== null && getSettingsSnapshot().settings.backgroundKey !== false
+  const offered = shellHere && chord !== null && getSettingsSnapshot().settings.view?.backgroundKey !== false
   useNowTick(offered && focused && !reducedMotion ? ELAPSED_TICK_MS : null)
   if (!offered || chord === null) return null
   if (!toolStartStamps.has(id)) seedStamp(id, Date.now())

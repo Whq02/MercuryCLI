@@ -82,7 +82,7 @@ export const fmtCtx = (n: number): string =>
 
 export function modelPickerCentred(): boolean {
   try {
-    return getInitialSettings().modelPickerCentred !== false
+    return getInitialSettings().view?.modelPicker?.centred !== false
   } catch {
     return true
   }

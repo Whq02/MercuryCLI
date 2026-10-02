@@ -7,13 +7,13 @@
 # gate-watch: src/services/providers/patience.ts
 # gate-watch: src/bootstrap/state*
 # gate-watch: src/utils/settings/** src/utils/config/** src/utils/config.ts
-# gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts
+# gate-watch: src/utils/fileRead* scripts/lib/scratchSeat.ts src/memdir/paths.ts
 # gate-watch: src/migrations/**
 # gate-watch: src/components/BootSettingsScreen* src/services/switchboard/capacityCheck*
 # gate-watch: src/components/Settings/** src/services/providers/providerUsage* src/commands/usage/**
 # gate-watch: src/services/providers/accountSlots* src/components/mercury-ui/parity/AccountView*
 # gate-watch: src/components/HelmTelemetryRail* src/components/BootLoginsScreen* src/components/BootSplashScreen* src/services/wallet/** src/utils/accounts/** src/utils/auth.ts
-# gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx
+# gate-watch: src/cli/handlers/auth.ts src/utils/status.tsx src/state/AppState.tsx src/cli/sessionArgs.ts
 # gate-watch: src/cli/print.ts src/cli/headless/controlHandlers.ts src/daemon/sessionSeat.ts src/daemon/concourseSupervisor.ts src/services/engine-connector/** src/screens/REPL.tsx src/components/MercuryFrame.tsx src/components/tasks/BackgroundTasksDialog.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: scripts/lib/codeText.ts scripts/lib/settingsPopupHarness.ts
 # gate-watch: scripts/providers/lib/usage-plan-world.ts src/* src/commands/config/config.tsx

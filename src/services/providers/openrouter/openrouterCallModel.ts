@@ -71,7 +71,7 @@ export const openrouterLaneProfile: CompatLaneProfile = {
     buildOpenrouterExtras({
       ...args,
       vocabulary: openrouterEffortVocabularyFor(`openrouter/${args.wireModel}`),
-      providerPolicy: openrouterProviderObject(getInitialSettings().openrouterRouting),
+      providerPolicy: openrouterProviderObject(getInitialSettings().routing?.openrouter),
     }),
   extraHeaders: () => ({ 'user-agent': getProductUserAgent() }),
   streamTransport: (options, messages) => openrouterResponsesTransport(options, messages),

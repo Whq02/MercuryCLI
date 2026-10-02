@@ -132,11 +132,8 @@ import { update as updateCli } from './cli/update.js'
 import type { McpSdkServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
-import { migrateBypassPermissionsAcceptedToSettings } from './migrations/migrateBypassPermissionsAcceptedToSettings.js'
-import { migrateEnableAllProjectMcpServersToSettings } from './migrations/migrateEnableAllProjectMcpServersToSettings.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
-import { migrateAutoupdateEnvName } from './migrations/migrateAutoupdateEnvName.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
 import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
@@ -173,7 +170,7 @@ function isPrintModeArgv(argv: readonly string[] = process.argv): boolean {
 }
 
 function applyMergedConfigEnv(): void {
-  const env = getInitialSettings().env ?? {}
+  const env = getInitialSettings().environment?.values ?? {}
   for (const [key, value] of Object.entries(env)) {
     process.env[key] = String(value)
   }
@@ -188,11 +185,8 @@ function runMigrationsIfNeeded(): void {
     if (config.migrationVersion === MIGRATION_VERSION) return
     const landed: boolean[] = []
     landed.push(migrateAutoUpdatesToSettings())
-    landed.push(migrateBypassPermissionsAcceptedToSettings())
-    landed.push(migrateEnableAllProjectMcpServersToSettings())
     migrateReplBridgeEnabledToRemoteControlAtStartup()
     migrateVerboseToToolOutput()
-    landed.push(migrateAutoupdateEnvName())
     const incomplete = landed.some(ok => ok === false)
     if (incomplete) {
       logForDebugging(
@@ -1335,7 +1329,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       logError(error)
     }
   }
-  const requestedAgent = typedString(opts.agent) ?? getInitialSettings().agent
+  const requestedAgent = typedString(opts.agent) ?? getInitialSettings().engine?.agent
   let mainThreadAgentDefinition: AgentDefinition | undefined
   if (requestedAgent) {
     mainThreadAgentDefinition = activeAgents.find(agent => agent.agentType === requestedAgent)
@@ -1344,7 +1338,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       if (typedString(opts.agent) !== undefined) {
         failCli(refusal)
       }
-      process.stderr.write(`${refusal} (from settings.agent — running without it)\n`)
+      process.stderr.write(`${refusal} (from settings.engine.agent — running without it)\n`)
       logForDebugging(refusal)
     } else {
       if (mainThreadAgentDefinition.agentType === 'mercury-reviewer') failCli('mercury-reviewer requires an isolated Agent dispatch with worktree_at and review_receipt')
@@ -1853,8 +1847,8 @@ async function interactiveLaunch(args: {
   }
 
   const config = getGlobalConfig()
-  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().effortLevel
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().supercodeEffort)
+  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
+  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
   const { setDynamicCrewContext } = await import('./utils/crewmate.js')
@@ -2199,8 +2193,8 @@ async function printLaunch(args: {
         })
 
   const config = getGlobalConfig()
-  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().effortLevel
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().supercodeEffort)
+  const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
+  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\n`)
   const initialState: AppState = {

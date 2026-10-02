@@ -18,7 +18,7 @@ export function useGreetingShimmer(
   greetKey?: unknown,
 ): ShimmerPhase | null {
   const reducedMotion =
-    (useSettingsMaybe()?.prefersReducedMotion ?? false) ||
+    (useSettingsMaybe()?.view?.reducedMotion ?? false) ||
     isEnvTruthy(process.env.MERCURY_REDUCED_MOTION)
   const glyphMotion = useIdleMotion('glyphs')
   const enabled = !reducedMotion && glyphMotion !== 'off' && stops.length > 1 && spanCells > 1

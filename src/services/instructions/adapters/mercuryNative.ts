@@ -17,15 +17,15 @@ function isMercuryMdExcluded(filePath: string, type: MemoryType): boolean {
   }
   if (type === 'User') {
     const operatorLayers = [
-      ...(getSettingsForSource('userSettings')?.instructionExcludes ?? []),
-      ...(getSettingsForSource('policySettings')?.instructionExcludes ?? []),
-      ...(getSettingsForSource('flagSettings')?.instructionExcludes ?? []),
+      ...(getSettingsForSource('userSettings')?.briefs?.exclude ?? []),
+      ...(getSettingsForSource('policySettings')?.briefs?.exclude ?? []),
+      ...(getSettingsForSource('flagSettings')?.briefs?.exclude ?? []),
     ]
     return matchesInstructionExcludes(filePath, operatorLayers)
   }
   return matchesInstructionExcludes(
     filePath,
-    getInitialSettings().instructionExcludes,
+    getInitialSettings().briefs?.exclude,
   )
 }
 

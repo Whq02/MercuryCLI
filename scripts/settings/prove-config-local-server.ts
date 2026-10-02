@@ -69,7 +69,7 @@ const TRUTH = {
   readAtMs: now,
 }
 __pinLocalServerTruthForTest(TRUTH)
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ localServer: { maxLoadedModels: 2, parallelSlots: 1 } }, null, 2))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ local: { server: { maxLoadedModels: 2, parallelSlots: 1 } } }, null, 2))
 
 section('§1 the pure words')
 {
@@ -169,12 +169,12 @@ section('§3 ←/→ on a knob writes the user setting; esc reverts it')
   check('the knob row is selected alone', selectedLabel(m) === 'Loaded models at once', selectedLabel(m))
   m.push(KEY.right)
   await settle(200)
-  const written = JSON.parse(readFileSync(join(HOME, 'settings.json'), 'utf8')) as { localServer?: { maxLoadedModels?: number; parallelSlots?: number } }
-  check('→ steps the ladder from 2 to 3 and persists it, the other knob untouched', written.localServer?.maxLoadedModels === 3 && written.localServer.parallelSlots === 1 && rowOf(m, 'Loaded models at once').includes('3 · running 1'), JSON.stringify(written))
+  const written = JSON.parse(readFileSync(join(HOME, 'settings.json'), 'utf8')) as { local?: { server?: { maxLoadedModels?: number; parallelSlots?: number } } }
+  check('→ steps the ladder from 2 to 3 and persists it, the other knob untouched', written.local?.server?.maxLoadedModels === 3 && written.local.server.parallelSlots === 1 && rowOf(m, 'Loaded models at once').includes('3 · running 1'), JSON.stringify(written))
   m.push(KEY.esc)
   await settle(300)
-  const reverted = JSON.parse(readFileSync(join(HOME, 'settings.json'), 'utf8')) as { localServer?: { maxLoadedModels?: number; parallelSlots?: number } }
-  check('esc reverts the knob to its mount-time value and keeps the other', reverted.localServer?.maxLoadedModels === 2 && reverted.localServer.parallelSlots === 1, JSON.stringify(reverted))
+  const reverted = JSON.parse(readFileSync(join(HOME, 'settings.json'), 'utf8')) as { local?: { server?: { maxLoadedModels?: number; parallelSlots?: number } } }
+  check('esc reverts the knob to its mount-time value and keeps the other', reverted.local?.server?.maxLoadedModels === 2 && reverted.local.server.parallelSlots === 1, JSON.stringify(reverted))
   m.push(KEY.esc)
   await settle(100)
   m.unmount()
@@ -185,7 +185,7 @@ section('§3 ←/→ on a knob writes the user setting; esc reverts it')
 section('§4 an over-memory choice: red words with the figures on the knob rows, the Apply row refuses with no door')
 {
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-  updateSettingsForSource('userSettings', { localServer: { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 } } as never)
+  updateSettingsForSource('userSettings', { local: { server: { maxLoadedModels: 2, parallelSlots: 4, contextLength: 262144 } } })
   const REFUSAL = 'does not fit · 73.4 of 36.9 GiB usable — lower the window or the count'
   for (const [columns, rows] of [[178, 51], [80, 21]] as const) {
     const size = `${columns}x${rows}`
@@ -227,7 +227,7 @@ section('§4 an over-memory choice: red words with the figures on the knob rows,
   wide.unmount()
   store.closeSettingsPopup()
   await settle(50)
-  updateSettingsForSource('userSettings', { localServer: { maxLoadedModels: 2, parallelSlots: 1, contextLength: undefined } } as never)
+  updateSettingsForSource('userSettings', { local: { server: { maxLoadedModels: 2, parallelSlots: 1, contextLength: undefined } } })
 }
 
 section('§5 the Ollama app form: the review lists launchctl setenv per knob, the quit, the open and the revert road; esc sets nothing')

@@ -48,7 +48,7 @@ let plansDirectoryMemo: string | null = null
 export function getPlansDirectory(): string {
   if (plansDirectoryMemo !== null) return plansDirectoryMemo
   let directory: string | null = null
-  const configured = (getInitialSettings() as { plansDirectory?: string }).plansDirectory
+  const configured = getInitialSettings().strategy?.directory
   if (configured) {
     const cwd = getCwd()
     const resolved = isAbsolute(configured) ? resolve(configured) : resolve(cwd, configured)

@@ -106,11 +106,11 @@ export function gateChannelServer(
   let policySettings: ReturnType<typeof getSettingsForSource> = null
   if (managed) {
     policySettings = getSettingsForSource('policySettings')
-    if (policySettings?.channelsEnabled !== true) {
+    if (policySettings?.channels?.enabled !== true) {
       return {
         register: false,
         kind: 'policy',
-        reason: 'your organization has not enabled channels (managed setting channelsEnabled)',
+        reason: 'your organization has not enabled channels (managed setting channels.enabled)',
       }
     }
   }

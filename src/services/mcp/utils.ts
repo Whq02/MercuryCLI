@@ -346,15 +346,15 @@ export function getProjectMcpServerStatus(
   const matches = (names: string[] | undefined): boolean =>
     (names ?? []).some(name => normalizeNameForMCP(name) === normalized)
 
-  if (matches(settings?.disabledMcpjsonServers)) return 'rejected'
-  if (matches(settings?.enabledMcpjsonServers) || settings?.enableAllProjectMcpServers === true) {
+  if (matches(settings?.kit?.projectOff)) return 'rejected'
+  if (matches(settings?.kit?.projectOn) || settings?.kit?.trustProjectServers === true) {
     return 'approved'
   }
 
   const projectSourceEnabled = isSettingSourceEnabled('projectSettings')
   const skipSources = ['userSettings', 'localSettings', 'flagSettings', 'policySettings'] as const
   const consentSkip = skipSources.some(
-    source => getSettingsForSource(source)?.skipSovereignConsentPrompt === true,
+    source => getSettingsForSource(source)?.guardrails?.sovereignConsentSeen === true,
   )
   if (consentSkip && projectSourceEnabled) return 'approved'
 

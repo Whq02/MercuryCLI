@@ -17,7 +17,7 @@ export const CYCLE_MAX_LENGTH = 5
 export const CYCLE_REPEATS = 5
 export const ARGUMENT_PREVIEW_CHARS = 160
 export const LOOP_GUARD_NAME = 'Loop guard'
-export const LOOP_GUARD_STOP_SETTING = 'loopGuardStopEnabled'
+export const LOOP_GUARD_STOP_SETTING = 'turns.loopGuard'
 export const HEADLESS_FAILED_CALL_LIMIT = 8
 
 const BOOKKEEPING_PREFIXES = ['Task', 'Todo']
@@ -108,7 +108,7 @@ registerOwnerScopedStore(store)
 
 export function isLoopGuardStopEnabled(): boolean {
   try {
-    return getInitialSettings().loopGuardStopEnabled === true
+    return getInitialSettings().turns?.loopGuard === true
   } catch {
     return false
   }

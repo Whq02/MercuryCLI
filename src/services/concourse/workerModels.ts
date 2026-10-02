@@ -375,7 +375,7 @@ export async function validateWorkerModelChoice(
         return {
           ok: false,
           reason: 'not-runnable:not-allowed',
-          detail: `'${id}' is outside this organization's availableModels`,
+          detail: `'${id}' is outside this organization's engine.roster`,
           action: unrecognisedRefusalAction(),
         }
       }

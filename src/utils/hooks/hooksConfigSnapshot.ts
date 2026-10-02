@@ -8,29 +8,29 @@ import type { HooksSettings } from '../settings/types.js'
 
 function computeEffectiveHooksConfig(): HooksSettings {
   const policy = getSettingsForSource('policySettings')
-  if (policy?.disableAllHooks) return {}
-  if (policy?.allowManagedHooksOnly) return policy.hooks ?? {}
-  if (isRestrictedToExtensionsOnly('hooks')) return policy?.hooks ?? {}
+  if (policy?.events?.disabled) return {}
+  if (policy?.events?.managedOnly) return policy.events?.hooks ?? {}
+  if (isRestrictedToExtensionsOnly('hooks')) return policy?.events?.hooks ?? {}
   const merged = getSettings_DEPRECATED()
-  if (merged?.disableAllHooks) return policy?.hooks ?? {}
+  if (merged?.events?.disabled) return policy?.events?.hooks ?? {}
   if (untrustedWorkspaceHeadless()) {
     logForDebugging(
       'hooks: untrusted workspace on a non-interactive road — checkout-delivered hooks are not loaded (boot interactively once here to trust this directory)',
     )
     return getHooksFromOutsideCheckoutSources()
   }
-  return merged?.hooks ?? {}
+  return merged?.events?.hooks ?? {}
 }
 
 export function shouldAllowManagedHooksOnly(): boolean {
   const policy = getSettingsForSource('policySettings')
-  if (policy?.allowManagedHooksOnly) return true
-  if (policy?.disableAllHooks) return false
-  return getSettings_DEPRECATED()?.disableAllHooks === true
+  if (policy?.events?.managedOnly) return true
+  if (policy?.events?.disabled) return false
+  return getSettings_DEPRECATED()?.events?.disabled === true
 }
 
 export function shouldDisableAllHooksIncludingManaged(): boolean {
-  return getSettingsForSource('policySettings')?.disableAllHooks === true
+  return getSettingsForSource('policySettings')?.events?.disabled === true
 }
 
 let snapshot: HooksSettings | undefined

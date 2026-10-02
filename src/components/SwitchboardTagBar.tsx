@@ -262,7 +262,7 @@ export function FocusedSessionStatusRow(): React.ReactNode {
   const backHint =
     crewmate !== null && !crewmate.pinned
       ? `${crewmateStatusRightHint(false, crewmateLive(crewmate))} · ${keyHintLabel('⇧← back')}`
-      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)
+      : escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false)
   const effortLabel = modelSupportsEffort(effectiveModel) ? focusedEffortLabelOf(effectiveModel, seatEffort, sentEffort, effortValue, bornEffort, false) : null
   const resting = line === 'ready' ? restingStatusWords(modelName, effortLabel) : null
   const held = receipt !== '' && !statusRowWarns(live, status) ? receipt : null

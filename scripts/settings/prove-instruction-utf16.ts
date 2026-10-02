@@ -12,7 +12,8 @@ const launchDir = process.cwd()
 
 const discovery = await import('../../src/services/instructions/discovery.ts')
 const engine = await import('../../src/services/instructions/engine.ts')
-const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
+const { setOriginalCwd, setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
+setSessionTrustAccepted(true)
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
 let failures = 0

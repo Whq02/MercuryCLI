@@ -187,7 +187,7 @@ export function CancelRequestHandler({
       }
       if (requestShellBackground() === 0) return false
     },
-    { context: 'Chat', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.backgroundKey !== false },
+    { context: 'Chat', isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false },
   )
 
   const interruptActive =

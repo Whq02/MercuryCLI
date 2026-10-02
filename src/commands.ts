@@ -293,7 +293,7 @@ const COMMANDS = memoize((): Command[] => [
   cards,
   caching,
   workbench,
-  ...(getInitialSettings().filesBox === false ? [] : [files]),
+  ...(getInitialSettings().view?.files === false ? [] : [files]),
   router,
   daemon,
   saturn,
