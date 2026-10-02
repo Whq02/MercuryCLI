@@ -3,6 +3,8 @@
 # gate-watch: scripts/pings/**
 # gate-watch: src/hooks/useTurnEndPing.ts src/ink/termio/notifyPing.ts src/ink/session/focus-store.ts
 # gate-watch: src/ink/terminalWrite.ts src/utils/settings/types.ts src/services/attention/**
+# gate-watch: src/bootstrap/state.ts src/utils/settings/settingsCache.ts scripts/settings/settings-schema.json
+# gate-watch: src/components/permissions/PermissionRequest.tsx src/components/mcp/ElicitationDialog.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/components/messages/SystemTextMessage.tsx
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/ui/vshot.py
