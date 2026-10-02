@@ -127,6 +127,8 @@ try {
   const s4 = drive(join(parent, 'app'), { trust: parent })
   check('the parent MERCURY.md composes', s4.composed.includes('parent-guide-needle'), s4.paths.join(', '))
   check("the working directory's AGENTS.md does not compose", !s4.composed.includes('shared-guide-needle'))
+  check('the guide step stays open: that AGENTS.md is not the project guide', s4.guideStepComplete === false)
+  check('the surface-map gate reads the working directory as unguided', s4.oriented === false)
 
   console.log('§5 the native profile never composes AGENTS.md')
   const s5 = drive(shared, { settings: { briefs: { profile: 'native' } } })
@@ -155,6 +157,8 @@ try {
   console.log('§7 the exclusion list reaches AGENTS.md')
   const s7 = drive(shared, { settings: { briefs: { exclude: ['**/AGENTS.md'] } } })
   check('an excluded AGENTS.md composes nothing', !s7.composed.includes('shared-guide-needle'), s7.paths.join(', '))
+  check('the guide step stays open over an excluded AGENTS.md', s7.guideStepComplete === false)
+  check('the surface-map gate reads a repo whose only guide is excluded as unguided', s7.oriented === false)
 
   console.log('§8 the trust gate applies headless: an untrusted root composes nothing')
   const s8 = drive(shared, { untrusted: true })
