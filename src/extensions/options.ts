@@ -97,7 +97,7 @@ export function saveOptionValues(
   return { ok: true }
 }
 
-export function deleteOptionValues(id: string): void {
+export function deleteOptionValues(id: string): { settingsWritten: boolean } {
   const storage = getSecureStorage()
   const current = (storage.read() ?? {}) as SecretsBlob & Record<string, unknown>
   if (current.extensionSecrets && current.extensionSecrets[id] !== undefined) {
@@ -109,9 +109,9 @@ export function deleteOptionValues(id: string): void {
     if (Object.keys(next).length === 0) storage.delete()
     else storage.update(next as SecretsBlob)
   }
-  if (getSettings_DEPRECATED().extensions?.options?.[id] !== undefined) {
-    updateSettingsForSource('userSettings', { extensions: { options: { [id]: undefined } } } as never)
-  }
+  if (getSettings_DEPRECATED().extensions?.options?.[id] === undefined) return { settingsWritten: false }
+  updateSettingsForSource('userSettings', { extensions: { options: { [id]: undefined } } } as never)
+  return { settingsWritten: true }
 }
 
 export function optionEnv(values: OptionValues): Record<string, string> {

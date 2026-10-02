@@ -201,6 +201,22 @@ console.log('[6] a $schema-only settings file leaves the disk with the husk')
   check('the $schema-only husk leaves the disk', !existsSync(join(home, 'settings.json')))
 }
 
+console.log('[7] a $schema-only user file the extension never wrote survives a project-scoped uninstall')
+{
+  const localFile = join(cwd, '.mercury', 'settings.local.json')
+  rmSync(join(home, 'settings.json'), { force: true })
+  rmSync(localFile, { force: true })
+  const pointer = JSON.stringify({ $schema: 'https://json.schemastore.org/other-settings.json' }, null, 2)
+  writeFileSync(join(home, 'settings.json'), pointer)
+  const again = await install.installFromSource('fixture-source', 'kitchen-sink')
+  check('install lands beside the untouched pointer', again.ok)
+  check('approve for this project alone lands', install.approve('kitchen-sink@fixture-source', { scope: 'project' }).ok)
+  check('the switch lives in the project-local file; the user file keeps its bytes', existsSync(localFile) && readFileSync(localFile, 'utf8').includes('kitchen-sink@fixture-source') && readFileSync(join(home, 'settings.json'), 'utf8') === pointer)
+  check('the project-scoped uninstall lands', install.uninstall('kitchen-sink@fixture-source').ok)
+  check('the user file the uninstall never wrote SURVIVES with its bytes', existsSync(join(home, 'settings.json')) && readFileSync(join(home, 'settings.json'), 'utf8') === pointer, existsSync(join(home, 'settings.json')) ? readFileSync(join(home, 'settings.json'), 'utf8') : 'the file is gone')
+  check('the project-local file the switch write created leaves the disk', !existsSync(localFile))
+}
+
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\n ✅ UNINSTALL CLEAN — GREEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

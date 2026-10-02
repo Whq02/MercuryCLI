@@ -14,7 +14,7 @@ renderers the project has installed, checked before use.
 | Skill | What it does |
 |---|---|
 | `app-proof` | proves a web journey with Mercury's `Browser` and `Service` tools: readiness, actions, an observable result, a failure case, a recorded verdict per journey |
-| `extension-maker` | makes or repairs a Mercury extension or source catalogue — one manifest contributing skills, commands, agents, hooks, servers, or keybindings — validated with `mercury extensions validate` |
+| `extension-maker` | makes or repairs a Mercury extension or source catalogue — one manifest contributing skills, commands, agents, hooks, servers, or keybindings — validated with `mercury extensions inspect` |
 | `mcp-smithy` | builds an MCP server for a Mercury session around a small tool contract, proves it with the SDK client, and registers it with `mercury mcp add` only when asked |
 | `pdf-documents` | inspects, transforms, fills, redacts, and generates PDFs with the installed PDF libraries, reopening the output to verify it |
 | `provider-apis` | the reference for every provider API Mercury speaks — Anthropic Messages, OpenAI Responses, and the OpenAI-compatible chat-completions families — with request shapes, streaming, tool calls, caching, and live model sources |
