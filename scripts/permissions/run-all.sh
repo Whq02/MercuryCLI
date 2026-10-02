@@ -25,7 +25,7 @@
 # gate-watch: src/substrate/flagRegistry.ts src/tools.ts src/tools/AgentTool/** src/tools/AstEditTool/AstEditTool.ts
 # gate-watch: src/tools/BashTool/** src/tools/ChangeSetTool/ChangeSetTool.ts src/tools/FileEditTool/FileEditTool.ts
 # gate-watch: src/tools/FileEditTool/UI.tsx src/tools/FileWriteTool/FileWriteTool.ts src/tools/GlobTool/GlobTool.ts
-# gate-watch: src/tools/NotebookEditTool/NotebookEditTool.ts src/tools/PowerShellTool/** src/types/permissions.ts
+# gate-watch: src/tools/NotebookEditTool/NotebookEditTool.ts src/tools/PowerShellTool/** src/types/permissions.ts src/tools/WebFetchTool/**
 # gate-watch: src/utils/Shell.ts src/utils/astPatterns.ts src/utils/bash/ast.ts src/utils/browser.ts
 # gate-watch: src/utils/capability/declarations.ts src/utils/cockpit/runtimePosture.ts src/utils/config/**
 # gate-watch: src/utils/config.ts src/utils/cwd.ts src/utils/envUtils.ts src/utils/errors.ts src/utils/glob.ts

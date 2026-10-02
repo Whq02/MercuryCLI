@@ -6,6 +6,7 @@ import { createPermissionRequestMessage, getRuleByContentsForToolName } from '..
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import type { PermissionDecisionReason } from '../../utils/permissions/PermissionResult.js'
+import type { PermissionRule } from '../../types/permissions.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { DESCRIPTION, getPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
 import { getToolUseSummary, renderToolResultMessage, renderToolUseMessage, renderToolUseProgressMessage } from './UI.js'
@@ -38,18 +39,40 @@ function ruleContentFor(input: Input): string {
   }
 }
 
-function ruleReason(
+export function webFetchRuleMatches(ruleContent: string, requestContent: string): boolean {
+  if (ruleContent === requestContent) return true
+  if (!ruleContent.startsWith('domain:') || !requestContent.startsWith('domain:') || !ruleContent.includes('*')) return false
+  const pattern = ruleContent
+    .slice('domain:'.length)
+    .split('*')
+    .map(part => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    .join('.*')
+  return new RegExp(`^${pattern}$`, 'i').test(requestContent.slice('domain:'.length))
+}
+
+function matchingRule(
   context: ToolPermissionContext,
-  ruleContent: string,
+  requestContent: string,
+  behavior: 'allow' | 'deny' | 'ask',
+): PermissionRule | undefined {
+  const rules = getRuleByContentsForToolName(context, WEB_FETCH_TOOL_NAME, behavior)
+  const exact = rules.get(requestContent)
+  if (exact !== undefined) return exact
+  for (const [content, rule] of rules) if (webFetchRuleMatches(content, requestContent)) return rule
+  return undefined
+}
+
+function ruleReason(
+  rule: PermissionRule | undefined,
+  requestContent: string,
   behavior: 'allow' | 'deny' | 'ask',
 ): Extract<PermissionDecisionReason, { type: 'rule' }> {
-  const rule = getRuleByContentsForToolName(context, WEB_FETCH_TOOL_NAME, behavior).get(ruleContent)
   return {
     type: 'rule',
     rule: rule ?? {
       source: 'localSettings',
       ruleBehavior: behavior,
-      ruleValue: { toolName: WEB_FETCH_TOOL_NAME, ruleContent },
+      ruleValue: { toolName: WEB_FETCH_TOOL_NAME, ruleContent: requestContent },
     },
   }
 }
@@ -169,16 +192,18 @@ export const WebFetchTool = buildTool({
     const ruleContent = ruleContentFor(input)
     const message = createPermissionRequestMessage(WEB_FETCH_TOOL_NAME)
     const suggestions = suggestionForExactCommand(WEB_FETCH_TOOL_NAME, ruleContent)
-    const denied = ruleReason(permissionContext, ruleContent, 'deny')
-    if (getRuleByContentsForToolName(permissionContext, WEB_FETCH_TOOL_NAME, 'deny').has(ruleContent)) {
+    const denyRule = matchingRule(permissionContext, ruleContent, 'deny')
+    if (denyRule !== undefined) {
+      const denied = ruleReason(denyRule, ruleContent, 'deny')
       return {
         behavior: 'deny' as const,
         message: ruleSentence(`Fetching ${input.url}`, 'deny', denied.rule),
         decisionReason: denied,
       }
     }
-    const asked = ruleReason(permissionContext, ruleContent, 'ask')
-    if (getRuleByContentsForToolName(permissionContext, WEB_FETCH_TOOL_NAME, 'ask').has(ruleContent)) {
+    const askRule = matchingRule(permissionContext, ruleContent, 'ask')
+    if (askRule !== undefined) {
+      const asked = ruleReason(askRule, ruleContent, 'ask')
       return {
         behavior: 'ask' as const,
         message: ruleSentence(`Fetching ${input.url}`, 'ask', asked.rule),
@@ -186,11 +211,12 @@ export const WebFetchTool = buildTool({
         suggestions,
       }
     }
-    if (getRuleByContentsForToolName(permissionContext, WEB_FETCH_TOOL_NAME, 'allow').has(ruleContent)) {
+    const allowRule = matchingRule(permissionContext, ruleContent, 'allow')
+    if (allowRule !== undefined) {
       return {
         behavior: 'allow' as const,
         updatedInput: input,
-        decisionReason: ruleReason(permissionContext, ruleContent, 'allow'),
+        decisionReason: ruleReason(allowRule, ruleContent, 'allow'),
       }
     }
     return { behavior: 'ask' as const, message, suggestions }
