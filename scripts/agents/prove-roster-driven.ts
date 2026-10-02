@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { createServer } from 'node:http'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { findOnPath } from '../lib/captureDriver.ts'
@@ -132,6 +132,31 @@ const drop = (world: World): void => {
 
 const ASK = (word: string): string => `roster-drive ${word}: run the probe`
 const BRIEF = (word: string): string => `${word}-seat: write the probe file ${word}-wrote.txt with the Write tool, then report in one line`
+const SCOUT_REFUSAL = 'mercury-scout is read-only'
+const walk = (dir: string, out: string[] = []): string[] => {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) walk(path, out)
+    else out.push(path)
+  }
+  return out
+}
+const filesCarrying = (dir: string, needle: string): string[] => walk(dir).filter(path => {
+  try {
+    return readFileSync(path, 'utf8').includes(needle)
+  } catch {
+    return false
+  }
+})
+type ClassifiedTool = { name: string; isReadOnly: (input: Record<string, unknown>) => boolean; call: (...args: unknown[]) => Promise<unknown> }
+const readsOnlyAtRest = (tool: ClassifiedTool | undefined): boolean => {
+  if (tool === undefined) return false
+  try {
+    return tool.isReadOnly({}) === true
+  } catch {
+    return false
+  }
+}
 
 section('§1 a crew lane: mercury-crew carries the full tool set and writes the probe file')
 {
@@ -169,12 +194,109 @@ section('§2 a scout run: mercury-scout has no writer; its write attempt is refu
   const seatTools = toolNamesOf(seats[0] ?? {})
   check('the scout seat carries no Write, Edit, NotebookEdit or Agent tool', !['Write', 'Edit', 'NotebookEdit', 'Agent'].some(t => seatTools.includes(t)), seatTools.join(','))
   check('the scout seat keeps Read, Grep and Glob', ['Read', 'Grep', 'Glob'].every(t => seatTools.includes(t)), seatTools.join(','))
+  check('the scout seat carries no worktree door, no mail, no schedule writer and no memory writer', !['EnterWorktree', 'ExitWorktree', 'SendMessage', 'CronCreate', 'CronDelete', 'ScheduleWakeup', 'Retain', 'Correct', 'RecordConvention'].some(t => seatTools.includes(t)), seatTools.join(','))
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const baseTools = new Map((getAllBaseTools() as unknown as ClassifiedTool[]).map(t => [t.name, t]))
+  const coordination = readFileSync(join(ROOT, 'src/services/mcp/coordinationServer.ts'), 'utf8')
+  const coordinationHints = new Map<string, boolean>()
+  for (const m of coordination.matchAll(/registerTool\(\s*'([a-z_]+)',[\s\S]*?annotations: \{([^}]*)\}/g)) coordinationHints.set(`mcp__mercury__${m[1]}`, /readOnlyHint: true/.test(m[2] ?? ''))
+  check('the coordination server declares a read-only hint on every tool it registers (the classification the scout gate reads)', coordinationHints.size >= 7 && [...coordinationHints.values()].some(Boolean) && [...coordinationHints.values()].some(v => !v), `${coordinationHints.size} tools`)
+  const offered = seatTools.filter(t => t !== 'Bash' && t !== 'Skill')
+  const writers = offered.filter(t => t.startsWith('mcp__') ? coordinationHints.get(t) !== true : !readsOnlyAtRest(baseTools.get(t)))
+  check("every tool the scout seat is offered is read-only by the tool's own classification (the shell and the skill door apart; an MCP tool by its read-only hint)", offered.length > 0 && writers.length === 0, `writers offered: ${writers.join(',') || 'none'}; wire: ${seatTools.join(',')}`)
+  const coordinationWriters = [...coordinationHints].filter(([, readsOnly]) => !readsOnly).map(([name]) => name)
+  check('the coordination tools that write (leases, crew mail) are not offered to the scout', coordinationWriters.length > 0 && !coordinationWriters.some(t => seatTools.includes(t)), coordinationWriters.join(','))
   check("the scout seat's system prompt is the read-only scout's", systemTextOf(seats[0] ?? {}).includes("You are Mercury's repository scout") && systemTextOf(seats[0] ?? {}).includes('Read-only — absolute prohibitions'))
   const refusal = toolResultsOf(seats[1] ?? {}).find(text => text.includes('No such tool available: Write')) ?? ''
   check('the Write attempt came back to the scout as a refusal naming the missing tool', refusal.includes('No such tool available: Write'), toolResultsOf(seats[1] ?? {}).join(' | ').slice(0, 300))
   check('nothing was written', !existsSync(probe))
   check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: the write was refused`), resultText(run))
+  const agentTool = (bodies(fixture)[0]?.tools as Array<{ name: string; description?: string }> | undefined)?.find(t => t.name === 'Agent')
+  const scoutLine = (agentTool?.description ?? '').split('\n').find(line => line.startsWith('- mercury-scout: ')) ?? ''
+  check("the lead's roster line describes the scout's tools as read-only", scoutLine.includes('(Tools: read-only') && !scoutLine.includes('All tools'), scoutLine.slice(-160))
   drop(world)
+}
+
+section('§2c a scout run: a memory write (Retain) is refused and nothing lands on disk')
+{
+  const word = 'retain'
+  const brief = `${word}-seat: remember the reef fact, then report in one line`
+  const fact = 'the reef probe fact: a scout tried to store this'
+  const { run, fixture, world } = await leg(word, () => [
+    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'Retain', input: { items: [{ content: fact, topic: 'scout-probe' }] }, whenSaid: brief },
+    { kind: 'text', text: `${word}-seat: the memory write was refused`, whenSaid: brief },
+    { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: the memory write was refused`, whenBody: `${word}-seat: the memory write was refused` },
+  ], ASK(word))
+  const seats = seatBodies(fixture, brief)
+  check('the scout seat was dispatched', seats.length >= 2, `${seats.length} seat request(s); exit=${run.exit}; ${run.stderr.slice(-300)}`)
+  check('the scout seat is not offered the memory writer', !toolNamesOf(seats[0] ?? {}).includes('Retain'), toolNamesOf(seats[0] ?? {}).join(','))
+  const results = seats.flatMap(toolResultsOf)
+  check('the Retain attempt came back refused — never "stored"', results.length > 0 && results.some(t => t.includes('No such tool available: Retain') || t.includes(SCOUT_REFUSAL)) && !results.some(t => /\d+ stored/.test(t)), results.join(' | ').slice(0, 400))
+  const stored = filesCarrying(world.home, fact).filter(path => !/\/subagents\/|\/[0-9a-f-]{36}\.jsonl$/.test(path))
+  check('nothing carrying the fact landed in a memory store under the home (the transcripts alone carry the attempt)', stored.length === 0, stored.join(','))
+  check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: the memory write was refused`), resultText(run))
+  drop(world)
+}
+
+section('§2d a scout run: an input-dependent tool is offered, its writing form (AstEdit apply) is refused as the scout\'s, nothing changes')
+{
+  const word = 'astedit'
+  const brief = `${word}-seat: rewrite Dover to Calais in harbours.txt, then report in one line`
+  const { run, fixture, world } = await leg(word, w => [
+    { kind: 'tool_use', name: 'Agent', input: { description: `${word}-seat`, prompt: brief, subagent_type: 'mercury-scout' }, whenBody: ASK(word) },
+    { kind: 'tool_use', name: 'AstEdit', input: { pattern: 'Dover', rewrite: 'Calais', path: join(w.cwd, 'harbours.txt'), apply: true, plan: 'ae-probe' }, whenSaid: brief },
+    { kind: 'text', text: `${word}-seat: the rewrite was refused`, whenSaid: brief },
+    { kind: 'text', text: `roster-drive ${word}: the seat reported — ${word}-seat: the rewrite was refused`, whenBody: `${word}-seat: the rewrite was refused` },
+  ], ASK(word))
+  const seats = seatBodies(fixture, brief)
+  check('the scout seat was dispatched and is offered AstEdit (a dry run reads)', seats.length >= 2 && toolNamesOf(seats[0] ?? {}).includes('AstEdit'), `${seats.length} seat request(s); tools=${toolNamesOf(seats[0] ?? {}).join(',')}; exit=${run.exit}; ${run.stderr.slice(-300)}`)
+  const results = seats.flatMap(toolResultsOf)
+  check("the apply came back refused with the scout's one read-only line", results.some(t => t.includes(SCOUT_REFUSAL) && t.includes('AstEdit')), results.join(' | ').slice(0, 400))
+  check('the file stands unchanged', readFileSync(join(world.cwd, 'harbours.txt'), 'utf8') === 'Dover\nHull\nLeith\n')
+  check("the lead relayed the seat's report", resultText(run).includes(`${word}-seat: the rewrite was refused`), resultText(run))
+  drop(world)
+}
+
+section("§2e the scout's tool gate itself: the pool is the read-only pool, the call road refuses a writing form")
+{
+  const policy = await import('../../src/tools/AgentTool/scoutPolicy.ts') as Partial<{ restrictScoutTools: (tools: ClassifiedTool[]) => ClassifiedTool[]; scoutRefusal: (tool: ClassifiedTool, input: Record<string, unknown>) => string | null }>
+  const calls: string[] = []
+  const tool = (name: string, isReadOnly: (input: Record<string, unknown>) => boolean): ClassifiedTool => ({ name, isReadOnly, call: async (...args: unknown[]) => { calls.push(`${name}:${JSON.stringify(args[0])}`); return 'ran' } })
+  const pool = [
+    tool('Bash', input => input.command === 'ls'),
+    tool('Skill', () => false),
+    tool('Read', () => true),
+    tool('Retain', () => false),
+    tool('AstEdit', input => input.apply !== true),
+    tool('Agent', () => true),
+    tool('EnterWorktree', () => true),
+    tool('ExitWorktree', () => true),
+    tool('Throws', () => { throw new Error('no input') }),
+  ]
+  const gated = policy.restrictScoutTools?.(pool) ?? []
+  const names = gated.map(t => t.name)
+  check('the pool keeps the shell, the skill door, the readers and the input-dependent tools', ['Bash', 'Skill', 'Read', 'AstEdit'].every(n => names.includes(n)), names.join(','))
+  check('the pool drops an unconditional writer', !names.includes('Retain'), names.join(','))
+  check('the pool drops the Agent tool and both worktree doors even when they claim to read', !['Agent', 'EnterWorktree', 'ExitWorktree'].some(n => names.includes(n)), names.join(','))
+  check('a tool whose classification throws is not offered', !names.includes('Throws'), names.join(','))
+  const astEdit = gated.find(t => t.name === 'AstEdit')
+  const bash = gated.find(t => t.name === 'Bash')
+  const read = gated.find(t => t.name === 'Read')
+  const refusalOf = async (t: ClassifiedTool | undefined, input: Record<string, unknown>): Promise<string> => {
+    try {
+      await t?.call(input, {})
+      return ''
+    } catch (error) {
+      return (error as Error).message
+    }
+  }
+  check('the reading form passes through the call road', (await refusalOf(astEdit, { pattern: 'x', rewrite: 'y' })) === '' && (await refusalOf(read, { file_path: 'x' })) === '' && calls.length === 2, calls.join(' | '))
+  const applyRefusal = await refusalOf(astEdit, { pattern: 'x', rewrite: 'y', apply: true, plan: 'ae-1' })
+  check("the writing form is refused on the call road with the scout's one line naming the tool, and the tool never ran", applyRefusal.includes(SCOUT_REFUSAL) && applyRefusal.includes('AstEdit') && !applyRefusal.includes('\n') && calls.length === 2, applyRefusal)
+  check("the shell keeps its own gate: a read-only command runs, a writing command is refused with the shell's line", (await refusalOf(bash, { command: 'ls' })) === '' && (await refusalOf(bash, { command: 'rm x' })).includes(SCOUT_REFUSAL) && (await refusalOf(bash, { command: 'ls', dangerouslyDisableSandbox: true })).includes(SCOUT_REFUSAL), calls.join(' | '))
+  const askRoad = policy.scoutRefusal
+  check('the ask road answers the same: a writing form is denied, a reading form and the skill door are not', typeof askRoad === 'function' && askRoad(pool[4]!, { apply: true }) !== null && askRoad(pool[4]!, {}) === null && askRoad(pool[1]!, { skill: 'mercury-docs' }) === null && askRoad(pool[3]!, { items: [] }) !== null && askRoad(pool[5]!, {}) !== null, String(askRoad?.(pool[4]!, { apply: true })))
 }
 
 section('§2b the scout\'s shell: a read-only command runs, a writing command is refused, nothing is written')

@@ -10,7 +10,7 @@ import {
   CREW_ESSENTIAL_TOOLS,
   type AgentLaunchPlanInput,
 } from '../../src/utils/swarm/agentLaunchPlan.js'
-import { decodeAgentType } from '../../src/utils/swarm/roleResolver.js'
+import { findRoleDefinition } from '../../src/utils/swarm/roleResolver.js'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -95,16 +95,24 @@ section('2 · buildAgentLaunchPlan — decision laws')
     notFoundMsg,
   )
 
-  check('decodeAgentType reads a registered id as written', decodeAgentType('mercury-scout') === 'mercury-scout')
-  check('decodeAgentType passes unknown ids through', decodeAgentType('orbit-probe') === 'orbit-probe')
-  check('decodeAgentType(undefined) is no type', decodeAgentType(undefined) === undefined)
+  const roster = [mkDef({ agentType: 'mercury-scout' })]
+  check('the role resolver reads a registered id as written', findRoleDefinition('mercury-scout', roster)?.agentType === 'mercury-scout')
+  check('the role resolver finds nothing for an unknown id — no alias table', findRoleDefinition('orbit-probe', roster) === undefined)
+  check('the role resolver reads no type from an empty request', findRoleDefinition(undefined, roster) === undefined && findRoleDefinition('', roster) === undefined)
   const seamPlan = buildAgentLaunchPlan(
     base({
       requestedType: 'mercury-scout',
-      activeAgents: [mkDef({ agentType: 'mercury-scout' })],
+      activeAgents: roster,
     }),
   )
-  check("the plan resolves a registered id through the seam", seamPlan.agentType === 'mercury-scout')
+  check('the plan resolves a registered id as written', seamPlan.agentType === 'mercury-scout')
+  let emptyPlan: string | undefined
+  try {
+    emptyPlan = buildAgentLaunchPlan(base({ requestedType: '', activeAgents: roster, forkGateOn: false, defaultAgentType: 'mercury-scout' })).agentType
+  } catch (e) {
+    emptyPlan = e instanceof Error ? e.message : String(e)
+  }
+  check('an empty requested type is no type: the default agent type runs', emptyPlan === 'mercury-scout', String(emptyPlan))
 
   const isoDef = buildAgentLaunchPlan(base({ activeAgents: [mkDef({ isolation: 'worktree' })] }))
   check("definition isolation rides ('worktree')", isoDef.isolation === 'worktree')

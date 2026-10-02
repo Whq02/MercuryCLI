@@ -62,7 +62,6 @@ import {
   unrecognisedModelWordRefusal,
 } from '../../utils/swarm/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../services/providers/primaryBackend.js'
-import { decodeAgentType } from '../../utils/swarm/roleResolver.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
   getParentSessionId,
@@ -520,7 +519,7 @@ export const AgentTool = buildTool({
       if (input.worktree_at !== undefined && input.isolation !== 'worktree') {
         throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
       }
-      const requestedType = decodeAgentType(input.subagent_type)
+      const requestedType = input.subagent_type || undefined
       if (input.review_receipt !== undefined) throw new Error('A review with review_receipt runs as an isolated sub-agent in a frozen worktree, not as a crewmate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
       const crewmateDefinition = definitions.find(

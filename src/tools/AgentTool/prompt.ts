@@ -9,11 +9,13 @@ import { isCrewmate } from '../../utils/crewmate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
-import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import { isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
+import { SCOUT_TOOLS_DESCRIPTION } from './scoutPolicy.js'
 
 function describeTools(agent: AgentDefinition): string {
+  if (agent.source === 'built-in' && agent.agentType === MERCURY_SCOUT_AGENT_TYPE) return SCOUT_TOOLS_DESCRIPTION
   const allow = agent.tools
   const deny = agent.disallowedTools
   const hasAllow = Array.isArray(allow) && allow.length > 0

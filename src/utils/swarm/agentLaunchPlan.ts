@@ -20,8 +20,7 @@ import {
   getDenyRuleForAgent,
 } from '../permissions/permissions.js'
 import { reasonForRule, refusalWithReason } from '../permissions/ruleReason.js'
-import { decodeAgentType, type ResolvedCrewmateRole } from './roleResolver.js'
-
+import type { ResolvedCrewmateRole } from './roleResolver.js'
 
 export type AgentLaunchPlanInput = {
   requestedType?: string
@@ -58,7 +57,7 @@ export type AgentLaunchPlan = {
 }
 
 export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
-  const requestedType = decodeAgentType(i.requestedType)
+  const requestedType = i.requestedType || undefined
   const effectiveType =
     requestedType ?? (i.forkGateOn ? undefined : i.defaultAgentType)
   const isForkPath = effectiveType === undefined

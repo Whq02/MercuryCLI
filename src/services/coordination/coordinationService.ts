@@ -26,7 +26,7 @@ import { isStructuredProtocolMessage } from '../crew/liveMessages.js'
 
 export const NOT_IN_CREW =
   'Not part of a crew — the coordination tools have nothing to act on. ' +
-  'Start or join a crew first (or launch with the --crew-name identity arguments).'
+  'Start or join a crew first (or launch with the --crew, --seat and --seat-id identity arguments).'
 
 export interface CoordinationContext {
   crew: string

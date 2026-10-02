@@ -146,10 +146,19 @@ export function reviewerRefusal(tool: Tool, input: Record<string, unknown>, rece
   return 'The reviewer may only replace or append the Review section.'
 }
 
+function reviewerOffersTool(tool: Tool): boolean {
+  if (tool.name === FILE_EDIT_TOOL_NAME || tool.name === BASH_TOOL_NAME) return true
+  try {
+    return tool.isReadOnly({} as never) === true
+  } catch {
+    return false
+  }
+}
+
 export function restrictReviewerTools(tools: Tools, receiptPath: string, worktreePath: string): Tools {
   const receipt = realpathSync(resolve(receiptPath))
   const worktree = realpathSync(worktreePath)
-  return tools.map(tool => ({
+  return tools.filter(reviewerOffersTool).map(tool => ({
     ...tool,
     async call(...args: Parameters<Tool['call']>) {
       const refusal = reviewerRefusal(tool, args[0], receipt, worktree)

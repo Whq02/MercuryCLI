@@ -197,11 +197,13 @@ every kind — research, multi-step changes, running and checking commands,
 carrying a brief such as a design, a review or a verification to its end —
 with the session's full tool set. `mercury-scout` is the read-only
 reconnaissance agent: it locates files, searches code and answers
-how-does-this-work questions with paths, line numbers and excerpts, and it
-has no editing tools, so it cannot write. Everything else is your own: an
+how-does-this-work questions with paths, line numbers and excerpts. It
+carries only the tools that read — its shell runs read-only commands, and a
+call that would write or change state is refused — so it cannot write.
+Everything else is your own: an
 agent definition file adds a kind of agent with its own prompt, tools and
 model, and `/agents` opens the Agent Studio for building and tuning those
-definitions. The Agent tool's roster and `mercury agents` list the two
+definitions. The Agent tool's roster and `mercury roster` list the two
 built-ins first, then your own agents.
 
 Crewmate roles resolve through one resolver, whichever way the crewmate

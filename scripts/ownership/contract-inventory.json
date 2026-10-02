@@ -653,7 +653,6 @@
     "type:InProcessRunnerResult"
    ],
    "src/utils/swarm/roleResolver.ts": [
-    "decodeAgentType",
     "deriveRolePacket",
     "findRoleDefinition",
     "getRoleSystemPrompt",

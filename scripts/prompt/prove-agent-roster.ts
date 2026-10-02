@@ -50,8 +50,8 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const launchPlan = readFileSync(join(ROOT, 'src/utils/swarm/agentLaunchPlan.ts'), 'utf8')
   const resolver = readFileSync(join(ROOT, 'src/utils/swarm/roleResolver.ts'), 'utf8')
   check('§3 the Agent tool resolves through the ONE launch-plan builder', agentTool.includes('buildAgentLaunchPlan({'))
-  check('§3 the plan builder decodes via the ONE seam (roleResolver)', launchPlan.includes('decodeAgentType(i.requestedType)'))
-  check('§3 the seam reads a requested type as written — no alias table', /if \(!requested\) return undefined\n\s+return requested/.test(resolver))
+  check('§3 the plan builder reads the requested type as written — no decode seam', launchPlan.includes('const requestedType = i.requestedType || undefined') && !launchPlan.includes('decodeAgentType'))
+  check('§3 the role resolver finds a definition by the requested id — no alias table', resolver.includes('agents.find(a => a.agentType === requested)') && !resolver.includes('decodeAgentType') && !/Record<string, string>/.test(resolver))
   const constants = readFileSync(join(ROOT, 'src/tools/AgentTool/constants.ts'), 'utf8')
   check('§3 the Agent tool constants carry no type translation table', !/Record<string, string>/.test(constants) && constants.includes('new Set([MERCURY_SCOUT_AGENT_TYPE])'))
 }
@@ -75,6 +75,24 @@ function promptTextOf(a: { agentType: string; getSystemPrompt?: (ctx?: unknown) 
   const readOnly = (list?: string[]) => Array.isArray(list) && edits.every(t => list.some(d => d.includes(t)))
   check('§5 scout disallows the mutation tools', readOnly(scout?.disallowedTools as string[]))
   check('§5 scout cannot spawn agents', Array.isArray(scout?.disallowedTools) && scout.disallowedTools.includes('Agent'))
+  const { getAllBaseTools } = await import('../../src/tools.js')
+  const { restrictScoutTools, scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js')
+  type Classified = { name: string; isReadOnly: (input: Record<string, unknown>) => boolean }
+  const base = getAllBaseTools() as unknown as Classified[]
+  const offered = restrictScoutTools(base as never) as unknown as Classified[]
+  const atRest = (t: Classified): boolean => {
+    try {
+      return t.isReadOnly({}) === true
+    } catch {
+      return false
+    }
+  }
+  const writers = offered.filter(t => t.name !== 'Bash' && t.name !== 'Skill' && !atRest(t)).map(t => t.name)
+  check("§5 every tool the scout is offered is read-only by the tool's own classification (the shell and the skill door apart)", offered.length > 0 && writers.length === 0, writers.join(',') || `${offered.length} offered`)
+  check('§5 the scout keeps the readers and the shell', ['Read', 'Glob', 'Grep', 'Bash'].every(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
+  check('§5 the scout is offered no editor, no agent spawn, no worktree door and no memory writer', !['Edit', 'Write', 'NotebookEdit', 'Agent', 'EnterWorktree', 'ExitWorktree', 'Retain', 'Correct', 'SendMessage', 'CronCreate', 'ScheduleWakeup'].some(n => offered.some(t => t.name === n)), offered.map(t => t.name).join(','))
+  const writerAtRest = base.filter(t => t.name !== 'Bash' && !atRest(t))
+  check('§5 the ask road denies every writer the pool knows and passes every reader', writerAtRest.length > 0 && writerAtRest.filter(t => t.name !== 'Skill').every(t => scoutRefusal(t as never, {}) !== null) && offered.filter(t => t.name !== 'Bash').every(t => scoutRefusal(t as never, {}) === null), writerAtRest.map(t => t.name).join(','))
 }
 
 {

@@ -5,10 +5,6 @@ export const BANKED_FLAG_SPELLINGS: Readonly<Record<string, string>> = Object.fr
   '-concourse-on': '--concourse-on',
 })
 
-export const DEBUG_FLAG_SPELLINGS: Readonly<Record<string, string>> = Object.freeze({
-  '-d2e': '--d2e',
-})
-
 export function normalizeBankedFlagSpellings(
   argv: readonly string[],
   table: Readonly<Record<string, string>> = BANKED_FLAG_SPELLINGS,
