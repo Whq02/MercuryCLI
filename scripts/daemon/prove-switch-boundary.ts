@@ -194,7 +194,7 @@ if (ONLY === undefined || ONLY === 'R') {
     const modeAnswer = await runner.waitFor('the set_permission_mode answer', answerTo('sb-mode-1'), bound(10_000), before3)
     const resultsAtMode = resultsSoFar()
     tally.check('R3b set_effort mid-turn is held for the boundary — the answer says so at once', ack3 !== null && payloadOf(ack3).at === 'turn-boundary' && payloadOf(ack3).effort === 'low', JSON.stringify(ack3))
-    tally.check("R3c set_permission_mode mid-turn applies at once (the mode verb never parks) — answered before the turn's result", modeAnswer !== null && (modeAnswer.response as { subtype?: string }).subtype === 'success' && payloadOf(modeAnswer).mode === 'strategy' && resultsAtMode === results3, JSON.stringify(modeAnswer))
+    tally.check("R3c set_permission_mode mid-turn applies at once (the mode verb never parks) — answered before the turn's result", modeAnswer !== null && (modeAnswer.response as { subtype?: string }).subtype === 'success' && payloadOf(modeAnswer).mode === 'implement' && resultsAtMode === results3, JSON.stringify(modeAnswer))
     tally.check("R3d the running turn's continuation goes out after the Sleep", await untilAsync(() => firstRequestWith(api, resultOf('tu-hold-2')) !== undefined, bound(30_000), 50), describeRequests(api))
     await sleep(300)
     runner.send(user('say again', randomUUID()))
