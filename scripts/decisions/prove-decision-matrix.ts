@@ -140,9 +140,7 @@ section('stage 3 + 2a — mode outcomes for an opinion-less tool')
   const rows: Array<[string, Record<string, unknown>, string, string | undefined]> = [
     ['default → ask', { mode: 'default' }, 'ask', undefined],
     ['acceptEdits + passthrough → ask', { mode: 'implement' }, 'ask', undefined],
-    ['strategy (no bypass) + passthrough → ask', { mode: 'strategy' }, 'ask', undefined],
     ['bypassPermissions → allow (mode reason)', { mode: 'sovereign' }, 'allow', 'mode'],
-    ['strategy + bypassAvailable → allow', { mode: 'strategy', bypassAvailable: true }, 'allow', 'mode'],
     ['dontAsk converts ask → deny', { mode: 'dontAsk' }, 'deny', 'mode'],
   ]
   for (const [label, ctxOpts, want, wantReason] of rows) {
@@ -214,11 +212,9 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
   const asking: Array<[string, Record<string, unknown>]> = [
     ['default', { mode: 'default' }],
     ['flow', { mode: 'flow' }],
-    ['strategy without bypass', { mode: 'strategy' }],
   ]
   const bypassing: Array<[string, Record<string, unknown>, string]> = [
     ['sovereign', { mode: 'sovereign' }, 'sovereign'],
-    ['strategy + bypassAvailable', { mode: 'strategy', bypassAvailable: true }, 'strategy'],
   ]
   for (const [posture, ctx] of asking) {
     const r = await decide(makeTool(), makeContext({ ...ctx, ask: ['FakeTool'] }))

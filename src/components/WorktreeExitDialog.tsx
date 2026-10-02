@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Box, Text } from '../ink.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
 import { logError } from '../utils/log.js'
-import { getPlansDirectory } from '../utils/plans.js'
 import { setCwd } from '../utils/Shell.js'
 import { plural } from '../utils/stringUtils.js'
 import {
@@ -84,7 +83,6 @@ export function WorktreeExitDialog({
       await cleanupWorktree()
       restoreDirectories(session)
       await recordWorktreeExit()
-      getPlansDirectory.cache.clear()
       const parts: string[] = []
       const status = statusRef.current
       if (status.commits > 0) {
@@ -120,7 +118,6 @@ export function WorktreeExitDialog({
       await keepWorktree()
       restoreDirectories(session)
       await recordWorktreeExit()
-      getPlansDirectory.cache.clear()
       let message = `Work saved at ${session.worktreePath}${session.worktreeBranch ? ` on ${session.worktreeBranch}` : ''}.`
       if (tmux === 'keep' && session.tmuxSessionName) {
         message += ` Reattach with: tmux attach -t ${session.tmuxSessionName}`
@@ -166,7 +163,6 @@ export function WorktreeExitDialog({
           await cleanupWorktree()
           restoreDirectories(session)
           await recordWorktreeExit()
-          getPlansDirectory.cache.clear()
           finish('Removed the worktree — there was nothing to keep.')
         } catch (error) {
           logError(error)

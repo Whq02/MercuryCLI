@@ -31,7 +31,7 @@ const check = (label: string, ok: boolean, detail = '') => {
 const watchdog = setTimeout(() => process.exit(1), 30000)
 try {
   const census = buildToolCensus()
-  const required = ['Edit', 'Write', 'ExitStrategyMode', 'TaskStop', 'ApolloReview', 'Monitor', 'Read', 'Grep', 'Glob', 'ToolSearch']
+  const required = ['Edit', 'Write', 'TaskStop', 'ApolloReview', 'Monitor', 'Read', 'Grep', 'Glob', 'ToolSearch']
   check('the census includes execution, mutation, planning and read tools', required.every(name => census.rows.some(row => row.name === name)))
   for (const row of census.rows) {
     check(`${row.name}: a non-read-only tool never advertises safe concurrency`, row.readOnlyProbe !== false || row.concurrencySafeProbe !== true)

@@ -20,14 +20,13 @@ export const SUBAGENT_REJECT_MESSAGE =
   `Permission for this tool call was declined; it was not run and nothing was changed. ${DENIAL_WORKAROUND_GUIDANCE}`
 export const SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX =
   'Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n'
-export const PLAN_REJECTION_PREFIX =
-  'The operator declined the proposed plan and chose to stay in strategy mode rather than proceed with implementation.\n\nDeclined plan:\n'
 
 const DENIAL_SENTENCES_ON_DISK = [
   "The user doesn't want to proceed with this tool use.",
   "The user doesn't want to take this action right now.",
   'Permission for this tool use was denied.',
   'The agent proposed a plan that was rejected by the user.',
+  'The operator declined the proposed plan',
 ]
 
 export function AUTO_REJECT_MESSAGE(toolName: string): string {
@@ -63,7 +62,6 @@ export function isDenialResultText(raw: string): boolean {
     text.startsWith(REJECT_MESSAGE_WITH_REASON_PREFIX) ||
     text === SUBAGENT_REJECT_MESSAGE ||
     text.startsWith(SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX) ||
-    text.startsWith(PLAN_REJECTION_PREFIX) ||
     DENIAL_SENTENCES_ON_DISK.some(sentence => text.startsWith(sentence)) ||
     text.startsWith(AUTO_MODE_REJECTION_PREFIX) ||
     (text.includes(' has been denied') && text.includes(DENIAL_WORKAROUND_GUIDANCE))

@@ -96,8 +96,8 @@ section('(c) withLockedCrewFileSync — setMemberMode semantics preserved')
   const tf1 = await readCrewFileAsync(CREW)
   check('the mode was written', tf1?.members.find(m => m.name === 'agent-0')?.mode === 'implement')
   check('setMemberMode returns true (no write) when unchanged', setMemberMode(CREW, 'agent-0', 'implement') === true)
-  check('setMemberMode returns false for a missing member', setMemberMode(CREW, 'nobody', 'strategy') === false)
-  check('setMemberMode returns false for a missing crew', setMemberMode('no-such-crew', 'x', 'strategy') === false)
+  check('setMemberMode returns false for a missing member', setMemberMode(CREW, 'nobody', 'implement') === false)
+  check('setMemberMode returns false for a missing crew', setMemberMode('no-such-crew', 'x', 'implement') === false)
 }
 
 section('(d) source — lock infra present + spawn appends routed through appendCrewMember')

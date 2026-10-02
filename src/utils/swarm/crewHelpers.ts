@@ -38,7 +38,6 @@ type CrewMember = {
   model?: string
   prompt?: string
   color?: string
-  planModeRequired?: boolean
   joinedAt: number
   tmuxPaneId: string
   cwd: string

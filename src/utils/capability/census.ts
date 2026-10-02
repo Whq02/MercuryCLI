@@ -29,7 +29,6 @@ export const CAPABILITY_UNITS = [
   'capability-discovery',
   'web-access',
   'memory',
-  'planning',
   'operator-io',
   'scheduling',
   'game-engine',

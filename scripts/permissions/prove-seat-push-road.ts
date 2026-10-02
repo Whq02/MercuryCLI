@@ -59,7 +59,7 @@ const BLOCK_REASON = 'the fixture classifier blocks a push: anything visible out
 
 type Source = 'userSettings' | 'projectSettings' | 'localSettings' | 'cliArg' | 'session'
 type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
-type Mode = 'default' | 'flow' | 'implement' | 'strategy' | 'dontAsk' | 'sovereign'
+type Mode = 'default' | 'flow' | 'implement' | 'dontAsk' | 'sovereign'
 
 function contextOf(mode: Mode, rules: Rules = {}, source: Source = 'userSettings'): Record<string, unknown> {
   return {
@@ -100,7 +100,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   const bareLine = needsLine(bare)
   check('flow seat, no push rule: the posture carries a line naming the calls that need a present operator', bareLine !== '', `posture:\n${bare}`)
   check('…the line names the channel (the call travels it and waits for the answer)', /channel/.test(bareLine), bareLine)
-  check('…the line names a question to the operator and a plan approval as calls that always travel', /question to the operator/.test(bareLine) && /plan approval/.test(bareLine), bareLine)
+  check('…the line names a question to the operator and a review approval as calls that always travel', /question to the operator/.test(bareLine) && /review approval/.test(bareLine), bareLine)
   check('…the line names the flow road: the calls the flow check blocks, anything visible outside this machine', /flow/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)
@@ -132,8 +132,6 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('dontAsk seat: the line says nothing travels the channel — every ask is denied — and the push is denied', /nothing travels the channel/.test(needsLine(dontAsk)) && /`git push` is not pre-authorised/.test(needsLine(dontAsk)) && /denied/.test(needsLine(dontAsk)), needsLine(dontAsk))
   const sovereign = postureFor('sdk', 'sovereign', contextOf('sovereign'))
   check('sovereign seat: only the human-required calls travel; a push runs under the bypass posture', /bypass posture/.test(needsLine(sovereign)) && /question to the operator/.test(needsLine(sovereign)), needsLine(sovereign))
-  const strategy = postureFor('sdk', 'strategy', contextOf('strategy'))
-  check('strategy seat: the plan approval travels; shell writes are refused until the plan is approved', /plan approval/.test(needsLine(strategy)) && /refused until/.test(needsLine(strategy)), needsLine(strategy))
 
   const again = postureFor('sdk', 'flow', contextOf('flow'))
   check('byte-stable: the same boot facts compose the identical block (the prompt-cache invariant)', again === bare, j({ again, bare }))

@@ -6,7 +6,6 @@ export type CrewmateContext = {
   agentName: string
   crewName: string
   color?: string
-  planModeRequired: boolean
   parentSessionId: string
   kind: 'in-process'
   abortController: AbortController

@@ -16,8 +16,6 @@ import { getChangedFiles } from './fileAttachments.js'
 import {
   getDateChangeAttachments,
   getModePackAttachments,
-  getPlanModeAttachments,
-  getPlanModeExitAttachment,
   getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
 import { getContextCapsuleAttachment } from './contextCapsule.js'
@@ -40,7 +38,6 @@ import {
 import {
   getContractReminderAttachments,
   getTaskReminderAttachments,
-  getVerifyPlanReminderAttachment,
 } from './reminders.js'
 import {
   getCriticalSystemReminderAttachment,
@@ -203,9 +200,7 @@ export async function getAttachments(
     maybe('nested_memory', () => getNestedMemoryAttachments(context)),
     maybe('dynamic_skill', () => getDynamicSkillAttachments(context)),
     maybe('skill_listing', () => getSkillListingAttachments(context)),
-    maybe('plan_mode', () => getPlanModeAttachments(messages, toolUseContext)),
     maybe('mode_pack', () => Promise.resolve(getModePackAttachments(messages, toolUseContext))),
-    maybe('plan_mode_exit', () => getPlanModeExitAttachment(toolUseContext)),
     maybe('repo_surface_map', () =>
       Promise.resolve(getRepoSurfaceMapAttachment(messages, toolUseContext)),
     ),
@@ -280,9 +275,6 @@ export async function getAttachments(
         ),
         maybe('usage_limit_notice', async () =>
           Promise.resolve(getUsageLimitNoticeAttachment(toolUseContext, messages ?? [])),
-        ),
-        maybe('verify_plan_reminder', async () =>
-          getVerifyPlanReminderAttachment(messages, toolUseContext),
         ),
       ]
     : []

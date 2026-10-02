@@ -229,10 +229,6 @@ export const inputSchema = lazySchema(() => {
         'Name for the spawned agent; makes it addressable via SendMessage({to: name}) while it runs.',
       ),
     crew_name: z.string().optional().describe('Crew for a crewmate spawn.'),
-    mode: z
-      .string()
-      .optional()
-      .describe('Permission mode for the spawned crewmate.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -452,7 +448,6 @@ export const AgentTool = buildTool({
   toAutoClassifierInput(input: AgentToolInput): string {
     const tags: string[] = []
     if (input.subagent_type) tags.push(input.subagent_type)
-    if (input.mode) tags.push(`mode=${input.mode}`)
     const lead = tags.length > 0 ? `(${tags.join(', ')}) ` : ''
     return `${lead}${SUBAGENT_BRIEFING_LEAD} ${input.prompt}`
   },
@@ -547,7 +542,6 @@ export const AgentTool = buildTool({
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(crewmateModel ? { model: crewmateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),
-          plan_mode_required: input.mode === 'strategy',
           description: input.description,
           ...(parentAssistantMessage.requestId
             ? { invokingRequestId: parentAssistantMessage.requestId }

@@ -102,7 +102,6 @@ section("§3 the row: the sonnet family's newest generation, its class, its pick
   check("the family word 'sonnet' resolves to it: a saved \"model\": \"sonnet\" runs Sonnet 5.5", parseUserSpecifiedModel('sonnet') === ID, parseUserSpecifiedModel('sonnet'))
   check("'sonnet[1m]' keeps its rider on the new row", parseUserSpecifiedModel('sonnet[1m]') === `${ID}[1m]`, parseUserSpecifiedModel('sonnet[1m]'))
   check("the spoken spellings 'Sonnet 5.5' and 'sonnet-5.5' resolve to the row", parseUserSpecifiedModel('Sonnet 5.5') === ID && parseUserSpecifiedModel('sonnet-5.5') === ID, `${parseUserSpecifiedModel('Sonnet 5.5')} / ${parseUserSpecifiedModel('sonnet-5.5')}`)
-  check("the plan alias's mid model is the row", parseUserSpecifiedModel('opusplan') === ID, parseUserSpecifiedModel('opusplan'))
   check("the family word renders capitalised, the default setting renders the row's name", renderModelSetting('sonnet') === 'Sonnet' && renderDefaultModelSetting('sonnet') === 'Sonnet 5.5', `${renderModelSetting('sonnet')} / ${renderDefaultModelSetting('sonnet')}`)
   check("a crew record's 'sonnet' folds to the newest row", foldLegacyWorkerModelKey('sonnet') === ID, foldLegacyWorkerModelKey('sonnet'))
 

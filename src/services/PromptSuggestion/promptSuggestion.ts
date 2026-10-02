@@ -22,7 +22,6 @@ type SuppressReason =
   | 'disabled'
   | 'pending_permission'
   | 'elicitation_active'
-  | 'plan_mode'
   | 'rate_limit'
   | 'aborted'
   | 'early_conversation'
@@ -36,7 +35,6 @@ export function getSuggestionSuppressReason(appState: AppState): SuppressReason 
     return 'pending_permission'
   }
   if ((appState.elicitation?.queue?.length ?? 0) > 0) return 'elicitation_active'
-  if (appState.toolPermissionContext.mode === 'strategy') return 'plan_mode'
   if (currentLimits.status !== 'allowed') return 'rate_limit'
   return undefined
 }

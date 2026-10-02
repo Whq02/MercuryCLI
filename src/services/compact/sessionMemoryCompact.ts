@@ -25,7 +25,6 @@ import {
   buildPostCompactMessages,
   type CompactionResult,
   createAsyncAgentAttachmentsIfNeeded,
-  createPlanAttachmentIfNeeded,
 } from './compact.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { estimateContextTokens, estimateMessageTokens } from './microCompact.js'
@@ -218,8 +217,6 @@ export async function trySessionMemoryCompaction(
     })
 
     const attachments = []
-    const plan = createPlanAttachmentIfNeeded(agentId)
-    if (plan !== null) attachments.push(plan)
     if (rosterContext !== undefined) {
       attachments.push(...(await createAsyncAgentAttachmentsIfNeeded(rosterContext as ToolUseContext)))
     }

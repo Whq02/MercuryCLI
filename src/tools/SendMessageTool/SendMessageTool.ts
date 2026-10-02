@@ -128,7 +128,6 @@ export type SendMessageToolOutput = MessageOutput | BroadcastOutput | RequestOut
 export type StructuredMessageInput =
   | { type: 'shutdown_request'; reason?: string }
   | { type: 'shutdown_response'; request_id: string; approve: boolean; reason?: string }
-  | { type: 'plan_approval_response'; request_id: string; approve: boolean; feedback?: string }
   | { type: 'question'; content: string; request_id?: string; summary?: string }
   | { type: 'answer'; request_id: string; content: string; summary?: string }
   | { type: 'handoff'; status: (typeof HANDOFF_STATUSES)[number]; summary: string; evidenceRefs?: EvidenceRef[] }
@@ -170,12 +169,6 @@ const inputSchema = lazySchema(() => {
     approve: semanticBoolean(z.boolean()).describe('Whether the shutdown is approved'),
     reason: z.string().optional().describe('Required when rejecting: why'),
   })
-  const planApprovalResponseVariant = z.object({
-    type: z.literal('plan_approval_response'),
-    request_id: z.string().describe('The request id from the plan approval request'),
-    approve: semanticBoolean(z.boolean()).describe('Whether the plan is approved'),
-    feedback: z.string().optional().describe('Feedback for a rejected plan'),
-  })
   const questionVariant = z.object({
     type: z.literal('question'),
     content: z.string().describe('The question text'),
@@ -207,7 +200,6 @@ const inputSchema = lazySchema(() => {
   const variants: z.ZodObject[] = [
     shutdownRequestVariant,
     shutdownResponseVariant,
-    planApprovalResponseVariant,
     questionVariant,
     answerVariant,
     handoffVariant,
@@ -1104,48 +1096,6 @@ async function sendShutdownResponse(
   }
 }
 
-async function sendPlanApprovalResponse(
-  rawTo: string,
-  message: Extract<StructuredMessageInput, { type: 'plan_approval_response' }>,
-  context: ToolUseContext,
-): Promise<ResponseOutput> {
-  const crewContext = crewContextOf(context)
-  if (!isCrewLead(crewContext)) {
-    throw new Error('Only the crew lead can approve or reject plans.')
-  }
-  const crewName = crewContext?.crewName
-  const approve = message.approve
-  const currentMode = context.getAppState().toolPermissionContext.mode
-  const permissionMode = currentMode === 'strategy' ? 'default' : currentMode
-  const feedback = approve
-    ? undefined
-    : message.feedback?.trim() || 'The plan needs revision — please refine it and resubmit.'
-  const payload = {
-    type: 'plan_approval_response' as const,
-    requestId: message.request_id,
-    approved: approve,
-    timestamp: nowIso(),
-    ...(approve ? { permissionMode } : { feedback }),
-  }
-  const delivered = await sendLiveMessage(crewName, { to: rawTo, from: CREW_LEAD_NAME, text: JSON.stringify(payload), timestamp: nowIso() })
-  if (!delivered) {
-    return {
-      success: false,
-      message: approve
-        ? `The plan approval was NOT delivered to ${rawTo} — the crewmate has not been told to proceed.`
-        : `The plan rejection was NOT delivered to ${rawTo} — the crewmate has not received the feedback.`,
-      request_id: message.request_id,
-    }
-  }
-  return {
-    success: true,
-    message: approve
-      ? `Plan approved — ${rawTo} has been told to proceed.`
-      : `Plan rejected — feedback sent to ${rawTo}: "${feedback}"`,
-    request_id: message.request_id,
-  }
-}
-
 async function sendQuestion(
   rawTo: string,
   message: Extract<StructuredMessageInput, { type: 'question' }>,
@@ -1380,8 +1330,7 @@ export const SendMessageTool = buildTool({
     }
     const content =
       ('content' in structured ? structured.content : undefined) ??
-      ('reason' in structured ? structured.reason : undefined) ??
-      ('feedback' in structured ? structured.feedback : undefined)
+      ('reason' in structured ? structured.reason : undefined)
     if (content !== undefined) copy.content = content
   },
   toAutoClassifierInput(input: Input): string | undefined {
@@ -1396,8 +1345,6 @@ export const SendMessageTool = buildTool({
         return `shutdown_request to ${input.to}`
       case 'shutdown_response':
         return `shutdown_response ${input.message.approve ? 'approve' : 'reject'} ${input.message.request_id}`
-      case 'plan_approval_response':
-        return `plan_approval ${input.message.approve ? 'approve' : 'reject'} to ${input.to}`
       case 'question':
         return `question to ${input.to}: ${input.message.content}`
       case 'answer':
@@ -1448,8 +1395,6 @@ export const SendMessageTool = buildTool({
         return { data: await sendShutdownRequest(rawTo, message.reason, context) }
       case 'shutdown_response':
         return { data: await sendShutdownResponse(message, context) }
-      case 'plan_approval_response':
-        return { data: await sendPlanApprovalResponse(rawTo, message, context) }
       case 'question':
         return { data: await sendQuestion(rawTo, message, context) }
       case 'answer':

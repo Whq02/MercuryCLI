@@ -2,20 +2,12 @@
 import { boundHookContext, boundSeamContext } from '../hooks/contextBound.js'
 import { sliceHeadAtGrapheme } from '../intl.js'
 import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
-import { MERCURY_SCOUT_AGENT } from 'src/tools/AgentTool/built-in/mercuryScoutAgent.js'
-import { MERCURY_ARCHITECT_AGENT } from 'src/tools/AgentTool/built-in/mercuryArchitectAgent.js'
 
-import { ASK_USER_QUESTION_TOOL_NAME } from 'src/tools/AskUserQuestionTool/prompt.js'
 import { BashTool } from 'src/tools/BashTool/BashTool.js'
-import { ExitPlanModeV2Tool } from 'src/tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
-import { FileEditTool } from 'src/tools/FileEditTool/FileEditTool.js'
 import {
   FILE_READ_TOOL_NAME,
   MAX_LINES_TO_READ,
 } from 'src/tools/FileReadTool/prompt.js'
-import { FileWriteTool } from 'src/tools/FileWriteTool/FileWriteTool.js'
-import { GLOB_TOOL_NAME } from 'src/tools/GlobTool/prompt.js'
-import { GREP_TOOL_NAME } from 'src/tools/GrepTool/prompt.js'
 import { DiagnosticTrackingService } from '../../services/diagnosticTracking.js'
 import { type AnyObject, type Tool } from '../../Tool.js'
 import {
@@ -33,21 +25,10 @@ import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.j
 import { isCrewMessagesAttachment } from '../attachments/types.js'
 import { formatCrewmateMessages } from '../../services/crew/liveMessages.js'
 import { quote } from '../bash/shellQuote.js'
-import { getCurrentProjectConfig } from '../config.js'
-import { hasEmbeddedSearchTools } from '../embeddedTools.js'
 import { formatFileSize, formatNumber } from '../format.js'
 import { logMCPDebug } from '../log.js'
-import {
-  getPlanModeV2AgentCount,
-  getPlanModeV2ExploreAgentCount,
-  isPlanModeInterviewPhaseEnabled,
-} from '../planModeV2.js'
 import { jsonStringify } from '../slowOperations.js'
 import { isTaskToolsEnabled } from '../tasks.js'
-import {
-  formatDecisionRecordForPlanning,
-  latestDecisionRecordSync,
-} from '../../services/interview/decisionRecord.js'
 import { operatorMessagesBlockText } from '../../services/compact/operatorMessages.js'
 import { createUserMessage } from './factories.js'
 import { isAdvisorOrigin } from './noticeRows.js'
@@ -57,229 +38,6 @@ import {
   wrapMessagesInSystemReminder,
 } from './text.js'
 
-
-function getPlanModeInstructions(attachment: {
-  reminderType: 'full' | 'sparse'
-  isSubAgent?: boolean
-  planFilePath: string
-  planExists: boolean
-}): UserMessage[] {
-  if (attachment.isSubAgent) {
-    return getPlanModeV2SubAgentInstructions(attachment)
-  }
-  if (attachment.reminderType === 'sparse') {
-    return getPlanModeV2SparseInstructions(attachment)
-  }
-  return getPlanModeV2Instructions(attachment)
-}
-
-export const PLAN_PHASE4_CONTROL = `### Phase 4: Final Plan
-Goal: finish the plan file (still the only file you may edit).
-- Open with a **Context** section: the problem or need behind the change, what prompted it, and the outcome it should produce
-- Present one recommended approach — alternatives you rejected stay out
-- Keep the file scannable in a minute yet concrete enough to execute from
-- Name the critical files the work will touch
-- Point at the existing functions and utilities you found worth reusing, each with its file path
-- Close with a verification section: how to prove the change works end to end (run the code, drive MCP tools, run the tests)`
-
-function getPlanModeV2Instructions(attachment: {
-  isSubAgent?: boolean
-  planFilePath?: string
-  planExists?: boolean
-}): UserMessage[] {
-  if (attachment.isSubAgent) {
-    return []
-  }
-
-  if (isPlanModeInterviewPhaseEnabled()) {
-    return getPlanModeInterviewInstructions(attachment)
-  }
-
-  const agentCount = getPlanModeV2AgentCount()
-  const exploreAgentCount = getPlanModeV2ExploreAgentCount()
-  const planFileInfo = attachment.planExists
-    ? `A plan file already exists at ${attachment.planFilePath} — read it and evolve it with incremental ${FileEditTool.name} edits.`
-    : `No plan file exists yet — create it at ${attachment.planFilePath} with the ${FileWriteTool.name} tool.`
-
-  const content = `Strategy mode is on: the user wants a plan before any execution. Until they approve one, you MUST NOT change anything — no file edits (the plan file below is the single exception), no non-readonly tools, no config changes, no commits. This overrides any other instruction you have received.
-
-## The Plan File
-${planFileInfo}
-Build the plan incrementally in this file as your understanding grows. It is the ONLY file you may edit; every other action must be read-only.
-
-## Plan Workflow
-
-### Phase 1: Understand
-Goal: understand the request and the code it touches — by reading and by asking. In this phase, ${MERCURY_SCOUT_AGENT.agentType} is the only subagent type you may launch.
-
-1. Anchor on what the user asked for and the code that serves it. Hunt for existing functions, utilities, and patterns to reuse — proposing new code where a suitable implementation already exists is a planning defect.
-
-2. **Launch up to ${exploreAgentCount} ${MERCURY_SCOUT_AGENT.agentType} agents IN PARALLEL** (one message, multiple tool calls) to cover the codebase efficiently.
-   - One agent suffices when the task is isolated to known files, the user named specific paths, or the change is small and targeted.
-   - Several earn their cost when scope is uncertain, multiple areas are involved, or existing patterns must be understood before planning.
-   - Quality over quantity: ${exploreAgentCount} is the ceiling, and the minimum that covers the ground (usually one) is the right number.
-   - With several, give each its own search focus — one on existing implementations, one on the neighboring components, one on testing patterns.
-
-### Phase 2: Design
-Goal: design the implementation.
-
-Launch ${MERCURY_ARCHITECT_AGENT.agentType} agent(s) to design against the user's intent and your Phase 1 findings.
-
-Up to ${agentCount} may run in parallel.
-
-**Guidelines:**
-- **Default**: at least one design agent for most tasks — it pressure-tests your understanding and surfaces alternatives
-- **Skip agents** only for the truly trivial (typo fixes, single-line changes, simple renames)
-${
-  agentCount > 1
-    ? `- **Several agents**: up to ${agentCount} for complex work that rewards distinct perspectives
-
-Work that rewards several:
-- changes spanning multiple parts of the codebase
-- large refactors or architectural moves
-- edge-case-heavy problems
-- questions with genuinely different viable approaches
-
-Perspective splits that work:
-- new feature: simplicity vs performance vs maintainability
-- bug fix: root cause vs workaround vs prevention
-- refactor: minimal diff vs clean architecture
-`
-    : ''
-}
-In each agent's prompt:
-- carry the Phase 1 context over in full — filenames and code-path traces included
-- state the requirements and constraints
-- ask for a concrete implementation plan
-
-### Phase 3: Review
-Goal: check the Phase 2 output against what the user actually asked for.
-1. Read the critical files the agents named — deepen your own picture
-2. Confirm the plan serves the original request
-3. Put any open questions to the user through ${ASK_USER_QUESTION_TOOL_NAME}
-
-${PLAN_PHASE4_CONTROL}
-
-### Phase 5: Call ${ExitPlanModeV2Tool.name}
-When the questions are asked and the plan file satisfies you, end your turn by calling ${ExitPlanModeV2Tool.name} — that is how the user learns planning is done.
-This is binding: a turn in this workflow ends ONLY by using ${ASK_USER_QUESTION_TOOL_NAME} or by calling ${ExitPlanModeV2Tool.name}. No other stopping point exists.
-
-**Important:** ${ASK_USER_QUESTION_TOOL_NAME} is for clarifying requirements and choosing between approaches — nothing else. Plan APPROVAL goes through ${ExitPlanModeV2Tool.name}, never through prose and never through AskUserQuestion. "Is this plan okay?", "Should I proceed?", "How does this plan look?", "Any changes before we start?" — every phrase of that shape MUST be ${ExitPlanModeV2Tool.name} instead.
-
-Throughout the workflow, ask the user whenever intent is genuinely unclear — ${ASK_USER_QUESTION_TOOL_NAME} exists for exactly that. Large unstated assumptions are how plans miss; the goal is a well-researched plan with the loose ends tied before implementation begins.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
-function getReadOnlyToolNames(): string {
-  const tools = hasEmbeddedSearchTools()
-    ? [FILE_READ_TOOL_NAME, '`find`', '`grep`']
-    : [FILE_READ_TOOL_NAME, GLOB_TOOL_NAME, GREP_TOOL_NAME]
-  const { allowedTools } = getCurrentProjectConfig()
-  const filtered =
-    allowedTools && allowedTools.length > 0 && !hasEmbeddedSearchTools()
-      ? tools.filter(t => allowedTools.includes(t))
-      : tools
-  return filtered.join(', ')
-}
-
-function getPlanModeInterviewInstructions(attachment: {
-  planFilePath?: string
-  planExists?: boolean
-}): UserMessage[] {
-  const planFileInfo = attachment.planExists
-    ? `A plan file already exists at ${attachment.planFilePath} — read it and evolve it with incremental ${FileEditTool.name} edits.`
-    : `No plan file exists yet — create it at ${attachment.planFilePath} with the ${FileWriteTool.name} tool.`
-
-  const content = `Strategy mode is on: the user wants a plan before any execution. Until they approve one, you MUST NOT change anything — no file edits (the plan file below is the single exception), no non-readonly tools, no config changes, no commits. This overrides any other instruction you have received.
-
-## The Plan File
-${planFileInfo}
-
-## Iterative Planning Workflow
-
-You are pair-planning with the user: explore to build context, ask when you hit a decision you cannot make alone, and capture what you learn in the plan file as you go. The plan file (above) is the ONLY file you may edit — it starts as a rough skeleton and hardens into the final plan.
-
-### The Loop
-
-Cycle until the plan is complete:
-
-1. **Explore** — read code with ${getReadOnlyToolNames()}, hunting for existing functions, utilities, and patterns to reuse.${` The ${MERCURY_SCOUT_AGENT.agentType} agent type can parallelize a complex search without filling your context; for straightforward lookups the direct tools are simpler.`}
-2. **Update the plan file** — capture each discovery the moment you make it, never in one batch at the end.
-3. **Ask the user** — an ambiguity the code cannot resolve goes to ${ASK_USER_QUESTION_TOOL_NAME}; then back to step 1.
-
-### First Turn
-
-Scan a few key files for an initial sense of scope, write the skeleton (headers and rough notes), and put your first round of questions to the user. Exhaustive exploration before the user is engaged is the wrong order.
-
-### Asking Good Questions
-
-Ask through ${ASK_USER_QUESTION_TOOL_NAME} when you hit a decision only the user can resolve — its usage notes carry the binding asking doctrine. Scale depth to the task: a vague feature request needs many rounds; a focused bug fix may need one or none.
-
-### Plan File Structure
-Divide the file into clear markdown-headed sections that fit the request, and fill them as you go.
-- Open with a **Context** section: the problem or need behind the change, what prompted it, and the outcome it should produce
-- Present one recommended approach — alternatives you rejected stay out
-- Keep the file scannable in a minute yet concrete enough to execute from
-- Name the critical files the work will touch
-- Point at the existing functions and utilities you found worth reusing, each with its file path
-- Close with a verification section: how to prove the change works end to end (run the code, drive MCP tools, run the tests)
-
-### When to Converge
-
-The plan is ready when every ambiguity is settled and it covers: what changes, which files, what existing code to reuse (with paths), and how to verify. Call ${ExitPlanModeV2Tool.name} then.
-
-### Ending Your Turn
-
-A turn in this workflow ends only by:
-- using ${ASK_USER_QUESTION_TOOL_NAME} to gather more information, or
-- calling ${ExitPlanModeV2Tool.name} when the plan is ready for approval.
-
-**Important:** plan approval goes through ${ExitPlanModeV2Tool.name} — never through prose, never through AskUserQuestion.`
-
-  const record = latestDecisionRecordSync()
-  const withRecord = record ? `${content}\n\n${formatDecisionRecordForPlanning(record)}` : content
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content: withRecord, isMeta: true }),
-  ])
-}
-
-function getPlanModeV2SparseInstructions(attachment: {
-  planFilePath: string
-}): UserMessage[] {
-  const workflowDescription = isPlanModeInterviewPhaseEnabled()
-    ? 'Keep to the iterative loop: explore, interview the user, grow the plan file as you learn.'
-    : 'Keep to the 5-phase workflow.'
-
-  const content = `Strategy mode is still on (full instructions earlier in this conversation). Everything stays read-only except the plan file (${attachment.planFilePath}). ${workflowDescription} Turns end with ${ASK_USER_QUESTION_TOOL_NAME} (clarifications) or ${ExitPlanModeV2Tool.name} (plan approval) — approval never goes through prose or AskUserQuestion.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
-function getPlanModeV2SubAgentInstructions(attachment: {
-  planFilePath: string
-  planExists: boolean
-}): UserMessage[] {
-  const planFileInfo = attachment.planExists
-    ? `A plan file already exists at ${attachment.planFilePath} — read it and, if needed, evolve it with incremental ${FileEditTool.name} edits.`
-    : `No plan file exists yet — if you need one, create it at ${attachment.planFilePath} with the ${FileWriteTool.name} tool.`
-
-  const content = `Strategy mode is on: the user wants a plan before any execution. You MUST NOT change anything — no file edits, no non-readonly tools, no config changes, no commits. This overrides any other instruction you have received (including instructions to make edits). Instead:
-
-## The Plan File
-${planFileInfo}
-Build the plan incrementally in this file if the task calls for one. It is the ONLY file you may edit; every other action must be read-only.
-Answer the user's query comprehensively, using ${ASK_USER_QUESTION_TOOL_NAME} for anything unclear — and if you do ask, ask everything you need to fully understand their intent before proceeding.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
 
 function getAutoModeInstructions(attachment: {
   reminderType: 'full' | 'sparse'
@@ -297,7 +55,7 @@ Flow is on: the user chose continuous, autonomous execution. That means:
 
 1. **Execute now** — start implementing immediately; on low-risk work, a reasonable assumption beats a pause.
 2. **Interrupt rarely** — routine decisions are yours to make, not questions to ask.
-3. **Act over plan** — strategy mode only when the user explicitly asks for it; in doubt, start coding.
+3. **Act over plan** — plan only when the user explicitly asks for it; in doubt, start coding.
 4. **Take corrections in stride** — the user may steer or redirect at any point; that is normal input, not a fault signal.
 5. **Destructive actions stay gated** — flow is not a license to destroy. Deleting data or touching shared/production systems still needs the user's explicit confirmation: ask and wait, or take a safer route.
 6. **Nothing leaves without direction** — post to chat platforms or work tickets only when the user directed it, and never share a secret (credentials, internal documents) unless the user explicitly authorized that specific secret to that specific destination.`
@@ -484,14 +242,6 @@ The crew config lists your crewmates' names. Check the task list periodically; c
         }),
       ])
     }
-    case 'plan_file_reference': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `A strategy-mode plan file exists at: ${attachment.planFilePath}\n\nPlan contents:\n\n${attachment.planContent}\n\nIf this plan bears on the current work and isn't already complete, continue it.`,
-          isMeta: true,
-        }),
-      ])
-    }
     case 'invoked_skills': {
       if (attachment.skills.length === 0) {
         return []
@@ -660,40 +410,6 @@ The crew config lists your crewmates' names. Check the task list periodically; c
           content: `<new-diagnostics>The following new diagnostic issues were detected:\n\n${diagnosticSummary}</new-diagnostics>`,
           isMeta: true,
         }),
-      ])
-    }
-    case 'plan_mode': {
-      return getPlanModeInstructions(attachment)
-    }
-    case 'plan_mode_reentry': {
-      const content = `## Re-entering Strategy Mode
-
-You have been in strategy mode before this session, and the plan file from that pass still exists at ${attachment.planFilePath}.
-
-**Before any new planning:**
-1. Read the existing plan file — know what was planned last time
-2. Weigh the user's current request against it
-3. Choose the relationship:
-   - **Different task** (even a similar or related one): start clean by overwriting the old plan
-   - **Same task, continuing**: evolve the existing plan, pruning sections the work has outgrown
-4. Then run the plan process as usual — and whichever way you chose, the plan file must be edited before ${ExitPlanModeV2Tool.name} is called
-
-This is a fresh planning session: the old plan earns relevance by evaluation, never by assumption.`
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content, isMeta: true }),
-      ])
-    }
-    case 'plan_mode_exit': {
-      const planReference = attachment.planExists
-        ? ` The plan file remains at ${attachment.planFilePath} for reference.`
-        : ''
-      const content = `## Exited Strategy Mode
-
-Strategy mode is over: edits, tools, and actions are all available again.${planReference}`
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content, isMeta: true }),
       ])
     }
     case 'auto_mode': {

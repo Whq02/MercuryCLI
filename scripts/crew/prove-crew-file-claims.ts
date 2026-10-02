@@ -91,7 +91,6 @@ section('§3 crewmate alpha claims src/a.ts; its own edit passes')
     agentId: 'alpha@crew',
     agentName: 'alpha',
     crewName: 'crew',
-    planModeRequired: false,
     parentSessionId: 'parent',
     abortController: new AbortController(),
   })
@@ -139,7 +138,7 @@ section('§5 a daemon seat claims under its name with kind seat')
     const claimed = await crew.claimCrewFiles(['src/seat/**'])
     check('the seat claims src/seat/**', claimed.ok === true, JSON.stringify(claimed))
   }
-  crewmate.setDynamicCrewContext({ agentId: 'beta@crew', agentName: 'beta', crewName: 'crew', planModeRequired: false })
+  crewmate.setDynamicCrewContext({ agentId: 'beta@crew', agentName: 'beta', crewName: 'crew' })
   if (crew) {
     const holder = crew.resolveClaimHolder()
     check('with the identity args published too, the seat is still {beta, seat, beta@crew}', holder.name === 'beta' && holder.kind === 'seat' && holder.id === 'beta@crew', JSON.stringify(holder))

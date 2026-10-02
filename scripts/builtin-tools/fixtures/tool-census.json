@@ -758,29 +758,6 @@
       }
     },
     {
-      "name": "EnterStrategyMode",
-      "category": "read",
-      "risk": "low",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "planning"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "start planning before implementation"
-        ],
-        "units": [
-          "planning"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast"
-      }
-    },
-    {
       "name": "EnterWorktree",
       "category": "coord",
       "risk": "medium",
@@ -839,30 +816,6 @@
           "a Python 3.10+ interpreter or a node binary reachable for kernels"
         ],
         "proof": "scripts/eval/prove-kernel-persistence.ts"
-      }
-    },
-    {
-      "name": "ExitStrategyMode",
-      "category": "other",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": true,
-      "operations": null,
-      "units": [
-        "planning"
-      ],
-      "proof": null,
-      "declared": {
-        "intents": [
-          "present the plan for approval",
-          "leave strategy mode"
-        ],
-        "units": [
-          "planning"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast"
       }
     },
     {

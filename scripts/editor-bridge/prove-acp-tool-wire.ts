@@ -34,7 +34,6 @@ t.section('§1 toolKindOf — the verb kinds')
     ['Debug', 'execute'],
     ['Agent', 'think'],
     ['TaskCreate', 'think'],
-    ['EnterStrategyMode', 'switch_mode'],
     ['mcp__ide__getDiagnostics', 'other'],
     ['SomethingNew', 'other'],
   ]

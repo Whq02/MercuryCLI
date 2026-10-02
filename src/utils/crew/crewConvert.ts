@@ -24,7 +24,6 @@ export interface CrewmateRecordV1 {
   backendType?: string
   state: 'stopped'
   mode?: string
-  planModeRequired?: boolean
   subscriptions: string[]
   sessionId?: string
 }
@@ -142,7 +141,6 @@ function crewmateOf(member: Record<string, unknown>, leadAgentId: string): Crewm
   const pick = <T>(key: string, holds: (value: unknown) => value is T): T | undefined => (holds(member[key]) ? (member[key] as T) : undefined)
   const isString = (value: unknown): value is string => typeof value === 'string'
   const isNumber = (value: unknown): value is number => typeof value === 'number'
-  const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
   const model = pick('model', isString)
   const worktree = pick('worktreePath', isString)
   const agentType = pick('agentType', isString)
@@ -151,7 +149,6 @@ function crewmateOf(member: Record<string, unknown>, leadAgentId: string): Crewm
   const prompt = pick('prompt', isString)
   const backendType = pick('backendType', isString)
   const mode = pick('mode', isString)
-  const planModeRequired = pick('planModeRequired', isBoolean)
   const sessionId = pick('sessionId', isString)
   return {
     name,
@@ -168,7 +165,6 @@ function crewmateOf(member: Record<string, unknown>, leadAgentId: string): Crewm
     ...(backendType !== undefined ? { backendType } : {}),
     state: 'stopped',
     ...(mode !== undefined ? { mode } : {}),
-    ...(planModeRequired !== undefined ? { planModeRequired } : {}),
     subscriptions: Array.isArray(member.subscriptions) ? member.subscriptions.filter(isString) : [],
     ...(sessionId !== undefined ? { sessionId } : {}),
   }

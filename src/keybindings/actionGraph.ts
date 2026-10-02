@@ -42,7 +42,7 @@ export const ACTION_GRAPH = {
   },
   'chat:undo': { description: 'Undo the last composer edit', contexts: ['Chat'] },
   'chat:redo': { description: 'Redo the undone composer edit', contexts: ['Chat'] },
-  'chat:externalEditor': { description: 'Edit the draft in your external editor (on the plan card: the plan file)', contexts: ['Chat', 'Confirmation'] },
+  'chat:externalEditor': { description: 'Edit the draft in your external editor', contexts: ['Chat', 'Confirmation'] },
   'chat:stash': { description: 'Stash the current draft', contexts: ['Chat'] },
   'chat:imagePaste': { description: 'Paste an image from the clipboard', contexts: ['Chat'] },
   'chat:messageActions': { description: 'Open message actions on a previous turn', contexts: ['Chat'] },

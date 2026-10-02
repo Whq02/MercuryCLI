@@ -16,7 +16,6 @@ import {
   getAgentModel,
   getDefaultSubagentModel,
 } from '../../utils/model/agent.js'
-import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { AgentOverrideProvenance } from './overrides.js'
 
 export type AgentShadowReason =
@@ -107,15 +106,12 @@ export function resolveEffectiveAgentRuntime(
     parentModel: string
     sessionEffort: EffortValue | undefined
     tools?: Tools
-    permissionMode?: PermissionMode
   },
 ): EffectiveAgentRuntime {
   const modelIntent = agent.model ?? getDefaultSubagentModel()
   const model = getAgentModel(
     agent.model,
     ctx.parentModel,
-    undefined,
-    ctx.permissionMode,
   )
   const effortInput = agent.effort !== undefined ? agent.effort : ctx.sessionEffort
   const effort = resolveEffortTruth(model, effortInput)

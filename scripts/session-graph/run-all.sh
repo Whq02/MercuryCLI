@@ -12,7 +12,7 @@
 # gate-watch: src/services/crew/** src/services/notificationPolicy.ts src/services/resources/adapters/crew.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts src/daemon/dispatchDrain.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
-# gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/PlanApprovalMessage.tsx
+# gate-watch: src/components/messages/AttachmentMessage.tsx
 # gate-watch: src/components/messages/ShutdownMessage.tsx src/components/messages/TaskAssignmentMessage.tsx
 # gate-watch: src/components/mercury-ui/screens/CrewView.tsx src/services/coordination/coordinationService.ts
 # gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts

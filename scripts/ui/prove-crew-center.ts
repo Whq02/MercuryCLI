@@ -26,13 +26,11 @@ section('§1 — phase derivation from REAL state')
     status: 'running' as const,
     isIdle: false,
     shutdownRequested: false,
-    awaitingPlanApproval: false,
     hasProgress: true,
   }
   check('working', phases.deriveCrewmatePhase(base) === 'working')
   check('waiting (idle, ready for more work)', phases.deriveCrewmatePhase({ ...base, isIdle: true }) === 'waiting')
   check('handoff-ready (idle + last action was a lead handoff)', phases.deriveCrewmatePhase({ ...base, isIdle: true, lastActionWasLeadHandoff: true }) === 'handoff-ready')
-  check('blocked = a real approval gate, never elapsed time', phases.deriveCrewmatePhase({ ...base, awaitingPlanApproval: true }) === 'blocked')
   check('stopping (shutdown in flight)', phases.deriveCrewmatePhase({ ...base, isIdle: true, shutdownRequested: true }) === 'stopping')
   check('spawning (registered, nothing tracked yet)', phases.deriveCrewmatePhase({ ...base, hasProgress: false }) === 'spawning')
   check('done', phases.deriveCrewmatePhase({ ...base, status: 'completed' }) === 'done')
@@ -54,7 +52,6 @@ section('§1 — phase derivation from REAL state')
   check('handoff detection: LAST assistant action wins', phases.lastActionWasLeadHandoff([handoffMsg, chatterMsg]) === false)
 
   check("label: 'waiting', never 'idle'", phases.crewmatePhaseLabel('waiting') === 'waiting')
-  check('label: blocked names the gate', phases.crewmatePhaseLabel('blocked') === 'blocked — awaiting approval')
 }
 
 section('§2 — the shared describer speaks the phase vocabulary')

@@ -5,11 +5,7 @@ import { Text } from '../../ink.js'
 import type { Input, SendMessageToolOutput } from './SendMessageTool.js'
 
 
-export function renderToolUseMessage(input?: Partial<Input>): React.ReactNode {
-  const message = input?.message
-  if (message && typeof message === 'object' && message.type === 'plan_approval_response') {
-    return `${message.approve ? 'Approved' : 'Rejected'} plan from ${input?.to ?? ''}`
-  }
+export function renderToolUseMessage(_input?: Partial<Input>): React.ReactNode {
   return null
 }
 

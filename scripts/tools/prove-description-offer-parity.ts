@@ -28,8 +28,6 @@ const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools
 const lspManager = await import('../../src/services/lsp/manager.ts')
 const { toolToAPISchema } = await import('../../src/utils/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
-const { ENTER_PLAN_MODE_TOOL_NAME } = await import('../../src/tools/EnterPlanModeTool/constants.ts')
-const { EXIT_PLAN_MODE_V2_TOOL_NAME } = await import('../../src/tools/ExitPlanModeTool/constants.ts')
 type Tool = import('../../src/Tool.ts').Tool
 
 let failures = 0
@@ -149,7 +147,6 @@ for (const kind of kinds) {
     check(`${kind.label}: the semantic steering names LSP exactly when the pool offers it`, offered.has('LSP') ? steered.length === 3 : steered.length === 0, steered.join(','))
   }
   check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
-  check(`${kind.label}: a planning entry is never offered without its exit`, !offered.has(ENTER_PLAN_MODE_TOOL_NAME) || offered.has(EXIT_PLAN_MODE_V2_TOOL_NAME), [...offered].filter(n => n.includes('Strategy')).join(','))
 }
 
 const interactive = rendered.get('interactive')!

@@ -77,7 +77,7 @@ section('§2 THE DERIVED SUMMARY — the first non-empty line, cut at the previe
 
 section('§3 DELIVERY — a plain string to a crewmate lands in the mailbox with the derived summary (RED on the base: validation refused it first)')
 {
-  setDynamicCrewContext({ agentId: 'critter-fixture', agentName: 'critter', crewName: CREW, planModeRequired: false })
+  setDynamicCrewContext({ agentId: 'critter-fixture', agentName: 'critter', crewName: CREW })
   const ctx = makeContext()
   const verdict = await validate({ to: CREW_LEAD_NAME, message: THREE_LINES })
   check('the send validates', verdict.result === true, verdict.message ?? '')

@@ -75,7 +75,6 @@ const FILE_RULES: FileRule[] = [
   { path: 'src/utils/auth.ts', protect: ['team'], why: 'the Claude Team plan tier keyed by its wire value' },
   { path: 'src/hooks/notifs/useRateLimitWarningNotification.tsx', protect: ['team'], why: 'the plan tier' },
   { path: 'src/services/mcp/channelNotification.ts', protect: ['team'], why: 'the plan tier' },
-  { path: 'src/utils/planModeV2.ts', protect: ['team'], why: 'the plan tier' },
   { path: 'src/services/providers/providerUsage.ts', protect: ['team'], why: 'the plan tier' },
   { path: 'src/components/PromptInput/Notifications.tsx', protect: ['team'], why: 'the plan tier' },
   { path: 'src/utils/memoryFileDetection.ts', protect: ['team'], why: 'the memory scope shared with the people of a repository' },

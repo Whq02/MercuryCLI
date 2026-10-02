@@ -33,8 +33,6 @@ pair('read_unique', 'Read', { file_path: '/work/unique.txt' })
 pair('bash_old', 'Bash', { command: 'check the files' })
 pair('grep_old', 'Grep', { pattern: 'value', path: '/work/current.txt' })
 pair('skill', 'Skill', { skill: 'review' })
-pair('enter_strategy', 'EnterStrategyMode', {})
-pair('exit_strategy', 'ExitStrategyMode', {})
 pair('skill_read_old', 'Read', { file_path: '/work/skills/review/reference.txt' })
 pair('skill_read_new', 'Read', { file_path: '/work/skills/review/reference.txt' })
 pair('small_old', 'Read', { file_path: '/work/small.txt' }, 'tiny')
@@ -64,7 +62,7 @@ check('a later successful Read supersedes the old same-path Write', size !== nul
 for (const id of ['edit_later', 'read_later', 'read_unique', 'bash_old', 'grep_old', 'failed_later_old', 'unpaired_old', 'dedup_original']) {
   check(`${id} is not superseded by a successful later same-path operation`, size !== null && contentOf(size.messages, id) === big)
 }
-for (const id of ['skill', 'enter_strategy', 'exit_strategy', 'skill_read_old', 'skill_read_new']) {
+for (const id of ['skill', 'skill_read_old', 'skill_read_new']) {
   check(`${id} keeps the existing protection`, size !== null && contentOf(size.messages, id) === big)
 }
 check('a result below the placeholder cost floor remains verbatim', size !== null && contentOf(size.messages, 'small_old') === 'tiny')

@@ -36,7 +36,7 @@ function crewFile(): CrewFile {
   return { name: CREW, createdAt: Date.now(), leadAgentId: `lead@${CREW}`, members: [member(`lead@${CREW}`, 'crew-lead'), member(`a@${CREW}`, 'alice'), member(`b@${CREW}`, 'bob')] }
 }
 const asCrewmate = (name: string): void =>
-  setDynamicCrewContext({ agentId: `${name[0]}@${CREW}`, agentName: name, crewName: CREW, color: name === 'alice' ? 'green' : 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `${name[0]}@${CREW}`, agentName: name, crewName: CREW, color: name === 'alice' ? 'green' : 'blue' })
 
 async function connect(): Promise<{ client: Client; close: () => Promise<void> }> {
   const server = await createCoordinationServer()

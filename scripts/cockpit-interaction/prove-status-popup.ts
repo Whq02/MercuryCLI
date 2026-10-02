@@ -115,12 +115,12 @@ const changed = buildFacts([], model, {
   seats: () => ({ ...fixtureReads.seats!(), seats: 8 }),
   connector: () => ({ ...connector,
     modelFacts: () => ({ ...connector.modelFacts(), effortSent: 'high' }),
-    permissionMode: () => 'strategy',
+    permissionMode: () => 'implement',
     checkpointFacts: () => ({ capture: 'off', restorable: new Set(['one', 'two']) }),
     workRoster: () => ({ rows: [{ id: 'run', kind: 'workflow', name: 'run', status: 'running', startTime: 0 }], mission: [] }),
   }),
 })
-check('served effort and permission mode follow their owners', changed.facts.find(f => f.k === 'model')?.v.includes('high effort') === true && changed.facts.find(f => f.k === 'model')?.v.includes('strategy mode') === true)
+check('served effort and permission mode follow their owners', changed.facts.find(f => f.k === 'model')?.v.includes('high effort') === true && changed.facts.find(f => f.k === 'model')?.v.includes('implement mode') === true)
 check('seat setting and checkpoint facts follow their owners', changed.facts.find(f => f.k === 'settings')?.v === '  seats 8 · shell engine system · checkpoints not capturing · 2 restore points')
 check('the workflow row follows the focused work owner', changed.facts.find(f => f.k === 'workflow')?.v.startsWith('  workflow running') === true)
 const elsewhere = buildFacts([], model, { ...fixtureReads, telemetry: () => ({ ...fixtureReads.telemetry!(), workflowsDisk: [{ runId: 'external-fixture', status: 'running', ownerPid: process.pid, mtimeMs: Date.now() } as never] }) })

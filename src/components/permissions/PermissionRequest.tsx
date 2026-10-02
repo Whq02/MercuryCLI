@@ -21,8 +21,6 @@ import { NotebookEditTool } from '../../tools/NotebookEditTool/NotebookEditTool.
 import { SkillTool } from '../../tools/SkillTool/SkillTool.js'
 import { WebFetchTool } from '../../tools/WebFetchTool/WebFetchTool.js'
 import { BrowserTool } from '../../tools/BrowserTool/BrowserTool.js'
-import { EnterPlanModeTool } from '../../tools/EnterPlanModeTool/EnterPlanModeTool.js'
-import { ExitPlanModeV2Tool } from '../../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import { ApolloReviewTool } from '../../tools/ApolloReviewTool/ApolloReviewTool.js'
 import { AskUserQuestionTool } from '../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { WorkflowTool } from '../../tools/WorkflowTool/WorkflowTool.js'
@@ -31,8 +29,6 @@ import { AskUserQuestionPermissionRequest } from './AskUserQuestionPermissionReq
 import { ChangeSetPermissionRequest } from './ChangeSetPermissionRequest/ChangeSetPermissionRequest.js'
 import { BashPermissionRequest } from './BashPermissionRequest/BashPermissionRequest.js'
 import { PowerShellPermissionRequest } from './PowerShellPermissionRequest/PowerShellPermissionRequest.js'
-import { EnterPlanModePermissionRequest } from './EnterPlanModePermissionRequest/EnterPlanModePermissionRequest.js'
-import { ExitPlanModePermissionRequest } from './ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.js'
 import { FallbackPermissionRequest } from './FallbackPermissionRequest.js'
 import { FileEditPermissionRequest } from './FileEditPermissionRequest/FileEditPermissionRequest.js'
 import { FileWritePermissionRequest } from './FileWritePermissionRequest/FileWritePermissionRequest.js'
@@ -97,8 +93,6 @@ try {
 
 function notificationTextFor(toolUseConfirm: ToolUseConfirm): string {
   const tool = toolUseConfirm.tool
-  if (tool === ExitPlanModeV2Tool) return 'Mercury needs your approval for the plan'
-  if (tool === EnterPlanModeTool) return 'Mercury wants to enter strategy mode'
   if (tool === ApolloReviewTool) return 'Mercury needs your review of the Apollo spec'
   const name = tool.userFacingName(toolUseConfirm.input as never)
   if (!name || name.trim() === '') return 'Mercury needs your attention'
@@ -140,8 +134,6 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
   if (tool === BrowserTool) return <BrowserPermissionRequest key={key} {...props} />
   if (tool.name === COMPUTER_TOOL_NAME) return <ComputerPermissionRequest key={key} {...props} />
   if (tool === NotebookEditTool) return <NotebookEditPermissionRequest key={key} {...props} />
-  if (tool === ExitPlanModeV2Tool) return <ExitPlanModePermissionRequest key={key} {...props} />
-  if (tool === EnterPlanModeTool) return <EnterPlanModePermissionRequest key={key} {...props} />
   if (tool === ApolloReviewTool) return <ApolloReviewPermissionRequest key={key} {...props} />
   if (tool === SkillTool) return <SkillPermissionRequest key={key} {...props} />
   if (tool === AskUserQuestionTool) {

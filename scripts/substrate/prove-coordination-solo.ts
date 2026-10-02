@@ -164,7 +164,7 @@ try {
   {
     const CREW = 'solo-proof-crew'
     await writeCrewFileAsync(CREW, crewWith(CREW))
-    setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', crewName: CREW, color: 'blue', planModeRequired: false })
+    setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', crewName: CREW, color: 'blue' })
     const worker = resolveCoordinationContext()
     check('a crewmate identity resolves its crew', worker?.crew === CREW && worker?.agentId === 'worker', JSON.stringify(worker))
     clearDynamicCrewContext()

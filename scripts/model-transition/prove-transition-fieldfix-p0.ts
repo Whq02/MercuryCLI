@@ -48,7 +48,7 @@ section('§A the retry wall: structured detail, no silent sleep, every retry vis
 section('§B the externalEditor kill chain: unbound bell, guarded draft, async handoff, sealed OSC')
 {
   const bindings = readFileSync(join(ROOT, 'src/keybindings/defaultBindings.ts'), 'utf8')
-  check('ctrl+g binds ONLY in the Confirmation context (the plan card)', (bindings.match(/'ctrl\+g':/g) ?? []).length === 1 && /context: 'Confirmation'[\s\S]{0,2400}'ctrl\+g': 'chat:externalEditor'/.test(bindings))
+  check('ctrl+g binds ONLY in the Confirmation context (the cards)', (bindings.match(/'ctrl\+g':/g) ?? []).length === 1 && /context: 'Confirmation'[\s\S]{0,2400}'ctrl\+g': 'chat:externalEditor'/.test(bindings))
   check('the deliberate chord stays', bindings.includes("'ctrl+x ctrl+e': 'chat:externalEditor'"))
 
   const prompt = readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')

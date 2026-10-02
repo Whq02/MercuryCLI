@@ -30,12 +30,10 @@ try {
     ({ mode, isBypassPermissionsModeAvailable: bypass }) as never
   check("default → implement", getNextPermissionMode(ctx('default')) === 'implement')
   check("implement → apollo", getNextPermissionMode(ctx('implement')) === 'apollo')
-  check("strategy → apollo (an explicit Strategy session rejoins the cycle)", getNextPermissionMode(ctx('strategy')) === 'apollo')
   check(
-    'apollo → flow|sovereign|default (strategy’s old exits moved here)',
+    'apollo → flow|sovereign|default',
     ['flow', 'sovereign', 'default'].includes(getNextPermissionMode(ctx('apollo'))),
   )
-  check('apollo never cycles back into strategy', getNextPermissionMode(ctx('apollo')) !== 'strategy')
   check(
     'apollo with bypass available exits toward sovereign or flow, never default',
     ['flow', 'sovereign'].includes(getNextPermissionMode(ctx('apollo', true))),
@@ -44,7 +42,7 @@ try {
   carouselLoadable = false
   console.log(`  [info] carousel not loadable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
   const gn = src('utils', 'permissions', 'getNextPermissionMode.ts')
-  check("implement and strategy return apollo", /case 'implement':\s*case 'strategy':\s*return 'apollo'/.test(gn))
+  check("implement returns apollo", /case 'implement':\s*return 'apollo'/.test(gn))
   check("case 'apollo' carries the flow/sovereign/default exits", /case 'apollo':[\s\S]{0,400}return 'flow'[\s\S]{0,200}'sovereign'/.test(gn))
 }
 
@@ -84,7 +82,7 @@ try {
     'the pack teaches the three review answers and the only-door law',
     /yes-but-ask-first/.test(text) && /Ask me more questions/.test(text) && /only door to the build/.test(text),
   )
-  for (const off of [undefined, 'default', 'strategy', 'implement', 'flow', 'sovereign'] as const) {
+  for (const off of [undefined, 'default', 'implement', 'flow', 'sovereign'] as const) {
     check(`${String(off)} ⇒ [] (byte-identical prompt off-mode)`, pack.getApolloModeSections(off as never).length === 0)
   }
 } catch (e) {
@@ -255,9 +253,9 @@ try {
   check('esc stays the plain hold (reject path preserved)', /onCancel=\{handleCancel\}/.test(card) && /onReject\(\)/.test(card))
   const filesystem = src('utils', 'permissions', 'filesystem.ts')
   check(
-    "modeSuggestion lists the two ask-posture modes only (apollo never moves through a consent card)",
-    /context\.mode === 'default' \|\| context\.mode === 'strategy'\) \{/.test(filesystem) &&
-      !/context\.mode === 'strategy' \|\| context\.mode === 'apollo'/.test(filesystem),
+    "modeSuggestion lists the ask posture only (apollo never moves through a consent card)",
+    /context\.mode === 'default'\) \{/.test(filesystem) &&
+      !/context\.mode === 'default' \|\| context\.mode === 'apollo'/.test(filesystem),
   )
   const toolEconomy = src('services', 'providers', 'toolEconomy.ts')
   check('the wire roster resolves deferral without the live mode (the roster is mode-independent)', /isDeferredTool\(t\)/.test(toolEconomy) && !/rosterPermissionMode/.test(toolEconomy))
@@ -342,7 +340,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
   const headless = HEADLESS_PERMISSION_MODES as readonly string[]
   check("a carried 'apollo' crosses the admission as apollo", seatInitialPermissionMode('apollo' as never) === 'apollo')
   check("a carried headless posture crosses as itself ('flow', 'implement')", seatInitialPermissionMode('flow' as never) === 'flow' && seatInitialPermissionMode('implement' as never) === 'implement')
-  check("a carried interactive-only posture that is not apollo ('strategy') never crosses — the seat falls to a headless posture", headless.includes(seatInitialPermissionMode('strategy' as never)))
+  check("a carried word outside the mode list never crosses — the seat falls to a headless posture", headless.includes(seatInitialPermissionMode('frobnicate' as never)))
   check('nothing carried ⇒ a headless posture (the saved default, else flow)', headless.includes(seatInitialPermissionMode()))
   const priorEnv = process.env.MERCURY_DAEMON_PERMISSION_MODE
   try {

@@ -72,11 +72,6 @@ export async function applyHarnessGround(dir: string | null): Promise<string> {
   } catch {
   }
   try {
-    const plans = await import('../../utils/plans.js')
-    plans.getPlansDirectory.cache.clear()
-  } catch {
-  }
-  try {
     const extensions = await import('../../extensions/boot.js')
     extensions.setExtensionsPending(true)
   } catch {

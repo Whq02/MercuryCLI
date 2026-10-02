@@ -23,7 +23,6 @@ export function getNextPermissionMode(
     case 'default':
       return 'implement'
     case 'implement':
-    case 'strategy':
       return 'apollo'
     case 'apollo':
       if (canCycleToAuto(toolPermissionContext)) return 'flow'

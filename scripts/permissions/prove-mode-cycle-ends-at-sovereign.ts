@@ -36,8 +36,8 @@ const tools = await import('../../src/tools.js')
 
 console.log('— the mode lists —')
 const every = [...permissions.PERMISSION_MODES, ...permissions.INTERNAL_PERMISSION_MODES, ...permissions.EXTERNAL_PERMISSION_MODES] as readonly string[]
-t('no mode list carries a word beyond default, dontAsk, implement, sovereign, strategy, flow, bubble, apollo', every.every(m => ['default', 'dontAsk', 'implement', 'sovereign', 'strategy', 'flow', 'bubble', 'apollo'].includes(m)), every.join(','))
-t('the user-addressable list ends at apollo after sovereign and flow', permissions.PERMISSION_MODES.join(',') === 'default,dontAsk,implement,sovereign,strategy,flow,apollo', permissions.PERMISSION_MODES.join(','))
+t('no mode list carries a word beyond default, dontAsk, implement, sovereign, flow, bubble, apollo', every.every(m => ['default', 'dontAsk', 'implement', 'sovereign', 'flow', 'bubble', 'apollo'].includes(m)), every.join(','))
+t('the user-addressable list ends at apollo after sovereign and flow', permissions.PERMISSION_MODES.join(',') === 'default,dontAsk,implement,sovereign,flow,apollo', permissions.PERMISSION_MODES.join(','))
 t('sovereign alone bypasses permissions', (permissions.PERMISSION_MODES as readonly string[]).filter(m => modes.modeBypassesPermissions(m as never)).join(',') === 'sovereign')
 t("'autopilot' is a string the mode reader turns into default, like any unknown word", modes.permissionModeFromString('autopilot') === 'default' && modes.permissionModeFromString('frobnicate') === 'default')
 
@@ -112,7 +112,7 @@ if (!existsSync(DIST)) {
     const b = await run(['hello', '--mode', 'frobnicate', '--format', 'text'])
     t('"--mode autopilot" exits as "--mode frobnicate" does (the parser\'s own exit)', a.status === b.status && a.status === 2, `${a.status} vs ${b.status}`)
     t('"--mode autopilot" writes the parser\'s own line, word for word with "--mode frobnicate"', a.stderr.replace('autopilot', 'frobnicate') === b.stderr && b.stderr.includes("option '--mode <mode>' argument 'frobnicate' is invalid"), `${a.stderr.slice(0, 200)} | ${b.stderr.slice(0, 200)}`)
-    t('the parser names the live modes and no other', /Allowed choices are default, dontAsk, implement, sovereign, strategy, flow, apollo\./.test(b.stderr), b.stderr.slice(0, 300))
+    t('the parser names the live modes and no other', /Allowed choices are default, dontAsk, implement, sovereign, flow, apollo\./.test(b.stderr), b.stderr.slice(0, 300))
 
     const rows = await run(['hello', '--format', 'rows', '--model', 'claude-opus-4-8'])
     const init = rows.stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'system' && row.subtype === 'init')

@@ -152,7 +152,6 @@ import type { SetToolJSXFn, Tool, ToolPermissionContext } from '../Tool.js';
 import { resolveToolJSX } from './toolJsxArbitration.js';
 import type { LogOption } from '../types/logs.js';
 import type { Message, NormalizedUserMessage, ProgressMessage, UserMessage } from '../types/message.js';
-import type { PermissionMode } from '../types/permissions.js';
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js';
 import type { PromptInputMode } from '../types/textInputTypes.js';
 import { asSessionId } from '../types/ids.js';
@@ -1348,17 +1347,6 @@ export function REPL({
     const text = (getUserMessageText(armedMessage.message) ?? '').trim();
     if (text === '') return;
     void (async () => {
-      if (armedMessage.clearContext) {
-        const { bornSession } = await import('../services/switchboard/bornSession.js');
-        const born = await bornSession({ workspaceDir: getCwd(), model: getFocusedSessionConnector().modelFacts().effective });
-        if (!born.ok) {
-          addNotification({ key: 'focused-session-send', text: born.reason, priority: 'high', color: 'error' as const, timeoutMs: RECEIPT_TIMEOUT_MS });
-          return;
-        }
-      }
-      if (armedMessage.permissionMode) {
-        void getFocusedSessionConnector().setPermissionMode(armedMessage.permissionMode as PermissionMode);
-      }
       if (armedMessage.bashMode) pendingInput.setMode('bash');
       await onSubmitRef.current(text, INERT_PROMPT_HELPERS, undefined, armedMessage.armedAtLanding ? { rearmed: true } : undefined);
     })();

@@ -6,7 +6,6 @@ import {
   getDefaultOpusModel,
   isDefaultOpusNatively1M,
   parseUserSpecifiedModel,
-  renderDefaultModelSetting,
 } from '../../src/utils/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
 import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
@@ -51,11 +50,6 @@ section("2. the 'opus' alias tracks the current Opus through the ratified owners
     isDefaultOpusNatively1M() &&
       !gatherFrontierFacts().opusFallbackSetting.includes('[1m]'),
     `fallback=${gatherFrontierFacts().opusFallbackSetting}`,
-  )
-  check(
-    'opusplan copy derives from the tier owners',
-    renderDefaultModelSetting('opusplan') === 'Opus 5.5 in strategy mode, else Sonnet 5.5',
-    renderDefaultModelSetting('opusplan'),
   )
 }
 

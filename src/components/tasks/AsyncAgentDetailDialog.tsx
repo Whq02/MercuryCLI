@@ -11,25 +11,12 @@ import { getAllBaseTools } from '../../tools.js'
 import { getTheme } from '../../utils/theme.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
-import { UserPlanMessage } from '../messages/UserPlanMessage.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
 import { renderToolActivity } from './renderToolActivity.js'
 import { agentLifecycleOf, getTaskStatusColor, getTaskStatusIcon } from './taskStatusUtils.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 
 const PROMPT_CAP = 300
-
-const PLAN_MARKER = 'Plan contents:\n\n'
-const PLAN_TAIL = '\n\nIf this plan is relevant'
-
-function embeddedPlanOf(prompt: string): string | null {
-  const at = prompt.indexOf(PLAN_MARKER)
-  if (at < 0) return null
-  let plan = prompt.slice(at + PLAN_MARKER.length)
-  const tail = plan.indexOf(PLAN_TAIL)
-  if (tail >= 0) plan = plan.slice(0, tail)
-  return plan.trim() === '' ? null : plan
-}
 
 function statusWord(status: string): string {
   if (status === 'killed') return 'Stopped'
@@ -108,7 +95,6 @@ export function AsyncAgentDetailDialog({
     progress?.toolUseCount ??
     0
   const recent = progress?.recentActivities ?? []
-  const plan = embeddedPlanOf(agent.prompt)
   const promptShown =
     agent.prompt.length > PROMPT_CAP
       ? `${agent.prompt.slice(0, PROMPT_CAP - 3)}…`
@@ -142,13 +128,9 @@ export function AsyncAgentDetailDialog({
         </Text>
       ) : null}
       <Box flexDirection="column" marginTop={1}>
-        {plan !== null ? (
-          <UserPlanMessage planContent={plan} />
-        ) : (
-          <Text dimColor wrap="truncate-end">
-            {promptShown}
-          </Text>
-        )}
+        <Text dimColor wrap="truncate-end">
+          {promptShown}
+        </Text>
       </Box>
       {running && recent.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>

@@ -20,7 +20,7 @@ export function permissionUpdateSchema() {
     z.object({ type: z.literal('removeRules'), rules: z.array(ruleValue), behavior, destination }),
     z.object({
       type: z.literal('setMode'),
-      mode: z.enum(['default', 'dontAsk', 'implement', 'sovereign', 'strategy']),
+      mode: z.enum(['default', 'dontAsk', 'implement', 'sovereign']),
       destination,
     }),
   ])

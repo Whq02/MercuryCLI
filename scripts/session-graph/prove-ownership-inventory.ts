@@ -66,8 +66,6 @@ const INVENTORY: Record<string, string[]> = {
   'createPermissionRequestMessage': ['src/utils/swarm/permissionSync.ts'],
   'isPermissionResponse': ['src/utils/swarm/inProcessRunner.ts'],
   'createSandboxPermissionRequestMessage': ['src/utils/swarm/permissionSync.ts'],
-  'isPlanApprovalRequest': ['src/components/messages/PlanApprovalMessage.tsx'],
-  'isPlanApprovalResponse': ['src/components/messages/PlanApprovalMessage.tsx'],
   'createShutdownRequestMessage': ['src/tools/SendMessageTool/SendMessageTool.ts'],
   'isShutdownRequest': ['src/components/messages/ShutdownMessage.tsx', 'src/utils/swarm/inProcessRunner.ts'],
   'createShutdownApprovedMessage': ['src/tools/SendMessageTool/SendMessageTool.ts', 'src/utils/swarm/inProcessRunner.ts'],

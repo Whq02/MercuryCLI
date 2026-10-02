@@ -15,7 +15,6 @@ import { DiagnosticsDisplay } from '../DiagnosticsDisplay.js'
 import { MessageResponse } from '../MessageResponse.js'
 import type { NullRenderingAttachmentType } from './nullRenderingAttachments.js'
 import { CrewmateMessageContent } from './UserCrewmateMessage.js'
-import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 import { UserImageMessage } from './UserImageMessage.js'
 import { UserTextMessage } from './UserTextMessage.js'
@@ -116,8 +115,6 @@ export function AttachmentMessage({
           if (assignment) {
             return <React.Fragment key={index}>{assignment}</React.Fragment>
           }
-          const plan = tryRenderPlanApprovalMessage(message.text, senderName)
-          if (plan) return <React.Fragment key={index}>{plan}</React.Fragment>
           return (
             <CrewmateMessageContent
               key={index}
@@ -313,13 +310,6 @@ export function AttachmentMessage({
         </Box>
       )
     }
-
-    case 'plan_file_reference':
-      return (
-        <AttachmentLine>
-          Referenced plan file <Text bold>{attachment.planFilePath}</Text>
-        </AttachmentLine>
-      )
 
     case 'invoked_skills': {
       if (attachment.skills.length === 0) return null

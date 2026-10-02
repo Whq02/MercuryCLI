@@ -473,7 +473,7 @@ async function* streamOneZaiAttempt(ctx: {
     return {
       message: {
         ...partial,
-        content: normalizeContentFromAPI([block], tools, options.agentId),
+        content: normalizeContentFromAPI([block], tools),
       } as AssistantMessage['message'],
       requestId: undefined,
       type: 'assistant',

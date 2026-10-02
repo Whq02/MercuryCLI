@@ -26,11 +26,11 @@ const context = (mode: PermissionMode, bypass = false): ToolPermissionContext =>
   alwaysAskRules: {},
 })
 
-for (const mode of ['implement', 'strategy'] as const) {
-  const next = getNextPermissionMode(context(mode))
-  check(`Shift+Tab from ${mode} reaches apollo`, next === 'apollo', `actual=${next}`)
-  const transitioned = cyclePermissionMode({ ...context(mode), ...(mode === 'strategy' ? { preStrategyMode: 'implement' as const } : {}) })
-  check(`${mode} transition targets apollo without stashed Strategy state`, transitioned.nextMode === 'apollo' && !('preStrategyMode' in transitioned.context), `next=${transitioned.nextMode}`)
+{
+  const next = getNextPermissionMode(context('implement'))
+  check('Shift+Tab from implement reaches apollo', next === 'apollo', `actual=${next}`)
+  const transitioned = cyclePermissionMode(context('implement'))
+  check('implement transition targets apollo', transitioned.nextMode === 'apollo', `next=${transitioned.nextMode}`)
 }
 
 try {
@@ -48,7 +48,6 @@ try {
         check(`flow=${flow} bypass=${bypass}: ${mode} → ${wanted}`, next === wanted, `actual=${next}`)
       }
       check(`the cycle ends at sovereign with flow=${flow} bypass=${bypass}`, expected[expected.length - 1] === (bypass ? 'sovereign' : flow ? 'flow' : 'apollo') && getNextPermissionMode(context(expected[expected.length - 1]!, bypass)) === 'default')
-      check(`strategy rejoins apollo with flow=${flow} bypass=${bypass}`, getNextPermissionMode(context('strategy', bypass)) === 'apollo')
     }
   }
 } finally {
@@ -56,10 +55,8 @@ try {
 }
 
 check('Apollo uses the hollow diamond', GLYPH.modeApollo === '◇' && permissionModeSymbol('apollo') === '◇')
-check('Strategy keeps its hollow diamond', GLYPH.modeStrategy === '◇' && permissionModeSymbol('strategy') === '◇')
-check('both mode seals are one canonical cell', displayWidth(GLYPH.modeApollo) === 1 && displayWidth(GLYPH.modeStrategy) === 1)
-check('words distinguish the shared seal', permissionModeTitle('apollo') === 'Apollo Mode' && permissionModeTitle('strategy') === 'Strategy Mode')
-check('each mode keeps its own colour role', getModeColor('apollo') === 'permission' && getModeColor('strategy') === 'strategyMode')
-check('Strategy remains a valid explicit permission mode', permissionModeFromString('strategy') === 'strategy' && externalPermissionModeSchema().parse('strategy') === 'strategy')
+check('the Apollo seal is one canonical cell', displayWidth(GLYPH.modeApollo) === 1)
+check('Apollo wears its title and colour role', permissionModeTitle('apollo') === 'Apollo Mode' && getModeColor('apollo') === 'permission')
+check('an unknown mode word reads as default', permissionModeFromString('strategy') === 'default' && !externalPermissionModeSchema().safeParse('strategy').success)
 console.log(`apollo carousel: ${failures === 0 ? 'GREEN' : `RED — ${failures} failures`}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -63,7 +63,7 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
     tm1: {
       id: 'tm1', type: 'in_process_crewmate', status: 'running', description: 't',
       identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
-      prompt: 'p', awaitingPlanApproval: false,
+      prompt: 'p',
       startTime: t0 + 6, outputFile: '/n', outputOffset: 0, notified: false,
     },
     sh1: {

@@ -28,7 +28,4 @@ Investigate before asking. Use what the request itself, the architecture already
 
 ## Usage notes
 - An "Other" free-text option is supplied automatically — never author one.
-- Set \`multiSelect: true\` to allow several answers to one question.
-
-## In strategy mode
-Reach for this tool to pin down requirements or weigh approaches BEFORE the plan is final. Never route "Is my plan ready?" or a proceed/no-proceed question through here — the plan-exit tool owns that moment. Never reference "the plan" in a question: the user cannot see it until the plan-exit tool runs.`
+- Set \`multiSelect: true\` to allow several answers to one question.`

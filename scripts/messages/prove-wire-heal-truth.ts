@@ -65,7 +65,7 @@ function roundsPaired(rows: Row[]): boolean {
 
 {
   const att = {
-    attachment: { type: 'plan_mode_exit', planExists: false, planFilePath: '' },
+    attachment: { type: 'critical_system_reminder', content: 'ATTACHMENT-MARKER-1' },
     type: 'attachment',
     uuid: 'iv-att-1',
     timestamp: new Date().toISOString(),
@@ -78,7 +78,7 @@ function roundsPaired(rows: Row[]): boolean {
     timestamp: new Date().toISOString(),
   } as unknown as Message
   const healed = json(heal([userText('hello'), att, sys]))
-  t('A1 plan_mode_exit attachment projects onto the family wire', healed.includes('Exited Strategy Mode'))
+  t('A1 an attachment row projects onto the family wire', healed.includes('ATTACHMENT-MARKER-1'))
   t('A2 local_command system row projects onto the family wire', healed.includes('LOCAL-CMD-OUTPUT-MARKER'))
   t('A3 projected rows are user rows (walkable)', heal([userText('x'), att]).every(r => r.type === 'user' || r.type === 'assistant'))
 }
@@ -143,7 +143,7 @@ function roundsPaired(rows: Row[]): boolean {
 
 {
   const att = {
-    attachment: { type: 'plan_mode_exit', planExists: false, planFilePath: '' },
+    attachment: { type: 'critical_system_reminder', content: 'ATTACHMENT-MARKER-2' },
     type: 'attachment',
     uuid: 'iv-att-2',
     timestamp: new Date().toISOString(),
@@ -157,7 +157,7 @@ function roundsPaired(rows: Row[]): boolean {
   const s = json(rows)
   t('F1 result survives a projected attachment between', s.includes('RESULT-A'))
   t('F2 no synthetic', !s.includes(SYNTHETIC_TOOL_RESULT_PLACEHOLDER))
-  t('F3 attachment text still delivered', s.includes('Exited Strategy Mode'))
+  t('F3 attachment text still delivered', s.includes('ATTACHMENT-MARKER-2'))
   t('F4 pairs adjacent', roundsPaired(rows))
 }
 

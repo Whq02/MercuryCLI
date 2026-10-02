@@ -190,7 +190,6 @@ section('full entry — decidedBy lands on the expected stage per terminal outco
     ['sovereign × whole-tool ask rule + a deny verdict → the deny wins', makeTool({ verdict: { behavior: 'deny' } }), makeContext({ mode: 'sovereign', ask: ['FakeTool'] }), 'toolVerdictDeny', 'deny'],
     ['sovereign × org ask-ceiling', makeTool({ orgAskCeiling: true }), makeContext({ mode: 'sovereign' }), 'orgAskCeiling', 'allow'],
     ['sovereign × safetyCheck ask', makeTool({ verdict: { behavior: 'ask', reason: 'safetyCheck' } }), makeContext({ mode: 'sovereign' }), 'safetyCheckAsk', 'allow'],
-    ['strategy + bypassAvailable × content ask-rule', makeTool({ verdict: { behavior: 'ask', reason: 'rule-ask' } }), makeContext({ mode: 'strategy', bypassAvailable: true }), 'contentAskRule', 'allow'],
   ]
   for (const [label, tool, ctx, wantStage, wantBehavior] of rows) {
     const { decision, trace } = await full(tool, ctx)

@@ -13,7 +13,6 @@ export type CrewmateIdentity = {
   agentType?: string
   roleId?: string
   color?: string
-  planModeRequired?: boolean
   parentSessionId?: string
 }
 
@@ -31,7 +30,6 @@ export type InProcessCrewmateTaskState = TaskStateBase & {
   abortController?: AbortController
   currentWorkAbortController?: AbortController
   unregisterCleanup?: () => void
-  awaitingPlanApproval: boolean
   permissionMode?: PermissionMode
   error?: string
   result?: any

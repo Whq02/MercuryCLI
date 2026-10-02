@@ -32,7 +32,7 @@ type Message = import('../../src/types/message.ts').Message
 const CLASS = ['Read', 'Bash', 'Grep', 'Agent', 'Eval', 'Workshop', 'Inspect', 'Zzz']
 const { RETIRED_LIVE_COMMS_TOOL_NAME } = await import('../../src/migrations/retiredCrewSpellings.ts')
 const NEVER = ['AskUserQuestion', 'ToolSearch', 'LiveComms', RETIRED_LIVE_COMMS_TOOL_NAME]
-const PROTECTED = ['Skill', 'ExitStrategyMode', 'EnterStrategyMode']
+const PROTECTED = ['Skill']
 const PERSISTED_PATH = join(home, 'tool-results', 'agent-1.txt')
 const PERSISTED_AGENT = buildLargeToolResultMessage({ filepath: PERSISTED_PATH, originalSize: 120_000, preview: 'p'.repeat(1_500) } as never)
 

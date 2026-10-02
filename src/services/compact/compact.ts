@@ -38,7 +38,6 @@ import {
 } from '../../utils/messages.js'
 import { expandPath } from '../../utils/path.js'
 import type { FileState } from '../../utils/fileStateCache.js'
-import { getPlan, getPlanFilePath } from '../../utils/plans.js'
 import { isSessionActivityTrackingActive, sendSessionActivitySignal } from '../../utils/sessionActivity.js'
 import { processSessionStartHooks } from '../../utils/sessionStart.js'
 import { reAppendSessionMetadata } from '../../utils/sessionStorage/logs.js'
@@ -95,7 +94,6 @@ export const POST_COMPACT_TOKEN_BUDGET = 50_000
 export const POST_COMPACT_MAX_TOKENS_PER_FILE = 5_000
 export const POST_COMPACT_MAX_TOKENS_PER_SKILL = 5_000
 export const POST_COMPACT_SKILLS_TOKEN_BUDGET = 25_000
-export const POST_COMPACT_MAX_TOKENS_PER_PLAN = 5_000
 
 export const ERROR_MESSAGE_NOT_ENOUGH_MESSAGES = 'Not enough messages to compact.'
 export const ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD = 'Compaction cannot bring the context under its threshold'
@@ -502,12 +500,8 @@ export function createCompactCanUseTool(): CanUseToolFn {
 }
 
 
-function shouldExcludeFromPostCompactRestore(filename: string, agentId?: string): boolean {
+function shouldExcludeFromPostCompactRestore(filename: string): boolean {
   const normalizedFilename = expandPath(filename)
-  try {
-    if (normalizedFilename === expandPath(getPlanFilePath(agentId))) return true
-  } catch {
-  }
   if (isInstructionFilePath(normalizedFilename)) return true
   try {
     const memoryPaths = MEMORY_TYPE_VALUES.map(memoryType => expandPath(getMemoryPath(memoryType)))
@@ -559,7 +553,7 @@ export async function createPostCompactFileAttachments(
 ): Promise<AttachmentMessage[]> {
   const preservedReads = collectPreservedReadPaths(preservedMessages)
   const candidates = Object.entries(readFileState)
-    .filter(([path]) => !shouldExcludeFromPostCompactRestore(path, toolUseContext.agentId))
+    .filter(([path]) => !shouldExcludeFromPostCompactRestore(path))
     .filter(([path]) => !preservedReads.has(expandPath(path)))
     .sort((a, b) => b[1].timestamp - a[1].timestamp)
     .slice(0, maxFiles)
@@ -585,20 +579,6 @@ export async function createPostCompactFileAttachments(
   return results
 }
 
-const PLAN_TRUNCATION_MARKER =
-  '\n\n[Plan content truncated for compaction — Read the plan path above for the full text.]'
-
-export function createPlanAttachmentIfNeeded(agentId?: string): AttachmentMessage | null {
-  const plan = getPlan(agentId)
-  if (plan === null) return null
-  const { content } = truncateToTokenCeiling(plan, POST_COMPACT_MAX_TOKENS_PER_PLAN, PLAN_TRUNCATION_MARKER)
-  return createAttachmentMessage({
-    type: 'plan_file_reference',
-    planFilePath: getPlanFilePath(agentId),
-    planContent: content,
-  })
-}
-
 const SKILL_TRUNCATION_MARKER =
   '\n\n[Skill content truncated for compaction — Read the skill path above for the full text.]'
 
@@ -617,7 +597,7 @@ function truncateSkillContent(content: string, maxTokens: number): { content: st
 }
 
 
-const POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES = ['file', 'compact_file_reference', 'invoked_skills', 'plan_file_reference'] as const
+const POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES = ['file', 'compact_file_reference', 'invoked_skills'] as const
 
 export type PostCompactFit = {
   result: CompactionResult
@@ -626,9 +606,8 @@ export type PostCompactFit = {
 }
 
 function describeAttachment(message: AttachmentMessage): string {
-  const attachment = message.attachment as { type: string; filename?: string; planFilePath?: string }
+  const attachment = message.attachment as { type: string; filename?: string }
   if (attachment.type === 'file' || attachment.type === 'compact_file_reference') return `file ${attachment.filename ?? '?'}`
-  if (attachment.type === 'plan_file_reference') return `plan ${attachment.planFilePath ?? '?'}`
   if (attachment.type === 'compact_operator_messages') return 'operator messages'
   return attachment.type
 }
@@ -697,19 +676,6 @@ export function createSkillAttachmentIfNeeded(
   }
   if (skills.length === 0) return null
   return createAttachmentMessage({ type: 'invoked_skills', skills })
-}
-
-export async function createPlanModeAttachmentIfNeeded(context: ToolUseContext): Promise<AttachmentMessage | null> {
-  const permissionContext = context.getAppState().toolPermissionContext
-  if (permissionContext.mode !== 'strategy') return null
-  const planFilePath = getPlanFilePath(context.agentId)
-  return createAttachmentMessage({
-    type: 'plan_mode',
-    reminderType: 'full',
-    isSubAgent: context.agentId !== undefined,
-    planFilePath,
-    planExists: getPlan(context.agentId) !== null,
-  })
 }
 
 export async function createAsyncAgentAttachmentsIfNeeded(context: ToolUseContext): Promise<AttachmentMessage[]> {
@@ -1103,10 +1069,6 @@ async function assembleAttachments(
   ])
   restorePreservedReads(context, ledger, preserved)
   const attachments: AttachmentMessage[] = [...files, ...asyncAgents]
-  const plan = createPlanAttachmentIfNeeded(context.agentId)
-  if (plan !== null) attachments.push(plan)
-  const planMode = await createPlanModeAttachmentIfNeeded(context)
-  if (planMode !== null) attachments.push(planMode)
   const skills = createSkillAttachmentIfNeeded(context.agentId, context.options.commands)
   if (skills !== null) attachments.push(skills)
   const model = context.options.mainLoopModel

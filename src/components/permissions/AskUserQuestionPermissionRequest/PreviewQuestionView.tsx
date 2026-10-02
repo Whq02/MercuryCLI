@@ -47,7 +47,6 @@ type Props = {
   onTabPrev?: () => void
   onTabNext?: () => void
   onRespondToClaude: () => void
-  onFinishPlanInterview: () => void
   onNotesPasteLarge?: (questionText: string, text: string) => void
 }
 
@@ -67,15 +66,12 @@ export function PreviewQuestionView({
   onTabPrev,
   onTabNext,
   onRespondToClaude,
-  onFinishPlanInterview,
   onNotesPasteLarge,
 }: Props): React.ReactNode {
   const previewPermissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
-  const isInPlanMode = previewPermissionMode === 'strategy'
   const isApolloPoll = previewPermissionMode === 'apollo'
   const { columns, rows: terminalRows } = useTerminalSize()
   const [isFooterFocused, setIsFooterFocused] = useState(false)
-  const [footerIndex, setFooterIndex] = useState(0)
   const [isInNotesInput, setIsInNotesInput] = useState(false)
   const [cursorOffset, setCursorOffset] = useState(0)
   const editor = getExternalEditor()
@@ -175,19 +171,16 @@ export function PreviewQuestionView({
       if (isFooterFocused) {
         if (action === 'movePrevious') {
           e.preventDefault()
-          if (footerIndex === 0) setIsFooterFocused(false)
-          else setFooterIndex(0)
+          setIsFooterFocused(false)
           return
         }
         if (action === 'moveNext') {
           e.preventDefault()
-          if (isInPlanMode && footerIndex === 0) setFooterIndex(1)
           return
         }
         if (action === 'activate') {
           e.preventDefault()
-          if (footerIndex === 0) onRespondToClaude()
-          else onFinishPlanInterview()
+          onRespondToClaude()
           return
         }
         if (action === 'cancel') {
@@ -238,15 +231,12 @@ export function PreviewQuestionView({
     },
     [
       isFooterFocused,
-      footerIndex,
-      isInPlanMode,
       isInNotesInput,
       focusedIndex,
       allOptions.length,
       handleSelectOption,
       handleNotesExit,
       onRespondToClaude,
-      onFinishPlanInterview,
       onCancel,
       onTextInputFocus,
     ],
@@ -339,27 +329,15 @@ export function PreviewQuestionView({
           <Box flexDirection="column" marginTop={1}>
             <Divider color="inactive" />
             <Box flexDirection="row" gap={1} onClick={onRespondToClaude}>
-              {isFooterFocused && footerIndex === 0 ? (
+              {isFooterFocused ? (
                 <Text color="suggestion">{figures.pointer}</Text>
               ) : (
                 <Text> </Text>
               )}
-              <Text color={isFooterFocused && footerIndex === 0 ? 'suggestion' : undefined}>
+              <Text color={isFooterFocused ? 'suggestion' : undefined}>
                 Chat about this
               </Text>
             </Box>
-            {isInPlanMode && (
-              <Box flexDirection="row" gap={1} onClick={onFinishPlanInterview}>
-                {isFooterFocused && footerIndex === 1 ? (
-                  <Text color="suggestion">{figures.pointer}</Text>
-                ) : (
-                  <Text> </Text>
-                )}
-                <Text color={isFooterFocused && footerIndex === 1 ? 'suggestion' : undefined}>
-                  Skip interview and plan immediately
-                </Text>
-              </Box>
-            )}
           </Box>
           <Box marginTop={1}>
             <Text color="inactive" dimColor>

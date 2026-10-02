@@ -120,7 +120,6 @@ section('§4 the wiring — every body-bearing card reads the one owner; the old
     ['src/components/permissions/WebFetchPermissionRequest/WebFetchPermissionRequest.tsx', ['<ConsentBodyText']],
     ['src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx', ['<ConsentBodyText']],
     ['src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx', ['boundLines(', 'consentBodyBudget(rows)']],
-    ['src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx', ['consentBodyBudget(termRows)', 'totalLineRows(']],
   ]
   for (const [rel, needles] of readers) {
     const src = read(rel)
@@ -148,7 +147,6 @@ section('§5 the expand door — one chord, Confirmation context, the tail\'s wo
     'src/components/permissions/ChangeSetPermissionRequest/ChangeSetPermissionRequest.tsx',
     'src/components/permissions/ConsentBodyText.tsx',
     'src/components/permissions/ApolloReviewPermissionRequest/ApolloReviewPermissionRequest.tsx',
-    'src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx',
   ]
   for (const rel of chordReaders) {
     const src = read(rel)

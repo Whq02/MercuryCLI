@@ -725,7 +725,7 @@ section('§6 crewmates on the session runner: the daemon role and the dynamic id
       delete process.env.MERCURY_CREW
       clearDynamicCrewContext()
       if (identity === 'daemon') process.env.MERCURY_CREW = '1'
-      else setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof', planModeRequired: false })
+      else setDynamicCrewContext({ agentId: 'session-crew-id', agentName: 'session-crew', crewName: 'advisor-proof' })
       check(`${identity}: the session runner is recognized as a crewmate`, advisor.advisorSessionSeat() === 'crewmate')
       const id = `session-${identity}`
       const messages = [createUserMessage({ content: 'crew prompt' })]

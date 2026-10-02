@@ -105,10 +105,10 @@ const taskOf = (taskId: string): InProcessCrewmateTaskState | undefined => {
   return task !== undefined && isInProcessCrewmateTask(task) ? task : undefined
 }
 async function startSeat(name: string): Promise<{ taskId: string; done: Promise<{ success: boolean; error?: Error }> }> {
-  const spawned = await spawnInProcessCrewmate({ name, crewName: CREW, prompt: `${name}: research only, then hand off.`, planModeRequired: false, model: MODEL }, { setAppState })
+  const spawned = await spawnInProcessCrewmate({ name, crewName: CREW, prompt: `${name}: research only, then hand off.`, model: MODEL }, { setAppState })
   if (!spawned.success || spawned.taskId === undefined || spawned.crewmateContext === undefined || spawned.abortController === undefined) throw new Error(`spawn failed: ${spawned.error ?? 'no task'}`)
   const done = runInProcessCrewmate({
-    identity: { agentId: formatAgentId(name, CREW), agentName: name, crewName: CREW, planModeRequired: false, parentSessionId: String(getSessionId()) },
+    identity: { agentId: formatAgentId(name, CREW), agentName: name, crewName: CREW, parentSessionId: String(getSessionId()) },
     taskId: spawned.taskId,
     prompt: `${name}: research only, then hand off.`,
     crewmateContext: spawned.crewmateContext,

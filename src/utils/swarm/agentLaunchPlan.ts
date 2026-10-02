@@ -124,7 +124,6 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
     definition.model,
     i.mainLoopModel,
     isForkPath ? undefined : i.modelParam,
-    i.permissionMode,
   )
 
   return {

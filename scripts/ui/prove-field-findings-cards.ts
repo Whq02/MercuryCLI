@@ -16,7 +16,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   }
 }
 
-console.log('§1 PD-1 — the confirm chord disarms while the rejection field owns focus')
+console.log('§1 PD-1 — the confirm chord disarms while a feedback field owns focus')
 {
   const { interpretKey } = await import('../../src/ink/input/interpreter.ts')
   const { matchesKeystroke } = await import('../../src/keybindings/match.ts')
@@ -25,18 +25,6 @@ console.log('§1 PD-1 — the confirm chord disarms while the rejection field ow
   check("the decoder names a typed 'N' as shift+n (shift synthesised from case)", parsed.name === 'n' && parsed.shift === true)
   const key = { ctrl: false, meta: false, shift: true, super: false } as unknown as Parameters<typeof matchesKeystroke>[1]
   check("the matcher accepts that keystroke for the 'shift+n' binding — why the gate must exist", matchesKeystroke('N', key, parseKeystroke('shift+n')))
-  const card = read('src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx')
-  check(
-    'POISON: the ungated registration is gone (the chord carries the field-owns-focus gate)',
-    !/'confirm:approveWithFeedback',\s*\n(?:.*\n){1,6}?\s*\{ context: 'Confirmation' \},\s*\n\s*\)/.test(card) &&
-      card.includes("{ context: 'Confirmation', isActive: !rejectionFieldFocused },"),
-  )
-  check("the 'No, keep planning' row is the input row", /type: 'input',\s*\n\s*label: 'No, keep planning',\s*\n\s*value: 'no',/.test(card))
-  check(
-    'BOTH Select mounts (sticky footer + inline) report the focused option to the gate',
-    count(card, "onFocus={value => setRejectionFieldFocused(value === 'no')}") === 2,
-  )
-  check('a re-registered sticky Select resets the gate (it starts on its first row, never the input row)', card.includes('setRejectionFieldFocused(false)\n    setStickyFooter('))
   const prompt = read('src/components/permissions/PermissionPrompt.tsx')
   check(
     "PermissionPrompt's option chords carry the same gate while a feedback field owns focus",

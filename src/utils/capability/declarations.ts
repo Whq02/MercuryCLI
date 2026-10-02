@@ -113,13 +113,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'fast',
     proof: 'scripts/project-services/prove-change-receipts.ts',
   },
-  EnterStrategyMode: {
-    intents: ['start planning before implementation'],
-    units: ['planning'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
   EnterWorktree: {
     intents: ['work in an isolated git worktree'],
     units: ['git-transactions'],
@@ -143,13 +136,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_EVAL',
     conditions: ['a Python 3.10+ interpreter or a node binary reachable for kernels'],
     proof: 'scripts/eval/prove-kernel-persistence.ts',
-  },
-  ExitStrategyMode: {
-    intents: ['present the plan for approval', 'leave strategy mode'],
-    units: ['planning'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
   },
   ExitWorktree: {
     intents: ['leave the isolated worktree'],

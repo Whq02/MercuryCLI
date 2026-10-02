@@ -3,19 +3,12 @@
   "TURNS_BETWEEN_REMINDERS": 10,
   "TURNS_SINCE_WRITE": 10
  },
- "PLAN_MODE_ATTACHMENT_CONFIG/value": {
-  "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
-  "TURNS_BETWEEN_ATTACHMENTS": 5
- },
  "AUTO_MODE_ATTACHMENT_CONFIG/value": {
   "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
   "TURNS_BETWEEN_ATTACHMENTS": 5
  },
  "RELEVANT_MEMORIES_CONFIG/value": {
   "MAX_SESSION_BYTES": 61440
- },
- "VERIFY_PLAN_REMINDER_CONFIG/value": {
-  "TURNS_BETWEEN_REMINDERS": 10
  },
  "CONTRACT_REMINDER_CONFIG/value": {
   "TURNS_BETWEEN_REMINDERS": 12,
@@ -101,7 +94,6 @@
  "memoryHeader/many-facts-page": "Memory (topic deploy, 3 facts): /mem/library/topic-deploy.md:",
  "memoryHeader/recent-rows": "Memory (recent facts, not yet on a page, 2 facts): /mem/library/current.jsonl:",
  "memoryHeader/no-slug": "Memory (1 fact): /mem/example.md:",
- "getVerifyPlanReminderTurnCount/counts": 0,
  "createAttachmentMessage/shape": {
   "attachment": {
    "context": "x",

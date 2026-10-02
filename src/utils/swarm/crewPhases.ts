@@ -6,7 +6,6 @@ export type CrewMemberPhase =
   | 'spawning'
   | 'working'
   | 'waiting'
-  | 'blocked'
   | 'handoff-ready'
   | 'done'
   | 'stopping'
@@ -17,7 +16,6 @@ export type CrewmatePhaseInputs = {
   status: TaskStatus
   isIdle: boolean
   shutdownRequested: boolean
-  awaitingPlanApproval: boolean
   hasProgress: boolean
   lastActionWasLeadHandoff?: boolean
 }
@@ -28,7 +26,6 @@ export function deriveCrewmatePhase(t: CrewmatePhaseInputs): CrewMemberPhase {
   if (t.status === 'completed') return 'done'
   if (t.status === 'pending') return 'planned'
   if (t.shutdownRequested) return 'stopping'
-  if (t.awaitingPlanApproval) return 'blocked'
   if (t.isIdle) {
     return t.lastActionWasLeadHandoff ? 'handoff-ready' : 'waiting'
   }
@@ -38,8 +35,6 @@ export function deriveCrewmatePhase(t: CrewmatePhaseInputs): CrewMemberPhase {
 
 export function crewmatePhaseLabel(p: CrewMemberPhase): string {
   switch (p) {
-    case 'blocked':
-      return 'blocked — awaiting approval'
     case 'handoff-ready':
       return 'handoff ready'
     default:

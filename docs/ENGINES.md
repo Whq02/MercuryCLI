@@ -15,7 +15,7 @@ arm.
 
 | Family | Id space | Display name |
 | --- | --- | --- |
-| `anthropic` | `claude-*` ids (the mark anywhere in the id — gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best` · `opusplan`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. An id NO family declares also classes here (the routing law's total remainder), but the ride is earned, never the remainder's accident: it is recognised as *unrecognised*, `/model`, `/health` and the dispatch seam name it, and bound for the first-party origin it refuses before the wire, credentialed or not, unless an operator-owned fact carries it — an `ANTHROPIC_*` model pin, or `ANTHROPIC_BASE_URL` re-pointed at a gateway | Anthropic |
+| `anthropic` | `claude-*` ids (the mark anywhere in the id — gateway spellings included), the setting aliases (`opus` · `sonnet` · `haiku` · `fable` · `fable51` · `mythos` · `best`), the `ANTHROPIC_*` model env pins and `MERCURY_CUSTOM_MODEL_OPTION`. An id NO family declares also classes here (the routing law's total remainder), but the ride is earned, never the remainder's accident: it is recognised as *unrecognised*, `/model`, `/health` and the dispatch seam name it, and bound for the first-party origin it refuses before the wire, credentialed or not, unless an operator-owned fact carries it — an `ANTHROPIC_*` model pin, or `ANTHROPIC_BASE_URL` re-pointed at a gateway | Anthropic |
 | `openai` | `gpt-*`, alias `gpt` | OpenAI |
 | `zai` | `glm-*`, alias `glm` | Z.AI |
 | `moonshot` | `kimi-*`, `moonshot-*`, alias `kimi` | Moonshot |

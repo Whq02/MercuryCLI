@@ -1,7 +1,6 @@
 import { z } from 'zod/v4'
 
 import { CREWMATE_MESSAGE_TAG } from '../../constants/xml.js'
-import { PermissionModeSchema } from '../../entrypoints/sdk/coreSchemas.js'
 import type { Message } from '../../types/message.js'
 import { PERMISSION_MODES, type InternalPermissionMode } from '../../types/permissions.js'
 import { lazySchema } from '../../utils/lazySchema.js'
@@ -194,44 +193,6 @@ export function isSandboxPermissionResponse(text: string): SandboxPermissionResp
   return parsed as SandboxPermissionResponseMessage
 }
 
-export const PlanApprovalRequestMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('plan_approval_request'),
-    from: z.string(),
-    timestamp: z.string(),
-    planFilePath: z.string(),
-    planContent: z.string(),
-    requestId: z.string(),
-  }),
-)
-export type PlanApprovalRequestMessage = z.infer<ReturnType<typeof PlanApprovalRequestMessageSchema>>
-
-export function isPlanApprovalRequest(text: string): PlanApprovalRequestMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'plan_approval_request') return null
-  const result = PlanApprovalRequestMessageSchema().safeParse(parsed)
-  return result.success ? result.data : null
-}
-
-export const PlanApprovalResponseMessageSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('plan_approval_response'),
-    requestId: z.string(),
-    approved: z.boolean(),
-    feedback: z.string().optional(),
-    timestamp: z.string(),
-    permissionMode: PermissionModeSchema().optional(),
-  }),
-)
-export type PlanApprovalResponseMessage = z.infer<ReturnType<typeof PlanApprovalResponseMessageSchema>>
-
-export function isPlanApprovalResponse(text: string): PlanApprovalResponseMessage | null {
-  const parsed = parseStructuredText(text)
-  if (!parsed || parsed.type !== 'plan_approval_response') return null
-  const result = PlanApprovalResponseMessageSchema().safeParse(parsed)
-  return result.success ? result.data : null
-}
-
 export const ShutdownRequestMessageSchema = lazySchema(() =>
   z.object({
     type: z.literal('shutdown_request'),
@@ -391,8 +352,6 @@ const STRUCTURED_PROTOCOL_TYPES: ReadonlySet<string> = new Set([
   'shutdown_approved',
   'crew_permission_update',
   'mode_set_request',
-  'plan_approval_request',
-  'plan_approval_response',
 ])
 
 export function isStructuredProtocolMessage(messageText: string): boolean {

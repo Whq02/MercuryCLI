@@ -8,7 +8,6 @@ import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import type { Message, UserMessage } from '../types/message.js'
-import type { InternalPermissionMode } from '../types/permissions.js'
 import type { ModelTransitionReceipt } from '../utils/model/modelTransition.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
@@ -23,7 +22,6 @@ import type { RosterEntry, Health } from '../extensions/types.js'
 import { createEmptyAttributionState, type AttributionState } from '../utils/commitAttribution.js'
 import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestion.js'
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
-import type { AllowedPrompt } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 import { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'
@@ -241,16 +239,9 @@ type AppStateMutableHalf = {
   authVersion: number
   initialMessage: {
     message: UserMessage
-    clearContext?: boolean
-    permissionMode?: InternalPermissionMode
-    allowedPrompts?: AllowedPrompt[]
     bashMode?: boolean
     armedAtLanding?: boolean
   } | null
-  pendingPlanVerification?: {
-    verificationStarted?: boolean
-    verificationCompleted?: boolean
-  }
   denialTracking?: DenialTrackingState
   thinkingEnabled: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
@@ -283,10 +274,7 @@ export function getDefaultAppState(): AppState {
     lastModelTransition: null,
     foregroundTurnActive: false,
 
-    toolPermissionContext: {
-      ...getEmptyToolPermissionContext(),
-      mode: computeInitialPermissionMode(),
-    },
+    toolPermissionContext: getEmptyToolPermissionContext(),
 
     remoteConnectionStatus: 'connecting',
     remoteBackgroundTaskCount: 0,
@@ -344,17 +332,4 @@ function computeAssistantMode(): boolean {
   } catch {
     return false
   }
-}
-
-function computeInitialPermissionMode(): InternalPermissionMode {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crewmate = require('../utils/crewmate.js') as {
-      isCrewmate?: () => boolean
-      isPlanModeRequired?: () => boolean
-    }
-    if (crewmate.isCrewmate?.() && crewmate.isPlanModeRequired?.()) return 'strategy'
-  } catch {
-  }
-  return 'default'
 }

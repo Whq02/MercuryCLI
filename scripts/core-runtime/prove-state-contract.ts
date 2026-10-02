@@ -162,8 +162,6 @@ const OBSERVABLES: Array<{
   { key: 'hasDevChannels', family: 'boot', scope: 'process', read: () => state.getHasDevChannels() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
-  { key: 'hasExitedPlanMode', family: 'oneShot', scope: 'conversation', read: () => state.hasExitedPlanModeInSession() },
-  { key: 'needsPlanModeExitAttachment', family: 'oneShot', scope: 'conversation', read: () => state.needsPlanModeExitAttachment() },
   { key: 'needsAutoModeExitAttachment', family: 'oneShot', scope: 'conversation', read: () => state.needsAutoModeExitAttachment() },
   { key: 'initJsonSchema', family: 'sdkInit', scope: 'session', read: () => state.getInitJsonSchema() },
   { key: 'registeredHooks', family: 'sdkInit', scope: 'session', read: () => state.getRegisteredHooks() },
@@ -293,12 +291,11 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTurnClassifierCount', 'getTurnClassifierDurationMs',
     'getTurnHookCount', 'getTurnHookDurationMs', 'getTurnOutputTokens', 'getTurnToolCount',
     'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
-    'handleAutoModeTransition', 'handlePlanModeTransition',
-    'hasEnteredPlanModeThisSession', 'hasExitedPlanModeInSession',
+    'handleAutoModeTransition',
     'hasUnknownModelCost',
     'incrementBudgetContinuationCount', 'isSessionPersistenceDisabled',
     'markPostCompaction', 'markScrollActivity',
-    'needsAutoModeExitAttachment', 'needsPlanModeExitAttachment', 'onSessionSwitch',
+    'needsAutoModeExitAttachment', 'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
     'resetCostState', 'resetModelStringsForTestingOnly',
     'resetSdkInitState', 'resetStateForTests',
@@ -309,12 +306,12 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'setClientType', 'setCostStateForRestore', 'setCwdState',
     'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath', 'setHasDevChannels',
-    'setHasExitedPlanMode', 'setHasUnknownModelCost', 'setHeadlessOneShot', 'setInitJsonSchema',
+    'setHasUnknownModelCost', 'setHeadlessOneShot', 'setInitJsonSchema',
     'setInitialMainLoopModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
     'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
     'setLastApiCompletionTimestamp', 'setLastClassifierRequests', 'setLastEmittedDate',
     'setLastMainRequestId',
-    'setMainLoopModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment', 'setNeedsPlanModeExitAttachment',
+    'setMainLoopModelOverride', 'setMainThreadAgentType', 'setModelStrings', 'setNeedsAutoModeExitAttachment',
     'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
     'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
     'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
@@ -734,7 +731,7 @@ section('LAW 3 TURN-WINDOW — snapshot math · triples · totals survive')
   check('classifier triple: reset zeroes both', state.getTurnClassifierDurationMs() === 0 && state.getTurnClassifierCount() === 0)
 }
 
-section('LAW 4 ONE-SHOT — postCompaction · the plan/auto transition tables')
+section('LAW 4 ONE-SHOT — postCompaction · the flow transition table')
 {
   check('postCompaction: initially unarmed', state.consumePostCompaction() === false)
   state.markPostCompaction()
@@ -744,47 +741,25 @@ section('LAW 4 ONE-SHOT — postCompaction · the plan/auto transition tables')
   state.markPostCompaction()
   check('postCompaction: double-mark still single-consume', state.consumePostCompaction() === true && state.consumePostCompaction() === false)
 
-  const MODES = ['default', 'strategy', 'flow', 'implement'] as const
-  for (const prior of [false, true]) {
-    for (const from of MODES) {
-      for (const to of MODES) {
-        state.setNeedsPlanModeExitAttachment(prior)
-        state.handlePlanModeTransition(from, to)
-        const expected =
-          to === 'strategy' && from !== 'strategy'
-            ? false
-            : from === 'strategy' && to !== 'strategy'
-              ? true
-              : prior
-        check(
-          `plan table: ${from}→${to} (prior=${prior}) ⇒ ${expected}`,
-          state.needsPlanModeExitAttachment() === expected,
-        )
-      }
-    }
-  }
+  const MODES = ['default', 'apollo', 'flow', 'implement'] as const
   for (const prior of [false, true]) {
     for (const from of MODES) {
       for (const to of MODES) {
         state.setNeedsAutoModeExitAttachment(prior)
         state.handleAutoModeTransition(from, to)
-        const skipped =
-          (from === 'flow' && to === 'strategy') || (from === 'strategy' && to === 'flow')
-        const expected = skipped
-          ? prior
-          : to === 'flow' && from !== 'flow'
+        const expected =
+          to === 'flow' && from !== 'flow'
             ? false
             : from === 'flow' && to !== 'flow'
               ? true
               : prior
         check(
-          `auto table: ${from}→${to} (prior=${prior}) ⇒ ${expected}${skipped ? ' [skip row]' : ''}`,
+          `auto table: ${from}→${to} (prior=${prior}) ⇒ ${expected}`,
           state.needsAutoModeExitAttachment() === expected,
         )
       }
     }
   }
-  state.setNeedsPlanModeExitAttachment(false)
   state.setNeedsAutoModeExitAttachment(false)
 
   {
@@ -796,18 +771,7 @@ section('LAW 4 ONE-SHOT — postCompaction · the plan/auto transition tables')
     warm.handleAutoModeTransition('default', 'flow')
     warm.handleAutoModeTransition('flow', 'default')
     check('NEW-2: entered-then-exited auto arms the one-shot', warm.needsAutoModeExitAttachment === true)
-    const p = new ModeOneShotOwner()
-    p.handlePlanModeTransition('default', 'strategy')
-    check('NEW-2: plan-mode entry recorded for the injector referent', p.hasEnteredPlanModeThisSession === true)
-    const injector = readFileSync(join(repoRoot, 'src/utils/attachments/modeLifecycles.ts'), 'utf8')
-    check('NEW-2: plan-exit injector validates the referent (entered OR real plan) before injecting',
-      injector.includes('!hasEnteredPlanModeThisSession() && !planExists'))
   }
-
-  check('hasExitedPlanMode: starts false this session', state.hasExitedPlanModeInSession() === false)
-  state.setHasExitedPlanMode(true)
-  check('hasExitedPlanMode: round-trips', state.hasExitedPlanModeInSession() === true)
-  state.setHasExitedPlanMode(false)
 }
 
 section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
@@ -1158,8 +1122,6 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setHasDevChannels(true)
     state.setMainThreadAgentType('main-agent')
     state.setDirectConnectServerUrl('http://localhost:1')
-    state.setHasExitedPlanMode(true)
-    state.setNeedsPlanModeExitAttachment(true)
     state.setNeedsAutoModeExitAttachment(true)
     state.setInitJsonSchema({ scope: 'delta' })
     state.clearRegisteredHooks()
@@ -1260,7 +1222,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
   ]
     .map(m => m[1]!)
     .sort()
-  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 86, String(getterNames.length))
+  check(`purity: source sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 85, String(getterNames.length))
   const missingFromModule = getterNames.filter(n => typeof (state as never as Record<string, unknown>)[n] !== 'function')
   check('purity: every swept getter exists on the module', missingFromModule.length === 0, missingFromModule.join(','))
   withClock(() => 2_000_000_000_000, () => {

@@ -50,7 +50,6 @@ section('fixture crew — every reader feeds the one brief')
     agentId: 'bob-1',
     agentName: ME,
     crewName: CREW,
-    planModeRequired: false,
   })
 
   const taskId = await createTask(CREW, {

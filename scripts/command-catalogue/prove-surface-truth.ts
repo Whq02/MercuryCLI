@@ -89,7 +89,7 @@ check("/sandbox's live state moved to the value column (a static description, a 
 
 section("§2 THE VALUE COLUMN READS THE ONE OWNER (the focused session's facts)")
 type Facts = ReturnType<typeof focusedSlot.getFocusedSessionConnector>['modelFacts'] extends () => infer F ? F : never
-function seatStub(facts: Facts, mode = 'strategy'): ReturnType<typeof focusedSlot.getFocusedSessionConnector> {
+function seatStub(facts: Facts, mode = 'implement'): ReturnType<typeof focusedSlot.getFocusedSessionConnector> {
   const base = noSessionConnector()
   return Object.assign(Object.create(base), { modelFacts: () => facts, permissionMode: () => mode })
 }
@@ -111,7 +111,7 @@ check("⇒ with the runner's sent word on the facts the column is that word", va
 focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: null }))
 check("⇒ with the runner's no-key word the column is the seat's word resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
-check("⇒ the mode columns read the seat's own mode door", value('authority') === permissionModeTitle('strategy') && value('permissions') === permissionModeTitle('strategy'), String(value('authority')))
+check("⇒ the mode columns read the seat's own mode door", value('authority') === permissionModeTitle('implement') && value('permissions') === permissionModeTitle('implement'), String(value('authority')))
 
 const gptFacts: Facts = { effective: 'gpt-5.5', effectiveSource: 'record', main: 'gpt-5.5', setting: 'gpt-5.5', sessionPin: 'gpt-5.5', effort: null, pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(gptFacts))

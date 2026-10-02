@@ -213,9 +213,6 @@ const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 function typedString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined
 }
-function typedBoolean(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined
-}
 
 function writeErr(text: string): void {
   releaseLauncherAltHoldNow()
@@ -558,7 +555,6 @@ async function run(): Promise<void> {
   ] as const) {
     program.addOption(new Option(flags, description).hideHelp())
   }
-  program.addOption(new Option('--require-strategy', 'Crewmate requires strategy mode').hideHelp())
 
   program.addOption(new Option('-V', 'Print the version').hideHelp())
   program.on('option:V', () => {
@@ -1151,7 +1147,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentName = typedString(opts.seat)
   const crewName = typedString(opts.crew)
   const agentColor = typedString(opts.seatColor)
-  const planModeRequired = typedBoolean(opts.requireStrategy)
   const parentSessionId = typedString(opts.parent)
   const agentTypeOpt = typedString(opts.role)
   const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
@@ -1602,7 +1597,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       allAgents,
       sessionTitle,
       setupTrigger,
-      crewmateContext: { agentId, agentName, crewName, agentColor, planModeRequired, parentSessionId },
+      crewmateContext: { agentId, agentName, crewName, agentColor, parentSessionId },
     })
     return
   }
@@ -1705,7 +1700,6 @@ async function interactiveLaunch(args: {
     agentName?: string
     crewName?: string
     agentColor?: string
-    planModeRequired?: boolean
     parentSessionId?: string
   }
 }): Promise<void> {
@@ -1829,11 +1823,7 @@ async function interactiveLaunch(args: {
     notifications.push({ key: 'model-deprecation-warning', text: deprecationWarning, color: 'warning' })
   }
 
-  const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
-  let effectiveContext = args.toolPermissionContext
-  if (isAgentSwarmsEnabled() && args.crewmateContext.planModeRequired) {
-    effectiveContext = { ...effectiveContext, mode: 'strategy' }
-  }
+  const effectiveContext = args.toolPermissionContext
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
@@ -1849,7 +1839,6 @@ async function interactiveLaunch(args: {
         agentName: args.crewmateContext.agentName!,
         crewName: args.crewmateContext.crewName!,
         color: args.crewmateContext.agentColor,
-        planModeRequired: Boolean(args.crewmateContext.planModeRequired),
         parentSessionId: args.crewmateContext.parentSessionId,
       }
     : undefined

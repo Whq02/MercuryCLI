@@ -216,7 +216,7 @@ async function runnerTrueMode(home: string, sessionId: string): Promise<string |
   return readSessionFacts(sessionId, dir)?.permissionMode ?? null
 }
 
-const BAND_RE = /\b(sovereign mode|implement mode|strategy mode|apollo mode|flow|don't ask) on\b/
+const BAND_RE = /\b(sovereign mode|implement mode|apollo mode|flow|don't ask) on\b/
 function bandModeOf(frame: string | null): string {
   if (frame === null) return '(no frame)'
   const m = BAND_RE.exec(frame)

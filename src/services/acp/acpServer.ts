@@ -51,7 +51,6 @@ import { isAutoModeGateEnabled } from '../../utils/permissions/permissionSetup.j
 const PERMISSION_MODES = [
   { id: 'default', name: 'Default', description: 'ask before consequential tools' },
   { id: 'implement', name: 'Implement Mode', description: 'file edits pre-approved' },
-  { id: 'strategy', name: 'Strategy Mode', description: 'read-only planning' },
   { id: 'flow', name: 'Flow', description: 'the safer autonomous mode' },
 ] as const
 
@@ -156,8 +155,6 @@ const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   TaskUpdate: 'think',
   TaskGet: 'think',
   TaskList: 'think',
-  EnterStrategyMode: 'switch_mode',
-  ExitStrategyMode: 'switch_mode',
 }
 
 export function toolKindOf(name: string): AcpToolKind {

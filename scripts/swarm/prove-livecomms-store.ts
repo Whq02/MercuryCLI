@@ -40,7 +40,7 @@ await writeCrewFileAsync(CREW, {
 })
 
 const asCrewmate = (name: string): void =>
-  setDynamicCrewContext({ agentId: `${name}@${CREW}`, agentName: name, crewName: CREW, color: 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `${name}@${CREW}`, agentName: name, crewName: CREW, color: 'blue' })
 const asLead = (): void => setDynamicCrewContext(null)
 const leadContext = { getAppState: () => ({ crewContext: { crewName: CREW, leadAgentId: LEAD_ID } }) }
 const crewmateContext = { getAppState: () => ({}) }

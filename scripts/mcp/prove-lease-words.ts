@@ -57,7 +57,7 @@ const crew: CrewFile = {
   ],
 }
 await writeCrewFileAsync(CREW, crew)
-setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', crewName: CREW, planModeRequired: false })
+setDynamicCrewContext({ agentId: `w@${CREW}`, agentName: 'worker', crewName: CREW })
 
 try {
   const client = await connect()

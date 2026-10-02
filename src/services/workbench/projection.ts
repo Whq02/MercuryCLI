@@ -97,8 +97,6 @@ function pickRichTasks(state: unknown): Map<string, RichTaskFact> {
     if (isIdle !== undefined) fact.isIdle = isIdle
     const shutdownRequested = bool(t.shutdownRequested)
     if (shutdownRequested !== undefined) fact.shutdownRequested = shutdownRequested
-    const awaitingPlanApproval = bool(t.awaitingPlanApproval)
-    if (awaitingPlanApproval !== undefined) fact.awaitingPlanApproval = awaitingPlanApproval
     fact.hasProgress = t.progress !== undefined && t.progress !== null
     if (Array.isArray(t.messages)) {
       fact.lastActionWasLeadHandoff = lastActionWasLeadHandoff(t.messages)

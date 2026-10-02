@@ -157,7 +157,6 @@ const store = {
     description: 't',
     identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
     prompt: 'p',
-    awaitingPlanApproval: false,
     progress: fold(ANTHROPIC_ID, 800, 100),
     startTime: t0 + 4,
     outputFile: '/n',

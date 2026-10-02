@@ -37,7 +37,6 @@ export type InProcessSpawnConfig = {
   crewName: string
   prompt: string
   color?: string
-  planModeRequired: boolean
   model?: string
   cwd?: string
   worktree?: string
@@ -74,7 +73,6 @@ export async function spawnInProcessCrewmate(
       crewName: config.crewName,
       ...(config.agentType !== undefined ? { agentType: config.agentType } : {}),
       ...(config.color !== undefined ? { color: config.color } : {}),
-      ...(config.planModeRequired ? { planModeRequired: true } : { planModeRequired: false }),
       parentSessionId,
     }
     const crewmateContext = createCrewmateContext({
@@ -82,7 +80,6 @@ export async function spawnInProcessCrewmate(
       agentName: config.name,
       crewName: config.crewName,
       ...(config.color !== undefined ? { color: config.color } : {}),
-      planModeRequired: config.planModeRequired,
       parentSessionId,
       abortController,
     })
@@ -115,10 +112,9 @@ export async function spawnInProcessCrewmate(
         : {}),
       abortController,
       unregisterCleanup,
-      awaitingPlanApproval: false,
       spinnerVerb: sampleSpinnerVerb(),
       pastTenseVerb: sample(TURN_COMPLETION_VERBS) ?? 'Worked',
-      permissionMode: config.planModeRequired ? 'strategy' : 'default',
+      permissionMode: 'default',
       isIdle: false,
       shutdownRequested: false,
       lastReportedToolCount: 0,
@@ -139,7 +135,6 @@ export async function spawnInProcessCrewmate(
         crewName: config.crewName,
         prompt: config.prompt,
         transcriptAgentId,
-        planModeRequired: config.planModeRequired,
         ...(config.agentType !== undefined ? { agentType: config.agentType } : {}),
       },
     }).catch((error: unknown) => {

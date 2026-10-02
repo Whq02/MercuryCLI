@@ -25,9 +25,9 @@ console.log('§1 TS-2 — isPathInside: one fold, every separator spelling')
   check('the directory itself counts (the plans guards always did)', isPathInside('C:\\u\\m\\plans', 'C:\\u\\m\\plans', 'win32'))
   check('a sibling-prefix directory never matches', !isPathInside('/u/m/plansX/f.md', '/u/m/plans', 'linux') && !isPathInside('C:\\u\\m\\plansX\\f.md', 'C:\\u\\m\\plans', 'win32'))
   check('POSIX behaviour is byte-identical to the old guard (case stays significant)', isPathInside('/u/m/plans/slug.md', '/u/m/plans', 'linux') && !isPathInside('/u/m/PLANS/slug.md', '/u/m/plans', 'linux'))
-  for (const rel of ['src/tools/FileReadTool/UI.tsx', 'src/tools/FileEditTool/UI.tsx', 'src/tools/FileWriteTool/UI.tsx']) {
+  for (const rel of ['src/tools/FileReadTool/UI.tsx']) {
     const src = read(rel)
-    check(`${rel} reads the one fold and drops the POSIX needle`, src.includes("import { isPathInside } from '../../utils/pathPrefix.js'") && !src.includes('.startsWith(`${plansDir}/`)') && !src.includes('.startsWith(`${outputDir}/`)'))
+    check(`${rel} reads the one fold and drops the POSIX needle`, src.includes("import { isPathInside } from '../../utils/pathPrefix.js'") && !src.includes('.startsWith(`${outputDir}/`)'))
   }
   check('the agent-output guard rides the same fold', read('src/tools/FileReadTool/UI.tsx').includes('if (!isPathInside(filePath, outputDir)) return null'))
 }

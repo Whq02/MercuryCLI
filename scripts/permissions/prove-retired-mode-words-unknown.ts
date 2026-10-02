@@ -108,7 +108,7 @@ if (!existsSync(DIST)) {
       })
     const control = await run(['hello', '--mode', CONTROL, '--format', 'text'])
     t(`"--mode ${CONTROL}" is the parser's own refusal (exit 2)`, control.status === 2 && control.stderr.includes(`option '--mode <mode>' argument '${CONTROL}' is invalid`), `${control.status} ${control.stderr.slice(0, 200)}`)
-    t('the parser names the live modes and no other', /Allowed choices are default, dontAsk, implement, sovereign, strategy, flow, apollo\./.test(control.stderr), control.stderr.slice(0, 300))
+    t('the parser names the live modes and no other', /Allowed choices are default, dontAsk, implement, sovereign, flow, apollo\./.test(control.stderr), control.stderr.slice(0, 300))
     for (const word of WORDS) {
       const typed = await run(['hello', '--mode', word, '--format', 'text'])
       t(`"--mode ${word}" exits as "--mode ${CONTROL}" does`, typed.status === control.status, `${typed.status} vs ${control.status}`)

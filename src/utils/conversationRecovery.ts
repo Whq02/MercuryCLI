@@ -29,7 +29,6 @@ import {
   openToolUseIDs,
   type OpenToolUses,
 } from './messages/openToolUses.js'
-import { copyPlanForResume } from './plans.js'
 import { processSessionStartHooks } from './sessionStart.js'
 import { resumeFactsOf, type ResumeFacts } from './sessionStorage/logs.js'
 import {
@@ -492,9 +491,6 @@ export async function loadConversationForResume(
     if (log) {
       if (isLiteLog(log)) log = await loadFullLog(log)
       if (sessionId === undefined) sessionId = getSessionIdFromLog(log) as SessionId
-      if (sessionId !== undefined) {
-        await copyPlanForResume(log, sessionId)
-      }
       void copyFileHistoryForResume(log)
       messages = log.messages as SerializedMessage[]
       checkResumeConsistency(messages as unknown as Message[])

@@ -226,7 +226,7 @@ export function ModelPicker({
       </Text>
       {sessionModel !== undefined && sessionModel !== null ? (
         <Text dimColor>
-          This session runs {sessionModel} (set by strategy mode); selecting a
+          This session runs {sessionModel} (a session override); selecting a
           model undoes it.
         </Text>
       ) : null}

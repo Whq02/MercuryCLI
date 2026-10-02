@@ -2,7 +2,7 @@ import { subagentDefaultModel } from '../agentDefaults.js'
 import { MODEL_ALIASES } from './aliases.js'
 import { classifyModelRoute } from '../../services/providers/idSpaces.js'
 import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
-import { getCanonicalName, parseUserSpecifiedModel, getRuntimeMainLoopModel } from './model.js'
+import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
 
 const INHERIT = 'inherit'
 
@@ -39,7 +39,6 @@ export function getAgentModel(
   agentModel: string | undefined,
   parentModel: string,
   toolSpecifiedModel?: string,
-  permissionMode?: string,
 ): string {
   if (toolSpecifiedModel !== undefined && toolSpecifiedModel !== '') {
     if (wordNamesParentFamily(toolSpecifiedModel, parentModel)) return parentModel
@@ -56,10 +55,7 @@ export function getAgentModel(
 
   const declared = agentModel ?? INHERIT
   if (declared === INHERIT) {
-    return getRuntimeMainLoopModel({
-      mainLoopModel: parentModel,
-      permissionMode,
-    })
+    return parentModel
   }
 
   if (wordNamesParentFamily(declared, parentModel)) return parentModel

@@ -229,7 +229,6 @@ export async function launch(opts: {
       name: opts.name,
       crewName: opts.crew,
       prompt: opts.prompt,
-      planModeRequired: false,
     },
     { setAppState: store.setAppState as never, toolUseId: `toolu_${opts.name}` },
   )

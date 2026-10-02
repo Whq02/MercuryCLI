@@ -56,7 +56,7 @@ try {
     }
   }
   const beforeRefusals = api.messageRequests().length
-  for (const mode of ['default', 'implement', 'flow', 'dontAsk', 'strategy']) {
+  for (const mode of ['default', 'implement', 'flow', 'dontAsk']) {
     const result = await run(['run', 'hello', '--sovereign', '--mode', mode])
     check(`sovereign refuses the conflicting ${mode} posture`, result.code === 2 && result.out === '' && result.err.trim().split('\n').length === 1 && result.err.includes('--sovereign') && result.err.includes('--mode'), JSON.stringify(result))
   }

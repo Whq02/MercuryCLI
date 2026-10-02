@@ -101,7 +101,6 @@ export type ToolPermissionContext = {
   readonly strippedDangerousRules?: readonly string[]
   readonly shouldAvoidPermissionPrompts?: boolean
   readonly awaitAutomatedChecksBeforeDialog?: boolean
-  readonly preStrategyMode?: InternalPermissionMode
 }
 
 export function getEmptyToolPermissionContext(): ToolPermissionContext {

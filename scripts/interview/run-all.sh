@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/interview/**
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
-# gate-watch: src/utils/planModeV2.ts src/utils/messages/attachmentText.ts src/tools/EnterPlanModeTool/**
+# gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/commands/console/console.tsx
 # gate-watch: src/components/CustomSelect/* src/components/mercury-ui/glyphs.ts

@@ -42,11 +42,9 @@ import { BashTool } from './tools/BashTool/BashTool.js'
 import { ChangeSetTool } from './tools/ChangeSetTool/ChangeSetTool.js'
 import { ContextLeftTool } from './tools/ContextLeftTool/ContextLeftTool.js'
 import { DebugTool } from './tools/DebugTool/DebugTool.js'
-import { EnterPlanModeTool } from './tools/EnterPlanModeTool/EnterPlanModeTool.js'
 import { EvalTool } from './tools/EvalTool/EvalTool.js'
 import { evalEnabled } from './services/eval/contracts.js'
 import { EnterWorktreeTool } from './tools/EnterWorktreeTool/EnterWorktreeTool.js'
-import { ExitPlanModeV2Tool } from './tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import { ExitWorktreeTool } from './tools/ExitWorktreeTool/ExitWorktreeTool.js'
 import { FileEditTool } from './tools/FileEditTool/FileEditTool.js'
 import { FileReadTool } from './tools/FileReadTool/FileReadTool.js'
@@ -173,7 +171,6 @@ export function getAllBaseTools(): Tools {
     AgentTool,
     BashTool,
     ...(includeSearchTools ? [GlobTool, GrepTool] : []),
-    ExitPlanModeV2Tool,
     FileReadTool,
     FileEditTool,
     FileWriteTool,
@@ -184,7 +181,6 @@ export function getAllBaseTools(): Tools {
     TaskStopTool,
     AskUserQuestionTool,
     SkillTool,
-    EnterPlanModeTool,
     ApolloReviewTool,
     ...(isTaskToolsEnabled() ? [TaskCreateTool, TaskGetTool, TaskUpdateTool, TaskListTool] : []),
     ...(isLspToolCatalogEnabled() ? [LSPTool] : []),

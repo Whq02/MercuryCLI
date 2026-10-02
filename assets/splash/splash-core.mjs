@@ -148,7 +148,6 @@ const MODEL_NAMES = {
   "fable51": "Fable 5.1",
   "mythos": "Mythos 5",
   "best": "Opus 5.5",
-  "opusplan": "Opus in strategy mode, else Sonnet",
   "grok": "Grok 4.7",
   "deepseek": "DeepSeek V4 Pro",
   "kimi": "Kimi K3",

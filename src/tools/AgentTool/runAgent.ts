@@ -590,13 +590,10 @@ export async function* runAgent(
       : (() => { throw new Error('mercury-reviewer requires a frozen worktree and an explicit review_receipt') })()
     : undefined
 
-  const permissionModeForModel = (agentDefinition.permissionMode ??
-    toolUseContext.getAppState?.().toolPermissionContext.mode) as never
   const resolvedAgentModel = getAgentModel(
     agentDefinition.model,
     toolUseContext.options.mainLoopModel,
     model as never,
-    permissionModeForModel,
   )
   const resolvedEffort = resolveAgentEffort({
     effortOverride,

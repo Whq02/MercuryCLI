@@ -20,7 +20,6 @@ export type DynamicCrewContext = {
   agentName: string
   crewName: string
   color?: string
-  planModeRequired: boolean
   parentSessionId?: string
 }
 
@@ -106,12 +105,6 @@ export function isCrewmate(): boolean {
   )
 }
 
-export function isPlanModeRequired(): boolean {
-  const context = getCrewmateContext()
-  if (context) return context.planModeRequired
-  if (dynamicCrewContext !== null) return dynamicCrewContext.planModeRequired
-  return false
-}
 
 export function isCrewLead(crewContext: { leadAgentId: string } | undefined): boolean {
   if (!crewContext?.leadAgentId) return false

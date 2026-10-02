@@ -156,7 +156,6 @@ export type AgentMetadata = {
     crewName: string
     prompt: string
     transcriptAgentId: string
-    planModeRequired: boolean
     agentType?: string
   }
 }

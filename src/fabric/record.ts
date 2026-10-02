@@ -170,7 +170,6 @@ export type InputMeta = {
   imagePasteIds?: number[]
   sourceToolAssistantRecord?: RecordId
   sourceToolCallId?: ToolCallId
-  planContent?: string
   permissionMode?: string
   mcpMeta?: Record<string, unknown>
 }

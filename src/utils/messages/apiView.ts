@@ -3,7 +3,6 @@ import type { ContentBlock, ContentBlockParam, ApiMessage } from '../../types/wi
 import isObject from 'lodash-es/isObject.js'
 import last from 'lodash-es/last.js'
 import { sanitizeToolNameForAnalytics } from 'src/services/analytics/metadata.js'
-import type { AgentId } from 'src/types/ids.js'
 import {
   getImageTooLargeErrorMessage,
   getPdfInvalidErrorMessage,
@@ -435,7 +434,6 @@ export function normalizeMessagesForAPI(
 export function normalizeContentFromAPI(
   contentBlocks: ApiMessage['content'],
   tools: Tools,
-  agentId?: AgentId,
 ): ApiMessage['content'] {
   if (!contentBlocks) {
     return []
@@ -478,7 +476,6 @@ export function normalizeContentFromAPI(
               normalizedInput = normalizeToolInput(
                 tool,
                 normalizedInput as { [key: string]: unknown },
-                agentId,
               )
             } catch (error) {
               logError(new Error('Error normalizing tool input: ' + error))

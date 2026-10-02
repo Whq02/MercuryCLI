@@ -47,7 +47,6 @@ export function crewmateRespawnConfig(task: InProcessCrewmateTaskState): SpawnCr
     ...(task.cwd !== undefined ? { cwd: task.cwd } : {}),
     ...(agentType !== undefined ? { agent_type: agentType } : {}),
     ...(task.model !== undefined ? { model: task.model } : {}),
-    plan_mode_required: task.identity.planModeRequired === true,
   }
 }
 
@@ -99,7 +98,6 @@ export async function resumeCrewmateFromTranscript(
           ...(meta!.cwd !== undefined ? { cwd: meta!.cwd } : {}),
           ...(record!.agentType !== undefined ? { agent_type: record!.agentType } : {}),
           ...(meta!.model !== undefined ? { model: meta!.model } : {}),
-          plan_mode_required: record!.planModeRequired,
         }
   const crewName = config.crew_name!
   const agentId = formatAgentId(config.name, crewName)

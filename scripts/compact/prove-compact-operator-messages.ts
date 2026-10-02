@@ -372,7 +372,6 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
   const fileAttachment = (name: string, chars: number): AnyMsg =>
     createAttachmentMessage({ type: 'file', filename: `/rig/${name}`, displayPath: name, content: { type: 'text', file: { filePath: `/rig/${name}`, content: 'x'.repeat(chars), numLines: 1, startLine: 1, totalLines: 1 } } } as never) as unknown as AnyMsg
   const skills = createAttachmentMessage({ type: 'invoked_skills', skills: [{ name: 'rig-skill', path: '/rig/SKILL.md', content: 's'.repeat(2_000) }] } as never) as unknown as AnyMsg
-  const plan = createAttachmentMessage({ type: 'plan_file_reference', planFilePath: '/rig/plan.md', planContent: 'p'.repeat(800) } as never) as unknown as AnyMsg
   const block = createAttachmentMessage({ type: KIND, messages: [{ ordinal: 2, text: 'b'.repeat(2_000) }, { ordinal: 1, text: 'a'.repeat(2_000) }], omitted: 0 } as never) as unknown as AnyMsg
   const rig = (attachments: AnyMsg[], operatorMessages: AnyMsg | undefined): Record<string, unknown> => ({
     boundaryMarker: createCompactBoundaryMessage('auto', 150_000),
@@ -384,12 +383,12 @@ section('F the size guard sheds the block LAST, before refusing; a fitting resul
     postCompactTokenCount: 0,
     compactionUsage: undefined,
   })
-  const full = rig([fileAttachment('A.txt', 4_000), skills, plan], block)
+  const full = rig([fileAttachment('A.txt', 4_000), skills], block)
   const core = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], undefined) as never) as never)
   const coreWithBlock = estimateContextTokens(compactMod.buildPostCompactMessages(rig([], block) as never) as never)
   check('the block weighs in the whole-context estimate', coreWithBlock > core, `${coreWithBlock} vs ${core}`)
   const out = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock) as { result: { operatorMessages?: unknown; attachments: unknown[] }; estimate: number; shed: string[] }
-  check('files, skills and the plan go first; the block goes last; the fit then reports under', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills', 'plan /rig/plan.md', 'operator messages']) && out.result.operatorMessages === undefined && out.estimate < coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
+  check('files and skills go first; the block goes last; the fit then reports under', j(out.shed) === j(['file /rig/A.txt', 'invoked_skills', 'operator messages']) && out.result.operatorMessages === undefined && out.estimate < coreWithBlock, j({ shed: out.shed, estimate: out.estimate, threshold: coreWithBlock }))
   const roomy = compactMod.fitPostCompactUnderThreshold(full as never, coreWithBlock + 100_000) as { result: { operatorMessages?: unknown }; shed: string[] }
   check('a result under the threshold keeps its block (nothing shed)', roomy.shed.length === 0 && roomy.result.operatorMessages === block)
   const tight = compactMod.fitPostCompactUnderThreshold(rig([fileAttachment('A.txt', 4_000)], block) as never, coreWithBlock + 50) as { result: { operatorMessages?: unknown }; shed: string[]; estimate: number }

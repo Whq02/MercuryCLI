@@ -30,7 +30,6 @@ export type SpawnCrewmateConfig = {
   crew_name?: string
   cwd?: string
   worktree?: { at?: string }
-  plan_mode_required?: boolean
   model?: string
   effort?: string
   agent_type?: string
@@ -51,7 +50,6 @@ export type SpawnOutput = {
   tmux_pane_id: string
   crew_name?: string
   is_splitpane: boolean
-  plan_mode_required: boolean
 }
 
 
@@ -103,7 +101,6 @@ type PreparedSpawn = {
   model: string
   effort?: string
   runtimeRef: AgentRuntimeRef
-  planModeRequired: boolean
   prompt: string
   description: string
   roster: CrewFile | null
@@ -136,7 +133,6 @@ async function prepareSpawn(
     model,
     ...(config.effort !== undefined && config.effort !== '' ? { effort: config.effort } : {}),
     runtimeRef: describeAgentRuntimeRef(model),
-    planModeRequired: config.plan_mode_required ?? false,
     prompt: config.prompt,
     description: `${crewmateName}: ${promptPreview}`,
     roster,
@@ -209,7 +205,6 @@ async function spawnInProcessStrategy(
       crewName,
       prompt: prepared.prompt,
       color: prepared.color,
-      planModeRequired: prepared.planModeRequired,
       model: start.model,
       cwd: start.cwd,
       ...(start.worktree !== null ? { worktree: start.worktree.path } : {}),
@@ -235,7 +230,6 @@ async function spawnInProcessStrategy(
       model: prepared.model,
       prompt: prepared.prompt,
       color: prepared.color,
-      planModeRequired: prepared.planModeRequired,
       joinedAt: Date.now(),
       tmuxPaneId: 'in-process',
       cwd: start.runDir,
@@ -261,7 +255,6 @@ async function spawnInProcessStrategy(
         agentName: crewmateName,
         crewName,
         color: prepared.color,
-        planModeRequired: prepared.planModeRequired,
         parentSessionId: String(getSessionId()),
       },
       taskId: spawnResult.taskId,
@@ -345,7 +338,6 @@ async function spawnInProcessStrategy(
     tmux_pane_id: 'in-process',
     crew_name: crewName,
     is_splitpane: false,
-    plan_mode_required: prepared.planModeRequired,
   }
 }
 

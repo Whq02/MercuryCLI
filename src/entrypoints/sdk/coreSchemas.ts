@@ -237,7 +237,7 @@ export const PermissionResultSchema = lazySchema(() =>
   ]),
 )
 const externalPermissionModeWireEnum = () =>
-  z.enum(['default', 'dontAsk', 'implement', 'sovereign', 'strategy'])
+  z.enum(['default', 'dontAsk', 'implement', 'sovereign'])
 export const PermissionModeSchema = lazySchema(() => externalPermissionModeWireEnum())
 
 const baseHookFields = {
@@ -1179,7 +1179,7 @@ export const SDKStatusMessageSchema = lazySchema(() =>
       ])
       .describe('The session activity state, or null to clear it'),
     permission_mode: z
-      .enum(['default', 'dontAsk', 'flow', 'implement', 'sovereign', 'strategy'])
+      .enum(['default', 'dontAsk', 'flow', 'implement', 'sovereign'])
       .optional()
       .describe('The permission mode now in force'),
     session_id: z.string(),

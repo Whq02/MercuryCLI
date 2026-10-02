@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { z } from 'zod/v4'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'post-compact-guard-'))
@@ -36,7 +36,6 @@ const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/file
 const { getBlockingLimit } = await import(join(SRC, 'services/compact/autoCompact.ts'))
 const micro = await import(join(SRC, 'services/compact/microCompact.ts'))
 const compactMod = await import(join(SRC, 'services/compact/compact.ts'))
-const plans = await import(join(SRC, 'utils/plans.ts'))
 
 type AnyMsg = Record<string, unknown> & { type?: string }
 type AnyEvent = Record<string, unknown> & { kind: string }
@@ -72,8 +71,6 @@ const fileAttachment = (name: string, chars: number): AnyMsg =>
   } as never) as unknown as AnyMsg
 const skillsAttachment = (chars: number): AnyMsg =>
   createAttachmentMessage({ type: 'invoked_skills', skills: [{ name: 'rig-skill', path: '/rig/SKILL.md', content: 's'.repeat(chars) }] } as never) as unknown as AnyMsg
-const planAttachment = (chars: number): AnyMsg =>
-  createAttachmentMessage({ type: 'plan_file_reference', planFilePath: '/rig/plan.md', planContent: 'p'.repeat(chars) } as never) as unknown as AnyMsg
 
 function rigResult(attachments: AnyMsg[]): Record<string, unknown> {
   return {
@@ -117,17 +114,16 @@ section('G1 the fit sheds restored files largest-first, stops as soon as it fits
     const B = fileAttachment('B.txt', 1_200)
     const C = fileAttachment('C.txt', 2_400)
     const S = skillsAttachment(2_000)
-    const P = planAttachment(800)
-    const result = rigResult([A, B, C, S, P])
-    const afterA = estimateContext(buildPostCompactMessages(rigResult([B, C, S, P])))
-    const afterAC = estimateContext(buildPostCompactMessages(rigResult([B, S, P])))
+    const result = rigResult([A, B, C, S])
+    const afterA = estimateContext(buildPostCompactMessages(rigResult([B, C, S])))
+    const afterAC = estimateContext(buildPostCompactMessages(rigResult([B, S])))
     const threshold = afterAC + 1
     check('the fixture band is real (A alone is not enough)', afterA >= threshold, `${afterA} vs ${threshold}`)
     const out = fit(result, threshold)
     check('two files shed, the largest first', out.shed.length === 2 && out.shed[0] === 'file /rig/A.txt' && out.shed[1] === 'file /rig/C.txt', out.shed.join(' | '))
     check('the estimate is under the threshold', out.estimate < threshold, `${out.estimate} vs ${threshold}`)
     check('the estimate is the whole-context estimate of the fitted result', out.estimate === estimateContext(buildPostCompactMessages(out.result)))
-    check('the survivors keep their order: B, skills, plan', attachmentNames(out.result).join(',') === 'file /rig/B.txt,invoked_skills,plan_file_reference', attachmentNames(out.result).join(','))
+    check('the survivors keep their order: B, skills', attachmentNames(out.result).join(',') === 'file /rig/B.txt,invoked_skills', attachmentNames(out.result).join(','))
     check('the boundary and the summary are untouched', out.result.boundaryMarker === result.boundaryMarker && out.result.summaryMessages === result.summaryMessages)
   }
 }
@@ -138,11 +134,10 @@ section('G2 shedding order across classes; an irreducible core reports over')
     const A = fileAttachment('A.txt', 4_000)
     const B = fileAttachment('B.txt', 1_200)
     const S = skillsAttachment(2_000)
-    const P = planAttachment(800)
-    const result = rigResult([P, S, B, A])
+    const result = rigResult([S, B, A])
     const core = estimateContext(buildPostCompactMessages(rigResult([])))
     const out = fit(result, core)
-    check('everything sheddable goes: files largest-first, then skills, then the plan', out.shed.join(',') === 'file /rig/A.txt,file /rig/B.txt,invoked_skills,plan /rig/plan.md', out.shed.join(','))
+    check('everything sheddable goes: files largest-first, then skills', out.shed.join(',') === 'file /rig/A.txt,file /rig/B.txt,invoked_skills', out.shed.join(','))
     check('the fit reports over (the caller refuses)', out.estimate >= core, `${out.estimate} vs ${core}`)
     check('the core rows stand', out.result.attachments.length === 0 && out.result.summaryMessages.length === 1)
   }
@@ -158,25 +153,6 @@ section('G3 already under the threshold: identity')
     check('the same result object', out.result === result)
     check('the estimate is the total', out.estimate === total)
   }
-}
-
-section('G4 the plan reference has a ceiling')
-{
-  const ceiling = compactMod.POST_COMPACT_MAX_TOKENS_PER_PLAN as number | undefined
-  check('POST_COMPACT_MAX_TOKENS_PER_PLAN exists', typeof ceiling === 'number')
-  const planPath = plans.getPlanFilePath()
-  mkdirSync(dirname(planPath), { recursive: true })
-  const big = `# plan\n${'step: do the thing, then the next thing.\n'.repeat(2_000)}`
-  writeFileSync(planPath, big)
-  const bigAttachment = compactMod.createPlanAttachmentIfNeeded() as AnyMsg | null
-  const bigContent = ((bigAttachment?.attachment as { planContent?: string } | undefined)?.planContent) ?? ''
-  check('an oversized plan is cut', bigAttachment !== null && bigContent.length < big.length, `${bigContent.length}/${big.length}`)
-  check('…at the head, with a marker naming the plan path', bigContent.startsWith('# plan') && bigContent.includes('[Plan content truncated for compaction'), bigContent.slice(-90))
-  if (typeof ceiling === 'number') check('…within the ceiling', bigContent.length <= ceiling * 4, `${bigContent.length} vs ${ceiling * 4}`)
-  const small = '# plan\nstep one\n'
-  writeFileSync(planPath, small)
-  const smallAttachment = compactMod.createPlanAttachmentIfNeeded() as AnyMsg | null
-  check('a small plan is byte-identical', ((smallAttachment?.attachment as { planContent?: string } | undefined)?.planContent) === small)
 }
 
 section('G5 the turn machine: an over-limit fold never exempts the iteration')

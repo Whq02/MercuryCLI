@@ -66,7 +66,6 @@ const asWorkerA = <T>(fn: () => Promise<T>): Promise<T> =>
       agentId: 'a-1',
       agentName: 'worker-a',
       crewName: CREW,
-      planModeRequired: false,
       parentSessionId: 'sess-1',
       abortController: new AbortController(),
     }),

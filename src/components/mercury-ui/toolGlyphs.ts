@@ -81,8 +81,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   CronCreate: 'plan',
   CronDelete: 'plan',
   CronList: 'plan',
-  EnterStrategyMode: 'plan',
-  ExitStrategyMode: 'plan',
   Monitor: 'plan',
   ScheduleWakeup: 'plan',
   Skill: 'plan',

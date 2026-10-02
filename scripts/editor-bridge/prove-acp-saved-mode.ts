@@ -131,7 +131,7 @@ try {
 
   const second = await openServer()
   await deadline('load before config change', second.agent.request('session/load', { sessionId, cwd: project, mcpServers: [] }))
-  await deadline('set config option', second.agent.request('session/set_config_option', { sessionId, configId: 'permission-mode', value: 'strategy' }))
+  await deadline('set config option', second.agent.request('session/set_config_option', { sessionId, configId: 'permission-mode', value: 'default' }))
   writeFileSync(join(project, 'refuse-mode'), '')
   let rejected = false
   try {
@@ -140,7 +140,7 @@ try {
   rmSync(join(project, 'refuse-mode'))
   check('child refusal reaches client', rejected, true)
   await second.close()
-  await load(sessionId, 'strategy', 'latest acknowledged config value survives refused change')
+  await load(sessionId, 'default', 'latest acknowledged config value survives refused change')
 
   const third = await openServer()
   const empty = await deadline('empty session/new', third.agent.request('session/new', { cwd: project, mcpServers: [] }))

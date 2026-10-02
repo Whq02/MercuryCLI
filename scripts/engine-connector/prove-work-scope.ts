@@ -160,7 +160,6 @@ section('P1 the projector: the runner\'s task store → wire rows')
       description: 'crewmate',
       identity: { agentId: 'scout@crew', agentName: 'scout', crewName: 'crew' },
       prompt: 'p',
-      awaitingPlanApproval: false,
       startTime: t0 + 3,
       outputFile: '/nowhere',
       outputOffset: 0,

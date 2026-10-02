@@ -104,7 +104,6 @@ function baseInputs(): WorkbenchSourceInputs {
           status: 'running',
           isIdle: false,
           shutdownRequested: false,
-          awaitingPlanApproval: true,
           hasProgress: true,
         },
       ],
@@ -117,6 +116,7 @@ function baseInputs(): WorkbenchSourceInputs {
         'task-agent',
         { changedPaths: ['src/parser.ts', 'src/lexer.ts'], totalChangedPaths: 2, verificationState: 'verified' },
       ],
+      ['task-mate', { blocker: 'a question is waiting' }],
     ]),
     contextLanes: [
       {
@@ -151,8 +151,8 @@ section('(1) pure derivation — one root + three live children, owner-true rows
     agent?.changedPaths.length === 2 && agent?.verification === 'verified',
   )
   const mate = snap.threads.find(t => t.id === 'task-mate')
-  check('crewmate phase from crewPhases (blocked, not invented)', mate?.kind === 'crewmate' && mate?.phase === 'blocked')
-  check('crewmate blocker surfaces', mate?.blocker === 'awaiting plan approval')
+  check('crewmate phase from crewPhases (working, not invented)', mate?.kind === 'crewmate' && mate?.phase === 'working')
+  check('crewmate blocker surfaces from the run kernel', mate?.blocker === 'a question is waiting')
   const wf = snap.threads.find(t => t.id === 'task-wf')
   check('workflow row: kind workflow', wf?.kind === 'workflow')
   check('no seat threads derive post-room (ratchet)', snap.threads.every(t => t.kind !== 'seat'))
@@ -176,25 +176,25 @@ section('(2) the next-action ladder')
   check('blocked thread outranks handoff', snap.nextAction?.startsWith('answer crewmate bob') === true, snap.nextAction ?? 'null')
 
   const noBlock = baseInputs()
-  noBlock.richTasks.get('task-mate')!.awaitingPlanApproval = false
+  noBlock.laneRuns.delete('task-mate')
   const snap2 = composeWorkbenchSnapshot(noBlock, null)
   check('handoff-ready lane next', snap2.nextAction?.startsWith('adopt lane lane-abc') === true, snap2.nextAction ?? 'null')
 
   const noLane = baseInputs()
-  noLane.richTasks.get('task-mate')!.awaitingPlanApproval = false
+  noLane.laneRuns.delete('task-mate')
   noLane.contextLanes = []
   const snap3 = composeWorkbenchSnapshot(noLane, null)
   check('falls through to the run-kernel nextAction', snap3.nextAction === 'run the focused prover', snap3.nextAction ?? 'null')
 
   const failed = baseInputs()
-  failed.richTasks.get('task-mate')!.awaitingPlanApproval = false
+  failed.laneRuns.delete('task-mate')
   failed.contextLanes = []
   failed.executions[0]!.state = 'failed'
   const snap4 = composeWorkbenchSnapshot(failed, null)
   check('failed thread inspection next', snap4.nextAction?.startsWith('inspect failure') === true, snap4.nextAction ?? 'null')
 
   const quiet = baseInputs()
-  quiet.richTasks.get('task-mate')!.awaitingPlanApproval = false
+  quiet.laneRuns.delete('task-mate')
   quiet.contextLanes = []
   quiet.mainRun = { objective: 'x', lifecycle: 'active', phase: 'idle' }
   const snap5 = composeWorkbenchSnapshot(quiet, null)

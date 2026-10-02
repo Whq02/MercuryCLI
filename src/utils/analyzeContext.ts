@@ -35,7 +35,6 @@ import { logForDebugging } from './debug.js'
 import { isEnvTruthy } from './envUtils.js'
 import { computeFingerprintFromMessages } from './fingerprint.js'
 import { logError } from './log.js'
-import { getRuntimeMainLoopModel } from './model/model.js'
 import { normalizeMessagesForAPI } from './messages.js'
 import { asSystemPrompt } from './systemPromptType.js'
 import { contextFill, getCurrentUsage } from './tokens.js'
@@ -587,11 +586,7 @@ export async function analyzeContextUsage(
   mainThreadAgentDefinition?: AgentDefinition,
   originalMessages?: Message[],
 ): Promise<ContextData> {
-  const permissionContext = await getToolPermissionContext()
-  const runtimeModel = getRuntimeMainLoopModel({
-    mainLoopModel: model,
-    permissionMode: permissionContext.mode,
-  })
+  const runtimeModel = model
   const contextWindow = getContextWindowForModel(runtimeModel, getSdkBetas())
 
   const microcompacted = await microcompactMessages(messages, toolUseContext as ToolUseContext | undefined)

@@ -142,12 +142,10 @@ import {
 import { notifyCommandLifecycle } from '../utils/commandLifecycle.js'
 import { headlessProfilerCheckpoint } from '../utils/headlessProfiler.js'
 import {
-  getRuntimeMainLoopModel,
   renderModelName,
 } from '../utils/model/model.js'
 import { getModelMaxOutputTokens } from '../utils/model/capabilities.js'
 import {
-  doesMostRecentAssistantMessageExceed200k,
   tokenCountWithEstimation,
 } from '../utils/tokens.js'
 import { ESCALATED_MAX_TOKENS } from '../utils/context.js'
@@ -937,12 +935,7 @@ export async function* runEventCore(
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('repl_main_thread')
-    const prunePermissionMode = toolUseContext.getAppState().toolPermissionContext.mode
-    const pruneModel = getRuntimeMainLoopModel({
-      permissionMode: prunePermissionMode,
-      mainLoopModel: toolUseContext.options.mainLoopModel,
-      exceeds200kTokens: prunePermissionMode === 'strategy' && doesMostRecentAssistantMessageExceed200k(messages),
-    })
+    const pruneModel = toolUseContext.options.mainLoopModel
     const proactivePrune = pendingOverflow === undefined
       ? await sizePruneRequest(messages, pruneModel, querySource)
       : undefined
@@ -1138,14 +1131,7 @@ export async function* runEventCore(
     }
 
     const appState = toolUseContext.getAppState()
-    const permissionMode = appState.toolPermissionContext.mode
-    const currentModel = getRuntimeMainLoopModel({
-      permissionMode,
-      mainLoopModel: toolUseContext.options.mainLoopModel,
-      exceeds200kTokens:
-        permissionMode === 'strategy' &&
-        doesMostRecentAssistantMessageExceed200k(messagesForQuery),
-    })
+    const currentModel = toolUseContext.options.mainLoopModel
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
       (compactionResult.truePostCompactTokenCount === undefined ||

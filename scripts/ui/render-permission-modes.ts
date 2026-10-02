@@ -4,9 +4,6 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawn } from 'node:child_process'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-import { daemonControlRpc } from '../../src/daemon/controlSocket.ts'
-import { readSessionWorkers } from '../../src/daemon/concourseSupervisor.ts'
-import { readSessionFacts } from '../../src/services/engine-connector/seatProjections.ts'
 import { compactModeChip } from '../../src/components/mercury-ui/compactModeChip.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
@@ -17,7 +14,7 @@ const { permissionModeSymbol, permissionModeTitle } = await import('../../src/ut
 const REPO = realpathSync(join(import.meta.dir, '..', '..'))
 const VSHOT = join(import.meta.dir, 'vshot.py')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
-const MODES = ['strategy', 'apollo', 'implement', 'flow', 'sovereign'] as const
+const MODES = ['apollo', 'implement', 'flow', 'sovereign'] as const
 const only = process.argv.find(arg => arg.startsWith('--only='))?.slice('--only='.length)
 if (only !== undefined && !MODES.some(mode => mode === only)) throw new Error(`unknown mode: ${only}`)
 let failures = 0
@@ -39,7 +36,7 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
     : `${permissionModeSymbol(mode)} ${permissionModeTitle(mode).toLowerCase()} on`
   const args = mode === 'sovereign'
     ? ['--sovereign']
-    : ['--mode', mode === 'strategy' ? 'default' : mode]
+    : ['--mode', mode]
   const sends: Array<Record<string, unknown>> = mode === 'sovereign'
     ? [
         { atTick: 120, requireAwait: true, awaitText: 'Yes, I accept', awaitSettleTicks: 3, data: '\x1b[B' },
@@ -47,11 +44,6 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
       ]
     : []
   sends.push({ atTick: 120, afterPrevTicks: 120, requireAwait: true, awaitText: '↵ start', awaitSettleTicks: 5, data: '\r' })
-  if (mode === 'strategy') sends.push(
-    { afterPrevTicks: 120, requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'hello' },
-    { afterPrevTicks: 2, requireAwait: true, awaitText: 'hello', data: '\r' },
-    { afterPrevTicks: 120, requireAwait: true, awaitText: 'Band ready.', awaitSettleTicks: 2, data: '' },
-  )
   const cfgPath = join(tmpdir(), `vshot-pm-${mode}-${cols}.json`)
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, ...args],
@@ -75,22 +67,6 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
     child.on('error', error => { stderr += String(error) })
     child.on('close', status => resolve({ status, stderr }))
   })
-  if (mode === 'strategy') {
-    let sessionId: string | undefined
-    const started = Date.now()
-    while (Date.now() - started < vshotBudgetMs(30000) && child.exitCode === null) {
-      sessionId = Object.values(readSessionWorkers(daemonDir)).find(record =>
-        readSessionFacts(record.sessionId, daemonDir)?.permissionMode !== undefined,
-      )?.sessionId
-      if (sessionId !== undefined) break
-      await new Promise(resolve => setTimeout(resolve, 50))
-    }
-    check(`strategy@${cols}: a real session reports its posture`, sessionId !== undefined)
-    if (sessionId !== undefined) {
-      const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-permission-mode', sessionId, by: 'operator', mode: 'strategy' }, { timeoutMs: vshotBudgetMs(10000) })
-      check(`strategy@${cols}: the guarded explicit-mode door accepts Strategy`, reply.ok && (reply.outcome === 'applied' || reply.outcome === 'noop'), JSON.stringify(reply))
-    }
-  }
   const result = await capture
   await api.close()
   check(`${mode}@${cols}: capture exits cleanly`, result.status === 0, result.status === 0 ? '' : result.stderr)
@@ -125,8 +101,8 @@ for (const cols of [80, 120]) {
         ? frame.includes('all tool calls auto-approved')
         : frame.includes('shift+tab to cycle'))
     }
-    if (mode === 'apollo' || mode === 'strategy') {
-      check(`${mode}@${cols}: the shared diamond is named, not mistaken for the other mode`, frame.includes(`◇ ${title}`) && !frame.includes(`◇ ${mode === 'apollo' ? 'strategy' : 'apollo'} mode`))
+    if (mode === 'apollo') {
+      check(`${mode}@${cols}: the diamond is named`, frame.includes(`◇ ${title}`))
     }
   }
 }

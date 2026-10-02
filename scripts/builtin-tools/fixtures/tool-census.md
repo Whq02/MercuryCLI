@@ -6,14 +6,14 @@
 > skips regeneration is RED). Live columns (enabled/support) reflect the
 > generating environment and are NOT drift-anchored.
 
-Census version 1 — 68 built-in production tools · 183 operations · 68 with a declared capability contract.
+Census version 1 — 66 built-in production tools · 181 operations · 66 with a declared capability contract.
 
 ## Summary
 
-- support (at generation time): 46 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
-- class: 22 observation · 21 mutation · 11 execution · 14 coordination · 0 unclassified
+- support (at generation time): 44 available · 12 conditional · 0 degraded · 10 unavailable (gated out of this environment's catalog — still rowed, never silently dropped)
+- class: 22 observation · 21 mutation · 11 execution · 12 coordination · 0 unclassified
 - integrations: 10 declare transactions · 13 declare executions · 28 declare mercury:// outputs · 39 name a focused proof
-- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · planning · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
+- capability units covered: application-verification · browser-drive · capability-discovery · code-intelligence · debugging · desktop-drive · game-engine · git-inspection · git-transactions · memory · operator-io · persistent-evaluation · pixel-art · process-execution · resource-inspection · scheduling · service-management · source-reading · structural-mutation · task-coordination · text-mutation · web-access
 - every tool is unit-classified
 
 ## Per-tool census
@@ -40,10 +40,8 @@ Census version 1 — 68 built-in production tools · 183 operations · 68 with a
 | CronList | observation | scheduling | — | block | yes | — | — | — | NAMED GAP |
 | Debug | execution | debugging | 30 | block | yes | — | debug-adapter (external-projection) | — | scripts/ide/prove-native-debug.ts |
 | Edit | mutation | text-mutation | — | block | no | file +receipts | — | mercury://file, mercury://receipt | scripts/project-services/prove-change-receipts.ts |
-| EnterStrategyMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | EnterWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
 | Eval | execution | persistent-evaluation | — | block | no | — | eval-kernel (child-execution) | — | scripts/eval/prove-kernel-persistence.ts |
-| ExitStrategyMode | coordination | planning | — | block | yes | — | — | — | NAMED GAP |
 | ExitWorktree | mutation | git-transactions | — | block | yes | — | — | — | NAMED GAP |
 | Git | mutation | git-inspection, git-transactions | 21 | block | yes | git.commit +receipts | — | mercury://git | scripts/builtin-tools/prove-git-plans.ts |
 | Glob | observation | source-reading | — | block | no | — | — | — | NAMED GAP |

@@ -417,7 +417,7 @@ console.log('§25 stall wake — paired re-entry, repaint scheduled')
   check('the SIGCONT resume keeps its plain fresh enter (the shell exited alt there)', ink.includes('this.reenterAltScreen();\n      this.armScreenWatchdog();'))
 }
 
-console.log('§26 plan card — the advertised chord resolves where the card listens')
+console.log('§26 the cards\' editor chord resolves where the cards listen')
 {
   const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
   const { parseBindings } = await import('../../src/keybindings/parser.ts')
@@ -428,10 +428,8 @@ console.log('§26 plan card — the advertised chord resolves where the card lis
   check('ctrl+g resolves to chat:externalEditor in the Confirmation context', inCard.type === 'match' && (inCard as { action?: string }).action === 'chat:externalEditor')
   const inChat = resolveKey('g', ctrlG, ['Chat', 'Global'] as never, bindings)
   check('the composer is untouched (no ctrl+g there — its chord stays ctrl+x ctrl+e)', inChat.type === 'none')
-  const card = read('src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx')
-  check("the card still advertises ctrl+g and still registers under 'Confirmation'", card.includes('ctrl+g edit in {editorName}') && /useKeybinding\(\s*'chat:externalEditor'[\s\S]{0,2000}\{ context: 'Confirmation' \}/.test(card))
   const graph = read('src/keybindings/actionGraph.ts')
-  check('the action row admits both contexts (atlas honesty)', graph.includes("'chat:externalEditor': { description: 'Edit the draft in your external editor (on the plan card: the plan file)', contexts: ['Chat', 'Confirmation'] }"))
+  check('the action row admits both contexts (atlas honesty)', graph.includes("'chat:externalEditor': { description: 'Edit the draft in your external editor', contexts: ['Chat', 'Confirmation'] }"))
 }
 
 console.log('§27 sync-output — the hatch gates emission, never the host verdict')
