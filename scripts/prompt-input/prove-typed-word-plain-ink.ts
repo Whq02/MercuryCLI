@@ -179,8 +179,8 @@ try {
       sends: [
         { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: TYPED, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-        { data: '', afterPrevTicks: 6, mark: 'composer' },
-        { data: '\r', afterPrevTicks: 2 },
+        { data: '', awaitText: CONTROL, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 2, mark: 'composer' },
+        { data: '\r', awaitText: CONTROL, requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
         { data: '', awaitText: REPLY, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'row' },
       ],
       stableTicks: 6,
