@@ -81,14 +81,10 @@ channel; without an answer, it is not approval.
 
 ## Commands that never reach the model
 
-`/remember` and — when the Taste Loop is on — `/good`
-and `/meh` are user-private: the line runs on the screen alone, on every
-seat — it never enters the session's conversation,
-never starts a turn, and never rides the wire of a later turn; it lands in the
-memory estate. A saved lesson can later be recalled as memory, but the command
-itself is never a conversation row. The dispatch rule folds a
-user-private command into the screen seat, so a session runner's table never
-carries it. `/halt` sits on the
+A user-private command runs on the screen alone, on every seat — it never
+enters the session's conversation, never starts a turn, and never rides the
+wire of a later turn. The dispatch rule folds a user-private command into the
+screen seat, so a session runner's table never carries it. `/halt` sits on the
 same seat: the screen's brake fires interrupt-first, acting while a turn runs,
 and never rides into a session runner.
 

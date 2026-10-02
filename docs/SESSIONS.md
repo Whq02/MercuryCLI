@@ -642,10 +642,9 @@ the command line's entry.
 
 ## Commands that never reach the model
 
-`/remember` and — when the Taste Loop is on — `/good`
-and `/meh` are yours alone: the line runs on the screen, never enters the
-session's conversation, never starts a turn and never rides the wire of a
-later turn. The law and its enforcement are in [TRUST.md](TRUST.md).
+A user-private command is yours alone: the line runs on the screen, never
+enters the session's conversation, never starts a turn and never rides the
+wire of a later turn. The law and its enforcement are in [TRUST.md](TRUST.md).
 
 ## Before the context fills
 

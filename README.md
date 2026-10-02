@@ -482,8 +482,10 @@ Available commands include:
   each prompt. Separate, opt-in integrations connect to running Unity,
   Blender and Godot editors, with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
-- **Memory.** Experience cards and project memory: `/cards` reviews lessons,
-  `/remember` banks one, and `/memory` opens the memory files.
+- **Memory.** Mneme keeps what each project's sessions learn in topic pages,
+  loads a front page and your pinned rules into every chat, and looks facts
+  up on every message; `/memory` is the front door. See
+  [docs/MNEME.md](docs/MNEME.md).
 - **Voice input.** Run `/speak on`, then hold space for 1 s to dictate and
   release it to stop. Transcription can run on-device or through your chosen cloud
   provider. The on-device option uses a 60 MB English model, downloaded once
@@ -523,7 +525,7 @@ the live list can also include skills and extension commands.
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
 | session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/debrief` `/realms` |
-| memory & goals | `/memory` `/cards` `/remember` `/console` `/orient` |
+| memory & goals | `/memory` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
