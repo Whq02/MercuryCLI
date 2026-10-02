@@ -37,7 +37,7 @@ console.log(`  engine under test: ${engine} (pin ${ENGINE_ENV}=${process.env[ENG
 
 const HOME = process.env.MERCURY_CONFIG_DIR as string
 mkdirSync(HOME, { recursive: true })
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ sandbox: { enabled: true, autoAllowBashIfSandboxed: true } }, null, 2))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { sandbox: { enabled: true, autoAllowBashIfSandboxed: true } } }, null, 2))
 
 const { exec, setCwd } = await import('../../src/utils/Shell.ts')
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
