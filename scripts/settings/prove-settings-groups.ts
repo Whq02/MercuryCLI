@@ -47,7 +47,6 @@ const rows: Row[] = [
   ['engine.roster', [[], ['fixture-model']], [false, 0, '']],
   ['engine.pins', [{ fixture: 'pinned' }, {}], [false, 0, '']],
   ['engine.effort', ['high', 'max'], []],
-  ['engine.supercode', [true, false], [0, '']],
   ['engine.sessionDefaults', [true, false], [0, '']],
   ['engine.reasoning', [true, false], [0, '']],
   ['kit.trustProjectServers', [true, false], [0, '']],
