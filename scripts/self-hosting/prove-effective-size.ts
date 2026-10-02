@@ -146,5 +146,6 @@ const rules = drive(rulesFix)
 check(rules.lines === 1, 'a 600-line rules file leaves the measure at 1', JSON.stringify(rules))
 check(rules.armed === false, 'rules weight never arms the mercury.md chip')
 
+for (const dir of [armFix, sharedFix, calmFix, rulesFix, driverDir]) rmSync(dir, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL EFFECTIVE-SIZE LAWS HOLD' : `\n${failures} FAILURES`)
 process.exit(failures === 0 ? 0 : 1)
