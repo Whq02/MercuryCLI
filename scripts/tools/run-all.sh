@@ -38,7 +38,7 @@
 # gate-watch: src/components/messages/AttachmentMessage.tsx src/components/messages/TranscriptNameplate.tsx
 # gate-watch: src/fabric/transcriptDecode.ts src/fabric/validate.ts src/services/tools/toolHooks.ts
 # gate-watch: src/cli/headless/permissionChannel.ts
-# gate-watch: docs/HOOKS.md src/entrypoints/sdk/coreSchemas.ts
+# gate-watch: docs/HOOKS.md src/utils/hooks/contract.ts
 # gate-watch: bunfig.toml
 # gate-watch: src/services/crew/liveComms* src/services/crew/liveMessages*
 set -uo pipefail

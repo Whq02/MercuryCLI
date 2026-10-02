@@ -94,7 +94,7 @@ function scopeConfigFileLabel(scope: CliScope): string {
     case 'local':
       return 'the local project config'
     case 'project':
-      return '.mcp.json'
+      return "the project's .mercury/mcp.json"
     case 'user':
       return 'the user config'
   }

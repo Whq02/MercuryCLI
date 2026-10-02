@@ -1,4 +1,4 @@
-import type { NonNullableUsage } from '../../entrypoints/sdk/coreTypes.js'
+import type { NonNullableUsage } from '../api/emptyUsage.js'
 import type { AssistantMessage } from '../../types/message.js'
 import { EMPTY_USAGE } from '../api/emptyUsage.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'

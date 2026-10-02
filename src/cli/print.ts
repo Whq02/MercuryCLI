@@ -150,6 +150,7 @@ import type {
   ConnectedMCPServer,
   MCPServerConnection,
   McpSdkServerConfig,
+  McpServerConfig,
   ScopedMcpServerConfig,
 } from '../services/mcp/types.js'
 import { OAuthService } from '../services/oauth/index.js'
@@ -197,7 +198,7 @@ import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinato
 import { toSDKContextUsage, toSDKRateLimitInfo, toSDKStatusPayload } from '../utils/messages/mappers.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
-import type { McpServerConfigForProcessTransport, ModelInfo } from '../entrypoints/agentSdkTypes.js'
+import type { ModelInfo } from '../entrypoints/agentSdkTypes.js'
 import type { JSONRPCMessage } from '../services/mcp/sdk.js'
 import {
   dequeue,
@@ -2457,7 +2458,7 @@ export async function runHeadless(
         case 'mcp_set_servers': {
           await serializeMcpChange(async () => {
             const result = await handleMcpSetServers(
-              (request.servers ?? {}) as Record<string, McpServerConfigForProcessTransport>,
+              (request.servers ?? {}) as Record<string, McpServerConfig>,
               sdkMcp,
               dynamicMcp,
               setAppState,

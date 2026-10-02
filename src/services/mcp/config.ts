@@ -14,6 +14,7 @@ import {
 } from '../../utils/config.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { getCwd } from '../../utils/cwd.js'
+import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getManagedFilePath } from '../../utils/settings/managedPath.js'
@@ -286,6 +287,18 @@ function projectDirectoryChain(): string[] {
   return chain
 }
 
+export const PROJECT_MCP_FILE = 'mcp.json'
+
+export function projectMcpFilePath(dir: string): string {
+  return join(projectConfigDirs(dir)[0], PROJECT_MCP_FILE)
+}
+
+function lockedProjectMcpFile(): string {
+  const path = projectMcpFilePath(getCwd())
+  getFsImplementation().mkdirSync(dirname(path))
+  return path
+}
+
 function getProjectMcpConfigs(): ScopeRead {
   if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
   const servers: Record<string, ScopedMcpServerConfig> = {}
@@ -293,7 +306,7 @@ function getProjectMcpConfigs(): ScopeRead {
   for (const directory of projectDirectoryChain().reverse()) {
     const result = flat(
       parseMcpConfigFromFilePath({
-        filePath: join(directory, '.mcp.json'),
+        filePath: projectMcpFilePath(directory),
         expandVars: true,
         scope: 'project',
       }),
@@ -311,7 +324,7 @@ export function getProjectMcpConfigsFromCwd(): {
   if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
   return flat(
     parseMcpConfigFromFilePath({
-      filePath: join(getCwd(), '.mcp.json'),
+      filePath: projectMcpFilePath(getCwd()),
       expandVars: true,
       scope: 'project',
     }),
@@ -643,7 +656,7 @@ export async function getMercuryMcpConfigs(
   const projectUntrusted = untrustedWorkspaceHeadless()
   if (projectUntrusted) {
     logForDebugging(
-      'mcp: untrusted workspace on a non-interactive road — .mcp.json servers are not loaded (boot interactively once here to trust this directory)',
+      'mcp: untrusted workspace on a non-interactive road — project MCP servers are not loaded (boot interactively once here to trust this directory)',
     )
   }
   const user = mcpLocked ? emptyRead : getUserMcpConfigs()
@@ -726,7 +739,7 @@ function stripScope(config: McpServerConfig | ScopedMcpServerConfig): McpServerC
 async function writeProjectMcpFile(
   servers: Record<string, McpServerConfig | ScopedMcpServerConfig>,
 ): Promise<void> {
-  const mcpJsonPath = join(getCwd(), '.mcp.json')
+  const mcpJsonPath = projectMcpFilePath(getCwd())
   const fs = getFsImplementation()
   let mode = 0o644
   try {
@@ -791,12 +804,12 @@ export async function addMcpConfig(
 
   switch (scope) {
     case 'project': {
-      const mcpJsonPath = join(getCwd(), '.mcp.json')
+      const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const existing = getProjectMcpConfigsFromCwd().servers
         if (name in existing) {
-          throw new Error(`MCP server "${name}" already exists in .mcp.json`)
+          throw new Error(`MCP server "${name}" already exists in ${mcpJsonPath}`)
         }
         await writeProjectMcpFile({ ...existing, [name]: effective })
       })
@@ -834,12 +847,12 @@ export async function addMcpConfig(
 export async function removeMcpConfig(name: string, scope: ConfigScope): Promise<void> {
   switch (scope) {
     case 'project': {
-      const mcpJsonPath = join(getCwd(), '.mcp.json')
+      const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const existing = getProjectMcpConfigsFromCwd().servers
         if (!(name in existing)) {
-          throw new Error(`MCP server "${name}" does not exist in .mcp.json`)
+          throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
         }
         const { [name]: _removed, ...rest } = existing
         await writeProjectMcpFile(rest)

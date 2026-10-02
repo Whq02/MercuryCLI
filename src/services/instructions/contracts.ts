@@ -22,7 +22,7 @@ export type InstructionSourceEntry = {
   root?: string
 }
 
-export type InstructionFamily = 'native'
+export type InstructionFamily = 'native' | 'shared'
 
 export type InstructionOrigin =
   | 'managed'
@@ -34,6 +34,7 @@ export type InstructionOrigin =
 export type InstructionConvention = {
   readonly id: string
   readonly family: InstructionFamily
+  readonly fallback?: boolean
   projectDirFiles(dir: string): string[]
   projectRulesDirs(dir: string): string[]
   localDirFile(dir: string): string | null
@@ -56,7 +57,6 @@ export type InstructionProfileResolution = {
   requested: InstructionProfile
   requestedOrigin: InstructionProfileOrigin
   resolved: InstructionProfile
-  mapped?: 'auto-to-native'
 }
 
 export type InstructionDiagnostic = {

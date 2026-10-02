@@ -1,4 +1,4 @@
-import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS } from '../effortLadder.js'
 import type { EffortValue } from '../effort.js'
 
 export const SEAT_EFFORTS: readonly string[] = EFFORT_LEVELS

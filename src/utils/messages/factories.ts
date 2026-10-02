@@ -1,7 +1,6 @@
 
 import type { ApiUsage as Usage, ContentBlock, ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import { randomUUID, type UUID } from 'crypto'
-import type { SDKAssistantMessageError } from 'src/entrypoints/agentSdkTypes.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
 import {
   COMMAND_ARGS_TAG,
@@ -13,6 +12,7 @@ import {
 import type { Progress } from '../../Tool.js'
 import type {
   AssistantMessage,
+  AssistantMessageError,
   Message,
   MessageOrigin,
   PartialCompactDirection,
@@ -100,7 +100,7 @@ function fabricateAssistantMessage({
   content: ContentBlock[]
   isApiErrorMessage?: boolean
   apiError?: AssistantMessage['apiError']
-  error?: SDKAssistantMessageError
+  error?: AssistantMessageError
   errorDetails?: string
   overflowSignal?: AssistantMessage['overflowSignal']
   mediaRefusal?: AssistantMessage['mediaRefusal']
@@ -168,7 +168,7 @@ export function createAssistantAPIErrorMessage({
 }: {
   content: string
   apiError?: AssistantMessage['apiError']
-  error?: SDKAssistantMessageError
+  error?: AssistantMessageError
   errorDetails?: string
   overflow?: AssistantMessage['overflowSignal'] | null
   mediaRefusal?: AssistantMessage['mediaRefusal'] | null

@@ -2,10 +2,8 @@
 import type { Base64ImageSource, ContentBlockParam, ImageBlockParam } from '../../types/wire.js'
 import type { ReadResourceResult } from '../../services/mcp/sdk.js'
 import type { UUID } from 'crypto'
-import type {
-  HookEvent,
-  SyncHookJSONOutput,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent, SyncHookJSONOutput } from '../hooks/contract.js'
+
 import type { BoundPrefixSection, BoundPrefixToolMark, DeadThinkingMark, MessageOrigin } from 'src/types/message.js'
 import type { BypassedAskRoad, PermissionMode } from '../../types/permissions.js'
 import type { DiagnosticFile } from '../../services/diagnosticTracking.js'

@@ -7,7 +7,7 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStorage/chain.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/settingsCache.ts
 # gate-watch: scripts/lib/fixtureApi.ts src/QueryEngine.ts src/Tool.ts src/query.ts src/run-core/**
-# gate-watch: src/entrypoints/sdk/coreSchemas.ts src/entrypoints/sdk/coreTypes.ts
+# gate-watch: src/utils/hooks/contract.ts
 # gate-watch: src/utils/messages/turnCut.ts src/utils/settings/settings.ts src/utils/settings/types.ts
 # gate-watch: src/services/tools/toolHooks.ts
 set -uo pipefail

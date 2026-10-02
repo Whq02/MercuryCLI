@@ -13,7 +13,7 @@ type Generator = { command: string[]; touches: string[] } & Why
 const SELF = 'scripts/dev/rename-team-to-crew.ts'
 
 const SCOPE_ROOTS = ['src/', 'scripts/', 'docs/', 'design-system/', 'assets/', 'integrations/']
-const SCOPE_TOP_FILES = ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md', 'CLAUDE.md']
+const SCOPE_TOP_FILES = ['README.md', 'AGENTS.md', 'MERCURY.md', 'BUILD-NOTES.md', 'CONTRIBUTING.md']
 
 const EXCLUDED_PATHS: Array<{ prefix: string } & Why> = [
   { prefix: 'src/tools/WorkflowTool/', why: 'workflows do not change in any way: not their code' },

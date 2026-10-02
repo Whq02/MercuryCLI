@@ -1,14 +1,7 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
-import {
-  HOOK_EVENTS,
-  type AsyncHookJSONOutput,
-  type HookEvent,
-  type HookInput,
-  type HookJSONOutput,
-  type SyncHookJSONOutput,
-} from '../entrypoints/agentSdkTypes.js'
-import { PermissionUpdateSchema } from '../entrypoints/sdk/coreSchemas.js'
+import { HOOK_EVENTS, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
+import { permissionUpdateSchema } from '../utils/permissions/PermissionUpdateSchema.js'
 import type { PermissionUpdate } from './permissions.js'
 import type { AppState } from '../state/AppState.js'
 
@@ -104,7 +97,7 @@ const permissionRequestOutputSchema = lazySchema(() =>
       z.object({
         behavior: z.literal('allow'),
         updatedInput: z.record(z.string(), z.unknown()).optional(),
-        updatedPermissions: z.array(PermissionUpdateSchema()).optional(),
+        updatedPermissions: z.array(permissionUpdateSchema()).optional(),
       }),
       z.object({
         behavior: z.literal('deny'),

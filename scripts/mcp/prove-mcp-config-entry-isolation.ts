@@ -2,7 +2,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 
@@ -33,7 +33,7 @@ const { parseMcpConfig } = await import('../../src/services/mcp/config.ts')
 
 console.log('[1] the pure parse: one bad entry never voids its neighbours')
 {
-  const parsed = parseMcpConfig({ configObject: document, expandVars: false, scope: 'project', filePath: join(cwd, '.mcp.json') })
+  const parsed = parseMcpConfig({ configObject: document, expandVars: false, scope: 'project', filePath: join(cwd, '.mercury', 'mcp.json') })
   const names = Object.keys(parsed.config?.mcpServers ?? {})
   console.log(`  parse: config ${parsed.config === null ? 'null' : 'present'} · servers ${JSON.stringify(names)} · errors ${JSON.stringify(parsed.errors.map(e => `${e.path}: ${e.message} [${e.severity}]`))}`)
   check('the valid server y survives an entry of an unknown type beside it', parsed.config !== null && names.includes('y'))
@@ -50,7 +50,7 @@ console.log('[1] the pure parse: one bad entry never voids its neighbours')
 
 console.log('[2] a document that is not an mcpServers object still fails whole')
 {
-  const parsed = parseMcpConfig({ configObject: { mcpServers: 'nope' }, expandVars: false, scope: 'project', filePath: join(cwd, '.mcp.json') })
+  const parsed = parseMcpConfig({ configObject: { mcpServers: 'nope' }, expandVars: false, scope: 'project', filePath: join(cwd, '.mercury', 'mcp.json') })
   check('a non-object mcpServers member is a fatal error', parsed.config === null && parsed.errors.some(e => e.severity === 'fatal'))
   const empty = parseMcpConfig({ configObject: { mcpServers: {} }, expandVars: false, scope: 'user' })
   check('an empty server map parses to an empty document with no error', empty.config !== null && Object.keys(empty.config.mcpServers).length === 0 && empty.errors.length === 0)
@@ -72,7 +72,8 @@ if (existsSync(DIST)) {
     }),
   )
   writeFileSync(join(bundleHome, 'settings.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
-  writeFileSync(join(bundleCwd, '.mcp.json'), JSON.stringify({ mcpServers: { x: document.mcpServers.x, y: document.mcpServers.y } }))
+  mkdirSync(join(bundleCwd, '.mercury'), { recursive: true })
+  writeFileSync(join(bundleCwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { x: document.mcpServers.x, y: document.mcpServers.y } }))
   const env = { ...process.env, MERCURY_CONFIG_DIR: bundleHome, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true' }
   const list = spawnSync(node, [DIST, 'mcp', 'list'], { cwd: bundleCwd, env, encoding: 'utf8', timeout: 120_000 })
   const listOut = `${list.stdout}\n${list.stderr}`

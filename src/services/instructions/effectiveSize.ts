@@ -1,5 +1,6 @@
 import { basename } from 'node:path'
 
+import { SHARED_INSTRUCTION_FILE } from './adapters/agentsMd.js'
 import type { InstructionSourceEntry } from './contracts.js'
 import {
   getInstructionFiles,
@@ -8,7 +9,7 @@ import {
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
-const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md'])
+const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE])
 
 export function measureEffectiveProjectInstructionLines(
   files: readonly InstructionSourceEntry[],

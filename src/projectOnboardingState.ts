@@ -1,5 +1,6 @@
-import { join } from 'path'
 import { memoize } from 'lodash-es'
+import { SHARED_INSTRUCTION_FILE } from './services/instructions/adapters/agentsMd.js'
+import { composedGuideNamesAt } from './services/instructions/adapters/index.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { getCwd } from './utils/cwd.js'
 import { getFsImplementation } from './utils/fsOperations.js'
@@ -38,7 +39,9 @@ export function getSteps(): Step[] {
   steps.push({
     key: 'mercurymd',
     text: 'Run /init to create a MERCURY.md file with standing orders for this project',
-    isComplete: getFsImplementation().existsSync(join(getCwd(), 'MERCURY.md')),
+    isComplete: composedGuideNamesAt(getCwd()).some(
+      name => name === 'MERCURY.md' || name === SHARED_INSTRUCTION_FILE,
+    ),
     isCompletable: true,
     isEnabled: !emptyDir,
   })

@@ -1,6 +1,7 @@
 import axios from 'axios'
 
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from './contract.js'
+
 import type { HookCommand } from '../settings/types.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
 import { logForDebugging } from '../debug.js'

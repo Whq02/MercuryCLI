@@ -1,5 +1,6 @@
 import type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime/usage-ledger.js'
-import type { HookEvent } from '../entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../utils/hooks/contract.js'
+
 export type { ModelUsage, WorkloadUnpricedTurns, WorkloadUsage } from './runtime/usage-ledger.js'
 import type { SessionId } from '../types/ids.js'
 import type { ApiRequestParams } from '../types/wire.js'

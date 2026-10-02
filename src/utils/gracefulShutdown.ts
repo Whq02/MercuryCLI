@@ -4,7 +4,8 @@ import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 import { onExit } from 'signal-exit'
 
 import { getIsScrollDraining } from '../bootstrap/state.js'
-import type { ExitReason } from '../entrypoints/sdk/coreTypes.js'
+import type { ExitReason } from './hooks/contract.js'
+
 import type { AppState } from '../state/AppStateStore.js'
 import { runCleanupFunctions } from './cleanupRegistry.js'
 import { armInactivityDeadline } from './deadline.js'

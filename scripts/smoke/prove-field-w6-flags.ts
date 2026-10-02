@@ -28,7 +28,7 @@ console.log('§P3 — --effort refuses honestly and names its values')
   check('the refusal names the values without claiming it ignored them', main.includes('`Unrecognised effort level "${value}". Valid values: ${EFFORT_LEVELS.join(\', \')}.`'))
   check('POISON: the flag no longer throws the env door\'s ignore-warning', !main.includes("warning ?? 'Valid effort levels: low, medium, high, max'"))
   const effort = readFileSync(join(ROOT, 'src/utils/effort.ts'), 'utf8')
-  const ladder = readFileSync(join(ROOT, 'src/entrypoints/sdk/runtimeTypes.ts'), 'utf8')
+  const ladder = readFileSync(join(ROOT, 'src/utils/effortLadder.ts'), 'utf8')
   check('the ladder is ONE tuple beside its type (five words, low to max) and the effort owner re-exports it', ladder.includes("const EFFORT_LADDER = ['low', 'medium', 'high', 'xhigh', 'max'] as const") && ladder.includes('export type EffortLevel = (typeof EFFORT_LADDER)[number]') && effort.includes('export { EFFORT_LEVELS }'))
 }
 

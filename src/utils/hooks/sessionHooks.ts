@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { HookEvent, HookInput } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent, HookInput } from './contract.js'
+
 import type { AppState } from '../../state/AppState.js'
 import type { Message, SystemInformationalMessage } from '../../types/message.js'
 import type { Tool } from '../../Tool.js'

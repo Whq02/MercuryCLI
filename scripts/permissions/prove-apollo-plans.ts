@@ -141,8 +141,7 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
     return true
   }))
   check('an unknown stored mode word resolves to the default mode', pm.permissionModeFromString('strategy') === 'default' && pm.permissionModeFromString('frobnicate') === 'default')
-  const sdk = await import('../../src/entrypoints/sdk/coreSchemas.ts')
-  check('the SDK permission-mode schema refuses the word as it refuses any unknown word', !sdk.PermissionModeSchema().safeParse('strategy').success && !sdk.PermissionModeSchema().safeParse('frobnicate').success && sdk.PermissionModeSchema().safeParse('implement').success)
+  check('the external permission-mode schema refuses the word as it refuses any unknown word', !pm.externalPermissionModeSchema().safeParse('strategy').success && !pm.externalPermissionModeSchema().safeParse('frobnicate').success && pm.externalPermissionModeSchema().safeParse('implement').success)
   const headless = await import('../../src/daemon/headlessRun.ts')
   check('the daemon child postures carry no planning station', !(headless.HEADLESS_PERMISSION_MODES as readonly string[]).some(m => /strateg/.test(m)))
 }

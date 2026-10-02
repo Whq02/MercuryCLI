@@ -516,7 +516,7 @@ console.log('§32 wedged daemon — true bound, one ladder, honest refusal')
   check('the refusal names the retry and the wedge remedy', born.includes('`mercury daemon stop` clears a daemon that holds the pipe but never answers'))
 }
 
-console.log('§33 BOM — .mcp.json and keybindings.json parse through the one owner')
+console.log('§33 BOM — mcp.json and keybindings.json parse through the one owner')
 {
   const mcp = read('src/services/mcp/config.ts')
   const kb = read('src/keybindings/loadUserBindings.ts')

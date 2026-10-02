@@ -134,7 +134,7 @@ export function MCPSettings({
     if (!isEmpty || completedRef.current) return
     completedRef.current = true
     onComplete(
-      'No MCP servers are configured. Add them in .mcp.json or settings.json, and run the health command (/health) if a configured server is missing here.',
+      'No MCP servers are configured. Add them with mercury mcp add, in .mercury/mcp.json or in settings.json, and run the health command (/health) if a configured server is missing here.',
     )
   }, [isEmpty, onComplete])
   if (isEmpty) return null

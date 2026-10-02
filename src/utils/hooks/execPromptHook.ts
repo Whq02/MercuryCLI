@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from './contract.js'
+
 import type { Message } from '../../types/message.js'
 import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
 import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'

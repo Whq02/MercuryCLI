@@ -12,7 +12,7 @@
 # gate-watch: src/components/agents/studio/StudioEditor.tsx
 # gate-watch: src/components/concourse/CoordinatorModelPicker.tsx src/components/mercury-ui/EffortChip.tsx
 # gate-watch: src/components/mercury-ui/HarnessChip.tsx src/components/mercury-ui/parity/HarnessView.tsx
-# gate-watch: src/constants/* src/entrypoints/sdk/runtimeTypes.ts src/hooks/useDisplayedSessionModel.ts
+# gate-watch: src/constants/* src/utils/effortLadder.ts src/hooks/useDisplayedSessionModel.ts
 # gate-watch: src/main.tsx src/run-core/turn-machine.ts src/screens/REPL.tsx src/services/api/errors.ts
 # gate-watch: src/services/compact/autoCompact.ts src/services/concourse/coordinatorModels.ts
 # gate-watch: src/services/concourse/coordinatorTools.ts src/services/engine-connector/seatProjections.ts

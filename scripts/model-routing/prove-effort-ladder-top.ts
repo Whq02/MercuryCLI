@@ -28,7 +28,7 @@ for (const key of ['OPENAI_API_KEY', 'MERCURY_CONFIG_DIR', 'MERCURY_AUTH_SCOPE_D
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-ladder-top-'))
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
-const runtimeTypes = await import('../../src/entrypoints/sdk/runtimeTypes.js')
+const ladderModule = await import('../../src/utils/effortLadder.js')
 const effort = await import('../../src/utils/effort.js')
 const pins = await import('../../src/services/providers/openai/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
@@ -42,8 +42,8 @@ const LIST_WORD = 'ultra'
 
 {
   console.log('\n— §1 · one tuple, five words, max at the top; every surface reads it —')
-  check('the ladder is exactly low · medium · high · xhigh · max', JSON.stringify(runtimeTypes.EFFORT_LEVELS) === JSON.stringify(LADDER), JSON.stringify(runtimeTypes.EFFORT_LEVELS))
-  check('the owner re-exports the same tuple (one owner, no mirror)', effort.EFFORT_LEVELS === runtimeTypes.EFFORT_LEVELS)
+  check('the ladder is exactly low · medium · high · xhigh · max', JSON.stringify(ladderModule.EFFORT_LEVELS) === JSON.stringify(LADDER), JSON.stringify(ladderModule.EFFORT_LEVELS))
+  check('the owner re-exports the same tuple (one owner, no mirror)', effort.EFFORT_LEVELS === ladderModule.EFFORT_LEVELS)
   check('the list word is not a level anywhere the type can reach', !effort.isEffortLevel(LIST_WORD) && !(effort.EFFORT_LEVELS as readonly string[]).includes(LIST_WORD))
   check('every ladder word has a glyph and none is left for a word above max', LADDER.every(level => indicator.effortLevelToSymbol(level).length > 0) && !('EFFORT_ULTRA' in figures))
   check('every ladder word has a description and the description switch is exhaustive over the tuple', LADDER.every(level => effort.getEffortLevelDescription(level).length > 0))
@@ -52,11 +52,12 @@ const LIST_WORD = 'ultra'
   check('the /effort option list derives from the tuple and ends at max before auto', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`"))
   check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
   check("the Agent tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
+  check("an agent file's effort field takes its enum from the tuple", /effort: z\s*\.union\(\[\s*z\.enum\(EFFORT_LEVELS/.test(src('src/tools/AgentTool/loadAgentsDir.ts')))
   check('the workflow prompt spells the ladder from the tuple and no longer names a word above max', src('src/tools/WorkflowTool/workflowPrompt.ts').includes("EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')") && !/\bultra\b/.test(src('src/tools/WorkflowTool/workflowPrompt.ts')))
   const coordinator = src('src/services/concourse/coordinatorTools.ts')
   check("the coordinator's launch tool names the ladder from the tuple and says max is the top", coordinator.includes("EFFORT_LEVELS.join(' | ')") && coordinator.includes('max IS the top tier') && !/\bultra\b/.test(coordinator))
   check('the --effort door names the ladder from the tuple', src('src/main.tsx').includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})"))
-  for (const file of ['src/utils/effort.ts', 'src/components/EffortIndicator.ts', 'src/entrypoints/sdk/runtimeTypes.ts']) {
+  for (const file of ['src/utils/effort.ts', 'src/components/EffortIndicator.ts', 'src/utils/effortLadder.ts']) {
     check(`${file} carries no switch arm or record row for a word above max`, !/case 'ultra'|ultra:/.test(src(file)))
   }
 }

@@ -1,10 +1,8 @@
 
 import { randomUUID } from 'crypto'
 import chalk from 'chalk'
-import type {
-  HookEvent,
-  HookInput,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent, HookInput } from './contract.js'
+
 import { getStatsStore, addToTurnHookDuration } from '../../bootstrap/state.js'
 import { createAttachmentMessage } from '../attachments.js'
 import { createCombinedAbortSignal } from '../combinedAbortSignal.js'

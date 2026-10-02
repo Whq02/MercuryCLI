@@ -5,6 +5,7 @@
 # gate-watch: src/utils/config/globalConfig.ts src/utils/config/projectConfig.ts src/utils/settings/types.ts
 # gate-watch: src/Tool.ts src/context.ts src/utils/attachments/nestedMemory.ts src/utils/fileStateCache.ts
 # gate-watch: scripts/lib/firstRunSeed.ts
+# gate-watch: src/commands/init.ts src/projectOnboardingState.ts src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
@@ -14,6 +15,8 @@ BUN="${BUN:-$HOME/.bun/bin/bun}"
 [ -x "$BUN" ] || BUN="bun"
 fail=0
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-root-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-root-guide-composition.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-shared-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-shared-guide-composition.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-init-prompt-words.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-init-prompt-words.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-excludes.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-excludes.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"

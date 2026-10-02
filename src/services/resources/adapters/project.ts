@@ -166,7 +166,6 @@ export const projectAdapter: ResourceAdapter = {
       const rows = [
         `MERCURY.md: ${i.mercuryMd ? 'present' : 'absent'}`,
         `AGENTS.md: ${i.agentsMd ? 'present' : 'absent'}`,
-        `other harness instruction files: ${i.otherHarnessInstructions.join(', ') || 'none'}`,
         `project config homes: ${i.configHomes.join(', ') || 'none'}`,
         `wiki index (docs/wiki/INDEX.md): ${k.wikiIndex ? 'present' : 'absent'}`,
       ]

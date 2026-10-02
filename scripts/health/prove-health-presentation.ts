@@ -182,15 +182,17 @@ section('§5 WIRING (HL-01/13/16/21/30)')
   )
 }
 
-section('§6 N-06 · THE RULED AUTO MAPPING + THE VISIBLE REMEDIES')
+section('§6 N-06 · THE PROFILE CONTRACT + THE VISIBLE REMEDIES')
 {
   const contracts = src('src/services/instructions/contracts.ts')
   const engine = src('src/services/instructions/engine.ts')
+  const adapter = src('src/services/instructions/adapters/index.ts')
   check(
-    'the auto→native mapping is the declared in-source contract: the profile union admits auto, the resolution records the mapping, the resolver maps it to native',
+    'the profile contract is declared in source: the union is auto | native, a requested profile resolves as itself, auto adds the shared guide convention after the native one, native composes the native convention alone',
     contracts.includes("export type InstructionProfile = 'auto' | 'native'") &&
-      contracts.includes("mapped?: 'auto-to-native'") &&
-      /if \(requested === 'auto'\) \{\s*return \{\s*requested,\s*requestedOrigin,\s*resolved: 'native',\s*mapped: 'auto-to-native',/.test(engine),
+      !contracts.includes('mapped?:') &&
+      /return \{ requested, requestedOrigin, resolved: requested \}/.test(engine) &&
+      /profile === 'native'\s*\?\s*\[mercuryNativeConvention\]\s*:\s*\[mercuryNativeConvention, agentsMdConvention\]/.test(adapter),
   )
   check(
     'the health instruction-profile row projects the same diagnostics (warn on findings)',

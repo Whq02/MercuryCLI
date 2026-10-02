@@ -6,7 +6,8 @@ import { type ToolPermissionContext, type Tools } from 'src/Tool.js'
 import { getMainThreadAgentType, registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import { type Command, formatDescriptionWithSource, getCommandName } from 'src/commands.js'
-import { type HookEvent, type McpServerConfigForProcessTransport, type ModelInfo, type PermissionResult, type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
+import { type ModelInfo, type PermissionResult, type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import { type SDKControlInitializeRequest, type SDKControlInitializeResponse, type SDKControlMcpSetServersResponse, type SDKControlResponse, type SDKControlRewindSessionRequest, type StdoutMessage } from 'src/entrypoints/sdk/controlTypes.js'
 import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/protocol.js'
 import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpointRewind.js'
@@ -15,7 +16,7 @@ import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
 import { areMcpConfigsEqual, clearServerCache, connectToServer, fetchToolsForClient } from 'src/services/mcp/client.js'
 import { filterMcpServersByPolicy } from 'src/services/mcp/config.js'
-import { type MCPServerConnection, type McpSdkServerConfig, type ScopedMcpServerConfig } from 'src/services/mcp/types.js'
+import { type MCPServerConnection, type McpSdkServerConfig, type McpServerConfig, type ScopedMcpServerConfig } from 'src/services/mcp/types.js'
 import { type AppState } from 'src/state/AppStateStore.js'
 import { flagEnv } from 'src/substrate/flagRegistry.js'
 import { type AgentDefinition, isBuiltInAgent, parseAgentsFromJson } from 'src/tools/AgentTool/loadAgentsDir.js'
@@ -432,7 +433,7 @@ export type DynamicMcpState = {
 }
 
 function toScopedConfig(
-  config: McpServerConfigForProcessTransport,
+  config: McpServerConfig,
 ): ScopedMcpServerConfig {
   return { ...config, scope: 'dynamic' } as ScopedMcpServerConfig
 }
@@ -452,7 +453,7 @@ export type McpSetServersResult = {
 }
 
 export async function handleMcpSetServers(
-  servers: Record<string, McpServerConfigForProcessTransport>,
+  servers: Record<string, McpServerConfig>,
   sdkState: SdkMcpState,
   dynamicState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
@@ -465,7 +466,7 @@ export async function handleMcpSetServers(
   }
 
   const sdkServers: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
-  const processServers: Record<string, McpServerConfigForProcessTransport> = Object.create(null) as Record<string, McpServerConfigForProcessTransport>
+  const processServers: Record<string, McpServerConfig> = Object.create(null) as Record<string, McpServerConfig>
 
   for (const [name, config] of Object.entries(allowedServers)) {
     if (config.type === 'host') {
@@ -534,7 +535,7 @@ export async function handleMcpSetServers(
 }
 
 export async function reconcileMcpServers(
-  desiredConfigs: Record<string, McpServerConfigForProcessTransport>,
+  desiredConfigs: Record<string, McpServerConfig>,
   currentState: DynamicMcpState,
   setAppState: (f: (prev: AppState) => AppState) => void,
 ): Promise<{

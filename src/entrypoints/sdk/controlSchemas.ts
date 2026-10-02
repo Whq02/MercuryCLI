@@ -1,11 +1,8 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
-import {
-  PermissionModeSchema,
-  PermissionUpdateSchema,
-  SDKMessageSchema,
-  SDKUserMessageSchema,
-} from './coreSchemas.js'
+import { externalPermissionModeSchema } from '../../utils/permissions/PermissionMode.js'
+import { permissionUpdateSchema } from '../../utils/permissions/PermissionUpdateSchema.js'
+import { SDKMessageSchema, SDKUserMessageSchema } from './coreSchemas.js'
 
 export const SDKHookCallbackMatcherSchema = lazySchema(() =>
   z.object({
@@ -36,7 +33,7 @@ export const SDKControlPermissionRequestSchema = lazySchema(() =>
     subtype: z.literal('can_use_tool'),
     tool_name: z.string(),
     input: z.record(z.string(), z.unknown()),
-    permission_suggestions: z.array(PermissionUpdateSchema()).optional(),
+    permission_suggestions: z.array(permissionUpdateSchema()).optional(),
     blocked_path: z.string().optional(),
     decision_reason: z.string().optional(),
     decision_reason_detail: z.unknown().optional(),
@@ -50,7 +47,7 @@ export const SDKControlPermissionRequestSchema = lazySchema(() =>
 export const SDKControlSetPermissionModeRequestSchema = lazySchema(() =>
   z.object({
     subtype: z.literal('set_permission_mode'),
-    mode: PermissionModeSchema(),
+    mode: externalPermissionModeSchema(),
   }),
 )
 export const SDKControlSetModelRequestSchema = lazySchema(() =>

@@ -1,4 +1,4 @@
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { HookCallbackMatcher } from 'src/types/hooks.js'
 import type { ExtensionHookMatcher } from 'src/utils/settings/types.js'
 

@@ -3,7 +3,7 @@ import * as React from 'react'
 import { useEffect, useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { useAppStateStore } from '../../state/AppState.js'
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import {
   getAllHooks,
@@ -19,7 +19,7 @@ import {
   shouldAllowManagedHooksOnly,
   shouldDisableAllHooksIncludingManaged,
 } from '../../utils/hooks/hooksConfigSnapshot.js'
-import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
+import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
 import { settingsChangeDetector } from '../../utils/settings/changeDetector.js'
 import {
   getRelativeSettingsFilePathForSource,

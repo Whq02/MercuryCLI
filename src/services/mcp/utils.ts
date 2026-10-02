@@ -9,7 +9,7 @@ import { getGlobalMercuryFile } from '../../utils/env.js'
 import { errorMessage, errorMessageWithCause, getErrnoCode } from '../../utils/errors.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
-import { getEnterpriseMcpFilePath, getMcpConfigByName } from './config.js'
+import { getEnterpriseMcpFilePath, getMcpConfigByName, projectMcpFilePath } from './config.js'
 import { getMcpPrefix, mcpInfoFromString } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import type {
@@ -165,7 +165,7 @@ export function describeMcpConfigFilePath(scope: ConfigScope | string): string {
     case 'user':
       return getGlobalMercuryConfigPath()
     case 'project':
-      return `${getCwd()}/.mcp.json`
+      return projectMcpFilePath(getCwd())
     case 'local':
       return `${getGlobalMercuryConfigPath()} [project: ${getProjectPathForConfig()}]`
     case 'dynamic':
@@ -188,7 +188,7 @@ export function getScopeLabel(scope: ConfigScope | string): string {
     case 'local':
       return 'Local (visible only to you in this project)'
     case 'project':
-      return 'Project (shared with collaborators via .mcp.json)'
+      return 'Project (shared with collaborators via .mercury/mcp.json)'
     case 'user':
       return 'User (available in all your projects)'
     case 'dynamic':

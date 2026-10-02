@@ -7,7 +7,8 @@ import {
 } from './hooksConfigSnapshot.js'
 import { getIsNonInteractiveSession, getRegisteredHooks } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
-import type { HookEvent, HookInput } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent, HookInput } from './contract.js'
+
 import type { Tools } from '../../Tool.js'
 import { findToolByName } from '../../Tool.js'
 import type {

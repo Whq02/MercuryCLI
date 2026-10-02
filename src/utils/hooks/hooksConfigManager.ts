@@ -1,8 +1,11 @@
 import { memoize } from 'lodash-es'
 
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
-import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
-import { INTERRUPT_REASONS } from '../../entrypoints/sdk/coreSchemas.js'
+import type { HookEvent } from './contract.js'
+
+import { HOOK_EVENTS } from './contract.js'
+
+import { INTERRUPT_REASONS } from './contract.js'
+
 import { getRegisteredHooks } from '../../bootstrap/state.js'
 import type { AppState } from '../../state/AppState.js'
 import {

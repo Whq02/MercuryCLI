@@ -155,6 +155,7 @@
     "type:HooksSettings",
     "type:HttpHook",
     "type:PromptHook",
+    "type:Settings",
     "type:SettingsJson",
     "type:SkillHookMatcher"
    ],
@@ -384,6 +385,7 @@
     "wrapFetchWithStepUpDetection"
    ],
    "src/services/mcp/config.ts": [
+    "PROJECT_MCP_FILE",
     "addMcpConfig",
     "areMcpConfigsAllowedWithEnterpriseMcpConfig",
     "dedupClaudeAiMcpServers",
@@ -400,6 +402,7 @@
     "isMcpServerDisabled",
     "parseMcpConfig",
     "parseMcpConfigFromFilePath",
+    "projectMcpFilePath",
     "removeMcpConfig",
     "setMcpServerEnabled",
     "shouldAllowManagedMcpServersOnly",

@@ -26,7 +26,7 @@ writeFileSync(
     events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'proj-marker')}` }] }] } },
   }),
 )
-writeFileSync(join(PROJ, '.mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
+writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
 writeFileSync(
   join(HOME, 'settings.json'),
   JSON.stringify({
@@ -133,7 +133,7 @@ section('§3 OUTSIDE-CHECKOUT READERS + THE GATED SITES (call-shaped)')
       /getHooksFromOutsideCheckoutSources\(\)/.test(src('utils', 'hooks', 'hooksConfigSnapshot.ts')),
   )
   check(
-    'mcp assembly: .mcp.json excluded under the gate (call-shaped)',
+    'mcp assembly: the project MCP file excluded under the gate (call-shaped)',
     /projectUntrusted \? emptyRead : getProjectMcpConfigs\(\)/.test(src('services', 'mcp', 'config.ts')),
   )
   check(
@@ -158,7 +158,7 @@ section('§4 PROJECT MCP UNDER THE GATE')
     getProjectMcpServerStatus('fixsrv'),
   )
   const gatedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('gated: the assembly excludes the .mcp.json server', !gatedServers.includes('fixsrv'), JSON.stringify(gatedServers))
+  check('gated: the assembly excludes the project MCP file server', !gatedServers.includes('fixsrv'), JSON.stringify(gatedServers))
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
   check(
@@ -166,7 +166,7 @@ section('§4 PROJECT MCP UNDER THE GATE')
     getProjectMcpServerStatus('fixsrv') === 'approved',
   )
   const trustedServers = Object.keys((await getMercuryMcpConfigs()).servers)
-  check('trusted: the assembly carries the .mcp.json server', trustedServers.includes('fixsrv'))
+  check('trusted: the assembly carries the project MCP file server', trustedServers.includes('fixsrv'))
   setSessionTrustAccepted(false)
   resetTrustDialogAcceptedCacheForTesting()
 }
@@ -188,7 +188,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
         events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('proj-marker')}` }] }] } },
       }),
     )
-    writeFileSync(join(LIVE_PROJ, '.mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
+    writeFileSync(join(LIVE_PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
     writeFileSync(
       join(LIVE_HOME, 'settings.json'),
       JSON.stringify({

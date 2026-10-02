@@ -4,7 +4,7 @@ import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'n
 import { basename, dirname, isAbsolute, join, resolve, sep } from 'node:path'
 import { homedir } from 'node:os'
 import { z } from 'zod/v4'
-import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
 
 export interface CoordinatorToolReceiptV1 {
@@ -149,7 +149,7 @@ export async function knownProjectDirs(): Promise<string[]> {
   } catch {
   }
   try {
-    const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]
+    const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]
     const roots = [
       homedir(),
       join(homedir(), 'Developer'),

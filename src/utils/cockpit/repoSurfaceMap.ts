@@ -2,6 +2,7 @@
 import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { composedGuideFilesAt } from '../../services/instructions/adapters/index.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function repoSurfaceMapEnabled(): boolean {
@@ -57,7 +58,7 @@ const MARKERS: Array<[string, string]> = [
 ]
 
 const TEST_DIR_NAMES = new Set(['test', 'tests', '__tests__', 'spec', 'e2e', 'integration'])
-const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'CLAUDE.md', 'AGENTS.md']
+const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'AGENTS.md']
 
 interface ScanState {
   visited: number
@@ -167,15 +168,7 @@ const orientationDocMemo = new Map<string, boolean>()
 export function hasOrientationDoc(root: string): boolean {
   const memoized = orientationDocMemo.get(root)
   if (memoized !== undefined) return memoized
-  let found = false
-  for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {
-    try {
-      statSync(join(root, name))
-      found = true
-      break
-    } catch {
-    }
-  }
+  const found = composedGuideFilesAt(root).length > 0
   orientationDocMemo.set(root, found)
   return found
 }

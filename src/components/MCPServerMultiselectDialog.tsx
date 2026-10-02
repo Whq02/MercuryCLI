@@ -42,7 +42,7 @@ export function MCPServerMultiselectDialog({
       gap={1}
     >
       <Text bold>
-        {serverNames.length} new MCP servers found in .mcp.json
+        {serverNames.length} new MCP servers found in this project's .mercury/mcp.json
       </Text>
       <Text>
         Select the servers you want to use in this project. MCP servers may

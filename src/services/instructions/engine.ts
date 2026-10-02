@@ -30,7 +30,7 @@ import type { MemoryType } from '../../utils/memory/types.js'
 import { getMainLoopModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
-import { adapterForProfile } from './adapters/index.js'
+import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
 import type {
   InstructionBundle,
   InstructionBundleEntry,
@@ -89,8 +89,7 @@ let lastComposition: InstructionCompositionState = {
   resolution: {
     requested: 'auto',
     requestedOrigin: 'default',
-    resolved: 'native',
-    mapped: 'auto-to-native',
+    resolved: 'auto',
   },
   adapterId: 'mercury',
   skippedDuplicates: [],
@@ -102,14 +101,6 @@ function resolveEffectiveProfile(
   requested: InstructionProfile,
   requestedOrigin: InstructionProfileResolution['requestedOrigin'],
 ): InstructionProfileResolution {
-  if (requested === 'auto') {
-    return {
-      requested,
-      requestedOrigin,
-      resolved: 'native',
-      mapped: 'auto-to-native',
-    }
-  }
   return { requested, requestedOrigin, resolved: requested }
 }
 
@@ -262,72 +253,82 @@ async function walkConventions(
         normalizePathForComparison(canonicalRoot) &&
       pathInWorkingPath(gitRoot, canonicalRoot)
 
-    for (const dir of dirs.reverse()) {
-      const skipProject =
-        isNestedWorktree &&
-        pathInWorkingPath(dir, canonicalRoot) &&
-        !pathInWorkingPath(dir, gitRoot)
+    const outerFirst = dirs.reverse()
+    const composeChain = async (set: InstructionConvention[]): Promise<void> => {
+      for (const dir of outerFirst) {
+        const skipProject =
+          isNestedWorktree &&
+          pathInWorkingPath(dir, canonicalRoot) &&
+          !pathInWorkingPath(dir, gitRoot)
 
-      for (const convention of conventions) {
-        if (isSettingSourceEnabled('projectSettings') && !skipProject) {
-          for (const projectPath of convention.projectDirFiles(dir)) {
-            push(
-              await processInstructionFile(
-                convention,
-                projectPath,
-                'Project',
-                processedPaths,
-                includeExternal,
-                0,
-                undefined,
-                diagnostics,
-              ),
-              convention.family,
-              origin,
-              chainRoot,
-            )
+        for (const convention of set) {
+          if (isSettingSourceEnabled('projectSettings') && !skipProject) {
+            for (const projectPath of convention.projectDirFiles(dir)) {
+              push(
+                await processInstructionFile(
+                  convention,
+                  projectPath,
+                  'Project',
+                  processedPaths,
+                  includeExternal,
+                  0,
+                  undefined,
+                  diagnostics,
+                ),
+                convention.family,
+                origin,
+                chainRoot,
+              )
+            }
+
+            for (const rulesDir of convention.projectRulesDirs(dir)) {
+              push(
+                await processRulesDir({
+                  convention,
+                  rulesDir,
+                  type: 'Project',
+                  processedPaths,
+                  includeExternal,
+                  conditionalRule: false,
+                }),
+                convention.family,
+                origin,
+                chainRoot,
+              )
+            }
           }
 
-          for (const rulesDir of convention.projectRulesDirs(dir)) {
-            push(
-              await processRulesDir({
-                convention,
-                rulesDir,
-                type: 'Project',
-                processedPaths,
-                includeExternal,
-                conditionalRule: false,
-              }),
-              convention.family,
-              origin,
-              chainRoot,
-            )
-          }
-        }
-
-        if (isSettingSourceEnabled('localSettings')) {
-          const localPaths =
-            convention.localDirFiles?.(dir) ??
-            (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
-          for (const localPath of localPaths) {
-            push(
-              await processInstructionFile(
-                convention,
-                localPath,
-                'Local',
-                processedPaths,
-                includeExternal,
-                0,
-                undefined,
-                diagnostics,
-              ),
-              convention.family,
-              origin,
-              chainRoot,
-            )
+          if (isSettingSourceEnabled('localSettings')) {
+            const localPaths =
+              convention.localDirFiles?.(dir) ??
+              (convention.localDirFile(dir) !== null ? [convention.localDirFile(dir) as string] : [])
+            for (const localPath of localPaths) {
+              push(
+                await processInstructionFile(
+                  convention,
+                  localPath,
+                  'Local',
+                  processedPaths,
+                  includeExternal,
+                  0,
+                  undefined,
+                  diagnostics,
+                ),
+                convention.family,
+                origin,
+                chainRoot,
+              )
+            }
           }
         }
       }
+    }
+
+    const primary = conventions.filter(c => !c.fallback)
+    const fallback = conventions.filter(c => c.fallback)
+    await composeChain(primary)
+    if (fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)) {
+      await composeChain(fallback)
     }
   }
 
@@ -548,7 +549,9 @@ export async function getInstructionFilesForNestedDirectory(
 ): Promise<InstructionSourceEntry[]> {
   if (untrustedWorkspaceHeadless()) return []
   const result: InstructionSourceEntry[] = []
-  const conventions = activeConventions()
+  const active = activeConventions()
+  const primary = active.filter(c => !c.fallback)
+  const conventions = hasPrimaryProjectFile(primary, [dir]) ? primary : active
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
 
   for (const convention of conventions) {

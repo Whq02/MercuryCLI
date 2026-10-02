@@ -24,14 +24,16 @@ export type SystemMessageLevel =
   | 'error'
   | 'suggestion'
 
-export type AssistantMessageError =
-  | 'authentication_failed'
-  | 'billing_error'
-  | 'rate_limit'
-  | 'invalid_request'
-  | 'server_error'
-  | 'unknown'
-  | 'max_output_tokens'
+export const ASSISTANT_MESSAGE_ERRORS = [
+  'authentication_failed',
+  'billing_error',
+  'rate_limit',
+  'invalid_request',
+  'server_error',
+  'unknown',
+  'max_output_tokens',
+] as const
+export type AssistantMessageError = (typeof ASSISTANT_MESSAGE_ERRORS)[number]
 
 export type RefusedToolCall = {
   id: string

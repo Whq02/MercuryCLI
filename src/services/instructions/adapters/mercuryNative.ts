@@ -11,7 +11,7 @@ import { getInitialSettings, getSettingsForSource } from '../../../utils/setting
 import type { InstructionConvention } from '../contracts.js'
 import { matchesInstructionExcludes } from '../discovery.js'
 
-function isMercuryMdExcluded(filePath: string, type: MemoryType): boolean {
+export function isProjectInstructionExcluded(filePath: string, type: MemoryType): boolean {
   if (type !== 'User' && type !== 'Project' && type !== 'Local') {
     return false
   }
@@ -62,7 +62,7 @@ export const mercuryNativeConvention: InstructionConvention = {
   managedRulesDir(): string {
     return getManagedRulesDir()
   },
-  isExcluded: isMercuryMdExcluded,
+  isExcluded: isProjectInstructionExcluded,
   instructionFileNames: ['MERCURY.md', 'MERCURY.local.md'],
   rulesPathMarkers: [`${sep}.mercury${sep}rules${sep}`],
 }

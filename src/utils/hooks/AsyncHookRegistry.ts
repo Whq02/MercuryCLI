@@ -1,4 +1,5 @@
-import type { AsyncHookJSONOutput, HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
+
 import type { ShellCommand } from '../ShellCommand.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'

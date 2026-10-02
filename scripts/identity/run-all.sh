@@ -37,6 +37,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-editor-prompt-file.ts" || { __rc=$
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-unknown-command-answer.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-unknown-command-answer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-delivery.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-delivery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-floor-under-pressure.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-floor-under-pressure.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-no-other-guide-reads.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-no-other-guide-reads.ts" "$__t" "$__rc"
 
 echo "############################################################"
 if [ "$fail" = "0" ]; then echo "# ✅ ALL IDENTITY CHECKS PASS"; else echo "# ❌ IDENTITY CHECKS FAILED"; fi

@@ -28,7 +28,6 @@ const PROSE_ALLOWLIST: Record<string, string> = {
 }
 
 const PROSE_CENSUS: Record<string, number> = {
-  'src/entrypoints/sdk/coreSchemas.ts': 1,
   'src/services/tips/tipRegistry.ts': 1,
   'src/skills/bundled/skillify.ts': 1,
   'src/utils/settings/types.ts': 1,
