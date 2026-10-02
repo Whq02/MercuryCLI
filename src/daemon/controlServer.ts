@@ -1,8 +1,9 @@
 
 import { refuseRunnerArgv } from '../services/switchboard/runnerArgv.js'
 import net from 'node:net'
-import { readFileSync } from 'node:fs'
-import { unlink } from 'node:fs/promises'
+import { existsSync, readFileSync } from 'node:fs'
+import { readdir, rename, symlink, unlink } from 'node:fs/promises'
+import { basename, dirname, join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
 import type { DaemonBreaker } from '../utils/daemonBreaker.js'
 import { flagEnv, setFlagEnv } from '../substrate/flagRegistry.js'
@@ -298,9 +299,34 @@ function removeStaleSocket(sockPath: string): Promise<void> {
 
 export async function startControlServer(
   deps: ControlServerDeps,
+  opts: { socketPath?: string } = {},
 ): Promise<ControlServerHandle> {
-  const sockPath = controlSockPath()
+  const planePath = controlSockPath()
+  const sockPath = opts.socketPath ?? planePath
+  const publishSocket = async (): Promise<void> => {
+    if (sockPath === planePath) return
+    const pending = `${planePath}.${process.pid}.next`
+    await removeStaleSocket(pending)
+    await symlink(basename(sockPath), pending)
+    try {
+      await rename(pending, planePath)
+    } finally {
+      await removeStaleSocket(pending)
+    }
+  }
+  const sweepDeadPidSockets = async (): Promise<void> => {
+    if (sockPath === planePath) return
+    const dir = dirname(planePath)
+    const plane = basename(planePath)
+    const names = await readdir(dir).catch(() => [] as string[])
+    for (const name of names) {
+      const pid = name.startsWith(`${plane}.`) ? /^(\d+)$/.exec(name.slice(plane.length + 1)) : /^(\d+)\.sock$/.exec(name)
+      if (pid === null || Number(pid[1]) === process.pid || isProcessAlive(Number(pid[1]))) continue
+      await removeStaleSocket(join(dir, name))
+    }
+  }
   await removeStaleSocket(sockPath)
+  await sweepDeadPidSockets()
 
   const conns = new Set<net.Socket>()
   const leases = new Map<net.Socket, LeaseClient>()
@@ -355,17 +381,20 @@ export async function startControlServer(
     })
   })
 
+  await publishSocket()
+
   return {
     close: () =>
       new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-          if (ownsControlPlaneSync()) void removeStaleSocket(sockPath)
+          if (ownsControlPlaneSync()) void removeStaleSocket(planePath)
           resolve()
         })
       }),
-    rebind: () =>
-      new Promise<void>(resolve => {
+    rebind: () => {
+      if (sockPath !== planePath && existsSync(sockPath) && ownsControlPlaneSync()) return publishSocket()
+      return new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
           if (!ownsControlPlaneSync()) {
@@ -391,11 +420,12 @@ export async function startControlServer(
             .then(() => {
               server.listen(sockPath, () => {
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)
-                resolve()
+                void publishSocket().catch(error => logForDebugging(`[daemon] control socket publication failed: ${error}`)).finally(resolve)
               })
             })
         })
-      }),
+      })
+    },
     leaseCount: () => leases.size,
   }
 }
@@ -487,6 +517,7 @@ async function routeControlRequest(
       warm: facts?.warm ?? 0,
       restartArmed: facts?.restartArmed ?? false,
       predecessorPid: facts?.predecessorPid ?? null,
+      predecessorPids: facts?.predecessorPids ?? [],
     })
   }
   if (op === 'nudge') {

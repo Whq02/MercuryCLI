@@ -28,6 +28,7 @@ export interface DaemonVersionFacts {
   foreground: boolean
   ready: boolean
   restartArmed: boolean
+  predecessorPids?: number[]
   preHandshake: boolean
 }
 
@@ -147,6 +148,7 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     foreground: r.foreground,
     ready: r.ready,
     restartArmed: r.restartArmed,
+    predecessorPids: r.predecessorPids ?? (r.predecessorPid ? [r.predecessorPid] : []),
     preHandshake: false,
   }
   const counts = { live: r.live, liveSessions: r.liveSessions }
@@ -193,6 +195,14 @@ export function applyHeal(
 export function liveNoun(v: { live: number; liveSessions: number }): string {
   const noun = v.liveSessions === v.live ? 'session' : 'worker'
   return `${v.live} live ${noun}${v.live === 1 ? '' : 's'}`
+}
+
+export function finishVerb(live: number): string {
+  return live === 1 ? 'finishes' : 'finish'
+}
+
+export function untilFinished(live: number): string {
+  return live === 1 ? 'until it finishes' : 'until they finish'
 }
 
 export function honestLine(v: DaemonHandshakeVerdict): string | null {
@@ -490,7 +500,7 @@ export async function handoverDaemonVersion(
   const record = await readSupervisorState().catch(() => null)
   if (record !== null && record.pid !== d.pid && isProcessAlive(record.pid)) {
     handoverInFlight = d.pid
-    return `a successor (pid ${record.pid}) is taking the plane from daemon v${d.version} (pid ${d.pid}), which keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} until they finish`
+    return `a successor (pid ${record.pid}) is taking the plane from daemon v${d.version} (pid ${d.pid}), which keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
   }
   if (handoverAsked.has(d.pid)) return null
   handoverAsked.add(d.pid)
@@ -511,7 +521,7 @@ export async function handoverDaemonVersion(
   const pid = await spawn(runtime.script, dir, env, ownsIt, !ownsIt, runtime.node)
   if (pid === undefined) return null
   logForDebugging(`[daemon] handover: ${decision.why} — successor pid ${pid} from ${runtime.script}`)
-  return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} until they finish`
+  return `handing over to the deployed build (tree ${runtime.buildTree ?? '?'}, pid ${pid}) — daemon v${d.version} keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
 }
 
 
@@ -572,12 +582,12 @@ export async function restartDaemon(opts: {
     if (handedOver !== null) {
       const successor = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== d.pid && v.state !== 'starting', opts)
       return successor
-        ? { state: 'restarted', line: `daemon handed over — v${successor.daemon!.version} · protocol ${successor.daemon!.proto} (pid ${successor.daemon!.pid}) takes new sessions; daemon v${d.version} (pid ${d.pid}) keeps its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} until they finish` }
+        ? { state: 'restarted', line: `daemon handed over — v${successor.daemon!.version} · protocol ${successor.daemon!.proto} (pid ${successor.daemon!.pid}) takes new sessions; daemon v${d.version} (pid ${d.pid}) keeps its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${untilFinished(reply.live)}` }
         : { state: 'restarting', line: `${handedOver} — the successor is not answering yet` }
     }
   }
   if (reply.state === 'armed') {
-    return { state: 'armed', line: `restart armed — daemon v${d.version} restarts when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} finish` }
+    return { state: 'armed', line: `restart armed — daemon v${d.version} restarts when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${finishVerb(reply.live)}` }
   }
   if (reply.state === 'refused') return { state: 'refused', line: `daemon v${d.version} — ${reply.detail ?? 'restart refused'}` }
   const oldPid = d.pid
@@ -635,7 +645,7 @@ export async function moveDaemonToDeployedBuild(opts: {
     return {
       state: 'moved',
       line: reply.live > 0
-        ? `background daemon: ${next} takes new sessions; daemon ${old} keeps its ${liveWords(reply.live)} until they finish`
+        ? `background daemon: ${next} takes new sessions; daemon ${old} keeps its ${liveWords(reply.live)} ${untilFinished(reply.live)}`
         : `background daemon: moved to ${next} — new sessions run on it`,
     }
   }
@@ -644,7 +654,7 @@ export async function moveDaemonToDeployedBuild(opts: {
     if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
     publish(applyHeal(verdict, reply))
     if (reply.state === 'armed') {
-      return (await settled(verdict, reply)) ?? { state: 'when-idle', line: `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} finish` }
+      return (await settled(verdict, reply)) ?? { state: 'when-idle', line: `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} ${finishVerb(reply.live)}` }
     }
     if (reply.state === 'refused') return (await settled(verdict, reply)) ?? stopLine(reply.detail ?? 'the restart was refused')
     const back = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== verdict.daemon?.pid && v.state !== 'starting', opts)

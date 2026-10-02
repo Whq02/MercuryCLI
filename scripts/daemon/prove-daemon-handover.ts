@@ -198,6 +198,7 @@ const fixture = net.createServer(conn => {
       const answer = (payload: unknown): void => void conn.end(protocol.encodeFrame(payload))
       if (op === 'ping') return answer({ ok: true, op: 'ping', version: '1.0.0-beta.23', proto: protocol.MERCURY_DAEMON_PROTO })
       if (op === 'hello') return answer(helloReply())
+      if (op === 'list') return answer({ ok: true, op: 'list', jobs: [{ short: 'concourse-w1', sessionId: heldSession, pid: child.pid }] })
       if (op === 'restart-when-idle') return answer({ ok: true, op: 'restart-when-idle', state: 'armed', live: 1 })
       if (op === 'sessionAdmit' || op === 'concourseAdmit' || op === 'sessionDispatch' || op === 'concourseDispatch') {
         return answer({ ok: false, code: 'EUNKNOWN', error: OWNER_WORDS })
@@ -244,7 +245,7 @@ const moved = await until(async () => {
 }, 30_000, 250)
 const afterHello = await helloFrom()
 check('the successor answers on the plane path, ready, on its own (new) tree', moved && afterHello !== null && afterHello.buildTree !== OLD_TREE, `${text(afterHello)}\n${successorLog.join('').slice(-1500)}`)
-check("the successor names its predecessor and counts its live session as its own (a restart would wait on it)", afterHello !== null && afterHello.predecessorPid === process.pid && Number(afterHello.live) >= 1 && Number(afterHello.liveSessions) >= 1, text(afterHello))
+check("the successor names its predecessor without counting that helper's chat as its own", afterHello !== null && afterHello.predecessorPid === process.pid && Number(afterHello.live) === 0 && Number(afterHello.liveSessions) === 0, text(afterHello))
 const record = await sock.readSupervisorState()
 check('the supervisor record names the successor', record !== null && record.pid === successorPid, text(record))
 const successorToken = await getProcessStartTokenAsync(successorPid)

@@ -2,10 +2,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, rmSync, statSync, unlinkSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, readlinkSync, rmSync, statSync, unlinkSync } from 'node:fs'
 import { connect as netConnect, type Socket } from 'node:net'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'daemon-owner-watch-'))
 const home = join(SCRATCH, 'home')
@@ -224,31 +224,32 @@ function openLease(path: string): Promise<Lease> {
   })
 }
 
-section('§2 THE HEAL FOLLOWS THE WATCH — the control socket removed comes back within seconds, once')
+section('§2 THE HEAL FOLLOWS THE WATCH — the plane link removed comes back within seconds, once')
 if (POSIX) {
   const sock = controlSockPath()
   check('the control socket is where the daemon says it is', existsSync(sock), sock)
+  check("…a link to the daemon's own socket, named by its pid", lstatSync(sock).isSymbolicLink() && readlinkSync(sock) === `${basename(sock)}.${daemonPid}` && statSync(join(dirname(sock), readlinkSync(sock))).isSocket(), `${sock} → ${lstatSync(sock).isSymbolicLink() ? readlinkSync(sock) : 'not a link'}`)
   const old = await openLease(sock)
-  check('a lease on the current bind is open (the witness for the heal)', old.connected && !old.closed)
+  check('a lease through the plane is open (the witness for the heal)', old.connected && !old.closed)
   unlinkSync(sock)
   const removedAt = Date.now()
   const healed = await until(() => existsSync(sock), 10_000)
   const healMs = Date.now() - removedAt
-  console.log(`  socket back after ${healMs} ms`)
-  check('the socket came back', healed)
+  console.log(`  plane link back after ${healMs} ms`)
+  check('the plane came back', healed)
   check('…from the watch, well under the 30 s floor (≤ 3000 ms)', healed && healMs <= 3_000, `${healMs} ms`)
-  check('…as a socket node, not a stray file', healed && statSync(sock).isSocket())
-  const oldDied = await until(() => old.closed, 3_000)
-  check('…as a new bind: the lease on the removed bind died (rebind destroys every open connection before it binds again)', healed && old.connected && oldDied)
+  check("…as a link to the same socket node, not a stray file", healed && lstatSync(sock).isSymbolicLink() && statSync(sock).isSocket() && readlinkSync(sock) === `${basename(sock)}.${daemonPid}`, healed ? readlinkSync(sock) : 'absent')
+  await wait(1_000)
+  check("…without a new bind: the lease open across the heal survives it (the daemon's own socket never moved)", healed && old.connected && !old.closed)
   old.sock.destroy()
   const fresh = await openLease(sock)
-  check('the re-bound socket accepts a lease', fresh.connected && !fresh.closed)
+  check('the healed plane accepts a lease', fresh.connected && !fresh.closed)
   await wait(3_000)
-  check('…once: the lease on the new bind holds for the next seconds (no second rebind)', fresh.connected && !fresh.closed && existsSync(sock) && statSync(sock).isSocket())
+  check('…once: the lease through the healed plane holds for the next seconds (no second heal)', fresh.connected && !fresh.closed && existsSync(sock) && statSync(sock).isSocket())
   fresh.sock.destroy()
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const status = await daemonControlRpc({ op: 'status' } as never, { timeoutMs: 5_000 }).catch(e => ({ error: String(e) }))
-  check('the plane answers on the re-bound socket', typeof status === 'object' && status !== null && !('error' in (status as Record<string, unknown>)), JSON.stringify(status).slice(0, 200))
+  check('the plane answers through the healed link', typeof status === 'object' && status !== null && !('error' in (status as Record<string, unknown>)), JSON.stringify(status).slice(0, 200))
   check('…and it is the daemon we booted (the status pid)', (status as { status?: { pid?: number } }).status?.pid === daemonPid, JSON.stringify(status).slice(0, 200))
 } else {
   console.log('  (win32: a named pipe cannot be unlinked from under its listener — the key/state halves keep the heal; not staged here)')

@@ -130,7 +130,7 @@ import {
 } from './controlSocket.js'
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
-import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, predecessorSockPath, readHandoverHosts, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
 import { REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
@@ -601,9 +601,6 @@ async function daemonRun(args: string[]): Promise<void> {
           live++
           if (w.short.startsWith('concourse-w')) liveSessions++
         }
-        const held = handover?.heldRunners().size ?? 0
-        live += held
-        liveSessions += held
         return { live, liveSessions }
       }
       const bootStartToken = await getProcessStartTokenAsync(process.pid)
@@ -628,11 +625,12 @@ async function daemonRun(args: string[]): Promise<void> {
           handoverPredecessor,
           short => rosterRef?.has(short).present ?? false,
           () => Object.values(readSessionWorkersSnapshot().state === 'known' ? readSessionWorkers() : {}),
+          await readHandoverHosts(handoverPredecessor, controlKey),
         )
         await persistSupervisorRecord(currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
         // eslint-disable-next-line no-console
-        console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners().size} live session(s) until they finish`)
+        console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners(handoverPredecessor).size} live session(s) until they finish`)
       }
       const handoverRef = handover
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
@@ -660,7 +658,7 @@ async function daemonRun(args: string[]): Promise<void> {
           ? {
               handover: {
                 roadOf: (op, raw) => handoverRoadOf(op, raw, handoverRef),
-                forward: line => forwardFrame(handoverRef.sockPath, line),
+                forward: line => handoverRef.forward(line),
               },
             }
           : {}),
@@ -1030,8 +1028,8 @@ async function daemonRun(args: string[]): Promise<void> {
               if (roster.kill(w.short)) workers.push(w)
             }
           }
-          if (handover !== null && handover.alive()) {
-            void forwardFrame(handover.sockPath, JSON.stringify({ op: 'shutdown', reapWorkers }), 3000).catch(() => undefined)
+          for (const pid of handover?.predecessorPids() ?? []) {
+            void forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers }), 3000).catch(() => undefined)
           }
           setImmediate(() => requestShutdown('control:shutdown'))
           return { reaped: workers.length, workers }
@@ -1046,7 +1044,8 @@ async function daemonRun(args: string[]): Promise<void> {
           ...liveWorkers(),
           warm: warmRunnerCount(),
           restartArmed,
-          predecessorPid: handover !== null && handover.alive() ? handover.predecessorPid : null,
+          predecessorPid: handover?.predecessorPids()[0] ?? null,
+          predecessorPids: handover?.predecessorPids() ?? [],
         }),
         signIns: opts => {
           const view = composeSignInView(opts)
@@ -1069,7 +1068,7 @@ async function daemonRun(args: string[]): Promise<void> {
             const detail = otherBuildInstalledDetail(other, live)
             // eslint-disable-next-line no-console
             console.error(`[daemon] restart asked by ${by} — ${detail}`)
-            if (live > 0) {
+            if (live > 0 || handover?.alive()) {
               restartArmed = true
               return { state: 'armed' as const, live }
             }
@@ -1082,7 +1081,7 @@ async function daemonRun(args: string[]): Promise<void> {
             return { state: 'refused' as const, live, detail: reopenDetail(installed) }
           }
           if (handover !== null && handover.alive()) {
-            return { state: 'refused' as const, live, detail: `the daemon this one took over from (pid ${handover.predecessorPid}) is still leaving — ask again once it has gone` }
+            return { state: 'refused' as const, live, detail: `the daemon this one took over from (pid ${handover.predecessorPids().join(', ')}) is still leaving — ask again once it has gone` }
           }
           if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
             return {
@@ -1146,7 +1145,7 @@ async function daemonRun(args: string[]): Promise<void> {
           }
           return refuse('only a daemon or a runner takes the daemon road', 'none')
         },
-      })
+      }, { socketPath: process.platform === 'win32' ? controlSockPath() : predecessorSockPath(process.pid) })
       await persistSupervisorRecord(currentOwnerPid)
       {
         let healInflight = false
@@ -1235,6 +1234,7 @@ async function daemonRun(args: string[]): Promise<void> {
         const armedBeat = setInterval(() => {
           if (!restartArmed || restartAfterTeardown) return
           if (liveWorkers().live > 0) return
+          if (handover?.alive() && (planeServedByOther === null || !isProcessAlive(planeServedByOther.pid))) return
           restartArmed = false
           const other = successorRuntime()
           if (other !== null) {

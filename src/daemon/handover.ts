@@ -1,6 +1,6 @@
 import net from 'node:net'
-import { existsSync, readFileSync, realpathSync, renameSync } from 'node:fs'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { existsSync, lstatSync, readFileSync, realpathSync, renameSync } from 'node:fs'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
@@ -131,13 +131,16 @@ export function decideHandover(input: HandoverDecisionInput): HandoverDecision {
 }
 
 export function predecessorSockPath(pid: number): string {
-  return `${controlSockPath()}.${pid}`
+  const plane = controlSockPath()
+  const path = `${plane}.${pid}`
+  return process.platform === 'win32' || Buffer.byteLength(path) <= 100 ? path : join(dirname(plane), `${pid}.sock`)
 }
 
 export function renameSocketForPredecessor(pid: number): boolean {
   const from = controlSockPath()
   if (process.platform === 'win32' || !existsSync(from)) return false
   try {
+    if (lstatSync(from).isSymbolicLink() && realOrResolved(from) === realOrResolved(predecessorSockPath(pid))) return true
     renameSync(from, predecessorSockPath(pid))
     return true
   } catch (e) {
@@ -189,52 +192,97 @@ export interface HeldRecordV1 {
   endedAt?: number
 }
 
+export interface HandoverHost {
+  pid: number
+  runners: string[] | null
+}
+
+export async function readHandoverHosts(predecessorPid: number, auth: string): Promise<HandoverHost[]> {
+  const hosts = new Map<number, HandoverHost>()
+  const pending = [predecessorPid]
+  while (pending.length > 0) {
+    const pid = pending.shift()!
+    if (pid === process.pid || hosts.has(pid) || !isProcessAlive(pid)) continue
+    const path = pid === predecessorPid ? controlSockPath() : predecessorSockPath(pid)
+    const hello = await forwardFrame(path, JSON.stringify({ op: 'hello' }), 3000)
+    if (!hello.ok || hello.op !== 'hello' || hello.pid !== pid) {
+      if (isProcessAlive(pid)) {
+        logForDebugging(`[daemon] handover: pid ${pid} did not answer hello (${hello.ok ? 'another daemon answered on its path' : hello.error}) — it is read as holding every live session no other daemon names`)
+        hosts.set(pid, { pid, runners: null })
+      }
+      continue
+    }
+    const list = await forwardFrame(path, JSON.stringify({ op: 'list', proto: hello.proto, auth }), 3000)
+    hosts.set(pid, { pid, runners: list.ok && list.op === 'list' ? list.jobs.filter(job => !job.outcome).map(job => job.short) : null })
+    for (const earlier of hello.predecessorPids ?? (hello.predecessorPid === null || hello.predecessorPid === undefined ? [] : [hello.predecessorPid])) {
+      if (Number.isInteger(earlier) && earlier > 0 && !hosts.has(earlier)) pending.push(earlier)
+    }
+  }
+  return [...hosts.values()]
+}
+
 export interface HandoverStateV1 {
   predecessorPid: number
   sockPath: string
   alive(): boolean
+  predecessorPids(): number[]
   holds(runnerId: string): boolean
-  heldRunners(): Set<string>
+  heldRunners(pid?: number): Set<string>
   runnerOfSession(sessionId: string): string | undefined
+  socketFor(raw: Record<string, unknown>): string | null
+  forward(line: string): Promise<DaemonReply>
 }
 
 export function handoverState(
   predecessorPid: number,
   rosterHas: (short: string) => boolean,
   records: () => HeldRecordV1[],
+  hosts: HandoverHost[] = [{ pid: predecessorPid, runners: null }],
 ): HandoverStateV1 {
-  const alive = (): boolean => isProcessAlive(predecessorPid)
+  const owners = new Map(hosts.flatMap(host => (host.runners ?? []).map(runner => [runner, host.pid] as const)))
+  const unnamed = hosts.find(host => host.runners === null)?.pid
+  const ownerOf = (runnerId: string): number | undefined => owners.get(runnerId) ?? unnamed
+  const predecessorPids = (): number[] => hosts.map(host => host.pid).filter(isProcessAlive)
+  const alive = (): boolean => predecessorPids().length > 0
   const held = (): Map<string, HeldRecordV1> => {
     const out = new Map<string, HeldRecordV1>()
-    if (!alive()) return out
+    const living = new Set(predecessorPids())
     for (const r of records()) {
       if (r.endedAt !== undefined || r.pid === undefined || rosterHas(r.runnerId)) continue
+      const owner = ownerOf(r.runnerId)
+      if (owner === undefined || !living.has(owner)) continue
       if (isProcessAlive(r.pid)) out.set(r.runnerId, r)
     }
     return out
+  }
+  const socketFor = (raw: Record<string, unknown>): string | null => {
+    for (const r of held().values()) {
+      if (SESSION_FIELDS.some(field => raw[field] === r.sessionId) || RUNNER_FIELDS.some(field => raw[field] === r.runnerId)) {
+        return predecessorSockPath(ownerOf(r.runnerId)!)
+      }
+    }
+    return null
   }
   return {
     predecessorPid,
     sockPath: predecessorSockPath(predecessorPid),
     alive,
+    predecessorPids,
     holds: runnerId => held().has(runnerId),
-    heldRunners: () => new Set(held().keys()),
+    heldRunners: pid => new Set([...held().keys()].filter(runner => pid === undefined || ownerOf(runner) === pid)),
     runnerOfSession: sessionId => [...held().values()].find(r => r.sessionId === sessionId)?.runnerId,
+    socketFor,
+    forward: line => {
+      const path = socketFor(JSON.parse(line) as Record<string, unknown>)
+      return path === null ? Promise.resolve({ ok: false, code: 'ENOCONN', error: 'the daemon that held this session has left' }) : forwardFrame(path, line)
+    },
   }
 }
 
 const SESSION_FIELDS = ['sessionId', 'targetSessionId', 'resumeSessionId'] as const
+const RUNNER_FIELDS = ['short', 'runnerId', 'workerId'] as const
 
 export function handoverRoadOf(op: string, raw: Record<string, unknown>, state: HandoverStateV1): 'here' | 'predecessor' {
-  if (!state.alive()) return 'here'
-  for (const field of SESSION_FIELDS) {
-    const value = raw[field]
-    if (typeof value === 'string' && value !== '' && state.runnerOfSession(value) !== undefined) return 'predecessor'
-  }
-  for (const field of ['short', 'runnerId', 'workerId'] as const) {
-    const value = raw[field]
-    if (typeof value === 'string' && value !== '' && state.holds(value)) return 'predecessor'
-  }
   void op
-  return 'here'
+  return state.socketFor(raw) === null ? 'here' : 'predecessor'
 }
