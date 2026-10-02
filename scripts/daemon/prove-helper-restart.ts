@@ -94,7 +94,7 @@ try {
   const runnerPid = record()?.pid
   const restart = await cli('restart')
   console.log(restart.text.trim())
-  check('restart says it waits for the live session', restart.code === 0 && restart.text.includes('restarts when its 1 live session finish'), restart)
+  check('restart says it waits for the live session, in words that agree in number', restart.code === 0 && restart.text.includes('restarts when its 1 live session finishes'), restart)
   const observeUntil = Date.now() + 22_000
   await until(() => Date.now() >= observeUntil || !isProcessAlive(held) || !isProcessAlive(runnerPid!), 25_000)
   const stillHeld = await hello()
