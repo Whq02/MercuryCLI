@@ -255,7 +255,7 @@ t.section('§6 — THE CONTAINER: cycling, the tri-state words, the master row, 
 
 t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
 {
-  const { IDE_CLIENT_NAME, MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/services/kitMenu/kitCatalogue.js')
+  const { MCP_SKILLS_NOTE, contributesWords, enumerateKitCatalogue } = await import('../../src/services/kitMenu/kitCatalogue.js')
   const manifest = (name: string, contributes: Record<string, unknown>) => ({ name, version: '1.0.0', description: 'x', contributes }) as never
   const orchard = manifest('orchard-tools', { skills: ['prune', 'graft'], servers: { db: { command: 'x' } }, commands: ['tidy'], hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'x' }] }] } })
   const quiet = manifest('quiet-hooks', { commands: ['lint'], hooks: { PreToolUse: [{ hooks: [{ type: 'command', command: 'x' }] }] } })
@@ -265,7 +265,6 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
       servers: {
         github: { type: 'stdio', command: 'gh', scope: 'user' },
         postgres: { type: 'stdio', command: 'pg', scope: 'project' },
-        [IDE_CLIENT_NAME]: { type: 'stdio', command: 'ide', scope: 'local' },
         'ext:orchard-tools:db': { type: 'stdio', command: 'db', scope: 'dynamic', extensionSource: 'orchard-tools@local' },
       } as never,
     }),
@@ -283,7 +282,7 @@ t.section("§7 — THE ENUMERATION: the rows are the doors' own spellings (C3)")
   }
   const cat = await enumerateKitCatalogue('/proof/cwd', doors as never)
   const names = (section: 'mcp' | 'skill') => cat.rows.filter(r => r.section === section).map(r => (r.kind === 'note' || r.kind === 'empty' ? `(${r.kind})` : r.kind === 'extension' ? `[${r.name}]` : r.name))
-  t.check("MCPs: the doors' keys verbatim, the ide client excluded (the /mcp exemption), the extension's server under its master row", JSON.stringify(names('mcp')) === JSON.stringify(['github', 'postgres', '[orchard-tools]', 'ext:orchard-tools:db']), names('mcp').join(' · '))
+  t.check("MCPs: the doors' keys verbatim, the extension's server under its master row", JSON.stringify(names('mcp')) === JSON.stringify(['github', 'postgres', '[orchard-tools]', 'ext:orchard-tools:db']), names('mcp').join(' · '))
   t.check("Skills: loader skills verbatim (SKILL.md + legacy commands), NO bundled organ, NO mcp-derived row, the extension's skills under its master, the commands/hooks-only extension's master in Skills, the ruled note LAST", JSON.stringify(names('skill')) === JSON.stringify(['deploy', 'notes', '[orchard-tools]', 'orchard-tools:prune', 'orchard-tools:graft', '[quiet-hooks]', '(note)']), names('skill').join(' · '))
   for (const refused of [false, true]) {
     const sparse = await enumerateKitCatalogue('/proof/cwd', {
