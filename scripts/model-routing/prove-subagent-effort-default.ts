@@ -160,7 +160,7 @@ const doctrine = await import('../../src/constants/subagentDoctrine.js')
 }
 
 {
-  console.log('\n— §5 · a supercode seat pins max on the lead alone —')
+  console.log('\n— §5 · a seat stamped max pins it on the lead alone —')
   process.env.MERCURY_EFFORT_LEVEL = 'max'
   const lead = effort.resolveEffortTruth('claude-opus-4-8', 'max')
   check("the seat's own request carries the stamp (max)", lead.wire === 'max' && lead.requestedSource === 'env', JSON.stringify(lead))

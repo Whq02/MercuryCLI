@@ -403,9 +403,6 @@
             "max"
           ]
         },
-        "supercode": {
-          "type": "boolean"
-        },
         "sessionDefaults": {
           "type": "boolean"
         },

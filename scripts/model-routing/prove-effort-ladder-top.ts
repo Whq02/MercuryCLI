@@ -33,7 +33,6 @@ const effort = await import('../../src/utils/effort.js')
 const pins = await import('../../src/services/providers/openai/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
 const capabilities = await import('../../src/utils/model/capabilities.js')
-const effortModel = await import('../../src/utils/cockpit/effortModel.js')
 const store = await import('../../src/services/providers/openai/qualificationStore.js')
 const figures = await import('../../src/constants/figures.js')
 const indicator = await import('../../src/components/EffortIndicator.js')
@@ -45,21 +44,19 @@ const LIST_WORD = 'ultra'
   console.log('\n— §1 · one tuple, five words, max at the top; every surface reads it —')
   check('the ladder is exactly low · medium · high · xhigh · max', JSON.stringify(runtimeTypes.EFFORT_LEVELS) === JSON.stringify(LADDER), JSON.stringify(runtimeTypes.EFFORT_LEVELS))
   check('the owner re-exports the same tuple (one owner, no mirror)', effort.EFFORT_LEVELS === runtimeTypes.EFFORT_LEVELS)
-  check('the cockpit axis IS the tuple', effortModel.EFFORT_AXIS === runtimeTypes.EFFORT_LEVELS)
   check('the list word is not a level anywhere the type can reach', !effort.isEffortLevel(LIST_WORD) && !(effort.EFFORT_LEVELS as readonly string[]).includes(LIST_WORD))
   check('every ladder word has a glyph and none is left for a word above max', LADDER.every(level => indicator.effortLevelToSymbol(level).length > 0) && !('EFFORT_ULTRA' in figures))
   check('every ladder word has a description and the description switch is exhaustive over the tuple', LADDER.every(level => effort.getEffortLevelDescription(level).length > 0))
-  check('every ladder word has a cockpit note', LADDER.every(level => effortModel.describeEffortLevel(level, true).note.length > 0))
   const slider = src('src/commands/effort/EffortSlider.tsx')
   check("the slider's treatments are a Record over the ladder type with no word above max", /const TREATMENTS: Record<EffortLevel, Treatment> = \{/.test(slider) && !/\bultra\b/.test(slider) && !/blaze/.test(slider))
-  check('the /effort option list derives from the tuple', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|supercode|auto`"))
+  check('the /effort option list derives from the tuple and ends at max before auto', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`"))
   check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
   check("the Agent tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
   check('the workflow prompt spells the ladder from the tuple and no longer names a word above max', src('src/tools/WorkflowTool/workflowPrompt.ts').includes("EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')") && !/\bultra\b/.test(src('src/tools/WorkflowTool/workflowPrompt.ts')))
   const coordinator = src('src/services/concourse/coordinatorTools.ts')
   check("the coordinator's launch tool names the ladder from the tuple and says max is the top", coordinator.includes("EFFORT_LEVELS.join(' | ')") && coordinator.includes('max IS the top tier') && !/\bultra\b/.test(coordinator))
   check('the --effort door names the ladder from the tuple', src('src/main.tsx').includes("Reasoning effort level (${EFFORT_LEVELS.join(', ')})"))
-  for (const file of ['src/utils/effort.ts', 'src/utils/cockpit/effortModel.ts', 'src/components/EffortIndicator.ts', 'src/entrypoints/sdk/runtimeTypes.ts']) {
+  for (const file of ['src/utils/effort.ts', 'src/components/EffortIndicator.ts', 'src/entrypoints/sdk/runtimeTypes.ts']) {
     check(`${file} carries no switch arm or record row for a word above max`, !/case 'ultra'|ultra:/.test(src(file)))
   }
 }
@@ -72,7 +69,6 @@ const LIST_WORD = 'ultra'
   const listed = [...LADDER, LIST_WORD]
   check('the nearest-served resolution answers undefined for the list word even where the list carries it', pins.nearestSupportedWireEffort(LIST_WORD, listed) === undefined)
   check('…and max stays max on that list (never clamped by a word above it)', pins.nearestSupportedWireEffort('max', listed) === 'max')
-  check('the delegation-lead word is the list word, read off a list verbatim', pins.DELEGATION_LEAD_LIST_WORD === LIST_WORD && pins.listMarksDelegationLead(listed) && !pins.listMarksDelegationLead([...LADDER]) && !pins.listMarksDelegationLead(undefined))
   check("a list default above the ladder steps to the convention word; a ranked default rides verbatim; a list of only the word sends nothing", pins.wireEffortForListDefault(LIST_WORD, listed) === 'high' && pins.wireEffortForListDefault('minimal', ['none', 'minimal', 'low']) === 'minimal' && pins.wireEffortForListDefault(undefined, ['xhigh', 'max']) === 'xhigh' && pins.wireEffortForListDefault(LIST_WORD, [LIST_WORD]) === undefined)
 }
 
@@ -123,18 +119,14 @@ const LIST_WORD = 'ultra'
   const novaProfile = novaLive.ok ? catalogue.resolveGptReasoningProfile(undefined, novaLive.candidate.live) : undefined
   check("a list DEFAULT above the ladder is never sent: nothing asked sends the convention word 'high', the record keeps the list's own default", aboveDefault.wire === 'high' && aboveDefault.label === 'high' && aboveDefault.providerDefault === LIST_WORD && novaProfile?.wireEffort === 'high' && novaProfile.source === 'model-default', JSON.stringify({ aboveDefault, novaProfile }))
 
-  check("the provider's list marks the rows that carry the word as able to lead delegation, and no other", capabilities.providerMarksDelegationLead('gpt-6-astra') && capabilities.providerMarksDelegationLead('gpt-5.6-nova') && !capabilities.providerMarksDelegationLead('gpt-5.6-sol') && !capabilities.providerMarksDelegationLead('claude-opus-5') && !capabilities.providerMarksDelegationLead('local/qwen3:8b'))
-  check('the supercode summary carries the flag only when told, and never a wire word', effortModel.describeSupercodeMode({ providerMarksDelegationLead: true }).summary.endsWith(effortModel.DELEGATION_LEAD_NOTE) && !effortModel.describeSupercodeMode().summary.includes(effortModel.DELEGATION_LEAD_NOTE) && effortModel.describeSupercodeMode().pinsEffort === 'max')
-  check("the slider's supercode line adds the flag from the capability edge", /providerMarksDelegationLead\(model\) \? ` · \$\{DELEGATION_LEAD_NOTE\}` : ''/.test(src('src/commands/effort/EffortSlider.tsx')))
 
   const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
   store.recordWireEffortRefusal({ modelId: 'gpt-6-astra', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST })
-  check('a remembered refusal narrows the served row (max gone, ceiling xhigh) while the LISTED words and the flag stand', capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'xhigh' && JSON.stringify(catalogue.liveGptListedEffortWords('gpt-6-astra')) === JSON.stringify([...LADDER, LIST_WORD]) && capabilities.providerMarksDelegationLead('gpt-6-astra'))
+  check('a remembered refusal narrows the served row (max gone, ceiling xhigh) while the LISTED words stand', capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'xhigh' && JSON.stringify(catalogue.liveGptListedEffortWords('gpt-6-astra')) === JSON.stringify([...LADDER, LIST_WORD]))
   store.noteWireEffortAccepted({ modelId: 'gpt-6-astra', sourceKind: 'api-key', word: 'max' })
   check('an accepted max clears the memory', store.readWireEffortVocabularies().length === 0 && capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'max')
   catalogue.__resetOpenaiCatalogueForTest()
   delete process.env.OPENAI_API_KEY
-  check('with no catalogue the flag is simply false (never an error)', !capabilities.providerMarksDelegationLead('gpt-6-astra'))
 }
 
 {

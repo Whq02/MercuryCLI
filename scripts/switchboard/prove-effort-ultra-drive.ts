@@ -161,11 +161,11 @@ try {
   check(`U1 the list's word above max paints nowhere on the slider`, !sliderFrames.some(f => new RegExp(`\\b${LIST_WORD}\\b`).test(f.text)), sliderFrames.map(f => rowsWith(f.text, LIST_WORD).join(' | ')).join(' || ').slice(0, 200))
   const railRow = sliderFrames.flatMap(f => f.text.split('\n')).find(r => r.includes('△') || r.includes('▲'))
   const stops = railRow === undefined ? 0 : (railRow.match(/[△▲]/g) ?? []).length
-  check('U1 the rail carries six stops — five base tiers and the supercode extension past the junction', stops === 6 && railRow !== undefined && railRow.includes('┆'), `stops=${stops} rail=${String(railRow).trim()}`)
+  check('U1 the rail carries five stops and ends at max — no junction, nothing past it', stops === 5 && railRow !== undefined && !railRow.includes('┆'), `stops=${stops} rail=${String(railRow).trim()}`)
   check('U1 esc closed the slider with the running word (the seat runs the admission word, high)', anyFrame(`Effort unchanged (${SEAT_EFFORT})`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort unchanged')).map(t => t.slice(t.indexOf('Effort unchanged'), t.indexOf('Effort unchanged') + 60)).join(' | ').slice(0, 200))
 
-  check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option (the ladder leads, the refused word follows)`, anyFrame(`|supercode|auto — "${LIST_WORD}`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))
-  check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|supercode|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
+  check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option (the ladder leads, the refused word follows)`, anyFrame(`|max|auto — "${LIST_WORD}`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))
+  check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
   check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`))
 
   check(`U3 the /effort ${TOP} receipt is the seat's ("Effort set to ${TOP} for this session — its next request runs it")`, anyFrame(`Effort set to ${TOP} for this session`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort set to')).map(t => t.slice(t.indexOf('Effort set to'), t.indexOf('Effort set to') + 80)).join(' | ').slice(0, 400))

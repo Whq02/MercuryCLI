@@ -106,7 +106,6 @@ import agentForm from './commands/agent-form/index.js'
 import crewmates from './commands/crewmates/index.js'
 import consoleCommand from './commands/console/index.js'
 import submodels from './commands/submodels/index.js'
-import supercode from './commands/supercode/index.js'
 import supervisor from './commands/supervisor/index.js'
 import palette from './commands/palette/index.js'
 import capabilitiesDetail from './commands/capabilities-detail/index.js'
@@ -277,7 +276,6 @@ const COMMANDS = memoize((): Command[] => [
   crewmates,
   consoleCommand,
   submodels,
-  supercode,
   supervisor,
   pings,
   palette,

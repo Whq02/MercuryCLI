@@ -127,7 +127,7 @@ const liveModel = (efforts: string[], def?: string) =>
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-terra') === 'xhigh' &&
     capabilities.getMaxSupportedEffortLevel('gpt-5.6-luna') === 'high')
   check("Sol's Mercury-ladder default follows the LIVE default ('low')", capabilities.gptModelDefaultEffort('gpt-5.6-sol') === 'low')
-  check("Astra's list carries a word above max; the ceiling is still max, the word is never a stop, and the row is marked able to lead delegation", capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'max' && !(effort.selectableEffortLevels('gpt-6-astra') as readonly string[]).includes('ultra') && capabilities.providerMarksDelegationLead('gpt-6-astra') && !capabilities.providerMarksDelegationLead('gpt-5.6-sol'))
+  check("Astra's list carries a word above max; the ceiling is still max and the word is never a stop", capabilities.getMaxSupportedEffortLevel('gpt-6-astra') === 'max' && !(effort.selectableEffortLevels('gpt-6-astra') as readonly string[]).includes('ultra'))
   check("the list word asked raw is never applied: on Astra the row default ('medium') rides; on Sol ('low'); on Luna ('medium')", effort.resolveAppliedEffort('gpt-6-astra', 'ultra' as never) === 'medium' && effort.resolveAppliedEffort('gpt-5.6-sol', 'ultra' as never) === 'low' && effort.resolveAppliedEffort('gpt-5.6-luna', 'ultra' as never) === 'medium')
   check('DISPLAY ≡ DISPATCH on Astra for the list word (both the row default, never the word)', effort.getDisplayedEffortLevel('gpt-6-astra', 'ultra' as never) === 'medium' && resolveGptReasoningProfile('ultra', liveModel(['low', 'medium', 'high', 'xhigh', 'max', 'ultra'], 'medium')).wireEffort === 'medium')
 
@@ -219,11 +219,10 @@ const liveModel = (efforts: string[], def?: string) =>
 
   const slider = readFileSync(join(ROOT, 'src/commands/effort/EffortSlider.tsx'), 'utf8')
   check(
-    'EF-06: the slider derives its base stops from the ladder owner (max at the top, no word above it) and supercode rides max-support (separate mode, never masquerading)',
+    'EF-06: the slider derives its stops from the ladder owner (max at the top, no word above it)',
     slider.includes('EFFORT_LEVELS.map(level => ({') &&
       !/\bultra\b/.test(slider) &&
-      slider.includes('supported: vocabulary.has(String(tier.value))') &&
-      /modelSupportsMaxEffort\(model\)[\s\S]{0,400}value: 'supercode'/.test(slider),
+      slider.includes('supported: vocabulary.has(String(tier.value))'),
   )
 }
 
@@ -244,7 +243,7 @@ const liveModel = (efforts: string[], def?: string) =>
   await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: listFetch })
   const WIRE_LIST = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh']
   check('no memory ⇒ the list is the vocabulary (max offered on Sol; the listed word above it never is)', capabilities.modelOffersEffortLevel('gpt-5.6-sol', 'max') && !(effort.selectableEffortLevels('gpt-5.6-sol') as readonly string[]).includes('ultra') && store.readWireEffortVocabularies().length === 0)
-  check("the LISTED words survive verbatim beside the served ones (the provider's delegation-lead word among them)", JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']) && capabilities.providerMarksDelegationLead('gpt-5.6-sol') && !capabilities.providerMarksDelegationLead('gpt-5.6-luna'))
+  check("the LISTED words survive verbatim beside the served ones (the provider's word above max among them)", JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']))
   store.recordWireEffortRefusal({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', refused: 'max', levels: WIRE_LIST })
   const view = capabilities.gptEffortVocabularyView('gpt-5.6-sol')
   const truth = effort.resolveEffortTruth('gpt-5.6-sol', 'max')
@@ -254,7 +253,7 @@ const liveModel = (efforts: string[], def?: string) =>
     JSON.stringify({ view, wire: truth.wire, adjustedFrom: truth.adjustedFrom }),
   )
   check("the wire profile reads the same narrowed row (display ≡ dispatch): the candidate's live row lacks max", (() => { const c = catalogue.evaluateGptCandidate('gpt-5.6-sol', 'api-key'); return c.ok && !c.candidate.live.supportedReasoningEfforts.includes('max') && c.candidate.live.supportedReasoningEfforts.includes('xhigh') })())
-  check('the LISTED words are untouched by the memory (the list is the list; the wire is the wire)', JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']) && capabilities.providerMarksDelegationLead('gpt-5.6-sol'))
+  check('the LISTED words are untouched by the memory (the list is the list; the wire is the wire)', JSON.stringify(catalogue.liveGptListedEffortWords('gpt-5.6-sol')) === JSON.stringify(['low', 'medium', 'high', 'xhigh', 'max', 'ultra']))
   check('another row keeps its own list (Luna untouched)', JSON.stringify(capabilities.gptEffortVocabularyView('gpt-5.6-luna')) === JSON.stringify({ state: 'live', vocabulary: ['low', 'medium', 'high'], defaultEffort: 'medium' }))
   check('the memory is dated and names the refused word and the source', store.readWireEffortVocabularies().every(m => m.refused === 'max' && m.sourceKind === 'api-key' && m.observedAtMs > 0))
   store.noteWireEffortAccepted({ modelId: 'gpt-5.6-sol', sourceKind: 'api-key', word: 'max' })

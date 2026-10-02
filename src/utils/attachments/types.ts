@@ -336,13 +336,6 @@ export type Attachment =
       delta: string | null
     }
   | {
-      type: 'ultra_effort'
-      reminderType: 'full' | 'sparse'
-    }
-  | {
-      type: 'ultra_effort_exit'
-    }
-  | {
       type: 'critical_system_reminder'
       content: string
     }

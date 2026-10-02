@@ -115,9 +115,7 @@ import {
   getDisplayedEffortLabel,
   getEffortEnvOverride,
   getInitialEffortSetting,
-  getInitialSupercodeSetting,
   modelSupportsEffort,
-  modelSupportsMaxEffort,
   parseEffortValue,
   resolveStampedEffortTruth,
   selectableEffortLevels,
@@ -666,7 +664,6 @@ function MercuryModelWrapper({
   const mainLoopModel = useAppState(s => s.mainLoopModel)
   const mainLoopModelForSession = useAppState(s => s.mainLoopModelForSession)
   const effortValue = useAppState(s => s.effortValue)
-  const supercode = useAppState(s => s.supercode)
   const setAppState = useSetAppState()
   const store = useAppStateStore()
   const betas = getSdkBetas()
@@ -677,39 +674,25 @@ function MercuryModelWrapper({
   const servedModel = focusedSeat !== null ? focusedSeat.effective : (mainLoopModelForSession ?? getMainLoopModel())
 
   const liveModel = servedModel
-  const efforts = modelSupportsEffort(liveModel)
-    ? [
-        ...selectableEffortLevels(liveModel),
-        ...(modelSupportsMaxEffort(liveModel) ? ['supercode'] : []),
-      ]
-    : []
+  const efforts = modelSupportsEffort(liveModel) ? [...selectableEffortLevels(liveModel)] : []
   const seatEffort = focusedSeat?.effort != null ? parseEffortValue(focusedSeat.effort) : undefined
-  const initialEffort = supercode
-    ? 'supercode'
-    : seatEffort !== undefined
+  const initialEffort =
+    seatEffort !== undefined
       ? resolveStampedEffortTruth(liveModel, seatEffort).label
       : getDisplayedEffortLabel(liveModel, effortValue)
   const [effort, setEffort] = React.useState<string>(initialEffort)
 
   function handleEffort(mode: string): void {
     setEffort(mode)
-    if (mode === 'supercode') {
-      unpinAllLaunchEffort()
-      updateSettingsForSource('userSettings', { engine: { effort: 'max', supercode: true } })
-      if (settleOnSeat('max', () => setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true })))) return
-      setAppState(prev => ({ ...prev, effortValue: 'max', supercode: true }))
-      return
-    }
     unpinAllLaunchEffort()
     const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable !== undefined) {
-      updateSettingsForSource('userSettings', { engine: { effort: persistable, supercode: undefined } })
-      if (settleOnSeat(persistable, () => setAppState(prev => ({ ...prev, effortValue: persistable, supercode: false })))) return
+      updateSettingsForSource('userSettings', { engine: { effort: persistable } })
+      if (settleOnSeat(persistable, () => setAppState(prev => ({ ...prev, effortValue: persistable })))) return
     }
     setAppState(prev => ({
       ...prev,
       effortValue: mode as EffortValue,
-      supercode: false,
     }))
   }
 
@@ -1108,12 +1091,8 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   useCatalogueEpoch()
   const betas = getSdkBetas()
   const model = nextBirthModel() ?? getMainLoopModel()
-  const efforts = modelSupportsEffort(model)
-    ? [...selectableEffortLevels(model), ...(modelSupportsMaxEffort(model) ? ['supercode'] : [])]
-    : []
-  const [effort, setEffort] = React.useState<string>(() =>
-    getInitialSupercodeSetting() ? 'supercode' : getDisplayedEffortLabel(model, getInitialEffortSetting()),
-  )
+  const efforts = modelSupportsEffort(model) ? [...selectableEffortLevels(model)] : []
+  const [effort, setEffort] = React.useState<string>(() => getDisplayedEffortLabel(model, getInitialEffortSetting()))
   const [slotVersion, setSlotVersion] = React.useState(0)
   void slotVersion
   const [notice, setNotice] = React.useState<string | undefined>(undefined)
@@ -1135,13 +1114,11 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
   const models = orderedModelChoices(listedModels, currentRowId)
   const topGroup = seatGroupOf(listedModels, currentRowId)
   function handleEffort(mode: string): void {
-    const persistable = mode === 'supercode' ? 'max' : toPersistableEffort(mode as EffortValue)
+    const persistable = toPersistableEffort(mode as EffortValue)
     if (persistable === undefined) return
-    const { error } = updateSettingsForSource('userSettings', { engine: { effort: persistable, supercode: mode === 'supercode' ? true : undefined } })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: persistable } })
     if (error) {
-      setNotice(mode === 'supercode'
-        ? `Could not save the supercode setting: ${error.message}`
-        : `Could not save the effort level: ${error.message}`)
+      setNotice(`Could not save the effort level: ${error.message}`)
       return
     }
     unpinAllLaunchEffort()
@@ -1150,7 +1127,7 @@ export function MercuryModelDefaultPicker({ onDone, onSignIn }: { onDone: () => 
     setNotice(override !== undefined && override !== persistable
       ? `Saved ${persistable} as your default, but MERCURY_EFFORT_LEVEL=${flagEnv('MERCURY_EFFORT_LEVEL') ?? ''} overrides this session — clear it to let ${persistable} take over.`
       : undefined)
-    setAppState?.(prev => ({ ...prev, effortValue: persistable, supercode: mode === 'supercode' }))
+    setAppState?.(prev => ({ ...prev, effortValue: persistable }))
   }
   function handleSelect(id: string, door?: string): void {
     if (isCatalogueDoorRow(id)) return

@@ -21,10 +21,6 @@ import {
   getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
 import { getContextCapsuleAttachment } from './contextCapsule.js'
-import {
-  getUltraEffortAttachments,
-  getUltraEffortExitAttachment,
-} from './modeLifecycles.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
   processAgentMentions,
@@ -217,12 +213,6 @@ export async function getAttachments(
       options?.localSubmission
         ? Promise.resolve([])
         : getContextCapsuleAttachment(input, messages, toolUseContext),
-    ),
-    maybe('ultra_effort', () =>
-      Promise.resolve(getUltraEffortAttachments(messages, toolUseContext)),
-    ),
-    maybe('ultra_effort_exit', () =>
-      Promise.resolve(getUltraEffortExitAttachment(messages, toolUseContext)),
     ),
     maybe('task_reminders', () => getTaskReminderAttachments(messages, toolUseContext)),
     maybe('contract_reminder', () =>

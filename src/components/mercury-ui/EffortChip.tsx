@@ -1,7 +1,6 @@
 
 import * as React from 'react'
 import { Text } from '../../ink.js'
-import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useAppStateMaybeOutsideOfProvider } from '../../state/AppState.js'
 import { useFocusedBornEffort, useFocusedSentEffort, useFocusedServedEffort } from '../../hooks/useDisplayedSessionModel.js'
 import {
@@ -14,7 +13,6 @@ import {
 } from '../../utils/effort.js'
 import { FAINT, SECOND } from '../mercuryPalette.js'
 import { effortLevelToSymbol } from '../EffortIndicator.js'
-import { useMercuryTokens } from './useMercuryTokens.js'
 import { stringWidth } from '../../ink/stringWidth.js'
 
 export function bornEffortValueOf(seatEffort: string | null, bornEffort: string | null): ReturnType<typeof parseEffortValue> | undefined {
@@ -61,12 +59,9 @@ export function RecordedEffortChip({ effort, plain = false, maxWidth = Number.PO
 
 export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_INFINITY }: { model: string; plain?: boolean; maxWidth?: number }): React.ReactNode {
   const effortValue = useAppStateMaybeOutsideOfProvider(s => s.effortValue)
-  const supercode = useAppStateMaybeOutsideOfProvider(s => s.supercode)
   const seatEffort = useFocusedServedEffort()
   const sentEffort = useFocusedSentEffort()
   const bornEffort = useFocusedBornEffort()
-  const tokens = useMercuryTokens()
-  const { columns } = useTerminalSize()
   if (!model || !modelSupportsEffort(model)) return null
   const stamped = seatEffort !== null ? parseEffortValue(seatEffort) : undefined
   const seatResolution = stamped !== undefined ? resolveStampedEffortTruth(model, stamped) : null
@@ -93,12 +88,6 @@ export function EffortChip({ model, plain = false, maxWidth = Number.POSITIVE_IN
   return (
     <Text>
       <Text color={FAINT}> · </Text>
-      {supercode && columns >= 100 ? (
-        <>
-          <Text color={tokens.info}>supercode</Text>
-          <Text color={FAINT}> · </Text>
-        </>
-      ) : null}
       <Text color={FAINT}>{effortLevelToSymbol(level)} </Text>
       <Text color={SECOND}>{label}</Text>
     </Text>

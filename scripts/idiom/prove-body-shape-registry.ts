@@ -160,8 +160,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'delta is a number', field: 'delta', fields: { markdown: '# c', digest: 'd', refs: [], delta: 5 } },
     ],
   },
-  ultra_effort: { good: { reminderType: 'full' }, bad: [{ label: 'reminderType is null', field: 'reminderType', fields: { reminderType: null } }] },
-  ultra_effort_exit: { good: {}, bad: [] },
   critical_system_reminder: { good: { content: 'c' }, bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'] } }] },
   plan_file_reference: { good: { planFilePath: 'p.md', planContent: '# p' }, bad: [{ label: 'planContent is an object', field: 'planContent', fields: { planFilePath: 'p.md', planContent: {} } }] },
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },

@@ -261,49 +261,6 @@ export async function getAutoModeExitAttachment(
   return [{ type: 'auto_mode_exit' }]
 }
 
-
-function getUltraEffortAttachmentTurnCount(messages: Message[]): {
-  turnCount: number
-  foundUltraEffortAttachment: boolean
-} {
-  let turnsSinceLastAttachment = 0
-  let foundUltraEffortAttachment = false
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (
-      message?.type === 'user' &&
-      !message.isMeta &&
-      !hasToolResultContent(message.message.content)
-    ) {
-      turnsSinceLastAttachment++
-    } else if (
-      message?.type === 'attachment' &&
-      message.attachment.type === 'ultra_effort'
-    ) {
-      foundUltraEffortAttachment = true
-      break
-    } else if (
-      message?.type === 'attachment' &&
-      message.attachment.type === 'ultra_effort_exit'
-    ) {
-      break
-    }
-  }
-  return { turnCount: turnsSinceLastAttachment, foundUltraEffortAttachment }
-}
-
-function countUltraEffortAttachmentsSinceLastExit(messages: Message[]): number {
-  let count = 0
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message?.type === 'attachment') {
-      if (message.attachment.type === 'ultra_effort_exit') break
-      if (message.attachment.type === 'ultra_effort') count++
-    }
-  }
-  return count
-}
-
 export function getRepoSurfaceMapAttachment(
   messages: Message[] | undefined,
   toolUseContext: ToolUseContext,
@@ -321,55 +278,6 @@ export function getRepoSurfaceMapAttachment(
   const markdown = buildRepoSurfaceMap(root)
   if (!markdown) return []
   return [{ type: 'repo_surface_map', markdown }]
-}
-
-export function getUltraEffortAttachments(
-  messages: Message[] | undefined,
-  toolUseContext: ToolUseContext,
-): Attachment[] {
-  
-  if (toolUseContext.getAppState().supercode !== true) return []
-
-  if (messages && messages.length > 0) {
-    const { turnCount, foundUltraEffortAttachment } =
-      getUltraEffortAttachmentTurnCount(messages)
-    if (
-      foundUltraEffortAttachment &&
-      turnCount < AUTO_MODE_ATTACHMENT_CONFIG.TURNS_BETWEEN_ATTACHMENTS
-    ) {
-      return []
-    }
-  }
-
-  const attachmentCount =
-    countUltraEffortAttachmentsSinceLastExit(messages ?? []) + 1
-  const reminderType: 'full' | 'sparse' =
-    attachmentCount %
-      AUTO_MODE_ATTACHMENT_CONFIG.FULL_REMINDER_EVERY_N_ATTACHMENTS ===
-    1
-      ? 'full'
-      : 'sparse'
-
-  return [{ type: 'ultra_effort', reminderType }]
-}
-
-export function getUltraEffortExitAttachment(
-  messages: Message[] | undefined,
-  toolUseContext: ToolUseContext,
-): Attachment[] {
-  
-  if (toolUseContext.getAppState().supercode === true) return []
-  if (!messages || messages.length === 0) return []
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message?.type === 'attachment') {
-      if (message.attachment.type === 'ultra_effort_exit') return []
-      if (message.attachment.type === 'ultra_effort') {
-        return [{ type: 'ultra_effort_exit' }]
-      }
-    }
-  }
-  return []
 }
 
 export function getDateChangeAttachments(

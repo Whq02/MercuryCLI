@@ -21,7 +21,7 @@
 # gate-watch: src/services/search/searchDoor.ts src/tools/AgentTool/*
 # gate-watch: src/tools/ToolSearchTool/ToolSearchTool.ts src/tools/WorkflowTool/agentHooks.ts
 # gate-watch: src/tools/WorkflowTool/workflowPrompt.ts src/utils/* src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/cockpit/effortModel.ts src/utils/messages/apiView.ts
+# gate-watch: src/utils/messages/apiView.ts
 # gate-watch: src/utils/messages/attachmentText.ts src/utils/settings/types.ts
 # gate-watch: scripts/lib/crossfamilyConcourseFixture.ts src/services/compact/compact.ts
 set -u

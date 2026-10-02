@@ -1847,7 +1847,6 @@ async function interactiveLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
   const { setDynamicCrewContext } = await import('./utils/crewmate.js')
@@ -1872,7 +1871,6 @@ async function interactiveLaunch(args: {
     verbose: config.toolOutput === 'full',
     expandedView: config.showSpinnerTree ? 'crewmates' : config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
-    ...(supercodeArmed ? { supercode: true } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
@@ -2192,7 +2190,6 @@ async function printLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\n`)
   const initialState: AppState = {
@@ -2200,7 +2197,6 @@ async function printLaunch(args: {
     toolPermissionContext: args.toolPermissionContext,
     verbose: config.toolOutput === 'full',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
-    ...(supercodeArmed ? { supercode: true } : {}),
   }
   const store = createStore<AppState>(initialState, ({ newState, oldState }) =>
     onChangeAppState({ newState, oldState }),

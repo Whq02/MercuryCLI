@@ -315,40 +315,6 @@ function getAutoModeSparseInstructions(): UserMessage[] {
   ])
 }
 
-function getUltraEffortInstructions(attachment: {
-  reminderType: 'full' | 'sparse'
-}): UserMessage[] {
-  if (attachment.reminderType === 'sparse') {
-    return getUltraEffortSparseInstructions()
-  }
-  return getUltraEffortFullInstructions()
-}
-
-function getUltraEffortFullInstructions(): UserMessage[] {
-  const content = `## Supercode is on
-
-The user opted this session into supercode: you run at max, and the answer they want is the most complete, correct one — not the fastest or cheapest. Token cost is not a constraint. This opt-in is standing until it is turned off.
-
-What that means in practice:
-
-- **Delegate proactively when parallel agents would materially improve speed or quality** — a dynamic Workflow (the Workflow tool: agent()/parallel()/pipeline() scripts) for independent breadth, a single Agent-tool subagent for one focused worker, crewmates (the Agent tool with a name and a crew_name) for helper fan-out — every session has a crew from the moment it starts, so there is no create step. The question is whether the work gains from running in parallel or from an independent pair of eyes, not how many parts it has. Otherwise work solo at max: a task one careful pass answers is done best by you, now. Sub-agents run at the configured sub-agent default effort, not at max — the depth is yours to spend, theirs to keep proportionate.
-- **Stay in the loop between phases** — multi-phase work often means several workflows in sequence (one per phase) so you review and steer between them, rather than one giant unsupervised run.
-- **Verify before you declare** — have work checked (a reviewer pass, a completeness critic, a re-derivation) before calling it done; loop until the checks come back clean.
-- **No new risk license** — thoroughness is not a license for destructive or outward-facing actions; those still need the usual confirmation.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
-function getUltraEffortSparseInstructions(): UserMessage[] {
-  const content = `Supercode is still on (see the full instructions earlier in this conversation). Keep optimizing for the most complete, correct answer; delegate where parallel agents would materially improve speed or quality, and otherwise work solo at max; verify before you declare.`
-
-  return wrapMessagesInSystemReminder([
-    createUserMessage({ content, isMeta: true }),
-  ])
-}
-
 export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
@@ -770,16 +736,6 @@ ${attachment.markdown}`
 
 These are evidence-ranked STARTING POINTS (exact task names > active work > import adjacency > current changes), not a complete file list — dereference to read, verify before relying, and explore beyond them when the task needs it.
 capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs the previous capsule: ${attachment.delta}` : ''}`
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content, isMeta: true }),
-      ])
-    }
-    case 'ultra_effort': {
-      return getUltraEffortInstructions(attachment)
-    }
-    case 'ultra_effort_exit': {
-      const content = `Supercode is off — the standard opt-in rules apply again: delegate (a Workflow / subagents / fleets) only when the user opts in or the work plainly calls for a separate worker, and otherwise work solo.`
-
       return wrapMessagesInSystemReminder([
         createUserMessage({ content, isMeta: true }),
       ])

@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { MercurySupercodeDivider } from '../../components/MercurySupercodeDivider.js'
 import { paintStatusRowReceipt } from '../../components/SwitchboardTagBar.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { AppState } from '../../state/AppState.js'
@@ -9,13 +8,11 @@ import type {
 } from '../../types/command.js'
 import {
   EFFORT_LEVELS,
-  effortFamiliesLabel,
   getDisplayedEffortLabel,
   getEffortEnvOverride,
   getEffortLevelDescription,
   getEffortValueDescription,
   modelSupportsEffort,
-  modelSupportsMaxEffort,
   normalizeEffortLevelString,
   parseEffortValue,
   resolveEffortTruth,
@@ -28,14 +25,13 @@ import {
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { EffortApplyContext, EffortSlider } from './EffortSlider.js'
 
-const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|supercode|auto`
+const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|auto`
 
 const EFFORT_ENV_VAR = 'MERCURY_EFFORT_LEVEL'
 
 export type EffortCommandResult = {
   message: string
   effortUpdate?: { value: EffortValue | undefined }
-  supercodeUpdate?: { value: boolean }
 }
 
 function rawOverrideValue(): string {
@@ -81,7 +77,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   const token = args.toLowerCase()
 
   if (token === 'auto' || token === 'unset') {
-    const { error } = updateSettingsForSource('userSettings', { engine: { effort: undefined, supercode: undefined } })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: undefined } })
     if (error) {
       return { message: `Could not clear the effort settings: ${error.message}` }
     }
@@ -94,28 +90,6 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
     return {
       message,
       effortUpdate: { value: undefined },
-      supercodeUpdate: { value: false },
-    }
-  }
-
-  if (token === 'supercode') {
-    if (!modelSupportsMaxEffort(model)) {
-      const families = effortFamiliesLabel(modelSupportsMaxEffort)
-      const familyClause = families ? ` (${families})` : ''
-      return {
-        message: `${model} does not support the maximum effort tier, and supercode runs at max. Switch to a max-capable model${familyClause} first. Options: ${OPTION_LIST}.`,
-      }
-    }
-    const { error } = updateSettingsForSource('userSettings', { engine: { effort: 'max', supercode: true } })
-    if (error) {
-      return { message: `Could not save the supercode setting: ${error.message}` }
-    }
-    unpinAllLaunchEffort()
-    return {
-      message:
-        'SUPERCODE is on, and persists as your default for new sessions. It means the maximum effort tier plus proactive delegation — sub-agents, workflows and fleets wherever parallel agents would materially improve speed or quality, solo at max otherwise — in service of the most thorough correct answer. Sub-agents keep the configured sub-agent default effort (high unless /config changes it).',
-      effortUpdate: { value: 'max' },
-      supercodeUpdate: { value: true },
     }
   }
 
@@ -126,7 +100,7 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
 
   const persistable = toPersistableEffort(level) !== undefined
   if (persistable) {
-    const { error } = updateSettingsForSource('userSettings', { engine: { effort: toPersistableEffort(level), supercode: undefined } })
+    const { error } = updateSettingsForSource('userSettings', { engine: { effort: toPersistableEffort(level) } })
     if (error) {
       return { message: `Could not save the effort level: ${error.message}` }
     }
@@ -153,7 +127,6 @@ export function executeEffort(args: string, model: string): EffortCommandResult 
   return {
     message,
     effortUpdate: { value: level },
-    supercodeUpdate: { value: false },
   }
 }
 
@@ -217,34 +190,19 @@ function helpText(): string {
   for (const level of EFFORT_LEVELS) {
     lines.push(`  ${level.padEnd(9)} ${getEffortLevelDescription(level)}`)
   }
-  lines.push(
-    '  supercode max effort plus proactive delegation where parallel agents help — session-scoped in effect, mutually exclusive with a co-set level',
-  )
   lines.push("  auto      use the model's default")
   return lines.join('\n')
 }
 
 
 function applyEffortResult(result: EffortCommandResult, context: LocalJSXCommandContext): void {
-  const wasSupercodeOn = context.getAppState().supercode === true
   context.setAppState(prev => {
     let next: AppState = prev
     if (result.effortUpdate) {
       next = { ...next, effortValue: result.effortUpdate.value }
     }
-    if (result.supercodeUpdate) {
-      next = { ...next, supercode: result.supercodeUpdate.value }
-    }
     return next
   })
-  if (result.supercodeUpdate?.value === true && !wasSupercodeOn) {
-    context.addNotification?.({
-      key: 'supercode-mode',
-      jsx: <MercurySupercodeDivider />,
-      priority: 'immediate',
-      timeoutMs: 6000,
-    })
-  }
 }
 
 type EffortReceipt = { text: string; seat: boolean }
@@ -262,20 +220,19 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
     return { text: `Effort settings cleared for future sessions — this session keeps running ${word ?? 'its own word'}; pick a level to change it.`, seat: true }
   }
   const receipt = await focused.setEffort(level)
-  const saved = result.supercodeUpdate?.value === true ? '' : ' Saved as your default for future sessions.'
+  const saved = ' Saved as your default for future sessions.'
   if (receipt.state === 'refused') {
     return { text: `${level} was not applied to this session: ${receipt.detail}.${saved}`, seat: true }
   }
   applyEffortResult(result, context)
-  const supercode = result.supercodeUpdate?.value === true ? ' SUPERCODE is on — the maximum tier plus proactive delegation where parallel agents help, persisted as your default.' : ''
-  if (receipt.state === 'no-op') return { text: `Already on ${level} — nothing to change.${supercode}`, seat: true }
+  if (receipt.state === 'no-op') return { text: `Already on ${level} — nothing to change.`, seat: true }
   if (receipt.state === 'queued') {
-    return { text: `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${supercode}${saved}`, seat: true }
+    return { text: `Effort switch queued: ${level} applies when this session's turn settles — the running turn keeps its effort.${saved}`, seat: true }
   }
   if (!modelSupportsEffort(model)) {
-    return { text: `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${supercode}${saved}`, seat: true }
+    return { text: `${model} takes no effort setting — ${level} was kept for this session's next effort-capable model.${saved}`, seat: true }
   }
-  return { text: `Effort set to ${level} for this session — its next request runs it.${supercode}${saved}`, seat: true }
+  return { text: `Effort set to ${level} for this session — its next request runs it.${saved}`, seat: true }
 }
 
 function receiptOnStatusRow(receipt: EffortReceipt): boolean {
@@ -302,10 +259,7 @@ function SessionSlider({
   return (
     <EffortApplyContext.Provider
       value={value => {
-        const result =
-          value === 'supercode'
-            ? executeEffort('supercode', model)
-            : executeEffort(String(value), model)
+        const result = executeEffort(String(value), model)
         return settleEffortResult(result, context).then(receipt => (receiptOnStatusRow(receipt) ? '' : receipt.text))
       }}
     >

@@ -29,8 +29,6 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'run_protocol_delta',
   'lane_boundary',
   'token_usage',
-  'ultra_effort',
-  'ultra_effort_exit',
   'repo_surface_map',
   'context_capsule',
   'bagel_console',

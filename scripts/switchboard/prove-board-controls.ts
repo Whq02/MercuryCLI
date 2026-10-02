@@ -643,7 +643,7 @@ console.log('H — the session model picker follows the selected session facts')
   }
   const opened = render()
   check('H1 the initial effort is the selected session low, not the saved high', opened.effort === 'low')
-  check('H2 the session ladder never offers the unsupported supercode mode', !opened.efforts.includes('supercode') && opened.efforts.includes('max'))
+  check('H2 the session ladder offers the ladder words and ends at max', !opened.efforts.some((w: string) => !['low', 'medium', 'high', 'xhigh', 'max'].includes(w)) && opened.efforts[opened.efforts.length - 1] === 'max')
   opened.onEffort('medium')
   check('H3 the refusing seat really refused the effort request', (await refused as { outcome?: string })?.outcome === 'refused')
   check('H3 a refused effort request never changes the displayed selection', render().effort === 'low')
@@ -669,7 +669,6 @@ console.log('H — the session model picker follows the selected session facts')
     getEffortEnvOverride: () => effortOverride,
     flagEnv: () => effortOverride,
     useSetAppStateMaybe: () => () => { mirrored++ },
-    getInitialSupercodeSetting: () => false,
     unpinAllLaunchEffort: () => { unpinned++ },
     toPersistableEffort: (value: string) => value,
     updateSettingsForSource: () => { writes++; return { error } },
@@ -696,7 +695,7 @@ console.log('H — the session model picker follows the selected session facts')
   savedOutcome = 'saved'
   renderDefault().onSelect('fixture-choice')
   check('I3 a successful unopposed model save closes and mirrors the choice once', done === 1 && mirrored === 1)
-  for (const [value, sentence] of [['medium', 'Could not save the effort level:'], ['supercode', 'Could not save the supercode setting:']]) {
+  for (const [value, sentence] of [['medium', 'Could not save the effort level:'], ['max', 'Could not save the effort level:']]) {
     reset()
     renderDefault().onEffort(value)
     const refused = renderDefault()
@@ -704,8 +703,8 @@ console.log('H — the session model picker follows the selected session facts')
     check(`I4 ${value}: a failed write changes no application state or launch pin`, mirrored === 0 && unpinned === 0 && done === 0 && writes === 1)
   }
   error = null
-  renderDefault().onEffort('supercode')
-  check('I5 a successful retry selects supercode and clears the stale refusal', renderDefault().effort === 'supercode' && renderDefault().notice === undefined && mirrored === 1 && unpinned === 1 && writes === 2)
+  renderDefault().onEffort('max')
+  check('I5 a successful retry selects max and clears the stale refusal', renderDefault().effort === 'max' && renderDefault().notice === undefined && mirrored === 1 && unpinned === 1 && writes === 2)
   reset()
   renderDefault().onEffort('medium')
   check('I5 a successful effort write updates the bracket, application state and launch pins once', renderDefault().effort === 'medium' && mirrored === 1 && unpinned === 1 && writes === 1)

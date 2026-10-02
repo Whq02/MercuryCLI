@@ -78,10 +78,6 @@ export function getInitialEffortSetting(): EffortLevel | undefined {
   return toPersistableEffort(getInitialSettings().engine?.effort as EffortValue | undefined)
 }
 
-export function getInitialSupercodeSetting(): boolean {
-  return getInitialSettings().engine?.supercode === true
-}
-
 export function resolvePickerEffortPersistence(
   picked: EffortLevel | undefined,
   modelDefault: EffortLevel | undefined,

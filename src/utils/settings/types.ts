@@ -149,7 +149,6 @@ export const SettingsSchema = lazySchema(() => {
       roster: z.array(z.string()).optional(),
       pins: z.record(z.string(), z.string()).optional(),
       effort: z.enum(EFFORT_LEVELS).optional().catch(undefined),
-      supercode: z.boolean().optional(),
       sessionDefaults: z.boolean().optional(),
       reasoning: z.boolean().optional(),
       agent: z.string().optional(),

@@ -210,8 +210,6 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   mode_pack_exit: z.looseObject({ mode: z.string() }),
   repo_surface_map: z.looseObject({ markdown: z.string() }),
   context_capsule: z.looseObject({ markdown: z.string(), digest: z.string(), refs: strings, delta: z.string().nullable() }),
-  ultra_effort: z.looseObject({ reminderType: z.string() }),
-  ultra_effort_exit: z.looseObject({}),
   critical_system_reminder: z.looseObject({ content: z.string() }),
   plan_file_reference: z.looseObject({ planFilePath: z.string(), planContent: z.string() }),
   mcp_resource: z.looseObject({ server: z.string(), uri: z.string(), name: z.string(), content: z.looseObject({}) }),
