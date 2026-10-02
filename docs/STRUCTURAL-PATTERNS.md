@@ -109,7 +109,7 @@ line with it). Two calls, always:
    writes through the same door every editing tool uses: the write-permission
    ladder per target file with ONE aggregate ask naming the count and the
    files (a denied path refuses the whole set, zero writes; a whole-tool
-   allow rule such as `--allowedTools AstEdit` covers it), the diagnostics
+   allow rule such as `--allowed-tools AstEdit` covers it), the diagnostics
    baseline and the file-history snapshot per file (so `/rewind` restores
    it like an Edit), the shared journaled commit walk (ordered path locks,
    digest revalidation, atomic staging with rollback, re-read verification),
