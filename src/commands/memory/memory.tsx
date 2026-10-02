@@ -21,9 +21,9 @@ import { editFileInEditor } from '../../utils/promptEditor.js'
 function profileStatusLine(): string {
   const { resolution } = getInstructionCompositionState()
   const profile =
-    resolution.requested === resolution.resolved
-      ? `instruction profile: ${resolution.resolved}`
-      : `instruction profile: ${resolution.requested} → ${resolution.resolved} (${resolution.mapped})`
+    resolution.resolved === 'native'
+      ? 'instruction profile: native (MERCURY.md only)'
+      : 'instruction profile: auto (MERCURY.md, or AGENTS.md when there is none)'
   return `${profile} · instruction files load every session · memory management lives in the centre`
 }
 

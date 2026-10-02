@@ -14,6 +14,7 @@ BUN="${BUN:-$HOME/.bun/bin/bun}"
 [ -x "$BUN" ] || BUN="bun"
 fail=0
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-root-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-root-guide-composition.ts "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-shared-guide-composition.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-shared-guide-composition.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-excludes.ts || { __rc=$?; fail=1; }; prover_mark scripts/self-hosting/prove-instruction-excludes.ts "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-project-local-owner.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-project-local-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$BUN" run scripts/self-hosting/prove-instruction-capture.ts || { __rc=$?; fail=1; }; prover_mark "scripts/self-hosting/prove-instruction-capture.ts" "$__t" "$__rc"

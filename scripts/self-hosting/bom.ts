@@ -142,8 +142,7 @@ if (values.json) {
   console.log(JSON.stringify({ summary, rows }, null, 2))
 } else {
   console.log(
-    `# BOM · model=${model} · mode=${mode} · profile=${composition.resolution.resolved}` +
-      `${composition.resolution.mapped ? ` (${composition.resolution.mapped})` : ''}`,
+    `# BOM · model=${model} · mode=${mode} · profile=${composition.resolution.resolved}`,
   )
   console.log(
     `total ${total} chars (~${summary.estTokens} tokens) across ${rows.length} blocks\n`,

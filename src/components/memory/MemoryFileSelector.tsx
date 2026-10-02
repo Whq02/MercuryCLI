@@ -102,7 +102,7 @@ export function MemoryFileSelector({
     const inGitRepo = projectIsInGitRepo(getOriginalCwd())
 
     const nativePrefix = (entry: InstructionSourceEntry | undefined) =>
-      entry?.family === 'native' ? 'Mercury-native · ' : ''
+      entry?.family === 'native' ? 'Mercury-native · ' : entry?.family === 'shared' ? 'shared guide · ' : ''
 
     const result: Row[] = visible.map(entry => {
       const depth = importDepthOf(entry, byPath)

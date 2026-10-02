@@ -2389,8 +2389,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const actionableDiagnostics = diagnostics.filter(
               d => d.kind !== 'duplicate-content',
             )
+            const sharedCount = bundle.entries.filter(
+              e => e.family === 'shared',
+            ).length
             const notes = [
-              resolution.mapped ? `mapped: ${resolution.mapped}` : null,
+              sharedCount > 0 ? `${sharedCount} AGENTS.md source(s): no MERCURY.md in or above the working directory` : null,
               skippedDuplicates.length > 0
                 ? `${skippedDuplicates.length} identical-content duplicate(s) skipped`
                 : null,

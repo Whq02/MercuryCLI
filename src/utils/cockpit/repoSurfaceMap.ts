@@ -2,6 +2,7 @@
 import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { composedGuideFilesAt } from '../../services/instructions/adapters/index.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 
 export function repoSurfaceMapEnabled(): boolean {
@@ -167,15 +168,7 @@ const orientationDocMemo = new Map<string, boolean>()
 export function hasOrientationDoc(root: string): boolean {
   const memoized = orientationDocMemo.get(root)
   if (memoized !== undefined) return memoized
-  let found = false
-  for (const name of ['MERCURY.md', 'AGENTS.md']) {
-    try {
-      statSync(join(root, name))
-      found = true
-      break
-    } catch {
-    }
-  }
+  const found = composedGuideFilesAt(root).length > 0
   orientationDocMemo.set(root, found)
   return found
 }
