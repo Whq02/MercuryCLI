@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 
 export type HostStep = Record<string, unknown>
 
@@ -54,6 +54,8 @@ export function runJobControlHost(opts: {
   const teePath = `${base}.tee`
   for (const p of [cfgPath, reportPath, teePath]) rmSync(p, { force: true })
   const command = opts.argv.map(a => `'${a.replace(/'/g, `'\\''`)}'`).join(' ')
+  const scale = vshotBudgetScale()
+  const stretched = opts.steps.map(step => (typeof step.timeout === 'number' ? { ...step, timeout: step.timeout * scale } : step))
   writeFileSync(
     cfgPath,
     JSON.stringify({
@@ -61,9 +63,9 @@ export function runJobControlHost(opts: {
       rows: opts.rows,
       cwd: opts.cwd,
       command,
-      steps: opts.steps,
+      steps: stretched,
       tee: teePath,
-      budgetSeconds: opts.budgetSeconds ?? 150,
+      budgetSeconds: (opts.budgetSeconds ?? 150) * scale,
       ...(opts.bundleMarker ? { bundleMarker: opts.bundleMarker } : {}),
       ...(opts.bundleTitle ? { bundleTitle: opts.bundleTitle } : {}),
     }),

@@ -117,8 +117,12 @@ export function canonicalizeCheckoutRows(
     [`│ ${checkout.basename} │ ⤳`, '│ mercury │ ⤳'],
     [` · ${checkout.basename} · `, ' · mercury · '],
     [` ${checkout.basename} · `, ' mercury · '],
+    [`FILES · ${checkout.basename}`, 'FILES · mercury'],
+    [`│ ${checkout.basename} ▸`, '│ mercury ▸'],
   ]
-  const restore = (row: string, delta: number): string => {
+  const clipped = new RegExp(`FILES · (${[...checkout.basename].map((_, i, all) => all.slice(0, i + 1).join('').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).reverse().join('|')})…`)
+  const restore = (row: string, at: number, delta: number): string => {
+    if (/^(?: {2,}|│)/.test(row.slice(at))) return row.slice(0, at) + ' '.repeat(delta) + row.slice(at)
     const runs = [...row.matchAll(/ {2,}/g)]
     const last = runs[runs.length - 1]
     if (!last || last.index === undefined) return row + ' '.repeat(delta)
@@ -126,9 +130,15 @@ export function canonicalizeCheckoutRows(
   }
   const text = grid.text.map(row => {
     for (const [from, to] of swaps) {
-      if (!row.includes(from)) continue
+      const at = row.indexOf(from)
+      if (at === -1) continue
       if (to.length > from.length) return row
-      return restore(row.replace(from, to), from.length - to.length)
+      return restore(row.replace(from, to), at + to.length, from.length - to.length)
+    }
+    const cut = clipped.exec(row)
+    if (cut && cut.index !== undefined && cut[0].length >= 'FILES · mercury'.length) {
+      const to = 'FILES · mercury'
+      return restore(row.slice(0, cut.index) + to + row.slice(cut.index + cut[0].length), cut.index + to.length, cut[0].length - to.length)
     }
     return row
   })
