@@ -1,6 +1,5 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { decodePermissionModeSpelling } from '../../types/permissions.js'
 import type { TurnCutKind } from '../../utils/messages/turnCut.js'
 import { EFFORT_LEVELS } from './runtimeTypes.js'
 
@@ -238,10 +237,7 @@ export const PermissionResultSchema = lazySchema(() =>
   ]),
 )
 const externalPermissionModeWireEnum = () =>
-  z.preprocess(
-    v => (typeof v === 'string' ? decodePermissionModeSpelling(v) : v),
-    z.enum(['default', 'dontAsk', 'implement', 'sovereign', 'strategy']),
-  )
+  z.enum(['default', 'dontAsk', 'implement', 'sovereign', 'strategy'])
 export const PermissionModeSchema = lazySchema(() => externalPermissionModeWireEnum())
 
 const baseHookFields = {
@@ -1183,10 +1179,7 @@ export const SDKStatusMessageSchema = lazySchema(() =>
       ])
       .describe('The session activity state, or null to clear it'),
     permission_mode: z
-      .preprocess(
-        v => (typeof v === 'string' ? decodePermissionModeSpelling(v) : v),
-        z.enum(['default', 'dontAsk', 'flow', 'implement', 'sovereign', 'strategy']),
-      )
+      .enum(['default', 'dontAsk', 'flow', 'implement', 'sovereign', 'strategy'])
       .optional()
       .describe('The permission mode now in force'),
     session_id: z.string(),

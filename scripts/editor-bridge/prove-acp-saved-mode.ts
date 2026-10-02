@@ -19,7 +19,6 @@ delete process.env.MERCURY_HOME
 const { setOriginalCwd } = await import('../../src/bootstrap/state.ts')
 setOriginalCwd(project)
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
-const { RETIRED_PERMISSION_MODE_SPELLINGS } = await import('../../src/types/permissions.ts')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
 const { asSessionId } = await import('../../src/types/ids.ts')
@@ -159,8 +158,7 @@ try {
     check('mode survives before the first model turn', String(error), 'successful load')
   }
 
-  const oldImplement = Object.entries(RETIRED_PERMISSION_MODE_SPELLINGS).find(([, current]) => current === 'implement')![0]
-  for (const [saved, expected] of [[undefined, 'default'], ['flow', 'flow'], [oldImplement, 'implement'], ['sovereign', 'default'], ['unknown-mode', 'default']] as const) {
+  for (const [saved, expected] of [[undefined, 'default'], ['flow', 'flow'], ['acceptEdits', 'default'], ['bypassPermissions', 'default'], ['plan', 'default'], ['auto', 'default'], ['sovereign', 'default'], ['unknown-mode', 'default']] as const) {
     const id = randomUUID()
     const row = { type: 'user', uuid: randomUUID(), parentUuid: null, sessionId: id, timestamp: new Date().toISOString(), message: { role: 'user', content: 'saved prompt' }, ...(saved !== undefined ? { permissionMode: saved } : {}) }
     const record = entryToRecord(row, { sessionId: asSessionId(id), nextOrdinal: () => ordinalOf(1), observedAt: row.timestamp, source: { channel: 'sdk' } })

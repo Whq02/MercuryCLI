@@ -38,25 +38,21 @@ try {
     setAutoModeCircuitBroken(!flow)
     check(`live flow gate is ${flow}`, isAutoModeGateEnabled() === flow)
     for (const bypass of [false, true]) {
-      for (const autopilot of [false, true]) {
-        process.env.MERCURY_AUTOPILOT = autopilot ? '1' : '0'
-        const expected: PermissionMode[] = ['default', 'implement', 'apollo']
-        if (flow) expected.push('flow')
-        if (bypass) expected.push('sovereign')
-        if (bypass && autopilot) expected.push('autopilot')
-        for (let index = 0; index < expected.length; index++) {
-          const mode = expected[index]!
-          const next = getNextPermissionMode(context(mode, bypass))
-          const wanted = expected[(index + 1) % expected.length]!
-          check(`flow=${flow} bypass=${bypass} autopilot=${autopilot}: ${mode} → ${wanted}`, next === wanted, `actual=${next}`)
-        }
-        check(`strategy rejoins apollo with flow=${flow} bypass=${bypass} autopilot=${autopilot}`, getNextPermissionMode(context('strategy', bypass)) === 'apollo')
+      const expected: PermissionMode[] = ['default', 'implement', 'apollo']
+      if (flow) expected.push('flow')
+      if (bypass) expected.push('sovereign')
+      for (let index = 0; index < expected.length; index++) {
+        const mode = expected[index]!
+        const next = getNextPermissionMode(context(mode, bypass))
+        const wanted = expected[(index + 1) % expected.length]!
+        check(`flow=${flow} bypass=${bypass}: ${mode} → ${wanted}`, next === wanted, `actual=${next}`)
       }
+      check(`the cycle ends at sovereign with flow=${flow} bypass=${bypass}`, expected[expected.length - 1] === (bypass ? 'sovereign' : flow ? 'flow' : 'apollo') && getNextPermissionMode(context(expected[expected.length - 1]!, bypass)) === 'default')
+      check(`strategy rejoins apollo with flow=${flow} bypass=${bypass}`, getNextPermissionMode(context('strategy', bypass)) === 'apollo')
     }
   }
 } finally {
   setAutoModeCircuitBroken(false)
-  delete process.env.MERCURY_AUTOPILOT
 }
 
 check('Apollo uses the hollow diamond', GLYPH.modeApollo === '◇' && permissionModeSymbol('apollo') === '◇')

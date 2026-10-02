@@ -32,17 +32,6 @@ export const PERMISSION_MODES = [
 
 export const VALID_PERMISSION_MODES = PERMISSION_MODES
 
-export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, PermissionMode>> = {
-  acceptEdits: 'implement',
-  auto: 'flow',
-  bypassPermissions: 'sovereign',
-  plan: 'strategy',
-}
-
-export function decodePermissionModeSpelling(raw: string): string {
-  return RETIRED_PERMISSION_MODE_SPELLINGS[raw] ?? raw
-}
-
 export type PermissionBehavior = 'allow' | 'deny' | 'ask'
 
 export type PermissionRuleSource =

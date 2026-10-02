@@ -110,7 +110,6 @@ reg(
     'src/components/Onboarding.tsx',
     'src/components/mercury-ui/RailPanel.tsx',
     'src/components/mercury-ui/ManagerView.tsx',
-    'src/components/mercury-ui/SupercodeModeView.tsx',
     'src/components/mercury-ui/parity/AccountView.tsx',
     'src/components/mercury-ui/parity/HarnessView.tsx',
     'src/components/mercury-ui/parity/RealmsView.tsx',

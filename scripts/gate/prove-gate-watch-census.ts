@@ -31,7 +31,6 @@ export const WHOLE_TREE: Record<string, string> = {
   memory: 'prove-memory-one-store walks src (one memory store, one vocabulary)',
   'model-policy': 'prove-model-pin-census and prove-neutral-model-doors walk src (model pins and doors)',
   orphans: 'prove-reachability-manifest walks src and scripts (the reachability graph)',
-  permissions: 'prove-mode-alias walks src (permission-mode spellings)',
   projectdirs: 'prove-no-literal-homes walks src (literal home paths)',
   provauth: 'prove-signin-roads-pinned walks scripts (sign-in road pins)',
   'run-recovery': 'prove-worktree-resume-keeps-record walks src and scripts (the retired resume road names nothing)',

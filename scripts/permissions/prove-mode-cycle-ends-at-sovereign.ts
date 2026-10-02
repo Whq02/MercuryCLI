@@ -130,6 +130,13 @@ if (!existsSync(DIST)) {
     t('…in the default mode', resumedInit?.permission_mode === 'default', String(resumedInit?.permission_mode))
     const history = fixture.messageRequests().map(r => JSON.stringify(r.body)).filter(body => body.includes('the second question'))
     t('…with its history intact (the first question rides the request)', history.some(body => body.includes('the first question')), `${history.length} requests carry the second question`)
+    const sid2 = 'a0a0a0a0-0000-4000-8000-00000000a0a1'
+    const user2 = { ...createUserMessage({ content: 'the stored question', permissionMode: 'sovereign' }), sessionId: sid2, cwd, parentUuid: null }
+    const assistant2 = { ...createAssistantMessage({ content: 'the stored answer' }), sessionId: sid2, cwd, parentUuid: user2.uuid }
+    writeFileSync(join(projectDir, `${sid2}.jsonl`), encodeSeedTranscript([user2, assistant2], sid2))
+    const stored = await run(['the next question', '--resume', sid2, '--format', 'rows', '--model', 'claude-opus-4-8'])
+    t('a saved chat whose turns were stored as sovereign (the word an earlier build wrote for its self-serve mode) opens and answers', stored.status === 0 && stored.stdout.includes('seven'), `exit=${stored.status} stderr=${stored.stderr.slice(0, 300)}`)
+    t('…with its history intact', fixture.messageRequests().map(r => JSON.stringify(r.body)).some(body => body.includes('the next question') && body.includes('the stored question')))
     await fixture.close()
   }
 }

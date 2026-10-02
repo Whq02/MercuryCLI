@@ -4,7 +4,7 @@ import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
 import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { lazySchema } from '../lazySchema.js'
-import { PERMISSION_MODES, decodePermissionModeSpelling } from '../permissions/PermissionMode.js'
+import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
 import { PermissionRuleSchema } from './permissionValidation.js'
 import type { HookCommand } from '../../schemas/hooks.js'
 
@@ -56,7 +56,7 @@ export const PermissionsSchema = lazySchema(() =>
     allow: z.array(PermissionRuleSchema()).optional(),
     deny: z.array(PermissionRuleSchema()).optional(),
     ask: z.array(PermissionRuleSchema()).optional(),
-    mode: z.preprocess(v => typeof v === 'string' ? decodePermissionModeSpelling(v) : v, z.enum(PERMISSION_MODES)).optional(),
+    mode: z.enum(PERMISSION_MODES).optional(),
     disableSovereignMode: modeLockSchema().describe('True closes Sovereign mode for every session that reads this file'),
     disableFlowMode: modeLockSchema().describe('True closes Flow for every session that reads this file'),
     reasons: z.record(z.string(), z.string()).optional().describe('The words a refusal or a consent card says for a rule, keyed by the rule spelling as written in allow, deny or ask'),

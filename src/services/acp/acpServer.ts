@@ -46,7 +46,6 @@ import { listTasks, getTasksDir, type TaskStatus } from '../../utils/tasks.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
-import { decodePermissionModeSpelling } from '../../types/permissions.js'
 import { isAutoModeGateEnabled } from '../../utils/permissions/permissionSetup.js'
 
 const PERMISSION_MODES = [
@@ -55,10 +54,6 @@ const PERMISSION_MODES = [
   { id: 'strategy', name: 'Strategy Mode', description: 'read-only planning' },
   { id: 'flow', name: 'Flow', description: 'the safer autonomous mode' },
 ] as const
-
-function decodeAcpModeId(raw: string): string {
-  return decodePermissionModeSpelling(raw)
-}
 
 function savedModePath(cwd: string, sessionId: string): string {
   return join(getProjectDir(cwd), `${encodeURIComponent(sessionId)}.acp.json`)
@@ -750,7 +745,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         ...(args.resumeSessionId !== undefined
           ? { resumeSessionId: args.resumeSessionId }
           : { sessionId: acpSessionId }),
-        permissionMode: args.modeId !== undefined ? decodeAcpModeId(args.modeId) : 'default',
+        permissionMode: args.modeId ?? 'default',
         ...(opts.entry !== undefined && { entry: opts.entry }),
         ...(mcp !== null && { mcpConfig: mcp.json }),
       },
@@ -969,7 +964,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             }
           }
         }
-        modeId = decodeAcpModeId(modeId ?? 'default')
+        modeId = modeId ?? 'default'
         if (!PERMISSION_MODES.some(mode => mode.id === modeId) || (modeId === 'flow' && !isAutoModeGateEnabled())) {
           process.stderr.write(`[acp] saved permission mode '${modeId}' is unavailable here — resuming in the default mode\n`)
           modeId = 'default'
@@ -1056,7 +1051,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
     .onRequest('session/set_mode', async ctx => {
       const state = sessions.get(ctx.params.sessionId)
       if (!state) throw new Error(`unknown session '${ctx.params.sessionId}'`)
-      const modeId = decodeAcpModeId(ctx.params.modeId)
+      const modeId = ctx.params.modeId
       if (!PERMISSION_MODES.some(m => m.id === modeId)) {
         throw new Error(`unknown mode '${modeId}' — modes: ${PERMISSION_MODES.map(m => m.id).join(', ')}`)
       }
@@ -1069,7 +1064,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       if (ctx.params.configId !== 'permission-mode') {
         throw new Error(`unknown config option '${ctx.params.configId}' — options: permission-mode`)
       }
-      const value = typeof ctx.params.value === 'string' ? decodeAcpModeId(ctx.params.value) : ctx.params.value
+      const value = ctx.params.value
       if (typeof value !== 'string' || !PERMISSION_MODES.some(m => m.id === value)) {
         throw new Error(
           `unknown permission-mode value '${String(value)}' — values: ${PERMISSION_MODES.map(m => m.id).join(', ')}`,

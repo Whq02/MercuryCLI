@@ -29,7 +29,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 section('§1 THE BOOT RESOLVER')
 {
   const flagless = initialPermissionModeFromCLI({
-    permissionModeCli: 'bypassPermissions',
+    permissionModeCli: 'sovereign',
     dangerouslySkipPermissions: false,
   })
   check(
@@ -44,7 +44,7 @@ section('§1 THE BOOT RESOLVER')
   )
 
   const flagged = initialPermissionModeFromCLI({
-    permissionModeCli: 'bypassPermissions',
+    permissionModeCli: 'sovereign',
     dangerouslySkipPermissions: true,
   })
   check('WITH the launch flag the same spelling still boots sovereign', flagged.mode === 'sovereign', `mode=${flagged.mode}`)
@@ -85,7 +85,7 @@ section('§3 WIRING')
   const setupSrc = readFileSync(join(import.meta.dir, '../../src/utils/permissions/permissionSetup.ts'), 'utf8')
   const sovereignBranch = setupSrc.slice(
     setupSrc.indexOf("if (candidate === 'sovereign')"),
-    setupSrc.indexOf('// A surviving candidate wins'),
+    setupSrc.indexOf('resolvedMode = candidate'),
   )
   check(
     'the sovereign candidate branch itself carries the launch-flag guard',

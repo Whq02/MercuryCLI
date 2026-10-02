@@ -282,8 +282,6 @@
    "src/utils/permissions/PermissionMode.ts": [
     "EXTERNAL_PERMISSION_MODES",
     "PERMISSION_MODES",
-    "RETIRED_PERMISSION_MODE_SPELLINGS",
-    "decodePermissionModeSpelling",
     "externalPermissionModeSchema",
     "getModeColor",
     "isDefaultMode",
@@ -338,9 +336,7 @@
     "EXTERNAL_PERMISSION_MODES",
     "INTERNAL_PERMISSION_MODES",
     "PERMISSION_MODES",
-    "RETIRED_PERMISSION_MODE_SPELLINGS",
     "VALID_PERMISSION_MODES",
-    "decodePermissionModeSpelling",
     "type:BypassedAskRoad",
     "type:ClassifierBehavior",
     "type:ClassifierResult",

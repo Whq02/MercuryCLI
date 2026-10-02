@@ -3,7 +3,6 @@ import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import {
   EXTERNAL_PERMISSION_MODES,
   PERMISSION_MODES,
-  decodePermissionModeSpelling,
   type ExternalPermissionMode,
   type PermissionMode,
 } from '../../types/permissions.js'
@@ -11,8 +10,6 @@ import {
 export {
   EXTERNAL_PERMISSION_MODES,
   PERMISSION_MODES,
-  RETIRED_PERMISSION_MODE_SPELLINGS,
-  decodePermissionModeSpelling,
   type ExternalPermissionMode,
   type PermissionMode,
 } from '../../types/permissions.js'
@@ -48,17 +45,11 @@ function configFor(mode: PermissionMode): ModeConfig {
 }
 
 export function permissionModeSchema() {
-  return z.preprocess(
-    v => (typeof v === 'string' ? decodePermissionModeSpelling(v) : v),
-    z.enum(PERMISSION_MODES as unknown as [string, ...string[]]),
-  )
+  return z.enum(PERMISSION_MODES as unknown as [string, ...string[]])
 }
 
 export function externalPermissionModeSchema() {
-  return z.preprocess(
-    v => (typeof v === 'string' ? decodePermissionModeSpelling(v) : v),
-    z.enum(EXTERNAL_PERMISSION_MODES as unknown as [string, ...string[]]),
-  )
+  return z.enum(EXTERNAL_PERMISSION_MODES as unknown as [string, ...string[]])
 }
 
 export function isExternalPermissionMode(_mode: PermissionMode): _mode is ExternalPermissionMode {
@@ -74,9 +65,8 @@ export function toExternalPermissionMode(mode: PermissionMode): ExternalPermissi
 }
 
 export function permissionModeFromString(str: string): PermissionMode {
-  const decoded = decodePermissionModeSpelling(str)
-  return (PERMISSION_MODES as readonly string[]).includes(decoded)
-    ? (decoded as PermissionMode)
+  return (PERMISSION_MODES as readonly string[]).includes(str)
+    ? (str as PermissionMode)
     : 'default'
 }
 

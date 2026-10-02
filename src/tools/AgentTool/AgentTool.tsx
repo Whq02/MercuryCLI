@@ -2,7 +2,7 @@
 import { realpathSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { z, type ZodType } from 'zod'
-import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
+import type { PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
   getCwdState,
@@ -547,8 +547,7 @@ export const AgentTool = buildTool({
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(crewmateModel ? { model: crewmateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),
-          plan_mode_required:
-            input.mode !== undefined && decodePermissionModeSpelling(input.mode) === 'strategy',
+          plan_mode_required: input.mode === 'strategy',
           description: input.description,
           ...(parentAssistantMessage.requestId
             ? { invokingRequestId: parentAssistantMessage.requestId }

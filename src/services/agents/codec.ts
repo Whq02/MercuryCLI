@@ -15,7 +15,6 @@ import {
 } from '../../utils/markdownConfigLoader.js'
 import {
   PERMISSION_MODES,
-  decodePermissionModeSpelling,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import {
@@ -237,15 +236,11 @@ function extractFields(
 
   const permissionModeRaw = frontmatter['permissionMode']
   if (permissionModeRaw !== undefined) {
-    const permissionModeDecoded =
-      typeof permissionModeRaw === 'string'
-        ? decodePermissionModeSpelling(permissionModeRaw)
-        : permissionModeRaw
     if (
-      typeof permissionModeDecoded === 'string' &&
-      (PERMISSION_MODES as readonly string[]).includes(permissionModeDecoded)
+      typeof permissionModeRaw === 'string' &&
+      (PERMISSION_MODES as readonly string[]).includes(permissionModeRaw)
     ) {
-      fields.permissionMode = permissionModeDecoded as PermissionMode
+      fields.permissionMode = permissionModeRaw as PermissionMode
     } else {
       diag(
         'error',

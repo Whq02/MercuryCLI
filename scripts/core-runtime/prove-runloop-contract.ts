@@ -1195,7 +1195,7 @@ section('L18 STEERING DRAIN — scoping, slash exclusion, drained-keyword nudge'
     uuid: u3,
     priority: 'next',
   } as never)
-  qm.enqueue({ value: 'and deepthink the rest', mode: 'prompt', uuid: u4 } as never)
+  qm.enqueue({ value: 'and plainword the rest', mode: 'prompt', uuid: u4 } as never)
 
   const r = record(
     await run({
@@ -1215,7 +1215,7 @@ section('L18 STEERING DRAIN — scoping, slash exclusion, drained-keyword nudge'
   check(
     'drained prompts carried verbatim',
     drained.some(a => a?.prompt === 'steer note one') &&
-      drained.some(a => a?.prompt === 'and deepthink the rest'),
+      drained.some(a => a?.prompt === 'and plainword the rest'),
   )
   const call2Text = JSON.stringify(r.calls[1]!.messages.map(stripMsg))
   check("call 2's input carries the drained steering text", call2Text.includes('steer note one'))
@@ -1237,17 +1237,17 @@ section('L18 STEERING DRAIN — scoping, slash exclusion, drained-keyword nudge'
   check("lifecycle 'completed' fired once per consumed command on normal return", JSON.stringify(completed.sort()) === JSON.stringify([u1, u4]), JSON.stringify(completed))
   check('call 1 rode the base effort', r.calls[0]!.effort === 'high', String(r.calls[0]!.effort))
   check(
-    "queued deepthink left call 2's effort at the base (no floor)",
+    "the queued prompt's words left call 2's effort at the base",
     r.calls[1]!.effort === 'high',
     String(r.calls[1]!.effort),
   )
-  const nudges = r.yields
+  const minted = r.yields
     .map(m => (m as AnyMsg).attachment as AnyMsg | undefined)
-    .filter(a => a?.type === 'deepthink_effort')
+    .filter(a => a !== undefined && typeof a.type === 'string' && /effort/.test(a.type))
   check(
-    'the drained keyword emitted exactly one deepthink_effort attachment',
-    nudges.length === 1,
-    JSON.stringify(nudges),
+    'the drained prompt minted no effort attachment',
+    minted.length === 0,
+    JSON.stringify(minted),
   )
   qm.resetCommandQueue()
 }
@@ -1308,7 +1308,7 @@ section('L21 TEARDOWN — .return() skips lifecycle-completed (teardown asymmetr
     earlyEvents.push([uuid, state])
   })
   const u0 = '66666666-6666-4666-8666-666666666666'
-  qm.enqueue({ value: 'deepthink survive the break', mode: 'prompt', uuid: u0 } as never)
+  qm.enqueue({ value: 'plainword survive the break', mode: 'prompt', uuid: u0 } as never)
   {
     const { gen, calls } = buildRun({
       script: [
@@ -1351,7 +1351,7 @@ section('L21 TEARDOWN — .return() skips lifecycle-completed (teardown asymmetr
     lifecycleEvents.push([uuid, state])
   })
   const u1 = '55555555-5555-4555-8555-555555555555'
-  qm.enqueue({ value: 'deepthink and keep going', mode: 'prompt', uuid: u1 } as never)
+  qm.enqueue({ value: 'plainword and keep going', mode: 'prompt', uuid: u1 } as never)
 
   const { gen, calls } = buildRun({
     script: [
@@ -1372,9 +1372,9 @@ section('L21 TEARDOWN — .return() skips lifecycle-completed (teardown asymmetr
   }
   check('iteration 2 began (second stream_request_start observed)', requestStarts === 2)
   check(
-    'the drained keyword yielded its deepthink_effort nudge before iteration 2',
-    yields.some(
-      m => ((m as AnyMsg).attachment as AnyMsg | undefined)?.type === 'deepthink_effort',
+    'the drained prompt yielded no effort attachment before iteration 2',
+    !yields.some(
+      m => /effort/.test(String(((m as AnyMsg).attachment as AnyMsg | undefined)?.type ?? '')),
     ),
   )
   const startedBefore = lifecycleEvents.filter(e => e[1] === 'started').map(e => e[0])
