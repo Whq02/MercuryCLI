@@ -200,13 +200,13 @@ function ptyBoot(
   return { readyAt, endReason, status: res.status, stderr: res.stderr ?? '' }
 }
 
-section('H1 — headless · --strict-mcp-config · a server that never answers initialize')
+section('H1 — headless · --only-mcp · a server that never answers initialize')
 {
   const w = world('h1')
   const marker = join(w.dir, 'never.marker')
   const cfg = mcpConfigFile(w.dir, { name: 'never', args: ['--never', '--spawn-marker', marker] })
   const r = await headlessFirstLine(
-    ['run', 'hi', '--format', 'rows', '--mcp-config', cfg, '--strict-mcp-config'],
+    ['run', 'hi', '--format', 'rows', '--mcp', cfg, '--only-mcp'],
     bootEnv(w.home, { MERCURY_MCP_TIMEOUT_MS: String(H1_MCP_TIMEOUT_MS) }),
     w.cwd,
   )
@@ -223,7 +223,7 @@ section('H1 — headless · --strict-mcp-config · a server that never answers i
   check('the product spawned it exactly once', markerCount(marker) === 1, `${markerCount(marker)} spawn(s)`)
 }
 
-section('H2 — headless · no --strict-mcp-config · a user-scope server connects; no phantom entries')
+section('H2 — headless · no --only-mcp · a user-scope server connects; no phantom entries')
 {
   const w = world('h2')
   const marker = join(w.dir, 'disc.marker')
@@ -261,12 +261,12 @@ if (driver.kind !== 'posix-pty') {
   ]
   const RUNNER_TICKS = 160
 
-  section(`I1 — interactive · --strict-mcp-config · never-answering server: first frame within ${FIRST_FRAME_BOUND_TICKS * 0.2}s; the screen spawns nothing`)
+  section(`I1 — interactive · --only-mcp · never-answering server: first frame within ${FIRST_FRAME_BOUND_TICKS * 0.2}s; the screen spawns nothing`)
   {
     const w = world('i1')
     const marker = join(w.dir, 'never.marker')
     const cfg = mcpConfigFile(w.dir, { name: 'never', args: ['--never', '--spawn-marker', marker] })
-    const r = ptyBoot('i1', ['--mcp-config', cfg, '--strict-mcp-config'], bootEnv(w.home), w.cwd, w.dir, { ready: FACE_READY })
+    const r = ptyBoot('i1', ['--mcp', cfg, '--only-mcp'], bootEnv(w.home), w.cwd, w.dir, { ready: FACE_READY })
     check('the capture settled on the Boot face (never NEVER-READY)', r.status === 0 && r.readyAt !== null, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
     check(
       `the first frame painted within the bound (tick ${r.readyAt ?? '∅'} ≤ ${FIRST_FRAME_BOUND_TICKS})`,
@@ -275,30 +275,30 @@ if (driver.kind !== 'posix-pty') {
     checkDocumentedDefect('the SCREEN spawns for the face (no chat exists yet — the runner of the session ↵ births owns MCP)', 0, 1, markerCount(marker))
   }
 
-  section("I1b — interactive · --strict-mcp-config · the born session's runner spawns the --mcp-config server exactly once")
+  section("I1b — interactive · --only-mcp · the born session's runner spawns the --mcp server exactly once")
   {
     const w = world('i1b')
     const marker = join(w.dir, 'alpha1.marker')
     const cfg = mcpConfigFile(w.dir, { name: 'alpha', args: ['--spawn-marker', marker] })
-    const r = ptyBoot('i1b', ['--mcp-config', cfg, '--strict-mcp-config'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
+    const r = ptyBoot('i1b', ['--mcp', cfg, '--only-mcp'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
     check('the drive delivered the first message (the budget leg ran whole)', r.status === 0, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
     checkDocumentedDefect("one owner: the born session's runner spawns 'alpha' (↵ spawns it; the first message respawns nothing) — the boot spine adds its own", 1, 2, markerCount(marker))
   }
 
-  section('I2 — interactive · --strict-mcp-config · the user-scope server is never spawned; the --mcp-config server once (the runner)')
+  section('I2 — interactive · --only-mcp · the user-scope server is never spawned; the --mcp server once (the runner)')
   {
     const w = world('i2')
     const markerA = join(w.dir, 'a.marker')
     const markerB = join(w.dir, 'b.marker')
     const cfg = mcpConfigFile(w.dir, { name: 'alpha', args: ['--spawn-marker', markerA] })
     addUserScopeServer(w.home, { name: 'beta', args: ['--spawn-marker', markerB] })
-    const r = ptyBoot('i2', ['--mcp-config', cfg, '--strict-mcp-config'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
+    const r = ptyBoot('i2', ['--mcp', cfg, '--only-mcp'], bootEnv(w.home), w.cwd, w.dir, { sends: FIRST_MESSAGE, ready: null, totalTicks: RUNNER_TICKS })
     check('the drive delivered the first message', r.status === 0, `status ${r.status} · end ${r.endReason} · ${r.stderr.slice(-300)}`)
     check("strict honoured: the user-scope server 'beta' was NEVER spawned", markerCount(markerB) === 0, `${markerCount(markerB)} spawn(s)`)
-    checkDocumentedDefect("one owner: the --mcp-config server 'alpha' spawns once — the boot spine adds its own", 1, 2, markerCount(markerA))
+    checkDocumentedDefect("one owner: the --mcp server 'alpha' spawns once — the boot spine adds its own", 1, 2, markerCount(markerA))
   }
 
-  section("I3 — interactive · no --mcp-config · a user-scope server is spawned exactly once (the runner)")
+  section("I3 — interactive · no --mcp · a user-scope server is spawned exactly once (the runner)")
   {
     const w = world('i3')
     const marker = join(w.dir, 'disc.marker')

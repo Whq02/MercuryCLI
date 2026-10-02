@@ -45,7 +45,7 @@ try {
     cols: 120,
     rows: 40,
     cwd: leg.cwd,
-    argv: [productNode(), DIST, '--chat', `--debug-file=${debugLog}`],
+    argv: [productNode(), DIST, '--chat', `--log-file=${debugLog}`],
     env: Object.fromEntries(Object.entries(env).filter(([, v]) => v !== undefined)),
     budgetSeconds: 90,
     steps: [
