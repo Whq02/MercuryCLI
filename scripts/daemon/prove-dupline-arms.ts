@@ -386,7 +386,7 @@ if (!existsSync(DIST)) {
           `fs.appendFileSync(${JSON.stringify(join(cwd, 'hook-prompts.jsonl'))}, JSON.stringify(input.prompt) + '\\n')`,
           `if (input.prompt === ${JSON.stringify(mention)}) console.log(JSON.stringify({ hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: ${JSON.stringify(hookContext)} } }))`,
         ].join('\n'))
-        writeFileSync(join(cwd, '..', 'settings.json'), JSON.stringify({ hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${JSON.stringify(NODE)} ${JSON.stringify(hook)}` }] }] } }))
+        writeFileSync(join(cwd, '..', 'settings.json'), JSON.stringify({ events: { hooks: { UserPromptSubmit: [{ hooks: [{ type: 'command', command: `${JSON.stringify(NODE)} ${JSON.stringify(hook)}` }] }] } } }))
       },
     })
     try {
