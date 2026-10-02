@@ -2,7 +2,7 @@
 // gate-watch: src/daemon/main.ts src/daemon/handshake.ts src/daemon/ownedDaemon.ts src/services/switchboard/ensureDaemon.ts src/cli/update.ts
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -56,9 +56,6 @@ const oldDist = ((): string => {
   mkdirSync(cache, { recursive: true })
   execFileSync('sh', ['-c', `git -C "${ROOT}" archive ${OLD_SHA} | tar -x -C "${cache}"`], { stdio: 'inherit' })
   symlinkSync(join(ROOT, 'node_modules'), join(cache, 'node_modules'))
-  for (const name of readdirSync(join(ROOT, 'vendor'))) {
-    if (!existsSync(join(cache, 'vendor', name))) symlinkSync(join(ROOT, 'vendor', name), join(cache, 'vendor', name))
-  }
   const built = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined } })
   if (built.status !== 0) {
     console.error(`✗ the ${OLD_SHA} tree did not build: ${(built.stdout + built.stderr).slice(-2000)}`)
