@@ -37,7 +37,6 @@ const rows: Row[] = [
   ['strategy.directory', ['plans', ''], [false, 0]],
   ['memory.enabled', [true, false], [0, '']],
   ['memory.directory', ['memory', ''], [false, 0]],
-  ['memory.upkeep', [true, false], [0, '']],
   ['turns.loopGuard', [true, false], [0, '']],
   ['environment.values', [{ FIXTURE: 'one' }, {}], [false, 0, '']],
   ['credit.lines', [{ commit: '', pr: '' }, {}], [false, 0, '']],

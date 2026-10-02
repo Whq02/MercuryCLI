@@ -133,7 +133,6 @@ export const SettingsSchema = lazySchema(() => {
     memory: z.object({
       enabled: z.boolean().optional(),
       directory: z.string().optional().describe('Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings'),
-      upkeep: z.boolean().optional().describe('Background memory upkeep: the notes consolidation pass between sessions'),
       pinnedLimit: z.number().int().min(1000).optional().describe('How much pinned memory text (characters) loads into every session before Mercury says the shelf is full; every pinned rule still loads past it (default 8000)'),
     }).passthrough().optional(),
     turns: z.object({
