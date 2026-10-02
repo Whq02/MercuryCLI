@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: scripts/staleness/**
+# gate-watch: scripts/lib/firstRunSeed.ts
 # gate-watch: src/services/switchboard/harnessGround.ts src/utils/settings/changeDetector.ts
 # gate-watch: src/utils/config/projectConfig.ts src/ink/session/windowsHostSetup.ts
 # gate-watch: src/utils/router/providerDiscovery.ts src/services/switchboard/capacityCheck.ts

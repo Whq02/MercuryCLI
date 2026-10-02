@@ -11,6 +11,7 @@
 # gate-watch: src/components/tasks/taskStatusUtils.tsx src/constants/prompts.ts
 # gate-watch: src/constants/subagentDoctrine.ts src/extensions/load/contributions.ts src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/main.tsx src/services/agentResults/lifecycle.ts
+# gate-watch: src/tools/AgentTool/built-in/mercuryGuideAgent.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
 # gate-watch: src/services/resources/adapters/transcript.ts src/state/AppStateStore.ts
 # gate-watch: src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx src/tasks/stopTask.ts

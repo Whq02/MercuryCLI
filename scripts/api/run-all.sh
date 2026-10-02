@@ -28,6 +28,7 @@
 # gate-watch: src/utils/settings/*
 # gate-watch: src/components/Settings/Config.tsx src/services/providers/idSpaces.ts src/services/providers/patience.ts src/services/providers/streamIdleBudget.ts
 # gate-watch: src/services/providers/moonshot/moonshotCatalogue.ts
+# gate-watch: src/tools/AgentTool/runAgent.ts scripts/api/read-instruction-heading.ts
 # gate-watch: src/services/providers/openaicompat/compatChatCallModel.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
