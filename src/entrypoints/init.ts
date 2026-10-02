@@ -11,7 +11,6 @@ import { configureGlobalMTLS } from '../utils/mtls.js'
 import { configureGlobalAgents } from '../utils/proxy.js'
 import { armWindowsShellRoad } from '../utils/shell/windowsShellRoad.js'
 import { applyConfigEnvironmentVariables, applySafeConfigEnvironmentVariables } from '../utils/managedEnv.js'
-import { initJetBrainsDetection } from '../utils/envDynamic.js'
 import { ensureLocalSettingsSchema } from '../utils/settings/localSchema.js'
 import { getGithubRepo } from '../utils/git.js'
 import { restoreGatewayAuth } from '../utils/gatewayTrust.js'
@@ -51,7 +50,6 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
 
     void restoreGatewayAuth().catch(() => {})
 
-    void initJetBrainsDetection().catch(() => {})
     void getGithubRepo().catch(() => {})
 
     setImmediate(() => {

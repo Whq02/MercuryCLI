@@ -16,7 +16,7 @@ export function globalConfigFileIn(home: string): string {
 
 export const getGlobalMercuryFile = memoize((): string => globalConfigFileIn(getMercuryHome()))
 
-export const JETBRAINS_IDES: string[] = [
+const JETBRAINS_IDES: string[] = [
   'pycharm',
   'intellij',
   'webstorm',

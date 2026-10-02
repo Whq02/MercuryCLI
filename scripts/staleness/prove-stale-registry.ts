@@ -255,7 +255,6 @@ src/utils/env.ts :: isNpmFromWindowsPath :: static-for-process
 src/utils/env.ts :: isRunningWithBun :: static-for-process
 src/utils/env.ts :: isWslEnvironment :: static-for-process
 src/utils/envDynamic.ts :: getIsDocker :: static-for-process
-src/utils/envDynamic.ts :: jetBrainsIdeCache :: static-for-process
 src/utils/envUtils.ts :: getMercuryHome :: keyed-by-truth
 src/utils/exampleCommands.ts :: getExampleCommandFromCache :: invalidator=applyHarnessGround
 src/utils/exampleCommands.ts :: refreshExampleCommands :: invalidator=applyHarnessGround
