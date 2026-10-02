@@ -9,7 +9,17 @@ import {
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
-const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE])
+const ENTRY_BASENAMES_BY_RANK = ['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE]
+const ENTRY_BASENAMES = new Set(ENTRY_BASENAMES_BY_RANK)
+
+export function measuredGuideName(files: readonly InstructionSourceEntry[]): string {
+  const entries = new Set(
+    files
+      .filter(file => (file.type === 'Project' || file.type === 'Local') && file.content.trim() !== '')
+      .map(file => basename(file.path)),
+  )
+  return ENTRY_BASENAMES_BY_RANK.find(name => entries.has(name)) ?? ENTRY_BASENAMES_BY_RANK[0]!
+}
 
 export function measureEffectiveProjectInstructionLines(
   files: readonly InstructionSourceEntry[],
@@ -28,9 +38,10 @@ export function measureEffectiveProjectInstructionLines(
 export type TrimChipSnapshot = {
   armed: boolean
   effectiveLines: number
+  guide: string
 }
 
-let snapshot: TrimChipSnapshot = { armed: false, effectiveLines: 0 }
+let snapshot: TrimChipSnapshot = { armed: false, effectiveLines: 0, guide: ENTRY_BASENAMES_BY_RANK[0]! }
 const subscribers = new Set<() => void>()
 let engineHookArmed = false
 let measureScheduled = false
@@ -42,12 +53,12 @@ function scheduleMeasure(): void {
     measureScheduled = false
     void (async () => {
       try {
-        const lines = measureEffectiveProjectInstructionLines(
-          await getInstructionFiles(),
-        )
+        const files = await getInstructionFiles()
+        const lines = measureEffectiveProjectInstructionLines(files)
+        const guide = measuredGuideName(files)
         const armed = lines > PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD
-        if (armed === snapshot.armed && lines === snapshot.effectiveLines) return
-        snapshot = { armed, effectiveLines: lines }
+        if (armed === snapshot.armed && lines === snapshot.effectiveLines && guide === snapshot.guide) return
+        snapshot = { armed, effectiveLines: lines, guide }
         for (const cb of subscribers) cb()
       } catch {
       }

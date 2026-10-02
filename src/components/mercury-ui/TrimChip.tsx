@@ -9,8 +9,9 @@ import {
 import { FAINT } from '../mercuryPalette.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 
-export const TRIM_CHIP_TEXT =
-  'trim mercury.md to optimise performance and reduce context bloat'
+export function trimChipText(guide: string): string {
+  return `trim ${guide.toLowerCase()} to optimise performance and reduce context bloat`
+}
 
 export function TrimChip(): React.ReactNode {
   const snap = useSyncExternalStore(
@@ -23,7 +24,7 @@ export function TrimChip(): React.ReactNode {
   return (
     <Text>
       <Text color={FAINT}> · </Text>
-      <Text color={tokens.warning}>{TRIM_CHIP_TEXT}</Text>
+      <Text color={tokens.warning}>{trimChipText(snap.guide)}</Text>
     </Text>
   )
 }
