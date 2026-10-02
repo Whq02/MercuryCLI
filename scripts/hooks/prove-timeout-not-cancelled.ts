@@ -13,7 +13,7 @@ let settingsWriteSeq = 0
 const writeHooks = (hooks: unknown): void => {
   mkdirSync(join(PROJ, '.mercury'), { recursive: true })
   const file = join(PROJ, '.mercury', 'settings.json')
-  writeFileSync(file, JSON.stringify({ hooks }))
+  writeFileSync(file, JSON.stringify({ events: { hooks } }))
   settingsWriteSeq += 2
   const stamp = new Date(Date.now() + settingsWriteSeq * 1000)
   utimesSync(file, stamp, stamp)

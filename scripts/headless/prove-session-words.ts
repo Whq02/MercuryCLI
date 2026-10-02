@@ -92,7 +92,7 @@ try {
   const appendFile = join(home, 'append.txt')
   writeFileSync(briefFile, 'The file brief marker.')
   writeFileSync(appendFile, 'The appended file marker.')
-  const answer = await run(['run', 'hello', '--lean', '--brief-file', briefFile, '--brief-add-file', appendFile, '--config', '{"effortLevel":"high"}', '--config-layers', 'user', '--title', 'Words', '--ephemeral', '--toolset', 'Read', '--block-tools', 'Write', '--only-mcp', '--mcp', '{"mcpServers":{}}', '--budget', '100', '--reasoning-mode', 'disabled', '--log-file', join(home, 'debug.log')])
+  const answer = await run(['run', 'hello', '--lean', '--brief-file', briefFile, '--brief-add-file', appendFile, '--config', '{"engine":{"effort":"high"}}', '--config-layers', 'user', '--title', 'Words', '--ephemeral', '--toolset', 'Read', '--block-tools', 'Write', '--only-mcp', '--mcp', '{"mcpServers":{}}', '--budget', '100', '--reasoning-mode', 'disabled', '--log-file', join(home, 'debug.log')])
   check('session words reach the real run', answer.code === 0 && answer.out.trim() === 'The words answered.', JSON.stringify(answer))
   const request = JSON.stringify(api.messageRequests().at(-1)?.body)
   check('both file briefs reach the fixture request', request.includes('The file brief marker.') && request.includes('The appended file marker.'), request)

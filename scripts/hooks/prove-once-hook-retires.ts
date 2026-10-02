@@ -26,7 +26,7 @@ const onceEntry = { type: 'command', command: `echo ran >> ${ONCE_MARK}`, once: 
 const twinEntry = { type: 'command', command: `echo ran >> ${ONCE_MARK}` }
 const keeperEntry = { type: 'command', command: `echo ran >> ${KEEP_MARK}`, fieldNote: 'keep-me' }
 const writeFixture = (entries: unknown[]): void =>
-  writeFileSync(SETTINGS, JSON.stringify({ hooks: { SessionStart: [{ hooks: entries }] } }))
+  writeFileSync(SETTINGS, JSON.stringify({ events: { hooks: { SessionStart: [{ hooks: entries }] } } }))
 
 const { setIsInteractive, setSessionTrustAccepted, setProjectRoot, setOriginalCwd } = await import(
   '../../src/bootstrap/state.js'

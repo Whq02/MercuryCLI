@@ -64,10 +64,12 @@ function writeHooks(phase: 'context' | 'stop'): void {
   writeFileSync(
     join(home, 'settings.json'),
     j({
-      hooks: {
-        PreToolUse: [{ hooks: [{ type: 'command', command: command(pre) }] }],
-        PostToolUse: [{ hooks: [{ type: 'command', command: command(post) }] }],
-        PostToolUseFailure: [{ hooks: [{ type: 'command', command: command(failure) }] }],
+      events: {
+        hooks: {
+          PreToolUse: [{ hooks: [{ type: 'command', command: command(pre) }] }],
+          PostToolUse: [{ hooks: [{ type: 'command', command: command(post) }] }],
+          PostToolUseFailure: [{ hooks: [{ type: 'command', command: command(failure) }] }],
+        },
       },
     }),
   )
