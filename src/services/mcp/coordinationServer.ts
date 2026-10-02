@@ -1,6 +1,7 @@
 
 
 
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { serveStdio, type CallToolResult, type Transport } from './sdk.js'
 import { z } from 'zod/v4'
@@ -18,7 +19,17 @@ import {
 import type { McpServerConfig } from './types.js'
 import { renderTui } from './renderTuiTool.js'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
-import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases } from '../vulcan/engine/leases.js'
+import { listProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from '../vulcan/engine/leases.js'
+
+const invocationLeaseHolder = new AsyncLocalStorage<LeaseHolder>()
+
+export function withCoordinationLeaseHolder<T>(agentId: string | undefined, invoke: () => T): T {
+  return invocationLeaseHolder.run(projectLeaseHolder(agentId), invoke)
+}
+
+function coordinationLeaseHolder(): LeaseHolder {
+  return invocationLeaseHolder.getStore() ?? projectLeaseHolder()
+}
 
 export const COORDINATION_SERVER_NAME = 'mercury'
 
@@ -140,7 +151,7 @@ export async function createCoordinationServer(): Promise<{
     },
     async ({ paths }): Promise<CallToolResult> => {
       try {
-        return jsonResult(await takeProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), paths, projectLeaseHolder()))
+        return jsonResult(await takeProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), paths, coordinationLeaseHolder()))
       } catch (e) {
         return errorResult(`lease_take failed: ${errorMessage(e)}`)
       }
@@ -218,7 +229,7 @@ export async function createCoordinationServer(): Promise<{
       const list = paths === undefined && globs === undefined ? undefined : leaseList(paths, globs)
       try {
         if (!ctx || list !== undefined || project === true) {
-          const holder = projectLeaseHolder()
+          const holder = coordinationLeaseHolder()
           const result = await releaseProjectLeases(getSessionProjectDir() ?? getOriginalCwd(), holder, list)
           return structuredJsonResult({ ok: true, agentId: holder.agentId, released: result.released.length > 0 })
         }
