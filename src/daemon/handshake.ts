@@ -28,6 +28,7 @@ export interface DaemonVersionFacts {
   foreground: boolean
   ready: boolean
   restartArmed: boolean
+  predecessorPids?: number[]
   preHandshake: boolean
 }
 
@@ -147,6 +148,7 @@ export function decideHandshake(outcome: HelloOutcome, client: ClientVersionFact
     foreground: r.foreground,
     ready: r.ready,
     restartArmed: r.restartArmed,
+    predecessorPids: r.predecessorPids ?? (r.predecessorPid ? [r.predecessorPid] : []),
     preHandshake: false,
   }
   const counts = { live: r.live, liveSessions: r.liveSessions }

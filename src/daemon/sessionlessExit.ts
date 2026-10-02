@@ -30,10 +30,9 @@ export function decideSessionlessExit(state: SessionlessStateV1, facts: Sessionl
   }
   if (facts.foreground) return { exit: false, state: { hosted, emptySince: null }, hold: 'runs on a terminal' }
   if (!hosted) return { exit: false, state: { hosted, emptySince: null }, hold: 'never hosted a session' }
-  if (!facts.superseded) {
-    if (facts.persist) return { exit: false, state: { hosted, emptySince: null }, hold: 'persists by its own posture' }
-    if (facts.scheduled) return { exit: false, state: { hosted, emptySince: null }, hold: 'a session schedule waits on this daemon' }
-  }
+  if (facts.superseded) return { exit: true, state: { hosted, emptySince: facts.now }, why: 'the plane is served by a newer daemon and the last session this daemon held has exited' }
+  if (facts.persist) return { exit: false, state: { hosted, emptySince: null }, hold: 'persists by its own posture' }
+  if (facts.scheduled) return { exit: false, state: { hosted, emptySince: null }, hold: 'a session schedule waits on this daemon' }
   const emptySince = state.emptySince ?? facts.now
   if (facts.now - emptySince < graceMs) {
     return { exit: false, state: { hosted, emptySince }, hold: `empty for ${Math.round((facts.now - emptySince) / 1000)}s of the ${Math.round(graceMs / 1000)}s grace` }
@@ -41,8 +40,6 @@ export function decideSessionlessExit(state: SessionlessStateV1, facts: Sessionl
   return {
     exit: true,
     state: { hosted, emptySince },
-    why: facts.superseded
-      ? `the plane is served by a newer daemon and the last session this daemon held has exited (empty for ${Math.round(graceMs / 1000)}s)`
-      : `the last session this daemon hosted has exited (empty for ${Math.round(graceMs / 1000)}s)`,
+    why: `the last session this daemon hosted has exited (empty for ${Math.round(graceMs / 1000)}s)`,
   }
 }

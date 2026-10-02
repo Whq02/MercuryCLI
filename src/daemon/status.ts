@@ -15,6 +15,10 @@ export interface FireOutcomeSummary {
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
+import { forwardFrame, predecessorSockPath } from './handover.js'
+import { isProcessAlive } from './ownerWatch.js'
+import { readdirSync } from 'node:fs'
+import { basename, dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
   supervisor: { pid: number; version: string; uptimeSec: number; dir: string } | null
@@ -34,6 +38,7 @@ export interface MercuryDaemonStatus {
   handshake: DaemonHandshakeVerdict | null
   versionLine: string | null
   workers: WireRosterEntry[]
+  helpers?: HelperRow[]
 }
 
 export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
@@ -67,10 +72,18 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
   }
 
 
-  if (!ping.ok) return snapshot
+  if (!ping.ok) {
+    snapshot.helpers = await helperCensus(supervisor !== null && isProcessAlive(supervisor.pid) ? [{ pid: supervisor.pid, live: null }] : [], [])
+    return snapshot
+  }
 
   snapshot.handshake = await handshakeDaemon({ timeoutMs: 1000 })
   snapshot.versionLine = daemonHandshakeEvidence(snapshot.handshake)
+  const daemon = snapshot.handshake.daemon
+  snapshot.helpers = await helperCensus(
+    daemon?.pid ? [{ pid: daemon.pid, live: snapshot.handshake.state === 'starting' ? null : snapshot.handshake.live }] : [],
+    daemon?.predecessorPids ?? [],
+  )
 
   const [statusReply, listReply] = await Promise.all([
     daemonControlRpc({ op: 'status', proto: MERCURY_DAEMON_PROTO }, { timeoutMs: 1000 }),
@@ -99,6 +112,48 @@ export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
   }
 
   return snapshot
+}
+
+export type HelperRow = { pid: number; live: number | null }
+
+export function helperPidSocketsOnDisk(): number[] {
+  if (process.platform === 'win32') return []
+  const plane = controlSockPath()
+  const name = basename(plane)
+  let names: string[]
+  try {
+    names = readdirSync(dirname(plane))
+  } catch {
+    return []
+  }
+  const pids: number[] = []
+  for (const entry of names) {
+    const match = entry.startsWith(`${name}.`) ? /^(\d+)$/.exec(entry.slice(name.length + 1)) : /^(\d+)\.sock$/.exec(entry)
+    if (match !== null) pids.push(Number(match[1]))
+  }
+  return pids
+}
+
+async function helperCensus(known: HelperRow[], predecessors: number[]): Promise<HelperRow[]> {
+  const helpers = [...known]
+  const seen = new Set(helpers.map(helper => helper.pid))
+  const pending: Array<{ pid: number; vouched: boolean }> = [
+    ...predecessors.map(pid => ({ pid, vouched: true })),
+    ...helperPidSocketsOnDisk().filter(isProcessAlive).map(pid => ({ pid, vouched: false })),
+  ]
+  while (pending.length > 0) {
+    const { pid, vouched } = pending.shift()!
+    if (seen.has(pid)) continue
+    seen.add(pid)
+    const reply = await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'hello' }), 1000)
+    if (reply.ok && reply.op === 'hello' && reply.pid === pid) {
+      helpers.push({ pid, live: reply.ready ? reply.live : null })
+      pending.push(...(reply.predecessorPids ?? (reply.predecessorPid ? [reply.predecessorPid] : [])).map(earlier => ({ pid: earlier, vouched: true })))
+    } else if (vouched && isProcessAlive(pid)) {
+      helpers.push({ pid, live: null })
+    }
+  }
+  return helpers
 }
 
 function sockPathOrPlaceholder(): string {
@@ -140,6 +195,12 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     )
   } else {
     lines.push('  workers:      unavailable (control unreachable)')
+  }
+
+  if (status.helpers !== undefined) {
+    const live = status.helpers.some(helper => helper.live === null) ? 'unknown' : String(status.helpers.reduce((n, helper) => n + (helper.live ?? 0), 0))
+    lines.push(`  helpers:      ${status.helpers.length} running / ${live} live workers`)
+    for (const helper of status.helpers) lines.push(`    pid ${helper.pid}: ${helper.live ?? 'unknown'} live workers`)
   }
 
   if (status.breakerOpen !== null) {

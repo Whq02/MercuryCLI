@@ -357,6 +357,7 @@ export interface DaemonHelloFacts {
   warm: number
   restartArmed: boolean
   predecessorPid?: number | null
+  predecessorPids?: number[]
 }
 
 export interface WireRosterEntry {
