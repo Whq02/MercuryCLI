@@ -188,8 +188,14 @@ try {
     }
     const taken = await client.callTool({ name: 'lease_take', arguments: { paths: ['probe.gd'] } })
     check('lease_take solo grants an exact project file', !isError(taken) && jsonOf(taken).ok === true)
+    const handoff = await client.callTool({ name: 'lease_take', arguments: { paths: ['.mercury/handoffs/face-wave/F2-INTEGRATION.json'] } })
+    check('lease_take grants a project-store record under .mercury/ (a handoff file is a file a crew edits)', !isError(handoff) && jsonOf(handoff).ok === true, textOf(handoff))
+    const store = await client.callTool({ name: 'lease_take', arguments: { paths: ['.mercury/project-leases.sqlite'] } })
+    check('lease_take refuses the lease store itself and names the path and the store', isError(store) && textOf(store).includes('.mercury/project-leases.sqlite is the lease store itself (.mercury/project-leases.sqlite) and cannot be leased'), textOf(store))
+    const journal = await client.callTool({ name: 'lease_take', arguments: { paths: ['.mercury/project-leases.sqlite-journal'] } })
+    check("…and the store's journal sidecar", isError(journal) && textOf(journal).includes('is the lease store itself'), textOf(journal))
     const listed = await client.callTool({ name: 'lease_list', arguments: {} })
-    check('lease_list solo names the actual file holder', !isError(listed) && jsonOf(listed).ok === true && textOf(listed).includes('probe.gd') && textOf(listed).includes('sessionId'))
+    check('lease_list solo names the actual file holders', !isError(listed) && jsonOf(listed).ok === true && textOf(listed).includes('probe.gd') && textOf(listed).toLowerCase().includes('.mercury/handoffs/face-wave/f2-integration.json') && textOf(listed).includes('sessionId'), textOf(listed))
     const released = await client.callTool({ name: 'lease_release', arguments: {} })
     check('lease_release solo releases the calling holder', !isError(released) && jsonOf(released).ok === true)
     const say = await client.callTool({
