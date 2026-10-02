@@ -18,7 +18,8 @@ import {
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
-import type { LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
+import { remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { isLspStartFailure, type LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
 import {
   applyEditsToText,
@@ -268,6 +269,8 @@ export function clearDiagnosticsBaselines(): void {
   diagnosticsBaselines.clear()
 }
 
+export type ClaimantFailure = { server: LSPServerInstance; stage: 'start' | 'pull'; cause: string }
+
 export type PullDiagnosticsOutcome =
   | {
       kind: 'fresh'
@@ -275,6 +278,7 @@ export type PullDiagnosticsOutcome =
       docVersion: number | undefined
       pulledFrom?: string[]
       pushed?: string[]
+      failed?: ClaimantFailure[]
     }
   | {
       kind: 'unchanged'
@@ -282,13 +286,33 @@ export type PullDiagnosticsOutcome =
       docVersion: number | undefined
       pulledFrom?: string[]
       pushed?: string[]
+      failed?: ClaimantFailure[]
     }
-  | { kind: 'unsupported' }
+  | { kind: 'unsupported'; pushOnly: string[] }
+  | { kind: 'unavailable'; failed: ClaimantFailure[] }
   | { kind: 'no-claimant' }
   | { kind: 'protocol-violation'; detail: string }
 
-function remedyForUnclaimedExtension(extension: string): string {
+function claimantFailureWords(failure: ClaimantFailure, path: string, cwd: string): { what: string; remedy: string } {
+  const title = serverTitle(failure.server, path)
+  const what =
+    failure.stage === 'start'
+      ? `${title} did not start: ${failure.cause}`
+      : `${title} did not answer textDocument/diagnostic: ${failure.cause}`
+  return { what, remedy: remedyForLanguageServer(failure.server, path, failure.cause, cwd) }
+}
+
+function requestFailureCause(server: LSPServerInstance, method: string, error: unknown): string {
+  const raw = error instanceof Error ? error.message : String(error)
+  return raw.replace(`LSP request ${method} to server ${server.name} `, '').replace(/^failed: /, '').trim()
+}
+
+function remedyForUnclaimedExtension(extension: string, cwd?: string): string {
   try {
+    if (cwd !== undefined) {
+      const typescript = unclaimedCause(extension, cwd)
+      if (typescript.remedy !== '') return `${typescript.cause}. What helps: ${typescript.remedy}.`
+    }
     if (extension === '.py' || extension === '.pyi') {
       const { probeBuiltinPyright } = require('../../services/lsp/pyrightLane.js') as typeof import('../../services/lsp/pyrightLane.js')
       const { probeRuff } = require('../../services/lsp/ruffLane.js') as typeof import('../../services/lsp/ruffLane.js')
@@ -379,13 +403,15 @@ async function pullFileDiagnostics(
   const pulledItems: LspWireDiagnostic[] = []
   const pulledFrom: string[] = []
   const pushOnlyNames: string[] = []
+  const failed: ClaimantFailure[] = []
   let anyFresh = false
   let violation: string | null = null
   for (const server of claimants) {
     if (server.state === 'stopped' || server.state === 'error') {
       try {
         await server.start()
-      } catch {
+      } catch (err) {
+        failed.push({ server, stage: 'start', cause: isLspStartFailure(err) ? err.lspCause : startFailureCause(server.name, err) })
         continue
       }
     }
@@ -413,6 +439,7 @@ async function pullFileDiagnostics(
       }>('textDocument/diagnostic', params)
     } catch (err) {
       logForDebugging(`lsp ops: pull from ${server.name} failed: ${String(err)}`)
+      failed.push({ server, stage: 'pull', cause: requestFailureCause(server, 'textDocument/diagnostic', err) })
       continue
     }
     if (response === undefined || response === null) continue
@@ -447,7 +474,8 @@ async function pullFileDiagnostics(
   for (const p of pushed) pulledItems.push(...p.items)
   if (pulledFrom.length === 0 && pushed.length === 0) {
     if (violation) return { kind: 'protocol-violation', detail: violation }
-    return { kind: 'unsupported' }
+    if (failed.length > 0) return { kind: 'unavailable', failed }
+    return { kind: 'unsupported', pushOnly: pushOnlyNames }
   }
   return {
     kind: anyFresh || pushed.length > 0 ? 'fresh' : 'unchanged',
@@ -455,6 +483,7 @@ async function pullFileDiagnostics(
     docVersion,
     ...(pulledFrom.length > 0 ? { pulledFrom } : {}),
     ...(pushedNames.length > 0 ? { pushed: pushedNames } : {}),
+    ...(failed.length > 0 ? { failed } : {}),
   }
 }
 
@@ -522,6 +551,7 @@ export async function awaitDiagnosticStabilization(
       if (outcome === 'timeout') return { state: 'timed-out', waitedMs: deadlineMs }
       if (outcome.kind === 'unsupported' || outcome.kind === 'no-claimant') return { state: 'unsupported' }
       if (outcome.kind === 'protocol-violation') return { state: 'failed', reason: outcome.detail }
+      if (outcome.kind === 'unavailable') return { state: 'failed', reason: unavailableWords(outcome.failed, absolutePath, dirname(absolutePath)).what }
       const { errors, warnings } = countBySeverity(outcome.items)
       return {
         state: outcome.kind === 'fresh' ? 'fresh' : 'unchanged',
@@ -1231,35 +1261,64 @@ async function applyPrepared(
 }
 
 
+function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: string[] } {
+  const words = failed.map(failure => claimantFailureWords(failure, path, cwd))
+  const remedies = [...new Set(words.map(w => w.remedy).filter(r => r !== ''))]
+  return { what: words.map(w => w.what).join('; '), remedy: remedies.join('; '), servers: failed.map(f => f.server.name) }
+}
+
 async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const display = displayPathFor(env.cwd, env.absolutePath)
-  await syncFileFromDisk(env.manager, env.absolutePath)
-  const pulled = await pullFileDiagnostics(env.manager, env.absolutePath)
+  let pulled: PullDiagnosticsOutcome
+  try {
+    await syncFileFromDisk(env.manager, env.absolutePath)
+    pulled = await pullFileDiagnostics(env.manager, env.absolutePath)
+  } catch (err) {
+    const primary = env.manager.getServerForFile(env.absolutePath)
+    if (isLspStartFailure(err) && primary !== undefined) {
+      pulled = { kind: 'unavailable', failed: [{ server: primary, stage: 'start', cause: err.lspCause }] }
+    } else {
+      throw err
+    }
+  }
   if (pulled.kind === 'no-claimant') {
     const extension = extname(env.absolutePath).toLowerCase()
     return {
       result:
-        `No language server claims ${display} (extension '${extension}') in this session — ` +
-        `there are no diagnostics to pull, and none will arrive passively. ` +
-        remedyForUnclaimedExtension(extension),
+        `${display} was not checked: no language server claims '${extension}' files in this session — ` +
+        remedyForUnclaimedExtension(extension, env.cwd),
       resultCount: 0,
       fileCount: 0,
       effect: {
-        outcome: 'no-change',
+        outcome: 'failed',
         changedPaths: [],
         evidence: `no language server claims '${extension}'`,
+      },
+    }
+  }
+  if (pulled.kind === 'unavailable') {
+    const words = unavailableWords(pulled.failed, env.absolutePath, env.cwd)
+    return {
+      result: `${display} was not checked: ${words.what}.${words.remedy ? ` What helps: ${words.remedy}.` : ''}`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: {
+        outcome: 'failed',
+        changedPaths: [],
+        evidence: words.what,
+        details: { failedServers: words.servers },
       },
     }
   }
   if (pulled.kind === 'unsupported') {
     return {
       result:
-        `The language server(s) for ${display} support neither pull diagnostics nor delivered a published report within the wait. ` +
-        `Push-only servers publish after opens/edits — edit the file or re-run diagnostics; passive delivery also carries their reports.`,
+        `${display} was not checked: ${pulled.pushOnly.join(', ')} publish${pulled.pushOnly.length === 1 ? 'es' : ''} diagnostics instead of answering requests, and no report for this file arrived within 5 s. ` +
+        `Their reports reach the conversation on their own when they publish.`,
       resultCount: 0,
       fileCount: 0,
       effect: {
-        outcome: 'no-change',
+        outcome: 'indeterminate',
         changedPaths: [],
         evidence: 'no pull capability and no published report',
       },
@@ -1267,7 +1326,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   }
   if (pulled.kind === 'protocol-violation') {
     return {
-      result: `Diagnostics are indeterminate for ${display}: ${pulled.detail} — cannot claim clean; re-run diagnostics after the next edit.`,
+      result: `Diagnostics are indeterminate for ${display}: ${pulled.detail} — nothing can be claimed about this file.`,
       resultCount: 0,
       fileCount: 0,
       effect: {
@@ -1280,6 +1339,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const sourceNote = [
     ...(pulled.pulledFrom && pulled.pulledFrom.length > 0 ? [`pulled: ${pulled.pulledFrom.join(', ')}`] : []),
     ...(pulled.pushed && pulled.pushed.length > 0 ? [`published: ${pulled.pushed.join(', ')}`] : []),
+    ...(pulled.failed && pulled.failed.length > 0 ? [`not answered: ${unavailableWords(pulled.failed, env.absolutePath, env.cwd).what}`] : []),
   ].join(' · ')
   const provenance =
     (pulled.kind === 'fresh'
@@ -1815,6 +1875,8 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   const paths = env.input.paths ?? []
   const included: string[] = []
   const skipped: string[] = []
+  const unclaimed: string[] = []
+  const unreadable: string[] = []
   let truncated = false
 
   const includeFile = (abs: string): void => {
@@ -1823,7 +1885,10 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       return
     }
     if (env.manager.getServerForFile(abs)) included.push(abs)
-    else skipped.push(abs)
+    else {
+      skipped.push(abs)
+      unclaimed.push(abs)
+    }
   }
 
   const walkDirectory = async (dir: string): Promise<void> => {
@@ -1833,6 +1898,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       entries = await readdir(dir, { withFileTypes: true })
     } catch {
       skipped.push(dir)
+      unreadable.push(dir)
       return
     }
     entries.sort((a, b) => a.name.localeCompare(b.name))
@@ -1865,21 +1931,38 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       stats = await stat(abs)
     } catch {
       skipped.push(abs)
+      unreadable.push(abs)
       continue
     }
     if (stats.isDirectory()) await walkDirectory(abs)
     else includeFile(abs)
   }
 
+  const listed = (items: string[]): string => {
+    const shown = items.slice(0, 5).map(p => displayPathFor(env.cwd, p))
+    return `${shown.join(', ')}${items.length > 5 ? ` (+${items.length - 5} more)` : ''}`
+  }
+
   if (included.length === 0) {
-    const shown = skipped.slice(0, 5).map(p => displayPathFor(env.cwd, p))
-    const more = skipped.length > 5 ? ` (+${skipped.length - 5} more)` : ''
+    const reasons: string[] = []
+    if (unclaimed.length > 0) {
+      const byExtension = new Map<string, string[]>()
+      for (const p of unclaimed) {
+        const ext = extname(p).toLowerCase() || basename(p)
+        byExtension.set(ext, [...(byExtension.get(ext) ?? []), p])
+      }
+      for (const [ext, files] of byExtension) {
+        reasons.push(`no language server claims '${ext}' files in this session (${listed(files)}) — ${remedyForUnclaimedExtension(ext, env.cwd)}`)
+      }
+    }
+    if (unreadable.length > 0) reasons.push(`${listed(unreadable)}: not found or unreadable`)
+    if (reasons.length === 0) reasons.push('no paths were given')
     return {
-      result: `No claimed files to check — every path was unclaimed or unreadable: ${shown.join(', ')}${more}`,
+      result: `Nothing was checked: ${reasons.join('; ')}`,
       resultCount: 0,
       fileCount: 0,
       effect: {
-        outcome: 'no-change',
+        outcome: 'failed',
         changedPaths: [],
         evidence: 'no claimed files',
         details: { skipped: skipped.length },
@@ -1891,14 +1974,23 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   let warnings = 0
   let totalDiagnostics = 0
   let filesWithFindings = 0
+  let answered = 0
   let indeterminate = 0
+  const failedServers = new Set<string>()
+  const remedies = new Set<string>()
   const lines: string[] = []
+  const notChecked = (display: string, words: { what: string; remedy: string; servers: string[] }): void => {
+    lines.push(`  not checked: ${display} — ${words.what}`)
+    for (const server of words.servers) failedServers.add(server)
+    if (words.remedy !== '') remedies.add(words.remedy)
+  }
   for (const abs of included) {
     const display = displayPathFor(env.cwd, abs)
     try {
       await syncFileFromDisk(env.manager, abs)
       const pulled = await pullFileDiagnostics(env.manager, abs)
       if (pulled.kind === 'fresh' || pulled.kind === 'unchanged') {
+        answered++
         if (pulled.items.length > 0) {
           filesWithFindings++
           const counts = countBySeverity(pulled.items)
@@ -1909,9 +2001,16 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
             lines.push(`  ${formatDiagnosticLine(display, item)}`)
           }
         }
+        if (pulled.failed && pulled.failed.length > 0) {
+          const words = unavailableWords(pulled.failed, abs, env.cwd)
+          lines.push(`  partly checked: ${display} — ${words.what}`)
+          for (const server of words.servers) failedServers.add(server)
+        }
+      } else if (pulled.kind === 'unavailable') {
+        notChecked(display, unavailableWords(pulled.failed, abs, env.cwd))
       } else if (pulled.kind === 'unsupported') {
         indeterminate++
-        lines.push(`  indeterminate: ${display} — pull diagnostics unsupported`)
+        lines.push(`  indeterminate: ${display} — ${pulled.pushOnly.join(', ')} publish${pulled.pushOnly.length === 1 ? 'es' : ''} diagnostics instead of answering requests, and no report arrived within 5 s`)
       } else if (pulled.kind === 'no-claimant') {
         indeterminate++
         lines.push(`  indeterminate: ${display} — no language server claims this extension (nothing to pull)`)
@@ -1920,30 +2019,36 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
         lines.push(`  indeterminate: ${display} — ${pulled.detail}`)
       }
     } catch (error) {
-      indeterminate++
-      lines.push(
-        `  indeterminate: ${display} — ${error instanceof Error ? error.message : String(error)}`,
-      )
+      const primary = env.manager.getServerForFile(abs)
+      if (isLspStartFailure(error) && primary !== undefined) {
+        notChecked(display, unavailableWords([{ server: primary, stage: 'start', cause: error.lspCause }], abs, env.cwd))
+      } else {
+        notChecked(display, { what: error instanceof Error ? error.message : String(error), remedy: '', servers: [] })
+      }
     }
   }
 
+  const failedFiles = included.length - answered - indeterminate
   const capNote = truncated
     ? ` (CAPPED at ${WORKSPACE_DIAG_FILE_CAP} — the set was larger; narrow the paths)`
     : ''
   const skippedNote = skipped.length > 0 ? `, ${skipped.length} skipped (unclaimed/unreadable)` : ''
   const indeterminateNote = indeterminate > 0 ? `, ${indeterminate} indeterminate` : ''
-  let summary = `${included.length} file(s) checked${capNote}${skippedNote} — ${errors} error(s), ${warnings} warning(s) in ${filesWithFindings} file(s)${indeterminateNote}`
+  const notCheckedNote = failedFiles > 0 ? `, ${failedFiles} not checked` : ''
+  let summary = `${answered} of ${included.length} file(s) checked${capNote}${skippedNote} — ${errors} error(s), ${warnings} warning(s) in ${filesWithFindings} file(s)${indeterminateNote}${notCheckedNote}`
   if (lines.length === 0) summary += ' — all clean.'
-  const allIndeterminate = indeterminate === included.length
+  const helps = remedies.size > 0 ? `\nWhat helps: ${[...remedies].join('; ')}.` : ''
+  const noneAnswered = answered === 0 && failedFiles > 0
+  const complete = answered === included.length
   return {
-    result: lines.length > 0 ? `${summary}\n${lines.join('\n')}` : summary,
+    result: (lines.length > 0 ? `${summary}\n${lines.join('\n')}` : summary) + helps,
     resultCount: totalDiagnostics,
     fileCount: included.length,
     effect: {
-      outcome: allIndeterminate ? 'indeterminate' : 'succeeded',
+      outcome: noneAnswered ? 'failed' : complete ? 'succeeded' : 'indeterminate',
       changedPaths: [],
-      evidence: `${errors} error(s), ${warnings} warning(s) across ${included.length} file(s)`,
-      details: { truncated, skipped: skipped.length, indeterminate },
+      evidence: noneAnswered ? (lines[0] ?? 'no file answered').trim() : `${errors} error(s), ${warnings} warning(s) across ${answered} of ${included.length} file(s)`,
+      details: { truncated, skipped: skipped.length, indeterminate, notChecked: failedFiles, ...(failedServers.size > 0 ? { failedServers: [...failedServers] } : {}) },
     },
   }
 }
@@ -2463,13 +2568,27 @@ async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
     return {
       result:
         `fixDiagnostic is unavailable for ${display}: no language server claims '${extension}'. ` +
-        remedyForUnclaimedExtension(extension),
+        remedyForUnclaimedExtension(extension, env.cwd),
       resultCount: 0,
       fileCount: 0,
       effect: {
-        outcome: 'no-change',
+        outcome: 'failed',
         changedPaths: [],
         evidence: `no language server claims '${extension}'`,
+      },
+    }
+  }
+  if (before.kind === 'unavailable') {
+    const words = unavailableWords(before.failed, env.absolutePath, env.cwd)
+    return {
+      result: `fixDiagnostic was not run for ${display}: ${words.what}.${words.remedy ? ` What helps: ${words.remedy}.` : ''}`,
+      resultCount: 0,
+      fileCount: 0,
+      effect: {
+        outcome: 'failed',
+        changedPaths: [],
+        evidence: words.what,
+        details: { failedServers: words.servers },
       },
     }
   }

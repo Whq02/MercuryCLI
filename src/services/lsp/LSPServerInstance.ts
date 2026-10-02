@@ -14,6 +14,7 @@ import type { ExecutionState } from '../primitives/execution.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
+import { startFailureCause } from './failureWords.js'
 import type { LSPClient } from './LSPClient.js'
 import { currentLspAbortSignal } from './lspAbort.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
@@ -45,10 +46,26 @@ const CONTENT_MODIFIED_CODE = -32801
 
 function timedOutRequest(method: string, server: string, budgetMs: number): Error {
   const error = new Error(
-    `LSP request ${method} to server ${server} got no answer within ${(budgetMs / 1000).toFixed(1)}s — the request was cancelled; the server may be busy indexing (retry, or restart it from /capabilities)`,
+    `LSP request ${method} to server ${server} got no answer within ${(budgetMs / 1000).toFixed(1)}s — the request was cancelled; the server may be busy with a large project`,
   )
   error.name = 'LspRequestTimeout'
   return error
+}
+
+export type LspStartFailure = Error & { server: string; attempts: number; lspCause: string }
+
+function startFailure(server: string, attempts: number, cause: unknown): LspStartFailure {
+  const lspCause = startFailureCause(server, cause)
+  const error = Object.assign(
+    new Error(`LSP server ${server} did not start (${attempts} attempt${attempts === 1 ? '' : 's'} this session): ${lspCause}`),
+    { server, attempts, lspCause },
+  )
+  error.name = 'LspStartFailure'
+  return error
+}
+
+export function isLspStartFailure(err: unknown): err is LspStartFailure {
+  return err instanceof Error && err.name === 'LspStartFailure'
 }
 
 function abortedRequest(method: string, server: string): Error {
@@ -263,12 +280,12 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       lastActivityAt = Date.now()
       armIdleTimer()
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
       if (spawned) {
         await lsp.stop().catch(() => {})
       }
       initFailures++
       lastInitFailureAt = Date.now()
+      const error = startFailure(name, initFailures, err)
       lastError = error
       setState('error', error)
       logError(error)
@@ -289,9 +306,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     }
     const backoffMs = initBackoffRemainingMs()
     if (backoffMs > 0) {
-      throw new Error(
-        `LSP server ${name} failed to initialize ${initFailures} time(s) (${lastError?.message ?? 'no error recorded'}) — backing off ${Math.ceil(backoffMs / 1000)}s more; an explicit restart clears the backoff`,
-      )
+      throw startFailure(name, initFailures, lastError ?? 'no error recorded')
     }
     if (state === 'error' && crashRecoveries > 0) {
       if (config.restartOnCrash === false) {

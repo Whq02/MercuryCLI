@@ -17,6 +17,8 @@ import {
   mercuryLspEnabled,
   mercuryLspWriteOpsEnabled,
 } from '../../services/lsp/mercuryLsp.js'
+import { remedyForLanguageServer, serverTitle, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { isLspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import { runWithLspAbortSignal } from '../../services/lsp/lspAbort.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
@@ -384,6 +386,60 @@ function documentSymbolCounts(result: unknown[]): { resultCount: number; fileCou
 }
 
 
+type ZodIssueLike = { code?: string; path?: Array<string | number>; message?: string; expected?: string; keys?: string[] }
+
+const ARGUMENT_EXAMPLES: Record<string, string> = {
+  filePath: '"/absolute/path/to/file"',
+  line: '<1-based line>',
+  character: '<1-based character>',
+  endLine: '<1-based end line>',
+  endCharacter: '<1-based end character>',
+  query: '"<symbol name>"',
+  limit: '<1-200>',
+  newName: '"<new name>"',
+  newPath: '"/absolute/new/path"',
+  targetPath: '"/absolute/target/file"',
+  paths: '["<file or directory>", …]',
+  method: '"textDocument/<method>"',
+  params: '"<JSON text>"',
+  apply: 'true',
+  plan: '"<plan token>"',
+  kind: '"<code-action kind>"',
+  actionId: '"<action id>"',
+  actionIndex: '<index>',
+}
+
+function validShapeOf(operation: string): string {
+  const union = lspToolInputSchema() as unknown as { options?: Array<{ shape?: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }> }
+  const member = (union.options ?? []).find(option => {
+    const literal = option.shape?.operation as { value?: string; values?: Set<string> } | undefined
+    return literal?.value === operation || literal?.values?.has(operation) === true
+  })
+  if (member?.shape === undefined) return ''
+  const required: string[] = []
+  const optional: string[] = []
+  for (const [key, schema] of Object.entries(member.shape)) {
+    if (key === 'operation') continue
+    if (schema.safeParse(undefined).success) optional.push(key)
+    else required.push(key)
+  }
+  const example = `{"operation":"${operation}"${required.map(key => `,"${key}":${ARGUMENT_EXAMPLES[key] ?? '…'}`).join('')}}`
+  return `The valid shape is ${example}${optional.length > 0 ? ` (optional: ${optional.join(', ')})` : ''}.`
+}
+
+function invalidArgumentsMessage(operation: string, issues: ZodIssueLike[]): string {
+  const problems = issues.map(issue => {
+    const key = (issue.path ?? []).join('.')
+    if (issue.code === 'invalid_type' && /received undefined/.test(issue.message ?? '')) {
+      return `${key} is required (expected ${issue.expected ?? 'a value'})`
+    }
+    if (issue.code === 'unrecognized_keys') return `unknown keys: ${(issue.keys ?? []).join(', ')}`
+    return key ? `${key}: ${issue.message ?? 'invalid'}` : issue.message ?? 'invalid'
+  })
+  return `Invalid arguments for ${operation || 'the LSP tool'}: ${problems.join('; ')}. ${validShapeOf(operation)} The same arguments will fail the same way; nothing was asked of a language server.`
+}
+
+
 async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>) {
   const startedAt = Date.now()
   const operation = input.operation
@@ -391,7 +447,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
   const cwd = getCwd()
 
   const fail = (result: string, overrides: Partial<ToolEffect> = {}) => ({
-    data: { operation, result, filePath } satisfies Output,
+    data: { operation, result, filePath, outcome: 'failed' as const } satisfies Output,
     effect: makeEffect(operation, 'failed', result, startedAt, overrides),
   })
 
@@ -404,6 +460,20 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
       'The language-server manager is not initialised. This may indicate a startup issue; language features are unavailable.'
     logError(new Error('LSPTool invoked with no language-server manager'))
     return fail(message)
+  }
+
+  const failureWords = (err: unknown, path: string): { result: string; servers: string[] } => {
+    const primary = path ? manager.getServerForFile(expandPath(path)) : undefined
+    if (isLspStartFailure(err)) {
+      const server = primary && primary.name === err.server ? primary : [...manager.getAllServers().values()].find(s => s.name === err.server)
+      const title = server ? serverTitle(server, path) : `the language server ${err.server}`
+      const remedy = server ? remedyForLanguageServer(server, path, err.lspCause, cwd) : ''
+      return {
+        result: `The ${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`,
+        servers: [err.server],
+      }
+    }
+    return { result: `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`, servers: [] }
   }
 
   if (MERCURY_BRIDGE_OPERATIONS.has(input.operation)) {
@@ -448,8 +518,8 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
       }
     } catch (err) {
       logError(err)
-      const message = `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`
-      return fail(message)
+      const words = failureWords(err, filePath)
+      return fail(words.result, words.servers.length > 0 ? { details: { failedServers: words.servers } } : {})
     }
   }
 
@@ -540,8 +610,9 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     const { method, params } = getMethodAndParams(input, documentPath)
     const response = await manager.sendRequest<unknown>(documentPath, method, params)
     if (response === undefined) {
-      const extension = documentPath.split('.').pop() ?? ''
-      const message = `No language server is available for .${extension} files.`
+      const extension = `.${documentPath.split('.').pop() ?? ''}`
+      const why = unclaimedCause(extension, cwd)
+      const message = `The ${operation} operation was not run: no language server claims '${extension}' files in this session — ${why.cause}.${why.remedy ? ` What helps: ${why.remedy}.` : ''}`
       logError(new Error(`LSP ${operation}: no server response for ${documentPath}`))
       return fail(message)
     }
@@ -674,8 +745,8 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     }
   } catch (err) {
     logError(err)
-    const message = `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`
-    return fail(message)
+    const words = failureWords(err, filePath)
+    return fail(words.result, words.servers.length > 0 ? { details: { failedServers: words.servers } } : {})
   }
 }
 
@@ -748,7 +819,7 @@ export const LSPTool = buildTool({
     if (!parsed.success) {
       return {
         result: false as const,
-        message: parsed.error.message,
+        message: invalidArgumentsMessage(input.operation ?? '', parsed.error.issues as ZodIssueLike[]),
         errorCode: 3,
       }
     }

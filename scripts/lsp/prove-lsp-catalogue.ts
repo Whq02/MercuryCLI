@@ -171,10 +171,10 @@ const { createLSPServerInstance } = await import('../../src/services/lsp/LSPServ
   const t1 = Date.now()
   await doomed.start().catch(e => (secondError = (e as Error).message))
   const secondMs = Date.now() - t1
-  check('the second attempt refuses inside the backoff window', /backing off/.test(secondError) && secondMs < 100, `${secondMs}ms: ${secondError}`)
+  check('the second attempt refuses inside the backoff window, FAST, with the server’s own reason and no retry invitation', /did not start \(1 attempt this session\): exited with exit code 1 — server said: .*component not installed/.test(secondError) && !/backing off|retry/i.test(secondError) && secondMs < 100, `${secondMs}ms: ${secondError}`)
   let thirdError = ''
   await doomed.restart().catch(e => (thirdError = (e as Error).message))
-  check('restart() clears the backoff (a real attempt runs again)', !/backing off/.test(thirdError) && thirdError.length > 0, thirdError)
+  check('restart() clears the backoff (a real attempt runs again and the count starts over)', /\(1 attempt this session\): exited with exit code 1 — server said/.test(thirdError) && !/backing off/.test(thirdError), thirdError)
 }
 
 console.log('— O. capabilities + rawRequest —')
