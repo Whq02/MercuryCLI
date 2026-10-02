@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       runArgs.command === 'run' ||
       args.includes('-h') ||
       args.includes('--help') ||
-      ['steward', 'acp'].includes(args[0] ?? '')
+      ['daemon', 'acp'].includes(args[0] ?? '')
     if (nonTakeover) {
       const { releaseLauncherAltHoldNow } = await import('../ink/launcherAltHold.js')
       releaseLauncherAltHoldNow()
@@ -155,7 +155,7 @@ async function main(): Promise<void> {
     const { runTcpBridgeEntry } = await import('../services/tcpBridge/entry.js')
     return runTcpBridgeEntry(process.argv.slice(3))
   }
-  if (args[0] === 'steward') {
+  if (args[0] === 'daemon') {
     profileCheckpoint('route_daemon')
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()

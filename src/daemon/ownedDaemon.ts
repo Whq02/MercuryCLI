@@ -282,7 +282,7 @@ export function spawnOwnedDaemon(
     const ownerPipe = process.platform !== 'win32' && opts?.ownerPipe !== false
     if (ownerPipe) Object.assign(env, flagPair(OWNER_FD_ENV, String(OWNER_PIPE_STDIO_INDEX)))
     stampSpawnReceipt(env, [...flagSpellings(OWNER_PID_ENV), ...flagSpellings(OWNER_FD_ENV), ...Object.keys(opts?.extraEnv ?? {})])
-    const child = spawn(node, [script, 'steward', 'run', projectDir], {
+    const child = spawn(node, [script, 'daemon', 'run', projectDir], {
       cwd: projectDir,
       detached: true,
       windowsHide: true,

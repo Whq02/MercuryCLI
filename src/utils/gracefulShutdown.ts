@@ -270,7 +270,7 @@ function printModeOwnsSignals(): boolean {
 }
 
 function isDaemonSubcommand(): boolean {
-  return process.argv[2] === 'steward'
+  return process.argv[2] === 'daemon'
 }
 
 function truncate(text: string, max: number): string {

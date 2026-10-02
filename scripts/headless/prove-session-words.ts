@@ -58,7 +58,7 @@ try {
   const joined = await run(['run', '-nshape'])
   check('an unregistered short option has the parser result', joined.code === unknown.code && joined.out === '' && joined.err.startsWith("error: unknown option '-n"), JSON.stringify(joined))
   for (const [input, word] of [
-    ['agents', 'roster'], ['daemon', 'steward'], ['show', 'image'], ['editor', 'bridge'],
+    ['agents', 'roster'], ['steward', 'daemon'], ['show', 'image'], ['editor', 'bridge'],
     ['mcp add-json', 'mcp import'], ['mcp reset-project-choices', 'mcp trust-reset'], ['auth token', 'auth mint'],
     ['extensions check', 'extensions refresh'], ['extensions approve', 'extensions trust'], ['extensions block', 'extensions fence'],
     ['extensions unblock', 'extensions unfence'], ['extensions validate', 'extensions inspect'], ['extensions init', 'extensions scaffold'],
@@ -68,7 +68,7 @@ try {
     const control = await run([...parts.slice(0, -1), 'frobnicate', '--help'])
     check(`${word} is the registered command`, result.code === control.code && result.out === control.out && result.err.replaceAll(parts.at(-1)!, 'frobnicate') === control.err, JSON.stringify(result))
     const help = await run([...word!.split(' '), '--help'])
-    check(`${word} serves its command help`, help.code === 0 && (help.out.includes(`Usage: mercury ${word}`) || (word === 'steward' && help.out.includes('usage: mercury steward'))), JSON.stringify(help))
+    check(`${word} serves its command help`, help.code === 0 && (help.out.includes(`Usage: mercury ${word}`) || (word === 'daemon' && help.out.includes('usage: mercury daemon'))), JSON.stringify(help))
   }
   const help = await run(['run', '--help'])
   for (const word of ['--log-file', '--lean', '--schema', '--budget', '--toolset', '--block-tools', '--mcp', '--only-mcp', '--brief', '--brief-add', '--fork', '--pr', '--ephemeral', '--provider-preview', '--backup-model', '--project', '--config', '--title', '--agent-defs', '--config-layers', '--no-commands', '--multiplex']) {

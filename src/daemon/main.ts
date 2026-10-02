@@ -173,12 +173,12 @@ export async function daemonMain(args: string[]): Promise<void> {
       return
     case 'unknown':
       // eslint-disable-next-line no-console
-      console.error(`mercury steward: unknown verb '${verb.word}'\n${DAEMON_USAGE}`)
+      console.error(`mercury daemon: unknown verb '${verb.word}'\n${DAEMON_USAGE}`)
       process.exitCode = 1
       return
     case 'unknown-flag':
       // eslint-disable-next-line no-console
-      console.error(`mercury steward ${verb.verb}: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and reaps every in-flight worker. Run \`mercury steward stop\` bare, or \`mercury steward restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`)
+      console.error(`mercury daemon ${verb.verb}: unknown flag '${verb.word}' — stop takes no flags: it ends the daemon and reaps every in-flight worker. Run \`mercury daemon stop\` bare, or \`mercury daemon restart\` to re-execute the daemon once its live sessions finish\n${DAEMON_USAGE}`)
       process.exitCode = 1
       return
     case 'run':
@@ -258,7 +258,7 @@ async function daemonRestartCmd(): Promise<void> {
     process.exitCode = 1
     return
   }
-  const receipt = await restartDaemon({ by: 'mercury steward restart', posture: 'persistent' })
+  const receipt = await restartDaemon({ by: 'mercury daemon restart', posture: 'persistent' })
   const carried = hosting.hosted && receipt.state === 'armed' ? ' — this hosted session is one of them; your turn goes on' : ''
   // eslint-disable-next-line no-console
   console.error(`[daemon] ${receipt.line}${carried}`)
@@ -1060,7 +1060,7 @@ async function daemonRun(args: string[]): Promise<void> {
         restartWhenIdle: by => {
           const { live } = liveWorkers()
           if (foreground) {
-            return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury steward` again' }
+            return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' }
           }
           if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
             return {
