@@ -1,6 +1,6 @@
 
 import { normalize, join, relative, sep } from 'node:path'
-import { getMemoryBaseDir } from '../../memdir/paths.js'
+import { getMemoryBaseDir, isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   PROJECT_CONFIG_DIR_NAMES,
@@ -8,8 +8,20 @@ import {
 } from '../../utils/projectConfig.js'
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
 import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
+import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../MemoryTools/prompt.js'
 
 export type AgentMemoryScope = 'user' | 'project' | 'local'
+
+export const MEMORY_GRANT_TOOL_NAMES: readonly string[] = [RETAIN_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, CORRECT_TOOL_NAME]
+
+export function withMemoryVerbs(tools: string[] | undefined, memory: AgentMemoryScope | undefined): string[] | undefined {
+  if (!memory || !isAutoMemoryEnabled() || tools === undefined) return tools
+  const merged = [...tools]
+  for (const name of MEMORY_GRANT_TOOL_NAMES) {
+    if (!merged.includes(name)) merged.push(name)
+  }
+  return merged
+}
 
 const AGENT_MEMORY_SUBDIR = 'agent-memory'
 const AGENT_MEMORY_LOCAL_SUBDIR = 'agent-memory-local'

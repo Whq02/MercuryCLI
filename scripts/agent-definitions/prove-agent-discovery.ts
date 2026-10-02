@@ -63,6 +63,18 @@ writeFileSync(
   '---\nname: foundry-ruled\ndescription: "carries the rule"\nstandingRule: "Verify before you claim."\n---\n\nYou verify.\n',
 )
 writeFileSync(
+  join(sub, '.mercury', 'agents', 'quiet-reader.md'),
+  '---\nname: foundry-quiet-reader\ndescription: "a read-only agent that remembers"\ntools: Read, Grep\nmemory: project\n---\n\nRead and report.\n',
+)
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'quiet-reader-plain.md'),
+  '---\nname: foundry-quiet-reader-plain\ndescription: "a read-only agent without memory"\ntools: Read, Grep\n---\n\nRead and report.\n',
+)
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'remembering-all.md'),
+  '---\nname: foundry-remembering-all\ndescription: "every tool, with memory"\nmemory: user\n---\n\nDo everything.\n',
+)
+writeFileSync(
   join(sub, '.mercury', 'agents', 'ruled-old.md'),
   '---\nname: foundry-ruled-old\ndescription: "carries the old spelling"\ncriticalSystemReminder_EXPERIMENTAL: "Verify before you claim."\n---\n\nYou verify.\n',
 )
@@ -160,6 +172,24 @@ console.log('D9: the standing rule loads under its name and under the retired sp
   const jsonRule = (name: string): string | undefined => (viaJson.find(a => a.agentType === name) as { standingRule?: string } | undefined)?.standingRule
   check('the SDK/CLI JSON route reads standingRule', jsonRule('json-new') === 'new key', String(jsonRule('json-new')))
   check('the SDK/CLI JSON route still accepts the retired spelling', jsonRule('json-old') === 'old key', String(jsonRule('json-old')))
+}
+
+console.log('D10: the memory field grants the memory verbs, never a tool beyond the agent\'s own list')
+{
+  const toolsOf = (name: string): string[] | undefined => (active.get(name) as { tools?: string[] } | undefined)?.tools
+  const promptOf = (name: string): string => (active.get(name) as { getSystemPrompt?: () => string } | undefined)?.getSystemPrompt?.() ?? ''
+  const quiet = toolsOf('foundry-quiet-reader') ?? []
+  check('a read-only agent with memory keeps its own tools and gains Retain, Recall, Reflect and Correct', quiet.join(',') === 'Read,Grep,Retain,Recall,Reflect,Correct', quiet.join(','))
+  check('it is handed neither Write nor Edit', !quiet.includes('Write') && !quiet.includes('Edit') && !quiet.includes('NotebookEdit'), quiet.join(','))
+  check('the same agent without memory keeps exactly its own list', (toolsOf('foundry-quiet-reader-plain') ?? []).join(',') === 'Read,Grep', String(toolsOf('foundry-quiet-reader-plain')))
+  check('an all-tools agent with memory is left alone (no list to extend)', toolsOf('foundry-remembering-all') === undefined, String(toolsOf('foundry-remembering-all')))
+  const prompt = promptOf('foundry-quiet-reader')
+  const named = ['Retain', 'Recall', 'Correct'].filter(verb => prompt.includes(verb))
+  check("the memory prompt names only verbs the agent has", named.length === 3 && named.every(verb => quiet.includes(verb)), `${named.join(',')} vs tools ${quiet.join(',')}`)
+  check('the memory prompt says the agent shares the project memory', prompt.includes("You share this project's memory"))
+  const { parseAgentsFromJson: parseJsonAgents } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
+  const viaJsonMemory = parseJsonAgents({ 'json-reader': { description: 'd', prompt: 'p', tools: ['Read'], memory: 'project' } })
+  check('the JSON route grants the same four verbs', (viaJsonMemory[0]?.tools ?? []).join(',') === 'Read,Retain,Recall,Reflect,Correct', String(viaJsonMemory[0]?.tools))
 }
 
 console.log('D6: filename vs declared name')
