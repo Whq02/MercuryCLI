@@ -35,6 +35,9 @@ const context = (): ToolUseContext => ({
 } as unknown as ToolUseContext)
 try {
   check('the declared report is canonical', canonical === report)
+  const fake = (name: string, isReadOnly: (input: Record<string, unknown>) => boolean): Tool => ({ name, isReadOnly, call: async () => ({ data: 'ran' }) } as unknown as Tool)
+  const roster = restrictReviewerTools([FileEditTool, BashTool, fake('Write', () => false), fake('Retain', () => false), fake('Skill', () => false), fake('Read', () => true), fake('AstEdit', input => input.apply !== true), fake('Throws', () => { throw new Error('no input') })] as Tool[], canonical, frozen).map(tool => tool.name)
+  check('the review roster is what its gate can pass: the receipt editor, the shell, the readers and the input-dependent tools — never a tool whose every call would be refused', roster.join(',') === 'Edit,Bash,Read,AstEdit')
   mkdirSync(join(frozen, 'scripts', 'checks'), { recursive: true })
   writeFileSync(join(frozen, 'scripts', 'checks', 'prove-read.ts'), 'console.log("review proof ran")\n')
   for (const command of ['bun scripts/checks/prove-read.ts', 'bun run typecheck']) {
