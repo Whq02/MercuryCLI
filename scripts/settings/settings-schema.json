@@ -332,6 +332,13 @@
                 "type": "string"
               }
             },
+            "enabledPlatforms": {
+              "description": "The platforms the sandbox runs on (macos, linux, wsl); absent means every supported platform",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
             "ripgrep": {
               "description": "Search-tool binary override",
               "type": "object",
