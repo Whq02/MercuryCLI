@@ -13,20 +13,12 @@ import {
 } from './crewCharter.js'
 import { CREW_LEAD_NAME } from './constants.js'
 
-export function decodeAgentType(requested: string): string
-export function decodeAgentType(requested: string | undefined): string | undefined
-export function decodeAgentType(requested: string | undefined): string | undefined {
-  if (!requested) return undefined
-  return requested
-}
-
 export function findRoleDefinition(
   requested: string | undefined,
   agents: readonly AgentDefinition[],
 ): AgentDefinition | undefined {
-  const canonical = decodeAgentType(requested)
-  if (!canonical) return undefined
-  return agents.find(a => a.agentType === canonical)
+  if (!requested) return undefined
+  return agents.find(a => a.agentType === requested)
 }
 
 export function getRoleSystemPrompt(
@@ -111,7 +103,7 @@ export function resolveCrewmateRole(i: {
   const definition = findRoleDefinition(i.requestedAgentType, i.agents)
   const crewmateName = i.crewmate?.name ?? i.crewmateName ?? ''
   const agentType =
-    definition?.agentType ?? decodeAgentType(i.requestedAgentType) ?? crewmateName
+    definition?.agentType ?? (i.requestedAgentType || undefined) ?? crewmateName
   return {
     agentType,
     displayLabel: agentType,
