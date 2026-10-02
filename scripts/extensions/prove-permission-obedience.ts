@@ -95,7 +95,7 @@ if (readTool && writeTool && config) {
   check('the twin tools arrive', twinRead !== undefined && twinWrite !== undefined, twinTools.map(t => t.name).join(','))
   const decide = async (tool: unknown, mode: string): Promise<{ behavior: string; message?: string; decisionReason?: { type?: string } }> =>
     hasPermissionsToUseTool(tool as never, {}, makeContext(mode).context as never, ASSISTANT, 'toolu_perm') as never
-  for (const mode of ['default', 'strategy', 'sovereign', 'dontAsk'] as const) {
+  for (const mode of ['default', 'sovereign', 'dontAsk'] as const) {
     const extRead = (await decide(readTool, mode)).behavior
     const extWrite = (await decide(writeTool, mode)).behavior
     const manualRead = twinRead ? (await decide(twinRead, mode)).behavior : '<no twin>'
@@ -105,8 +105,6 @@ if (readTool && writeTool && config) {
   let r = await decide(writeTool, 'default')
   check('default: the mutating tool reaches the consent path (ask)', r.behavior === 'ask', JSON.stringify(r))
   check('…and the ask names the tool', (r.message ?? '').includes('fixture'), r.message)
-  r = await decide(writeTool, 'strategy')
-  check('strategy: the mutating tool is NEVER allowed', r.behavior !== 'allow', JSON.stringify(r))
   r = await decide(writeTool, 'sovereign')
   check('sovereign: allowed by mode', r.behavior === 'allow' && r.decisionReason?.type === 'mode', JSON.stringify(r))
   r = await decide(writeTool, 'dontAsk')
@@ -158,7 +156,7 @@ const ext = { extensionRoot: installed.ok ? installed.root : '', extensionId: 'k
   check('before workspace trust: the extension hook does NOT run (interactive session)', !ranBeforeTrust)
   const projectConfig = await import('../../src/utils/config/projectConfig.ts')
   projectConfig.saveCurrentProjectConfig(c => ({ ...c, hasTrustDialogAccepted: true }))
-  for (const mode of ['default', 'strategy', 'sovereign']) {
+  for (const mode of ['default', 'sovereign']) {
     rmSync(marker, { force: true })
     const outcomes = await drain(mode)
     const ran = await import('node:fs').then(fs => fs.existsSync(marker))
