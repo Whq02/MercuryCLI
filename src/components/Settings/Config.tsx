@@ -50,9 +50,8 @@ import inkInstances from '../../ink/instances.js'
 import { stripFacts } from '../../context/surfaceRoute.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
-  EXTERNAL_PERMISSION_MODES,
+  PERMISSION_MODES,
   permissionModeTitle,
-  type ExternalPermissionMode,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
@@ -363,8 +362,8 @@ export function Config({
     snapshotsRef.current = {
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
-      local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine } },
-      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
+      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -428,16 +427,11 @@ export function Config({
   const thinkingOn = merged.engine?.reasoning === true
   const permissions = merged.guardrails ?? {}
   const defaultMode = validated(
-    EXTERNAL_PERMISSION_MODES,
+    PERMISSION_MODES,
     permissions.mode,
     'default',
   )
-  const modeOptions: readonly ExternalPermissionMode[] = [
-    'default',
-    ...EXTERNAL_PERMISSION_MODES.filter(
-      mode => mode !== 'default' && mode !== 'sovereign',
-    ),
-  ]
+  const modeOptions: ReadonlyArray<(typeof PERMISSION_MODES)[number]> = ['default', 'implement', 'apollo', 'flow', 'dontAsk']
 
   const boolValue = (on: boolean): React.ReactNode => (
     <Text color={on ? tokens.success : tokens.textSecondary}>
@@ -1232,14 +1226,14 @@ export function Config({
       globalTouchedRef.current.clear()
       if (motionTouched) noteMotionSettingChanged()
     }
-    writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine } })
+    writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine, sessions: snapshots.local.shell?.sessions } })
     writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
         dataCollection: undefined,
         requireParameters: undefined,
         allowFallbacks: undefined,
         zeroDataRetention: undefined,
         ...snapshots.user.routing?.openrouter,
-      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore } })
+      } }, guardrails: { mode: snapshots.user.guardrails?.mode }, files: { honourGitignore: snapshots.user.files?.honourGitignore }, memory: { pinnedLimit: snapshots.user.memory?.pinnedLimit } })
     writeSource('userSettings', localServerRevertPartial(snapshots.user.local?.server))
     setAppState(prev => ({ ...prev, verbose: snapshots.appVerbose }))
     const restoredProfile = snapshots.local.briefs?.profile

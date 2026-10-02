@@ -98,6 +98,44 @@ section('§2 a dirty config: esc reverts and stays, a second esc closes')
   await settle(40)
 }
 
+section('§2b the sessions row (local) and the pinned-memory row (user) move back on esc like every other row')
+{
+  const settings = await import('../../src/utils/settings/settings.js')
+  const savedSessions = (): unknown => settings.getSettingsForSource('localSettings')?.shell?.sessions
+  const savedPinned = (): unknown => settings.getSettingsForSource('userSettings')?.memory?.pinnedLimit
+  const typeQuery = async (m: Mounted, query: string): Promise<void> => {
+    m.push('/')
+    await settle(60)
+    for (const ch of query) {
+      m.push(ch)
+      await settle(30)
+    }
+    await settle(120)
+  }
+  for (const leg of [
+    { row: 'Shell engine sessions', query: 'shell engine sessions', saved: savedSessions, key: 'shell.sessions (local)' },
+    { row: 'Pinned memory limit', query: 'pinned memory limit', saved: savedPinned, key: 'memory.pinnedLimit (user)' },
+  ]) {
+    const before = leg.saved()
+    const m = await openPopup()
+    await typeQuery(m, leg.query)
+    m.push(KEY.down)
+    await settle(120)
+    check(`the search then ↓ selects the ${leg.row} row`, firstRow(m).startsWith(`${CONFIG_ROW_MARK} ${leg.row}`), firstRow(m))
+    m.push(KEY.right)
+    await settle(200)
+    check(`→ moves ${leg.key} and the write lands at once`, leg.saved() !== before && leg.saved() !== undefined, `${String(leg.saved())} vs ${String(before)}`)
+    m.push(KEY.esc)
+    await settle(200)
+    check(`the first esc REVERTS ${leg.key} to its mount-time value and the popup stays`, popupUp(m) && leg.saved() === before, `${String(leg.saved())} vs ${String(before)} · open ${store.isSettingsPopupOpen()}`)
+    m.push(KEY.esc)
+    await settle(120)
+    check('the second esc closes', !store.isSettingsPopupOpen())
+    m.unmount()
+    await settle(40)
+  }
+}
+
 section('§3 enter saves and closes with the summary receipt')
 {
   const before = savedAutoCompact()
