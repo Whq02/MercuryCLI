@@ -359,13 +359,10 @@ function rebuildRawDocument(
 }
 
 export const STANDING_RULE_KEY = 'standingRule'
-export const STANDING_RULE_RETIRED_KEY = 'criticalSystemReminder_EXPERIMENTAL'
 
 export function readStandingRule(record: Record<string, unknown>): string | undefined {
   const current = record[STANDING_RULE_KEY]
   if (typeof current === 'string' && current.trim()) return current
-  const retired = record[STANDING_RULE_RETIRED_KEY]
-  if (typeof retired === 'string' && retired.trim()) return retired
   return undefined
 }
 
@@ -397,7 +394,6 @@ const jsonAgentSchema = z.object({
   skills: z.array(z.string()).optional(),
   initialPrompt: z.string().optional(),
   standingRule: z.string().optional(),
-  criticalSystemReminder_EXPERIMENTAL: z.string().optional(),
   memory: z.enum(['user', 'project', 'local']).optional(),
   background: z.boolean().optional(),
   isolation: z.literal('worktree').optional(),

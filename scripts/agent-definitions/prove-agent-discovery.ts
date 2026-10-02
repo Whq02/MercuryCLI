@@ -82,6 +82,10 @@ writeFileSync(
   join(sub, '.mercury', 'agents', 'ruled-both.md'),
   '---\nname: foundry-ruled-both\ndescription: "carries both"\nstandingRule: "The current word."\ncriticalSystemReminder_EXPERIMENTAL: "The old word."\n---\n\nYou verify.\n',
 )
+writeFileSync(
+  join(sub, '.mercury', 'agents', 'frobnicated.md'),
+  '---\nname: foundry-frobnicated\ndescription: "carries a made-up key"\nfrobnicate: "Verify before you claim."\n---\n\nYou verify.\n',
+)
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -156,22 +160,25 @@ console.log('D5: cross-scope precedence unchanged (project > user)')
   )
 }
 
-console.log('D9: the standing rule loads under its name and under the retired spelling')
+console.log('D9: the standing rule loads under its one name; any other key is unknown, like frobnicate')
 {
   const rule = (name: string): string | undefined => (active.get(name) as { standingRule?: string } | undefined)?.standingRule
   check('standingRule is read from the agent file', rule('foundry-ruled') === 'Verify before you claim.', String(rule('foundry-ruled')))
-  check('a file still spelling criticalSystemReminder_EXPERIMENTAL is read as standingRule this release', rule('foundry-ruled-old') === 'Verify before you claim.', String(rule('foundry-ruled-old')))
-  check('when both keys are present the current spelling wins', rule('foundry-ruled-both') === 'The current word.', String(rule('foundry-ruled-both')))
+  check('a file spelling the rule under another key gets no standing rule from it (the key is unknown)', active.has('foundry-ruled-old') && rule('foundry-ruled-old') === undefined, String(rule('foundry-ruled-old')))
+  check('a file carrying both keys reads only standingRule', rule('foundry-ruled-both') === 'The current word.', String(rule('foundry-ruled-both')))
+  check('a file with a made-up key loads the same way: present, no standing rule, the key not on the definition', active.has('foundry-frobnicated') && rule('foundry-frobnicated') === undefined && !('frobnicate' in (active.get('foundry-frobnicated') as object)))
   const loaded = active.get('foundry-ruled-old') as Record<string, unknown> | undefined
-  check('the definition carries no retired key of its own', loaded !== undefined && !('criticalSystemReminder_EXPERIMENTAL' in loaded))
+  check('the definition carries no key of its own for the other spelling', loaded !== undefined && !Object.keys(loaded).some(k => /criticalSystemReminder/i.test(k)))
   const { parseAgentsFromJson } = await import('../../src/tools/AgentTool/loadAgentsDir.js')
   const viaJson = parseAgentsFromJson({
     'json-new': { description: 'd', prompt: 'p', standingRule: 'new key' },
     'json-old': { description: 'd', prompt: 'p', criticalSystemReminder_EXPERIMENTAL: 'old key' },
+    'json-frob': { description: 'd', prompt: 'p', frobnicate: 'made up' },
   })
   const jsonRule = (name: string): string | undefined => (viaJson.find(a => a.agentType === name) as { standingRule?: string } | undefined)?.standingRule
   check('the SDK/CLI JSON route reads standingRule', jsonRule('json-new') === 'new key', String(jsonRule('json-new')))
-  check('the SDK/CLI JSON route still accepts the retired spelling', jsonRule('json-old') === 'old key', String(jsonRule('json-old')))
+  check('the SDK/CLI JSON route reads no standing rule from another key and keeps the agent', viaJson.some(a => a.agentType === 'json-old') && jsonRule('json-old') === undefined, String(jsonRule('json-old')))
+  check('a made-up key on the JSON route behaves the same', viaJson.some(a => a.agentType === 'json-frob') && jsonRule('json-frob') === undefined)
 }
 
 console.log('D10: the memory field grants the memory verbs, never a tool beyond the agent\'s own list')
