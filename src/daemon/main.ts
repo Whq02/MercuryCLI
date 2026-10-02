@@ -1066,7 +1066,7 @@ async function daemonRun(args: string[]): Promise<void> {
             return {
               state: 'refused' as const,
               live,
-              detail: `came back unchanged ${Math.round((Date.now() - startedAt) / 1000)}s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO}): the bundle at ${process.argv[1] ?? '?'} is what a restart runs — deploy the new build first`,
+              detail: unchangedSuccessorDetail(Math.round((Date.now() - startedAt) / 1000)),
             }
           }
           if (live > 0) {
@@ -1604,6 +1604,23 @@ const PLANE_HEAL_FLOOR_MS = 30_000
 const PLANE_HEAL_COALESCE_MS = 250
 const RECONCILE_TICK_MS = 60_000
 
+function successorRuntime(): ReturnType<typeof deployedRuntime> {
+  const deployed = deployedRuntime()
+  if (deployed === null) return null
+  const own = selfScriptPath()
+  return own !== '' && resolveScriptPath(deployed.script) === own ? null : deployed
+}
+
+function unchangedSuccessorDetail(ageSeconds: number): string {
+  const deployed = deployedRuntime()
+  const still = `came back unchanged ${ageSeconds}s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO})`
+  if (deployed === null) return `${still}: the bundle at ${process.argv[1] ?? '?'} is what a restart runs — deploy the new build first`
+  if (deployed.layout === 'release') {
+    return `${still}: the install's current version is still v${deployed.version ?? currentVersion()} (${deployed.script}) — run \`mercury update\` to install a newer one first`
+  }
+  return `${still}: the deployed build at ${deployed.script} is still this one — deploy the new build first`
+}
+
 function spawnSuccessorDaemon(): number | undefined {
   try {
     const env: NodeJS.ProcessEnv = { ...process.env, ...flagPair('MERCURY_DAEMON_SUCCESSOR_OF', String(process.pid)) }
@@ -1621,8 +1638,10 @@ function spawnSuccessorDaemon(): number | undefined {
       }
     }
     const script = process.argv[1]
-    const node = nodeForBuild(script ? dirname(resolveScriptPath(script)) : '')
-    const child = spawn(node, [...process.execArgv, ...process.argv.slice(1)], {
+    const deployed = successorRuntime()
+    const node = deployed !== null ? (deployed.node ?? nodeForBuild(deployed.dir)) : nodeForBuild(script ? dirname(resolveScriptPath(script)) : '')
+    const args = deployed !== null ? [...process.execArgv, deployed.script, ...process.argv.slice(2)] : [...process.execArgv, ...process.argv.slice(1)]
+    const child = spawn(node, args, {
       cwd: process.cwd(),
       env,
       detached: true,
@@ -1632,7 +1651,11 @@ function spawnSuccessorDaemon(): number | undefined {
     child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
     child.unref()
     // eslint-disable-next-line no-console
-    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script ?? '?'} as deployed on ${node}`)
+    console.error(
+      deployed !== null
+        ? `[daemon] successor spawned — pid ${child.pid} runs ${deployed.script} (the ${deployed.layout} layout's current build${deployed.version ? ` v${deployed.version}` : ''}, tree ${deployed.buildTree ?? 'unstamped'}) on ${node}`
+        : `[daemon] successor spawned — pid ${child.pid} runs ${script ?? '?'} as deployed on ${node}`,
+    )
     return child.pid
   } catch (e) {
     // eslint-disable-next-line no-console

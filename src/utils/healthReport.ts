@@ -839,9 +839,15 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               splash === null
                 ? 'splash asset absent (a direct start boots plain)'
                 : `splash asset ${splash.rung === 'payload' ? 'beside the bundle' : splash.rung === 'home' ? 'in the config home' : 'in the source tree'}`
+            let daemonBuild = ''
+            if (daemonSnapshot().state === 'live') {
+              const { daemonBuildBesideScreen, handshakeDaemon } = await import('../daemon/handshake.js')
+              const beside = daemonBuildBesideScreen(await handshakeDaemon({ timeoutMs: 1000 }))
+              if (beside !== null) daemonBuild = ` · ${beside}`
+            }
             return {
               status: 'ok',
-              evidence: `${artifactIdentityLine(identity)} · substrate profile ${profile ? 'on' : 'off'} · ${splashWords}`,
+              evidence: `${artifactIdentityLine(identity)}${daemonBuild} · substrate profile ${profile ? 'on' : 'off'} · ${splashWords}`,
             }
           },
         },
@@ -1540,10 +1546,12 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const d = daemonSnapshot()
             if (d.state === 'live') {
-              const { daemonHandshakeEvidence, handshakeDaemon } = await import('../daemon/handshake.js')
+              const { daemonHandshakeEvidence, daemonSkewLine, handshakeDaemon } = await import('../daemon/handshake.js')
               const hs = await handshakeDaemon({ timeoutMs: 1000 })
               const evidence = `supervisor.json: ${d.reason} · ${daemonHandshakeEvidence(hs)}`
               if (hs.line !== null) return { status: 'warn', evidence, fix: hs.line, link: '/daemon' }
+              const skew = daemonSkewLine(hs)
+              if (skew !== null) return { status: 'warn', evidence, fix: skew, link: '/daemon' }
               return { status: 'ok', evidence, link: '/daemon' }
             }
             let receipt = ''
@@ -2788,7 +2796,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { describeImageProcessor } = await import('../tools/FileReadTool/imageProcessor.js')
             const road = await describeImageProcessor()
-            return { status: road.ready ? ('ok' as const) : ('info' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
+            return { status: road.ready ? ('ok' as const) : ('warn' as const), evidence: road.line, ...(road.detail ? { detail: road.detail } : {}) }
           },
         },
         {

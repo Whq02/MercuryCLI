@@ -23,6 +23,7 @@
 # gate-watch: src/tools/LSPTool/mercuryOps.ts src/tools/ToolSearchTool/ToolSearchTool.ts
 # gate-watch: src/tools/ToolSearchTool/prompt.ts src/tools/WorkflowTool/* src/utils/*
 # gate-watch: src/utils/attachments/orchestrator.ts src/utils/attachments/userContext.ts
+# gate-watch: src/commands/compact/compact.ts src/tools/FileReadTool/FileReadTool.ts src/tools/FileReadTool/imageProcessor.ts src/utils/imageResizer.ts
 # gate-watch: src/utils/cockpit/runProtocol.ts src/utils/config/globalConfig.ts src/utils/messages/*
 # gate-watch: src/utils/model/configs.ts src/utils/permissions/filesystem.ts src/utils/sessionStorage/*
 # gate-watch: src/utils/settings/*
@@ -81,6 +82,7 @@ __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-patience-roa
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-image-refusal-recovery.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-image-refusal-recovery.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-cap.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-cap.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-many-images-rescue.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-many-images-rescue.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-field-e004-image-sizer.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-field-e004-image-sizer.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-sized-copy-follows-limits.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-sized-copy-follows-limits.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "${BUN:-$HOME/.bun/bin/bun}" run "$here/prove-empty-text-block.ts" || { __rc=$?; fail=1; }; prover_mark "scripts/api/prove-empty-text-block.ts" "$__t" "$__rc"
 if [[ "$fail" == "0" ]]; then echo "✅ API SUITE GREEN"; exit 0; else

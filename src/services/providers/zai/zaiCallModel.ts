@@ -248,7 +248,7 @@ export async function* zaiCallModel(
     retiredScreenshots.firstEdited === -1
       ? retiredScreenshots.messages
       : stripThinkingFromIndex(retiredScreenshots.messages, retiredScreenshots.firstEdited)
-  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId })
+  const fittedImages = await fitImagesToRequestCap(retiredMessages, { model: modelId, owner: options.ownerKey ?? String(processOwnerForLane(options.agentId ?? null)) })
   const wireMessagesForBridge =
     fittedImages.firstEdited === -1
       ? fittedImages.messages

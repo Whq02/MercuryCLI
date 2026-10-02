@@ -861,6 +861,8 @@ async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Pro
 
 const RECORD_LINE_PREFIX = Buffer.from('{"schemaVersion":1,"recordId":"')
 const PRUNE_KIND_NEEDLE = Buffer.from('"payload":{"kind":"')
+const PRUNE_PARENT_NEEDLE = Buffer.from('"parentId":"')
+const PRUNE_MESSAGE_ID_NEEDLE = Buffer.from('"providerMessageId":"')
 const PRUNE_KIND_BOUND = 600
 const PRUNE_CHAIN_KINDS = new Set(['input', 'output', 'attachment', 'notice', 'boundary', 'progress'])
 
@@ -931,12 +933,27 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
   if (leaf === null) return buf
 
   const liveIds = new Set<string>()
+  const liveMessageIds = new Set<string>()
+  const toolUseIdsByAssistant = new Map<string, Set<string>>()
+  const noteAssistant = (e: Record<string, unknown>, id: string): void => {
+    if (e.type !== 'assistant') return
+    const message = e.message as { id?: unknown; content?: unknown } | undefined
+    if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
+    const ids = new Set<string>()
+    if (Array.isArray(message?.content)) {
+      for (const block of message.content as Array<{ type?: unknown; id?: unknown }>) {
+        if (block?.type === 'tool_use' && typeof block.id === 'string') ids.add(block.id)
+      }
+    }
+    toolUseIdsByAssistant.set(id, ids)
+  }
   let liveBytes = 0
   let cur: Record<string, unknown> | null = leaf
   while (cur) {
     const id = typeof cur.uuid === 'string' ? cur.uuid : null
     if (id === null || liveIds.has(id)) break
     liveIds.add(id)
+    noteAssistant(cur, id)
     for (const slot of idToSlots.get(id) ?? []) {
       liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
     }
@@ -947,6 +964,74 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
     cur = decodeSlot(slots[slots.length - 1]!)
   }
   if (liveIds.size === 0) return buf
+
+  const byParent = new Map<string, number[]>()
+  const byMessageId = new Map<string, number[]>()
+  const indexInto = (index: Map<string, number[]>, line: Buffer, needle: Buffer, cap: number, slot: number): void => {
+    let at = line.indexOf(needle)
+    while (at !== -1) {
+      const from = at + needle.length
+      const close = line.indexOf(QUOTE, from)
+      if (close > from && close - from <= cap) {
+        const key = line.toString('latin1', from, close)
+        const slots = index.get(key)
+        if (slots) slots.push(slot)
+        else index.set(key, [slot])
+      }
+      at = line.indexOf(needle, from)
+    }
+  }
+  for (let slot = 0; slot < nodeIds.length; slot++) {
+    if (liveIds.has(nodeIds[slot]!)) continue
+    const line = buf.subarray(nodeIdx[slot * 2]!, nodeIdx[slot * 2 + 1]!)
+    indexInto(byParent, line, PRUNE_PARENT_NEEDLE, 64, slot)
+    indexInto(byMessageId, line, PRUNE_MESSAGE_ID_NEEDLE, 128, slot)
+  }
+  const kept = new Set<string>()
+  const parentQueue: string[] = [...liveIds]
+  const messageIdQueue: string[] = [...liveMessageIds]
+  const settledEntryOf = (id: string): Record<string, unknown> | null => {
+    const slots = idToSlots.get(id)
+    return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
+  }
+  const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
+    if (e.type !== 'user') return false
+    const content = (e.message as { content?: unknown } | undefined)?.content
+    if (!Array.isArray(content)) return false
+    const issued = toolUseIdsByAssistant.get(parent)
+    if (issued === undefined) return false
+    return (content as Array<{ type?: unknown; tool_use_id?: unknown }>).some(block => block?.type === 'tool_result' && typeof block.tool_use_id === 'string' && issued.has(block.tool_use_id))
+  }
+  const keepsAsNote = (e: Record<string, unknown>): boolean => e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
+  const consider = (slot: number, road: 'parent' | 'sibling'): void => {
+    const id = nodeIds[slot]!
+    if (liveIds.has(id) || kept.has(id)) return
+    const e = settledEntryOf(id)
+    if (e === null || typeof e.uuid !== 'string' || e.uuid !== id) return
+    const parent = typeof e.parentUuid === 'string' && e.parentUuid ? e.parentUuid : null
+    const parentStands = parent !== null && (liveIds.has(parent) || kept.has(parent))
+    const message = e.message as { id?: unknown } | undefined
+    const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
+    const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
+    const note = road === 'parent' && parentStands && keepsAsNote(e)
+    if (!sibling && !toolResult && !note) return
+    kept.add(id)
+    if (note) return
+    noteAssistant(e, id)
+    parentQueue.push(id)
+    if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
+  }
+  while (parentQueue.length > 0 || messageIdQueue.length > 0) {
+    const parentId = parentQueue.pop()
+    if (parentId !== undefined) for (const slot of byParent.get(parentId) ?? []) consider(slot, 'parent')
+    const messageId = messageIdQueue.pop()
+    if (messageId !== undefined) for (const slot of byMessageId.get(messageId) ?? []) consider(slot, 'sibling')
+  }
+  for (const id of kept) {
+    for (const slot of idToSlots.get(id) ?? []) {
+      liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
+    }
+  }
 
   const deadBytes = chainBytes - liveBytes
   if (deadBytes < len >> 1) return buf
@@ -959,7 +1044,7 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
       parts.push(buf.subarray(keepRanges[k]!, keepRanges[k + 1]!))
       k += 2
     }
-    if (liveIds.has(nodeIds[slot]!)) {
+    if (liveIds.has(nodeIds[slot]!) || kept.has(nodeIds[slot]!)) {
       parts.push(buf.subarray(start, nodeIdx[slot * 2 + 1]!))
     }
   }

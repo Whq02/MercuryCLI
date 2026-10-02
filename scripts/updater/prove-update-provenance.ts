@@ -200,13 +200,15 @@ const seedForUpdate = (): string => {
   check('(a) the stable command first on PATH: the update lands', r.code === 0 && r.stdout.includes(`updated: ${V_OLD} → ${V_NEW}`) && pointer() === V_NEW && existsSync(shim), r.all.slice(0, 500))
   check('(a) and nothing is said about the `mercury` the shell runs', !r.stdout.includes('your shell runs') && !r.stdout.includes('is on your PATH'), r.stdout)
 }
+const daemonLast = `background daemon: none running — the next session starts one on v${V_NEW}`
 {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf(otherBin, binDir)))
-  const last = r.stdout.trim().split('\n').slice(-2).map(l => l.trim())
+  const lines = r.stdout.trim().split('\n').map(l => l.trim())
+  const last = lines.slice(-3, -1)
   check(
-    '(b) another `mercury` ahead of it: the update lands and the last two lines name both paths and the fix',
-    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix,
+    '(b) another `mercury` ahead of it: the update lands, the two lines above the daemon line name both paths and the fix, and the last line says what the background daemon did',
+    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix && lines[lines.length - 1] === daemonLast,
     r.all.slice(0, 900),
   )
 }
@@ -215,10 +217,11 @@ if (IS_WIN) {
 } else {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf()))
-  const last = r.stdout.trim().split('\n').slice(-2).map(l => l.trim())
+  const lines = r.stdout.trim().split('\n').map(l => l.trim())
+  const last = lines.slice(-3, -1)
   check(
-    '(c) no `mercury` on PATH at all: the update lands and the last two lines say so with the fix',
-    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix,
+    '(c) no `mercury` on PATH at all: the update lands, the two lines above the daemon line say so with the fix, and the last line says what the background daemon did',
+    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix && lines[lines.length - 1] === daemonLast,
     r.all.slice(0, 900),
   )
 }

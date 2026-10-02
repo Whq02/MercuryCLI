@@ -97,6 +97,6 @@ export async function describeImageProcessor(): Promise<{ ready: boolean; line: 
   return {
     ready: false,
     line: `JavaScript image road — the native processor did not load (${state.reason})`,
-    detail: `PNG and BMP images still shrink to the provider's limits here; a JPEG, WebP or GIF over a limit cannot be re-encoded until the pack is present. The pack for this platform sits at ${state.packDir} in a build that vendored it (${imagePackPackages(imagePackPlatform()).join(' + ')}).`,
+    detail: `PNG and BMP images still shrink to the provider's limits here; a JPEG, WebP, GIF or interlaced PNG over a limit cannot be re-encoded until the pack is present, so it is left out of the request (a one-line note takes its place on the wire; the transcript keeps the original; the session is told once). The pack for this platform sits at ${state.packDir} in a build that vendored it (${imagePackPackages(imagePackPlatform()).join(' + ')}).`,
   }
 }

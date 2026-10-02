@@ -105,8 +105,8 @@ if (node === null) {
   section('(2) the isolated artifact without the pack takes the JavaScript road')
   const without = doctorRow(node, join(payload, 'mercury.mjs'), home)
   check('the doctor carries the Image processor row', without !== null, 'row missing')
-  check('the row names the JavaScript image road, as info (never a fault)', without?.status === 'info' && /JavaScript image road/.test(without.evidence ?? ''), `${without?.status}: ${without?.evidence}`)
-  check('…and says what the road still shrinks and where the pack would sit', /PNG and BMP/.test(without?.detail ?? '') && (without?.detail ?? '').includes(IMAGE_PACK_PATH), without?.detail ?? '')
+  check('the row names the JavaScript image road, as warn (an image that road cannot size is left out of the request)', without?.status === 'warn' && /JavaScript image road/.test(without.evidence ?? ''), `${without?.status}: ${without?.evidence}`)
+  check('…and says what the road still shrinks, what happens to an image it cannot size, and where the pack would sit', /PNG and BMP/.test(without?.detail ?? '') && /left out of the request/.test(without?.detail ?? '') && (without?.detail ?? '').includes(IMAGE_PACK_PATH), without?.detail ?? '')
 
   if (row?.vendored === true && packPresent) {
     section('(3) the isolated artifact with the pack beside it takes the native road')
