@@ -68,7 +68,7 @@ section('§4 the launch hands the id to the prompt build, after the id is minted
 const agentTool = readFileSync(join(ROOT, 'src/tools/AgentTool/AgentTool.tsx'), 'utf8')
 const runAgent = readFileSync(join(ROOT, 'src/tools/AgentTool/runAgent.ts'), 'utf8')
 const mintAt = agentTool.indexOf("const earlyAgentId = generateTaskId('local_agent')")
-const buildAt = agentTool.search(/buildDefaultSystemPrompt\(\s*agentDef,\s*context,\s*plan\.model,\s*earlyAgentId,?\s*\)/)
+const buildAt = agentTool.search(/buildDefaultSystemPrompt\(\s*agentDef,\s*context,\s*plan\.model,\s*earlyAgentId,?\s*(?:\)|new Set\(workerTools)/)
 check('the tool-side build names the minted id', buildAt > 0)
 check('…and runs after the mint, the worktree preflight still before it', mintAt > 0 && buildAt > mintAt && agentTool.indexOf('preflightWorktreeCapability(') < mintAt)
 check("the run loop's own build names the id the run carries (a resume passes its own)", /buildAgentSystemPrompt\(\s*agentDefinition,\s*toolUseContext,\s*resolvedAgentModel,\s*enabledToolNames,\s*agentId,?\s*\)/.test(runAgent) && runAgent.includes("const agentId = (override?.agentId ?? generateTaskId('local_agent')) as AgentId"))
