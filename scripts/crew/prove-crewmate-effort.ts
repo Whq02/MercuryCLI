@@ -101,7 +101,7 @@ const script: ScriptedTurn[] = [
       kind: 'tool_use',
       id: SPAWN_ID,
       name: 'Agent',
-      input: { name: SEAT, crew_name: 'crew', model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-general', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
+      input: { name: SEAT, crew_name: 'crew', model: SEAT_MODEL, effort: 'max', subagent_type: 'mercury-crew', description: 'the deep seat', prompt: 'DEEP-WORK: reply once.' },
     },
     FIRST,
   ),

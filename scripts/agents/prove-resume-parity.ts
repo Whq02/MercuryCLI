@@ -30,7 +30,7 @@ section('§1 the metadata carrier (round-trip, hermetic home)')
 {
   const id = 'resume-parity-proof-agent'
   await storage.writeAgentMetadata(id as Parameters<typeof storage.writeAgentMetadata>[0], {
-    agentType: 'mercury-general',
+    agentType: 'mercury-crew',
     description: 'proof',
     model: 'glm-5.2',
     effortOverride: 'high',
@@ -38,7 +38,7 @@ section('§1 the metadata carrier (round-trip, hermetic home)')
   const back = await storage.readAgentMetadata(id as Parameters<typeof storage.readAgentMetadata>[0])
   check('model round-trips', back?.model === 'glm-5.2', JSON.stringify(back))
   check('effortOverride round-trips', back?.effortOverride === 'high')
-  check('agentType/description intact', back?.agentType === 'mercury-general' && back?.description === 'proof')
+  check('agentType/description intact', back?.agentType === 'mercury-crew' && back?.description === 'proof')
 }
 
 section('§2 the restore chain (getAgentModel is id-stable)')

@@ -75,7 +75,7 @@ let state: AppState = {
 const setAppState = (updater: (prev: AppState) => AppState): void => {
   state = updater(state)
 }
-const member = (agentId: string, name: string, paneId: string): Record<string, unknown> => ({ agentId, name, agentType: 'mercury-general', model: MODEL, joinedAt: Date.now(), tmuxPaneId: paneId, cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
+const member = (agentId: string, name: string, paneId: string): Record<string, unknown> => ({ agentId, name, agentType: 'mercury-crew', model: MODEL, joinedAt: Date.now(), tmuxPaneId: paneId, cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
 await writeCrewFileAsync(CREW, { name: CREW, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD, 'leader'), member(SEAT_ID, SEAT, 'in-process')] } as never)
 
 const context = {

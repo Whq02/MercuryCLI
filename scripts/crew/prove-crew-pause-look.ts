@@ -62,8 +62,8 @@ async function main(): Promise<void> {
   const modelWords = gateModule === null ? undefined : gateModule.pauseGateModelWords()
   const toolWords = gateModule === null ? undefined : gateModule.pauseGateToolWords('Read')
   const running = (): WorkRowV1[] => [
-    { id: 'ag-scout', agentId: 'ag-scout', kind: 'agent', name: 'scout the release notes', status: 'running', startTime: t0 + 1_000, agentType: 'mercury-general', model: 'claude-fable-5-1', inputTokens: 9_800, outputTokens: 2_500, contextTokens: 12_300, toolUses: 3, activity: 'reading docs/RELEASES.md' },
-    { id: 'ag-reviewer', agentId: 'ag-reviewer', kind: 'agent', name: 'review the gate seams', status: 'running', startTime: t0 + 4_000, agentType: 'mercury-general', model: 'claude-opus-5-5', inputTokens: 4_100, outputTokens: 900, contextTokens: 5_000, toolUses: 1, activity: 'thinking' },
+    { id: 'ag-scout', agentId: 'ag-scout', kind: 'agent', name: 'scout the release notes', status: 'running', startTime: t0 + 1_000, agentType: 'mercury-crew', model: 'claude-fable-5-1', inputTokens: 9_800, outputTokens: 2_500, contextTokens: 12_300, toolUses: 3, activity: 'reading docs/RELEASES.md' },
+    { id: 'ag-reviewer', agentId: 'ag-reviewer', kind: 'agent', name: 'review the gate seams', status: 'running', startTime: t0 + 4_000, agentType: 'mercury-crew', model: 'claude-opus-5-5', inputTokens: 4_100, outputTokens: 900, contextTokens: 5_000, toolUses: 1, activity: 'thinking' },
   ]
   const parked = (): WorkRowV1[] => running().map((row, i) => ({ ...row, activity: undefined, ...(i === 0 ? { wait: toolWords } : { wait: modelWords }) }))
 

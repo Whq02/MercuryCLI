@@ -25,7 +25,7 @@ function seedSyntheticCrews(dir: string): void {
   const member = (name: string, team: string, model: string | undefined, extra: Record<string, unknown> = {}): Record<string, unknown> => ({
     agentId: `${name}@${team}`,
     name,
-    agentType: name === 'team-lead' ? 'team-lead' : 'mercury-general',
+    agentType: name === 'team-lead' ? 'team-lead' : 'mercury-crew',
     ...(model !== undefined ? { model } : {}),
     joinedAt: 1700000000000,
     tmuxPaneId: name === 'team-lead' ? '' : 'in-process',

@@ -281,7 +281,7 @@ section('3 · every seat of the session sends the held set: the main thread, a c
   const from = state.hits.length
   const seats: Array<{ label: string; text: string; extra: Record<string, unknown> }> = [
     { label: 'the main thread', text: 'x'.repeat(80_000), extra: { querySource: 'repl_main_thread' } },
-    { label: 'a crewmate (Agent tool, mercury-general)', text: 'y'.repeat(20_000), extra: { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-general' } },
+    { label: 'a crewmate (Agent tool, mercury-crew)', text: 'y'.repeat(20_000), extra: { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' } },
     { label: 'a workflow agent (Workflow tool agent() call)', text: 'z'.repeat(60_000), extra: { agentId: 'agent-000002', querySource: 'agent:custom' } },
   ]
   for (const seat of seats) {

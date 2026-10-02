@@ -110,7 +110,7 @@ section('§3 crewmate alpha claims src/a.ts; its own edit passes')
 
 section('§4 a sub-agent claims under its own identity (not the lead\'s)')
 {
-  const sub = { agentType: 'subagent' as const, agentId: 'a1b2c3d4e', subagentName: 'general-purpose', isBuiltIn: true }
+  const sub = { agentType: 'subagent' as const, agentId: 'a1b2c3d4e', subagentName: 'mercury-crew', isBuiltIn: true }
   const inSub = <T,>(fn: () => T): T => agentContext.runWithAgentContext(sub, fn)
   const coordId = inSub(() => crewmate.resolveCoordAgentId())
   check('resolveCoordAgentId inside a sub-agent context is the sub-agent\'s id, not the lead\'s', coordId === 'a1b2c3d4e', `got ${JSON.stringify(coordId)}`)

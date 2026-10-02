@@ -122,7 +122,7 @@ const agentLaunch = (index: number, seat: Seat, background: boolean): string =>
   toolBlock(index, `toolu_hdr_agent_${++toolSeq}`, 'Agent', {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the ${SEAT_READS[seat]} note files, one read per turn, then report in one line`,
-    subagent_type: 'mercury-general',
+    subagent_type: 'mercury-crew',
     run_in_background: background,
   })
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

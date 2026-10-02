@@ -252,7 +252,7 @@ section('5 · the dispatch road: the first send under auto reads the machine tru
   const chat = hits.slice(from).find(h => h.url === '/api/chat')
   check('the ≈73k first request rode /api/chat with num_ctx 262144 — the fit rung, not 147k — and settled', chat !== undefined && (chat.body.options as { num_ctx?: number }).num_ctx === 262144 && !yielded.some(m => m.isApiErrorMessage === true), j(chat?.body.options))
   const again = hits.length
-  for await (const item of localCallModel(params(20_000, { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-general' }) as never)) yielded.push(item as never)
+  for await (const item of localCallModel(params(20_000, { agentId: 'agent-000001', querySource: 'agent:builtin:mercury-crew' }) as never)) yielded.push(item as never)
   const crew = hits.slice(again).find(h => h.url === '/api/chat')
   check('a crewmate\'s smaller request carries the SAME held num_ctx', crew !== undefined && (crew.body.options as { num_ctx?: number }).num_ctx === 262144)
   check('the held decision carries its reason and words for the rail and the deck', w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.reason === 'max' && w.heldLocalWindow(localRecordFor(`local/${MODEL_27}`)!)?.words.startsWith('256k · 16.2 GiB weights') === true)

@@ -460,9 +460,11 @@ Available commands include:
 - **MCPs & Skills.** Per-repository configuration for what sessions load,
   with named presets and controls you can change during a session. See
   [docs/KIT.md](docs/KIT.md).
-- **Agents and the crew.** Chat with named crewmates, create agent definitions in
-  the agent studio, and follow agents and workflow runs in their status
-  views. See [docs/CREW.md](docs/CREW.md).
+- **Agents and the crew.** Two built-in agents — `mercury-crew` for delegated
+  work of every kind and `mercury-scout` for read-only reconnaissance — plus
+  the agent definitions you create in the agent studio. Chat with named
+  crewmates and follow agents and workflow runs in their status views. See
+  [docs/CREW.md](docs/CREW.md).
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See
   [docs/SATURN.md](docs/SATURN.md).

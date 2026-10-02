@@ -31,7 +31,7 @@ async function freshCrew(): Promise<void> {
     description: 'a seat that fails at its spawn',
     createdAt: Date.now(),
     leadAgentId: LEAD_ID,
-    members: [member('crew-lead', LEAD_ID, 'lead'), { ...member(SEAT, SEAT_ID, 'crewmate'), agentType: 'mercury-general', backendType: 'in-process' }],
+    members: [member('crew-lead', LEAD_ID, 'lead'), { ...member(SEAT, SEAT_ID, 'crewmate'), agentType: 'mercury-crew', backendType: 'in-process' }],
   })
 }
 const rosterNames = async (): Promise<string[]> => ((await th.readCrewFileAsync(CREW))?.members ?? []).map(m => `${m.name}${m.isActive === undefined ? '' : `:${m.isActive ? 'live' : 'off'}`}`)

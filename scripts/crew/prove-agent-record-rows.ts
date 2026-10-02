@@ -12,7 +12,7 @@ const TOOL_ID = 'toolu_record_pwd'
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: PEER_MODEL, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: 'toolu_record_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-general', run_in_background: false, description: 'Record each turn once', prompt: 'Run pwd once and report the record witness.' } }),
+  lead({ kind: 'tool_use', id: 'toolu_record_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-crew', run_in_background: false, description: 'Record each turn once', prompt: 'Run pwd once and report the record witness.' } }),
   lead({ kind: 'text', text: 'LAUNCH-FINISHED' }),
   lead({ kind: 'tool_use', id: 'toolu_record_resume', name: 'SendMessage', input: { to: 'scribe', message: CONTINUE } }),
   lead({ kind: 'text', text: 'RESUME-SENT' }),

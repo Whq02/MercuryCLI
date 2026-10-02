@@ -95,6 +95,7 @@ import {
 import { getSchemaBoundStructuredOutputTool } from '../WorkflowTool/structuredOutputTool.js'
 import {
   AGENT_TOOL_NAME,
+  MERCURY_CREW_AGENT_TYPE,
   ONE_SHOT_BUILTIN_AGENT_TYPES,
 } from './constants.js'
 import {
@@ -123,7 +124,7 @@ export type Progress = AgentToolProgress | ShellProgress
 
 const BACKGROUND_TASKS_DISABLED = false
 
-const DEFAULT_AGENT_TYPE = 'mercury-general'
+const DEFAULT_AGENT_TYPE = MERCURY_CREW_AGENT_TYPE
 const RESULT_SIZE_CAP = 100_000
 
 
@@ -226,9 +227,9 @@ export const inputSchema = lazySchema(() => {
           'An agent name must be addressable by SendMessage: it cannot contain "@" or be "*".',
       })
       .describe(
-        'Name for the spawned agent; makes it addressable via SendMessage({to: name}) while it runs.',
+        'Name for a long-lived crewmate: a named agent stays on the roster after its first turn and takes further instructions through SendMessage({to: name}). Omit it for an ordinary sub-agent that works its prompt once and returns its report.',
       ),
-    crew_name: z.string().optional().describe('Crew for a crewmate spawn.'),
+    crew_name: z.string().optional().describe('The crew a named crewmate joins — a group of long-lived agents, never an agent type (the type is subagent_type). Omit it for an ordinary sub-agent.'),
     isolation: z
       .literal('worktree')
       .optional()
@@ -243,7 +244,7 @@ export const inputSchema = lazySchema(() => {
       .string()
       .optional()
       .describe(CWD_PARAM_DESCRIPTION),
-    review_receipt: z.string().optional().describe('Required for mercury-reviewer: the existing Markdown report whose Review section may be edited.'),
+    review_receipt: z.string().optional().describe("Launch a review of a committed change: with isolation 'worktree' and worktree_at naming the reviewed commit, the absolute path of an existing Markdown report outside that worktree whose \"## Review\" section is the agent's one permitted write. The agent reads the frozen commit, runs confined bun/bash verification under scripts (and bun run typecheck) with sources read-only, writes its findings into that section and ends with REVIEW: CLEAN or REVIEW: FINDINGS <count>. Name the job and any rules document in the prompt."),
     output_schema: z
       .record(z.string(), z.unknown())
       .optional()
@@ -520,7 +521,7 @@ export const AgentTool = buildTool({
         throw new Error("worktree_at needs isolation: 'worktree' — the pin names the commit a temporary worktree stands at.")
       }
       const requestedType = decodeAgentType(input.subagent_type)
-      if (requestedType === 'mercury-reviewer') throw new Error('mercury-reviewer must run as an isolated sub-agent, not a crewmate')
+      if (input.review_receipt !== undefined) throw new Error('A review with review_receipt runs as an isolated sub-agent in a frozen worktree, not as a crewmate')
       const definitions = options.agentDefinitions?.activeAgents ?? []
       const crewmateDefinition = definitions.find(
         agent => agent.agentType === requestedType,
@@ -676,8 +677,8 @@ export const AgentTool = buildTool({
           plan.shouldRunAsync,
         )
 
-    if (agentDef.agentType === 'mercury-reviewer' && (!input.review_receipt || !input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined)) {
-      throw new Error('mercury-reviewer requires review_receipt and worktree_at with worktree isolation, without a cwd override.')
+    if (input.review_receipt !== undefined && (!input.worktree_at || plan.isolation !== 'worktree' || input.cwd !== undefined)) {
+      throw new Error('review_receipt requires worktree_at with worktree isolation, without a cwd override: a review reads a frozen worktree and writes one receipt.')
     }
 
     if (plan.isolation === 'worktree') {
@@ -854,7 +855,7 @@ export const AgentTool = buildTool({
         : {}),
       ...(worktreeInfo ? { worktreePath: worktreeInfo.worktreePath } : {}),
       ...(worktreeInfo === undefined && launchDirectory !== undefined ? { cwd: launchDirectory } : {}),
-      ...(agentDef.agentType === 'mercury-reviewer' ? { reviewReceipt: input.review_receipt } : {}),
+      ...(input.review_receipt !== undefined ? { reviewReceipt: input.review_receipt } : {}),
       description: input.description,
       ...(input.name ? { name: input.name } : {}),
       launchedAt: startTime,

@@ -26,10 +26,10 @@ const SEND_ID = 'toolu_name_send'
 
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: PLAIN_ID, name: 'Agent', input: { name: NAME, model: LEAD_MODEL, subagent_type: 'mercury-general', description: 'a plain sub-agent named alpha', prompt: `${PLAIN_WORD}: reply done.` } }, STEP_ONE),
+  lead({ kind: 'tool_use', id: PLAIN_ID, name: 'Agent', input: { name: NAME, model: LEAD_MODEL, subagent_type: 'mercury-crew', description: 'a plain sub-agent named alpha', prompt: `${PLAIN_WORD}: reply done.` } }, STEP_ONE),
   lead({ kind: 'text', text: 'PLAIN-LAUNCHED' }, STEP_ONE),
   { kind: 'text', text: 'done', model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: PLAIN_WORD } as ScriptedTurn,
-  lead({ kind: 'tool_use', id: SEAT_ID, name: 'Agent', input: { name: NAME, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-general', description: 'the alpha crewmate', prompt: `${SEAT_WORD}: wait for a message.` } }, STEP_TWO),
+  lead({ kind: 'tool_use', id: SEAT_ID, name: 'Agent', input: { name: NAME, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-crew', description: 'the alpha crewmate', prompt: `${SEAT_WORD}: wait for a message.` } }, STEP_TWO),
   lead({ kind: 'text', text: 'SEAT-LAUNCHED' }, STEP_TWO),
   { kind: 'text', text: 'alpha is idle.', model: SEAT_MODEL, whenModel: SEAT_GATE, whenBody: SEAT_WORD } as ScriptedTurn,
   lead({ kind: 'tool_use', id: SEND_ID, name: 'SendMessage', input: { to: NAME, message: PING, summary: 'a ping' } }, STEP_THREE),

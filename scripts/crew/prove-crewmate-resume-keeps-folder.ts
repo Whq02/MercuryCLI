@@ -25,7 +25,7 @@ const tally = makeTally('prove-crewmate-resume-keeps-folder')
 const work = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'crewmate-place-'))
 const place = realpathSync(work)
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, cwd: work, model: peerModel, subagent_type: 'mercury-general', description: 'Keep the place', prompt: 'Run pwd and report the folder you work in.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, cwd: work, model: peerModel, subagent_type: 'mercury-crew', description: 'Keep the place', prompt: 'Run pwd and report the folder you work in.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: SEND_1, name: 'SendMessage', input: { to: worker, message: MESSAGE_1, summary: 'pwd again' } }, STOP_NOTICE),
   lead({ kind: 'text', text: 'LEAD-SENT-1' }, STOP_NOTICE),

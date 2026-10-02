@@ -10,7 +10,7 @@ const LEAD_ANSWER = 'LEAD-TASK-ANSWER-DELIVERED'
 const lead = (turn: Record<string, unknown>, whenBody?: string): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, ...(whenBody ? { whenBody } : {}) }) as ScriptedTurn
 const peer = (text: string): ScriptedTurn => ({ kind: 'text', text, model: PEER_MODEL, whenModel: 'opus-4-6' }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', id: 'toolu_chat_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-general', run_in_background: false, description: 'Answer in the right chat', prompt: 'Report ready.' } }, 'SPAWN-SCRIBE'),
+  lead({ kind: 'tool_use', id: 'toolu_chat_launch', name: 'Agent', input: { name: 'scribe', model: PEER_MODEL, subagent_type: 'mercury-crew', run_in_background: false, description: 'Answer in the right chat', prompt: 'Report ready.' } }, 'SPAWN-SCRIBE'),
   lead({ kind: 'text', text: 'SCRIBE-READY' }, 'SPAWN-SCRIBE'),
   lead({ kind: 'text', text: 'OWNER-BARRIER-DONE' }, 'OWNER-BARRIER'),
   lead({ kind: 'tool_use', id: 'toolu_chat_lead', name: 'SendMessage', input: { to: 'scribe', message: 'LEAD-FOLLOW-UP' } }, 'LEAD-SEND'),

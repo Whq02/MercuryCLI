@@ -150,7 +150,7 @@ const scenes: Scene[] = [
             input: {
               description: 'poise piece probe',
               prompt: 'Reply done.',
-              subagent_type: 'mercury-general',
+              subagent_type: 'mercury-crew',
               run_in_background: true,
             },
           },

@@ -368,7 +368,7 @@ try {
   }
   const homeWaits = (homeHits: HomeHit[]): number[] => homeHits.slice(1).map((hit, i) => hit.atMs - homeHits[i]!.atMs)
   const foreground = (retrySeam as { isForegroundQuerySource?: (source: string) => boolean }).isForegroundQuerySource ?? ((): undefined => undefined)
-  check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-general') === true && foreground('agent:custom') === true && foreground('repl_main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
+  check("the retry seam counts every sub-agent source as foreground — a resumed built-in agent's turn included — and a background summary as not", foreground('agent:builtin:mercury-crew') === true && foreground('agent:custom') === true && foreground('repl_main_thread') === true && foreground('sdk') === true && foreground('agent_summary') === false && foreground('generate_session_title') === false)
 
   reset(LADDER_SCALE)
   {
@@ -384,7 +384,7 @@ try {
   }
   reset(LADDER_SCALE)
   {
-    const run = homeCall({ refusals: Infinity }, { querySource: 'agent:builtin:mercury-general' })
+    const run = homeCall({ refusals: Infinity }, { querySource: 'agent:builtin:mercury-crew' })
     const resumedSpent = await drain(run.generator)
     check("home: a resumed built-in sub-agent's turn (source agent:builtin:<type>) rides the same ladder instead of dying on its first 529: seven requests, one red line", run.homeHits.length === 7 && redLines(resumedSpent).length === 1 && notices(resumedSpent).length === 1, `${run.homeHits.length} requests, ${notices(resumedSpent).length} notices, ${redLines(resumedSpent).length} red lines`)
   }

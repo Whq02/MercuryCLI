@@ -116,7 +116,7 @@ check('the PreToolUse road denies the lead too (appState carries no crew)', lead
 check('x.ts is still unchanged', readFileSync(CLAIMED_ABS, 'utf8') === ORIGINAL)
 
 section('§3 a sub-agent follows the same law')
-const sub = { agentType: 'subagent' as const, agentId: 'a1b2c3d4e', subagentName: 'general-purpose', isBuiltIn: true }
+const sub = { agentType: 'subagent' as const, agentId: 'a1b2c3d4e', subagentName: 'mercury-crew', isBuiltIn: true }
 const subGuard = await agentContext.runWithAgentContext(sub, () => guard.checkLeaseGuard('Edit', editInput))
 check('a sub-agent\'s Edit of alpha\'s file is refused, naming alpha', subGuard === WORDS, `got ${JSON.stringify(subGuard)}`)
 

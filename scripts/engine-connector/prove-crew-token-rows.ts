@@ -49,7 +49,7 @@ const tracker = createProgressTracker()
 const decoded = decodeTranscriptBuffer(readFileSync(file, 'utf8'))
 check('fixture records decode without refusals or invalid rows', decoded.entries.length === 6 && decoded.invalid.length === 0 && decoded.refusal === undefined, JSON.stringify(decoded))
 for (const row of decoded.entries) updateProgressFromMessage(tracker, row as never)
-const task = { id: 'scout', type: 'local_agent', status: 'completed', description: 'scout', agentId: 'scout', toolUseId: 'launch-scout', agentType: 'mercury-general', startTime: 1000, endTime: 61000, progress: getProgressUpdate(tracker) }
+const task = { id: 'scout', type: 'local_agent', status: 'completed', description: 'scout', agentId: 'scout', toolUseId: 'launch-scout', agentType: 'mercury-crew', startTime: 1000, endTime: 61000, progress: getProgressUpdate(tracker) }
 const rows = projectWorkRoster({ scout: task } as never)
 const facts = crew.crewAgentFactsOf(rows[0]!, 'fixture')!
 check('three settled record responses sum fresh input and output once', facts.tokens?.input === 9800 && facts.tokens.output === 2500 && facts.tokens.total === 12300, JSON.stringify(facts.tokens))
@@ -81,7 +81,7 @@ for (const width of [178, 120, 100, 80, 60]) {
   save(`crew-tokens-${width}.txt`, view)
 }
 for (const width of [178, 100, 80, 60]) {
-  const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', subagent_type: 'mercury-general' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
+  const grouped = await paint(ui.renderGroupedAgentToolUse([{ toolUseID: 'launch-scout', input: { name: 'scout', description: 'scout', prompt: 'p', subagent_type: 'mercury-crew' }, progressMessages: [] }] as never, { shouldAnimate: false, tools: [] as never }), width)
   check(`${width} columns: inline AgentProgressLine names context, in, out and cached together`, grouped.includes(expected), grouped)
   check(`${width} columns: inline rows fit`, grouped.split('\n').every(line => stringWidth(line) <= width), grouped)
   save(`crew-tokens-inline-${width}.txt`, grouped)

@@ -117,7 +117,7 @@ export function backgroundLaunchReceipts(messages: readonly Message[]): Backgrou
         launches.set(block.id, {
           description: recordedDescription(input.description) || 'agent',
           prompt: recordedPrompt(input.prompt),
-          agentType: typeof input.subagent_type === 'string' ? input.subagent_type : 'mercury-general',
+          agentType: typeof input.subagent_type === 'string' ? input.subagent_type : 'mercury-crew',
           launchedAt: Number.isFinite(stamp) ? stamp : Date.now(),
         })
       }

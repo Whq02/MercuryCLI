@@ -3,9 +3,7 @@
 import { readFileSync } from 'node:fs'
 import { buildSubagentMercurySections } from '../../src/constants/subagentDoctrine.js'
 import { MERCURY_IDENTITY_FLOOR } from '../../src/prompt/mercuryContract.js'
-import { VERIFICATION_AGENT } from '../../src/tools/AgentTool/built-in/verificationAgent.js'
 import { MERCURY_SCOUT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryScoutAgent.js'
-import { MERCURY_ARCHITECT_AGENT } from '../../src/tools/AgentTool/built-in/mercuryArchitectAgent.js'
 
 const read = (p: string) => readFileSync(new URL(p, import.meta.url), 'utf-8')
 
@@ -24,8 +22,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
-const GP = { agentType: 'mercury-general' }
-const EXEMPT = ['mercury-verifier', 'mercury-scout', 'mercury-architect', 'mercury-reviewer', 'workflow-subagent']
+const GP = { agentType: 'mercury-crew' }
+const EXEMPT = ['mercury-scout', 'workflow-subagent']
 const NORMAL_MARK = 'You are a subagent OF Mercury'
 const GATE_CLAUSE = 'bypass a safety, permission, approval, or capability gate'
 const join = (a: string[]) => a.join('\n')
@@ -37,10 +35,10 @@ console.log('============================================================')
 section('(a) bare stamp ⇒ SAME sections (stamp-independence)')
 setStamp(false)
 const gpStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP }))
-const exemptStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-verifier' } }))
+const exemptStock = JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
 setStamp(true)
-check('mercury-general: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
-check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-verifier' } })))
+check('mercury-crew: bare-stamped === full-stamped', gpStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: GP })))
+check('exempt agent: bare-stamped === full-stamped', exemptStock === JSON.stringify(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } })))
 
 section('(b) stamped ⇒ floor leads, the ONE NORMAL doctrine')
 setStamp(true)
@@ -51,7 +49,7 @@ setStamp(true)
   check('NORMAL doctrine present', join(s).includes(NORMAL_MARK) && join(s).includes('<subagent-doctrine>'))
 }
 
-section('(c) the 4 fixed-output agents get the SAME NORMAL doctrine as mercury-general')
+section('(c) the fixed-output agents get the SAME NORMAL doctrine as mercury-crew')
 for (const a of EXEMPT) {
   const s = join(buildSubagentMercurySections({ agentDefinition: { agentType: a } }))
   check(`${a}: NORMAL doctrine (one register for every agent)`, s.includes(NORMAL_MARK) && s.includes('<subagent-doctrine>'))
@@ -60,12 +58,12 @@ for (const a of EXEMPT) {
 section('(d) C14: exempt Set DERIVED from fixedOutputContract (membership, not a string literal)')
 {
   const { isFixedOutputAgent } = await import('../../src/constants/subagentDoctrine.ts')
-  for (const def of [VERIFICATION_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT]) {
+  for (const def of [MERCURY_SCOUT_AGENT]) {
     check(`${def.agentType}: def carries fixedOutputContract:true`, def.fixedOutputContract === true)
     check(`${def.agentType}: agentType ∈ derived exempt Set`, isFixedOutputAgent({ agentType: def.agentType }))
   }
   check("'workflow-subagent' literal ∈ derived exempt Set", isFixedOutputAgent({ agentType: 'workflow-subagent' }))
-  check('a non-flagged agent (mercury-general) is NOT exempt', !isFixedOutputAgent(GP))
+  check('a non-flagged agent (mercury-crew) is NOT exempt', !isFixedOutputAgent(GP))
   check('a made-up agentType is NOT exempt (no drift to over-exempting)', !isFixedOutputAgent({ agentType: 'not-a-real-fixed-output-agent' }))
 }
 
@@ -80,7 +78,7 @@ section('(d2) C14 source — derived Set (not a string literal) + WORKFLOW_SUBAG
 }
 
 section('(e) memory front page — every agent receives it; the memory switch removes it')
-check('mercury-general carries the memory front page', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
+check('mercury-crew carries the memory front page', join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
 for (const a of EXEMPT) {
   check(`${a}: carries the memory front page (crewmates get the pinned rules)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes('# Memory'))
 }
@@ -91,7 +89,7 @@ delete process.env.MERCURY_BARE
 section('(e2) API-currency: doctrine line for ALL agents + env-block currency note')
 {
   const CURRENCY_MARK = 'provider-apis'
-  check('mercury-general carries the API-currency line', join(buildSubagentMercurySections({ agentDefinition: GP })).includes(CURRENCY_MARK))
+  check('mercury-crew carries the API-currency line', join(buildSubagentMercurySections({ agentDefinition: GP })).includes(CURRENCY_MARK))
   for (const a of EXEMPT) {
     check(`${a}: carries the API-currency line (fact line, not a register)`, join(buildSubagentMercurySections({ agentDefinition: { agentType: a } })).includes(CURRENCY_MARK))
   }

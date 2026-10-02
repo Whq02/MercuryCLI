@@ -36,7 +36,7 @@ function makeStore(): Store & { set: (fn: (prev: never) => never) => void; get: 
   }
   return store
 }
-const FAKE_AGENT_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_AGENT_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 const settled = (p: Promise<void>): Promise<boolean> => Promise.race([p.then(() => true), new Promise<boolean>(r => setTimeout(() => r(false), 150))])
 
 section('G1 — two foreground seats; one fails, the other\'s wait is released at once')

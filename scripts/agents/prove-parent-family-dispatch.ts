@@ -27,7 +27,7 @@ const crewmateModel = new Function('engineDispatch', 'input', 'modelParam', 'cre
 const planParameter = new Function('engineDispatch', 'input', 'modelParam', `return ${parameter}`)
 const resolvedParameter = /resolvedModel:([^\n]*)/.exec(source)?.[1].replace(/,\s*$/, '')
 const planResolved = new Function('modelParam', `return ${resolvedParameter ?? 'undefined'}`)
-const definition = { agentType: 'mercury-general', source: 'built-in', whenToUse: 'general', getSystemPrompt: () => 'general' }
+const definition = { agentType: 'mercury-crew', source: 'built-in', whenToUse: 'general', getSystemPrompt: () => 'general' }
 let failures = 0
 function check(label: string, ok: boolean, actual: unknown): void {
   if (!ok) failures++
@@ -37,7 +37,7 @@ try {
   for (const [parent, word, expected] of [['gpt-5.6-terra', 'gpt', 'gpt-5.6-terra'], ['claude-sonnet-5', 'gpt', 'gpt-5.6-sol'], ['claude-sonnet-5[1m]', 'sonnet', 'claude-sonnet-5[1m]'], ['gpt-5.6-terra', 'gpt-5.6-sol', 'gpt-5.6-sol']]) {
     const input = { model: word }
     const resolved = await resolve(input, { mainLoopModel: parent }, getAgentModel, resolveEngineDispatch, unrecognisedModelWordRefusal)
-    const plan = buildAgentLaunchPlan({ requestedType: 'mercury-general', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), forkGateOn: false, forkAgent: definition, defaultAgentType: 'mercury-general', mainLoopModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
+    const plan = buildAgentLaunchPlan({ requestedType: 'mercury-crew', activeAgents: [definition], toolPermissionContext: getEmptyToolPermissionContext(), forkGateOn: false, forkAgent: definition, defaultAgentType: 'mercury-crew', mainLoopModel: parent, modelParam: planParameter(resolved.engineDispatch, input, resolved.modelParam), resolvedModel: planResolved(resolved.modelParam), backgroundTasksDisabled: false, forceAsync: false, ...(resolved.engineDispatch ? { engineDispatch: resolved.engineDispatch } : {}) } as never)
     const spawnModel = crewmateModel(resolved.engineDispatch, input, resolved.modelParam, undefined)
     check(`${parent} + ${word}: the plan retains the resolved model`, plan.model === expected, plan.model)
     check(`${parent} + ${word}: the crewmate receives the same exact model`, spawnModel === expected, spawnModel)

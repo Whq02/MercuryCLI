@@ -211,14 +211,14 @@ section('§4 composer + renderers — position law, both wires')
 section('§5 subagent doctrine — floor LEADS every spawned child')
 {
   const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.ts')
-  const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.ts')
+  const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
 
-  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-general' } })
+  const normal = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } })
   check('normal agent: floor is element 0', normal[0] === FLOOR)
   check('normal agent: the operating register follows', typeof normal[1] === 'string' && normal[1]!.includes('<subagent-doctrine>'))
 
-  const fixed = buildSubagentMercurySections({ agentDefinition: VERIFICATION_AGENT })
-  check('fixed-output agent (verification): floor is STILL element 0', fixed[0] === FLOOR)
+  const fixed = buildSubagentMercurySections({ agentDefinition: MERCURY_SCOUT_AGENT })
+  check('fixed-output agent (the scout): floor is STILL element 0', fixed[0] === FLOOR)
 }
 
 section('§6 source pins — the bun-unloadable seats, one line each')

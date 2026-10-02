@@ -298,15 +298,15 @@ section('§7b — mail queued while working is delivered AT the interrupt: prove
 section('§8 — a REAL AgentTool.call() completes through the foreground machine')
 {
   const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-  const { GENERAL_PURPOSE_AGENT } = await import(
-    '../../src/tools/AgentTool/built-in/generalPurposeAgent.ts'
+  const { MERCURY_CREW_AGENT } = await import(
+    '../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts'
   )
   const api = await startFixtureApi([{ kind: 'text', text: 'AGENTTOOL PROBE REPLY.' }])
   process.env.ANTHROPIC_BASE_URL = api.url
   const store = makeStore()
   const ctx = makeCtx(store)
   ;(ctx.options as Record<string, unknown>).agentDefinitions = {
-    activeAgents: [GENERAL_PURPOSE_AGENT],
+    activeAgents: [MERCURY_CREW_AGENT],
   }
   ;(ctx as Record<string, unknown>).toolUseId = 'toolu_agenttool_probe'
   ;(ctx as Record<string, unknown>).setResponseLength = () => {}
@@ -320,7 +320,7 @@ section('§8 — a REAL AgentTool.call() completes through the foreground machin
     {
       description: 'foreground probe',
       prompt: 'Reply once and stop.',
-      subagent_type: 'mercury-general',
+      subagent_type: 'mercury-crew',
     } as never,
     ctx as never,
     (async () => ({ behavior: 'allow', updatedInput: {} })) as never,

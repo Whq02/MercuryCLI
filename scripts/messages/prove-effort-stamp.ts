@@ -277,7 +277,7 @@ function compatParams(modelId: string, effortValue: string | undefined, thinking
     thinkingConfig: (thinking ? { type: 'enabled', budget_tokens: 1024 } : { type: 'disabled' }) as never,
     tools: [],
     signal: new AbortController().signal,
-    options: { model: modelId, querySource: 'agent:builtin:mercury-general', agentId: 'a-effort-fixture', onWait: () => {}, isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], ...(effortValue !== undefined ? { effortValue } : {}) } as never,
+    options: { model: modelId, querySource: 'agent:builtin:mercury-crew', agentId: 'a-effort-fixture', onWait: () => {}, isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], ...(effortValue !== undefined ? { effortValue } : {}) } as never,
   }
 }
 const sseChunk = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`

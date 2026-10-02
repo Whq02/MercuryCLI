@@ -192,11 +192,33 @@ frees the file.
 
 ## Roles
 
+Two agents are built in. `mercury-crew` is the default for delegated work of
+every kind — research, multi-step changes, running and checking commands,
+carrying a brief such as a design, a review or a verification to its end —
+with the session's full tool set. `mercury-scout` is the read-only
+reconnaissance agent: it locates files, searches code and answers
+how-does-this-work questions with paths, line numbers and excerpts, and it
+has no editing tools, so it cannot write. Everything else is your own: an
+agent definition file adds a kind of agent with its own prompt, tools and
+model, and `/agents` opens the Agent Studio for building and tuning those
+definitions. The Agent tool's roster and `mercury agents` list the two
+built-ins first, then your own agents.
+
 Crewmate roles resolve through one resolver, whichever way the crewmate
 launches. A role is an agent definition — built-in, custom, or from an
 extension — the same registry the in-session subagent tool loads, so a given
-role is the same agent no matter how it was launched. `/agents` opens the
-Agent Studio for building and tuning those definitions.
+role is the same agent no matter how it was launched. A saved sub-agent record
+whose type Mercury does not know opens as `mercury-crew`.
+
+Three briefs ride as skills and launch options rather than as agent kinds:
+`/verify` hands the session's work to the `verifier` skill, which red-teams it
+in a sub-agent of its own and ends with a `VERDICT: PASS`, `FAIL` or `PARTIAL`
+line; an Agent launch with `isolation: "worktree"`, `worktree_at` and
+`review_receipt` is a review of a committed change on a frozen worktree whose
+one permitted write is the receipt's `## Review` section, ending with
+`REVIEW: CLEAN` or `REVIEW: FINDINGS <count>`; and the `mercury-docs` skill
+answers how to use Mercury from the documentation that ships with the
+install, with `https://mercury-cli.ai/llms.txt` as its map.
 
 The living-crew directory (`/crew`) is the canonical agent-identity registry:
 it binds agent principals, seat, roster and crew forms, provider identities,

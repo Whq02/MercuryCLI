@@ -42,7 +42,7 @@ const docs = byName.get(docsSkill.MERCURY_DOCS_SKILL_NAME)
 check('the skill registers under its name', docs !== undefined, [...byName.keys()].join(' '))
 check('a prompt command the user may invoke and the model may invoke', docs?.type === 'prompt' && docs.userInvocable !== false && docs.isHidden !== true && docs.disableModelInvocation === false)
 check('it runs inline — no fork, no agent type', docs?.context === undefined && (docs as { agent?: string } | undefined)?.agent === undefined)
-check('the description sends every how-do-I-use-Mercury question here and names the shipped documentation as the source', /how to use Mercury itself/.test(String(docs?.description)) && /ships with this install/.test(String(docs?.description)) && /never from memory/.test(String(docs?.description)))
+check('the description sends every how-do-I-use-Mercury question here, names the shipped documentation as the source and keeps a doing skill for doing', /how to use Mercury itself/.test(String(docs?.description)) && /ships with this install/.test(String(docs?.description)) && /never from memory/.test(String(docs?.description)) && /even when a skill that does the thing exists/.test(String(docs?.description)))
 check('the argument hint asks for the question', docs?.argumentHint === '<question about using Mercury>')
 
 section('§2 the pages — README.md and every docs/*.md page of this tree, byte for byte, nothing else')

@@ -53,7 +53,7 @@ const messages = [
     timestamp: launchedAt,
     message: {
       role: 'assistant',
-      content: [{ type: 'tool_use', id: 'toolu_launch_1', name: 'Agent', input: { description: dirtyDescription, prompt: dirtyPrompt, subagent_type: 'mercury-general', run_in_background: true } }],
+      content: [{ type: 'tool_use', id: 'toolu_launch_1', name: 'Agent', input: { description: dirtyDescription, prompt: dirtyPrompt, subagent_type: 'mercury-crew', run_in_background: true } }],
     },
   },
   {

@@ -42,17 +42,17 @@ console.log('— C2/C3 one fixture, three surfaces, zero diffs —')
     },
     ag1: {
       id: 'ag1', type: 'local_agent', status: 'running', description: 'the dispatched helper',
-      agentId: 'ag1', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
+      agentId: 'ag1', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true,
       startTime: t0 + 2, outputFile: '/n', outputOffset: 0, notified: false,
     },
     ag2: {
       id: 'ag2', type: 'local_agent', status: 'running', description: 'the helper\'s nested spawn',
-      agentId: 'ag2', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
+      agentId: 'ag2', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true,
       startTime: t0 + 3, outputFile: '/n', outputOffset: 0, notified: false,
     },
     ag3: {
       id: 'ag3', type: 'local_agent', status: 'completed', description: 'yesterday\'s helper',
-      agentId: 'ag3', prompt: 'p', agentType: 'mercury-general', isBackgrounded: true,
+      agentId: 'ag3', prompt: 'p', agentType: 'mercury-crew', isBackgrounded: true,
       startTime: t0 + 4, outputFile: '/n', outputOffset: 0, notified: false,
     },
     main1: {
@@ -150,8 +150,8 @@ console.log('C8 compact counts use current identities and honest availability')
   const tasks = {
     monitor: { id: 'monitor', type: 'local_bash', kind: 'monitor', command: 'fixture-monitor', status: 'running', startTime: t0 },
     shell: { id: 'shell', type: 'local_bash', command: 'fixture-shell', status: 'running', startTime: t0 },
-    agent: { id: 'task-agent', agentId: 'child-one', type: 'local_agent', agentType: 'mercury-general', description: 'same name', status: 'running', startTime: t0 },
-    paused: { id: 'paused-agent', agentId: 'paused-agent', type: 'local_agent', agentType: 'mercury-general', description: 'same name', status: 'running', startTime: t0, paused: { why: 'usage-window', words: 'paused' } },
+    agent: { id: 'task-agent', agentId: 'child-one', type: 'local_agent', agentType: 'mercury-crew', description: 'same name', status: 'running', startTime: t0 },
+    paused: { id: 'paused-agent', agentId: 'paused-agent', type: 'local_agent', agentType: 'mercury-crew', description: 'same name', status: 'running', startTime: t0, paused: { why: 'usage-window', words: 'paused' } },
     workflow: { id: 'workflow', type: 'local_workflow', status: 'running', startTime: t0, workflowRunId: 'run', agentCount: 20, totalTokens: 0, workflowProgress: [
       { type: 'workflow_agent', index: 0, label: 'same name', state: 'progress', agentId: 'child-one' },
       { type: 'workflow_agent', index: 1, label: 'same name', state: 'progress', agentId: 'child-two' },

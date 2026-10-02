@@ -36,7 +36,7 @@ function makeStore(): { state: State; set: (fn: (prev: never) => never) => void;
   }
   return store
 }
-const FAKE_AGENT_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_AGENT_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 const statusOf = (store: ReturnType<typeof makeStore>, id: string): string | undefined => (store.state.tasks[id] as { status?: string } | undefined)?.status
 const quick = { settleMs: 300, sleep: (ms: number) => new Promise<void>(r => setTimeout(r, Math.min(ms, 10))) }
 

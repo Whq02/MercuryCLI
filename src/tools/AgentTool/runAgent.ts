@@ -100,7 +100,9 @@ import type { ContentReplacementState } from '../../utils/toolResultStorage.js'
 import { buildSubagentMercurySections } from '../../constants/subagentDoctrine.js'
 import type { AgentDefinition, AgentMcpServerSpec } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
-import { canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
+import { REVIEW_BRIEF, canonicalReviewerReceipt, restrictReviewerTools, reviewerRefusal } from './reviewerPolicy.js'
+import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
+import { restrictScoutTools, scoutRefusal } from './scoutPolicy.js'
 import {
   composeAgentAppState,
   resolveAgentPromptPosture,
@@ -584,11 +586,12 @@ export async function* runAgent(
     structuredOutputSpec,
   } = params
 
-  const reviewReceipt = agentDefinition.agentType === 'mercury-reviewer'
-    ? requestedReviewReceipt && worktreePath
+  const reviewReceipt = requestedReviewReceipt === undefined
+    ? undefined
+    : worktreePath
       ? canonicalReviewerReceipt(requestedReviewReceipt, worktreePath)
-      : (() => { throw new Error('mercury-reviewer requires a frozen worktree and an explicit review_receipt') })()
-    : undefined
+      : (() => { throw new Error('review_receipt requires a frozen worktree: launch the review with isolation worktree and worktree_at') })()
+  const readOnlyScout = agentDefinition.agentType === MERCURY_SCOUT_AGENT.agentType
 
   const resolvedAgentModel = getAgentModel(
     agentDefinition.model,
@@ -667,6 +670,10 @@ export async function* runAgent(
     ? (async (...args: Parameters<NonNullable<typeof canUseTool>>) => {
         if (reviewReceipt !== undefined) {
           const refusal = reviewerRefusal(args[0], args[1], reviewReceipt, worktreePath!)
+          if (refusal !== null) return { behavior: 'deny', message: refusal }
+        }
+        if (readOnlyScout) {
+          const refusal = scoutRefusal(args[0], args[1])
           if (refusal !== null) return { behavior: 'deny', message: refusal }
         }
         pendingAsks++
@@ -767,10 +774,7 @@ export async function* runAgent(
       }
     }
 
-    if (
-      agentDefinition.agentType === 'mercury-scout' ||
-      agentDefinition.agentType === 'mercury-architect'
-    ) {
+    if (readOnlyScout) {
       for (const key of Object.keys(systemContext)) {
         if (/gitstatus/i.test(key)) delete systemContext[key]
       }
@@ -878,6 +882,7 @@ export async function* runAgent(
     }
 
     if (reviewReceipt !== undefined) tools = restrictReviewerTools(tools, reviewReceipt, worktreePath!)
+    if (readOnlyScout) tools = restrictScoutTools(tools)
     tools = tools.filter(tool => tool.name !== ASK_ADVISOR_TOOL_NAME)
 
     const enabledToolNames = new Set(tools.map(tool => tool.name))
@@ -890,7 +895,7 @@ export async function* runAgent(
         enabledToolNames,
         agentId,
       ))
-    if (reviewReceipt !== undefined) systemPrompt.push(`Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
+    if (reviewReceipt !== undefined) systemPrompt.push(REVIEW_BRIEF, `Your declared review receipt is ${reviewReceipt}. Only its Review section is editable. Run bun verification under scripts, bash suite runners, or bun run typecheck in the frozen worktree; a with-box-lock.sh wrapper with a literal temporary BASE is accepted. Verification commands have a fresh temporary home and filesystem confinement: sources and the report are read-only, temporary results are writable. Ordinary permission checks still apply; unavailable confinement refuses without running.`)
     if (structuredOutputSpec !== undefined) {
       systemPrompt.push(
         `When the task is COMPLETE, deliver the final answer by calling the ${STRUCTURED_OUTPUT_TOOL_NAME} tool with data matching its schema${

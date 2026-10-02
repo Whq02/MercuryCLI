@@ -124,7 +124,7 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
         return {
           blocks: [
             { type: 'text', text: 'spawning the ping mate' },
-            { type: 'tool_use', name: 'Agent', input: { name: MATE_NAME, crew_name: MATE_CREW, description: MATE_NAME, prompt: MATE_PROMPT, subagent_type: 'mercury-general' } },
+            { type: 'tool_use', name: 'Agent', input: { name: MATE_NAME, crew_name: MATE_CREW, description: MATE_NAME, prompt: MATE_PROMPT, subagent_type: 'mercury-crew' } },
           ],
           usage: { input: 1200, output: 80 },
         }
@@ -133,7 +133,7 @@ export function blocksFor(route: Route, ask: string, seatTool: SeatTool, step = 
       return {
         blocks: [
           { type: 'text', text: 'launching the sleeper' },
-          { type: 'tool_use', name: 'Agent', input: { description: SEAT_NAME, prompt: SEAT_PROMPT, subagent_type: 'mercury-general', ...(background ? { run_in_background: true } : {}) } },
+          { type: 'tool_use', name: 'Agent', input: { description: SEAT_NAME, prompt: SEAT_PROMPT, subagent_type: 'mercury-crew', ...(background ? { run_in_background: true } : {}) } },
         ],
         usage: { input: 1200, output: 80 },
       }

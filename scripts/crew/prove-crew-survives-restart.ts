@@ -34,7 +34,7 @@ const spawn = (id: string, name: string, word: string): Record<string, unknown> 
   kind: 'tool_use',
   id,
   name: 'Agent',
-  input: { name, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-general', description: `the ${name} seat`, prompt: `${word}: reply once.` },
+  input: { name, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-crew', description: `the ${name} seat`, prompt: `${word}: reply once.` },
 })
 
 const script: ScriptedTurn[] = [

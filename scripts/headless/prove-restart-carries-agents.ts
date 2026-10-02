@@ -92,8 +92,8 @@ const script: Script = req => {
   if (req.ask.includes(FIRST_ASK)) {
     if (req.step > 0) return [{ type: 'text', text: PARENT_DONE }]
     return [
-      { type: 'tool_use', name: 'Agent', input: { description: DONE_DESCRIPTION, prompt: DONE_PROMPT, subagent_type: 'mercury-general', run_in_background: true } },
-      { type: 'tool_use', name: 'Agent', input: { description: LIVE_DESCRIPTION, prompt: LIVE_PROMPT, subagent_type: 'mercury-general', run_in_background: true } },
+      { type: 'tool_use', name: 'Agent', input: { description: DONE_DESCRIPTION, prompt: DONE_PROMPT, subagent_type: 'mercury-crew', run_in_background: true } },
+      { type: 'tool_use', name: 'Agent', input: { description: LIVE_DESCRIPTION, prompt: LIVE_PROMPT, subagent_type: 'mercury-crew', run_in_background: true } },
     ]
   }
   return [{ type: 'text', text: 'noted' }]

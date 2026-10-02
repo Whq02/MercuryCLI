@@ -31,7 +31,7 @@
 # gate-watch: src/state/AppStateStore.ts src/state/crewLedger.ts src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts
 # gate-watch: src/tasks.ts src/tasks/LocalAgentTask/* src/tasks/LocalMainSessionTask.ts
 # gate-watch: src/tasks/LocalWorkflowTask/LocalWorkflowTask.tsx src/tasks/stopTask.ts src/tools/AgentTool/*
-# gate-watch: src/tools/AgentTool/built-in/generalPurposeAgent.ts
+# gate-watch: src/tools/AgentTool/built-in/mercuryCrewAgent.ts
 # gate-watch: src/tools/shared/spawnMultiAgent.ts src/types/ids.ts src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts src/utils/attachments/orchestrator.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/computedDefault.ts

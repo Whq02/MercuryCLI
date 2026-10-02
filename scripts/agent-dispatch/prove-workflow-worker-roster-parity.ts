@@ -92,14 +92,14 @@ function harness(): { agent: (p: string, o?: Record<string, unknown>) => Promise
 
 const pool = assembleToolPool({ ...permissionContext, mode: 'implement' } as never, fixtureMcp as never)
 const poolNames = sorted(pool)
-const general = getBuiltInAgents().find(a => a.agentType === 'mercury-general')
+const general = getBuiltInAgents().find(a => a.agentType === 'mercury-crew')
 if (general === undefined) {
-  console.error('prove-workflow-worker-roster-parity: the built-in mercury-general definition is missing')
+  console.error('prove-workflow-worker-roster-parity: the built-in mercury-crew definition is missing')
   process.exit(1)
 }
 const crewmate = sorted(resolveWorkerTools(general, 'implement', pool, true))
 console.log(`  fixture pool: ${show(poolNames)}`)
-console.log(`  background crewmate (mercury-general, async): ${show(crewmate)}`)
+console.log(`  background crewmate (mercury-crew, async): ${show(crewmate)}`)
 
 section('§1 THE BUILT-IN WORKFLOW WORKER CARRIES A BACKGROUND CREWMATE\'S BOX')
 {
@@ -112,7 +112,7 @@ section('§1 THE BUILT-IN WORKFLOW WORKER CARRIES A BACKGROUND CREWMATE\'S BOX')
     const wire = [...worker.names].sort()
     check('the built-in workflow worker was dispatched', worker.agentType === WORKFLOW_SUBAGENT_DEF.agentType, worker.agentType)
     check(
-      "the worker's roster equals a background mercury-general crewmate's from the same pool, by name",
+      "the worker's roster equals a background mercury-crew crewmate's from the same pool, by name",
       same(wire, crewmate),
       `workflow ${show(wire)} | crewmate ${show(crewmate)}`,
     )

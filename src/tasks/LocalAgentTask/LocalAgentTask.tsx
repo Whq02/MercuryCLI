@@ -47,7 +47,7 @@ import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
 
 
-const DEFAULT_AGENT_TYPE = 'mercury-general'
+const DEFAULT_AGENT_TYPE = 'mercury-crew'
 
 const MAIN_SESSION_AGENT_TYPE = 'main-session'
 

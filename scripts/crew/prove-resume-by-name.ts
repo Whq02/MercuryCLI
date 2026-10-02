@@ -47,7 +47,7 @@ const { asAgentId, toAgentId } = await import('../../src/types/ids.ts')
 const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
 const { ordinalOf } = await import('../../src/fabric/ordinal.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { GENERAL_PURPOSE_AGENT } = await import('../../src/tools/AgentTool/built-in/generalPurposeAgent.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { buildPostCompactMessages, createAsyncAgentAttachmentsIfNeeded } = await import('../../src/services/compact/compact.ts')
 const { getCompactUserSummaryMessage } = await import('../../src/services/compact/prompt.ts')
@@ -60,7 +60,7 @@ type Reader = (messages: readonly Message[]) => NamedReceipt[]
 type ByName = (messages: readonly Message[], name: string) => NamedReceipt[]
 type Sidecar = { agentType?: string; description?: string; model?: string; name?: string; launchedAt?: number } | null
 
-const FAKE_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string } }
 type Store = { get: () => AppState; set: (u: (prev: AppState) => AppState) => void }
 function makeStore(): Store {
@@ -91,7 +91,7 @@ const launchRow = (toolUseId: string, name: string | undefined, description: str
       id: `msg_${toolUseId}`,
       model: 'claude-fable-5-1',
       role: 'assistant',
-      content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: 'mercury-general', run_in_background: true, ...(name !== undefined ? { name } : {}) } }],
+      content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: 'mercury-crew', run_in_background: true, ...(name !== undefined ? { name } : {}) } }],
       usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       stop_reason: 'tool_use',
     },
@@ -160,7 +160,7 @@ const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(
 const makeLaunchCtx = (store: Store, messages: Message[], toolUseId: string): never =>
   ({
     ...(makeCtx(store, messages) as object),
-    options: { tools: [], commands: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'claude-fable-5-1', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [GENERAL_PURPOSE_AGENT] }, debug: false, verbose: false },
+    options: { tools: [], commands: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'claude-fable-5-1', maxThinkingTokens: 0, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [MERCURY_CREW_AGENT] }, debug: false, verbose: false },
     readFileState: createFileStateCacheWithSizeLimit(READ_FILE_STATE_CACHE_SIZE),
     toolUseId,
     setResponseLength: () => {},
@@ -169,7 +169,7 @@ const launchReal = async (store: Store, transcript: Message[], name: string, des
   const toolUseId = `toolu_real_${++n}`
   const parent = { type: 'assistant', requestId: `req_real_${n}`, message: { id: `msg_real_${n}`, content: [] } } as never
   const answer = (await AgentTool.call(
-    { description, prompt: `work as ${description}`, subagent_type: 'mercury-general', run_in_background: true, name } as never,
+    { description, prompt: `work as ${description}`, subagent_type: 'mercury-crew', run_in_background: true, name } as never,
     makeLaunchCtx(store, transcript, toolUseId),
     (async () => ({ behavior: 'allow', updatedInput: {} })) as never,
     parent,
@@ -383,7 +383,7 @@ console.log(`  the sidecar: ${JSON.stringify(launched)}`)
 check('the launch writes its sidecar beside the transcript (the run loop\'s own write, before its first model call)', launched !== null && existsSync(getAgentMetadataPath(asAgentId(beacon.id))), JSON.stringify(launched))
 check('the sidecar carries the launch name (RED on the base)', launched?.name === 'harbour-count', JSON.stringify(launched))
 check('…and the launch clock, the Agent tool\'s own start time (RED on the base)', typeof launched?.launchedAt === 'number' && launched.launchedAt >= before && launched.launchedAt <= Date.now(), JSON.stringify(launched))
-check('…beside the launch facts it always carried: the kind, the description, the dispatched model', launched?.agentType === 'mercury-general' && launched?.description === 'count the harbour' && typeof launched?.model === 'string', JSON.stringify(launched))
+check('…beside the launch facts it always carried: the kind, the description, the dispatched model', launched?.agentType === 'mercury-crew' && launched?.description === 'count the harbour' && typeof launched?.model === 'string', JSON.stringify(launched))
 const launchClock = launched?.launchedAt
 const launchWrite = existsSync(getAgentMetadataPath(asAgentId(beacon.id))) ? statSync(getAgentMetadataPath(asAgentId(beacon.id))).mtimeMs : 0
 await evictKilled(durable, beacon.id, 'count the harbour')

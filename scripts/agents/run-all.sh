@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/Tool* src/bootstrap/state* src/services/compact/compact* src/services/crew/liveComms* src/services/crew/liveMessages*
-# gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/generalPurposeAgent*
+# gate-watch: src/tools/AgentTool/AgentTool* src/tools/AgentTool/built-in/mercuryCrewAgent* src/tools/AgentTool/built-in/mercuryScoutAgent*
 # gate-watch: src/tools/AgentTool/builtInAgents* src/utils/crew/crewBirth.ts src/tools.ts src/tools/MCPTool/absentToolShim.ts
-# gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/built-in/mercuryReviewerAgent.ts
+# gate-watch: src/tools/AgentTool/reviewerPolicy.ts src/tools/AgentTool/runAgent.ts src/tools/AgentTool/constants.ts
 # gate-watch: src/utils/**
 # gate-watch: src/cli/print.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/handlers/agents.ts
@@ -11,7 +11,7 @@
 # gate-watch: src/components/tasks/taskStatusUtils.tsx src/constants/prompts.ts
 # gate-watch: src/constants/subagentDoctrine.ts src/extensions/load/contributions.ts src/fabric/entryCodec.ts
 # gate-watch: src/fabric/ordinal.ts src/main.tsx src/services/agentResults/lifecycle.ts
-# gate-watch: src/tools/AgentTool/built-in/mercuryGuideAgent.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
+# gate-watch: src/skills/bundled/mercuryDocs.ts src/skills/bundled/verifier.ts src/commands/verify.ts src/tools/SkillTool/constants.ts src/skills/bundled/provider-apis/SKILL.md
 # gate-watch: src/services/providers/openai/openaiCatalogue.ts src/services/resources/adapters/agent.ts
 # gate-watch: src/services/resources/adapters/transcript.ts src/state/AppStateStore.ts
 # gate-watch: src/tasks/InProcessCrewmateTask/InProcessCrewmateTask.tsx src/tasks/stopTask.ts
@@ -25,38 +25,35 @@ prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/script
 here="$(cd "$(dirname "$0")" && pwd)"
 root="$here/../.."
 dist="$root/dist/mercury.mjs"
-guide="$root/src/tools/AgentTool/built-in/mercuryGuideAgent.ts"
+scout="$root/src/tools/AgentTool/built-in/mercuryScoutAgent.ts"
 agentprompt="$root/src/tools/AgentTool/prompt.ts"
 bun="${BUN:-$HOME/.bun/bin/bun}"
 fail=0
 
 echo "############################################################"
-echo "# Built-in agent identity + NEVER-Haiku"
+echo "# Built-in roster: mercury-crew + mercury-scout; NEVER-Haiku"
 echo "############################################################"
 
 if [ -f "$dist" ]; then
-  n=$(grep -cF "You are Mercury's product guide" "$dist" 2>/dev/null || true)
-  if [ "$n" -ge 1 ]; then echo "  ✓ guide agent names Mercury (dist x$n)"; else echo "  ✗ guide-agent self-label missing"; fail=1; fi
+  n=$(grep -cF "Mercury's crew agent, the default for delegated work" "$dist" 2>/dev/null || true)
+  if [ "$n" -ge 1 ]; then echo "  ✓ mercury-crew ships naming Mercury (dist x$n)"; else echo "  ✗ mercury-crew's cue missing from dist"; fail=1; fi
+  n=$(grep -cF "You are Mercury's repository scout" "$dist" 2>/dev/null || true)
+  if [ "$n" -ge 1 ]; then echo "  ✓ mercury-scout ships naming Mercury (dist x$n)"; else echo "  ✗ mercury-scout's self-label missing from dist"; fail=1; fi
 else
   echo "  ✗ dist not built — run: bun run build.ts"; fail=1
 fi
 
-if grep -qF "model: 'inherit'" "$guide" && ! grep -qF "'haiku'" "$guide"; then
-  echo "  ✓ guide-agent model is inherit (no haiku arm)"
+if grep -qF "model: 'inherit'" "$scout" && ! grep -qF "'haiku'" "$scout"; then
+  echo "  ✓ scout model is inherit (no haiku arm)"
 else
-  echo "  ✗ guide-agent model wrong or a haiku arm resurfaced"; fail=1
+  echo "  ✗ scout model wrong or a haiku arm resurfaced"; fail=1
 fi
 
-if grep -qF "'mercury-guide'" "$guide"; then
-  echo "  ✓ guide-agent slug is mercury-guide"
+roster=$("$bun" -e "import('$root/src/tools/AgentTool/builtInAgents.ts').then(m=>console.log(m.getBuiltInAgents().map(a=>a.agentType).join(','))).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
+if [ "$roster" = "mercury-crew,mercury-scout" ]; then
+  echo "  ✓ the built-in roster is mercury-crew, mercury-scout"
 else
-  echo "  ✗ guide-agent slug wrong"; fail=1
-fi
-slugres=$("$bun" -e "import('$root/src/tools/AgentTool/built-in/mercuryGuideAgent.ts').then(m=>console.log(m.MERCURY_GUIDE_AGENT_TYPE)).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)
-if [ "$slugres" = "mercury-guide" ]; then
-  echo "  ✓ stamp-sim resolver: the slug resolves to mercury-guide"
-else
-  echo "  ✗ stamp-sim slug resolution: got '$slugres'"; fail=1
+  echo "  ✗ the built-in roster reads '$roster'"; fail=1
 fi
 
 res=$("$bun" -e "import('$root/src/utils/model/agent.js').then(m=>{const p='claude-opus-4-8[1m]';const inh=m.getAgentModel('inherit',p);const hk=m.getAgentModel('haiku',p);const ok=inh===p&&/haiku/i.test(hk);console.log(ok?'OK':'BAD',inh,'|',hk);}).catch(e=>console.log('ERR',(e&&e.message)||e));" 2>&1 | tail -1)

@@ -230,7 +230,7 @@ export const TASKS: TaskDef[] = [
     prompt: ctx => withMarker(ctx, 'delegate-agent', TASKS_ASK('delegate-agent')),
     probeTools: [],
     script: ctx => [
-      call('Agent', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, subagent_type: 'mercury-general' }),
+      call('Agent', { description: 'Summarize test coverage', prompt: `[ax-seat:summary] Read ${join(ctx.projectDir, 'test', 'stats.test.js')} and report which functions the tests cover.`, subagent_type: 'mercury-crew' }),
       final('The subagent reports the tests cover two functions: mean (one case) and median (two cases, odd- and even-length).'),
     ],
     seats: ctx => ({
@@ -291,31 +291,26 @@ export const TASKS: TaskDef[] = [
   },
   {
     id: 'guide-question',
-    title: 'ask the guide agent a how-do-I question',
-    ask: "Ask Mercury's built-in guide agent this question and relay its answer: how do I change the permission mode in Mercury?",
-    allowedTools: ['Agent', 'Read', 'Grep', 'Glob', 'WebFetch'],
+    title: 'ask a how-do-I question about Mercury',
+    ask: 'Answer this from Mercury\'s own documentation and tell me what it says: how do I change the permission mode in Mercury?',
+    allowedTools: ['Skill', 'Read', 'Grep', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'guide-question', TASKS_ASK('guide-question')),
     probeTools: [],
     script: () => [
-      call('Agent', { description: 'Ask the Mercury guide', prompt: '[ax-seat:guide] How do I change the permission mode in Mercury?', subagent_type: 'mercury-guide' }),
-      final('The guide says: in an interactive session the mode cycles on the shift+tab carousel; /authority is the control surface; a headless run sets it with --mode <mode>.'),
+      call('Skill', { skill: 'mercury-docs', args: 'How do I change the permission mode in Mercury?' }),
+      final('The docs say: in an interactive session the mode cycles on the shift+tab carousel; /authority is the control surface; a headless run sets it with --mode <mode>.'),
     ],
-    seats: () => ({
-      guide: [final('Interactive sessions cycle the permission mode on the shift+tab carousel; /authority is the control surface; a headless run sets it at launch with --mode <mode>.')],
-    }),
     oracle: (ctx, { run, hits }) => {
       const surfaces = /shift\s*\+?\s*tab|\/authority|--mode|\/sovereign/i
       const relayed = surfaces.test(run.finalText)
-      if (!ctx.mechanical) {
-        const asked = run.toolUses.some(u => u.name === 'Agent' && String(u.input.subagent_type ?? '') === 'mercury-guide')
-        return { pass: asked && relayed, detail: `guide asked: ${asked}; a real surface named: ${relayed}` }
-      }
-      const seat = hits.find(h => h.kind === 'seat' && h.seatId === 'guide')
-      const prompt = seat ? systemPromptText(seat.body, seat.dialect!) : ''
-      const isGuide = /Mercury's product guide/i.test(prompt)
-      const knowsRoster = /\/authority/.test(prompt)
-      return { pass: !!seat && isGuide && knowsRoster && relayed, detail: `guide seat request: ${!!seat}; guide prompt: ${isGuide}; roster carries /authority: ${knowsRoster}; relayed: ${relayed}` }
+      const asked = run.toolUses.some(u => u.name === 'Skill' && String(u.input.skill ?? '').replace(/^\//, '') === 'mercury-docs')
+      if (!ctx.mechanical) return { pass: asked && relayed, detail: `docs skill invoked: ${asked}; a real surface named: ${relayed}` }
+      const mains = hits.filter(h => h.kind === 'main' && h.taskId === 'guide-question')
+      const texts = mains.flatMap(h => userTexts(h.body, h.dialect!))
+      const opened = texts.some(t => t.includes("Answer the question from Mercury's own documentation") && t.includes('- docs/TRUST.md'))
+      const fetched = run.toolUses.some(u => u.name === 'WebFetch' || u.name === 'WebSearch')
+      return { pass: asked && opened && relayed && !fetched, detail: `docs skill invoked: ${asked}; the shipped pages reached the model: ${opened}; relayed: ${relayed}; no web fetch: ${!fetched}` }
     },
   },
   {
@@ -329,8 +324,8 @@ export const TASKS: TaskDef[] = [
     script: ctx => [
       {
         calls: [
-          { name: 'Agent', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, subagent_type: 'mercury-general' } },
-          { name: 'Agent', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, subagent_type: 'mercury-general' } },
+          { name: 'Agent', input: { description: 'Seat A: count tests', prompt: `[ax-seat:count] Count the test cases in ${join(ctx.projectDir, 'test', 'stats.test.js')}.`, subagent_type: 'mercury-crew' } },
+          { name: 'Agent', input: { description: 'Seat B: list exports', prompt: `[ax-seat:exports] List the functions ${join(ctx.projectDir, 'src', 'stats.js')} exports.`, subagent_type: 'mercury-crew' } },
         ],
       },
       final(`Seat A: test/stats.test.js holds ${ctx.facts.testCount} test cases. Seat B: src/stats.js exports ${ctx.facts.exports.join(', ')}.`),

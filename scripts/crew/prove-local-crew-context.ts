@@ -68,7 +68,7 @@ const lead = 'crew-lead'
 const leadId = formatAgentId(lead, group)
 let state = { ...getDefaultAppState(), crewContext: { crewName: group, crewFilePath: getCrewFilePath(group), leadAgentId: leadId, crewmates: {} } } as AppState
 const setAppState = (update: (state: AppState) => AppState): void => { state = update(state) }
-const member = (n: string) => ({ agentId: formatAgentId(n, group), name: n, agentType: 'mercury-general', model: MODEL, joinedAt: 1000, tmuxPaneId: 'in-process', cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
+const member = (n: string) => ({ agentId: formatAgentId(n, group), name: n, agentType: 'mercury-crew', model: MODEL, joinedAt: 1000, tmuxPaneId: 'in-process', cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
 await writeCrewFileAsync(group, { name: group, createdAt: 1000, leadAgentId: leadId, leadSessionId: String(getSessionId()), members: [member(lead), member(name)] } as never)
 const context = { options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } }, messages: [], abortController: new AbortController(), getAppState: () => state, setAppState, setAppStateForTasks: setAppState, readFileState: new Map(), toolUseId: 'local-fixture-launch' } as never
 const spawn = await spawnInProcessCrewmate({ name, crewName: group, prompt: 'Inspect the fixture.', model: MODEL }, { setAppState })

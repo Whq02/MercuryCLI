@@ -258,7 +258,7 @@ async function startFixture(port: number, laneCwd?: string): Promise<{ base: str
           toolBlock(0, `toolu_overload_agent_${++toolSeq}`, 'Agent', {
             description: LANE_NAME,
             prompt: `${SEAT_MARK} read the notes file once, then report in one line`,
-            subagent_type: 'mercury-general',
+            subagent_type: 'mercury-crew',
             ...(INLINE ? {} : { run_in_background: true }),
             ...(laneCwd !== undefined ? { cwd: laneCwd } : {}),
             ...(FAMILY_MODEL !== undefined ? { model: FAMILY_MODEL } : {}),

@@ -17,7 +17,6 @@ import { isFsInaccessible } from '../errors.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
 import { getProjectDir as resolveProjectDirWithAdoption } from '../sessionStoragePortable.js'
-import { RETIRED_AGENT_TYPES } from '../../tools/AgentTool/constants.js'
 import { readRetiredAgentSidecar } from '../../migrations/retiredCrewSpellings.js'
 
 export function isTranscriptMessage(entry: Entry): entry is TranscriptMessage {
@@ -202,9 +201,7 @@ export async function readAgentMetadata(
     throw e
   }
   try {
-    const meta = readRetiredAgentSidecar(JSON.parse(raw) as AgentMetadata)
-    const current = RETIRED_AGENT_TYPES[meta.agentType]
-    return current === undefined ? meta : { ...meta, agentType: current }
+    return readRetiredAgentSidecar(JSON.parse(raw) as AgentMetadata)
   } catch {
     logForDebugging(
       `agent metadata sidecar unreadable (corrupt JSON) at ${path} — resume falls back to re-resolution`,

@@ -1244,7 +1244,7 @@ process.stdin.on('end', () => process.exit(0))
       const SEAT_DESCRIPTION = 'prefix-seat'
       const summary = 'S9 SUMMARY needle: the main launched the seat and folded.'
       const turns: ScriptedTurn[] = [
-        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'mercury-general', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
+        { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'prefix-seat: run three short shells, one per turn, then report in one line', subagent_type: 'mercury-crew', run_in_background: true, model: SEAT_ALIAS }, thinking: 's9 launch', usage: { input_tokens: 97_000 }, model: FABLE, whenModel: 'fable' },
         { kind: 'paced', deltas: [summary], gapMs: 0, startDelayMs: 7000, whenModel: 'fable' },
         { kind: 'text', text: 'S9-POST', thinking: 's9 after the fold', model: FABLE, whenModel: 'fable' },
         { kind: 'text', text: 'S9-NOTED', thinking: 's9 noted', model: FABLE, whenModel: 'fable' },
@@ -1308,7 +1308,7 @@ process.stdin.on('end', () => process.exit(0))
       const tag = background ? 'background' : 'foreground'
       const seatCall = (n: number): { name: string; input: Record<string, unknown> } => ({
         name: 'Agent',
-        input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, subagent_type: 'mercury-general', run_in_background: background, model: SEAT_ALIAS },
+        input: { description: `prefix-wave-${n}`, prompt: `prefix-wave: report one line and stop (${n})`, subagent_type: 'mercury-crew', run_in_background: background, model: SEAT_ALIAS },
       })
       const turns: ScriptedTurn[] = [
         { kind: 'paced_tool_use', preDeltas: ['Dispatching the first wave of three agents.'], gapMs: 0, tools: [seatCall(1), seatCall(2), seatCall(3)], whenModel: 'opus' },
