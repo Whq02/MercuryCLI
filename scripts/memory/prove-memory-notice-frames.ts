@@ -164,6 +164,18 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
   save('crewmate-view-120x40.txt', crewmate)
 }
 
+section('§5 the line is a start-of-session reading: what changes mid-session paints nothing new')
+{
+  const { pinnedStatusPath } = await import('../../src/memdir/mnemeFrontPage.js')
+  const under = { ...status!, over: false, used: 100, pinned: 1 }
+  writeFileSync(pinnedStatusPath(dir), JSON.stringify(under))
+  check('the status on disk now reads under the limit', readPinnedStatus(dir)?.over === false)
+  const again = getActiveNotices({ config: getGlobalConfig(), memoryFiles: [] })
+  check('a header re-render keeps the reading the session started with', again.some(n => n.id === 'pinned-over-limit'), again.map(n => n.id).join(','))
+  const line = again.find(n => n.id === 'pinned-over-limit')?.render({ config: getGlobalConfig(), memoryFiles: [] })
+  check('and the same words', line !== null && line !== undefined)
+}
+
 await releaseScratchHome(HOME)
 console.log(`\nmemory notice frames: ${failures} failure(s)`)
 process.exit(failures ? 1 : 0)

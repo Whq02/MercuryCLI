@@ -173,15 +173,23 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   },
 }
 
-function pinnedOverLimit(): { pinned: number; used: number; limit: number } | null {
+type PinnedOverLimit = { pinned: number; used: number; limit: number } | null
+
+let pinnedOverLimitAtStart: PinnedOverLimit | undefined
+
+function pinnedOverLimit(): PinnedOverLimit {
+  if (pinnedOverLimitAtStart !== undefined) return pinnedOverLimitAtStart
+  let read: PinnedOverLimit = null
   try {
-    if (!mnemeEnabled()) return null
-    if (process.env.MERCURY_ENTRYPOINT === 'headless') return null
-    const status = readPinnedStatus()
-    return status && status.over ? { pinned: status.pinned, used: status.used, limit: status.limit } : null
+    if (mnemeEnabled() && process.env.MERCURY_ENTRYPOINT !== 'headless') {
+      const status = readPinnedStatus()
+      read = status && status.over ? { pinned: status.pinned, used: status.used, limit: status.limit } : null
+    }
   } catch {
-    return null
+    read = null
   }
+  pinnedOverLimitAtStart = read
+  return read
 }
 
 export function pinnedOverLimitLine(status: { pinned: number; used: number; limit: number }): string {
