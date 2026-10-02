@@ -5,10 +5,8 @@ import { qualifiedIdSpaceOf } from '../../services/providers/idSpaces.js'
 import { TOOL_SEARCH_TOOL_NAME } from './constants.js'
 import { APOLLO_REVIEW_TOOL_NAME } from '../ApolloReviewTool/constants.js'
 import {
-  isSaturnExemptAEnabled,
-  isSaturnExemptBEnabled,
-  SATURN_EXEMPT_TOOL_A,
-  SATURN_EXEMPT_TOOL_B,
+  isSaturnExemptEnabled,
+  SATURN_EXEMPT_TOOL,
 } from '../saturnExemptTools.js'
 import { isDeferredToolsDeltaEnabled } from '../../utils/toolSearchFlags.js'
 
@@ -26,8 +24,7 @@ export function isDeferredTool(tool: Tool, permissionMode?: string): boolean {
   if (tool.alwaysLoad) return false
   if (isMcpToolLike(tool)) return true
   if (tool.name === TOOL_SEARCH_TOOL_NAME) return false
-  if (tool.name === SATURN_EXEMPT_TOOL_A && isSaturnExemptAEnabled()) return false
-  if (tool.name === SATURN_EXEMPT_TOOL_B && isSaturnExemptBEnabled()) return false
+  if (tool.name === SATURN_EXEMPT_TOOL && isSaturnExemptEnabled()) return false
   return Boolean(tool.shouldDefer)
 }
 

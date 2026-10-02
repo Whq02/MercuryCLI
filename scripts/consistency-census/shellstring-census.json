@@ -1151,13 +1151,6 @@
       "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
     },
     {
-      "file": "scripts/permissions/prove-push-notification-honest.ts",
-      "mechanism": "execSync-string",
-      "excerpt": "execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'",
-      "cls": "intentional-shell",
-      "why": "maintainer script running a named shell command line (audited: no interpolated revisions/paths reach cmd.exe — the fixed-tool sites were converted in W6-A)"
-    },
-    {
       "file": "scripts/pings/journey-calm-idle.ts",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "const py = spawnSync('/usr/bin/python3', ['-c', 'import pyte'], { encoding: 'utf8' })",

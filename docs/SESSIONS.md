@@ -558,7 +558,7 @@ back after its run ended (a message sent to it, the crew view's resume) sends
 the tool list it first sent, whatever the session's tools are by then.
 
 On a cloud model a conversation starts with Agent, Bash, Glob, Grep, Read,
-Edit, Write, Skill, Workshop, Eval, JevEval, ScheduleWakeup, PushNotification
+Edit, Write, Skill, Workshop, Eval, JevEval, ScheduleWakeup
 and ToolSearch in full when their gates admit them and, loaded in full
 beside them, ChangeSet, AstSearch, AstEdit, LSP (whenever a language server
 is reachable), Test, Git, Debug (whenever a debug adapter is reachable),

@@ -270,13 +270,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     latency: 'long-running',
     conditions: ['Windows — the Windows shell road: the MERCURY_USE_POWERSHELL_TOOL opt-in, or no bash.exe found (the tool then stands in for Bash)'],
   },
-  PushNotification: {
-    intents: ['send the operator a push notification'],
-    units: ['operator-io'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-  },
   Read: {
     intents: ['read a file', 'view an image or pdf', 'read a notebook'],
     units: ['source-reading'],

@@ -244,10 +244,6 @@ export type ToolUseContext = {
   updateFileHistoryState: (updater: (prev: FileHistoryState) => FileHistoryState) => void
   updateAttributionState: (updater: (prev: any) => any) => void
   addNotification?: (...args: any[]) => void
-  sendOSNotification?: (notification: {
-    message: string
-    notificationType: string
-  }) => Promise<string>
   appendSystemMessage?: (
     message: Exclude<SystemMessage, { subtype: 'local_command' }>,
   ) => void
