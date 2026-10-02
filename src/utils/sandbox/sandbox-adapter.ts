@@ -646,7 +646,7 @@ export function addToExcludedCommands(command: string, permissionUpdates?: Permi
         r => r.toolName === 'Bash',
       )
       if (bashRule?.ruleContent) {
-        pattern = bashRule.ruleContent.replace(/:\*$/, '')
+        pattern = bashRule.ruleContent
         break
       }
     }
