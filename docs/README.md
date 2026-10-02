@@ -148,7 +148,7 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
 - [BUILD-NOTES.md](../BUILD-NOTES.md): building and packaging the artifact,
   the vendored payloads, the manifest, and the launchers.
 - [templates/extension-source-README.md](templates/extension-source-README.md):
-  the README an extension source starts from (`mercury extensions init
+  the README an extension source starts from (`mercury extensions scaffold
   --source` writes it).
 - Inventories render on demand to untracked paths, never into the tree: the
   flag table from `src/substrate/flagRegistry.ts`, the durable-operation

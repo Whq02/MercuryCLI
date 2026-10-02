@@ -80,7 +80,9 @@ console.log('[1] the verb walk: add → sources → list → install(--yes) → 
   const blockedRow = json<{ extensions: Array<{ id: string; trust: string }> }>(run(['extensions', 'list', '--json']).stdout).extensions.find(e => e.id === 'kitchen-sink@fixture-source')
   check('the row reads blocked', blockedRow?.trust === 'blocked')
   const enableBlocked = run(['extensions', 'enable', 'kitchen-sink@fixture-source'])
-  check('enable while blocked refuses naming the unblock key', enableBlocked.code === 1 && enableBlocked.stderr.includes('unblock'))
+  check('enable while blocked refuses naming the shell remedy, the unfence verb with the entry', enableBlocked.code === 1 && enableBlocked.stderr.includes('mercury extensions unfence kitchen-sink@fixture-source') && !/\bb unblocks\b/.test(enableBlocked.stderr), enableBlocked.stderr.trim())
+  const blockedList = run(['extensions', 'list'])
+  check('the list cell names the unfence verb, never a board key', blockedList.stdout.includes('unfence lifts it') && !/\bb unblocks\b/.test(blockedList.stdout), blockedList.stdout.split('\n').find(line => line.includes('blocked')) ?? '')
   check('unfence exits 0', run(['extensions', 'unfence', 'kitchen-sink@fixture-source']).code === 0)
 
   const un = run(['extensions', 'uninstall', 'kitchen-sink@fixture-source', '--yes'])

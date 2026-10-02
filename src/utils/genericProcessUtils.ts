@@ -60,25 +60,6 @@ export async function getAncestorPidsAsync(pid: number, maxDepth: number = 10): 
     .filter(entry => Number.isInteger(entry))
 }
 
-export async function getAncestorCommandsAsync(pid: number, maxDepth: number = 10): Promise<string[]> {
-  let result
-  if (process.platform === 'win32') {
-    const script = `$p=${pid};$out=@();for($i=0;$i -lt ${maxDepth};$i++){$proc=Get-CimInstance Win32_Process -Filter "ProcessId=$p" -ErrorAction SilentlyContinue;if(-not $proc){break};if($proc.CommandLine){$out+=$proc.CommandLine};$pp=$proc.ParentProcessId;if(-not $pp -or $pp -eq 0 -or $pp -eq 1){break};$p=$pp};$out -join [char]0`
-    result = await execFileNoThrow('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
-      timeout: ANCESTOR_TIMEOUT_MS,
-      preserveOutputOnError: false,
-    })
-  } else {
-    const script = `p=${pid}; i=0; while [ $i -lt ${maxDepth} ]; do cmd=$(ps -o command= -p "$p" 2>/dev/null); if [ -n "$cmd" ]; then printf '%s\\0' "$cmd"; fi; pp=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' '); if [ -z "$pp" ] || [ "$pp" = "0" ] || [ "$pp" = "1" ]; then break; fi; p=$pp; i=$((i+1)); done`
-    result = await execFileNoThrow('sh', ['-c', script], {
-      timeout: ANCESTOR_TIMEOUT_MS,
-      preserveOutputOnError: false,
-    })
-  }
-  if (result.code !== 0 || result.stdout === '') return []
-  return result.stdout.split('\0').filter(entry => entry.length > 0)
-}
-
 
 export type Win32ProcMeta = {
   found: boolean

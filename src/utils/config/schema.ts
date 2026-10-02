@@ -145,8 +145,6 @@ export type AccountInfo = {
 
 export type EditorMode = 'emacs' | (typeof EDITOR_MODES)[number]
 
-export type DiffTool = 'terminal' | 'auto'
-
 export type GlobalConfig = {
   projects?: Record<string, ProjectConfig>
   numStartups: number
@@ -231,7 +229,6 @@ export type GlobalConfig = {
   hasUsedStash?: boolean
   hasUsedBackgroundTask?: boolean
   expandedView?: 'none' | 'tasks' | 'crewmates'
-  diffTool?: DiffTool
   iterm2SetupInProgress?: boolean
   iterm2BackupPath?: string
   appleTerminalBackupPath?: string
@@ -239,13 +236,6 @@ export type GlobalConfig = {
 
   shiftEnterKeyBindingInstalled?: boolean
   optionAsMetaKeyInstalled?: boolean
-
-  autoConnectIde?: boolean
-  autoInstallIdeExtension?: boolean
-
-  hasIdeOnboardingBeenShown?: Record<string, boolean>
-  ideHintShownCount?: number
-  hasIdeAutoConnectDialogBeenShown?: boolean
 
   tipsHistory: {
     [tipId: string]: number
@@ -346,7 +336,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     hasUsedStash: false,
     hasUsedBackgroundTask: false,
     expandedView: 'none',
-    diffTool: 'auto',
     customApiKeyResponses: {
       approved: [],
       rejected: [],
@@ -355,8 +344,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     promptQueueUseCount: 0,
     showExpandedTasks: false,
     messageIdleNotifThresholdMs: 60000,
-    autoConnectIde: false,
-    autoInstallIdeExtension: true,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
     copyFullResponse: false,
@@ -374,12 +361,9 @@ export const GLOBAL_CONFIG_KEYS = [
   'hasUsedBackslashReturn',
   'autoCompactEnabled',
   'showTurnDuration',
-  'diffTool',
   'tipsHistory',
   'showExpandedTasks',
   'messageIdleNotifThresholdMs',
-  'autoConnectIde',
-  'autoInstallIdeExtension',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
   'taskCompleteNotifEnabled',

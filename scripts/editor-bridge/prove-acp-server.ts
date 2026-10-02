@@ -206,17 +206,6 @@ function childPids(serverPid: number): number[] {
   }
 }
 
-section('(0) the SDK-host seam — the editor companion binds out of every fresh client list')
-{
-  const host = readFileSync('src/cli/print.ts', 'utf8')
-  const at = host.indexOf('sdkMcp.clients = freshClients')
-  check('the host imports registerEditorCompanion from its owner', host.includes("import { registerEditorCompanion } from '../services/mcp/vscodeSdkMcp.js'"))
-  check(
-    'registerEditorCompanion(freshClients) follows the fresh-list assignment',
-    at !== -1 && host.slice(at, at + 400).includes('registerEditorCompanion(freshClients)'),
-  )
-}
-
 const server1 = spawnServer()
 const h1 = await connectClient(server1)
 

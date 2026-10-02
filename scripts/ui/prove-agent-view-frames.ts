@@ -258,7 +258,7 @@ function Harness(): React.ReactNode {
       modalScrollRef,
       bottom: h(PromptInput, {
         compactWork: controls, compactFocus: focus,
-        debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+        debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
         setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
         isLoading: false, verbose: false, submitCount: 1, onShowMessageSelector: () => {},
         mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,

@@ -4,7 +4,7 @@ import { getOriginalCwd } from '../bootstrap/state.js'
 import { getGlobalConfig } from '../utils/config/globalConfig.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
 import { getSettingsForSource, removeSettingsFileIfEmpty, updateSettingsForSource } from '../utils/settings/settings.js'
-import { blockReason, matchBlock } from './blocklist.js'
+import { blockReason, matchBlock, type BlockSurface } from './blocklist.js'
 import { entryDirectory } from './catalogue.js'
 import { contributionsHash, extensionId, parseExtensionId, readManifest, type ExtensionManifest, type SwitchKind } from './manifest.js'
 import { deleteOptionValues } from './options.js'
@@ -202,12 +202,12 @@ export function readSwitch(id: string): { on: boolean; scope: 'everywhere' | 'pr
   return { on: false, scope: 'off', committedProposal: typeof committed === 'boolean' ? committed : null }
 }
 
-export function setSwitch(id: string, on: boolean, scope: SwitchScope = 'everywhere'): SwitchOutcome {
+export function setSwitch(id: string, on: boolean, scope: SwitchScope = 'everywhere', surface: BlockSurface = 'board'): SwitchOutcome {
   const parsed = parseExtensionId(id)
   if (!parsed) return { ok: false, reason: `not an extension id: ${id}` }
   if (on) {
     const blocked = matchBlock([id, parsed.label])
-    if (blocked) return { ok: false, reason: blockReason(blocked) }
+    if (blocked) return { ok: false, reason: blockReason(blocked, surface) }
     const record = installedOrEmpty()[id]
     if (parsed.label !== 'mercury') {
       if (!record) return { ok: false, reason: `${id} is not installed` }
@@ -236,15 +236,20 @@ export function setKindSwitch(id: string, kind: SwitchKind, on: boolean): Switch
   return { ok: true }
 }
 
-function removeSwitchHere(id: string): void {
+type SwitchHome = 'userSettings' | 'localSettings'
+
+function removeSwitchHere(id: string): SwitchHome[] {
+  const written: SwitchHome[] = []
   for (const source of ['userSettings', 'localSettings'] as const) {
     if (getSettingsForSource(source)?.extensions?.enabled?.[id] === undefined) continue
     updateSettingsForSource(source, { extensions: { enabled: { [id]: undefined } } } as never)
+    written.push(source)
   }
+  return written
 }
 
-function pruneEmptySettings(): void {
-  for (const source of ['userSettings', 'localSettings'] as const) {
+function pruneEmptySettings(sources: Iterable<SwitchHome>): void {
+  for (const source of sources) {
     const extensions = getSettingsForSource(source)?.extensions
     if (!extensions) {
       removeSettingsFileIfEmpty(source)
@@ -302,7 +307,7 @@ export function uninstall(id: string, options: { keepData?: boolean } = {}): Uni
   const steps: string[] = []
   const inPlace = parsed.label === 'project'
 
-  removeSwitchHere(id)
+  const written = new Set<SwitchHome>(removeSwitchHere(id))
   steps.push('switch removed from both homes')
   const others = removeSwitchFromKnownProjects(id)
   if (others.length > 0) steps.push(`switch removed from ${others.length} other project file${others.length === 1 ? '' : 's'}`)
@@ -315,9 +320,9 @@ export function uninstall(id: string, options: { keepData?: boolean } = {}): Uni
   if (!wrote.ok) return { ok: false, reason: wrote.error }
   steps.push('approval and installed record removed')
 
-  deleteOptionValues(id)
+  if (deleteOptionValues(id).settingsWritten) written.add('userSettings')
   steps.push('options and secrets removed')
-  pruneEmptySettings()
+  pruneEmptySettings(written)
 
   if (!inPlace) {
     rmSync(getInstalledIdDir(id), { recursive: true, force: true })

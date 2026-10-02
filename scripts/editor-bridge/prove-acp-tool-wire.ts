@@ -34,7 +34,7 @@ t.section('§1 toolKindOf — the verb kinds')
     ['Debug', 'execute'],
     ['Agent', 'think'],
     ['TaskCreate', 'think'],
-    ['mcp__ide__getDiagnostics', 'other'],
+    ['mcp__notes__getDiagnostics', 'other'],
     ['SomethingNew', 'other'],
   ]
   for (const [name, kind] of expect) {

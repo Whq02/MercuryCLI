@@ -9,7 +9,6 @@ import { structuredPatch } from 'diff'
 import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../bootstrap/state.js'
 import { commitPlanDigest, runTextChangeSetCommit, type CommitTarget } from '../services/changeTransaction/changeSetCommit.js'
 import { sha256Hex } from '../services/changeTransaction/changeSetPlan.js'
-import { notifyVscodeFileUpdated } from '../services/mcp/vscodeSdkMcp.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import type { LogOption } from '../types/logs.js'
 import { getGlobalConfig } from './config.js'
@@ -266,36 +265,10 @@ export async function fileHistoryMakeSnapshot(updateState: StateUpdater, message
     })
     if (committed) {
       const finished = committed as FileHistorySnapshot
-      if (previous) void notifyEditorOfChanges(previous, finished)
       void recordFileHistorySnapshot(messageId, finished, false)
     }
   } catch (err) {
     logError(err)
-  }
-}
-
-async function readBackupContent(name: string | null): Promise<string | null> {
-  if (name === null) return null
-  try {
-    return await readFile(backupPath(name), 'utf8')
-  } catch {
-    return null
-  }
-}
-
-async function notifyEditorOfChanges(previous: FileHistorySnapshot, next: FileHistorySnapshot): Promise<void> {
-  try {
-    for (const [key, backup] of Object.entries(next.trackedFileBackups)) {
-      const prior = previous.trackedFileBackups[key]
-      if (prior && prior.backupFileName === backup.backupFileName && prior.version === backup.version) continue
-      const [oldContent, newContent] = await Promise.all([
-        readBackupContent(prior?.backupFileName ?? null),
-        readBackupContent(backup.backupFileName),
-      ])
-      if (oldContent === newContent) continue
-      notifyVscodeFileUpdated(maybeExpandFilePath(key), oldContent ?? '', newContent ?? '')
-    }
-  } catch {
   }
 }
 

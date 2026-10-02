@@ -86,7 +86,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
     modal: modal === null ? undefined : h(Box, { width: '100%', flexDirection: 'column' }, modal),
     modalScrollRef,
     bottom: h(PromptInput, {
-      debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+      debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
       showBashesDialog: bashes, setShowBashesDialog: setBashes, onExit: () => {}, getToolUseContext: () => ({}),

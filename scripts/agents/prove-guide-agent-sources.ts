@@ -43,6 +43,14 @@ check("the guide's tools include the Skill tool", Array.isArray(MERCURY_GUIDE_AG
 check('the description names the two domains and the skill, in Mercury\'s words', MERCURY_GUIDE_AGENT.whenToUse.startsWith("Mercury's product guide:") && MERCURY_GUIDE_AGENT.whenToUse.includes('bundled provider-apis skill') && !/SDK/.test(MERCURY_GUIDE_AGENT.whenToUse), MERCURY_GUIDE_AGENT.whenToUse.slice(0, 160))
 check('the bundled skill the prompt names exists and covers the chat-completions providers too', existsSync(join(REPO, 'src/skills/bundled/provider-apis/SKILL.md')) && /xAI \(Grok\)/.test(readFileSync(join(REPO, 'src/skills/bundled/provider-apis/SKILL.md'), 'utf8')))
 
+const { getAllBaseTools } = await import('../../src/tools.ts')
+const { resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
+const pool = getAllBaseTools()
+const foreground = resolveAgentTools(MERCURY_GUIDE_AGENT, pool, false)
+const background = resolveAgentTools(MERCURY_GUIDE_AGENT, pool, true)
+const hasSkill = (resolved: { resolvedTools: Array<{ name: string }> }): boolean => resolved.resolvedTools.some(tool => tool.name === SKILL_TOOL_NAME)
+check('the Skill tool resolves for the guide out of the real pool, on the foreground road and the background road alike', hasSkill(foreground) && hasSkill(background) && !foreground.invalidTools.includes(SKILL_TOOL_NAME) && !background.invalidTools.includes(SKILL_TOOL_NAME), `foreground ${foreground.resolvedTools.map(t => t.name).join(',')} | background ${background.resolvedTools.map(t => t.name).join(',')}`)
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(` ✅ GUIDE AGENT SOURCES GREEN (${checks} checks)`)

@@ -9,7 +9,6 @@ export {
 } from './config/schema.js'
 export type {
   AccountInfo,
-  DiffTool,
   EditorMode,
   GlobalConfig,
   GlobalConfigKey,

@@ -26,8 +26,10 @@ Interactive boot evaluates trust after onboarding, every time, and shows the
 trust dialog whenever the working directory is not already covered by a grant. Permission mode does not change this — bypass
 affects tool execution, not workspace trust.
 
-The dialog names the directory, asks whether it is a folder you created or
-trust, and states plainly that Mercury will read, edit, and run the files there.
+The dialog names the directory, says to trust a folder only when you know what
+is in it — its settings can run hooks and helper commands and its files can
+carry instructions for the model — and states plainly that Mercury reads, edits
+and runs files there.
 When the directory sits inside a repository, it also states that the grant will
 cover the whole repository — the persisted grant root is the project-config
 path, the git root when one exists, and that sentence is derived live from the

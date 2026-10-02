@@ -32,7 +32,6 @@ import {
 import { serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { runtimeKernel } from '../../services/primitives/runtimeKernel.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -1288,7 +1287,6 @@ export const FileEditTool = buildTool({
         logError(err)
       }
     }
-    notifyVscodeFileUpdated(expandedPath, freshContent, updatedFile)
 
     context.readFileState.set(expandedPath, {
       content: updatedFile,

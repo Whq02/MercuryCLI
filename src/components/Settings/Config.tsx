@@ -425,12 +425,6 @@ export function Config({
   const conversationHasAssistantTurn = context.messages.some(
     message => message.type === 'assistant',
   )
-  const ideConnected =
-    appState.mcp.clients.some(
-      client =>
-        (client as { name?: string; type?: string }).name === 'ide' &&
-        (client as { connected?: boolean; type?: string }).type === 'connected',
-    )
   const thinkingOn = merged.engine?.reasoning === true
   const permissions = merged.guardrails ?? {}
   const defaultMode = validated(
@@ -1036,44 +1030,6 @@ export function Config({
         writeGlobal(c => ({ ...c, mouseCapture: next }))
         inkInstances.get(process.stdout)?.setMouseTrackingEnabled(next)
         recordToggle('mouseCapture', `set mouse capture to ${next ? 'on' : 'off'}`)
-      },
-    })
-  }
-  if (ideConnected) {
-    items.push({
-      id: 'diffTool',
-      label: 'Diff tool',
-      kind: 'enum',
-      value: <Text>{config.diffTool ?? 'auto'}</Text>,
-      change: direction => {
-        const tools = ['auto', 'terminal'] as const
-        const current = validated(tools, config.diffTool, 'auto')
-        const next = cycleIn(tools, current, direction)
-        writeGlobal(c => ({ ...c, diffTool: next }))
-        recordSet('diffTool', `set diff tool to ${next}`)
-      },
-    })
-  }
-  if (context.options.ideInstallationStatus === null) {
-    items.push({
-      id: 'autoConnectIde',
-      label: 'Auto-connect to IDE',
-      kind: 'boolean',
-      value: boolValue(config.autoConnectIde === true),
-      change: () => {
-        writeGlobal(c => ({ ...c, autoConnectIde: c.autoConnectIde !== true }))
-        recordToggle('autoConnectIde', `set auto-connect IDE to ${config.autoConnectIde !== true ? 'on' : 'off'}`)
-      },
-    })
-  } else {
-    items.push({
-      id: 'autoInstallIdeExtension',
-      label: 'Auto-install IDE extension',
-      kind: 'boolean',
-      value: boolValue(config.autoInstallIdeExtension !== false),
-      change: () => {
-        writeGlobal(c => ({ ...c, autoInstallIdeExtension: c.autoInstallIdeExtension === false }))
-        recordToggle('autoInstallIdeExtension', `set auto-install IDE extension to ${config.autoInstallIdeExtension === false ? 'on' : 'off'}`)
       },
     })
   }

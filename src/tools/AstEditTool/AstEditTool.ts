@@ -11,7 +11,6 @@ import { dropSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { structurePolyglotEnabled } from '../../services/structure/contracts.js'
 import { resolveGrammarEngineDir } from '../../services/structure/grammarFacility.js'
@@ -459,7 +458,6 @@ export const AstEditTool = buildTool({
         offset: undefined,
         limit: undefined,
       })
-      notifyVscodeFileUpdated(f.abs, f.before, f.after)
       if (lspManager) {
         const sync = await syncServersAfterWrite(lspManager, f.abs, f.after)
         if (!sync.ok) syncFailures.push(`${f.rel}: ${sync.reason}`)

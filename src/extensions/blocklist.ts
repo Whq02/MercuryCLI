@@ -52,8 +52,11 @@ export function matchBlock(candidates: Array<string | null | undefined>): BlockM
   return null
 }
 
-export function blockReason(match: NonNullable<BlockMatch>): string {
-  return match.by === 'policy' ? `blocked by policy (${match.entry}) — ask your administrator` : `blocked (${match.entry}) — b unblocks`
+export type BlockSurface = 'board' | 'shell'
+
+export function blockReason(match: NonNullable<BlockMatch>, surface: BlockSurface = 'board'): string {
+  if (match.by === 'policy') return `blocked by policy (${match.entry}) — ask your administrator`
+  return `blocked (${match.entry}) — ${surface === 'shell' ? `mercury extensions unfence ${match.entry}` : 'b unblocks'}`
 }
 
 export function block(entry: string): { ok: true } | { ok: false; error: string } {

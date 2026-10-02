@@ -38,7 +38,6 @@ import {
   writeTextContent,
   getDisplayPath,
 } from '../../utils/file.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { persistToolResult, buildLargeToolResultMessage, generatePreview, PREVIEW_SIZE_CHARS } from '../../utils/toolResultStorage.js'
 import { interpretCommandResult } from './commandSemantics.js'
 import { describeMaxOutputChars, getDefaultTimeoutMs, getMaxTimeoutMs, getSimplePrompt } from './prompt.js'
@@ -79,7 +78,7 @@ import type { BashProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage } from '../../types/message.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
-import { readFileSync, existsSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { copyFile, link, stat, truncate } from 'node:fs/promises'
 import { isAbsolute, join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
@@ -358,9 +357,7 @@ async function runSimulatedSedEdit(
   if (fileHistoryEnabled() && parentMessageId) {
     await fileHistoryTrackEdit(context.updateFileHistoryState, filePath, parentMessageId as `${string}-${string}-${string}-${string}-${string}`)
   }
-  const original = readFileSync(filePath, encoding)
   writeTextContent(filePath, sed.newContent, encoding, endings)
-  notifyVscodeFileUpdated(filePath, original, sed.newContent)
   context.readFileState.set(filePath, {
     content: sed.newContent,
     timestamp: getFileModificationTime(filePath),

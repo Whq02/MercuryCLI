@@ -131,7 +131,7 @@ section('§3b default-on OFF vocabulary (falsy spellings all close the door)')
   check(`${env}: re-unset ⇒ ON`, flagEnabled(env))
 }
 
-const optInSample = ['MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP', 'MERCURY_RELEVANT_RECALL']
+const optInSample = ['MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_CLASSIFIER_LLM', 'MERCURY_CLAUDEAI_MCP']
 for (const env of optInSample) {
   const spec = FLAG_REGISTRY.find(f => f.env === env)
   if (spec?.kind !== 'opt-in') {

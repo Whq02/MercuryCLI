@@ -53,7 +53,6 @@ import {
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
-import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import {
   activateConditionalSkillsForPaths,
@@ -821,8 +820,6 @@ async function runApply(
   const syncFailures: string[] = []
   const freshAnchors: Array<{ path: string; anchor: string }> = []
   for (const t of changedTargets) {
-    const b = bytes.get(t.canonicalPath)!
-    const originalLF = b.originalBytes.toString(t.encoding).replaceAll('\r\n', '\n')
     if (t.fileOp === 'delete') {
       context.readFileState.delete(t.canonicalPath)
       dropSeenLines(owner, t.canonicalPath)
@@ -840,9 +837,6 @@ async function runApply(
       offset: undefined,
       limit: undefined,
     })
-    if (t.fileOp !== 'move') {
-      notifyVscodeFileUpdated(landedPath, originalLF, t.plannedContent)
-    }
     if (lspManager) {
       const sync = await syncServersAfterWrite(lspManager, landedPath, t.plannedContent)
       if (!sync.ok) syncFailures.push(`${displayPath(landedPath)}: ${sync.reason}`)

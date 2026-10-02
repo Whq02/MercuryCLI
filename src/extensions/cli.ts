@@ -62,7 +62,7 @@ function stateCell(entry: RosterEntry, health: ReturnType<typeof healthLine> | n
     case 'found':
       return `◇ found · ${entry.home === 'proposal' ? 'proposed · i fetches' : `${MERCURY_PROJECT_DIR}/${PROJECT_EXTENSIONS_DIR} · i installs`}`
     case 'blocked':
-      return `◉ blocked · ${entry.blockedBy === 'policy' ? 'blocked by policy' : 'b unblocks'}`
+      return `◉ blocked · ${entry.blockedBy === 'policy' ? 'blocked by policy' : 'unfence lifts it'}`
     default:
       return '—'
   }
@@ -406,7 +406,7 @@ export async function approveVerb(target: string, options: { yes?: boolean; proj
 }
 
 export async function enableVerb(id: string, options: { project?: boolean }, io: CliIo = defaultIo): Promise<CliResult> {
-  const outcome = setSwitch(id, true, options.project ? 'project' : 'everywhere')
+  const outcome = setSwitch(id, true, options.project ? 'project' : 'everywhere', 'shell')
   if (!outcome.ok) {
     io.err(outcome.reason)
     return { exit: 1 }
