@@ -1066,7 +1066,8 @@ async function daemonRun(args: string[]): Promise<void> {
           return view
         },
         restartWhenIdle: by => {
-          const { live } = liveWorkers()
+          const counts = liveWorkers()
+          const { live } = counts
           if (foreground) {
             return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' }
           }
@@ -1076,7 +1077,7 @@ async function daemonRun(args: string[]): Promise<void> {
             const detail = otherBuildInstalledDetail(other, live)
             // eslint-disable-next-line no-console
             console.error(`[daemon] restart asked by ${by} — ${detail}`)
-            if (live > 0 || handover?.alive()) {
+            if (live > 0 || birthsInFlight > 0 || handover?.alive()) {
               restartArmed = true
               return { state: 'armed' as const, live }
             }
@@ -1089,7 +1090,11 @@ async function daemonRun(args: string[]): Promise<void> {
             return { state: 'refused' as const, live, detail: reopenDetail(installed) }
           }
           if (handover !== null && handover.alive()) {
-            return { state: 'refused' as const, live, detail: `the daemon this one took over from (pid ${handover.predecessorPids().join(', ')}) is still leaving — ask again once it has gone` }
+            const detail = predecessorsStillHostingDetail(handover, counts)
+            restartArmed = true
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] restart armed by ${by} — ${detail}`)
+            return { state: 'armed' as const, live, detail }
           }
           if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
             return {
@@ -1098,10 +1103,10 @@ async function daemonRun(args: string[]): Promise<void> {
               detail: unchangedSuccessorDetail(Math.round((Date.now() - startedAt) / 1000)),
             }
           }
-          if (live > 0) {
+          if (live > 0 || birthsInFlight > 0) {
             restartArmed = true
             // eslint-disable-next-line no-console
-            console.error(`[daemon] restart armed by ${by} — re-executes as the deployed build when the ${live} live worker(s) finish`)
+            console.error(`[daemon] restart armed by ${by} — re-executes as the deployed build when the ${live} live worker(s)${birthsInFlight > 0 ? ` and ${birthsInFlight} session(s) being born` : ''} finish`)
             return { state: 'armed' as const, live }
           }
           // eslint-disable-next-line no-console
@@ -1250,7 +1255,7 @@ async function daemonRun(args: string[]): Promise<void> {
       {
         const armedBeat = setInterval(() => {
           if (!restartArmed || restartAfterTeardown) return
-          if (liveWorkers().live > 0) return
+          if (liveWorkers().live > 0 || birthsInFlight > 0) return
           if (handover?.alive() && (planeServedByOther === null || !isProcessAlive(planeServedByOther.pid))) return
           restartArmed = false
           const other = successorRuntime()
@@ -1669,6 +1674,23 @@ export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRu
 export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
   const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
   return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
+}
+
+function liveSessionWords(n: number): string {
+  return `${n} live session${n === 1 ? '' : 's'}`
+}
+
+export function predecessorsStillHostingDetail(state: Pick<HandoverStateV1, 'predecessorPids' | 'heldRunners'>, own: { live: number; liveSessions: number }): string {
+  const rows = state.predecessorPids().map(pid => ({ pid, held: state.heldRunners(pid).size }))
+  const theirs = rows.reduce((n, row) => n + row.held, 0)
+  const one = rows.length === 1
+  const who = one
+    ? `the daemon this one took over from (pid ${rows[0]!.pid})`
+    : `the daemons this one took over from (${rows.map(row => `pid ${row.pid}: ${row.held > 0 ? liveSessionWords(row.held) : 'leaving'}`).join(', ')})`
+  const hosting = theirs > 0 ? `still ${one ? 'hosts' : 'host'} ${liveSessionWords(theirs)}` : `${one ? 'is' : 'are'} still leaving`
+  const mine = own.live === 0 ? '' : ` and this daemon ${own.liveSessions === own.live ? `hosts ${liveSessionWords(own.live)}` : `runs ${own.live} live worker${own.live === 1 ? '' : 's'}`}`
+  const when = theirs > 0 || own.live > 0 ? 'when they finish' : one ? 'when it has gone' : 'when they have gone'
+  return `${who} ${hosting}${mine} — the restart runs ${when}`
 }
 
 function unchangedSuccessorDetail(ageSeconds: number): string {

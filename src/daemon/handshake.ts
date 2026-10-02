@@ -587,6 +587,7 @@ export async function restartDaemon(opts: {
     }
   }
   if (reply.state === 'armed') {
+    if (reply.detail !== undefined) return { state: 'armed', line: `restart armed — ${reply.detail}` }
     return { state: 'armed', line: `restart armed — daemon v${d.version} restarts when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${finishVerb(reply.live)}` }
   }
   if (reply.state === 'refused') return { state: 'refused', line: `daemon v${d.version} — ${reply.detail ?? 'restart refused'}` }
@@ -655,7 +656,10 @@ export async function moveDaemonToDeployedBuild(opts: {
     if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
     publish(applyHeal(verdict, reply))
     if (reply.state === 'armed') {
-      return (await settled(verdict, reply)) ?? { state: 'when-idle', line: `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} ${finishVerb(reply.live)}` }
+      return (await settled(verdict, reply)) ?? {
+        state: 'when-idle',
+        line: reply.detail !== undefined ? `background daemon: ${old} moves to ${to} when idle — ${reply.detail}` : `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} ${finishVerb(reply.live)}`,
+      }
     }
     if (reply.state === 'refused') return (await settled(verdict, reply)) ?? stopLine(reply.detail ?? 'the restart was refused')
     const back = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== verdict.daemon?.pid && v.state !== 'starting', opts)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -46,16 +46,16 @@ const check = (label: string, ok: boolean, detail: unknown = ''): void => {
 }
 const rpc = (request: object) => daemonControlRpc(request as never, { timeoutMs: 10_000 })
 const hello = () => rpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: '1.0.0', clientBuildTree: null })
-const cli = async (verb: string): Promise<{ code: number | null; text: string }> => {
-  const child = spawn('node', [join(dist, 'mercury.mjs'), 'daemon', verb], { cwd: work, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+const cli = async (verb: string, from: string = dist): Promise<{ code: number | null; text: string }> => {
+  const child = spawn('node', [join(from, 'mercury.mjs'), 'daemon', verb], { cwd: work, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
   let text = ''
   for (const stream of [child.stdout, child.stderr]) stream?.on('data', data => text += data)
   return new Promise(resolve => child.once('exit', code => resolve({ code, text })))
 }
 const children: ChildProcess[] = []
 const logs = new Map<number, string>()
-const boot = async (label: string): Promise<number> => {
-  const child = spawn('node', [join(dist, 'mercury.mjs'), 'daemon', 'run', work], { cwd: work, env: process.env, stdio: ['ignore', 'pipe', 'pipe'] })
+const boot = async (label: string, from: string = dist, predecessor?: number): Promise<number> => {
+  const child = spawn('node', [join(from, 'mercury.mjs'), 'daemon', 'run', work], { cwd: work, env: { ...process.env, MERCURY_DAEMON_HANDOVER_FROM: predecessor === undefined ? undefined : String(predecessor) }, stdio: ['ignore', 'pipe', 'pipe'] })
   children.push(child)
   const pid = child.pid!
   logs.set(pid, '')
@@ -64,6 +64,18 @@ const boot = async (label: string): Promise<number> => {
   check(`${label} serves`, ready, logs.get(pid))
   if (!ready) throw new Error(`helper ${pid} did not start`)
   return pid
+}
+const payload = (name: string): string => {
+  const dir = join(world, name)
+  mkdirSync(dir)
+  copyFileSync(join(dist, 'mercury.mjs'), join(dir, 'mercury.mjs'))
+  const manifest = JSON.parse(readFileSync(join(dist, 'manifest.json'), 'utf8'))
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: name.repeat(12) }))
+  return dir
+}
+const deploy = (dir: string): void => {
+  rmSync(join(home, 'runtime/current'), { force: true })
+  symlinkSync(dir, join(home, 'runtime/current'))
 }
 const admit = async (): Promise<{ sid: string; pid: number }> => {
   const result = await rpc({ op: 'sessionAdmit', workspaceDir: work, birthKey: randomUUID(), isolation: 'shared', bornBlank: true })
@@ -84,6 +96,13 @@ const stopPlane = async (label: string): Promise<void> => {
   check(`${label} stops through Mercury`, stopped.code === 0 && await until(async () => !(await rpc({ op: 'ping' })).ok), stopped)
 }
 try {
+  console.log('§0 a chat still being born holds the restart as a live chat does (read where the holds live — the window is under a millisecond)')
+  const mainSource = readFileSync(join(root, 'src/daemon/main.ts'), 'utf8')
+  const restartRoad = mainSource.slice(mainSource.indexOf('restartWhenIdle: by => {'), mainSource.indexOf('processSweep: async request => {'))
+  check('the idle road arms while a session is being born', restartRoad.includes('if (live > 0 || birthsInFlight > 0) {') && restartRoad.includes('if (live > 0 || birthsInFlight > 0 || handover?.alive()) {'), restartRoad.split('\n').filter(l => /birthsInFlight|live > 0/.test(l)).join(' | '))
+  const armedBeat = mainSource.slice(mainSource.indexOf('const armedBeat = setInterval(() => {'), mainSource.indexOf('ARMED_RESTART_BEAT_MS)'))
+  check('the armed beat waits for a birth in flight as it waits for a live worker', armedBeat.includes('if (liveWorkers().live > 0 || birthsInFlight > 0) return'), armedBeat)
+
   console.log('§A a chat mid-turn across `mercury daemon restart`: the work finishes, nothing is cut, the words are kept')
   const held = await boot('the scratch helper')
   const dispatched = await rpc({ op: 'sessionDispatch', workspaceDir: work, clientMessageId: randomUUID(), prompt: 'hold helper turn until the fixture releases it', permissionMode: 'sovereign' })
@@ -135,6 +154,31 @@ try {
   check('a restart with nothing live restarts the helper now and says so', idleRestart.code === 0 && idleRestart.text.includes('daemon restarted') && !isProcessAlive(idle), idleRestart)
   check('its replacement serves', await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid !== idle && h.ready }), await hello())
   await stopPlane('the idle replacement')
+
+  console.log('§D a restart asked of the plane helper while an older helper still hosts chats: it arms, names that helper and its chats, cuts nothing, and runs when they finish')
+  const aDir = payload('a')
+  deploy(aDir)
+  const older = await boot('the older helper', aDir)
+  const first = await admit()
+  const second = await admit()
+  const bDir = payload('b')
+  deploy(bDir)
+  const newer = await boot('the newer helper, taking the plane', bDir, older)
+  check("the newer helper's log keeps the older helper's two chats", await until(() => /keeps 2 live session\(s\) until they finish/.test(logs.get(newer) ?? '')), logs.get(newer))
+  const armedBehind = await cli('restart', bDir)
+  console.log(armedBehind.text.trim())
+  check('the restart arms and names the older helper and its two chats, exit 0', armedBehind.code === 0 && armedBehind.text.includes(`restart armed — the daemon this one took over from (pid ${older}) still hosts 2 live sessions — the restart runs when they finish`), armedBehind)
+  const observe = Date.now() + 8_000
+  await until(() => Date.now() >= observe || [older, newer, first.pid, second.pid].some(pid => !isProcessAlive(pid)), 10_000)
+  const armedFacts = await hello()
+  check('past 8 seconds nothing is cut: both helpers and both chats live, the restart armed on the plane helper', [older, newer, first.pid, second.pid].every(isProcessAlive) && armedFacts.ok && armedFacts.op === 'hello' && armedFacts.pid === newer && armedFacts.restartArmed === true, { alive: [older, newer, first.pid, second.pid].map(isProcessAlive), armedFacts })
+  await end(first)
+  check("the restart stays armed for the older helper's remaining chat", await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid === newer && h.restartArmed === true }) && isProcessAlive(older), await hello())
+  await end(second)
+  check('the older helper leaves at its own last chat', await until(() => !isProcessAlive(older), 45_000), logs.get(older))
+  check('only then does the armed restart run: a replacement of the plane helper serves with nothing live', await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid !== newer && h.pid !== older && h.ready && h.live === 0 }, 45_000), { hello: await hello(), log: logs.get(newer) })
+  check("the plane helper's log names the armed restart behind the older helper, then its idle moment", /restart armed by mercury daemon restart — the daemon this one took over from \(pid \d+\) still hosts 2 live sessions/.test(logs.get(newer) ?? '') && /armed restart — idle now, re-executing as the deployed build/.test(logs.get(newer) ?? ''), logs.get(newer))
+  await stopPlane('the replacement behind the older helper')
 } catch (error) {
   check('the drive completes', false, String(error))
 } finally {
