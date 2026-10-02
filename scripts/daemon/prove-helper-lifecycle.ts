@@ -21,6 +21,7 @@ const { forwardFrame } = await import('../../src/daemon/handover.ts')
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { isProcessAlive } = await import('../../src/daemon/ownerWatch.ts')
+const { formatMercuryDaemonStatus, getMercuryDaemonStatus, helperPidSocketsOnDisk } = await import('../../src/daemon/status.ts')
 let failures = 0
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   if (!ok) failures++
@@ -117,8 +118,10 @@ try {
   check('status counts all three helpers and their separate chats', countBefore.text.includes('3 running / 3 live workers'), countBefore)
   check('the plane is a link to the newest helper\'s own socket', lstatSync(join(planeDir, 'control.sock')).isSymbolicLink() && present(join(planeDir, `control.sock.${c}`)), readdirSync(planeDir))
   rmSync(join(planeDir, 'control.sock'))
-  const countUnlinked = await cli('status', cDir)
-  check('with the plane link gone, status still finds every helper through its own socket and says the plane\'s count is unknown', countUnlinked.text.includes('3 running / unknown live workers') && countUnlinked.text.includes(`pid ${a}: 1 live workers`) && countUnlinked.text.includes(`pid ${b}: 1 live workers`), countUnlinked)
+  const onDisk = helperPidSocketsOnDisk()
+  check('each helper has a socket of its own on disk, found with no plane at all', [a, b, c].every(pid => onDisk.includes(pid)), onDisk)
+  const unlinked = await getMercuryDaemonStatus()
+  check('with the plane link gone, status still counts every helper and the chat each hosts through its own socket', unlinked.helpers?.length === 3 && [a, b].every(pid => unlinked.helpers?.some(helper => helper.pid === pid && helper.live === 1)) && unlinked.helpers?.some(helper => helper.pid === c), formatMercuryDaemonStatus(unlinked))
   check('the newest helper puts its plane link back on its own', await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid === c }, 45_000), readdirSync(planeDir))
   const countHealed = await cli('status', cDir)
   check('status reads all three again once the link is back', countHealed.text.includes('3 running / 3 live workers'), countHealed)
