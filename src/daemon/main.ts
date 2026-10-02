@@ -1339,7 +1339,10 @@ async function daemonRun(args: string[]): Promise<void> {
       stopSaturnTicker = startSaturnTicker(
         {
           now: () => Date.now(),
-          records: () => Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && !(handover?.holds(r.runnerId) ?? false)),
+          records: () => {
+            const superseded = planeServedByOther !== null && isProcessAlive(planeServedByOther.pid)
+            return Object.values(readSessionWorkers()).filter(r => r.endedAt === undefined && (superseded ? (roster?.has(r.runnerId).alive ?? false) : !(handover?.holds(r.runnerId) ?? false)))
+          },
           liveFacts: (account, sessionId) => {
             refreshSignInReads()
             return liveFactsForSessionFire(account, sessionId)

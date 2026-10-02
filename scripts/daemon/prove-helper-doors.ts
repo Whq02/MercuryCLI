@@ -218,6 +218,31 @@ try {
   }
 
   const planeChat = await admit()
+  console.log('§E a superseded helper fires no schedule of a session it does not host')
+  {
+    const set = await rpc({ op: 'sessionControl', action: 'set-schedule', sessionId: planeChat.sid, by: 'operator', scheduleEdit: { op: 'add', schedule: { when: { kind: 'at', atMs: Date.now() + 2000 }, action: { kind: 'fire', prompt: 'say the word' } } } })
+    check('a one-shot schedule lands on the chat the plane helper hosts', set.ok && 'outcome' in set && set.outcome === 'applied', set)
+    const setAt = Date.now()
+    const ticked = (pid: number): string[] => (logs.get(pid) ?? '').split('\n').filter(l => /saturn tick:/.test(l))
+    type DispatchRow = { state?: string; reason?: string; sessionId?: string; by?: string; workerId?: string }
+    const saturnRow = (): DispatchRow | undefined => {
+      try {
+        const ledger = JSON.parse(readFileSync(join(planeDir, 'concourse-dispatches.json'), 'utf8')) as { dispatches: Record<string, DispatchRow> }
+        return Object.values(ledger.dispatches).find(row => row.sessionId === planeChat.sid && (row.by ?? '').startsWith('saturn'))
+      } catch {
+        return undefined
+      }
+    }
+    const fired = await until(() => saturnRow() !== undefined, 40_000)
+    await until(() => Date.now() - setAt >= 32_000, 35_000)
+    const row = saturnRow()
+    note(`the schedule's dispatch row: ${JSON.stringify(row)}; the plane helper's tick: ${ticked(plane).join(' | ')}`)
+    check("the schedule fired once, delivered by the helper that hosts the chat — never 'stdin unavailable' from a helper that does not", fired && row !== undefined && !(row.state === 'failed' && /stdin unavailable/.test(row.reason ?? '')), row)
+    check('the plane helper walked it on its own tick', ticked(plane).length > 0, logs.get(plane))
+    const walkers = hosted.map(h => h.helper).filter(pid => ticked(pid).length > 0)
+    check('no superseded helper walked it — a helper that holds no plane fires nothing it does not host', walkers.length === 0, walkers.map(pid => ({ pid, lines: ticked(pid) })))
+  }
+
   console.log('§F a stop from a chat hosted by an older helper is refused like one hosted by the plane helper; a plain stop counts every helper\'s chats')
   {
     const olderHelper = hosted[0]!.helper
