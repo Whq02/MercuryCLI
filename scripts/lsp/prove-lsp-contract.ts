@@ -22,13 +22,14 @@ const { lspToolInputSchema } = await import('../../src/tools/LSPTool/schemas.js'
 const schema = lspToolInputSchema()
 {
   const ok = (v: unknown): boolean => schema.safeParse(v).success
+  const kept = (v: Record<string, unknown>): string[] => Object.keys((schema.safeParse(v) as { data?: Record<string, unknown> }).data ?? {})
   check('documentSymbol: filePath alone is valid', ok({ operation: 'documentSymbol', filePath: 'a.ts' }))
-  check('documentSymbol: legacy dummy line/character REJECTED', !ok({ operation: 'documentSymbol', filePath: 'a.ts', line: 1, character: 1 }))
+  check('documentSymbol: unread line/character are dropped, not refused', ok({ operation: 'documentSymbol', filePath: 'a.ts', line: 1, character: 1 }) && !kept({ operation: 'documentSymbol', filePath: 'a.ts', line: 1, character: 1 }).includes('line'))
   check('diagnostics: filePath alone is valid', ok({ operation: 'diagnostics', filePath: 'a.ts' }))
-  check('diagnostics: legacy dummy positions REJECTED', !ok({ operation: 'diagnostics', filePath: 'a.ts', line: 1, character: 1 }))
+  check('diagnostics: unread positions are dropped, not refused', ok({ operation: 'diagnostics', filePath: 'a.ts', line: 1, character: 1 }) && !kept({ operation: 'diagnostics', filePath: 'a.ts', line: 1, character: 1 }).includes('character'))
   check('switchSourceHeader: filePath alone is valid', ok({ operation: 'switchSourceHeader', filePath: 'a.cpp' }))
   check('workspaceSymbol: query required (bare shape REJECTED)', !ok({ operation: 'workspaceSymbol' }))
-  check('workspaceSymbol: legacy dummy shape (filePath+positions, no query) REJECTED', !ok({ operation: 'workspaceSymbol', filePath: 'a.ts', line: 1, character: 1 }))
+  check('workspaceSymbol: filePath+positions without query is still REJECTED (query is read and required)', !ok({ operation: 'workspaceSymbol', filePath: 'a.ts', line: 1, character: 1 }))
   check('workspaceSymbol: query alone is valid (workspace-scoped)', ok({ operation: 'workspaceSymbol', query: 'makeGreeting' }))
   check('workspaceSymbol: empty query REJECTED', !ok({ operation: 'workspaceSymbol', query: '' }))
   check('workspaceSymbol: limit within cap valid', ok({ operation: 'workspaceSymbol', query: 'x', limit: 200 }))

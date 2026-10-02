@@ -16,15 +16,15 @@ Operations:
 - incomingCalls: Find all callers of a function
 - outgoingCalls: Find all functions a function calls
 
-Operations require a file path and a 1-based line and character position, exactly as shown in editors and in Read tool output.
+Arguments: the symbol operations take filePath (absolute) plus the 1-based line and character of the symbol, exactly as the Read tool shows them; documentSymbol takes filePath only; workspaceSymbol takes query (and an optional limit). Pass only the keys an operation reads — extra documented keys are ignored, not refused.
 
-A language server must be configured for the file's type; if none is available an error is returned.`
+A language server must be configured for the file's type; if none is available the error says which language and what would provide one.`
 
 const BRIDGE_SECTION = `
 
 Mercury's editor-hands operations — the IDE acts, not just reports:
-- diagnostics: Pull current errors and warnings for one file. Run it on files you just edited instead of guessing whether they compile.
-- workspaceDiagnostics: Pull diagnostics for an explicit set of files and/or directories (directories expand to the files a server claims, capped at 50, deterministic order).
+- diagnostics: Pull current errors and warnings for one file (filePath). Run it on files you just edited instead of guessing whether they compile.
+- workspaceDiagnostics: Pull diagnostics for an explicit set of files and/or directories — paths, an array of 1-50 entries, e.g. {"operation":"workspaceDiagnostics","paths":["src"]} (directories expand to the files a server claims, capped at 50, deterministic order).
 - rename: Rename a symbol everywhere the compiler sees it — the declaration, imports, re-exports, JSX tags and attributes, JavaScript files in the same project — never a comment or a string. Reach for it instead of a text edit whenever a name is used in more than one place. A rename that would collide with or capture another symbol, or that the service refuses, is refused with the reason.
 - moveSymbol: Move a top-level declaration (function, class, interface, type, enum or variable) to another file — created when absent, appended to when present — with every import rewritten by the compiler. Point at the declaration's name. TypeScript and JavaScript.
 - pathRename: Move/rename a FILE or directory and update every import of it. Previews the move and every import edit; applies them as one transaction. Prefer it over a shell move for source files.

@@ -60,7 +60,7 @@ const PLAN = z
   .describe('With apply: the plan token the dry run printed (lsp-…) — the exact edit set to write')
 
 function positionalSchema<Op extends string>(operation: Op) {
-  return z.strictObject({
+  return z.object({
     operation: z.literal(operation),
     filePath: FILE_PATH,
     line: LINE,
@@ -69,14 +69,14 @@ function positionalSchema<Op extends string>(operation: Op) {
 }
 
 function fileOnlySchema<Op extends string>(operation: Op) {
-  return z.strictObject({
+  return z.object({
     operation: z.literal(operation),
     filePath: FILE_PATH,
   })
 }
 
 function fileWithApplySchema<Op extends string>(operation: Op) {
-  return z.strictObject({
+  return z.object({
     operation: z.literal(operation),
     filePath: FILE_PATH,
     apply: APPLY,
@@ -84,7 +84,7 @@ function fileWithApplySchema<Op extends string>(operation: Op) {
   })
 }
 
-const workspaceSymbolSchema = z.strictObject({
+const workspaceSymbolSchema = z.object({
   operation: z.literal('workspaceSymbol'),
   query: z.string().min(1).describe('The symbol name or fragment to search for'),
   limit: z
@@ -100,7 +100,7 @@ const workspaceSymbolSchema = z.strictObject({
     .describe('Route the search through the server that claims this file'),
 })
 
-const renameSchema = z.strictObject({
+const renameSchema = z.object({
   operation: z.literal('rename'),
   filePath: FILE_PATH,
   line: LINE,
@@ -110,7 +110,7 @@ const renameSchema = z.strictObject({
   plan: PLAN,
 })
 
-const codeActionsSchema = z.strictObject({
+const codeActionsSchema = z.object({
   operation: z.literal('codeActions'),
   filePath: FILE_PATH,
   line: LINE,
@@ -140,7 +140,7 @@ const codeActionsSchema = z.strictObject({
     .describe('Positional selector from a prior listing (legacy)'),
 })
 
-const workspaceDiagnosticsSchema = z.strictObject({
+const workspaceDiagnosticsSchema = z.object({
   operation: z.literal('workspaceDiagnostics'),
   paths: z
     .array(z.string())
@@ -149,7 +149,7 @@ const workspaceDiagnosticsSchema = z.strictObject({
     .describe('Files and/or directories to pull diagnostics for (1-50 entries)'),
 })
 
-const pathRenameSchema = z.strictObject({
+const pathRenameSchema = z.object({
   operation: z.literal('pathRename'),
   filePath: FILE_PATH,
   newPath: z.string().describe('The destination path'),
@@ -157,7 +157,7 @@ const pathRenameSchema = z.strictObject({
   plan: PLAN,
 })
 
-const moveSymbolSchema = z.strictObject({
+const moveSymbolSchema = z.object({
   operation: z.literal('moveSymbol'),
   filePath: FILE_PATH,
   line: LINE,
@@ -170,7 +170,7 @@ const moveSymbolSchema = z.strictObject({
   plan: PLAN,
 })
 
-const fixDiagnosticSchema = z.strictObject({
+const fixDiagnosticSchema = z.object({
   operation: z.literal('fixDiagnostic'),
   filePath: FILE_PATH,
   line: LINE,
@@ -182,7 +182,7 @@ const fixDiagnosticSchema = z.strictObject({
   plan: PLAN,
 })
 
-const formatRangeSchema = z.strictObject({
+const formatRangeSchema = z.object({
   operation: z.literal('formatRange'),
   filePath: FILE_PATH,
   line: LINE,
@@ -193,7 +193,7 @@ const formatRangeSchema = z.strictObject({
   plan: PLAN,
 })
 
-const serverStatusSchema = z.strictObject({
+const serverStatusSchema = z.object({
   operation: z.literal('serverStatus'),
   filePath: z
     .string()
@@ -201,12 +201,12 @@ const serverStatusSchema = z.strictObject({
     .describe('Show the server that claims this file'),
 })
 
-const capabilitiesSchema = z.strictObject({
+const capabilitiesSchema = z.object({
   operation: z.literal('capabilities'),
   filePath: FILE_PATH,
 })
 
-const rawRequestSchema = z.strictObject({
+const rawRequestSchema = z.object({
   operation: z.literal('rawRequest'),
   filePath: FILE_PATH,
   method: z
@@ -233,7 +233,7 @@ function baseUnionMembers() {
   ] as const
 }
 
-const switchSourceHeaderSchema = z.strictObject({
+const switchSourceHeaderSchema = z.object({
   operation: z.literal('switchSourceHeader'),
   filePath: FILE_PATH,
 })

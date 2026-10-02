@@ -241,6 +241,8 @@ const flatSchema = lazySchema(() => {
     plan: z.string().optional().describe('apply: the plan token the dry run printed (lsp-…)'),
     kind: z.string().optional().describe('codeActions: a code-action kind to filter by (quickfix, refactor, source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused)'),
     targetPath: z.string().optional().describe('moveSymbol: the file the declaration moves to'),
+    method: z.string().optional().describe('rawRequest: the LSP request method (e.g. textDocument/documentHighlight)'),
+    params: z.string().optional().describe('rawRequest: the request params as JSON text'),
   })
 })
 
@@ -787,14 +789,16 @@ export const LSPTool = buildTool({
   },
   async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
     const messageId = parentMessage?.uuid as UUID | undefined
+    const own = lspToolInputSchema().safeParse(input)
+    const scoped = (own.success ? own.data : input) as Input
     const requestWritePermission = typeof canUseTool === 'function' && parentMessage
       ? async (path: string): Promise<boolean> => {
-          const requested = { ...input, filePath: path }
+          const requested = { ...scoped, filePath: path }
           const decision = await canUseTool(LSPTool, requested, context, parentMessage, context.toolUseId ?? 'lsp-write')
           return decision.behavior === 'allow' && isDeepStrictEqual(decision.updatedInput ?? requested, requested)
         }
       : undefined
-    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context, messageId, requestWritePermission))
+    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(scoped, context, messageId, requestWritePermission))
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.result }
