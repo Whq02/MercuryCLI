@@ -87,7 +87,7 @@ const messagesBodies = (fixture: FixtureApi): string[] =>
     .filter(r => (r.path ?? '').includes('/v1/messages'))
     .map(r => JSON.stringify(r.body ?? null))
 
-section('(1) `-p --allowed-tools "Bash" "do the thing"` refuses loudly — never a silent swallow')
+section('(1) `run --allowed-tools "Bash" "do the thing"` refuses loudly — never a silent swallow')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'NEVER-SERVED.' }])
   const res = await run(fixture, ['run', '--allowed-tools', 'Bash', 'do the thing'])
@@ -101,7 +101,7 @@ section('(1) `-p --allowed-tools "Bash" "do the thing"` refuses loudly — never
   await fixture.close()
 }
 
-section('(2) `-p --allowed-tools "Bash" -- "prompt"` runs; the request body carries the prompt')
+section('(2) `run --allowed-tools "Bash" -- "prompt"` runs; the request body carries the prompt')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-ONE.' }])
   const res = await run(fixture, ['run', '--allowed-tools', 'Bash', '--', 'say the boundary phrase alpha'])
@@ -113,7 +113,7 @@ section('(2) `-p --allowed-tools "Bash" -- "prompt"` runs; the request body carr
   await fixture.close()
 }
 
-section('(3) `-p "prompt" --allowed-tools "Bash"` runs; the request body carries the prompt')
+section('(3) `run "prompt" --allowed-tools "Bash"` runs; the request body carries the prompt')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-TWO.' }])
   const res = await run(fixture, ['run', 'say the boundary phrase beta', '--allowed-tools', 'Bash'])
@@ -123,7 +123,7 @@ section('(3) `-p "prompt" --allowed-tools "Bash"` runs; the request body carries
   await fixture.close()
 }
 
-section('(4) `echo prompt | -p --allowed-tools Bash Edit` still runs (no refusal for real lists)')
+section('(4) `echo prompt | run --allowed-tools Bash Edit` still runs (no refusal for real lists)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-THREE.' }])
   const res = await run(fixture, ['run', '--allowed-tools', 'Bash', 'Edit'], {
@@ -135,7 +135,7 @@ section('(4) `echo prompt | -p --allowed-tools Bash Edit` still runs (no refusal
   await fixture.close()
 }
 
-section('(5) `-p --agent <with initialPrompt> --allowed-tools A B` still runs (the agent supplies the input)')
+section('(5) `run --agent <with initialPrompt> --allowed-tools A B` still runs (the agent supplies the input)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'BOUNDARY-REPLY-FOUR.' }])
   const agents = JSON.stringify({
