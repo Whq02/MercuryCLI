@@ -1150,6 +1150,7 @@ async function daemonRun(args: string[]): Promise<void> {
       {
         let healInflight = false
         let healQueued = false
+        const ownSockPath = process.platform === 'win32' ? null : predecessorSockPath(process.pid)
         const healCheck = async (): Promise<void> => {
           if (healInflight) {
             healQueued = true
@@ -1159,6 +1160,7 @@ async function daemonRun(args: string[]): Promise<void> {
           try {
             if (!daemonHomeStands('the plane heal')) return
             const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
+            const ownSockMissing = ownSockPath !== null && !existsSync(ownSockPath)
             const keyMissing = !existsSync(controlKeyPath())
             let foreignOwner = false
             let stateMissing = false
@@ -1174,17 +1176,23 @@ async function daemonRun(args: string[]): Promise<void> {
               }
             }
             planeServedByOther = foreignOwner && !takeBack ? foreign : null
-            if (foreignOwner && !takeBack) return
+            if (foreignOwner && !takeBack) {
+              if (ownSockMissing && daemonHomeStands('the plane heal')) {
+                logForDebugging(`[daemon] own socket ${ownSockPath} gone while pid ${foreign?.pid} serves the plane — binding it again`)
+                await controlServer?.rebind()
+              }
+              return
+            }
             if (takeBack) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] pid ${foreign?.pid} of build ${foreign?.buildTree ?? 'unstamped'} took the plane from the deployed build ${bootBuildTree} — taking it back`)
-            } else if (!sockMissing && !keyMissing && !stateMissing) return
+            } else if (!sockMissing && !ownSockMissing && !keyMissing && !stateMissing) return
             logForDebugging(
-              `[daemon] control plane degraded (sock:${sockMissing} key:${keyMissing} state:${stateMissing} takeBack:${takeBack}) — re-asserting`,
+              `[daemon] control plane degraded (sock:${sockMissing} own:${ownSockMissing} key:${keyMissing} state:${stateMissing} takeBack:${takeBack}) — re-asserting`,
             )
             await reassertControlKey(controlKey)
             await persistSupervisorRecord(currentOwnerPid)
-            if ((sockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
+            if ((sockMissing || ownSockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
           } finally {
@@ -1203,8 +1211,9 @@ async function daemonRun(args: string[]): Promise<void> {
           basename(controlKeyPath()),
           basename(supervisorStatePath()),
           ...(process.platform === 'win32' ? [] : [basename(controlSockPath())]),
+          ...(ownSockPath === null ? [] : [basename(ownSockPath)]),
         ])
-        const planeDirs = new Set([dirname(controlKeyPath()), ...(process.platform === 'win32' ? [] : [dirname(controlSockPath())])])
+        const planeDirs = new Set([dirname(controlKeyPath()), ...(process.platform === 'win32' ? [] : [dirname(controlSockPath())]), ...(ownSockPath === null ? [] : [dirname(ownSockPath)])])
         let healSignal: ReturnType<typeof setTimeout> | undefined
         const planeWatchers: FSWatcher[] = []
         for (const planeDir of planeDirs) {

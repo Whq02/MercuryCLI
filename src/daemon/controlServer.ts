@@ -298,6 +298,15 @@ function removeStaleSocket(sockPath: string): Promise<void> {
   return unlink(sockPath).catch(() => {})
 }
 
+function livePlaneOwnerIsForeign(): boolean {
+  try {
+    const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
+    return typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
+  } catch {
+    return false
+  }
+}
+
 export async function startControlServer(
   deps: ControlServerDeps,
   opts: { socketPath?: string } = {},
@@ -397,20 +406,11 @@ export async function startControlServer(
       return new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-          if (!ownsControlPlaneSync()) {
-            let foreignLive = false
-            try {
-              const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
-              foreignLive =
-                typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
-            } catch {
-              foreignLive = false
-            }
-            if (foreignLive) {
-              logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
-              resolve()
-              return
-            }
+          const foreignLive = !ownsControlPlaneSync() && livePlaneOwnerIsForeign()
+          if (foreignLive && sockPath === planePath) {
+            logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
+            resolve()
+            return
           }
           server.once('error', err => {
             logForDebugging(`[daemon] rebind listen failed (next beat retries): ${err}`)
@@ -420,6 +420,10 @@ export async function startControlServer(
             .then(() => {
               server.listen(sockPath, () => {
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)
+                if (foreignLive) {
+                  resolve()
+                  return
+                }
                 void publishSocket().catch(error => logForDebugging(`[daemon] control socket publication failed: ${error}`)).finally(resolve)
               })
             })

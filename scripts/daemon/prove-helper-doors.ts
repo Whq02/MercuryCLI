@@ -202,6 +202,22 @@ try {
     plane = winner
   }
 
+  console.log("§D a superseded helper's own socket vanishes: it puts it back on its own and its chat stays reachable")
+  {
+    const superseded = hosted[hosted.length - 1]!.helper
+    const door = predecessorSockPath(superseded)
+    rmSync(door)
+    const t0 = Date.now()
+    const back = await until(() => node(door)?.kind === 'socket', 35_000)
+    note(`the superseded helper's socket was back after ${Date.now() - t0} ms: ${back}`)
+    check('a superseded helper whose own socket vanished binds it again within the heal floor', back, readdirSync(planeDir))
+    check('its chat answers through the plane again', await until(() => answers(hosted[hosted.length - 1]!.chat), 10_000))
+    check('the plane link still names the newest helper', node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(plane)), readdirSync(planeDir))
+    const status = await cli(['status'], join(home, 'runtime/current'))
+    check('status counts the healed helper with its chat, nothing unknown', status.text.includes(`pid ${superseded}: 1 live workers`) && !status.text.includes('unknown'), helpersLine(status.text))
+  }
+
+  const planeChat = await admit()
 } catch (error) {
   check('the drive completes', false, String(error))
 } finally {
