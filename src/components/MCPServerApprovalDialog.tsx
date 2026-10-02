@@ -52,7 +52,7 @@ export function MCPServerApprovalDialog({
       gap={1}
     >
       <Text bold>
-        New MCP server found in .mcp.json: <Text color={tokens.info}>{serverName}</Text>
+        New MCP server found in this project's .mercury/mcp.json: <Text color={tokens.info}>{serverName}</Text>
       </Text>
       <Text>MCP servers may execute code or access external systems.</Text>
       <Select

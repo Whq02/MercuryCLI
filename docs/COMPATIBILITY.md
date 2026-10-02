@@ -97,7 +97,7 @@ held equal to the generator.
 ## MCP
 
 Mercury is a Model Context Protocol client. Server configs merge across
-scopes — the project `.mcp.json` walk, the user scope, the local scope, a
+scopes — the project `.mercury/mcp.json` walk, the user scope, the local scope, a
 managed `managed-mcp.json`, and extension-provided servers
 (`src/services/mcp/config.ts`) — with per-repository server selection in the
 boot menu's MCPs & Skills record, session-scoped toggles in `/mcp`

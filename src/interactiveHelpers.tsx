@@ -36,7 +36,7 @@ import {
 } from './utils/config/trust.js'
 import { setSessionTrustAccepted } from './bootstrap/state.js'
 import { setStatsStore } from './bootstrap/state.js'
-import { handleMcpjsonServerApprovals } from './services/mcpServerApproval.js'
+import { handleProjectMcpServerApprovals } from './services/mcpServerApproval.js'
 import { getExternalInstructionIncludes, getInstructionFiles, shouldShowExternalInstructionIncludesWarning } from './services/instructions/engine.js'
 import { getSettingsWithAllErrors } from './utils/settings/allErrors.js'
 import { nonAnthropicBootNotice } from './services/providers/providerUsability.js'
@@ -268,7 +268,7 @@ export async function showSetupScreens(
     })
     const { errors } = getSettingsWithAllErrors()
     if (errors.length === 0) {
-      await handleMcpjsonServerApprovals(root)
+      await handleProjectMcpServerApprovals(root)
     }
     try {
       if (await shouldShowExternalInstructionIncludesWarning()) {

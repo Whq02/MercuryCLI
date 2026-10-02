@@ -8,7 +8,7 @@ import { AppStateProvider } from '../state/AppState.js'
 import { getProjectMcpConfigsFromCwd } from './mcp/config.js'
 import { getProjectMcpServerStatus } from './mcp/utils.js'
 
-export async function handleMcpjsonServerApprovals(root: Root): Promise<void> {
+export async function handleProjectMcpServerApprovals(root: Root): Promise<void> {
   const { servers } = getProjectMcpConfigsFromCwd()
   const pending = Object.keys(servers).filter(
     name => getProjectMcpServerStatus(name) === 'pending',

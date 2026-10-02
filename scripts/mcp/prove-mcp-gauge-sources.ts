@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -15,7 +15,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const PROJ = realpathSync(mkdtempSync(join(tmpdir(), 'gauge-src-proj-')))
-writeFileSync(join(PROJ, '.mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: [] } } }))
+mkdirSync(join(PROJ, '.mercury'), { recursive: true })
+writeFileSync(join(PROJ, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: [] } } }))
 
 const { setCwd } = await import('../../src/utils/Shell.js')
 const { setIsInteractive, setSessionTrustAccepted, setOriginalCwd, setProjectRoot } = await import('../../src/bootstrap/state.js')
@@ -27,7 +28,7 @@ setCwd(PROJ)
 setOriginalCwd(PROJ)
 setProjectRoot(PROJ)
 
-console.log('§1 the trusted census carries the .mcp.json server')
+console.log('§1 the trusted census carries the project MCP file server')
 {
   setIsInteractive(false)
   setSessionTrustAccepted(true)

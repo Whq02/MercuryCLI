@@ -38,7 +38,7 @@ const runMercury = (args: string[]): Promise<Run> =>
 
 const projectServers = (): string[] => {
   try {
-    const doc = JSON.parse(readFileSync(join(PROJ, '.mcp.json'), 'utf8')) as { mcpServers?: Record<string, unknown> }
+    const doc = JSON.parse(readFileSync(join(PROJ, '.mercury', 'mcp.json'), 'utf8')) as { mcpServers?: Record<string, unknown> }
     return Object.keys(doc.mcpServers ?? {})
   } catch {
     return []
@@ -71,7 +71,7 @@ section('§2 FC-036 — eight concurrent project adds')
   const successes = runs.filter(r => r.rc === 0 && /Added/i.test(r.out)).length
   const survivors = projectServers().filter(n => n.startsWith('pj_')).length
   check('all eight adds report success', successes === 8, `successes=${successes}`)
-  check('every reported success is REAL in .mcp.json (FC-036)', survivors === 8, `survivors=${survivors}/8`)
+  check('every reported success is REAL in the project MCP file (FC-036)', survivors === 8, `survivors=${survivors}/8`)
 }
 
 section('§3 FC-036 — the raced remove/add')
