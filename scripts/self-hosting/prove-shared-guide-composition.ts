@@ -114,6 +114,7 @@ try {
   check('AGENTS.md does not compose when a MERCURY.md exists', !s2.composed.includes('shared-guide-needle'), s2.paths.join(', '))
   check('no shared-family entry in the bundle', s2.entries.every(e => e.family !== 'shared'))
   check('the project scope holds the native guide alone', s2.entries.filter(e => e.origin === 'project-walk').length === 1, JSON.stringify(s2.entries))
+  check('that AGENTS.md is an ordinary file (a read of it survives a compaction)', s2.classified === false)
 
   console.log('§3 an explicit @AGENTS.md import in MERCURY.md composes it exactly once')
   const imported = project({ 'MERCURY.md': '@AGENTS.md\nnative-guide-needle\n', 'AGENTS.md': 'shared-guide-needle\n' })
@@ -123,10 +124,12 @@ try {
   check('the imported AGENTS.md rides the native import chain, parent MERCURY.md', viaImport?.parent === join(imported, 'MERCURY.md') && viaImport.family === 'native', JSON.stringify(viaImport))
 
   console.log('§4 a MERCURY.md above the working directory keeps AGENTS.md out')
-  const parent = project({ 'MERCURY.md': 'parent-guide-needle\n', 'app/AGENTS.md': 'shared-guide-needle\n', 'app/src/a.ts': '\n' })
+  const parent = project({ 'MERCURY.md': 'parent-guide-needle\n', 'app/AGENTS.md': 'shared-guide-needle\n', 'app/src/a.ts': '\n', 'app/sub/AGENTS.md': 'nested-shared-needle\n', 'app/sub/file.ts': '\n' })
   const s4 = drive(join(parent, 'app'), { trust: parent })
   check('the parent MERCURY.md composes', s4.composed.includes('parent-guide-needle'), s4.paths.join(', '))
   check("the working directory's AGENTS.md does not compose", !s4.composed.includes('shared-guide-needle'))
+  check('the guide step stays open: that AGENTS.md is not the project guide', s4.guideStepComplete === false)
+  check('the surface-map gate reads the working directory as unguided', s4.oriented === false)
 
   console.log('§5 the native profile never composes AGENTS.md')
   const s5 = drive(shared, { settings: { briefs: { profile: 'native' } } })
@@ -143,10 +146,20 @@ try {
   check('touching a file under a directory with only AGENTS.md attaches it', s6.touched.includes(join(nested, 'sub/AGENTS.md')), s6.touched.join(', '))
   const s6b = drive(nested, { touch: join(nested, 'mixed/file.ts') })
   check('a nested directory holding both attaches MERCURY.md only', s6b.touched.includes(join(nested, 'mixed/MERCURY.md')) && !s6b.touched.includes(join(nested, 'mixed/AGENTS.md')), s6b.touched.join(', '))
+  const guided = project({ 'MERCURY.md': 'native-guide-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })
+  const s6c = drive(guided, { touch: join(guided, 'sub/file.ts') })
+  check('a project guided by MERCURY.md attaches no nested AGENTS.md on touch', s6c.touched.length === 0, s6c.touched.join(', '))
+  const guidedBoth = project({ 'MERCURY.md': 'native-guide-needle\n', 'AGENTS.md': 'shared-guide-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })
+  const s6d = drive(guidedBoth, { touch: join(guidedBoth, 'sub/file.ts') })
+  check('with both guides at the root, MERCURY.md alone: no nested AGENTS.md attaches on touch', s6d.touched.length === 0, s6d.touched.join(', '))
+  const s6e = drive(join(parent, 'app'), { trust: parent, touch: join(parent, 'app/sub/file.ts') })
+  check('a MERCURY.md above the working directory keeps a nested AGENTS.md out on touch', s6e.touched.length === 0, s6e.touched.join(', '))
 
   console.log('§7 the exclusion list reaches AGENTS.md')
   const s7 = drive(shared, { settings: { briefs: { exclude: ['**/AGENTS.md'] } } })
   check('an excluded AGENTS.md composes nothing', !s7.composed.includes('shared-guide-needle'), s7.paths.join(', '))
+  check('the guide step stays open over an excluded AGENTS.md', s7.guideStepComplete === false)
+  check('the surface-map gate reads a repo whose only guide is excluded as unguided', s7.oriented === false)
 
   console.log('§8 the trust gate applies headless: an untrusted root composes nothing')
   const s8 = drive(shared, { untrusted: true })

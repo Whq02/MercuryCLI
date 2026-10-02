@@ -16,7 +16,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   }
 }
 
-const { measureEffectiveProjectInstructionLines, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
+const { measureEffectiveProjectInstructionLines, measuredGuideName, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
   await import(`${repo}/src/services/instructions/effectiveSize.js`)
 
 console.log('the threshold is the ruled bar')
@@ -45,20 +45,31 @@ check(
   'user scope and rules files stay outside; MERCURY.local.md counts',
 )
 
+console.log('the guide the measure names')
+const guideOf: (files: unknown) => string = typeof measuredGuideName === 'function' ? measuredGuideName : () => 'MERCURY.md'
+check(guideOf([mk('/p/MERCURY.md', 'Project', 3), mk('/p/AGENTS.md', 'Project', 600, '/p/MERCURY.md')]) === 'MERCURY.md', 'a MERCURY.md pointer at AGENTS.md: the guide is MERCURY.md')
+check(guideOf([mk('/p/AGENTS.md', 'Project', 600)]) === 'AGENTS.md', 'an AGENTS.md-only estate: the guide is AGENTS.md')
+check(guideOf([mk('/home/.mercury/MERCURY.md', 'User', 500), mk('/p/MERCURY.local.md', 'Local', 7)]) === 'MERCURY.local.md', 'a local-only estate names the local file')
+
 const driverSrc = `
 import { enableConfigs } from '${repo}/src/utils/config/globalConfig.js'
 enableConfigs()
 const { getInstructionFiles } = await import('${repo}/src/services/instructions/engine.js')
-const { measureEffectiveProjectInstructionLines, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
+const { measureEffectiveProjectInstructionLines, measuredGuideName, PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD } =
   await import('${repo}/src/services/instructions/effectiveSize.js')
-const lines = measureEffectiveProjectInstructionLines(await getInstructionFiles())
-console.log(JSON.stringify({ lines, armed: lines > PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD }))
+const chip = await import('${repo}/src/components/mercury-ui/TrimChip.js')
+const files = await getInstructionFiles()
+const lines = measureEffectiveProjectInstructionLines(files)
+const guide = typeof measuredGuideName === 'function' ? measuredGuideName(files) : 'MERCURY.md'
+const text = typeof chip.trimChipText === 'function' ? chip.trimChipText(guide) : chip.TRIM_CHIP_TEXT
+console.log(JSON.stringify({ lines, armed: lines > PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD, guide, text }))
 `
 const driverDir = mkdtempSync(join(tmpdir(), 'effsize-drv-'))
 const driverPath = join(driverDir, 'drv.ts')
 writeFileSync(driverPath, driverSrc)
 
-function drive(cwd: string): { lines: number; armed: boolean } {
+type Drive = { lines: number; armed: boolean; guide: string; text: string }
+function drive(cwd: string): Drive {
   const home = mkdtempSync(join(tmpdir(), 'effsize-home-'))
   seedFirstRun(home, [cwd])
   const env: Record<string, string | undefined> = {}
@@ -80,7 +91,7 @@ function drive(cwd: string): { lines: number; armed: boolean } {
     process.exit(1)
   }
   const lines = String(run.stdout).trim().split('\n')
-  return JSON.parse(lines[lines.length - 1]!) as { lines: number; armed: boolean }
+  return JSON.parse(lines[lines.length - 1]!) as Drive
 }
 
 console.log('real engine: a 3-line pointer at a 600-line guide ARMS')
@@ -97,6 +108,19 @@ writeFileSync(
 const armed = drive(armFix)
 check(armed.lines === 603, 'effective lines = 603 through the real walk', JSON.stringify(armed))
 check(armed.armed === true, 'the chip arms past the bar')
+check(armed.text === 'trim mercury.md to optimise performance and reduce context bloat', 'the chip names mercury.md, the guide it measured', armed.text)
+
+console.log('real engine: a project whose only guide is a 600-line AGENTS.md ARMS and the chip names that guide')
+const sharedFix = mkdtempSync(join(tmpdir(), 'effsize-shared-'))
+execSync('git init -q', { cwd: sharedFix })
+writeFileSync(
+  join(sharedFix, 'AGENTS.md'),
+  Array.from({ length: 600 }, (_, i) => `guide line ${i}`).join('\n') + '\n',
+)
+const shared = drive(sharedFix)
+check(shared.lines === 600, 'effective lines = 600 through the real walk', JSON.stringify(shared))
+check(shared.armed === true, 'the chip arms past the bar')
+check(shared.text === 'trim agents.md to optimise performance and reduce context bloat', 'the chip names agents.md, the guide it measured', shared.text)
 
 console.log('real engine: 399 effective lines do NOT arm')
 const calmFix = mkdtempSync(join(tmpdir(), 'effsize-calm-'))
@@ -122,5 +146,6 @@ const rules = drive(rulesFix)
 check(rules.lines === 1, 'a 600-line rules file leaves the measure at 1', JSON.stringify(rules))
 check(rules.armed === false, 'rules weight never arms the mercury.md chip')
 
+for (const dir of [armFix, sharedFix, calmFix, rulesFix, driverDir]) rmSync(dir, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL EFFECTIVE-SIZE LAWS HOLD' : `\n${failures} FAILURES`)
 process.exit(failures === 0 ? 0 : 1)

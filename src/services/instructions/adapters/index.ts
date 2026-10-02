@@ -1,4 +1,4 @@
-import { basename } from 'path'
+import { basename, dirname, parse, resolve } from 'path'
 
 import { getFsImplementation } from '../../../utils/fsOperations.js'
 import type {
@@ -45,15 +45,25 @@ export function hasPrimaryProjectFile(conventions: InstructionConvention[], dirs
   )
 }
 
+function chainOf(dir: string): string[] {
+  const dirs: string[] = []
+  let current = resolve(dir)
+  while (current !== parse(current).root) {
+    dirs.push(current)
+    current = dirname(current)
+  }
+  return dirs
+}
+
 export function composedGuideFilesAt(dir: string): string[] {
   const conventions = adapterForProfile().conventionsFor(resolveRequestedInstructionProfile().profile)
   const primary = conventions.filter(c => !c.fallback)
   const present = primary.flatMap(c => projectFilesOf(c, dir)).filter(isFile)
   if (present.length > 0) return present
+  if (hasPrimaryProjectFile(primary, chainOf(dir))) return []
   return conventions
     .filter(c => c.fallback)
-    .flatMap(c => projectFilesOf(c, dir))
-    .filter(isFile)
+    .flatMap(c => projectFilesOf(c, dir).filter(path => isFile(path) && !c.isExcluded(path, 'Project')))
 }
 
 export function composedGuideNamesAt(dir: string): string[] {

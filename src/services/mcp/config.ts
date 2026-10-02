@@ -847,7 +847,10 @@ export async function addMcpConfig(
 export async function removeMcpConfig(name: string, scope: ConfigScope): Promise<void> {
   switch (scope) {
     case 'project': {
-      const mcpJsonPath = lockedProjectMcpFile()
+      const mcpJsonPath = projectMcpFilePath(getCwd())
+      if (!getFsImplementation().existsSync(mcpJsonPath)) {
+        throw new Error(`MCP server "${name}" does not exist in ${mcpJsonPath}`)
+      }
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const existing = getProjectMcpConfigsFromCwd().servers

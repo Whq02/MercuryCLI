@@ -80,6 +80,7 @@ export const MAX_MEMORY_CHARACTER_COUNT = MIN_MEMORY_CHARACTER_COUNT
 type InstructionCompositionState = {
   resolution: InstructionProfileResolution
   adapterId: string
+  fallbackComposed: boolean
   skippedDuplicates: { path: string; family: InstructionFamily }[]
   diagnostics: InstructionDiagnostic[]
   loadReason: string
@@ -92,6 +93,7 @@ let lastComposition: InstructionCompositionState = {
     resolved: 'auto',
   },
   adapterId: 'mercury',
+  fallbackComposed: false,
   skippedDuplicates: [],
   diagnostics: [],
   loadReason: 'session_start',
@@ -119,8 +121,9 @@ async function walkConventions(
   forceIncludeExternal: boolean,
   skippedDuplicates: { path: string; family: InstructionFamily }[],
   diagnostics?: InstructionDiagnostic[],
-): Promise<InstructionSourceEntry[]> {
+): Promise<{ entries: InstructionSourceEntry[]; fallbackComposed: boolean }> {
   const result: InstructionSourceEntry[] = []
+  let fallbackComposed = false
   const processedPaths = new Set<string>()
   const composedDigests = new Set<string>()
   const config = getCurrentProjectConfig()
@@ -328,13 +331,14 @@ async function walkConventions(
     const fallback = conventions.filter(c => c.fallback)
     await composeChain(primary)
     if (fallback.length > 0 && !hasPrimaryProjectFile(primary, outerFirst)) {
+      fallbackComposed = true
       await composeChain(fallback)
     }
   }
 
   await walkRootChain(getOriginalCwd(), 'project-walk', true)
 
-  return result
+  return { entries: result, fallbackComposed }
 }
 
 export const getInstructionFiles = memoize(
@@ -351,7 +355,7 @@ export const getInstructionFiles = memoize(
     const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
     const diagnostics: InstructionDiagnostic[] = []
 
-    const result = await walkConventions(
+    const { entries: result, fallbackComposed } = await walkConventions(
       adapter.conventionsFor(resolution.resolved),
       forceIncludeExternal,
       skippedDuplicates,
@@ -365,6 +369,7 @@ export const getInstructionFiles = memoize(
     lastComposition = {
       resolution,
       adapterId: adapter.id,
+      fallbackComposed,
       skippedDuplicates,
       diagnostics,
       loadReason:
@@ -548,10 +553,12 @@ export async function getInstructionFilesForNestedDirectory(
   diagnostics?: InstructionDiagnostic[],
 ): Promise<InstructionSourceEntry[]> {
   if (untrustedWorkspaceHeadless()) return []
+  await getInstructionFiles()
   const result: InstructionSourceEntry[] = []
   const active = activeConventions()
   const primary = active.filter(c => !c.fallback)
-  const conventions = hasPrimaryProjectFile(primary, [dir]) ? primary : active
+  const conventions =
+    lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dir]) ? active : primary
   const includeExternal = getCurrentProjectConfig().hasExternalIncludesApproved ?? false
 
   for (const convention of conventions) {
@@ -694,10 +701,14 @@ export function isInstructionFilePath(
   conventions: InstructionConvention[] = activeConventions(),
 ): boolean {
   const name = basename(filePath)
+  const primary = conventions.filter(c => !c.fallback)
 
   for (const convention of conventions) {
     if (convention.instructionFileNames.includes(name)) {
-      return true
+      if (!convention.fallback) return true
+      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dirname(filePath)])) {
+        return true
+      }
     }
     if (
       name.endsWith('.md') &&
@@ -794,7 +805,7 @@ export async function getInstructionSliceForProfile(
   const resolution = resolveEffectiveProfile(profile, 'agent')
   const skippedDuplicates: { path: string; family: InstructionFamily }[] = []
   const diagnostics: InstructionDiagnostic[] = []
-  const files = await walkConventions(
+  const { entries: files } = await walkConventions(
     adapter.conventionsFor(resolution.resolved),
     false,
     skippedDuplicates,
