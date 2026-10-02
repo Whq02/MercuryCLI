@@ -329,7 +329,7 @@ export function checkPathSafetyForAutoEdit(
 }
 
 
-export function getClaudeSkillScope(filePath: string): { skillName: string; pattern: string } | null {
+export function getSkillScope(filePath: string): { skillName: string; pattern: string } | null {
   const cwd = getOriginalCwd()
   const globalConfigHome = getMercuryHome()
   const bases: Array<{ dir: string; prefix: string }> = [
@@ -764,7 +764,7 @@ export function checkWritePermissionForTool(
   }
   const safety = checkPathSafetyForAutoEdit(path, resolutionSet, context)
   if (!safety.safe) {
-    const skill = getClaudeSkillScope(path)
+    const skill = getSkillScope(path)
     const suggestions = skill
       ? [narrowedSkillGrant(skill.pattern)]
       : generateSuggestions(path, 'write', context, resolutionSet)
