@@ -98,8 +98,8 @@ export function readSavedDefaultModel(): { model: string | null; source: string 
   const home = process.env.MERCURY_CONFIG_DIR?.trim() || join(process.env.HOME ?? '', '.mercury')
   const settings = join(home, 'settings.json')
   try {
-    const parsed = JSON.parse(readFileSync(settings, 'utf8')) as { model?: unknown }
-    return { model: typeof parsed.model === 'string' ? parsed.model : null, source: settings }
+    const parsed = JSON.parse(readFileSync(settings, 'utf8')) as { engine?: { model?: unknown } }
+    return { model: typeof parsed.engine?.model === 'string' ? parsed.engine.model : null, source: settings }
   } catch {
     return { model: null, source: settings }
   }

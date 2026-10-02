@@ -15,7 +15,7 @@ try {
   check('the unresolved family word stays Muse, never a speculative account model', MODEL_NAMES.muse === 'Muse')
   check('the standalone label function is present', fn !== undefined)
   const label = (model: string): string => {
-    writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ model }))
+    writeFileSync(join(proofHome, 'settings.json'), JSON.stringify({ engine: { model } }))
     return new Function('readFileSync', 'join', 'CONFIG_HOME', 'MODEL_NAMES', `${fn}\nreturn computeModelLabel()`)(readFileSync, join, proofHome, MODEL_NAMES) as string
   }
   check('a saved exact Meta model paints its own display name', label('muse-spark-1.3') === 'Muse Spark 1.3')
