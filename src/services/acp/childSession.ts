@@ -1,5 +1,6 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
+import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
 
@@ -70,7 +71,7 @@ export class MercuryChildSession {
     this.handlers = handlers
     this.cwd = opts.cwd
     const node = opts.entry?.node ?? process.execPath
-    const script = opts.entry?.script ?? process.argv[1] ?? ''
+    const script = opts.entry?.script ?? selfScriptPath()
     const argv = [
       script,
       'run',

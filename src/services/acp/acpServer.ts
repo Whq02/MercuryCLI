@@ -46,6 +46,7 @@ import { listTasks, getTasksDir, type TaskStatus } from '../../utils/tasks.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
+import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { isAutoModeGateEnabled } from '../../utils/permissions/permissionSetup.js'
 
 const PERMISSION_MODES = [
@@ -690,6 +691,7 @@ export interface AcpServerOptions {
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const sessions = new Map<string, AcpSessionState>()
   let transportClosed = false
+  const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }
 
   const attachSession = (
     ctx: AgentContext,
@@ -743,7 +745,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           ? { resumeSessionId: args.resumeSessionId }
           : { sessionId: acpSessionId }),
         permissionMode: args.modeId ?? 'default',
-        ...(opts.entry !== undefined && { entry: opts.entry }),
+        entry,
         ...(mcp !== null && { mcpConfig: mcp.json }),
       },
       {
