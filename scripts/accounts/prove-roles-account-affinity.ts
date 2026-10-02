@@ -9,7 +9,7 @@ delete process.env.NODE_ENV
 const home = mkdtempSync(join(tmpdir(), 'roles-affinity-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
-process.argv.push(`--debug-file=${join(home, 'debug.txt')}`)
+process.argv.push(`--log-file=${join(home, 'debug.txt')}`)
 let reply: ServerResponse | undefined
 let received: (() => void) | undefined
 const server = createServer((req, res) => {
