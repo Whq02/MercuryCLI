@@ -28,6 +28,7 @@ import {
   verifyControlAuth,
 } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { predecessorSockPidOf } from './handover.js'
 import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
@@ -317,11 +318,10 @@ export async function startControlServer(
   const sweepDeadPidSockets = async (): Promise<void> => {
     if (sockPath === planePath) return
     const dir = dirname(planePath)
-    const plane = basename(planePath)
     const names = await readdir(dir).catch(() => [] as string[])
     for (const name of names) {
-      const pid = name.startsWith(`${plane}.`) ? /^(\d+)$/.exec(name.slice(plane.length + 1)) : /^(\d+)\.sock$/.exec(name)
-      if (pid === null || Number(pid[1]) === process.pid || isProcessAlive(Number(pid[1]))) continue
+      const pid = predecessorSockPidOf(name, planePath)
+      if (pid === null || pid === process.pid || isProcessAlive(pid)) continue
       await removeStaleSocket(join(dir, name))
     }
   }

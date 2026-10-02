@@ -1,6 +1,6 @@
 import net from 'node:net'
 import { existsSync, lstatSync, readFileSync, realpathSync, renameSync } from 'node:fs'
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
@@ -130,10 +130,28 @@ export function decideHandover(input: HandoverDecisionInput): HandoverDecision {
   }
 }
 
-export function predecessorSockPath(pid: number): string {
-  const plane = controlSockPath()
+const PLANE_HOME_HASH = /^hermes-daemon-([0-9a-f]+)\.sock$/
+
+function planeHomeHash(plane: string): string | null {
+  return PLANE_HOME_HASH.exec(basename(plane))?.[1] ?? null
+}
+
+export function predecessorSockPath(pid: number, plane: string = controlSockPath()): string {
   const path = `${plane}.${pid}`
-  return process.platform === 'win32' || Buffer.byteLength(path) <= 100 ? path : join(dirname(plane), `${pid}.sock`)
+  if (process.platform === 'win32' || Buffer.byteLength(path) <= 100) return path
+  const hash = planeHomeHash(plane)
+  return join(dirname(plane), hash === null ? `${pid}.sock` : `${hash}.${pid}.sock`)
+}
+
+export function predecessorSockPidOf(entry: string, plane: string = controlSockPath()): number | null {
+  const name = basename(plane)
+  if (entry.startsWith(`${name}.`)) {
+    const tail = /^(\d+)$/.exec(entry.slice(name.length + 1))
+    return tail === null ? null : Number(tail[1])
+  }
+  const hash = planeHomeHash(plane)
+  const short = (hash === null ? /^(\d+)\.sock$/ : new RegExp(`^${hash}\\.(\\d+)\\.sock$`)).exec(entry)
+  return short === null ? null : Number(short[1])
 }
 
 export function renameSocketForPredecessor(pid: number): boolean {

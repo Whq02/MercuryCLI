@@ -15,10 +15,10 @@ export interface FireOutcomeSummary {
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
-import { forwardFrame, predecessorSockPath } from './handover.js'
+import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './handover.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { readdirSync } from 'node:fs'
-import { basename, dirname } from 'node:path'
+import { dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
   supervisor: { pid: number; version: string; uptimeSec: number; dir: string } | null
@@ -119,7 +119,6 @@ export type HelperRow = { pid: number; live: number | null }
 export function helperPidSocketsOnDisk(): number[] {
   if (process.platform === 'win32') return []
   const plane = controlSockPath()
-  const name = basename(plane)
   let names: string[]
   try {
     names = readdirSync(dirname(plane))
@@ -128,8 +127,8 @@ export function helperPidSocketsOnDisk(): number[] {
   }
   const pids: number[] = []
   for (const entry of names) {
-    const match = entry.startsWith(`${name}.`) ? /^(\d+)$/.exec(entry.slice(name.length + 1)) : /^(\d+)\.sock$/.exec(entry)
-    if (match !== null) pids.push(Number(match[1]))
+    const pid = predecessorSockPidOf(entry, plane)
+    if (pid !== null) pids.push(pid)
   }
   return pids
 }

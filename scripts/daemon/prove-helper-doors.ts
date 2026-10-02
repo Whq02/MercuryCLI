@@ -148,6 +148,21 @@ try {
     for (const entry of readdirSync(planeDir)) if (entry.startsWith('control.sock')) rmSync(join(planeDir, entry), { force: true })
   }
 
+  console.log('§B the fallback pid-socket name keeps the home hash, and one reader maps every spelling back to its pid')
+  {
+    const tmpPlane = `/${'t'.repeat(64)}/hermes-daemon-0123456789ab.sock`
+    const homePlane = `/${'h'.repeat(75)}/daemon/control.sock`
+    const pidOf = handoverMod.predecessorSockPidOf
+    check('the reader exists', typeof pidOf === 'function')
+    const longForm = (predecessorSockPath as (pid: number, plane?: string) => string)(54321, tmpPlane)
+    check('a pid socket past the path limit under the shared temp directory carries the home hash in its name', basename(longForm) === '0123456789ab.54321.sock', longForm)
+    check('…and the reader maps it back to its pid', pidOf?.(basename(longForm), tmpPlane) === 54321, longForm)
+    check("…while another home's bare <pid>.sock in that directory is not read as this home's", pidOf?.('54321.sock', tmpPlane) === null && pidOf?.('fedcba987654.54321.sock', tmpPlane) === null)
+    const homeForm = (predecessorSockPath as (pid: number, plane?: string) => string)(54321, homePlane)
+    check("in the home's own daemon directory the short form stays <pid>.sock and reads back", basename(homeForm) === '54321.sock' && pidOf?.(basename(homeForm), homePlane) === 54321, homeForm)
+    check('the usual form reads back under both planes', pidOf?.('control.sock.777', homePlane) === 777 && pidOf?.('hermes-daemon-0123456789ab.sock.777', tmpPlane) === 777 && pidOf?.('control.sock', homePlane) === null && pidOf?.('control.key', homePlane) === null)
+  }
+
   console.log('§C two successors of one hosting helper race for the plane: the older helper keeps its door and its chat stays reachable (the spawn skew scans the window)')
   const pDir = payload('p')
   let plane = await boot(pDir)
