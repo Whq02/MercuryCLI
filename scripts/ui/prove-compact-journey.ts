@@ -30,7 +30,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
     { kind: 'text', text: 'Queued words delivered.' },
     { kind: 'text', text: 'Finished.' },
   ], null)
-  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
   const out = join(scratch, `${tag}.json`)
   const log = join(scratch, `${tag}-engine.log`)
   const cfgPath = join(scratch, `${tag}-config.json`)

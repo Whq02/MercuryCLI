@@ -11,7 +11,7 @@ process.env.MERCURY_CONFIG_DIR = home
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 const DEBUG_LOG = join(scratch, 'debug.txt')
-process.argv.push(`--debug-file=${DEBUG_LOG}`)
+process.argv.push(`--log-file=${DEBUG_LOG}`)
 
 const { getCwd } = await import('../../src/utils/cwd.js')
 const { dispatchToAgent, listDeliveryReceipts, readDeliveryReceipt } = await import(

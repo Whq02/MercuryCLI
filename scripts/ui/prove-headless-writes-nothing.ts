@@ -18,7 +18,7 @@ if (process.argv[2] === '--child') {
   process.env.FORCE_COLOR = '3'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
   Object.defineProperty(process.stdout, 'isTTY', { value: true, configurable: true })
-  writeFileSync(join(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ progressReporting: true }))
+  writeFileSync(join(process.env.MERCURY_CONFIG_DIR, 'settings.json'), JSON.stringify({ activity: { progress: true } }))
   process.env.MERCURY_OASIS_BG = '0'
   const React = (await import('react')).default
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

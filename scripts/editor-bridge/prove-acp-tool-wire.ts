@@ -112,7 +112,7 @@ t.section('§5 stopReasonOf — settlement')
   t.check('an error with no detail is still an error', 'error' in dead && dead.error.includes('failed'))
 }
 
-t.section('§6 acpMcpServersToConfig — the child\'s --mcp-config')
+t.section('§6 acpMcpServersToConfig — the child\'s --mcp')
 {
   t.check('no servers ⇒ null', acpMcpServersToConfig([]) === null && acpMcpServersToConfig(undefined) === null)
   const out = acpMcpServersToConfig([

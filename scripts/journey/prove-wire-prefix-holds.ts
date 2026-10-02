@@ -491,7 +491,7 @@ async function drive(): Promise<void> {
       customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
     }),
   )
-  writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(echo:*)'] } }))
+  writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(echo *)'] } }))
   writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# wire prefix drive fixture\n')
 
   const fixtures: ChildProcess[] = []
@@ -567,7 +567,7 @@ async function drive(): Promise<void> {
     const debugFile = path.join(RUN_HOME, `${name}.debug.log`)
     const out = path.join(RUN_HOME, `grid-${name}.json`)
     const cfg = {
-      argv: ['node', DIST, '--model', MODEL, '--mode', mode, '--debug-file', debugFile],
+      argv: ['node', DIST, '--model', MODEL, '--mode', mode, '--log-file', debugFile],
       cwd: FIXTURE_CWD,
       sends,
       readyText: [readyText],

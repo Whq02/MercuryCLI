@@ -166,7 +166,7 @@ const stallsOf = (log: string): number[] => [...log.matchAll(/\[event-loop-stall
 if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
-  const runner = bootRunner({ cwd: CWD, env, extraArgv: ['--debug-file', DEBUG_FILE] })
+  const runner = bootRunner({ cwd: CWD, env, extraArgv: ['--log-file', DEBUG_FILE] })
   const refusals = (): number => runner.frames.filter(f => f.type === 'result' && /limit is reached/.test(resultText(f))).length
   runner.send(user(LEAD_ASK, 'u-lead'))
   const init = await runner.waitFor('the session init frame', isInit, bound(90_000))

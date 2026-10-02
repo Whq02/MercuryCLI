@@ -39,16 +39,16 @@ console.log('\n§2 the operator kill')
 
 console.log('\n§3 the CSV extension')
 {
-  process.env.MERCURY_WORKER_RECON_ALLOW = 'Bash(bun run scripts/x/run-all.sh),Bash,Bash(*),Read(*),Read(:*),nonsense,Edit(src/*)'
+  process.env.MERCURY_WORKER_RECON_ALLOW = 'Bash(bun run scripts/x/run-all.sh),Bash,Bash(*),Read(*),Read( *),nonsense,Edit(src/*)'
   const extended = resolveWorkerReconAllow()
   check('a valid CSV extension is appended', extended.includes('Bash(bun run scripts/x/run-all.sh)'))
   check('…after the builtin set, which is kept whole', SEAT_RECON_ALLOW.every(r => extended.includes(r)) && extended.length === SEAT_RECON_ALLOW.length + 2)
   check('a bare tool name never widens the set', !extended.includes('Bash'))
-  check('wildcard specifiers never widen the set', !extended.includes('Bash(*)') && !extended.includes('Read(*)') && !extended.includes('Read(:*)'))
+  check('wildcard specifiers never widen the set', !extended.includes('Bash(*)') && !extended.includes('Read(*)') && !extended.includes('Read( *)'))
   check('a non-rule entry is dropped', !extended.includes('nonsense'))
   check('a scoped rule for another tool is accepted', extended.includes('Edit(src/*)'))
   delete process.env.MERCURY_WORKER_RECON_ALLOW
-  check('isValidReconAllowRule: shape law', isValidReconAllowRule('Bash(git status:*)') && !isValidReconAllowRule('Bash') && !isValidReconAllowRule('Bash(*)') && !isValidReconAllowRule('bash(ls)'))
+  check('isValidReconAllowRule: shape law', isValidReconAllowRule('Bash(git status *)') && !isValidReconAllowRule('Bash') && !isValidReconAllowRule('Bash(*)') && !isValidReconAllowRule('bash(ls)'))
 }
 
 console.log('\n§4 every daemon worker kind reads the one resolver')

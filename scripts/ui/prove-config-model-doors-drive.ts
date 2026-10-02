@@ -93,7 +93,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
 function seededHome(tag: string): string {
   const home = join(ROOT, `home-${tag}`)
   seedFirstRun(home, [CWD])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
   writeFileSync(
     join(home, 'critter-profile.json'),
     JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),
@@ -244,7 +244,7 @@ if (CASE === undefined || CASE === 'cold-catalogue') {
   section('a cold Config model door requests its live GPT list without a model turn')
   for (const [tag, rowLabel, leading] of [['agent', AGENT_ROW, 'Inherit'], ['crewmate', CREWMATE_ROW, "Leader's model"]]) {
     const home = seededHome(`cold-${tag}`)
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: 'opus', prefersReducedMotion: true, spinnerTipsEnabled: false }))
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: 'opus' }, view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
     writeFileSync(join(home, '.openai-auth.json'), JSON.stringify({ version: 1, tokens: { idToken: 'fixture-id', accessToken: 'fixture-access', refreshToken: 'fixture-refresh', accountId: 'acct_fixture', planType: 'plus', email: 'sam@example.test', accessTokenExpiresAtMs: Date.now() + 86_400_000 } }), { mode: 0o600 })
     const wireFile = join(home, 'wire.jsonl')
     const catalogueFile = join(home, 'models.json')

@@ -70,7 +70,7 @@ const CAPTURE_RULES: Record<string, Rule> = {
     gates: [
       {
         file: 'src/hooks/useCancelRequest.ts',
-        needles: ["if (pendingInput.text() !== '') return false", 'isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.backgroundKey !== false'],
+        needles: ["if (pendingInput.text() !== '') return false", 'isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false'],
       },
     ],
   },

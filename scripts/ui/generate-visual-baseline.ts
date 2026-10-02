@@ -107,7 +107,7 @@ function seedRunHome(spec: CaptureSpec, home: string): void {
   )
   writeFileSync(
     join(home, 'settings.json'),
-    JSON.stringify(spec.motion === 'reduced' ? { prefersReducedMotion: true } : {}),
+    JSON.stringify(spec.motion === 'reduced' ? { view: { reducedMotion: true } } : {}),
   )
 }
 

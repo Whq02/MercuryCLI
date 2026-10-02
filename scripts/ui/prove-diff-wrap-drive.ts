@@ -61,7 +61,7 @@ if (driver.kind !== 'posix-pty') {
 }
 
 seedFirstRun(HOME, [WORK])
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true }))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true } }))
 
 const COLS = 178
 const ROWS = 51

@@ -94,7 +94,7 @@ const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c)
 
 const home = join(ROOT, 'home')
 seedFirstRun(home, [CWD])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
 if (driver.kind !== 'posix-pty') throw new Error(`no POSIX pty capture driver on this host (${driver.kind})`)
 const sends: Send[] = [
   { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },

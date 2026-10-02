@@ -202,11 +202,11 @@ section('(11) the swallowed-prompt guard fires on the inferred print shape and k
   const candidatesAt = main.indexOf('const variadicCandidates')
   const guard = main.slice(main.lastIndexOf('\n  if (', candidatesAt), candidatesAt + 900)
   check('the guard fires for run OR a non-TTY stdout (the inferred print shape)', guard.includes('(printMode || !process.stdout.isTTY) &&'))
-  check('the guard still spares resume/continue/from-pr and stream-json input', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes("inputFormat !== 'stream-json' &&"))
+  check('the guard still spares resume/continue/pr and the rows input road', guard.includes('!opts.resume &&') && guard.includes('!opts.continue &&') && guard.includes('!opts.pr &&') && guard.includes("inputFormat !== 'stream-json' &&"))
   check('a retired option is no candidate', !guard.includes("['--file',") && !guard.includes("['--allowedTools',") && !guard.includes("['--add-dir',"))
   const list = /const variadicCandidates[^=]*= \[([\s\S]*?)\n\s*\]/.exec(guard)?.[1] ?? ''
   const candidates = [...list.matchAll(/\['([^']+)',/g)].map(match => match[1])
-  check('the five candidates are kept in their one spelling, without extras or duplicates', JSON.stringify(candidates) === JSON.stringify(['--allowed-tools', '--disallowed-tools', '--tools', '--mcp-config', '--betas']), JSON.stringify(candidates))
+  check('the five candidates are kept in their one spelling, without extras or duplicates', JSON.stringify(candidates) === JSON.stringify(['--allowed-tools', '--block-tools', '--toolset', '--mcp', '--provider-preview']), JSON.stringify(candidates))
 }
 
 section('(12) the reserved-shortcut table knows Windows')

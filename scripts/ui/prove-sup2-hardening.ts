@@ -147,7 +147,7 @@ console.log('§9 settings parse — the shared cache object is never mutated')
   const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
   const dir = mkdtempSync(join(tmpdir(), 'sup2-settings-'))
   try {
-    const body = '{"permissions":{"allow":[42]}}\n'
+    const body = '{"guardrails":{"allow":[42]}}\n'
     const a = join(dir, 'a.settings.json')
     const b = join(dir, 'b.settings.json')
     writeFileSync(a, body)
@@ -333,7 +333,7 @@ console.log('§21 /config revert — targeted undo, never the mount snapshot')
   check('the revert merges the snapshot values onto CURRENT (lock re-read respected)', cfg.includes('saveGlobalConfig(current => {') && cfg.includes('const restored = { ...current }'))
   check('an untouched dialog reverts no global key at all', cfg.includes('if (globalTouchedRef.current.size > 0)'))
   check('a key absent at mount deletes on revert (born-in-dialog keys go)', cfg.includes('if (snap[key] === undefined) delete restored[key]'))
-  check('permissions revert moves ONLY defaultMode', cfg.includes('permissions: { defaultMode: snapshots.user.permissions?.defaultMode }') && !cfg.includes('permissions: snapshots.user.permissions'))
+  check('guardrails revert moves ONLY mode', cfg.includes('guardrails: { mode: snapshots.user.guardrails?.mode }') && !cfg.includes('guardrails: snapshots.user.guardrails'))
 }
 
 console.log('§22 service stop — the tree goes, not just the root')
@@ -380,24 +380,24 @@ console.log('§24 settings writes — the file round-trips whole')
     userPath,
     `${JSON.stringify(
       {
-        permissions: { allow: [42, 'Read(//ok/**)'] },
-        hooks: { PreToolUse: [{ matcher: 'Bash', note: 'why this exists', hooks: [] }] },
+        guardrails: { allow: [42, 'Read(//ok/**)'] },
+        events: { hooks: { PreToolUse: [{ matcher: 'Bash', note: 'why this exists', hooks: [] }] } },
       },
       null,
       2,
     )}\n`,
   )
-  const { error } = updateSettingsForSource('userSettings', { language: 'en' })
+  const { error } = updateSettingsForSource('userSettings', { voice: { language: 'en' } })
   check('the unrelated write succeeds', error === null, String(error))
   const after = JSON.parse(readFileSync(userPath, 'utf8')) as {
-    language?: string
-    permissions?: { allow?: unknown[] }
-    hooks?: { PreToolUse?: Array<{ note?: string }> }
+    voice?: { language?: string }
+    guardrails?: { allow?: unknown[] }
+    events?: { hooks?: { PreToolUse?: Array<{ note?: string }> } }
   }
-  check('the write applied its own key', after.language === 'en')
-  check('the warned-invalid rule SURVIVES the unrelated write', Array.isArray(after.permissions?.allow) && after.permissions.allow.includes(42))
-  check('the valid sibling rule survives beside it', after.permissions?.allow?.includes('Read(//ok/**)') === true)
-  check("the hook matcher's unknown key survives (the nested-strip disease)", after.hooks?.PreToolUse?.[0]?.note === 'why this exists')
+  check('the write applied its own key', after.voice?.language === 'en')
+  check('the warned-invalid rule SURVIVES the unrelated write', Array.isArray(after.guardrails?.allow) && after.guardrails.allow.includes(42))
+  check('the valid sibling rule survives beside it', after.guardrails?.allow?.includes('Read(//ok/**)') === true)
+  check("the hook matcher's unknown key survives (the nested-strip disease)", after.events?.hooks?.PreToolUse?.[0]?.note === 'why this exists')
 }
 
 console.log('§25 stall wake — paired re-entry, repaint scheduled')

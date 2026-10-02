@@ -52,7 +52,7 @@ for (const world of worlds) {
     if (git.status !== 0) throw new Error(`git ${args.join(' ')} failed: ${git.stderr}`)
   }
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify(world.saved === null ? {} : { effortLevel: world.saved }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify(world.saved === null ? {} : { engine: { effort: world.saved } }))
   const out = join(SCRATCH, world.tag, 'grid.json')
   const full = world.cols >= 100 && world.rows >= 26
   const bornNeedle = full ? ' ready \u00b7 ' : '1 session on'

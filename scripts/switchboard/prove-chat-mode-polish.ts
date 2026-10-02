@@ -54,7 +54,7 @@ t.section('§C — the shortcuts tab: ctrl+x c\'s label per world, the triple un
 t.section('§D — the felt path (L15): `--chat` lands on the boot menu, and ↵ New Session is the warm road')
 {
   const main = read('src/main.tsx')
-  t.check('--chat is not an explicit journey (the landing rule lands the face) and births nothing at boot', main.includes('if (opts.continue || opts.resume || opts.fromPr || inputPrompt) {') && main.includes('if (promptIsWords || !isFullscreenEnvEnabled()) {') && !main.includes('opts.chat === true || promptIsWords'))
+  t.check('--chat is not an explicit journey (the landing rule lands the face) and births nothing at boot', main.includes('if (opts.continue || opts.resume || opts.pr || inputPrompt) {') && main.includes('if (promptIsWords || !isFullscreenEnvEnabled()) {') && !main.includes('opts.chat === true || promptIsWords'))
   t.check('the --chat mark still holds (the plain world for this boot; no third flag)', /if \(opts\.chat === true\) \{[\s\S]*?markChatBoot\(\)/.test(main))
   t.check("no root-action preheat remains — the menu's mount warms the daemon and its runner beneath the face (the REPL's own hook, unconditional at mount)", !main.includes('program.opts().chat === true') && read('src/screens/REPL.tsx').includes('if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());'))
   t.check('the option help says the menu is the landing and ↵ New Session the door', main.includes('↵ New Session on the menu starts the chat') && main.includes('`-chat` is the same switch'))

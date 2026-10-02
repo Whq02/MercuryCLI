@@ -44,7 +44,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm:*)'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm *)'] } }))
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
@@ -134,8 +134,8 @@ try {
   check('D2 the assistant record names the asking tool use', confirm !== undefined && JSON.stringify(confirm.assistantMessage).includes(confirm.toolUseID))
   const reason = confirm !== undefined && 'decisionReason' in confirm.permissionResult ? confirm.permissionResult.decisionReason : undefined
   check(
-    'D2 the reason crosses structured: the matched ask rule Bash(rm:*)',
-    reason?.type === 'rule' && reason.rule.ruleValue.toolName === 'Bash' && reason.rule.ruleValue.ruleContent === 'rm:*',
+    'D2 the reason crosses structured: the matched ask rule Bash(rm *)',
+    reason?.type === 'rule' && reason.rule.ruleValue.toolName === 'Bash' && reason.rule.ruleValue.ruleContent === 'rm *',
     JSON.stringify(reason),
   )
   let asksAtVerb = -1

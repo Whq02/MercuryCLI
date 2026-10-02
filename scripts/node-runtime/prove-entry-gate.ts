@@ -49,7 +49,7 @@ if (!existsSync(dist)) {
   for (const [v, args] of [
     ['22.21.0', ['--version']],
     ['22.21.0', ['--help']],
-    ['22.21.0', ['join-kit', '--help']],
+    ['22.21.0', ['frobnicate', '--help']],
     ['22.21.0', ['doctor', '--json']],
     ['20.19.0', ['--version']],
     ['24.10.9', ['--version']],
@@ -95,7 +95,8 @@ if (!existsSync(dist)) {
   const help = run(['--help'])
   check('--help exits 0', help.status === 0, help.out.slice(0, 120))
   const kit = run(['join-kit', '--help'])
-  check('the retired join-kit verb answers its typed reason through the gate (exit 2, never unknown-verb)', kit.status === 2 && /retired — a new multiplayer is being built on the channel/.test(kit.out), kit.out.slice(0, 160))
+  const nonsense = run(['frobnicate', '--help'])
+  check('a former verb rides the gate as any unknown word does (the same exit and the same answer as nonsense)', kit.status === nonsense.status && kit.out === nonsense.out, `${kit.status} ${kit.out.slice(0, 160)}`)
   const doc = run(['doctor', '--json'])
   check('doctor --json exits 0', doc.status === 0, doc.out.slice(0, 200))
   try {

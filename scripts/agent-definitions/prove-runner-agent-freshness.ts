@@ -48,7 +48,7 @@ async function waitFor(cond: () => boolean, deadlineMs = 8000): Promise<boolean>
 
 const flagAgent = {
   agentType: 'sdk-injected',
-  whenToUse: 'Injected via --agents; never file-backed.',
+  whenToUse: 'Injected via --agent-defs; never file-backed.',
   getSystemPrompt: () => 'You are the SDK-injected fixture.',
   source: 'flagSettings',
 } as unknown as AgentDefinition

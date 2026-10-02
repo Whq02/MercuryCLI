@@ -61,7 +61,7 @@ for (const size of sizes) {
   if (scene === 'theme') cfg.hasCompletedOnboarding = false
   cfg.optionAsMetaKeyInstalled = true
   writeFileSync(cfgPath, JSON.stringify(cfg))
-  writeFileSync(join(world.config, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))
+  writeFileSync(join(world.config, 'settings.json'), JSON.stringify({ view: { reducedMotion: true } }))
   const env: NodeJS.ProcessEnv = { ...world.env, TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', TERM_PROGRAM_VERSION: '455', ...extra }
   if (!extra.COLORTERM) delete env.COLORTERM
   delete env.FORCE_COLOR

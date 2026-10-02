@@ -36,7 +36,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-const askRule = { permissions: { ask: ['Bash(rm:*)'] } }
+const askRule = { guardrails: { ask: ['Bash(rm *)'] } }
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
@@ -155,11 +155,11 @@ try {
       `hopped frames: ${hoppedFrames.map(g => g.atMs).join(',') || 'none'}; with the card: ${cardFrames.map(g => g.atMs).join(',') || 'none'}`,
     )
     check(
-      'N2 …and the card explains the ask as the boot session\'s card does (the rule Bash(rm:*) + the /permissions hint)',
+      'N2 …and the card explains the ask as the boot session\'s card does (the rule Bash(rm *) + the /permissions hint)',
       cardFrames.some(
         g =>
-          /The rule Bash\(rm:\*\) requires confirmation for this command/.test(text(g)) &&
-          text(g).includes('Permission rules can be changed in /permissions'),
+          /The rule Bash\(rm \*\) in your user settings asks first\./.test(text(g)) &&
+          text(g).includes('Rules live in /permissions'),
       ),
     )
     const cardBelowTranscript = cardFrames.some(g => {

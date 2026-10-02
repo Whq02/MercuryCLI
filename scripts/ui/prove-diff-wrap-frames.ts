@@ -15,7 +15,7 @@ let highlightingOff = false
 const settingsModule = await import('../../src/hooks/useSettings.js')
 mock.module('../../src/hooks/useSettings.js', () => ({
   ...settingsModule,
-  useSettings: () => ({ syntaxHighlightingDisabled: highlightingOff }),
+  useSettings: () => ({ view: { syntaxOff: highlightingOff } }),
   useSettingsMaybe: () => undefined,
 }))
 

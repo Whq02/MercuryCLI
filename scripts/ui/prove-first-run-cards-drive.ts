@@ -182,7 +182,7 @@ type Shot = { refusal: string | null; grid: Grid; marks: Array<{ label: string; 
 function homeFor(tag: string, state: string): string {
   const home = join(SCRATCH, `home-${tag}`)
   mkdirSync(home, { recursive: true })
-  if (state !== 'centred') writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ firstRunCards: state })}\n`)
+  if (state !== 'centred') writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ view: { firstRunCards: state } })}\n`)
   return home
 }
 
@@ -238,20 +238,20 @@ async function walk(state: string, cols: number, rows: number): Promise<Record<S
   return grids as Record<Station, Grid>
 }
 
-console.log('the five first-run cards sit centred on the screen, the trust tone in light brown; firstRunCards: top-left restores the shipped top-left amber cards — the built product in a PTY')
+console.log('the five first-run cards sit centred on the screen, the trust tone in light brown; view.firstRunCards: top-left restores the shipped top-left amber cards — the built product in a PTY')
 console.log(`  bundle ${DIST}\n  scratch ${SCRATCH}`)
 
 console.log('\n── the setting')
 check('an absent key reads as centred', firstRunCardsCentred(undefined) && firstRunCardsCentred({}))
-check('centred reads as centred', firstRunCardsCentred({ firstRunCards: 'centred' }))
-check('top-left reads as the shipped look', !firstRunCardsCentred({ firstRunCards: 'top-left' }))
+check('centred reads as centred', firstRunCardsCentred({ view: { firstRunCards: 'centred' } }))
+check('top-left reads as the shipped look', !firstRunCardsCentred({ view: { firstRunCards: 'top-left' } }))
 
 try {
   for (const [cols, rows] of SIZES) {
     const size = `${cols}x${rows}`
     const shots: Partial<Record<string, Record<Station, Grid>>> = {}
     for (const state of STATES) {
-      console.log(`\n── ${size} · firstRunCards ${state === 'centred' ? 'absent' : state}`)
+      console.log(`\n── ${size} · view.firstRunCards ${state === 'centred' ? 'absent' : state}`)
       let grids: Record<Station, Grid> | null
       try {
         grids = await walk(state, cols, rows)

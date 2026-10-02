@@ -129,7 +129,7 @@ console.log('D8: a same-dir twin resolves deterministically (the sorted walk)')
   )
   const printer = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'handlers', 'agents.ts'), 'utf-8')
   check(
-    "the `mercury agents` shadow line names the same-source winner's file",
+    "the `mercury roster` shadow line names the same-source winner's file",
     printer.includes("winner.source === agent.source") && printer.includes('filePath'),
   )
 }

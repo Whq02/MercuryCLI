@@ -293,7 +293,7 @@ function seedLeg(journey: Journey, size: Size, run: number): Leg {
   mkdirSync(cwd, { recursive: true })
   writeFileSync(join(cwd, 'README.md'), '# the order-once fixture\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true }, activity: { tips: { enabled: false } } }))
   return { journey, size, run, home, cwd, tee: join(SCRATCH, `${tag}.tee`), cfg: join(SCRATCH, `${tag}-cfg.json`), grid: join(SCRATCH, `${tag}-grid.json`), log: join(SCRATCH, `${tag}-engine.log`) }
 }
 function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {

@@ -47,7 +47,7 @@ try {
       const commandId = crypto.randomUUID()
       const commandPath = join(getProjectDir(RUNTIME_CWD), `${commandId}.jsonl`)
       writeFileSync(commandPath, encodeSeedTranscript(entries.map(row => ({ ...row, sessionId: commandId })), commandId))
-      writeFileSync(join(CONFIG_HOME, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+      writeFileSync(join(CONFIG_HOME, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
       const argv = cfg.argv.map(value => value === SID && road === 'header' ? commandId : value)
       const sends: Record<string, unknown>[] = [
         { awaitText: 'Type a prompt', requireAwait: true, awaitSettleTicks: 5, data: '', mark: 'home' },

@@ -89,7 +89,7 @@ const driver = requireCaptureDriver('shell-background-key')
 const COLS = 178
 const ROWS = 51
 const SOVEREIGN_ARGV = ['--sovereign']
-const SETTINGS = { skipSovereignConsentPrompt: true, prefersReducedMotion: true, spinnerTipsEnabled: false }
+const SETTINGS = { guardrails: { sovereignConsentSeen: true }, view: { reducedMotion: true }, activity: { tips: { enabled: false } } }
 const HINT_ROW = keyHintLabel('esc interrupt · ⇧b background the command')
 const TAIL_RUNNING = keyHintLabel('esc interrupts · ⇧b backgrounds · ⇧← back')
 const TAIL_PLAIN = keyHintLabel('esc interrupts · ⇧← back')
@@ -109,7 +109,7 @@ async function capture(tag: string, keyOn: boolean, sends: unknown[], aside?: (l
     { kind: 'paced_tool_use', preDeltas: ['Running ', 'the long ', 'command ', 'now, ', LAST_WORDS], gapMs: 1500, tools: [{ name: 'Bash', input: { command: COMMAND, description: 'a long command' } }] },
     { kind: 'text', text: `${FINISHED}.` },
   ], null)
-  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify(keyOn ? SETTINGS : { ...SETTINGS, backgroundKey: false }))
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify(keyOn ? SETTINGS : { ...SETTINGS, view: { ...SETTINGS.view, backgroundKey: false } }))
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)
   const log = join(scratch, `${tag}-engine.log`)

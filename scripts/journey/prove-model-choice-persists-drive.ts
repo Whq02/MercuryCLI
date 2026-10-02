@@ -167,7 +167,7 @@ function drive(world: World, name: string, argvTail: string[], sends: unknown[],
 
 function savedModel(world: World): string | undefined {
   try {
-    return (JSON.parse(readFileSync(path.join(world.home, 'settings.json'), 'utf8')) as { model?: string }).model
+    return (JSON.parse(readFileSync(path.join(world.home, 'settings.json'), 'utf8')) as { engine?: { model?: string } }).engine?.model
   } catch {
     return undefined
   }

@@ -48,7 +48,6 @@ console.log('§2 the discipline is in: writeSync beside the exits the audit fixe
   )
   const main = read('src/main.tsx')
   check('the --version line writes sync', main.includes('writeSync(1, `Mercury ${MERCURY_VERSION}\\n`)'))
-  check('the rollback refusal writes sync', main.includes("writeSync(2, 'Rollback is an update operation"))
   const auth = read('src/cli/handlers/auth.ts')
   check("both sign-in results write sync", (auth.match(/writeSync\(1, /g) ?? []).length >= 4)
   const sio = read('src/cli/structuredIO.ts')

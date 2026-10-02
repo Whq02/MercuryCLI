@@ -290,13 +290,11 @@ console.log('§7 a saved keybinding under the old action id still binds')
   check('a saved keybindings file under the old id loads through the product\'s own loader as the crew action, with no warning', saved !== undefined && loaded.warnings.length === 0, JSON.stringify({ warnings: loaded.warnings, actions: loaded.bindings.map(b => b.action).filter(a => /Preview/.test(String(a))) }))
 }
 
-console.log('§8 the old command-line spellings still read')
+console.log('§8 the command line knows one crew spelling')
 {
-  const spellings = await import('../../src/migrations/retiredCrewSpellings.ts')
-  const argv = spellings.readRetiredCliFlags(['node', 'mercury', '--team-name', 'alpha', '--agent-teams', '--agent-name=x'])
-  check('--team-name and --agent-teams read as the crew flags', argv.includes('--crew-name') && argv.includes('--agent-crews') && !argv.includes('--team-name'), argv.join(' '))
-  check('the launcher parses the command line through the table', /parseAsync\(readRetiredCliFlags\(process\.argv\)\)/.test(src('src/main.tsx')))
-  check('the crew flag is the one the launcher declares', src('src/main.tsx').includes("'--crew-name <name>'") && !src('src/main.tsx').includes("'--team-name <name>'"))
+  const main = src('src/main.tsx')
+  check('the crew flag is the one the launcher declares', main.includes("'--crew <name>'") && !main.includes("'--crew-name <name>'") && !main.includes("'--team-name <name>'"))
+  check('the launcher reads the command line through no alias table', !main.includes('readRetiredCliFlags'))
 }
 
 console.log('§9 a saved expanded-view value under the old word opens the crew tree')

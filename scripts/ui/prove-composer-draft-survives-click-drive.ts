@@ -52,7 +52,7 @@ const has = (frame: Frame | undefined, needle: string): boolean => (frame?.text 
 const composerRow = (frame: Frame | undefined): string | undefined => rowsOf(frame).find(r => r.startsWith('│❯'))
 const cursorOf = (frame: Frame | undefined): string => (frame === undefined ? '(no frame)' : `${frame.cursor.x},${frame.cursor.y}`)
 
-function seedWorld(name: string, settings: Record<string, unknown>): { home: string; cwd: string } {
+function seedWorld(name: string, view: Record<string, unknown>): { home: string; cwd: string } {
   const home = join(scratch, `home-${name}`)
   const cwd = join(scratch, `cwd-${name}`, 'fixture-cwd')
   mkdirSync(home, { recursive: true })
@@ -60,7 +60,7 @@ function seedWorld(name: string, settings: Record<string, unknown>): { home: str
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
   writeFileSync(join(cwd, 'src', 'alpha.ts'), 'export const alpha = 1\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true, prefersReducedMotion: true, spinnerTipsEnabled: false, ...settings }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true }, view: { reducedMotion: true, ...view }, activity: { tips: { enabled: false } } }, null, 2))
   return { home, cwd }
 }
 
