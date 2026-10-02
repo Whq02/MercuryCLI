@@ -10,12 +10,10 @@ const saved = {
   map: process.env.MERCURY_HARNESS_MAP,
   workflows: process.env.MERCURY_WORKFLOWS,
   godot: process.env.MERCURY_GODOT,
-  mneme: process.env.MERCURY_MNEME,
 }
 delete process.env.MERCURY_HARNESS_MAP
 delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
-delete process.env.MERCURY_MNEME
 
 const { getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
   await import('../../src/utils/cockpit/harnessMap.js')
@@ -41,15 +39,11 @@ check(
   on !== null && on.split('\n').filter(l => l.startsWith('# ')).length === 1,
 )
 check('opt-in Godot NOT advertised when off', on !== null && !on.includes('Godot'))
-check('opt-in MNEME NOT advertised when off', on !== null && !on.includes('MNEME'))
 resetHarnessMapForTest()
 process.env.MERCURY_GODOT = '1'
-process.env.MERCURY_MNEME = '1'
 const armedMap = getHarnessMapSection()
 check('Godot lane advertised when armed', armedMap !== null && armedMap.includes('Godot lanes are ARMED'))
-check('MNEME advertised when armed', armedMap !== null && armedMap.includes('MNEME'))
 delete process.env.MERCURY_GODOT
-delete process.env.MERCURY_MNEME
 resetHarnessMapForTest()
 const reprimed = getHarnessMapSection()
 check('re-primed default map matches first compute', reprimed === on)
@@ -114,27 +108,27 @@ check(
   })
   resetHarnessMapForTest()
   delete process.env.MERCURY_HARNESS_MAP
-  delete process.env.MERCURY_MNEME
+  delete process.env.MERCURY_GODOT
   getHarnessMapSection()
   check('no delta right after the prompt block (baseline)', getHarnessMapDelta([]) === null)
-  process.env.MERCURY_MNEME = '1'
+  process.env.MERCURY_GODOT = '1'
   const d1 = getHarnessMapDelta([])
-  check('an armed opt-in emits a delta', d1 !== null && d1.added.some(l => l.includes('MNEME')))
+  check('an armed opt-in emits a delta', d1 !== null && d1.added.some(l => l.includes('Godot')))
   check('the delta removed-side is empty on an arm', d1 !== null && d1.removed.length === 0)
   const d1again = getHarnessMapDelta([])
   check('an unlanded delta re-announces next turn (abort-proof)',
-    d1again !== null && d1again.added.some(l => l.includes('MNEME')))
+    d1again !== null && d1again.added.some(l => l.includes('Godot')))
   const history = [landed(d1!)]
   check('announce-once: silent once the attachment LANDED', getHarnessMapDelta(history) === null)
-  delete process.env.MERCURY_MNEME
+  delete process.env.MERCURY_GODOT
   const d2 = getHarnessMapDelta(history)
-  check('a disarm emits the removed side', d2 !== null && d2.removed.some(l => l.includes('MNEME')))
+  check('a disarm emits the removed side', d2 !== null && d2.removed.some(l => l.includes('Godot')))
   const history2 = [...history, landed(d2!)]
   check('announce-once holds after the disarm too', getHarnessMapDelta(history2) === null)
   process.env.MERCURY_HARNESS_MAP = '0'
-  process.env.MERCURY_MNEME = '1'
+  process.env.MERCURY_GODOT = '1'
   check('MERCURY_HARNESS_MAP=0 silences the delta', getHarnessMapDelta([]) === null)
-  delete process.env.MERCURY_MNEME
+  delete process.env.MERCURY_GODOT
   delete process.env.MERCURY_HARNESS_MAP
   resetHarnessMapForTest()
 }
@@ -159,7 +153,6 @@ for (const [k, v] of Object.entries({
   MERCURY_HARNESS_MAP: saved.map,
   MERCURY_WORKFLOWS: saved.workflows,
   MERCURY_GODOT: saved.godot,
-  MERCURY_MNEME: saved.mneme,
 })) {
   if (v === undefined) delete process.env[k]
   else process.env[k] = v

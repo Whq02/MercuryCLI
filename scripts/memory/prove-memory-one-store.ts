@@ -52,7 +52,7 @@ check('no source names the taste loop, the notes upkeep or the dream task (the s
 check("no source reads an 'AutoMem' instruction entry", carriers(/'AutoMem'|'TeamMem'/).length === 0, carriers(/'AutoMem'|'TeamMem'/).join(', '))
 check('no command is registered under the memory words that are not Mercury\'s', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))
 const registry = read('src/substrate/flagRegistry.ts')
-for (const flag of ['MERCURY_EXPERIENCE_CARDS', 'MERCURY_TASTE_LOOP', 'MERCURY_RELEVANT_RECALL', 'MERCURY_CARD_DEDUP', 'MERCURY_CARD_PROMOTE_GATE', 'MERCURY_CARD_PROMOTE_RUNGATE', 'MERCURY_CARD_RECALL_PRECISION', 'MERCURY_CARD_SUPERSEDE', 'MERCURY_CARD_TRACE_GROUND']) {
+for (const flag of ['MERCURY_EXPERIENCE_CARDS', 'MERCURY_TASTE_LOOP', 'MERCURY_CARD_DEDUP', 'MERCURY_CARD_PROMOTE_GATE', 'MERCURY_CARD_PROMOTE_RUNGATE', 'MERCURY_CARD_RECALL_PRECISION', 'MERCURY_CARD_SUPERSEDE', 'MERCURY_CARD_TRACE_GROUND']) {
   check(`the registry has no ${flag} row`, !registry.includes(`env: '${flag}'`))
 }
 check('the flag registry\'s table of unknown names carries no memory flag', !/RETIRED_FLAGS[\s\S]*MERCURY_(MNEME|EXPERIENCE_CARDS|TASTE_LOOP|RELEVANT_RECALL|CARD_)/.test(registry))

@@ -11,7 +11,6 @@ process.env.MERCURY_CREWS_DIR = mkdtempSync(join(tmpdir(), 'sh-permit-crews-'))
 for (const k of [
   'MERCURY_BARE',
   'MERCURY_EFFORT_LEVEL',
-  'MERCURY_RELEVANT_RECALL',
   'NODE_ENV',
 ]) {
   delete process.env[k]

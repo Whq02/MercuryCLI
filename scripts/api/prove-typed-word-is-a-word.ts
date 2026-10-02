@@ -130,6 +130,11 @@ if (!existsSync(DIST)) {
     if (control && controlAgain) {
       check('two runs of the control prompt send the same request (the comparison is sound)', normalised(control, CONTROL) === normalised(controlAgain, CONTROL))
     }
+    if (control) {
+      const systemText = JSON.stringify(control.system ?? '').toLowerCase()
+      const carried = WORDS.filter(word => systemText.includes(word.toLowerCase()))
+      check('the system prompt of the control request names none of the typed words (the words are no lever by Mercury\'s own instruction either)', carried.length === 0, `the system block carries: ${carried.join(', ')}`)
+    }
     for (const word of WORDS) {
       const body = await mainRequestFor(word)
       if (!control || !body) continue

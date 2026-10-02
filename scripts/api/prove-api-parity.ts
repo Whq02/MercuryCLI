@@ -123,7 +123,7 @@ add('getAPIMetadata', 'shape', () => {
 })
 add('getExtraBodyParams', 'probe', () => snap(() => C.getExtraBodyParams()))
 
-const NET = 'live-API request path — pinned by billed live smokes + substrate suites (cache-clock, ultrathink effort); exercised on every real turn'
+const NET = 'live-API request path — pinned by billed live smokes + substrate suites (cache-clock, effort); exercised on every real turn'
 const SKIPPED: Record<string, string> = Object.fromEntries(
   [
     'queryWithModel', 'queryModelWithStreaming', 'queryModelWithoutStreaming',

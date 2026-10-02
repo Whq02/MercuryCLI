@@ -30,10 +30,10 @@ function runIn(body: string): Record<string, unknown> {
     const project = ${JSON.stringify(project)}
     const s = await import(${JSON.stringify(join(SRC, 'utils/settings/settings.ts'))})
     const userSettingsPath = s.getSettingsFilePathForSource('userSettings')
-    const plantOldPlan = () => {
-      const plans = path.join(home, 'plans')
-      fs.mkdirSync(plans, { recursive: true })
-      const file = path.join(plans, 'old-plan.md')
+    const plantOldDebugLog = () => {
+      const debugDir = path.join(home, 'debug')
+      fs.mkdirSync(debugDir, { recursive: true })
+      const file = path.join(debugDir, 'old-session.txt')
       fs.writeFileSync(file, 'keep me')
       const old = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
       fs.utimesSync(file, old, old)
@@ -82,13 +82,13 @@ console.log('L2 the sweep — a broken settings file that held the key stops the
   const r = runIn(`
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
     fs.writeFileSync(userSettingsPath, '{ "records": { "retentionDays": 365, ')
-    const planted = plantOldPlan()
+    const planted = plantOldDebugLog()
     const cleanup = await import(${JSON.stringify(join(SRC, 'utils/cleanup.ts'))})
     out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
     out.survived = fs.existsSync(planted)
   `)
   const receipt = r.receipt as { messages: number; errors: number }
-  check('the 40-day-old plan document SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default')
+  check('the 40-day-old debug log SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default')
   check('the receipt carries one error and no finished look', receipt.errors === 1 && receipt.messages === 0, JSON.stringify(receipt))
 }
 
@@ -97,12 +97,12 @@ console.log('L3 control — healthy settings, the sweep runs')
   const r = runIn(`
     fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true })
     fs.writeFileSync(userSettingsPath, JSON.stringify({ theme: 'dark' }))
-    const planted = plantOldPlan()
+    const planted = plantOldDebugLog()
     const cleanup = await import(${JSON.stringify(join(SRC, 'utils/cleanup.ts'))})
     out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
     out.survived = fs.existsSync(planted)
   `)
-  check('the old plan document is swept on the default window', r.survived === false, 'still present')
+  check('the old debug log is swept on the default window', r.survived === false, 'still present')
 }
 
 console.log('L4 policy — a registry/plist-delivered retention window is seen')

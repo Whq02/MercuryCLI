@@ -2,12 +2,6 @@ import { plural } from '../utils/stringUtils.js'
 import type { BackgroundTaskState } from './types.js'
 
 
-type RemoteAgentFields = {
-  isUltraplan?: boolean
-  ultraplanPhase?: string
-}
-
-const DIAMOND_FILLED = '◆'
 const DIAMOND_OPEN = '◇'
 
 export function getPillLabel(tasks: BackgroundTaskState[]): string {
@@ -33,22 +27,8 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
     }
     case 'local_agent':
       return `${tasks.length} local ${plural(tasks.length, 'agent')}`
-    case 'remote_agent': {
-      if (tasks.length === 1) {
-        const remote = tasks[0] as RemoteAgentFields
-        if (remote.isUltraplan) {
-          switch (remote.ultraplanPhase) {
-            case 'plan_ready':
-              return `${DIAMOND_FILLED} plan ready`
-            case 'needs_input':
-              return `${DIAMOND_OPEN} needs your input`
-            default:
-              return `${DIAMOND_OPEN} ultraplan`
-          }
-        }
-      }
+    case 'remote_agent':
       return `${DIAMOND_OPEN} ${tasks.length} cloud ${plural(tasks.length, 'session')}`
-    }
     case 'local_workflow':
       return `${tasks.length} background ${plural(tasks.length, 'workflow')}`
     case 'monitor_mcp':
@@ -56,14 +36,4 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
     default:
       return `${tasks.length} background ${plural(tasks.length, 'task')}`
   }
-}
-
-export function pillNeedsCta(tasks: BackgroundTaskState[]): boolean {
-  if (tasks.length !== 1) return false
-  const task = tasks[0] as { type?: string } & RemoteAgentFields
-  return (
-    task.type === 'remote_agent' &&
-    task.isUltraplan === true &&
-    task.ultraplanPhase !== undefined
-  )
 }

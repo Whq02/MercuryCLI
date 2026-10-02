@@ -52,7 +52,7 @@ such client.
 | session/update: current_mode_update · config_option_update | yes |
 | session/update on load: user_message_chunk · agent_message_chunk · agent_thought_chunk · tool_call · tool_call_update | yes (the transcript, in order) |
 | session/request_permission (adapts Mercury's can_use_tool; the tool_call's diff content is the preview) | yes |
-| session/set_mode (default · implement · strategy · flow; retired external spellings decode at the boundary) | yes |
+| session/set_mode (default · implement · flow) | yes |
 | session/set_config_option (`permission-mode` selector, category `mode`) | yes |
 | _mercury/editor_context (client → agent notification: active file, selection, open files, diagnostics, workspace roots — rides the next prompt as an attached resource) | yes (extension notification) |
 | _mercury/workbench (incl. the versioned attention + relationship wire) · _mercury/artifacts · _mercury/artifact · _mercury/crew · _mercury/run | yes (extension methods — the VS Code bridge's read surface) |

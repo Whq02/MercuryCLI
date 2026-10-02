@@ -264,7 +264,7 @@ export function findLatestMessage<T extends { timestamp: string }>(
   for (const m of messages) {
     if (!predicate(m)) continue
     const t = Date.parse(m.timestamp)
-    if (t > maxTime) {
+    if (t >= maxTime) {
       maxTime = t
       latest = m
     }

@@ -87,19 +87,6 @@
       },
       "additionalProperties": {}
     },
-    "strategy": {
-      "type": "object",
-      "properties": {
-        "directory": {
-          "description": "Project-root-relative directory for plan files (default plans/ under the Mercury config home)",
-          "type": "string"
-        },
-        "offerFreshContext": {
-          "type": "boolean"
-        }
-      },
-      "additionalProperties": {}
-    },
     "memory": {
       "type": "object",
       "properties": {

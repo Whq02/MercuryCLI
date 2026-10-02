@@ -180,6 +180,54 @@ copyFileSync(DIST, join(pkg, 'mercury.mjs'))
   check('--check ends on the road: `mercury update` runs the npm command', c.code === 0 && c.stdout.trim().endsWith(`this Mercury was installed by npm; \`mercury update\` runs \`${NPM_COMMAND}\``), c.stdout.slice(-200))
 }
 
+section('§2b THE INSTALLER ROADS END LIKE EVERY OTHER — after the installer ran, the daemon line and the open-windows line close the road, and --json carries both')
+const stubBin = join(scratch, 'installer-bin')
+mkdirSync(stubBin, { recursive: true })
+const V_INSTALLER = '9.9.0-beta.7'
+const writeStub = (name: string, body: string): void => {
+  const file = join(stubBin, IS_WIN ? `${name}.cmd` : name)
+  writeFileSync(file, IS_WIN ? `@echo off\r\n${body.replace(/\n/g, '\r\n')}` : `#!/bin/sh\n${body}`)
+  if (!IS_WIN) chmodSync(file, 0o755)
+}
+const stubMercury = (version: string): void => writeStub('mercury', IS_WIN ? `echo ${version}\r\n` : `echo "${version}"\n`)
+writeStub('brew', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
+writeStub('npm', IS_WIN ? 'exit /b 0\r\n' : 'exit 0\n')
+const installerDaemonLast = (to: string): string => `background daemon: none running — the next session starts one on v${to}`
+const openWindowsLine = (from: string): string => `any Mercury window still open keeps working on v${from} until it is closed and opened again`
+const endsLikeEveryRoad = (label: string, bundle: string, installerName: string, command: string): void => {
+  rmSync(versionsDir, { recursive: true, force: true })
+  mkdirSync(versionsDir, { recursive: true })
+  stubMercury(V_INSTALLER)
+  const r = run(bundle, ['update', '--yes'], env(pathOf(stubBin)))
+  const lines = r.stdout.trim().split('\n').map(l => l.trim())
+  check(
+    `${label}: the installer ran and the road ends with the daemon line and then the open-windows line`,
+    r.code === 0 && lines[0] === `updated: ${RUNNING} → ${V_INSTALLER} (${installerName}: \`${command}\`)` && lines[lines.length - 2] === installerDaemonLast(V_INSTALLER) && lines[lines.length - 1] === openWindowsLine(RUNNING),
+    r.all.slice(0, 700),
+  )
+  const j = run(bundle, ['update', '--yes', '--json'], env(pathOf(stubBin)))
+  const record = parse(j.stdout)
+  const daemon = record?.daemon as { state?: string; line?: string } | undefined
+  check(
+    `${label}: --json carries the daemon record and the open-windows sentence beside installer-ran`,
+    j.code === 0 && record?.state === 'installer-ran' && record?.to === V_INSTALLER && daemon?.state === 'absent' && daemon?.line === installerDaemonLast(V_INSTALLER) && record?.openWindows === openWindowsLine(RUNNING),
+    j.stdout.slice(0, 700),
+  )
+  stubMercury(RUNNING)
+  const same = run(bundle, ['update', '--yes'], env(pathOf(stubBin)))
+  const sameLines = same.stdout.trim().split('\n').map(l => l.trim())
+  check(
+    `${label}: when the package has not moved, the daemon line still closes the road and no window is told to reopen`,
+    same.code === 0 && sameLines[0] === `Mercury is still ${RUNNING} after \`${command}\` — ${installerName}'s package has not moved past it yet` && sameLines[sameLines.length - 1] === installerDaemonLast(RUNNING) && !same.stdout.includes('until it is closed and opened again'),
+    same.all.slice(0, 700),
+  )
+  const sameJson = run(bundle, ['update', '--yes', '--json'], env(pathOf(stubBin)))
+  const sameRecord = parse(sameJson.stdout)
+  check(`${label}: --json for the unmoved package carries the daemon record and no openWindows`, sameJson.code === 0 && (sameRecord?.daemon as { line?: string } | undefined)?.line === installerDaemonLast(RUNNING) && !('openWindows' in (sameRecord ?? {})), sameJson.stdout.slice(0, 500))
+}
+endsLikeEveryRoad('Homebrew', kegBundle, 'Homebrew', BREW_COMMAND)
+endsLikeEveryRoad('npm', join(pkg, 'mercury.mjs'), 'npm', NPM_COMMAND)
+
 section('§3 A VERSIONS-ROOT INSTALL — still updates; the `mercury` the shell runs is named when it is not the stable command')
 const foreignMercury = join(otherBin, IS_WIN ? 'mercury.cmd' : 'mercury')
 writeFileSync(foreignMercury, IS_WIN ? '@echo off\r\n' : '#!/bin/sh\nexit 0\n')

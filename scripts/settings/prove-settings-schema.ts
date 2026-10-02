@@ -50,7 +50,7 @@ try {
   const validate = ajv.compile(JSON.parse(generatedA) as object)
   const canonical = {
     $schema: settingsSchemaLocalPath(),
-    engine: { model: 'opusplan', effort: 'high' },
+    engine: { model: 'fable', effort: 'high' },
     guardrails: { allow: ['Read'], mode: 'default' },
     environment: { values: { FOO: 'bar' } },
     activity: { tips: { enabled: false } },
@@ -63,7 +63,7 @@ try {
   }
   check('a foreign-shaped document is rejected', validate(foreignShaped) === false, 'the generated schema accepted record-as-array and object-as-string shapes')
 
-  const wrote = updateSettingsForSource('userSettings', { engine: { model: 'opusplan' } })
+  const wrote = updateSettingsForSource('userSettings', { engine: { model: 'fable' } })
   check('userSettings write succeeds in the scratch home', wrote.error === null, String(wrote.error))
   const writePath = getSettingsWriteFilePathForSource('userSettings')
   check('write path resolves inside the scratch home', writePath !== undefined && writePath.startsWith(scratchHome), String(writePath))
@@ -88,7 +88,7 @@ try {
 
   const pointer = SettingsSchema().safeParse({
     $schema: 'https://json.schemastore.org/other-settings.json',
-    engine: { model: 'opusplan' },
+    engine: { model: 'fable' },
   })
   check('a file carrying another schema pointer still validates', pointer.success)
 } finally {

@@ -8,7 +8,7 @@ import {
   exitCrewmateView,
 } from '../../state/crewmateViewHelpers.js'
 import { isInProcessCrewmateTask, type InProcessCrewmateTaskState } from '../../tasks/InProcessCrewmateTask/types.js'
-import { getPillLabel, pillNeedsCta } from '../../tasks/pillLabel.js'
+import { getPillLabel } from '../../tasks/pillLabel.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
 import { calculateHorizontalScrollWindow } from '../../utils/horizontalScroll.js'
 import { stringWidth } from '../../ink/stringWidth.js'
@@ -203,13 +203,11 @@ export function BackgroundTaskStatus({
   if (manageable.length === 0) return null
 
   const label = getPillLabel(manageable)
-  const callToAction = pillNeedsCta(manageable)
   const body = (highlighted: boolean): React.ReactNode => (
     <Text wrap="truncate-end">
       <Text color="background" inverse={highlighted} dimColor={!highlighted}>
         {label}
       </Text>
-      {callToAction ? <Text dimColor> ↓ to view</Text> : null}
     </Text>
   )
   if (!onOpenDialog) return body(false)

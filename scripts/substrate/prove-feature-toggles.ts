@@ -18,7 +18,6 @@ function setStamp(on: boolean): void {
   else delete (globalThis as Record<string, unknown>)[MACRO_KEY]
 }
 const ENVS = [
-  'MERCURY_RELEVANT_RECALL',
   'MERCURY_MCP_UNTRUSTED_HARDENING',
   'MERCURY_CLASSIFIER_FAIL_CLOSED',
   'MERCURY_COMMIT_GATE',
@@ -61,10 +60,10 @@ section('gating: bare stamp ⇒ SAME catalog + live setters (stamp-independence)
   delete process.env.MERCURY_SUBSTRATE
   const list = ft.listFeatureToggles()
   const DEFAULT_ON = new Set(['compact-keep-tail', 'away-summary'])
-  check('stamped build: exactly 7 toggles', list.length === 7, `got ${list.length}`)
+  check('stamped build: exactly 6 toggles', list.length === 6, `got ${list.length}`)
   const keys = list.map(t => t.key).sort()
-  check('stamped build: expected keys', JSON.stringify(keys) === JSON.stringify(['away-summary', 'classifier-fail-closed', 'commit-gate', 'compact-keep-tail', 'daemon-breaker-timeout', 'mcp-hardening', 'relevant-recall']))
-  check('stamped build: the 5 DEFAULT-OFF features are off on a clean env', list.filter(t => !DEFAULT_ON.has(t.key)).every(t => t.on === false))
+  check('stamped build: expected keys', JSON.stringify(keys) === JSON.stringify(['away-summary', 'classifier-fail-closed', 'commit-gate', 'compact-keep-tail', 'daemon-breaker-timeout', 'mcp-hardening']))
+  check('stamped build: the 4 DEFAULT-OFF features are off on a clean env', list.filter(t => !DEFAULT_ON.has(t.key)).every(t => t.on === false))
   check('stamped build: both DEFAULT-ON capabilities are ON on a clean env', list.filter(t => DEFAULT_ON.has(t.key)).every(t => t.on === true) && list.filter(t => DEFAULT_ON.has(t.key)).length === 2)
   check('stamped build: each carries a scope note', list.every(t => typeof t.scope === 'string' && t.scope.length > 0))
 }
@@ -73,14 +72,14 @@ section('set/read/toggle: env === \'1\' on, deleted off; toggle flips; unknown n
 {
   setStamp(true)
   clearEnv()
-  check('set on ⇒ returns true', ft.setFeatureToggle('relevant-recall', true) === true)
-  check('set on ⇒ env === \'1\' (exact)', process.env.MERCURY_RELEVANT_RECALL === '1')
-  check('set on ⇒ isFeatureToggleOn true', ft.isFeatureToggleOn('relevant-recall') === true)
-  check('set on ⇒ list entry on=true', ft.listFeatureToggles().find(t => t.key === 'relevant-recall')?.on === true)
+  check('set on ⇒ returns true', ft.setFeatureToggle('mcp-hardening', true) === true)
+  check('set on ⇒ env === \'1\' (exact)', process.env.MERCURY_MCP_UNTRUSTED_HARDENING === '1')
+  check('set on ⇒ isFeatureToggleOn true', ft.isFeatureToggleOn('mcp-hardening') === true)
+  check('set on ⇒ list entry on=true', ft.listFeatureToggles().find(t => t.key === 'mcp-hardening')?.on === true)
 
-  check('set off ⇒ returns false', ft.setFeatureToggle('relevant-recall', false) === false)
-  check('set off ⇒ env DELETED (default-off, not "0")', process.env.MERCURY_RELEVANT_RECALL === undefined)
-  check('set off ⇒ isFeatureToggleOn false', ft.isFeatureToggleOn('relevant-recall') === false)
+  check('set off ⇒ returns false', ft.setFeatureToggle('mcp-hardening', false) === false)
+  check('set off ⇒ env DELETED (default-off, not "0")', process.env.MERCURY_MCP_UNTRUSTED_HARDENING === undefined)
+  check('set off ⇒ isFeatureToggleOn false', ft.isFeatureToggleOn('mcp-hardening') === false)
 
   check('toggle from off ⇒ on', ft.toggleFeature('commit-gate') === true && process.env.MERCURY_COMMIT_GATE === '1')
   check('toggle from on ⇒ off', ft.toggleFeature('commit-gate') === false && process.env.MERCURY_COMMIT_GATE === undefined)
@@ -136,7 +135,6 @@ section('anti-fake: the registry flip is seen by the ACTUAL gate functions')
 section('structural: registry env ↔ real gate, and the /authority wiring')
 {
   setStamp(true)
-  check('MERCURY_RELEVANT_RECALL read by memdir/paths', src('memdir', 'paths.ts').includes('MERCURY_RELEVANT_RECALL'))
   check(
     'MERCURY_MCP_UNTRUSTED_HARDENING read by toolPolicy through the registry',
     src('services', 'mcp', 'toolPolicy.ts').includes("'MERCURY_MCP_UNTRUSTED_HARDENING'") &&
@@ -161,8 +159,8 @@ section('read exactness: strict gates reject \'true\', isEnvTruthy gates accept 
 {
   setStamp(true)
   clearEnv()
-  process.env.MERCURY_RELEVANT_RECALL = 'true'
-  check('strict gate: env="true" ⇒ registry reads OFF (matches paths.ts)', ft.isFeatureToggleOn('relevant-recall') === false)
+  process.env.MERCURY_MCP_UNTRUSTED_HARDENING = 'true'
+  check('strict gate: env="true" ⇒ registry reads OFF (matches toolPolicy)', ft.isFeatureToggleOn('mcp-hardening') === false)
   process.env.MERCURY_CLASSIFIER_FAIL_CLOSED = 'true'
   check('truthy gate: env="true" ⇒ registry reads ON (matches classifier)', ft.isFeatureToggleOn('classifier-fail-closed') === true)
   check('truthy read agrees with the REAL gate on "true"', cf.classifierFailClosedEnabled() === true)

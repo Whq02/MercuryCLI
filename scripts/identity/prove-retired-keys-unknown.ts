@@ -132,7 +132,7 @@ const editTime = (key: string, value: unknown): { valid: boolean; words: string 
   const words = (result.errors ?? []).map(error => `${String(error.path ?? '')} ${error.message ?? ''}`).join(' | ')
   return { valid: result.isValid, words }
 }
-const NEW_PATHS = /credentials\.|files\.|records\.|briefs\.|strategy\.|memory\.|turns\.|environment\.|credit\.|guardrails|engine\.|kit\.|events\.|extensions\.|voice\.|activity\.|view\.|context\.|input\.|shell\.|routing\.|channels\.|workspace\.|local\./
+const NEW_PATHS = /credentials\.|files\.|records\.|briefs\.|memory\.|turns\.|environment\.|credit\.|guardrails|engine\.|kit\.|events\.|extensions\.|voice\.|activity\.|view\.|context\.|input\.|shell\.|routing\.|channels\.|workspace\.|local\./
 
 section('§1 every retired settings root is an unknown key: the loader carries it, reads nothing from it, applies the declared sibling, writes no byte — exactly as a nonsense key')
 {
@@ -180,7 +180,6 @@ section('§4 the global config: a retired spelling steers nothing and is carried
   readGlobalConfigAgain()
   const config = getGlobalConfig() as unknown as Record<string, unknown>
   check('the current task-list key keeps its default: the retired spelling did not write it', config.showExpandedTasks === false, j(config.showExpandedTasks))
-  check('the current strategy stamp is untouched by the retired spelling', config.lastStrategyModeUse === undefined, j(config.lastStrategyModeUse))
   check('the retired spellings are carried as written, like the nonsense key beside them', config.showExpandedTodos === true && config.lastPlanModeUse === 1700000000000 && j(config.clientDataCache) === j({ rows: [] }) && config.notAConfigKey === true, j(config))
   check('the advisor block is carried whole: nothing drops a key nothing reads', j(config.advisor) === j(written.advisor), j(config.advisor))
   check('the file keeps its bytes: no rewrite at read', readFileSync(configPath, 'utf8') === `${JSON.stringify(written, null, 2)}\n`)

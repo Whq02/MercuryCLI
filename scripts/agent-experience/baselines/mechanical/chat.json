@@ -6,18 +6,17 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "ad7dbe74b",
+    "tree": "93d9509a7",
     "fold": "unlabelled",
-    "when": "2026-10-02T04:12:53.144Z",
-    "promptChars": 22576,
-    "promptTokensEst": 5644,
-    "toolCount": 57,
+    "when": "2026-10-02T07:13:47.689Z",
+    "promptChars": 22554,
+    "promptTokensEst": 5639,
+    "toolCount": 54,
     "toolNames": [
       "Agent",
       "Bash",
       "Glob",
       "Grep",
-      "ExitStrategyMode",
       "Read",
       "Edit",
       "Write",
@@ -27,7 +26,6 @@
       "TaskStop",
       "AskUserQuestion",
       "Skill",
-      "EnterStrategyMode",
       "ApolloReview",
       "LSP",
       "Inspect",
@@ -62,7 +60,6 @@
       "Recall",
       "Reflect",
       "Correct",
-      "PushNotification",
       "mcp__mercury__lease_take",
       "mcp__mercury__lease_claim",
       "mcp__mercury__lease_release",
@@ -71,7 +68,7 @@
       "mcp__mercury__coord_say",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 202740,
+    "toolSchemaChars": 195623,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -109,7 +106,7 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2890,
+      "toolResultChars": 2891,
       "toolResultTokensEst": 723,
       "imageChars": 0,
       "injectedTokensEst": 0,
@@ -119,12 +116,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.43225ms)\n✔ median of an odd-length list (0.091917ms)\n✖ median of an even-length list averages the middle pair (0.418709ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 55.383084\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.418709ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-YGSV8G/chat/tasks/fix-b",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.307417ms)\n✔ median of an odd-length list (0.060291ms)\n✖ median of an even-length list averages the middle pair (0.359666ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 47.605292\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.359666ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-dNOXj3/chat/tasks/fix-",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2324,
+      "wallMs": 1972,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -189,7 +186,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1731,
+      "wallMs": 1390,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -256,12 +253,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-YGSV8G/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-dNOXj3/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1233,
+      "wallMs": 875,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -322,7 +319,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1196,
+      "wallMs": 879,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -377,7 +374,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1120,
+      "wallMs": 983,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -437,7 +434,7 @@
           "probe": true
         }
       ],
-      "wallMs": 953,
+      "wallMs": 942,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -490,7 +487,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1029,
+      "wallMs": 930,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -543,7 +540,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1131,
+      "wallMs": 1255,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -628,7 +625,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 914,
+      "wallMs": 874,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -681,7 +678,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1155,
+      "wallMs": 966,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -743,7 +740,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1722,
+      "wallMs": 1673,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -791,7 +788,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1066,
+      "wallMs": 820,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -839,7 +836,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 805,
+      "wallMs": 764,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",

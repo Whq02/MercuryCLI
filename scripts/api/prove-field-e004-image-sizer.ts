@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { createHash, randomUUID } from 'node:crypto'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 delete process.env.NODE_ENV
@@ -409,6 +410,92 @@ section('§4 an image whose size cannot be read fails closed over the many-image
   const under = userRow([imageBlock(unreadable, 'jpeg'), imageBlock(small, 'png'), { type: 'text', text: 'two images' }])
   const fitUnder = await resizer.fitImagesToRequestCap([under], { model: MODEL_A, owner: 'f2-under' })
   check('under the threshold nothing says the image is over the cap: it rides as it is and no receipt is written', fitUnder.leftOut === 0 && fitUnder.firstEdited === -1 && leftOutApi?.takeImagesLeftOutReceipt('f2-under') === null, j({ leftOut: fitUnder.leftOut, firstEdited: fitUnder.firstEdited }))
+}
+
+section('§5 driven: a real run paints the notice and writes its mark once; a real --resume <id> in a new process paints no second notice and writes no second mark (both image roads)')
+{
+  const chainMod = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
+  const stamp = '2026-10-02T05:25:14.233Z'
+  const tied = [
+    { uuid: 'reply', parentUuid: 'prompt', timestamp: '2026-10-02T05:25:14.227Z' },
+    { uuid: 'notice', parentUuid: 'reply', timestamp: stamp },
+    { uuid: 'mark', parentUuid: 'notice', timestamp: stamp },
+  ]
+  check('the leaf rule: a trailing row written in the same millisecond as its parent (the images mark, the dead-thinking marks) is the newer row — file order breaks the tie, so the resume chain starts from the mark', chainMod.findLatestMessage(tied, () => true)?.uuid === 'mark', `picked ${chainMod.findLatestMessage(tied, () => true)?.uuid}`)
+  check('the leaf rule: a later stamp still wins whatever the file order', chainMod.findLatestMessage([tied[2]!, tied[1]!, { uuid: 'later', parentUuid: 'mark', timestamp: '2026-10-02T05:25:14.234Z' }, tied[0]!], () => true)?.uuid === 'later')
+  const DIST = process.env.MERCURY_PROOF_BUNDLE ?? join(ROOT, 'dist', 'mercury.mjs')
+  const nodeBin = Bun.which('node')
+  check('the bundle is built and a node binary is on PATH (bun run build.ts; MERCURY_PROOF_BUNDLE points elsewhere)', existsSync(DIST) && nodeBin !== null, DIST)
+  const { seedFirstRun } = await import(join(ROOT, 'scripts/lib/firstRunSeed.ts'))
+  const unreadable = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10]), Buffer.alloc(4096, 0x5a)])
+  const small = await flatPng(8, 8)
+  const driveImages = [imageBlock(unreadable, 'jpeg'), ...Array.from({ length: MANY_THRESHOLD }, () => imageBlock(small, 'png'))]
+  const unreadableBase64 = unreadable.toString('base64')
+  const NOTICE_WORDS = 'left out of what the model sees'
+  const transcriptOf = (configDir: string, sid: string): string | null => {
+    const root = join(configDir, 'projects')
+    if (!existsSync(root)) return null
+    for (const project of readdirSync(root, { withFileTypes: true })) {
+      if (!project.isDirectory()) continue
+      const candidate = join(root, project.name, `${sid}.jsonl`)
+      if (existsSync(candidate)) return candidate
+    }
+    return null
+  }
+  const rowsOf = (file: string | null): string[] => (file === null ? [] : readFileSync(file, 'utf8').split('\n').filter(line => line.trim() !== ''))
+  const marksIn = (rows: string[]): number => rows.filter(line => line.includes('"attachmentType":"images_left_out"')).length
+  const noticesIn = (rows: string[]): number => rows.filter(line => line.includes('"kind":"notice"') && line.includes(NOTICE_WORDS)).length
+  for (const road of ['javascript', 'native'] as const) {
+    if (!existsSync(DIST) || nodeBin === null) break
+    const home = mkdtempSync(join(tmpdir(), `e004-sizer-drive-${road}-`))
+    HOMES.push(home)
+    const configDir = join(home, 'config')
+    const cwd = join(home, 'work')
+    mkdirSync(cwd, { recursive: true })
+    seedFirstRun(configDir, [cwd])
+    const env: Record<string, string> = {
+      ...fixture.env,
+      HOME: home,
+      PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
+      TERM: 'dumb',
+      NO_COLOR: '1',
+      BROWSER: '/usr/bin/true',
+      MERCURY_CONFIG_DIR: configDir,
+      MERCURY_CREDENTIAL_STORE: 'file',
+      MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_DAEMON_DIR: join(home, 'daemon'),
+      MERCURY_CREWS_DIR: join(home, 'crews'),
+      MERCURY_DAP: '0',
+      ...(road === 'javascript' ? { MERCURY_IMAGE_PROCESSOR: 'javascript' } : {}),
+    }
+    const sid = randomUUID()
+    const drive = (args: string[], content: unknown): Promise<{ exit: number | null; stdout: string; stderr: string }> =>
+      new Promise(resolvePromise => {
+        const child = spawn(nodeBin, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', MODEL_B, ...args], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
+        let stdout = ''
+        let stderr = ''
+        child.stdout.on('data', d => (stdout += d))
+        child.stderr.on('data', d => (stderr += d))
+        const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+        child.on('close', exit => {
+          clearTimeout(killer)
+          resolvePromise({ exit, stdout, stderr })
+        })
+        child.stdin.end(`${j({ type: 'user', message: { role: 'user', content }, uuid: randomUUID(), session_id: sid })}\n`)
+      })
+    const mainRequests = (): Array<Record<string, unknown>> => fixture.captured.filter(entry => entry.dialect === 'anthropic' && entry.body.model === MODEL_B && j(entry.body).includes(`drive-${road}`)).map(entry => entry.body)
+    const first = await drive(['--session-id', sid], [...driveImages, { type: 'text', text: `drive-${road}: twenty-one images, say what you see` }])
+    check(`${road}: the first process answers (exit 0) and one main request reached the fixture`, first.exit === 0 && mainRequests().length === 1, `exit=${first.exit} requests=${mainRequests().length} stderr=${first.stderr.slice(-400)}`)
+    check(`${road}: the first request carries the ${MANY_THRESHOLD} sizable images and not the unreadable one`, mainRequests().length === 1 && wireImages(mainRequests()[0]!).length === MANY_THRESHOLD && !j(mainRequests()[0]).includes(unreadableBase64), `images=${mainRequests()[0] ? wireImages(mainRequests()[0]!).length : -1}`)
+    const transcript = transcriptOf(configDir, sid)
+    const before = rowsOf(transcript)
+    check(`${road}: the transcript carries the notice once and the mark once, and keeps the unreadable image`, transcript !== null && noticesIn(before) === 1 && marksIn(before) === 1 && before.some(line => line.includes(unreadableBase64)), `transcript=${transcript} notices=${noticesIn(before)} marks=${marksIn(before)}`)
+    const second = await drive(['--resume', sid], `drive-${road}: and again, in a new process`)
+    const after = rowsOf(transcript)
+    check(`${road}: a new process resumes the session by id and answers (exit 0, a second main request)`, second.exit === 0 && mainRequests().length === 2, `exit=${second.exit} requests=${mainRequests().length} stderr=${second.stderr.slice(-400)}`)
+    check(`${road}: the resumed request still leaves the unreadable image out and carries the ${MANY_THRESHOLD} others`, mainRequests().length === 2 && wireImages(mainRequests()[1]!).length === MANY_THRESHOLD && !j(mainRequests()[1]).includes(unreadableBase64), `images=${mainRequests()[1] ? wireImages(mainRequests()[1]!).length : -1}`)
+    check(`${road}: THE ONCE — after the resume the transcript still carries one notice and one mark (the mark written in the notice's millisecond stays on the resume chain, so the resumed process is not told again)`, noticesIn(after) === 1 && marksIn(after) === 1, `notices ${noticesIn(before)} → ${noticesIn(after)}, marks ${marksIn(before)} → ${marksIn(after)}`)
+  }
 }
 
 note(`fixture refusals issued in this run: ${refusals.length}${refusals.length > 0 ? ` — first: ${refusals[0]}` : ''}`)
