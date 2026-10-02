@@ -592,7 +592,7 @@ export function Config({
     })
   }
   items.push({
-    id: 'instructionProfile',
+    id: 'briefs.profile',
     label: 'Instruction profile',
     kind: 'enum',
     value: <Text>{merged.briefs?.profile ?? 'auto'}</Text>,
@@ -604,7 +604,7 @@ export function Config({
         snapshots.dirty = true
         setSessionInstructionProfile(next === 'auto' ? null : isInstructionProfile(next) ? next : null)
         clearInstructionFileCaches()
-        recordSet('instructionProfile', `set instruction profile to ${next}`)
+        recordSet('briefs.profile', `set instruction profile to ${next}`)
         bump()
       }
     },
@@ -619,7 +619,7 @@ export function Config({
           ? ` · brush ${resolved.version}`
           : ''
     items.push({
-      id: 'shellEngine',
+      id: 'shell.engine',
       label: 'Shell engine',
       kind: 'enum',
       value: <Text>{engineSetting}{detail}</Text>,
@@ -632,7 +632,7 @@ export function Config({
         const next = cycleIn(engines, engineSetting, direction)
         if (writeSource('localSettings', { shell: { engine: next === 'system' ? undefined : next } })) {
           snapshots.dirty = true
-          recordSet('shellEngine', `set shell engine to ${next}`)
+          recordSet('shell.engine', `set shell engine to ${next}`)
           resetShellEngineResolution()
           void endEngineSession()
           bump()
@@ -679,7 +679,7 @@ export function Config({
     const fallbacks = routing?.allowFallbacks ?? true
     const zdr = routing?.zeroDataRetention ?? false
     items.push(providerScoped({
-      id: 'openrouterRouting',
+      id: 'routing.openrouter',
       label: 'OpenRouter routing policy',
       searchText: 'openrouter routing policy privacy collection parameters fallbacks zero data retention zdr',
       kind: 'enum',
@@ -697,7 +697,7 @@ export function Config({
         }
         if (writeSource('userSettings', { routing: { openrouter: value } })) {
           snapshots.dirty = true
-          recordSet('openrouterRouting', `set OpenRouter routing policy to ${next}`)
+          recordSet('routing.openrouter', `set OpenRouter routing policy to ${next}`)
           bump()
         }
       },
@@ -708,7 +708,7 @@ export function Config({
     const pinned = engineSessionCeilingPinned()
     const share = ceiling === 1 ? 'no session for sub-agents' : `the conversation + ${ceiling - 1} sub-agent${ceiling === 2 ? '' : 's'}`
     items.push({
-      id: 'shellEngineSessions',
+      id: 'shell.sessions',
       label: 'Shell engine sessions',
       kind: 'enum',
       value: <Text>{ceiling} · {share}{pinned ? ' · pinned by MERCURY_SHELL_ENGINE_SESSIONS' : ''}</Text>,
@@ -721,7 +721,7 @@ export function Config({
         const next = nextSessionCeiling(merged.shell?.sessions ?? ENGINE_SESSION_CEILING_DEFAULT, direction)
         if (writeSource('localSettings', { shell: { sessions: next === ENGINE_SESSION_CEILING_DEFAULT ? undefined : next } })) {
           snapshots.dirty = true
-          recordSet('shellEngineSessions', `set shell engine sessions to ${next}`)
+          recordSet('shell.sessions', `set shell engine sessions to ${next}`)
           bump()
         }
       },

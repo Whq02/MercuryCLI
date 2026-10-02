@@ -473,7 +473,7 @@ export async function handleMcpSetServers(
   const policyErrors: Record<string, string> = Object.create(null) as Record<string, string>
   for (const name of blocked) {
     policyErrors[name] =
-      'Blocked by enterprise policy (allowedMcpServers/deniedMcpServers)'
+      'Blocked by enterprise policy (kit.permit/kit.deny)'
   }
 
   const sdkServers: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
