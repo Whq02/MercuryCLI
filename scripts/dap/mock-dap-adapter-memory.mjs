@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-const BARE = process.argv.includes('--bare')
+const BARE = process.argv.includes('--thin')
 const REGION_BASE = 0x2000
 const REGION_SIZE = 16
 
