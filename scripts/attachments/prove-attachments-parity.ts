@@ -84,7 +84,7 @@ add('currentAttachmentKind', 'samples', () => KIND_SAMPLES.map(kind => A.current
 add('isCrewMessagesAttachment', 'samples', () => KIND_SAMPLES.map(type => A.isCrewMessagesAttachment({ type })))
 
 const SKIPPED: Record<string, string> = {
-  getAttachments: 'per-turn orchestrator over ToolUseContext/appState — pinned by substrate suites (cache-stability, ultrathink, ctx-forecast, away-summary); gains fixture cases as R3 extraction reaches it',
+  getAttachments: 'per-turn orchestrator over ToolUseContext/appState — pinned by substrate suites (cache-stability, ctx-forecast, away-summary); gains fixture cases as R3 extraction reaches it',
   getAttachmentMessages: 'async generator over the same ToolUseContext orchestration (the streaming wrapper of getAttachments)',
   getQueuedCommandAttachments: 'reads AppState queuedCommands',
   getAgentPendingMessageAttachments: 'reads crewmate mailbox state',
