@@ -106,7 +106,7 @@ try {
     keep: true,
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work, workB])
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ permissions: { allow: ['Workflow', 'Agent', 'Task'] } }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Agent', 'Task'] } }))
       spawnDaemonWithHome(configDir)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const a = (await daemonControlRpc({

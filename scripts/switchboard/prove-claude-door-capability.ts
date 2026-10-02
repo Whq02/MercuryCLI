@@ -100,10 +100,10 @@ section('§2 the honest refusals stay: a family-less stranger, and a keyless fam
   refreshSignInReads(true)
 
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ availableModels: ['claude-opus-5-5'] }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { roster: ['claude-opus-5-5'] } }, null, 2))
   resetSettingsCache()
   const forbidden = await wm.validateWorkerModelChoice(UNKNOWN_CLAUDE_ID, 'session')
-  check("an organization's availableModels still binds the door (the REPL refuses on it before any call)", !forbidden.ok && forbidden.reason === 'not-runnable:not-allowed' && /availableModels/.test(forbidden.detail ?? ''), text(forbidden))
+  check("an organization's engine.roster still binds the door (the REPL refuses on it before any call)", !forbidden.ok && forbidden.reason === 'not-runnable:not-allowed' && /engine\.roster/.test(forbidden.detail ?? ''), text(forbidden))
   const forbiddenEngine = await wm.validateWorkerModelChoice('gpt-5.9-nova', 'session')
   check('…and binds an engine namespace id the same way', !forbiddenEngine.ok && forbiddenEngine.reason === 'not-runnable:not-allowed', text(forbiddenEngine))
   writeFileSync(join(home, 'settings.json'), JSON.stringify({}, null, 2))
@@ -113,7 +113,7 @@ section('§2 the honest refusals stay: a family-less stranger, and a keyless fam
 section(`§3 the real case: '${REAL_ID}' saved after the daemon booted, judged by a bundle whose catalogue predates the row`)
 {
   const primed = getMainLoopModel()
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: REAL_ID }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: REAL_ID } }, null, 2))
   check("the saved setting names the row while this process's settings read still holds its boot-time value (the daemon's read)", getMainLoopModel() === primed && primed !== REAL_ID, `${primed} → ${getMainLoopModel()}`)
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const canonical = (value: string): string => parseUserSpecifiedModel(value).replace(/\[1m]$/, '')

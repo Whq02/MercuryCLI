@@ -103,7 +103,7 @@ const run = await runArtifactArena({
   rows: 40,
   keep: true,
   seedHome: async (configDir, cwd) => {
-    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ model: SCREEN_MODEL_SETTING, sessionsBar: true }))
+    writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ engine: { model: SCREEN_MODEL_SETTING }, view: { sessionsBar: true } }))
     seedFirstRun(configDir, [cwd, work])
     spawnDaemon(configDir)
     check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000))

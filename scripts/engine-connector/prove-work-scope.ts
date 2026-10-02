@@ -331,7 +331,7 @@ p5Stage('seed scratch home and workspace trust')
 seedFirstRun(home, [work])
 p5Stage('write scratch tool permissions')
 const { writeFileSync } = await import('node:fs')
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Workflow', 'Agent', 'Task'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workflow', 'Agent', 'Task'] } }))
 {
   const { execFileSync } = await import('node:child_process')
   const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'pin', GIT_AUTHOR_EMAIL: 'pin@scratch', GIT_COMMITTER_NAME: 'pin', GIT_COMMITTER_EMAIL: 'pin@scratch' }

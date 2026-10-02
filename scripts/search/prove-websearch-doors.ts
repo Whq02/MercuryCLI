@@ -80,7 +80,7 @@ const { keylessSearch } = await import('../../src/services/search/duckduckgo.js'
 const { KEYED_DOOR_REMEDY } = await import('../../src/services/search/searchContract.js')
 
 function seedHome(model: string): void {
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
   resetSettingsCache()
   process.env.MERCURY_MODEL = model
 }

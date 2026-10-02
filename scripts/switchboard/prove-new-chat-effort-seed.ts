@@ -38,7 +38,7 @@ console.log('S1 nothing saved: the strip seeds the daemon convention and calls i
 
 console.log('S2 the operator saved max: the strip seeds max, the dispatch carries it')
 {
-  const written = updateSettingsForSource('userSettings', { effortLevel: 'max' })
+  const written = updateSettingsForSource('userSettings', { engine: { effort: 'max' } })
   check('the saved default lands on disk', written.error === null, String(written.error))
   check('getInitialEffortSetting reads max back', getInitialEffortSetting() === 'max')
   const s = await seeds()

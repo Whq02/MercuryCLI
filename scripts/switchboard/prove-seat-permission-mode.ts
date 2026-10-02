@@ -16,7 +16,7 @@ const BUN = process.execPath.includes('bun') ? process.execPath : join(process.e
 function resolveIn(opts: { defaultMode?: string; override?: string; home?: string }): string {
   const home = opts.home ?? mkdtempSync(join(tmpdir(), 'seat-perm-mode-'))
   if (opts.home === undefined) {
-    const settings = opts.defaultMode === undefined ? {} : { permissions: { defaultMode: opts.defaultMode } }
+    const settings = opts.defaultMode === undefined ? {} : { guardrails: { mode: opts.defaultMode } }
     writeFileSync(join(home, 'settings.json'), JSON.stringify(settings))
   }
   const src = `
