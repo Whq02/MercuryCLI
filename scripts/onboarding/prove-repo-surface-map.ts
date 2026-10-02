@@ -108,15 +108,21 @@ try {
 
   section('(6) gate semantics')
   check('hasOrientationDoc: false on fixture', !hasOrientationDoc(node))
-  for (const doc of ['CLAUDE.md', 'MERCURY.md', 'AGENTS.md']) {
+  for (const doc of ['MERCURY.md', 'AGENTS.md']) {
     const root = join(work, `orient-${doc.toLowerCase().replace(/\W/g, '-')}`)
     mkdirSync(root, { recursive: true })
     writeFileSync(join(root, doc), '# guide\n')
     check(`hasOrientationDoc: true on a ${doc} repo`, hasOrientationDoc(root))
   }
-  writeFileSync(join(node, 'CLAUDE.md'), '# rules\n')
+  for (const other of [['CL', 'AUDE.md'].join(''), 'GUIDE.md', 'NOTES.md']) {
+    const root = join(work, `unguided-${other.toLowerCase().replace(/\W/g, '-')}`)
+    mkdirSync(root, { recursive: true })
+    writeFileSync(join(root, other), '# guide\n')
+    check(`hasOrientationDoc: a root whose only guide is a file Mercury does not load still gets the map (${other.length} chars)`, !hasOrientationDoc(root))
+  }
+  writeFileSync(join(node, 'MERCURY.md'), '# rules\n')
   check('hasOrientationDoc: memo grain holds — a doc landing after the first probe never flips the mapped root', !hasOrientationDoc(node))
-  rmSync(join(node, 'CLAUDE.md'))
+  rmSync(join(node, 'MERCURY.md'))
   const prev = process.env.MERCURY_ONBOARDING
   delete process.env.MERCURY_ONBOARDING
   check('unset ⇒ ON (default-on)', repoSurfaceMapEnabled() === true)

@@ -10,7 +10,7 @@
   ],
   "counts": {
     "owner-internal": 7,
-    "compat-boundary": 26,
+    "compat-boundary": 23,
     "baked-mirror": 3
   },
   "sites": [
@@ -106,13 +106,6 @@
       "why": "the project intel facts name Mercury's own instruction file — existence only, never a content load"
     },
     {
-      "file": "src/services/projectIntel/snapshot.ts",
-      "needle": "CLAUDE.md",
-      "excerpt": "otherHarnessInstructions: ['CLAUDE.md'].filter(name => exists(join(workspace, name))),",
-      "cls": "compat-boundary",
-      "why": "CLAUDE.md probed/listed as the compat instruction INPUT at documented discovery/paridade surfaces"
-    },
-    {
       "file": "src/skills/loadSkillsDir.ts",
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', dir)",
@@ -135,22 +128,8 @@
     },
     {
       "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "needle": "CLAUDE.md",
-      "excerpt": "const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'CLAUDE.md', 'AGENTS.md']",
-      "cls": "compat-boundary",
-      "why": "CLAUDE.md probed/listed as the compat instruction INPUT at documented discovery/paridade surfaces"
-    },
-    {
-      "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "needle": "CLAUDE.md",
-      "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {",
-      "cls": "compat-boundary",
-      "why": "CLAUDE.md probed/listed as the compat instruction INPUT at documented discovery/paridade surfaces"
-    },
-    {
-      "file": "src/utils/cockpit/repoSurfaceMap.ts",
       "needle": "MERCURY.md",
-      "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {",
+      "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md']) {",
       "cls": "owner-internal",
       "why": "the orientation-doc presence probe NAMES the native and neutral guides beside the compat one — existence only, never a content load"
     },

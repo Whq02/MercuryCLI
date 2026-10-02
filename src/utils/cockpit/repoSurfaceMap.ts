@@ -57,7 +57,7 @@ const MARKERS: Array<[string, string]> = [
 ]
 
 const TEST_DIR_NAMES = new Set(['test', 'tests', '__tests__', 'spec', 'e2e', 'integration'])
-const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'CLAUDE.md', 'AGENTS.md']
+const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'AGENTS.md']
 
 interface ScanState {
   visited: number
@@ -168,7 +168,7 @@ export function hasOrientationDoc(root: string): boolean {
   const memoized = orientationDocMemo.get(root)
   if (memoized !== undefined) return memoized
   let found = false
-  for (const name of ['MERCURY.md', 'AGENTS.md', 'CLAUDE.md']) {
+  for (const name of ['MERCURY.md', 'AGENTS.md']) {
     try {
       statSync(join(root, name))
       found = true
