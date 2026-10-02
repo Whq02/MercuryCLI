@@ -114,6 +114,7 @@ try {
   check('AGENTS.md does not compose when a MERCURY.md exists', !s2.composed.includes('shared-guide-needle'), s2.paths.join(', '))
   check('no shared-family entry in the bundle', s2.entries.every(e => e.family !== 'shared'))
   check('the project scope holds the native guide alone', s2.entries.filter(e => e.origin === 'project-walk').length === 1, JSON.stringify(s2.entries))
+  check('that AGENTS.md is an ordinary file (a read of it survives a compaction)', s2.classified === false)
 
   console.log('§3 an explicit @AGENTS.md import in MERCURY.md composes it exactly once')
   const imported = project({ 'MERCURY.md': '@AGENTS.md\nnative-guide-needle\n', 'AGENTS.md': 'shared-guide-needle\n' })

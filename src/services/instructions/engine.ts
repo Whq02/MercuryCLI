@@ -701,10 +701,14 @@ export function isInstructionFilePath(
   conventions: InstructionConvention[] = activeConventions(),
 ): boolean {
   const name = basename(filePath)
+  const primary = conventions.filter(c => !c.fallback)
 
   for (const convention of conventions) {
     if (convention.instructionFileNames.includes(name)) {
-      return true
+      if (!convention.fallback) return true
+      if (lastComposition.fallbackComposed && !hasPrimaryProjectFile(primary, [dirname(filePath)])) {
+        return true
+      }
     }
     if (
       name.endsWith('.md') &&
