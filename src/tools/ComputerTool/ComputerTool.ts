@@ -14,7 +14,8 @@ import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
-import type { ToolPermissionContext } from '../../types/permissions.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
+import type { PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
 import { classifyModelRoute, providerDisplayName } from '../../services/providers/routeLaw.js'
 import { rememberDesktopPermissions, resolveDesktopDriver } from '../../services/desktop/resolveDriver.js'
 import type {
@@ -655,12 +656,17 @@ export async function routeRefusal(model: string): Promise<string | null> {
   return null
 }
 
-function ruleVerdict(permissionContext: ToolPermissionContext | undefined, content: string): 'deny' | 'ask' | 'allow' | null {
+function ruleFor(permissionContext: ToolPermissionContext | undefined, content: string): PermissionRule | null {
   if (!permissionContext) return null
   for (const behavior of ['deny', 'ask', 'allow'] as const) {
-    if (getRuleByContentsForToolName(permissionContext, COMPUTER_TOOL_NAME, behavior).has(content)) return behavior
+    const rule = getRuleByContentsForToolName(permissionContext, COMPUTER_TOOL_NAME, behavior).get(content)
+    if (rule) return rule
   }
   return null
+}
+
+function ruleVerdict(permissionContext: ToolPermissionContext | undefined, content: string): 'deny' | 'ask' | 'allow' | null {
+  return ruleFor(permissionContext, content)?.ruleBehavior ?? null
 }
 
 function denied(message: string, reason: string) {
@@ -769,7 +775,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     const content = `app:${app.identity}`
     const ruled = ruleVerdict(permissionContext, content)
     if (ruled === 'deny') {
-      return denied(`Computer is denied for ${content} by a permission rule`, `${content} carries a deny rule`)
+      return denied(ruleSentence(`Driving ${app.name} (${app.identity})`, 'deny', ruleFor(permissionContext, content)!), `${content} carries a deny rule`)
     }
     noteCheckedActApp(owner, input.action, { identity: app.identity, name: app.name })
     if (ruled === 'allow' || (ruled === null && appApproved(owner, app.identity))) {

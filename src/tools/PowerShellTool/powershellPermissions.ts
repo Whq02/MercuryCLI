@@ -11,6 +11,7 @@ import {
 } from '../../utils/permissions/shellRuleMatching.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import {
   getPipelineSegments,
   getAllCommands,
@@ -47,10 +48,6 @@ function ruleMatches(rule: ShellPermissionRule, candidate: string, mode: 'exact'
   switch (rule.type) {
     case 'exact':
       return c === rule.command.toLowerCase()
-    case 'prefix': {
-      const p = rule.prefix.toLowerCase()
-      return mode === 'exact' ? c === p : c === p || c.startsWith(p + ' ')
-    }
     case 'wildcard':
       return mode === 'exact' ? false : matchWildcardPattern(rule.pattern, candidate, true)
   }
@@ -96,6 +93,12 @@ function ruleReason(context: ToolPermissionContext, ruleContent: string, behavio
   return { type: 'rule', rule: rule ?? { source: 'localSettings', ruleBehavior: behavior, ruleValue: { toolName: TOOL_NAME, ruleContent } } }
 }
 
+function ruledVerdict(context: ToolPermissionContext, subject: string, ruleContent: string, behavior: 'deny' | 'ask'): PermissionResult {
+  const rule = getRuleByContentsForToolName(context, TOOL_NAME, behavior).get(ruleContent)
+    ?? { source: 'localSettings' as const, ruleBehavior: behavior, ruleValue: { toolName: TOOL_NAME, ruleContent } }
+  return { behavior, message: ruleSentence(subject, behavior, rule), decisionReason: { type: 'rule', rule } }
+}
+
 function exactSuggestions(command: string): ReturnType<typeof suggestionForExactCommand> {
   if (command.includes('\n') || command.includes('*')) return []
   return suggestionForExactCommand(TOOL_NAME, command.trim())
@@ -104,9 +107,9 @@ function exactSuggestions(command: string): ReturnType<typeof suggestionForExact
 export function powershellToolCheckExactMatchPermission(input: { command: string }, toolPermissionContext: ToolPermissionContext): PermissionResult {
   const command = input.command.trim()
   const deny = matchRules(command, toolPermissionContext, 'deny', 'exact')
-  if (deny) return { behavior: 'deny', message: `${TOOL_NAME}(${command}) is blocked by a deny rule.`, decisionReason: ruleReason(toolPermissionContext, deny, 'deny') }
+  if (deny) return ruledVerdict(toolPermissionContext, command, deny, 'deny')
   const ask = matchRules(command, toolPermissionContext, 'ask', 'exact')
-  if (ask) return { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(toolPermissionContext, ask, 'ask') }
+  if (ask) return ruledVerdict(toolPermissionContext, command, ask, 'ask')
   const allow = matchRules(command, toolPermissionContext, 'allow', 'exact')
   if (allow) return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(toolPermissionContext, allow, 'allow') }
   return { behavior: 'passthrough', message: `${command} requires approval.`, suggestions: exactSuggestions(command) }
@@ -117,9 +120,9 @@ export function powershellToolCheckPermission(input: { command: string }, toolPe
   if (exact.behavior === 'deny' || exact.behavior === 'ask') return exact
   const command = input.command.trim()
   const deny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
-  if (deny) return { behavior: 'deny', message: `${TOOL_NAME} deny rule matched.`, decisionReason: ruleReason(toolPermissionContext, deny, 'deny') }
+  if (deny) return ruledVerdict(toolPermissionContext, command, deny, 'deny')
   const ask = matchRules(command, toolPermissionContext, 'ask', 'prefix')
-  if (ask) return { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(toolPermissionContext, ask, 'ask') }
+  if (ask) return ruledVerdict(toolPermissionContext, command, ask, 'ask')
   if (exact.behavior === 'allow') return exact
   const allow = matchRules(command, toolPermissionContext, 'allow', 'prefix')
   if (allow) return { behavior: 'allow', updatedInput: input, decisionReason: ruleReason(toolPermissionContext, allow, 'allow') }
@@ -144,10 +147,10 @@ export async function powershellToolHasPermission(
   const exact = powershellToolCheckExactMatchPermission({ command }, toolPermissionContext)
   if (exact.behavior === 'deny') return exact
   const prefixDeny = matchRules(command, toolPermissionContext, 'deny', 'prefix')
-  if (prefixDeny) return { behavior: 'deny', message: `${command} is blocked by a deny rule.`, decisionReason: ruleReason(toolPermissionContext, prefixDeny, 'deny') }
+  if (prefixDeny) return ruledVerdict(toolPermissionContext, command, prefixDeny, 'deny')
   let deferredAsk: PermissionResult | null = null
   const prefixAsk = matchRules(command, toolPermissionContext, 'ask', 'prefix')
-  if (prefixAsk) deferredAsk = { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(toolPermissionContext, prefixAsk, 'ask') }
+  if (prefixAsk) deferredAsk = ruledVerdict(toolPermissionContext, command, prefixAsk, 'ask')
   if (deferredAsk === null && containsVulnerableUncPath(command)) {
     deferredAsk = { behavior: 'ask', message: 'The command contains a UNC path that could trigger network requests.' }
   }
@@ -221,9 +224,9 @@ function subcommandRuleVerdict(command: ParsedCommandElement, context: ToolPermi
   const raw = command.text.trim()
   const canonical = command.name ? `${resolveToCanonical(command.name)} ${command.args.join(' ')}`.trim() : null
   const deny = matchRules(raw, context, 'deny', 'prefix') ?? (canonical ? matchRules(canonical, context, 'deny', 'prefix') : null)
-  if (deny) return { behavior: 'deny', message: `A subcommand is blocked by a deny rule.`, decisionReason: ruleReason(context, deny, 'deny') }
+  if (deny) return ruledVerdict(context, raw, deny, 'deny')
   const ask = matchRules(raw, context, 'ask', 'prefix') ?? (canonical ? matchRules(canonical, context, 'ask', 'prefix') : null)
-  if (ask) return { behavior: 'ask', message: createPermissionRequestMessage(TOOL_NAME), decisionReason: ruleReason(context, ask, 'ask') }
+  if (ask) return ruledVerdict(context, raw, ask, 'ask')
   return null
 }
 
@@ -280,7 +283,7 @@ function fragmentDenyScan(command: string, context: ToolPermissionContext): Perm
       }
     }
     const deny = matchRules(fragment, context, 'deny', 'prefix')
-    if (deny) return { behavior: 'deny', message: `${command} is blocked by a deny rule.`, decisionReason: ruleReason(context, deny, 'deny') }
+    if (deny) return ruledVerdict(context, command, deny, 'deny')
   }
   return null
 }
@@ -302,7 +305,7 @@ function perSubcommandApproval(
     for (const element of statement.commands) {
       if (isSafeOutputCommand(element.name) && element.args.length === 0) continue
       const rule = powershellToolCheckPermission({ command: element.text }, context)
-      if (rule.behavior === 'deny') return { behavior: 'deny', message: `A subcommand of "${command}" is blocked by a deny rule.`, decisionReason: rule.decisionReason }
+      if (rule.behavior === 'deny') return { behavior: 'deny', message: rule.message, decisionReason: rule.decisionReason }
       if (rule.behavior === 'ask') { approvalList.push(element.text); statementPushed.add(statement); continue }
       if (rule.behavior === 'allow' && element.nameType !== 'application' && !hasSymlinkCreate) {
         if (argLeaksValue(command, element)) { approvalList.push(element.text); statementPushed.add(statement) }

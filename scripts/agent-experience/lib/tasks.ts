@@ -49,7 +49,7 @@ export interface TaskDef {
   oracle(ctx: TaskContext, input: OracleInput): OracleVerdict
 }
 
-const CODING_TOOLS = ['Read', 'Edit', 'Write', 'Grep', 'Glob', 'Bash(node:*)', 'Bash(npm:*)', 'Bash(cat:*)', 'Bash(ls:*)', 'Bash(wc:*)', 'Bash(git:*)', 'Bash(grep:*)', 'Bash(find:*)', 'Bash(head:*)', 'Bash(tail:*)', 'Bash(sed:*)']
+const CODING_TOOLS = ['Read', 'Edit', 'Write', 'Grep', 'Glob', 'Bash(node *)', 'Bash(npm *)', 'Bash(cat *)', 'Bash(ls *)', 'Bash(wc *)', 'Bash(git *)', 'Bash(grep *)', 'Bash(find *)', 'Bash(head *)', 'Bash(tail *)', 'Bash(sed *)']
 
 const call = (name: string, input: Record<string, unknown>): ScriptedTurn => ({ calls: [{ name, input }] })
 const final = (text: string): ScriptedTurn => ({ final: text })
@@ -164,7 +164,7 @@ export const TASKS: TaskDef[] = [
     id: 'search-symbol',
     title: 'search the repo for a symbol',
     ask: 'Where is `normalizeRecord` defined, and where is it called? Report file:line for the definition and for each call site.',
-    allowedTools: ['Read', 'Grep', 'Glob', 'Bash(grep:*)', 'Bash(rg:*)'],
+    allowedTools: ['Read', 'Grep', 'Glob', 'Bash(grep *)', 'Bash(rg *)'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'search-symbol', TASKS_ASK('search-symbol')),
     probeTools: ['Grep'],
@@ -185,7 +185,7 @@ export const TASKS: TaskDef[] = [
     id: 'shell-pipeline',
     title: 'run a shell pipeline and read its output',
     ask: 'Using a single shell pipeline, count the total number of lines across all .js files under src/ and report the number.',
-    allowedTools: ['Bash(cat:*)', 'Bash(wc:*)', 'Bash(find:*)', 'Bash(ls:*)', 'Read', 'Glob'],
+    allowedTools: ['Bash(cat *)', 'Bash(wc *)', 'Bash(find *)', 'Bash(ls *)', 'Read', 'Glob'],
     maxTurns: 8,
     prompt: ctx => withMarker(ctx, 'shell-pipeline', TASKS_ASK('shell-pipeline')),
     probeTools: [],
@@ -353,7 +353,7 @@ export const TASKS: TaskDef[] = [
     id: 'structural-rename',
     title: 'rename a function structurally across three files',
     ask: 'Rename the function normalizeRecord to normaliseRecord everywhere in the source — its declaration in src/records.js, the imports and every use in src/stats.js and src/format.js — with the structural tools (AstSearch to find it, AstEdit to rewrite it), not text replacement. Leave README.md and the tests alone, then run node --test to confirm the modules still load.',
-    allowedTools: ['AstSearch', 'AstEdit', 'Read', 'Grep', 'Glob', 'Bash(node:*)'],
+    allowedTools: ['AstSearch', 'AstEdit', 'Read', 'Grep', 'Glob', 'Bash(node *)'],
     maxTurns: 10,
     prompt: ctx => withMarker(ctx, 'structural-rename', TASKS_ASK('structural-rename')),
     probeTools: ['AstEdit'],

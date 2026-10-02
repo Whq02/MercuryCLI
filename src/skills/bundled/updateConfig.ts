@@ -73,8 +73,8 @@ EDITING RULES:
 - Simple interactive knobs (theme, appearance, model) live in the /config panel; suggest it rather than editing those by file.
 
 PERMISSION RULES (the guardrails.allow / deny / ask arrays):
-- A rule is a tool name, or a tool name with a parenthesised pattern: "Bash", "Bash(npm run test:*)" (prefix rules for Bash end in :*), "Read(src/**)" and glob forms for the file tools, "WebFetch(domain:example.com)", "WebSearch(exact terms)".
-- guardrails.reasons gives a rule its own words, keyed by the rule spelling exactly as it appears in allow, deny or ask: { "Read(secrets/**)": "production keys live there; use the .example files" }. A refusal ends with the words ("Permission to read … has been denied: production keys live there; use the .example files.") and a consent card shows them under the rule; a rule without a reason keeps the plain sentence. Where two rules match, the more specific spelling's words are used.
+- A rule is a tool name, or a tool name with a parenthesised pattern: "Bash", "Bash(npm run test)" (that exact command), "Bash(npm run *)" (any command starting with npm run — a space and a star end a "starts with" rule; a star may also stand anywhere inside a pattern), "Read(src/**)" and glob forms for the file tools, "WebFetch(domain:example.com)", "WebSearch(exact terms)".
+- guardrails.reasons gives a rule its own words, keyed by the rule spelling exactly as it appears in allow, deny or ask: { "Read(secrets/**)": "production keys live there; use the .example files" }. A refusal ends with the words ("Reading … is denied by the rule Read(secrets/**) in your user settings: production keys live there; use the .example files.") and a consent card shows them under the rule; a rule without a reason keeps the plain sentence. Where two rules match, the more specific spelling's words are used.
 - guardrails.mode sets the session's starting permission mode. Implement mode allows writes inside the starting folder and asks outside it; Default asks for writes in either place; Sovereign does not ask. A shell directory change does not move the starting folder.
 
 WORKFLOW: clarify → read → merge → write → show the result and where it landed.
@@ -85,7 +85,7 @@ ${HOOK_CONSTRUCTION_FLOW}
 
 WORKED SHAPES:
 1. "Format after every write" → events.hooks.PostToolUse, matcher Write|Edit, a command hook built and proven per the flow above.
-2. "Allow npm test without asking" → read the chosen scope's file, append "Bash(npm test:*)" to guardrails.allow, show the merged result.
+2. "Allow npm test without asking" → read the chosen scope's file, append "Bash(npm test *)" to guardrails.allow, show the merged result.
 3. "Set DEBUG=1 for every session" → environment: { "values": { "DEBUG": "1" } } in the scope the user picks.`
 
 function generatedSchemaSection(): string {

@@ -32,7 +32,7 @@ export interface Score {
   costUsd: number | null
 }
 
-const ASK_RE = /permission (for this action )?has been denied|requires (explicit )?(user )?(approval|confirmation)|doesn't want to (proceed|take this action)|the user declined|denied automatically|needs (your|user) approval/i
+const ASK_RE = /permission (for this action )?has been denied|is denied by the rule|asks first — the rule|requires (explicit )?(user )?(approval|confirmation)|doesn't want to (proceed|take this action)|the user declined|denied automatically|needs (your|user) approval/i
 
 const REFUSAL_NOTE_RE = /the provider emitted a malformed tool call|refused by the harness before execution|was not executed/i
 

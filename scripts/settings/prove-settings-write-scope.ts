@@ -20,7 +20,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const FILE = join(HOME, 'settings.json')
 writeFileSync(
   FILE,
-  JSON.stringify({ guardrails: { allow: ['Bash(ls:*)'], mode: 'default' }, activity: { tips: { enabled: true } } }, null, 2),
+  JSON.stringify({ guardrails: { allow: ['Bash(ls *)'], mode: 'default' }, activity: { tips: { enabled: true } } }, null, 2),
 )
 
 {
@@ -28,7 +28,7 @@ writeFileSync(
   t('§1 the scoped write lands', error === null, String(error))
   const disk = JSON.parse(readFileSync(FILE, 'utf8')) as { guardrails?: Record<string, unknown>; activity?: { tips?: { enabled?: boolean } } }
   t('§1 …changing mode', disk.guardrails?.mode === 'implement')
-  t('§1 …with the sibling allow rule untouched', JSON.stringify(disk.guardrails?.allow) === JSON.stringify(['Bash(ls:*)']))
+  t('§1 …with the sibling allow rule untouched', JSON.stringify(disk.guardrails?.allow) === JSON.stringify(['Bash(ls *)']))
   t('§1 …and unrelated keys untouched', disk.activity?.tips?.enabled === true)
 }
 
@@ -37,7 +37,7 @@ writeFileSync(
   t('§1 the explicit-undefined write lands', error === null, String(error))
   const disk = JSON.parse(readFileSync(FILE, 'utf8')) as { guardrails?: Record<string, unknown> }
   t('§1 …deleting mode from disk (the revert can finally clear it)', !('mode' in (disk.guardrails ?? {})))
-  t('§1 …with the sibling allow rule still standing', JSON.stringify(disk.guardrails?.allow) === JSON.stringify(['Bash(ls:*)']))
+  t('§1 …with the sibling allow rule still standing', JSON.stringify(disk.guardrails?.allow) === JSON.stringify(['Bash(ls *)']))
 }
 
 {

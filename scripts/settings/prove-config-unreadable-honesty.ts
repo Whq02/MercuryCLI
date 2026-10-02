@@ -17,7 +17,7 @@ const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const REAL_STATE = {
   hasCompletedOnboarding: true,
   oauthAccount: { accountUuid: 'acct-1', emailAddress: 'op@example.test', organizationUuid: 'org-1' },
-  projects: { '/work/proj': { hasTrustDialogAccepted: true, allowedTools: ['Bash(git:*)'] } },
+  projects: { '/work/proj': { hasTrustDialogAccepted: true, allowedTools: ['Bash(git *)'] } },
   theme: 'dark',
 }
 

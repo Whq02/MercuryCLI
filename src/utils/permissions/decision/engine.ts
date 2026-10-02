@@ -17,7 +17,7 @@ import type {
   PermissionResult,
 } from '../PermissionResult.js'
 import type { BypassedAskRoad, PermissionMode } from '../../../types/permissions.js'
-import { refusalWithReason, wholeToolDenyRulesCovering, withRuleReason } from '../ruleReason.js'
+import { refusalWithReason, ruleSentence, wholeToolDenyRulesCovering, withRuleReason } from '../ruleReason.js'
 import { createPermissionRequestMessage, ORG_ASK_REASON } from './requestMessage.js'
 import {
   getAskRuleForTool,
@@ -154,7 +154,7 @@ async function runDecisionChain(
     return decided('toolDenyRule', {
       behavior: 'deny',
       decisionReason: { type: 'rule', rule: said },
-      message: refusalWithReason(`Permission to use ${tool.name} has been denied.`, said.ruleValue.reason),
+      message: refusalWithReason(ruleSentence(`Using ${tool.name}`, 'deny', said), said.ruleValue.reason),
     })
   }
   pass('toolDenyRule')
@@ -170,7 +170,7 @@ async function runDecisionChain(
         return decided('toolAskRule', {
           behavior: 'ask',
           decisionReason: { type: 'rule', rule: askRule },
-          message: createPermissionRequestMessage(tool.name),
+          message: ruleSentence(`Using ${tool.name}`, 'ask', askRule),
         })
       }
     } else {

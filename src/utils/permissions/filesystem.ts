@@ -24,7 +24,7 @@ import type { PermissionRule, PermissionUpdate } from '../../types/permissions.j
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionDecision, PermissionResult } from './PermissionResult.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from './PermissionUpdate.js'
-import { refusalWithReason, withRuleReason } from './ruleReason.js'
+import { refusalWithReason, ruleSentence, withRuleReason } from './ruleReason.js'
 
 
 export const DANGEROUS_FILES: string[] = [
@@ -666,13 +666,14 @@ function allow(input: unknown, reason: PermissionDecision['decisionReason']): Pe
 }
 function ruleDecision(
   kind: 'deny' | 'ask',
-  sentence: string,
+  subject: string,
   context: ToolPermissionContext,
   rule: PermissionRule,
   matches: () => PermissionRule[],
 ): PermissionDecision {
   const said = withRuleReason(context, rule, matches)
   const reason = { type: 'rule', rule: said } as never
+  const sentence = ruleSentence(subject, kind, said)
   return kind === 'deny' ? deny(refusalWithReason(sentence, said.ruleValue.reason), reason) : ask(sentence, reason)
 }
 
@@ -704,11 +705,11 @@ export function checkReadPermissionForTool(
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'read', 'deny')
-    if (rule) return ruleDecision('deny', `Permission to read ${path} has been denied.`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'deny'))
+    if (rule) return ruleDecision('deny', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'deny'))
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'read', 'ask')
-    if (rule) return ruleDecision('ask', `Permission to read ${path} requires confirmation.`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
+    if (rule) return ruleDecision('ask', `Reading ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'read', 'ask'))
   }
   const writeDecision = checkWritePermissionForTool(tool, input, context, resolutionSet)
   if (writeDecision.behavior === 'allow') return writeDecision
@@ -741,7 +742,7 @@ export function checkWritePermissionForTool(
 
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'deny')
-    if (rule) return ruleDecision('deny', `Permission to edit ${path} has been denied.`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'deny'))
+    if (rule) return ruleDecision('deny', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'deny'))
   }
   const internal = checkEditableInternalPath(expandPath(path), input)
   if ((internal as { behavior: string }).behavior !== 'passthrough') return internal as unknown as PermissionDecision
@@ -780,7 +781,7 @@ export function checkWritePermissionForTool(
   }
   for (const resolved of resolutionSet) {
     const rule = matchingRuleForInput(resolved, context, 'edit', 'ask')
-    if (rule) return ruleDecision('ask', `Permission to edit ${path} requires confirmation.`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
+    if (rule) return ruleDecision('ask', `Editing ${path}`, context, rule, () => matchingRulesForInput(resolved, context, 'edit', 'ask'))
   }
   if (context.mode === 'implement' && pathInAllowedWorkingPath(path, context, resolutionSet)) {
     return allow(input, { type: 'mode', mode: 'implement' } as never)

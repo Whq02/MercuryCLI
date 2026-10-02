@@ -941,7 +941,7 @@ async function applyPrepared(
     ) as { behavior: string; message?: string }
     const display = displayPathFor(env.cwd, abs)
     if (decision.behavior === 'deny') {
-      refusals.push(`${display}: blocked by a permission deny rule`)
+      refusals.push(`${display}: denied by a rule`)
       continue
     }
     if (decision.behavior !== 'allow' && !pathInAllowedWorkingPath(abs, permissionContext) && abs !== env.absolutePath && !postureBypassesAsks(permissionContext)) {
@@ -2271,7 +2271,7 @@ async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
     const endpointDisplay = displayPathFor(env.cwd, endpoint)
     if (decision.behavior === 'deny') {
       return {
-        result: `pathRename refused: ${endpointDisplay} is blocked by a permission deny rule. Nothing moved.`,
+        result: `pathRename refused: ${endpointDisplay} is denied by a rule. Nothing moved.`,
         resultCount: 0,
         fileCount: 0,
         effect: {

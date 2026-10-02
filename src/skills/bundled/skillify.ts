@@ -59,7 +59,7 @@ export function registerSkillifySkill(): void {
     description: 'Capture this session\'s repeatable process as a reusable skill',
     argumentHint: '[what process to capture]',
     disableModelInvocation: true,
-    allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', ASK_USER_QUESTION_TOOL_NAME, 'Bash(mkdir:*)'],
+    allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', ASK_USER_QUESTION_TOOL_NAME, 'Bash(mkdir *)'],
     getPromptForCommand: async (args, context) => {
       const memory = await getSessionMemoryContent().catch(() => null)
       const userMessages = collectUserMessages(context.messages)

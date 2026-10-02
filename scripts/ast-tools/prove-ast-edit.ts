@@ -99,7 +99,7 @@ section('§4 — a denied path refuses the whole set; a whole-tool allow rule ne
   const before = snapshot(RENAME_FILES)
   const denied = await makeContext(tools, { deny: ['Edit(rename/src/report.ts)'] })
   const d = await drive(AstEditTool, { pattern: 'normaliseRecord($$$ARGS)', rewrite: 'normalizeRecord($$$ARGS)', path: 'rename', apply: true, plan: token }, denied)
-  check('a deny rule on one target refuses the whole set by name', d.isError && d.text.includes('Permission to edit src/report.ts has been denied') && d.text.includes('refuses the whole structural edit (zero writes)'), d.text.slice(0, 300))
+  check('a deny rule on one target refuses the whole set by name', d.isError && d.text.includes('Editing src/report.ts is denied by the rule') && d.text.includes('refuses the whole structural edit (zero writes)'), d.text.slice(0, 300))
   check('ZERO writes under the deny', unchanged(before))
   check('the deny never reached the ask', d.asks.length === 0, JSON.stringify(d.asks))
   const a = await drive(AstEditTool, { pattern: 'normaliseRecord($$$ARGS)', rewrite: 'normalizeRecord($$$ARGS)', path: 'rename', apply: true, plan: token }, prover)

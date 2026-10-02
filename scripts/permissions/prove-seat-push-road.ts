@@ -53,8 +53,8 @@ guard.unref?.()
 const PUSH = 'git push -q origin HEAD'
 const PUSH_TAILED = 'git push -q 2>&1 | tail -1; git status -sb | head -1'
 const PROTOCOL_CHAIN = 'git commit -q -m claim -- docs/claim-lock.md && git pull --rebase --quiet; git push -q; git status -sb'
-const PUSH_RULE = 'Bash(git push:*)'
-const CHAIN_RULES = ['Bash(git commit:*)', 'Bash(git pull:*)', PUSH_RULE]
+const PUSH_RULE = 'Bash(git push *)'
+const CHAIN_RULES = ['Bash(git commit *)', 'Bash(git pull *)', PUSH_RULE]
 const BLOCK_REASON = 'the fixture classifier blocks a push: anything visible outside this machine'
 
 type Source = 'userSettings' | 'projectSettings' | 'localSettings' | 'cliArg' | 'session'
@@ -104,7 +104,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('…the line names the flow road: the calls the flow check blocks, anything visible outside this machine', /flow/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)
-  check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push:\*\)/.test(bareLine) && /guardrails\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
+  check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push \*\)/.test(bareLine) && /guardrails\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
   check('…and says a rule-allowed call runs without the channel', /without the channel/.test(bareLine), bareLine)
   check('…one line, no line break inside (the posture block is one bullet per fact)', bareLine.startsWith('- ') && !bareLine.includes('\n'), bareLine)
   check('…labelled at boot (the rules can change mid-session; the live surface is the card)', /at boot/.test(bareLine), bareLine)
@@ -112,17 +112,17 @@ section('§1 the boot posture of a seat with a permission channel says which cal
 
   const allowed = postureFor('sdk', 'flow', contextOf('flow', { allow: [PUSH_RULE] }))
   const allowedLine = needsLine(allowed)
-  check('flow seat, allow rule in the user settings: the line says `git push` is pre-authorised, by that rule and its source', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push:\*\)` \(userSettings\)/.test(allowedLine), allowedLine)
+  check('flow seat, allow rule in the user settings: the line says `git push` is pre-authorised, by that rule and its source', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(userSettings\)/.test(allowedLine), allowedLine)
   check('…and runs without the channel', /runs without the channel/.test(allowedLine), allowedLine)
   check('…never the waits-on-the-operator words', !/push waits/.test(allowedLine), allowedLine)
   const cli = postureFor('sdk', 'flow', contextOf('flow', { allow: [PUSH_RULE] }, 'cliArg'))
-  check('flow seat, allow rule from --allowed-tools: the source is named', /allow rule `Bash\(git push:\*\)` \(cliArg\)/.test(needsLine(cli)), needsLine(cli))
-  const wide = postureFor('sdk', 'flow', contextOf('flow', { allow: ['Bash(git:*)'] }, 'projectSettings'))
-  check('a wider prefix rule (`Bash(git:*)`) that covers a push is the rule named', /allow rule `Bash\(git:\*\)` \(projectSettings\)/.test(needsLine(wide)), needsLine(wide))
+  check('flow seat, allow rule from --allowed-tools: the source is named', /allow rule `Bash\(git push \*\)` \(cliArg\)/.test(needsLine(cli)), needsLine(cli))
+  const wide = postureFor('sdk', 'flow', contextOf('flow', { allow: ['Bash(git *)'] }, 'projectSettings'))
+  check('a wider prefix rule (`Bash(git *)`) that covers a push is the rule named', /allow rule `Bash\(git \*\)` \(projectSettings\)/.test(needsLine(wide)), needsLine(wide))
   const denied = postureFor('sdk', 'flow', contextOf('flow', { deny: [PUSH_RULE] }, 'projectSettings'))
-  check('flow seat, deny rule: the line says `git push` is refused by that rule, never asked', /`git push` is refused at boot by the deny rule `Bash\(git push:\*\)` \(projectSettings\)/.test(needsLine(denied)) && /never asked/.test(needsLine(denied)), needsLine(denied))
+  check('flow seat, deny rule: the line says `git push` is refused by that rule, never asked', /`git push` is refused at boot by the deny rule `Bash\(git push \*\)` \(projectSettings\)/.test(needsLine(denied)) && /never asked/.test(needsLine(denied)), needsLine(denied))
   const asked = postureFor('sdk', 'flow', contextOf('flow', { ask: [PUSH_RULE] }))
-  check('flow seat, ask rule: the line says `git push` is pinned to the operator by that rule', /`git push` is pinned to the operator at boot by the ask rule `Bash\(git push:\*\)` \(userSettings\)/.test(needsLine(asked)), needsLine(asked))
+  check('flow seat, ask rule: the line says `git push` is pinned to the operator by that rule', /`git push` is pinned to the operator at boot by the ask rule `Bash\(git push \*\)` \(userSettings\)/.test(needsLine(asked)), needsLine(asked))
 
   const plain = postureFor('sdk', 'default', contextOf('default'))
   check('default-mode seat, no rule: the line names the default road (any call no allow rule covers) and the push status', /default/.test(needsLine(plain)) && /no allow rule/.test(needsLine(plain)) && /`git push` is not pre-authorised/.test(needsLine(plain)), needsLine(plain))
@@ -214,11 +214,11 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   check('no rule, the session\'s protocol chain (commit && pull; push; status): the channel', travels(chained) && chained.classifier === 1, j(chained))
 
   const ruled = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH)
-  check('`Bash(git push:*)` in the user settings: the push is allowed in the ENGINE by that rule — no classifier call, nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push:\*\)/.test(ruled.reason), j(ruled))
+  check('`Bash(git push *)` in the user settings: the push is allowed in the ENGINE by that rule — no classifier call, nothing on the channel', runsWithoutChannel(ruled) && /rule:Bash\(git push \*\)/.test(ruled.reason), j(ruled))
   const ruledCli = await decide(contextOf('flow', { allow: [PUSH_RULE] }, 'cliArg'), PUSH)
-  check('`Bash(git push:*)` from --allowed-tools: the same', runsWithoutChannel(ruledCli), j(ruledCli))
+  check('`Bash(git push *)` from --allowed-tools: the same', runsWithoutChannel(ruledCli), j(ruledCli))
   const ruledProject = await decide(contextOf('flow', { allow: [PUSH_RULE] }, 'projectSettings'), PUSH)
-  check('`Bash(git push:*)` in the project settings: the same', runsWithoutChannel(ruledProject), j(ruledProject))
+  check('`Bash(git push *)` in the project settings: the same', runsWithoutChannel(ruledProject), j(ruledProject))
   const ruledTailed = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PUSH_TAILED)
   check('the rule covers the session\'s own shape (the redirect is stripped for the prefix match; tail, head and git status ride the read-only lane)', runsWithoutChannel(ruledTailed), j(ruledTailed))
   const chainOnePush = await decide(contextOf('flow', { allow: [PUSH_RULE] }), PROTOCOL_CHAIN)
@@ -237,7 +237,7 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   check('a default-mode seat with the rule: allowed in the engine', runsWithoutChannel(ruledDefault), j(ruledDefault))
 
   const stripped = stripDangerousPermissionsForAutoMode({ ...contextOf('flow', { allow: [PUSH_RULE, 'Bash'] }) } as never) as unknown as { alwaysAllowRules: Record<string, string[]> }
-  check('flow-mode entry keeps `Bash(git push:*)` (a push is not a code-execution prefix) and strips the whole-tool `Bash` allow', j(stripped.alwaysAllowRules['userSettings']) === j([PUSH_RULE]), j(stripped.alwaysAllowRules))
+  check('flow-mode entry keeps `Bash(git push *)` (a push is not a code-execution prefix) and strips the whole-tool `Bash` allow', j(stripped.alwaysAllowRules['userSettings']) === j([PUSH_RULE]), j(stripped.alwaysAllowRules))
 }
 
 section('§3 the operator\'s road on disk — guardrails.allow in a settings file reaches the seat and decides')
@@ -246,13 +246,13 @@ section('§3 the operator\'s road on disk — guardrails.allow in a settings fil
   writeFileSync(settingsPath, JSON.stringify({ guardrails: { allow: [PUSH_RULE] } }, null, 2))
   resetSettingsCache()
   const rules = loadAllPermissionRulesFromDisk() as Array<{ source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string } }>
-  const fromDisk = rules.find(r => r.ruleValue.toolName === 'Bash' && r.ruleValue.ruleContent === 'git push:*')
+  const fromDisk = rules.find(r => r.ruleValue.toolName === 'Bash' && r.ruleValue.ruleContent === 'git push *')
   check('the loader reads the rule from the settings file with its source', fromDisk?.ruleBehavior === 'allow' && fromDisk.source === 'userSettings', j(rules))
   const loaded = applyPermissionRulesToPermissionContext(contextOf('flow') as never, rules as never) as unknown as Record<string, unknown>
   const cell = await decide(loaded, PUSH)
   check('the seat built from that file allows the push in the engine — no classifier call, nothing on the channel', runsWithoutChannel(cell), j(cell))
   const words = postureFor('sdk', 'flow', loaded)
-  check('and the boot posture composed from that same context tells the model so', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push:\*\)` \(userSettings\)/.test(needsLine(words)), needsLine(words))
+  check('and the boot posture composed from that same context tells the model so', /`git push` is pre-authorised at boot by the allow rule `Bash\(git push \*\)` \(userSettings\)/.test(needsLine(words)), needsLine(words))
   posture.resetRuntimePostureForTest()
   setAskChannel('operator')
   rmSync(settingsPath, { force: true })
@@ -268,7 +268,7 @@ section('§4 the words on disk — the flow policy names a push; the docs say ho
   const nonInteractive = trust.slice(trust.indexOf('## Non-interactive sessions'))
   const sectionText = nonInteractive.slice(0, nonInteractive.indexOf('\n## ', 1) > 0 ? nonInteractive.indexOf('\n## ', 1) : undefined)
   check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
-  check('…names the rule shape `Bash(git push:*)` and guardrails.allow', /Bash\(git push:\*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
+  check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
   check('…says no push is ever allowed by default', /no push is ever allowed by default/i.test(sectionText), sectionText.slice(0, 400))
   const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'print.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')

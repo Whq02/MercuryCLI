@@ -67,7 +67,7 @@ export function SkillPermissionRequest({
         list.push({
           label: (
             <Text>
-              Yes, and don&apos;t ask again for <Text bold>{prefix}:*</Text> commands in{' '}
+              Yes, and don&apos;t ask again for skills starting with <Text bold>{prefix}</Text> in{' '}
               <Text bold>{getFocusedSessionConnector().workspace().originalCwd}</Text>
             </Text>
           ),
@@ -120,7 +120,7 @@ export function SkillPermissionRequest({
         break
       case 'yes-prefix':
         logDecision('accept')
-        persistRule(`${prefix}:*`)
+        persistRule(`${prefix}*`)
         onDone()
         break
       case 'no':

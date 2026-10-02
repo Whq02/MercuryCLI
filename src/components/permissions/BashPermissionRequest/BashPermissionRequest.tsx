@@ -115,9 +115,9 @@ function BashCommandPermissionRequest(
       return contents.length === 1 ? contents[0] : undefined
     }
     const simple = getSimpleCommandPrefix(command)
-    if (simple !== null) return `${simple}:*`
+    if (simple !== null) return `${simple} *`
     const first = getFirstWordPrefix(command)
-    if (first !== null) return `${first}:*`
+    if (first !== null) return `${first} *`
     return command
   }, [isCompound, gatedSuggestions, command])
 
@@ -137,7 +137,7 @@ function BashCommandPermissionRequest(
       .then(prefixes => {
         if (cancelled || userEditedRef.current) return
         const first = prefixes[0]
-        if (first) setEditablePrefix(`${first}:*`)
+        if (first) setEditablePrefix(`${first} *`)
       })
       .catch(() => {
       })

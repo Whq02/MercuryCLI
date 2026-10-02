@@ -1,6 +1,6 @@
 import { getToolNameForPermissionCheck, mcpInfoFromString } from '../../services/mcp/mcpStringUtils.js'
 import type { ToolPermissionContext } from '../../Tool.js'
-import type { PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
+import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
 import { getDenyRules } from './decision/rules.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 
@@ -8,8 +8,36 @@ export type RuleReasonCarrier = {
   readonly ruleReasons?: { readonly [K in PermissionRuleSource]?: { readonly [spelling: string]: string } }
 }
 
+const RULE_SOURCE_WORDS: Record<PermissionRuleSource, string> = {
+  userSettings: 'in your user settings',
+  projectSettings: 'in the shared project settings',
+  localSettings: 'in the project local settings',
+  flagSettings: 'in the settings file named on the command line',
+  policySettings: 'in the managed settings',
+  cliArg: 'from the command line',
+  command: "from the command's own rules",
+  session: 'from this session',
+  toolsNarrowing: 'from the tool set',
+  mcpServerPolicy: 'from the MCP server policy',
+}
+
 export function ruleSpelling(value: PermissionRuleValue): string {
   return permissionRuleValueToString(value)
+}
+
+export function ruleSourceWords(source: PermissionRuleSource): string {
+  return RULE_SOURCE_WORDS[source]
+}
+
+export function ruleWords(rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
+  return `the rule ${ruleSpelling(rule.ruleValue)} ${ruleSourceWords(rule.source)}`
+}
+
+export function ruleSentence(subject: string, verdict: PermissionBehavior, rule: Pick<PermissionRule, 'source' | 'ruleValue'>): string {
+  const words = ruleWords(rule)
+  if (verdict === 'deny') return `${subject} is denied by ${words}.`
+  if (verdict === 'ask') return `${subject} asks first — ${words}.`
+  return `${subject} is allowed by ${words}.`
 }
 
 export function normaliseRuleReasons(raw: unknown): Record<string, string> {

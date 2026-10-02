@@ -63,7 +63,7 @@ export function powershellToolUseOptions({
         value: 'yes-edited-prefix',
         initialValue: editablePrefix,
         onChange: onEditablePrefixChange,
-        placeholder: 'Get-Process:*',
+        placeholder: 'Get-Process *',
         showLabelWithValue: true,
         labelValueSeparator: ': ',
         resetCursorOnUpdate: true,

@@ -33,13 +33,14 @@ const { parsePermissionRule, matchWildcardPattern, permissionRuleExtractPrefix }
 
 section('rule parser — the deny/ask/allow rule shapes bashPermissions resolves')
 {
-  const prefix = parsePermissionRule('rm:*')
-  check("legacy 'rm:*' parses as a PREFIX rule", prefix.type === 'prefix' && (prefix as { prefix: string }).prefix === 'rm', `=> ${JSON.stringify(prefix)}`)
-  const wild = parsePermissionRule('Bash(rm:*)')
-  check("wrapped 'Bash(rm:*)' parses as a WILDCARD rule (pattern form)", wild.type === 'wildcard', `=> ${JSON.stringify(wild)}`)
+  const starts = parsePermissionRule('rm *')
+  check("'rm *' parses as a WILDCARD rule (the \"starts with\" form)", starts.type === 'wildcard' && (starts as { pattern: string }).pattern === 'rm *', `=> ${JSON.stringify(starts)}`)
+  const colon = parsePermissionRule('rm:*')
+  check("'rm:*' is a star pattern like any other, nothing more", colon.type === 'wildcard', `=> ${JSON.stringify(colon)}`)
   const exact = parsePermissionRule('npm run build')
   check("bare 'npm run build' parses as an EXACT rule", exact.type === 'exact' && (exact as { command: string }).command === 'npm run build')
-  check("permissionRuleExtractPrefix('npm:*') => 'npm'", permissionRuleExtractPrefix('npm:*') === 'npm')
+  check("permissionRuleExtractPrefix('npm *') => 'npm'", permissionRuleExtractPrefix('npm *') === 'npm')
+  check("permissionRuleExtractPrefix('npm:*') => null", permissionRuleExtractPrefix('npm:*') === null)
 }
 
 section('wildcard matcher — a deny like Bash(rm *) catches rm, with a real word boundary')

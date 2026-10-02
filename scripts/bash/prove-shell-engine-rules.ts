@@ -45,15 +45,15 @@ section('§1 the decision table')
 const base = getEmptyToolPermissionContext()
 const contexts: Record<string, Context> = {
   bare: base,
-  allow: { ...base, alwaysAllowRules: { userSettings: ['Bash(npm run:*)', 'Bash(git:*)'] } },
-  deny: { ...base, alwaysDenyRules: { userSettings: ['Bash(rm:*)', 'Bash(curl:*)'] } },
-  ask: { ...base, alwaysAskRules: { userSettings: ['Bash(git push:*)'] } },
+  allow: { ...base, alwaysAllowRules: { userSettings: ['Bash(npm run *)', 'Bash(git *)'] } },
+  deny: { ...base, alwaysDenyRules: { userSettings: ['Bash(rm *)', 'Bash(curl *)'] } },
+  ask: { ...base, alwaysAskRules: { userSettings: ['Bash(git push *)'] } },
   bypass: { ...base, mode: 'sovereign', isBypassPermissionsModeAvailable: true },
   denyBypass: {
     ...base,
     mode: 'sovereign',
     isBypassPermissionsModeAvailable: true,
-    alwaysDenyRules: { userSettings: ['Bash(rm:*)'] },
+    alwaysDenyRules: { userSettings: ['Bash(rm *)'] },
   },
 }
 
@@ -145,7 +145,7 @@ for (const [command, expected] of READ_ONLY) {
 }
 
 section('§1c the sandbox exclusion escape and the sandbox decision')
-const patterns = ['git:*']
+const patterns = ['git *']
 const EXCLUSION: Array<[string, boolean]> = [
   ['git status', true],
   ['git log --oneline', true],
@@ -159,7 +159,7 @@ const EXCLUSION: Array<[string, boolean]> = [
 ]
 for (const [command, expected] of EXCLUSION) {
   const qualifies = commandQualifiesForExclusion(command, patterns)
-  check(`exclusion(git:*): ${JSON.stringify(command)} => ${qualifies}`, qualifies === expected, `expected ${expected}`)
+  check(`exclusion(git *): ${JSON.stringify(command)} => ${qualifies}`, qualifies === expected, `expected ${expected}`)
 }
 check('sandbox off in a fresh home: shouldUseSandbox is false for a plain command', shouldUseSandbox({ command: 'ls' }) === false)
 check('…and false when the override is set', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)

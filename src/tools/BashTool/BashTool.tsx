@@ -303,17 +303,8 @@ async function preparePermissionMatcher(input: BashToolInput): Promise<(pattern:
   return (pattern: string): boolean => {
     const rule = pinnedCommandAnalysis
     void rule
-    const prefix = extractLegacyPrefix(pattern)
-    return argvTexts.some(argv =>
-      prefix !== null
-        ? argv === prefix || argv.startsWith(prefix + ' ')
-        : matchGlob(pattern, argv),
-    )
+    return argvTexts.some(argv => matchGlob(pattern, argv))
   }
-}
-
-function extractLegacyPrefix(pattern: string): string | null {
-  return pattern.endsWith(':*') && pattern.length > 2 ? pattern.slice(0, -2) : null
 }
 
 function matchGlob(pattern: string, text: string): boolean {

@@ -168,7 +168,7 @@ section('§4 H-19 · ONE FILESYSTEM PERMISSION ENGINE ACROSS THE THREE TOOLS')
   )
   check(
     'the plan blocks deny decisions, not an outside path awaiting ordinary approval',
-    /scopeCheck:[\s\S]*?if \(decision.behavior === 'deny'\) return 'blocked by a permission deny rule'\s*return null/.test(changeSet),
+    /scopeCheck:[\s\S]*?if \(decision.behavior === 'deny'\) return 'denied by a rule'\s*return null/.test(changeSet),
   )
   check(
     'the aggregate permission decision delegates every path to the same write engine',

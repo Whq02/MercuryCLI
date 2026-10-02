@@ -25,7 +25,8 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { normalizeMessages } from '../../utils/messages.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
-import { suggestionForExactCommand, suggestionForPrefix } from '../../utils/permissions/shellRuleMatching.js'
+import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
@@ -215,8 +216,8 @@ async function getCommandUniverse(context: ToolUseContext): Promise<Command[]> {
 function ruleMatchesSkill(ruleContent: string, commandName: string): boolean {
   const content = ruleContent.replace(/^\//, '')
   if (content === commandName) return true
-  if (content.endsWith(':*')) {
-    return commandName.startsWith(content.slice(0, -2))
+  if (content.endsWith('*') && content.length > 1) {
+    return commandName.startsWith(content.slice(0, -1))
   }
   return false
 }
@@ -304,7 +305,7 @@ export const SkillTool = buildTool({
       if (ruleMatchesSkill(content, name)) {
         return {
           behavior: 'deny' as const,
-          message: 'Skill blocked by permission rules',
+          message: ruleSentence(`The ${name} skill`, 'deny', rule),
           decisionReason: { type: 'rule' as const, rule },
         }
       }
@@ -325,7 +326,7 @@ export const SkillTool = buildTool({
       behavior: 'ask' as const,
       message: `Run skill "${name}"?`,
       ...(command ? { metadata: { command } } : {}),
-      suggestions: [...suggestionForExactCommand(SKILL_TOOL_NAME, name), ...suggestionForPrefix(SKILL_TOOL_NAME, name)],
+      suggestions: [...suggestionForExactCommand(SKILL_TOOL_NAME, name), ...suggestionForExactCommand(SKILL_TOOL_NAME, `${name}*`)],
     }
   },
   async call(

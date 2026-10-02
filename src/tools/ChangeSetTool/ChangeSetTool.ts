@@ -71,7 +71,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { expandPath } from '../../utils/path.js'
 import { checkWritePermissionForTool } from '../../utils/permissions/filesystem.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
-import { reasonForRule, refusalWithReason } from '../../utils/permissions/ruleReason.js'
+import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -232,7 +232,7 @@ function planContext(
     },
     scopeCheck: (canonicalPath: string) => {
       const decision = checkWritePermissionForTool(pathShim, { file_path: canonicalPath }, permCtx)
-      if (decision.behavior === 'deny') return 'blocked by a permission deny rule'
+      if (decision.behavior === 'deny') return 'denied by a rule'
       return null
     },
     ...(lowered
@@ -630,7 +630,7 @@ async function runApply(
     }
   }
   if (denied.length > 0) {
-    const lines = denied.map(p => `  ${displayPath(p)} — blocked by a deny rule`)
+    const lines = denied.map(p => `  ${displayPath(p)} — denied by a rule`)
     return {
       op: 'apply',
       result:
@@ -1200,7 +1200,7 @@ NOT this tool (refused by name): file creation (Write) · binary content · note
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: refusalWithReason(`Permission to edit ${p} has been denied — a denied path refuses the whole change set (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
+          message: refusalWithReason(`Editing ${p} is denied${decision.decisionReason.type === 'rule' ? ` by ${ruleWords(decision.decisionReason.rule)}` : ''} — a denied path refuses the whole change set (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
         }
       }
       if (decision.behavior !== 'allow') needsAsk = true

@@ -69,14 +69,12 @@ function buildCandidates(subcommand: string): string[] {
 }
 
 function ruleMatchesCandidate(
-  rule: { type: 'exact'; command: string } | { type: 'prefix'; prefix: string } | { type: 'wildcard'; pattern: string },
+  rule: { type: 'exact'; command: string } | { type: 'wildcard'; pattern: string },
   candidate: string,
 ): boolean {
   switch (rule.type) {
     case 'exact':
       return candidate === rule.command
-    case 'prefix':
-      return candidate === rule.prefix || candidate.startsWith(rule.prefix + ' ')
     case 'wildcard':
       return matchWildcardPattern(rule.pattern, candidate)
   }

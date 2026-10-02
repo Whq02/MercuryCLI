@@ -56,6 +56,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { logError } from '../../utils/log.js'
 import type { PermissionResult } from '../../utils/permissions/PermissionResult.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 
 import {
   compileWorkflow,
@@ -478,7 +479,7 @@ const WorkflowToolDef = {
     if (deny) {
       return {
         behavior: 'deny',
-        message: `Workflow ${ruleKey} blocked by permission rules`,
+        message: ruleSentence(`The ${ruleKey} workflow`, 'deny', deny),
         decisionReason: { type: 'rule', rule: deny },
       }
     }

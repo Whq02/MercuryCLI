@@ -131,10 +131,10 @@ ask to the connected client and waits for the answer: a question to the
 operator, an Apollo review, and under flow any call the flow check blocks,
 `git push` among them (anything visible outside this machine). A push in a
 session nobody is watching therefore waits on a present operator unless a
-permission rule pre-authorises it: `Bash(git push:*)` in the
+permission rule pre-authorises it: `Bash(git push *)` in the
 `guardrails.allow` list of the user, project or local settings (a
 switchboard seat carries the rules of the settings it boots with; a `run` command
-also takes `--allowed-tools "Bash(git push:*)"`) decides the push in the
+also takes `--allowed-tools "Bash(git push *)"`) decides the push in the
 engine, so it runs without the channel; a deny rule refuses it outright; an
 ask rule pins it to the operator.
 No push is ever allowed by default — the posture stays the operator's. The

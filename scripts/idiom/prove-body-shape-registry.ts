@@ -159,7 +159,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   },
   critical_system_reminder: { good: { content: 'c' }, bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'] } }] },
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
-  command_permissions: { good: { allowedTools: ['Bash(ls:*)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },
+  command_permissions: { good: { allowedTools: ['Bash(ls *)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },
   agent_mention: { good: { agentType: 'scout' }, bad: [{ label: 'agentType is missing', field: 'agentType', fields: {} }] },
   task_status: {
     good: { taskId: 'i', taskType: 'local_agent', status: 'completed', description: 'd', deltaSummary: null },
