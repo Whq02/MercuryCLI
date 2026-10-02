@@ -14,7 +14,6 @@ import { safeParseJSON } from '../json.js'
 import { stripBOM } from '../jsonRead.js'
 import * as lockfile from '../lockfile.js'
 import { logError } from '../log.js'
-import { dropRetiredAdvisorConfigKeys, rewriteRetiredGlobalConfigKeys, rewriteRetiredProjectConfigKeys } from '../../migrations/migrateConfigSpellings.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 
 import {
@@ -222,12 +221,6 @@ export function noteConfigLocklessFallback(): void {
 
 export const CONFIG_WRITE_DISPLAY_THRESHOLD = 20
 
-function migrateConfigFields(config: GlobalConfig): GlobalConfig {
-  const rewritten = dropRetiredAdvisorConfigKeys(rewriteRetiredGlobalConfigKeys(config))
-  const projects = rewriteRetiredProjectConfigKeys(rewritten.projects)
-  return projects === rewritten.projects ? rewritten : { ...rewritten, projects }
-}
-
 type ConfigFieldShape = 'boolean' | 'number' | 'string' | 'list' | 'object'
 
 export type GlobalConfigFieldDrop = { field: string; expected: ConfigFieldShape; found: string }
@@ -365,10 +358,10 @@ function startGlobalConfigFreshnessWatcher(): void {
           const parsed = safeParseJSON(stripBOM(content))
           if (parsed === null || typeof parsed !== 'object') return
           globalConfigCache = {
-            config: foldPendingUpdaters(migrateConfigFields({
+            config: foldPendingUpdaters({
               ...createDefaultGlobalConfig(),
               ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>),
-            })),
+            }),
             mtime: curr.mtimeMs,
           }
           notifyGlobalConfigCache()
@@ -399,7 +392,7 @@ export function readGlobalConfigAgain(): void {
   const parsed = safeParseJSON(stripBOM(content))
   if (parsed === null || typeof parsed !== 'object') return
   globalConfigCache = {
-    config: foldPendingUpdaters(migrateConfigFields({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>) })),
+    config: foldPendingUpdaters({ ...createDefaultGlobalConfig(), ...(decodeGlobalConfigFields(parsed) as Partial<GlobalConfig>) }),
     mtime: stamp,
   }
   notifyGlobalConfigCache()
@@ -424,9 +417,7 @@ export function getGlobalConfig(): GlobalConfig {
       stats = getFsImplementation().statSync(getGlobalMercuryFile())
     } catch {
     }
-    const config = migrateConfigFields(
-      getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig),
-    )
+    const config = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
     globalConfigCache = {
       config,
       mtime: stats?.mtimeMs ?? Date.now(),
@@ -434,9 +425,7 @@ export function getGlobalConfig(): GlobalConfig {
     startGlobalConfigFreshnessWatcher()
     return config
   } catch {
-    return migrateConfigFields(
-      getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig),
-    )
+    return getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
   }
 }
 
