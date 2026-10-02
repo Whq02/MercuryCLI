@@ -1,7 +1,7 @@
 import { canAnswerAsks, getMainThreadAgentType, getInvokedSkillsForAgent } from '../../bootstrap/state.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { ToolUseContext } from '../../Tool.js'
-import type { NonNullableUsage } from '../../entrypoints/sdk/coreTypes.js'
+import type { NonNullableUsage } from '../api/emptyUsage.js'
 import type {
   AssistantMessage,
   AttachmentMessage,

@@ -10,7 +10,7 @@ process.chdir(ROOT)
 const core = await import('../../src/entrypoints/sdk/coreSchemas.ts')
 const control = await import('../../src/entrypoints/sdk/controlSchemas.ts')
 const coreTypes = await import('../../src/entrypoints/sdk/coreTypes.ts')
-const runtime = await import('../../src/entrypoints/sdk/runtimeTypes.ts')
+const ladderModule = await import('../../src/utils/effortLadder.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
 const mappers = await import('../../src/utils/messages/mappers.ts')
 const idle = await import('../../src/services/providers/streamIdleBudget.ts')
@@ -260,7 +260,7 @@ section('F4 — the effort enum on the wire is the one ladder')
   type EnumLike = { options?: unknown[]; def?: { options?: unknown[] }; element?: EnumLike; unwrap?: () => EnumLike }
   const shape = (core.ModelInfoSchema() as unknown as { shape: Record<string, EnumLike> }).shape
   const levels = shape.supported_effort_levels!.unwrap!().element!
-  const ladder = [...runtime.EFFORT_LEVELS]
+  const ladder = [...ladderModule.EFFORT_LEVELS]
   check('a model row\'s supported effort levels enumerate the ladder', deepEq(levels.options ?? levels.def?.options, ladder), j(levels.options ?? levels.def?.options))
   check('the ladder ends at max', ladder[ladder.length - 1] === 'max', j(ladder))
 }

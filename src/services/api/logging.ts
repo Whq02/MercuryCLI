@@ -1,7 +1,7 @@
 import { APIError } from '@anthropic-ai/sdk'
 
 import { addToTotalDurationState } from '../../bootstrap/state.js'
-import type { NonNullableUsage } from '../../entrypoints/sdk/coreTypes.js'
+import type { NonNullableUsage } from './emptyUsage.js'
 import { consumeInvokingRequestId } from '../../utils/agentContext.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'

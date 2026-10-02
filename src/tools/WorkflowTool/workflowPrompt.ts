@@ -1,5 +1,5 @@
 
-import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 import { evolutionLedgerEnabled } from '../../utils/evolution/evolutionLedger.js'
 
 export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration script that coordinates a fleet of subagents with deterministic control flow. The launch detaches immediately: this tool answers with a task ID while the run continues in the background, a <task-notification> arrives at completion, and /workflows shows live progress.

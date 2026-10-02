@@ -3,7 +3,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { ASSISTANT_MESSAGE_ERRORS } from '../../types/message.js'
 import { externalPermissionModeSchema } from '../../utils/permissions/PermissionMode.js'
 import { permissionUpdateSchema } from '../../utils/permissions/PermissionUpdateSchema.js'
-import { EFFORT_LEVELS } from './runtimeTypes.js'
+import { EFFORT_LEVELS } from '../../utils/effortLadder.js'
 
 export const ModelUsageSchema = lazySchema(() =>
   z.object({

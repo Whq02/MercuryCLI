@@ -71,7 +71,7 @@ for (const name of readdirSync(SDK).sort()) {
 }
 
 {
-  const src = readFileSync(join(SDK, 'coreTypes.ts'), 'utf8')
+  const src = readFileSync(join(ROOT, 'src', 'services', 'api', 'emptyUsage.ts'), 'utf8')
   check(
     'NonNullableUsage is a structural Mercury declaration (no provider import, no any-stub)',
     !src.includes('@anthropic-ai/') &&

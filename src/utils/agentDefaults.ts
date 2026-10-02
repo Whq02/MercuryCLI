@@ -1,5 +1,5 @@
 
-import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
 import { getGlobalConfig, type GlobalConfig } from './config.js'
 
 export const SUBAGENT_DEFAULT_EFFORT: EffortLevel = 'high'

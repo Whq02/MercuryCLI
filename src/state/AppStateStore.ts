@@ -1,5 +1,5 @@
 import { getGlobalConfig } from '../utils/config.js'
-import type { Settings } from '../entrypoints/agentSdkTypes.js'
+import type { Settings } from '../utils/settings/types.js'
 import type { ToolPermissionContext } from '../Tool.js'
 import { getEmptyToolPermissionContext } from '../Tool.js'
 import type { TaskState } from '../tasks/types.js'

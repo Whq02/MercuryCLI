@@ -1,4 +1,4 @@
-import { EFFORT_LEVELS, type EffortLevel } from '../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from './effortLadder.js'
 import { nearestSupportedWireEffort, wireEffortForListDefault } from '../services/providers/openai/gptPins.js'
 import { isGlmModelId } from '../services/providers/zai/glmPins.js'
 import { isEnterpriseSubscriber, isMaxSubscriber, isProSubscriber, isCrewSubscriber } from './auth.js'

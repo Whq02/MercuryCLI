@@ -1,6 +1,6 @@
 import memoize from 'lodash-es/memoize.js'
 import { flagEnabled } from 'src/substrate/flagRegistry.js'
-import { EFFORT_LEVELS, type EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import {
   CODING_20250219_BETA_HEADER,

@@ -1,4 +1,4 @@
-import type { EffortLevel } from '../../entrypoints/sdk/runtimeTypes.js'
+import type { EffortLevel } from '../effortLadder.js'
 import type { McpServerConfig } from '../../services/mcp/types.js'
 import type { BillingType } from '../../services/oauth/types.js'
 import type { ImageDimensions } from '../imageResizer.js'

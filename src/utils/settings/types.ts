@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 
 import { SandboxSettingsSchema } from '../../entrypoints/sandboxTypes.js'
-import { EFFORT_LEVELS } from '../../entrypoints/sdk/runtimeTypes.js'
+import { EFFORT_LEVELS } from '../effortLadder.js'
 import { HooksSchema } from '../../schemas/hooks.js'
 import { lazySchema } from '../lazySchema.js'
 import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
@@ -223,5 +223,6 @@ export const SettingsSchema = lazySchema(() => {
   })
   return base.passthrough()
 })
+export type Settings = z.infer<ReturnType<typeof SettingsSchema>>
 
 export type SettingsJson = z.infer<z.ZodObject<ReturnType<typeof SettingsSchema>['shape']>>
