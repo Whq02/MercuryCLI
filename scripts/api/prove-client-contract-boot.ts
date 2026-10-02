@@ -100,18 +100,18 @@ type Arena = { home: string; config: string; cwd: string; env: Record<string, st
 function arena(name: string, extra: Record<string, string> = {}): Arena {
   const home = join(scratch, name)
   const cwd = join(scratch, `${name}-cwd`)
-  mkdirSync(join(home, '.claude'), { recursive: true })
+  mkdirSync(join(home, '.mercury'), { recursive: true })
   mkdirSync(cwd, { recursive: true })
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
   return {
     home,
-    config: join(home, '.claude'),
+    config: join(home, '.mercury'),
     cwd,
     env: {
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
       TERM: 'dumb',
-      MERCURY_CONFIG_DIR: join(home, '.claude'),
+      MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
       MERCURY_LOCAL_PROBE_TARGETS: 'none',
       ANTHROPIC_BASE_URL: fixture.url,

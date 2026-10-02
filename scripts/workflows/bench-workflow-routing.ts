@@ -21,7 +21,7 @@ import {
 
 const DIST = join(repoRoot, 'dist', 'mercury.mjs')
 const outDir = join(repoRoot, 'docs', 'benchmarks', 'workflow-routing')
-const benchRoot = join(repoRoot, '.claude', 'bench')
+const benchRoot = join(repoRoot, '.mercury', 'bench')
 const TASK_IDS = ['flag-registry-row', 'util-function', 'cli-hidden-flag'] as const
 
 const COST_MODEL = { unroutedPerRunUsd: [4, 7] as const, routedPerRunUsd: [2, 5] as const }

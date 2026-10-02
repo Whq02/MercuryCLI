@@ -169,7 +169,7 @@ const liveRecords = (home: string): ReturnType<typeof readSessionWorkers> =>
   Object.fromEntries(Object.entries(recordsOf(home)).filter(([, r]) => r.endedAt === undefined))
 
 function daemonLogText(home: string): string {
-  const candidates = [join(CWD, '.mercury', 'daemon', 'daemon.log'), join(CWD, '.claude', 'daemon', 'daemon.log'), join(home, 'daemon', 'daemon.log')]
+  const candidates = [join(CWD, '.mercury', 'daemon', 'daemon.log'), join(home, 'daemon', 'daemon.log')]
   return candidates
     .filter(p => existsSync(p))
     .map(p => `# ${p}\n${readFileSync(p, 'utf8')}`)

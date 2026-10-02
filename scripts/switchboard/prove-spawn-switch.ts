@@ -358,7 +358,7 @@ if (!existsSync(DIST)) {
   function makeArena(baseUrl: string, extraEnv: Record<string, string> = {}): Arena {
     const home = mkdtempSync(join(tmpdir(), 'spawn-switch-wire-home-'))
     const cwd = mkdtempSync(join(tmpdir(), 'spawn-switch-wire-cwd-'))
-    mkdirSync(join(home, '.claude'), { recursive: true })
+    mkdirSync(join(home, '.mercury'), { recursive: true })
     return {
       home,
       cwd,
@@ -366,7 +366,7 @@ if (!existsSync(DIST)) {
         HOME: home,
         PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
         TERM: 'dumb',
-        MERCURY_CONFIG_DIR: join(home, '.claude'),
+        MERCURY_CONFIG_DIR: join(home, '.mercury'),
         MERCURY_CREDENTIAL_STORE: 'file',
         MERCURY_LOCAL_PROBE_TARGETS: 'none',
         ANTHROPIC_BASE_URL: baseUrl,
@@ -434,7 +434,7 @@ if (!existsSync(DIST)) {
       }
       return out
     }
-    const files = existsSync(join(arena.home, '.claude', 'projects')) ? walk(join(arena.home, '.claude', 'projects')) : []
+    const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
     const notices: string[] = []
     for (const file of files) {
       for (const line of readFileSync(file, 'utf8').split('\n')) {

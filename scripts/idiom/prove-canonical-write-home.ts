@@ -58,14 +58,9 @@ section("§E compat 'state' facet OFF — canonical-only, zero I/O")
   const root = mkdtempSync(join(tmpdir(), 'idiom-home-off-'))
   mkdirSync(join(root, '.claude', 'tasks'), { recursive: true })
   writeFileSync(join(root, '.claude', 'tasks', 'x.json'), '{}')
-  process.env.MERCURY_CC_COMPAT_STATE = 'off'
-  try {
-    const p = adoptiveProjectPath(root, 'tasks')
-    check('resolves canonical', inMercury(p, root), p)
-    check('nothing is written or copied', !existsSync(p))
-  } finally {
-    delete process.env.MERCURY_CC_COMPAT_STATE
-  }
+  const p = adoptiveProjectPath(root, 'tasks')
+  check('resolves canonical', inMercury(p, root), p)
+  check('nothing is written or copied', !existsSync(p))
 }
 
 section('§F alias write-through refusal (D11): .mercury linked into .claude')

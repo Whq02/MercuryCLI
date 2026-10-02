@@ -113,7 +113,7 @@ if (!existsSync(DIST)) {
     function makeArena(fixture: FixtureApi, extraEnv: Record<string, string> = {}): Arena {
       const home = mkdtempSync(join(tmpdir(), 'dead-thinking-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'dead-thinking-cwd-'))
-      mkdirSync(join(home, '.claude'), { recursive: true })
+      mkdirSync(join(home, '.mercury'), { recursive: true })
       return {
         home,
         cwd,
@@ -121,7 +121,7 @@ if (!existsSync(DIST)) {
           HOME: home,
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
           TERM: 'dumb',
-          MERCURY_CONFIG_DIR: join(home, '.claude'),
+          MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_BASE_URL: fixture.url,
@@ -205,7 +205,7 @@ if (!existsSync(DIST)) {
         }
         return out
       }
-      const root = join(arena.home, '.claude', 'projects')
+      const root = join(arena.home, '.mercury', 'projects')
       const files = existsSync(root) ? walk(root) : []
       const lines: string[] = []
       for (const file of files) for (const line of readFileSync(file, 'utf8').split('\n')) if (line.includes(needle)) lines.push(line)
@@ -213,7 +213,7 @@ if (!existsSync(DIST)) {
     }
     const debugLines = (file: string, needle: string): string[] => (existsSync(file) ? readFileSync(file, 'utf8').split('\n').filter(l => l.includes(needle)) : [])
     const readLedger = (arena: Arena): { last?: { kind?: string; consecutive?: number; count?: number; path?: string; part?: string }; longestRun?: number } | null => {
-      const file = join(arena.home, '.claude', 'preserved-thinking.json')
+      const file = join(arena.home, '.mercury', 'preserved-thinking.json')
       return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as ReturnType<typeof readLedger>) : null
     }
 

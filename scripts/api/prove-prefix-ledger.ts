@@ -559,7 +559,7 @@ if (!existsSync(DIST)) {
     function makeArena(fixture: FixtureApi, extraEnv: Record<string, string> = {}): Arena {
       const home = mkdtempSync(join(tmpdir(), 'prefix-ledger-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'prefix-ledger-cwd-'))
-      mkdirSync(join(home, '.claude'), { recursive: true })
+      mkdirSync(join(home, '.mercury'), { recursive: true })
       writeFileSync(join(cwd, 'README.md'), '# fixture\n')
       return {
         home,
@@ -568,7 +568,7 @@ if (!existsSync(DIST)) {
           HOME: home,
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
           TERM: 'dumb',
-          MERCURY_CONFIG_DIR: join(home, '.claude'),
+          MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',
           MERCURY_LOCAL_PROBE_TARGETS: 'none',
           ANTHROPIC_BASE_URL: fixture.url,
@@ -626,7 +626,7 @@ if (!existsSync(DIST)) {
         }
         return out
       }
-      const files = existsSync(join(arena.home, '.claude', 'projects')) ? walk(join(arena.home, '.claude', 'projects')) : []
+      const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
       const notices: string[] = []
       for (const file of files) {
         for (const line of readFileSync(file, 'utf8').split('\n')) {
@@ -641,7 +641,7 @@ if (!existsSync(DIST)) {
       return notices
     }
     const debugText = (file: string): string => { try { return readFileSync(file, 'utf8') } catch { return '' } }
-    const ledgerFile = (arena: Arena): string => join(arena.home, '.claude', 'preserved-thinking.json')
+    const ledgerFile = (arena: Arena): string => join(arena.home, '.mercury', 'preserved-thinking.json')
     const common = ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'Read', '--format', 'rows']
     const scripted = (tag: string, n: number, over: Partial<Extract<ScriptedTurn, { kind: 'text' }>> = {}): ScriptedTurn[] =>
       Array.from({ length: n }, (_, i) => ({ kind: 'text' as const, text: `${tag}-T${i + 1}`, thinking: `${tag} thinking ${i + 1}`, model: 'claude-fable-5-1', ...over }))
@@ -713,7 +713,7 @@ if (!existsSync(DIST)) {
       check('[killer] exactly one notice, naming the part — it never repeats', notices.length === 1 && notices[0]!.includes("Mercury's prefix ledger names the part that moved: the system prompt's"), j(notices))
       const dead = debugText(debugFile).split('\n').filter(l => l.includes('marked dead on the record'))
       check('[killer] the record carries the dead mark once (one row, one block)', dead.length === 1 && dead[0]!.includes('1 dropped block(s)'), j(dead))
-      const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
+      const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[killer] the dead marks persist in the transcript as a dead_thinking attachment (an info notice was lost before disk)', rowsText.includes('"attachmentType":"dead_thinking"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 300))
       const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
       const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--debug-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
@@ -752,7 +752,7 @@ if (!existsSync(DIST)) {
       check('[switch] the switch-back request drops the early Fable blocks ONCE, then the next requests drop NOTHING (no growing run)', reqs.length === 6 && dropSeq[3]! >= 1 && dropSeq[4] === 0 && dropSeq[5] === 0, `drops per request: ${j(dropSeq)}`)
       const thinkingPer = reqs.map(q => ((q.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0))
       check('[switch] the request after the switch-back carries strictly fewer thinking blocks (the dead ones stripped, the record on disk before the process ended)', thinkingPer[4]! < thinkingPer[3]! && !j(reqs[4]!.messages).includes('fable one') && !j(reqs[5]!.messages).includes('fable one'), `thinking per request: ${j(thinkingPer)}`)
-      const rowsText = (() => { const dir = join(arena.home, '.claude', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
+      const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[switch] the dead marks persist as a dead_thinking attachment across the resume', rowsText.includes('"attachmentType":"dead_thinking"'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 200))
       const notices = transcriptNotices(arena, SID)
       check('[switch] exactly one drop receipt is written — never a repeating "again" run', notices.filter(n => n.includes('the API dropped')).length === 1 && !notices.some(n => n.includes('dropped') && n.includes('again')), j(notices))

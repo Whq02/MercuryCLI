@@ -36,8 +36,8 @@ delete env.NODE_ENV
 let homeNote: string
 if (env.ANTHROPIC_API_KEY) {
   const home = mkdtempSync(path.join(tmpdir(), 'wire-truth-live-'))
-  mkdirSync(path.join(home, '.claude'), { recursive: true })
-  env.MERCURY_CONFIG_DIR = path.join(home, '.claude')
+  mkdirSync(path.join(home, '.mercury'), { recursive: true })
+  env.MERCURY_CONFIG_DIR = path.join(home, '.mercury')
   env.MERCURY_CREDENTIAL_STORE = 'file'
   env.HOME = home
   homeNote = `ANTHROPIC_API_KEY from the environment; scratch config home ${env.MERCURY_CONFIG_DIR}`

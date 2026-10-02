@@ -330,7 +330,7 @@ if (!existsSync(DIST)) {
     function makeArena(fixture: FixtureApi, extraEnv: Record<string, string> = {}): Arena {
       const home = mkdtempSync(join(tmpdir(), 'resume-bytes-home-'))
       const cwd = mkdtempSync(join(tmpdir(), 'resume-bytes-cwd-'))
-      mkdirSync(join(home, '.claude'), { recursive: true })
+      mkdirSync(join(home, '.mercury'), { recursive: true })
       writeFileSync(join(cwd, 'README.md'), '# fixture\n')
       return {
         home,
@@ -339,7 +339,7 @@ if (!existsSync(DIST)) {
           HOME: home,
           PATH: `/usr/bin:/bin:${dirname(nodeBin!)}`,
           TERM: 'dumb',
-          MERCURY_CONFIG_DIR: join(home, '.claude'),
+          MERCURY_CONFIG_DIR: join(home, '.mercury'),
           MERCURY_CREDENTIAL_STORE: 'file',
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: 'fixture-key-000',
@@ -395,7 +395,7 @@ if (!existsSync(DIST)) {
         }
         return out
       }
-      const files = existsSync(join(arena.home, '.claude', 'projects')) ? walk(join(arena.home, '.claude', 'projects')) : []
+      const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
       const notices: string[] = []
       for (const file of files) {
         for (const line of readFileSync(file, 'utf8').split('\n')) {
@@ -425,10 +425,10 @@ if (!existsSync(DIST)) {
     const firstDebug = join(arena.home, 'first.debug.log')
     const first = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', firstDebug], ['revive turn 1', 'revive turn 2'])
     check('[wire] the first process runs two turns and exits 0', first.exit === 0, `exit=${first.exit} stderr=${first.stderr.slice(0, 300)}`)
-    const recordFile = join(arena.home, '.claude', 'sessions', SID, 'prefix-ledger.json')
+    const recordFile = join(arena.home, '.mercury', 'sessions', SID, 'prefix-ledger.json')
     check("[wire] the first process left the ledger's record beside its session", existsSync(recordFile), recordFile)
     if (existsSync(recordFile)) note(`the record beside the session is ${statSync(recordFile).size} bytes after two turns`)
-    const transcriptFiles = (() => { const out: string[] = []; const walkTranscripts = (dir: string): void => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isDirectory()) walkTranscripts(full); else if (entry.name === `${SID}.jsonl`) out.push(full) } }; const root = join(arena.home, '.claude', 'projects'); if (existsSync(root)) walkTranscripts(root); return out })()
+    const transcriptFiles = (() => { const out: string[] = []; const walkTranscripts = (dir: string): void => { for (const entry of readdirSync(dir, { withFileTypes: true })) { const full = join(dir, entry.name); if (entry.isDirectory()) walkTranscripts(full); else if (entry.name === `${SID}.jsonl`) out.push(full) } }; const root = join(arena.home, '.mercury', 'projects'); if (existsSync(root)) walkTranscripts(root); return out })()
     const transcriptBytes = transcriptFiles.reduce((sum, file) => sum + statSync(file).size, 0)
     if (existsSync(recordFile) && transcriptBytes > 0) note(`the record is ${statSync(recordFile).size} bytes against a transcript of ${transcriptBytes} bytes: ${(statSync(recordFile).size / transcriptBytes).toFixed(2)} bytes of record per byte of transcript`)
     const revivedDebug = join(arena.home, 'revived.debug.log')
@@ -443,7 +443,7 @@ if (!existsSync(DIST)) {
     check("[wire] the receipt after the revive names the part instead of the bare 'client-side edit' sentence", notices.length >= 1 && notices.some(n => n.includes("Mercury's prefix ledger names the part that moved: the system prompt")), j(notices))
     const debug = debugText(revivedDebug)
     check("[wire] the revived process's debug log carries the ledger's line naming the part before the request went out", debug.includes('the prefix ledger names a rewrite of sent history before the request went out — the system prompt'), debug.split('\n').filter(l => l.includes('prefix ledger')).join(' | ').slice(0, 300))
-    const doctorFile = join(arena.home, '.claude', 'preserved-thinking.json')
+    const doctorFile = join(arena.home, '.mercury', 'preserved-thinking.json')
     const row = existsSync(doctorFile) ? (JSON.parse(readFileSync(doctorFile, 'utf8')) as { last?: { part?: string; kind?: string } }) : null
     check("[wire] the doctor's row carries the named part after the revive", typeof row?.last?.part === 'string' && row.last.part.startsWith('the system prompt') && row.last.kind === 'first', j(row))
     await fixture.close()

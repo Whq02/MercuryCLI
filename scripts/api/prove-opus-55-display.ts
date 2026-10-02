@@ -61,12 +61,12 @@ if (!existsSync(DIST)) {
     const fixture = await startFixtureApi(turns)
     const home = mkdtempSync(join(tmpdir(), 'opus-55-display-home-'))
     const cwd = mkdtempSync(join(tmpdir(), 'opus-55-display-cwd-'))
-    mkdirSync(join(home, '.claude'), { recursive: true })
+    mkdirSync(join(home, '.mercury'), { recursive: true })
     const env = (extra: Record<string, string>): Record<string, string> => ({
       HOME: home,
       PATH: `/usr/bin:/bin:${dirname(nodeBin)}`,
       TERM: 'dumb',
-      MERCURY_CONFIG_DIR: join(home, '.claude'),
+      MERCURY_CONFIG_DIR: join(home, '.mercury'),
       MERCURY_CREDENTIAL_STORE: 'file',
       ANTHROPIC_BASE_URL: fixture.url,
       ANTHROPIC_API_KEY: 'fixture-key-000',
