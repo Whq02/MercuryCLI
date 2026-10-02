@@ -140,7 +140,7 @@ export function renameSocketForPredecessor(pid: number): boolean {
   const from = controlSockPath()
   if (process.platform === 'win32' || !existsSync(from)) return false
   try {
-    if (lstatSync(from).isSymbolicLink() && realOrResolved(from) === realOrResolved(predecessorSockPath(pid))) return true
+    if (lstatSync(from).isSymbolicLink()) return existsSync(predecessorSockPath(pid))
     renameSync(from, predecessorSockPath(pid))
     return true
   } catch (e) {
