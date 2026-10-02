@@ -32,7 +32,7 @@ const hash = wireShapeHash(shape)
 const proto = Number(/export const MERCURY_DAEMON_PROTO = (\d+)/.exec(source)?.[1] ?? NaN)
 const registered = /export const DAEMON_PROTO_SHAPE = '([^']+)'/.exec(source)?.[1] ?? ''
 
-if (process.argv.includes('--print')) {
+if (process.argv.includes('--emit')) {
   console.log(JSON.stringify({ proto, shape, hash }, null, 2))
   process.exit(0)
 }
