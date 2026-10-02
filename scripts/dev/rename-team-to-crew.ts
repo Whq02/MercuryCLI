@@ -33,7 +33,7 @@ const FROZEN_FILES: Array<{ path: string } & Why> = [
   { path: 'src/migrations/migrateSettingsSpellings.ts', why: 'the table of retired settings spellings names old keys by design' },
   { path: 'src/migrations/retiredCrewSpellings.ts', why: 'the read-side alias tables: every old spelling a saved file or an old caller may still carry' },
   { path: 'scripts/settings/prove-old-settings-keys-read.ts', why: 'the pin writes the old keys by design' },
-  { path: 'scripts/substrate/prove-old-env-spellings-read.ts', why: 'the pin sets the old env spellings by design' },
+  { path: 'scripts/substrate/prove-old-env-spellings-unread.ts', why: 'the pin sets the old env spellings to prove them unread' },
   { path: 'scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', why: 'the pin holds old transcript rows by design' },
   { path: 'scripts/identity/prove-no-old-spelling-remains.ts', why: 'the census names the spellings it hunts' },
   { path: 'scripts/switchboard/prove-crewmates-command.ts', why: 'the pin of the old command name still opening the crew view' },

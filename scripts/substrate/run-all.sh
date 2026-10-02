@@ -60,7 +60,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-coordination-solo.ts" || { __rc=$?
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pidlock.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-mailbox-reaper.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-mailbox-reaper.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-flag-registry.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-flag-registry.ts" "$__t" "$__rc"
-__t=$SECONDS; __rc=0; "$bun" run "$here/prove-old-env-spellings-read.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-env-spellings-read.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-old-env-spellings-unread.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-old-env-spellings-unread.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-names.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-names.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-env-switches.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-env-switches.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-prompt-provenance.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-prompt-provenance.ts" "$__t" "$__rc"
