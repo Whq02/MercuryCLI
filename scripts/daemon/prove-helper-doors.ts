@@ -218,6 +218,31 @@ try {
   }
 
   const planeChat = await admit()
+  console.log('§F a stop from a chat hosted by an older helper is refused like one hosted by the plane helper; a plain stop counts every helper\'s chats')
+  {
+    const olderHelper = hosted[0]!.helper
+    const pids = [plane, ...hosted.map(h => h.helper)]
+    const verdict = hostedMod.hostedCallerVerdict as (pids: unknown, facts: { ancestors: readonly number[]; workerParentPid: number | null }) => { hosted: boolean; daemonPid?: number; road?: string }
+    const byAncestry = verdict(pids, { ancestors: [99999, olderHelper, 1], workerParentPid: null })
+    check('the verdict over every helper pid reads a caller under an older helper as hosted (ancestry)', byAncestry.hosted && byAncestry.daemonPid === olderHelper && byAncestry.road === 'ancestry', byAncestry)
+    const byStamp = verdict(pids, { ancestors: [], workerParentPid: olderHelper })
+    check('…and by the worker-parent stamp', byStamp.hosted && byStamp.daemonPid === olderHelper && byStamp.road === 'stamp', byStamp)
+    check('a plain shell is not hosted by any of them', !verdict(pids, { ancestors: [99999, 1], workerParentPid: null }).hosted)
+    const stamped = await cli(['stop'], join(home, 'runtime/current'), { MERCURY_WORKER_PARENT_PID: String(olderHelper) })
+    note(`stop (caller stamped as hosted by the older helper ${olderHelper}) said (rc ${stamped.code}): ${stamped.text.trim()}`)
+    check('a stop from a chat hosted by an older helper is refused with the one line, exit 1', stamped.code === 1 && stamped.text.includes('stop refused') && stamped.text.includes('run it from a plain shell'), stamped)
+    await wait(1500)
+    check('nothing was cut by that stop: every helper and every chat live', [plane, ...hosted.map(h => h.helper)].every(isProcessAlive) && [planeChat, ...hosted.map(h => h.chat)].every(chat => isProcessAlive(chat.pid)), { helpers: [plane, ...hosted.map(h => h.helper)].map(isProcessAlive), chats: [planeChat, ...hosted.map(h => h.chat)].map(chat => isProcessAlive(chat.pid)) })
+    const plain = await cli(['stop'], join(home, 'runtime/current'))
+    note(`a plain stop said (rc ${plain.code}): ${plain.text.trim()}`)
+    const expected = hosted.length + 1
+    check(`a plain stop is acknowledged and counts every helper's chats — reaped ${expected} worker(s)`, plain.code === 0 && plain.text.includes(`reaped ${expected} worker(s)`), plain.text.trim())
+    check('every helper left through that one stop', await until(() => [plane, ...hosted.map(h => h.helper)].every(pid => !isProcessAlive(pid)), 30_000), [plane, ...hosted.map(h => h.helper)].filter(isProcessAlive))
+    check('every chat left with its helper', await until(() => [planeChat, ...hosted.map(h => h.chat)].every(chat => !isProcessAlive(chat.pid)), 30_000))
+    const after = await cli(['status'], join(home, 'runtime/current'))
+    check('the final status says zero helpers and zero live workers', after.text.includes('0 running / 0 live workers'), helpersLine(after.text))
+    check('no socket or link is left behind', !readdirSync(planeDir).some(entry => entry.startsWith('control.sock')), readdirSync(planeDir))
+  }
 } catch (error) {
   check('the drive completes', false, String(error))
 } finally {

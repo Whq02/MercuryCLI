@@ -9,24 +9,39 @@ export type HostedCallerVerdict = { hosted: false } | { hosted: true; daemonPid:
 
 export type HostedCallerFacts = { ancestors: readonly number[]; workerParentPid: number | null }
 
+export type HelperPids = number | null | undefined | ReadonlyArray<number | null | undefined>
+
 const usablePid = (pid: number | null | undefined): pid is number => typeof pid === 'number' && Number.isInteger(pid) && pid > 1
 
-export function hostedCallerVerdict(daemonPid: number | null | undefined, facts: HostedCallerFacts): HostedCallerVerdict {
-  if (!usablePid(daemonPid)) return { hosted: false }
-  if (facts.workerParentPid === daemonPid) return { hosted: true, daemonPid, road: 'stamp' }
-  if (facts.ancestors.includes(daemonPid)) return { hosted: true, daemonPid, road: 'ancestry' }
+function usablePids(pids: HelperPids): number[] {
+  const list: ReadonlyArray<number | null | undefined> = Array.isArray(pids) ? pids : [pids as number | null | undefined]
+  return list.filter(usablePid)
+}
+
+export function hostedCallerVerdict(daemonPids: HelperPids, facts: HostedCallerFacts): HostedCallerVerdict {
+  const pids = usablePids(daemonPids)
+  const stamped = pids.find(pid => facts.workerParentPid === pid)
+  if (stamped !== undefined) return { hosted: true, daemonPid: stamped, road: 'stamp' }
+  const ancestor = pids.find(pid => facts.ancestors.includes(pid))
+  if (ancestor !== undefined) return { hosted: true, daemonPid: ancestor, road: 'ancestry' }
   return { hosted: false }
 }
 
 export async function hostedCallerOf(
-  daemonPid: number | null | undefined,
+  daemonPids: HelperPids,
   opts: { pid?: number; env?: NodeJS.ProcessEnv; ancestors?: (pid: number) => Promise<number[]> } = {},
 ): Promise<HostedCallerVerdict> {
-  if (!usablePid(daemonPid)) return { hosted: false }
+  const pids = usablePids(daemonPids)
+  if (pids.length === 0) return { hosted: false }
   const workerParentPid = parseWorkerParentPid(opts.env ?? process.env)
-  if (workerParentPid === daemonPid) return { hosted: true, daemonPid, road: 'stamp' }
+  const stamped = pids.find(pid => workerParentPid === pid)
+  if (stamped !== undefined) return { hosted: true, daemonPid: stamped, road: 'stamp' }
   const ancestors = await (opts.ancestors ?? getAncestorPidsAsync)(opts.pid ?? process.pid)
-  return hostedCallerVerdict(daemonPid, { ancestors, workerParentPid })
+  return hostedCallerVerdict(pids, { ancestors, workerParentPid })
+}
+
+export function restartEndsHostedCaller(first: { heal: string; live: number; daemon: { predecessorPids?: number[] } | null }): boolean {
+  return first.heal === 'operator' || (first.live === 0 && (first.daemon?.predecessorPids ?? []).length === 0)
 }
 
 export function hostedCallerRefusalLine(verb: 'stop' | 'restart'): string {

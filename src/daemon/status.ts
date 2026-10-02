@@ -1,6 +1,7 @@
 
 import {
   controlSockPath,
+  currentVersion,
   daemonControlRpc,
   readSupervisorState,
 } from './controlSocket.js'
@@ -131,6 +132,16 @@ export function helperPidSocketsOnDisk(): number[] {
     if (pid !== null) pids.push(pid)
   }
   return pids
+}
+
+export async function helperPidsOfHome(): Promise<number[]> {
+  const supervisor = await readSupervisorState().catch(() => null)
+  const known: HelperRow[] = supervisor !== null && isProcessAlive(supervisor.pid) ? [{ pid: supervisor.pid, live: null }] : []
+  const plane = await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: null }, { timeoutMs: 1000, protoRetry: false })
+  const planeFacts = plane.ok && plane.op === 'hello' ? plane : null
+  if (planeFacts !== null && !known.some(helper => helper.pid === planeFacts.pid)) known.unshift({ pid: planeFacts.pid, live: planeFacts.ready ? planeFacts.live : null })
+  const census = await helperCensus(known, planeFacts?.predecessorPids ?? [])
+  return census.map(helper => helper.pid)
 }
 
 async function helperCensus(known: HelperRow[], predecessors: number[]): Promise<HelperRow[]> {

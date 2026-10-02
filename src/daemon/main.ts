@@ -107,7 +107,7 @@ import { startControlServer, type ControlServerHandle } from './controlServer.js
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
 import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
-import { hostedCallerOf, hostedCallerRefusalLine } from './hostedCaller.js'
+import { hostedCallerOf, hostedCallerRefusalLine, restartEndsHostedCaller } from './hostedCaller.js'
 import {
   acquireSupervisorLock,
   clearControlKey,
@@ -136,7 +136,7 @@ import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './da
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
-import { getMercuryDaemonStatus, formatMercuryDaemonStatus } from './status.js'
+import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 function resolveDir(args: string[]): string {
@@ -194,14 +194,14 @@ async function daemonStatusCmd(): Promise<void> {
 }
 
 async function daemonStopCmd(): Promise<void> {
-  const hosting = await hostedCallerOf((await readSupervisorState().catch(() => null))?.pid)
+  const hosting = await hostedCallerOf(await helperPidsOfHome())
   if (hosting.hosted) {
     // eslint-disable-next-line no-console
     console.error(hostedCallerRefusalLine('stop'))
     process.exitCode = 1
     return
   }
-  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 3000 })
+  const reply = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 8000 })
   if (reply.ok && reply.op === 'shutdown') {
     // eslint-disable-next-line no-console
     console.error(`[daemon] shutdown acknowledged — reaped ${reply.reaped} worker(s)`)
@@ -252,8 +252,8 @@ async function daemonStopCmd(): Promise<void> {
 async function daemonRestartCmd(): Promise<void> {
   const { handshakeDaemon, restartDaemon } = await import('./handshake.js')
   const first = await handshakeDaemon()
-  const hosting = await hostedCallerOf(first.daemon?.pid ?? (await readSupervisorState().catch(() => null))?.pid)
-  if (hosting.hosted && first.daemon !== null && (first.heal === 'operator' || first.live === 0)) {
+  const hosting = await hostedCallerOf(await helperPidsOfHome())
+  if (hosting.hosted && first.daemon !== null && restartEndsHostedCaller(first)) {
     // eslint-disable-next-line no-console
     console.error(hostedCallerRefusalLine('restart'))
     process.exitCode = 1
@@ -1021,18 +1021,26 @@ async function daemonRun(args: string[]): Promise<void> {
               : { outcome: out.outcome, detail: out.reason },
           )
         },
-        onShutdown: reapWorkers => {
+        onShutdown: async (reapWorkers, forwardedFromPlane) => {
           const workers: ReturnType<NonNullable<typeof roster>['liveWorkerFacts']> = []
           if (reapWorkers && roster) {
             for (const w of roster.liveWorkerFacts()) {
               if (roster.kill(w.short)) workers.push(w)
             }
           }
-          for (const pid of handover?.predecessorPids() ?? []) {
-            void forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers }), 3000).catch(() => undefined)
+          const forwarded = forwardedFromPlane
+            ? []
+            : await Promise.all(
+                (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(() => null)),
+              )
+          let reaped = workers.length
+          for (const reply of forwarded) {
+            if (reply === null || !reply.ok || reply.op !== 'shutdown') continue
+            reaped += reply.reaped
+            workers.push(...(reply.workers ?? []))
           }
           setImmediate(() => requestShutdown('control:shutdown'))
-          return { reaped: workers.length, workers }
+          return { reaped, workers }
         },
         hello: () => ({
           version: currentVersion(),
@@ -1616,6 +1624,7 @@ const SUCCESSOR_LOCK_WAIT_MS = 10_000
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
+const PREDECESSOR_SHUTDOWN_WAIT_MS = 2_000
 
 async function planeAnswer(bootBuildTree: string | null): Promise<{ pid: number; buildTree: string | null } | null> {
   const reply = await daemonControlRpc(

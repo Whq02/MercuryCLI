@@ -630,8 +630,9 @@ export async function moveDaemonToDeployedBuild(opts: {
     state: 'stop',
     line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on ${to}`,
   })
-  const hosted = opts.hosted !== undefined ? opts.hosted : (await (await import('./hostedCaller.js')).hostedCallerOf(d.pid)).hosted
-  if (hosted && (first.heal === 'operator' || first.live === 0)) {
+  const { hostedCallerOf, restartEndsHostedCaller } = await import('./hostedCaller.js')
+  const hosted = opts.hosted !== undefined ? opts.hosted : (await hostedCallerOf(await (await import('./status.js')).helperPidsOfHome())).hosted
+  if (hosted && restartEndsHostedCaller(first)) {
     return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
   }
   if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')

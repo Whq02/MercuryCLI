@@ -47,6 +47,11 @@ export type ControlOutcome = {
   reason?: 'taken' | 'unknown'
 }
 
+export type ShutdownReceipt = {
+  reaped: number
+  workers: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
+}
+
 export interface ControlServerDeps {
   roster: TaskRoster
   breaker: DaemonBreaker
@@ -57,10 +62,7 @@ export interface ControlServerDeps {
   isReady: () => boolean
   whenReady?: () => Promise<void>
   startingHoldMs?: number
-  onShutdown: (reapWorkers: boolean) => {
-    reaped: number
-    workers: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
-  }
+  onShutdown: (reapWorkers: boolean, forwarded: boolean) => ShutdownReceipt | Promise<ShutdownReceipt>
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
@@ -537,7 +539,7 @@ async function routeControlRequest(
   }
   if (op === 'shutdown') {
     const reapWorkers = raw.reapWorkers !== false
-    const { reaped, workers } = deps.onShutdown(reapWorkers)
+    const { reaped, workers } = await deps.onShutdown(reapWorkers, raw.forwarded === true)
     return answer(sock, { ok: true, op: 'shutdown', reaped, workers })
   }
 
