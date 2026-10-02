@@ -31,11 +31,11 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   )
   const fixture = join(stage, 'pixel.png')
   writeFileSync(fixture, png)
-  const r = spawnSync('node', [bundle, 'show', fixture, '--protocol', 'iterm'], {
+  const r = spawnSync('node', [bundle, 'image', fixture, '--protocol', 'iterm'], {
     encoding: 'utf8',
     timeout: 60_000,
   })
-  check('isolated: show/iterm renders WITHOUT sharp', r.status === 0 && r.stdout.startsWith(`${ESC}]1337;File=`), r.stderr.slice(0, 160))
+  check('isolated: image/iterm renders WITHOUT sharp', r.status === 0 && r.stdout.startsWith(`${ESC}]1337;File=`), r.stderr.slice(0, 160))
 }
 
 {
