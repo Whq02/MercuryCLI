@@ -8,7 +8,7 @@ const terminalSetup = {
   name: 'terminal-setup',
   description:
     env.terminal === 'Apple_Terminal'
-      ? 'Enable an Option+Enter binding for newlines and switch to a visual bell'
+      ? "Make Option+Enter add a new line and silence Terminal's bell"
       : 'Install a Shift+Enter binding for newlines',
   isHidden: env.terminal !== null && DESCRIPTOR_NATIVE_TERMINALS.has(env.terminal),
   load: () => import('./terminalSetup.js'),

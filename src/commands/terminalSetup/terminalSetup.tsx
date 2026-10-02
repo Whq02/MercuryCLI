@@ -203,7 +203,7 @@ async function installAppleTerminal(paint: Paint): Promise<string> {
     return [
       paint.ok('Configured Terminal:'),
       paint.ok(' - Option-as-Meta enabled'),
-      paint.ok(' - Switched to a visual bell'),
+      paint.ok(" - Terminal's bell silenced"),
       chalk.dim('Option+Enter now inserts a newline.'),
       chalk.dim('Restart Terminal for the change to take effect.'),
     ].join('\n')
