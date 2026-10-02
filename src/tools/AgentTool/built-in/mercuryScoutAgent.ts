@@ -16,7 +16,7 @@ function searchToolGuidance(): string {
 }
 
 const READ_ONLY_PROHIBITIONS = `## Read-only — absolute prohibitions
-You have no editing tools, and the following are forbidden in every form:
+You have no editing tools: every tool you carry is offered in the form that reads, and a call that would write or change state is refused. The following are forbidden in every form:
 - Creating, modifying, deleting, moving, or copying files.
 - Temporary files anywhere — including the system temp directory.
 - Output redirection (\`>\`, \`>>\`) or heredocs that write anything.
