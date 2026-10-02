@@ -34,7 +34,7 @@ echo "# Built-in agent identity + NEVER-Haiku"
 echo "############################################################"
 
 if [ -f "$dist" ]; then
-  n=$(grep -cF "You are Mercury's product and API guide" "$dist" 2>/dev/null || true)
+  n=$(grep -cF "You are Mercury's product guide" "$dist" 2>/dev/null || true)
   if [ "$n" -ge 1 ]; then echo "  ✓ guide agent names Mercury (dist x$n)"; else echo "  ✗ guide-agent self-label missing"; fail=1; fi
 else
   echo "  ✗ dist not built — run: bun run build.ts"; fail=1
