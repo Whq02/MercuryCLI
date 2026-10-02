@@ -41,7 +41,6 @@ export type KernelEventV1 =
         uncommittedFiles?: string[]
       }
     }
-  | { kind: 'obligation-open'; obligationId: string }
   | { kind: 'operator-message'; messageId: string; text: string }
 
 export type KernelDecisionV1 =
@@ -53,7 +52,6 @@ export type KernelDecisionV1 =
       owner: string
     }
   | { verb: 'attention.supersede'; obligationId: string; reason: string }
-  | { verb: 'signal.emit'; obligationId: string; revision: number; title: string; body: string }
   | { verb: 'session.pause'; sessionId: string; by: string; reason: string; clientOpId?: string }
   | { verb: 'session.resume'; sessionId: string; by: string; clientOpId?: string }
   | { verb: 'session.redirect'; sessionId: string; clientMessageId: string; instruction: string; by: string }
@@ -136,19 +134,6 @@ export function evaluateKernel(facts: KernelFacts, event: KernelEventV1): Kernel
       }
       return decisions
     }
-    case 'obligation-open': {
-      const row = facts.openObligations.find(o => o.obligationId === event.obligationId)
-      if (!row) return []
-      return [
-        {
-          verb: 'signal.emit',
-          obligationId: row.obligationId,
-          revision: row.revision,
-          title: 'needs you',
-          body: row.question,
-        },
-      ]
-    }
     case 'operator-message':
       return []
   }
@@ -169,7 +154,6 @@ export function kernelObjectRefOf(d: KernelDecisionV1): string {
     case 'attention.raise':
       return d.ref
     case 'attention.supersede':
-    case 'signal.emit':
     case 'obligation.answer':
       return d.obligationId
     case 'session.pause':
@@ -184,7 +168,6 @@ export function kernelObjectRefOf(d: KernelDecisionV1): string {
 export interface KernelDeps {
   crewDir?: string
   configDir?: string
-  send?: (args: { message: string; title: string; notificationType: string }) => Promise<string>
 }
 
 export async function executeKernelDecision(
@@ -399,38 +382,6 @@ export async function executeKernelDecision(
         objectRef: decision.obligationId,
         outcome: res.settled ? 'applied' : 'noop',
         detail: res.settled ? `${detail} · obligation settled` : `${detail} · already ${res.status}`,
-      }
-    }
-    case 'signal.emit': {
-      if (deps.send === undefined) {
-        return {
-          verb: decision.verb,
-          objectRef: decision.obligationId,
-          outcome: 'refused',
-          detail: 'no-sender — the obligation hook owns host signals; the revision is left unclaimed',
-        }
-      }
-      const policy = await import('../notificationPolicy.js')
-      const res = await policy.emitConcourseSignal(
-        {
-          kind: 'needs-you',
-          targetId: decision.obligationId,
-          revision: decision.revision,
-          obligationBacked: true,
-          title: decision.title,
-          detail: decision.body,
-          deepLink: { obligationId: decision.obligationId },
-        },
-        {
-          send: deps.send,
-          ...(deps.crewDir !== undefined ? { dir: deps.crewDir } : {}),
-        },
-      )
-      return {
-        verb: decision.verb,
-        objectRef: decision.obligationId,
-        outcome: res.emitted ? 'applied' : 'noop',
-        detail: res.emitted ? `revision ${decision.revision}` : (res.reason ?? 'not emitted'),
       }
     }
   }

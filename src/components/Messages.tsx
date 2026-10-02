@@ -65,7 +65,7 @@ import { resolveTerminalExperience } from '../ink/session/terminalExperience.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { getIsRemoteMode } from '../bootstrap/state.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
-import { useTabRing } from '../ink/useTerminalNotification.js'
+import { useTabRing } from '../ink/terminalWrite.js'
 import type {
   MessageActionsNav,
   MessageActionsState,

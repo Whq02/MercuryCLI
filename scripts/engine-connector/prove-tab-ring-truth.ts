@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 
-const { createTabRing } = await import('../../src/ink/useTerminalNotification.ts')
+const { createTabRing } = await import('../../src/ink/terminalWrite.ts')
 const { isProgressReportingAvailable } = await import('../../src/ink/session/capabilities.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

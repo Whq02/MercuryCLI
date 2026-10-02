@@ -26,7 +26,7 @@ if (process.argv[2] === '--child') {
   const { EventEmitter } = await import('node:events')
   const { PassThrough } = await import('node:stream')
   const { render, Text, useApp } = await import('../../src/ink.ts')
-  const { useTabRing } = await import('../../src/ink/useTerminalNotification.ts')
+  const { useTabRing } = await import('../../src/ink/terminalWrite.ts')
   const { useTerminalTitle } = await import('../../src/ink/hooks/use-terminal-title.ts')
   const { cleanupTerminalModes } = await import('../../src/utils/shutdownRestoration.ts')
   let bytes = ''
@@ -98,7 +98,7 @@ section('a headless render inside a terminal process: the stream carries the fra
 section('the exit-time restoration follows the ledger: a ring or a title this process armed is cleared, once')
 {
   const { _resetTerminalModeLedgerForTesting, noteModeAcquired, noteModeReleased, shutdownReleaseObligations } = await import('../../src/ink/root/terminalModeLedger.ts')
-  const { createTabRing } = await import('../../src/ink/useTerminalNotification.ts')
+  const { createTabRing } = await import('../../src/ink/terminalWrite.ts')
   _resetTerminalModeLedgerForTesting()
   const written: string[] = []
   const ring = createTabRing(s => written.push(s), () => true)

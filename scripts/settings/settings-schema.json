@@ -945,6 +945,10 @@
             "centred",
             "top-left"
           ]
+        },
+        "ping": {
+          "description": "Ping the terminal once when a chat finishes its turn while you are away (an iTerm2 notification there, the bell elsewhere); on unless set to false",
+          "type": "boolean"
         }
       },
       "additionalProperties": {}

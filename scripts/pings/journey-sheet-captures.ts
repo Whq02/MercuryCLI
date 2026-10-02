@@ -206,7 +206,7 @@ const SIZES: Array<[number, number]> = [
 ]
 
 for (const [cols, rows] of SIZES) {
-  section(`Leg A ${cols}x${rows} — a session taps you: the badge appears, one bell, the key jumps to the board`)
+  section(`Leg A ${cols}x${rows} — a session needs you: the badge appears, no bell, the key jumps to the board`)
   {
     const w = makeWorld(`a-${cols}x${rows}`)
     sidecar(
@@ -235,8 +235,8 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Ma
     check('before the tap: no badge', !(c.marks['before'] ?? '').includes('⚑'), '(⚑ present early)')
     check('the tap paints the badge (⚑ 1 needs you)', (c.marks['tapped'] ?? '').includes('⚑ 1 needs you'), (c.marks['tapped'] ?? '').split('\n').find(l => l.includes('⚑')) ?? '(no ⚑ row)')
     check(
-      'EXACTLY ONE lone bell byte after the settle (one tap across both writers)',
-      loneBellFrames(c.teePath, settleTick + 10) === 1,
+      'NO bell byte after the settle (a need paints the badge; only a finished turn pings)',
+      loneBellFrames(c.teePath, settleTick + 10) === 0,
       `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)}`,
     )
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
@@ -301,32 +301,7 @@ await new Promise(r => setTimeout(r, 400))`,
     check('the settle paints the ruled grey note in THAT chat', note.includes('model switched to') && note.includes('for this session'), note.slice(0, 240))
     check('the note names the settled model', note.includes('model switched to Fable'), note.match(/model switched to [^·]{0,40}/)?.[0] ?? '(absent)')
     const hopTick = c.payload.sendReceipts?.[2]?.atTick ?? -1
-    check('the settle never rings the bell (no lone bell byte after the hop)', loneBellFrames(c.teePath, hopTick + 5) === 0, `frames=${loneBellFrames(c.teePath, hopTick + 5)}`)
-  }
-
-  section(`Leg C ${cols}x${rows} — /pings toggles the bell; the receipt says so`)
-  {
-    const w = makeWorld(`c-${cols}x${rows}`)
-    const c = capture(
-      w,
-      `pings-toggle-${cols}x${rows}`,
-      cols,
-      rows,
-      [
-        { atTick: 999, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 5, data: '' },
-        { afterPrevTicks: 10, data: '/pings' },
-        { afterPrevTicks: 8, data: '\r' },
-        { afterPrevTicks: 20, data: '', mark: 'off' },
-        { afterPrevTicks: 5, data: '/pings' },
-        { afterPrevTicks: 8, data: '\r' },
-        { afterPrevTicks: 20, data: '', mark: 'on' },
-      ],
-      180,
-    )
-    const off = flat(c.marks['off'] ?? '')
-    const on = flat(c.marks['on'] ?? '')
-    check('the first toggle answers quiet (pings off — rows stay)', off.includes('pings off') && off.includes('still say'), off.match(/pings off[^·]{0,60}/)?.[0] ?? off.slice(0, 160))
-    check('the second toggle answers ringing (pings on)', on.includes('pings on'), on.match(/pings on[^·]{0,60}/)?.[0] ?? on.slice(0, 160))
+    check('the settle is a turn end: with focus unreported and no key for a window, the one ping rings the bell exactly once — the note itself adds none', loneBellFrames(c.teePath, hopTick + 5) === 1, `frames=${loneBellFrames(c.teePath, hopTick + 5)}`)
   }
 }
 

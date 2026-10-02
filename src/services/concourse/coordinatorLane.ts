@@ -94,7 +94,6 @@ const RECEIPT_VERB_WORDS: Record<string, string> = {
   'attention.raise': 'raised a question',
   'attention.supersede': 'closed a question',
   'obligation.answer': 'answered',
-  'signal.emit': 'signalled',
 }
 
 export function compactRefusalWhy(detail: string | undefined): string {
@@ -224,8 +223,6 @@ export function triggerKeyOf(event: KernelEventV1): string {
       return actionFingerprint(`refused:${event.clientMessageId}`)
     case 'worker-settled':
       return actionFingerprint(`settled:${event.sessionId}`)
-    case 'obligation-open':
-      return actionFingerprint(`open:${event.obligationId}`)
     case 'operator-message':
       return actionFingerprint(`msg:${event.messageId}`)
   }

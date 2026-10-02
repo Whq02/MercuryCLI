@@ -173,33 +173,4 @@ t.section('§journal — the cross-process pair emits EXACTLY ONCE')
   t.check("a policy-OFF kind journals NOTHING (started is host opt-in by default)", off.journaled === false && off.reason === 'policy-off', JSON.stringify(off))
 }
 
-t.section('§activation — the deep-link round-trip points the rail')
-{
-  const act = await import('../../src/services/concourse/pendingActivation.ts')
-  act._resetPendingActivationForTesting()
-  const sig = {
-    kind: 'needs-you' as const,
-    targetId: 'obl-act-1',
-    revision: 3,
-    title: 'a session needs you',
-    detail: 'which migration first?',
-    deepLink: { sessionId: 'sess-act', obligationId: 'obl-act-1' },
-    obligationBacked: false,
-  }
-  await policy.journalConcourseSignal(sig)
-  const rows = await policy.readUnseenJournalSignals()
-  sent.length = 0
-  const outcome = await policy.emitConcourseSignal(rows[rows.length - 1]!.signal, { send, coalesceMs: 1 })
-  if (outcome.emitted) act.notePendingActivation(rows[rows.length - 1]!.signal.deepLink)
-  t.check('the emitted toast points the activation memory at the EXACT target', JSON.stringify(act.readPendingActivation()) === JSON.stringify({ sessionId: 'sess-act', obligationId: 'obl-act-1' }), JSON.stringify(act.readPendingActivation()))
-  const before = act.readPendingActivation()
-  const deduped = await policy.emitConcourseSignal(rows[rows.length - 1]!.signal, { send, coalesceMs: 1 })
-  if (deduped.emitted) act.notePendingActivation(rows[rows.length - 1]!.signal.deepLink)
-  t.check('a DEDUPED emission never re-points (emitted:true is the only writer)', act.readPendingActivation() === before)
-  act.clearPendingActivation()
-  t.check('consume-on-use clears the pointer', act.readPendingActivation() === null)
-  const screenSrc = (await import('node:fs')).readFileSync('src/components/concourse/ConcourseScreen.tsx', 'utf8')
-  t.check('the rail preseeds its selection from the pointer (consume-on-use)', screenSrc.includes('readPendingActivation()') && screenSrc.includes('clearPendingActivation()'))
-}
-
 t.finish('prove-notification-policy')

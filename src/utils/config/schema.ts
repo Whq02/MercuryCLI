@@ -123,12 +123,9 @@ export const DEFAULT_PROJECT_CONFIG: ProjectConfig = {
 
 export {
   EDITOR_MODES,
-  NOTIFICATION_CHANNELS,
 } from '../configConstants.js'
 
-import type { EDITOR_MODES, NOTIFICATION_CHANNELS } from '../configConstants.js'
-
-export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number]
+import type { EDITOR_MODES } from '../configConstants.js'
 
 export type AccountInfo = {
   accountUuid: string
@@ -164,7 +161,6 @@ export type GlobalConfig = {
   mcpServers?: Record<string, McpServerConfig>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: Record<string, 'off' | 'invocable'>; extensionsOff: string[] }>
   claudeAiMcpEverConnected?: string[]
-  preferredNotifChannel: NotificationChannel
   concourseHostSignals?: {
     started?: boolean
     needsYou?: boolean
@@ -188,7 +184,6 @@ export type GlobalConfig = {
     subagents?: boolean
   }
   supervisorEnabled?: boolean
-  pingsBell?: boolean
   advisor?: {
     enabled?: boolean
     minutes?: number
@@ -258,8 +253,6 @@ export type GlobalConfig = {
 
   firstStartTime?: string
 
-  messageIdleNotifThresholdMs: number
-
   fileCheckpointingEnabled: boolean
 
   terminalProgressBarEnabled: boolean
@@ -323,7 +316,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
   return {
     numStartups: 0,
     theme: DEFAULT_THEME_SETTING,
-    preferredNotifChannel: 'auto',
     toolOutput: 'compact',
     editorMode: 'normal',
     autoCompactEnabled: true,
@@ -339,7 +331,6 @@ export function createDefaultGlobalConfig(): GlobalConfig {
     tipsHistory: {},
     promptQueueUseCount: 0,
     showExpandedTasks: false,
-    messageIdleNotifThresholdMs: 60000,
     fileCheckpointingEnabled: true,
     terminalProgressBarEnabled: true,
     copyFullResponse: false,
@@ -351,7 +342,6 @@ export const DEFAULT_GLOBAL_CONFIG: GlobalConfig = createDefaultGlobalConfig()
 export const GLOBAL_CONFIG_KEYS = [
   'theme',
   'toolOutput',
-  'preferredNotifChannel',
   'shiftEnterKeyBindingInstalled',
   'editorMode',
   'hasUsedBackslashReturn',
@@ -359,7 +349,6 @@ export const GLOBAL_CONFIG_KEYS = [
   'showTurnDuration',
   'tipsHistory',
   'showExpandedTasks',
-  'messageIdleNotifThresholdMs',
   'fileCheckpointingEnabled',
   'terminalProgressBarEnabled',
   'lspRecommendationIgnoredCount',

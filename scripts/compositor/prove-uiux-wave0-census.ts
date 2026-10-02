@@ -354,62 +354,26 @@ section('BM-22/23 — the remaining desired laws, pinned as flip targets')
       policy.ALTERNATE_SCROLL_POLICY === 'scroll-first-in-native-selection',
     )
   }
-  const notifier = src('src/services/notifier.ts')
+  const ping = src('src/ink/termio/notifyPing.ts')
   {
-    const { resolveNotificationMethod, NOTIFICATION_CHANNELS } = await import(
-      '../../src/services/notifier.js'
-    )
-    const wt = resolveNotificationMethod('auto', 'windows-terminal')
-    const unknown = resolveNotificationMethod('auto', '')
-    const apple = resolveNotificationMethod('auto', 'Apple_Terminal')
-    const iterm = resolveNotificationMethod('auto', 'iTerm.app')
+    const { defaultPingMethod, buildOsc9Notification } = await import('../../src/ink/termio/notifyPing.js')
     check(
-      'UI-078 (BM-23): auto on Windows Terminal resolves EXPLICITLY to the documented bell floor (+ in-app cue named), never silence',
-      wt.effective === 'terminal_bell' &&
-        wt.source === 'auto-floor' &&
-        /documented floor/.test(wt.evidence) &&
-        /in-app attention cue/.test(wt.evidence),
-      JSON.stringify(wt),
+      'UI-078: every terminal has a ping road — the bell floor where OSC 9 is unproven (Windows Terminal, an unknown terminal), never silence',
+      defaultPingMethod('windows-terminal') === 'bell' && defaultPingMethod('') === 'bell' && defaultPingMethod(null) === 'bell',
     )
     check(
-      'UI-078: an UNKNOWN terminal takes the same documented floor — auto never resolves to silent nothing',
-      unknown.effective === 'terminal_bell' && unknown.source === 'auto-floor',
+      'UI-119: Apple Terminal takes the bell — its own profile decides audible versus visual',
+      defaultPingMethod('Apple_Terminal') === 'bell',
+    )
+    check('OSC 9 stands where proven (iTerm2)', defaultPingMethod('iTerm.app') === 'osc9')
+    check(
+      'UI-080: the ping never touches OSC 9;4 — progress stays progress (the OSC 9 payload opens with the two newlines)',
+      !ping.includes('9;4') && buildOsc9Notification('x').includes(']9;\n\nx'),
     )
     check(
-      "UI-119: Apple Terminal ALWAYS bells — the profile decides audible vs visual (the inverted predicate is retired)",
-      apple.effective === 'terminal_bell' && apple.source === 'auto-native',
-    )
-    check(
-      'auto natives stand where proven (iTerm2 OSC 9)',
-      iterm.effective === 'iterm2' && iterm.source === 'auto-native',
-    )
-    check(
-      'explicit channels pass through; disabled is typed; an unknown channel emits NOTHING with the reason stated',
-      resolveNotificationMethod('kitty', 'anything').effective === 'kitty' &&
-        resolveNotificationMethod('notifications_disabled', 'x').effective === 'disabled' &&
-        resolveNotificationMethod('bogus-channel', 'x').effective === 'none',
-    )
-    check(
-      'the silent no_method_available sentinel is GONE from the owner',
-      !notifier.includes('no_method_available'),
-    )
-    check(
-      'UI-121: the local attention cue precedes the notification hooks (emit first, hooks after)',
-      notifier.indexOf("case 'terminal_bell':") !== -1 &&
-        notifier.indexOf("case 'terminal_bell':") < notifier.indexOf('await executeNotificationHooks'),
-    )
-    check(
-      'UI-120: the Apple profile lookup is CACHED (one bounded lookup per process, off the emission path)',
-      notifier.includes('appleBellPreference ??=') && notifier.includes('void cachedAppleTerminalBellPreference()'),
-    )
-    check(
-      'UI-122: settings choices derive from the canonical enum (no hand-copied channel list)',
-      NOTIFICATION_CHANNELS.length === 7 &&
-        src('src/components/Settings/Config.tsx').includes('options: [...NOTIFICATION_CHANNELS]'),
-    )
-    check(
-      'UI-080: the notifier never touches OSC 9;4 — progress stays progress',
-      !notifier.includes('9;4'),
+      'UI-122: the one switch is the settings word, read at fire time — no channel list anywhere',
+      src('src/hooks/useTurnEndPing.ts').includes("getInitialSettings().view?.ping !== false") &&
+        !src('src/components/Settings/Config.tsx').includes('CHANNEL_LABELS'),
     )
   }
 }

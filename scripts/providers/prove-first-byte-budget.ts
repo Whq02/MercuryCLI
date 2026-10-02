@@ -110,11 +110,5 @@ section('F · the status row keeps the budget word on a narrow terminal (100 · 
   check('truncateKeepingTail: a short line is untouched; a long one keeps the tail clause under the budget; a requested tail width keeps exactly that tail', truncateKeepingTail('a — b', 40) === 'a — b' && truncateKeepingTail('a very long head that overflows — kept', 20) === 'a very long… — kept' && truncateKeepingTail('abcdefghij', 6, 3) === 'ab…hij', JSON.stringify([truncateKeepingTail('a very long head that overflows — kept', 20), truncateKeepingTail('abcdefghij', 6, 3)]))
 }
 
-section('N2 · the bell probe')
-{
-  const notifier = src('src/services/notifier.ts')
-  check('a missing plist reader answers the probe closed with a debug line, never an error', /plist = \(await import\('plist'\)\) as typeof plist\s*\n\s*\} catch \(missing\) \{\s*\n\s*logForDebugging\(/.test(notifier) && /assuming the audible bell/.test(notifier))
-}
-
-console.log(failures === 0 ? '\n ✅ FIRST-BYTE BUDGET — one number for the request and the row; the wait speaks; the notice and the bell tell the truth' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ FIRST-BYTE BUDGET — one number for the request and the row; the wait speaks; the notice tells the truth' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

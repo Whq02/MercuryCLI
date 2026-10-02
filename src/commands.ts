@@ -76,7 +76,6 @@ import localsetup from './commands/localsetup/index.js'
 import defaultprovider from './commands/defaultprovider/index.js'
 import vim from './commands/vim/index.js'
 import permissions from './commands/permissions/index.js'
-import pings from './commands/pings/index.js'
 import hooks from './commands/hooks/index.js'
 import exportCommand from './commands/export/index.js'
 import sandboxToggle from './commands/sandbox-toggle/index.js'
@@ -274,7 +273,6 @@ const COMMANDS = memoize((): Command[] => [
   consoleCommand,
   submodels,
   supervisor,
-  pings,
   palette,
   capabilitiesDetail,
   orient,
