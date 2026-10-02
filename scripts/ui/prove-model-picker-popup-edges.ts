@@ -145,7 +145,7 @@ const headings = {
 }
 const estate: ModelChoice[] = [...anthropic, ...openrouterListed, openrouterDoor, ...openai, ...gemini]
 const expandRows = (group: string): ModelChoice[] => (group === OPENROUTER ? openrouterFull : [])
-const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max', 'supercode']
+const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max']
 
 type Window = { top: number; bottom: number; left: number; right: number; width: number; height: number; rows: string[] }
 function windowOf(lines: string[]): Window | null {

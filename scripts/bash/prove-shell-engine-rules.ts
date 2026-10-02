@@ -48,10 +48,10 @@ const contexts: Record<string, Context> = {
   allow: { ...base, alwaysAllowRules: { userSettings: ['Bash(npm run:*)', 'Bash(git:*)'] } },
   deny: { ...base, alwaysDenyRules: { userSettings: ['Bash(rm:*)', 'Bash(curl:*)'] } },
   ask: { ...base, alwaysAskRules: { userSettings: ['Bash(git push:*)'] } },
-  bypass: { ...base, mode: 'bypassPermissions', isBypassPermissionsModeAvailable: true },
+  bypass: { ...base, mode: 'sovereign', isBypassPermissionsModeAvailable: true },
   denyBypass: {
     ...base,
-    mode: 'bypassPermissions',
+    mode: 'sovereign',
     isBypassPermissionsModeAvailable: true,
     alwaysDenyRules: { userSettings: ['Bash(rm:*)'] },
   },

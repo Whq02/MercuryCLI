@@ -144,7 +144,6 @@ console.log('§9 settings parse — the shared cache object is never mutated')
 {
   const settings = read('src/utils/settings/settings.ts')
   check('the reader clones before the in-place passes', settings.includes('structuredClone(shared)'))
-  check('poison gone: the mutators no longer receive the cached object', !settings.includes('const parsed = safeParseJSON(stripBOM(raw), false)\n  adoptLegacySupercodeSpelling(parsed)'))
   const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
   const dir = mkdtempSync(join(tmpdir(), 'sup2-settings-'))
   try {
@@ -375,7 +374,6 @@ console.log('§24 settings writes — the file round-trips whole')
   const settings = read('src/utils/settings/settings.ts')
   check('poison gone: the write base is no longer the filtered parse', !settings.includes('const existing = parseSettingsFileUncached(readPath)'))
   check('the raw base still refuses a mid-edit file', settings.includes('refusing to overwrite a file mid-edit'))
-  check('the legacy-key adoption still persists through writes', /adoptLegacySupercodeSpelling\(baseSettings\)/.test(settings))
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const userPath = join(SUP2_SCRATCH_HOME, 'settings.json')
   writeFileSync(

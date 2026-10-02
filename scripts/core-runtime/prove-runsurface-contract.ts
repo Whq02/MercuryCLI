@@ -1052,7 +1052,7 @@ section('P3 removeInterruptedMessage — the user+sentinel splice')
   )
 }
 
-section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success transition')
+section('P4 handleSetPermissionMode — apollo refused outside the terminal, bypass gated, success transition')
 {
   const { handleSetPermissionMode } = controlMod
   const responses: AnyMsg[] = []
@@ -1065,19 +1065,19 @@ section('P4 handleSetPermissionMode — autopilot refused, bypass gated, success
     isBypassPermissionsModeAvailable: false,
   }
 
-  const afterAutopilot = handleSetPermissionMode(
-    { mode: 'autopilot' } as never,
+  const afterApollo = handleSetPermissionMode(
+    { mode: 'apollo' } as never,
     'req-1',
     baseCtx as never,
     output as never,
   )
   const resp1 = (responses.at(-1)?.response ?? {}) as AnyMsg
   check(
-    'autopilot is refused in SDK/print mode (error response)',
-    resp1.subtype === 'error' && /autopilot/i.test(String(resp1.error)),
+    'apollo is refused in SDK/print mode (error response)',
+    resp1.subtype === 'error' && /apollo/i.test(String(resp1.error)),
     JSON.stringify(resp1),
   )
-  check('the refused context is returned unchanged (same reference)', afterAutopilot === (baseCtx as never))
+  check('the refused context is returned unchanged (same reference)', afterApollo === (baseCtx as never))
 
   handleSetPermissionMode(
     { mode: 'sovereign' } as never,

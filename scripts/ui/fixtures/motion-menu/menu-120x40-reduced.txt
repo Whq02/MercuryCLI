@@ -9,11 +9,11 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 12 more above                                                │  │ ❯ Motion                                   │
-   │   Samples                                        default (off) │  │                                            │
+   │ … 8 more above                                                 │  │ ❯ Motion                                   │
+   │   Access type                                   default (asks) │  │                                            │
    │                                                                │  │ What it controls                           │
-   │ MEMORY & MISSIONS                                              │  │ The cockpit's idle motion — the mascot's   │
-   │   Project facts & decisions (MNEME)              default (off) │  │ blink and breath, the live glyphs, and     │
+   │ SAMPLES                                                        │  │ The cockpit's idle motion — the mascot's   │
+   │   Samples                                        default (off) │  │ blink and breath, the live glyphs, and     │
    │                                                                │  │ the clock that paces them. Applies now.    │
    │ AGENTS                                                         │  │                                            │
    │   Sub-agents                                      default (on) │  │ Current value                              │

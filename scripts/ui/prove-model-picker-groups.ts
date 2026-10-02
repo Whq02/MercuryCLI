@@ -151,7 +151,7 @@ async function mount(opts: { models: ModelChoice[]; current: string; top: string
       models: opts.models,
       current: opts.current,
       ctxPct: 22,
-      efforts: ['low', 'medium', 'high', 'xhigh', 'max', 'supercode'],
+      efforts: ['low', 'medium', 'high', 'xhigh', 'max'],
       effort: 'max',
       headings,
       topGroup: opts.top,
@@ -236,7 +236,7 @@ section('§1 the home state at 178x51: header · groups · doors · rows · orde
   check('a gated row says unavailable in the state column', /GLM 5\.3 Vision\s+glm-5\.3-vision\s+unavailable\s+64k ctx/.test(gated), gated)
   const tail = lines.filter(line => /[A-Za-z]/.test(inner(line))).slice(-4).map(line => inner(line).trim())
   check('the foot is the context bar, the effort row, the filter line, the hint row', tail[0]!.startsWith('context ') && tail[1]!.startsWith('effort  ') && tail[2] === '/ filter by name or id' && tail[3] === '↑↓ select · ↵ switch · c context · → ← fold · / filter · esc or click outside closes', tail.join(' | '))
-  check('the effort row keeps the ladder and names its key', tail[1]!.includes('[max]') && tail[1]!.includes('supercode') && tail[1]!.endsWith('e cycles'), tail[1])
+  check('the effort row keeps the ladder, ends at max and names its key', tail[1]!.includes('[max]') && /\[max\]\s+·/.test(tail[1]!) && tail[1]!.endsWith('e cycles'), tail[1])
   check('the picker fits 178x51 whole', lines.length <= 51 && lines.every(line => line.length <= 178))
 
   section('§2 fold: ← walks to the heading and folds, → unfolds; ↵ on a heading toggles')

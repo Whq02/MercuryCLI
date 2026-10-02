@@ -41,7 +41,6 @@ check('MercuryFrame mounts the EffortChip beside the model', frame.includes('<Ef
 const chip = read('src/components/mercury-ui/EffortChip.tsx')
 check('EffortChip resolves via getDisplayedEffortLevel (the ONE honest resolve)', chip.includes('getDisplayedEffortLevel(model, effortValue)'))
 check('EffortChip subscribes to live AppState (mid-session repaint)', chip.includes('useAppStateMaybeOutsideOfProvider'))
-check('EffortChip renders the supercode MODE word conditionally (not a comment match)', /\{supercode && columns >= 100 \? \(/.test(chip))
 check('EffortChip is honest-null for effortless models', chip.includes('modelSupportsEffort(model)'))
 
 console.log(fail === 0 ? '\n✅ prove-model-chip: ALL PASS' : `\n❌ prove-model-chip: ${fail} FAILURE(S)`)

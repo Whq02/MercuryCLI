@@ -144,7 +144,7 @@ withEnv('1', () => {
   check('grouped_tool_use rows contribute inner tool_uses + results', gc['commands'] === 2 && gc['fileEdits'] === 1 && gc['adds'] === 1)
 })
 
-section('the delegated spend (a supercode turn\'s cost, visible in the transcript)')
+section('the delegated spend (a delegating turn\'s cost, visible in the transcript)')
 withEnv('1', () => {
   const rows = inject([
     prompt('delegate the sweep', 'p1'),

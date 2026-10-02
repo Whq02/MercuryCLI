@@ -45,8 +45,7 @@ check('permissionOverlay (the live tool-permission overlay) is kept and threaded
 check('the AlternateScreen wrap keeps mouseTracking + the tree child', /<AlternateScreen mouseTracking=\{isMouseTrackingEnabled\(\)\}>\{tree\}<\/AlternateScreen>/.test(repl))
 const RIPPLE = ['Temp', 'estRipple'].join('')
 const effort = readFileSync(join(root, 'src', 'commands', 'effort', 'EffortSlider.tsx'), 'utf-8')
-check(`EffortSlider no longer imports ${RIPPLE} (code-trace replaced the burst)`, !effort.includes(RIPPLE))
-check('EffortSlider carries the code-trace (the replacement is present, not just an ablation)', /CODE_TRACE_GLYPHS/.test(effort))
+check(`EffortSlider no longer imports ${RIPPLE}`, !effort.includes(RIPPLE))
 check(`${RIPPLE}.tsx is deleted`, !existsSync(join(root, 'src', 'components', 'mercury-ui', `${RIPPLE}.tsx`)))
 const rippleRefs = execSync(`grep -rn "${RIPPLE}" "${join(root, 'src')}" || true`, {
   encoding: 'utf-8',
