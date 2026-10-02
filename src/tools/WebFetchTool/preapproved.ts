@@ -1,8 +1,6 @@
 export const PREAPPROVED_HOSTS: ReadonlySet<string> = new Set([
   'agentskills.io',
-  'github.com/anthropics',
   'modelcontextprotocol.io',
-  'platform.claude.com',
   'developer.mozilla.org',
   'doc.rust-lang.org',
   'docs.oracle.com',
