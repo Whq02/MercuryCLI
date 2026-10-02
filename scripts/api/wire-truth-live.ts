@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printReport, readCapture, startTap } from './wire-prefix-replay.ts'
+import { hasResult, runTurns } from '../lib/rows.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -91,38 +92,9 @@ function rowsOf(stdout: string, turnLabel: (index: number) => string): RequestRo
   return rows
 }
 
-function runStreaming(args: string[], prompts: string[], debugFile: string): Promise<RunResult> {
-  return new Promise(resolvePromise => {
-    const child = spawn('node', [DIST, ...args, '--log-file', debugFile], { env, cwd: REPO })
-    let stdout = ''
-    let stderr = ''
-    let sent = 0
-    let resultsSeen = 0
-    const sendNext = (): void => {
-      if (sent >= prompts.length) {
-        child.stdin.end()
-        return
-      }
-      const prompt = prompts[sent]!
-      sent++
-      child.stdin.write(j({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
-    }
-    child.stdout.on('data', d => {
-      stdout += d
-      const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-      while (resultsSeen < results) {
-        resultsSeen++
-        sendNext()
-      }
-    })
-    child.stderr.on('data', d => (stderr += d))
-    const killer = setTimeout(() => child.kill('SIGKILL'), 240_000)
-    child.on('close', exit => {
-      clearTimeout(killer)
-      resolvePromise({ exit, stdout, stderr, rows: [] })
-    })
-    child.on('spawn', () => sendNext())
-  })
+async function runStreaming(args: string[], prompts: string[], debugFile: string): Promise<RunResult> {
+  const run = await runTurns({ node: 'node', dist: DIST, args: [...args, '--log-file', debugFile], cwd: REPO, env, timeoutMs: 240_000, turns: prompts })
+  return { exit: run.exit, stdout: run.stdout, stderr: run.stderr, rows: [] }
 }
 
 const common = ['run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--allowed-tools', 'ToolSearch,WebFetch']
@@ -144,7 +116,7 @@ let b = await runStreaming(['--resume', SID, '--mode', 'flow', ...common], [
   'Reply with exactly the word DELTA and nothing else.',
   'Reply with exactly the word EPSILON and nothing else.',
 ])
-if (b.exit !== 0 || !b.stdout.includes('"type":"result"')) {
+if (b.exit !== 0 || !hasResult(b.stdout)) {
   console.log(`flow was refused headless (exit ${b.exit}: ${b.stderr.slice(0, 200)}); switching to implement instead`)
   switchedTo = 'implement'
   b = await runStreaming(['--resume', SID, '--mode', 'implement', ...common], [

@@ -3,6 +3,7 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { LineReader, userRow, type Frame } from '../lib/rows.ts'
 
 export const REPO = join(import.meta.dir, '..', '..')
 export const argAfter = (flag: string): string | undefined => {
@@ -296,7 +297,8 @@ export async function waitWire(wire: () => Wire[], label: string, test: (w: Wire
   return null
 }
 
-export type Frame = Record<string, unknown>
+export type { Frame } from '../lib/rows.ts'
+export { isInit, isResult } from '../lib/rows.ts'
 export type Runner = {
   proc: ChildProcess
   frames: Frame[]
@@ -312,21 +314,12 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
   const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void; reject: (error: Error) => void }> = []
-  let stdoutBuffer = ''
+  const reader = new LineReader()
   let stderrText = ''
   proc.stdout!.on('data', (chunk: Buffer) => {
-    stdoutBuffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = stdoutBuffer.indexOf('\n')) >= 0) {
-      const line = stdoutBuffer.slice(0, nl)
-      stdoutBuffer = stdoutBuffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        const frame = JSON.parse(line) as Frame
-        frames.push(frame)
-        for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-      } catch {
-      }
+    for (const frame of reader.feed(chunk)) {
+      frames.push(frame)
+      for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
     }
   })
   proc.stderr!.on('data', (chunk: Buffer) => {
@@ -383,9 +376,7 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
     kill,
   }
 }
-export const user = (text: string, uuid: string, timestamp?: string): Frame => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
-export const isResult = (f: Frame): boolean => f.type === 'result'
-export const isInit = (f: Frame): boolean => f.type === 'system' && f.subtype === 'init'
+export const user = (text: string, uuid: string, timestamp?: string): Frame => userRow(text, { uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
 export const requestsOf = (wire: () => Wire[]): Wire[] => wire().filter(w => w.kind === 'request')
 export const carrying = (ws: Wire[], word: string): Wire[] => ws.filter(w => (w.counts?.[word] ?? 0) > 0)
 export const describeRequests = (ws: Wire[], words: string[]): string => j(ws.map(w => [w.n, w.arm, w.step, ...words.map(x => w.counts?.[x] ?? 0)]))

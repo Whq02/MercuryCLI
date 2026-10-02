@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
+import { resultCount } from '../lib/rows.ts'
 
 delete process.env.NODE_ENV
 for (const ambient of ['MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE', 'MERCURY_ADVISOR_MODEL', 'MERCURY_CONSOLE_MODEL', 'CLAUDE_CODE_OAUTH_TOKEN', 'ANTHROPIC_AUTH_TOKEN', 'ANTHROPIC_BASE_URL', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_HOME']) {
@@ -308,7 +309,7 @@ function runSession(s: Session): Promise<Run> {
     }
     child.stdout.on('data', d => {
       stdout += d
-      const seen = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
+      const seen = resultCount(stdout)
       while (results < seen) {
         results++
         owed++

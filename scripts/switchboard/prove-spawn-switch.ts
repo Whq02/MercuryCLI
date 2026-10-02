@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { isControlResponse, parseFrame, runTurns } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -381,38 +382,7 @@ if (!existsSync(DIST)) {
   }
   interface RunResult { exit: number | null; stdout: string; stderr: string }
   function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; control?: Record<string, unknown> }>): Promise<RunResult> {
-    return new Promise(resolvePromise => {
-      const child = spawn(nodeBin, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-      let stdout = ''
-      let stderr = ''
-      let sent = 0
-      let resultsSeen = 0
-      const sendNext = (): void => {
-        if (sent >= turns.length) {
-          child.stdin.end()
-          return
-        }
-        const turn = turns[sent]!
-        sent++
-        if (turn.control !== undefined) child.stdin.write(j({ type: 'control_request', request_id: `spawn-switch-${sent}`, request: turn.control }) + '\n')
-        child.stdin.write(j({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
-      }
-      child.stdout.on('data', d => {
-        stdout += d
-        const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-        while (resultsSeen < results) {
-          resultsSeen++
-          sendNext()
-        }
-      })
-      child.stderr.on('data', d => (stderr += d))
-      const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-      child.on('close', exit => {
-        clearTimeout(killer)
-        resolvePromise({ exit, stdout, stderr })
-      })
-      child.on('spawn', () => sendNext())
-    })
+    return runTurns({ node: nodeBin, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map((t, i) => ({ prompt: t.prompt, controls: t.control !== undefined ? [{ request: t.control, requestId: `spawn-switch-${i + 1}` }] : [] })) })
   }
   type Body = { system?: unknown; tools?: Array<{ name?: string }>; messages?: unknown[] }
   const withoutCacheControl = (value: unknown): unknown => {
@@ -481,7 +451,7 @@ if (!existsSync(DIST)) {
       { prompt: 'hi three' },
     ])
     check('the three-turn process exits 0 and answers every turn', r.exit === 0 && r.stdout.includes('S8B-TURN-1-DONE') && r.stdout.includes('S8B-TURN-2-DONE') && r.stdout.includes('S8B-TURN-3-DONE'), `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
-    check('the runner acknowledged the toggle (a control_response success)', r.stdout.split('\n').some(l => l.includes('"type":"control_response"') && l.includes('spawn-switch-2') && l.includes('"subtype":"success"')), r.stdout.split('\n').filter(l => l.includes('control_response')).join(' | ').slice(0, 400))
+    check('the runner acknowledged the toggle (a control_response success)', r.stdout.split('\n').some(l => { const f = parseFrame(l); return isControlResponse(f, 'spawn-switch-2') && (f?.response as { subtype?: string } | undefined)?.subtype === 'success' }), r.stdout.split('\n').filter(l => l.includes('control_response')).join(' | ').slice(0, 400))
     const reqs = fixture.messageRequests()
     check('three message requests', reqs.length === 3, String(reqs.length))
     if (reqs.length === 3) {

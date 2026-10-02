@@ -5,6 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sent-prefix-pure-'))
@@ -487,41 +488,7 @@ if (!existsSync(DIST)) {
       })
     }
     function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; controls?: Record<string, unknown>[] }>): Promise<RunResult> {
-      return new Promise(resolvePromise => {
-        const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-        let stdout = ''
-        let stderr = ''
-        let sent = 0
-        let resultsSeen = 0
-        const sendNext = (): void => {
-          if (sent >= turns.length) {
-            child.stdin.end()
-            return
-          }
-          const turn = turns[sent]!
-          sent++
-          turn.before?.()
-          for (const [index, request] of (turn.controls ?? []).entries()) {
-            child.stdin.write(j({ type: 'control_request', request_id: `ctl-${sent}-${index}`, request }) + '\n')
-          }
-          child.stdin.write(j({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
-        }
-        child.stdout.on('data', d => {
-          stdout += d
-          const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-          while (resultsSeen < results) {
-            resultsSeen++
-            sendNext()
-          }
-        })
-        child.stderr.on('data', d => (stderr += d))
-        const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-        child.on('close', exit => {
-          clearTimeout(killer)
-          resolvePromise({ exit, stdout, stderr })
-        })
-        child.on('spawn', () => sendNext())
-      })
+      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, ...(t.before ? { before: t.before } : {}), controls: (t.controls ?? []).map(request => ({ request })) })) })
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string; thinking?: { block_binding?: { prefix_mismatch_behavior?: string } } }
 

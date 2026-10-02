@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { DIST, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { seedScratchHome } from '../lib/scriptedTurn.ts'
+import { frameLines } from '../lib/rows.ts'
 
 type Frame = { type: string; subtype?: string; message?: { id: string; role: string; content: Array<{ type: string; text?: string }>; stop_reason: string | null; usage: Record<string, number> }; usage?: Record<string, number>; model_usage?: Record<string, Record<string, number>>; event?: { type: string } }
 
@@ -57,7 +58,7 @@ export async function compatUsageReply(usage: Record<string, unknown>, thinking 
       child.on('exit', resolve)
     })
     if (code !== 0) throw new Error(`headless exit ${code}: ${stderr}\n${stdout}`)
-    return { frames: stdout.trim().split('\n').map(line => JSON.parse(line) as Frame), requests }
+    return { frames: frameLines(stdout) as Frame[], requests }
   } finally {
     clearTimeout(deadline)
     await new Promise<void>(resolve => server.close(() => resolve()))

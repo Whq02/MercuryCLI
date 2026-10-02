@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { isInit, isResult, parseFrame } from '../../lib/rows.ts'
 
 export interface RunSpec {
   dist: string
@@ -83,7 +84,7 @@ export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<
   let lastAssistantText = ''
   envelopes.forEach((e, envelopeIndex) => {
     const type = e.type
-    if (type === 'system' && e.subtype === 'init') init = e
+    if (isInit(e)) init = e
     const parent = typeof e.parent_tool_use_id === 'string' && e.parent_tool_use_id ? e.parent_tool_use_id : null
     if (type === 'assistant') {
       const message = e.message as { id?: unknown; content?: unknown; usage?: Record<string, unknown> } | undefined
@@ -136,7 +137,7 @@ export function parseEnvelopes(envelopes: Array<Record<string, unknown>>): Pick<
         }
       }
     }
-    if (type === 'result') result = e
+    if (isResult(e)) result = e
   })
   const resultText = result && typeof (result as Record<string, unknown>).result === 'string' ? String((result as Record<string, unknown>).result) : ''
   return { assistantMessages, subagentAssistantMessages, toolUses, toolResults, subagentToolUses, subagentToolResults, assistantTexts, injectedChars, result, init, finalText: resultText || lastAssistantText }
@@ -178,11 +179,9 @@ export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
       const line = buf.slice(0, nl)
       buf = buf.slice(nl + 1)
       if (!line.trim()) continue
-      try {
-        envelopes.push(JSON.parse(line) as Record<string, unknown>)
-      } catch {
-        unparseable++
-      }
+      const frame = parseFrame(line)
+      if (frame !== null) envelopes.push(frame)
+      else unparseable++
     }
   })
   child.stderr.on('data', d => {
@@ -196,11 +195,9 @@ export async function runHeadless(spec: RunSpec): Promise<RunRecord> {
   const exitCode = await new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
   clearTimeout(deadline)
   if (buf.trim()) {
-    try {
-      envelopes.push(JSON.parse(buf) as Record<string, unknown>)
-    } catch {
-      unparseable++
-    }
+    const frame = parseFrame(buf)
+    if (frame !== null) envelopes.push(frame)
+    else unparseable++
   }
   const parsed = parseEnvelopes(envelopes)
   const sessionId = String((parsed.init as Record<string, unknown> | null)?.session_id ?? (parsed.result as Record<string, unknown> | null)?.session_id ?? spec.sessionId ?? '')

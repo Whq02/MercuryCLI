@@ -3,6 +3,7 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readd
 import { tmpdir, homedir } from 'node:os'
 import { join, resolve } from 'node:path'
 import {
+import { parseFrame } from '../../lib/rows.ts'
   evaluateMissionCompletion,
   parseReviewResult,
 } from '../../../src/services/mission/completion.js'
@@ -542,12 +543,7 @@ export function runTaskWithPolicy(
   const wallSeconds = Math.round((Date.now() - started) / 1000)
 
   const lastLine = stdout.trim().split('\n').filter(Boolean).pop() ?? ''
-  let parsed: Record<string, unknown> = {}
-  try {
-    parsed = JSON.parse(lastLine) as Record<string, unknown>
-  } catch {
-    parsed = {}
-  }
+  const parsed: Record<string, unknown> = parseFrame(lastLine) ?? {}
   const resultText = typeof parsed.result === 'string' ? parsed.result : ''
   const isError = Boolean(parsed.is_error) || spawnErrored
 

@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'resume-history-bytes-'))
@@ -351,37 +352,7 @@ if (!existsSync(DIST)) {
       }
     }
     function runStreaming(arena: Arena, args: string[], prompts: string[]): Promise<RunResult> {
-      return new Promise(resolvePromise => {
-        const child = spawn(nodeBin!, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-        let stdout = ''
-        let stderr = ''
-        let sent = 0
-        let resultsSeen = 0
-        const sendNext = (): void => {
-          if (sent >= prompts.length) {
-            child.stdin.end()
-            return
-          }
-          const prompt = prompts[sent]!
-          sent++
-          child.stdin.write(j({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
-        }
-        child.stdout.on('data', d => {
-          stdout += d
-          const results = stdout.split('\n').filter(l => l.includes('"type":"result"')).length
-          while (resultsSeen < results) {
-            resultsSeen++
-            sendNext()
-          }
-        })
-        child.stderr.on('data', d => (stderr += d))
-        const killer = setTimeout(() => child.kill('SIGKILL'), 60_000)
-        child.on('close', exit => {
-          clearTimeout(killer)
-          resolvePromise({ exit, stdout, stderr })
-        })
-        child.on('spawn', () => sendNext())
-      })
+      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 60_000, turns: prompts })
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string }
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))

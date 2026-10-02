@@ -4,6 +4,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { runTurns } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -276,28 +277,7 @@ function makeArena(fixtureBase: string, nodeBin: string): Arena {
   }
 }
 function runStreaming(nodeBin: string, arena: Arena, args: string[], prompt: string, killAfterMs: number): Promise<RunResult> {
-  return new Promise(resolvePromise => {
-    const child = spawn(nodeBin, [DIST, ...args], { cwd: arena.cwd, env: arena.env })
-    let stdout = ''
-    let stderr = ''
-    let ended = false
-    child.stdout.on('data', d => {
-      stdout += d
-      if (!ended && stdout.includes('"type":"result"')) {
-        ended = true
-        child.stdin.end()
-      }
-    })
-    child.stderr.on('data', d => (stderr += d))
-    const killer = setTimeout(() => child.kill('SIGKILL'), killAfterMs)
-    child.on('close', exit => {
-      clearTimeout(killer)
-      resolvePromise({ exit, stdout, stderr })
-    })
-    child.on('spawn', () => {
-      child.stdin.write(j({ type: 'user', message: { role: 'user', content: prompt } }) + '\n')
-    })
-  })
+  return runTurns({ node: nodeBin, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: killAfterMs, turns: [prompt] })
 }
 
 console.log('============================================================')
