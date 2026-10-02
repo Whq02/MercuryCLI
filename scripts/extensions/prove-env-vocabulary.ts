@@ -124,6 +124,7 @@ console.log("[6] prose gets the placeholder; the child env gets the value; only 
     check('the sensitive option renders the placeholder naming the key', text.includes('<option FIXTURE_TOKEN: set by the operator, not shown>'), text.slice(0, 200))
     check('the sensitive VALUE never enters the prose', !text.includes('secret-value'))
     check('the plain option substitutes in prose', text.includes('ada'))
+    check('the prompt opens on the one base-directory line every skill shares (folder named, the reference-files clause present)', /^Base directory for this skill: \S+ \(read or grep files under it for the skill's own references\)\n\n/.test(text), text.slice(0, 160))
     check('${MERCURY_EXTENSION_ROOT} substitutes in prose', text.includes(installed.ok ? installed.root : '<nope>'))
   }
   const loaderSrc = readFileSync(join(ROOT, 'src', 'extensions', 'load', 'commands.ts'), 'utf8')

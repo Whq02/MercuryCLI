@@ -57,6 +57,13 @@ const platformOk = process.platform === 'darwin' || process.platform === 'linux'
 const enabledInSettings = SandboxManager.isSandboxEnabledInSettings()
 check('the hermetic home turned the sandbox on in settings', enabledInSettings)
 const unavailable = SandboxManager.getSandboxUnavailableReason()
+{
+  const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
+  updateSettingsForSource('userSettings', { guardrails: { sandbox: { enabled: true, autoAllowBashIfSandboxed: true, enabledPlatforms: ['frobnicate-os'] } } } as never)
+  const reason = SandboxManager.getSandboxUnavailableReason() ?? ''
+  check('a platform outside the enabled list is told by the settings keys as they are written: guardrails.sandbox.enabled and guardrails.sandbox.enabledPlatforms', reason.includes('(guardrails.sandbox.enabled)') && reason.includes('the guardrails.sandbox.enabledPlatforms setting') && !/[^.]sandbox\.enabledPlatforms/.test(reason), reason)
+  updateSettingsForSource('userSettings', { guardrails: { sandbox: { enabled: true, autoAllowBashIfSandboxed: true } } } as never)
+}
 const ready = platformOk && enabledInSettings && unavailable === null && SandboxManager.isSandboxingEnabled()
 if (!ready) {
   console.log(`  [SKIP] live sandbox — platform ${process.platform}, enabled ${enabledInSettings}, reason ${unavailable ?? 'none'}: the boundary cannot be exercised on this machine`)

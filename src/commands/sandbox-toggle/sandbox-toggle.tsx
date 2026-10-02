@@ -39,7 +39,7 @@ export async function call(
   if (!SandboxManager.isPlatformInEnabledList()) {
     onDone(
       colors.error(
-        `Sandboxing is not enabled for ${getPlatform()} — the sandbox.enabledPlatforms setting excludes this platform.`,
+        `Sandboxing is not enabled for ${getPlatform()} — the guardrails.sandbox.enabledPlatforms setting excludes this platform.`,
       ),
     )
     return null

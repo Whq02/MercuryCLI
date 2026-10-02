@@ -82,7 +82,7 @@ export function detectManagedSettingsWarnings(): Array<{ issue: string; fix: str
       return [
         {
           issue: `managed-settings.json: extensions.exclusive has an invalid value of type ${typeof value}.`,
-          fix: `The value is silently ignored. Acceptable forms: true, or an array of surface names (${knownSurfaces.join(', ')}).`,
+          fix: `The value reads as a full lock — every customization surface is restricted to extensions. Acceptable forms: true, or an array of surface names (${knownSurfaces.join(', ')}).`,
         },
       ]
     }

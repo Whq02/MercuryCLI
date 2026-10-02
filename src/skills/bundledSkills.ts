@@ -8,6 +8,7 @@ import type { HooksSettings } from '../schemas/hooks.js'
 import type { EffortValue } from '../utils/effort.js'
 import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
 import { logForDebugging } from '../utils/debug.js'
+import { baseDirLine } from './baseDirLine.js'
 
 export type BundledSkillDefinition = {
   name: string
@@ -89,9 +90,6 @@ function extractOnce(definition: BundledSkillDefinition): Promise<string | null>
   return promise
 }
 
-function baseDirLine(baseDir: string): string {
-  return `Base directory for this skill: ${baseDir} (read or grep files under it for the skill's own references)\n\n`
-}
 
 const registry: Command[] = []
 
