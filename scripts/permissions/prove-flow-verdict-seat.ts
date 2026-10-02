@@ -450,7 +450,7 @@ async function runLeg(leg: Leg): Promise<void> {
     ...(leg.channel ? ['--permission-channel', 'stdio'] : []),
     '--model',
     MODEL,
-    '--debug-file',
+    '--log-file',
     join(world.home, 'debug.txt'),
   ]
   const turns = leg.agent
