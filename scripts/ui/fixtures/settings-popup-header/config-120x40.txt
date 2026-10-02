@@ -3,7 +3,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
   no prompts sent yet   │                                                                                              │
                         │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
 NEXT                    │ │ ▖▟▆▙▗ Mercury · config                                                                   │ │
-  · /workflows — agent …│ │ orchard · 59 settings · 0 set by you                                                     │ │
+  · /workflows — agent …│ │ orchard · 58 settings · 0 set by you                                                     │ │
   · /health — health ce…│ │                                                                                          │ │
   · /memory — memory    │ │ / Search settings…                                                                       │ │
   · /mission — set a mi…│ │                                                                                          │ │
@@ -27,7 +27,7 @@ TELEMETRY               │ │   Reduced motion                    off         
                         │ │   Pinned memory limit               0 of 8k                                              │ │
                         │ │   Respect .gitignore in file picker on                                                   │ │
                         │ │   Always copy full response         off                                                  │ │
-                        │ │ ↓ 39 more                                                                                │ │
+                        │ │ ↓ 38 more                                                                                │ │
                         │ │                                                                                          │ │
                         │ │ ↑↓ select · ←/→ change · ↵ save · / search · esc or click outside closes                 │ │
                         │ ╰──────────────────────────────────────────────────────────────────────────────────────────╯ │

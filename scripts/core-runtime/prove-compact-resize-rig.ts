@@ -118,7 +118,7 @@ for (const editorMode of ['emacs', 'vim'] as const) {
         modal: focus === 'detail' ? h(BackgroundTasksDialog, { entry: 'compact-summary', compactControls: controls, onDone: () => controls.set('composer'), toolUseContext: {} as never }) : undefined,
         bottom: h(PromptInput, {
           compactWork: controls, compactFocus: focus,
-          debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+          debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
           isLoading: false, verbose: false, submitCount: sent.length, onShowMessageSelector: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,

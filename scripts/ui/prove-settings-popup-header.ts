@@ -117,7 +117,7 @@ function Harness({ columns }: { columns: number }): React.ReactNode {
   return h(FullscreenLayout, {
     scrollable: h(Box, { flexDirection: 'column' }, ...Array.from({ length: 80 }, (_, key) => h(Text, { key, wrap: 'truncate-end' }, `transcript row ${String(key + 1).padStart(2, '0')} ${'· '.repeat(columns)}`))),
     bottom: h(PromptInput, {
-      debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+      debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
       setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [], isLoading: false,
       verbose: false, submitCount: 0, onShowMessageSelector: () => {}, mcpClients: [], vimMode, setVimMode,
       showBashesDialog: bashes, setShowBashesDialog: setBashes, onExit: () => {}, getToolUseContext: () => ({}),

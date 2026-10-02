@@ -183,7 +183,7 @@ async function mount(name: string, work: WorkRoster): Promise<Mount> {
         }),
         statusBandActive: true,
         bottom: h(PromptInput, {
-          debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+          debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
           isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,

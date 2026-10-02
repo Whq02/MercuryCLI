@@ -222,7 +222,7 @@ async function popupScene(columns: number, rows: number, opts: { pendingNext?: s
         modalScrollRef,
         bottom: h(PromptInput, {
           compactWork: controls, compactFocus: focus,
-          debug: false, ideSelection: undefined, toolPermissionContext: getDefaultAppState().toolPermissionContext,
+          debug: false, toolPermissionContext: getDefaultAppState().toolPermissionContext,
           setToolPermissionContext: () => {}, apiKeyStatus: 'valid', commands: [], agents: [],
           isLoading: false, verbose: false, submitCount: 0, onShowMessageSelector: () => {},
           mcpClients: [], vimMode, setVimMode, showBashesDialog: bashes, setShowBashesDialog: setBashes,
