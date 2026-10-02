@@ -333,7 +333,7 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
   check('the mode chip reads the connector facts (the surface the old refusal snapped back)', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
 }
 
-section("the seat's initial posture: a carried 'apollo' crosses the admission; the strict list holds elsewhere")
+section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list")
 {
   const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseSupervisor.js')) as typeof import('../../src/daemon/concourseSupervisor.js')
   const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')
@@ -356,7 +356,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
   const supervisor = src('daemon', 'concourseSupervisor.ts')
-  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /override === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.guardrails\?\.mode\)/.test(supervisor))
+  check("the apollo arm sits on the CARRIED road, and the saved default resolves through the one resolver the direct boot reads", /override === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = resolveSavedPermissionMode\(\)/.test(supervisor) && !/getInitialSettings/.test(supervisor))
   const hop = src('services', 'switchboard', 'hopIntoSession.ts')
   check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }
