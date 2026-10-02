@@ -9,7 +9,7 @@
     ".mercury.json"
   ],
   "counts": {
-    "owner-internal": 7,
+    "owner-internal": 6,
     "compat-boundary": 23,
     "baked-mirror": 3
   },
@@ -24,7 +24,7 @@
     {
       "file": "src/projectOnboardingState.ts",
       "needle": "MERCURY.md",
-      "excerpt": "isComplete: getFsImplementation().existsSync(join(getCwd(), 'MERCURY.md')),",
+      "excerpt": "name => name === 'MERCURY.md' || name === SHARED_INSTRUCTION_FILE,",
       "cls": "compat-boundary",
       "why": "MERCURY.md probed as the /init completion signal — onboarding tracks the file /init actually creates (the native project guide)"
     },
@@ -66,7 +66,7 @@
     {
       "file": "src/services/instructions/effectiveSize.ts",
       "needle": "MERCURY.md",
-      "excerpt": "const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md'])",
+      "excerpt": "const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE])",
       "cls": "compat-boundary",
       "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
     },
@@ -125,13 +125,6 @@
       "excerpt": "const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi'",
       "cls": "compat-boundary",
       "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
-    },
-    {
-      "file": "src/utils/cockpit/repoSurfaceMap.ts",
-      "needle": "MERCURY.md",
-      "excerpt": "for (const name of ['MERCURY.md', 'AGENTS.md']) {",
-      "cls": "owner-internal",
-      "why": "the orientation-doc presence probe NAMES the native and neutral guides beside the compat one — existence only, never a content load"
     },
     {
       "file": "src/utils/config/derived.ts",
