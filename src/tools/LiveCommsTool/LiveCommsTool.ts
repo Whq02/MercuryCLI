@@ -10,7 +10,7 @@ import {
   type LiveCommsReceipt,
   type LiveCommsWrites,
 } from '../../services/coordination/coordinationService.js'
-import { LIVE_COMMS_OLD_TOOL_NAME, LIVE_COMMS_TOOL_NAME } from './constants.js'
+import { LIVE_COMMS_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, LIVE_COMMS_TOOL_PROMPT } from './prompt.js'
 
 const inputSchema = lazySchema(() =>
@@ -174,7 +174,6 @@ function writeWords(input: Input | undefined): string {
 export const LiveCommsTool = buildTool({
   shouldDefer: true,
   name: LIVE_COMMS_TOOL_NAME,
-  aliases: [LIVE_COMMS_OLD_TOOL_NAME],
   searchHint:
     'live crew communication — messages, tasks, file claims, who is busy; read and write',
   maxResultSizeChars: 100_000,

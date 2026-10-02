@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -48,9 +48,7 @@ check('the command-name catalogue carries crewmates and not teammates', builtInC
 const unknown = unknownCommandLine('teammates', registry)
 check('the palette answers /teammates with its unknown-command sentence, pointing at /help', unknown === 'Unknown command: /teammates · /help lists commands', unknown)
 check('…and never names /crewmates as the command that ran, nor the crew view\'s foreground refusal', !unknown.includes('/crewmates command') && !/interactive surface/.test(unknown), unknown)
-const retired = readFileSync(join(ROOT, 'src', 'migrations', 'retiredCrewSpellings.ts'), 'utf8')
-check('the read-side spelling table carries no command row (nothing maps the old command name to the new)', !/RETIRED_COMMAND_NAMES|RETIRED_CREWMATES_COMMAND_NAME/.test(retired) && !/\bteammates: 'crewmates'\b/.test(retired.replace(/expandedView: \{ teammates: 'crewmates' \}/, '')))
-check('the saved expanded-view value under the old word still reads (a saved setting, not the command)', /expandedView: \{ teammates: 'crewmates' \}/.test(retired))
+check('no spelling table maps the old command name — or any old crew word — to the new', !existsSync(join(ROOT, 'src', 'migrations', 'retiredCrewSpellings.ts')))
 check('the crew view stays a concourse surface under the new name', crewmates !== undefined && crewmates.needsConcourse === true)
 check('the command speaks of the crew, not the team', crewmates !== undefined && /\bcrew/i.test(crewmates.description) && !/\bteam(mate)?s?\b/i.test(crewmates.description), crewmates === undefined ? 'no command' : crewmates.description)
 const registered = registry.filter(c => c.name === 'crewmates' || c.name === 'teammates')

@@ -6,7 +6,6 @@ import { memoize } from 'lodash-es'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
-import { RETIRED_CREWS_DIR_NAME } from '../migrations/retiredCrewSpellings.js'
 
 
 export const getMercuryHome = memoize((): string => {
@@ -74,12 +73,6 @@ export function getCrewsDir(): string {
   const override = flagEnv('MERCURY_CREWS_DIR')
   if (override !== undefined && override.trim() !== '') return override
   return join(getMercuryHome(), 'crews')
-}
-
-export function getRetiredCrewsDir(): string | null {
-  const override = flagEnv('MERCURY_CREWS_DIR')
-  if (override !== undefined && override.trim() !== '') return null
-  return join(getMercuryHome(), RETIRED_CREWS_DIR_NAME)
 }
 
 export function displayConfigHome(): string {

@@ -24,7 +24,6 @@ import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestio
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
-import { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'
 
 
 type ImmutablePrimitive =
@@ -253,7 +252,7 @@ export type AppStateStore = Store<AppState>
 
 function rememberedExpandedView(): AppState['expandedView'] {
   try {
-    const remembered = readRetiredGlobalConfigValue('expandedView', getGlobalConfig().expandedView)
+    const remembered = getGlobalConfig().expandedView
     return remembered === 'tasks' || remembered === 'crewmates' ? remembered : 'none'
   } catch {
     return 'none'

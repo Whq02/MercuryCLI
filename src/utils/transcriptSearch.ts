@@ -1,6 +1,5 @@
 import type { RenderableMessage, Message } from '../types/message.js'
 import { isTurnCutText } from './messages.js'
-import { RETIRED_TOOL_NAMES } from '../migrations/retiredCrewSpellings.js'
 
 
 const searchTextCache = new WeakMap<object, string>()
@@ -182,7 +181,6 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'TaskStop',
   'TaskUpdate',
   'LiveComms',
-  ...Object.keys(RETIRED_TOOL_NAMES),
   'ToolSearch',
   'Workflow',
   'Contract',

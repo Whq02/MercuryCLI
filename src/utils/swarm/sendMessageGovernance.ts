@@ -11,7 +11,6 @@ import { sanitizePathComponent } from '../tasks.js'
 import { getCrewName } from '../crewmate.js'
 import { CREW_LEAD_NAME } from './constants.js'
 import type { CrewFile } from './crewHelpers.js'
-import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'
 
 const LOCK_OPTIONS = {
   retries: {
@@ -440,7 +439,6 @@ export function resolveDirectActor(
   )
   const isLead =
     name.toLowerCase() === CREW_LEAD_NAME.toLowerCase() ||
-    isRetiredCrewLeadName(name) ||
     (!!leadAgentId && member?.agentId === leadAgentId)
   return { name, isLead, role: member?.role }
 }

@@ -17,11 +17,8 @@ import { logError } from '../log.js'
 import { jsonStringify } from '../slowOperations.js'
 import { getAgentName, getCrewName, isCrewmate } from '../crewmate.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { CREW_LEAD_NAME } from './constants.js'
 import type { CrewCharter } from './crewCharter.js'
 import type { BackendType } from './backends/types.js'
-import { readRetiredCrewFile } from '../../migrations/retiredCrewSpellings.js'
-import { getRetiredCrewsDir } from '../envUtils.js'
 
 
 export type CrewAllowedPath = {
@@ -88,12 +85,7 @@ export function getCrewFilePath(crewName: string): string {
 }
 
 function readableCrewFilePath(crewName: string): string {
-  const current = getCrewFilePath(crewName)
-  if (existsSync(current)) return current
-  const retired = getRetiredCrewsDir()
-  if (retired === null) return current
-  const old = join(retired, sanitizeName(crewName), 'config.json')
-  return existsSync(old) ? old : current
+  return getCrewFilePath(crewName)
 }
 
 
@@ -152,7 +144,7 @@ function parseCrewFile(raw: string, path: string): CrewFile | null {
     nameRefusedRoster(path)
     throw error
   }
-  if (isCrewFile(parsed)) return readRetiredCrewFile(parsed, CREW_LEAD_NAME)
+  if (isCrewFile(parsed)) return parsed
   nameRefusedRoster(path)
   return null
 }

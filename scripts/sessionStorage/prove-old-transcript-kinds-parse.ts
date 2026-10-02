@@ -152,78 +152,74 @@ const u3 = uid()
 row({ ...base(u3, u2, i++), type: 'user', message: { role: 'user', content: 'thanks' } })
 
 console.log('============================================================')
-console.log(' old transcript kinds, records and files read as the crew: team_context, teammate_mailbox, teammate_shutdown_batch, teamName, isTeammate, team_name, teammate_spawned, the teammate-message tag, TeamCreate and TeamBrief rows, the old sidecar key, the old roster, the old folder, the old shortcut id, the old flags')
+console.log(' the old crew spellings are unknown to every reader: team_context, teammate_mailbox, teammate_shutdown_batch, teamName, isTeammate, team_name, teammate_spawned, the teammate-message tag, TeamCreate and TeamBrief rows, the old sidecar key, the old roster folder, the old lead name, the old shortcut id, the old flags — each reads as written or as any unknown word')
 console.log('============================================================')
 
-console.log('§1 the transcript loads whole through the product reader, every old kind read as the current one')
+console.log('§1 the transcript loads whole through the product reader; every row keeps the kind and the keys it was written with')
 const log = await logs.loadTranscriptFromFile(file)
 const messages = log.messages as Array<Record<string, unknown>>
 check('every row of the chain is read', messages.length === 16, `${messages.length} rows`)
 const attachments = messages.filter(m => m.type === 'attachment').map(m => (m.attachment as { type: string }).type)
-check('the old context and shutdown kinds read as the crew kinds; the old message row keeps its kind for the attachment types\' own table; the crew kind written now reads beside them', JSON.stringify(attachments) === JSON.stringify(['crew_context', 'teammate_mailbox', 'crewmate_shutdown_batch', 'crew_messages', 'queued_command', 'queued_command', 'queued_command']), JSON.stringify(attachments))
+check('the attachment kinds read exactly as written — no old kind is renamed at the decode point', JSON.stringify(attachments) === JSON.stringify(['team_context', 'teammate_mailbox', 'teammate_shutdown_batch', 'crew_messages', 'queued_command', 'queued_command', 'queued_command']), JSON.stringify(attachments))
 const queued = messages.filter(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'queued_command').map(m => (m.attachment as { prompt: unknown }).prompt)
 const queuedText = (prompt: unknown): string => (typeof prompt === 'string' ? prompt : (prompt as Array<{ text?: string }>).map(b => b.text ?? '').join('\n'))
-check('a crewmate message queued under the old tag (a string prompt) reads under the crew tag with crewmate_id, so it paints as the relay row', queuedText(queued[0]).startsWith('<crewmate-message crewmate_id="delta"') && queuedText(queued[0]).endsWith('</crewmate-message>') && !queuedText(queued[0]).includes('teammate'), queuedText(queued[0]))
-check('the same for a queued prompt written as text blocks', Array.isArray(queued[1]) && queuedText(queued[1]).startsWith('<crewmate-message crewmate_id="echo"') && !queuedText(queued[1]).includes('teammate'), JSON.stringify(queued[1]))
+check('a queued prompt written under the old tag reads as written (a string prompt)', queuedText(queued[0]) === OLD_QUEUED, queuedText(queued[0]))
+check('the same for a queued prompt written as text blocks', Array.isArray(queued[1]) && queuedText(queued[1]) === OLD_QUEUED.replace(/delta/g, 'echo'), JSON.stringify(queued[1]))
 check('a plain queued prompt is left as written', queued[2] === 'a plain queued prompt', JSON.stringify(queued[2]))
 const toolNames = messages
   .filter(m => m.type === 'assistant')
   .flatMap(m => ((m.message as { content: Array<{ type: string; name?: string }> }).content ?? []).filter(c => c.type === 'tool_use').map(c => c.name))
-check('the old tool names on tool_use rows are read as themselves (the renderer resolves them through the alias table)', JSON.stringify(toolNames) === JSON.stringify(['TeamCreate', 'Agent', 'TeamBrief']), JSON.stringify(toolNames))
-const contextRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context')?.attachment as Record<string, unknown> | undefined
-check('the old context row reads with crewName and crewConfigPath, its old keys gone', contextRow !== undefined && contextRow.crewName === TEAM && typeof contextRow.crewConfigPath === 'string' && !('teamName' in contextRow) && !('teamConfigPath' in contextRow), JSON.stringify(contextRow))
+check('the tool names on tool_use rows read as themselves', JSON.stringify(toolNames) === JSON.stringify(['TeamCreate', 'Agent', 'TeamBrief']), JSON.stringify(toolNames))
+const glyphs = await import('../../src/components/mercury-ui/toolGlyphs.ts')
+check('a tool name no build of Mercury ships paints as any unknown tool does — no family remembers it', glyphs.toolFamilyFor('TeamCreate') === glyphs.toolFamilyFor('FrobnicateTool') && glyphs.toolFamilyFor('TeamBrief') === glyphs.toolFamilyFor('FrobnicateTool'), `${glyphs.toolFamilyFor('TeamCreate')} / ${glyphs.toolFamilyFor('FrobnicateTool')}`)
+check('no crew_context row is read from the old context kind', messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context') === undefined)
+const oldContextRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'team_context')?.attachment as Record<string, unknown> | undefined
+check('the old context row keeps its keys as written', oldContextRow !== undefined && oldContextRow.teamName === TEAM && typeof oldContextRow.teamConfigPath === 'string' && !('crewName' in oldContextRow) && !('crewConfigPath' in oldContextRow), JSON.stringify(oldContextRow))
+check('the old context row composes nothing for the model and paints nothing special on screen — an unknown kind', attachmentText.normalizeAttachmentForAPI(oldContextRow as never).length === 0 && nullRendering.isNullRenderingAttachment({ type: 'attachment', attachment: oldContextRow } as never) === false)
 const mailboxRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')?.attachment as { messages: Array<{ text: string }> } | undefined
-check('a terminated notice inside an old message row reads as the crew notice', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"crewmate_terminated"'), JSON.stringify(mailboxRow?.messages[1]))
-const types = await import('../../src/utils/attachments/types.ts')
-check('the attachment types read the old message row as the crew kind through their own table', mailboxRow !== undefined && types.currentAttachmentKind('teammate_mailbox') === 'crew_messages' && types.isCrewMessagesAttachment(mailboxRow as never) === true)
-const mailboxText = mailboxRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(mailboxRow as never)
-check('the old message row still composes its messages for the model', mailboxText.length === 1 && JSON.stringify(mailboxText[0]).includes('ping from the lead'))
+check('a terminated notice inside an old message row reads as written', mailboxRow !== undefined && mailboxRow.messages[1]!.text.includes('"teammate_terminated"') && !mailboxRow.messages[1]!.text.includes('crewmate_terminated'), JSON.stringify(mailboxRow?.messages[1]))
 const crewMessagesRow = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')?.attachment
 const crewMessagesText = crewMessagesRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(crewMessagesRow as never)
-check('the crew kind written now composes the same envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
-check('the shutdown row composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI({ type: 'crewmate_shutdown_batch', count: 2 } as never)))
-const mailboxMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'teammate_mailbox')
-const crewMessagesMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_messages')
-check('the old message row and the crew kind written now both paint on screen (neither is a null-rendering kind)', mailboxMessage !== undefined && nullRendering.isNullRenderingAttachment(mailboxMessage as never) === false && crewMessagesMessage !== undefined && nullRendering.isNullRenderingAttachment(crewMessagesMessage as never) === false)
+check('the crew kind written now composes its envelope', crewMessagesText.length === 1 && JSON.stringify(crewMessagesText[0]).includes('a note under the crew kind'))
+check('the old shutdown kind composes nothing for the model and does not throw', Array.isArray(attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never)) && attachmentText.normalizeAttachmentForAPI({ type: 'teammate_shutdown_batch', count: 2 } as never).length === 0)
 const createRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_teamcreate'))
 const createInput = ((createRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
-check('the recorded row of a removed tool keeps its input as recorded (it paints; it never runs)', createInput.team_name === TEAM && !('crew_name' in createInput), JSON.stringify(createInput))
+check('the recorded row of a tool no build ships keeps its input as recorded (it paints; it never runs)', createInput.team_name === TEAM && !('crew_name' in createInput), JSON.stringify(createInput))
 const spawnRow = messages.find(m => m.type === 'assistant' && JSON.stringify(m).includes('toolu_spawn'))
 const spawnInput = ((spawnRow?.message as { content: Array<{ input?: Record<string, unknown> }> }).content[0]?.input ?? {}) as Record<string, unknown>
-check('an Agent call written with team_name reads with crew_name', spawnInput.crew_name === TEAM && !('team_name' in spawnInput), JSON.stringify(spawnInput))
+check('an Agent call written with team_name reads as written — nothing renames the field', spawnInput.team_name === TEAM && !('crew_name' in spawnInput), JSON.stringify(spawnInput))
 const spawnResult = messages.find(m => 'toolUseResult' in m && JSON.stringify(m.toolUseResult).includes('agent-water'))?.toolUseResult as Record<string, unknown> | undefined
-check('a spawn record written with teammate_spawned and team_name reads as crewmate_spawned with crew_name and crewmate_id', spawnResult !== undefined && spawnResult.status === 'crewmate_spawned' && spawnResult.crew_name === TEAM && spawnResult.crewmate_id === 'agent-water', JSON.stringify(spawnResult))
+check('a spawn record written with teammate_spawned and team_name reads as written', spawnResult !== undefined && spawnResult.status === 'teammate_spawned' && spawnResult.team_name === TEAM && spawnResult.teammate_id === 'agent-water' && !('crew_name' in spawnResult) && !('crewmate_id' in spawnResult), JSON.stringify(spawnResult))
 const messageRow = messages.find(m => m.type === 'user' && typeof (m.message as { content: unknown }).content === 'string' && ((m.message as { content: string }).content).includes('hello from water'))
 const messageText = (messageRow?.message as { content: string } | undefined)?.content ?? ''
-check('a crewmate message written under the old tag reads under the crew tag with crewmate_id', messageText.startsWith('<crewmate-message crewmate_id="water"') && messageText.endsWith('</crewmate-message>') && !messageText.includes('teammate'), messageText)
-check('every row of the chain carries crewName and isCrewmate, never the old keys', messages.every(m => !('teamName' in m) && !('isTeammate' in m)) && messages.some(m => m.crewName === TEAM && m.isCrewmate === true))
+check('a message written under the old tag reads as written', messageText === OLD_MESSAGE, messageText)
+check('every row of the chain keeps the stamps it was written with; none gains a crew stamp', messages.every(m => !('crewName' in m) && !('isCrewmate' in m)) && messages.some(m => m.teamName === TEAM && m.isTeammate === true))
 const decodedTwice = decode.decodeTranscriptBuffer<Record<string, unknown>>(readFileSync(file, 'utf8')).entries
-check('the decode point itself answers the crew spellings (every reader shares it)', decodedTwice.every(e => !('teamName' in e)) && decodedTwice.some(e => e.crewName === TEAM))
+check('the decode point itself renames nothing (every reader shares it)', decodedTwice.every(e => !('crewName' in e)) && decodedTwice.some(e => e.teamName === TEAM))
 
-console.log('§2 the session record reads the old stamps as the crew stamps')
-check('the log carries the crewName stamp', log.crewName === TEAM, String(log.crewName))
-check('the log carries the agentName stamp', log.agentName === AGENT, String(log.agentName))
-check('the picker classes the transcript as a crew session', sessionClass.isCrewSession(log) === true)
-check('the crew tag names the crew and the agent', sessionClass.crewTagOf(log) === `${TEAM} · ${AGENT}`, sessionClass.crewTagOf(log))
+console.log('§2 the session record reads no crew stamp from the old words')
+check('the log carries no crewName stamp', log.crewName === undefined, String(log.crewName))
+check('the picker does not class the transcript as a crew session', sessionClass.isCrewSession(log) === false)
 const PLAIN_SID = '00000000-bbbb-4000-8000-0000000c0ffee'
 const plainFile = join(dir, `${PLAIN_SID}.jsonl`)
 const p1 = uid()
 appendFileSync(plainFile, (vnext.encodeTranscriptLine(plainFile, { uuid: p1, parentUuid: null, isSidechain: false, cwd: SCRATCH, sessionId: PLAIN_SID, version: '1.0.0', timestamp: at(50), type: 'user', message: { role: 'user', content: 'a plain session' } }) as { line: string }).line)
-const lite = (sessionId: string, fullPath: string): Record<string, unknown> => ({ date: at(60), messages: [], isLite: true, fullPath, value: 0, created: new Date(), modified: new Date(), firstPrompt: '', fileSize: readFileSync(fullPath).length, isSidechain: false, sessionId, projectPath: SCRATCH })
+const lite = (sessionId: string, fullPath: string): Record<string, unknown> => ({ date: at(60), messages: [], isLite: true, fullPath, value: 0, created: new Date(), modified: new Date(), firstPrompt: '', fileSize: readFileSync(fullPath).length, sessionId })
 const enriched = await logs.enrichLogs([lite(SID, file), lite(PLAIN_SID, plainFile)] as never, 0, 2)
 const liteOld = enriched.logs.find(l => l.sessionId === SID) ?? null
 const litePlain = enriched.logs.find(l => l.sessionId === PLAIN_SID) ?? null
-check('the lite session listing reads the old crew-name stamp from the head line: the crewmate transcript stays out of /resume while a plain session beside it is listed', liteOld === null && litePlain !== null, JSON.stringify({ old: liteOld !== null, plain: litePlain !== null, listed: enriched.logs.length }))
+check('the lite session listing reads no crew stamp from the old head line: the transcript is listed beside the plain session like any other', liteOld !== null && litePlain !== null, JSON.stringify(enriched.logs.map(l => l.sessionId)))
 
-console.log('§3 the readers of the crew kinds answer the old rows')
-process.argv.push('--agent-teams')
-const contextText = contextRow === undefined ? [] : attachmentText.normalizeAttachmentForAPI(contextRow as never)
-check('the context row composes its context words for the model', contextText.length === 1 && JSON.stringify(contextText[0]).includes(TEAM))
-const contextMessage = messages.find(m => m.type === 'attachment' && (m.attachment as { type: string }).type === 'crew_context')
-check('the context row stays a null-rendering kind on screen', contextMessage !== undefined && nullRendering.isNullRenderingAttachment(contextMessage as never) === true)
-check('the old opt-in flag still enables the crew surfaces', (await import('../../src/utils/agentSwarmsEnabled.ts')).isAgentSwarmsEnabled() === true)
+console.log('§3 the old opt-in words on the command line enable nothing')
+{
+  process.env.MERCURY_CREWMATES = '0'
+  process.argv.push('--agent-teams', '--agent-crews')
+  check('with the crew surfaces off, the old words in argv turn nothing on', (await import('../../src/utils/agentSwarmsEnabled.ts')).isAgentSwarmsEnabled() === false)
+  delete process.env.MERCURY_CREWMATES
+  check('the command table declares neither word', !src('src/main.tsx').includes('--agent-crews') && !src('src/main.tsx').includes('--agent-teams'))
+}
 
-console.log('§4 an agent sidecar written under the old keys still reads as a crewmate record')
+console.log('§4 an agent sidecar written under the old keys reads as written — no crewmate record is read from it')
 {
   const agentId = 'agent-old-sidecar-0001'
   const sidecarPath = paths.getAgentMetadataPath(agentId as never)
@@ -231,13 +227,12 @@ console.log('§4 an agent sidecar written under the old keys still reads as a cr
   const old = { agentType: 'general-purpose', name: AGENT, launchedAt: 1, teammate: { teamName: TEAM, prompt: 'work the docs', transcriptAgentId: 'agent-old-sidecar-0001' } }
   writeFileSync(sidecarPath, JSON.stringify(old))
   const meta = (await paths.readAgentMetadata(agentId as never)) as Record<string, unknown> | null
-  const record = (meta?.crewmate ?? null) as Record<string, unknown> | null
   check('the sidecar reads', meta !== null)
-  check('the old record reads as the crewmate record with crewName', record !== null && record.crewName === TEAM && record.prompt === 'work the docs' && !('teamName' in record), JSON.stringify(meta))
-  check('the rest of the sidecar still reads', typeof meta?.agentType === 'string' && meta?.name === AGENT)
+  check('no crewmate record is read from the old key', meta !== null && !('crewmate' in meta) && JSON.stringify(meta.teammate) === JSON.stringify(old.teammate), JSON.stringify(meta))
+  check('the rest of the sidecar reads', typeof meta?.agentType === 'string' && meta?.name === AGENT)
 }
 
-console.log('§5 a saved roster in the old folder, with the old lead name and member role, reads as the crew')
+console.log('§5 a roster saved in the old folder, under the old lead name, is not a crew Mercury knows')
 {
   const envUtils = await import('../../src/utils/envUtils.ts')
   const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
@@ -254,40 +249,41 @@ console.log('§5 a saved roster in the old folder, with the old lead name and me
     ],
   }, null, 2))
   check('the crews home is the crews folder', envUtils.getCrewsDir() === join(HOME, 'crews'), envUtils.getCrewsDir())
+  check('the home has one crews folder — no other folder is read for rosters', !('getRetiredCrewsDir' in envUtils))
   const read = await helpers.readCrewFileAsync('oldcrew')
-  check('a roster the old build wrote under teams/ still reads', read !== null)
-  check('its lead reads under the current lead name', read?.leadAgentId === `${constants.CREW_LEAD_NAME}@oldcrew` && read?.members[0]?.name === constants.CREW_LEAD_NAME, JSON.stringify(read?.members.map(m => m.name)))
-  check('its member role reads as crewmate', read?.members[1]?.role === 'crewmate', String(read?.members[1]?.role))
-  check('the current lead name is the crew word', constants.CREW_LEAD_NAME === 'crew-lead', constants.CREW_LEAD_NAME)
+  check('a roster under the old folder is not found', read === null, JSON.stringify(read))
+  check('the lead name is the crew word', constants.CREW_LEAD_NAME === 'crew-lead', constants.CREW_LEAD_NAME)
   const convert = await import('../../src/utils/crew/crewConvert.ts')
   const outcome = await convert.convertSavedCrews({ crewDir: join(HOME, 'crew-store') })
-  check('the conversion of saved rosters still finds the old folder', outcome.converted.includes('oldcrew') || outcome.unchanged.includes('oldcrew'), JSON.stringify(outcome))
+  check('the conversion of saved rosters reads the crews folder alone', !outcome.converted.includes('oldcrew') && !outcome.unchanged.includes('oldcrew') && outcome.crewsDir === join(HOME, 'crews'), JSON.stringify(outcome))
+  const spawn = await import('../../src/daemon/crewSpawn.ts')
+  check('the old lead name is an ordinary crewmate name — nothing reserves it', spawn.isValidCrewName('team-lead') === spawn.isValidCrewName('frobnicate') && spawn.isValidCrewName('crew-lead') === false)
 }
 
-console.log('§6 the Agent tool accepts the old field name from an old caller')
+console.log('§6 the Agent tool reads its input as declared — an old field name is an unknown field')
 {
   const agentTool = await import('../../src/tools/AgentTool/AgentTool.tsx')
   const parsed = agentTool.AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name: 'water', team_name: TEAM })
   const data = (parsed.success ? parsed.data : {}) as Record<string, unknown>
-  check('an input carrying team_name parses through the tool', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
-  check('and reads as crew_name', data.crew_name === TEAM && !('team_name' in data), JSON.stringify(data))
+  check('an input carrying team_name parses as an input carrying an unknown field', parsed.success === true, parsed.success ? '' : JSON.stringify(parsed.error.issues.slice(0, 2)))
+  check('and lands no crew_name', !('crew_name' in data) && !('team_name' in data), JSON.stringify(data))
   const jsonSchema = JSON.stringify((await import('../../src/utils/zodToJsonSchema.ts')).zodToJsonSchema(agentTool.AgentTool.inputSchema as never))
   check('the schema the model sees names crew_name and not the old field', jsonSchema.includes('crew_name') && !jsonSchema.includes('team_name'))
   check('the schema keeps its shape for every reader of its words', 'crew_name' in ((agentTool.AgentTool.inputSchema as unknown as { shape: Record<string, unknown> }).shape ?? {}) && 'crew_name' in ((agentTool.inputSchema() as unknown as { shape: Record<string, unknown> }).shape ?? {}))
 }
 
-console.log('§7 a saved keybinding under the old action id still binds')
+console.log('§7 a saved keybinding under the old action id binds nothing Mercury knows')
 {
   const parser = await import('../../src/keybindings/parser.ts')
   const bindings = parser.parseBindings([{ context: 'Global', bindings: { 'ctrl+shift+o': 'app:toggleTeammatePreview' } }] as never)
-  check('the old id reads as the crew id', bindings[0]?.action === 'app:toggleCrewmatePreview', String(bindings[0]?.action))
-  check('the crew id is the registered action', src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
+  check('the old id reads as written — no id is rewritten', bindings[0]?.action === 'app:toggleTeammatePreview', String(bindings[0]?.action))
+  check('the crew id is the registered action and the old id is not', src('src/keybindings/actionGraph.ts').includes("'app:toggleCrewmatePreview'") && !src('src/keybindings/actionGraph.ts').includes("'app:toggleTeammatePreview'"))
   const loader = await import('../../src/keybindings/loadUserBindings.ts')
   writeFileSync(loader.getKeybindingsPath(), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+shift+u': 'app:toggleTeammatePreview' } }] }))
   loader.invalidateKeybindingsCache()
   const loaded = await loader.loadKeybindings()
-  const saved = loaded.bindings.find(b => b.context === 'Global' && b.action === 'app:toggleCrewmatePreview' && JSON.stringify(b.chord).includes('"u"'))
-  check('a saved keybindings file under the old id loads through the product\'s own loader as the crew action, with no warning', saved !== undefined && loaded.warnings.length === 0, JSON.stringify({ warnings: loaded.warnings, actions: loaded.bindings.map(b => b.action).filter(a => /Preview/.test(String(a))) }))
+  const saved = loaded.bindings.filter(b => b.context === 'Global' && JSON.stringify(b.chord).includes('"u"')).map(b => b.action)
+  check('a saved keybindings file under the old id loads through the product\'s own loader with the id as written and never as the crew action', saved.includes('app:toggleTeammatePreview') && !saved.includes('app:toggleCrewmatePreview'), JSON.stringify({ warnings: loaded.warnings, actions: saved }))
 }
 
 console.log('§8 the command line knows one crew spelling')
@@ -297,29 +293,18 @@ console.log('§8 the command line knows one crew spelling')
   check('the launcher reads the command line through no alias table', !main.includes('readRetiredCliFlags'))
 }
 
-console.log('§9 a saved expanded-view value under the old word opens the crew tree')
+console.log('§9 the journal knows the crew kinds alone')
 {
-  const spellings = await import('../../src/migrations/retiredCrewSpellings.ts')
-  check('the old value reads as the crew value', spellings.readRetiredGlobalConfigValue('expandedView', 'teammates') === 'crewmates')
-  check('the store reads the remembered value through the table', src('src/state/AppStateStore.ts').includes("readRetiredGlobalConfigValue('expandedView'"))
-}
-
-console.log('§10 the old journal kinds and keys find their crew handlers')
-{
-  const spellings = await import('../../src/migrations/retiredCrewSpellings.ts')
   const ops = await optional('src/utils/swarm/crewOperations.ts')
   const handlers = ops !== null && typeof ops.crewJournalRecoveryHandlers === 'function' ? (ops.crewJournalRecoveryHandlers as () => Record<string, unknown>)() : {}
-  check('the handler of an old create row is found under the crew kind', spellings.readRetiredJournalKind('team-create') in handlers, Object.keys(handlers).join(','))
-  check('the journal dispatch reads the kind through the table', src('src/substrate/operationJournal.ts').includes('handlers[readRetiredJournalKind(op.kind)]'))
-  check('an old idempotency key still yields its crew name', spellings.readRetiredJournalKey('team-create:party:12') === 'crew-create:party:12')
+  check('the crew kinds have handlers and the old kinds have none', 'crew-create' in handlers && 'crew-delete' in handlers && !('team-create' in handlers) && !('team-delete' in handlers), Object.keys(handlers).join(','))
+  check('the journal dispatch reads the kind as written', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && !src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind'))
 }
 
-console.log('§11 the old command name is not carried: /crewmates has no alias, and the spelling table maps no command')
+console.log('§10 the old command name is not carried: /crewmates has no alias')
 {
   const crewmates = (await import('../../src/commands/crewmates/index.ts')).default as { name: string; aliases?: string[] }
   check('the command is /crewmates and carries no alias (no hidden old spelling)', crewmates.name === 'crewmates' && (crewmates.aliases ?? []).length === 0, JSON.stringify(crewmates))
-  const spellings = await import('../../src/migrations/retiredCrewSpellings.ts')
-  check('the read-side table exports no command-name row', !('RETIRED_COMMAND_NAMES' in spellings) && !('RETIRED_CREWMATES_COMMAND_NAME' in spellings), Object.keys(spellings).filter(k => /COMMAND/.test(k)).join(','))
 }
 
 console.log(failures === 0 ? '\nold transcript kinds: ALL GREEN' : `\nold transcript kinds: ${failures} FAILURE(S)`)

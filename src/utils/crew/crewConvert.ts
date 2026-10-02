@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { crewStoreRoot } from '../../services/crew/identity.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../debug.js'
-import { getCrewsDir, getRetiredCrewsDir } from '../envUtils.js'
+import { getCrewsDir } from '../envUtils.js'
 import { CREW_LEAD_NAME } from '../swarm/constants.js'
 
 export const CREW_RECORD_SCHEMA = 1 as const
@@ -229,8 +229,7 @@ function sameSource(a: Record<string, string>, b: Record<string, string>): boole
 export async function convertSavedCrews(opts?: { crewsDir?: string; crewDir?: string }): Promise<ConvertSavedCrewsOutcome> {
   const crewsDir = opts?.crewsDir ?? getCrewsDir()
   const outcome: ConvertSavedCrewsOutcome = { crewsDir, converted: [], unchanged: [], skipped: [] }
-  const retired = opts?.crewsDir === undefined ? getRetiredCrewsDir() : null
-  const folders = retired === null ? [crewsDir] : [retired, crewsDir]
+  const folders = [crewsDir]
   const read: Array<Omit<CrewRecordV1, 'convertedAt'>> = []
   const seen = new Set<string>()
   for (const folder of folders) {

@@ -87,7 +87,6 @@ import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 import { DESCRIPTION, getPrompt } from './prompt.js'
 import { plainMessageSummary } from './summary.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
-import { isRetiredCrewLeadName } from '../../migrations/retiredCrewSpellings.js'
 
 
 export type MessageRouting = {
@@ -332,7 +331,7 @@ type EndedCrewmateSeat = { taskId: string; name: string; ended: string }
 
 async function endedCrewmateSeat(rawTo: string, crewName: string, context: ToolUseContext): Promise<EndedCrewmateSeat | null> {
   const wanted = rawTo.toLowerCase()
-  if (wanted === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(wanted)) return null
+  if (wanted === CREW_LEAD_NAME.toLowerCase()) return null
   const seats = getAllInProcessCrewmateTasks(context.getAppState().tasks ?? {}).filter(
     task => task.identity.crewName === crewName && task.identity.agentName.toLowerCase() === wanted,
   )
@@ -496,7 +495,7 @@ async function resolveDeliverableRecipient(
         (others.length > 0 ? ` Crewmates you can address: ${others.join(', ')}.` : ''),
     }
   }
-  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) {
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) {
     return { ok: true, name: CREW_LEAD_NAME, crewName }
   }
   const roster = await readRoster(crewName)
@@ -777,7 +776,7 @@ async function routeToLocalAgent(
 async function crewmateWinsName(rawTo: string, registered: string | undefined, context: ToolUseContext): Promise<boolean> {
   const crewName = getCrewName(crewContextOf(context))
   if (!crewName) return false
-  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase() || isRetiredCrewLeadName(rawTo)) return true
+  if (rawTo.toLowerCase() === CREW_LEAD_NAME.toLowerCase()) return true
   const roster = await readRoster(crewName)
   const member = (roster?.members ?? []).find(candidate => candidate.name.toLowerCase() === rawTo.toLowerCase())
   if (member === undefined) return false

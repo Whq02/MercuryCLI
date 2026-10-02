@@ -117,7 +117,6 @@ import { isResultTruncated } from './UI.js'
 import type { AgentToolProgress, ShellProgress } from '../../types/tools.js'
 import { envelopeFor } from '../../services/agentResults/ingest.js'
 import { formatEnvelopeBlock } from '../../services/agentResults/normalize.js'
-import { readRetiredAgentToolInput } from '../../migrations/retiredCrewSpellings.js'
 
 export type Progress = AgentToolProgress | ShellProgress
 
@@ -390,8 +389,7 @@ export const AgentTool = buildTool({
   maxResultSizeChars: RESULT_SIZE_CAP,
   searchHint: 'delegate a task to a subagent that works on its own',
   get inputSchema(): ZodType<AgentToolInput, AgentToolInput> {
-    const schema = inputSchema()
-    return Object.assign(z.preprocess(readRetiredAgentToolInput, schema), { shape: schema.shape }) as unknown as ZodType<AgentToolInput, AgentToolInput>
+    return inputSchema() as unknown as ZodType<AgentToolInput, AgentToolInput>
   },
   get outputSchema(): ZodType {
     return outputSchema() as unknown as ZodType

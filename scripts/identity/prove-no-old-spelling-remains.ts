@@ -22,7 +22,6 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 ]
 
 const ALIAS_TABLES: Array<[string, string]> = [
-  ['src/migrations/retiredCrewSpellings.ts', 'the read-side alias tables: transcript rows, the Agent tool field, the sidecar, the roster, the journal, the folder, the shortcut id, the CLI flags, the command alias'],
   ['src/substrate/flagRegistry.ts', 'the former env spellings on their flag rows (the `formerly:` field only)'],
 ]
 

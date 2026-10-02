@@ -8,7 +8,6 @@ import { recordRefusedDurableFile } from './storeRecovery.js'
 import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { durableAtomicPublish, faultPoint } from './durablePublish.js'
-import { readRetiredJournalKind } from '../migrations/retiredCrewSpellings.js'
 
 export type DurableOperationState =
   | 'prepared'
@@ -413,7 +412,7 @@ export async function recoverJournalDir(
       summary.waiting.push(op.operationId)
       continue
     }
-    const handler = handlers[readRetiredJournalKind(op.kind)]
+    const handler = handlers[op.kind]
     if (!handler) {
       summary.waiting.push(op.operationId)
       continue

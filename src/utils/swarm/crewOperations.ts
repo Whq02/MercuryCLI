@@ -7,14 +7,13 @@ import {
 import { getCrewsDir } from '../envUtils.js'
 import { logForDebugging } from '../debug.js'
 import { getCrewDir, getCrewFilePath, readCrewFileAsync } from './crewHelpers.js'
-import { readRetiredJournalKey } from '../../migrations/retiredCrewSpellings.js'
 
 export function crewJournalDir(): string {
   return join(getCrewsDir(), '.journal')
 }
 
 function crewNameOf(idempotencyKey: string, kind: 'crew-create' | 'crew-delete'): string {
-  return readRetiredJournalKey(idempotencyKey).replace(new RegExp(`^${kind}:`), '').replace(/:\d+$/, '')
+  return idempotencyKey.replace(new RegExp(`^${kind}:`), '').replace(/:\d+$/, '')
 }
 
 function leaveCrewInPlace(name: string, why: string): void {

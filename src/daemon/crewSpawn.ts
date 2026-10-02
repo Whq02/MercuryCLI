@@ -13,7 +13,6 @@ import { isolationAwarenessNote } from './isolationNote.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
-import { RETIRED_CREW_LEAD_NAME } from '../migrations/retiredCrewSpellings.js'
 
 function seatOwner(): typeof import('../services/concourse/workerModels.js') {
   return require('../services/concourse/workerModels.js') as typeof import('../services/concourse/workerModels.js')
@@ -83,7 +82,7 @@ export async function resolveCrewSeatModel(
 }
 
 const CREW_NAME_RE = /^[a-z][a-z0-9-]{1,15}$/
-const RESERVED_NAMES = new Set(['crew-lead', RETIRED_CREW_LEAD_NAME, 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
+const RESERVED_NAMES = new Set(['crew-lead', 'implementer', 'scribe', 'tank', 'healer', 'dps1', 'dps2', 'dps3', 'crew', 'daemon'])
 export function isValidCrewName(name: string): boolean {
   return CREW_NAME_RE.test(name) && !RESERVED_NAMES.has(name)
 }
