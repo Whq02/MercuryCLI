@@ -223,6 +223,60 @@ section('§5 /memory lists the pinned rules — size, the asked mark, u unpins o
   maybeConsolidate({ force: true, dir })
 }
 
+section('§5b /memory lists the topics — one row per index line, as the model reads it; ↵ opens the page')
+{
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.js')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
+  const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
+  const { readFrontPage } = await import('../../src/memdir/mnemeFrontPage.js')
+  const page = readFrontPage(dir) ?? ''
+  const indexText = page.slice(page.indexOf('## Index'), page.indexOf('## Pinned'))
+  const index = indexText.split('\n').filter(l => l.startsWith('- '))
+  check('the front page has at least one topic on its index', index.length >= 1, String(index.length))
+  const element = React.createElement(
+    AppStateProvider as never,
+    {},
+    React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(MemoryCentreView as never, { onClose: () => {} }))),
+  )
+  const m: Mounted = await mountOffscreen(element, 120, 40)
+  await waitFor(() => m.lines().some(l => l.includes('topics:')), 6000)
+  await settle(150)
+  let topicsRow = m.lines().find(l => l.includes('topics:')) ?? ''
+  console.log(`  row: ${topicsRow.trim()}`)
+  check('the overview offers the topic list', new RegExp(`topics: ${index.length} pages? in the index the model reads — ↵ list them`).test(topicsRow), topicsRow.trim())
+  for (let step = 0; step < 8; step++) {
+    if ((m.lines().find(l => l.includes('topics:')) ?? '').includes('▸')) break
+    m.push(KEY.down)
+    await settle(40)
+  }
+  topicsRow = m.lines().find(l => l.includes('topics:')) ?? ''
+  check('the topics row is selectable', topicsRow.includes('▸'), topicsRow.trim())
+  m.push(KEY.enter)
+  const listed = await waitFor(() => m.lines().some(l => l.includes('Topics')) && m.lines().some(l => /on the index, as the model reads (it|them) · ↵ opens the page/.test(l)), 6000)
+  check('↵ lists the topics', listed)
+  await settle(150)
+  const indexRows = index.map(line => line.slice(2))
+  check('every index line is a row, in the words the model reads', indexRows.every(words => m.lines().some(l => l.includes(words.slice(0, 60)))), indexRows.join(' | '))
+  check('the footer says ↵ opens the page', m.lines().some(l => l.includes('↵ open the page')))
+  save('memory-topics-120x40.txt', m.lines())
+  m.push(KEY.down)
+  await settle(60)
+  m.push(KEY.enter)
+  const opened = await waitFor(() => m.lines().some(l => l.includes('why recalled:')), 6000)
+  check('↵ on a topic opens its page', opened)
+  await settle(100)
+  check("the detail names the page's facts and shows the page's lines", m.lines().some(l => /\d+ facts? on \d+ pages?/.test(l)) && m.lines().some(l => l.includes('mneme-topic:')) && m.lines().some(l => /│\s+- About \w+:/.test(l)), m.lines().filter(l => l.includes('why recalled')).join(' | '))
+  save('memory-topic-page-120x40.txt', m.lines())
+  m.push(KEY.esc)
+  await settle(100)
+  m.push(KEY.esc)
+  await waitFor(() => m.lines().some(l => l.includes('topics:')), 4000)
+  check('esc, esc returns to the overview', (m.lines().find(l => l.includes('topics:')) ?? '').includes('list them'))
+  m.unmount()
+}
+
 section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new')
 {
   const { pinnedStatusPath } = await import('../../src/memdir/mnemeFrontPage.js')

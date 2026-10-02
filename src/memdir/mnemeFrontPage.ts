@@ -50,6 +50,25 @@ export function pinnedLine(entry: MnemeEntry, pin: PinRecord): string {
   return `- ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
 }
 
+export interface IndexLine {
+  key: string
+  slugs: string[]
+  facts: number
+  line: string
+}
+
+export function indexLines(topics: readonly MnemeTopicDoc[]): IndexLine[] {
+  const out: IndexLine[] = []
+  for (const [key, docs] of indexTopics(topics)) {
+    const facts = docs.reduce((n, d) => n + liveCount(d), 0)
+    const summary = docs[0]!.summary.replace(/ \(split\)$/, '').trim()
+    const pages = docs.length > 1 ? `, ${docs.length} pages: ${docs.map(d => d.slug).join(', ')}` : ''
+    const bare = summary === '' || summary.toLowerCase() === key || summary.toLowerCase().replace(/[^a-z0-9]+/g, '-') === key
+    out.push({ key, slugs: docs.map(d => d.slug), facts, line: clipLine(`- ${key}${bare ? '' : ` — ${summary}`} (${facts} fact${facts === 1 ? '' : 's'}${pages})`, INDEX_LINE_CAP) })
+  }
+  return out
+}
+
 export function renderFrontPage(input: {
   dir: string
   topics: readonly MnemeTopicDoc[]
@@ -67,18 +86,14 @@ export function renderFrontPage(input: {
     '',
     '## Index',
   ]
-  const groups = indexTopics(topics)
+  const index = indexLines(topics)
   let factCount = 0
-  if (groups.size === 0) {
+  if (index.length === 0) {
     lines.push(EMPTY_INDEX_LINE)
   } else {
-    for (const [key, docs] of groups) {
-      const facts = docs.reduce((n, d) => n + liveCount(d), 0)
-      factCount += facts
-      const summary = docs[0]!.summary.replace(/ \(split\)$/, '').trim()
-      const pages = docs.length > 1 ? `, ${docs.length} pages: ${docs.map(d => d.slug).join(', ')}` : ''
-      const bare = summary === '' || summary.toLowerCase() === key || summary.toLowerCase().replace(/[^a-z0-9]+/g, '-') === key
-      lines.push(clipLine(`- ${key}${bare ? '' : ` — ${summary}`} (${facts} fact${facts === 1 ? '' : 's'}${pages})`, INDEX_LINE_CAP))
+    for (const row of index) {
+      factCount += row.facts
+      lines.push(row.line)
     }
   }
   const archivedFacts = archives.reduce((n, d) => n + liveCount(d), 0)
