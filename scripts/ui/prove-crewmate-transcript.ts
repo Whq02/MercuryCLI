@@ -141,7 +141,7 @@ function crewmateRows(agentId: string): Record<string, unknown>[] {
 function seedCrewmateFile(file: string, agentId: string): void {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, encodeSeedTranscript(crewmateRows(agentId) as never, SESSION_ID))
-  writeFileSync(file.replace(/\.jsonl$/, '.meta.json'), JSON.stringify({ agentType: 'mercury-general', model: MODEL, effort: 'max', instructionProfile: 'auto' }))
+  writeFileSync(file.replace(/\.jsonl$/, '.meta.json'), JSON.stringify({ agentType: 'mercury-crew', model: MODEL, effort: 'max', instructionProfile: 'auto' }))
 }
 seedCrewmateFile(HOSTED_FILE, HOSTED_WRITER_ID)
 seedCrewmateFile(LOCAL_FILE, LOCAL_WRITER_ID)

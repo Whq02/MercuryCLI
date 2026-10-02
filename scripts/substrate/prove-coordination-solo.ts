@@ -69,7 +69,7 @@ const worktree = mkdtempSync(join(tmpdir(), 'mercury-coordination-solo-worktree-
 mkdirSync(join(worktree, 'src'), { recursive: true })
 
 const asSubagent = <T>(fn: () => Promise<T>): Promise<T> =>
-  runWithAgentContext({ agentType: 'subagent', agentId: SUB, subagentName: 'general-purpose' }, fn)
+  runWithAgentContext({ agentType: 'subagent', agentId: SUB, subagentName: 'mercury-crew' }, fn)
 async function inWorktree<T>(fn: () => Promise<T>): Promise<T> {
   const saved = process.cwd()
   process.chdir(worktree)

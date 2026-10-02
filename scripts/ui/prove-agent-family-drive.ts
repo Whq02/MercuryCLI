@@ -43,7 +43,7 @@ try {
         const result = items.some((item: { type?: string; content?: Array<{ type?: string }> }) => item.type === 'function_call_output' || (Array.isArray(item.content) && item.content.some(block => block.type === 'tool_result')))
         const tool = !child && !result
         wire.push({ model: body.model, child, tool, url })
-        const input = { description: 'inheritance fixture', prompt: childAsk, model: word, subagent_type: 'mercury-general' }
+        const input = { description: 'inheritance fixture', prompt: childAsk, model: word, subagent_type: 'mercury-crew' }
         res.writeHead(200, { 'content-type': 'text/event-stream' })
         if (url.includes('/responses')) {
           res.write(sse({ type: 'response.created', response: { id: 'resp_fixture' } }))

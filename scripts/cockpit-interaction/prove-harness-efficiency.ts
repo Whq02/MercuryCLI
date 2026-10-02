@@ -57,18 +57,21 @@ t.section('row 2 — the request pool is measured, and dead bytes are gone')
 
 t.section('row 3 — verification depth follows spec completeness')
 {
-  const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.ts')
-  const w = VERIFICATION_AGENT.whenToUse ?? ''
-  t.check('the dispatch seam names the modulator', w.includes('When the task already supplies complete runnable acceptance checks'))
+  const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
+  const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
+  initBundledSkills()
+  const verifier = getBundledSkills().find(s => s.name === 'verifier')
+  const w = String(verifier?.description ?? '')
+  t.check('the dispatch seam names the modulator', w.includes('when the task supplies runnable acceptance checks'))
   t.check(
     'a total spec runs its own checks instead of re-buying them',
-    w.includes('run those directly instead of dispatching this agent') && w.includes('the spec is already the red team'),
+    w.includes('run those instead'),
   )
   t.check(
     'the dispatch conditions are the judgment-left-to-you cases',
-    w.includes('when correctness has been left to you') &&
-      w.includes('vague or partly specified requirements') &&
-      w.includes('arrived without its own checks'),
+    w.includes('when correctness was left to you') &&
+      w.includes('vague requirements') &&
+      w.includes('without its own checks'),
   )
   const doctrine = readFileSync('src/constants/subagentDoctrine.ts', 'utf8')
   t.check(

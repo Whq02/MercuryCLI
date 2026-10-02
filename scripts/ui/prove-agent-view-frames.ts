@@ -128,7 +128,7 @@ const rosterRows = LANES.map(([lane, context, brief], index) => ({
   startTime: NOW - 354_000 - index * 1000,
   description: `Lane ${lane} — ${brief}`,
   model: 'claude-fable-5-1',
-  agentType: 'mercury-general',
+  agentType: 'mercury-crew',
   inputTokens: context,
   outputTokens: 2_400,
   totalTokens: context + 2_400,

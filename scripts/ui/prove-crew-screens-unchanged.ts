@@ -167,7 +167,7 @@ function answer(model: string, blocks: Block[], usage: { input: number; output: 
   parts.push(sse('message_delta', { type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { input_tokens: usage.input, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: usage.output } }), sse('message_stop', { type: 'message_stop' }))
   return parts.join('')
 }
-const launch = (name: string): Block => ({ type: 'tool_use', name: 'Agent', input: { description: name, prompt: `${MATE_TAG} ${name}: take your part of the screens drive`, subagent_type: 'mercury-general', run_in_background: true } })
+const launch = (name: string): Block => ({ type: 'tool_use', name: 'Agent', input: { description: name, prompt: `${MATE_TAG} ${name}: take your part of the screens drive`, subagent_type: 'mercury-crew', run_in_background: true } })
 function blocksFor(body: unknown): { route: string; blocks: Block[]; usage: { input: number; output: number } } {
   const opening = openingOf(body)
   const step = stepOf(body)
