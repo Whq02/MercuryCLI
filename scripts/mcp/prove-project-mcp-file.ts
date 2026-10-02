@@ -105,7 +105,7 @@ console.log('\n§4 the approval cards and the CLI label name the project file')
     check(`${rel} names .mercury/mcp.json and not the other file`, text.includes('.mercury/mcp.json') && !text.includes(otherName))
   }
   const approval = readFileSync(join(ROOT, 'src/services/mcpServerApproval.tsx'), 'utf8')
-  check('the boot-time approval gate carries no name for the other file', !approval.includes(otherName) && !/Mcpjson/.test(approval))
+  check('the boot-time approval gate carries no name for the other file', !approval.includes(otherName) && !approval.includes(['Mcp', 'json'].join('')))
 }
 
 rmSync(CONFIG_DIR, { recursive: true, force: true })

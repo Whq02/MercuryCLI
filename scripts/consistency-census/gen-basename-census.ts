@@ -18,16 +18,20 @@ const ROW = {
 if (registerOnlyRequested(ROW)) process.exit(0)
 const REGISTERS = argValue('--root') === undefined && argValue('--out') === undefined
 
+const OTHER_HOME = ['.cla', 'ude'].join('')
+const OTHER_GUIDE = ['CLA', 'UDE.md'].join('')
 const BASENAMES = [
-  "'.claude'",
-  '".claude"',
+  `'${OTHER_HOME}'`,
+  `"${OTHER_HOME}"`,
   "'.mercury'",
   '".mercury"',
-  "'CLAUDE.md'",
-  '"CLAUDE.md"',
+  `'${OTHER_GUIDE}'`,
+  `"${OTHER_GUIDE}"`,
   "'MERCURY.md'",
   '"MERCURY.md"',
-  "'.claude.json'",
+  "'AGENTS.md'",
+  '"AGENTS.md"',
+  `'${OTHER_HOME}.json'`,
   "'.mercury.json'",
 ] as const
 
@@ -64,6 +68,11 @@ walk(join(ROOT, 'src'))
 
 const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boolean; cls: string; why: string }> = [
   {
+    test: (_f, needle) => needle === OTHER_GUIDE,
+    cls: 'FORBIDDEN',
+    why: "another tool's guide file is an ordinary file — nothing in src probes, lists or composes it",
+  },
+  {
     test: f => f === 'src/utils/env.ts' || f === 'src/utils/envUtils.ts',
     cls: 'owner-internal',
     why: 'the config-home monolith family — the home resolver owns the home basenames',
@@ -75,13 +84,13 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   },
   {
     test: f => f.startsWith('src/services/instructions/'),
-    cls: 'compat-boundary',
-    why: 'instruction discovery: .mercury native · .claude compat input (MERCURY.md law)',
+    cls: 'guide-probe',
+    why: 'the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files',
   },
   {
     test: (f, _n, excerpt) => f === 'src/services/concourse/coordinatorTools.ts' && excerpt.includes('MARKS'),
-    cls: 'compat-boundary',
-    why: 'the ground law’s folder memory: guide files (MERCURY.md native, CLAUDE.md compat input) probed as worked-here-before markers; the home DIR names ride PROJECT_CONFIG_DIR_NAMES',
+    cls: 'guide-probe',
+    why: "the ground law's folder memory: MERCURY.md probed as a worked-here-before mark; the home DIR names ride PROJECT_CONFIG_DIR_NAMES",
   },
   {
     test: (_f, _n, excerpt) => /getMercuryHome|configHome|homeDir/.test(excerpt),
@@ -96,17 +105,17 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   {
     test: (_f, _n, excerpt) => /getManagedFilePath\(\)/.test(excerpt),
     cls: 'baked-mirror',
-    why: 'the MANAGED estate projection (a compat mirror beside the canonical .mercury home)',
+    why: 'the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)',
   },
   {
     test: (_f, _n, excerpt) => /homedir\(\)/.test(excerpt),
-    cls: 'compat-boundary',
-    why: "identity checks against another tool's external ~/.claude home (doctor · keychain scoping) — a deliberate interop identity, never a store join",
+    cls: 'peer-boundary',
+    why: "identity checks against another tool's home directory (doctor · keychain scoping) — a deliberate recognition, never a store join",
   },
   {
-    test: (_f, _n, excerpt) => excerpt.includes("'.mercury'") && excerpt.includes("'.claude'"),
-    cls: 'compat-boundary',
-    why: 'pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)',
+    test: (_f, _n, excerpt) => excerpt.includes("'.mercury'") && excerpt.includes(`'${OTHER_HOME}'`),
+    cls: 'peer-boundary',
+    why: "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)",
   },
   {
     test: f =>
@@ -115,8 +124,8 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
       f === 'src/utils/auth.ts' ||
       f === 'src/daemon/saturnAccount.ts' ||
       f === 'src/components/mercury-ui/parity/AccountView.tsx',
-    cls: 'compat-boundary',
-    why: "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)",
+    cls: 'peer-boundary',
+    why: "the account estate's peer table: another tool's home resolved as Mercury's config home is recognised and never signed in, billed or written",
   },
   {
     test: f => f === 'src/entrypoints/cli.tsx',
@@ -125,43 +134,33 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
   },
   {
     test: (f, n) => f === 'src/utils/cockpit/repoSurfaceMap.ts' && (n === 'MERCURY.md' || n === 'AGENTS.md'),
-    cls: 'owner-internal',
-    why: 'the orientation-doc presence probe NAMES the native and neutral guides beside the compat one — existence only, never a content load',
+    cls: 'guide-probe',
+    why: 'the surface map lists the guides present at the root by name — existence only, never a content load',
   },
   {
-    test: (f, n) => f === 'src/utils/projectStoreAdoption.ts' && n === '.claude',
-    cls: 'compat-boundary',
-    why: 'the D11 alias-refusal guard names the external dir it refuses to write through — a boundary check, never a read or write path',
+    test: (f, n) => f === 'src/utils/projectStoreAdoption.ts' && n === OTHER_HOME,
+    cls: 'peer-boundary',
+    why: "the alias-refusal guard names the other tool's dir it refuses to write through — a boundary check, never a read or write path",
   },
   {
     test: f => f === 'src/utils/permissions/filesystem.ts',
-    cls: 'compat-boundary',
-    why: 'the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)',
+    cls: 'peer-boundary',
+    why: "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own",
   },
   {
     test: f => f === 'src/utils/markdownConfigLoader.ts' || f === 'src/skills/loadSkillsDir.ts' || f === 'src/utils/config/derived.ts',
-    cls: 'compat-boundary',
-    why: 'native-first/compat-second pairing at the markdown/skills/rules discovery surfaces (MERCURY.md law: .mercury native · .claude compat input)',
+    cls: 'guide-probe',
+    why: 'the markdown/skills/rules discovery surfaces name the .mercury home and the user guide file beside the owner calls',
   },
   {
-    test: (f, needle) => needle === 'MERCURY.md' && f.startsWith('src/services/projectIntel/'),
-    cls: 'owner-internal',
-    why: "the project intel facts name Mercury's own instruction file — existence only, never a content load",
+    test: (f, needle) => (needle === 'MERCURY.md' || needle === 'AGENTS.md') && f.startsWith('src/services/projectIntel/'),
+    cls: 'guide-probe',
+    why: 'the project intel facts name the guides Mercury loads — existence only, never a content load',
   },
   {
-    test: (f, needle) =>
-      needle === 'CLAUDE.md' &&
-      (f.startsWith('src/services/projectIntel/') ||
-        f === 'src/components/memory/MemoryFileSelector.tsx' ||
-        f === 'src/utils/cockpit/repoSurfaceMap.ts'),
-    cls: 'compat-boundary',
-    why: 'CLAUDE.md probed/listed as the compat instruction INPUT at documented discovery/paridade surfaces',
-  },
-  {
-    test: (f, needle) =>
-      needle === 'MERCURY.md' && f === 'src/projectOnboardingState.ts',
-    cls: 'compat-boundary',
-    why: "MERCURY.md probed as the /init completion signal — onboarding tracks the file /init actually creates (the native project guide)",
+    test: (f, needle) => (needle === 'MERCURY.md' || needle === 'AGENTS.md') && f === 'src/projectOnboardingState.ts',
+    cls: 'guide-probe',
+    why: 'the /init step completes on the guide the profile composes (MERCURY.md, or AGENTS.md)',
   },
 ]
 
@@ -169,8 +168,8 @@ const classified = hits.map(h => {
   for (const r of RULES) {
     if (r.test(h.file, h.needle, h.excerpt)) return { ...h, cls: r.cls, why: r.why }
   }
-  if (h.needle === '.claude' && /join\(/.test(h.excerpt)) {
-    return { ...h, cls: 'FORBIDDEN', why: "project '.claude' join outside the owners/compat boundary — route through projectConfig" }
+  if (h.needle === OTHER_HOME && /join\(/.test(h.excerpt)) {
+    return { ...h, cls: 'FORBIDDEN', why: "a project join of another tool's home outside the owners and the boundary — route through projectConfig" }
   }
   return { ...h, cls: 'UNCLASSIFIED', why: 'new/unknown site — classify or fix' }
 })

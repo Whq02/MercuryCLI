@@ -5,12 +5,14 @@
     ".mercury",
     "CLAUDE.md",
     "MERCURY.md",
+    "AGENTS.md",
     ".claude.json",
     ".mercury.json"
   ],
   "counts": {
-    "owner-internal": 6,
-    "compat-boundary": 22,
+    "owner-internal": 4,
+    "guide-probe": 15,
+    "peer-boundary": 13,
     "baked-mirror": 3
   },
   "sites": [
@@ -25,99 +27,127 @@
       "file": "src/projectOnboardingState.ts",
       "needle": "MERCURY.md",
       "excerpt": "name => name === 'MERCURY.md' || name === SHARED_INSTRUCTION_FILE,",
-      "cls": "compat-boundary",
-      "why": "MERCURY.md probed as the /init completion signal — onboarding tracks the file /init actually creates (the native project guide)"
+      "cls": "guide-probe",
+      "why": "the /init step completes on the guide the profile composes (MERCURY.md, or AGENTS.md)"
     },
     {
       "file": "src/services/concourse/coordinatorTools.ts",
       "needle": "MERCURY.md",
       "excerpt": "const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]",
-      "cls": "compat-boundary",
-      "why": "the ground law’s folder memory: guide files (MERCURY.md native, CLAUDE.md compat input) probed as worked-here-before markers; the home DIR names ride PROJECT_CONFIG_DIR_NAMES"
+      "cls": "guide-probe",
+      "why": "the ground law's folder memory: MERCURY.md probed as a worked-here-before mark; the home DIR names ride PROJECT_CONFIG_DIR_NAMES"
+    },
+    {
+      "file": "src/services/instructions/adapters/agentsMd.ts",
+      "needle": "AGENTS.md",
+      "excerpt": "export const SHARED_INSTRUCTION_FILE = 'AGENTS.md'",
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
       "needle": "MERCURY.md",
       "excerpt": "join(dir, 'MERCURY.md'),",
-      "cls": "compat-boundary",
-      "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
       "needle": "MERCURY.md",
       "excerpt": "...projectConfigDirs(dir).map(home => join(home, 'MERCURY.md')),",
-      "cls": "compat-boundary",
-      "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/instructions/adapters/mercuryNative.ts",
       "needle": "MERCURY.md",
       "excerpt": "instructionFileNames: ['MERCURY.md', 'MERCURY.local.md'],",
-      "cls": "compat-boundary",
-      "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/instructions/effectiveSize.ts",
       "needle": "MERCURY.md",
       "excerpt": "const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE])",
-      "cls": "compat-boundary",
-      "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/instructions/projectInstructionWriter.ts",
       "needle": "MERCURY.md",
       "excerpt": "return { path: join(root, 'MERCURY.md'), exists: false }",
-      "cls": "compat-boundary",
-      "why": "instruction discovery: .mercury native · .claude compat input (MERCURY.md law)"
+      "cls": "guide-probe",
+      "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
     {
       "file": "src/services/projectIntel/capsule.ts",
       "needle": "MERCURY.md",
       "excerpt": "if (snapshot.instructions.mercuryMd) add('MERCURY.md', 'instruction', 5, `repository instructions`)",
-      "cls": "owner-internal",
-      "why": "the project intel facts name Mercury's own instruction file — existence only, never a content load"
+      "cls": "guide-probe",
+      "why": "the project intel facts name the guides Mercury loads — existence only, never a content load"
+    },
+    {
+      "file": "src/services/projectIntel/capsule.ts",
+      "needle": "AGENTS.md",
+      "excerpt": "if (snapshot.instructions.agentsMd) add('AGENTS.md', 'instruction', 5, `repository agent instructions`)",
+      "cls": "guide-probe",
+      "why": "the project intel facts name the guides Mercury loads — existence only, never a content load"
     },
     {
       "file": "src/services/projectIntel/impact.ts",
       "needle": ".claude",
       "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     },
     {
       "file": "src/services/projectIntel/impact.ts",
       "needle": ".mercury",
       "excerpt": "'__pycache__', '.cache', 'coverage', '.claude', '.mercury',",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     },
     {
       "file": "src/services/projectIntel/snapshot.ts",
       "needle": "MERCURY.md",
       "excerpt": "mercuryMd: exists(join(workspace, 'MERCURY.md')),",
-      "cls": "owner-internal",
-      "why": "the project intel facts name Mercury's own instruction file — existence only, never a content load"
+      "cls": "guide-probe",
+      "why": "the project intel facts name the guides Mercury loads — existence only, never a content load"
+    },
+    {
+      "file": "src/services/projectIntel/snapshot.ts",
+      "needle": "AGENTS.md",
+      "excerpt": "agentsMd: exists(join(workspace, 'AGENTS.md')),",
+      "cls": "guide-probe",
+      "why": "the project intel facts name the guides Mercury loads — existence only, never a content load"
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', dir)",
       "cls": "baked-mirror",
-      "why": "the MANAGED estate projection (a compat mirror beside the canonical .mercury home)"
+      "why": "the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)"
     },
     {
       "file": "src/skills/loadSkillsDir.ts",
       "needle": ".mercury",
       "excerpt": "return join(process.cwd(), '.mercury', dir)",
-      "cls": "compat-boundary",
-      "why": "native-first/compat-second pairing at the markdown/skills/rules discovery surfaces (MERCURY.md law: .mercury native · .claude compat input)"
+      "cls": "guide-probe",
+      "why": "the markdown/skills/rules discovery surfaces name the .mercury home and the user guide file beside the owner calls"
     },
     {
       "file": "src/utils/accounts/scopeScan.ts",
       "needle": ".claude",
       "excerpt": "const FOREIGN_HARNESS_HOMES = new Set(['.claude', '.codex', '.gemini', '.copilot', '.cursor', '.kiro', '.cline', '.continue', '.qwen', '.pi'",
-      "cls": "compat-boundary",
-      "why": "the account estate reads a scope's identity from the scope's own config file and adopts an identity snapshot left in an external .claude.json file once (Saturn's account facts read the same scope identity)"
+      "cls": "peer-boundary",
+      "why": "the account estate's peer table: another tool's home resolved as Mercury's config home is recognised and never signed in, billed or written"
+    },
+    {
+      "file": "src/utils/cockpit/repoSurfaceMap.ts",
+      "needle": "AGENTS.md",
+      "excerpt": "const DOC_FILES = ['README.md', 'README.rst', 'README.txt', 'README', 'CONTRIBUTING.md', 'ARCHITECTURE.md', 'AGENTS.md']",
+      "cls": "guide-probe",
+      "why": "the surface map lists the guides present at the root by name — existence only, never a content load"
     },
     {
       "file": "src/utils/config/derived.ts",
@@ -130,22 +160,22 @@
       "file": "src/utils/config/derived.ts",
       "needle": "MERCURY.md",
       "excerpt": "return join(cwd, 'MERCURY.md')",
-      "cls": "compat-boundary",
-      "why": "native-first/compat-second pairing at the markdown/skills/rules discovery surfaces (MERCURY.md law: .mercury native · .claude compat input)"
+      "cls": "guide-probe",
+      "why": "the markdown/skills/rules discovery surfaces name the .mercury home and the user guide file beside the owner calls"
     },
     {
       "file": "src/utils/config/derived.ts",
       "needle": "MERCURY.md",
       "excerpt": "return join(getManagedFilePath(), 'MERCURY.md')",
       "cls": "baked-mirror",
-      "why": "the MANAGED estate projection (a compat mirror beside the canonical .mercury home)"
+      "why": "the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)"
     },
     {
       "file": "src/utils/config/derived.ts",
       "needle": ".mercury",
       "excerpt": "return join(getManagedFilePath(), '.mercury', 'rules')",
       "cls": "baked-mirror",
-      "why": "the MANAGED estate projection (a compat mirror beside the canonical .mercury home)"
+      "why": "the MANAGED estate projection (the managed root mirrors the canonical .mercury layout)"
     },
     {
       "file": "src/utils/envUtils.ts",
@@ -158,36 +188,36 @@
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".claude.json",
       "excerpt": "'.claude.json',",
-      "cls": "compat-boundary",
-      "why": "the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)"
+      "cls": "peer-boundary",
+      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury.json",
       "excerpt": "'.mercury.json',",
-      "cls": "compat-boundary",
-      "why": "the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)"
+      "cls": "peer-boundary",
+      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".claude",
       "excerpt": "'.claude',",
-      "cls": "compat-boundary",
-      "why": "the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)"
+      "cls": "peer-boundary",
+      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury",
       "excerpt": "'.mercury',",
-      "cls": "compat-boundary",
-      "why": "the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)"
+      "cls": "peer-boundary",
+      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
     },
     {
       "file": "src/utils/permissions/filesystem.ts",
       "needle": ".mercury",
       "excerpt": "{ dir: joinWithSep(joinWithSep(cwd, '.mercury'), 'skills'), prefix: '/.mercury/skills/' },",
-      "cls": "compat-boundary",
-      "why": "the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)"
+      "cls": "peer-boundary",
+      "why": "the permission estate names other tools' executable config as protected paths (edits ask first) beside Mercury's own"
     },
     {
       "file": "src/utils/projectConfig.ts",
@@ -200,36 +230,36 @@
       "file": "src/utils/projectStoreAdoption.ts",
       "needle": ".claude",
       "excerpt": "const source = join(root, '.claude')",
-      "cls": "compat-boundary",
-      "why": "the D11 alias-refusal guard names the external dir it refuses to write through — a boundary check, never a read or write path"
+      "cls": "peer-boundary",
+      "why": "the alias-refusal guard names the other tool's dir it refuses to write through — a boundary check, never a read or write path"
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
       "needle": ".claude",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     },
     {
       "file": "src/utils/sandbox/sandbox-adapter.ts",
       "needle": ".mercury",
       "excerpt": "const CONFIG_HOMES = ['.mercury', '.claude']",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     },
     {
       "file": "src/utils/verification/verificationState.ts",
       "needle": ".claude",
       "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     },
     {
       "file": "src/utils/verification/verificationState.ts",
       "needle": ".mercury",
       "excerpt": "const HARNESS_DIRS = ['.claude', '.mercury'] as const",
-      "cls": "compat-boundary",
-      "why": "pair-symmetric family handling — native + compat spellings named TOGETHER deliberately (walk-skips, sandbox profiles, worktree resets, scope scans)"
+      "cls": "peer-boundary",
+      "why": "Mercury's home and another tool's named TOGETHER as protections (walk-skips, sandbox deny-writes, the tree digest's exclusions)"
     }
   ]
 }
