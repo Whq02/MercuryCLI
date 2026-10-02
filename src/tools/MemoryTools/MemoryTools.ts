@@ -125,7 +125,7 @@ export const RetainTool = buildTool({
     if (output.shelf) {
       lines.push(
         output.shelf.landed
-          ? '- the pinned rule is on the shelf now and loads into every session from the next request'
+          ? '- the pinned rule is on the shelf now and loads into every session from the next chat on'
           : `- the pinned rule lands on the shelf at the next maintenance pass (${output.shelf.reason})`,
       )
     }
