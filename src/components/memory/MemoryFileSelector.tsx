@@ -55,11 +55,11 @@ export function MemoryFileSelector({
   const [autoMemoryOn, setAutoMemoryOn] = useState(() => isAutoMemoryEnabled())
 
   const toggles: Array<{
-    id: 'auto-memory'
+    id: 'memory'
     flip: () => void
   }> = [
     {
-      id: 'auto-memory',
+      id: 'memory',
       flip: () => {
         updateSettingsForSource('userSettings', { memory: { enabled: !autoMemoryOn } })
         setAutoMemoryOn(value => !value)
@@ -158,7 +158,7 @@ export function MemoryFileSelector({
     if (autoMemoryOn) {
       result.push({
         label: 'Open the memory folder',
-        value: '::open:automem',
+        value: '::open:memory',
         description: 'opens the folder in your file manager',
       })
     }

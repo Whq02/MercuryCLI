@@ -94,7 +94,7 @@
           "type": "boolean"
         },
         "directory": {
-          "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
+          "description": "Where memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
           "type": "string"
         },
         "pinnedLimit": {
