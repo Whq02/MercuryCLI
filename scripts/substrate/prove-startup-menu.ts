@@ -22,7 +22,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'startup-menu-'))
 process.chdir(scratch)
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_CAP_FAILOVER', 'MERCURY_MNEME']) {
+for (const k of ['MERCURY_ENTER_MENU', 'MERCURY_CAP_FAILOVER', 'MERCURY_GODOT']) {
   delete process.env[k]
 }
 
@@ -44,11 +44,8 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
       return c.length >= 2 && c[0]!.value === null && c.slice(1).every(x => typeof x.value === 'string')
     }))
   check('toggle rows carry exactly one non-default value', STARTUP_MENU.filter(r => r.kind === 'toggle').every(r => r.options.length === 1))
-  check('the memory knob is present', STARTUP_MENU.some(r => r.env === 'MERCURY_MNEME'))
   check('the trust combo is the wards, the debugger, the C/C++ lane and Sovereign mode — no other row stands between a tool call and its run',
     STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(',') === 'MERCURY_WARDS,MERCURY_DAP,MERCURY_LSP_CPP,MERCURY_SKIP_PERMISSIONS', STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(','))
-  const missions = STARTUP_MENU.filter(r => r.group === 'memory & missions')
-  check('the memory & missions group is the one MNEME row and nothing else', missions.length === 1 && missions[0]!.env === 'MERCURY_MNEME', missions.map(r => r.env).join(','))
   check('no row offers a whole-repository build or a standing planner or builder model pick (label, summary and detail)',
     !STARTUP_MENU.some(r => /repo(sitory)?[ -]?gen/i.test(r.label + r.summary + (r.detail?.controls ?? '') + (r.detail?.on ?? []).join(' ') + (r.detail?.off ?? []).join(' '))))
   check('the IDE lane rows are present (clangd visible-ON · godot arm-OFF)',
@@ -140,10 +137,10 @@ section('command-owned setting rows — the /caching dial law')
   check('the writer refuses a foreign dial value', wBad.ok === false)
   const staleFile = join(scratch, 'boot-env-stale-writer.json')
   writeFileSync(staleFile, JSON.stringify({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_ACCESS: 'sovereign', MERCURY_CAP_FAILOVER: 'auto' } }))
-  const wStale = writeBootEnvChoice('MERCURY_MNEME', '1', staleFile)
+  const wStale = writeBootEnvChoice('MERCURY_GODOT', '1', staleFile)
   const afterStale = readBootEnvChoices(staleFile) ?? {}
   check("a stale foreign value already in the file (an earlier build's 'sovereign') never refuses a later save: it is pruned and every other saved row is kept",
-    wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_CAP_FAILOVER === 'auto' && afterStale.MERCURY_MNEME === '1', JSON.stringify({ wStale, afterStale }))
+    wStale.ok === true && afterStale.MERCURY_COMPUTER_ACCESS === undefined && afterStale.MERCURY_CAP_FAILOVER === 'auto' && afterStale.MERCURY_GODOT === '1', JSON.stringify({ wStale, afterStale }))
   const splashCore = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'splash-core.mjs'), 'utf-8')
   const menuStart = splashCore.indexOf('const MENU = [')
   const menuBlock = menuStart === -1 ? '' : splashCore.slice(menuStart, splashCore.indexOf('\n]', menuStart))
@@ -159,10 +156,10 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const noFile = applyBootMenuEnv(join(scratch, 'absent.json'), {})
   check('no file ⇒ null (byte-identical boot)', noFile === null)
 
-  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CAP_FAILOVER: 'auto', MERCURY_MNEME: '1' } })
+  write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_CAP_FAILOVER: 'auto', MERCURY_GODOT: '1' } })
   const env1: NodeJS.ProcessEnv = {}
   const r1 = applyBootMenuEnv(file, env1)
-  check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_CAP_FAILOVER === 'auto' && env1.MERCURY_MNEME === '1')
+  check('valid file applies both keys', r1 !== null && r1.applied.length === 2 && env1.MERCURY_CAP_FAILOVER === 'auto' && env1.MERCURY_GODOT === '1')
   check('nothing refused, nothing env-won', r1 !== null && r1.refused.length === 0 && r1.envWins.length === 0)
 
   write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { MERCURY_COMPUTER_USE: '0', MERCURY_SKIP_PERMISSIONS: '1', MERCURY_COMPUTER_ACCESS: 'permissive' } })
@@ -200,7 +197,6 @@ section('applyBootMenuEnv — apply, refuse, yield, no-op')
   const menuSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'substrate', 'startupMenu.ts'), 'utf-8')
   const retiredRows = (menuSource.match(/const RETIRED_MENU_ENV[^']*'([^']+)'/) ?? [])[1]?.split(' ') ?? []
   check('the retired list names the curator row', retiredRows.includes('MERCURY_TABULA_MINERVA') && retiredRows.length >= 8 && retiredRows.every(e => /^MERCURY_[A-Z_]+$/.test(e)), retiredRows.join(','))
-  check('the memory & missions group keeps MNEME alone', STARTUP_MENU.filter(r => r.group === 'memory & missions').length === 1)
   for (const retired of retiredRows) {
     write({ version: BOOT_ENV_VERSION, savedAt: 'x', env: { [retired]: '1', MERCURY_SAMPLES: '1' } })
     const envRetired: NodeJS.ProcessEnv = {}
