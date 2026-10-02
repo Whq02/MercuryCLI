@@ -477,10 +477,10 @@ Available commands include:
   [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
 - **Editor integrations.** `mercury acp` connects to editors that support the
   Agent Client Protocol. The VS Code extension (`mercury editor install`)
-  runs Mercury in the editor and connects a terminal session to it. `/ide`
-  provides access to selections, diagnostics and native diffs. Separate,
-  opt-in integrations connect to running Unity, Blender and Godot editors,
-  with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
+  runs Mercury in the editor over that protocol: chat, sessions, agents,
+  artifacts and reviews, with the editor's selection and diagnostics riding
+  each prompt. Separate, opt-in integrations connect to running Unity,
+  Blender and Godot editors, with batch access to Aseprite. See [Unity](docs/UNITY-BRIDGE.md),
   [Blender](docs/BLENDER-BRIDGE.md) and [Aseprite](docs/ASEPRITE-BRIDGE.md).
 - **Memory.** Experience cards and project memory: `/cards` reviews lessons,
   `/remember` banks one, and `/memory` opens the memory files.
@@ -527,7 +527,7 @@ the live list can also include skills and extension commands.
 | model & effort | `/model` `/effort` `/strategy` `/supercode` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
-| config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/ide` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
+| config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/view` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
