@@ -1066,9 +1066,15 @@ async function daemonRun(args: string[]): Promise<void> {
           const installed = deployedRuntime()
           const other = successorRuntime()
           if (other !== null) {
+            const detail = otherBuildInstalledDetail(other, live)
             // eslint-disable-next-line no-console
-            console.error(`[daemon] restart asked by ${by} — refused: ${otherBuildInstalledDetail(other)}`)
-            return { state: 'refused' as const, live, detail: otherBuildInstalledDetail(other) }
+            console.error(`[daemon] restart asked by ${by} — ${detail}`)
+            if (live > 0) {
+              restartArmed = true
+              return { state: 'armed' as const, live }
+            }
+            setImmediate(() => requestShutdown('control:restart-when-idle'))
+            return { state: 'refused' as const, live, detail }
           }
           if (installed !== null && isScreenHealAsk(by)) {
             // eslint-disable-next-line no-console
@@ -1233,7 +1239,7 @@ async function daemonRun(args: string[]): Promise<void> {
           const other = successorRuntime()
           if (other !== null) {
             // eslint-disable-next-line no-console
-            console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other)}, so this daemon leaves without re-executing`)
+            console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other, 0)}`)
             requestShutdown('restart-when-idle:armed')
             return
           }
@@ -1642,8 +1648,9 @@ export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRu
   return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
 }
 
-export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon, and this one keeps what it holds until then`
+export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>, live: number): string {
+  const leaves = live > 0 ? `this one leaves when its ${live} live worker(s) finish, re-executing nothing` : 'this one leaves now, re-executing nothing'
+  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon; ${leaves}`
 }
 
 function unchangedSuccessorDetail(ageSeconds: number): string {
