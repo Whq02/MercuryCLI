@@ -208,11 +208,13 @@ export interface HeldRecordV1 {
   sessionId: string
   pid?: number
   endedAt?: number
+  spawnedAt?: number
 }
 
 export interface HandoverHost {
   pid: number
   runners: string[] | null
+  listedAt?: number
 }
 
 export async function readHandoverHosts(predecessorPid: number, auth: string): Promise<HandoverHost[]> {
@@ -230,8 +232,9 @@ export async function readHandoverHosts(predecessorPid: number, auth: string): P
       }
       continue
     }
+    const listedAt = Date.now()
     const list = await forwardFrame(path, JSON.stringify({ op: 'list', proto: hello.proto, auth }), 3000)
-    hosts.set(pid, { pid, runners: list.ok && list.op === 'list' ? list.jobs.filter(job => !job.outcome).map(job => job.short) : null })
+    hosts.set(pid, list.ok && list.op === 'list' ? { pid, runners: list.jobs.filter(job => !job.outcome).map(job => job.short), listedAt } : { pid, runners: null })
     for (const earlier of hello.predecessorPids ?? (hello.predecessorPid === null || hello.predecessorPid === undefined ? [] : [hello.predecessorPid])) {
       if (Number.isInteger(earlier) && earlier > 0 && !hosts.has(earlier)) pending.push(earlier)
     }
@@ -247,6 +250,8 @@ export interface HandoverStateV1 {
   holds(runnerId: string): boolean
   heldRunners(pid?: number): Set<string>
   runnerOfSession(sessionId: string): string | undefined
+  ownerOf(runnerId: string): number | undefined
+  notePlaneMoved(at?: number): void
   socketFor(raw: Record<string, unknown>): string | null
   forward(line: string): Promise<DaemonReply>
 }
@@ -259,24 +264,28 @@ export function handoverState(
 ): HandoverStateV1 {
   const owners = new Map(hosts.flatMap(host => (host.runners ?? []).map(runner => [runner, host.pid] as const)))
   const unnamed = hosts.find(host => host.runners === null)?.pid
-  const ownerOf = (runnerId: string): number | undefined => owners.get(runnerId) ?? unnamed
+  const planeListedAt = hosts.find(host => host.pid === predecessorPid)?.listedAt
+  let planeMovedAt = Number.POSITIVE_INFINITY
+  const admittedByPlane = (r: HeldRecordV1): boolean =>
+    planeListedAt !== undefined && r.spawnedAt !== undefined && r.spawnedAt >= planeListedAt && r.spawnedAt <= planeMovedAt
+  const ownerOfRecord = (r: HeldRecordV1): number | undefined => owners.get(r.runnerId) ?? (admittedByPlane(r) ? predecessorPid : unnamed)
   const predecessorPids = (): number[] => hosts.map(host => host.pid).filter(isProcessAlive)
   const alive = (): boolean => predecessorPids().length > 0
-  const held = (): Map<string, HeldRecordV1> => {
-    const out = new Map<string, HeldRecordV1>()
+  const held = (): Map<string, { record: HeldRecordV1; owner: number }> => {
+    const out = new Map<string, { record: HeldRecordV1; owner: number }>()
     const living = new Set(predecessorPids())
     for (const r of records()) {
       if (r.endedAt !== undefined || r.pid === undefined || rosterHas(r.runnerId)) continue
-      const owner = ownerOf(r.runnerId)
+      const owner = ownerOfRecord(r)
       if (owner === undefined || !living.has(owner)) continue
-      if (isProcessAlive(r.pid)) out.set(r.runnerId, r)
+      if (isProcessAlive(r.pid)) out.set(r.runnerId, { record: r, owner })
     }
     return out
   }
   const socketFor = (raw: Record<string, unknown>): string | null => {
-    for (const r of held().values()) {
+    for (const { record: r, owner } of held().values()) {
       if (SESSION_FIELDS.some(field => raw[field] === r.sessionId) || RUNNER_FIELDS.some(field => raw[field] === r.runnerId)) {
-        return predecessorSockPath(ownerOf(r.runnerId)!)
+        return predecessorSockPath(owner)
       }
     }
     return null
@@ -287,8 +296,12 @@ export function handoverState(
     alive,
     predecessorPids,
     holds: runnerId => held().has(runnerId),
-    heldRunners: pid => new Set([...held().keys()].filter(runner => pid === undefined || ownerOf(runner) === pid)),
-    runnerOfSession: sessionId => [...held().values()].find(r => r.sessionId === sessionId)?.runnerId,
+    heldRunners: pid => new Set([...held()].filter(([, h]) => pid === undefined || h.owner === pid).map(([runner]) => runner)),
+    runnerOfSession: sessionId => [...held().values()].find(h => h.record.sessionId === sessionId)?.record.runnerId,
+    ownerOf: runnerId => held().get(runnerId)?.owner,
+    notePlaneMoved: at => {
+      planeMovedAt = at ?? Date.now()
+    },
     socketFor,
     forward: line => {
       const path = socketFor(JSON.parse(line) as Record<string, unknown>)

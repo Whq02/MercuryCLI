@@ -95,6 +95,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-evolution-ledger.ts" || { __rc=$?;
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-snapshot.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-snapshot.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-supervisor-view.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-supervisor-view.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-reconcile.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-reconcile.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-handover-window-owner.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-handover-window-owner.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-ledger-flush-death.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-ledger-flush-death.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-pidlock-release.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-pidlock-release.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-lifecycle-collector.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-lifecycle-collector.ts" "$__t" "$__rc"
