@@ -35,9 +35,10 @@ console.log('§P3 — --effort refuses honestly and names its values')
 console.log('§P7 — the eager settings scan stops at `--` and takes the last occurrence')
 {
   check('the scan slices the option region at the `--` sentinel', main.includes("const ddIndex = argv.indexOf('--')") && main.includes('argv.slice(0, ddIndex) : argv'))
-  check('the scan iterates optionArgv (last-wins), not indexOf', main.includes('for (let i = 0; i < optionArgv.length; i++)'))
+  const sessionArgs = readFileSync(join(ROOT, 'src/cli/sessionArgs.ts'), 'utf8')
+  check('the scan reads optionArgv through the session option reader (last-wins), not indexOf', main.includes('readSessionOption(optionArgv.slice(2), name).value') && sessionArgs.includes('for (const i of optionIndexes(args))') && sessionArgs.includes('if (flag === name) result = { present: true,'))
   check('POISON: the first-wins indexOf read is gone', !main.includes('const exact = argv.indexOf(name)'))
-  check('the sources presence test also respects `--`', main.includes("optionArgv.includes('--setting-sources')"))
+  check('the sources presence test also respects `--`', main.includes("readSessionOption(optionArgv.slice(2), '--config-layers').present"))
 
   const eager = (argv: string[], name: string): string | undefined => {
     const dd = argv.indexOf('--')
@@ -50,12 +51,12 @@ console.log('§P7 — the eager settings scan stops at `--` and takes the last o
     }
     return value
   }
-  check('the = form is read', eager(['--settings=x'], '--settings') === 'x')
-  check('the space form is read', eager(['--settings', 'y'], '--settings') === 'y')
-  check('a flag after `--` is NOT read', eager(['run', 'hi', '--', '--settings', 'bad'], '--settings') === undefined)
-  check('a repeated flag is last-wins', eager(['--settings', 'a', '--settings', 'b'], '--settings') === 'b')
-  check('last-wins spans the two spellings', eager(['--settings=a', '--settings', 'b'], '--settings') === 'b')
-  check('absent flag is undefined', eager(['run', 'hi'], '--settings') === undefined)
+  check('the = form is read', eager(['--config=x'], '--config') === 'x')
+  check('the space form is read', eager(['--config', 'y'], '--config') === 'y')
+  check('a flag after `--` is NOT read', eager(['run', 'hi', '--', '--config', 'bad'], '--config') === undefined)
+  check('a repeated flag is last-wins', eager(['--config', 'a', '--config', 'b'], '--config') === 'b')
+  check('last-wins spans the two spellings', eager(['--config=a', '--config', 'b'], '--config') === 'b')
+  check('absent flag is undefined', eager(['run', 'hi'], '--config') === undefined)
 }
 
 process.exit(failures === 0 ? 0 : 1)

@@ -65,7 +65,7 @@ section('§3 FC-037 — the unwritable store')
   const run = await runMercury(home, ['run', 'probe'])
   const all = run.err + run.out
   check('the failure NAMES the transcript store', /transcript store is unwritable/.test(all), JSON.stringify(all.slice(0, 220)))
-  check('and offers the escape hatch', /--no-session-persistence/.test(all))
+  check('and offers the escape hatch', /--ephemeral/.test(all))
   rmSync(home, { recursive: true, force: true })
 }
 

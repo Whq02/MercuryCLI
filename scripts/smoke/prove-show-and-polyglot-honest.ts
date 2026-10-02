@@ -44,7 +44,7 @@ section('§2 FC-043 — the redirected show')
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'show-honest-')))
   const img = join(home, 'probe.png')
   writeFileSync(img, PNG)
-  const run = spawnSync('node', [DIST, 'show', img], {
+  const run = spawnSync('node', [DIST, 'image', img], {
     env: { ...process.env, MERCURY_CONFIG_DIR: home },
     encoding: 'utf8',
     timeout: 60_000,
