@@ -60,13 +60,6 @@ export const getAutoMemPath = memoize((): string => {
   return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
 }, () => getProjectRoot())
 
-export function getAutoMemDailyLogPath(date: Date = new Date()): string {
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return join(getAutoMemPath(), 'logs', year, month, `${year}-${month}-${day}.md`)
-}
-
 export function isAutoMemPath(absolutePath: string): boolean {
   return normalize(absolutePath).startsWith(getAutoMemPath())
 }
