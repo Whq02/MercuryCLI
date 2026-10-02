@@ -42,6 +42,7 @@ import {
 } from './agents/studio/studioEditorModel.js';
 import { getAgentSourceDisplayName } from './agents/utils.js';
 import { AGENT_COLORS } from '../tools/AgentTool/agentColorManager.js';
+import { SCOUT_TOOLS_DESCRIPTION } from '../tools/AgentTool/scoutPolicy.js';
 import { getAllBaseTools } from '../tools.js';
 import type { Tools } from '../Tool.js';
 import { EFFORT_LEVELS, resolveEffortTruth, type EffortValue } from '../utils/effort.js';
@@ -153,7 +154,9 @@ export function agentFaceDetailLines(
     if (availabilityNote !== null) lines.push(`availability: ${availabilityNote} — Logins signs in`);
     if (eff.tools) {
       lines.push(
-        eff.tools.hasWildcard
+        eff.tools.readOnly
+          ? `tools: ${SCOUT_TOOLS_DESCRIPTION}`
+          : eff.tools.hasWildcard
           ? 'tools: all (MCP tools join at session time)'
           : `tools: ${eff.tools.validTools.length} of the base roster${eff.tools.invalidTools.length > 0 ? ` · unknown: ${eff.tools.invalidTools.join(', ')}` : ''}`,
       );

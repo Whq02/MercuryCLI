@@ -27,6 +27,7 @@ import { useAppState, useSetAppState } from '../../../state/AppState.js'
 import type { AppState } from '../../../state/AppStateStore.js'
 import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { editFileInEditor } from '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
@@ -737,7 +738,9 @@ function InspectorPane({
       {eff.tools
         ? line(
             'tools',
-            eff.tools.hasWildcard
+            eff.tools.readOnly
+              ? SCOUT_TOOLS_DESCRIPTION
+              : eff.tools.hasWildcard
               ? 'all session tools'
               : `${eff.tools.validTools.length} of the session catalog${eff.tools.invalidTools.length > 0 ? ` · unknown: ${eff.tools.invalidTools.join(', ')}` : ''}`,
             eff.tools.invalidTools.length > 0 ? AMBER : IVORY,
@@ -786,7 +789,7 @@ function TestDrivePane({
       <SectionHeader>{`Test drive ${agent.agentType}`}</SectionHeader>
       <Text color={FAINT}>
         {truncateToWidth(
-          `will run: model ${eff.model} · effort ${eff.effort.label} · ${eff.tools?.hasWildcard ? 'all tools' : `${eff.tools?.validTools.length ?? 0} tools`} · revision ${(agent as { revision?: string }).revision ?? 'in-memory'} · disposable worktree`,
+          `will run: model ${eff.model} · effort ${eff.effort.label} · ${eff.tools?.readOnly ? 'read-only tools' : eff.tools?.hasWildcard ? 'all tools' : `${eff.tools?.validTools.length ?? 0} tools`} · revision ${(agent as { revision?: string }).revision ?? 'in-memory'} · disposable worktree`,
           78,
         )}
       </Text>

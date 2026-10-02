@@ -8,6 +8,7 @@ import type { AgentDocument } from '../../../services/agents/contracts.js'
 import { newAgentPath } from '../../../services/agents/store.js'
 import type { Tools } from '../../../Tool.js'
 import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
+import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { type EffortValue, resolveEffortTruth } from '../../../utils/effort.js'
 import type { ModelName } from '../../../utils/model/model.js'
 import { PERMISSION_MODES } from '../../../utils/permissions/PermissionMode.js'
@@ -313,7 +314,9 @@ export function StudioEditor({
           <Text>
             <Text color={FAINT}>{'tools        '}</Text>
             <Text color={effective.tools.invalidTools.length > 0 ? AMBER : IVORY}>
-              {effective.tools.hasWildcard
+              {effective.tools.readOnly
+                ? SCOUT_TOOLS_DESCRIPTION
+                : effective.tools.hasWildcard
                 ? 'all tools'
                 : `${effective.tools.validTools.length} available${effective.tools.invalidTools.length > 0 ? ` · unknown: ${effective.tools.invalidTools.join(', ')}` : ''}`}
             </Text>
