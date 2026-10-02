@@ -47,7 +47,8 @@ import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
-import type { ToolPermissionContext } from '../../types/permissions.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
+import type { PermissionRule, ToolPermissionContext } from '../../types/permissions.js'
 import {
   renderToolResultMessage,
   renderToolUseErrorMessage,
@@ -664,20 +665,22 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
     const owner = ownerFromToolUseContext((context ?? {}) as { owner?: OwnerKey; agentId?: string })
     const permissionContext = (context as Partial<ToolUseContext> | undefined)?.getAppState?.()
       ?.toolPermissionContext as ToolPermissionContext | undefined
-    const ruleVerdict = (content: string): 'deny' | 'ask' | 'allow' | null => {
+    const ruleFor = (content: string): PermissionRule | null => {
       if (!permissionContext) return null
       for (const behavior of ['deny', 'ask', 'allow'] as const) {
-        if (getRuleByContentsForToolName(permissionContext, 'Browser', behavior).has(content)) return behavior
+        const rule = getRuleByContentsForToolName(permissionContext, 'Browser', behavior).get(content)
+        if (rule) return rule
       }
       return null
     }
+    const ruleVerdict = (content: string): 'deny' | 'ask' | 'allow' | null => ruleFor(content)?.ruleBehavior ?? null
     if (input.op === 'open') {
       const target = originOf(input.url ?? '')
       const ruled = ruleVerdict(`origin:${target}`)
       if (ruled === 'deny') {
         return {
           behavior: 'deny' as const,
-          message: `Browser is denied for origin:${target} by a permission rule`,
+          message: ruleSentence(`Browsing ${target}`, 'deny', ruleFor(`origin:${target}`)!),
           decisionReason: { type: 'other' as const, reason: `origin:${target} carries a deny rule` },
         }
       }
@@ -697,7 +700,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
     if (ruled === 'deny') {
       return {
         behavior: 'deny' as const,
-        message: `Browser is denied for origin:${origin} by a permission rule`,
+        message: ruleSentence(`Browsing ${origin}`, 'deny', ruleFor(`origin:${origin}`)!),
         decisionReason: { type: 'other' as const, reason: `origin:${origin} carries a deny rule` },
       }
     }
@@ -714,7 +717,7 @@ Downloads are NEVER implicit: the driven session DENIES page-initiated downloads
       if (pairingRuled === 'deny') {
         return {
           behavior: 'deny' as const,
-          message: `Browser is denied for ${pairing} by a permission rule`,
+          message: ruleSentence(`Filling the secret ${input.secretRef} on ${origin}`, 'deny', ruleFor(pairing)!),
           decisionReason: { type: 'other' as const, reason: `${pairing} carries a deny rule` },
         }
       }

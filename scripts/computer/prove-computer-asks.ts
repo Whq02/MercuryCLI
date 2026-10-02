@@ -125,7 +125,7 @@ section('§5 rules: a deny rule refuses before any ask, an allow rule allows wit
   const denied = toolContext({ deny: [`Computer(app:${TEXTEDIT.identity})`] })
   session.forgetDesktopOwner(ownerOf(denied))
   const denyVerdict = await permission({ action: 'key', key: 'Enter' }, denied)
-  check('a deny rule refuses by name', denyVerdict.behavior === 'deny' && denyVerdict.message === `Computer is denied for app:${TEXTEDIT.identity} by a permission rule`, JSON.stringify(denyVerdict))
+  check('a deny rule refuses by name', denyVerdict.behavior === 'deny' && denyVerdict.message === `Driving ${TEXTEDIT.name} (${TEXTEDIT.identity}) is denied by the rule Computer(app:${TEXTEDIT.identity}) in the project local settings.`, JSON.stringify(denyVerdict))
   const allowed = toolContext({ allow: [`Computer(app:${TEXTEDIT.identity})`] })
   const allowOwner = ownerOf(allowed)
   session.forgetDesktopOwner(allowOwner)
@@ -139,7 +139,7 @@ section('§5 rules: a deny rule refuses before any ask, an allow rule allows wit
   session.forgetDesktopOwner(ownerOf(deniedClick))
   const shot = await withScreenshot(ComputerTool as never, deniedClick, 'toolu_deny_shot')
   const denyClick = await permission({ action: 'click', x: 812, y: 300 }, shot.context)
-  check('a deny rule refuses a click the same way', denyClick.behavior === 'deny' && (denyClick.message ?? '').includes('by a permission rule'), JSON.stringify(denyClick))
+  check('a deny rule refuses a click the same way', denyClick.behavior === 'deny' && (denyClick.message ?? '').includes('is denied by the rule Computer(app:'), JSON.stringify(denyClick))
   session.forgetDesktopOwner(ownerOf(deniedClick))
 }
 

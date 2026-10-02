@@ -21,7 +21,7 @@ import {
 } from '../../utils/permissions/pathValidation.js'
 import { allWorkingDirectories, matchingRulesForInput, pathInAllowedWorkingPath } from '../../utils/permissions/filesystem.js'
 import { createEditRuleSuggestion, createReadRuleSuggestion } from '../../utils/permissions/PermissionUpdate.js'
-import { refusalWithReason, withRuleReason } from '../../utils/permissions/ruleReason.js'
+import { refusalWithReason, ruleSentence, withRuleReason } from '../../utils/permissions/ruleReason.js'
 import { getCwd } from '../../utils/cwd.js'
 import { getDirectoryForPath } from '../../utils/path.js'
 import { stripSafeWrappers } from './bashPermissions.js'
@@ -418,7 +418,7 @@ function runPathChecker(
     const check = validatePath(operand, cwd, context, operationType)
     if (!check.allowed) {
       if (check.decisionReason?.type === 'rule') {
-        return ruleDeny(denyMessage(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
+        return ruleDeny(denySubject(command, check.resolvedPath), check.resolvedPath, operationType === 'read' ? 'read' : 'edit', context, check.decisionReason.rule)
       }
       return {
         behavior: 'ask',
@@ -431,13 +431,13 @@ function runPathChecker(
   return { behavior: 'passthrough', message: `All ${command} operands are within the allowed directories.` }
 }
 
-function denyMessage(command: PathCommand, path: string): string {
-  return `The ${command} of ${path} is blocked by a deny rule.`
+function denySubject(command: PathCommand, path: string): string {
+  return `The ${command} of ${path}`
 }
 
-function ruleDeny(sentence: string, path: string, toolType: 'edit' | 'read', context: ToolPermissionContext, rule: PermissionRule): PermissionResult {
+function ruleDeny(subject: string, path: string, toolType: 'edit' | 'read', context: ToolPermissionContext, rule: PermissionRule): PermissionResult {
   const said = withRuleReason(context, rule, () => matchingRulesForInput(path, context, toolType, 'deny'))
-  return { behavior: 'deny', message: refusalWithReason(sentence, said.ruleValue.reason), decisionReason: { type: 'rule', rule: said } }
+  return { behavior: 'deny', message: refusalWithReason(ruleSentence(subject, 'deny', said), said.ruleValue.reason), decisionReason: { type: 'rule', rule: said } }
 }
 
 function composedMessage(
@@ -604,7 +604,7 @@ function validateRedirections(
     const check = validatePath(target, cwd, context, 'create')
     if (!check.allowed) {
       if (check.decisionReason?.type === 'rule') {
-        return ruleDeny(`The redirection to ${check.resolvedPath} is blocked by a deny rule.`, check.resolvedPath, 'edit', context, check.decisionReason.rule)
+        return ruleDeny(`The redirection to ${check.resolvedPath}`, check.resolvedPath, 'edit', context, check.decisionReason.rule)
       }
       const message =
         check.decisionReason && (check.decisionReason.type === 'other' || check.decisionReason.type === 'safetyCheck')

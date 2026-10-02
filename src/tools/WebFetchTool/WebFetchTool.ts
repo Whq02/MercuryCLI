@@ -4,6 +4,7 @@ import { buildTool, type ToolPermissionContext, type ToolUseContext } from '../.
 import { formatFileSize } from '../../utils/format.js'
 import { createPermissionRequestMessage, getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import type { PermissionDecisionReason } from '../../utils/permissions/PermissionResult.js'
 import { isPreapprovedHost } from './preapproved.js'
 import { DESCRIPTION, getPrompt, WEB_FETCH_TOOL_NAME } from './prompt.js'
@@ -41,7 +42,7 @@ function ruleReason(
   context: ToolPermissionContext,
   ruleContent: string,
   behavior: 'allow' | 'deny' | 'ask',
-): PermissionDecisionReason {
+): Extract<PermissionDecisionReason, { type: 'rule' }> {
   const rule = getRuleByContentsForToolName(context, WEB_FETCH_TOOL_NAME, behavior).get(ruleContent)
   return {
     type: 'rule',
@@ -168,18 +169,20 @@ export const WebFetchTool = buildTool({
     const ruleContent = ruleContentFor(input)
     const message = createPermissionRequestMessage(WEB_FETCH_TOOL_NAME)
     const suggestions = suggestionForExactCommand(WEB_FETCH_TOOL_NAME, ruleContent)
+    const denied = ruleReason(permissionContext, ruleContent, 'deny')
     if (getRuleByContentsForToolName(permissionContext, WEB_FETCH_TOOL_NAME, 'deny').has(ruleContent)) {
       return {
         behavior: 'deny' as const,
-        message: `${WEB_FETCH_TOOL_NAME} is denied for ${ruleContent} by a permission rule.`,
-        decisionReason: ruleReason(permissionContext, ruleContent, 'deny'),
+        message: ruleSentence(`Fetching ${input.url}`, 'deny', denied.rule),
+        decisionReason: denied,
       }
     }
+    const asked = ruleReason(permissionContext, ruleContent, 'ask')
     if (getRuleByContentsForToolName(permissionContext, WEB_FETCH_TOOL_NAME, 'ask').has(ruleContent)) {
       return {
         behavior: 'ask' as const,
-        message,
-        decisionReason: ruleReason(permissionContext, ruleContent, 'ask'),
+        message: ruleSentence(`Fetching ${input.url}`, 'ask', asked.rule),
+        decisionReason: asked,
         suggestions,
       }
     }

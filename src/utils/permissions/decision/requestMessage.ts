@@ -2,8 +2,7 @@ import { plural } from '../../stringUtils.js'
 import { pinnedCommandAnalysis } from './commandAnalysis.js'
 import { permissionModeTitle } from '../PermissionMode.js'
 import type { PermissionDecisionReason } from '../PermissionResult.js'
-import { permissionRuleValueToString } from '../permissionRuleParser.js'
-import { permissionRuleSourceDisplayString } from './rules.js'
+import { ruleSentence } from '../ruleReason.js'
 
 const extractOutputRedirections: typeof pinnedCommandAnalysis.extractOutputRedirections =
   (...a) => pinnedCommandAnalysis.extractOutputRedirections(...a)
@@ -22,15 +21,8 @@ export function createPermissionRequestMessage(
           : `Hook '${decisionReason.hookName}' requires approval for this ${toolName} command`
         return hookMessage
       }
-      case 'rule': {
-        const ruleString = permissionRuleValueToString(
-          decisionReason.rule.ruleValue,
-        )
-        const sourceString = permissionRuleSourceDisplayString(
-          decisionReason.rule.source,
-        )
-        return `Permission rule '${ruleString}' from ${sourceString} requires approval for this ${toolName} command`
-      }
+      case 'rule':
+        return ruleSentence(`This ${toolName} call`, 'ask', decisionReason.rule)
       case 'subcommandResults': {
         const needsApproval: string[] = []
         for (const [cmd, result] of decisionReason.reasons) {

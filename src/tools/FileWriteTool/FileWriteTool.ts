@@ -30,6 +30,7 @@ import { readFileSyncWithMetadata } from '../../utils/fileRead.js'
 import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
@@ -134,10 +135,11 @@ export const FileWriteTool = buildTool({
     }
     const expandedPath = expandPath(input.file_path)
     const permissionContext = context.getAppState().toolPermissionContext
-    if (matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')) {
+    const writeDeny = matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')
+    if (writeDeny) {
       return {
         result: false as const,
-        message: `Writing to ${input.file_path} is denied by permission settings.`,
+        message: ruleSentence(`Writing to ${input.file_path}`, 'deny', writeDeny),
         errorCode: 1,
       }
     }

@@ -135,7 +135,7 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'denied type → the denial error names the rule and its source',
-    err?.message === `Agent type 'mercury-scout' has been denied by permission rule 'Agent(mercury-scout)' from userSettings.`,
+    err?.message === 'The mercury-scout agent is denied by the rule Agent(mercury-scout) in your user settings.',
     err?.message,
   )
 
@@ -146,8 +146,8 @@ section('§2 — lookup, restriction, and the denial band')
     err = e as Error
   }
   check(
-    'an Agent(x,y) tool-spec restriction excludes unlisted types (legacy denied-shape error)',
-    err?.message === `Agent type 'mercury-scout' has been denied by permission rule 'Agent(mercury-scout)' from settings.`,
+    'an Agent(x,y) tool-spec restriction excludes unlisted types (the denied-by-rule sentence)',
+    err?.message === 'The mercury-scout agent is denied by the rule Agent(mercury-scout).',
     err?.message,
   )
 

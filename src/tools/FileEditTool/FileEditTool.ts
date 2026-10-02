@@ -61,6 +61,7 @@ import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { validateInputForSettingsFileEdit } from '../../utils/settings/validateEditTool.js'
@@ -777,11 +778,12 @@ export const FileEditTool = buildTool({
     }
 
     const permissionContext = context.getAppState().toolPermissionContext
-    if (matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')) {
+    const editDeny = matchingRuleForInput(expandedPath, permissionContext, 'edit', 'deny')
+    if (editDeny) {
       return {
         result: false as const,
         behavior: 'ask' as const,
-        message: `Editing ${input.file_path} is denied by permission settings.`,
+        message: ruleSentence(`Editing ${input.file_path}`, 'deny', editDeny),
         errorCode: 2,
       }
     }

@@ -56,6 +56,7 @@ import { createUserMessage } from '../../utils/messages/factories.js'
 import { mapNotebookCellsToToolResult, readNotebook } from '../../utils/notebook.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkReadPermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { matchWildcardPattern } from '../../utils/permissions/shellRuleMatching.js'
 import { extractPDFPages, getPDFPageCount, readPDF, removePDFPages } from '../../utils/pdf.js'
 import { isPDFExtension, isPDFSupported, parsePDFPageRange } from '../../utils/pdfUtils.js'
@@ -894,10 +895,11 @@ export const FileReadTool = buildTool({
     const expanded = expandPath(input.file_path)
 
     const permissionContext = context.getAppState().toolPermissionContext
-    if (matchingRuleForInput(expanded, permissionContext, 'read', 'deny')) {
+    const readDeny = matchingRuleForInput(expanded, permissionContext, 'read', 'deny')
+    if (readDeny) {
       return {
         result: false as const,
-        message: `Reading ${input.file_path} is denied by permission settings.`,
+        message: ruleSentence(`Reading ${input.file_path}`, 'deny', readDeny),
         errorCode: 1,
       }
     }

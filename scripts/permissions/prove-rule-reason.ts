@@ -169,31 +169,31 @@ section('§3 THE FILESYSTEM ROAD — the refusal says the words; the most specif
     (road === 'read' ? checkReadPermissionForTool(tool as never, { file_path: path }, ctx as never) : checkWritePermissionForTool(tool as never, { file_path: path }, ctx as never)) as unknown as Decision
 
   const plain = decide(readTool, key, ctxWith({ deny: ['Read(secrets/**)'] }), 'read')
-  check('control: a deny rule without a reason refuses with today\'s sentence, byte for byte', plain.behavior === 'deny' && plain.message === `Permission to read ${key} has been denied.`, j(plain))
+  check('control: a deny rule without a reason refuses with the rule sentence, byte for byte', plain.behavior === 'deny' && plain.message === `Reading ${key} is denied by the rule Read(secrets/**) from this session.`, j(plain))
   const other = decide(readTool, key, ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(other/**)': 'words for another rule' }), 'read')
-  check('control: a reasons map that names another rule changes nothing', other.message === `Permission to read ${key} has been denied.`, j(other))
+  check('control: a reasons map that names another rule changes nothing', other.message === `Reading ${key} is denied by the rule Read(secrets/**) from this session.`, j(other))
 
   const said = decide(readTool, key, ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }), 'read')
-  check('a Read deny with a reason refuses with the words', said.behavior === 'deny' && said.message === `Permission to read ${key} has been denied: ${R_SECRETS}.`, j(said))
+  check('a Read deny with a reason refuses with the words', said.behavior === 'deny' && said.message === `Reading ${key} is denied by the rule Read(secrets/**) from this session: ${R_SECRETS}.`, j(said))
   check('…and the decision\'s rule carries the reason', said.decisionReason?.type === 'rule' && said.decisionReason.rule?.ruleValue.reason === R_SECRETS, j(said.decisionReason))
 
   const edited = decide(editTool, key, ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }), 'edit')
-  check('an Edit deny with a reason refuses with the words', edited.behavior === 'deny' && edited.message === `Permission to edit ${key} has been denied: ${R_SECRETS}.`, j(edited))
+  check('an Edit deny with a reason refuses with the words', edited.behavior === 'deny' && edited.message === `Editing ${key} is denied by the rule Edit(secrets/**) from this session: ${R_SECRETS}.`, j(edited))
   const editedPlain = decide(editTool, key, ctxWith({ deny: ['Edit(secrets/**)'] }), 'edit')
-  check('control: an Edit deny without a reason keeps today\'s sentence', editedPlain.message === `Permission to edit ${key} has been denied.`, j(editedPlain))
+  check('control: an Edit deny without a reason speaks the rule sentence', editedPlain.message === `Editing ${key} is denied by the rule Edit(secrets/**) from this session.`, j(editedPlain))
 
   const both = { 'Read(secrets/**)': R_SECRETS, 'Read(secrets/prod/**)': R_PROD }
   const wideFirst = decide(readTool, prodKey, ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, both), 'read')
-  check('two matching rules, the wide one listed first: the more specific rule\'s words win', wideFirst.message === `Permission to read ${prodKey} has been denied: ${R_PROD}.`, j(wideFirst))
+  check('two matching rules, the wide one listed first: the more specific rule\'s words win', wideFirst.message === `Reading ${prodKey} is denied by the rule Read(secrets/**) from this session: ${R_PROD}.`, j(wideFirst))
   const narrowFirst = decide(readTool, prodKey, ctxWith({ deny: ['Read(secrets/prod/**)', 'Read(secrets/**)'] }, both), 'read')
-  check('two matching rules, the narrow one listed first: the same words', narrowFirst.message === `Permission to read ${prodKey} has been denied: ${R_PROD}.`, j(narrowFirst))
+  check('two matching rules, the narrow one listed first: the same words', narrowFirst.message === `Reading ${prodKey} is denied by the rule Read(secrets/prod/**) from this session: ${R_PROD}.`, j(narrowFirst))
   const onlyWide = decide(readTool, prodKey, ctxWith({ deny: ['Read(secrets/prod/**)', 'Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }), 'read')
-  check('two matching rules where only the wide one has words: those words speak', onlyWide.message === `Permission to read ${prodKey} has been denied: ${R_SECRETS}.`, j(onlyWide))
+  check('two matching rules where only the wide one has words: those words speak', onlyWide.message === `Reading ${prodKey} is denied by the rule Read(secrets/prod/**) from this session: ${R_SECRETS}.`, j(onlyWide))
   const outside = decide(readTool, key, ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, both), 'read')
-  check('a path the narrow rule does not cover gets the wide rule\'s words', outside.message === `Permission to read ${key} has been denied: ${R_SECRETS}.`, j(outside))
+  check('a path the narrow rule does not cover gets the wide rule\'s words', outside.message === `Reading ${key} is denied by the rule Read(secrets/**) from this session: ${R_SECRETS}.`, j(outside))
 
   const asked = decide(readTool, key, ctxWith({ ask: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }), 'read')
-  check('an ask rule keeps its sentence and hands the card its reason on the rule', asked.behavior === 'ask' && asked.message === `Permission to read ${key} requires confirmation.` && asked.decisionReason?.rule?.ruleValue.reason === R_SECRETS, j(asked))
+  check('an ask rule keeps its sentence and hands the card its reason on the rule', asked.behavior === 'ask' && asked.message === `Reading ${key} asks first — the rule Read(secrets/**) from this session.` && asked.decisionReason?.rule?.ruleValue.reason === R_SECRETS, j(asked))
   const askedPlain = decide(readTool, key, ctxWith({ ask: ['Read(secrets/**)'] }), 'read')
   check('control: an ask rule without a reason carries none', askedPlain.behavior === 'ask' && askedPlain.decisionReason?.rule?.ruleValue.reason === undefined, j(askedPlain))
 }
@@ -218,21 +218,21 @@ section('§4 THE ENGINE ROAD — a whole-tool deny says the words; the tool-spec
     hasPermissionsToUseTool(fakeTool(name) as never, {}, useContext(ctx) as never, ASSISTANT, 'toolu_rule_reason') as unknown as Promise<Decision>
 
   const plain = await decide('WebFetch', ctxWith({ deny: ['WebFetch'] }))
-  check('control: a whole-tool deny without a reason refuses with today\'s sentence, byte for byte', plain.behavior === 'deny' && plain.message === 'Permission to use WebFetch has been denied.', j(plain))
+  check('control: a whole-tool deny without a reason refuses with the rule sentence, byte for byte', plain.behavior === 'deny' && plain.message === 'Using WebFetch is denied by the rule WebFetch from this session.', j(plain))
   const said = await decide('WebFetch', ctxWith({ deny: ['WebFetch'] }, { WebFetch: R_FETCH }))
-  check('a whole-tool deny with a reason refuses with the words', said.behavior === 'deny' && said.message === `Permission to use WebFetch has been denied: ${R_FETCH}.`, j(said))
+  check('a whole-tool deny with a reason refuses with the words', said.behavior === 'deny' && said.message === `Using WebFetch is denied by the rule WebFetch from this session: ${R_FETCH}.`, j(said))
   check('…and the decision\'s rule carries the reason', said.decisionReason?.rule?.ruleValue.reason === R_FETCH, j(said.decisionReason))
   const both = { mcp__github: R_GITHUB, mcp__github__create_issue: R_ISSUE }
   const serverFirst = await decide('mcp__github__create_issue', ctxWith({ deny: ['mcp__github', 'mcp__github__create_issue'] }, both))
-  check('a server-wide and a tool-specific MCP deny both match: the tool-specific words win', serverFirst.message === `Permission to use mcp__github__create_issue has been denied: ${R_ISSUE}.`, j(serverFirst))
+  check('a server-wide and a tool-specific MCP deny both match: the tool-specific words win', serverFirst.message === `Using mcp__github__create_issue is denied by the rule mcp__github from this session: ${R_ISSUE}.`, j(serverFirst))
   const toolFirst = await decide('mcp__github__create_issue', ctxWith({ deny: ['mcp__github__create_issue', 'mcp__github'] }, both))
-  check('…in either order', toolFirst.message === `Permission to use mcp__github__create_issue has been denied: ${R_ISSUE}.`, j(toolFirst))
+  check('…in either order', toolFirst.message === `Using mcp__github__create_issue is denied by the rule mcp__github__create_issue from this session: ${R_ISSUE}.`, j(toolFirst))
   const sibling = await decide('mcp__github__list_issues', ctxWith({ deny: ['mcp__github', 'mcp__github__create_issue'] }, both))
-  check('a sibling tool the specific rule does not name gets the server-wide words', sibling.message === `Permission to use mcp__github__list_issues has been denied: ${R_GITHUB}.`, j(sibling))
+  check('a sibling tool the specific rule does not name gets the server-wide words', sibling.message === `Using mcp__github__list_issues is denied by the rule mcp__github from this session: ${R_GITHUB}.`, j(sibling))
   const wide = await decide('mcp__github__list_issues', ctxWith({ deny: ['mcp__github__*'] }, { 'mcp__github__*': R_GITHUB }))
-  check('the wildcard server spelling finds its words', wide.message === `Permission to use mcp__github__list_issues has been denied: ${R_GITHUB}.`, j(wide))
+  check('the wildcard server spelling finds its words', wide.message === `Using mcp__github__list_issues is denied by the rule mcp__github__* from this session: ${R_GITHUB}.`, j(wide))
   const bypass = await decide('WebFetch', { ...ctxWith({ deny: ['WebFetch'] }, { WebFetch: R_FETCH }), mode: 'sovereign' } as Ctx)
-  check('the deny stays bypass-immune with its words', bypass.behavior === 'deny' && bypass.message === `Permission to use WebFetch has been denied: ${R_FETCH}.`, j(bypass))
+  check('the deny stays bypass-immune with its words', bypass.behavior === 'deny' && bypass.message === `Using WebFetch is denied by the rule WebFetch from this session: ${R_FETCH}.`, j(bypass))
 }
 
 section('§5 THE HELPER — one composer, one specificity order')
@@ -268,22 +268,22 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   const whole = (command: string, ctx: Ctx): Promise<Decision> => bashToolHasPermission({ command } as never, ctx as never) as unknown as Promise<Decision>
 
   const exactPlain = exact('git push origin main', bashCtx(['Bash(git push origin main)']))
-  check('control: an exact deny without a reason keeps today\'s sentence', exactPlain.behavior === 'deny' && exactPlain.message === 'Bash(git push origin main) is blocked by a deny rule.', j(exactPlain))
+  check('control: an exact deny without a reason speaks the rule sentence', exactPlain.behavior === 'deny' && exactPlain.message === 'git push origin main is denied by the rule Bash(git push origin main) in your user settings.', j(exactPlain))
   const exactSaid = exact('git push origin main', bashCtx(['Bash(git push origin main)'], { 'Bash(git push origin main)': R_PUSH }))
-  check('1 the exact-match deny says the words', exactSaid.behavior === 'deny' && exactSaid.message === `Bash(git push origin main) is blocked by a deny rule: ${R_PUSH}.`, j(exactSaid))
+  check('1 the exact-match deny says the words', exactSaid.behavior === 'deny' && exactSaid.message === `git push origin main is denied by the rule Bash(git push origin main) in your user settings: ${R_PUSH}.`, j(exactSaid))
   check('…and its rule carries the reason for the transcript', exactSaid.decisionReason?.rule?.ruleValue.reason === R_PUSH, j(exactSaid.decisionReason))
 
   const subPlain = perSub('git push origin main', bashCtx(['Bash(git push *)']))
-  check('control: a prefix deny without a reason keeps today\'s sentence', subPlain.behavior === 'deny' && subPlain.message === 'Bash deny rule matched.', j(subPlain))
+  check('control: a prefix deny without a reason speaks the rule sentence', subPlain.behavior === 'deny' && subPlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(subPlain))
   const subSaid = perSub('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-  check('2 the per-subcommand prefix deny says the words', subSaid.behavior === 'deny' && subSaid.message === `Bash deny rule matched: ${R_PUSH}.`, j(subSaid))
+  check('2 the per-subcommand prefix deny says the words', subSaid.behavior === 'deny' && subSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(subSaid))
   const bothPrefixes = { 'Bash(git *)': R_GIT, 'Bash(git push *)': R_PUSH }
   const shortFirst = perSub('git push origin main', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
-  check('two matching prefix rules, the short one listed first: the longer prefix\'s words win', shortFirst.message === `Bash deny rule matched: ${R_PUSH}.`, j(shortFirst))
+  check('two matching prefix rules, the short one listed first: the longer prefix\'s words win', shortFirst.message === `git push origin main is denied by the rule Bash(git *) in your user settings: ${R_PUSH}.`, j(shortFirst))
   const longFirst = perSub('git push origin main', bashCtx(['Bash(git push *)', 'Bash(git *)'], bothPrefixes))
-  check('…in either order', longFirst.message === `Bash deny rule matched: ${R_PUSH}.`, j(longFirst))
+  check('…in either order', longFirst.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(longFirst))
   const fetchSaid = perSub('git fetch origin', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
-  check('a command only the short prefix covers gets the short prefix\'s words', fetchSaid.message === `Bash deny rule matched: ${R_GIT}.`, j(fetchSaid))
+  check('a command only the short prefix covers gets the short prefix\'s words', fetchSaid.message === `git fetch origin is denied by the rule Bash(git *) in your user settings: ${R_GIT}.`, j(fetchSaid))
 
   const gates = { enabled: SandboxManager.isSandboxingEnabled, auto: SandboxManager.isAutoAllowBashIfSandboxedEnabled, unsandboxed: SandboxManager.areUnsandboxedCommandsAllowed }
   SandboxManager.isSandboxingEnabled = () => true
@@ -291,11 +291,11 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   SandboxManager.areUnsandboxedCommandsAllowed = () => false
   try {
     const fullPlain = await whole('git push origin main', bashCtx(['Bash(git push *)']))
-    check('control: the sandbox road\'s full-command deny without a reason keeps today\'s sentence', fullPlain.behavior === 'deny' && fullPlain.message === 'git push origin main is blocked by a deny rule.', j(fullPlain))
+    check('control: the sandbox road\'s full-command deny without a reason speaks the rule sentence', fullPlain.behavior === 'deny' && fullPlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(fullPlain))
     const fullSaid = await whole('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-    check('3 the sandbox road\'s full-command deny says the words', fullSaid.behavior === 'deny' && fullSaid.message === `git push origin main is blocked by a deny rule: ${R_PUSH}.`, j(fullSaid))
+    check('3 the sandbox road\'s full-command deny says the words', fullSaid.behavior === 'deny' && fullSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(fullSaid))
     const subSandboxSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-    check('4 the sandbox road\'s subcommand deny names the whole command and says the words', subSandboxSaid.behavior === 'deny' && subSandboxSaid.message === `echo ok && git push origin main is blocked by a deny rule: ${R_PUSH}.`, j(subSandboxSaid))
+    check('4 the sandbox road\'s subcommand deny names the whole command and says the words', subSandboxSaid.behavior === 'deny' && subSandboxSaid.message === `echo ok && git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(subSandboxSaid))
   } finally {
     SandboxManager.isSandboxingEnabled = gates.enabled
     SandboxManager.isAutoAllowBashIfSandboxedEnabled = gates.auto
@@ -304,9 +304,9 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
 
   parseRoutes.set('git push origin {main,dev}', { kind: 'too-complex', reason: 'contains brace expansion syntax' })
   const earlyPlain = await whole('git push origin {main,dev}', bashCtx(['Bash(git push *)']))
-  check('control: the early-exit deny without a reason keeps today\'s sentence', earlyPlain.behavior === 'deny' && earlyPlain.message === 'git push origin {main,dev} is blocked by a deny rule.', j(earlyPlain))
+  check('control: the early-exit deny without a reason speaks the rule sentence', earlyPlain.behavior === 'deny' && earlyPlain.message === 'git push origin {main,dev} is denied by the rule Bash(git push *) in your user settings.', j(earlyPlain))
   const earlySaid = await whole('git push origin {main,dev}', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-  check('5 the early-exit deny (a too-complex parse) says the words', earlySaid.behavior === 'deny' && earlySaid.message === `git push origin {main,dev} is blocked by a deny rule: ${R_PUSH}.`, j(earlySaid))
+  check('5 the early-exit deny (a too-complex parse) says the words', earlySaid.behavior === 'deny' && earlySaid.message === `git push origin {main,dev} is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(earlySaid))
   const environ = 'echo ok && cat /proc/self/environ'
   parseRoutes.set(environ, {
     kind: 'simple',
@@ -316,15 +316,15 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
     ],
   })
   const semanticsPlain = await whole(environ, bashCtx(['Bash(cat *)']))
-  check('control: the semantics deny without a reason keeps today\'s sentence', semanticsPlain.behavior === 'deny' && semanticsPlain.message === 'cat /proc/self/environ is blocked by a deny rule.', j(semanticsPlain))
+  check('control: the semantics deny without a reason speaks the rule sentence', semanticsPlain.behavior === 'deny' && semanticsPlain.message === 'cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings.', j(semanticsPlain))
   const semanticsSaid = await whole(environ, bashCtx(['Bash(cat *)'], { 'Bash(cat *)': R_ENVIRON }))
-  check('6 the semantics deny (a red-flagged subcommand) says the words', semanticsSaid.behavior === 'deny' && semanticsSaid.message === `cat /proc/self/environ is blocked by a deny rule: ${R_ENVIRON}.`, j(semanticsSaid))
+  check('6 the semantics deny (a red-flagged subcommand) says the words', semanticsSaid.behavior === 'deny' && semanticsSaid.message === `cat /proc/self/environ is denied by the rule Bash(cat *) in your user settings: ${R_ENVIRON}.`, j(semanticsSaid))
   parseRoutes.clear()
 
   const aggregatePlain = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)']))
-  check('control: a compound command\'s aggregate deny without a reason keeps today\'s sentence', aggregatePlain.behavior === 'deny' && aggregatePlain.message === 'A subcommand was denied.', j(aggregatePlain))
+  check('control: a compound command\'s aggregate deny without a reason speaks the rule sentence', aggregatePlain.behavior === 'deny' && aggregatePlain.message === 'git push origin main is denied by the rule Bash(git push *) in your user settings.', j(aggregatePlain))
   const aggregateSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
-  check('7 a compound command\'s aggregate deny says the denied subcommand\'s words', aggregateSaid.behavior === 'deny' && aggregateSaid.message === `A subcommand was denied: ${R_PUSH}.`, j(aggregateSaid))
+  check('7 a compound command\'s aggregate deny says the denied subcommand\'s words', aggregateSaid.behavior === 'deny' && aggregateSaid.message === `git push origin main is denied by the rule Bash(git push *) in your user settings: ${R_PUSH}.`, j(aggregateSaid))
 }
 
 section('§7 THE CONSENT CARD — one line under the rule, the hint below it; none without a reason')
@@ -369,23 +369,23 @@ section('§7 THE CONSENT CARD — one line under the rule, the hint below it; no
 
   const bare = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'userSettings'))
   const bareLines = lines(bare.frame())
-  check('control: without a reason the explanation is exactly today\'s two lines', j(bareLines) === j(['The rule Bash(git push *) requires confirmation for this command', 'Permission rules can be changed in /permissions']), j(bareLines))
+  check('control: without a reason the explanation is exactly today\'s two lines', j(bareLines) === j(['The rule Bash(git push *) in your user settings asks first.', 'Rules live in /permissions']), j(bareLines))
   bare.close()
 
   const stamped = await mount(explanation(askFor(pushRule(R_PUSH))), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'userSettings'))
   const stampedLines = lines(stamped.frame())
-  check('a rule carrying its reason paints the words on one line between the rule and the hint', j(stampedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(stampedLines))
+  check('a rule carrying its reason paints the words on one line between the rule and the hint', j(stampedLines) === j(['The rule Bash(git push *) in your user settings asks first.', R_PUSH, 'Rules live in /permissions']), j(stampedLines))
   if (frameDir) writeFileSync(join(frameDir, 'explanation-178.txt'), stamped.frame() + '\n')
   stamped.close()
 
   const looked = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push *)'] }, { 'Bash(git push *)': R_PUSH }, 'userSettings'))
   const lookedLines = lines(looked.frame())
-  check('a rule without a stamped reason still finds its words in the posture (every ask road paints the line)', j(lookedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(lookedLines))
+  check('a rule without a stamped reason still finds its words in the posture (every ask road paints the line)', j(lookedLines) === j(['The rule Bash(git push *) in your user settings asks first.', R_PUSH, 'Rules live in /permissions']), j(lookedLines))
   looked.close()
 
   const managed = await mount(explanation(askFor({ ...pushRule(R_PUSH), source: 'policySettings' })), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'policySettings'))
   const managedLines = lines(managed.frame())
-  check('a managed-policy rule paints its words and still omits the /permissions hint', j(managedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH]), j(managedLines))
+  check('a managed-policy rule paints its words and still omits the /permissions hint', j(managedLines) === j(['The rule Bash(git push *) in the managed settings asks first.', R_PUSH]), j(managedLines))
   managed.close()
 
   const fetchTool = {
@@ -418,9 +418,9 @@ section('§7 THE CONSENT CARD — one line under the rule, the hint below it; no
   )
   const cardFrame = card.frame()
   const cardLines = lines(cardFrame)
-  const ruleRow = cardLines.findIndex(line => line.includes('The rule WebFetch requires confirmation for this tool'))
+  const ruleRow = cardLines.findIndex(line => line.includes('The rule WebFetch in your user settings asks first.'))
   check('the fallback consent card mounts with the rule line', !cardFrame.includes('RENDER ERROR') && ruleRow >= 0, cardFrame)
-  check('the card paints the reason on the line right under the rule line, the hint under that', ruleRow >= 0 && cardLines[ruleRow + 1]?.includes('every fetch is reviewed while the audit runs') === true && cardLines[ruleRow + 2]?.includes('Permission rules can be changed in /permissions') === true, cardLines.slice(ruleRow, ruleRow + 3).join(' | '))
+  check('the card paints the reason on the line right under the rule line, the hint under that', ruleRow >= 0 && cardLines[ruleRow + 1]?.includes('every fetch is reviewed while the audit runs') === true && cardLines[ruleRow + 2]?.includes('Rules live in /permissions') === true, cardLines.slice(ruleRow, ruleRow + 3).join(' | '))
   check('the card fits 178 columns', cardLines.every(line => line.length <= 178))
   if (frameDir) writeFileSync(join(frameDir, 'card-178x51.txt'), cardFrame + '\n')
   card.close()
@@ -436,17 +436,17 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
   const bash = (command: string, ctx: Ctx): Decision => checkPathConstraints({ command }, PROJ, ctx as never) as unknown as Decision
 
   const operandPlain = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }))
-  check('control: a Bash operand blocked by a file deny rule without a reason keeps today\'s sentence', operandPlain.behavior === 'deny' && operandPlain.message === `The cat of ${key} is blocked by a deny rule.`, j(operandPlain))
+  check('control: a Bash operand blocked by a file deny rule without a reason speaks the rule sentence', operandPlain.behavior === 'deny' && operandPlain.message === `The cat of ${key} is denied by the rule Read(secrets/**) from this session.`, j(operandPlain))
   const operandSaid = bash('cat secrets/k.pem', ctxWith({ deny: ['Read(secrets/**)'] }, { 'Read(secrets/**)': R_SECRETS }))
-  check('1 a Bash operand blocked by a file deny rule says the words', operandSaid.behavior === 'deny' && operandSaid.message === `The cat of ${key} is blocked by a deny rule: ${R_SECRETS}.`, j(operandSaid))
+  check('1 a Bash operand blocked by a file deny rule says the words', operandSaid.behavior === 'deny' && operandSaid.message === `The cat of ${key} is denied by the rule Read(secrets/**) from this session: ${R_SECRETS}.`, j(operandSaid))
   check('…and its rule carries the reason for the transcript', operandSaid.decisionReason?.rule?.ruleValue.reason === R_SECRETS, j(operandSaid.decisionReason))
   const operandNarrow = bash('cat secrets/prod/k.pem', ctxWith({ deny: ['Read(secrets/**)', 'Read(secrets/prod/**)'] }, { 'Read(secrets/**)': R_SECRETS, 'Read(secrets/prod/**)': R_PROD }))
-  check('…two matching rules, the wide one listed first: the more specific rule\'s words win, as on the Read ladder', operandNarrow.message === `The cat of ${prodKey} is blocked by a deny rule: ${R_PROD}.`, j(operandNarrow))
+  check('…two matching rules, the wide one listed first: the more specific rule\'s words win, as on the Read ladder', operandNarrow.message === `The cat of ${prodKey} is denied by the rule Read(secrets/**) from this session: ${R_PROD}.`, j(operandNarrow))
 
   const redirectPlain = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }))
-  check('control: a redirection blocked by a file deny rule without a reason keeps today\'s sentence', redirectPlain.behavior === 'deny' && redirectPlain.message === `The redirection to ${key} is blocked by a deny rule.`, j(redirectPlain))
+  check('control: a redirection blocked by a file deny rule without a reason speaks the rule sentence', redirectPlain.behavior === 'deny' && redirectPlain.message === `The redirection to ${key} is denied by the rule Edit(secrets/**) from this session.`, j(redirectPlain))
   const redirectSaid = bash('echo hi > secrets/k.pem', ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }))
-  check('2 a redirection blocked by a file deny rule says the words', redirectSaid.behavior === 'deny' && redirectSaid.message === `The redirection to ${key} is blocked by a deny rule: ${R_SECRETS}.`, j(redirectSaid))
+  check('2 a redirection blocked by a file deny rule says the words', redirectSaid.behavior === 'deny' && redirectSaid.message === `The redirection to ${key} is denied by the rule Edit(secrets/**) from this session: ${R_SECRETS}.`, j(redirectSaid))
 
   const astDir = join(PROJ, 'ast')
   mkdirSync(astDir, { recursive: true })
@@ -457,16 +457,16 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
   const astInput = { pattern: 'normalizeRecord($A)', rewrite: 'normaliseRecord($A)', path: 'ast/report.ts', apply: true, plan: astPlan.token ?? '' }
   const astDecide = (ctx: Ctx): Promise<Decision> => AstEditTool.checkPermissions(astInput as never, useContext(ctx) as never) as unknown as Promise<Decision>
   const astPlain = await astDecide(ctxWith({ deny: ['Edit(ast/**)'] }))
-  check('control: a structural edit refused by a deny rule without a reason keeps today\'s sentence', astPlain.behavior === 'deny' && astPlain.message === 'Permission to edit report.ts has been denied — a denied file refuses the whole structural edit (zero writes).', j(astPlain))
+  check('control: a structural edit refused by a deny rule without a reason speaks the rule sentence', astPlain.behavior === 'deny' && astPlain.message === 'Editing report.ts is denied by the rule Edit(ast/**) from this session — a denied file refuses the whole structural edit (zero writes).', j(astPlain))
   const astSaid = await astDecide(ctxWith({ deny: ['Edit(ast/**)'] }, { 'Edit(ast/**)': R_REPORT }))
-  check('3 a denied file refusing the whole structural edit says the words', astSaid.behavior === 'deny' && astSaid.message === `Permission to edit report.ts has been denied — a denied file refuses the whole structural edit (zero writes): ${R_REPORT}.`, j(astSaid))
+  check('3 a denied file refusing the whole structural edit says the words', astSaid.behavior === 'deny' && astSaid.message === `Editing report.ts is denied by the rule Edit(ast/**) from this session — a denied file refuses the whole structural edit (zero writes): ${R_REPORT}.`, j(astSaid))
 
   const setInput = { op: 'apply', changes: [{ file_path: key, expected_anchor: 'fa:000000000000', hunks: [{ lines: '1', replace: '' }] }] }
   const setDecide = (ctx: Ctx): Promise<Decision> => ChangeSetTool.checkPermissions(setInput as never, useContext(ctx) as never) as unknown as Promise<Decision>
   const setPlain = await setDecide(ctxWith({ deny: ['Edit(secrets/**)'] }))
-  check('control: a change set refused by a deny rule without a reason keeps today\'s sentence', setPlain.behavior === 'deny' && setPlain.message === `Permission to edit ${key} has been denied — a denied path refuses the whole change set (zero writes).`, j(setPlain))
+  check('control: a change set refused by a deny rule without a reason speaks the rule sentence', setPlain.behavior === 'deny' && setPlain.message === `Editing ${key} is denied by the rule Edit(secrets/**) from this session — a denied path refuses the whole change set (zero writes).`, j(setPlain))
   const setSaid = await setDecide(ctxWith({ deny: ['Edit(secrets/**)'] }, { 'Edit(secrets/**)': R_SECRETS }))
-  check('4 a denied path refusing the whole change set says the words', setSaid.behavior === 'deny' && setSaid.message === `Permission to edit ${key} has been denied — a denied path refuses the whole change set (zero writes): ${R_SECRETS}.`, j(setSaid))
+  check('4 a denied path refusing the whole change set says the words', setSaid.behavior === 'deny' && setSaid.message === `Editing ${key} is denied by the rule Edit(secrets/**) from this session — a denied path refuses the whole change set (zero writes): ${R_SECRETS}.`, j(setSaid))
 
   const scout = { agentType: 'scout-role', whenToUse: 'recon', source: 'built-in', getSystemPrompt: () => 'scout' }
   const launch = (ctx: Ctx): string => {
@@ -478,11 +478,11 @@ section('§8 THE BESPOKE TOOL SENTENCES — a Bash operand, a redirection, a str
     }
   }
   const agentPlain = launch(ctxWith({ deny: ['Agent(scout-role)'] }, undefined, 'userSettings'))
-  check('control: an Agent(type) deny without a reason keeps today\'s sentence', agentPlain === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings.`, agentPlain)
+  check('control: an Agent(type) deny without a reason speaks the rule sentence', agentPlain === 'The scout-role agent is denied by the rule Agent(scout-role) in your user settings.', agentPlain)
   const agentSaid = launch(ctxWith({ deny: ['Agent(scout-role)'] }, { 'Agent(scout-role)': R_SCOUT }, 'userSettings'))
-  check('5 an Agent(type) deny says the words', agentSaid === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings: ${R_SCOUT}.`, agentSaid)
+  check('5 an Agent(type) deny says the words', agentSaid === `The scout-role agent is denied by the rule Agent(scout-role) in your user settings: ${R_SCOUT}.`, agentSaid)
   const agentOther = launch(ctxWith({ deny: ['Agent(scout-role)'] }, { 'Agent(other-role)': R_SCOUT }, 'userSettings'))
-  check('control: words for another agent rule change nothing', agentOther === `Agent type 'scout-role' has been denied by permission rule 'Agent(scout-role)' from userSettings.`, agentOther)
+  check('control: words for another agent rule change nothing', agentOther === 'The scout-role agent is denied by the rule Agent(scout-role) in your user settings.', agentOther)
 }
 
 process.chdir(launchDir)

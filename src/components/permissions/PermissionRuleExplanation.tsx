@@ -4,14 +4,14 @@ import ThemedText from '../design-system/ThemedText.js'
 import { useAppState } from '../../state/AppState.js'
 import { permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import type { PermissionDecision } from '../../utils/permissions/PermissionResult.js'
-import { reasonForRule } from '../../utils/permissions/ruleReason.js'
+import { reasonForRule, ruleSourceWords } from '../../utils/permissions/ruleReason.js'
 
 export type PermissionRuleExplanationProps = {
   permissionResult: PermissionDecision
   toolType: 'tool' | 'command' | 'edit' | 'read'
 }
 
-const RULES_HINT = 'Permission rules can be changed in /permissions'
+const RULES_HINT = 'Rules live in /permissions'
 const HOOKS_HINT = 'Hooks can be changed in /hooks'
 
 export function PermissionRuleExplanation({
@@ -32,7 +32,7 @@ export function PermissionRuleExplanation({
       return (
         <Box flexDirection="column">
           <Text wrap="truncate-middle">
-            The rule <Text bold>{ruleString}</Text> requires confirmation for this {toolType}
+            The rule <Text bold>{ruleString}</Text> {ruleSourceWords(reason.rule.source)} asks first.
           </Text>
           {words ? <Text wrap="truncate-middle">{words}</Text> : null}
           {managed ? null : <Text dimColor wrap="truncate-middle">{RULES_HINT}</Text>}

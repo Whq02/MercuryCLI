@@ -26,6 +26,7 @@ import { normalizeMessages } from '../../utils/messages.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
+import { ruleSentence } from '../../utils/permissions/ruleReason.js'
 import { recordSkillUsage } from '../../utils/suggestions/skillUsageTracking.js'
 import { createAgentId } from '../../utils/uuid.js'
 import { runAgent } from '../AgentTool/runAgent.js'
@@ -304,7 +305,7 @@ export const SkillTool = buildTool({
       if (ruleMatchesSkill(content, name)) {
         return {
           behavior: 'deny' as const,
-          message: 'Skill blocked by permission rules',
+          message: ruleSentence(`The ${name} skill`, 'deny', rule),
           decisionReason: { type: 'rule' as const, rule },
         }
       }

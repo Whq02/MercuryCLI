@@ -174,6 +174,76 @@ section('§4 THE SCREENS — the gloss, the free-text example and the card place
   check('the Bash card\'s "starts with" box is seeded and placeholdered in the star form', editable?.initialValue === 'npm run *' && editable?.placeholder === 'npm run *', j(editable))
 }
 
+section('§5 ONE VOICE WHEN A RULE DECIDES — what was attempted, the verdict, the rule as written, where it lives')
+{
+  const reasonModule = await import('../../src/utils/permissions/ruleReason.js') as Record<string, unknown>
+  check('the one sentence helper exists', typeof reasonModule.ruleSentence === 'function' && typeof reasonModule.ruleSourceWords === 'function')
+  if (typeof reasonModule.ruleSentence !== 'function') {
+    console.log(`\n❌ rule-words: ${failures} failure(s)`)
+    process.exit(1)
+  }
+  const { ruleSentence, ruleSourceWords, refusalWithReason } = reasonModule as unknown as typeof import('../../src/utils/permissions/ruleReason.js')
+  const { createPermissionRequestMessage } = await import('../../src/utils/permissions/decision/requestMessage.js')
+  const { checkReadPermissionForTool, checkWritePermissionForTool } = await import('../../src/utils/permissions/filesystem.js')
+  const { PermissionRuleExplanation } = await import('../../src/components/permissions/PermissionRuleExplanation.js')
+  const rule = (source: string, behavior: 'allow' | 'deny' | 'ask', toolName: string, ruleContent?: string) =>
+    ({ source, ruleBehavior: behavior, ruleValue: { toolName, ...(ruleContent === undefined ? {} : { ruleContent }) } }) as never
+  check('a deny names what was attempted, the rule and the file', ruleSentence('rm -rf dist', 'deny', rule('projectSettings', 'deny', 'Bash', 'rm *')) === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings.')
+  check('an ask says "asks first" and names the rule', ruleSentence('git push origin main', 'ask', rule('userSettings', 'ask', 'Bash', 'git push *')) === 'git push origin main asks first — the rule Bash(git push *) in your user settings.')
+  check('an allow names the rule that allowed it', ruleSentence('npm run build', 'allow', rule('localSettings', 'allow', 'Bash', 'npm run *')) === 'npm run build is allowed by the rule Bash(npm run *) in the project local settings.')
+  check('a whole-tool rule is named bare', ruleSentence('Using WebFetch', 'deny', rule('policySettings', 'deny', 'WebFetch')) === 'Using WebFetch is denied by the rule WebFetch in the managed settings.')
+  check('every rule source has its words', (['userSettings', 'projectSettings', 'localSettings', 'flagSettings', 'policySettings', 'cliArg', 'command', 'session', 'toolsNarrowing', 'mcpServerPolicy'] as const).every(source => typeof ruleSourceWords(source) === 'string' && ruleSourceWords(source).length > 0))
+  check('your own reason rides the end of the sentence', refusalWithReason(ruleSentence('rm -rf dist', 'deny', rule('projectSettings', 'deny', 'Bash', 'rm *')), 'the build tree is sacred') === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings: the build tree is sacred.')
+
+  const denyCtx = ctxWith({ deny: ['Bash(rm *)'] }, 'projectSettings')
+  check('the Bash road: a deny rule speaks the sentence', decide('rm -rf dist', denyCtx).message === 'rm -rf dist is denied by the rule Bash(rm *) in the shared project settings.', j(decide('rm -rf dist', denyCtx)))
+  const askCtx = ctxWith({ ask: ['Bash(git push *)'] }, 'userSettings')
+  check('the Bash road: an ask rule speaks the sentence', decide('git push origin main', askCtx).message === 'git push origin main asks first — the rule Bash(git push *) in your user settings.', j(decide('git push origin main', askCtx)))
+  const psDeny = powershellToolCheckPermission({ command: 'Remove-Item -Recurse dist' }, ctxWith({ deny: ['PowerShell(Remove-Item *)'] }, 'userSettings') as never) as unknown as Decision
+  check('the PowerShell road: the same sentence', psDeny.message === 'Remove-Item -Recurse dist is denied by the rule PowerShell(Remove-Item *) in your user settings.', j(psDeny))
+  const fileCtx = ctxWith({ deny: ['Read(//etc/passwd)'], ask: ['Edit(//tmp/notes.txt)'] }, 'userSettings')
+  const readTool = { name: 'Read', getPath: (input: { file_path: string }) => input.file_path }
+  const readDenied = checkReadPermissionForTool(readTool as never, { file_path: '/etc/passwd' }, fileCtx as never) as unknown as Decision
+  check('the file road: reading a denied path speaks the sentence', readDenied.behavior === 'deny' && readDenied.message === 'Reading /etc/passwd is denied by the rule Read(//etc/passwd) in your user settings.', j(readDenied))
+  const editAsked = checkWritePermissionForTool({ name: 'Edit', getPath: readTool.getPath } as never, { file_path: '/tmp/notes.txt' }, fileCtx as never) as unknown as Decision
+  check('the file road: editing an asked path speaks the sentence', editAsked.behavior === 'ask' && editAsked.message === 'Editing /tmp/notes.txt asks first — the rule Edit(//tmp/notes.txt) in your user settings.', j(editAsked))
+  check('the wire: an ask carried by its rule speaks the sentence', createPermissionRequestMessage('WebFetch', { type: 'rule', rule: rule('projectSettings', 'ask', 'WebFetch', 'domain:example.com') } as never) === 'This WebFetch call asks first — the rule WebFetch(domain:example.com) in the shared project settings.')
+
+  const settle = async (): Promise<void> => {
+    for (let index = 0; index < 6; index++) {
+      flushPendingSyncWork()
+      await new Promise<void>(resolve => setTimeout(resolve, 5))
+    }
+  }
+  const emitter = new EventEmitter()
+  const stdin = Object.assign(new NodeEventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
+  const stream = new PassThrough()
+  stream.resume()
+  const stdout = Object.assign(stream, { columns: 120, rows: 40 }) as unknown as NodeJS.WriteStream
+  const store = createStore({ ...getDefaultAppState(), toolPermissionContext: askCtx as never })
+  const stdinValue = { stdin, setRawMode() {}, isRawModeSupported: true, internal_exitOnCtrlC: false, internal_eventEmitter: emitter, internal_querier: null }
+  const decision = { behavior: 'ask', message: 'x', decisionReason: { type: 'rule', rule: rule('userSettings', 'ask', 'Bash', 'git push *') } }
+  const tree = React.createElement(
+    StdinContext.Provider,
+    { value: stdinValue as never },
+    React.createElement(
+      TerminalSizeContext.Provider,
+      { value: { columns: 120, rows: 40 } },
+      React.createElement(AppStoreContext.Provider, { value: store as never }, React.createElement(Box, { flexDirection: 'column', width: 120 }, React.createElement(PermissionRuleExplanation, { permissionResult: decision as never, toolType: 'command' }))),
+    ),
+  )
+  let painted = (): void => {}
+  const firstFrame = new Promise<void>(resolve => { painted = resolve })
+  const instance = await render(tree, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
+  await firstFrame
+  await settle()
+  const cardLines = stripAnsi(instance.lastFrame()).replace(/\s+$/, '').split('\n').map(line => line.trimEnd())
+  instance.unmount()
+  instance.cleanup()
+  stream.destroy()
+  check('the card: the rule line and the hint', j(cardLines) === j(['The rule Bash(git push *) in your user settings asks first.', 'Rules live in /permissions']), j(cardLines))
+}
+
 console.log()
 if (failures) {
   console.log(`❌ rule-words: ${failures} failure(s)`)

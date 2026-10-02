@@ -45,7 +45,7 @@ import {
   checkWritePermissionForTool,
   matchingRuleForInput,
 } from '../../utils/permissions/filesystem.js'
-import { reasonForRule, refusalWithReason } from '../../utils/permissions/ruleReason.js'
+import { reasonForRule, refusalWithReason, ruleWords } from '../../utils/permissions/ruleReason.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { plural } from '../../utils/stringUtils.js'
 import { syncServersAfterWrite } from '../LSPTool/mercuryOps.js'
@@ -304,7 +304,7 @@ export const AstEditTool = buildTool({
       if (decision.behavior === 'deny') {
         return {
           ...decision,
-          message: refusalWithReason(`Permission to edit ${f.rel} has been denied — a denied file refuses the whole structural edit (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
+          message: refusalWithReason(`Editing ${f.rel} is denied${decision.decisionReason.type === 'rule' ? ` by ${ruleWords(decision.decisionReason.rule)}` : ''} — a denied file refuses the whole structural edit (zero writes).`, decision.decisionReason.type === 'rule' ? reasonForRule(permCtx, decision.decisionReason.rule) : undefined),
         } as PermissionDecision
       }
       if (decision.behavior !== 'allow') needsAsk = true
@@ -388,7 +388,7 @@ export const AstEditTool = buildTool({
       }
     }
     if (denied.length > 0) {
-      const rows = denied.map(p => `  ${p} — blocked by a deny rule`)
+      const rows = denied.map(p => `  ${p} — denied by a rule`)
       throw new Error(
         `Apply refused — ${rows.length} ${plural(rows.length, 'file')} not writable:\n${rows.join('\n')}\nNothing was written (a denied path refuses the whole edit). Adjust permission rules, then apply again.`,
       )

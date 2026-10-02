@@ -6,7 +6,7 @@ import { STATE_STYLE } from '../mercury-ui/theme.js'
 import { useAppState } from '../../state/AppState.js'
 import { SandboxManager } from '../../utils/sandbox/sandbox-adapter.js'
 import { detectUnreachableRules } from '../../utils/permissions/shadowedRuleDetection.js'
-import { permissionRuleSourceDisplayString } from '../../utils/permissions/decision/rules.js'
+import { ruleSourceWords } from '../../utils/permissions/ruleReason.js'
 import { permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import type {
@@ -65,8 +65,8 @@ function ReasonView({
     case 'rule':
       return (
         <Text wrap="truncate-middle">
-          <Text bold>{permissionRuleValueToString(reason.rule.ruleValue)}</Text> from{' '}
-          {permissionRuleSourceDisplayString(reason.rule.source)}
+          the rule <Text bold>{permissionRuleValueToString(reason.rule.ruleValue)}</Text>{' '}
+          {ruleSourceWords(reason.rule.source)}
         </Text>
       )
     case 'mode':
