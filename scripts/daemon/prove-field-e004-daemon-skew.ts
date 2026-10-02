@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -123,7 +123,8 @@ section('§A the pure grammar: a daemon of another build is visible')
 section('§B the install layout: the release layout (versions\\current.txt, Windows-shaped) resolves beside the source layout')
 {
   const release = handover.releaseDeployedRuntime(home, 'win32')
-  check('B1 current.txt (CRLF, a trailing space) names the version directory, its bundle, its tree, its version and its vendored node.exe', release !== null && release.layout === 'release' && release.script === join(newDir, 'mercury.mjs') && release.buildTree === NEW_TREE.slice(0, 12) && release.version === NEW_VERSION && release.node === join(newDir, 'vendor', 'node', 'node.exe'), text(release))
+  const realPath = (p: string | null): string | null => (p === null ? null : realpathSync(p))
+  check('B1 current.txt (CRLF, a trailing space) names the version directory, its bundle, its tree, its version and its vendored node.exe', release !== null && release.layout === 'release' && release.script === join(newDir, 'mercury.mjs') && release.buildTree === NEW_TREE.slice(0, 12) && release.version === NEW_VERSION && realPath(release.node) === realpathSync(join(newDir, 'vendor', 'node', 'node.exe')), text(release))
   const fromOld = handover.deployedRuntime(home, { platform: 'win32', runningScript: join(oldDir, 'mercury.mjs') })
   check('B2 a daemon running from the versions root resolves the release layout, never process.argv[1]', fromOld !== null && fromOld.script === join(newDir, 'mercury.mjs') && fromOld.layout === 'release', text(fromOld))
   const runtimeDir = join(home, 'runtime', 'current')
@@ -263,6 +264,37 @@ section('§D `mercury update` ends by moving a daemon of another build, and says
   await sleep(500)
   killAll(spawned)
   check('D4 the way down: every daemon this proof started is gone', [...spawned].every(pid => pid <= 0 || !isProcessAlive(pid)), text([...spawned].filter(pid => pid > 0 && isProcessAlive(pid))))
+}
+
+section('§DI the installer roads (no versions layout for Mercury to point at): `mercury update` still ends by asking the daemon to restart on the installed package, and says so')
+{
+  hsMod.resetDaemonHandshakeForTesting()
+  hsMod.resetHandoverAsksForTesting()
+  ;(await import(join(ROOT, 'src/daemon/ownedDaemon.ts'))).resetOwnedDaemonBreakerForTesting()
+  const updateMod = (await import(join(ROOT, 'src/cli/update.ts'))) as { moveDaemonAfterInstallerUpgrade?: (to: string) => Promise<{ state: string; line: string } | null> }
+  const mover = typeof updateMod.moveDaemonAfterInstallerUpgrade === 'function' ? updateMod.moveDaemonAfterInstallerUpgrade : null
+  rmSync(join(versionsDir, 'current.txt'), { force: true })
+  check('DI1 with no pointer and no runtime directory nothing is deployed for Mercury to move the daemon onto (the installer owns the layout)', handover.deployedRuntime(home) === null)
+  check('DI2 the update verb carries a daemon mover for the installer roads', mover !== null)
+  if (mover !== null) {
+    const none = await mover(NEW_VERSION)
+    check('DI3 with no daemon the installer road says the next session starts one on the installed version', none !== null && none.state === 'absent' && none.line === `background daemon: none running — the next session starts one on v${NEW_VERSION}`, text(none))
+    const old = startDaemon(join(oldDir, 'mercury.mjs'))
+    spawned.add(old.pid)
+    await readyAt(old.pid)
+    const asked = await mover(NEW_VERSION)
+    check('DI4 a daemon of the older build is asked to restart and the line says it restarts on the updated install', asked !== null && asked.state === 'moving' && asked.line === `background daemon: v${OLD_VERSION} (pid ${old.pid}) is restarting on the updated install — the next session runs on v${NEW_VERSION}`, `${text(asked)}\n${old.log.join('').slice(-600)}`)
+    const back = await otherThan(old.pid)
+    spawned.add(back?.pid ?? -1)
+    check('DI5 the daemon re-executes the bundle at its own path (the one the installer replaced in place) and comes back', back !== null && (await until(() => !isProcessAlive(old.pid), 20_000, 200)), `${text(back)}\n${old.log.join('').slice(-600)}`)
+    const current = await mover(OLD_VERSION)
+    check('DI6 asked for the version it already runs, the daemon is left alone and the line says so', current !== null && current.state === 'current' && current.line === `background daemon: already on v${OLD_VERSION} (v${OLD_VERSION} (pid ${back?.pid}))` && (await helloFrom())?.pid === back?.pid, text(current))
+    await stopPlane()
+  }
+  pointTo(NEW_VERSION)
+  await sleep(500)
+  killAll(spawned)
+  check('DI7 the way down: every daemon this arm started is gone and the pointer is back', [...spawned].every(pid => pid <= 0 || !isProcessAlive(pid)) && handover.deployedRuntime(home) !== null, text([...spawned].filter(pid => pid > 0 && isProcessAlive(pid))))
 }
 
 section('§D2 a daemon of an older build whose restart re-executes its own bundle (the field\'s beta.23) is handed over, never stopped')

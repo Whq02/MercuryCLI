@@ -16,7 +16,7 @@ import chalk from 'chalk'
 import { NODE_FLOOR_REASON, NODE_SUPPORT, nodeRuntimeProjection } from './runtime/nodePolicy.js'
 import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { mkdir, readFile, rename } from 'node:fs/promises'
-import { cpus, homedir, loadavg } from 'node:os'
+import { cpus, loadavg } from 'node:os'
 import { deviceHeadroom } from './cockpit/deviceHeadroom.js'
 import { basename, delimiter, dirname, join, relative, resolve as resolvePath, sep } from 'node:path'
 import { whichSync } from './which.js'
@@ -983,7 +983,9 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             }
             const commitMs = commitSec * 1000
             if (entryMtime < commitMs) {
-              const bun = flagEnv('MERCURY_BUN') || join(homedir(), '.bun', 'bin', 'bun')
+              const { renderTuiRuntime } = await import('../services/mcp/renderTuiTool.js')
+              const runtime = renderTuiRuntime()
+              const bun = 'bun' in runtime ? runtime.bun : null
               return {
                 status: 'stale',
                 evidence: `bundle built ${formatAge(Date.now() - entryMtime)}, but src/ last changed ${formatAge(Date.now() - commitMs)} (committed) — the running build predates the source`,
@@ -991,9 +993,10 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 ...(healthFixEnabled()
                   ? {
                       remedy: {
-                        plan: `rebuild dist (${bun} run build.ts in ${root}, ~40s) — this session keeps the old bundle until relaunch`,
+                        plan: `rebuild dist (${bun ?? 'bun'} run build.ts in ${root}, ~40s) — this session keeps the old bundle until relaunch`,
                         class: 'safe' as const,
                         apply: async () => {
+                          if (bun === null) return { ok: false, note: 'missing' in runtime ? runtime.missing : 'no bun runtime' }
                           const res = await runRemedyCmd(bun, ['run', 'build.ts'], root, 5 * 60_000)
                           return res.status === 0
                             ? { ok: true, note: 'build.ts exited 0' }

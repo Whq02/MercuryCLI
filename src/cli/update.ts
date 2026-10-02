@@ -56,6 +56,42 @@ export function openWindowsLine(from: string | null): string {
   return `any Mercury window still open keeps working on ${from ? `v${from}` : 'the build it started with'} until it is closed and opened again`
 }
 
+export async function moveDaemonAfterInstallerUpgrade(to: string): Promise<{ state: string; line: string } | null> {
+  try {
+    const { deployedRuntime } = await import('../daemon/handover.js')
+    if (deployedRuntime() !== null) return await moveDaemonAfterUpdate()
+    const { handshakeDaemon, liveNoun } = await import('../daemon/handshake.js')
+    const first = await handshakeDaemon()
+    if (first.state === 'absent') return { state: 'absent', line: `background daemon: none running — the next session starts one on v${to}` }
+    const d = first.daemon
+    if (first.state === 'starting' || d === null) {
+      return { state: 'unknown', line: `background daemon: still starting — \`mercury daemon restart\` moves it to v${to} once it answers` }
+    }
+    const old = `v${d.version}${d.pid !== null ? ` (pid ${d.pid})` : ''}`
+    if (d.version === to) return { state: 'current', line: `background daemon: already on v${to} (${old})` }
+    const stopLine = (why: string): { state: string; line: string } => ({
+      state: 'stop',
+      line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on v${to}`,
+    })
+    const { hostedCallerOf } = await import('../daemon/hostedCaller.js')
+    if ((await hostedCallerOf(d.pid)).hosted && (first.heal === 'operator' || first.live === 0)) {
+      return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
+    }
+    if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
+    const { daemonControlRpc } = await import('../daemon/controlSocket.js')
+    const { MERCURY_DAEMON_PROTO } = await import('../daemon/protocol.js')
+    const reply = await daemonControlRpc({ op: 'restart-when-idle', proto: MERCURY_DAEMON_PROTO, by: 'mercury update' }, { timeoutMs: 3000 })
+    if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
+    if (reply.state === 'refused') return stopLine(reply.detail ?? 'the restart was refused')
+    if (reply.state === 'armed') {
+      return { state: 'when-idle', line: `background daemon: ${old} moves to v${to} when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} finish` }
+    }
+    return { state: 'moving', line: `background daemon: ${old} is restarting on the updated install — the next session runs on v${to}` }
+  } catch (error) {
+    return { state: 'unknown', line: `background daemon: not moved — ${error instanceof Error ? error.message : String(error)}` }
+  }
+}
+
 function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null): string {
   const installer = foreignInstallerOf(p)
   if (installer) return `installed by ${installer.name} at ${p.activeRoot} — ${installerRoadWords(installer)}`
@@ -110,6 +146,8 @@ async function installerRoad(
     return cliError(`update not completed: \`${command}\` exited ${ran.exitCode}\n  its own words are above; the installation is whatever ${installer.name} left`)
   }
   const after = readVersionAfterUpgrade(roots)
+  const daemon = after.state === 'read' ? await moveDaemonAfterInstallerUpgrade(after.version) : null
+  const openWindows = after.state === 'read' && after.version !== from ? openWindowsLine(from) : null
   if (options.json) {
     const record = {
       mode: 'update',
@@ -121,6 +159,8 @@ async function installerRoad(
       to: after.state === 'read' ? after.version : null,
       commandOnPath: after.state === 'no-command' ? null : after.command,
       ...(after.state === 'unreadable' ? { note: after.note } : {}),
+      ...(daemon === null ? {} : { daemon }),
+      ...(openWindows === null ? {} : { openWindows }),
       provenance,
     }
     return after.state === 'read' ? emitJson(record) : failJson(record)
@@ -129,8 +169,8 @@ async function installerRoad(
     case 'read':
       return cliOk(
         after.version === from
-          ? `Mercury is still ${from} after \`${command}\` — ${installer.name}'s package has not moved past it yet\n  the \`mercury\` your shell runs is ${after.command}`
-          : `updated: ${from} → ${after.version} (${installer.name}: \`${command}\`)\n  the \`mercury\` your shell runs is ${after.command}`,
+          ? `Mercury is still ${from} after \`${command}\` — ${installer.name}'s package has not moved past it yet\n  the \`mercury\` your shell runs is ${after.command}${daemon === null ? '' : `\n${daemon.line}`}`
+          : `updated: ${from} → ${after.version} (${installer.name}: \`${command}\`)\n  the \`mercury\` your shell runs is ${after.command}${daemon === null ? '' : `\n${daemon.line}`}\n${openWindows}`,
       )
     case 'no-command':
       return cliError(`\`${command}\` finished; no \`mercury\` is on your PATH to read the installed version from`)
