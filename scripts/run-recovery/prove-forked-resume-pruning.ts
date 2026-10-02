@@ -41,15 +41,26 @@ check(
   fx.liveUuids.every(u => uuidCount.get(u) === 1),
   fx.liveUuids.filter(u => uuidCount.get(u) !== 1).slice(0, 3).join(','),
 )
-check('no DEAD row reaches the conversation', !fx.deadUuids.some(u => uuidCount.has(u)))
+const forkFirst = fx.deadUuids.filter((_, i) => i % 4 === 0)
+const forkRest = fx.deadUuids.filter((_, i) => i % 4 !== 0)
+check('no dead row beyond the first of its fork reaches the conversation', !forkRest.some(u => uuidCount.has(u)))
+check("the first row of each fork — a tool_result under a live assistant — lands once, exactly as the full load's chain builder recovers it (its rule keys by parent alone; the wire strips such an orphan)", forkFirst.every(u => uuidCount.get(u) === 1), String(forkFirst.filter(u => uuidCount.get(u) !== 1).length))
 const flat = JSON.stringify(messages)
 check('the live tail text is intact', flat.includes(fx.liveTailText))
-check('no dead-branch content survives', !flat.includes('dead branch '))
+check('no dead-branch content beyond the recovered rows survives', !/dead branch \d+\/[123]:/.test(flat))
 check(
-  'the conversation is O(live chain), never the dead majority',
-  messages.length >= fx.liveUuids.length && messages.length <= fx.liveUuids.length + 4,
+  'the conversation is O(live chain) plus one recovered row per fork, never the dead majority',
+  messages.length >= fx.liveUuids.length && messages.length <= fx.liveUuids.length + forkFirst.length + 4,
   String(messages.length),
 )
+{
+  const { loadTranscriptFile } = await import('../../src/utils/sessionStorage/loading.ts')
+  const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.ts')
+  const full = await loadTranscriptFile(fx.path, { keepAllLeaves: true })
+  const tail = fx.liveUuids[fx.liveUuids.length - 1]!
+  const fullChain = buildConversationChain(full.messages, full.messages.get(tail as never)!).map(m => m.uuid)
+  check('THE LAW: the resume over the big-file road equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(messages.map(m => m.uuid)), `full=${fullChain.length} resumed=${messages.length}`)
+}
 
 console.log(failures === 0 ? '\n ✅ FORKED RESUME PRUNING PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
