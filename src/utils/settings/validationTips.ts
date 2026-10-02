@@ -1,3 +1,4 @@
+import { PERMISSION_MODES } from '../permissions/PermissionMode.js'
 
 export type ValidationTip = {
   suggestion?: string
@@ -14,10 +15,16 @@ export type TipContext = {
   value?: unknown
 }
 
-const DEFAULT_MODE_SUGGESTION =
-  'Valid modes: "default" (standard prompting), "implement" (file edits pre-approved), ' +
-  '"dontAsk" (skip prompts, deny instead), ' +
-  '"sovereign" (bypass everything), "flow" (classifier-arbitrated)'
+const MODE_GLOSS: Record<(typeof PERMISSION_MODES)[number], string> = {
+  default: 'standard prompting',
+  implement: 'file edits pre-approved',
+  dontAsk: 'skip prompts, deny instead',
+  sovereign: 'bypass everything',
+  flow: 'classifier-arbitrated',
+  apollo: 'the pre-flight interview, then one autonomous build',
+}
+
+const DEFAULT_MODE_SUGGESTION = `Valid modes: ${PERMISSION_MODES.map(mode => `"${mode}" (${MODE_GLOSS[mode]})`).join(', ')}`
 
 function matchTip(context: TipContext): ValidationTip | null {
   if (context.path === 'guardrails.mode' && context.code === 'invalid_value') {
