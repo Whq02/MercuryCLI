@@ -10,7 +10,7 @@
   ],
   "counts": {
     "owner-internal": 6,
-    "compat-boundary": 23,
+    "compat-boundary": 22,
     "baked-mirror": 3
   },
   "sites": [
@@ -30,15 +30,8 @@
     },
     {
       "file": "src/services/concourse/coordinatorTools.ts",
-      "needle": "CLAUDE.md",
-      "excerpt": "const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]",
-      "cls": "compat-boundary",
-      "why": "the ground law’s folder memory: guide files (MERCURY.md native, CLAUDE.md compat input) probed as worked-here-before markers; the home DIR names ride PROJECT_CONFIG_DIR_NAMES"
-    },
-    {
-      "file": "src/services/concourse/coordinatorTools.ts",
       "needle": "MERCURY.md",
-      "excerpt": "const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]",
+      "excerpt": "const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]",
       "cls": "compat-boundary",
       "why": "the ground law’s folder memory: guide files (MERCURY.md native, CLAUDE.md compat input) probed as worked-here-before markers; the home DIR names ride PROJECT_CONFIG_DIR_NAMES"
     },

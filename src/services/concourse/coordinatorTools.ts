@@ -149,7 +149,7 @@ export async function knownProjectDirs(): Promise<string[]> {
   } catch {
   }
   try {
-    const MARKS = ['MERCURY.md', 'CLAUDE.md', ...PROJECT_CONFIG_DIR_NAMES]
+    const MARKS = ['MERCURY.md', ...PROJECT_CONFIG_DIR_NAMES]
     const roots = [
       homedir(),
       join(homedir(), 'Developer'),

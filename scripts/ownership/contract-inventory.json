@@ -155,6 +155,7 @@
     "type:HooksSettings",
     "type:HttpHook",
     "type:PromptHook",
+    "type:Settings",
     "type:SettingsJson",
     "type:SkillHookMatcher"
    ],
