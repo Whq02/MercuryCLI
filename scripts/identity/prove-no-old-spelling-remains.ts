@@ -24,12 +24,10 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
 const ALIAS_TABLES: Array<[string, string]> = [
   ['src/migrations/retiredCrewSpellings.ts', 'the read-side alias tables: transcript rows, the Agent tool field, the sidecar, the roster, the journal, the folder, the shortcut id, the CLI flags, the command alias'],
   ['src/migrations/migrateConfigSpellings.ts', 'the retired global-config keys'],
-  ['src/migrations/migrateSettingsSpellings.ts', 'the retired settings keys'],
   ['src/substrate/flagRegistry.ts', 'the former env spellings on their flag rows (the `formerly:` field only)'],
 ]
 
 const ALIAS_PINS: Array<[string, string]> = [
-  ['scripts/settings/prove-old-settings-keys-read.ts', 'writes the old settings keys by design'],
   ['scripts/substrate/prove-old-env-spellings-read.ts', 'sets the old env spellings by design'],
   ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'holds old transcript rows, records and files by design'],
   ['scripts/switchboard/prove-crewmates-command.ts', 'pins that the old command name is no command and no alias: the palette answers it unknown'],
