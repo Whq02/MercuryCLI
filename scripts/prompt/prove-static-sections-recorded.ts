@@ -44,6 +44,7 @@ const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefi
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { TASK_CREATE_TOOL_NAME } = await import('../../src/tools/TaskCreateTool/constants.ts')
 const { RECORD_CONVENTION_TOOL_NAME } = await import('../../src/tools/RecordConventionTool/prompt.ts')
+const { RETAIN_TOOL_NAME } = await import('../../src/tools/MemoryTools/prompt.ts')
 
 const scratch = mkdtempSync(join(tmpdir(), 'static-sections-cwd-'))
 const cwd = process.cwd()
@@ -59,7 +60,7 @@ const TONE = '# Tone and style'
 const BULLET = 'Break down and manage work with the'
 const ESTATE_TOOL_WORDS = `with the ${RECORD_CONVENTION_TOOL_NAME} tool`
 const tool = (name: string): { name: string } => ({ name })
-const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME].map(tool)
+const firstPool = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'Skill', 'AskUserQuestion', RECORD_CONVENTION_TOOL_NAME, RETAIN_TOOL_NAME].map(tool)
 const taskTools = [TASK_CREATE_TOOL_NAME, 'TaskGet', 'TaskList', 'TaskUpdate'].map(tool)
 const grownPool = [...firstPool, ...taskTools]
 const shrunkPool = firstPool.filter(t => t.name !== RECORD_CONVENTION_TOOL_NAME)
