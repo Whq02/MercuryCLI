@@ -282,8 +282,9 @@ section('mode-follow: workflow agents ride the MAIN session permission mode')
     'runner derives the agent mode from the PARENT state when no definition mode',
     /const parentGetAppState = toolUseContext.getAppState/.test(runner) &&
       /composeAgentAppState\(state, \{\s*definitionMode,/.test(runner) &&
-      /facts\.definitionMode &&/.test(posture) &&
-      /mode: facts\.definitionMode/.test(posture),
+      /const definitionMode = definitionModeWithinConsent\(facts\.definitionMode, context\)/.test(posture) &&
+      /definitionMode &&/.test(posture) &&
+      /mode: definitionMode/.test(posture),
   )
   check(
     'a pending ask heartbeats the inactivity watchdog (ask ≠ silence)',

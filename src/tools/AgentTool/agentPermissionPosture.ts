@@ -3,6 +3,7 @@ import type { PermissionChannel, ToolPermissionContext } from '../../Tool.js'
 import type { EffortValue } from '../../utils/effort.js'
 import {
   modeBypassesPermissions,
+  PERMISSION_MODES,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
 
@@ -61,6 +62,19 @@ export interface AgentAppStateFacts {
   effortValue: EffortValue | undefined
 }
 
+export function definitionModeWithinConsent(
+  definitionMode: PermissionMode | undefined,
+  context: Pick<ToolPermissionContext, 'isBypassPermissionsModeAvailable'>,
+): PermissionMode | undefined {
+  if (definitionMode === undefined) return undefined
+  if (modeBypassesPermissions(definitionMode) && context.isBypassPermissionsModeAvailable !== true) return undefined
+  return definitionMode
+}
+
+export function offeredDefinitionModes(bypassConsent: boolean): PermissionMode[] {
+  return PERMISSION_MODES.filter(mode => bypassConsent || !modeBypassesPermissions(mode))
+}
+
 export function composeAgentAppState(
   parentState: AppState,
   facts: AgentAppStateFacts,
@@ -68,13 +82,14 @@ export function composeAgentAppState(
   const parentMode = parentState.toolPermissionContext.mode
   let changed = false
   let context = parentState.toolPermissionContext
+  const definitionMode = definitionModeWithinConsent(facts.definitionMode, context)
   if (
-    facts.definitionMode &&
+    definitionMode &&
     !modeBypassesPermissions(parentMode) &&
     parentMode !== 'implement' &&
-    parentMode !== facts.definitionMode
+    parentMode !== definitionMode
   ) {
-    context = { ...context, mode: facts.definitionMode }
+    context = { ...context, mode: definitionMode }
     changed = true
   }
   if (facts.avoidPrompts !== Boolean(context.shouldAvoidPermissionPrompts)) {

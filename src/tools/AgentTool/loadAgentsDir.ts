@@ -22,7 +22,7 @@ import {
   clearMarkdownFileCache,
   loadMarkdownFilesForSubdir,
 } from '../../utils/markdownConfigLoader.js'
-import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
+import { PERMISSION_MODES, type PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import { clearExtensionAgentCache, getExtensionAgents } from '../../extensions/load/agents.js'
 import { HooksSchema } from '../../utils/settings/types.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
@@ -410,7 +410,7 @@ const jsonAgentSchema = z.object({
     ])
     .optional(),
   instructionProfile: z.enum(['auto', 'native']).optional(),
-  permissionMode: z.string().optional(),
+  permissionMode: z.enum(PERMISSION_MODES as unknown as [string, ...string[]]).optional(),
   mcpServers: z.array(agentMcpServerSpecSchema).optional(),
   hooks: z.unknown().optional(),
   maxTurns: z.number().int().positive().optional(),

@@ -447,6 +447,7 @@ export function AgentStudio({ tools, initialMode, onExit }: Props): React.ReactN
           existingAgents={agentDefinitions.allAgents}
           parentModel={parentModel}
           sessionEffort={sessionEffort}
+          sovereignConsent={toolPermissionContext.isBypassPermissionsModeAvailable === true}
           onSaved={done}
           onCancel={() => {
             if (initialMode === 'create' && changes.length === 0 && mode.kind === 'create') {

@@ -105,6 +105,7 @@ import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 import { restrictScoutTools, scoutRefusal } from './scoutPolicy.js'
 import {
   composeAgentAppState,
+  definitionModeWithinConsent,
   resolveAgentPromptPosture,
 } from './agentPermissionPosture.js'
 
@@ -784,6 +785,16 @@ export async function* runAgent(
     const definitionMode = agentDefinition.permissionMode as
       | PermissionMode
       | undefined
+    const parentPermissionContext = parentGetAppState?.()?.toolPermissionContext
+    if (
+      definitionMode !== undefined &&
+      parentPermissionContext !== undefined &&
+      definitionModeWithinConsent(definitionMode, parentPermissionContext) === undefined
+    ) {
+      logForDebugging(
+        `runAgent: ${agentDefinition.agentType} declares permissionMode ${definitionMode} — Sovereign Mode requires launching with --sovereign; the agent keeps the session's posture`,
+      )
+    }
     const posture = resolveAgentPromptPosture({
       isAsync,
       canShowPermissionPrompts,
