@@ -164,7 +164,66 @@ section("§4 the line paints in the person's chat and never in a crewmate's chat
   save('crewmate-view-120x40.txt', crewmate)
 }
 
-section('§5 the line is a start-of-session reading: what changes mid-session paints nothing new')
+section('§5 /memory lists the pinned rules — size, the asked mark, u unpins on the row — so "trim in /memory" is a real instruction')
+{
+  const React = await import('react')
+  const { Box } = await import('../../src/ink.js')
+  const { AppStateProvider } = await import('../../src/state/AppState.js')
+  const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')
+  const { MemoryCentreView } = await import('../../src/components/memory/MemoryCentreView.js')
+  const { readPins } = await import('../../src/memdir/mnemeUsage.js')
+  const pinsBefore = readPins(dir).length
+  const element = React.createElement(
+    AppStateProvider as never,
+    {},
+    React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: 120, height: 40 }, React.createElement(MemoryCentreView as never, { onClose: () => {} }))),
+  )
+  const m: Mounted = await mountOffscreen(element, 120, 40)
+  const overview = await waitFor(() => m.lines().some(l => l.includes('pinned rules:')), 6000)
+  check('the overview painted with the shelf row', overview)
+  await settle(150)
+  let shelfRow = m.lines().find(l => l.includes('pinned rules:')) ?? ''
+  console.log(`  row: ${shelfRow.trim()}`)
+  check('the shelf row reads how full the shelf is and offers the list', /pinned rules: \d+ · [\d.]+k of [\d.]+k · over, all still loaded — ↵ list them/.test(shelfRow), shelfRow.trim())
+  save('memory-120x40.txt', m.lines())
+  for (let step = 0; step < 6; step++) {
+    if ((m.lines().find(l => l.includes('pinned rules:')) ?? '').includes('▸')) break
+    m.push(KEY.down)
+    await settle(40)
+  }
+  shelfRow = m.lines().find(l => l.includes('pinned rules:')) ?? ''
+  check('the shelf row is selectable', shelfRow.includes('▸'), shelfRow.trim())
+  m.push(KEY.enter)
+  const listed = await waitFor(() => m.lines().some(l => l.includes('Pinned rules')) && m.lines().some(l => l.includes('asked for by you')), 6000)
+  check('↵ lists the pinned rules', listed)
+  await settle(150)
+  const ruleRows = m.lines().filter(l => /\d+(\.\d+)?k? chars · asked for by you · About /.test(l))
+  console.log(`  ${ruleRows.length} rule rows on screen; first: ${ruleRows[0]?.trim()}`)
+  check('each row carries the rule\'s size, its asked mark and its words', ruleRows.length >= 5 && ruleRows.every(l => l.includes('chars · asked for by you · About')), ruleRows.slice(0, 2).join(' | '))
+  const heading = m.lines().find(l => l.includes('over the limit, all still loaded')) ?? ''
+  check('the list heading says how full the shelf is and how to trim', /[\d.]+k of [\d.]+k · over the limit, all still loaded · u on a rule unpins it/.test(heading), heading.trim())
+  check('the footer offers u unpin on the row and names /config for the limit', m.lines().some(l => l.includes('u unpin') && l.includes('/config raises the limit')))
+  save('memory-pinned-120x40.txt', m.lines())
+  m.push(KEY.down)
+  await settle(60)
+  const selected = m.lines().find(l => l.includes('▸') && l.includes('chars ·')) ?? ''
+  check('a rule row is selected', selected !== '', selected.trim())
+  const selectedWord = /About (\w+):/.exec(selected)?.[1]
+  m.push('u')
+  const unpinned = await waitFor(() => readPins(dir).length === pinsBefore - 1, 8000)
+  check('u on the row unpins that rule', unpinned && selectedWord !== undefined && !readPins(dir).some(p => listTopicDocs(dir).find(d => d.slug === 'rules')!.sections[0]!.entries.find(e => e.seq === p.seq)?.text.startsWith(`About ${selectedWord}:`)), `${pinsBefore} → ${readPins(dir).length}`)
+  await waitFor(() => m.lines().some(l => l.includes('unpinned')), 8000)
+  await settle(200)
+  check('the list says so and no longer shows the rule', m.lines().some(l => l.includes('unpinned')) && !m.lines().some(l => l.includes(`About ${selectedWord}:`)), m.lines().filter(l => l.includes('unpinned')).join(' | '))
+  save('memory-pinned-unpin-120x40.txt', m.lines())
+  m.push(KEY.esc)
+  await waitFor(() => m.lines().some(l => l.includes('pinned rules:')), 4000)
+  check('esc returns to the overview with the new count', (m.lines().find(l => l.includes('pinned rules:')) ?? '').includes(`pinned rules: ${pinsBefore - 1}`), (m.lines().find(l => l.includes('pinned rules:')) ?? '').trim())
+  m.unmount()
+  maybeConsolidate({ force: true, dir })
+}
+
+section('§6 the line is a start-of-session reading: what changes mid-session paints nothing new')
 {
   const { pinnedStatusPath } = await import('../../src/memdir/mnemeFrontPage.js')
   const under = { ...status!, over: false, used: 100, pinned: 1 }

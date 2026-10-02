@@ -14,9 +14,11 @@ import {
   runDueMaintenance,
 } from '../../memdir/mnemeMaintenance.js'
 import { readDocLines } from '../../memdir/mnemeRetrieval.js'
-import { readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
+import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
 import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../memdir/mnemeHandover.js'
-import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact } from '../../memdir/mnemeUsage.js'
+import { listTopicDocs } from '../../memdir/mnemeLibrary.js'
+import type { MnemeEntry } from '../../memdir/mnemeTopicDocs.js'
+import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact, type PinRecord } from '../../memdir/mnemeUsage.js'
 import { getAutoMemPath } from '../../memdir/paths.js'
 
 
@@ -65,16 +67,45 @@ function refDetail(ref: MemoryRef): string[] {
 
 export function pinnedShelfWords(status: { pinned: number; used: number; limit: number; over: boolean } | null): string {
   const limit = status?.limit ?? pinnedTextLimit()
-  if (!status || status.pinned === 0) return `pinned rules: none — ${formatTextSize(limit)} of room; search a fact and press p to pin it, word for word`
+  if (!status || status.pinned === 0) return `pinned rules: none — ${formatTextSize(limit)} of room; open a fact and press p to pin it as said`
   const fill = `${formatTextSize(status.used)} of ${formatTextSize(limit)}`
   return status.over
-    ? `pinned rules: ${status.pinned} · ${fill} — over the limit, all still loaded; press u on a rule to unpin, or raise the limit in /config`
-    : `pinned rules: ${status.pinned} · ${fill} — loaded word for word every session`
+    ? `pinned rules: ${status.pinned} · ${fill} · over, all still loaded — ↵ list them`
+    : `pinned rules: ${status.pinned} · ${fill} · loaded every session — ↵ list them`
+}
+
+export function pinnedListHeading(status: { pinned: number; used: number; limit: number; over: boolean } | null): string {
+  const limit = status?.limit ?? pinnedTextLimit()
+  const fill = `${formatTextSize(status?.used ?? 0)} of ${formatTextSize(limit)}`
+  return status?.over
+    ? `${fill} · over the limit, all still loaded · u on a rule unpins it`
+    : `${fill} · loaded word for word every session · u on a rule unpins it`
+}
+
+export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: string }): { label: string; ref: MemoryRef } {
+  const size = pinnedLine(row.entry, row.pin).length + 1
+  return {
+    label: `${formatTextSize(size)} chars · ${row.pin.asked ? 'asked for by you' : 'pinned by Mercury'} · ${row.entry.text}`,
+    ref: {
+      refId: `mneme:${row.entry.seq}`,
+      kind: 'mneme-fact',
+      store: 'mneme',
+      scope: 'project',
+      status: 'current',
+      summary: row.entry.text.length > 140 ? `${row.entry.text.slice(0, 139)}…` : row.entry.text,
+      source: row.entry.source,
+      capturedAt: row.entry.time,
+      why: `pinned ${row.pin.at.slice(0, 16)}${row.pin.asked ? ' · asked for by you' : ' · by Mercury'}`,
+      deref: `Recall read:"doc:${row.slug}"`,
+      tier: 1,
+    },
+  }
 }
 
 export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
+  const [view, setView] = React.useState<'overview' | 'pinned'>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
   const detailLines = React.useMemo(() => (detail ? refDetail(detail) : []), [detail])
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
@@ -88,6 +119,16 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         return { id: r.refId, kind: 'ref' as const, label: `${seq !== null && pins.has(seq) ? 'pinned · ' : ''}${r.summary}`, ref: r }
       })
     }
+    if (view === 'pinned') {
+      const shelf = pinnedView(readPins(), liveEntryIndex(listTopicDocs()))
+      const rows: CentreRow[] = [{ id: 'shelf', kind: 'info', label: pinnedListHeading(readPinnedStatus()) }]
+      for (const row of shelf.loaded) {
+        const built = pinnedRuleRow(row)
+        rows.push({ id: `pin-${row.entry.seq}`, kind: 'ref', label: built.label, ref: built.ref })
+      }
+      for (const seq of shelf.missing) rows.push({ id: `pin-${seq}`, kind: 'action', label: `seq ${seq} — pinned, but no page holds it any more; u unpins`, run: () => {} })
+      return rows
+    }
     const rows: CentreRow[] = []
     const st = mnemeStatus()
     rows.push({
@@ -98,7 +139,8 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         : 'project facts & decisions: off — memory is disabled in settings (memory.enabled)',
     })
     if (st.enabled) {
-      rows.push({ id: 'pinned', kind: 'info', label: pinnedShelfWords(readPinnedStatus()) })
+      const shelfStatus = readPinnedStatus()
+      rows.push({ id: 'pinned', kind: shelfStatus && shelfStatus.pinned > 0 ? 'action' : 'info', label: pinnedShelfWords(shelfStatus), run: () => {} })
       const intake = readHandoverReceipt()
       if (intake) {
         const [first, pages] = renderHandoverReceipt(intake)
@@ -124,7 +166,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     }
     rows.push({ id: 'files', kind: 'action', label: 'instruction files (MERCURY.md, editor, the memory switch) — ↵ open picker', run: onOpenFiles })
     return rows
-  }, [query, onOpenFiles])
+  }, [query, view, onOpenFiles])
 
   const fl = useFlatList<CentreRow>({
     load: buildRows,
@@ -135,10 +177,12 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       else if (detail) setDetail(null)
       else if (query) {
         setQuery('')
-      } else onClose()
+      } else if (view === 'pinned') setView('overview')
+      else onClose()
     },
     onPrimary: row => {
       if (row.kind === 'ref' && row.ref) setDetail(row.ref)
+      else if (row.id === 'pinned' && row.kind === 'action') setView('pinned')
       else if (row.id === 'maintenance') runMaintenance()
       else if (row.id === 'intake' && row.kind === 'action') runIntake()
       else if (row.id === 'files' && onOpenFiles) onOpenFiles()
@@ -151,7 +195,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
   reloadRef.current = fl.reload
   React.useEffect(() => {
     reloadRef.current()
-  }, [query])
+  }, [query, view])
 
   function runMaintenance(): void {
     if (fl.busyRef.current) return
@@ -257,6 +301,11 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         fl.reload()
         return
       }
+      if (view === 'pinned' && !query && input === 'u' && !key.ctrl && !key.meta) {
+        const pinSeq = /^pin-(\d+)$/.exec(fl.selected?.id ?? '')
+        if (pinSeq && mnemeEnabled()) togglePin(Number(pinSeq[1]), false)
+        return
+      }
       if (key.backspace || key.delete) {
         if (query.length > 0) setQuery(q => q.slice(0, -1))
         return
@@ -276,7 +325,9 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       ? `${detailSeq !== null && mnemeEnabled() ? `c correct · x retire · ${detailPinned ? 'u unpin' : 'p pin'} · ` : ''}esc back`
       : query
         ? '↑↓ move · ↵ inspect · esc clear'
-        : 'type to search · ↑↓ move · ↵ act · esc close'
+        : view === 'pinned'
+          ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
+          : 'type to search · ↑↓ move · ↵ act · esc close'
 
   return (
     <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
@@ -320,7 +371,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           </Box>
         ) : (
           <Box flexDirection="column">
-            <SectionHeader count={list.length}>{query ? 'Matches' : 'Memory'}</SectionHeader>
+            <SectionHeader count={view === 'pinned' && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : 'Memory'}</SectionHeader>
             {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
             {visible.map((row, i) => {
               const active = i === clampedSel
