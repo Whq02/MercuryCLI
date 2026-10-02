@@ -18,7 +18,7 @@ delete process.env.OLLAMA_HOST
 delete process.env.NODE_ENV
 delete process.env.DEBUG
 const DEBUG_FILE = join(HOME, 'debug.txt')
-process.argv.push(`--debug-file=${DEBUG_FILE}`)
+process.argv.push(`--log-file=${DEBUG_FILE}`)
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
