@@ -309,7 +309,7 @@ export async function createCoordinationServer(): Promise<{
       inputSchema: {
         to: z
           .string()
-          .describe('Recipient crewmate name, or "*" to broadcast to all.'),
+          .describe('Recipient crewmate name (the lead is "crew-lead"), or "*" to broadcast to all.'),
         message: z.string().describe('The message text to deliver.'),
         summary: z
           .string()

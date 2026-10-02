@@ -106,6 +106,8 @@ try {
     check('say broadcast reaches the other two', !('refused' in bc) && bc.broadcast === true && bc.recipients.length === 2 && bc.failed === 0)
     const unknown = await say(worker, 'nobody', 'x')
     check('say to an unknown recipient is REFUSED (no dead-inbox write)', 'refused' in unknown && /not on crew/.test(unknown.refused))
+    const toMain = await say(worker, 'main', 'to the lead?')
+    check('say to "main" is REFUSED with the lead\'s name (the address only a background sub-agent reaches through SendMessage), never a dead inbox', 'refused' in toMain && toMain.refused.includes('is "crew-lead"') && toMain.refused.includes('main agent') && !/not on crew/.test(toMain.refused), 'refused' in toMain ? toMain.refused : JSON.stringify(toMain))
     const inbox = await liveMessagesFor(CREW, 'bob')
     check("bob's inbox holds the DM + the broadcast, colour-stamped", inbox.length === 2 && inbox.every(m => m.color === 'blue'))
     const brief = await crewBrief(worker)

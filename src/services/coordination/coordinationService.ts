@@ -10,6 +10,7 @@ import {
   type LiveTaskStatus,
 } from '../crew/liveComms.js'
 import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { MAIN_THREAD_AGENT } from '../notices/unreadLedger.js'
 import { listIncomingHandoffs } from '../../utils/swarm/handoff.js'
 import { claimLease, listLeases, releaseLease, sweepExpiredLeases } from '../../utils/swarm/leaseGlob.js'
 import { getRoomHealth } from '../../utils/swarm/roomHealth.js'
@@ -285,6 +286,9 @@ export async function say(
             ? `Broadcast to ${recipients.length} crewmate(s).`
             : `Broadcast reached ${recipients.length - failed}/${recipients.length} crewmate(s); ${failed} write(s) failed.`,
     }
+  }
+  if (to.toLowerCase() === MAIN_THREAD_AGENT) {
+    return { ok: false, refused: `"${to}" names a session's own main agent, which only a background sub-agent reaches through SendMessage — the lead of crew "${crew}" is "${CREW_LEAD_NAME}"; address it, or a crewmate by name.` }
   }
   const isMember = crewFile.members.some(m => m.name.toLowerCase() === to.toLowerCase())
   if (!isMember) return { ok: false, refused: `"${to}" is not on crew "${crew}" — not sent (no dead-inbox write).` }
