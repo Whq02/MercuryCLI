@@ -84,7 +84,7 @@ const LOCAL_MODEL = `local/${MODEL_ID}`
 const CLOUD_MODEL = 'claude-fable-5-1'
 const TOOLS_HEADING = '# Using your tools'
 const TONE_HEADING = '# Tone and style'
-const MEMORY_WORDS = 'You have a persistent file-based memory system at'
+const MEMORY_WORDS = 'What Mercury remembers about this project lives in topic pages under'
 const ENV_LINE = `Primary working directory: ${scratch}`
 const LINE = `Files you create go in the working directory: ${scratch}. The memory folder named below is not it.`
 const tool = (name: string): { name: string } => ({ name })
