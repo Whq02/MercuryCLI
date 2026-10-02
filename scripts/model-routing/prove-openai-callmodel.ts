@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
-process.argv.push('--debug-to-stderr')
+process.argv.push('--log-stderr')
 
 import { z } from 'zod'
 import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
