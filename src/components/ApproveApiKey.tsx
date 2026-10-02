@@ -52,16 +52,16 @@ export function ApproveApiKey({
       gap={1}
     >
       <Text bold color={tokens.warning}>
-        Detected a custom API key in your environment
+        An Anthropic API key is set in your environment
       </Text>
       <Text>
         ANTHROPIC_API_KEY: <Text bold>sk-ant-…{customApiKeyTruncated}</Text>
       </Text>
-      <Text>Do you want to use this API key?</Text>
+      <Text>Use this key for Anthropic usage-based billing?</Text>
       <Select
         options={[
-          { label: 'Yes', value: 'yes' },
-          { label: 'No (recommended)', value: 'no' },
+          { label: 'Yes, use it', value: 'yes' },
+          { label: 'No, ignore it', value: 'no' },
         ]}
         defaultValue="no"
         defaultFocusValue="no"

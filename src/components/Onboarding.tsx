@@ -42,18 +42,18 @@ const THEME_WORDS = {
 
 const GUARDRAILS_WORDS = {
   title: 'Guardrails',
-  mistakes: 'Mercury can make mistakes.',
-  mistakesTail: ' Review its work, especially before running code.',
-  injection: 'Prompt injection can mislead the agent.',
-  injectionTail: ' Only use Mercury with code you trust.',
+  mistakes: 'Mercury can be wrong.',
+  mistakesTail: ' Check its edits, and read a command before you run it.',
+  injection: 'What Mercury reads can carry instructions for the model.',
+  injectionTail: ' Work in folders you know.',
   row: ' ▸ continue',
 }
 
 const TERMINAL_WORDS = {
   title: 'Terminal keys',
-  appleTweak: 'Option+Enter for newlines and the visual bell need one terminal tweak.',
-  tweak: 'Set up Shift+Enter to add a new line in your terminal.',
-  install: 'yes, apply the recommended settings',
+  appleTweak: "Mercury can make Option+Enter add a new line and silence Terminal's bell.",
+  tweak: 'Mercury can bind Shift+Enter in this terminal so the key adds a new line.',
+  install: 'yes, set it up',
   later: 'not now; use /terminal-setup later',
 }
 
