@@ -95,7 +95,7 @@ function fakeDeps(
     claudeAiScopes: boolean
     mintAnswer: unknown
     orgAnswer: unknown
-    settings: { forceLoginMethod?: 'claudeai' | 'console'; forceLoginOrgUUID?: string }
+    settings: { credentials?: { signInRoute?: 'claudeai' | 'console'; organisation?: string } }
     notify: boolean
   }> = {},
 ): { deps: Deps; world: FakeWorld } {
@@ -242,7 +242,7 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   const bed4 = beatBed()
   const m4 = machineOf(bed4, {
     orgAnswer: { valid: false, reason: 'not a member of the configured organisation' },
-    settings: { forceLoginOrgUUID: 'org-1' },
+    settings: { credentials: { organisation: 'org-1' } },
   })
   m4.m.start(true)
   bed4.run()
@@ -296,7 +296,7 @@ t.section('§1 — THE ANTHROPIC MACHINE (both arms · setup-token · retry · b
   t.check('the auto-finish is the 500ms beat', m8.doneCount() === 0 && bed8.run().some(b => b.ms === TOKEN_FINISH_MS) && m8.doneCount() === 1)
 
   const bed9 = beatBed()
-  const m9 = machineOf(bed9, { settings: { forceLoginMethod: 'console' } })
+  const m9 = machineOf(bed9, { settings: { credentials: { signInRoute: 'console' } } })
   t.check('a settings-forced console method is born ready on the console arm', m9.m.snapshot().flow.name === 'ready' && (m9.m.snapshot().flow as { loginWithClaudeAi: boolean }).loginWithClaudeAi === false)
   m9.m.wake()
   bed9.run()

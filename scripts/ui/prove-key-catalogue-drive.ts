@@ -143,7 +143,7 @@ for (const family of FAMILIES) {
           wire.splice(0)
           listMode = test.list ?? 'live'
           serveRetired = test.oldServed ?? false
-          writeFileSync(join(home, 'settings.json'), JSON.stringify(test.saved ? { model: test.saved } : {}))
+          writeFileSync(join(home, 'settings.json'), JSON.stringify(test.saved ? { engine: { model: test.saved } } : {}))
           const childEnv = { ...env, ...(test.envModel ? { MERCURY_MODEL: test.envModel } : {}), ...(test.dark ? { MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1' } : {}) }
           const result = await new Promise<{ code: number; stdout: string; stderr: string }>(resolveRun => {
             execFile(NODE, [DIST, 'run', ...(test.model ? ['--model', test.model] : []), '--format', 'rows', 'hello'], { env: childEnv, cwd, windowsHide: true, timeout: vshotBudgetMs(60000) }, (error, stdout, stderr) => resolveRun({ code: error ? Number(error.code) || 1 : 0, stdout, stderr }))

@@ -44,7 +44,7 @@ writeFileSync(
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),
 )
-writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
 writeFileSync(
   path.join(RUN_HOME, '.openai-auth.json'),
   JSON.stringify({

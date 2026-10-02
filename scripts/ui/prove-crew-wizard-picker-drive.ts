@@ -134,7 +134,7 @@ for (const [cols, rows] of SIZES) {
   mkdirSync(join(cwd, '.mercury'), { recursive: true })
   writeFileSync(join(cwd, 'README.md'), '# a fixture folder\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
   writeFileSync(
     join(home, 'critter-profile.json'),
     JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),

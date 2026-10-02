@@ -82,8 +82,8 @@ function seedWorld(name: string, opts: { git?: boolean; filesBox?: false }): { h
   seedFixture(cwd)
   if (opts.git) gitWorld(cwd)
   seedFirstRun(home, [cwd])
-  const settings: Record<string, unknown> = { skipSovereignConsentPrompt: true }
-  if (opts.filesBox === false) settings.filesBox = false
+  const settings: Record<string, unknown> = { guardrails: { sovereignConsentSeen: true } }
+  if (opts.filesBox === false) settings.view = { files: false }
   writeFileSync(join(home, 'settings.json'), JSON.stringify(settings, null, 2))
   return { home, cwd }
 }
@@ -99,7 +99,7 @@ function seedHopWorld(name: string): { home: string; cwdA: string; cwdB: string 
     writeFileSync(join(cwdB, rel), body)
   }
   seedFirstRun(home, [cwdA, cwdB])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true } }, null, 2))
   const sessionId = '00000000-dddd-4000-8000-000000000002'
   const file = join(home, 'projects', projectSlug(cwdB), `${sessionId}.jsonl`)
   mkdirSync(dirname(file), { recursive: true })

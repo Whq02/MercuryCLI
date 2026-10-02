@@ -123,7 +123,7 @@ function seedWorld(name: string): { home: string; cwd: string } {
   writeFileSync(join(cwd, 'README.md'), '# fixture\n')
   writeFileSync(join(cwd, 'src', 'alpha.ts'), 'export const alpha = 1\n')
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true, prefersReducedMotion: true, spinnerTipsEnabled: false }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true }, view: { reducedMotion: true }, activity: { tips: { enabled: false } } }, null, 2))
   return { home, cwd }
 }
 

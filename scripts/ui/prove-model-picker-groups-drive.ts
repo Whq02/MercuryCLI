@@ -110,7 +110,7 @@ function childEnv(home: string, openrouterBase: string): NodeJS.ProcessEnv {
 function seededHome(tag: string): string {
   const home = join(ROOT, `home-${tag}`)
   seedFirstRun(home, [CWD])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
   writeFileSync(join(home, 'keybindings.json'), JSON.stringify({ bindings: [{ context: 'Global', bindings: { 'ctrl+x j': 'command:model' } }] }))
   writeFileSync(
     join(home, 'critter-profile.json'),

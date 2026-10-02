@@ -183,8 +183,8 @@ section('adoption + hygiene pins (source greps)')
     !/['"`]#[0-9a-fA-F]{3,8}['"`]/.test(live),
   )
   check(
-    'both primitives honor prefersReducedMotion',
-    (live.match(/prefersReducedMotion/g) ?? []).length >= 2,
+    'both primitives honor view.reducedMotion',
+    (live.match(/view\?\.reducedMotion/g) ?? []).length >= 2,
   )
   const rail = readFileSync('src/components/HelmTelemetryRail.tsx', 'utf8')
   check(

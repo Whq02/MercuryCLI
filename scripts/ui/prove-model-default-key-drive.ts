@@ -107,7 +107,7 @@ function childEnv(home: string): NodeJS.ProcessEnv {
 function seededHome(tag: string, settingsExtra: Record<string, unknown> = {}): string {
   const home = join(ROOT, `home-${tag}`)
   seedFirstRun(home, [CWD])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false, ...settingsExtra }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } }, ...settingsExtra }))
   writeFileSync(
     join(home, 'critter-profile.json'),
     JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }),
@@ -187,7 +187,7 @@ const poisonedPicker = (lines: string[], top: number, bottom: number, poison: 't
   if (poison === 'a live cell in the gutter') return rows.map((l, y) => (y === box.top + 1 ? `${l.slice(0, box.left - 1)}T${l.slice(box.left)}` : l))
   return rows.map((l, y) => (y >= box.top - 1 && y <= box.bottom - 1 ? `${l.slice(0, box.left - 1)}${rows[y + 1]!.slice(box.left - 1, box.right + 2)}${l.slice(box.right + 2)}` : l))
 }
-const settingsOf = (home: string): { model?: string; effortLevel?: string } => JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { model?: string; effortLevel?: string }
+const settingsOf = (home: string): { model?: string; effort?: string } => (JSON.parse(readFileSync(join(home, 'settings.json'), 'utf8')) as { engine?: { model?: string; effort?: string } }).engine ?? {}
 
 console.log('============================================================')
 console.log(' the default model and effort a new session starts on, chosen with m')
@@ -236,7 +236,7 @@ section('§1 the concourse: the door row names the pair, the bottom row names m,
   check('no row of the picker reads frontier:', picker.length > 0 && !picker.some(l => l.includes('frontier:')), picker.filter(l => l.includes('frontier:')).join(' | '))
   check('the Anthropic heading reads the key door with its tail and the live count', anthropicKeyHeading(picker), headingOf(picker, ANTHROPIC_TITLE))
   const saved = settingsOf(home)
-  check("a pick writes the saved default (settings.json model names the picked row, effortLevel the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effortLevel === 'xhigh', JSON.stringify(saved))
+  check("a pick writes the saved default (settings.json engine.model names the picked row, engine.effort the ladder move)", typeof saved.model === 'string' && /sonnet/i.test(saved.model) && saved.effort === 'xhigh', JSON.stringify(saved))
   check('the door row follows at once (Sonnet 5.5 · ◉ xhigh) and the picker is gone', rowWith(picked, DOOR).includes(`${DOOR} · Sonnet 5.5 · ◉ xhigh`) && !picked.some(l => l.includes('Mercury · model')), trimmedRow(picked, DOOR))
   check('with the coordinator panel focused, m types into its box (the negative pin)', typed.some(l => /│ ❯ m(▌|\s)/.test(l)) && !typed.some(l => l.includes('Mercury · model')), typed.filter(l => l.includes('❯')).join(' | '))
 }
@@ -295,9 +295,9 @@ section("§4 the chat's /model: the picker without its frontier rows")
   check('the Z.AI heading carries its not-connected reason', zai !== '' && zai.includes('no Z.AI API key'), zai)
 }
 
-section('§5 the setting off (sessionDefaultsKey false in settings.json): every row as shipped, m does what it did')
+section('§5 the setting off (engine.sessionDefaults false in settings.json): every row as shipped, m does what it did')
 {
-  const off = { sessionDefaultsKey: false }
+  const off = { engine: { sessionDefaults: false } }
   const homeBoard = seededHome('off-board', off)
   const a = capture('off-board', homeBoard, [], [
     ...boardSends,
@@ -442,7 +442,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
   check('↓ returns to the first session row and the line loses the cursor', row.some(l => /▸ .*new session · fixture-cwd/.test(l)) && (row[headerAt(row) + 1] ?? '').includes(`  ${LINE}`), (row[headerAt(row) + 1] ?? '').trim())
   check('m on a session row opens a picker over the board, in the band inside its gutter', sessionPicker.some(l => l.includes('Mercury · model')) && pickerFrames(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM), `${pickerWords(sessionPicker, BOARD_PICKER_TOP, BOARD_PICKER_BOTTOM)} · ${sessionPicker.slice(3, 8).join(' | ')}`)
   const afterPick = settingsOf(home)
-  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effortLevel === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
+  check("the session row's pick is the session's own: the default door still reads Opus 5.5 · ● high, settings.json keeps no model and no effort, the picker is gone", (sessionPicked[headerAt(sessionPicked) + 1] ?? '').includes(`${LINE} · Opus 5.5 · ● high`) && afterPick.model === undefined && afterPick.effort === undefined && !sessionPicked.some(l => l.includes('Mercury · model')), `${(sessionPicked[headerAt(sessionPicked) + 1] ?? '').trim()} / ${JSON.stringify(afterPick)}`)
   console.log(`  [record] the session row after its pick: ${sessionPicked.filter(l => /model → |new session · fixture-cwd/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') || 'no row receipt on the frame'}`)
 }
 
@@ -451,7 +451,7 @@ section('§8 the board with sessions keeps the new-session line as its first row
 if (CASE === undefined || CASE === 'session-effort') {
   section('the session picker reads the selected session effort, not the saved default')
   for (const [cols, rows] of [[120, 40], [178, 51]]) {
-    const home = seededHome(`session-effort-${cols}`, { effortLevel: 'high' })
+    const home = seededHome(`session-effort-${cols}`, { engine: { effort: 'high' } })
     const c = capture(`session-effort-${cols}`, home, [], [
       { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 3, data: SHIFT_RIGHT },
       { requireAwait: true, awaitText: 'coordinator model', awaitSettleTicks: 3, data: TAB },
@@ -470,7 +470,7 @@ if (CASE === undefined || CASE === 'session-effort') {
     check(`${cols}x${rows}: the session picker opens on low`, opened.some(l => l.includes('[low]')), opened.filter(l => l.includes('effort')).join(' | '))
     check(`${cols}x${rows}: the session ladder ends at max`, opened.length > 0 && opened.some(l => /\bmax\s+·/.test(l)))
     check(`${cols}x${rows}: e advances the effort from low to medium`, after.some(l => l.includes('[medium]')), after.filter(l => l.includes('effort')).join(' | '))
-    check(`${cols}x${rows}: the saved default remains high`, settingsOf(home).effortLevel === 'high')
+    check(`${cols}x${rows}: the saved default remains high`, settingsOf(home).effort === 'high')
     if (FRAMES !== undefined) {
       mkdirSync(FRAMES, { recursive: true })
       writeFileSync(join(FRAMES, `session-effort-${cols}x${rows}.json`), readFileSync(join(ROOT, `session-effort-${cols}.json`)))
