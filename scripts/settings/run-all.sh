@@ -27,7 +27,7 @@
 # gate-watch: src/services/instructions/* src/services/instructions/adapters/mercuryNative.ts
 # gate-watch: src/services/mcp/claudeai.ts src/services/providers/openai/openaiLimitState.ts
 # gate-watch: src/services/providers/usageFreshness.ts src/state/telemetryBus.ts src/utils/*
-# gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts
+# gate-watch: src/utils/cockpit/* src/utils/model/computedDefault.ts src/utils/permissions/PermissionUpdate.ts src/utils/permissions/PermissionMode.ts
 # gate-watch: src/utils/permissions/bypassPermissionsKillswitch.ts src/utils/router/providerDiscovery.ts
 # gate-watch: src/services/providers/providerIdentityLine.ts src/services/providers/moonshot/** src/services/providers/huggingface/** src/services/providers/gemini/** src/services/providers/openrouter/** src/services/providers/local/** src/services/providers/openaicompat/** src/services/providers/deepseek/** src/utils/router/providerSecrets.ts src/utils/router/modelRegistry.ts src/ink/events/input-event.ts src/ink/input/interpreter.ts
 # gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts
