@@ -42,7 +42,7 @@ const RETIRED_SETTINGS_ROOTS = [
 const RETIRED_SETTINGS_GENERIC_ROOTS = ['env', 'attribution', 'permissions', 'sandbox', 'model', 'agent', 'hooks', 'language', 'worktree']
 const RETIRED_SETTINGS_FIELDS = [
   'disableBypassPermissionsMode', 'disableAutoMode', 'skipDangerousModePermissionPrompt', 'autoDreamEnabled', 'showClearContextOnPlanAccept',
-  J('claudeMd', 'Excludes'), J('Team', 'mateIdle'), 'defaultMode',
+  J('claudeMd', 'Excludes'), J('Tea', 'mmateIdle'), 'defaultMode',
 ]
 const RETIRED_SETTINGS_MODULES = [
   'migrateSettingsSpellings', 'migrateEnableAllProjectMcpServersToSettings', 'migrateBypassPermissionsAcceptedToSettings', 'migrateAutoupdateEnvName',
