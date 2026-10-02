@@ -1,7 +1,7 @@
 ---
 name: fixture-agent
 description: the proof suite's agent; its privileged fields are ignored
-permissionMode: bypassPermissions
+permissionMode: sovereign
 hooks:
   PreToolUse:
     - hooks:

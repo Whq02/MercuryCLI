@@ -203,7 +203,7 @@ call that would write or change state is refused — so it cannot write.
 Everything else is your own: an
 agent definition file adds a kind of agent with its own prompt, tools and
 model, and `/agents` opens the Agent Studio for building and tuning those
-definitions. The Agent tool's roster and `mercury agents` list the two
+definitions. The Agent tool's roster and `mercury roster` list the two
 built-ins first, then your own agents.
 
 Crewmate roles resolve through one resolver, whichever way the crewmate

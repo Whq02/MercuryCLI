@@ -27,6 +27,65 @@ const WORDS: Array<[string, RegExp]> = [
 ]
 
 const RUN_SCOPE = /^(?:src\/|docs\/|README\.md$|bench\/|\.github\/)/
+const RETIRED_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/)/
+const asWord = (name: string): RegExp => new RegExp('(?<![\\w-])' + name + '(?![\\w-])')
+const asName = (name: string): RegExp => new RegExp('(?<![\\w$])' + name + '(?![\\w$])')
+const asModeValue = (names: string): RegExp => new RegExp("['\"`](?:" + names + ")['\"`]|--mode (?:" + names + ')(?![\\w-])|(?:permissionMode|defaultMode):\\s*(?:' + names + ')(?![\\w-])')
+const RETIRED: Array<[string, RegExp, string[]]> = [
+  ['mode-deepthink', asWord(J('deep', 'think')), [J('deep', 'think')]],
+  ['mode-supercode', asWord(J('super', 'code')), [J('super', 'code')]],
+  ['mode-ultrathink', asWord(J('ultra', 'think')), [J('ultra', 'think')]],
+  ['mode-ultracode', asWord(J('ultra', 'code')), [J('ultra', 'code')]],
+  ['mode-ultraplan', asWord(J('ultra', 'plan')), [J('ultra', 'plan')]],
+  ['mode-autopilot', asWord(J('[Aa]uto', 'pilot')), [J('uto', 'pilot')]],
+  ['mode-tier-tool', asName(J('(?:Set', 'Tier|set_', 'tier)')), [J('Set', 'Tier'), J('set_', 'tier')]],
+  ['mode-tier-readout', asWord(J('self-', 'tier')), [J('self-', 'tier')]],
+  ['mode-autopilot-env', asName(J('MERCURY_AUTO', 'PILOT(?:_MODELS)?')), [J('MERCURY_AUTO', 'PILOT')]],
+  ['mode-effort-keys', asName(J('(?:super', 'codeEffort|ultra', 'codeEffort|super', 'code_mode|deep', 'think_effort|ultra', '_effort)')), ['codeEffort', 'code_mode', 'think_effort', J('ultra', '_effort')]],
+  ['mode-trigger-machinery', asName(J('keyword', '(?:Glow|Trigger)')), [J('keyword', 'Glow'), J('keyword', 'Trigger')]],
+  ['mode-spelling-accept-bypass', asModeValue(J('accept', 'Edits|bypass', 'Permissions')), [J('accept', 'Edits'), J('bypass', 'Permissions')]],
+  ['mode-spelling-plan-auto', /--mode (?:plan|auto)(?![\w-])|(?:permissionMode|defaultMode)\s*[:=]\s*['"]?(?:plan|auto)['"]?(?![\w-])/, ['--mode ', 'permissionMode', 'defaultMode']],
+  ['mode-spelling-table', asName(J('RETIRED_PERMISSION_', 'MODE_SPELLINGS|decode', 'PermissionModeSpelling')), ['MODE_SPELLINGS', 'PermissionModeSpelling']],
+  ['strategy-mode-tools', asName(J('(?:Enter|Exit)(?:Strat', 'egy|Plan)Mode(?:V2)?')), [J('Strat', 'egyMode'), 'PlanMode']],
+  ['strategy-slash', new RegExp("(?<=['\"`\\s(])/strat" + 'egy(?![\\w-])'), [J('/strat', 'egy')]],
+  ['strategy-mode-value', new RegExp('--mode strat' + "egy(?![\\w-])|(?:permissionMode|mode|Mode)\\s*(?:[:=]|===|!==)\\s*['\"]strat" + "egy['\"]|case ['\"]strat" + "egy['\"]"), [J('strat', 'egy')]],
+  ['strategy-mode-names', asName(J('(?:strat', 'egyMode|modeStrat', 'egy|preStrat', 'egyMode|lastStrat', 'egyModeUse|checkStrat', 'egyShellRefusal|strat', 'egyMutation|showClearContextOnStrat', 'egyAccept)')), [J('trat', 'egy')]],
+  ['strategy-plan-names', asName(J('(?:plan_mode', '(?:_required|_reentry|_exit)?|plan', 'ModeRequired|plan_approval', '_(?:request|response)|awaitingPlan', 'Approval|plan_file', '_reference|PLAN_REJECTION', '_PREFIX|plan', 'ModeV2|isPlan', 'ModeInterviewPhaseEnabled|MERCURY_', 'INTERVIEW|getPlans', 'Directory|isPlan', 'FilePath|cleanupOld', 'PlanFiles|plans', 'Directory|getRuntime', 'MainLoopModel|pendingPlan', 'Verification|reasonIs', 'PlanFloor)')), ['plan', 'Plan', 'PLAN_', J('MERCURY_', 'INTERVIEW'), 'MainLoopModel']],
+  ['strategy-band', new RegExp('Strat' + 'egy Mode'), [J('Strat', 'egy Mode')]],
+  ['strategy-flags', new RegExp('--strat' + 'egy-mode-required|--require-strat' + 'egy'), [J('strat', 'egy')]],
+  ['strategy-settings', new RegExp('strat' + 'egy\\.(?:directory|offerFreshContext)'), [J('strat', 'egy.')]],
+  ['strategy-opusplan', asWord(J('opus', 'plan')), [J('opus', 'plan')]],
+  ['strategy-floors', asWord(J('plan-', '(?:floor|entry|exit)')), ['plan-']],
+  ['ide-editor-link-keys', asName(J('(?:autoInstall', 'IdeExtension|autoConnect', 'Ide|ideHint', 'ShownCount|hasIdeAutoConnect', 'DialogBeenShown|hasIdeOnboarding', 'BeenShown|ideInstallation', 'Status|ide', 'Selection)')), ['IdeExtension', 'ConnectIde', J('ideHint', 'Shown'), J('IdeOnboarding', 'Been'), J('ideInstallation', 'Status'), J('ide', 'Selection')]],
+  ['ide-diff-tool-type', asName(J('[Dd]iff', 'Tool')), [J('iff', 'Tool')]],
+  ['ide-fs-right', new RegExp(J('_?cla', 'ude_fs_right')), ['_fs_right']],
+  ['ide-mcp-ide', new RegExp(J('mcp__', 'ide__')), [J('mcp__', 'ide__')]],
+  ['ide-companion', asName(J('(?:notifyVscode', 'FileUpdated|registerEditor', 'Companion|vscode', 'SdkMcp|zodInstance', 'Seam|configHome', 'ExplicitlySet|getAncestor', 'CommandsAsync)')), ['FileUpdated', 'EditorCompanion', 'SdkMcp', 'InstanceSeam', 'ExplicitlySet', 'CommandsAsync']],
+  ['ide-companion-name', asWord(J('mercury-editor', '-companion')), ['editor-companion']],
+  ['ide-visual-bell', new RegExp(J('[Vv]isual', ' [Bb]ell')), ['isual ']],
+  ['helper-steward', asWord(J('ste', 'ward')), [J('ste', 'ward')]],
+  ['memory-gate-env', asName(J('MERCURY_', '(?:RELEVANT_RECALL|MNEME)')), [J('RELEVANT_', 'RECALL'), J('MERCURY_', 'MNEME')]],
+  ['option-debug-words', asWord(J('-{1,2}d2', 'e|--debug-', '(?:file|to-stderr)')), [J('d2', 'e'), '--debug-']],
+  ['option-run-words', asWord('--(?:' + J('ba', 're|init-', 'only|mainten', 'ance|json-', 'schema|max-budget', '-usd|disallowed-', 'tools|strict-mcp-', 'config|mcp-', 'config|system-', 'prompt(?:-file)?|append-system-', 'prompt(?:-file)?|fork-', 'session|from-', 'pr|pre', 'fill|no-session-', 'persistence|resume-session', '-at|rewind-', 'files|be', 'tas|fallback-', 'model|work', 'load|project-', 'root|setting-', 'sources|disable-slash-', 'commands|tm', 'ux') + ')'), ['--']],
+  ['option-crew-words', asWord(J('--(?:agent-', 'id|agent-', 'name|crew-', 'name|agent-', 'color|parent-session', '-id|agent-', 'type)')), [J('--agent', '-'), J('--crew', '-name'), J('--parent', '-session')]],
+  ['option-editor-link', asWord(J('--editor', '-link')), [J('--editor', '-link')]],
+  ['verb-mcp', asWord(J('mcp (?:add-', 'json|reset-project', '-choices)')), [J('mcp add', '-json'), J('mcp reset', '-project')]],
+  ['verb-auth-token', new RegExp(J("(?<=mercury |[`'\"])auth ", 'token(?![\\w-])')), [J('auth ', 'token')]],
+  ['verb-extensions', new RegExp(J("(?<=mercury |[`'\"])extensions ", '(?:check|approve|block|unblock|validate|init)(?![\\w-])')), ['extensions ']],
+  ['verb-root', asWord(J('mercury (?:sh', 'ow|edi', 'tor|agen', 'ts|jo', 'in|join-', 'kit)')), ['mercury ']],
+  ['agent-type-general', asWord(J('mercury-', 'general')), [J('mercury-', 'general')]],
+  ['agent-type-general-purpose', asWord(J('general', '-purpose')), [J('general', '-purpose')]],
+  ['agent-type-background', asWord(J('mercury-', 'background')), [J('mercury-', 'background')]],
+  ['agent-type-architect', asWord(J('mercury-', 'architect')), [J('mercury-', 'architect')]],
+  ['agent-type-guide', asWord(J('mercury-', 'guide')), [J('mercury-', 'guide')]],
+  ['agent-type-reviewer', asWord(J('mercury-', 'reviewer')), [J('mercury-', 'reviewer')]],
+  ['agent-type-verifier', asWord(J('mercury-', 'verifier')), [J('mercury-', 'verifier')]],
+  ['push-tool', asName(J('(?:Push', 'Notification(?:Tool)?|PUSH_', 'NOTIFICATION_TOOL|push', 'notification)')), ['otification', 'OTIFICATION']],
+  ['push-saturn-exempt', asName(J('(?:MERCURY_SATURN_', 'EXEMPT_PUSH|SATURN_EXEMPT_', 'TOOL_[AB]|isSaturnExempt', '[AB]Enabled)')), ['SATURN_', 'SaturnExempt']],
+  ['push-notif-keys', asName(J('(?:taskComplete', 'NotifEnabled|inputNeeded', 'NotifEnabled|agentPush', 'NotifEnabled)')), ['NotifEnabled']],
+  ['push-os-notification', asName(J('sendOS', 'Notification')), [J('sendOS', 'Notification')]],
+  ['push-proof-name', new RegExp(J('prove-push-', 'notification-honest')), [J('prove-push-', 'notification')]],
+]
 const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/settings\/)/
 const RETIRED_SETTINGS_ROOTS = [
   'apiKeyHelper', 'proxyAuthHelper', 'forceLoginMethod', 'forceLoginOrgUUID', 'fileSuggestion', 'respectGitignore', 'cleanupPeriodDays',
@@ -105,11 +164,57 @@ const ALLOW: Array<[string, string, string]> = [
   ['src/services/ide/pythonTests.ts', 'words', "pytest's own vocabulary for its add-ons"],
   ['BUILD-NOTES.md', 'words', "Bun's build API vocabulary (the build's module-resolution hook)"],
   ['MERCURY-COMMUNITY-PRODUCTION-TERMS.md', 'words', "the licence's companion terms: generic legal enumerations of third-party things, in the licence's own wording"],
-  ['scripts/gate/gate-ledger.jsonl', 'words', 'an append-only record of past gate runs'],
+  ['scripts/gate/gate-ledger.jsonl', 'words,retired', 'an append-only record of past gate runs'],
   ['scripts/project-intel/fixtures/', 'words', 'fixture repositories exercise ordinary English'],
   ['scripts/search/fixtures/', 'words', "captured third-party search-result pages — the outside world's own text, replayed verbatim"],
   ['scripts/search/prove-websearch-doors.ts', 'words', 'names the needles it refuses in its negative user-agent checks'],
   ['scripts/search/lib/bundle-for-node.ts', 'words', "Bun's build API vocabulary (the bundling hook)"],
+  ['src/constants/changelog.ts', 'retired', 'a published record keeps its lines'],
+  ['docs/releases/', 'retired', 'published release pages keep their lines'],
+  ['scripts/identity/prove-release-notes-words.ts', 'retired', 'the release-notes word list — a forbidden-words list under scripts/identity'],
+  ['scripts/identity/prove-retired-keys-unknown.ts', 'retired', 'the retired settings keys it proves unknown — a forbidden-words list under scripts/identity'],
+  ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'agent-type-general-purpose', "an older build's sidecar fixture — one of the 16 on-disk proofs, unedited"],
+  ['scripts/mission-runner/corpus/', 'mode-autopilot', "a fixture game's own autopilot — a scenario word, not the mode"],
+  ['scripts/api/prove-typed-word-is-a-word.ts', 'mode-deepthink,mode-supercode,mode-ultrathink,mode-ultracode,mode-ultraplan', 'names the words it types to prove them plain'],
+  ['scripts/prompt-input/prove-typed-word-plain-ink.ts', 'mode-deepthink,mode-supercode,mode-ultrathink', 'names the words it types to prove them plain ink'],
+  ['scripts/effort/prove-effort-slider-ends-at-max.ts', 'mode-supercode,mode-ultracode,mode-effort-keys', 'names the needles it refuses: the slash word, the stored keys'],
+  ['scripts/effort/prove-effort-persistence.ts', 'mode-supercode', 'names the needle it refuses in the stored keys'],
+  ['scripts/permissions/prove-mode-cycle-ends-at-sovereign.ts', 'mode-autopilot,mode-tier-tool,mode-tier-readout,mode-autopilot-env', 'names the needles it refuses: the mode word, the tier tool, the opt-in flag'],
+  ['scripts/permissions/prove-retired-mode-words-unknown.ts', 'mode-spelling-accept-bypass,mode-spelling-table', 'names the spellings it proves unknown'],
+  ['scripts/permissions/prove-apollo-plans.ts', 'strategy-slash,strategy-mode-value,strategy-plan-names', 'names the needles it refuses: the slash word, the mode value, the protocol kinds'],
+  ['scripts/editor-bridge/prove-acp-saved-mode.ts', 'mode-spelling-accept-bypass', 'names the saved spellings it proves open as default'],
+  ['scripts/editor-bridge/prove-vscode-bridge.ts', 'mode-spelling-accept-bypass', 'names the fixed list it proves the extension no longer carries'],
+  ['scripts/switchboard/prove-seat-permission-mode.ts', 'mode-spelling-plan-auto', 'names the saved spelling it proves resolves to flow'],
+  ['scripts/settings/prove-config-popup-rows.ts', 'ide-editor-link-keys,ide-diff-tool-type', 'names the keys and the type it proves gone from /config'],
+  ['scripts/headless/prove-session-words.ts', 'helper-steward,verb-mcp,verb-auth-token,verb-extensions', 'names the retired spellings it proves unknown beside the current ones'],
+  ['scripts/memory/prove-memory-always-on.ts', 'memory-gate-env', 'names the gate names it proves absent from the registry, the boot menu and the capability rows'],
+  ['scripts/substrate/prove-git-facts-owner.ts', 'option-run-words', "git's own init --bare"],
+  ['scripts/bash/prove-worktree-janitor.ts', 'option-run-words', "git's own init --bare"],
+  ['scripts/agents/prove-worktree-base.ts', 'option-run-words', "git's own clone --bare"],
+  ['scripts/ops/run-all.sh', 'option-run-words', 'names the launcher path it proves absent'],
+  ['scripts/editor-bridge/prove-editor-door.ts', 'option-editor-link', 'names the flags it proves unknown'],
+  ['scripts/updater/prove-update-journey.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
+  ['scripts/updater/prove-never-public.ts', 'verb-auth-token', 'names the gh subcommand it proves never asked'],
+  ['src/migrations/retiredCrewSpellings.ts', 'option-crew-words', 'a stored-spelling table that awaits the lead\'s ruling'],
+  ['scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', 'option-crew-words', 'a running lane holds this proof; its launcher rows move'],
+  ['scripts/crew/prove-dispatch-receipts-decode.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/crew/prove-retired-cli-flags.ts', 'option-crew-words', 'a running lane holds this proof; its identity flags move'],
+  ['scripts/agents/prove-session-worktree-links.ts', 'option-run-words', 'a running lane holds this proof; its label moves'],
+  ['scripts/agents/prove-lead-mail-wake.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/journey/prove-wire-prefix-holds.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/ui/prove-session-class.ts', 'option-crew-words', 'a running lane holds this proof; its comment moves'],
+  ['scripts/switchboard/prove-command-table.ts', 'option-run-words', 'a running lane holds this proof; its option rows move'],
+  ['scripts/node-runtime/prove-windows-seams.ts', 'option-run-words', 'a running lane holds this proof; its candidate list moves'],
+  ['scripts/ui/prove-catalogue-gating-tripwire.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/daemon/prove-control-ops-ledger.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/daemon/prove-lead-window-hold.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/switchboard/prove-w0-laws.ts', 'option-crew-words', 'a running lane holds this proof; its identity flags move'],
+  ['scripts/switchboard/prove-one-door-lifecycle.ts', 'option-debug-words', 'a running lane holds this proof; its debug flag moves'],
+  ['scripts/editor-bridge/prove-acp-tool-wire.ts', 'option-run-words', 'a running lane holds this proof; its comments move'],
+  ['scripts/ui/render-turn-restyle.ts', 'option-run-words', 'a running lane holds this tool; its comment moves'],
+  ['scripts/ui/prove-terminal-handback.ts', 'option-run-words,verb-root', 'a running lane holds this proof; its rows move'],
+  ['scripts/agent-definitions/prove-agent-discovery.ts', 'verb-root', 'a running lane holds this proof; its label moves'],
+  ['scripts/editor-bridge/prove-editor-verbs-honest-exit.ts', 'verb-root', 'a running lane holds this proof; its comment moves'],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {
@@ -147,6 +252,7 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
     const lines = f.content.split('\n')
     const srcCode = f.path.startsWith('src/') && /\.(ts|tsx)$/.test(f.path)
     const concourse = CONCOURSE_HOME.test(f.path)
+    const retiredHere = RETIRED_SCOPE.test(f.path) && !allowed(f.path, 'retired')
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!
       if ((line.includes(OTHER_ENTER_GLYPH) || otherEnterEscapeRe.test(line)) && !allowed(f.path, 'enter-glyph')) {
@@ -163,6 +269,13 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
         }
         if (re.test(checked)) {
           out.push({ path: f.path, line: i + 1, rule: `words:${label}`, text: line.trim().slice(0, 140) })
+          break
+        }
+      }
+      if (retiredHere) {
+        for (const [label, re, stems] of RETIRED) {
+          if (!stems.some(stem => line.includes(stem)) || allowed(f.path, label) || !re.test(line)) continue
+          out.push({ path: f.path, line: i + 1, rule: `retired:${label}`, text: line.trim().slice(0, 140) })
           break
         }
       }
@@ -268,6 +381,94 @@ console.log('============================================================')
   check('§4 self-test: the current nested forms, the ordinary identifiers and the API bodies stay quiet', quiet.every(([path, content]) => settingsHits(path, content).length === 0), quiet.filter(([path, content]) => settingsHits(path, content).length > 0).map(([, content]) => content).join(' | '))
   check('§4 self-test: the settings rows do not reach the rest of the script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 0 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1)
   check('§4 self-test: the two published release lines keep their recorded bytes, and a changed line trips', Object.entries(RELEASE_SETTINGS_LINES).every(([path, content]) => settingsHits(path, content).length === 0 && settingsHits(path, content + ' more').length === 1))
+}
+
+{
+  const retiredHits = (path: string, content: string): string[] => scan([{ path, content }]).filter(v => v.rule.startsWith('retired:')).map(v => v.rule.slice('retired:'.length))
+  const trips: Array<[string, string]> = [
+    ['mode-deepthink', 'type ' + J('deep', 'think') + ' to raise the effort'],
+    ['mode-supercode', 'the /' + J('super', 'code') + ' command'],
+    ['mode-ultraplan', '`' + J('ultra', 'plan') + '`'],
+    ['mode-autopilot', '--mode ' + J('auto', 'pilot')],
+    ['mode-tier-tool', "name: '" + J('Set', 'Tier') + "'"],
+    ['mode-autopilot-env', 'process.env.' + J('MERCURY_AUTO', 'PILOT_MODELS')],
+    ['mode-effort-keys', 'settings.' + J('super', 'codeEffort')],
+    ['mode-trigger-machinery', "import { glow } from './" + J('keyword', 'Glow') + ".js'"],
+    ['mode-spelling-accept-bypass', "permissionMode: '" + J('accept', 'Edits') + "'"],
+    ['mode-spelling-accept-bypass', 'permissionMode: ' + J('bypass', 'Permissions')],
+    ['mode-spelling-plan-auto', 'mercury run --mode plan'],
+    ['mode-spelling-plan-auto', "{ defaultMode: 'auto' }"],
+    ['mode-spelling-table', 'export const ' + J('RETIRED_PERMISSION_', 'MODE_SPELLINGS') + ' = {}'],
+    ['strategy-mode-tools', J('Exit', 'PlanModeV2')],
+    ['strategy-slash', 'type /' + J('strat', 'egy') + ' to plan'],
+    ['strategy-mode-value', '--mode ' + J('strat', 'egy')],
+    ['strategy-mode-value', "if (mode === '" + J('strat', 'egy') + "')"],
+    ['strategy-mode-names', J('pre', 'StrategyMode')],
+    ['strategy-plan-names', J('plan_', 'approval_request')],
+    ['strategy-plan-names', J('plans', 'Directory')],
+    ['strategy-band', J('Strat', 'egy Mode')],
+    ['strategy-settings', '`' + J('strat', 'egy.directory') + '`'],
+    ['strategy-opusplan', "model: '" + J('opus', 'plan') + "'"],
+    ['strategy-floors', "reason: '" + J('plan-', 'floor') + "'"],
+    ['ide-editor-link-keys', 'settings.' + J('auto', 'ConnectIde')],
+    ['ide-diff-tool-type', 'type ' + J('Diff', 'Tool') + ' = string'],
+    ['ide-fs-right', J('_cla', 'ude_fs_right')],
+    ['ide-mcp-ide', J('mcp__', 'ide__getDiagnostics')],
+    ['ide-companion', J('register', 'EditorCompanion') + '()'],
+    ['ide-visual-bell', 'a ' + J('visual', ' bell') + ' on completion'],
+    ['verb-extensions', 'run `mercury ' + J('extensions', ' validate') + '`'],
+    ['helper-steward', 'mercury ' + J('ste', 'ward') + ' run'],
+    ['agent-type-general', "subagent_type: '" + J('mercury-', 'general') + "'"],
+    ['agent-type-general-purpose', "agentType: '" + J('general', '-purpose') + "'"],
+    ['agent-type-verifier', 'the ' + J('mercury-', 'verifier') + ' agent'],
+    ['push-tool', J('Push', 'NotificationTool')],
+    ['push-saturn-exempt', J('MERCURY_SATURN_', 'EXEMPT_PUSH')],
+    ['push-notif-keys', J('agentPush', 'NotifEnabled')],
+    ['push-os-notification', 'context.' + J('sendOS', 'Notification')],
+    ['push-proof-name', 'scripts/notifications/' + J('prove-push-', 'notification-honest') + '.ts'],
+    ['mode-ultrathink', 'say ' + J('ultra', 'think')],
+    ['mode-ultracode', 'say ' + J('ultra', 'code')],
+    ['mode-tier-readout', 'the ' + J('self-', 'tier') + ' readout'],
+    ['strategy-flags', '--require-' + J('strat', 'egy')],
+    ['agent-type-background', J('mercury-', 'background')],
+    ['agent-type-architect', J('mercury-', 'architect')],
+    ['agent-type-guide', J('mercury-', 'guide')],
+    ['agent-type-reviewer', J('mercury-', 'reviewer')],
+    ['ide-companion-name', J('mercury-editor', '-companion')],
+    ['memory-gate-env', 'process.env.' + J('MERCURY_', 'MNEME')],
+    ['memory-gate-env', J('MERCURY_RELEVANT', '_RECALL') + '=1'],
+    ['option-debug-words', 'mercury ' + J('--debug', '-file') + ' out.log'],
+    ['option-debug-words', 'mercury -' + J('d2', 'e')],
+    ['option-run-words', 'mercury run ' + J('--append-system', '-prompt') + ' x'],
+    ['option-run-words', "['" + J('--tm', 'ux') + "']"],
+    ['option-crew-words', J('--crew', '-name') + ' alpha'],
+    ['option-editor-link', J('--editor', '-link')],
+    ['verb-mcp', 'mercury ' + J('mcp add', '-json')],
+    ['verb-auth-token', '`mercury ' + J('auth ', 'token') + '`'],
+    ['verb-extensions', "'" + J('extensions ', 'approve') + "'"],
+    ['verb-root', 'mercury ' + J('join', '-kit')],
+    ['verb-root', 'run `mercury ' + J('agen', 'ts') + '`'],
+  ]
+  check('§5 self-test: every retired-word row has a spelling here and trips on it in src', RETIRED.every(([label]) => trips.some(([l]) => l === label)) && trips.every(([label, content]) => retiredHits('src/x.ts', content).includes(label)), trips.filter(([label, content]) => !retiredHits('src/x.ts', content).includes(label)).map(([label]) => label).join(','))
+  check('§5 self-test: the rows reach docs, the README and the script estate', retiredHits('docs/x.md', trips[0]![1]).length === 1 && retiredHits('README.md', trips[0]![1]).length === 1 && retiredHits('scripts/x/prove-x.ts', trips[0]![1]).length === 1)
+  check('§5 self-test: the rows stop at the owned surfaces', retiredHits('bench/x.py', trips[0]![1]).length === 0 && retiredHits('assets/x.gd', trips[0]![1]).length === 0 && retiredHits('.github/x.yml', trips[0]![1]).length === 0)
+  const quiet: string[] = [
+    'const ' + J('accept', 'EditsFastPath') + ' = true; ' + J('isBypass', 'PermissionsModeAvailable') + '()',
+    'const diffToolInputs = []; ' + J('bypass', 'PermissionsKillswitch') + '.js',
+    "versionNegotiation: { mode: 'auto' }",
+    'the compaction strategy keeps the plan; a planning mode; the plan is ready',
+    "effort: 'max'; thinking raised; the mode is implement",
+    "const plan = 'ae-1'; input.plan; plan_ready; ultraplanPhase",
+    'autopilots are not this word; a general-purpose-ish phrase is not the type; mercury-generalist',
+    'PushNotifications in the plural are another word; sendOSNotifications too',
+    'the daemon is the helper; a stewardship word is not the verb',
+    'Both an auth token and an API key are configured; the extensions check their manifests; git init --quiet; i--; mercury image > file',
+    'mercury roster; mercury bridge install; --log-file out.log; --crew alpha --seat bravo; MERCURY_MEMORY_OBSERVE=1',
+  ]
+  check('§5 self-test: kept identifiers, ordinary English and other programs stay quiet', quiet.every(content => retiredHits('src/x.ts', content).length === 0), quiet.filter(content => retiredHits('src/x.ts', content).length > 0).join(' | '))
+  check('§5 self-test: a published record and a forbidden-words list keep their lines', retiredHits('src/constants/changelog.ts', trips[1]![1]).length === 0 && retiredHits('docs/releases/1.0.0-beta.9.md', trips[1]![1]).length === 0 && retiredHits('scripts/identity/prove-release-notes-words.ts', trips[1]![1]).length === 0)
+  check('§5 self-test: a label-scoped exemption excuses its own word and no other', retiredHits('scripts/effort/prove-effort-persistence.ts', trips[1]![1]).length === 0 && retiredHits('scripts/effort/prove-effort-persistence.ts', trips[0]![1]).length === 1)
+  check('§5 self-test: the one stored sidecar fixture keeps its type word and nothing beside it', retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[33]![1]).length === 0 && retiredHits('scripts/sessionStorage/prove-old-transcript-kinds-parse.ts', trips[32]![1]).length === 1)
 }
 
 const tracked = execSync('git ls-files -z', { cwd: ROOT })

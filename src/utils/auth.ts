@@ -1043,7 +1043,7 @@ export async function validateForceLoginOrg(): Promise<OrgValidationResult> {
       valid: false,
       message:
         `Could not verify your organization. This machine is pinned to organization ${requiredOrg}. ` +
-        `This may be a network problem, or a token without the profile scope (as minted by \`${cli} auth token\`). ` +
+        `This may be a network problem, or a token without the profile scope (as minted by \`${cli} auth mint\`). ` +
         `Retry, or acquire a full-scope token by running \`${cli} auth login\`.`,
     }
   }

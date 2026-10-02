@@ -7,7 +7,7 @@ import { dirname, join } from 'node:path'
 const TMP = mkdtempSync(join(tmpdir(), 'mercury-roster-lock-'))
 process.env.MERCURY_CONFIG_DIR = TMP
 const DEBUG_LOG = join(TMP, 'debug.txt')
-process.argv.push(`--debug-file=${DEBUG_LOG}`)
+process.argv.push(`--log-file=${DEBUG_LOG}`)
 
 const {
   appendCrewMember,

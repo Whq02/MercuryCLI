@@ -1974,7 +1974,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 }
               } catch {}
             }
-            const evidence = `${parts.join(' · ')} — files on disk; a nameless .md is a reference document, so the loaded roster (mercury agents) can be smaller`
+            const evidence = `${parts.join(' · ')} — files on disk; a nameless .md is a reference document, so the loaded roster (mercury roster) can be smaller`
             if (retired.length === 0) return { status: 'info', evidence }
             return {
               status: 'info',
