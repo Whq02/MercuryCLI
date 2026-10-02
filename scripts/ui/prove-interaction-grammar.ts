@@ -28,19 +28,6 @@ const READY_FLAG_RE = /setTimeout\s*\(\s*\(\)\s*=>\s*set\w*(Ready|Buffer|Armed)/
   )
 }
 
-for (const [file, verb] of [
-  ['src/components/CardsView.tsx', 'promote'],
-] as const) {
-  const src = read(file)
-  t(`${path.basename(file)}: rides useFlatList`, src.includes('useFlatList'))
-  t(
-    `${path.basename(file)}: footer says ↵/p ${verb} (↵ primary, letter secondary)`,
-    src.includes(`↵/p ${verb}`),
-  )
-  t(`${path.basename(file)}: no private useInput left`, !src.includes('useInput('))
-  t(`${path.basename(file)}: error ≠ empty (loadError rendered)`, src.includes('loadError'))
-}
-
 {
   const src = read('src/commands/health/HealthCertificate.tsx')
   t('HealthCertificate: ↵ is the primary (expand evidence)', src.includes('key.return'))

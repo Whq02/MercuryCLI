@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -13,7 +13,6 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 process.env.MERCURY_DAEMON_DIR = join(SCRATCH, 'daemon')
 delete process.env.MERCURY_HOME
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-process.env.MERCURY_TASTE_LOOP = '1'
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
@@ -27,7 +26,7 @@ setOriginalCwd(cwd)
 console.log('the command-privacy law: screen-seat commands never enter a model turn')
 const all = [...builtinCommands()]
 const byName = (name: string) => all.find(command => command.name === name)
-const privateNames = ['remember', 'good', 'meh'] as const
+const privateNames = ['status', 'usage', 'config', 'files', 'localsetup', 'jev', 'jevor'] as const
 for (const name of [...privateNames, 'halt', 'crew']) {
   const command = byName(name)
   check(`/${name} is registered and SCREEN-seat`, command !== undefined && commandSeat(command) === 'screen')
@@ -50,15 +49,12 @@ const context = {
 }
 const dispatch = (input: string) => processUserInput({ input, mode: 'prompt', setToolJSX: () => {}, context: context as never, messages: [], querySource: 'sdk' })
 try {
-  const lesson = 'Pin the fixture home before loading modules that cache project paths.'
-  const result = await dispatch(`/remember ${lesson}`)
-  check('a stray private command creates zero conversation rows', result.messages.length === 0, String(result.messages.length))
-  check('no query starts', result.shouldQuery === false)
-  check('the receipt rides resultText alone', /Banked/.test(result.resultText ?? ''), result.resultText ?? '(none)')
-  const { getAutoMemPath } = await import('../../src/memdir/paths.js')
-  const memory = getAutoMemPath()
-  const cards = readdirSync(memory).filter(name => name.endsWith('.md') && name !== 'MEMORY.md').map(name => readFileSync(join(memory, name), 'utf8'))
-  check('the private command executed: its candidate card holds the lesson', cards.some(card => card.includes(lesson) && card.includes('approved: false')))
+  for (const name of ['status', 'usage', 'config']) {
+    const result = await dispatch(`/${name}`)
+    check(`a stray /${name} creates zero conversation rows`, result.messages.length === 0, String(result.messages.length))
+    check(`…and starts no query`, result.shouldQuery === false)
+    check(`…its receipt rides resultText alone and names the command's one seat`, new RegExp(`The /${name} command is an interactive surface`).test(result.resultText ?? '') && (result as { commandRefused?: boolean }).commandRefused === true, result.resultText ?? '(none)')
+  }
   const halt = await dispatch('/halt')
   check('a stray /halt refuses before its body loads', /interactive surface|foreground session/.test(halt.resultText ?? ''), halt.resultText ?? '(none)')
   check('no query or hard-stop receipt exists at the runner', halt.shouldQuery === false && !/Hard stop/.test(JSON.stringify(halt.messages)))
