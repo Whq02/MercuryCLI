@@ -109,7 +109,6 @@ import supervisor from './commands/supervisor/index.js'
 import palette from './commands/palette/index.js'
 import capabilitiesDetail from './commands/capabilities-detail/index.js'
 import orient from './commands/orient/index.js'
-import { retiredMultiplayerCommands } from './commands/retired.js'
 import live from './commands/live/index.js'
 import sovereign from './commands/sovereign/index.js'
 import speak from './commands/speak/index.js'
@@ -142,7 +141,7 @@ export type {
   ResumeEntrypoint,
 } from './types/command.js'
 export { getCommandName } from './types/command.js'
-export { commandOffInPlainWorld, commandRetired, isCommandEnabled } from './commands/enablement.js'
+export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
 
 const require = createRequire(import.meta.url)
 
@@ -283,7 +282,6 @@ const COMMANDS = memoize((): Command[] => [
   sovereign,
   speak,
   voice,
-  ...retiredMultiplayerCommands,
 ])
 
 export function commandSeat(command: Command): CommandSeat {

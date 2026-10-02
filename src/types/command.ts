@@ -61,7 +61,6 @@ export type CommandBase = {
   userFacingName?: () => string
   availability?: CommandAvailability[]
   needsConcourse?: boolean
-  retired?: string
   devOnly?: boolean
   canonicalRoute?: string
   scope?: 'session' | 'agent'

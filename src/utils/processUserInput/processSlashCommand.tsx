@@ -7,7 +7,7 @@ import type { SetToolJSXFn, ToolUseContext } from '../../Tool.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import type { Command } from '../../commands.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
-import { builtinCommands, commandOffInPlainWorld, commandRetired, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
+import { builtinCommands, commandOffInPlainWorld, commandSeat, getCommandName, isCommandEnabled, meetsAvailabilityRequirement } from '../../commands.js'
 import samples, { SAMPLES_OFF_SENTENCE } from '../../commands/samples/index.js'
 import { bareUsageLine, requiresArgument } from '../../skills/argumentHint.js'
 import { generateCommandSuggestions } from '../suggestions/commandSuggestions.js'
@@ -123,10 +123,6 @@ export function formatCommandLoadingMetadata(fullName: string, args: string): st
 
 export function unavailableCommandLine(real: Command): string {
   const name = getCommandName(real)
-  const retired = commandRetired(real)
-  if (retired !== undefined) {
-    return `The /${name} command is retired — ${retired}.`
-  }
   if (commandOffInPlainWorld(real)) {
     return `The /${name} command opens a Session Concourse surface — ${concourseOffSentence() ?? 'the Session Concourse is off in this boot'}.`
   }

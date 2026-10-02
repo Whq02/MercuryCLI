@@ -18,9 +18,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'workflows', 'agents', 'subagents', 'agent-form', 'fleet',
       'crewmates', 'crew', 'route', 'monitor', 'surfaces',
       'daemon', 'saturn', 'seats', 'halt', 'kill', 'unkill',
-      'multiplayer', 'say', 'live', 'remote-control',
-      'router', 'invite', 'handoff',
-      'delegate', 'request', 'prompt', 'share',
+      'live', 'remote-control', 'router',
     ],
   },
   {
@@ -57,7 +55,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'git & review',
     names: [
       'commit', 'commit-push-pr', 'branch', 'review',
-      'security-review', 'pr-comments', 'tickets',
+      'security-review', 'pr-comments',
     ],
   },
   {

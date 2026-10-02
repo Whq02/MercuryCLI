@@ -6,7 +6,7 @@
 # gate-watch: src/components/SwitchboardTagBar.tsx src/context/surfaceRoute.ts
 # gate-watch: src/prompt/engineIdentity.ts src/constants/prompts.ts
 # gate-watch: docs/SESSIONS.md scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts src/commands.ts
-# gate-watch: src/commands/clear/clear.ts src/commands/enablement.ts src/commands/retired.ts
+# gate-watch: src/commands/clear/clear.ts src/commands/enablement.ts
 # gate-watch: src/components/HelmLanesRail.tsx src/components/messages/TranscriptNameplate.tsx
 # gate-watch: src/daemon/headlessRun.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/hooks/useLogMessages.ts src/main.tsx src/screens/REPL.tsx

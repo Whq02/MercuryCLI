@@ -70,9 +70,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   )
   check('every canonicalRoute resolves to a registered command', badCanonical.length === 0,
     badCanonical.map(s => `${s.name}→${s.canonicalRoute}`).join(', '))
-  const multiplayer = catalogue.find(s => s.name === 'multiplayer')
   const memory = catalogue.find(s => s.name === 'memory')
-  check("'rooms' reaches the live board as a /multiplayer alias", multiplayer?.aliases.includes('rooms') === true)
   check("'chronicle' reaches the Memory Centre as a /memory alias", memory?.aliases.includes('chronicle') === true)
 }
 

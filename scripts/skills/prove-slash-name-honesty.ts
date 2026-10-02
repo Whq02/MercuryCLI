@@ -32,7 +32,6 @@ const { initBundledSkills } = await import('../../src/skills/bundled/index.ts')
 const { getBundledSkills } = await import('../../src/skills/bundledSkills.ts')
 const { builtinCommands, isCommandEnabled } = await import('../../src/commands.ts')
 const { SAMPLES_OFF_SENTENCE } = await import('../../src/commands/samples/index.ts')
-const { RETIRED_MULTIPLAYER_REASON } = await import('../../src/commands/retired.ts')
 const { processSlashCommand, resolveUnknownSlashName, unavailableCommandLine, unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 type Command = import('../../src/types/command.ts').Command
@@ -90,12 +89,13 @@ section('§1 A KNOWN NAME GATED OFF — /samples off answers its own sentence on
   }
 }
 
-section('§2 A RETIRED NAME AND A REAL UNKNOWN — /say answers its retired line on the screen; /frobnicate keeps "Unknown command"')
+section('§2 A NAME MERCURY DOES NOT HAVE — /say and /frobnicate get the same "Unknown command" sentence')
 {
-  const say = unknownCommandLine('say', roster)
-  check('a retired door typed on the screen answers its retired sentence (RED on the base: "Unknown command: /say")', say === `The /say command is retired — ${RETIRED_MULTIPLAYER_REASON}.`, say)
   const frob = unknownCommandLine('frobnicate', roster)
   check('a name nothing registers keeps the screen\'s own sentence', frob.startsWith('Unknown command: /frobnicate') && frob.endsWith('· /help lists commands'), frob)
+  const say = unknownCommandLine('say', roster)
+  const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
+  check('/say is no command: the same sentence /frobnicate gets, with the name swapped', say.startsWith('Unknown command: /say') && shape(say, 'say') === shape(frob, 'frobnicate') && !/retired/.test(say), say)
   check('a registered, enabled name never resolves as unknown', resolveUnknownSlashName('/model', roster) === undefined && resolveUnknownSlashName('/help', roster) === undefined)
 }
 

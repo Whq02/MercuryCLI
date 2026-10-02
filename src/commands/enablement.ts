@@ -6,10 +6,6 @@ export function commandOffInPlainWorld(command: Command): boolean {
   return command.needsConcourse === true && chatOnlyBoot()
 }
 
-export function commandRetired(command: Command): string | undefined {
-  return command.retired
-}
-
 export function isCommandEnabled(command: Command): boolean {
-  return commandEnablement(command) && !commandOffInPlainWorld(command) && commandRetired(command) === undefined
+  return commandEnablement(command) && !commandOffInPlainWorld(command)
 }
