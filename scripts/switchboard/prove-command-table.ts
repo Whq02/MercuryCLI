@@ -62,7 +62,7 @@ function spawnRunner(role: boolean): Runner {
       '--format=rows',
       '--model',
       'claude-sonnet-5',
-      '--append-system-prompt',
+      '--brief-add',
       'a session runner under proof',
       '--session-id',
       sessionId,
