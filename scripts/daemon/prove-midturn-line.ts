@@ -145,7 +145,7 @@ if (!existsSync(DIST)) {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--replay-user-messages', '--model', 'claude-opus-4-8', '--mode', 'bypassPermissions'], { cwd: CWD, env, stdio: ['pipe', 'pipe', 'pipe'] })
+  const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--replay-user-messages', '--model', 'claude-opus-4-8', '--mode', 'sovereign'], { cwd: CWD, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const lines: Array<Record<string, unknown>> = []
   const waiters: Array<{ test: (f: Record<string, unknown>) => boolean; resolve: (f: Record<string, unknown>) => void }> = []
   let stdoutBuffer = ''

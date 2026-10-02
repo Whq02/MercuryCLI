@@ -204,8 +204,8 @@ const ATTACHMENTS: Record<string, Fixture> = {
   hook_system_message: { good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'toolUseID is missing', field: 'toolUseID', fields: { content: 'c', hookName: 'h', hookEvent: 'PreToolUse' } }] },
   hook_permission_decision: { good: { decision: 'allow', toolUseID: 't', hookEvent: 'PermissionRequest' }, bad: [{ label: 'decision is a boolean', field: 'decision', fields: { decision: true, toolUseID: 't', hookEvent: 'PermissionRequest' } }] },
   bypassed_ask: {
-    good: { toolUseID: 't', mode: 'bypassPermissions', road: 'toolAskRule', reason: 'r' },
-    bad: [{ label: 'reason is missing', field: 'reason', fields: { toolUseID: 't', mode: 'bypassPermissions', road: 'toolAskRule' } }],
+    good: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule', reason: 'r' },
+    bad: [{ label: 'reason is missing', field: 'reason', fields: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule' } }],
   },
   verify_plan_reminder: { good: {}, bad: [] },
   max_turns_reached: { good: { maxTurns: 3, turnCount: 3 }, bad: [{ label: 'maxTurns is text', field: 'maxTurns', fields: { maxTurns: '3', turnCount: 3 } }] },

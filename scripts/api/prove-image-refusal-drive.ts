@@ -258,7 +258,7 @@ if (process.argv[2] === '--serve') {
       '--model',
       MODEL,
       '--mode',
-      'bypassPermissions',
+      'sovereign',
       ...(args.sessionId ? ['--session-id', args.sessionId] : []),
       ...(args.resume ? ['--resume', args.resume] : []),
       args.prompt,
