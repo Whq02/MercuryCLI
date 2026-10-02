@@ -130,15 +130,6 @@ export const EXECUTION_DOMAIN_CENSUS: readonly ExecutionDomainCensusEntry[] = [
     notes: 'Monitor lifecycle is poll-driven; the task row is the truth being mirrored.',
   },
   {
-    domain: 'task:dream',
-    classification: 'external-projection',
-    kind: 'agent',
-    adapter: 'src/utils/task/framework.ts',
-    owner: 'processMainOwner()',
-    resourceKind: 'task',
-    notes: 'Autonomous dream runs ride the same task chokepoints.',
-  },
-  {
     domain: 'workflow-worker',
     classification: 'child-execution',
     adapter: 'run journal + livePulse, projected on read (resource graph)',

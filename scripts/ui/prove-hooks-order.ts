@@ -9,12 +9,7 @@ const SCAN = ['src/components', 'src/commands', 'src/screens', 'src/ink/componen
   join(ROOT, p),
 )
 
-const ALLOW = new Set([
-  'src/components/MemoryUsageIndicator.tsx:useMemoryUsage',
-  'src/screens/REPL.tsx:useTaskListWatcher',
-  'src/screens/REPL.tsx:useProactive',
-  'src/components/MemoryUsageIndicator.tsx:__return__',
-])
+const ALLOW = new Set<string>([])
 
 const files: string[] = []
 function walk(d: string): void {
