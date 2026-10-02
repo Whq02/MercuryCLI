@@ -383,7 +383,7 @@ section("F a cut is a failure for hooks: PostToolUseFailure fires once for a cut
     check("the control: a tool's own AbortError while the turn's signal is live is no user interrupt — the hook fires once with is_interrupt false and the tool's own words", !ctx.abortController.signal.aborted && fired.length === 1 && fired[0]?.is_interrupt === false && fired[0]?.error === 'The walk was cancelled by its own deadline.', JSON.stringify({ fired, aborted: ctx.abortController.signal.aborted }))
   }
   const docs = readFileSync(join(ROOT, 'docs/HOOKS.md'), 'utf8')
-  check('the docs promise the event for a cut: PostToolUseFailure carries is_interrupt, and the SDK schema says when it is true', /`PostToolUseFailure` \| after a tool call fails \| .*`is_interrupt`/.test(docs) && /is_interrupt: z\.boolean\(\)\.optional\(\)\.describe\('True when the failure was a user interrupt'\)/.test(readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8')))
+  check('the docs promise the event for a cut: PostToolUseFailure carries is_interrupt, and the SDK schema says when it is true', /`PostToolUseFailure` \| after a tool call fails \| .*`is_interrupt`/.test(docs) && /is_interrupt: z\.boolean\(\)\.optional\(\)\.describe\('True when the failure was a user interrupt'\)/.test(readFileSync(join(ROOT, 'src/utils/hooks/contract.ts'), 'utf8')))
   rmSync(hookDir, { recursive: true, force: true })
 }
 

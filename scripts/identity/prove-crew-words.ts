@@ -61,7 +61,7 @@ const ALLOW: Row[] = [
   { path: 'src/services/mcp/coordinationServer.ts', fragment: null, why: "MCP tool descriptions and results are the model's; the store beneath them moves to live communication" },
   { path: 'src/services/coordination/coordinationService.ts', fragment: null, why: 'the same coordination road' },
   { path: 'src/services/resources/adapters/team.ts', fragment: null, why: 'the mercury://team/ adapter renders for the Inspect tool, and its kind is the ref' },
-  { path: 'src/entrypoints/sdk/coreSchemas.ts', fragment: null, why: "the SDK's hook payload fields keep their names and the words that describe them" },
+  { path: 'src/utils/hooks/contract.ts', fragment: null, why: 'the hooks contract keeps its field names and the words that describe them' },
   { path: 'src/cli/print.ts', fragment: null, why: "system reminders to a headless session are the model's" },
   { path: 'src/daemon/crewSpawn.ts', fragment: null, why: "the seat's system prompt and its roster record on disk" },
   { path: 'src/skills/bundled/', fragment: null, why: 'skill prompts are the model\'s' },

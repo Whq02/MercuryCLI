@@ -3,10 +3,8 @@ import { writeSync } from 'node:fs'
 import type { z } from 'zod/v4'
 import type { ElicitResult } from '../services/mcp/sdk.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import {
-  HookJSONOutputSchema,
-  PermissionResultSchema,
-} from '../entrypoints/sdk/coreSchemas.js'
+import { PermissionResultSchema } from '../entrypoints/sdk/coreSchemas.js'
+import { HookJSONOutputSchema } from '../utils/hooks/contract.js'
 import { SDKControlElicitationResponseSchema } from '../entrypoints/sdk/controlSchemas.js'
 import type { JSONRPCMessage } from '../services/mcp/sdk.js'
 import type {
@@ -21,7 +19,7 @@ import type {
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import type { Tool, ToolUseContext } from '../Tool.js'
 import type { HookCallback, PermissionRequestResult } from '../types/hooks.js'
-import type { HookInput, HookJSONOutput } from '../entrypoints/agentSdkTypes.js'
+import type { HookInput, HookJSONOutput } from '../utils/hooks/contract.js'
 import type {
   PermissionDecision,
   PermissionDecisionReason,

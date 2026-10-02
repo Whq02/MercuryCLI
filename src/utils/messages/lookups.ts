@@ -1,6 +1,7 @@
 
 import type { ToolUseBlock, ToolUseBlockParam } from '../../types/wire.js'
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../hooks/contract.js'
+
 import type {
   AssistantMessage,
   AttachmentMessage,

@@ -1,4 +1,5 @@
-import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
+import { HOOK_EVENTS } from './contract.js'
+
 import type { HooksSettings } from '../settings/types.js'
 import type { SetAppState } from '../messageQueueManager.js'
 import { logForDebugging } from '../debug.js'

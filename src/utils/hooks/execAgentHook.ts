@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from './contract.js'
+
 import type { Message } from '../../types/message.js'
 import { toolMatchesName, type ToolPermissionContext, type ToolUseContext } from '../../Tool.js'
 import { ALL_AGENT_DISALLOWED_TOOLS } from '../../constants/tools.js'

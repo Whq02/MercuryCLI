@@ -27,8 +27,7 @@ bootstrap.setSessionTrustAccepted(true)
 const { setCwd } = await import('../../src/utils/Shell.ts')
 setCwd(PROJ)
 
-const { HOOK_EVENTS } = await import('../../src/entrypoints/sdk/coreTypes.ts')
-const { HOOK_EVENTS_SCHEMA_TUPLE } = await import('../../src/entrypoints/sdk/coreSchemas.ts')
+const { HOOK_EVENTS } = await import('../../src/utils/hooks/contract.ts')
 const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
 const { parseSettingsFile } = await import('../../src/utils/settings/settings.ts')
 const { updateHooksConfigSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.ts')
@@ -260,7 +259,6 @@ console.log('============================================================')
 section('§1 THE VOCABULARY: Interrupt is a hook event the schema accepts')
 {
   check("HOOK_EVENTS carries 'Interrupt'", (HOOK_EVENTS as readonly string[]).includes('Interrupt'), j(HOOK_EVENTS))
-  check('the schema tuple in coreSchemas.ts agrees element-wise', j(HOOK_EVENTS) === j(HOOK_EVENTS_SCHEMA_TUPLE), j({ types: HOOK_EVENTS, schema: HOOK_EVENTS_SCHEMA_TUPLE }))
   const parsed = SettingsSchema().safeParse({ events: { hooks: observers } })
   check(
     'SettingsSchema accepts an events.hooks.Interrupt entry',

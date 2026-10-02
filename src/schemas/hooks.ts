@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SHELL_TYPES } from '../utils/shell/shellProvider.js'
-import { HOOK_EVENTS, type HookEvent } from '../entrypoints/agentSdkTypes.js'
+import { HOOK_EVENTS, type HookEvent } from '../utils/hooks/contract.js'
 
 const ifSchema = lazySchema(() =>
   z

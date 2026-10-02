@@ -1,7 +1,7 @@
 
 import * as React from 'react'
 import { Text } from '../../ink.js'
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import { plural } from '../../utils/stringUtils.js'
 import { Dialog } from '../design-system/Dialog.js'
 import { Select } from '../CustomSelect/select.js'

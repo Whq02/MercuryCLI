@@ -1,9 +1,6 @@
 
-import type {
-  HookEvent,
-  HookJSONOutput,
-  SyncHookJSONOutput,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent, HookJSONOutput, SyncHookJSONOutput } from './contract.js'
+
 import { createAttachmentMessage } from '../attachments.js'
 import { logForDebugging } from '../debug.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'

@@ -1,7 +1,7 @@
 
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { IndividualHookConfig } from '../../utils/hooks/hooksSettings.js'
 import { hookSourceDescriptionDisplayString } from '../../utils/hooks/hooksSettings.js'
 import { eventSupportsIfConditions } from '../../utils/hooks/matching.js'

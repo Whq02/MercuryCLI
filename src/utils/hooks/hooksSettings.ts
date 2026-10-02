@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import type { HookEvent } from 'src/entrypoints/agentSdkTypes.js'
+import type { HookEvent } from './contract.js'
+
 import type { AppState } from '../../state/AppState.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import type { HookCommand } from '../settings/types.js'

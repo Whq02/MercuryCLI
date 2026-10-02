@@ -8,51 +8,6 @@ export * from './coreTypesInferred.js'
 
 export const MERCURY_SDK_CONTRACT_VERSION = 3
 
-export const HOOK_EVENTS = [
-  'PreToolUse',
-  'PostToolUse',
-  'PostToolUseFailure',
-  'Notification',
-  'UserPromptSubmit',
-  'UserPromptExpansion',
-  'SessionStart',
-  'SessionEnd',
-  'Stop',
-  'StopFailure',
-  'SubagentStart',
-  'SubagentStop',
-  'PreCompact',
-  'PostCompact',
-  'PermissionRequest',
-  'PermissionDenied',
-  'Setup',
-  'CrewmateIdle',
-  'TaskCreated',
-  'TaskCompleted',
-  'Elicitation',
-  'ElicitationResult',
-  'ConfigChange',
-  'WorktreeCreate',
-  'WorktreeRemove',
-  'InstructionsLoaded',
-  'CwdChanged',
-  'FileChanged',
-  'Interrupt',
-] as const
-
-export type HookEvent = (typeof HOOK_EVENTS)[number]
-
-export const EXIT_REASONS = [
-  'clear',
-  'resume',
-  'logout',
-  'prompt_input_exit',
-  'other',
-  'bypass_permissions_disabled',
-] as const
-
-export type ExitReason = (typeof EXIT_REASONS)[number]
-
 export type NonNullableUsage = {
   input_tokens: number
   cache_creation_input_tokens: number

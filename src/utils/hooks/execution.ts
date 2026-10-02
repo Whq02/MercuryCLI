@@ -9,10 +9,8 @@ import {
   getProjectRoot,
   getSessionId,
 } from '../../bootstrap/state.js'
-import type {
-  AsyncHookJSONOutput,
-  HookEvent,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { AsyncHookJSONOutput, HookEvent } from './contract.js'
+
 import { formatShellPrefixCommand } from '../bash/shellPrefix.js'
 import { checkHasTrustDialogAccepted } from '../config.js'
 import { getCwd } from '../cwd.js'

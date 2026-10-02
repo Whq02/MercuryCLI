@@ -1,13 +1,6 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../utils/lazySchema.js'
-import {
-  HOOK_EVENTS,
-  type AsyncHookJSONOutput,
-  type HookEvent,
-  type HookInput,
-  type HookJSONOutput,
-  type SyncHookJSONOutput,
-} from '../entrypoints/agentSdkTypes.js'
+import { HOOK_EVENTS, type AsyncHookJSONOutput, type HookEvent, type HookInput, type HookJSONOutput, type SyncHookJSONOutput } from '../utils/hooks/contract.js'
 import { permissionUpdateSchema } from '../utils/permissions/PermissionUpdateSchema.js'
 import type { PermissionUpdate } from './permissions.js'
 import type { AppState } from '../state/AppState.js'

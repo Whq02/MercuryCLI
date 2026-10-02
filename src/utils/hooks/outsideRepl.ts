@@ -1,7 +1,6 @@
 
-import type {
-  HookInput,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { HookInput } from './contract.js'
+
 import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'

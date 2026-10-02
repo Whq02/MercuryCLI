@@ -1,5 +1,5 @@
 import { clearRegisteredExtensionHooks, getRegisteredHooks, registerHookCallbacks } from '../../bootstrap/state.js'
-import { HOOK_EVENTS } from '../../entrypoints/sdk/coreTypes.js'
+import { HOOK_EVENTS } from '../../utils/hooks/contract.js'
 import type { HookCommand } from '../../schemas/hooks.js'
 import type { ExtensionHookMatcher } from '../../utils/settings/types.js'
 import { activeFor } from '../active.js'

@@ -32,7 +32,7 @@ section('§1 THE PREDICATE')
   for (const ev of ['SessionStart', 'Stop', 'SessionEnd', 'UserPromptSubmit', 'Interrupt']) {
     check(`${ev} does not`, supports(ev) === false)
   }
-  const { HOOK_EVENTS } = await import('../../src/entrypoints/sdk/coreTypes.js')
+  const { HOOK_EVENTS } = await import('../../src/utils/hooks/contract.js')
   check('Interrupt is a hook event of the vocabulary (a cut has no tool input to gate on)', (HOOK_EVENTS as readonly string[]).includes('Interrupt'), JSON.stringify(HOOK_EVENTS))
 }
 

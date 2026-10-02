@@ -1,36 +1,7 @@
 
 import { randomUUID } from 'crypto'
-import type {
-  ConfigChangeHookInput,
-  CwdChangedHookInput,
-  ElicitationHookInput,
-  ElicitationResultHookInput,
-  ExitReason,
-  FileChangedHookInput,
-  HookInput,
-  InstructionsLoadedHookInput,
-  InterruptHookInput,
-  NotificationHookInput,
-  PermissionDeniedHookInput,
-  PermissionRequestHookInput,
-  PostCompactHookInput,
-  PostToolUseFailureHookInput,
-  PostToolUseHookInput,
-  PreCompactHookInput,
-  PreToolUseHookInput,
-  SessionEndHookInput,
-  SessionStartHookInput,
-  SetupHookInput,
-  StopFailureHookInput,
-  StopHookInput,
-  SubagentStartHookInput,
-  SubagentStopHookInput,
-  TaskCompletedHookInput,
-  TaskCreatedHookInput,
-  CrewmateIdleHookInput,
-  UserPromptExpansionHookInput,
-  UserPromptSubmitHookInput,
-} from 'src/entrypoints/agentSdkTypes.js'
+import type { ConfigChangeHookInput, CwdChangedHookInput, ElicitationHookInput, ElicitationResultHookInput, ExitReason, FileChangedHookInput, HookInput, InstructionsLoadedHookInput, InterruptHookInput, NotificationHookInput, PermissionDeniedHookInput, PermissionRequestHookInput, PostCompactHookInput, PostToolUseFailureHookInput, PostToolUseHookInput, PreCompactHookInput, PreToolUseHookInput, SessionEndHookInput, SessionStartHookInput, SetupHookInput, StopFailureHookInput, StopHookInput, SubagentStartHookInput, SubagentStopHookInput, TaskCompletedHookInput, TaskCreatedHookInput, CrewmateIdleHookInput, UserPromptExpansionHookInput, UserPromptSubmitHookInput } from './contract.js'
+
 import type { PermissionUpdate } from '../../types/permissions.js'
 import type { FileSuggestionCommandInput } from '../../types/fileSuggestion.js'
 import type { AppState } from '../../state/AppState.js'

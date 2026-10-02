@@ -108,7 +108,7 @@ section('F1 — the declared frame types are the ones the product writes')
   check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
 }
 
-section('F2 — every declared key is snake_case outside the hooks contract')
+section('F2 — every declared key is snake_case')
 {
   const scan = (src: string): string[] => {
     const keys: string[] = []
@@ -120,17 +120,8 @@ section('F2 — every declared key is snake_case outside the hooks contract')
   }
   const coreKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8'))
   const controlKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8'))
-  const allowed = new Set([
-    'hookSpecificOutput', 'hookEventName', 'additionalContext', 'watchPaths', 'worktreePath', 'updatedMCPToolOutput', 'updatedInput',
-    'updatedPermissions', 'systemMessage', 'suppressOutput', 'stopReason', 'permissionDecision',
-    'permissionDecisionReason', 'initialUserMessage', 'asyncTimeout',
-  ])
-  const camel = [...new Set([...coreKeys, ...controlKeys].filter(key => !SNAKE.test(key)))].sort()
-  const unexpected = camel.filter(key => !allowed.has(key))
-  const missing = [...allowed].filter(key => !camel.includes(key))
-  check('the only camelCase keys declared are the hooks contract (pinned)', unexpected.length === 0, j(unexpected))
-  check('…and every pinned exception is still declared (the list stays honest)', missing.length === 0, j(missing))
-  check('the control schemas declare snake_case keys only', controlKeys.every(key => SNAKE.test(key)), j(controlKeys.filter(key => !SNAKE.test(key))))
+  check('the message schemas declare snake_case keys only', coreKeys.length > 0 && coreKeys.every(key => SNAKE.test(key)), j(coreKeys.filter(key => !SNAKE.test(key))))
+  check('the control schemas declare snake_case keys only', controlKeys.length > 0 && controlKeys.every(key => SNAKE.test(key)), j(controlKeys.filter(key => !SNAKE.test(key))))
 }
 
 section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
