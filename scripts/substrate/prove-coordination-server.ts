@@ -214,7 +214,6 @@ try {
     agentName: 'worker',
     crewName: CREW,
     color: 'blue',
-    planModeRequired: false,
   })
   {
     const client = await connect()
@@ -266,7 +265,6 @@ try {
       agentName: 'worker',
       crewName: CREW,
       color: 'blue',
-      planModeRequired: false,
     })
     const denied = await (await connect()).callTool({
       name: 'coord_say',
@@ -283,7 +281,6 @@ try {
       agentName: 'crew-lead',
       crewName: CREW,
       color: 'red',
-      planModeRequired: false,
     })
     const ok = await (await connect()).callTool({
       name: 'coord_say',
@@ -318,7 +315,6 @@ try {
       agentName: 'worker',
       crewName: CREW,
       color: 'blue',
-      planModeRequired: false,
     })
     const yielded = await (await connect()).callTool({
       name: 'coord_say',

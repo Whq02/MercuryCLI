@@ -86,7 +86,6 @@ export type InProcessRunnerConfig = {
     agentName: string
     crewName: string
     color?: string
-    planModeRequired: boolean
     parentSessionId: string
   }
   taskId: string
@@ -593,7 +592,6 @@ export async function runInProcessCrewmate(
     agentName: identity.agentName,
     crewName: identity.crewName,
     ...(identity.color !== undefined ? { agentColor: identity.color } : {}),
-    planModeRequired: identity.planModeRequired,
     parentSessionId: identity.parentSessionId,
     isCrewLead: false,
     ...(config.invokingRequestId !== undefined

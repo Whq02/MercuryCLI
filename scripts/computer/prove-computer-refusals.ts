@@ -65,7 +65,7 @@ section('§2 a headless run is refused by name; a seat that can answer asks is n
 
 section('§3 a crewmate is refused by name')
 {
-  crewmate.setDynamicCrewContext({ agentId: 'mate-1', crewName: 'crew', planModeRequired: false } as never)
+  crewmate.setDynamicCrewContext({ agentId: 'mate-1', crewName: 'crew' } as never)
   check('the seam reads as a crewmate', crewmate.isCrewmate() === true)
   const verdict = await ComputerTool.validateInput!({ action: 'screenshot' } as never, toolContext())
   check('validateInput refuses with the crewmate text', verdict.result === false && verdict.message === 'the Computer tool drives the operator\'s own screen; a crewmate never drives it in this release — the main session does', JSON.stringify(verdict))

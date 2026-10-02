@@ -23,7 +23,6 @@ export type CrewmateAgentContext = InvocationEdge & {
   agentName: string
   crewName: string
   agentColor?: string
-  planModeRequired: boolean
   parentSessionId: string
   isCrewLead: boolean
 }

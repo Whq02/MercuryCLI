@@ -228,7 +228,7 @@ console.log('§4 an agent sidecar written under the old keys still reads as a cr
   const agentId = 'agent-old-sidecar-0001'
   const sidecarPath = paths.getAgentMetadataPath(agentId as never)
   mkdirSync(join(sidecarPath, '..'), { recursive: true })
-  const old = { agentType: 'general-purpose', name: AGENT, launchedAt: 1, teammate: { teamName: TEAM, prompt: 'work the docs', transcriptAgentId: 'agent-old-sidecar-0001', planModeRequired: false } }
+  const old = { agentType: 'general-purpose', name: AGENT, launchedAt: 1, teammate: { teamName: TEAM, prompt: 'work the docs', transcriptAgentId: 'agent-old-sidecar-0001' } }
   writeFileSync(sidecarPath, JSON.stringify(old))
   const meta = (await paths.readAgentMetadata(agentId as never)) as Record<string, unknown> | null
   const record = (meta?.crewmate ?? null) as Record<string, unknown> | null

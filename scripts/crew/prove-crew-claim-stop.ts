@@ -64,7 +64,6 @@ const ctxOf = (name: string) =>
     agentId: `${name}@crew`,
     agentName: name,
     crewName: 'crew',
-    planModeRequired: false,
     parentSessionId: 'parent',
     abortController: new AbortController(),
   })

@@ -153,7 +153,7 @@ same failure lines beside the per-agent rows.
 ## Live communication
 
 SendMessage carries every message between agents, as it always has: a plain
-message, a question and its answer, a shutdown request, a plan approval, the
+message, a question and its answer, a shutdown request, the
 dispatch, escalate, progress and control envelopes, a handoff — addressed by
 name, by id, to `*` for everyone or to `main` for the lead, delivered at the
 receiver's next tool boundary or turn end (a receiver between turns starts a

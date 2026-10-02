@@ -46,7 +46,7 @@ check('the settle budget is a fraction of the seat\'s deadline for the answer', 
 section('a named crewmate: the operator\'s stop kills it and answers applied; a second stop is refused with its status')
 {
   const store = makeStore()
-  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
+  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping' }, { setAppState: store.set as never })
   check('the crewmate registers running', spawned.success && spawned.taskId !== undefined && statusOf(store, spawned.taskId) === 'running', JSON.stringify(spawned))
   const id = spawned.taskId!
   const receipt = await stopAgentByOperator(id, { getAppState: store.get, setAppState: store.set as never }, quick)
@@ -99,7 +99,7 @@ section('the misses: an unknown id and a settled row are refused, never applied'
 section('the address: TaskStop resolves a named crewmate\'s agent id and name, a launch name, and a task id as given')
 {
   const store = makeStore()
-  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping', planModeRequired: false }, { setAppState: store.set as never })
+  const spawned = await spawnInProcessCrewmate({ name: 'sonnet-ping', crewName: 'ping-crew', prompt: 'reply ping' }, { setAppState: store.set as never })
   const id = spawned.taskId!
   const state = store.get() as unknown as Parameters<typeof resolveStopTargetId>[1]
   check('the composite agent id resolves to the crewmate\'s task id', resolveStopTargetId('sonnet-ping@ping-crew', state) === id)

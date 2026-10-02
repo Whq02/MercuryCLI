@@ -71,10 +71,10 @@ const setAppState = (update: (state: AppState) => AppState): void => { state = u
 const member = (n: string) => ({ agentId: formatAgentId(n, group), name: n, agentType: 'mercury-general', model: MODEL, joinedAt: 1000, tmuxPaneId: 'in-process', cwd: process.cwd(), subscriptions: [], backendType: 'in-process' })
 await writeCrewFileAsync(group, { name: group, createdAt: 1000, leadAgentId: leadId, leadSessionId: String(getSessionId()), members: [member(lead), member(name)] } as never)
 const context = { options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } }, messages: [], abortController: new AbortController(), getAppState: () => state, setAppState, setAppStateForTasks: setAppState, readFileState: new Map(), toolUseId: 'local-fixture-launch' } as never
-const spawn = await spawnInProcessCrewmate({ name, crewName: group, prompt: 'Inspect the fixture.', planModeRequired: false, model: MODEL }, { setAppState })
+const spawn = await spawnInProcessCrewmate({ name, crewName: group, prompt: 'Inspect the fixture.', model: MODEL }, { setAppState })
 if (!spawn.success || !spawn.taskId || !spawn.crewmateContext || !spawn.abortController) throw new Error(spawn.error ?? 'fixture spawn failed')
 const taskId = spawn.taskId
-const done = runInProcessCrewmate({ identity: { agentId: formatAgentId(name, group), agentName: name, crewName: group, planModeRequired: false, parentSessionId: String(getSessionId()) }, taskId, prompt: 'Inspect the fixture.', crewmateContext: spawn.crewmateContext, abortController: spawn.abortController, toolUseContext: context, model: MODEL, systemPrompt: 'Fixture only.', systemPromptMode: 'replace', transcriptAgentId: spawn.transcriptAgentId })
+const done = runInProcessCrewmate({ identity: { agentId: formatAgentId(name, group), agentName: name, crewName: group, parentSessionId: String(getSessionId()) }, taskId, prompt: 'Inspect the fixture.', crewmateContext: spawn.crewmateContext, abortController: spawn.abortController, toolUseContext: context, model: MODEL, systemPrompt: 'Fixture only.', systemPromptMode: 'replace', transcriptAgentId: spawn.transcriptAgentId })
 let failures = 0
 const check = (label: string, good: boolean, detail = ''): void => { if (!good) failures++; console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail}` : ''}`) }
 const waitIdle = async (n: number): Promise<void> => {

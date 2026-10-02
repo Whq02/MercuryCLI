@@ -44,7 +44,6 @@ export function isManageableTask(task: TaskState): task is BackgroundTaskState {
 
 export type TaskStatusFlags = {
   isIdle?: boolean
-  awaitingPlanApproval?: boolean
   hasError?: boolean
   shutdownRequested?: boolean
 }
@@ -54,7 +53,6 @@ export function getTaskStatusIcon(
   flags?: TaskStatusFlags,
 ): string {
   if (flags?.hasError) return GLYPH.fail
-  if (flags?.awaitingPlanApproval) return '?'
   if (flags?.shutdownRequested) return GLYPH.warn
   if (status === 'running') {
     if (flags?.isIdle) return '…'
@@ -71,7 +69,6 @@ export function getTaskStatusColor(
   flags?: TaskStatusFlags,
 ): 'success' | 'error' | 'warning' | 'background' {
   if (flags?.hasError) return 'error'
-  if (flags?.awaitingPlanApproval) return 'warning'
   if (flags?.shutdownRequested) return 'warning'
   if (flags?.isIdle) return 'background'
   if (status === 'running') return 'background'
@@ -98,7 +95,6 @@ export function describeCrewmateActivity(task: TaskState): string {
     status: task.status,
     isIdle: task.isIdle === true,
     shutdownRequested: task.shutdownRequested === true,
-    awaitingPlanApproval: task.awaitingPlanApproval === true,
     hasProgress: progress !== undefined,
     ...(task.isIdle === true
       ? {

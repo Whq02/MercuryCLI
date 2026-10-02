@@ -35,7 +35,6 @@ export interface RichTaskFact {
   crewmateName?: string
   isIdle?: boolean
   shutdownRequested?: boolean
-  awaitingPlanApproval?: boolean
   hasProgress?: boolean
   lastActionWasLeadHandoff?: boolean
 }
@@ -144,7 +143,6 @@ function crewmatePhaseFrom(rich: RichTaskFact): string {
     status: (rich.status ?? 'running') as CrewmatePhaseInputs['status'],
     isIdle: rich.isIdle === true,
     shutdownRequested: rich.shutdownRequested === true,
-    awaitingPlanApproval: rich.awaitingPlanApproval === true,
     hasProgress: rich.hasProgress === true,
     ...(rich.lastActionWasLeadHandoff !== undefined && {
       lastActionWasLeadHandoff: rich.lastActionWasLeadHandoff,
@@ -190,9 +188,7 @@ export function deriveThreadRows(inputs: WorkbenchSourceInputs): WorkbenchThread
     if (exec.startedAt !== undefined) row.startedAt = exec.startedAt
     if (run?.totalChangedPaths !== undefined) row.totalChangedPaths = run.totalChangedPaths
     if (run?.verificationState) row.verification = run.verificationState
-    const blocker =
-      run?.blocker ??
-      (kind === 'crewmate' && rich?.awaitingPlanApproval ? 'awaiting plan approval' : undefined)
+    const blocker = run?.blocker
     if (blocker) row.blocker = blocker
     rows.push(row)
   }

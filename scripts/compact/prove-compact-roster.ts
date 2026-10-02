@@ -96,7 +96,7 @@ const store: Record<string, AnyTask> = {
     agentId: 'smain0001', prompt: 'x', agentType: 'main-session', isBackgrounded: true,
   }),
   'harper@crew': base('harper@crew', 'in_process_crewmate', 'harper', {
-    identity: { agentId: 'harper@crew', agentName: 'harper', crewName: 'crew' }, prompt: 'x', awaitingPlanApproval: false, isIdle: false, shutdownRequested: false, pendingUserMessages: ['ping'],
+    identity: { agentId: 'harper@crew', agentName: 'harper', crewName: 'crew' }, prompt: 'x', isIdle: false, shutdownRequested: false, pendingUserMessages: ['ping'],
   }),
   bshell001: base('bshell001', 'local_bash', 'roster-shell sleeps', {
     command: 'sleep 20', completionStatusSentInAttachment: false, shellCommand: null, lastReportedTotalLines: 0, isBackgrounded: true,

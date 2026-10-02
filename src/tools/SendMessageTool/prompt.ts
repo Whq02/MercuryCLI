@@ -42,6 +42,5 @@ Example: { "to": "researcher", "summary": "auth findings ready", "message": "I f
 
 ## Protocol responses
 - When you receive a shutdown request, reply with { "type": "shutdown_response", "request_id": "…", "approve": true|false, "reason": "…" }. Approving a shutdown terminates your process.
-- When you receive a plan approval request, reply with { "type": "plan_approval_response", "request_id": "…", "approve": true|false, "feedback": "…" }. A rejection routes the crewmate back for revision.
 - Do not originate a shutdown request unless you were asked to.${statusLine}${busSection}`
 }

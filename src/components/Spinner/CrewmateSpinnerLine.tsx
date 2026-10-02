@@ -149,12 +149,8 @@ export function CrewmateSpinnerLine({
       : '├'
 
   let statusText: string | null = null
-  let statusColor: string | undefined
   if (crewmate.shutdownRequested) {
     statusText = '[stopping]'
-  } else if (crewmate.awaitingPlanApproval) {
-    statusText = '[awaiting approval]'
-    statusColor = 'warning'
   } else if (crewmate.isIdle) {
     if (allIdle) {
       const duration = frozenIdleMs ?? Date.now() - crewmate.startTime
@@ -214,8 +210,7 @@ export function CrewmateSpinnerLine({
         </Text>
         {statusText !== null ? (
           <Text
-            color={statusColor}
-            dimColor={statusColor === undefined}
+            dimColor
             wrap="truncate-end"
           >
             {truncateToWidth(statusText, activityWidth)}

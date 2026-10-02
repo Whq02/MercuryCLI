@@ -8,7 +8,6 @@ import type { MCPServerConnection } from '../services/mcp/types.js'
 import type { Tool } from '../Tool.js'
 import type { Command } from '../types/command.js'
 import type { Message, UserMessage } from '../types/message.js'
-import type { InternalPermissionMode } from '../types/permissions.js'
 import type { ModelTransitionReceipt } from '../utils/model/modelTransition.js'
 import type { EffortValue } from '../utils/effort.js'
 import type { FileHistoryState } from '../utils/fileHistory.js'
@@ -279,10 +278,7 @@ export function getDefaultAppState(): AppState {
     lastModelTransition: null,
     foregroundTurnActive: false,
 
-    toolPermissionContext: {
-      ...getEmptyToolPermissionContext(),
-      mode: computeInitialPermissionMode(),
-    },
+    toolPermissionContext: getEmptyToolPermissionContext(),
 
     remoteConnectionStatus: 'connecting',
     remoteBackgroundTaskCount: 0,
@@ -340,17 +336,4 @@ function computeAssistantMode(): boolean {
   } catch {
     return false
   }
-}
-
-function computeInitialPermissionMode(): InternalPermissionMode {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crewmate = require('../utils/crewmate.js') as {
-      isCrewmate?: () => boolean
-      isPlanModeRequired?: () => boolean
-    }
-    if (crewmate.isCrewmate?.() && crewmate.isPlanModeRequired?.()) return 'strategy'
-  } catch {
-  }
-  return 'default'
 }

@@ -118,7 +118,7 @@ export async function logContextMetrics(
 
 
 const SWARM_ONLY_FIELDS: Record<string, string[]> = {
-  [AGENT_TOOL_NAME]: ['name', 'crew_name', 'mode'],
+  [AGENT_TOOL_NAME]: ['name', 'crew_name'],
 }
 
 const serializedSchemaKeys = new WeakMap<object, string>()

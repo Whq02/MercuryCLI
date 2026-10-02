@@ -63,8 +63,6 @@ const INVENTORY: Record<string, string[]> = {
   'formatCrewmateMessages': ['src/cli/print.ts', 'src/utils/messages/attachmentText.ts', 'src/utils/swarm/inProcessRunner.ts'],
   'createIdleNotification': ['src/utils/swarm/crewmateInit.ts', 'src/utils/swarm/inProcessRunner.ts'],
   'isIdleNotification': ['src/components/messages/AttachmentMessage.tsx', 'src/utils/attachments/crewmates.ts'],
-  'isPlanApprovalRequest': [],
-  'isPlanApprovalResponse': [],
   'createPermissionRequestMessage': ['src/utils/swarm/permissionSync.ts'],
   'isPermissionResponse': ['src/utils/swarm/inProcessRunner.ts'],
   'createSandboxPermissionRequestMessage': ['src/utils/swarm/permissionSync.ts'],

@@ -57,9 +57,9 @@ function crewWith(name: string): CrewFile {
 }
 
 const asWorker = (crew: string): void =>
-  setDynamicCrewContext({ agentId: `w@${crew}`, agentName: 'worker', crewName: crew, color: 'blue', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `w@${crew}`, agentName: 'worker', crewName: crew, color: 'blue' })
 const asBob = (crew: string): void =>
-  setDynamicCrewContext({ agentId: `b@${crew}`, agentName: 'bob', crewName: crew, color: 'green', planModeRequired: false })
+  setDynamicCrewContext({ agentId: `b@${crew}`, agentName: 'bob', crewName: crew, color: 'green' })
 
 console.log('============================================================')
 console.log(' the coordination service — one owner, two projections')
