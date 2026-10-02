@@ -48,45 +48,8 @@ export const ModelUsageSchema = lazySchema(() =>
   }),
 )
 
-export const OutputFormatTypeSchema = lazySchema(() => z.enum(['text', 'json', 'stream-json']))
-export const BaseOutputFormatSchema = lazySchema(() =>
-  z.object({ type: OutputFormatTypeSchema() }),
-)
-export const JsonSchemaOutputFormatSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('json'),
-    schema: z
-      .record(z.string(), z.unknown())
-      .describe('A JSON Schema the final result must conform to'),
-  }),
-)
-export const OutputFormatSchema = lazySchema(() =>
-  z.union([JsonSchemaOutputFormatSchema(), BaseOutputFormatSchema()]),
-)
-
 export const ConfigScopeSchema = lazySchema(() => z.enum(['local', 'user', 'project']))
 export const SdkBetaSchema = lazySchema(() => z.enum(['context-1m-2025-08-07']))
-
-export const ThinkingAdaptiveSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('adaptive'),
-    budgetTokens: z.number().optional().describe('Optional ceiling on thinking tokens; the model paces itself'),
-  }),
-)
-export const ThinkingEnabledSchema = lazySchema(() =>
-  z.object({
-    type: z.literal('enabled'),
-    budgetTokens: z.number().describe('The thinking-token budget for each turn'),
-  }),
-)
-export const ThinkingDisabledSchema = lazySchema(() => z.object({ type: z.literal('disabled') }))
-export const ThinkingConfigSchema = lazySchema(() =>
-  z.discriminatedUnion('type', [
-    ThinkingAdaptiveSchema(),
-    ThinkingEnabledSchema(),
-    ThinkingDisabledSchema(),
-  ]),
-)
 
 export const McpStdioServerConfigSchema = lazySchema(() =>
   z.object({
@@ -210,9 +173,6 @@ export const PermissionUpdateSchema = lazySchema(() =>
       destination: PermissionUpdateDestinationSchema().describe('Which settings layer takes the change'),
     }),
   ]),
-)
-export const PermissionDecisionClassificationSchema = lazySchema(() =>
-  z.enum(['user_temporary', 'user_permanent', 'user_reject']),
 )
 export const PermissionResultSchema = lazySchema(() =>
   z.union([
@@ -728,28 +688,6 @@ export const HookJSONOutputSchema = lazySchema(() =>
   z.union([AsyncHookJSONOutputSchema(), SyncHookJSONOutputSchema()]),
 )
 
-export const PromptRequestOptionSchema = lazySchema(() =>
-  z.object({
-    label: z.string().describe('The option text shown to the user'),
-    value: z.string().optional().describe('The value returned when picked; the label stands in when absent'),
-    description: z.string().optional().describe('A secondary line explaining the option'),
-  }),
-)
-export const PromptRequestSchema = lazySchema(() =>
-  z.object({
-    question: z.string().describe('The question put to the user'),
-    options: z.array(PromptRequestOptionSchema()).optional().describe('Choices to offer; freeform when absent'),
-    multiSelect: z.boolean().optional().describe('Allow picking more than one option'),
-  }),
-)
-export const PromptResponseSchema = lazySchema(() =>
-  z.object({
-    answer: z.string().optional().describe('The freeform answer, when one was typed'),
-    selected: z.array(z.string()).optional().describe('The chosen option values'),
-    cancelled: z.boolean().optional().describe('True when the user dismissed the ask'),
-  }),
-)
-
 export const SlashCommandSchema = lazySchema(() =>
   z.object({
     name: z.string().describe('The command name, without the slash'),
@@ -871,9 +809,6 @@ export const AgentDefinitionSchema = lazySchema(() =>
 )
 
 export const SettingSourceSchema = lazySchema(() => z.enum(['user', 'project', 'local']))
-export const SdkExtensionConfigSchema = lazySchema(() =>
-  z.object({ type: z.literal('local'), path: z.string().describe('Filesystem path to the extension folder (approved for this session only)') }),
-)
 export const RewindFilesResultSchema = lazySchema(() =>
   z.object({
     can_rewind: z.boolean().optional().describe('Whether a rewind is possible from here'),
@@ -1321,14 +1256,6 @@ export const SDKPromptSuggestionMessageSchema = lazySchema(() =>
     suggestion: z.string().describe('A prompt the user might send next'),
     uuid: z.string(),
     session_id: z.string(),
-  }),
-)
-export const SDKSessionInfoSchema = lazySchema(() =>
-  z.object({
-    session_id: z.string().describe('The session this row names'),
-    title: z.string().optional().describe('The session title, when one was set'),
-    created_at: z.string().optional().describe('When the session was created'),
-    updated_at: z.string().optional().describe('When the session last changed'),
   }),
 )
 export const SDKMessageSchema = lazySchema(() =>

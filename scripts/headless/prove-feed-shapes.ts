@@ -126,12 +126,11 @@ section('F2 — every declared key is snake_case outside the riding contracts')
     'permissionDecisionReason', 'initialUserMessage', 'asyncTimeout',
     'toolName', 'ruleContent',
     'disallowedTools', 'standingRule', 'criticalSystemReminder_EXPERIMENTAL', 'initialPrompt', 'maxTurns', 'permissionMode', 'mcpServers',
-    'budgetTokens', 'multiSelect',
   ])
   const camel = [...new Set([...coreKeys, ...controlKeys].filter(key => !SNAKE.test(key)))].sort()
   const unexpected = camel.filter(key => !allowed.has(key))
   const missing = [...allowed].filter(key => !camel.includes(key))
-  check('the only camelCase keys declared are the riding contracts and the option types (pinned)', unexpected.length === 0, j(unexpected))
+  check('the only camelCase keys declared are the riding contracts (pinned)', unexpected.length === 0, j(unexpected))
   check('…and every pinned exception is still declared (the list stays honest)', missing.length === 0, j(missing))
   check('the control schemas declare snake_case keys only', controlKeys.every(key => SNAKE.test(key)), j(controlKeys.filter(key => !SNAKE.test(key))))
 }
