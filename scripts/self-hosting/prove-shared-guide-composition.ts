@@ -123,7 +123,7 @@ try {
   check('the imported AGENTS.md rides the native import chain, parent MERCURY.md', viaImport?.parent === join(imported, 'MERCURY.md') && viaImport.family === 'native', JSON.stringify(viaImport))
 
   console.log('§4 a MERCURY.md above the working directory keeps AGENTS.md out')
-  const parent = project({ 'MERCURY.md': 'parent-guide-needle\n', 'app/AGENTS.md': 'shared-guide-needle\n', 'app/src/a.ts': '\n' })
+  const parent = project({ 'MERCURY.md': 'parent-guide-needle\n', 'app/AGENTS.md': 'shared-guide-needle\n', 'app/src/a.ts': '\n', 'app/sub/AGENTS.md': 'nested-shared-needle\n', 'app/sub/file.ts': '\n' })
   const s4 = drive(join(parent, 'app'), { trust: parent })
   check('the parent MERCURY.md composes', s4.composed.includes('parent-guide-needle'), s4.paths.join(', '))
   check("the working directory's AGENTS.md does not compose", !s4.composed.includes('shared-guide-needle'))
@@ -143,6 +143,14 @@ try {
   check('touching a file under a directory with only AGENTS.md attaches it', s6.touched.includes(join(nested, 'sub/AGENTS.md')), s6.touched.join(', '))
   const s6b = drive(nested, { touch: join(nested, 'mixed/file.ts') })
   check('a nested directory holding both attaches MERCURY.md only', s6b.touched.includes(join(nested, 'mixed/MERCURY.md')) && !s6b.touched.includes(join(nested, 'mixed/AGENTS.md')), s6b.touched.join(', '))
+  const guided = project({ 'MERCURY.md': 'native-guide-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })
+  const s6c = drive(guided, { touch: join(guided, 'sub/file.ts') })
+  check('a project guided by MERCURY.md attaches no nested AGENTS.md on touch', s6c.touched.length === 0, s6c.touched.join(', '))
+  const guidedBoth = project({ 'MERCURY.md': 'native-guide-needle\n', 'AGENTS.md': 'shared-guide-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })
+  const s6d = drive(guidedBoth, { touch: join(guidedBoth, 'sub/file.ts') })
+  check('with both guides at the root, MERCURY.md alone: no nested AGENTS.md attaches on touch', s6d.touched.length === 0, s6d.touched.join(', '))
+  const s6e = drive(join(parent, 'app'), { trust: parent, touch: join(parent, 'app/sub/file.ts') })
+  check('a MERCURY.md above the working directory keeps a nested AGENTS.md out on touch', s6e.touched.length === 0, s6e.touched.join(', '))
 
   console.log('§7 the exclusion list reaches AGENTS.md')
   const s7 = drive(shared, { settings: { briefs: { exclude: ['**/AGENTS.md'] } } })
