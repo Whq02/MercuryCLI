@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/bootstrap/state* src/commands/kill/**
 # gate-watch: src/components/messages/nullRenderingAttachments* src/constants/** src/daemon/**
-# gate-watch: src/hooks/useAgentStateClassifier* src/memdir/experienceCards*
+# gate-watch: src/hooks/useAgentStateClassifier*
 # gate-watch: src/services/agentStateClassifier* src/services/agentStateHeuristic*
 # gate-watch: src/services/analytics/config* src/services/compact/microCompactDigest*
 # gate-watch: src/services/compact/verbatimTail* src/services/mcp/**
