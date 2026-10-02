@@ -96,6 +96,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-owner-watch-budget.ts" || {
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-owner-handover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-owner-handover.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-handover.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-handover.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-helper-lifecycle.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-helper-lifecycle.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-helper-doors.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-helper-doors.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-one-daemon-per-build.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-one-daemon-per-build.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-sessionless-daemon-exits.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-sessionless-daemon-exits.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-install-fresh-folder.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-install-fresh-folder.ts" "$__t" "$__rc"

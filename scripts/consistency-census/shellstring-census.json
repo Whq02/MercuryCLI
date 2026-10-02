@@ -381,6 +381,13 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/daemon/prove-helper-doors.ts",
+      "mechanism": "shell-dash-c",
+      "excerpt": "if (spawnSync('sh', ['-c', `git -C \"${root}\" archive ${OLD_SHA} | tar -x -C \"${cache}\"`]).status !== 0) return null",
+      "cls": "intentional-shell",
+      "why": "script-land shell program — the shell is named explicitly at the call"
+    },
+    {
       "file": "scripts/daemon/prove-monitor-window-drive.ts",
       "mechanism": "execSync-string",
       "excerpt": "execSync(`pkill -f ${JSON.stringify(`tail -n0 -F ${WATCHED}`)}`)",

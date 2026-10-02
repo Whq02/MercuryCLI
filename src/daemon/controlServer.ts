@@ -28,6 +28,7 @@ import {
   verifyControlAuth,
 } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { predecessorSockPidOf } from './handover.js'
 import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
 import { validateSessionKit, validateSessionKitEdit, type SessionKitEditV1, type SessionKitV1 } from './sessionKit.js'
 import { validateSaturnSubmission, SATURN_ID_PATTERN, type ScheduleOpRequestV1 } from './saturn.js'
@@ -46,6 +47,11 @@ export type ControlOutcome = {
   reason?: 'taken' | 'unknown'
 }
 
+export type ShutdownReceipt = {
+  reaped: number
+  workers: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
+}
+
 export interface ControlServerDeps {
   roster: TaskRoster
   breaker: DaemonBreaker
@@ -56,10 +62,7 @@ export interface ControlServerDeps {
   isReady: () => boolean
   whenReady?: () => Promise<void>
   startingHoldMs?: number
-  onShutdown: (reapWorkers: boolean) => {
-    reaped: number
-    workers: Array<{ short: string; kind: 'long-lived' | 'one-shot'; purpose: string; pid?: number }>
-  }
+  onShutdown: (reapWorkers: boolean, forwarded: boolean) => ShutdownReceipt | Promise<ShutdownReceipt>
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
@@ -297,6 +300,15 @@ function removeStaleSocket(sockPath: string): Promise<void> {
   return unlink(sockPath).catch(() => {})
 }
 
+function livePlaneOwnerIsForeign(): boolean {
+  try {
+    const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
+    return typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
+  } catch {
+    return false
+  }
+}
+
 export async function startControlServer(
   deps: ControlServerDeps,
   opts: { socketPath?: string } = {},
@@ -317,11 +329,10 @@ export async function startControlServer(
   const sweepDeadPidSockets = async (): Promise<void> => {
     if (sockPath === planePath) return
     const dir = dirname(planePath)
-    const plane = basename(planePath)
     const names = await readdir(dir).catch(() => [] as string[])
     for (const name of names) {
-      const pid = name.startsWith(`${plane}.`) ? /^(\d+)$/.exec(name.slice(plane.length + 1)) : /^(\d+)\.sock$/.exec(name)
-      if (pid === null || Number(pid[1]) === process.pid || isProcessAlive(Number(pid[1]))) continue
+      const pid = predecessorSockPidOf(name, planePath)
+      if (pid === null || pid === process.pid || isProcessAlive(pid)) continue
       await removeStaleSocket(join(dir, name))
     }
   }
@@ -397,20 +408,11 @@ export async function startControlServer(
       return new Promise<void>(resolve => {
         for (const c of conns) c.destroy()
         server.close(() => {
-          if (!ownsControlPlaneSync()) {
-            let foreignLive = false
-            try {
-              const raw = JSON.parse(readFileSync(supervisorStatePath(), 'utf8')) as { pid?: number }
-              foreignLive =
-                typeof raw?.pid === 'number' && raw.pid !== process.pid && isProcessAlive(raw.pid)
-            } catch {
-              foreignLive = false
-            }
-            if (foreignLive) {
-              logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
-              resolve()
-              return
-            }
+          const foreignLive = !ownsControlPlaneSync() && livePlaneOwnerIsForeign()
+          if (foreignLive && sockPath === planePath) {
+            logForDebugging('[daemon] rebind aborted — a live foreign pid owns the plane')
+            resolve()
+            return
           }
           server.once('error', err => {
             logForDebugging(`[daemon] rebind listen failed (next beat retries): ${err}`)
@@ -420,6 +422,10 @@ export async function startControlServer(
             .then(() => {
               server.listen(sockPath, () => {
                 logForDebugging(`[daemon] control server re-bound at ${sockPath} (self-heal)`)
+                if (foreignLive) {
+                  resolve()
+                  return
+                }
                 void publishSocket().catch(error => logForDebugging(`[daemon] control socket publication failed: ${error}`)).finally(resolve)
               })
             })
@@ -533,7 +539,7 @@ async function routeControlRequest(
   }
   if (op === 'shutdown') {
     const reapWorkers = raw.reapWorkers !== false
-    const { reaped, workers } = deps.onShutdown(reapWorkers)
+    const { reaped, workers } = await deps.onShutdown(reapWorkers, raw.forwarded === true)
     return answer(sock, { ok: true, op: 'shutdown', reaped, workers })
   }
 

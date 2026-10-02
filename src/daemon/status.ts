@@ -1,6 +1,7 @@
 
 import {
   controlSockPath,
+  currentVersion,
   daemonControlRpc,
   readSupervisorState,
 } from './controlSocket.js'
@@ -15,10 +16,10 @@ export interface FireOutcomeSummary {
 import { daemonHandshakeEvidence, handshakeDaemon, type DaemonHandshakeVerdict } from './handshake.js'
 import { MERCURY_DAEMON_PROTO, type WireRosterEntry, type WireStatus } from './protocol.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
-import { forwardFrame, predecessorSockPath } from './handover.js'
+import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './handover.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { readdirSync } from 'node:fs'
-import { basename, dirname } from 'node:path'
+import { dirname } from 'node:path'
 
 export interface MercuryDaemonStatus {
   supervisor: { pid: number; version: string; uptimeSec: number; dir: string } | null
@@ -119,7 +120,6 @@ export type HelperRow = { pid: number; live: number | null }
 export function helperPidSocketsOnDisk(): number[] {
   if (process.platform === 'win32') return []
   const plane = controlSockPath()
-  const name = basename(plane)
   let names: string[]
   try {
     names = readdirSync(dirname(plane))
@@ -128,10 +128,20 @@ export function helperPidSocketsOnDisk(): number[] {
   }
   const pids: number[] = []
   for (const entry of names) {
-    const match = entry.startsWith(`${name}.`) ? /^(\d+)$/.exec(entry.slice(name.length + 1)) : /^(\d+)\.sock$/.exec(entry)
-    if (match !== null) pids.push(Number(match[1]))
+    const pid = predecessorSockPidOf(entry, plane)
+    if (pid !== null) pids.push(pid)
   }
   return pids
+}
+
+export async function helperPidsOfHome(): Promise<number[]> {
+  const supervisor = await readSupervisorState().catch(() => null)
+  const known: HelperRow[] = supervisor !== null && isProcessAlive(supervisor.pid) ? [{ pid: supervisor.pid, live: null }] : []
+  const plane = await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: null }, { timeoutMs: 1000, protoRetry: false })
+  const planeFacts = plane.ok && plane.op === 'hello' ? plane : null
+  if (planeFacts !== null && !known.some(helper => helper.pid === planeFacts.pid)) known.unshift({ pid: planeFacts.pid, live: planeFacts.ready ? planeFacts.live : null })
+  const census = await helperCensus(known, planeFacts?.predecessorPids ?? [])
+  return census.map(helper => helper.pid)
 }
 
 async function helperCensus(known: HelperRow[], predecessors: number[]): Promise<HelperRow[]> {

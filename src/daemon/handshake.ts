@@ -587,6 +587,7 @@ export async function restartDaemon(opts: {
     }
   }
   if (reply.state === 'armed') {
+    if (reply.detail !== undefined) return { state: 'armed', line: `restart armed — ${reply.detail}` }
     return { state: 'armed', line: `restart armed — daemon v${d.version} restarts when its ${liveNoun({ live: reply.live, liveSessions: Math.min(first.liveSessions, reply.live) })} ${finishVerb(reply.live)}` }
   }
   if (reply.state === 'refused') return { state: 'refused', line: `daemon v${d.version} — ${reply.detail ?? 'restart refused'}` }
@@ -630,8 +631,9 @@ export async function moveDaemonToDeployedBuild(opts: {
     state: 'stop',
     line: `background daemon: ${old} could not be moved — ${why}; \`mercury daemon stop\` ends it and the next session starts one on ${to}`,
   })
-  const hosted = opts.hosted !== undefined ? opts.hosted : (await (await import('./hostedCaller.js')).hostedCallerOf(d.pid)).hosted
-  if (hosted && (first.heal === 'operator' || first.live === 0)) {
+  const { hostedCallerOf, restartEndsHostedCaller } = await import('./hostedCaller.js')
+  const hosted = opts.hosted !== undefined ? opts.hosted : (await hostedCallerOf(await (await import('./status.js')).helperPidsOfHome())).hosted
+  if (hosted && restartEndsHostedCaller(first)) {
     return stopLine('this command runs inside a session it hosts, so its restart would end your own turn — run `mercury update` or `mercury daemon restart` from a plain shell')
   }
   if (first.heal === 'operator') return stopLine('it predates the version handshake and cannot restart itself')
@@ -654,7 +656,10 @@ export async function moveDaemonToDeployedBuild(opts: {
     if (!reply.ok || reply.op !== 'restart-when-idle') return stopLine(`it refused the restart (${reply.ok ? 'unexpected reply' : reply.error})`)
     publish(applyHeal(verdict, reply))
     if (reply.state === 'armed') {
-      return (await settled(verdict, reply)) ?? { state: 'when-idle', line: `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} ${finishVerb(reply.live)}` }
+      return (await settled(verdict, reply)) ?? {
+        state: 'when-idle',
+        line: reply.detail !== undefined ? `background daemon: ${old} moves to ${to} when idle — ${reply.detail}` : `background daemon: ${old} moves to ${to} when its ${liveWords(reply.live)} ${finishVerb(reply.live)}`,
+      }
     }
     if (reply.state === 'refused') return (await settled(verdict, reply)) ?? stopLine(reply.detail ?? 'the restart was refused')
     const back = await waitForHandshake(v => v.daemon !== null && v.daemon.pid !== verdict.daemon?.pid && v.state !== 'starting', opts)

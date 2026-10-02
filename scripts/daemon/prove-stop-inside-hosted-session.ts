@@ -43,6 +43,14 @@ tally.section('§1 the verdict: a caller under the daemon it is about to stop is
     const plain = await of(777, { pid: 4242, env: {}, ancestors: async () => [4100, 1] })
     tally.check('the live reading of a plain shell is not hosted', !plain.hosted, JSON.stringify(plain))
     tally.check('the refusal is the one line', words === REFUSAL && line('stop') === `[daemon] stop refused — ${REFUSAL}` && line('restart') === `[daemon] restart refused — ${REFUSAL}`, `${words} · ${line('stop')}`)
+    const overHelpers = verdict([778, 777] as unknown as number, { ancestors: walk, workerParentPid: null })
+    tally.check('the verdict reads every helper pid of the home: a caller under an older helper is hosted by that helper', overHelpers.hosted && overHelpers.road === 'ancestry' && overHelpers.daemonPid === 777, JSON.stringify(overHelpers))
+    const overStamp = verdict([778, 777] as unknown as number, { ancestors: [], workerParentPid: 777 })
+    tally.check('…and by its stamp', overStamp.hosted && overStamp.road === 'stamp' && overStamp.daemonPid === 777, JSON.stringify(overStamp))
+    const liveOver = await of([778, 777] as unknown as number, { pid: 4242, env: {}, ancestors: async () => [4100, 777, 1] })
+    tally.check("the live reading over the home's helpers walks the caller once and names the hosting helper", liveOver.hosted && liveOver.road === 'ancestry', JSON.stringify(liveOver))
+    const ends = mod.restartEndsHostedCaller as ((first: { heal: string; live: number; daemon: { predecessorPids?: number[] } | null }) => boolean) | undefined
+    tally.check('a restart ends a hosted caller only on the operator road or when it would run now — nothing live here and no older helper still hosting', typeof ends === 'function' && ends({ heal: 'operator', live: 0, daemon: null }) && ends({ heal: 'restart-when-idle', live: 0, daemon: { predecessorPids: [] } }) && !ends({ heal: 'restart-when-idle', live: 0, daemon: { predecessorPids: [777] } }) && !ends({ heal: 'restart-when-idle', live: 2, daemon: { predecessorPids: [] } }), typeof ends)
   }
 }
 
@@ -54,14 +62,14 @@ tally.section('§2 the verbs consult the verdict before anything that would end 
   const stop = stopAt !== -1 && stopEnd !== -1 ? main.slice(stopAt, stopEnd) : ''
   const guardAt = stop.indexOf('hostedCallerOf(')
   const rpcAt = stop.indexOf("op: 'shutdown'")
-  tally.check('the stop verb asks whether it runs inside a session this daemon hosts', guardAt !== -1, 'no hostedCallerOf in daemonStopCmd (red on the base by construction)')
+  tally.check('the stop verb asks whether it runs inside a session any helper of this home hosts', guardAt !== -1 && stop.includes('hostedCallerOf(await helperPidsOfHome())'), 'no hostedCallerOf over the home\'s helpers in daemonStopCmd (red on the base by construction)')
   tally.check('…BEFORE the shutdown RPC (the reap is the cut)', guardAt !== -1 && rpcAt !== -1 && guardAt < rpcAt)
   tally.check('…and refuses with the one line, exit 1', stop.includes("hostedCallerRefusalLine('stop')") && /hosting\.hosted\)\s*\{[\s\S]{0,200}process\.exitCode = 1[\s\S]{0,40}return/.test(stop))
   const restartAt = main.indexOf('async function daemonRestartCmd(')
   const restartEnd = main.indexOf('async function daemonRun(', restartAt)
   const restart = restartAt !== -1 && restartEnd !== -1 ? main.slice(restartAt, restartEnd) : ''
-  tally.check('the restart verb reads the handshake first and asks the same question', restart.includes('handshakeDaemon()') && restart.includes('hostedCallerOf('))
-  tally.check("…refusing the stop-and-start road (a pre-handshake daemon) and a daemon that counts nothing live — the two roads that would end this turn", /hosting\.hosted && first\.daemon !== null && \(first\.heal === 'operator' \|\| first\.live === 0\)/.test(restart) && restart.includes("hostedCallerRefusalLine('restart')"))
+  tally.check('the restart verb reads the handshake first and asks the same question over every helper of the home', restart.includes('handshakeDaemon()') && restart.includes('hostedCallerOf(await helperPidsOfHome())'))
+  tally.check("…refusing only the roads that would end this turn — the stop-and-start road (a pre-handshake daemon) and a restart that would run now, nothing live and no older helper still hosting", restart.includes('hosting.hosted && first.daemon !== null && restartEndsHostedCaller(first)') && restart.includes("hostedCallerRefusalLine('restart')"))
   tally.check('…and lets the armed road through, saying this session is one of the live ones', restart.includes("receipt.state === 'armed'") && restart.includes('this hosted session is one of them; your turn goes on'))
   const teardown = main.slice(main.indexOf('const shutdown = (signal: string) => {'), main.indexOf('const bail = setTimeout(() => process.exit(1), 15_000)'))
   tally.check('the seam stands as read: the teardown reaps every rostered worker (why the refusal is client-side, and why no flag can keep one)', teardown.includes('for (const j of roster.list())') && teardown.includes('roster.kill(j.short)'))

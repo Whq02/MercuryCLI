@@ -18,7 +18,7 @@ const beatAt = main.indexOf('const armedBeat = setInterval(() => {')
 const beatEnd = main.indexOf('}, ARMED_RESTART_BEAT_MS)', beatAt)
 const beat = beatAt !== -1 && beatEnd !== -1 ? main.slice(beatAt, beatEnd) : ''
 check('the armed-restart beat exists', beat !== '')
-check('the beat gates the re-exec on the LIVE worker count, re-read every beat', beat.includes('if (liveWorkers().live > 0) return'))
+check('the beat gates the re-exec on the LIVE worker count, re-read every beat, and on a session still being born', beat.includes('if (liveWorkers().live > 0 || birthsInFlight > 0) return'))
 check('the beat holds no count frozen at arming (a session admitted after arming is not excluded)', !/arm(ed)?Live|liveAtArm|countAtArm|frozen/i.test(beat))
 check('the re-exec fires only once the live count reaches zero', beat.includes('restartAfterTeardown = true') && beat.includes("requestShutdown('restart-when-idle:armed')"))
 
