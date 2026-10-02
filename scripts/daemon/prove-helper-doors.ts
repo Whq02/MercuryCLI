@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
@@ -134,11 +134,14 @@ const releaseDist = (): string | null => {
   mkdirSync(cache, { recursive: true })
   if (spawnSync('sh', ['-c', `git -C "${root}" archive ${OLD_SHA} | tar -x -C "${cache}"`]).status !== 0) return null
   symlinkSync(join(root, 'node_modules'), join(cache, 'node_modules'))
-  const build = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined } })
+  const scratch = mkdtempSync(join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}-build-`))
+  const build = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined, MERCURY_BUILD_OUTDIR: scratch } })
   if (build.status !== 0) {
     note(`the ${OLD_SHA} tree did not build: ${(build.stdout + build.stderr).slice(-600)}`)
+    rmSync(scratch, { recursive: true, force: true })
     return null
   }
+  renameSync(scratch, built)
   return answers() ? built : null
 }
 const listen = (path: string): Promise<net.Server> => new Promise((resolveServer, reject) => {
