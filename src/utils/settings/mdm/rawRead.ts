@@ -4,8 +4,6 @@ import { existsSync } from 'node:fs'
 
 import {
   getMacOSPlistPaths,
-  LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKCU,
-  LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKLM,
   MDM_SUBPROCESS_TIMEOUT_MS,
   PLUTIL_ARGS_PREFIX,
   PLUTIL_PATH,
@@ -56,16 +54,11 @@ async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string 
 }
 
 async function readWindowsRegistry(): Promise<{ hklmStdout: string | null; hkcuStdout: string | null }> {
-  const [hklmMercury, hklmLegacy, hkcuMercury, hkcuLegacy] = await Promise.all([
+  const [hklmStdout, hkcuStdout] = await Promise.all([
     runSubprocess('reg', ['query', WINDOWS_REGISTRY_KEY_PATH_HKLM, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
-    runSubprocess('reg', ['query', LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKLM, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
     runSubprocess('reg', ['query', WINDOWS_REGISTRY_KEY_PATH_HKCU, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
-    runSubprocess('reg', ['query', LEGACY_WINDOWS_REGISTRY_KEY_PATH_HKCU, '/v', WINDOWS_REGISTRY_VALUE_NAME]),
   ])
-  return {
-    hklmStdout: hklmMercury ?? hklmLegacy,
-    hkcuStdout: hkcuMercury ?? hkcuLegacy,
-  }
+  return { hklmStdout, hkcuStdout }
 }
 
 export async function fireRawRead(): Promise<RawReadResult> {
