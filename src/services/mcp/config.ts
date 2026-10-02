@@ -293,6 +293,12 @@ export function projectMcpFilePath(dir: string): string {
   return join(projectConfigDirs(dir)[0], PROJECT_MCP_FILE)
 }
 
+function lockedProjectMcpFile(): string {
+  const path = projectMcpFilePath(getCwd())
+  getFsImplementation().mkdirSync(dirname(path))
+  return path
+}
+
 function getProjectMcpConfigs(): ScopeRead {
   if (!isSettingSourceEnabled('projectSettings')) return { servers: {}, errors: [] }
   const servers: Record<string, ScopedMcpServerConfig> = {}
@@ -798,7 +804,7 @@ export async function addMcpConfig(
 
   switch (scope) {
     case 'project': {
-      const mcpJsonPath = projectMcpFilePath(getCwd())
+      const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const existing = getProjectMcpConfigsFromCwd().servers
@@ -841,7 +847,7 @@ export async function addMcpConfig(
 export async function removeMcpConfig(name: string, scope: ConfigScope): Promise<void> {
   switch (scope) {
     case 'project': {
-      const mcpJsonPath = projectMcpFilePath(getCwd())
+      const mcpJsonPath = lockedProjectMcpFile()
       const { runExclusiveOnFileSync } = await import('../../utils/config/globalConfig.js')
       await runExclusiveOnFileSync(mcpJsonPath, async () => {
         const existing = getProjectMcpConfigsFromCwd().servers

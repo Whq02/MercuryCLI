@@ -108,6 +108,40 @@ console.log('\n§4 the approval cards and the CLI label name the project file')
   check('the boot-time approval gate carries no name for the other file', !approval.includes(otherName) && !approval.includes(['Mcp', 'json'].join('')))
 }
 
+console.log('\n§5 eight racing adds into a project with no config home yet all land (the lock waits for the home)')
+{
+  const DIST = join(ROOT, 'dist', 'mercury.mjs')
+  if (!existsSync(DIST)) {
+    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
+  } else {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-race-home-')))
+    const fresh = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-race-proj-')))
+    const { spawn } = await import('node:child_process')
+    const add = (name: string): Promise<number> =>
+      new Promise(resolve => {
+        const child = spawn('node', [DIST, 'mcp', 'add', '--scope', 'project', name, '--', 'echo', name], {
+          cwd: fresh,
+          env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' },
+          stdio: ['ignore', 'ignore', 'ignore'],
+        })
+        child.on('close', rc => resolve(rc ?? -1))
+      })
+    const names = Array.from({ length: 8 }, (_, i) => `race-${i}`)
+    const codes = await Promise.all(names.map(add))
+    let written: { mcpServers: Record<string, unknown> } = { mcpServers: {} }
+    try {
+      written = JSON.parse(readFileSync(join(fresh, '.mercury', 'mcp.json'), 'utf8')) as typeof written
+    } catch {
+      written = { mcpServers: {} }
+    }
+    const survivors = names.filter(n => n in written.mcpServers)
+    check('every add exited 0', codes.every(c => c === 0), j(codes))
+    check('all eight servers are in .mercury/mcp.json', survivors.length === 8, `${survivors.length}/8 ${j(Object.keys(written.mcpServers).sort())}`)
+    rmSync(home, { recursive: true, force: true })
+    rmSync(fresh, { recursive: true, force: true })
+  }
+}
+
 rmSync(CONFIG_DIR, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ PROJECT MCP FILE — all checks pass' : `\n❌ PROJECT MCP FILE — ${failures} check(s) failed`)
