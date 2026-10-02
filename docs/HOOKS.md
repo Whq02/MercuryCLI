@@ -78,7 +78,7 @@ Every hook input carries `hook_event_name`, `session_id`, `transcript_path`,
 | `UserPromptExpansion` | when a slash command expands into a prompt | `expansion_type`, `command_name`, `command_args`, `command_source`, `prompt` |
 | `SessionStart` | when a session starts or resumes | `source`, `agent_type`, `model` |
 | `SessionEnd` | when a session ends | `reason` |
-| `Setup` | when Mercury is started with `--init`, `--init-only` or `--maintenance` | `trigger` (`init` or `maintenance`) |
+| `Setup` | when Mercury is started with `--prepare`, `--prepare-only` or `--upkeep` | `trigger` (`init` or `maintenance`) |
 | `Stop` | when the model ends its turn | `stop_hook_active`, `last_assistant_message` |
 | `StopFailure` | when a turn ends in an error | `error`, `error_details`, `last_assistant_message` |
 | `SubagentStart` | when a sub-agent starts | `agent_id`, `agent_type` |

@@ -18,7 +18,7 @@ On cloud models the tool is loaded in full whenever a language server is
 reachable, including one-shot and daemon-hosted sessions. Discovery reads
 local configurations, installed binaries and the bundled TypeScript and
 Python servers; the server processes start lazily when needed.
-`MERCURY_LSP=0` and `--bare` keep it off. Local runners keep their existing
+`MERCURY_LSP=0` and `--lean` keep it off. Local runners keep their existing
 tool set and do not start this discovery. A server found after a
 conversation's first request joins at the next compaction or `/clear`.
 
