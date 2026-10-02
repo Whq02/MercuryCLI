@@ -26,7 +26,7 @@ for (const fn of ['saveBootDefaultsProfile', 'readBootDefaultsProfile', 'resolve
 
 t.section('§2 — atomic monotonic digested receipted saves')
 {
-  const first = menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1' }, profilePath)
+  const first = menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1' }, profilePath)
   t.check('the first save commits revision 1', first.ok === true && first.revision === 1, JSON.stringify(first))
   const second = menu.saveBootDefaultsProfile({ MERCURY_DAP: '0' }, profilePath)
   t.check(
@@ -43,18 +43,18 @@ t.section('§2 — atomic monotonic digested receipted saves')
   t.check('the read answers the committed profile', read !== null && read.revision === 2 && read.digest === (second.ok ? second.digest : ''), JSON.stringify({ rev: read?.revision }))
   const smuggle = menu.saveBootDefaultsProfile({ PATH: '/evil' }, profilePath)
   t.check('an unregistered key refuses the WHOLE save (anti-smuggling)', smuggle.ok === false && menu.readBootDefaultsProfile(profilePath)?.revision === 2, JSON.stringify(smuggle))
-  const foreign = menu.saveBootDefaultsProfile({ MERCURY_MNEME: 'banana' }, profilePath)
+  const foreign = menu.saveBootDefaultsProfile({ MERCURY_GODOT: 'banana' }, profilePath)
   t.check('a foreign value refuses the WHOLE save', foreign.ok === false && menu.readBootDefaultsProfile(profilePath)?.revision === 2, JSON.stringify(foreign))
 }
 
 t.section('§3 — resolution provenance (explicit env ALWAYS wins)')
 {
-  menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1', MERCURY_DAP: '0' }, profilePath)
+  menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1', MERCURY_DAP: '0' }, profilePath)
   const env: NodeJS.ProcessEnv = { MERCURY_DAP: '0' }
   const snap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'sess-prov', path: profilePath, env })
-  const profileRow = snap.rows.find(r => r.env === 'MERCURY_MNEME')
+  const profileRow = snap.rows.find(r => r.env === 'MERCURY_GODOT')
   const envRow = snap.rows.find(r => r.env === 'MERCURY_DAP')
-  const other = snap.rows.find(r => r.env !== 'MERCURY_MNEME' && r.env !== 'MERCURY_DAP')
+  const other = snap.rows.find(r => r.env !== 'MERCURY_GODOT' && r.env !== 'MERCURY_DAP')
   t.check('a profile row resolves source=profile', profileRow?.source === 'profile' && profileRow.value === '1', JSON.stringify(profileRow))
   t.check('an explicit env row wins with source=process-env', envRow?.source === 'process-env' && envRow.value === '0', JSON.stringify(envRow))
   t.check('an untouched row is honestly source=default (value null)', other?.source === 'default' && other.value === null, JSON.stringify(other))
@@ -106,13 +106,13 @@ t.section('§4 — at the supervisor seam: immutable + resume-retained')
 
 t.section('§5 — riders: receipt count · monotonic single-row writes · explicit apply')
 {
-  const counted = menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1' }, profilePath, { existingSessionsUnchanged: 3 })
+  const counted = menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1' }, profilePath, { existingSessionsUnchanged: 3 })
   t.check(
     "the receipt carries the caller's count (\"3 existing sessions unchanged\")",
     counted.ok === true && /3 existing sessions unchanged/.test(counted.receipt) && /existing sessions unchanged/.test(counted.receipt),
     counted.ok ? counted.receipt : 'refused',
   )
-  const one = menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1' }, profilePath, { existingSessionsUnchanged: 1 })
+  const one = menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1' }, profilePath, { existingSessionsUnchanged: 1 })
   t.check('the singular count reads correctly', one.ok === true && /1 existing session unchanged/.test(one.receipt), one.ok ? one.receipt : 'refused')
 
   const revBefore = menu.readBootDefaultsProfile(profilePath)?.revision ?? 0
@@ -125,17 +125,17 @@ t.section('§5 — riders: receipt count · monotonic single-row writes · expli
   )
   t.check(
     'the single-row write preserved the OTHER saved rows',
-    afterWrite !== null && Object.keys(afterWrite.env).some(k => k === 'MERCURY_MNEME') && afterWrite.env['MERCURY_WARDS'] === '0',
+    afterWrite !== null && Object.keys(afterWrite.env).some(k => k === 'MERCURY_GODOT') && afterWrite.env['MERCURY_WARDS'] === '0',
     JSON.stringify(Object.keys(afterWrite?.env ?? {})),
   )
   const cleared = menu.writeBootEnvChoice('MERCURY_WARDS', null, profilePath)
   const afterClear = menu.readBootDefaultsProfile(profilePath)
   t.check(
     'clearing a row is also a monotonic commit and removes only that row',
-    cleared.ok === true && afterClear !== null && afterClear.revision === revBefore + 2 && afterClear.env['MERCURY_WARDS'] === undefined && afterClear.env['MERCURY_MNEME'] === '1',
+    cleared.ok === true && afterClear !== null && afterClear.revision === revBefore + 2 && afterClear.env['MERCURY_WARDS'] === undefined && afterClear.env['MERCURY_GODOT'] === '1',
     JSON.stringify({ rev: afterClear?.revision, keys: Object.keys(afterClear?.env ?? {}) }),
   )
-  const refusedWrite = menu.writeBootEnvChoice('MERCURY_MNEME', 'banana', profilePath)
+  const refusedWrite = menu.writeBootEnvChoice('MERCURY_GODOT', 'banana', profilePath)
   t.check(
     'a foreign value still refuses the single-row write whole',
     refusedWrite.ok === false && menu.readBootDefaultsProfile(profilePath)?.revision === revBefore + 2,
@@ -144,7 +144,7 @@ t.section('§5 — riders: receipt count · monotonic single-row writes · expli
 
   const env: NodeJS.ProcessEnv = { MERCURY_CONCOURSE: '0' }
   const snap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'sess-apply', path: profilePath, env })
-  menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1', MERCURY_DAP: '0' }, profilePath)
+  menu.saveBootDefaultsProfile({ MERCURY_GODOT: '1', MERCURY_DAP: '0' }, profilePath)
   const receipts = menu.evaluateExplicitApply(snap, menu.readBootDefaultsProfile(profilePath))
   const byEnv = new Map(receipts.map(r => [r.env, r]))
   t.check('every menu row answers a target-specific receipt', receipts.length === snap.rows.length, String(receipts.length))
@@ -165,7 +165,7 @@ t.section('§5 — riders: receipt count · monotonic single-row writes · expli
     moved?.outcome === 'refused' && moved.target === '0' && /application class: new-session/.test(moved.reason),
     JSON.stringify(moved),
   )
-  const same = byEnv.get('MERCURY_MNEME')
+  const same = byEnv.get('MERCURY_GODOT')
   t.check(
     'a row already at the profile value answers no-change',
     same?.outcome === 'no-change' && same.target === '1',
