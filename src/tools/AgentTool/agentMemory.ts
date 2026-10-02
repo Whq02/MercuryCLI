@@ -2,10 +2,7 @@
 import { normalize, join, relative, sep } from 'node:path'
 import { getMemoryBaseDir, isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getCwd } from '../../utils/cwd.js'
-import {
-  PROJECT_CONFIG_DIR_NAMES,
-  projectConfigDirs,
-} from '../../utils/projectConfig.js'
+import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { adoptiveProjectPath } from '../../utils/projectStoreAdoption.js'
 import { projectHomePath, projectHomeStore } from '../../utils/projectHomeStores.js'
 import { CORRECT_TOOL_NAME, RECALL_TOOL_NAME, REFLECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../MemoryTools/prompt.js'
@@ -66,25 +63,6 @@ export function isAgentMemoryPath(absolutePath: string): boolean {
     if (isUnder(path, join(home, AGENT_MEMORY_LOCAL_SUBDIR))) return true
   }
   return false
-}
-
-export function getMemoryScopeDisplay(
-  scope: AgentMemoryScope | undefined,
-): string {
-  switch (scope) {
-    case 'user':
-      return `user (${join(getMemoryBaseDir(), AGENT_MEMORY_SUBDIR)})`
-    case 'project': {
-      const dir = adoptiveProjectPath(getCwd(), AGENT_MEMORY_SUBDIR)
-      return `project (${relative(getCwd(), dir)})`
-    }
-    case 'local': {
-      const dir = projectHomePath(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR)
-      return `local (${join(dir, '<agent-type>')})`
-    }
-    default:
-      return 'none'
-  }
 }
 
 const SCOPE_GUIDELINES: Record<AgentMemoryScope, string> = {
