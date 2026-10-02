@@ -127,6 +127,7 @@ type WireEvent = {
   stop_reason?: string | null
   response?: { usage?: Record<string, unknown>; model?: string; error?: { message?: string }; incomplete_details?: { reason?: string } }
   object?: string
+  choices?: Array<{ delta?: { content?: string | null }; finish_reason?: string | null }>
 }
 
 export function createWireResponseReader(contentType: string): {
@@ -166,6 +167,13 @@ export function createWireResponseReader(contentType: string): {
       takeResponse(event.type, event.response)
     } else if (event.type === 'error') {
       summary.error = String(event.error?.message ?? (typeof event.message === 'string' ? event.message : 'error'))
+    } else if (Array.isArray(event.choices)) {
+      for (const choice of event.choices) {
+        if (typeof choice?.delta?.content === 'string' && text.length < REPLY_TEXT_KEEP) text += choice.delta.content
+        if (typeof choice?.finish_reason === 'string') summary.stop_reason = choice.finish_reason
+      }
+      if (event.usage) summary.usage = { ...(summary.usage ?? {}), ...event.usage }
+      if (typeof event.model === 'string') summary.model = event.model
     }
   }
   return {
@@ -286,7 +294,7 @@ export function wrapFetchWithWireDump(baseFetch: typeof globalThis.fetch, source
     }
     const rawBody = typeof init?.body === 'string' ? init.body : null
     const requestRoad =
-      method === 'POST' && rawBody !== null && (path.includes('/messages') || path.endsWith('/responses')) && !path.includes('count_tokens')
+      method === 'POST' && rawBody !== null && (path.includes('/messages') || path.endsWith('/responses') || path.endsWith('/chat/completions')) && !path.includes('count_tokens')
     const catalogueRoad = method === 'GET' && path.endsWith('/models')
     if (!requestRoad && !catalogueRoad) return baseFetch(input, init)
     const at = Date.now()
