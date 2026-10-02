@@ -1173,7 +1173,6 @@ async function daemonRun(args: string[]): Promise<void> {
           try {
             if (!daemonHomeStands('the plane heal')) return
             const sockMissing = process.platform === 'win32' ? false : !existsSync(controlSockPath())
-            const ownSockMissing = ownSockPath !== null && !existsSync(ownSockPath)
             const keyMissing = !existsSync(controlKeyPath())
             let foreignOwner = false
             let stateMissing = false
@@ -1189,22 +1188,20 @@ async function daemonRun(args: string[]): Promise<void> {
               }
             }
             planeServedByOther = foreignOwner && !takeBack ? foreign : null
-            if (foreignOwner && !takeBack) {
-              if (ownSockMissing && daemonHomeStands('the plane heal')) {
-                logForDebugging(`[daemon] own socket ${ownSockPath} gone while pid ${foreign?.pid} serves the plane — binding it again`)
-                await controlServer?.rebind()
-              }
-              return
-            }
+            const ownDoorOnly = foreignOwner && !takeBack
+            const ownSockMissing = ownDoorOnly && ownSockPath !== null && !existsSync(ownSockPath)
+            if (ownDoorOnly && !ownSockMissing) return
             if (takeBack) {
               // eslint-disable-next-line no-console
               console.error(`[daemon] pid ${foreign?.pid} of build ${foreign?.buildTree ?? 'unstamped'} took the plane from the deployed build ${bootBuildTree} — taking it back`)
-            } else if (!sockMissing && !ownSockMissing && !keyMissing && !stateMissing) return
+            } else if (!ownDoorOnly && !sockMissing && !keyMissing && !stateMissing) return
             logForDebugging(
               `[daemon] control plane degraded (sock:${sockMissing} own:${ownSockMissing} key:${keyMissing} state:${stateMissing} takeBack:${takeBack}) — re-asserting`,
             )
-            await reassertControlKey(controlKey)
-            await persistSupervisorRecord(currentOwnerPid)
+            if (!ownDoorOnly) {
+              await reassertControlKey(controlKey)
+              await persistSupervisorRecord(currentOwnerPid)
+            }
             if ((sockMissing || ownSockMissing || takeBack) && daemonHomeStands('the plane heal')) await controlServer?.rebind()
           } catch (e) {
             logForDebugging(`[daemon] plane self-heal failed (the next signal or floor retries): ${e}`)
