@@ -47,7 +47,7 @@ const carriers = (re: RegExp, except: string[] = []): string[] =>
 check('no source names the index file (the intake, which skips it, is the one reader of the name)', carriers(/MEMORY\.md/, [INTAKE]).length === 0, carriers(/MEMORY\.md/, [INTAKE]).join(', '))
 check('no source carries the four kinds as a memory taxonomy', carriers(/'user', 'feedback', 'project', 'reference'|## Memory types|Saving a memory takes two steps/).length === 0)
 check('no source names experience cards (the intake recognises the old header, nothing else)', carriers(/experience[- ]card|experienceCard/i, [INTAKE]).length === 0, carriers(/experience[- ]card|experienceCard/i, [INTAKE]).join(', '))
-const SETTINGS_LANE = ['src/utils/settings/types.ts', 'src/migrations/migrateSettingsSpellings.ts']
+const SETTINGS_LANE = ['src/utils/settings/types.ts']
 check('no source names the taste loop, the notes upkeep or the dream task (the settings key and its spelling row are the settings lane\'s queue row)', carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).length === 0, carriers(/tasteLoop|taste_recall|memoryUpkeep|DreamTask|'dream'/, SETTINGS_LANE).join(', '))
 check("no source reads an 'AutoMem' instruction entry", carriers(/'AutoMem'|'TeamMem'/).length === 0, carriers(/'AutoMem'|'TeamMem'/).join(', '))
 check('no command is registered under the memory words that are not Mercury\'s', !/remember|\bcards\b|\bmeh\b|\bgood\b/.test(read('src/commands.ts').split('\n').filter(l => /^import .* from '\.\/commands\//.test(l)).join('\n')))

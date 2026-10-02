@@ -18,7 +18,6 @@ const EXCLUDED_AREAS: Array<[string, string]> = [
   ['scripts/interview/baselines/', 'frozen journey capture records'],
   ['scripts/visual-contract/baselines/', 'frozen capture records of earlier screens'],
   ['scripts/agent-experience/baselines/', 'frozen mechanical baselines of earlier prompts'],
-  ['scripts/dev/rename-team-to-crew.ts', 'the rename script carries both spellings'],
 ]
 
 const ALIAS_TABLES: Array<[string, string]> = []
