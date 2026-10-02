@@ -22,7 +22,7 @@ const CONFIG_DIR = mkdtempSync(join(tmpdir(), 'fold-stall-'))
 process.env.MERCURY_CONFIG_DIR = CONFIG_DIR
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const DEBUG_LOG = join(CONFIG_DIR, 'debug.txt')
-process.argv.push(`--debug-file=${DEBUG_LOG}`)
+process.argv.push(`--log-file=${DEBUG_LOG}`)
 
 let failures = 0
 let checks = 0

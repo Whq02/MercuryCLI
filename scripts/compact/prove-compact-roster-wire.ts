@@ -301,7 +301,7 @@ function runStreaming(nodeBin: string, arena: Arena, args: string[], prompt: str
 }
 
 console.log('============================================================')
-console.log(' the roster after a fold — real bundle, the stream-json road')
+console.log(' the roster after a fold — real bundle, the rows road')
 console.log('============================================================')
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
@@ -319,7 +319,7 @@ if (!existsSync(DIST)) {
     const r = await runStreaming(
       nodeBin,
       arena,
-      ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
+      ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--sovereign', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
       ASK,
       150_000,
     )
