@@ -87,6 +87,17 @@ console.log('\n§3 mcp add/remove --scope project write that file')
   await config.addMcpConfig('first', stdio('first-cmd'), 'project')
   check('an add in a project with no config home creates .mercury/mcp.json', existsSync(join(fresh, '.mercury', 'mcp.json')) && !existsSync(join(fresh, otherName)))
   rmSync(fresh, { recursive: true, force: true })
+  const empty = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-empty-')))
+  await setCwd(empty)
+  let missing = ''
+  try {
+    await config.removeMcpConfig('nothing', 'project')
+  } catch (error) {
+    missing = String(error)
+  }
+  check('a remove in a project with no config home refuses and names the project file', missing.includes(join(empty, '.mercury', 'mcp.json')), missing)
+  check('the refused remove leaves no config home behind', !existsSync(join(empty, '.mercury')))
+  rmSync(empty, { recursive: true, force: true })
   await setCwd(PROJ)
 }
 
@@ -137,6 +148,30 @@ console.log('\n§5 eight racing adds into a project with no config home yet all 
     const survivors = names.filter(n => n in written.mcpServers)
     check('every add exited 0', codes.every(c => c === 0), j(codes))
     check('all eight servers are in .mercury/mcp.json', survivors.length === 8, `${survivors.length}/8 ${j(Object.keys(written.mcpServers).sort())}`)
+    rmSync(home, { recursive: true, force: true })
+    rmSync(fresh, { recursive: true, force: true })
+  }
+}
+
+console.log('\n§6 mcp remove --scope project in a project with no config home refuses and creates nothing')
+{
+  const DIST = join(ROOT, 'dist', 'mercury.mjs')
+  if (!existsSync(DIST)) {
+    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
+  } else {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-remove-home-')))
+    const fresh = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-remove-proj-')))
+    const { spawnSync } = await import('node:child_process')
+    const run = spawnSync('node', [DIST, 'mcp', 'remove', '--scope', 'project', 'nothing'], {
+      cwd: fresh,
+      env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none' },
+      encoding: 'utf8',
+      timeout: 30_000,
+    })
+    const said = `${run.stdout ?? ''}${run.stderr ?? ''}`
+    check('the remove exits non-zero', run.status !== 0, String(run.status))
+    check('the answer names the project file', said.includes(join(fresh, '.mercury', 'mcp.json')), said.trim().slice(0, 200))
+    check('no config home was created by the refusal', !existsSync(join(fresh, '.mercury')), existsSync(join(fresh, '.mercury')) ? 'an empty .mercury/ was left behind' : '')
     rmSync(home, { recursive: true, force: true })
     rmSync(fresh, { recursive: true, force: true })
   }
