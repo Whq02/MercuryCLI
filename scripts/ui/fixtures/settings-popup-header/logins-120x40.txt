@@ -5,7 +5,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
   · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · logins                                                                   │ │
   · /health — health ce…│ │ esc back · from the menu, esc closes /logins                                             │ │
-  · /cards — memory     │ │                                                                                          │ │
+  · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Sign in                                                                                  │ │
                         │ │                                                                                          │ │
 FILES · orchard         │ │ Use a Claude or OpenAI subscription, usage-based billing, or connect OpenRouter, Gemini, │ │

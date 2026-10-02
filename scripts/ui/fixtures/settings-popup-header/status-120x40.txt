@@ -5,7 +5,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
 NEXT                    │ │ ▖▟▆▙▗ Mercury · status                                                                   │ │
   · /workflows — agent …│ │ session snapshot · 12:00 · orchard · main                                                │ │
   · /health — health ce…│ │                                                                                          │ │
-  · /cards — memory     │ │ Session & environment                                                                    │ │
+  · /memory — memory    │ │ Session & environment                                                                    │ │
   · /mission — set a mi…│ │   Mercury 1.0.0 · runtime tree 12345678 · daemon running · 1 session on                  │ │
                         │ │   model Fable 5.1 · max effort · context 12% of 1000k · sovereign mode on                │ │
 FILES · orchard         │ │   seats 17 · shell engine system · checkpoints capturing · 0 restore points              │ │

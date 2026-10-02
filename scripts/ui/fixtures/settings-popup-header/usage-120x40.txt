@@ -5,7 +5,7 @@ WORKBENCH               │ ✶ VIEW · cedar · viewing                        
 NEXT                    │ ╭──────────────────────────────────────────────────────────────────────────────────────────╮ │
   · /workflows — agent …│ │ ▖▟▆▙▗ Mercury · usage                                                                    │ │
   · /health — health ce…│ │ 12 providers · 0 subscriptions signed in                                                 │ │
-  · /cards — memory     │ │                                                                                          │ │
+  · /memory — memory    │ │                                                                                          │ │
   · /mission — set a mi…│ │ Anthropic usage                                                                          │ │
                         │ │ API key · …-key                                                                          │ │
 FILES · orchard         │ │ credits: not reported by the provider                                                    │ │
