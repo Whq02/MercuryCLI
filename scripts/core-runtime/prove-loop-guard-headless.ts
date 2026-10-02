@@ -46,7 +46,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { QueryEngine } = await import('../../src/QueryEngine.ts')
+const { Conversation } = await import('../../src/rows/turn.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -79,7 +79,7 @@ function setStopKey(value: boolean | null): void {
   resetSettingsCache()
 }
 
-type AnyMsg = Record<string, unknown> & { type?: string; subtype?: string }
+type AnyMsg = Record<string, unknown> & { type?: string; status?: string }
 const MODEL = 'claude-opus-4-8'
 const ENGINE_CWD = mkdtempSync(join(tmpdir(), 'loop-guard-headless-cwd-'))
 
@@ -155,12 +155,12 @@ function textTurn(text: string): unknown[] {
   return [m]
 }
 
-function makeEngine(): InstanceType<typeof QueryEngine> {
+function makeEngine(): InstanceType<typeof Conversation> {
   let appState: Record<string, unknown> = {
     ...(getDefaultAppState() as unknown as Record<string, unknown>),
     effortValue: 'high',
   }
-  return new QueryEngine({
+  return new Conversation({
     cwd: ENGINE_CWD,
     tools: TOOLS as never,
     commands: [] as never,
@@ -171,7 +171,7 @@ function makeEngine(): InstanceType<typeof QueryEngine> {
     setAppState: f => {
       appState = f(appState as never) as unknown as Record<string, unknown>
     },
-    readFileCache: createFileStateCacheWithSizeLimit(100),
+    readFileState: createFileStateCacheWithSizeLimit(100),
     userSpecifiedModel: MODEL,
   } as never)
 }
@@ -196,7 +196,7 @@ async function runHeadless(steps: Step[], rounds?: Step[][]): Promise<{ yields: 
   }
   const yields: AnyMsg[] = []
   try {
-    for await (const m of makeEngine().submitMessage('please do the scripted thing')) {
+    for await (const m of makeEngine().turn('please do the scripted thing')) {
       yields.push(m as AnyMsg)
     }
   } finally {
@@ -215,7 +215,8 @@ function pairs(count: number): Step[] {
   }
   return steps
 }
-const resultOf = (yields: AnyMsg[]): AnyMsg | undefined => yields.find(m => m.type === 'result')
+const resultOf = (yields: AnyMsg[]): AnyMsg | undefined => yields.find(m => m.type === 'outcome')
+const errorOf = (result: AnyMsg | undefined): { message?: string; class?: string; detail?: unknown } => (result?.error ?? {}) as { message?: string; class?: string; detail?: unknown }
 
 section('H1 — DEFAULT (no key): the headless road settles a reminded-but-continuing loop as the model\'s own success')
 {
@@ -223,19 +224,19 @@ section('H1 — DEFAULT (no key): the headless road settles a reminded-but-conti
   const run = await runHeadless(pairs(10))
   const result = resultOf(run.yields)
   check('the model was called twenty-one times and ended the turn itself', run.modelCalls === 21, `calls=${run.modelCalls}`)
-  check('the SDK result is subtype success carrying the model\'s own last words', result?.subtype === 'success' && result.is_error === false && String(result.result).startsWith('done: the model ended'), JSON.stringify({ subtype: result?.subtype, is_error: result?.is_error, result: result?.result }))
+  check('the outcome is completed, carrying the model\'s own last words', result?.status === 'completed' && String(result.answer).startsWith('done: the model ended'), JSON.stringify({ status: result?.status, answer: result?.answer }))
 }
 
-section('H2 — KEY ON: a loop-stopped run settles as its own error subtype, never as an empty success')
+section('H2 — KEY ON: a loop-stopped run settles as its own status, never as an empty completed outcome')
 {
   setStopKey(true)
   const run = await runHeadless(pairs(10))
   const result = resultOf(run.yields)
   check('the model was called twenty times, never a twenty-first', run.modelCalls === 20, `calls=${run.modelCalls}`)
-  check('exactly one SDK result was yielded', run.yields.filter(m => m.type === 'result').length === 1)
-  check('its subtype is error_loop_stopped with is_error true', result?.subtype === 'error_loop_stopped' && result.is_error === true, JSON.stringify({ subtype: result?.subtype, is_error: result?.is_error }))
-  check('its errors name the cycle that fired', Array.isArray(result?.errors) && /the same cycle of tool calls \(Edit -> Bash\)/.test(String((result?.errors as string[])[0])), JSON.stringify(result?.errors))
-  check('no success envelope with an empty result rode the stream', !run.yields.some(m => m.type === 'result' && m.subtype === 'success'))
+  check('exactly one outcome was yielded', run.yields.filter(m => m.type === 'outcome').length === 1)
+  check('its status is loop_stopped with the loop_stopped error class', result?.status === 'loop_stopped' && errorOf(result).class === 'loop_stopped', JSON.stringify({ status: result?.status, error: result?.error }))
+  check('its error names the cycle that fired', /the same cycle of tool calls \(Edit -> Bash\)/.test(String(errorOf(result).message)), JSON.stringify(result?.error))
+  check('no completed outcome with an empty answer rode the stream', !run.yields.some(m => m.type === 'outcome' && m.status === 'completed'))
   setStopKey(null)
 }
 
@@ -248,18 +249,16 @@ section('H3 — KEY ON, a parallel round on the live shape: the settlement lands
   const issued: string[] = []
   const paired = new Set<string>()
   for (const m of run.yields) {
-    const content = (m as { message?: { content?: unknown } }).message?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content as Array<{ type?: string; id?: string; tool_use_id?: string }>) {
-      if (m.type === 'assistant' && block.type === 'tool_use' && block.id) issued.push(block.id)
-      if (m.type === 'user' && block.type === 'tool_result' && block.tool_use_id) paired.add(block.tool_use_id)
-    }
+    const callId = (m as { call_id?: unknown }).call_id
+    if (typeof callId !== 'string') continue
+    if (m.type === 'tool_call') issued.push(callId)
+    if (m.type === 'tool_result') paired.add(callId)
   }
   const unpaired = issued.filter(id => !paired.has(id))
-  check('the run settled as error_loop_stopped', result?.subtype === 'error_loop_stopped' && result.is_error === true, JSON.stringify({ subtype: result?.subtype }))
-  check('every tool_use the engine yielded has a tool_result in the engine stream: the round drained before the settlement', issued.length > 0 && unpaired.length === 0, `issued=${issued.length} paired=${paired.size} unpaired=${JSON.stringify(unpaired)}`)
-  const resultAt = run.yields.findIndex(m => m.type === 'result')
-  const lastResultAt = run.yields.reduce((at, m, i) => (m.type === 'user' && Array.isArray((m as { message?: { content?: unknown } }).message?.content) ? i : at), -1)
+  check('the run settled as loop_stopped', result?.status === 'loop_stopped' && errorOf(result).class === 'loop_stopped', JSON.stringify({ status: result?.status }))
+  check('every tool_call the turn yielded has a tool_result in the turn stream: the round drained before the settlement', issued.length > 0 && unpaired.length === 0, `issued=${issued.length} paired=${paired.size} unpaired=${JSON.stringify(unpaired)}`)
+  const resultAt = run.yields.findIndex(m => m.type === 'outcome')
+  const lastResultAt = run.yields.reduce((at, m, i) => (m.type === 'tool_result' ? i : at), -1)
   check('the settlement is the last thing on the stream, after the last tool result', resultAt === run.yields.length - 1 && lastResultAt < resultAt, `result=${resultAt} lastResult=${lastResultAt} yields=${run.yields.length}`)
   setStopKey(null)
 }
@@ -274,8 +273,8 @@ section('H4 — headless repeated failure stops after eight normalized identical
   const run = await runHeadless(failingSteps(LIMIT + 1))
   const result = resultOf(run.yields)
   check('exactly eight failures execute, never the ninth call or another model request', attemptedFailures === LIMIT && run.modelCalls === LIMIT, 'executed=' + attemptedFailures + ' modelCalls=' + run.modelCalls)
-  check('the result is error_loop_stopped with the call, count and first error line', result?.subtype === 'error_loop_stopped' && result.is_error === true && /stopped: the tool call Skill failed the same way 8 times in a row:.*Unknown skill: Sleep/.test(String(result?.errors)), JSON.stringify(result))
-  check('the failure is never reported as success', !run.yields.some(row => row.type === 'result' && row.subtype === 'success'))
+  check('the outcome is loop_stopped with the call, count and first error line', result?.status === 'loop_stopped' && /stopped: the tool call Skill failed the same way 8 times in a row:.*Unknown skill: Sleep/.test(String(errorOf(result).message)), JSON.stringify(result))
+  check('the failure is never reported as completed', !run.yields.some(row => row.type === 'outcome' && row.status === 'completed'))
   setStopKey(null)
 }
 
@@ -283,7 +282,7 @@ section('H5 — interactive sessions remain advisory for the same failures')
 {
   bootstrap.setIsInteractive(true)
   const run = await runHeadless(failingSteps(LIMIT + 1))
-  check('interactive mode executes every call and lets the model finish', run.modelCalls === LIMIT + 2 && resultOf(run.yields)?.subtype === 'success', 'modelCalls=' + run.modelCalls)
+  check('interactive mode executes every call and lets the model finish', run.modelCalls === LIMIT + 2 && resultOf(run.yields)?.status === 'completed', 'modelCalls=' + run.modelCalls)
   bootstrap.setIsInteractive(false)
 }
 
@@ -291,36 +290,36 @@ section('H6 — the first error line, not changing detail below it, identifies t
 {
   failureMode = 'details'
   const run = await runHeadless(failingSteps(LIMIT + 1))
-  check('changing error detail under the same first line still stops', run.modelCalls === LIMIT && resultOf(run.yields)?.subtype === 'error_loop_stopped', 'modelCalls=' + run.modelCalls)
+  check('changing error detail under the same first line still stops', run.modelCalls === LIMIT && resultOf(run.yields)?.status === 'loop_stopped', 'modelCalls=' + run.modelCalls)
   failureMode = 'changing'
   const changed = await runHeadless(failingSteps(LIMIT + 1))
-  check('a different first error line resets the failing-call count', changed.modelCalls === LIMIT + 2 && resultOf(changed.yields)?.subtype === 'success', 'modelCalls=' + changed.modelCalls)
+  check('a different first error line resets the failing-call count', changed.modelCalls === LIMIT + 2 && resultOf(changed.yields)?.status === 'completed', 'modelCalls=' + changed.modelCalls)
   failureMode = 'same'
 }
 
 section('H7 — success, changed arguments and different calls break a consecutive run')
 {
   const success = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Skill', input: { pass: true } }, ...failingSteps(LIMIT - 1)])
-  check('success between two shorter runs resets the failure count', resultOf(success.yields)?.subtype === 'success', JSON.stringify(resultOf(success.yields)))
+  check('success between two shorter runs resets the failure count', resultOf(success.yields)?.status === 'completed', JSON.stringify(resultOf(success.yields)))
   const changed = await runHeadless(failingSteps(LIMIT + 1).map((step, i) => ({ ...step, input: { ...step.input, args: String(i) } })))
-  check('different normalized arguments never match', resultOf(changed.yields)?.subtype === 'success')
+  check('different normalized arguments never match', resultOf(changed.yields)?.status === 'completed')
   const other = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Bash', input: TEST }, ...failingSteps(LIMIT - 1)])
-  check('another tool call resets the failing-call count', resultOf(other.yields)?.subtype === 'success')
+  check('another tool call resets the failing-call count', resultOf(other.yields)?.status === 'completed')
   const bookkeeping = await runHeadless([...failingSteps(LIMIT - 1), { name: 'Sleep', input: { pass: true } }, ...failingSteps(LIMIT - 1)])
-  check('a successful bookkeeping call also breaks the failing sequence', resultOf(bookkeeping.yields)?.subtype === 'success')
+  check('a successful bookkeeping call also breaks the failing sequence', resultOf(bookkeeping.yields)?.status === 'completed')
 }
 
 section('H8 — failed bookkeeping calls are not invisible to the headless fence')
 {
   const run = await runHeadless(failingSteps(LIMIT + 1, 'Sleep'))
-  check('a bookkeeping tool that fails identically also stops after eight', run.modelCalls === LIMIT && resultOf(run.yields)?.subtype === 'error_loop_stopped', 'modelCalls=' + run.modelCalls)
+  check('a bookkeeping tool that fails identically also stops after eight', run.modelCalls === LIMIT && resultOf(run.yields)?.status === 'loop_stopped', 'modelCalls=' + run.modelCalls)
 }
 
 section('H9 — unavailable tool names still produce counted failures')
 {
   const run = await runHeadless(failingSteps(LIMIT + 1, 'MissingProbeTool'))
   const result = resultOf(run.yields)
-  check('an unavailable tool stops after eight, with its own error words', run.modelCalls === LIMIT && result?.subtype === 'error_loop_stopped' && String(result.errors).includes('No such tool available: MissingProbeTool'), 'modelCalls=' + run.modelCalls + ' result=' + JSON.stringify(result))
+  check('an unavailable tool stops after eight, with its own error words', run.modelCalls === LIMIT && result?.status === 'loop_stopped' && String(errorOf(result).message).includes('No such tool available: MissingProbeTool'), 'modelCalls=' + run.modelCalls + ' result=' + JSON.stringify(result))
 }
 
 console.log('\n' + '='.repeat(76))

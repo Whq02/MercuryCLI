@@ -49,17 +49,18 @@ function makeRig(): Rig {
     notifyLifecycle: () => {},
     enqueueOutput: () => {},
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async command => {
       rig.executed.push(String(command.value))
       await tick()
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-rig',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: () => false,
     hasHoldableBackgroundAgents: () => false,
-    takePendingSuggestion: () => null,
     settleIdle: () => rig.settleIdleImpl(),
     closeOutput: async () => {
       rig.closes++
@@ -68,7 +69,7 @@ function makeRig(): Rig {
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: () => ({ type: 'result' }) as never,
+    onCycleError: () => ({ type: 'outcome', status: 'failed' }) as never,
     shutdown: () => {},
     clock: { sleep: ms => new Promise(resolve => setTimeout(resolve, Math.min(ms, 5))) },
   }

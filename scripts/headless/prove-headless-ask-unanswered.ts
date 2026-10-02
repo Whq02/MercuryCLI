@@ -241,13 +241,6 @@ tally.section('U6 the other request kinds keep their road: a hook callback pendi
 }
 
 type Frame = Record<string, unknown>
-type Block = { type?: string; name?: string; tool_use_id?: string; content?: unknown; is_error?: boolean }
-const blocksOf = (f: Frame): Block[] => {
-  const content = (f.message as { content?: unknown } | undefined)?.content
-  return Array.isArray(content) ? (content as Block[]) : []
-}
-const textOfContent = (content: unknown): string =>
-  typeof content === 'string' ? content : Array.isArray(content) ? (content as Array<{ text?: string }>).map(b => b.text ?? '').join('') : ''
 
 type SeatRun = { frames: Frame[]; askAt: number; goneAt: number; resultAt: number; resultText: string; cancelSeen: boolean; requests: number; exitCode: number | null; stderrTail: string }
 
@@ -284,10 +277,7 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
         continue
       }
       run.frames.push(frame)
-      if (frame.type === 'assistant') {
-        const call = blocksOf(frame).find(b => b.type === 'tool_use' && b.name === 'AskUserQuestion') as { id?: string } | undefined
-        if (call?.id !== undefined) askUseId = call.id
-      }
+      if (frame.type === 'tool_call' && frame.tool === 'AskUserQuestion' && typeof frame.call_id === 'string') askUseId = frame.call_id
       if (frame.type === 'control_request' && (frame.request as { subtype?: string } | undefined)?.subtype === 'can_use_tool' && run.askAt === 0) {
         run.askAt = Date.now()
         if (road === 'disconnect') {
@@ -298,12 +288,9 @@ async function runSeat(road: 'watchdog' | 'disconnect', root: string): Promise<S
         }
       }
       if (frame.type === 'control_cancel_request') run.cancelSeen = true
-      if (frame.type === 'user' && run.resultAt === 0) {
-        const result = blocksOf(frame).find(b => b.type === 'tool_result' && (askUseId === '' || b.tool_use_id === askUseId))
-        if (result !== undefined) {
-          run.resultAt = Date.now()
-          run.resultText = textOfContent(result.content)
-        }
+      if (frame.type === 'tool_result' && run.resultAt === 0 && (askUseId === '' || frame.call_id === askUseId)) {
+        run.resultAt = Date.now()
+        run.resultText = String(frame.output ?? '')
       }
     }
   })

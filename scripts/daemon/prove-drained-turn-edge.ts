@@ -7,8 +7,9 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
-const schemas = await import('../../src/entrypoints/sdk/coreSchemas.ts')
-const { TURN_STARTED_SUBTYPE, turnStartedFrame, isTurnStartedParsedFrame, isTurnResultParsedFrame, parseStreamJsonFrame, decideWorkerBusy } = supervisor
+const { RowSchema } = await import('../../src/rows/vocabulary.ts')
+const { turnStartedRow, outcomeRow, createRowStamper } = await import('../../src/rows/project.ts')
+const { isTurnOpenRow, isOutcomeRow, parseRunnerLine, decideWorkerBusy } = supervisor
 
 let failures = 0
 let checks = 0
@@ -22,20 +23,21 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
-section('§1 one owner of the frame: the writer\'s shape is the reader\'s predicate')
+section('§1 one owner of the row: the projector\'s shape is the reader\'s predicate')
 {
-  const frame = turnStartedFrame('sess-1', ['u1', 'u2'], 'uuid-1')
-  check('the frame is a system frame with the turn-start subtype and the joined uuids', frame.type === 'system' && frame.subtype === TURN_STARTED_SUBTYPE && j(frame.uuids) === j(['u1', 'u2']) && frame.session_id === 'sess-1' && frame.uuid === 'uuid-1', j(frame))
-  const line = JSON.stringify(frame)
-  check('the reader recognises the writer\'s line through the same parser the drain uses', isTurnStartedParsedFrame(parseStreamJsonFrame(line)))
-  check('…and a result frame, a user frame, a torn line and a foreign system subtype read false', !isTurnStartedParsedFrame(parseStreamJsonFrame('{"type":"result","subtype":"success"}')) && !isTurnStartedParsedFrame(parseStreamJsonFrame('{"type":"user"}')) && !isTurnStartedParsedFrame(parseStreamJsonFrame('{"type":"system","sub')) && !isTurnStartedParsedFrame(parseStreamJsonFrame('{"type":"system","subtype":"status"}')) && !isTurnStartedParsedFrame(null))
-  check('the result predicate is untouched (the close edge)', isTurnResultParsedFrame(parseStreamJsonFrame('{"type":"result","subtype":"success"}')) && !isTurnResultParsedFrame(parseStreamJsonFrame(line)))
-  const parsed = schemas.SDKTurnStartedMessageSchema().safeParse(JSON.parse(line))
-  check('the SDK schema admits the frame as its own member (a lawful stdout message)', parsed.success, j(parsed))
-  const union = schemas.SDKMessageSchema().safeParse(JSON.parse(line))
-  check('…and the SDK message union carries it', union.success, j(union))
-  const uuids = turnStartedFrame('s', [], 'u').uuids
-  check('a turn the runner minted itself carries no uuids', Array.isArray(uuids) && uuids.length === 0)
+  const stamper = createRowStamper(() => '2026-10-02T00:00:00.000Z')
+  const row = stamper.stamp(turnStartedRow({ session_id: 'sess-1', turn: 1 }, { turnId: 'turn-1', messageIds: ['u1', 'u2'], model: 'm' }))
+  check('the row is a turn row in the started state with the joined message ids', row.type === 'turn' && row.state === 'started' && j(row.message_ids) === j(['u1', 'u2']) && row.session_id === 'sess-1' && row.turn_id === 'turn-1', j(row))
+  const line = JSON.stringify(row)
+  check('the reader recognises the projector\'s line through the same parser the drain uses', isTurnOpenRow(parseRunnerLine(line)))
+  const USAGE = { input_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 1 }
+  const outcome = JSON.stringify(stamper.stamp(outcomeRow({ session_id: 'sess-1', turn: 1 }, { turnId: 'turn-1', status: 'completed', stopReason: 'end_turn', answer: '', steps: 1, wallMs: 1, usage: USAGE, models: [], denials: [] })))
+  check('…and an outcome row, a text row, a torn line and a waiting turn row read false', !isTurnOpenRow(parseRunnerLine(outcome)) && !isTurnOpenRow(parseRunnerLine('{"type":"text","text":"hi"}')) && !isTurnOpenRow(parseRunnerLine(line.slice(0, 30))) && !isTurnOpenRow(parseRunnerLine('{"type":"turn","state":"waiting","turn_id":"t","agents":2}')))
+  check('the outcome predicate is untouched (the close edge)', isOutcomeRow(parseRunnerLine(outcome)) && !isOutcomeRow(parseRunnerLine(line)))
+  const parsed = RowSchema().safeParse(JSON.parse(line))
+  check('the row schema admits the row as its own member (a lawful stdout row)', parsed.success, j(parsed))
+  const minted = turnStartedRow({ session_id: 's', turn: 1 }, { turnId: 't', messageIds: [], model: 'm' }).message_ids
+  check('a turn the runner minted itself carries no message ids', Array.isArray(minted) && minted.length === 0)
 }
 
 section('§2 the busy fact reads the edge')
@@ -47,18 +49,18 @@ section('§2 the busy fact reads the edge')
   check('a seat whose edge is closed reads idle', closed.busy === false, j(closed))
 }
 
-section('§3 the roster and the print road ride the one owner')
+section('§3 the roster and the runner ride the one owner')
 {
   const roster = readFileSync(join(ROOT, 'src/daemon/roster.ts'), 'utf8')
   const drain = roster.slice(roster.indexOf('private drainChildStdout('))
-  check('the drain opens the edge on the turn-start frame BEFORE it reads the result frame (one line, both edges)', /isTurnStartedParsedFrame\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)/.test(drain) && drain.includes('isTurnStartedParsedFrame(frame)') && drain.indexOf('isTurnStartedParsedFrame(frame)') < drain.indexOf('isTurnResultParsedFrame(frame)'))
+  check('the drain opens the edge on the turn row BEFORE it reads the outcome row (one line, both edges)', /isTurnOpenRow\(frame\)[\s\S]{0,1200}ll\.turnActive = true[\s\S]{0,80}ll\.turnStartedAt = Date\.now\(\)/.test(drain) && drain.indexOf('isTurnOpenRow(frame)') !== -1 && drain.indexOf('isOutcomeRow(frame)') !== -1 && drain.indexOf('isTurnOpenRow(frame)') < drain.indexOf('isOutcomeRow(frame)'))
   check('reply() still opens the edge for a delivery (the same fact, two roads into one field)', /h\.longLived\.turnActive = true\n\s*h\.longLived\.turnStartedAt = Date\.now\(\)/.test(roster))
   const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
-  const onTurnStart = print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 900)
-  check('the print road mints the frame at the turn\'s start through the owner and hands it to the driver', /const openEdge = turnStartedFrame\(/.test(onTurnStart) && onTurnStart.includes('turnStartedFrame(') && onTurnStart.indexOf('turnStartedFrame(') < onTurnStart.indexOf('replayUserMessages') && /return openEdge\s*\n\s*\},/.test(print.slice(print.indexOf('onTurnStart: (command, batch) => {'), print.indexOf('onTurnStart: (command, batch) => {') + 1800)))
+  check('the runner mints the open row through the owner when the driver asks for one', /openTurnRow: messageIds => \{[\s\S]{0,300}return turnStartedRow\(/.test(print))
+  const turn = readFileSync(join(ROOT, 'src/rows/turn.ts'), 'utf8')
+  check('the turn itself opens with its own row, before any row of its stream', /yield turnStartedRow\(scope, \{ turnId, messageIds, model: resolvedModel \}\)/.test(turn) && turn.indexOf('yield turnStartedRow(') !== -1 && turn.indexOf('for await (const event of queryEvents(') !== -1 && turn.indexOf('yield turnStartedRow(') < turn.indexOf('for await (const event of queryEvents('))
   const driver = readFileSync(join(ROOT, 'src/cli/headless/turnDriver.ts'), 'utf8')
-  check('the driver writes the open edge after the turn\'s init, and before the result when no init came', /ports\.enqueueOutput\(message\)\n\s*if \(message\.type === 'system' && \(message as \{ subtype\?: unknown \}\)\.subtype === 'init'\) writeOpenEdge\(\)/.test(driver) && /if \(message\.type === 'result'\) \{[\s\S]{0,200}flushSdkEvents\(\)\n\s*writeOpenEdge\(\)/.test(driver))
-  check('the frame never becomes the run\'s last message (excluded like the other bookkeeping frames)', /EXCLUDED_SYSTEM_SUBTYPES = new Set\(\[\s*TURN_STARTED_SUBTYPE,/.test(print))
+  check('the driver marks the turn open on its row and mints one only before an outcome of a turn that never opened', /if \(turnOpened\(row\)\) turnOpen = true/.test(driver) && /if \(isOutcome\(row\)\) \{[\s\S]{0,300}openIfUnopened\(\)/.test(driver))
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)

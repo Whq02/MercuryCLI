@@ -145,8 +145,8 @@ const responseOf = (frame: Record<string, unknown> | null): Record<string, unkno
   return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
 }
 const isControlResponse = (requestId: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === requestId
-const isResult = (f: Record<string, unknown>): boolean => f.type === 'result'
-const isStreaming = (f: Record<string, unknown>): boolean => f.type === 'stream_event' || f.type === 'assistant'
+const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
+const isStreaming = (f: Record<string, unknown>): boolean => f.type === 'text_delta' || f.type === 'block_start' || f.type === 'text'
 
 const reap = async (): Promise<void> => {
   try {

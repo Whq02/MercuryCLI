@@ -37,6 +37,12 @@
     "SANDBOX_NETWORK_ACCESS_TOOL_NAME",
     "StructuredIO",
     "isBrokenPipeError",
+    "isControlLine",
+    "isRowLine",
+    "type:ControlLine",
+    "type:OutboundLine",
+    "type:TransitionalLine",
+    "type:WireLine",
     "unansweredAskCause"
    ]
   },
@@ -693,10 +699,13 @@
     "queryEvents",
     "type:QueryParams"
    ],
-   "src/QueryEngine.ts": [
-    "QueryEngine",
+   "src/rows/turn.ts": [
+    "Conversation",
     "ask",
-    "type:QueryEngineConfig"
+    "sessionFactsOf",
+    "type:AskOptions",
+    "type:ConversationConfig",
+    "type:TurnOptions"
    ],
    "src/run-core/turn-machine.ts": [
     "decideEmptyReplyRecovery",

@@ -28,7 +28,6 @@ src/utils/messages/normalize.ts
 src/utils/messages/pairing.ts
 src/utils/messages/rejectionText.ts
 src/utils/messages/streaming.ts
-src/utils/messages/systemInit.ts
 src/utils/messages/systemMessages.ts
 src/utils/messages/text.ts
 src/utils/messages/uiOrder.ts
@@ -77,7 +76,7 @@ src/services/providers/anthropic/requestParams.ts
 src/services/providers/anthropic/streamCore.ts
 # The turn engine — the off-dist core, strict-clean, zero tolerance:
 src/query.ts
-src/QueryEngine.ts
+src/rows/turn.ts
 # The run-core owners:
 src/run-core/turn-machine.ts
 src/run-core/events.ts

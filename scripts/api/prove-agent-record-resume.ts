@@ -104,10 +104,10 @@ const toolNamesOf = (q: { body: unknown }): string => ((q.body as Body).tools ??
 const systemOf = (q: { body: unknown }): string => j(withoutCacheControl((q.body as Body).system ?? null))
 function initToolsOf(stdout: string): string[] {
   for (const line of stdout.split('\n')) {
-    if (!line.includes('"subtype":"init"')) continue
+    if (!line.includes('"type":"session"')) continue
     try {
-      const row = JSON.parse(line) as { type?: unknown; subtype?: unknown; tools?: unknown }
-      if (row.type === 'system' && row.subtype === 'init' && Array.isArray(row.tools)) return row.tools.map(String)
+      const row = JSON.parse(line) as { type?: unknown; tools?: unknown }
+      if (row.type === 'session' && Array.isArray(row.tools)) return row.tools.map(String)
     } catch {
       continue
     }

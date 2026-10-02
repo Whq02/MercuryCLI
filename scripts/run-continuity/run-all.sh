@@ -10,7 +10,7 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: src/utils/messages/lookups.ts
 # gate-watch: src/services/api/errors.ts
-# gate-watch: scripts/ui/render-tui.ts src/QueryEngine.ts src/components/MercuryResume.tsx
+# gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts src/components/MercuryResume.tsx
 # gate-watch: src/components/Message.tsx src/components/mercury-ui/components.tsx
 # gate-watch: src/components/messages/SystemTextMessage.tsx src/run-core/turn-machine.ts
 # gate-watch: src/utils/messages/normalize.ts src/utils/messages/systemMessages.ts

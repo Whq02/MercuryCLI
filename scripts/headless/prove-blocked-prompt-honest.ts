@@ -19,25 +19,24 @@ section('§1 THE BLOCKED BRANCH')
   check('and carries the reason as resultText', /resultText/.test(branch))
 }
 
-section('§2 THE ENVELOPE')
+section('§2 THE OUTCOME')
 {
-  const engine = src('src/QueryEngine.ts')
-  const envelope = engine.match(/type: 'result',\s*subtype: 'success',\s*is_error: [^\n]*\n\s*num_turns: [^\n]*\n\s*result: inputResult\.resultText \?\? '',/)?.[0] ?? ''
+  const engine = src('src/rows/turn.ts')
   check(
-    'is_error folds hookBlocked beside commandRefused',
-    /is_error:\s*inputResult\.commandRefused === true \|\| inputResult\.hookBlocked === true/.test(envelope),
-    envelope.match(/is_error[^\n]*/)?.[0],
+    'a blocked prompt settles refused beside a refused command',
+    /const refused = inputResult\.commandRefused === true \|\| inputResult\.hookBlocked === true/.test(engine) && /closeTurn\(refused \? 'refused' : 'completed'/.test(engine),
   )
+  check("and the hook's reason rides the error with class hook", /class: inputResult\.hookBlocked === true \? 'hook' : 'command'/.test(engine))
 }
 
 section('§3 THE PRINT ROAD (the existing groove, pinned)')
 {
   const print = src('src/cli/print.ts')
   check(
-    'an is_error success frame answers on stderr',
-    /if \(last\.is_error\) \{\s*\n\s*await flushWrite\(process\.stderr/.test(print),
+    'a non-completed outcome answers its sentence on stderr',
+    /if \(last\.status === 'completed'\) \{[\s\S]{0,600}?await flushWrite\(process\.stderr, `\$\{sentence\}/.test(print),
   )
-  check('and the exit code derives from is_error', /const failed = Boolean\(last && last\.type === 'result' && last\.is_error\)/.test(print))
+  check('and the exit code derives from the status alone', /exitCodeOf\(last\.status\)/.test(print))
 }
 
 if (failures > 0) {

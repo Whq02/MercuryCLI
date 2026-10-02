@@ -20,8 +20,8 @@ for (const arm of arms.filter(arm => !only || arm === only)) {
     const started = Date.now()
     const result = await runChild([nodeFor(dist), dist, 'run', '--format', 'rows', '--model', MODEL, ASK], world.cwd, world.env, 270_000)
     const frames = result.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line))
-    const terminal = frames.filter(row => row.type === 'result')
-    const errors = frames.filter(row => row.type === 'assistant' && row.error === 'authentication_failed')
+    const terminal = frames.filter(row => row.type === 'outcome')
+    const errors = terminal.filter(row => row.status !== 'completed' && row.error?.class === 'auth').map(row => row.error)
     const projects = join(world.home, 'projects')
     const records = readdirSync(projects, { recursive: true }).filter(path => String(path).endsWith('.jsonl')).flatMap(path => readFileSync(join(projects, String(path)), 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)))
     const retries = records.filter(row => row.payload?.noticeKind === 'api_error').map(row => row.payload.fields)
@@ -40,10 +40,10 @@ for (const arm of arms.filter(arm => !only || arm === only)) {
     check(`${arm}: only the justified requests reached the fixture`, requests.length === (twoRequests ? 2 : 1), requests)
     check(`${arm}: credential recovery is attempted at most once`, refreshes.length === expectedRefresh && (!helper || world.helperCalls() === 2), record)
     if (success) {
-      check(`${arm}: the terminal result carries the accepted response`, terminal[0]?.is_error === false && result.stdout.includes('fixture accepted'), terminal)
+      check(`${arm}: the outcome carries the accepted response`, terminal[0]?.status === 'completed' && result.stdout.includes('fixture accepted'), terminal)
       if (arm !== 'burst') check(`${arm}: the one retry carries the changed credential`, requests[1]?.bearer === 'fixture-fresh', requests)
     } else {
-      check(`${arm}: one terminal authentication blocker`, terminal[0]?.is_error === true && errors.length === 1, { terminal, errors })
+      check(`${arm}: one terminal authentication blocker`, terminal[0]?.status === 'failed' && errors.length === 1, { terminal, errors })
       const blockerText = JSON.stringify(errors)
       check(`${arm}: the blocker names its remedy`, helper ? blockerText.includes('credentials.keyCommand') : arm === 'api-key' ? blockerText.includes('ANTHROPIC_API_KEY') : arm === 'env-bearer' ? blockerText.includes('ANTHROPIC_AUTH_TOKEN') && !blockerText.includes('ANTHROPIC_API_KEY') : blockerText.includes('/logins anthropic') && blockerText.includes('fixture@example.invalid'), errors)
     }

@@ -2,7 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, exportWorld, isInit, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-lead-window-hold')
 section("a crew lead whose background shell ends inside a closed usage window: the notice waits at the seat while the seat stays awake — the operator's next line is answered at once, the process never stalls, and the notice lands once after the window")
@@ -167,17 +167,17 @@ if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
   const runner = bootRunner({ cwd: CWD, env, extraArgv: ['--log-file', DEBUG_FILE] })
-  const refusals = (): number => runner.frames.filter(f => f.type === 'result' && /limit is reached/.test(resultText(f))).length
+  const refusals = (): number => runner.frames.filter(f => f.type === 'outcome' && /limit is reached/.test(resultText(f))).length
   runner.send(user(LEAD_ASK, 'u-lead'))
-  const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
-  const leadReady = await runner.waitFor('the lead is ready', f => f.type === 'result' && resultText(f).includes(LEAD_READY), bound(60_000))
+  const leadReady = await runner.waitFor('the lead is ready', f => f.type === 'outcome' && resultText(f).includes(LEAD_READY), bound(60_000))
   const leadWire = wire.filter(w => w.ask.trim() === LEAD_ASK)
   const crewMade = leadWire.some(w => w.crewCreate) ? leadWire.some(w => w.step === 1 && w.results.some(text => /hold-crew/.test(text) && !/error/i.test(text))) : true
   check('the session is a crew lead (born as one, or made one by the crew tool the bundle still offers)', leadReady !== null && crewMade, `${j(leadWire.map(w => [w.step, w.crewCreate, w.results.slice(-1)]))} ${brief()}`)
 
   runner.send(user(ARM_ASK, 'u-arm'))
-  const armed = await runner.waitFor('the shell is armed', f => f.type === 'result' && resultText(f).includes(ARMED), bound(60_000))
+  const armed = await runner.waitFor('the shell is armed', f => f.type === 'outcome' && resultText(f).includes(ARMED), bound(60_000))
   const armedAt = Date.now()
   check('the model started a background shell and answered', armed !== null, brief())
 
@@ -185,15 +185,15 @@ if (!existsSync(DIST)) {
   runner.send(user(HELLO_ASK, 'u-hello'))
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(20_000))
   check('the provider refused a turn for the usage window', refused !== null, brief())
-  const firstRow = await runner.waitFor('the first refusal row', f => f.type === 'result' && /limit is reached/.test(resultText(f)), bound(20_000))
-  check("the session's own row says the limit is reached", firstRow !== null, j(runner.frames.filter(f => f.type === 'result').slice(-1)))
+  const firstRow = await runner.waitFor('the first refusal row', f => f.type === 'outcome' && /limit is reached/.test(resultText(f)), bound(20_000))
+  check("the session's own row says the limit is reached", firstRow !== null, j(runner.frames.filter(f => f.type === 'outcome').slice(-1)))
   check('the shell ends inside the window by construction', wallUntilMs > armedAt + SHELL_SECONDS * 1000 + AGAIN_AFTER_MS + 5_000)
 
   await sleep(Math.max(0, armedAt + AGAIN_AFTER_MS - Date.now()))
   const before = refusals()
   const againAt = Date.now()
   runner.send(user(AGAIN_ASK, 'u-again'))
-  const againRow = await runner.waitFor('the second refusal row', f => f.type === 'result' && /limit is reached/.test(resultText(f)) && refusals() > before, bound(10_000))
+  const againRow = await runner.waitFor('the second refusal row', f => f.type === 'outcome' && /limit is reached/.test(resultText(f)) && refusals() > before, bound(10_000))
   const againMs = Date.now() - againAt
   check("the operator's next line inside the window is answered at once — refused like any other request, its row within the bound while the shell's notice waits at the seat", againRow !== null && againMs < bound(10_000), `${againMs} ms; ${brief()}`)
 
@@ -205,7 +205,7 @@ if (!existsSync(DIST)) {
   check('no request inside the window carried the notice', !wire.some(w => w.kind === 'walled' && w.notices >= 1), brief())
 
   runner.send(user(DONE_ASK, 'u-done'))
-  const done = await runner.waitFor('the session still answers', f => f.type === 'result' && resultText(f).includes(DONE_ASK), bound(30_000))
+  const done = await runner.waitFor('the session still answers', f => f.type === 'outcome' && resultText(f).includes(DONE_ASK), bound(30_000))
   check('the session still answers after the window', done !== null, brief())
   await runner.stop(bound(8_000))
 

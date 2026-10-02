@@ -107,20 +107,21 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
     notifyLifecycle: () => {},
     enqueueOutput: m => out.push((m as { type: string }).type),
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async (_c, _batchUuids, onMessage) => {
-      onMessage({ type: 'assistant' } as never)
+      onMessage({ type: 'text' } as never)
       if (opts.releaseBeforeResult) driver.releaseHold()
-      onMessage({ type: 'result' } as never)
+      onMessage({ type: 'outcome' } as never)
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-rig',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: opts.tasksRunning,
     hasHoldableBackgroundAgents: opts.tasksRunning,
     waitableBackgroundTaskCount: () => 2,
     onAgentWait: n => waits.push(n),
-    takePendingSuggestion: () => null,
     settleIdle: async () => {
       resolveSettled()
       return 'stay'
@@ -134,7 +135,7 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
       console.log(`  [FAIL] the driver cycle threw — ${String(error)}`)
       failures++
       resolveSettled()
-      return { type: 'result' } as never
+      return { type: 'outcome' } as never
     },
     shutdown: () => {},
     clock: { sleep: ms => new Promise(r => setTimeout(r, Math.min(ms, 20))) },
@@ -147,21 +148,21 @@ async function driverScenario(opts: { releaseBeforeResult: boolean; tasksRunning
 {
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => true })
   await new Promise(r => setTimeout(r, 120))
-  check('while agents run the result is HELD and the wait is announced', !s.out.includes('result') && s.waits.includes(2) && s.driver.phase() === 'waiting_for_agents', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
+  check('while agents run the result is HELD and the wait is announced', !s.out.includes('outcome') && s.waits.includes(2) && s.driver.phase() === 'waiting_for_agents', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
   s.driver.releaseHold()
   await s.settled
-  check('releaseHold: the held result lands, the wait ends (0 announced), the cycle settles idle — the agents were never asked to stop', s.out.includes('result') && s.waits[s.waits.length - 1] === 0 && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
+  check('releaseHold: the held result lands, the wait ends (0 announced), the cycle settles idle — the agents were never asked to stop', s.out.includes('outcome') && s.waits[s.waits.length - 1] === 0 && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')} phase=${s.driver.phase()}`)
   check('the release is not a stop: the tasks census still reads running after it', true)
 }
 {
   const s = await driverScenario({ releaseBeforeResult: true, tasksRunning: () => true })
   await s.settled
-  check('a release before the result lands enqueues the result at once and skips the wait', s.out.includes('result') && !s.waits.includes(2) && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')}`)
+  check('a release before the result lands enqueues the result at once and skips the wait', s.out.includes('outcome') && !s.waits.includes(2) && s.driver.phase() === 'idle', `out=${s.out.join(',')} waits=${s.waits.join(',')}`)
 }
 {
   const s = await driverScenario({ releaseBeforeResult: false, tasksRunning: () => false })
   await s.settled
-  check('with nothing running the result lands without a release (the ordinary turn)', s.out.includes('result') && s.driver.phase() === 'idle')
+  check('with nothing running the result lands without a release (the ordinary turn)', s.out.includes('outcome') && s.driver.phase() === 'idle')
   s.driver.releaseHold()
   check('releaseHold between cycles is a no-op (the next cycle holds and waits as before)', s.driver.phase() === 'idle')
 }

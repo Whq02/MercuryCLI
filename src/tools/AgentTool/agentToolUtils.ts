@@ -82,7 +82,7 @@ import {
 } from '../../utils/messages.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkProgress.js'
-import { emitBackgroundAgentFrames } from '../../utils/task/sdkAgentFrames.js'
+import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
@@ -988,7 +988,7 @@ export async function runAsyncAgentLifecycle(args: {
 
     for await (const message of stream) {
       accumulated.push(message)
-      emitBackgroundAgentFrames(toolUseContext.toolUseId, taskId, message)
+      emitBackgroundAgentRows(toolUseContext.toolUseId, message)
       let retaining = false
       rootSetAppState(prev => {
         const task = prev.tasks[taskId]

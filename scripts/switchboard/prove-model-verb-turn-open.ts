@@ -39,8 +39,9 @@ console.log('T3 the runner defers the breadcrumbs to the turn boundary (source p
   const runner = readFileSync(join(SRC, 'cli/print.ts'), 'utf8')
   check('set_model holds while a turn is in flight and answers where the verb lands', runner.includes('heldSeatModel = { requestId, model: String(resolved) }') && runner.includes("respondSuccess(requestId, { model: String(resolved), at: 'turn-boundary' })"))
   check('the settings road defers the same way', runner.includes('if (inFlightAbort !== null) deferredModelBreadcrumb = resolvedNow'))
-  const boundary = runner.slice(runner.indexOf('inFlightAbort = null\n      if (heldSeatModel !== null)'), runner.indexOf('inFlightAbort = null\n      if (heldSeatModel !== null)') + 1200)
-  check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model)') && boundary.indexOf('await applySeatModel(held.model)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(toModel)'))
+  const boundaryAt = runner.indexOf('      if (heldSeatModel !== null) {')
+  const boundary = boundaryAt === -1 ? '' : runner.slice(boundaryAt, boundaryAt + 1200)
+  check('the turn boundary applies the held verb before the deferred rows flush', boundary.includes('await applySeatModel(held.model)') && boundary.indexOf('await injectModelSwitchBreadcrumbs(toModel)') !== -1 && boundary.indexOf('await applySeatModel(held.model)') < boundary.indexOf('await injectModelSwitchBreadcrumbs(toModel)'))
 }
 
 console.log(failures === 0 ? '\nprove-model-verb-turn-open: ALL PASS' : `\nprove-model-verb-turn-open: ${failures} FAIL`)

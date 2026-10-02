@@ -1,14 +1,14 @@
 
 import { errorMessage, toError } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
-import { ask } from 'src/QueryEngine.js'
 import { type ToolPermissionContext, type Tools } from 'src/Tool.js'
 import { getMainThreadAgentType, registerHookCallbacks, setInitJsonSchema, setMainLoopModelOverride, setMainThreadAgentType } from 'src/bootstrap/state.js'
 import { StructuredIO } from 'src/cli/structuredIO.js'
 import { type Command, formatDescriptionWithSource, getCommandName } from 'src/commands.js'
 import { type ModelInfo, type PermissionResult, type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
-import { type SDKControlInitializeRequest, type SDKControlInitializeResponse, type SDKControlMcpSetServersResponse, type SDKControlResponse, type SDKControlRewindSessionRequest, type StdoutMessage } from 'src/entrypoints/sdk/controlTypes.js'
+import { type SDKControlInitializeRequest, type SDKControlInitializeResponse, type SDKControlMcpSetServersResponse, type SDKControlResponse, type SDKControlRewindSessionRequest } from 'src/entrypoints/sdk/controlTypes.js'
+import type { OutboundLine } from 'src/cli/structuredIO.js'
 import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/protocol.js'
 import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpointRewind.js'
 import { type Message } from 'src/types/message.js'
@@ -37,7 +37,7 @@ export async function handleInitializeRequest(
   request: SDKControlInitializeRequest,
   requestId: string,
   initialized: boolean,
-  output: Stream<StdoutMessage>,
+  output: Stream<OutboundLine>,
   commands: Command[],
   modelInfos: ModelInfo[],
   structuredIO: StructuredIO,
@@ -337,7 +337,7 @@ export function handleSetPermissionMode(
   request: { mode: InternalPermissionMode },
   requestId: string,
   toolPermissionContext: ToolPermissionContext,
-  output: Stream<StdoutMessage>,
+  output: Stream<OutboundLine>,
 ): ToolPermissionContext {
   const resolved = resolvePermissionModeTransition(request.mode, toolPermissionContext)
   if (!resolved.ok) {

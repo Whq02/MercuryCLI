@@ -267,19 +267,20 @@ try {
       requests = []
       const home = seedHome(`home-${road.name}-spent`, road)
       const spent = await run(home, scale, road)
-      const retryFrames = spent.frames.filter(frame => frame.type === 'system' && frame.subtype === 'api_retry')
+      const retryFrames = spent.frames.filter(frame => frame.type === 'wait' && frame.state === 'retry')
       const debugLines = debugLinesOf(home)
       const quietLines = debugLines.filter(line => new RegExp(`${escape(road.tag)} busy refusal .* — retry \\d+ of 6 after .* inside the quiet window`).test(line))
       const loudLines = debugLines.filter(line => new RegExp(`${escape(road.tag)} busy refusal .* — retry \\d+ of 6 after `).test(line) && !line.includes('inside the quiet window'))
       const records = transcriptRecords(home)
       const out = textOf(spent.frames)
-      console.log(`  spent: exit ${spent.code}/${spent.signal} by the ${spent.endedBy} after ${spent.elapsedMs} ms; ${requests.length} requests; ${retryFrames.length} api_retry frames; ${quietLines.length} quiet retries, ${loudLines.length} loud`)
+      console.log(`  spent: exit ${spent.code}/${spent.signal} by the ${spent.endedBy} after ${spent.elapsedMs} ms; ${requests.length} requests; ${retryFrames.length} retry wait rows; ${quietLines.length} quiet retries, ${loudLines.length} loud`)
       check(`${road.name}: the run ended by itself, inside the boot allowance plus the ladder budget and the fixture latencies`, spent.endedBy === 'child' && spent.code !== null, `ended by the ${spent.endedBy}, code ${spent.code}, signal ${spent.signal}`)
       check(`${road.name}: seven requests reached the fixture and every one was refused`, requests.length === 7 && requests.every(r => r.status === 503), `${requests.length} requests`)
-      const redFrames = spent.frames.filter(frame => frame.type === 'assistant' && road.spentLine.test((((frame.message as { content?: Array<{ text?: string }> } | undefined)?.content ?? []).map(block => block.text ?? '').join(''))))
-      const result = spent.frames.find(frame => frame.type === 'result') as { is_error?: boolean; errors?: unknown } | undefined
-      check(`${road.name}: the run exits non-zero with one red line naming how long ${road.provider} stayed busy, and the result frame carries it as its error`, spent.code !== 0 && redFrames.length === 1 && result?.is_error === true && JSON.stringify(result.errors ?? '').includes('stayed busy through 6 retries'), `${redFrames.length} red frames; ${out.slice(-400)}`)
-      check(`${road.name}: every retry that began inside the quiet window sent no api_retry frame; every later one sent exactly one, with its true wait and place`, quietLines.length + loudLines.length === 6 && retryFrames.length === loudLines.length && retryFrames.length >= 1 && retryFrames.every(frame => frame.max_retries === 6 && typeof frame.attempt === 'number' && (frame.attempt as number) >= 1 && (frame.attempt as number) <= 6 && typeof frame.retry_delay_ms === 'number' && frame.retry_delay_ms >= Math.ceil(BUSY_RETRY_RUNGS_MS[(frame.attempt as number) - 1]! * scale * 0.75) && frame.retry_delay_ms <= Math.min(BUSY_RETRY_RUNGS_MS.at(-1)! * scale, Math.round(BUSY_RETRY_RUNGS_MS[(frame.attempt as number) - 1]! * scale * 1.25))), JSON.stringify(retryFrames.map(frame => [frame.attempt, frame.max_retries, frame.retry_delay_ms])))
+      const outcomes = spent.frames.filter(frame => frame.type === 'outcome') as Array<{ status?: string; error?: { message?: string } }>
+      const result = outcomes.at(-1)
+      const redLines = outcomes.filter(outcome => road.spentLine.test(outcome.error?.message ?? ''))
+      check(`${road.name}: the run exits non-zero with one failed outcome naming how long ${road.provider} stayed busy as its error`, spent.code !== 0 && redLines.length === 1 && result?.status === 'failed' && (result.error?.message ?? '').includes('stayed busy through 6 retries'), `${redLines.length} red outcomes; ${out.slice(-400)}`)
+      check(`${road.name}: every retry that began inside the quiet window sent no retry wait row; every later one sent exactly one, with its true wait and place`, quietLines.length + loudLines.length === 6 && retryFrames.length === loudLines.length && retryFrames.length >= 1 && retryFrames.every(frame => frame.of === 6 && typeof frame.attempt === 'number' && (frame.attempt as number) >= 1 && (frame.attempt as number) <= 6 && typeof frame.delay_ms === 'number' && frame.delay_ms >= Math.ceil(BUSY_RETRY_RUNGS_MS[(frame.attempt as number) - 1]! * scale * 0.75) && frame.delay_ms <= Math.min(BUSY_RETRY_RUNGS_MS.at(-1)! * scale, Math.round(BUSY_RETRY_RUNGS_MS[(frame.attempt as number) - 1]! * scale * 1.25))), JSON.stringify(retryFrames.map(frame => [frame.attempt, frame.of, frame.delay_ms])))
       check(`${road.name}: the transcript carries exactly the loud notices and no calm row`, noticesOf(records, 'api_error').length === retryFrames.length && noticesOf(records, 'busy_recovery').length === 0, `${noticesOf(records, 'api_error').length} api_error notices among ${records.length} records`)
       check(`${road.name}: the unattended-turn watchdog (${IDLE_LIMIT_MINUTES * 60} s here, above the ${Math.round(BUSY_RETRY_QUIET_MS * scale)} ms quiet window) never fired`, !spent.stderr.includes('unattended turn') && !out.includes('unattended turn'), spent.stderr.slice(-300))
       check(`${road.name}: the waits between requests grew with the rungs`, requests.length === 7 && requests.slice(1).every((r, i) => r.atMs - requests[i]!.atMs >= (i === 0 ? 0 : ANSWER_DELAY_MS) + Math.ceil(BUSY_RETRY_RUNGS_MS[i]! * scale * 0.75) - 2), JSON.stringify(requests.slice(1).map((r, i) => r.atMs - requests[i]!.atMs)))
@@ -290,16 +291,16 @@ try {
       requests = []
       const home = seedHome(`home-${road.name}-recover`, road)
       const recovered = await run(home, scale, road)
-      const retryFrames = recovered.frames.filter(frame => frame.type === 'system' && frame.subtype === 'api_retry')
+      const retryFrames = recovered.frames.filter(frame => frame.type === 'wait' && frame.state === 'retry')
       const records = transcriptRecords(home)
       const calm = noticesOf(records, 'busy_recovery')
       const calmAt = records.findIndex(record => (record.payload as { noticeKind?: string } | undefined)?.noticeKind === 'busy_recovery')
       const answerAt = records.findIndex(record => { const payload = record.payload as { kind?: string; content?: unknown } | undefined; return payload?.kind === 'output' && JSON.stringify(payload.content ?? '').includes(ANSWER) })
       const payload = calm[0]?.payload as { content?: string; fields?: { retries?: number; provider?: string } } | undefined
       const fields = payload?.fields === undefined ? undefined : { ...payload.fields, content: payload.content }
-      console.log(`  recover: exit ${recovered.code}/${recovered.signal} by the ${recovered.endedBy} after ${recovered.elapsedMs} ms; ${requests.length} requests; ${retryFrames.length} api_retry frames`)
-      check(`${road.name}: a refusal that clears on the third request answers: exit 0 with the answer in the result`, recovered.endedBy === 'child' && recovered.code === 0 && textOf(recovered.frames).includes(ANSWER), `code ${recovered.code}; ${recovered.stderr.slice(-300)}`)
-      check(`${road.name}: the two quiet retries sent no api_retry frame and wrote no api_error notice`, retryFrames.length === 0 && noticesOf(records, 'api_error').length === 0, `${retryFrames.length} frames, ${noticesOf(records, 'api_error').length} notices`)
+      console.log(`  recover: exit ${recovered.code}/${recovered.signal} by the ${recovered.endedBy} after ${recovered.elapsedMs} ms; ${requests.length} requests; ${retryFrames.length} retry wait rows`)
+      check(`${road.name}: a refusal that clears on the third request answers: exit 0 with the answer in the outcome`, recovered.endedBy === 'child' && recovered.code === 0 && textOf(recovered.frames).includes(ANSWER), `code ${recovered.code}; ${recovered.stderr.slice(-300)}`)
+      check(`${road.name}: the two quiet retries sent no retry wait row and wrote no api_error notice`, retryFrames.length === 0 && noticesOf(records, 'api_error').length === 0, `${retryFrames.length} frames, ${noticesOf(records, 'api_error').length} notices`)
       check(`${road.name}: one calm busy_recovery row is on the record before the answer, naming ${road.provider} and 2 retries`, calm.length === 1 && calmAt >= 0 && answerAt > calmAt && fields?.retries === 2 && fields.provider === road.provider && /retried after [01] s and [12] s, and the third request was answered\.$/.test(fields.content ?? ''), JSON.stringify(fields))
       check(`${road.name}: three requests reached the fixture, the third answered`, requests.length === 3 && requests[2]?.status === 200, JSON.stringify(requests.map(r => r.status)))
     }

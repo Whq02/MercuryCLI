@@ -246,10 +246,10 @@ export function stopReasonOf(
     if (detail?.stopReason === 'refusal') return { stopReason: 'refusal' }
     return { stopReason: 'end_turn' }
   }
-  if (detail?.subtype === 'error_max_turns') return { stopReason: 'max_turn_requests' }
+  if (detail?.status === 'turn_limit') return { stopReason: 'max_turn_requests' }
   const why = detail?.errors.filter(e => e.trim() !== '').join('; ')
   return {
-    error: `the session turn failed${detail ? ` (${detail.subtype})` : ''}${why ? `: ${why}` : ''}`,
+    error: `the session turn failed${detail ? ` (${detail.status})` : ''}${why ? `: ${why}` : ''}`,
   }
 }
 
@@ -573,11 +573,7 @@ export function usageWireOf(
     const v = lastRoundTrip[key]
     return typeof v === 'number' && Number.isFinite(v) ? v : 0
   }
-  const used =
-    n('input_tokens') +
-    n('cache_read_input_tokens') +
-    n('cache_creation_input_tokens') +
-    n('output_tokens')
+  const used = n('input_tokens') + n('output_tokens')
   return { used, size: getContextWindowForModel(model) }
 }
 
@@ -789,6 +785,23 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             },
           })
         },
+        onToolProgress: (parentToolUseId, text) => {
+          void ctx.notify(methods.client.session.update, {
+            sessionId: acpSessionId,
+            update: {
+              sessionUpdate: 'tool_call_update',
+              toolCallId: parentToolUseId,
+              status: 'in_progress',
+              content: [{ type: 'content', content: { type: 'text', text } }],
+            },
+          })
+        },
+        onMode: modeId => {
+          void ctx.notify(methods.client.session.update, {
+            sessionId: acpSessionId,
+            update: { sessionUpdate: 'current_mode_update', currentModeId: modeId },
+          })
+        },
         onToolResult: (toolUseId, isError, output) => {
           const content = toolOutputContentOf(output)
           void ctx.notify(methods.client.session.update, {
@@ -844,7 +857,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             const resolveTurn = state.turnResolve
             state.turnResolve = null
             resolveTurn('error', {
-              subtype: 'child_exited',
+              status: 'child_exited',
               errors: [`the session process exited${code === null ? '' : ` (${code})`} mid-turn`],
             })
           }
@@ -1040,7 +1053,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           const why = e instanceof Error ? e.message : String(e)
           process.stderr.write(`[acp] session/prompt failed to reach the child: ${why}\n`)
           state.turnResolve = null
-          resolve({ outcome: 'error', detail: { subtype: 'prompt_undelivered', errors: [why] } })
+          resolve({ outcome: 'error', detail: { status: 'prompt_undelivered', errors: [why] } })
         }
       })
       const verdict = stopReasonOf(settled.outcome, settled.detail)

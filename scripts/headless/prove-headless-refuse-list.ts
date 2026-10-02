@@ -143,7 +143,7 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, scrip
           child.stdin.write(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } }) + '\n')
         }
       }
-      if (frame.type === 'result' && !sawResult) {
+      if (frame.type === 'outcome' && !sawResult) {
         sawResult = true
         child.stdin.end()
       }

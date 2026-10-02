@@ -125,17 +125,17 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
       const now = Math.round(performance.now() - t0)
       let e: Record<string, unknown>
       try { e = JSON.parse(line) } catch { return }
-      if (e.type === 'system' && (e as { subtype?: string }).subtype === 'init' && cur) {
+      if (e.type === 'turn' && (e as { state?: string }).state === 'started' && cur) {
         cur.initModel = String((e as { model?: unknown }).model ?? '')
         cur.firstInitMs ??= now
       }
-      if (e.type === 'assistant' && cur) {
-        const m = (e as { message?: { model?: string } }).message?.model
+      if (e.type === 'step' && cur) {
+        const m = (e as { model?: string }).model
         if (m && !cur.assistantModels.includes(m)) cur.assistantModels.push(m)
         cur.firstAssistantMs ??= now
       }
-      if (e.type === 'result' && cur) {
-        cur.resultSubtype = String((e as { subtype?: unknown }).subtype ?? '')
+      if (e.type === 'outcome' && cur) {
+        cur.resultSubtype = String((e as { status?: unknown }).status ?? '')
         cur.wallMs = now
         advance()
       }
@@ -161,8 +161,8 @@ function runOnce(argvExtra: string[], prompt: string): { models: string[]; subty
   for (const line of out.split('\n')) {
     try {
       const e = JSON.parse(line)
-      if (e.type === 'assistant' && e.message?.model && !models.includes(e.message.model)) models.push(e.message.model)
-      if (e.type === 'result') subtype = String(e.subtype ?? '')
+      if (e.type === 'step' && e.model && !models.includes(e.model)) models.push(e.model)
+      if (e.type === 'outcome') subtype = String(e.status ?? '')
     } catch {  }
   }
   return { models, subtype }
@@ -193,7 +193,7 @@ check('T2 still fable, same session', t2?.assistantModels.every(m => bareId(m) =
 check('T3 explicit opus wins for the turn', t3?.assistantModels.every(m => m === DEFAULT_OPUS) === true, t3?.assistantModels.join(','))
 check('T4 default returns through the frontier decision', t4?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t4?.assistantModels.join(','))
 check('T5 stays on the default', t5?.assistantModels.every(m => bareId(m) === DEFAULT_FABLE) === true, t5?.assistantModels.join(','))
-check('every turn completed', turns.every(t => t.resultSubtype === 'success'), turns.map(t => t.resultSubtype).join(','))
+check('every turn completed', turns.every(t => t.resultSubtype === 'completed'), turns.map(t => t.resultSubtype).join(','))
 
 const jsonl = readFileSync(sessionJsonlPath(sid), 'utf8')
 const userCount = (jsonl.match(/"role":"user"/g) ?? []).length

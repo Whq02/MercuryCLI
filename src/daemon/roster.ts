@@ -17,12 +17,12 @@ import {
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import {
   decideRespawn,
-  parseStreamJsonFrame,
-  usageOfStreamJsonFrame,
+  parseRunnerLine,
+  occupancyOfRow,
   normalizeStreamJsonFrame,
-  isTurnResultParsedFrame,
-  isTurnStartedParsedFrame,
-  errorTextOfParsedResultFrame,
+  isOutcomeRow,
+  isTurnOpenRow,
+  errorTextOfOutcome,
   keepStderrTail,
   lastStderrLine,
   decideWorkerBusy,
@@ -612,8 +612,8 @@ export class TaskRoster {
       while ((nl = tail.indexOf('\n')) >= 0) {
         const line = tail.slice(0, nl)
         tail = tail.slice(nl + 1)
-        const frame = parseStreamJsonFrame(line)
-        const usage = usageOfStreamJsonFrame(frame)
+        const frame = parseRunnerLine(line)
+        const usage = occupancyOfRow(frame)
         if (usage) {
           const pct = calculateContextPercentages(
             usage,
@@ -634,14 +634,14 @@ export class TaskRoster {
             logForDebugging(`[daemon] onChildLine(${short}) hook threw (ignored): ${e}`)
           }
         }
-        if (isTurnStartedParsedFrame(frame)) {
+        if (isTurnOpenRow(frame)) {
           if (!ll.turnActive) {
             ll.turnActive = true
             ll.turnStartedAt = Date.now()
           }
         }
-        if (isTurnResultParsedFrame(frame)) {
-          ll.lastErrorText = errorTextOfParsedResultFrame(frame)
+        if (isOutcomeRow(frame)) {
+          ll.lastErrorText = errorTextOfOutcome(frame)
           ll.turnActive = false
           ll.turnStartedAt = undefined
           if (short.startsWith('concourse-w')) {

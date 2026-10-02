@@ -35,9 +35,9 @@ const fixture = await startScriptedFixture((req): WireBlock[] => {
 const turn = await runScriptedTurn({ runHome, cwd, base: fixture.base, ask: 'read the odd path', timeoutMs: 240_000 })
 await fixture.close()
 
-const subtype = turn.result === null ? 'none' : String((turn.result as { subtype?: string }).subtype)
-console.log(`  requests ${fixture.requests.length} · seat exit ${turn.exitCode} · result ${subtype}`)
-if (subtype === 'error_during_execution' || fixture.requests.length < calls.length + 1) {
+const status = turn.result === null ? 'none' : String((turn.result as { status?: string }).status)
+console.log(`  requests ${fixture.requests.length} · seat exit ${turn.exitCode} · outcome ${status}`)
+if (status !== 'completed' || fixture.requests.length < calls.length + 1) {
   console.log(`  stderr tail: ${JSON.stringify(turn.stderr.slice(-600))}`)
 }
 for (const [index, call] of calls.entries()) {

@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isInit, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-watch-park-drive')
 section("a persistent watch through the session's park: the watch ends with the runner, and the first turn after the resume is told so once, with the way to arm it again")
@@ -168,7 +168,7 @@ if (!existsSync(DIST)) {
 } else {
   const runner = bootRunner({ cwd: CWD, env })
   runner.send(user(ARM_ASK, 'u-arm'))
-  const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const sessionId = String((init as { session_id?: string } | null)?.session_id ?? '')
   const armed = await waitWire('the watch armed', w => w.ask.trim() === ARM_ASK && w.step >= 1, bound(60_000))

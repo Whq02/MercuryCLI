@@ -298,7 +298,7 @@ export async function waitWire(wire: () => Wire[], label: string, test: (w: Wire
 }
 
 export type { Frame } from '../lib/rows.ts'
-export { isInit, isResult } from '../lib/rows.ts'
+export { isSession, isOutcome } from '../lib/rows.ts'
 export type Runner = {
   proc: ChildProcess
   frames: Frame[]

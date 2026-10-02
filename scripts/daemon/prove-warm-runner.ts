@@ -319,16 +319,18 @@ console.log('\n── W14: the settle reply on the tail ──')
     } as never
   }, tailDir)
   const seatRoster = { control: () => true, list: () => [], patchSeatModel: () => true }
-  const settleFrame = JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'The settle reply paints at once.' }] } })
-  onSeatLine('concourse-w7', settleFrame, seatRoster as never, tailDir)
+  const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+  const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
+  const outcome = (): string => row({ type: 'outcome', schema: 1, turn_id: 't-w14', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+  onSeatLine('concourse-w7', row({ type: 'text', message_id: 'msg_w14a', block: 0, text: 'The settle reply paints at once.' }), seatRoster as never, tailDir)
   check('W14 the settle text reaches the tail projection at once', readSessionTail(sid, tailDir)?.text === 'The settle reply paints at once.')
-  onSeatLine('concourse-w7', JSON.stringify({ type: 'result', subtype: 'success' }), seatRoster as never, tailDir)
-  check('W14 the turn result clears the tail (the row owns the text)', readSessionTail(sid, tailDir)?.text === null)
-  onSeatLine('concourse-w7', JSON.stringify({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'stream' } } }), seatRoster as never, tailDir)
+  onSeatLine('concourse-w7', outcome(), seatRoster as never, tailDir)
+  check('W14 the turn outcome clears the tail (the row owns the text)', readSessionTail(sid, tailDir)?.text === null)
+  onSeatLine('concourse-w7', row({ type: 'block_start', message_id: 'msg_w14b', block: 0, of: 'text' }), seatRoster as never, tailDir)
+  onSeatLine('concourse-w7', row({ type: 'text_delta', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
   check('W14 a streamed delta rides the tail as before', readSessionTail(sid, tailDir)?.text === 'stream')
-  onSeatLine('concourse-w7', JSON.stringify({ type: 'stream_event', event: { type: 'content_block_stop' } }), seatRoster as never, tailDir)
-  onSeatLine('concourse-w7', JSON.stringify({ type: 'assistant', message: { content: [{ type: 'text', text: 'stream' }] } }), seatRoster as never, tailDir)
-  check('W14 a streamed turn\'s settle frame never resurrects the cleared tail', readSessionTail(sid, tailDir)?.text === null)
+  onSeatLine('concourse-w7', row({ type: 'text', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
+  check('W14 a streamed turn\'s settled row never resurrects the cleared tail', readSessionTail(sid, tailDir)?.text === null)
 }
 
 console.log('\n── W13: source pins ──')

@@ -26,7 +26,7 @@ enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { drainSdkEvents } = await import('../../src/utils/sdkEventQueue.ts')
+const { drainRows } = await import('../../src/utils/sdkEventQueue.ts')
 const runControl = await import('../../src/tools/WorkflowTool/runControl.ts')
 const seat = await import('../../src/daemon/sessionSeat.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
@@ -600,10 +600,10 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
   type Reference = { frameAt: number; firedAt: number | null }
   const references: Reference[] = []
   const stdout = setInterval(() => {
-    for (const event of drainSdkEvents()) {
+    for (const event of drainRows()) {
       framesOut.push({ ...(event as Record<string, unknown>), at: Date.now() })
       seat.onSeatLine(RUNNER, JSON.stringify(event), roster as never, daemonDir)
-      if ((event as { subtype?: unknown }).subtype === 'task_progress') {
+      if ((event as { type?: unknown; state?: unknown }).type === 'task' && (event as { state?: unknown }).state === 'progress') {
         const reference: Reference = { frameAt: Date.now(), firedAt: null }
         references.push(reference)
         setTimeout(() => { reference.firedAt = Date.now() }, QUARTER_SECOND_MS)
@@ -650,8 +650,8 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
     const words = two.waitOf(run)!
     const park = await landing(parkedAt, rows => rows.some(parkedRow), `${label}: the parked words reach the published facts`)
     check(`${label}: the parked words reached the published facts at all`, park.landed, `words=${j(words)} rows=${j(factsRows())}`)
-    const parkFrames = framesOut.filter(f => f.subtype === 'task_progress' && f.at >= parkedAt - 5)
-    check(`${label}: the park itself put one task_progress frame on the runner's wire for the parked row's task (the daemon re-asks the facts on it) — at the seat ${offset(park.frameAt, parkedAt)} after the park`, parkFrames.length >= 1, `frames since the park: ${j(framesOut.filter(f => f.at >= parkedAt - 5).map(f => f.subtype))}`)
+    const parkFrames = framesOut.filter(f => f.type === 'task' && f.state === 'progress' && f.at >= parkedAt - 5)
+    check(`${label}: the park itself put one progress task row on the runner's wire for the parked row's task (the daemon re-asks the facts on it) — at the seat ${offset(park.frameAt, parkedAt)} after the park`, parkFrames.length >= 1, `frames since the park: ${j(framesOut.filter(f => f.at >= parkedAt - 5).map(f => f.subtype))}`)
     const nextBeatAt = beatAt + WORK_POLL_MS
     const window = parkedAt < nextBeatAt ? `the park came ${parkedAt - beatAt} ms after the beat, ${nextBeatAt - parkedAt} ms before the poll's next beat was due` : `the park itself came ${parkedAt - beatAt} ms after the beat, ${parkedAt - nextBeatAt} ms after the poll's next beat was already due: a box this slow cannot tell the two roads apart`
     check(`${label}: the seat re-asked the facts on the park's frame within its debounce, never at the work poll — the request ${offset(park.requestAt, parkedAt)}, beside the prover's own quarter-second timer armed with the frame (fired ${offset(park.referenceFiredAt, parkedAt)}); ${window}`, park.requestAt !== null && park.referenceFiredAt !== null && park.requestAt <= park.referenceFiredAt + RELAY_ALLOWANCE_MS && park.requestAt < nextBeatAt, segments(parkedAt, park))

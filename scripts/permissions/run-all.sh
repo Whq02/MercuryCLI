@@ -11,7 +11,7 @@
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
 # gate-watch: src/memdir/mnemeGates.ts src/memdir/paths.ts src/tools/MemoryTools/prompt.ts src/utils/collapseReadSearch.ts src/utils/memoryFileDetection.ts
-# gate-watch: src/QueryEngine.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/print.ts
+# gate-watch: src/rows/turn.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/print.ts
 # gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
 # gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
 # gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts

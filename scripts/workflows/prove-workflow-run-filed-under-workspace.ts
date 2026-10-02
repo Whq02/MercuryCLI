@@ -42,7 +42,7 @@ const turn = await runScriptedTurn({ runHome, cwd: work, base: fixture.base, ask
 await fixture.close()
 
 tally.section('the shell moved below the session folder before the launch')
-tally.check('the turn settled', turn.result !== null && turn.result.subtype === 'success', `${String(turn.result?.subtype)} · ${turn.stderr.trim().split('\n').slice(-2).join(' | ').slice(0, 200)}`)
+tally.check('the turn settled', turn.result !== null && turn.result.status === 'completed', `${String(turn.result?.status)} · ${turn.stderr.trim().split('\n').slice(-2).join(' | ').slice(0, 200)}`)
 tally.check("the shell's cwd was the folder below when the workflow launched", /[\\/]sub\s*$/m.test(bashResult.trim()), bashResult.slice(0, 120))
 tally.check('the Workflow tool was called', fixture.requests.some(r => r.step >= 2), `steps: ${fixture.requests.map(r => r.step).join(' ')}`)
 

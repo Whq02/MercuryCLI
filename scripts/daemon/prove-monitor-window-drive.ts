@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isInit, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-monitor-window-drive')
 section('a persistent watch through a closed usage window: the lines that land meanwhile reach the model together, once, when the window reopens')
@@ -140,7 +140,7 @@ if (!existsSync(DIST)) {
 } else {
   const runner = bootRunner({ cwd: CWD, env })
   runner.send(user(ARM_ASK, 'u-arm'))
-  const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const armed = await waitWire('the watch armed', w => w.kind === 'request' && w.ask.trim() === ARM_ASK && w.step >= 1, bound(60_000))
   check('the model armed a persistent watch on the log and the tool answered', armed !== null, j(wire.slice(-3)))
@@ -150,8 +150,8 @@ if (!existsSync(DIST)) {
   runner.send(user(HELLO_ASK, 'u-hello'))
   const refused = await waitWire('the usage window refusal', w => w.kind === 'walled' && w.ask.trim() === HELLO_ASK, bound(30_000))
   check('the provider refused a turn for the usage window and the session observed it', refused !== null, j(wire.slice(-2)))
-  const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'result' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
-  check("the session's own row says the limit is reached, with the reset", refusalRow !== null, j(runner.frames.filter(f => f.type === 'result').slice(-1)))
+  const refusalRow = await runner.waitFor('the refusal result', f => f.type === 'outcome' && /limit is reached/.test(JSON.stringify(f)), bound(20_000))
+  check("the session's own row says the limit is reached, with the reset", refusalRow !== null, j(runner.frames.filter(f => f.type === 'outcome').slice(-1)))
 
   await sleep(1_500)
   const appendedAt: number[] = []

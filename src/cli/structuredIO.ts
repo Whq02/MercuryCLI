@@ -14,8 +14,10 @@ import type {
   SDKControlResponse,
   SDKUserMessage,
   StdinMessage,
-  StdoutMessage,
 } from '../entrypoints/sdk/controlTypes.js'
+import type { SDKControlCancelRequest } from '../entrypoints/sdk/controlTypes.js'
+import { createRowStamper, type RowDraft } from '../rows/project.js'
+import type { Row } from '../rows/vocabulary.js'
 import type { CanUseToolFn } from '../hooks/useCanUseTool.js'
 import type { Tool, ToolUseContext } from '../Tool.js'
 import type { HookCallback, PermissionRequestResult } from '../types/hooks.js'
@@ -125,9 +127,25 @@ export function isBrokenPipeError(error: unknown): boolean {
   return code === 'EPIPE' || code === 'ERR_STREAM_DESTROYED' || code === 'ERR_STREAM_WRITE_AFTER_END'
 }
 
+export type ControlLine = SDKControlRequest | SDKControlResponse | SDKControlCancelRequest
+export type TransitionalLine = { type: 'system'; subtype: 'seat_verb_applied' | 'elicitation_complete'; [key: string]: unknown }
+export type OutboundLine = RowDraft | ControlLine | TransitionalLine
+export type WireLine = Row | ControlLine | TransitionalLine
+
+const CONTROL_LINE_TYPES: ReadonlySet<string> = new Set(['control_request', 'control_response', 'control_cancel_request'])
+
+export function isControlLine(line: OutboundLine): line is ControlLine {
+  return CONTROL_LINE_TYPES.has((line as { type: string }).type)
+}
+
+export function isRowLine(line: OutboundLine): line is RowDraft {
+  return !isControlLine(line) && (line as { type: string }).type !== 'system'
+}
+
 export class StructuredIO {
   readonly structuredInput: AsyncGenerator<StdinMessage, void, unknown>
-  readonly outbound: Stream<StdoutMessage> = new Stream<StdoutMessage>()
+  readonly outbound: Stream<OutboundLine> = new Stream<OutboundLine>()
+  readonly rows = createRowStamper()
 
   readonly #replayUserMessages: boolean
   #inputClosed = false
@@ -461,18 +479,19 @@ export class StructuredIO {
     }
   }
 
-  write(message: StdoutMessage): Promise<void> {
+  write(message: OutboundLine): Promise<WireLine | null> {
     return new Promise((resolve, reject) => {
-      if (this.stdoutPipeBroken) return resolve()
-      process.stdout.write(`${ndjsonSafeStringify(message)}\n`, error => {
+      if (this.stdoutPipeBroken) return resolve(null)
+      const line: WireLine = isRowLine(message) ? this.rows.stamp(message as never) : (message as ControlLine | TransitionalLine)
+      process.stdout.write(`${ndjsonSafeStringify(line)}\n`, error => {
         if (error) {
           if (isBrokenPipeError(error)) {
             this.markStdoutPipeBroken()
-            return resolve()
+            return resolve(null)
           }
           return reject(error)
         }
-        resolve()
+        resolve(line)
       })
     })
   }

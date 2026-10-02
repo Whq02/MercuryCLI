@@ -136,7 +136,7 @@ import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/m
 import { migrateVerboseToToolOutput } from './migrations/migrateVerboseToToolOutput.js'
 import type { Root } from './ink.js'
 import chalk from 'chalk'
-import { refusalEnvelope } from './cli/headless/refusalEnvelope.js'
+import { refusedOutcome } from './cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs, isSessionRunArgv as isRunArgv, readSessionOption } from './cli/sessionArgs.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -247,7 +247,7 @@ function permissionChannelOf(opts: { permissionChannel?: unknown; permissionProm
 function failCli(message: string, code: 1 | 2 = 2): never {
   if (wantsStreamJsonEnvelope()) {
     try {
-      const envelope = refusalEnvelope([message])
+      const envelope = refusedOutcome([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(code)
     } catch {
@@ -2261,7 +2261,6 @@ async function printLaunch(args: {
         appendSystemPrompt: args.appendSystemPrompt,
         userSpecifiedModel: args.userSpecifiedModel ?? args.mainThreadAgentDefinition?.model ?? undefined,
         fallbackModel: args.fallbackModel,
-        replayUserMessages: Boolean(opts.replayUserMessages),
         includePartialMessages: args.includePartialMessages,
         forkSession: Boolean(opts.fork),
         resumeSessionAt: typedString(opts.replayTo),

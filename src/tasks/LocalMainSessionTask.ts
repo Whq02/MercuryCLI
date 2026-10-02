@@ -12,7 +12,7 @@ import { createAbortController } from '../utils/abortController.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
 import { logError } from '../utils/log.js'
 import { enqueuePendingNotification } from '../utils/messageQueueManager.js'
-import { emitTaskTerminatedSdk } from '../utils/sdkEventQueue.js'
+import { emitTaskEnded } from '../utils/sdkEventQueue.js'
 import { getAgentTranscriptPath } from '../utils/sessionStorage/paths.js'
 import { recordSidechainTranscript } from '../utils/sessionStorage/writer.js'
 import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
@@ -164,7 +164,7 @@ export function completeMainSessionTask(
       return { ...task, notified: true }
     })
     if (flipped) {
-      emitTaskTerminatedSdk(taskId, success ? 'completed' : 'failed', {
+      emitTaskEnded(taskId, success ? 'completed' : 'failed', {
         toolUseId,
         outputFile: getTaskOutputPath(taskId),
       })
@@ -245,7 +245,7 @@ export function startBackgroundSession(args: {
               return { ...task, notified: true }
             })
             if (!alreadyNotified) {
-              emitTaskTerminatedSdk(taskId, 'stopped', { summary: args.description })
+              emitTaskEnded(taskId, 'stopped', { summary: args.description })
             }
             killAsyncAgent(taskId, args.setAppState, 'stopped')
             return

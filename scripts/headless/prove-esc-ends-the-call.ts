@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import http from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isResult, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -15,10 +15,6 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const tally = makeTally('prove-esc-ends-the-call')
 type Frame = Record<string, unknown>
 type Block = { type?: string; name?: string; id?: string; tool_use_id?: string; content?: unknown; is_error?: boolean; input?: { op?: string } }
-const blocksOf = (f: Frame): Block[] => {
-  const content = (f.message as { content?: unknown } | undefined)?.content
-  return Array.isArray(content) ? (content as Block[]) : []
-}
 const textOfContent = (content: unknown): string =>
   typeof content === 'string' ? content : Array.isArray(content) ? (content as Array<{ text?: string }>).map(b => b.text ?? '').join('') : ''
 const GRACE_BOUND_MS = 2_500
@@ -199,8 +195,8 @@ if (!existsSync(DIST)) {
     }
     try {
       runner.send(user(PROBE, randomUUID()))
-      const opened = await runner.waitFor("the open op's result", f => f.type === 'user' && blocksOf(f).some(b => b.type === 'tool_result' && textOfContent(b.content).startsWith('open: ')), bound(90_000))
-      tally.check('the seat opened the probe page in a real browser', opened !== null, runner.frames.map(f => `${String(f.type)}${f.subtype ? ':' + String(f.subtype) : ''}`).join(' · ').slice(0, 300))
+      const opened = await runner.waitFor("the open op's result", f => f.type === 'tool_result' && String(f.output ?? '').startsWith('open: '), bound(90_000))
+      tally.check('the seat opened the probe page in a real browser', opened !== null, runner.frames.map(f => `${String(f.type)}${f.state ? ':' + String(f.state) : ''}`).join(' · ').slice(0, 300))
       const runnerPid = runner.proc.pid ?? 0
       const chrome = childrenOf(runnerPid)
       for (const pid of chrome) {
@@ -211,28 +207,28 @@ if (!existsSync(DIST)) {
         }
       }
       tally.check("the browser child was found under the runner and frozen (its close can never answer — the owner's hang, made deterministic)", frozen.length > 0, `runner ${runnerPid} children ${JSON.stringify(chrome)}`)
-      const closeCall = await runner.waitFor('the close op', f => f.type === 'assistant' && blocksOf(f).some(b => b.type === 'tool_use' && b.name === 'Browser' && b.input?.op === 'close'), bound(CLOSE_STEP_DELAY_MS + 30_000))
+      const closeCall = await runner.waitFor('the close op', f => f.type === 'tool_call' && f.tool === 'Browser' && (f.input as { op?: string } | undefined)?.op === 'close', bound(CLOSE_STEP_DELAY_MS + 30_000))
       tally.check('the model called close on the frozen browser', closeCall !== null)
-      const closeUseId = closeCall === null ? '' : String(blocksOf(closeCall).find(b => b.type === 'tool_use' && b.input?.op === 'close')?.id ?? '')
+      const closeUseId = closeCall === null ? '' : String(closeCall.call_id ?? '')
       await sleep(1_000)
       const framesBefore = runner.frames.length
       const interruptedAt = Date.now()
       runner.send({ type: 'control_request', request_id: `concourse-interrupt-${randomUUID().slice(0, 8)}`, request: { subtype: 'interrupt' } })
-      const closeResult = await runner.waitFor("the close call's result", f => f.type === 'user' && blocksOf(f).some(b => b.type === 'tool_result' && b.tool_use_id === closeUseId), bound(8_000), framesBefore)
+      const closeResult = await runner.waitFor("the close call's result", f => f.type === 'tool_result' && f.call_id === closeUseId, bound(8_000), framesBefore)
       const settledIn = Date.now() - interruptedAt
-      const closeText = closeResult === null ? '' : textOfContent(blocksOf(closeResult).find(b => b.type === 'tool_result' && b.tool_use_id === closeUseId)?.content)
+      const closeText = closeResult === null ? '' : String(closeResult.output ?? '')
       tally.check(`red on the base: the interrupt ends the hung close within the grace (a result for its tool-use id within ${GRACE_BOUND_MS} ms)`, closeResult !== null && settledIn <= GRACE_BOUND_MS, closeResult === null ? 'no result within 8 s — the turn stayed open on the hung call' : `${settledIn}ms`)
       tally.check("…in the interrupt's words", /operator stopped this action|interrupted/i.test(closeText), closeText.slice(0, 160))
-      const turnResult = await runner.waitFor("the interrupted turn's result frame", isResult, bound(8_000), framesBefore)
-      tally.check('the turn closes on the interrupt (a result frame follows; the seat is not cut)', turnResult !== null && runner.proc.exitCode === null, `result ${turnResult === null ? 'none' : String(turnResult.subtype)} · exit ${String(runner.proc.exitCode)}`)
+      const turnResult = await runner.waitFor("the interrupted turn's outcome", isOutcome, bound(8_000), framesBefore)
+      tally.check('the turn closes on the interrupt (an outcome follows; the seat is not cut)', turnResult !== null && runner.proc.exitCode === null, `outcome ${turnResult === null ? 'none' : String(turnResult.status)} · exit ${String(runner.proc.exitCode)}`)
       thaw()
       await sleep(500)
-      const duplicates = runner.frames.filter(f => f.type === 'user' && blocksOf(f).some(b => b.type === 'tool_result' && b.tool_use_id === closeUseId)).length
+      const duplicates = runner.frames.filter(f => f.type === 'tool_result' && f.call_id === closeUseId).length
       tally.check('the late settle of the thawed close is never pushed as a second result', duplicates === 1, `${duplicates} result(s) for ${closeUseId}`)
       const before = runner.frames.length
       runner.send(user(FOLLOW_UP, randomUUID()))
-      const follow = await runner.waitFor('the follow-up result', f => isResult(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
-      tally.check('the runner lives and answers the next message', follow !== null && follow.subtype === 'success' && fixture.requests.some(isFollowUp), String(follow?.subtype))
+      const follow = await runner.waitFor('the follow-up outcome', f => isOutcome(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
+      tally.check('the runner lives and answers the next message', follow !== null && follow.status === 'completed' && fixture.requests.some(isFollowUp), String(follow?.status))
       await runner.stop(bound(15_000))
       const code = await runner.exited
       tally.check('stdin close ends the seat with exit 0 — nothing was cut', code === 0, `exit ${String(code)}`)

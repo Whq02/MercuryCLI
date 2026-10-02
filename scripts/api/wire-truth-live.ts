@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { printReport, readCapture, startTap } from './wire-prefix-replay.ts'
-import { hasResult, runTurns } from '../lib/rows.ts'
+import { hasOutcome, runTurns } from '../lib/rows.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -116,7 +116,7 @@ let b = await runStreaming(['--resume', SID, '--mode', 'flow', ...common], [
   'Reply with exactly the word DELTA and nothing else.',
   'Reply with exactly the word EPSILON and nothing else.',
 ])
-if (b.exit !== 0 || !hasResult(b.stdout)) {
+if (b.exit !== 0 || !hasOutcome(b.stdout)) {
   console.log(`flow was refused headless (exit ${b.exit}: ${b.stderr.slice(0, 200)}); switching to implement instead`)
   switchedTo = 'implement'
   b = await runStreaming(['--resume', SID, '--mode', 'implement', ...common], [

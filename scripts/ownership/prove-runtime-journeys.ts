@@ -118,7 +118,7 @@ section('J1 — headless text run (exact stdout · wire shape)')
   await fixture.close()
 }
 
-section('J2 — headless stream-JSON run (byte-parseable protocol · envelope kinds)')
+section('J2 — headless rows run (byte-parseable protocol · row types)')
 {
   const fixture = await startFixtureApi([{ kind: 'text', text: 'J2-STREAM-REPLY' }])
   const arena = makeArena(fixture)
@@ -139,10 +139,10 @@ section('J2 — headless stream-JSON run (byte-parseable protocol · envelope ki
     try {
       const parsed = JSON.parse(line) as Record<string, unknown>
       const kind = String(parsed.type ?? '?')
-      kinds.push(parsed.subtype ? `${kind}:${String(parsed.subtype)}` : kind)
-      if (kind === 'result') {
-        resultMeta.is_error = parsed.is_error
-        resultMeta.hasResultText = typeof parsed.result === 'string' && (parsed.result as string).length > 0
+      kinds.push(typeof parsed.state === 'string' ? `${kind}:${parsed.state}` : typeof parsed.status === 'string' ? `${kind}:${parsed.status}` : kind)
+      if (kind === 'outcome') {
+        resultMeta.status = parsed.status
+        resultMeta.hasAnswer = typeof parsed.answer === 'string' && (parsed.answer as string).length > 0
         resultMeta.hasUsage = parsed.usage !== undefined
         resultMeta.hasSessionId = typeof parsed.session_id === 'string'
       }
@@ -152,7 +152,7 @@ section('J2 — headless stream-JSON run (byte-parseable protocol · envelope ki
     }
   }
   check('every stdout line is individually JSON-parseable', allParse)
-  check('a terminal result envelope exists', kinds.some(k => k.startsWith('result')))
+  check('a terminal outcome row exists', kinds.some(k => k.startsWith('outcome')))
   journeys['J2'] = { exit: r.exit, kinds, resultMeta }
   await fixture.close()
 }

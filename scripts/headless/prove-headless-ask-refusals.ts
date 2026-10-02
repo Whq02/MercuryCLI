@@ -129,7 +129,7 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
           child.stdin.write(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } }) + '\n')
         }
       }
-      if (frame.type === 'result' && !sawResult) {
+      if (frame.type === 'outcome' && !sawResult) {
         sawResult = true
         child.stdin.end()
       }

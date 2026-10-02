@@ -13,13 +13,13 @@ const rawUsage = (reasoning: number | undefined): Record<string, unknown> => ({
 
 for (const reasoning of [123, 0, undefined]) {
   const { frames, requests } = await compatUsageReply(rawUsage(reasoning), true)
-  const result = frames.find(row => row.type === 'result')
-  const details = result?.usage?.output_tokens_details as unknown as { thinking_tokens: number } | null | undefined
-  console.log(JSON.stringify({ reasoning: reasoning ?? 'unstated', usage: result?.usage, model_usage: result?.model_usage }))
-  tally.check('the compat fixture completes one headless request', requests === 1 && result?.subtype === 'success')
-  tally.check('the result exposes the reasoning count in the existing SDK thinking field', reasoning === undefined ? details === null : details?.thinking_tokens === reasoning, JSON.stringify(details))
-  tally.check('reasoning remains a subset of output, never an extra output charge', result?.usage?.output_tokens === 160 && Object.values(result.model_usage ?? {}).reduce((sum, row) => sum + row.output_tokens!, 0) === 160)
-  tally.check('the input and cached-input counters remain disjoint', result?.usage?.input_tokens === 170 && result.usage.cache_read_input_tokens === 41)
+  const result = frames.find(row => row.type === 'outcome')
+  const reasoningOut = result?.usage?.reasoning_output_tokens
+  console.log(JSON.stringify({ reasoning: reasoning ?? 'unstated', usage: result?.usage, models: result?.models }))
+  tally.check('the compat fixture completes one headless request', requests === 1 && result?.status === 'completed')
+  tally.check('the outcome exposes the reasoning count as reasoning_output_tokens, absent when unstated or zero', reasoning === undefined || reasoning === 0 ? reasoningOut === undefined : reasoningOut === reasoning, JSON.stringify(reasoningOut))
+  tally.check('reasoning remains a subset of output, never an extra output charge', result?.usage?.output_tokens === 160 && Object.values(result.models ?? {}).reduce((sum, row) => sum + row.output_tokens!, 0) === 160)
+  tally.check('the input counts the whole prompt and names the cached part', result?.usage?.input_tokens === 211 && result.usage.cached_input_tokens === 41)
 }
 
 const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')

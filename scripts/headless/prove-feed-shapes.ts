@@ -7,13 +7,17 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
+import { spawn } from 'node:child_process'
+import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { startFixtureApi } from '../lib/fixtureApi.ts'
 const core = await import('../../src/entrypoints/sdk/coreSchemas.ts')
 const control = await import('../../src/entrypoints/sdk/controlSchemas.ts')
-const coreTypes = await import('../../src/entrypoints/sdk/coreTypes.ts')
 const ladderModule = await import('../../src/utils/effortLadder.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
 const mappers = await import('../../src/utils/messages/mappers.ts')
-const idle = await import('../../src/services/providers/streamIdleBudget.ts')
+const rows = await import('../../src/rows/vocabulary.ts')
+const project = await import('../../src/rows/project.ts')
 const fold = await import('../../src/services/compact/foldStatus.ts')
 
 let failures = 0
@@ -45,67 +49,69 @@ function keyPaths(value: unknown, path = '', opaque: readonly string[] = [], out
 }
 const lastSegment = (dotted: string): string => dotted.split('.').pop()!.replace(/\[\]$/, '')
 
-section('F1 — the declared frame types are the ones the product writes')
+section('F1 — the row vocabulary declares the rows the product writes (a run on the fixture)')
 {
-  type AnyZod = { options?: AnyZod[]; shape?: Record<string, AnyZod>; value?: unknown; values?: Iterable<unknown>; def?: { options?: AnyZod[]; shape?: Record<string, AnyZod> } }
-  const literalOf = (schema: AnyZod | undefined): string | undefined => {
-    if (!schema) return undefined
-    if (typeof schema.value === 'string') return schema.value
-    if (schema.values) return [...schema.values].find((v): v is string => typeof v === 'string')
-    return undefined
-  }
-  const members = (schema: AnyZod): AnyZod[] => schema.options ?? schema.def?.options ?? [schema]
-  const shapeOf = (schema: AnyZod): Record<string, AnyZod> => schema.shape ?? schema.def?.shape ?? {}
-  const declared = new Set<string>()
-  const walk = (schema: AnyZod): void => {
-    for (const member of members(schema)) {
-      if (member.options || member.def?.options) {
-        walk(member)
-        continue
+  const dist = join(ROOT, 'dist', 'mercury.mjs')
+  if (!existsSync(dist)) {
+    check('dist/mercury.mjs exists (build first — F1 drives the artifact)', false)
+  } else {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'feed-shapes-')))
+    const api = await startFixtureApi([
+      { kind: 'tool_use', name: 'Bash', input: { command: 'echo feed-shapes' }, preText: 'Running it.', thinking: 'a short think' },
+      { kind: 'text', text: 'The feed answered.' },
+    ])
+    writeFileSync(join(root, '.config.json'), JSON.stringify({ hasCompletedOnboarding: true, theme: 'dark', customApiKeyResponses: { approved: ['fixture-key-feed-shapes'.slice(-20)] }, projects: { [root]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } } }))
+    const env = { HOME: root, PATH: process.env.PATH, MERCURY_CONFIG_DIR: root, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(root, 'daemon'), ANTHROPIC_BASE_URL: api.url, ANTHROPIC_API_KEY: 'fixture-key-feed-shapes', TMPDIR: tmpdir() }
+    const child = spawn('node', [dist, 'run', 'run the command', '--format', 'rows', '--partial', '--mode', 'sovereign'], { cwd: root, env, stdio: ['pipe', 'pipe', 'pipe'] })
+    let out = ''
+    let err = ''
+    child.stdout.on('data', data => (out += data))
+    child.stderr.on('data', data => (err += data))
+    child.stdin.end()
+    const timeout = setTimeout(() => child.kill('SIGKILL'), 90_000)
+    const code = await new Promise<number | null>(resolve => child.on('close', c => { clearTimeout(timeout); resolve(c) }))
+    await api.close()
+    const lines = out.split('\n').filter(line => line.trim() !== '')
+    const parsed: Array<Record<string, unknown>> = []
+    let torn = 0
+    for (const line of lines) {
+      try {
+        parsed.push(JSON.parse(line) as Record<string, unknown>)
+      } catch {
+        torn++
       }
-      const shape = shapeOf(member)
-      const type = literalOf(shape.type)
-      const subtype = literalOf(shape.subtype)
-      if (type !== undefined) declared.add(subtype !== undefined && type === 'system' ? `system/${subtype}` : type)
     }
+    const declared = new Set<string>([...rows.ROW_TYPES, ...rows.PARTIAL_ROW_TYPES])
+    const emitted = [...new Set(parsed.map(row => String(row.type)))]
+    const schema = rows.RowSchema()
+    const refused = parsed.map(row => ({ row, parsed: schema.safeParse(row) })).filter(entry => !entry.parsed.success)
+    check('the run completed with exit 0', code === 0, `exit=${code} stderr=${err.slice(0, 200)}`)
+    check('every stdout line is one JSON row', torn === 0 && parsed.length > 0, `${torn} torn of ${lines.length}`)
+    check('every emitted row type is declared in the vocabulary', emitted.every(type => declared.has(type)), j(emitted.filter(type => !declared.has(type))))
+    check('every emitted row parses through its declared schema', refused.length === 0, j(refused.slice(0, 2).map(entry => ({ type: entry.row.type, issues: entry.parsed.success ? [] : entry.parsed.error.issues.slice(0, 2) }))))
+    const coreRows = ['session', 'turn', 'reasoning', 'text', 'tool_call', 'tool_result', 'step', 'outcome', 'block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta']
+    check('a tool turn with partial rows writes the core rows', coreRows.every(type => emitted.includes(type)), j({ missing: coreRows.filter(type => !emitted.includes(type)), emitted }))
+    const seqs = parsed.map(row => Number(row.seq))
+    check('seq is contiguous from 1', seqs.every((seq, i) => seq === i + 1), j(seqs.slice(0, 12)))
+    check('the session row comes first and the outcome last', parsed[0]?.type === 'session' && parsed.at(-1)?.type === 'outcome')
+    const turnRow = parsed.find(row => row.type === 'turn')
+    const outcome = parsed.at(-1)
+    check('the outcome closes the turn its turn row opened', turnRow !== undefined && outcome?.turn_id === turnRow.turn_id && outcome?.turn === 1 && outcome?.status === 'completed' && outcome?.answer === 'The feed answered.', j({ turn: turnRow?.turn_id, outcome: outcome?.turn_id, status: outcome?.status }))
+    const toolCall = parsed.find(row => row.type === 'tool_call')
+    const toolResult = parsed.find(row => row.type === 'tool_result')
+    check('exactly one tool_result per tool_call, same call id', toolCall !== undefined && toolResult !== undefined && toolCall.call_id === toolResult.call_id && parsed.filter(row => row.type === 'tool_result').length === parsed.filter(row => row.type === 'tool_call').length, j({ call: toolCall?.call_id, result: toolResult?.call_id }))
+    check('the tool result carries what the model saw', String(toolResult?.output ?? '').includes('feed-shapes'), j(toolResult?.output))
+    const steps = parsed.filter(row => row.type === 'step')
+    check('one step per model call, and the outcome counts them', steps.length === 2 && outcome?.steps === 2, j({ steps: steps.length, counted: outcome?.steps }))
+    check('every in-turn row carries turn 1 and the session id; the session row carries no turn', parsed.slice(1).every(row => row.turn === 1 && row.session_id === parsed[0]?.session_id) && parsed[0]?.turn === undefined)
+    check('no row carries a uuid or a parent_tool_use_id', parsed.every(row => !('uuid' in row) && !('parent_tool_use_id' in row)))
+    const controlSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8')
+    const controlNames = ['provider_sign_in', 'provider_sign_in_callback', 'provider_sign_in_wait', 'host_mcp_servers']
+    check('the sign-in verbs and the host MCP list are declared under their names', controlNames.every(word => controlSrc.includes(`'${word}'`) || controlSrc.includes(`${word}:`)), j(controlNames.filter(w => !controlSrc.includes(w))))
+    const mcpTypesSrc = readFileSync(join(ROOT, 'src/services/mcp/types.ts'), 'utf8')
+    check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
+    rmSync(root, { recursive: true, force: true })
   }
-  walk(control.StdoutMessageSchema() as unknown as AnyZod)
-  const expected = [
-    'assistant',
-    'user',
-    'result',
-    'system/init',
-    'system/compact_boundary',
-    'system/model_transition',
-    'system/status',
-    'system/turn_started',
-    'system/mission_updated',
-    'system/samples_updated',
-    'system/api_retry',
-    'system/hook_started',
-    'system/hook_progress',
-    'system/hook_response',
-    'system/task_notification',
-    'system/task_started',
-    'system/session_state_changed',
-    'system/task_progress',
-    'system/elicitation_complete',
-    'stream_event',
-    'tool_progress',
-    'tool_use_summary',
-    'rate_limit_event',
-    'prompt_suggestion',
-    'control_response',
-    'control_request',
-    'control_cancel_request',
-  ]
-  const got = [...declared].sort()
-  check('the stdout union declares exactly the frame types the product writes', deepEq(got, [...expected].sort()), j(got))
-  const controlSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8')
-  const controlNames = ['provider_sign_in', 'provider_sign_in_callback', 'provider_sign_in_wait', 'host_mcp_servers']
-  check('the sign-in verbs and the host MCP list are declared under their names', controlNames.every(word => controlSrc.includes(`'${word}'`) || controlSrc.includes(`${word}:`)), j(controlNames.filter(w => !controlSrc.includes(w))))
-  const mcpTypesSrc = readFileSync(join(ROOT, 'src/services/mcp/types.ts'), 'utf8')
-  check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
 }
 
 section('F2 — every declared key is snake_case')
@@ -265,32 +271,31 @@ section('F4 — the effort enum on the wire is the one ladder')
   check('the ladder ends at max', ladder[ladder.length - 1] === 'max', j(ladder))
 }
 
-section('F5 — the status, wait, fold, usage and context projections spell snake_case')
+section('F5 — the wait, fold, usage and context projections spell snake_case')
 {
-  check('the agent wait count', deepEq(mappers.toSDKStatusPayload({ waitingOnAgents: 2 }), { waiting_on_agents: 2 }))
-  check('null and a bare word pass through', mappers.toSDKStatusPayload(null) === null && mappers.toSDKStatusPayload('compacting') === 'compacting')
+  const scope = { session_id: 's', turn: 1 }
   const wait = { kind: 'first-byte' as const, cold: true, promptTokens: 58_000, model: 'Opus 5', budgetMs: 160_000, sinceMs: 5, attempt: 1 }
-  const waitWire = idle.requestWaitToWire(wait)
-  check('the request wait encodes to snake keys', keyPaths(waitWire).every(p => SNAKE.test(lastSegment(p))) && (waitWire as { prompt_tokens: number }).prompt_tokens === 58_000, j(waitWire))
-  check('…and decodes back through the wait decoder', deepEq(idle.decodeRequestWait(idle.requestWaitFromWire(JSON.parse(JSON.stringify(waitWire)))), wait))
-  const retry = { kind: 'retry' as const, attempt: 2, of: 3, reason: 'a 529', delayMs: 800, sinceMs: 9 }
-  check('the retry wait round-trips', deepEq(idle.decodeRequestWait(idle.requestWaitFromWire(idle.requestWaitToWire(retry))), retry))
-  const statusWait = mappers.toSDKStatusPayload({ wait }) as { wait: Record<string, unknown> }
-  check('the status payload carries the wait in the feed\'s spelling', deepEq(statusWait, { wait: waitWire }) && deepEq(mappers.toSDKStatusPayload({ wait: null }), { wait: null }))
-  const foldRecord = { schema: 1 as const, trigger: 'auto' as const, startedAtMs: 1, stages: ['summarising' as const, 'restoring' as const], stage: 'summarising' as const, fill: 0.5, summaryTokens: 10, summaryCapTokens: 20, attempt: 1, exit: 'landed' as const, endedAtMs: 9 }
-  const foldWire = fold.foldStatusToWire(foldRecord)
-  check('the fold record encodes to snake keys', keyPaths(foldWire).every(p => SNAKE.test(lastSegment(p))) && (foldWire as { started_at_ms: number }).started_at_ms === 1, j(foldWire))
-  check('…and decodes back through the fold decoder', deepEq(fold.decodeFoldStatus(fold.foldStatusFromWire(JSON.parse(JSON.stringify(foldWire)))), foldRecord))
-  check('the status payload carries the fold in the feed\'s spelling', deepEq(mappers.toSDKStatusPayload({ compacting: foldRecord }), { compacting: foldWire }))
-  check('the status payload carries the stream\'s relayed keep-alive in the feed\'s spelling', deepEq(mappers.toSDKStatusPayload({ streamActivity: 7 }), { stream_activity: 7 }))
-  const usage = mappers.toSDKModelUsage({ 'claude-opus-5': { inputTokens: 1, outputTokens: 2, cacheReadInputTokens: 3, cacheCreationInputTokens: 4, webSearchRequests: 0, costUSD: 0.1, contextWindow: 200_000, maxOutputTokens: 64_000 } })
-  check('the per-model usage keeps the model id as its key and spells the fields snake_case', deepEq(usage, { 'claude-opus-5': { input_tokens: 1, output_tokens: 2, cache_read_input_tokens: 3, cache_creation_input_tokens: 4, web_search_requests: 0, cost_usd: 0.1, context_window: 200_000, max_output_tokens: 64_000 } }), j(usage))
+  const waitRow = project.waitRow(scope, wait)
+  check('the request wait projects to a wait row with snake keys', waitRow.type === 'wait' && waitRow.state === 'first_byte' && keyPaths(waitRow).every(p => SNAKE.test(lastSegment(p))) && waitRow.prompt_tokens === 58_000, j(waitRow))
+  check('a wait of null projects to the done state', deepEq(project.waitRow(scope, null), { type: 'wait', state: 'done', session_id: 's', turn: 1 }))
+  const retry = project.retryWaitRow(scope, { attempt: 2, of: 3, reason: 'a 529', delayMs: 800, httpStatus: 529, sinceMs: 9 })
+  check('the retry wait names its attempt, place, reason and delay', retry.state === 'retry' && retry.attempt === 2 && retry.of === 3 && retry.reason === 'a 529' && retry.delay_ms === 800 && retry.http_status === 529, j(retry))
+  const foldRecord = { schema: 1 as const, trigger: 'auto' as const, startedAtMs: 1, stages: ['summarising' as const, 'restoring' as const], stage: 'summarising' as const, fill: 0.5, summaryTokens: 10, summaryCapTokens: 20, attempt: 1 }
+  const foldRow = project.compactionRow(scope, foldRecord)
+  check('the fold record projects to a compaction row in progress with snake keys', foldRow.type === 'compaction' && foldRow.state === 'progress' && foldRow.stage === 'summarising' && foldRow.fill === 0.5 && foldRow.summary_cap_tokens === 20 && keyPaths(foldRow).every(p => SNAKE.test(lastSegment(p))), j(foldRow))
+  check('a fold with an exit projects to the ended state', project.compactionRow(scope, { ...foldRecord, exit: 'landed' as const, endedAtMs: 9 }).state === 'ended')
+  check('the bare word projects to the started state', project.compactionRow(scope, null).state === 'started')
+  check('the fold decoder still reads its own record', deepEq(fold.decodeFoldStatus({ ...foldRecord }), foldRecord))
+  const usage = project.modelUsageRows({ 'claude-opus-5': { inputTokens: 1, outputTokens: 2, cacheReadInputTokens: 3, cacheCreationInputTokens: 4, webSearchRequests: 0, costUSD: 0.1, contextWindow: 200_000, maxOutputTokens: 64_000 } })
+  check('the per-model usage keeps the model id as its key, counts the whole prompt as input and spells the fields snake_case', deepEq(usage, { 'claude-opus-5': { input_tokens: 8, cached_input_tokens: 3, cache_write_input_tokens: 4, output_tokens: 2, cost_usd: 0.1, web_searches: 0 } }), j(usage))
+  check('an unpriced model carries no cost', !('cost_usd' in (project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 } }, () => true).m ?? {})))
   const context = mappers.toSDKContextUsage({ totalTokens: 1, maxTokens: 2, rawMaxTokens: 2, percentage: 0, gridRows: [[{ color: 'c', isFilled: true, categoryName: 'n', tokens: 1, percentage: 0, squareFullness: 1 }]], model: 'm', categories: [], memoryFiles: [], mcpTools: [{ name: 'x', serverName: 's', tokens: 1, isLoaded: true }], agents: [], isAutoCompactEnabled: true, countsAvailable: true, apiUsage: null } as never)
   check('the context usage answer spells every key snake_case at every depth', keyPaths(context).every(p => SNAKE.test(lastSegment(p))) && (context as { grid_rows: unknown[][] }).grid_rows[0]![0] !== undefined, j(keyPaths(context).filter(p => !SNAKE.test(lastSegment(p)))))
 }
 
-section('F6 — the contract version')
-check('the machine feed contract is version 3', coreTypes.MERCURY_SDK_CONTRACT_VERSION === 3, String(coreTypes.MERCURY_SDK_CONTRACT_VERSION))
+section('F6 — the rows carry their schema word')
+check('the rows schema is 1', rows.ROWS_SCHEMA === 1, String(rows.ROWS_SCHEMA))
+check('the session row and the outcome declare it', rows.SessionRowSchema().shape.schema.value === 1 && rows.OutcomeRowSchema().shape.schema.value === 1)
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

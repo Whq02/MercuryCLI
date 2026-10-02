@@ -3,9 +3,11 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { parseRunnerLine } from '../../daemon/longLivedSupervisor.js'
+import type { LooseRow } from '../../rows/read.js'
 
 export interface TurnEndDetail {
-  subtype: string
+  status: string
   stopReason?: string
   errors: string[]
 }
@@ -16,6 +18,8 @@ export interface ChildEventHandlers {
   onAssistantThought?: (text: string) => void
   onToolUse: (toolUseId: string, name: string, input: unknown) => void
   onToolResult: (toolUseId: string, isError: boolean, content?: string) => void
+  onToolProgress?: (parentToolUseId: string, text: string) => void
+  onMode?: (mode: string) => void
   onTurnEnd: (outcome: 'success' | 'error' | 'cancelled', detail: TurnEndDetail) => void
   onUsage?: (
     lastRoundTrip: Record<string, unknown>,
@@ -156,109 +160,108 @@ export class MercuryChildSession {
   }
 
   private onLine(line: string): void {
-    let frame: Record<string, unknown>
-    try {
-      frame = JSON.parse(line) as Record<string, unknown>
-    } catch {
-      return
-    }
-    const type = frame.type
-    if (type === 'system') {
-      const sid = frame.session_id
-      if (frame.subtype === 'init' && typeof sid === 'string' && !this.mercurySessionId) {
-        this.mercurySessionId = sid
-        this.handlers.onInit(sid)
-      }
-      return
-    }
-    if (type === 'assistant') {
-      const message = frame.message as {
-        content?: unknown
-        usage?: unknown
-        model?: unknown
-      } | undefined
-      if (message?.usage !== null && typeof message?.usage === 'object') {
-        const u = message.usage as Record<string, unknown>
-        const sum = [
-          'input_tokens',
-          'cache_read_input_tokens',
-          'cache_creation_input_tokens',
-          'output_tokens',
-        ].reduce((n, k) => n + (typeof u[k] === 'number' && Number.isFinite(u[k]) ? (u[k] as number) : 0), 0)
-        if (sum > 0) {
-          this.lastRoundTripUsage = u
-          if (typeof message.model === 'string') this.lastRoundTripModel = message.model
+    const row = parseRunnerLine(line)
+    if (row === null) return
+    this.onRow(row)
+  }
+
+  private onRow(row: LooseRow): void {
+    const tagged = typeof row.parent_call_id === 'string' ? row.parent_call_id : null
+    switch (row.type) {
+      case 'session': {
+        const sid = row.session_id
+        if (typeof sid === 'string' && !this.mercurySessionId) {
+          this.mercurySessionId = sid
+          this.handlers.onInit(sid)
         }
+        return
       }
-      const content = Array.isArray(message?.content) ? message.content : []
-      for (const block of content as Array<Record<string, unknown>>) {
-        if (block.type === 'text' && typeof block.text === 'string' && block.text !== '') {
-          this.handlers.onAssistantText(block.text)
-        } else if (block.type === 'thinking' && typeof block.thinking === 'string' && block.thinking !== '') {
-          this.handlers.onAssistantThought?.(block.thinking)
-        } else if (block.type === 'tool_use' && typeof block.id === 'string') {
-          this.handlers.onToolUse(block.id, String(block.name ?? 'tool'), block.input)
+      case 'text': {
+        const text = typeof row.text === 'string' ? row.text : ''
+        if (text === '') return
+        if (tagged !== null) this.handlers.onToolProgress?.(tagged, text)
+        else this.handlers.onAssistantText(text)
+        return
+      }
+      case 'command_output': {
+        if (tagged === null && typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantText(row.text)
+        return
+      }
+      case 'reasoning': {
+        if (tagged !== null) return
+        if (typeof row.text === 'string' && row.text !== '') this.handlers.onAssistantThought?.(row.text)
+        return
+      }
+      case 'tool_call': {
+        if (tagged !== null) return
+        if (typeof row.call_id === 'string') this.handlers.onToolUse(row.call_id, String(row.tool ?? 'tool'), row.input)
+        return
+      }
+      case 'tool_result': {
+        if (tagged !== null) return
+        if (typeof row.call_id === 'string') this.handlers.onToolResult(row.call_id, row.status !== 'ok', typeof row.output === 'string' && row.output !== '' ? row.output : undefined)
+        return
+      }
+      case 'step': {
+        if (tagged !== null) return
+        const usage = row.usage
+        if (usage !== null && typeof usage === 'object') {
+          const u = usage as Record<string, unknown>
+          const sum = ['input_tokens', 'output_tokens'].reduce((n, k) => n + (typeof u[k] === 'number' && Number.isFinite(u[k]) ? (u[k] as number) : 0), 0)
+          if (sum > 0) {
+            this.lastRoundTripUsage = u
+            if (typeof row.model === 'string') this.lastRoundTripModel = row.model
+          }
         }
+        return
       }
-      return
-    }
-    if (type === 'user') {
-      const message = frame.message as { content?: unknown } | undefined
-      const content = Array.isArray(message?.content) ? message.content : []
-      for (const block of content as Array<Record<string, unknown>>) {
-        if (block.type === 'tool_result' && typeof block.tool_use_id === 'string') {
-          this.handlers.onToolResult(block.tool_use_id, block.is_error === true, toolResultText(block.content))
+      case 'mode': {
+        if (typeof row.mode === 'string') this.handlers.onMode?.(row.mode)
+        return
+      }
+      case 'outcome': {
+        if (this.lastRoundTripUsage !== null) {
+          this.handlers.onUsage?.(this.lastRoundTripUsage, this.lastRoundTripModel, typeof row.cost_usd === 'number' ? row.cost_usd : undefined)
+          this.lastRoundTripUsage = null
         }
-      }
-      return
-    }
-    if (type === 'result') {
-      if (this.lastRoundTripUsage !== null) {
-        this.handlers.onUsage?.(
-          this.lastRoundTripUsage,
-          this.lastRoundTripModel,
-          typeof frame.total_cost_usd === 'number' ? frame.total_cost_usd : undefined,
-        )
-        this.lastRoundTripUsage = null
-      }
-      const subtype = String(frame.subtype ?? 'success')
-      const errors = Array.isArray(frame.errors)
-        ? (frame.errors as unknown[]).filter((e): e is string => typeof e === 'string')
-        : []
-      this.handlers.onTurnEnd(
-        subtype === 'success' ? 'success' : subtype.includes('interrupt') ? 'cancelled' : 'error',
-        {
-          subtype,
-          ...(typeof frame.stop_reason === 'string' ? { stopReason: frame.stop_reason } : {}),
+        const status = String(row.status ?? 'failed')
+        const error = row.error as { message?: unknown; detail?: unknown } | undefined
+        const errors = [
+          ...(typeof error?.message === 'string' ? [error.message] : []),
+          ...(Array.isArray(error?.detail) ? (error.detail as unknown[]).filter((e): e is string => typeof e === 'string') : []),
+        ]
+        this.handlers.onTurnEnd(status === 'completed' ? 'success' : status === 'interrupted' ? 'cancelled' : 'error', {
+          status,
+          ...(typeof row.stop === 'string' ? { stopReason: row.stop } : {}),
           errors,
-        },
-      )
-      return
-    }
-    if (type === 'control_request') {
-      const requestId = String(frame.request_id ?? '')
-      const request = frame.request as Record<string, unknown> | undefined
-      if (request?.subtype === 'can_use_tool') {
-        this.handlers.onPermissionAsk(requestId, {
-          toolName: String(request.tool_name ?? 'tool'),
-          toolUseId: String(request.tool_use_id ?? ''),
-          input: (request.input as Record<string, unknown>) ?? {},
-          ...(typeof request.description === 'string' && { description: request.description }),
         })
+        return
       }
-      return
-    }
-    if (type === 'control_response') {
-      const response = frame.response as
-        | { subtype?: unknown; request_id?: unknown; response?: unknown; error?: unknown }
-        | undefined
-      const requestId = String(response?.request_id ?? '')
-      const waiter = this.controlWaiters.get(requestId)
-      if (waiter) {
-        this.controlWaiters.delete(requestId)
-        waiter(response?.subtype === 'success')
+      case 'control_request': {
+        const requestId = String(row.request_id ?? '')
+        const request = row.request as Record<string, unknown> | undefined
+        if (request?.subtype === 'can_use_tool') {
+          this.handlers.onPermissionAsk(requestId, {
+            toolName: String(request.tool_name ?? 'tool'),
+            toolUseId: String(request.tool_use_id ?? ''),
+            input: (request.input as Record<string, unknown>) ?? {},
+            ...(typeof request.description === 'string' && { description: request.description }),
+          })
+        }
+        return
       }
-      return
+      case 'control_response': {
+        const response = row.response as { subtype?: unknown; request_id?: unknown; response?: unknown; error?: unknown } | undefined
+        const requestId = String(response?.request_id ?? '')
+        const waiter = this.controlWaiters.get(requestId)
+        if (waiter) {
+          this.controlWaiters.delete(requestId)
+          waiter(response?.subtype === 'success')
+        }
+        return
+      }
+      default:
+        return
     }
   }
 

@@ -77,25 +77,25 @@ check('the family sentence names /usage, on STDERR', USAGE_SENTENCE.test(usage.s
 check('stdout carries no sentence', !USAGE_SENTENCE.test(usage.stdout), usage.stdout.trim().slice(0, 80))
 check('no model turn was spent', api.requests.slice(usageBefore).every(r => !r.path.startsWith('/v1/messages') || r.method === 'HEAD'), api.requests.slice(usageBefore).map(r => `${r.method} ${r.path}`).join(','))
 
-console.log('§2 json mode carries the typed envelope: subtype success · is_error true · the sentence as result')
+console.log('§2 json mode carries the typed outcome: status refused · class command · the sentence as the error message')
 const js = await run(w, ['run', '/help', '--format', 'json'])
-let envelope: { type?: string; subtype?: string; is_error?: boolean; result?: string } = {}
+let envelope: { type?: string; status?: string; error?: { message?: string; class?: string } } = {}
 try { envelope = JSON.parse(js.stdout) } catch {  }
 check('exit 1 in json mode too', js.code === 1, String(js.code))
-check('the envelope is typed: result · success · is_error', envelope.type === 'result' && envelope.subtype === 'success' && envelope.is_error === true, JSON.stringify({ type: envelope.type, subtype: envelope.subtype, is_error: envelope.is_error }))
-check('the sentence rides result', SENTENCE.test(envelope.result ?? ''), (envelope.result ?? '').slice(0, 90))
+check('the outcome is typed: outcome · refused · command', envelope.type === 'outcome' && envelope.status === 'refused' && envelope.error?.class === 'command', JSON.stringify({ type: envelope.type, status: envelope.status, error: envelope.error }))
+check('the sentence rides the error message', SENTENCE.test(envelope.error?.message ?? ''), (envelope.error?.message ?? '').slice(0, 90))
 
 console.log('§3 the positive control: a real -p prompt still succeeds on stdout, exit 0')
 const ok = await run(w, ['run', 'hello control'])
 check('exit 0 with the model answer on stdout', ok.code === 0 && /Control answered\./.test(ok.stdout), `${ok.code} · ${ok.stdout.trim().slice(0, 60)}`)
 
-console.log('§4 the source seams: ONE refusal door, marked at all three call sites, read at the envelope')
+console.log('§4 the source seams: ONE refusal door, marked at all three call sites, read at the outcome')
 const { readFileSync } = await import('node:fs')
 const slash = readFileSync(join(REPO, 'src/utils/processUserInput/processSlashCommand.tsx'), 'utf8')
 check('all three unavailableCommandLine call sites mark commandRefused', (slash.match(/const line = unavailableCommandLine\((?:command|registered)\)\n\s*(?:.*\n){1,5}?\s*commandRefused: true,/g) ?? []).length === 3, String((slash.match(/commandRefused: true/g) ?? []).length))
 check('the user-private popup door checks the seat before it executes', /registered\.seat === 'screen' && getIsNonInteractiveSession\(\)/.test(slash), 'processSlashCommand user-private branch')
-const engine = readFileSync(join(REPO, 'src/QueryEngine.ts'), 'utf8')
-check("the no-query envelope reads the mark (is_error: inputResult.commandRefused === true)", engine.includes('is_error: inputResult.commandRefused === true'), 'QueryEngine no-query envelope')
+const engine = readFileSync(join(REPO, 'src/rows/turn.ts'), 'utf8')
+check("the no-model outcome reads the mark (refused ⇐ inputResult.commandRefused === true)", engine.includes("const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true") && engine.includes("closeTurn(refused ? 'refused' : 'completed'"), "the turn module's no-model outcome")
 
 await api.close()
 rmSync(w.home, { recursive: true, force: true })

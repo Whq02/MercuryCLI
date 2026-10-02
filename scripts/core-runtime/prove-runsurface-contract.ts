@@ -102,14 +102,20 @@ async function* dispatchQueryEvents(
   scriptFinallyRan = false
   let seq = 0
   try {
+    let terminal: Record<string, unknown> = { reason: 'completed' }
     for (const s of activeEngineScript) {
       if (s.kind === 'yield') {
-        const v = s.value as { kind?: unknown }
+        const v = s.value as { kind?: unknown; terminal?: Record<string, unknown> }
+        if (v?.kind === 'run_terminal' && v.terminal !== undefined) {
+          terminal = v.terminal
+          continue
+        }
         if (typeof v?.kind === 'string') yield { ...(s.value as object), seq: ++seq }
         else yield { kind: 'notice', seq: ++seq, message: s.value }
       } else await s.fn(params)
     }
     scriptRanToEnd = true
+    yield { kind: 'run_terminal', seq: ++seq, terminal }
   } finally {
     scriptFinallyRan = true
   }
@@ -126,7 +132,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { QueryEngine } = await import('../../src/QueryEngine.ts')
+const { Conversation } = await import('../../src/rows/turn.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
   '../../src/utils/messages.ts'
@@ -202,7 +208,7 @@ const streamEvent = (event: Record<string, unknown>, ttftMs?: number): AnyMsg =>
   ...(ttftMs !== undefined ? { ttftMs } : {}),
 })
 const msgStart = (usage: Record<string, unknown>, ttftMs?: number): AnyMsg =>
-  streamEvent({ type: 'message_start', message: { usage } }, ttftMs)
+  streamEvent({ type: 'message_start', message: { id: 'msg_rig', usage } }, ttftMs)
 const msgDelta = (
   usage: Record<string, unknown> | undefined,
   stopReason: string | null,
@@ -216,20 +222,14 @@ const usageOf = (input: number, output: number): Record<string, unknown> => ({
   cache_read_input_tokens: 0,
 })
 
-const sdkTypes = (yields: AnyMsg[]): string[] =>
-  yields.map(y => `${y.type}${y.subtype ? ':' + y.subtype : ''}`)
-const sdkAssistantTexts = (yields: AnyMsg[]): string[] =>
-  yields
-    .filter(y => y.type === 'assistant')
-    .flatMap(y => {
-      const c = (y.message as { content?: unknown } | undefined)?.content
-      if (typeof c === 'string') return [c]
-      return ((c as AnyMsg[] | undefined) ?? [])
-        .filter(b => b.type === 'text')
-        .map(b => String(b.text))
-    })
-const lastResult = (yields: AnyMsg[]): AnyMsg | undefined =>
-  yields.filter(y => y.type === 'result').at(-1)
+const rowTypes = (yields: AnyMsg[]): string[] =>
+  yields.map(y => `${y.type}${typeof y.state === 'string' ? ':' + y.state : typeof y.status === 'string' ? ':' + y.status : ''}`)
+const textRows = (yields: AnyMsg[]): string[] =>
+  yields.filter(y => y.type === 'text').map(y => String(y.text))
+const outcomeOf = (yields: AnyMsg[]): AnyMsg | undefined =>
+  yields.filter(y => y.type === 'outcome').at(-1)
+const errorOf = (row: AnyMsg | undefined): { message?: string; class?: string; detail?: unknown } =>
+  (row?.error ?? {}) as { message?: string; class?: string; detail?: unknown }
 
 type PermissionDecision = Record<string, unknown>
 type EngineOpts = {
@@ -240,10 +240,9 @@ type EngineOpts = {
   maxTurns?: number
   maxBudgetUsd?: number
   jsonSchema?: Record<string, unknown>
-  replayUserMessages?: boolean
-  includePartialMessages?: boolean
+  partialRows?: boolean
   abortController?: AbortController
-  engine?: InstanceType<typeof QueryEngine>
+  engine?: InstanceType<typeof Conversation>
 }
 
 const allowAll = async (
@@ -266,12 +265,12 @@ const rigLocalCommand = {
   }),
 }
 
-function makeEngine(opts: EngineOpts): InstanceType<typeof QueryEngine> {
+function makeEngine(opts: EngineOpts): InstanceType<typeof Conversation> {
   let appState: Record<string, unknown> = {
     ...(getDefaultAppState() as unknown as Record<string, unknown>),
     effortValue: 'high',
   }
-  return new QueryEngine({
+  return new Conversation({
     cwd: ENGINE_CWD,
     tools: (opts.tools ?? []) as never,
     commands: [rigLocalCommand] as never,
@@ -282,13 +281,12 @@ function makeEngine(opts: EngineOpts): InstanceType<typeof QueryEngine> {
     setAppState: f => {
       appState = f(appState as never) as unknown as Record<string, unknown>
     },
-    readFileCache: createFileStateCacheWithSizeLimit(100),
+    readFileState: createFileStateCacheWithSizeLimit(100),
     userSpecifiedModel: MODEL,
     maxTurns: opts.maxTurns,
     maxBudgetUsd: opts.maxBudgetUsd,
     jsonSchema: opts.jsonSchema,
-    replayUserMessages: opts.replayUserMessages,
-    includePartialMessages: opts.includePartialMessages,
+    partialRows: opts.partialRows,
     abortController: opts.abortController,
   })
 }
@@ -296,7 +294,7 @@ function makeEngine(opts: EngineOpts): InstanceType<typeof QueryEngine> {
 type EngineRun = {
   yields: AnyMsg[]
   calls: EngineQueryCall[]
-  engine: InstanceType<typeof QueryEngine>
+  engine: InstanceType<typeof Conversation>
 }
 async function runEngine(opts: EngineOpts): Promise<EngineRun> {
   const engine = opts.engine ?? makeEngine(opts)
@@ -304,7 +302,7 @@ async function runEngine(opts: EngineOpts): Promise<EngineRun> {
   engineQueryCalls.length = 0
   const yields: AnyMsg[] = []
   try {
-    for await (const m of engine.submitMessage(opts.prompt ?? 'engine rig prompt')) {
+    for await (const m of engine.turn(opts.prompt ?? 'engine rig prompt')) {
       yields.push(m as AnyMsg)
     }
   } finally {
@@ -314,7 +312,7 @@ async function runEngine(opts: EngineOpts): Promise<EngineRun> {
   return { yields, calls: [...engineQueryCalls], engine }
 }
 
-section('E1 INIT + PLAIN TURN — init first, chrome swallowed, envelope synthesized')
+section('E1 TURN ROW + PLAIN TURN — the turn row first, chrome swallowed, the outcome synthesized')
 {
   const r = await runEngine({
     steps: [
@@ -325,105 +323,74 @@ section('E1 INIT + PLAIN TURN — init first, chrome swallowed, envelope synthes
       ey(msgStop()),
     ],
   })
-  const types = sdkTypes(r.yields)
-  check('first SDK message is system:init', types[0] === 'system:init', types.join(','))
-  const init = r.yields[0]!
-  check('init carries the model', init.model === MODEL, String(init.model))
+  const types = rowTypes(r.yields)
+  check('the first row opens the turn', types[0] === 'turn:started', types.join(','))
+  const open = r.yields[0]!
+  check('the turn row carries the model', open.model === MODEL, String(open.model))
+  check('the turn row carries one message id (the prompt)', Array.isArray(open.message_ids) && (open.message_ids as string[]).length === 1, JSON.stringify(open.message_ids))
+  check('stream_request_start never reaches the stream', !types.includes('stream_request_start'))
+  check('no partial row without partialRows', !types.some(t => t === 'block_start' || t === 'text_delta'))
   check(
-    'init cwd is the engine cwd (realpath — setCwd resolves /var→/private/var)',
-    init.cwd === realpathSync(ENGINE_CWD),
-    String(init.cwd),
+    'exactly one text row with the words',
+    JSON.stringify(textRows(r.yields)) === JSON.stringify(['the answer.']),
+    JSON.stringify(textRows(r.yields)),
   )
-  check(
-    'init slash_commands lists the rig local command',
-    Array.isArray(init.slash_commands) &&
-      (init.slash_commands as string[]).includes('rigcmd'),
-  )
-  check(
-    'init mercury_version is the MACRO stamp (the Mercury stream dialect)',
-    init.mercury_version === '1.0.0',
-    String(init.mercury_version),
-  )
-  check('stream_request_start never reaches the SDK stream', !types.includes('stream_request_start'))
-  check(
-    'stream_event not yielded without includePartialMessages',
-    !types.includes('stream_event'),
-  )
-  check(
-    'exactly one SDK assistant with the text',
-    JSON.stringify(sdkAssistantTexts(r.yields)) === JSON.stringify(['the answer.']),
-    JSON.stringify(sdkAssistantTexts(r.yields)),
-  )
-  const res = lastResult(r.yields)!
-  check('result subtype success', res.subtype === 'success', JSON.stringify(res.subtype))
-  check('result is_error false', res.is_error === false)
-  check('result num_turns 1 (no user yields)', res.num_turns === 1, String(res.num_turns))
-  check(
-    "result stop_reason 'end_turn' (captured from message_delta)",
-    res.stop_reason === 'end_turn',
-    String(res.stop_reason),
-  )
-  check('result text is the last text block', res.result === 'the answer.', String(res.result))
+  const step = r.yields.find(y => y.type === 'step') as (AnyMsg & { usage?: Record<string, number> }) | undefined
+  check('one step row names the model call: the model, the stop word, the usage', step !== undefined && step.model === MODEL && step.stop === 'end_turn' && step.usage?.input_tokens === 100 && step.usage?.output_tokens === 42, JSON.stringify(step))
+  const res = outcomeOf(r.yields)!
+  check('the outcome is the last row', r.yields.at(-1) === res)
+  check('outcome status completed', res.status === 'completed', JSON.stringify(res.status))
+  check('outcome steps 1 (one model call)', res.steps === 1, String(res.steps))
+  check("the stop word is 'end_turn' (captured from message_delta)", res.stop === 'end_turn', String(res.stop))
+  check('the answer is the last text block', res.answer === 'the answer.', String(res.answer))
   const usage = res.usage as Record<string, number>
   check(
     'usage ledger: input from message_start, output from message_delta, settled at message_stop',
     usage.input_tokens === 100 && usage.output_tokens === 42,
     JSON.stringify({ i: usage.input_tokens, o: usage.output_tokens }),
   )
-  check('permission_denials empty', JSON.stringify(res.permission_denials) === '[]')
+  check('denials empty', JSON.stringify(res.denials) === '[]')
   check('one query() call', r.calls.length === 1, String(r.calls.length))
   check("query called with querySource 'sdk'", r.calls[0]!.querySource === 'sdk')
   check(
-    'query rode the engine model',
+    'query rode the turn model',
     r.calls[0]!.mainLoopModel === MODEL,
     String(r.calls[0]!.mainLoopModel),
   )
   check(
-    "the engine store gained the prompt + assistant",
+    'the conversation gained the prompt + assistant',
     r.engine.getMessages().some(m => (m as AnyMsg).type === 'assistant'),
   )
   check('the fake generator ran to completion', scriptRanToEnd)
 }
 
-section('E2 PARTIALS + ACK — stream passthrough; the prompt ack precedes the projection')
+section('E2 PARTIAL ROWS — the stream rides block_start and delta rows ahead of the settled row; the prompt is never echoed')
 {
   const r = await runEngine({
-    includePartialMessages: true,
-    replayUserMessages: true,
+    partialRows: true,
     steps: [
       ey(msgStart(usageOf(10, 1))),
+      ey(streamEvent({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })),
+      ey(streamEvent({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'partial-mode ' } })),
+      ey(streamEvent({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text: 'answer' } })),
       ey(asstText('partial-mode answer')),
       ey(msgStop()),
     ],
   })
-  const types = sdkTypes(r.yields)
-  const streamYields = r.yields.filter(y => y.type === 'stream_event')
-  check('stream events pass through with includePartialMessages', streamYields.length === 2, String(streamYields.length))
-  check(
-    'passthrough carries session_id + uuid',
-    streamYields.every(y => typeof y.session_id === 'string' && typeof y.uuid === 'string'),
-  )
-  check(
-    'passthrough preserves the raw event payload',
-    (streamYields[0]!.event as AnyMsg).type === 'message_start',
-  )
-  const ackIdx = r.yields.findIndex(y => y.type === 'user' && y.is_replay === true)
-  const asstIdx = r.yields.findIndex(y => y.type === 'assistant')
-  check('the prompt is acked as an is_replay user message', ackIdx !== -1, types.join(','))
-  check(
-    'the ack precedes the assistant projection (recorded-then-acked order)',
-    ackIdx !== -1 && asstIdx !== -1 && ackIdx < asstIdx,
-    `ack@${ackIdx} asst@${asstIdx}`,
-  )
-  check(
-    'the acked message carries the submitted prompt',
-    JSON.stringify((r.yields[ackIdx]!.message as AnyMsg)?.content).includes(
-      'engine rig prompt',
-    ),
-  )
+  const types = rowTypes(r.yields)
+  const starts = r.yields.filter(y => y.type === 'block_start')
+  const deltas = r.yields.filter(y => y.type === 'text_delta')
+  check('the block start rides the stream with partialRows', starts.length === 1 && starts[0]!.of === 'text' && starts[0]!.block === 0, types.join(','))
+  check('every delta rides the stream, under the message id of message_start', deltas.length === 2 && deltas.every(d => d.message_id === 'msg_rig'), JSON.stringify(deltas))
+  check('the deltas join to the settled words', deltas.map(d => String(d.text)).join('') === 'partial-mode answer')
+  const lastDelta = r.yields.lastIndexOf(deltas.at(-1)!)
+  const textIdx = r.yields.findIndex(y => y.type === 'text')
+  check('the settled text row follows its deltas', textIdx > lastDelta, `delta@${lastDelta} text@${textIdx}`)
+  check('message_start and message_stop project no row of their own', !types.some(t => t.startsWith('stream_event')))
+  check('the prompt is never echoed (no user row exists in the vocabulary)', !types.some(t => t.startsWith('user')))
 }
 
-section('E3 TURN COUNT — num_turns = 1 + yielded user messages (tool_results count)')
+section('E3 STEPS + TOOL ROUNDS — the outcome counts model calls; a tool round rides tool_call then tool_result')
 {
   const r = await runEngine({
     steps: [
@@ -433,19 +400,18 @@ section('E3 TURN COUNT — num_turns = 1 + yielded user messages (tool_results c
       ey(msgDelta(undefined, 'end_turn')),
     ],
   })
-  const res = lastResult(r.yields)!
-  check('result success', res.subtype === 'success', String(res.subtype))
+  const res = outcomeOf(r.yields)!
+  check('outcome completed', res.status === 'completed', String(res.status))
   check(
-    'num_turns 2 — the tool_result user message incremented the count (CHARACTERIZED: user-message counting)',
-    res.num_turns === 2,
-    String(res.num_turns),
+    'steps 2 — two model calls (CHARACTERIZED: steps count provider messages, never user messages)',
+    res.steps === 2,
+    String(res.steps),
   )
-  const userYields = r.yields.filter(y => y.type === 'user' && y.is_replay !== true)
-  check('the tool_result user message projects to the SDK stream', userYields.length === 1, String(userYields.length))
-  check(
-    'the SDK user yield carries the tool_result block',
-    JSON.stringify(userYields[0]!.message).includes('tu_e3'),
-  )
+  const call = r.yields.find(y => y.type === 'tool_call')
+  const result = r.yields.find(y => y.type === 'tool_result')
+  check('the tool call projects as a tool_call row with its call id, tool and input', call !== undefined && call.call_id === 'tu_e3' && call.tool === 'EchoTool' && JSON.stringify(call.input) === JSON.stringify({ text: 'x' }), JSON.stringify(call))
+  check('the tool result projects as a tool_result row with the same call id and the output', result !== undefined && result.call_id === 'tu_e3' && result.status === 'ok' && result.output === 'echo:x', JSON.stringify(result))
+  check('the result follows the call', r.yields.indexOf(call!) < r.yields.indexOf(result!))
 
   const multi = createAssistantMessage({
     content: [
@@ -457,16 +423,17 @@ section('E3 TURN COUNT — num_turns = 1 + yielded user messages (tool_results c
   const r2 = await runEngine({
     steps: [ey(multi), ey(msgDelta(undefined, 'end_turn'))],
   })
+  const texts = r2.yields.filter(y => y.type === 'text')
   check(
-    'CHARACTERIZED: a multi-block assistant splits into one SDK assistant per block',
-    JSON.stringify(sdkAssistantTexts(r2.yields)) ===
-      JSON.stringify(['block one', 'block two']) &&
-      r2.yields.filter(y => y.type === 'assistant').length === 2,
-    JSON.stringify(sdkAssistantTexts(r2.yields)),
+    'CHARACTERIZED: a multi-block assistant projects one text row per block, under one message id',
+    JSON.stringify(textRows(r2.yields)) === JSON.stringify(['block one', 'block two']) &&
+      texts.length === 2 && texts[0]!.block === 0 && texts[1]!.block === 1 && texts[0]!.message_id === texts[1]!.message_id,
+    JSON.stringify(texts),
   )
+  check('…and one step', outcomeOf(r2.yields)!.steps === 1 && r2.yields.filter(y => y.type === 'step').length === 1)
 }
 
-section('E4 EMPTY ASSISTANT — swallowed by the projection, still stored')
+section('E4 EMPTY ASSISTANT — no row, no answer, still stored')
 {
   const before = makeEngine({})
   const r = await runEngine({
@@ -474,30 +441,20 @@ section('E4 EMPTY ASSISTANT — swallowed by the projection, still stored')
     steps: [ey(asstText('')), ey(msgDelta(undefined, 'end_turn'))],
   })
   check(
-    'zero SDK assistant yields for an empty assistant (isNotEmptyMessage filter)',
-    r.yields.filter(y => y.type === 'assistant').length === 0,
-    sdkTypes(r.yields).join(','),
+    'zero text rows for an empty assistant (the placeholder is not the model speaking)',
+    r.yields.filter(y => y.type === 'text').length === 0,
+    rowTypes(r.yields).join(','),
   )
   check(
-    'the empty assistant still landed in the engine store (CHARACTERIZED asymmetry)',
+    'the empty assistant still landed in the conversation (CHARACTERIZED asymmetry)',
     r.engine.getMessages().some(m => (m as AnyMsg).type === 'assistant'),
   )
-  const res = lastResult(r.yields)!
-  check(
-    'result is still success (the empty assistant last-content is text)',
-    res.subtype === 'success',
-    String(res.subtype),
-  )
-  check(
-    "CHARACTERIZED: the '(no content)' placeholder LEAKS into result.result — the SDK " +
-      'stream swallows the empty assistant (isNotEmptyMessage) but the result extraction ' +
-      'does not filter it (NO_CONTENT_MESSAGE is not in SYNTHETIC_MESSAGES)',
-    res.result === '(no content)',
-    JSON.stringify(res.result),
-  )
+  const res = outcomeOf(r.yields)!
+  check('the outcome is still completed', res.status === 'completed', String(res.status))
+  check("the answer is '' — the placeholder never leaks into the outcome", res.answer === '', JSON.stringify(res.answer))
 }
 
-section('E5 STOP-REASON — latest non-null wins across synthetic + delta sources')
+section('E5 STOP WORD — latest non-null wins across synthetic + delta sources')
 {
   const stamped = asstText('stamped')
   ;(stamped.message as Record<string, unknown>).stop_reason = 'tool_use'
@@ -506,8 +463,8 @@ section('E5 STOP-REASON — latest non-null wins across synthetic + delta source
   })
   check(
     'delta after synthetic: end_turn wins',
-    lastResult(r.yields)!.stop_reason === 'end_turn',
-    String(lastResult(r.yields)!.stop_reason),
+    outcomeOf(r.yields)!.stop === 'end_turn',
+    String(outcomeOf(r.yields)!.stop),
   )
 
   const stamped2 = asstText('stamped2')
@@ -516,21 +473,21 @@ section('E5 STOP-REASON — latest non-null wins across synthetic + delta source
     steps: [ey(msgDelta(undefined, 'end_turn')), ey(stamped2)],
   })
   check(
-    'synthetic after delta: the synthetic stop_reason wins (yield order, not source)',
-    lastResult(r2.yields)!.stop_reason === 'stop_sequence',
-    String(lastResult(r2.yields)!.stop_reason),
+    'synthetic after delta: the synthetic stop word wins (yield order, not source)',
+    outcomeOf(r2.yields)!.stop === 'stop_sequence',
+    String(outcomeOf(r2.yields)!.stop),
   )
   const r3 = await runEngine({
     steps: [ey(msgDelta(undefined, 'end_turn')), ey(asstText('null-shaped'))],
   })
   check(
-    'a null (streamed-shape) assistant never clobbers the captured stop_reason',
-    lastResult(r3.yields)!.stop_reason === 'end_turn',
-    String(lastResult(r3.yields)!.stop_reason),
+    'a null (streamed-shape) assistant never clobbers the captured stop word',
+    outcomeOf(r3.yields)!.stop === 'end_turn',
+    String(outcomeOf(r3.yields)!.stop),
   )
 }
 
-section('E6 MAX-TURNS — error_max_turns from the attachment, generator closed early')
+section('E6 MAX-TURNS — turn_limit from the attachment, generator closed early')
 {
   const r = await runEngine({
     maxTurns: 3,
@@ -546,28 +503,23 @@ section('E6 MAX-TURNS — error_max_turns from the attachment, generator closed 
       ey(asstText('NEVER PROJECTED')),
     ],
   })
-  const res = lastResult(r.yields)!
-  check('result subtype error_max_turns', res.subtype === 'error_max_turns', String(res.subtype))
-  check('result is_error true', res.is_error === true)
+  const res = outcomeOf(r.yields)!
+  check('outcome status turn_limit', res.status === 'turn_limit', String(res.status))
+  check('the error class is turn_limit', errorOf(res).class === 'turn_limit', String(errorOf(res).class))
   check(
-    "num_turns comes from the ATTACHMENT's turnCount (CHARACTERIZED), not the engine counter",
-    res.num_turns === 7,
-    String(res.num_turns),
-  )
-  check(
-    'errors[] names the cap',
-    Array.isArray(res.errors) && String(res.errors[0]).includes('maximum number of turns (3)'),
-    JSON.stringify(res.errors),
+    'the error names the cap',
+    String(errorOf(res).message).includes('maximum number of turns (3)'),
+    JSON.stringify(res.error),
   )
   check(
     'the post-attachment assistant never projects',
-    !sdkAssistantTexts(r.yields).includes('NEVER PROJECTED'),
+    !textRows(r.yields).includes('NEVER PROJECTED'),
   )
   check('the generator was closed early (finally ran, steps did not complete)', scriptFinallyRan && !scriptRanToEnd)
   check('maxTurns was passed through to query()', r.calls[0]!.maxTurns === 3)
 }
 
-section('E7 ATTACHMENTS — structured_output capture; queued_command replay gating')
+section('E7 ATTACHMENTS — structured_output capture; a queued_command is the conversation\'s, never a row')
 {
   const r = await runEngine({
     steps: [
@@ -576,11 +528,11 @@ section('E7 ATTACHMENTS — structured_output capture; queued_command replay gat
       ey(msgDelta(undefined, 'end_turn')),
     ],
   })
-  const res = lastResult(r.yields)!
+  const res = outcomeOf(r.yields)!
   check(
-    'structured_output attachment lands on the success result',
-    JSON.stringify(res.structured_output) === JSON.stringify({ answer: 42 }),
-    JSON.stringify(res.structured_output),
+    'the structured_output attachment lands on the completed outcome',
+    JSON.stringify(res.structured) === JSON.stringify({ answer: 42 }),
+    JSON.stringify(res.structured),
   )
 
   const srcUuid = '99999999-9999-4999-8999-999999999999'
@@ -590,28 +542,19 @@ section('E7 ATTACHMENTS — structured_output capture; queued_command replay gat
     source_uuid: srcUuid,
   } as never)
   const r2 = await runEngine({
-    replayUserMessages: true,
-    steps: [ey(queued), ey(asstText('after drain')), ey(msgDelta(undefined, 'end_turn'))],
-  })
-  const replay = r2.yields.find(
-    y =>
-      y.type === 'user' &&
-      y.is_replay === true &&
-      JSON.stringify(y.message).includes('queued follow-up'),
-  )
-  check('queued_command replays as an SDK user message (replayUserMessages on)', replay !== undefined)
-  check('the replay uuid is the source_uuid', replay?.uuid === srcUuid, String(replay?.uuid))
-
-  const r3 = await runEngine({
     steps: [ey(queued), ey(asstText('after drain')), ey(msgDelta(undefined, 'end_turn'))],
   })
   check(
-    'without replayUserMessages the queued_command never yields',
-    !r3.yields.some(y => JSON.stringify(y.message ?? '').includes('queued follow-up')),
+    'a queued_command attachment lands in the conversation',
+    JSON.stringify(r2.engine.getMessages()).includes('queued follow-up'),
+  )
+  check(
+    'and never on the row stream (the caller sent it; the rows never echo input)',
+    !r2.yields.some(y => JSON.stringify(y).includes('queued follow-up')),
   )
 }
 
-section('E8 COMPACT BOUNDARY — SDK compact_boundary + the memory release')
+section('E8 COMPACT BOUNDARY — the ended compaction row + the memory release')
 {
   const boundary = createCompactBoundaryMessage('auto', 900)
   const r = await runEngine({
@@ -622,19 +565,16 @@ section('E8 COMPACT BOUNDARY — SDK compact_boundary + the memory release')
       ey(msgDelta(undefined, 'end_turn')),
     ],
   })
-  const sdkBoundary = r.yields.find(
-    y => y.type === 'system' && y.subtype === 'compact_boundary',
-  )
-  check('SDK compact_boundary yielded', sdkBoundary !== undefined, sdkTypes(r.yields).join(','))
+  const ended = r.yields.find(y => y.type === 'compaction')
+  check('a compaction row rides the stream', ended !== undefined, rowTypes(r.yields).join(','))
   check(
-    'compact_metadata projected {trigger, pre_tokens}',
-    JSON.stringify(sdkBoundary?.compact_metadata) ===
-      JSON.stringify({ trigger: 'auto', pre_tokens: 900 }),
-    JSON.stringify(sdkBoundary?.compact_metadata),
+    'the row is ended, landed, with the trigger and the tokens before',
+    ended?.state === 'ended' && ended?.exit === 'landed' && ended?.trigger === 'auto' && ended?.tokens_before === 900,
+    JSON.stringify(ended),
   )
   const stored = r.engine.getMessages()
   check(
-    'the engine store was RELEASED to the boundary (first stored message IS the boundary)',
+    'the conversation was RELEASED to the boundary (first stored message IS the boundary)',
     (stored[0] as AnyMsg)?.subtype === 'compact_boundary',
     String((stored[0] as AnyMsg)?.type) + ':' + String((stored[0] as AnyMsg)?.subtype),
   )
@@ -648,7 +588,7 @@ section('E8 COMPACT BOUNDARY — SDK compact_boundary + the memory release')
   )
 }
 
-section('E9 API-ERROR — system api_error projects to api_retry, categorized')
+section('E9 API-ERROR — system api_error projects to a retry wait row, categorized')
 {
   const apiErr = createSystemAPIErrorMessage(
     { status: 529, message: 'overloaded' } as never,
@@ -659,100 +599,89 @@ section('E9 API-ERROR — system api_error projects to api_retry, categorized')
   const r = await runEngine({
     steps: [ey(apiErr), ey(asstText('recovered')), ey(msgDelta(undefined, 'end_turn'))],
   })
-  const retry = r.yields.find(y => y.type === 'system' && y.subtype === 'api_retry')
-  check('api_retry yielded', retry !== undefined, sdkTypes(r.yields).join(','))
-  check('attempt/max/delay projected', retry?.attempt === 1 && retry?.max_retries === 10 && retry?.retry_delay_ms === 1200, JSON.stringify(retry))
-  check('error_status projected', retry?.error_status === 529, String(retry?.error_status))
-  check(
-    "a 529 categorizes as 'rate_limit'",
-    retry?.error === 'rate_limit',
-    String(retry?.error),
-  )
+  const retry = r.yields.find(y => y.type === 'wait' && y.state === 'retry')
+  check('a retry wait row rides the stream', retry !== undefined, rowTypes(r.yields).join(','))
+  check('attempt/of/delay projected', retry?.attempt === 1 && retry?.of === 10 && retry?.delay_ms === 1200, JSON.stringify(retry))
+  check('the http status projected', retry?.http_status === 529, String(retry?.http_status))
+  check('the reason is a categorized word', typeof retry?.reason === 'string' && (retry.reason as string).length > 0, String(retry?.reason))
+  check('the turn still completes after the retry', outcomeOf(r.yields)!.status === 'completed')
 }
 
-section('E10 SUMMARY + TOMBSTONE — summary projected; tombstone dropped')
+section('E10 RETRACTION + SUMMARY — the retraction is a partial row; the summary never reaches the stream')
 {
   const orphan = asstText('to be tombstoned')
-  const r = await runEngine({
-    steps: [
-      ey(orphan),
-      ey({ kind: 'assistant_retracted', message: orphan }),
-      ey({
-        type: 'tool_use_summary',
-        summary: 'did the things',
-        precedingToolUseIds: ['tu_s'],
-        uuid: 'rig-sum',
-      }),
-      ey(asstText('final')),
-      ey(msgDelta(undefined, 'end_turn')),
-    ],
-  })
-  const summary = r.yields.find(y => y.type === 'tool_use_summary')
-  check('tool_use_summary projects to the SDK stream', summary !== undefined)
+  const steps = (): EngineStep[] => [
+    ey(orphan),
+    ey({ kind: 'assistant_retracted', message: orphan }),
+    ey({
+      type: 'tool_use_summary',
+      summary: 'did the things',
+      precedingToolUseIds: ['tu_s'],
+      uuid: 'rig-sum',
+    }),
+    ey(asstText('final')),
+    ey(msgDelta(undefined, 'end_turn')),
+  ]
+  const r = await runEngine({ steps: steps() })
+  check('the interactive tool-use summary never reaches the row stream', !r.yields.some(y => y.type === 'tool_use_summary'), rowTypes(r.yields).join(','))
   check(
-    'summary fields renamed to snake_case',
-    summary?.summary === 'did the things' &&
-      JSON.stringify(summary?.preceding_tool_use_ids) === JSON.stringify(['tu_s']),
-    JSON.stringify(summary),
+    'without partialRows the retraction is invisible (CHARACTERIZED: a partial-row matter)',
+    !r.yields.some(y => y.type === 'retracted'),
   )
   check(
-    'the tombstone NEVER reaches the SDK stream (CHARACTERIZED: no retraction)',
-    !r.yields.some(y => y.type === 'tombstone'),
+    'the retracted words were already yielded as their row',
+    textRows(r.yields).includes('to be tombstoned'),
   )
-  check(
-    'the tombstoned assistant stays yielded (retraction is invisible to SDK consumers)',
-    sdkAssistantTexts(r.yields).includes('to be tombstoned'),
-  )
+  const r2 = await runEngine({ partialRows: true, steps: steps() })
+  const retracted = r2.yields.find(y => y.type === 'retracted')
+  check('with partialRows the retraction rides a retracted row naming the message', retracted !== undefined && retracted.message_id === (orphan.message as AnyMsg).id, JSON.stringify(retracted))
 }
 
-section('E11 EDE — diagnostic head + the turn-scoped error watermark')
+section('E11 FAILED TERMINAL — model_error settles failed; the turn-scoped error watermark is the detail')
 {
   logError(new Error('PRE-TURN error — must be excluded'))
   const r = await runEngine({
     steps: [
       { kind: 'do', fn: () => logError(new Error('IN-TURN rig error')) },
       ey(asstToolUse('tu_ede', 'EchoTool', { text: 'x' })),
+      ey({ kind: 'run_terminal', terminal: { reason: 'model_error', error: new Error('the rig model failed') } }),
     ],
   })
-  const res = lastResult(r.yields)!
-  check('result subtype error_during_execution', res.subtype === 'error_during_execution', String(res.subtype))
-  check('is_error true', res.is_error === true)
-  const errors = (res.errors ?? []) as string[]
-  check(
-    'errors[0] is the ede_diagnostic (result_type=assistant last_content_type=tool_use stop_reason=null)',
-    errors[0] ===
-      '[ede_diagnostic] result_type=assistant last_content_type=tool_use stop_reason=null',
-    JSON.stringify(errors[0]),
-  )
+  const res = outcomeOf(r.yields)!
+  check('outcome status failed', res.status === 'failed', String(res.status))
+  check('the error class is model', errorOf(res).class === 'model', String(errorOf(res).class))
+  check('the message is the terminal\'s error', errorOf(res).message === 'the rig model failed', String(errorOf(res).message))
+  const detail = (errorOf(res).detail ?? []) as string[]
   check(
     'the in-turn error is included (watermark scope)',
-    errors.some(e => e.includes('IN-TURN rig error')),
-    JSON.stringify(errors),
+    detail.some(e => e.includes('IN-TURN rig error')),
+    JSON.stringify(detail),
   )
   check(
     'the pre-turn error is EXCLUDED (watermark scope)',
-    !errors.some(e => e.includes('PRE-TURN error')),
-    JSON.stringify(errors),
+    !detail.some(e => e.includes('PRE-TURN error')),
+    JSON.stringify(detail),
   )
+  check('the open step still flushes before the outcome', r.yields.filter(y => y.type === 'step').length === 1 && r.yields.at(-1) === res)
 }
 
-section('E12 END-TURN CARVE-OUT — zero assistant content, end_turn ⇒ empty success')
+section('E12 END-TURN WITHOUT CONTENT — a content-free completed terminal is a completed outcome with an empty answer')
 {
   const r = await runEngine({
     steps: [ey(msgDelta(undefined, 'end_turn'))],
   })
-  const res = lastResult(r.yields)!
+  const res = outcomeOf(r.yields)!
   check(
-    'result success on a content-free end_turn turn (the carve-out)',
-    res.subtype === 'success',
-    String(res.subtype),
+    'outcome completed on a content-free end_turn turn',
+    res.status === 'completed',
+    String(res.status),
   )
-  check("result text ''", res.result === '', JSON.stringify(res.result))
-  check("stop_reason 'end_turn'", res.stop_reason === 'end_turn')
-  check('num_turns 1', res.num_turns === 1, String(res.num_turns))
+  check("answer ''", res.answer === '', JSON.stringify(res.answer))
+  check("stop 'end_turn'", res.stop === 'end_turn')
+  check('steps 0', res.steps === 0, String(res.steps))
 }
 
-section('E13 DENIALS — recorded via the wrap; Agent→Task rename; allow silent')
+section('E13 DENIALS — recorded via the wrap; the Agent tool under its own name; allow silent')
 {
   const denyAll = async (): Promise<PermissionDecision> => ({
     behavior: 'deny',
@@ -778,17 +707,17 @@ section('E13 DENIALS — recorded via the wrap; Agent→Task rename; allow silen
       ey(msgDelta(undefined, 'end_turn')),
     ],
   })
-  const denials = (lastResult(r.yields)!.permission_denials ?? []) as AnyMsg[]
+  const denials = (outcomeOf(r.yields)!.denials ?? []) as AnyMsg[]
   check('two denials recorded', denials.length === 2, JSON.stringify(denials))
   check(
-    "the Agent tool reports under its own name (the compat rename retired)",
-    denials[0]?.tool_name === 'Agent',
-    String(denials[0]?.tool_name),
+    'the Agent tool reports under its own name',
+    denials[0]?.tool === 'Agent',
+    String(denials[0]?.tool),
   )
   check(
-    'denial carries tool_use_id + tool_input',
-    denials[0]?.tool_use_id === 'tu_perm1' &&
-      JSON.stringify(denials[0]?.tool_input) === JSON.stringify({ x: 1 }),
+    'a denial carries the call id and the input',
+    denials[0]?.call_id === 'tu_perm1' &&
+      JSON.stringify(denials[0]?.input) === JSON.stringify({ x: 1 }),
     JSON.stringify(denials[0]),
   )
 
@@ -810,7 +739,7 @@ section('E13 DENIALS — recorded via the wrap; Agent→Task rename; allow silen
   })
   check(
     'an allow decision records NO denial',
-    ((lastResult(r2.yields)!.permission_denials ?? []) as unknown[]).length === 0,
+    ((outcomeOf(r2.yields)!.denials ?? []) as unknown[]).length === 0,
   )
 }
 
@@ -823,23 +752,23 @@ section('E14 BUDGET — a zero budget preempts after the FIRST yield, before con
       ey(asstText('NEVER PROJECTED — budget preempts first')),
     ],
   })
-  const res = lastResult(r.yields)!
-  check('result subtype error_max_budget_usd', res.subtype === 'error_max_budget_usd', String(res.subtype))
-  check('is_error true', res.is_error === true)
+  const res = outcomeOf(r.yields)!
+  check('outcome status budget_limit', res.status === 'budget_limit', String(res.status))
+  check('the error class is budget_limit', errorOf(res).class === 'budget_limit')
   check(
-    'errors[] names the budget',
-    Array.isArray(res.errors) && String(res.errors[0]).includes('maximum budget ($0)'),
-    JSON.stringify(res.errors),
+    'the error names the budget',
+    String(errorOf(res).message).includes('maximum budget of $0'),
+    JSON.stringify(res.error),
   )
   check(
-    'CHARACTERIZED: the check runs after EVERY message type — zero assistant yields',
-    r.yields.filter(y => y.type === 'assistant').length === 0,
-    sdkTypes(r.yields).join(','),
+    'CHARACTERIZED: the check runs after EVERY message type — zero text rows',
+    r.yields.filter(y => y.type === 'text').length === 0,
+    rowTypes(r.yields).join(','),
   )
   check('the generator was closed early', scriptFinallyRan && !scriptRanToEnd)
 }
 
-section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ typed error on the user yield')
+section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ schema_unmet on the user yield')
 {
   const steps: EngineStep[] = []
   for (let i = 1; i <= 5; i++) {
@@ -848,21 +777,21 @@ section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ typed error on th
   }
   steps.push(ey(asstText('NEVER REACHED')))
   const r = await runEngine({ jsonSchema: { type: 'object' }, steps })
-  const res = lastResult(r.yields)!
+  const res = outcomeOf(r.yields)!
   check(
-    'result subtype error_max_structured_output_retries',
-    res.subtype === 'error_max_structured_output_retries',
-    String(res.subtype),
+    'outcome status schema_unmet',
+    res.status === 'schema_unmet',
+    String(res.status),
   )
   check(
-    'errors[] names the retry ceiling (default 5)',
-    Array.isArray(res.errors) && String(res.errors[0]).includes('after 5 attempts'),
-    JSON.stringify(res.errors),
+    'the detail names the retry ceiling (default 5)',
+    Array.isArray(errorOf(res).detail) && String((errorOf(res).detail as string[])[0]).includes('after 5 attempts'),
+    JSON.stringify(res.error),
   )
-  check('num_turns 6 (1 + five user yields)', res.num_turns === 6, String(res.num_turns))
+  check('steps 5 (five model calls)', res.steps === 5, String(res.steps))
   check(
     'the post-ceiling assistant never projects',
-    !sdkAssistantTexts(r.yields).includes('NEVER REACHED'),
+    !textRows(r.yields).includes('NEVER REACHED'),
   )
   check(
     'fewer calls do NOT trip the ceiling',
@@ -875,47 +804,38 @@ section('E15 SO RETRY CEILING — 5 synthetic-output calls ⇒ typed error on th
       okSteps.push(ey(asstText('made it')))
       okSteps.push(ey(msgDelta(undefined, 'end_turn')))
       const r2 = await runEngine({ jsonSchema: { type: 'object' }, steps: okSteps })
-      return lastResult(r2.yields)!.subtype === 'success'
+      return outcomeOf(r2.yields)!.status === 'completed'
     })(),
   )
 }
 
-section('E16 NO-QUERY — local command: init + synthetic assistant + resultText, zero query calls')
+section('E16 NO-QUERY — local command: the turn row, a command_output row, the answer, zero query calls')
 {
   const r = await runEngine({ prompt: '/rigcmd hello', steps: [] })
   check('zero query() calls on the no-query path', r.calls.length === 0, String(r.calls.length))
-  check('system:init still yielded', sdkTypes(r.yields)[0] === 'system:init')
-  const asst = r.yields.find(y => y.type === 'assistant')
-  const asstText0 = (
-    (asst?.message as { content?: Array<{ text?: string }> } | undefined)?.content ?? []
-  )[0]?.text
+  check('the turn row still opens the turn', rowTypes(r.yields)[0] === 'turn:started')
+  const output = r.yields.find(y => y.type === 'command_output')
   check(
-    'local stdout projects as a synthetic SDK assistant — TAGS STRIPPED, model <synthetic>',
-    asst !== undefined &&
-      asstText0 === 'local says hello' &&
-      (asst.message as AnyMsg).model === '<synthetic>',
-    JSON.stringify(asst?.message ?? null),
+    'the local output projects as a command_output row — TAGS STRIPPED, the command named',
+    output !== undefined && output.text === 'local says hello' && output.command === '/rigcmd',
+    JSON.stringify(output ?? null),
   )
-  const res = lastResult(r.yields)!
-  check('result success', res.subtype === 'success')
+  const res = outcomeOf(r.yields)!
+  check('outcome completed', res.status === 'completed')
   check(
-    'result text is the local resultText',
-    res.result === 'local says hello',
-    JSON.stringify(res.result),
+    'the answer is the local command\'s own words',
+    res.answer === 'local says hello',
+    JSON.stringify(res.answer),
   )
-  check(
-    'CHARACTERIZED: no-query num_turns is a MESSAGE COUNT (store length - 1), not turns',
-    res.num_turns === r.engine.getMessages().length - 1,
-    `num_turns=${String(res.num_turns)} store=${r.engine.getMessages().length}`,
-  )
-  check("stop_reason null on the no-query result", res.stop_reason === null)
+  check('steps 0 on the no-query path', res.steps === 0, String(res.steps))
+  check('no stop word on the no-query outcome', res.stop === undefined)
 }
 
-section('E17 INTERRUPT — interrupt() aborts the shared controller; projection is abort-blind')
+section('E17 INTERRUPT — interrupt() aborts the shared controller; the projection is abort-blind')
 {
   const controller = new AbortController()
   let observedAborted: boolean | null = null
-  let engineRef: InstanceType<typeof QueryEngine> | null = null
+  let engineRef: InstanceType<typeof Conversation> | null = null
   const engine = makeEngine({ abortController: controller })
   engineRef = engine
   const r = await runEngine({
@@ -940,15 +860,15 @@ section('E17 INTERRUPT — interrupt() aborts the shared controller; projection 
   check('interrupt() aborts the controller threaded into toolUseContext', observedAborted === true)
   check(
     'CHARACTERIZED: the projection is abort-blind — post-abort yields still project',
-    sdkAssistantTexts(r.yields).includes('after interrupt — still projected'),
+    textRows(r.yields).includes('after interrupt — still projected'),
   )
   check(
-    'the run still synthesizes its result (abort semantics live in query(), not the engine)',
-    lastResult(r.yields) !== undefined,
+    'the run still synthesizes its outcome (abort semantics live in query(), not the turn)',
+    outcomeOf(r.yields) !== undefined,
   )
 }
 
-section('E18 MULTI-TURN — state persists across submitMessage; setModel applies next turn')
+section('E18 MULTI-TURN — state persists across turns; setModel applies next turn')
 {
   const engine = makeEngine({})
   const r1 = await runEngine({
@@ -956,27 +876,28 @@ section('E18 MULTI-TURN — state persists across submitMessage; setModel applie
     prompt: 'first turn prompt',
     steps: [ey(asstText('turn one answer')), ey(msgDelta(undefined, 'end_turn'))],
   })
-  check('turn 1 success', lastResult(r1.yields)!.subtype === 'success')
+  check('turn 1 completed', outcomeOf(r1.yields)!.status === 'completed')
+  check('turn 1 is turn 1', r1.yields[0]!.turn === 1 && outcomeOf(r1.yields)!.turn === 1)
   engine.setModel(MODEL2)
   const r2 = await runEngine({
     engine,
     prompt: 'second turn prompt',
     steps: [ey(asstText('turn two answer')), ey(msgDelta(undefined, 'end_turn'))],
   })
-  check('turn 2 init yielded (one init PER submitMessage)', sdkTypes(r2.yields)[0] === 'system:init')
+  check('turn 2 opens with its own turn row (one per turn)', rowTypes(r2.yields)[0] === 'turn:started' && r2.yields[0]!.turn === 2)
   check(
     'setModel applies to the next turn',
     r2.yields[0]!.model === MODEL2 && r2.calls[0]!.mainLoopModel === MODEL2,
-    `init=${String(r2.yields[0]!.model)} query=${String(r2.calls[0]!.mainLoopModel)}`,
+    `turn=${String(r2.yields[0]!.model)} query=${String(r2.calls[0]!.mainLoopModel)}`,
   )
   const turn2Input = r2.calls[0]!.messages
   check(
-    "turn 2's query input carries turn 1's conversation (engine state persists)",
+    "turn 2's query input carries turn 1's conversation (state persists)",
     JSON.stringify(turn2Input).includes('turn one answer') &&
       JSON.stringify(turn2Input).includes('first turn prompt'),
   )
   check(
-    'the engine store holds both turns',
+    'the conversation holds both turns',
     JSON.stringify(engine.getMessages()).includes('turn two answer'),
   )
 }
@@ -1610,28 +1531,28 @@ let recordedYields: unknown[] = []
   )
 }
 
-section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through QueryEngine')
+section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through the turn')
 {
   const r = await runEngine({
     prompt: 'replay corpus prompt',
     steps: recordedYields.map(m => ey(m)),
   })
-  const res = lastResult(r.yields)!
-  check('the replayed corpus synthesizes success', res.subtype === 'success', String(res.subtype))
+  const res = outcomeOf(r.yields)!
+  check('the replayed corpus settles completed', res.status === 'completed', String(res.status))
   check(
-    'the SDK projection carries the same final text the interactive projection saw',
-    res.result === 'equivalence corpus final answer',
-    JSON.stringify(res.result),
+    'the row projection carries the same final text the interactive projection saw',
+    res.answer === 'equivalence corpus final answer',
+    JSON.stringify(res.answer),
   )
   check(
-    "stop_reason re-derived from the corpus deltas ('end_turn')",
-    res.stop_reason === 'end_turn',
-    String(res.stop_reason),
+    "the stop word re-derived from the corpus deltas ('end_turn')",
+    res.stop === 'end_turn',
+    String(res.stop),
   )
   check(
-    'num_turns 2 (the corpus tool_result user message counted)',
-    res.num_turns === 2,
-    String(res.num_turns),
+    'steps 2 (the corpus carried two model calls)',
+    res.steps === 2,
+    String(res.steps),
   )
   const usage = res.usage as Record<string, number>
   check(
@@ -1640,23 +1561,16 @@ section('X1 CROSS-SURFACE REPLAY — the recorded corpus replayed through QueryE
     JSON.stringify({ i: usage.input_tokens, o: usage.output_tokens }),
   )
   check(
-    'the tool round projects on the SDK surface too (assistant tool_use + user tool_result)',
-    r.yields.some(
-      y => y.type === 'assistant' && JSON.stringify(y.message).includes('tu_eq'),
-    ) &&
-      r.yields.some(
-        y =>
-          y.type === 'user' &&
-          y.is_replay !== true &&
-          JSON.stringify(y.message).includes('tu_eq'),
-      ),
+    'the tool round projects on the row surface too (tool_call + tool_result under one call id)',
+    r.yields.some(y => y.type === 'tool_call' && y.call_id === 'tu_eq') &&
+      r.yields.some(y => y.type === 'tool_result' && y.call_id === 'tu_eq'),
   )
 }
 
 section('T10 ORDERING — transcript persistence discipline (source-anchored)')
 {
   const engineSrc = readFileSync(
-    new URL('../../src/QueryEngine.ts', import.meta.url),
+    new URL('../../src/rows/turn.ts', import.meta.url),
     'utf8',
   )
   const recordAt = engineSrc.indexOf('if (isBoundary && !persistenceDisabled) {')

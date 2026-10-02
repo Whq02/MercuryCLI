@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/Tool* src/bootstrap/state* src/cli/print* src/cli/structuredIO*
-# gate-watch: src/utils/hooks/sessionHooks* src/QueryEngine*
+# gate-watch: src/utils/hooks/sessionHooks* src/rows/turn.ts
 # gate-watch: src/utils/sdkEventQueue* src/utils/task/sdkAgentFrames* src/tools/AgentTool/foregroundExecution* src/tools/AgentTool/agentToolUtils* src/cost-tracker*
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/cli/headless/turnDriver.ts src/cli/headless/hostAskLiveness.ts
 # gate-watch: src/entrypoints/sdk/* src/input-core/command-queue.ts src/services/api/withRetry.ts

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { bootRunner } from '../daemon/dupline-world.ts'
-import { bound, childEnv, findTranscripts, isResult, makeTally, requireDist, runTurn, scratchWorld, seedScratchHome, startScriptedFixture, user, type Script } from '../lib/scratchSeat.ts'
+import { bound, childEnv, findTranscripts, isOutcome, makeTally, requireDist, runTurn, scratchWorld, seedScratchHome, startScriptedFixture, user, type Script } from '../lib/scratchSeat.ts'
 
 requireDist()
 const tally = makeTally('prove-empty-text-block')
@@ -18,7 +18,7 @@ const first = await runTurn({ runHome, cwd, base: fixture.base, ask: 'empty bloc
 await fixture.close()
 const sid = String(first.result?.session_id ?? '')
 const path = findTranscripts(runHome)[0]
-tally.check('turn 1 settled and wrote a transcript', first.result?.subtype === 'success' && path !== undefined)
+tally.check('turn 1 settled and wrote a transcript', first.result?.status === 'completed' && path !== undefined)
 
 tally.section('the transcript now holds an assistant turn with an empty text block beside its tool_use')
 const lines = readFileSync(path!, 'utf8').split('\n').filter(l => l.trim() !== '')
@@ -72,7 +72,7 @@ await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
 const port = (server.address() as { port: number }).port
 const runner = bootRunner({ cwd, env: childEnv(runHome, port), extraArgv: ['--resume', sid] })
 runner.send(user('empty block probe second', randomUUID()))
-const second = await runner.waitFor('result', isResult, bound(90_000))
+const second = await runner.waitFor('outcome', isOutcome, bound(90_000))
 await runner.stop(bound(5_000))
 server.close()
 tally.check('turn 2 settled in the same session', second !== null && (second as Rec).session_id === sid, JSON.stringify(second).slice(0, 120))

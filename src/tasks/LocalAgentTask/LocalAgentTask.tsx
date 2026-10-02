@@ -35,7 +35,7 @@ import {
 } from '../../utils/task/diskOutput.js'
 import { PANEL_GRACE_MS, registerTask, updateTaskState } from '../../utils/task/framework.js'
 import { emitTaskProgress } from '../../utils/task/sdkProgress.js'
-import { emitTaskTerminatedSdk, enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
+import { emitTaskEnded, enqueueRow } from '../../utils/sdkEventQueue.js'
 import { AGENT_MESSAGE_STATUS, MAIN_AGENT_MESSAGE_SUMMARY } from '../../constants/agentMessage.js'
 import { foldAgentWaitEvent, type AgentWaitV1 } from './agentWait.js'
 import { pauseClockWords, type AgentPauseV1 } from './agentPause.js'
@@ -45,6 +45,8 @@ import { observedFamilyWindow } from '../../services/capFailover.js'
 import { CREW_INTERRUPTED_BY_OPERATOR_WORDS } from '../../services/engine-connector/crewFacts.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getSessionId } from '../../bootstrap/state.js'
+import { taskRow } from '../../rows/project.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -459,13 +461,7 @@ export function enqueueMessageToMainAgent(args: { fromTaskId: string; descriptio
 
 export function speakAgentMessageFrame(taskId: string, notice: string): void {
   const summary = new RegExp(`<${SUMMARY_TAG}>([\\s\\S]*?)</${SUMMARY_TAG}>`).exec(notice)?.[1]?.trim()
-  enqueueSdkEvent({
-    type: 'system',
-    subtype: 'task_notification',
-    task_id: taskId,
-    output_file: getTaskOutputPath(taskId),
-    summary: summary === undefined || summary === '' ? 'a message' : summary,
-  })
+  enqueueRow(taskRow({ session_id: getSessionId() }, { state: 'progress', taskId, outputFile: getTaskOutputPath(taskId), summary: summary === undefined || summary === '' ? 'a message' : summary }))
 }
 
 export function crewStillRunning(tasks: Record<string, unknown> | undefined): number {
@@ -720,7 +716,7 @@ export function completeAgentTask(
 }
 
 function emitSettleFrame(task: LocalAgentTaskState, status: 'completed' | 'failed'): void {
-  emitTaskTerminatedSdk(task.id, status, {
+  emitTaskEnded(task.id, status, {
     ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
     summary: task.description,
   })
@@ -794,7 +790,7 @@ export function stopRunningAgentTasks(
   killAllRunningAgentTasks(tasks, setAppState)
   for (const task of running) {
     markAgentsNotified(task.id, setAppState)
-    emitTaskTerminatedSdk(task.id, 'stopped', {
+    emitTaskEnded(task.id, 'stopped', {
       ...(task.toolUseId !== undefined ? { toolUseId: task.toolUseId } : {}),
       summary: task.description,
     })

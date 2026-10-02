@@ -277,14 +277,11 @@ if (process.argv[2] === '--serve') {
   const assistantTexts = (run: Run): string[] => {
     const out: string[] = []
     for (const frame of run.frames) {
-      if (frame.type !== 'assistant') continue
-      const content = (frame.message as { content?: Array<{ type?: string; text?: string }> } | undefined)?.content
-      if (!Array.isArray(content)) continue
-      for (const block of content) if (block.type === 'text' && typeof block.text === 'string') out.push(block.text)
+      if (frame.type === 'text' && typeof frame.text === 'string') out.push(frame.text)
     }
     return out
   }
-  const resultFrame = (run: Run): Record<string, unknown> | undefined => run.frames.find(f => f.type === 'result')
+  const resultFrame = (run: Run): Record<string, unknown> | undefined => run.frames.find(f => f.type === 'outcome')
   const recordFiles = (dir: string): string[] => {
     if (!existsSync(dir)) return []
     const out: string[] = []

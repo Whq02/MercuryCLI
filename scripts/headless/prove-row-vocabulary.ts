@@ -56,7 +56,7 @@ const projected: Record<string, unknown[]> = {
   outcome: [project.outcomeRow(scope, { turnId: 't-1', status: 'completed', stopReason: 'end_turn', answer: 'done', steps: 1, wallMs: 10, apiMs: 5, costUsd: 0.01, usage, models: project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0.01 } }), denials: [] })],
   wait: [project.waitRow(scope, null), project.retryWaitRow(scope, { attempt: 1, of: 3, reason: 'overloaded', delayMs: 100, httpStatus: 529, sinceMs: 0 })],
   heartbeat: [project.heartbeatRow(scope)],
-  compaction: [project.compactionRow(scope, null, 'manual'), project.compactionEndedRow(scope, { trigger: 'auto', tokensBefore: 1000 })],
+  compaction: [project.compactionRow(scope, null, 'manual'), project.compactionEndedRow(scope, { trigger: 'auto', tokensBefore: 1000 }), project.compactionClearedRow(scope, 'auto')],
   mode: [project.modeRow(scope, 'default')],
   rate_limit: [project.rateLimitRow(scope, { status: 'allowed_warning', isUsingOverage: false, utilization: 0.9 })],
   task: [project.taskRow(scope, { state: 'started', taskId: 'task-1', description: 'd' })],

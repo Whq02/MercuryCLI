@@ -120,13 +120,14 @@ type ContentBlock = { type?: string; text?: string; thinking?: string; id?: stri
 
 export type ItemRow = Unstamped<TextRow> | Unstamped<ReasoningRow> | Unstamped<ToolCallRow>
 
-export function itemRowsOf(scope: RowScope, messageId: string, content: unknown): ItemRow[] {
+export function itemRowsOf(scope: RowScope, messageId: string, content: unknown, firstBlock = 0): ItemRow[] {
   if (typeof content === 'string') {
-    return content === '' ? [] : [scoped(scope, { type: 'text' as const, message_id: messageId, block: 0, text: content })]
+    return content === '' ? [] : [scoped(scope, { type: 'text' as const, message_id: messageId, block: firstBlock, text: content })]
   }
   if (!Array.isArray(content)) return []
   const rows: ItemRow[] = []
-  ;(content as ContentBlock[]).forEach((block, index) => {
+  ;(content as ContentBlock[]).forEach((block, offset) => {
+    const index = firstBlock + offset
     switch (block.type) {
       case 'text':
         if (typeof block.text === 'string' && block.text !== '') {
@@ -149,6 +150,7 @@ export function itemRowsOf(scope: RowScope, messageId: string, content: unknown)
         break
       case 'tool_use':
       case 'server_tool_use':
+      case 'mcp_tool_use':
         rows.push(
           scoped(scope, {
             type: 'tool_call' as const,
@@ -338,6 +340,10 @@ export function compactionEndedRow(scope: RowScope, facts: { trigger: Compaction
   return scoped(scope, { type: 'compaction' as const, state: 'ended' as const, trigger: facts.trigger, exit: 'landed' as const, ...(facts.tokensBefore !== undefined ? { tokens_before: facts.tokensBefore } : {}) })
 }
 
+export function compactionClearedRow(scope: RowScope, trigger: CompactionRow['trigger']): Unstamped<CompactionRow> {
+  return scoped(scope, { type: 'compaction' as const, state: 'ended' as const, trigger })
+}
+
 export function modeRow(scope: RowScope, mode: string): Unstamped<ModeRow> {
   return scoped(scope, { type: 'mode' as const, mode })
 }
@@ -443,7 +449,7 @@ export function partialRowsOf(scope: RowScope, messageId: string, event: StreamE
       if (block?.type === 'thinking' || block?.type === 'redacted_thinking') {
         return [scoped(scope, { type: 'block_start' as const, message_id: messageId, block: index, of: 'reasoning' as const })]
       }
-      if (block?.type === 'tool_use' || block?.type === 'server_tool_use') {
+      if (block?.type === 'tool_use' || block?.type === 'server_tool_use' || block?.type === 'mcp_tool_use') {
         const rows: PartialRow[] = [
           scoped(scope, {
             type: 'block_start' as const,

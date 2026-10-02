@@ -178,17 +178,21 @@ async function driveProtocol(): Promise<void> {
   check('the initialize ack carries the command roster', initPayload.includes('commands'), initPayload.slice(0, 200))
 
   send({ type: 'user', message: { role: 'user', content: 'headless probe one' }, parent_tool_use_id: null })
-  const sysInit = await waitFor(e => e.type === 'system' && e.subtype === 'init', 'system:init')
-  check('the turn opens with system:init', !!sysInit)
-  const result1 = (await waitFor(e => e.type === 'result', 'first result')) as
-    | (Envelope & { result?: string; is_error?: boolean })
+  const sessionRow = await waitFor(e => e.type === 'session', 'session row')
+  check('the stream opens with the session row', !!sessionRow && (sessionRow as { schema?: unknown }).schema === 1)
+  const turnRow = await waitFor(e => e.type === 'turn' && (e as { state?: unknown }).state === 'started', 'turn row')
+  check('the turn opens with its turn row', !!turnRow)
+  const result1 = (await waitFor(e => e.type === 'outcome', 'first outcome')) as
+    | (Envelope & { answer?: string; status?: string })
     | undefined
-  check('the turn closes with result:success carrying the scripted text', result1?.subtype === 'success' && result1?.result === 'H-TURN-ONE.', j({ s: result1?.subtype, r: result1?.result }))
-  check('an assistant envelope carried the text first', envelopes.some(e => e.type === 'assistant' && j(e).includes('H-TURN-ONE.')))
+  check('the turn closes with a completed outcome carrying the scripted text', result1?.status === 'completed' && result1?.answer === 'H-TURN-ONE.', j({ s: result1?.status, r: result1?.answer }))
+  check('a text row carried the text first', envelopes.some(e => e.type === 'text' && j(e).includes('H-TURN-ONE.')))
 
   send({ type: 'control_request', request_id: 'req_mode', request: { subtype: 'set_permission_mode', mode: 'implement' } })
   const modeResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_mode'), 'mode ack')
   check('set_permission_mode is acknowledged', !!modeResp && j(modeResp).includes('"success"'), j(modeResp ?? {}).slice(0, 200))
+  const modeRow = await waitFor(e => e.type === 'mode', 'the mode row')
+  check('the applied mode rides the stream as a mode row carrying the word', modeRow?.mode === 'implement', j(modeRow ?? {}).slice(0, 200))
 
   send({ type: 'user', message: { role: 'user', content: 'headless probe two' }, parent_tool_use_id: null })
   await fixture.messageRequestStarted(2)
@@ -197,22 +201,22 @@ async function driveProtocol(): Promise<void> {
   const intResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_int'), 'interrupt ack')
   check('interrupt is acknowledged', !!intResp && j(intResp).includes('"success"'), j(intResp ?? {}).slice(0, 200))
   const result2 = (await waitFor(
-    e => e.type === 'result' && e !== (result1 as unknown),
-    'post-interrupt result',
-  )) as Envelope | undefined
+    e => e.type === 'outcome' && e !== (result1 as unknown),
+    'post-interrupt outcome',
+  )) as (Envelope & { status?: string }) | undefined
   check(
-    'the interrupted turn terminalizes as error_during_execution (is_error)',
-    result2?.subtype === 'error_during_execution' && (result2 as { is_error?: boolean })?.is_error === true,
-    j({ s: result2?.subtype }),
+    'the interrupted turn settles interrupted',
+    result2?.status === 'interrupted',
+    j({ s: result2?.status }),
   )
   const result3 = (await waitFor(
-    e => e.type === 'result' && e !== (result1 as unknown) && e !== (result2 as unknown),
-    'queued-prompt result',
-  )) as (Envelope & { result?: string }) | undefined
+    e => e.type === 'outcome' && e !== (result1 as unknown) && e !== (result2 as unknown),
+    'queued-prompt outcome',
+  )) as (Envelope & { answer?: string; status?: string }) | undefined
   check(
-    'the prompt queued during the hang runs right after the interrupt, unnudged (result:success with its text)',
-    result3?.subtype === 'success' && result3?.result === 'H-TURN-THREE.',
-    j({ s: result3?.subtype, r: result3?.result }),
+    'the prompt queued during the hang runs right after the interrupt, unnudged (a completed outcome with its text)',
+    result3?.status === 'completed' && result3?.answer === 'H-TURN-THREE.',
+    j({ s: result3?.status, r: result3?.answer }),
   )
   const thirdCall = fixture.messageRequests()[2]
   check(
@@ -224,14 +228,14 @@ async function driveProtocol(): Promise<void> {
   await fixture.messageRequestStarted(4)
   send({ type: 'control_request', request_id: 'req_int2', request: { subtype: 'interrupt' } })
   const result4 = (await waitFor(
-    e => e.type === 'result' && ![result1, result2, result3].includes(e as never),
-    'second post-interrupt result',
-  )) as Envelope | undefined
-  check('the second interrupted turn terminalizes as error_during_execution too', result4?.subtype === 'error_during_execution', j({ s: result4?.subtype }))
+    e => e.type === 'outcome' && ![result1, result2, result3].includes(e as never),
+    'second post-interrupt outcome',
+  )) as (Envelope & { status?: string }) | undefined
+  check('the second interrupted turn settles interrupted too', result4?.status === 'interrupted', j({ s: result4?.status }))
 
   child.stdin.end()
   const { exit } = await exited
-  check("stdin end → the exit code carries the last turn's is_error (1 here)", exit === 1, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
+  check("stdin end → the exit code carries the last turn's status (interrupted ⇒ 1 here)", exit === 1, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
   check('every stdout line is individually JSON-parseable', unparseable === 0, `${unparseable} unparseable of ${lines.length}`)
   check('exactly four model calls — an interrupted turn never continues; only the QUEUED prompt ran after it', fixture.messageRequests().length === 4, `${fixture.messageRequests().length}`)
   await fixture.close()

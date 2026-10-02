@@ -61,6 +61,11 @@ export const ERROR_CLASSES = [
   'command',
   'hook',
   'load',
+  'interrupt',
+  'turn_limit',
+  'budget_limit',
+  'schema_unmet',
+  'loop_stopped',
 ] as const
 export type ErrorClass = (typeof ERROR_CLASSES)[number]
 

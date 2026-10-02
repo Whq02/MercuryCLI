@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/services/run/** src/utils/hooks/missionHook*
 # gate-watch: src/utils/hooks/runStopAdapter* src/utils/hooks/runStopHook* src/utils/hooks/supervisorGate* src/query/stopHooks*
-# gate-watch: src/utils/verification/verificationState* src/substrate/pidLock* src/QueryEngine*
+# gate-watch: src/utils/verification/verificationState* src/substrate/pidLock* src/rows/turn.ts
 # gate-watch: src/services/providers/openai/openaiWire* src/services/providers/openai/openaiCallModel*
 # gate-watch: src/rows/* src/runner/wire/*
 set -u

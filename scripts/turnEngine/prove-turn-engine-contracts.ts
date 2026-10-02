@@ -23,7 +23,7 @@ function moduleText(file: string, subdir: string): string {
 }
 
 const q = moduleText('src/query.ts', 'src/query') + moduleText('src/run-core/events.ts', 'src/run-core')
-const qe = moduleText('src/QueryEngine.ts', 'src/QueryEngine')
+const qe = moduleText('src/rows/turn.ts', 'src/rows/turn')
 
 console.log('============================================================')
 console.log(' Turn-engine preserve-contracts (R7) — the off-dist core')
@@ -46,7 +46,7 @@ console.log('\n── message recording order ──')
 check('recordTranscript is called from the engine (persistence rides the turn)', /recordTranscript\(/.test(q) || /recordTranscript\(/.test(qe))
 
 console.log('\n── engine wiring ──')
-check('QueryEngine drives queryEvents() (the ask path routes through the generator)', /queryEvents\(/.test(qe))
+check('the turn drives queryEvents() (the ask path routes through the generator)', /queryEvents\(/.test(qe))
 check('both modules bun-load (import graph intact)', true )
 
 console.log('\n' + '═'.repeat(60))

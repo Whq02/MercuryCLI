@@ -52,8 +52,8 @@ import {
   isToolUseResultMessage,
   normalizeMessages,
 } from '../../utils/messages.js'
-import { enqueueSdkEvent } from '../../utils/sdkEventQueue.js'
-import { emitBackgroundAgentFrames } from '../../utils/task/sdkAgentFrames.js'
+import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
+import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import { getAssistantMessageContentLength } from '../../utils/tokens.js'
 import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
@@ -250,7 +250,7 @@ export async function runForegroundAgentExecution(
       while (!step.done) {
         const message = step.value
         agentMessages.push(message)
-        emitBackgroundAgentFrames(toolUseContext.toolUseId, backgroundedTaskId, message)
+        emitBackgroundAgentRows(toolUseContext.toolUseId, message)
         updateProgressFromMessage(
           tracker,
           message,
@@ -662,21 +662,10 @@ export async function runForegroundAgentExecution(
             pauseAgentTask(foregroundTask.taskId, windowPause, rootSetAppState, foregroundTask.abortController)
           }
         }
-        enqueueSdkEvent({
-          type: 'system',
-          subtype: 'task_notification',
-          task_id: foregroundTask.taskId,
-          ...(toolUseContext.toolUseId !== undefined
-            ? { tool_use_id: toolUseContext.toolUseId }
-            : {}),
-          status,
-          output_file: '',
+        emitTaskEnded(foregroundTask.taskId, status, {
+          ...(toolUseContext.toolUseId !== undefined ? { toolUseId: toolUseContext.toolUseId } : {}),
           summary: description,
-          usage: {
-            total_tokens: getTokenCountFromTracker(tracker),
-            tool_uses: tracker.toolUseCount,
-            duration_ms: Date.now() - agentStartTime,
-          },
+          usage: { tokens: getTokenCountFromTracker(tracker), toolUses: tracker.toolUseCount, durationMs: Date.now() - agentStartTime },
         })
       }
     }

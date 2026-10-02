@@ -216,7 +216,7 @@ async function drive(): Promise<void> {
   const send = (o: unknown): void => {
     child.stdin.write(JSON.stringify(o) + '\n')
   }
-  const resultCount = (): number => envelopes.filter(e => e.type === 'result').length
+  const resultCount = (): number => envelopes.filter(e => e.type === 'outcome').length
 
   section('§1 — initialize')
   send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
@@ -226,18 +226,18 @@ async function drive(): Promise<void> {
   section('§2 — a bash-mode line runs as a shell in the session process; the runner lives on')
   const nonce = `bash-line-${randomUUID().slice(0, 8)}`
   send({ type: 'user', message: { role: 'user', content: `echo ${nonce}` }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
-  const result1 = (await waitFor(e => e.type === 'result', 'the echo line result', TURN_MS)) as
-    | (Envelope & { is_error?: boolean; session_id?: string })
+  const result1 = (await waitFor(e => e.type === 'outcome', 'the echo line outcome', TURN_MS)) as
+    | (Envelope & { status?: string; session_id?: string })
     | undefined
   check(
-    'the bash line settles as result:success — no refusal, no error envelope',
-    result1?.subtype === 'success' && result1?.is_error !== true,
-    j({ subtype: result1?.subtype, is_error: result1?.is_error, stderr: stderr.slice(0, 200) }),
+    'the bash line settles as a completed outcome — no refusal, no error',
+    result1?.status === 'completed',
+    j({ status: result1?.status, stderr: stderr.slice(0, 200) }),
   )
   check('the runner is still running after the bash line', !exitedEarly && child.exitCode === null)
-  const initFrame = envelopes.find(e => e.type === 'system' && e.subtype === 'init') as (Envelope & { session_id?: string }) | undefined
+  const initFrame = envelopes.find(e => e.type === 'session') as (Envelope & { session_id?: string }) | undefined
   const sessionId = String(initFrame?.session_id ?? result1?.session_id ?? '')
-  check('the turn carries a session id (system:init / result)', sessionId.length > 0)
+  check('the turn carries a session id (the session row / the outcome)', sessionId.length > 0)
   check(
     "the shell RAN: its stdout landed in the session transcript under the bash-stdout tag",
     await transcriptCarries(configDir, sessionId, `<bash-stdout>${nonce}`, TURN_MS / 6),
@@ -263,19 +263,19 @@ async function drive(): Promise<void> {
   )
   const seenResults = new Set<Envelope>([result1 as Envelope])
   const nextResult = async (label: string, timeoutMs: number): Promise<Envelope | undefined> => {
-    const e = await waitFor(x => x.type === 'result' && !seenResults.has(x), label, timeoutMs)
+    const e = await waitFor(x => x.type === 'outcome' && !seenResults.has(x), label, timeoutMs)
     if (e) seenResults.add(e)
     return e
   }
   send({ type: 'user', message: { role: 'user', content: 'true' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
   const resultTrue = await nextResult('the true line result', TURN_MS)
-  check('a silent `true` line settles as result:success', resultTrue?.subtype === 'success', j({ subtype: resultTrue?.subtype }))
+  check('a silent `true` line settles as a completed outcome', resultTrue?.status === 'completed', j({ status: resultTrue?.status }))
   const trueRow = await rowAfterInput(configDir, sessionId, 'true', TURN_MS / 6)
   const trueExit = exitOf(trueRow)
   check('`true` lands a row naming exit 0 and a duration', trueExit !== null && trueExit.code === 0 && trueExit.durationMs >= 0, quote(trueRow))
   send({ type: 'user', message: { role: 'user', content: 'false' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
   const resultFalse = await nextResult('the false line result', TURN_MS)
-  check('a failing `false` line settles as result:success too — the shell path lands a row, never an error envelope', resultFalse?.subtype === 'success', j({ subtype: resultFalse?.subtype }))
+  check('a failing `false` line settles as a completed outcome too — the shell path lands a row, never an error', resultFalse?.status === 'completed', j({ status: resultFalse?.status }))
   const falseRow = await rowAfterInput(configDir, sessionId, 'false', TURN_MS / 6)
   const falseExit = exitOf(falseRow)
   check('`false` lands a row naming exit 1', falseExit !== null && falseExit.code === 1, quote(falseRow))
@@ -293,10 +293,10 @@ async function drive(): Promise<void> {
   send({ type: 'control_request', request_id: 'req_int', request: { subtype: 'interrupt' } })
   const intResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_int'), 'interrupt ack', 10_000)
   check('the interrupt frame is acknowledged', !!intResp && j(intResp).includes('"success"'), j(intResp ?? {}).slice(0, 200))
-  const result2 = (await nextResult('the interrupted shell result', 15_000)) as (Envelope & { is_error?: boolean }) | undefined
+  const result2 = (await nextResult('the interrupted shell outcome', 15_000)) as (Envelope & { status?: string }) | undefined
   const elapsedMs = Date.now() - t0
-  check('the interrupt ENDS the shell turn promptly — a result within 10s, far under the 30s sleep', !!result2 && elapsedMs < 10_000, `${elapsedMs}ms`)
-  check('the interrupted shell turn settles as a result (the runner keeps its session; no error envelope)', result2?.subtype === 'success', j({ subtype: result2?.subtype }))
+  check('the interrupt ENDS the shell turn promptly — an outcome within 10s, far under the 30s sleep', !!result2 && elapsedMs < 10_000, `${elapsedMs}ms`)
+  check('the interrupted shell turn settles as an outcome (the runner keeps its session; no error)', result2?.status === 'completed' || result2?.status === 'interrupted', j({ status: result2?.status }))
   check(
     `the interrupted receipt landed: the transcript carries the interrupt row (${INTERRUPT_MESSAGE})`,
     await transcriptCarries(configDir, sessionId, INTERRUPT_MESSAGE, TURN_MS / 6),
@@ -310,16 +310,16 @@ async function drive(): Promise<void> {
 
   section('§4 — a prompt turn runs after the shell; the model never saw the shell lines; clean end')
   send({ type: 'user', message: { role: 'user', content: 'after the shell' }, parent_tool_use_id: null, uuid: randomUUID() })
-  const result3 = (await nextResult('the post-shell prompt result', 60_000)) as (Envelope & { result?: string }) | undefined
+  const result3 = (await nextResult('the post-shell prompt outcome', 60_000)) as (Envelope & { answer?: string; status?: string }) | undefined
   check(
-    'a prompt turn after the shell runs to result:success with the scripted text',
-    result3?.subtype === 'success' && result3?.result === 'B-TURN-AFTER-SHELL.',
-    j({ subtype: result3?.subtype, result: result3?.result }),
+    'a prompt turn after the shell runs to a completed outcome with the scripted text',
+    result3?.status === 'completed' && result3?.answer === 'B-TURN-AFTER-SHELL.',
+    j({ status: result3?.status, answer: result3?.answer }),
   )
   check('the model never saw the shell lines (exactly one model call in the whole drive)', fixture.messageRequests().length === 1, String(fixture.messageRequests().length))
   check(
-    'no error_during_execution envelope anywhere',
-    !envelopes.some(e => e.type === 'result' && e.subtype === 'error_during_execution'),
+    'no failed outcome anywhere',
+    !envelopes.some(e => e.type === 'outcome' && e.status === 'failed'),
   )
   child.stdin.end()
   const { exit } = await exited

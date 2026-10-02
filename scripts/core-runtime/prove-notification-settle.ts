@@ -51,7 +51,7 @@ function makeRig(withWindow: boolean): Rig {
     notifyLifecycle: () => {},
     enqueueOutput: () => {},
     writeDirect: async () => {},
-    drainSdkEvents: () => [],
+    drainRows: () => [],
     executeTurn: async (command, batch) => {
       const words = (c: typeof command): string[] => (typeof c.value === 'string' ? [c.value] : c.value.map(b => (b.type === 'text' ? b.text : '?')))
       const blocks = batch.length > 1 && command.mode === 'prompt' ? [batch.flatMap(words).join('\n')] : words(command)
@@ -62,6 +62,8 @@ function makeRig(withWindow: boolean): Rig {
     },
     beforeCycle: async () => {},
     onTurnStart: () => {},
+    turnIdOf: () => 't-rig',
+    openTurnRow: () => ({ type: 'turn', state: 'started', turn_id: 't-rig' }) as never,
     onTurnSettled: () => {},
     hasWaitableBackgroundTasks: () => rig.running > 0,
     hasHoldableBackgroundAgents: () => false,
@@ -69,14 +71,13 @@ function makeRig(withWindow: boolean): Rig {
     onAgentWait: count => {
       rig.waits.push(count)
     },
-    takePendingSuggestion: () => null,
     settleIdle: async () => 'stay',
     closeOutput: async () => {},
     notifySessionState: () => {},
     isShuttingDown: () => false,
     idleTimerStop: () => {},
     idleTimerStart: () => {},
-    onCycleError: () => ({ type: 'result' }) as never,
+    onCycleError: () => ({ type: 'outcome', status: 'failed' }) as never,
     shutdown: () => {},
     clock: {
       sleep: async ms => {

@@ -27,7 +27,7 @@ export const { spawnInProcessCrewmate, killInProcessCrewmate } = await import(
   '../../../src/utils/swarm/spawnInProcess.ts'
 )
 export const { runInProcessCrewmate } = await import('../../../src/utils/swarm/inProcessRunner.ts')
-export const { drainSdkEvents } = await import('../../../src/utils/sdkEventQueue.ts')
+export const { drainRows } = await import('../../../src/utils/sdkEventQueue.ts')
 export const { liveMessagesFor, sendLiveMessage } = await import('../../../src/services/crew/liveComms.ts')
 export const { isIdleNotification } = await import('../../../src/services/crew/liveMessages.ts')
 export const { injectUserMessageToCrewmate } = await import(
@@ -173,17 +173,18 @@ export type TaskView = {
 export const task = (store: Store, id: string): TaskView => store.getAppState().tasks[id] as TaskView
 
 export type SdkEventView = {
-  subtype: string
+  type: string
+  state: string
   task_id: string
   status?: string
-  tool_use_id?: string
+  call_id?: string
 }
 export const allDrained: SdkEventView[] = []
 export function drainInto(): void {
-  allDrained.push(...(drainSdkEvents() as unknown as SdkEventView[]))
+  allDrained.push(...(drainRows() as unknown as SdkEventView[]))
 }
 export const bookendsFor = (taskId: string): SdkEventView[] =>
-  allDrained.filter(e => e.subtype === 'task_notification' && e.task_id === taskId)
+  allDrained.filter(e => e.type === 'task' && e.state === 'ended' && e.task_id === taskId)
 
 export async function idleNotificationsFor(
   crew: string,

@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isResult, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-background-exit-code')
@@ -44,12 +44,12 @@ const fixture = await startScriptedFixture(script)
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
 runner.send(user('background exit probe', randomUUID()))
-const first = await runner.waitFor('first result', isResult, bound(60_000))
-tally.check('the launching turn settled', first !== null && first.subtype === 'success', JSON.stringify(first).slice(0, 120))
+const first = await runner.waitFor('first outcome', isOutcome, bound(60_000))
+tally.check('the launching turn settled', first !== null && first.status === 'completed', JSON.stringify(first).slice(0, 120))
 await sleep(3_000)
 const after = runner.frames.length
 runner.send(user(FOLLOW_UP, randomUUID()))
-const second = await runner.waitFor('the notice-carrying turn', f => isResult(f) && fixture.requests.some(r => r.allTexts.some(t => t.includes(FOLLOW_UP))), bound(60_000), after)
+const second = await runner.waitFor('the notice-carrying turn', f => isOutcome(f) && fixture.requests.some(r => r.allTexts.some(t => t.includes(FOLLOW_UP))), bound(60_000), after)
 tally.check('the next input line settled a second turn', second !== null, JSON.stringify(second).slice(0, 120))
 await runner.stop(bound(5_000))
 for (const r of fixture.requests) console.log(`  request ${r.n} step ${r.step} · results ${JSON.stringify(r.results.map(x => ({ isError: x.isError, text: x.text.slice(0, 160) })))} · texts ${JSON.stringify(r.allTexts.map(t => t.slice(0, 120)))}`)

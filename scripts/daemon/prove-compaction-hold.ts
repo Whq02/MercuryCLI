@@ -295,10 +295,9 @@ if (!existsSync(DIST)) {
     return r?.response ?? (r?.error !== undefined ? { error: r.error } : {})
   }
   const isControlResponse = (id: string) => (f: Record<string, unknown>): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
-  const isResult = (f: Record<string, unknown>): boolean => f.type === 'result'
-  const isCompactingStatus = (f: Record<string, unknown>): boolean =>
-    f.type === 'system' && f.subtype === 'status' && (f.status === 'compacting' || (f.status !== null && typeof f.status === 'object' && 'compacting' in (f.status as object)))
-  const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'system' && f.subtype === 'turn_started'
+  const isResult = (f: Record<string, unknown>): boolean => f.type === 'outcome'
+  const isCompactingStatus = (f: Record<string, unknown>): boolean => f.type === 'compaction' && f.state !== 'ended'
+  const isTurnStarted = (f: Record<string, unknown>): boolean => f.type === 'turn' && f.state === 'started'
   const queueOf = async (id: string): Promise<Array<{ uuid?: string; value?: string }>> => {
     send(control(id, { subtype: 'session_facts' }))
     const f = responseOf(await waitFor(id, isControlResponse(id), 5_000))
@@ -341,14 +340,14 @@ if (!existsSync(DIST)) {
   const beforeFold = lines.length
   send(user('/compact', UC))
   const compacting = await waitFor("the runner's compacting word", isCompactingStatus, 20_000, beforeFold)
-  check("the runner stamps 'compacting' on its status frame as the fold begins", compacting !== null)
+  check("the runner writes a compaction row as the fold begins", compacting !== null)
   send(user(FIRST, U1))
   send(user(WITHDRAWN, U2))
   send(user(SECOND, U3))
   await sleep(400)
   const duringFold = await queueOf('facts-during-fold')
   check("the runner's queue holds the three lines, in the order sent, while the fold runs", j(duringFold.map(q => q.uuid)) === j([U1, U2, U3]) && duringFold[0]?.value === FIRST, j(duringFold))
-  check('the fold is still running while the lines wait (no result yet)', lines.slice(beforeFold).find(isResult) === undefined)
+  check('the fold is still running while the lines wait (no outcome yet)', lines.slice(beforeFold).find(isResult) === undefined)
 
   section('R2 a withdraw during the hold pops the line by identity')
   send(control('w-hold', { subtype: 'withdraw_send', client_message_id: U2 }))
@@ -358,10 +357,10 @@ if (!existsSync(DIST)) {
   check('the queue keeps the other two, in order', j(afterWithdraw.map(q => q.uuid)) === j([U1, U3]), j(afterWithdraw))
 
   const foldResult = await waitFor("the fold's own turn", isResult, 40_000, beforeFold)
-  check("the fold landed (the /compact turn's receipt names it)", foldResult !== null && String(foldResult.result ?? '').startsWith('Compacted'), j(foldResult?.result))
+  check("the fold landed (the /compact turn's receipt names it)", foldResult !== null && String(foldResult.answer ?? '').startsWith('Compacted'), j(foldResult?.answer))
   const afterFold = lines.length
-  const heldTurnStart = lines.slice(beforeFold).filter(isTurnStarted).find(f => j(f.uuids).includes(U1)) ?? (await waitFor('the held turn opens', f => isTurnStarted(f) && j(f.uuids).includes(U1), 20_000, afterFold))
-  check('the runner opens the next turn on the held lines — both identities, first before second', heldTurnStart !== null && j(heldTurnStart.uuids) === j([U1, U3]), j(heldTurnStart?.uuids))
+  const heldTurnStart = lines.slice(beforeFold).filter(isTurnStarted).find(f => j(f.message_ids).includes(U1)) ?? (await waitFor('the held turn opens', f => isTurnStarted(f) && j(f.message_ids).includes(U1), 20_000, afterFold))
+  check('the runner opens the next turn on the held lines — both identities, first before second', heldTurnStart !== null && j(heldTurnStart.message_ids) === j([U1, U3]), j(heldTurnStart?.message_ids))
   const heldResult = await waitFor('the held turn', f => isResult(f) && f !== foldResult, 30_000, afterFold)
   check('the held turn answered', heldResult !== null)
   check("the runner's queue is empty once it took them", (await queueOf('facts-after-take')).length === 0)
@@ -379,7 +378,7 @@ if (!existsSync(DIST)) {
   const beforeAuto = lines.length
   send(user(TOOL_ASK_LINE(), U5))
   const autoFold = await waitFor('the automatic fold begins', isCompactingStatus, 60_000, beforeAuto)
-  check("the tool turn's next request folds first (the runner stamps 'compacting' mid-turn)", autoFold !== null, stderrText.split('\n').slice(-5).join(' | '))
+  check("the tool turn's next request folds first (the runner writes a compaction row mid-turn)", autoFold !== null, stderrText.split('\n').slice(-5).join(' | '))
   send(user(AUTO1, U6))
   const U7 = '77777777-7777-4777-8777-777777777777'
   send(user(AUTO2, U7))

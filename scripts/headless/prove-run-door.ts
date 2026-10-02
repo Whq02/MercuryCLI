@@ -76,9 +76,9 @@ try {
     else {
       let rows: Array<Record<string, unknown>> = []
       try { rows = format === 'json' ? [JSON.parse(result.out)] : result.out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-      const outcome = rows.find(row => row.type === 'result')
-      check(`${format} carries the result fields`, outcome?.is_error === false && outcome.result === 'The run answered.' && typeof outcome.session_id === 'string' && typeof outcome.total_cost_usd === 'number', result.out)
-      if (format === 'rows') check('rows carries init and assistant events', rows.some(row => row.type === 'system' && row.subtype === 'init') && rows.some(row => row.type === 'assistant'), result.out)
+      const outcome = rows.find(row => row.type === 'outcome')
+      check(`${format} carries the outcome fields`, outcome?.status === 'completed' && outcome.answer === 'The run answered.' && typeof outcome.session_id === 'string' && typeof outcome.cost_usd === 'number', result.out)
+      if (format === 'rows') check('rows carries the session and text rows', rows.some(row => row.type === 'session') && rows.some(row => row.type === 'text'), result.out)
     }
   }
   for (const argv of [['run'], ['run', '-'], ['run', 'instruction']]) {
@@ -114,8 +114,8 @@ try {
   const rowsResult = await run(['run', '--input', 'rows', '--format', 'rows', '--partial'], input)
   let rows: Array<Record<string, unknown>> = []
   try { rows = rowsResult.out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-  check('input rows completes through the event feed', rowsResult.code === 0 && rows.some(row => row.type === 'result' && row.is_error === false), JSON.stringify(rowsResult))
-  check('partial includes stream events', rows.some(row => row.type === 'stream_event'), rowsResult.out)
+  check('input rows completes through the row stream', rowsResult.code === 0 && rows.some(row => row.type === 'outcome' && row.status === 'completed'), JSON.stringify(rowsResult))
+  check('partial includes delta rows', rows.some(row => row.type === 'text_delta' || row.type === 'block_start'), rowsResult.out)
   const mode = await run(['run', 'hello', '--mode', 'flow', '--allow-sovereign', '--format', 'json'])
   check('run accepts the mode and availability switches', mode.code === 0, JSON.stringify(mode))
   const sovereign = await run(['run', 'hello', '--sovereign'])

@@ -95,7 +95,7 @@ try {
   check('the attachment lifecycle owner emits the apollo pack as a mode_pack row from getApolloModeSections', /getApolloModeSections\('apollo'\)/.test(lifecycles) && /type: 'mode_pack'/.test(lifecycles))
   check(
     'the prompt-build callers thread the LIVE toolPermissionContext.mode (the next-turn law)',
-    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('QueryEngine.ts')) &&
+    /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(src('rows', 'turn.ts')) &&
       /permissionMode: appState\.toolPermissionContext\.mode/.test(src('utils', 'queryContext.ts')) &&
       src('utils', 'queryContext.ts').includes('getSystemPrompt(tools, mainLoopModel, mcpClients, permissionMode)'),
   )
@@ -319,9 +319,9 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     else process.env.MERCURY_CONCOURSE_WORKER = priorMarker
   }
 
-  const engine = src('QueryEngine.ts')
+  const engine = src('rows', 'turn.ts')
   check(
-    'QueryEngine threads the live toolPermissionContext.mode into fetchSystemPromptParts',
+    'the turn threads the live toolPermissionContext.mode into fetchSystemPromptParts',
     /permissionMode: appStateSnapshot\.toolPermissionContext\.mode/.test(engine),
   )
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')

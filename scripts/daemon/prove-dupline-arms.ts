@@ -40,8 +40,8 @@ import {
   exportWorld,
   inMainFile,
   isDrainedMainRow,
-  isInit,
-  isResult,
+  isSession,
+  isOutcome,
   j,
   makeTally,
   NODE,
@@ -96,8 +96,8 @@ async function openWorld(name: string, agentSleepSeconds: number, foldPaceMs = 0
   const fx = await startFixture(join(home, 'wire.jsonl'), agentSleepSeconds, 6, foldPaceMs, holdFile)
   const runner = bootRunner({ cwd, env: childEnv(home, fx.port), extraArgv: extra.argv })
   runner.send(user('hello there', U0))
-  const init = await runner.waitFor('the init frame', isInit, bound(90_000))
-  const first = await runner.waitFor('the first turn', isResult, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
+  const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
   return { name, home, fx, runner, sessionId: String(init?.session_id ?? ''), failedAtOpen, ...(holdFile === undefined ? {} : { holdFile }) }
 }
@@ -163,8 +163,8 @@ if (!existsSync(DIST)) {
     const first = send(w, FIRST_LINE, 1)
     await sleep(1500)
     const second = send(w, SECOND_LINE, 2)
-    const result = await w.runner.waitFor("the agent turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the agent turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.answer))
     const carriers = await settled(w, [FIRST_LINE, SECOND_LINE], bound(10_000), drainedOnce([FIRST_LINE, SECOND_LINE]))
     lineLaw(w, first, ['subwork'], 'agent', 1, carriers)
     lineLaw(w, second, ['subwork'], 'agent', 1, carriers)
@@ -184,8 +184,8 @@ if (!existsSync(DIST)) {
     check('the sub-agent opened with the Sleep tool in its pool', opened !== null && opened.hasSleepTool === true, j(opened))
     await sleep(1500)
     const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the agent turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(SLEEP_TOOL_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the agent turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(SLEEP_TOOL_TURN_ASK)), j(result?.answer))
     const afterSleep = requestsOf(w.fx.wire).find(wireOf(w, 'subsleep', 1))
     check('the sub-agent crossed its Sleep boundary (the tool ran, no error)', afterSleep !== undefined && afterSleep.lastToolResult?.isError === false, j(afterSleep?.lastToolResult))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
@@ -203,8 +203,8 @@ if (!existsSync(DIST)) {
     check('both agents launched from the one block: the quick one in the background, the sleeping one in front', quick !== null && fore !== null)
     await sleep(2500)
     const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the crew turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(CREW_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the crew turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(CREW_TURN_ASK)), j(result?.answer))
     const carriers = await settled(w, [LINE, CREW_NOTICE], bound(10_000), drainedOnce([LINE, CREW_NOTICE]))
     lineLaw(w, line, ['subwork', 'quick'], 'crew', 1, carriers)
     const requests = requestsOf(w.fx.wire)
@@ -228,8 +228,8 @@ if (!existsSync(DIST)) {
     const fold = await waitWire(w.fx.wire, "the sub-agent's fold request", x => x.kind === 'fold' && x.arm === 'subfold', bound(60_000))
     check('the sub-agent folded its own conversation (the fold request carries its opening)', fold !== null, j(w.fx.wire().map(x => [x.kind, x.arm, x.step])))
     const line = send(w, FOLD_LINE, 1)
-    const result = await w.runner.waitFor("the fold turn's result", isResult, bound(120_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(FOLD_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the fold turn's result", isOutcome, bound(120_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(FOLD_TURN_ASK)), j(result?.answer))
     const wire = w.fx.wire()
     const landed = wire.find(x => x.kind === 'fold-landed')
     const postFold = wire.filter(x => x.kind === 'request' && x.arm === 'subfold' && x.folded === true)
@@ -249,8 +249,8 @@ if (!existsSync(DIST)) {
     check("the sub-agent's pool carries neither the Agent tool nor the Workflow tool", opened !== null && opened.hasAgentTool === false && opened.hasWorkflowTool === false, j(opened))
     await sleep(1000)
     const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the nested turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(NESTED_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the nested turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(NESTED_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)
     const refused = requests.find(wireOf(w, 'subnested', 2))
     check("the sub-agent's Agent call came back as an error, not a launch", refused !== undefined && refused.lastToolResult?.isError === true, j(refused?.lastToolResult))
@@ -270,8 +270,8 @@ if (!existsSync(DIST)) {
     check('the sub-agent that followed opened its own conversation', (await waitWire(w.fx.wire, "the sub-agent's first request", wireOf(w, 'subwork', 0), bound(60_000))) !== null)
     await sleep(1000)
     const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the fork turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(FORK_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the fork turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(FORK_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)
     check('no fork ever queried', requests.every(r => r.arm !== 'forkwork') && carrying(requests, FORK_DONE).length === 0, j(requests.map(r => r.arm)))
     const carriers = await settled(w, [LINE], bound(10_000), drainedOnce([LINE]))
@@ -296,8 +296,8 @@ if (!existsSync(DIST)) {
     check("the workflow's agent opened its own conversation", agent !== null)
     await sleep(500)
     const line = send(w, LINE, 1)
-    const result = await w.runner.waitFor("the workflow turn's result", isResult, bound(120_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(WORKFLOW_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the workflow turn's result", isOutcome, bound(120_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(WORKFLOW_TURN_ASK)), j(result?.answer))
     const requests = requestsOf(w.fx.wire)
     check("the workflow's agent crossed its own boundary while the line was queued", requests.some(wireOf(w, 'wfwork', 1)), j(requests.filter(r => r.arm === 'wfwork').map(r => [r.n, r.step])))
     check('the workflow agent finished on its own', carrying(requests.filter(r => r.arm === 'agentworkflow'), WORKFLOW_AGENT_DONE).length >= 0)
@@ -319,13 +319,13 @@ if (!existsSync(DIST)) {
     const queued = await queuedBoth(w, [RETURN_LINE, AFTER_RETURN_LINE], bound(20_000))
     check('the runner queued both lines while the final answer was held (two enqueue rows in its journal, nothing released yet)', queued && w.fx.wire().every(x => x.kind !== 'released'), j(queueJournal(projectsOf(w)).slice(-4)))
     writeFileSync(w.holdFile!, '')
-    const result = await w.runner.waitFor("the agent turn's result", isResult, bound(90_000), before)
-    check("the turn ended with the session's own final text", result !== null && String(result.result ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.result))
+    const result = await w.runner.waitFor("the agent turn's result", isOutcome, bound(90_000), before)
+    check("the turn ended with the session's own final text", result !== null && String(result.answer ?? '').startsWith(doneText(AGENT_TURN_ASK)), j(result?.answer))
     const both = (cs: WordCarrier[]): boolean => [RETURN_LINE, AFTER_RETURN_LINE].every(word => cs.some(c => c.word === word && inMainFile(c)))
     let carriers = await settled(w, [RETURN_LINE, AFTER_RETURN_LINE], bound(30_000), both)
     let extraTurns = 0
     while (!both(carriers) && extraTurns < 3) {
-      const next = await w.runner.waitFor('a following turn', isResult, bound(30_000), w.runner.frames.length)
+      const next = await w.runner.waitFor('a following turn', isOutcome, bound(30_000), w.runner.frames.length)
       if (next === null) break
       extraTurns++
       carriers = await settled(w, [RETURN_LINE, AFTER_RETURN_LINE], bound(10_000), both)
@@ -399,8 +399,8 @@ if (!existsSync(DIST)) {
       check('both prompts wait after the last tool boundary, before the answer is released', held !== null && queued && w.fx.wire().every(x => x.kind !== 'released'))
       writeFileSync(w.holdFile!, '')
       const request = await waitWire(w.fx.wire, 'the batch request with the later mention', x => x.kind === 'request' && (x.counts?.[mention] ?? 0) > 0, bound(60_000))
-      const result = await w.runner.waitFor('the batch answer', x => isResult(x) && String(x.result ?? '').includes(mention), bound(60_000), before)
-      check('the batch settles with one answer', result !== null && result.is_error !== true, j(result))
+      const result = await w.runner.waitFor('the batch answer', x => isOutcome(x) && String(x.answer ?? '').includes(mention), bound(60_000), before)
+      check('the batch settles with one answer', result !== null && result.status === 'completed', j(result))
       check('the session reads both prompts once in one request and in send order', request?.counts?.[RETURN_LINE] === 1 && request?.counts?.[mention] === 1 && (request.firstAt?.[RETURN_LINE] ?? -1) < (request.firstAt?.[mention] ?? -1), j(request?.counts))
       check('the later mention supplies its file body to the real request', request?.counts?.[body] === 1, j(request?.counts))
       check('the later prompt supplies its hook context to the real request', request?.counts?.[hookContext] === 1, j(request?.counts))
@@ -434,8 +434,8 @@ if (!existsSync(DIST)) {
       const postFold = await waitWire(w.fx.wire, 'the first request after compact', x => x.kind === 'request' && fold !== null && Number(x.n) > Number(fold.n), bound(60_000))
       check('the first request after compact carries the summary and follow-up once each', postFold?.counts?.[FOLD_SUMMARY_MARK] === 1 && postFold?.counts?.[followUp] === 1, describeRequests(requestsOf(w.fx.wire), [FOLD_SUMMARY_MARK, followUp]))
       check('the summary precedes the follow-up on the wire', (postFold?.firstAt?.[FOLD_SUMMARY_MARK] ?? -1) >= 0 && (postFold?.firstAt?.[followUp] ?? -1) > (postFold?.firstAt?.[FOLD_SUMMARY_MARK] ?? -1), j(postFold?.firstAt))
-      const result = await w.runner.waitFor('the compact batch answer', x => isResult(x) && !String(x.result ?? '').startsWith(doneText(AGENT_TURN_ASK)), bound(60_000), before)
-      check('the compact batch settles without an error', result !== null && result.is_error !== true, j(result))
+      const result = await w.runner.waitFor('the compact batch answer', x => isOutcome(x) && !String(x.answer ?? '').startsWith(doneText(AGENT_TURN_ASK)), bound(60_000), before)
+      check('the compact batch settles without an error', result !== null && result.status === 'completed', j(result))
       const carriers = await settled(w, [FOLD_SUMMARY_MARK, followUp], bound(10_000), cs => [FOLD_SUMMARY_MARK, followUp].every(word => cs.some(row => row.word === word && inMainFile(row))))
       const summary = carriers.find(row => row.word === FOLD_SUMMARY_MARK && inMainFile(row))
       const followUps = carriers.filter(row => row.word === followUp && inMainFile(row))

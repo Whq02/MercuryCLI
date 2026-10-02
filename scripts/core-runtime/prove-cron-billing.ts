@@ -246,10 +246,9 @@ section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usag
   const frame = { type: 'result', subtype: 'success', result: 'done', is_error: false, duration_ms: 1, duration_api_ms: 1, num_turns: 1, session_id: 's', total_cost_usd: 0.1, usage: {}, model_usage: {}, workload_usage: { cron: { input_tokens: 1, output_tokens: 1, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, web_search_requests: 0, cost_usd: 0.1 } }, uuid: 'u' }
   const parsed = schemas.SDKResultSuccessSchema().safeParse(frame)
   check('the public result schema keeps workload_usage (red on the base: an undeclared key is stripped)', parsed.success && j((parsed.data as Raw).workload_usage) === j(frame.workload_usage), parsed.success ? j(Object.keys(parsed.data as Raw)) : j(parsed.error.issues))
-  const engine = src('src/QueryEngine.ts')
-  const envelope = between(engine, 'const buildResultEnvelope = ', 'permission_denials:')
-  check('the engine captures both usage baselines before the run', engine.includes('const modelUsageAtStart = toSDKModelUsage(getModelUsage())') && engine.includes('const workloadUsageAtStart = toSDKWorkloadUsage(getWorkloadUsage())'))
-  check("the engine's result envelope carries both usage breakdowns in the run window", envelope.includes('model_usage: usageSince(toSDKModelUsage(getModelUsage()), modelUsageAtStart)') && envelope.includes('workload_usage: usageSince(toSDKWorkloadUsage(getWorkloadUsage()), workloadUsageAtStart)'), envelope.slice(-340))
+  const engine = src('src/rows/turn.ts')
+  check('the turn captures the model-usage baseline before the run', engine.includes("const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))"))
+  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /cost and the rail (no row reader)", engine.includes('models: modelUsageRows(usageSince(getModelUsage(), modelUsageAtStart)') && !engine.includes('workload'))
 }
 
 async function mountPopup(columns: number, rowCount: number, width: number, rowBudget: number, openToken: number): Promise<{ frame: () => string; close: () => void }> {

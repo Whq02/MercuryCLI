@@ -1,89 +1,66 @@
-import { randomUUID } from 'node:crypto'
-
 import { getIsNonInteractiveSession, getSessionId } from '../bootstrap/state.js'
-import type { SDKAssistantMessage, SDKUserMessage } from '../entrypoints/sdk/controlTypes.js'
+import { taskRow, type RowDraft } from '../rows/project.js'
+import type { TaskRow } from '../rows/vocabulary.js'
 import { createSignal } from './signal.js'
 
 
-export type SdkEventUsage = {
-  total_tokens: number
-  tool_uses: number
-  duration_ms: number
+export type TaskUsage = {
+  tokens: number
+  toolUses: number
+  durationMs: number
 }
-
-export type SdkEvent =
-  | {
-      type: 'system'
-      subtype: 'task_started'
-      task_id: string
-      tool_use_id?: string
-      description: string
-      task_type?: string
-      workflow_name?: string
-      prompt?: string
-    }
-  | {
-      type: 'system'
-      subtype: 'task_progress'
-      task_id: string
-      tool_use_id?: string
-      description: string
-      usage: SdkEventUsage
-      last_tool_name?: string
-      summary?: string
-      workflow_progress?: unknown
-    }
-  | {
-      type: 'system'
-      subtype: 'task_notification'
-      task_id: string
-      tool_use_id?: string
-      status?: 'completed' | 'failed' | 'stopped'
-      output_file: string
-      summary: string
-      usage?: SdkEventUsage
-    }
-  | {
-      type: 'system'
-      subtype: 'session_state_changed'
-      state: 'idle' | 'running' | 'requires_action'
-    }
-  | SdkAgentFrame
-
-export type SdkAgentFrame = (SDKAssistantMessage | SDKUserMessage) & { parent_tool_use_id: string }
 
 const QUEUE_CAP = 1000
 
-const queue: SdkEvent[] = []
+const queue: RowDraft[] = []
 const changed = createSignal()
-export const subscribeSdkEvents = changed.subscribe
+export const subscribeRows = changed.subscribe
 
-export function enqueueSdkEvent(event: SdkEvent): void {
+export function enqueueRow(row: RowDraft): void {
   if (!getIsNonInteractiveSession()) return
   if (queue.length >= QUEUE_CAP) queue.shift()
-  queue.push(event)
+  queue.push(row)
   changed.emit()
 }
 
-export function drainSdkEvents(): Array<SdkEvent & { uuid: string; session_id: string }> {
-  const drained = queue.splice(0, queue.length)
-  const sessionId = getSessionId()
-  return drained.map(event => ({ ...event, uuid: 'uuid' in event && typeof event.uuid === 'string' && event.uuid !== '' ? event.uuid : randomUUID(), session_id: sessionId }))
+export function drainRows(): RowDraft[] {
+  return queue.splice(0, queue.length)
 }
 
-export function emitTaskTerminatedSdk(
+export function emitTaskStarted(facts: { taskId: string; callId?: string; taskType: string; description: string; workflow?: string; prompt?: string }): void {
+  enqueueRow(
+    taskRow(
+      { session_id: getSessionId() },
+      {
+        state: 'started',
+        taskId: facts.taskId,
+        ...(facts.callId !== undefined ? { callId: facts.callId } : {}),
+        taskType: facts.taskType,
+        description: facts.description,
+        ...(facts.workflow !== undefined ? { workflow: facts.workflow } : {}),
+        ...(facts.prompt !== undefined ? { prompt: facts.prompt } : {}),
+      },
+    ),
+  )
+}
+
+export function emitTaskEnded(
   taskId: string,
-  status: 'completed' | 'failed' | 'stopped',
-  options: { toolUseId?: string; summary?: string; outputFile?: string; usage?: SdkEventUsage } = {},
+  status: NonNullable<TaskRow['status']>,
+  options: { toolUseId?: string; summary?: string; outputFile?: string; usage?: TaskUsage } = {},
 ): void {
-  enqueueSdkEvent({
-    type: 'system',
-    subtype: 'task_notification',
-    task_id: taskId,
-    ...(options.toolUseId !== undefined ? { tool_use_id: options.toolUseId } : {}),
-    status,
-    output_file: options.outputFile ?? '',
-    summary: options.summary ?? '',
-    ...(options.usage !== undefined ? { usage: options.usage } : {}),
-  })
+  enqueueRow(
+    taskRow(
+      { session_id: getSessionId() },
+      {
+        state: 'ended',
+        taskId,
+        ...(options.toolUseId !== undefined ? { callId: options.toolUseId } : {}),
+        status,
+        outputFile: options.outputFile ?? '',
+        summary: options.summary ?? '',
+        ...(options.usage !== undefined ? { usage: options.usage } : {}),
+      },
+    ),
+  )
 }

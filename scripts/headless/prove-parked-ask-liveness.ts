@@ -133,8 +133,8 @@ function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
   }
 }
 
-const isInit = (f: Frame): boolean => f.type === 'system' && f.subtype === 'init'
-const isResult = (f: Frame): boolean => f.type === 'result'
+const isInit = (f: Frame): boolean => f.type === 'session'
+const isResult = (f: Frame): boolean => f.type === 'outcome'
 const isAsk = (f: Frame): boolean => f.type === 'control_request' && (f.request as { subtype?: unknown } | undefined)?.subtype === 'can_use_tool'
 const askOf = (f: Frame): { requestId: string; toolName: string; toolUseId: string } => {
   const request = (f.request ?? {}) as { tool_name?: unknown; tool_use_id?: unknown }
@@ -142,15 +142,8 @@ const askOf = (f: Frame): { requestId: string; toolName: string; toolUseId: stri
 }
 type ToolResult = { toolUseId: string; text: string; isError: boolean }
 function toolResultsOf(f: Frame): ToolResult[] {
-  const content = (f.message as { content?: unknown } | undefined)?.content
-  if (!Array.isArray(content)) return []
-  const out: ToolResult[] = []
-  for (const block of content as Array<{ type?: string; tool_use_id?: unknown; content?: unknown; is_error?: unknown }>) {
-    if (block.type !== 'tool_result') continue
-    const text = typeof block.content === 'string' ? block.content : Array.isArray(block.content) ? (block.content as Array<{ type?: string; text?: string }>).map(part => (part.type === 'text' ? (part.text ?? '') : '')).join('') : ''
-    out.push({ toolUseId: String(block.tool_use_id ?? ''), text, isError: block.is_error === true })
-  }
-  return out
+  if (f.type !== 'tool_result') return []
+  return [{ toolUseId: String(f.call_id ?? ''), text: String(f.output ?? ''), isError: f.status !== 'ok' }]
 }
 const CUT_WORDS = /Request cut off|no-progress timeout|provider went quiet|unattended turn: no progress/
 const cutWordsOf = (f: Frame): string | null => {
@@ -161,7 +154,7 @@ const cutWordsOf = (f: Frame): string | null => {
   const start = Math.max(0, hit.index - 20)
   return text.slice(start, start + 260)
 }
-const errorsOf = (f: Frame | null): string => (Array.isArray(f?.errors) ? (f!.errors as unknown[]).map(String).join(' | ') : '')
+const errorsOf = (f: Frame | null): string => String((f?.error as { message?: string } | undefined)?.message ?? '')
 
 function evidence(fixture: ScriptedFixture, seat: Seat, t0: number, toolUseId: string): void {
   console.log(`  provider requests: ${fixture.requests.map(r => `#${r.n} step ${r.step} ask=${j(r.ask.slice(0, 40))} results=${j(r.results.map(x => `${x.isError ? 'error ' : ''}${x.text.slice(0, 90)}`))}`).join(' · ') || 'none'}`)
@@ -178,7 +171,7 @@ function timeline(seat: Seat, t0: number, toolUseId: string): string[] {
     for (const r of toolResultsOf(frame)) if (r.toolUseId === toolUseId) rows.push(`${stamp} tool_result${r.isError ? ' (error)' : ''}: ${j(r.text.slice(0, 200))}`)
     const cut = cutWordsOf(frame)
     if (cut !== null) rows.push(`${stamp} ${frame.type}${frame.subtype ? '/' + String(frame.subtype) : ''} carries the cut words: ${j(cut)}`)
-    if (isResult(frame)) rows.push(`${stamp} result ${String(frame.subtype)} is_error=${String(frame.is_error)} result=${j(String(frame.result ?? '').slice(0, 160))}${errorsOf(frame) ? ' errors=' + j(errorsOf(frame).slice(0, 200)) : ''}`)
+    if (isResult(frame)) rows.push(`${stamp} outcome ${String(frame.status)} answer=${j(String(frame.answer ?? '').slice(0, 160))}${errorsOf(frame) ? ' error=' + j(errorsOf(frame).slice(0, 200)) : ''}`)
   }
   return rows
 }
@@ -206,7 +199,7 @@ async function openSeat(key: string, idleMinutes: string): Promise<{ seat: Seat;
   const seat = bootSeat({ cwd: w.cwd, env: { ...childEnv(w.home, Number(new URL(fixture.base).port)), MERCURY_HEADLESS_IDLE_MINUTES: idleMinutes } })
   seat.send(user(ASK, randomUUID()))
   const init = await seat.waitFor('system/init', isInit, bound(60_000))
-  tally.check(`${key}: the seat booted in default mode with the stdio ask road`, init !== null && init.permission_mode === 'default', init === null ? `stderr ${j(seat.stderr().slice(-300))}` : `permission_mode ${String(init.permission_mode)}`)
+  tally.check(`${key}: the seat booted in default mode with the stdio ask road`, init !== null && init.mode === 'default', init === null ? `stderr ${j(seat.stderr().slice(-300))}` : `mode ${String(init.mode)}`)
   const ask = await seat.waitFor('the can_use_tool ask', isAsk, bound(60_000))
   const t0 = Date.now()
   tally.check(`${key}: the question left the seat as a can_use_tool ask parked with the host`, ask !== null && askOf(ask).toolName === 'AskUserQuestion', ask === null ? `frames ${j(seat.frames.map(e => e.frame.type))} stderr ${j(seat.stderr().slice(-300))}` : j(askOf(ask)))
@@ -233,11 +226,11 @@ tally.section(`L1 — an ask parked with a silent host: at the unattended limit 
     const second = fixture.requests[1]
     tally.check('L1: nothing the seat wrote blames the provider (no cut, no no-progress words)', !seat.frames.slice(mark).some(e => cutWordsOf(e.frame) !== null), j(seat.frames.slice(mark).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
     tally.check('L1: the NEXT provider request was issued and consumed, carrying the denial (the fixture saw request 2)', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError && r.text.includes(CLIENT_AWAY_WORDS)), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
-    tally.check("L1: the turn ended with the model's own text, never the timer's words", result !== null && result.subtype === 'success' && result.result === DONE, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
+    tally.check("L1: the turn ended with the model's own text, never the timer's words", result !== null && result.status === 'completed' && result.answer === DONE, result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
     const again = seat.frames.length
     seat.send(user(AGAIN, randomUUID()))
     const next = await seat.waitFor('the next turn after the unanswered ask', isResult, bound(30_000), again)
-    tally.check('L1: the seat kept its turn and answers the next prompt (never lost to a cut)', next !== null && next.result === STILL, next === null ? `no result; alive ${seat.alive()} exit ${seat.exitCode()}` : j(String(next.result ?? '')).slice(0, 120))
+    tally.check('L1: the seat kept its turn and answers the next prompt (never lost to a cut)', next !== null && next.answer === STILL, next === null ? `no outcome; alive ${seat.alive()} exit ${seat.exitCode()}` : j(String(next.answer ?? '')).slice(0, 120))
     const code = await seat.stop(bound(10_000))
     tally.check('L1: the seat exits 0 when the host closes the stream', code === 0, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
     evidence(fixture, seat, t0, toolUseId)
@@ -258,7 +251,7 @@ tally.section("L4 — the host answers before the limit: the host's deny wins, t
     const result = await seat.waitFor('the result after the host answered', isResult, bound(30_000), before)
     const toolError = seat.frames.slice(before).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
     tally.check("L4: the host's own deny settled as the tool's error result", toolError !== undefined && toolError.isError && toolError.text.includes(HOST_DENY) && !toolError.text.includes(CLIENT_AWAY_WORDS), j(toolError ?? null))
-    tally.check("L4: the turn carried on to the model's own text", result !== null && result.subtype === 'success' && result.result === DONE && fixture.requests.length === 2, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 120)} · ${fixture.requests.length} request(s)`)
+    tally.check("L4: the turn carried on to the model's own text", result !== null && result.status === 'completed' && result.answer === DONE && fixture.requests.length === 2, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 120)} · ${fixture.requests.length} request(s)`)
     await sleep(LIMIT_MS + 1_000)
     const late = seat.frames.slice(before).filter(e => j(e.frame).includes(CLIENT_AWAY_WORDS) || (e.frame.type === 'control_cancel_request'))
     tally.check('L4: past the limit nothing else settled the answered ask (no unanswered denial, no withdrawal on the wire)', late.length === 0 && seat.alive(), j(late.map(e => e.frame)).slice(0, 300))
@@ -291,7 +284,7 @@ tally.section("L2 — the host's interrupt while the ask is parked ends the turn
     const again = seat.frames.length
     seat.send(user(AGAIN, randomUUID()))
     const next = await seat.waitFor('the next turn after the interrupt', isResult, bound(30_000), again)
-    tally.check('L2: the seat is alive after the interrupt and answers the next prompt', next !== null && next.result === STILL, next === null ? 'no result' : j(String(next.result ?? '')).slice(0, 120))
+    tally.check('L2: the seat is alive after the interrupt and answers the next prompt', next !== null && next.answer === STILL, next === null ? 'no outcome' : j(String(next.answer ?? '')).slice(0, 120))
     const code = await seat.stop(bound(10_000))
     tally.check('L2: the seat exits 0 when the host closes the stream', code === 0, `exit ${code}`)
     evidence(fixture, seat, t0, toolUseId)
@@ -321,7 +314,7 @@ tally.section('L3 — the host leaves while the ask is parked: the ask settles a
     tally.check(`L3: the error wears one of the two known shapes — the stream-closed failure or the typed denial (${closedShape ? 'stream-closed' : denialShape ? 'typed denial' : 'neither'})`, closedShape || denialShape, j(text.slice(0, 300)))
     console.log(`  the denial the model read: ${j(text)}`)
     tally.check('L3: the NEXT provider request was issued and consumed, carrying that error', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
-    tally.check(`L3: the turn ended with the model's own text within seconds (${settledMs} ms)`, result !== null && result.result === DONE && settledMs < bound(15_000), result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 200)}`)
+    tally.check(`L3: the turn ended with the model's own text within seconds (${settledMs} ms)`, result !== null && result.answer === DONE && settledMs < bound(15_000), result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)}`)
     const code = await seat.stop(bound(10_000))
     tally.check('L3: the seat exits 0 once the turn is over', code === 0, `exit ${code} stderr ${j(seat.stderr().slice(-300))}`)
     evidence(fixture, seat, t0, toolUseId)

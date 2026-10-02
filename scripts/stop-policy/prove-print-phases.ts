@@ -95,7 +95,7 @@ async function main(): Promise<void> {
   section('F01 wiring — the twelve stamps live at their owners (both provider lanes)')
   {
     const print = src('src/cli/print.ts')
-    const engine = src('src/QueryEngine.ts')
+    const engine = src('src/rows/turn.ts')
     const anthropic = src('src/services/providers/anthropic/streamCore.ts')
     const openai = src('src/services/providers/openai/openaiCallModel.ts')
     check(
@@ -107,7 +107,7 @@ async function main(): Promise<void> {
         print.includes("notePrintPhase('flush_exit')"),
     )
     check(
-      'QueryEngine stamps assembly · first_canonical_event · terminal · settlement (settlement inside baseResult — every terminal envelope passes it)',
+      'the turn stamps assembly · first_canonical_event · terminal · settlement (settlement inside the outcome facts — every outcome passes it)',
       engine.includes("notePrintPhase('assembly')") &&
         engine.includes("notePrintPhase('first_canonical_event')") &&
         engine.includes("notePrintPhase('terminal')") &&
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
 
   section('F06/F12 — optional subsystems load lazily and record their phase truthfully')
   {
-    const engine = src('src/QueryEngine.ts')
+    const engine = src('src/rows/turn.ts')
     check(
       'F06: print-path extensions load from DISK ONLY (no network block) and skills/extensions record their load phase',
       engine.includes('ensureExtensionsLoaded(') &&

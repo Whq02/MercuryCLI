@@ -18,7 +18,7 @@ const { updateConcourseWorkers } = await import('../../src/daemon/concourseSuper
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { compatSlotLaneProfile } = await import('../../src/services/providers/openaicompat/compatCallModel.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
-const { toSDKStatusPayload } = await import('../../src/utils/messages/mappers.ts')
+const { waitRow, partialRowsOf, itemRowsOf, stepRow, outcomeRow } = await import('../../src/rows/project.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage } = await import('../../src/utils/messages.ts')
 const wordsModule = await import('../../src/components/Spinner/liveCounterWords.ts').catch(() => null)
@@ -50,7 +50,10 @@ updateConcourseWorkers(workers => {
 }, dir)
 const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
 const tail = () => readSessionTail(sid, dir)
-const feed = (frame: Record<string, unknown>): void => onSeatLine(SHORT, JSON.stringify(frame), roster as never, dir)
+const scope = { session_id: sid, turn: 1 }
+const feed = (frame: Record<string, unknown>): void => onSeatLine(SHORT, JSON.stringify({ seq: 1, timestamp: 't', ...frame }), roster as never, dir)
+const feedAll = (rows: Array<Record<string, unknown>>): void => rows.forEach(feed)
+let streamMessageId = ''
 
 const FIRST_BYTE_DELAY_MS = 3_000
 const REASONING_MS = 2_000
@@ -116,7 +119,7 @@ const gen = compatChatCallModel(profile as never, {
     mcpTools: [],
     onWait: (wait: unknown) => {
       waits.push(wait === null ? null : { ...(wait as Record<string, unknown>) })
-      feed({ type: 'system', subtype: 'status', status: toSDKStatusPayload({ wait }) })
+      if (wait === null || (wait as { kind?: string }).kind !== 'retry') feed(waitRow(scope, wait as never) as never)
     },
   } as never,
 })
@@ -126,9 +129,17 @@ const errors: string[] = []
 const consumed = (async () => {
   for await (const item of gen) {
     const m = item as { type?: string; event?: unknown; isApiErrorMessage?: boolean; message?: { content?: Array<{ text?: string }> } }
-    if (m.type === 'stream_event') feed({ type: 'stream_event', event: m.event as Record<string, unknown> })
-    else if (m.type === 'assistant' && m.isApiErrorMessage) errors.push(String(m.message?.content?.[0]?.text ?? ''))
-    else if (m.type === 'assistant') feed({ type: 'assistant', message: (m as { message: unknown }).message as Record<string, unknown> })
+    if (m.type === 'stream_event') {
+      const event = m.event as { type?: string; message?: { id?: string } }
+      if (event.type === 'message_start') streamMessageId = event.message?.id ?? ''
+      feedAll(partialRowsOf(scope, streamMessageId, event as never) as never)
+    } else if (m.type === 'assistant' && m.isApiErrorMessage) errors.push(String(m.message?.content?.[0]?.text ?? ''))
+    else if (m.type === 'assistant') {
+      const message = (m as { message: { id?: string; content?: unknown; model?: string; usage?: unknown; stop_reason?: string | null } }).message
+      const id = message.id ?? streamMessageId
+      feedAll(itemRowsOf(scope, id, message.content) as never)
+      feed(stepRow(scope, { messageId: id, model: message.model ?? 'compat/fixture-reasoner', stopReason: message.stop_reason, usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 0, ...(message.usage as object) } }) as never)
+    }
   }
 })()
 
@@ -185,9 +196,9 @@ await sleep(120)
 const settled = factsOfTail()
 check('one fixture request carried the whole turn', fetchCalls === 1 && errors.length === 0, `${fetchCalls} fetch · ${JSON.stringify(errors)}`)
 check('at the end every thinking character and every reply character is counted once', settled.thinkingChars === REASONING_ROWS * THOUGHT.length && settled.replyChars === TEXT_ROWS * PROSE.length, JSON.stringify(settled))
-feed({ type: 'result', subtype: 'success' })
+feed(outcomeRow(scope, { turnId: 't-lcr', status: 'completed', stopReason: 'end_turn', answer: '', steps: 1, wallMs: 1, usage: { input_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0, output_tokens: 0 }, models: {}, denials: [] }) as never)
 const after = factsOfTail()
-check('the turn\'s result retires the thinking count and the first-byte stamp with the rest', after.thinkingChars === 0 && after.replyChars === 0 && after.firstByteAtMs === null, JSON.stringify(after))
+check('the turn\'s outcome retires the thinking count and the first-byte stamp with the rest', after.thinkingChars === 0 && after.replyChars === 0 && after.firstByteAtMs === null, JSON.stringify(after))
 check('the road published the wait once at the send and cleared it once at the first byte', waits.length === 2 && (waits[0] as { kind?: string })?.kind === 'first-byte' && waits[1] === null, JSON.stringify(waits))
 
 console.log(failures === 0 ? '\n✅ live counter on the compat road GREEN' : `\n❌ live counter on the compat road RED — ${failures} failure(s)`)

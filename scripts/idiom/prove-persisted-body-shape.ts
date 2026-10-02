@@ -28,7 +28,7 @@ for (const variant of variants) {
   const first = await runTurn({ runHome, cwd, base: fixture.base, ask: 'shape probe first', extraEnv: variant.env })
   const sid = String(first.result?.session_id ?? '')
   const path = findTranscripts(runHome)[0]
-  if (first.result?.subtype !== 'success' || !path) {
+  if (first.result?.status !== 'completed' || !path) {
     tally.check('turn 1 settled and wrote a transcript', false, JSON.stringify(first.result).slice(0, 120))
     await fixture.close()
     continue
@@ -55,7 +55,7 @@ for (const variant of variants) {
   if (Object.keys(injected.payload as Rec).length === 0) delete injected.payload
   appendFileSync(path, `${JSON.stringify(injected)}\n`)
   const second = await runTurn({ runHome, cwd, base: fixture.base, ask: 'shape probe second', extraArgv: ['--resume', sid], extraEnv: variant.env })
-  const ok = second.result?.subtype === 'success' && second.result?.session_id === sid
+  const ok = second.result?.status === 'completed' && second.result?.session_id === sid
   const errorLine = second.stderr.split('\n').find(l => /TypeError|is not a function|Cannot read|undefined/.test(l)) ?? ''
   console.log(`  resume exit ${second.exitCode} · result ${JSON.stringify(second.result).slice(0, 140)}`)
   if (errorLine) console.log(`  stderr: ${errorLine.slice(0, 200)}`)

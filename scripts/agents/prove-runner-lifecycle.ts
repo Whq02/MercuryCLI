@@ -26,7 +26,7 @@ import { startFixtureApi } from '../lib/fixtureApi.ts'
 section('§1 — harness preconditions')
 {
   check(
-    'session is non-interactive (SDK bookends observable via drainSdkEvents)',
+    'session is non-interactive (the task rows observable via drainRows)',
     bootstrap.getIsNonInteractiveSession(),
   )
 }
@@ -96,7 +96,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
 
   const bookends = bookendsFor(s.taskId)
   check("EXACTLY-ONCE: one 'completed' SDK bookend", bookends.length === 1 && bookends[0]?.status === 'completed', JSON.stringify(bookends))
-  check('the bookend carries the spawning toolUseId', bookends[0]?.tool_use_id === 'toolu_probe1', bookends[0]?.tool_use_id)
+  check('the bookend carries the spawning call id', bookends[0]?.call_id === 'toolu_probe1', bookends[0]?.call_id)
 
   await sendLiveMessage(crew, { to: 'probe1', from: 'crew-lead', text: 'anyone home?', timestamp: new Date().toISOString() })
   await new Promise(r => setTimeout(r, 700))
@@ -332,7 +332,7 @@ section('§8 — a REAL AgentTool.call() completes through the foreground machin
   check('the scripted reply is the result content', JSON.stringify(result.data.content ?? []).includes('AGENTTOOL PROBE REPLY.'))
   check('exactly one model call', api.messageRequests().length === 1, `${api.messageRequests().length}`)
   const fgBookends = allDrained.filter(
-    e => e.subtype === 'task_notification' && e.tool_use_id === 'toolu_agenttool_probe',
+    e => e.type === 'task' && e.state === 'ended' && e.call_id === 'toolu_agenttool_probe',
   )
   check("EXACTLY-ONCE: one 'completed' foreground bookend", fgBookends.length === 1 && fgBookends[0]?.status === 'completed', JSON.stringify(fgBookends))
   const leftoverRunning = Object.values(store.getAppState().tasks).filter(

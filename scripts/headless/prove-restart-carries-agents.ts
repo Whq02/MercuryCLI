@@ -34,20 +34,13 @@ const CRASH_ROW = 'runner restarted after a crash: 1 background agents relaunche
 const STOP_ROW = 'runner restarted after a stop: 1 background agents relaunched, 1 delivered from their receipts, 0 stopped'
 const HANG_MS = 600_000
 
-type Block = { type?: string; id?: string; name?: string; input?: { description?: unknown }; tool_use_id?: string; content?: unknown; text?: string }
 type Launch = { toolUseId: string; agentId: string }
-const blocksOf = (f: Frame): Block[] => {
-  const content = (f.message as { content?: unknown } | undefined)?.content
-  return Array.isArray(content) ? (content as Block[]) : []
-}
-const resultTextOf = (b: Block): string => (typeof b.content === 'string' ? b.content : Array.isArray(b.content) ? (b.content as Block[]).map(x => x.text ?? '').join('') : '')
 const launchOf = (frames: Frame[], description: string): Launch | null => {
-  const blocks = frames.flatMap(blocksOf)
-  const use = blocks.find(b => b.type === 'tool_use' && b.name === 'Agent' && b.input?.description === description)
-  if (use?.id === undefined) return null
-  const result = blocks.find(b => b.type === 'tool_result' && b.tool_use_id === use.id)
-  const agentId = result === undefined ? undefined : /agentId: (\S+)/.exec(resultTextOf(result))?.[1]
-  return agentId === undefined ? null : { toolUseId: use.id, agentId }
+  const use = frames.find(f => f.type === 'tool_call' && f.tool === 'Agent' && (f.input as { description?: unknown } | undefined)?.description === description)
+  if (use === undefined || typeof use.call_id !== 'string') return null
+  const result = frames.find(f => f.type === 'tool_result' && f.call_id === use.call_id)
+  const agentId = result === undefined ? undefined : /agentId: (\S+)/.exec(String(result.output ?? ''))?.[1]
+  return agentId === undefined ? null : { toolUseId: use.call_id, agentId }
 }
 const textsOf = (req: ScriptedRequest): string => req.allTexts.join('\n')
 const isDone = (req: ScriptedRequest): boolean => textsOf(req).includes(DONE_PROMPT)
@@ -222,8 +215,8 @@ async function carriedLeg(home: string, reason: 'crash' | 'stop', row: string): 
   runner.send(user(QUESTION, randomUUID()))
   const readBack = await waitUntil(() => fixture.requests.some(r => r.atMs >= asked && !isLive(r) && !isDone(r) && textsOf(r).includes(DONE_REPLY)), bound(60_000))
   tally.check("the main agent reads the finished agent's result, not a stop", readBack)
-  const started = await runner.waitFor("the relaunched agent's start frame", f => f.type === 'system' && f.subtype === 'task_started' && f.task_id === live!.agentId, bound(20_000))
-  tally.check('the relaunch announces itself with a task_started frame under the agent id and its launch tool-use id', started !== null && started.tool_use_id === live!.toolUseId, JSON.stringify(started).slice(0, 200))
+  const started = await runner.waitFor("the relaunched agent's start row", f => f.type === 'task' && f.state === 'started' && f.task_id === live!.agentId, bound(20_000))
+  tally.check('the relaunch announces itself with a started task row under the agent id and its launch call id', started !== null && started.call_id === live!.toolUseId, JSON.stringify(started).slice(0, 200))
   await runner.stop(bound(8_000))
   if (tally.failed() > 0) console.log(`  stderr tail: ${runner.stderr().trim().split('\n').slice(-2).join(' | ').slice(0, 240)}`)
 }

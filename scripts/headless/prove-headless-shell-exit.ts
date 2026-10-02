@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, isInit, isResult, makeTally, SCRATCH_ROOT, sleep, user, type Frame } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user, type Frame } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-shell-exit')
@@ -60,21 +60,21 @@ for (const leg of legs) {
   runner.send(user(ASK, `u-${leg.key}`))
   const closedAtOnce = leg.close === 'eof-at-once'
   if (closedAtOnce) runner.proc.stdin!.end()
-  const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
+  const init = await runner.waitFor('the session row', isSession, bound(90_000))
   let pid: number | null = null
   for (const until = Date.now() + bound(60_000); pid === null && Date.now() < until; ) {
     pid = readPid(pidFile)
     if (pid === null) await sleep(50)
   }
   const ranAlive = pid !== null && alive(pid)
-  const result = await runner.waitFor('the result frame', isResult, bound(120_000))
+  const result = await runner.waitFor('the outcome row', isOutcome, bound(120_000))
   const armed = fixture.requests.find(r => r.ask.trim() === ASK && r.step === 1)
   const answer = armed?.results[0]
 
   tally.section(leg.title)
   tally.check('the headless seat booted on the fixture', init !== null, runner.stderr().slice(-400))
   tally.check('the Bash tool started the background shell without an error', answer !== undefined && !answer.isError, answer?.text.slice(0, 300) ?? 'no tool result reached the wire')
-  tally.check('the turn settled with a result that is not an error', result !== null && result.is_error !== true, JSON.stringify(result).slice(0, 300))
+  tally.check('the turn settled with a completed outcome', result !== null && result.status === 'completed', JSON.stringify(result).slice(0, 300))
   tally.check("the background shell's process ran (seen alive before the seat could end it)", ranAlive, `pid ${pid ?? 'unknown'}`)
 
   let closedAt = Date.now()
@@ -99,7 +99,7 @@ for (const leg of legs) {
   tally.check(`the seat exited within ${EXIT_BOUND_MS / 1000} s of its input closing`, exitCode !== 'still running', `still running after ${exitedInMs} ms`)
   tally.check('the seat exited with the code the turn earned (0)', exitCode === 0, `exit ${String(exitCode)}`)
   tally.check("the background shell's process is gone once the seat has exited", pid !== null && !shellAlive, `pid ${pid ?? 'unknown'} alive: ${shellAlive}`)
-  if (closedAtOnce) tally.check('the one-shot seat emitted exactly one result', runner.frames.filter(isResult).length === 1, String(runner.frames.filter(isResult).length))
+  if (closedAtOnce) tally.check('the one-shot seat emitted exactly one outcome', runner.frames.filter(isOutcome).length === 1, String(runner.frames.filter(isOutcome).length))
 
   if (exitCode === 'still running') runner.kill()
   if (pid !== null && alive(pid)) {

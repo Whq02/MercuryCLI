@@ -27,7 +27,7 @@ import {
   restoreSessionMetadata,
 } from 'src/utils/sessionStorage.js'
 import { parseSessionIdentifier } from 'src/utils/sessionUrl.js'
-import { refusalEnvelope } from './refusalEnvelope.js'
+import { refusedOutcome } from './refusalEnvelope.js'
 import { errorMessage } from '../../utils/errors.js'
 import { isEnvTruthy } from '../../utils/envUtils.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
@@ -39,7 +39,7 @@ export function emitLoadError(
   outputFormat: string | undefined,
 ): void {
   if (outputFormat === 'stream-json') {
-    process.stdout.write(jsonStringify(refusalEnvelope([message])) + '\n')
+    process.stdout.write(jsonStringify(refusedOutcome([message], 'load')) + '\n')
   } else {
     process.stderr.write(message + '\n')
   }

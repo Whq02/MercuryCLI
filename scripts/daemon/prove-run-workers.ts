@@ -38,7 +38,7 @@ try {
   const code = await closed
   let rows: Array<Record<string, unknown>> = []
   try { rows = out.trim().split('\n').map(line => JSON.parse(line)) } catch {}
-  check('the spawned daemon worker completes a loopback turn', code === 0 && rows.some(row => row.type === 'result' && row.result === 'The worker answered.' && row.is_error === false), JSON.stringify({ code, out, err }))
+  check('the spawned daemon worker completes a loopback turn', code === 0 && rows.some(row => row.type === 'outcome' && row.answer === 'The worker answered.' && row.status === 'completed'), JSON.stringify({ code, out, err }))
   let oneShotArgv: string[] = []
   const oneShot = await runTaskHeadless({ id: 'scheduled', prompt: 'answer the scheduled run', permissionMode: 'flow', allowedTools: ['Read', 'Bash'] }, home, child => { oneShotArgv = child.spawnargs }, 60_000)
   check('the scheduled run protects its prompt from tool-list parsing', oneShotArgv.includes('run') && oneShotArgv[oneShotArgv.length - 2] === '--' && oneShot.code === 0 && oneShot.stdout.trim() === 'The scheduled run answered.', JSON.stringify({ oneShotArgv, oneShot }))

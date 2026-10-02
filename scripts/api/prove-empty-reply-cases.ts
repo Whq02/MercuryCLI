@@ -201,12 +201,7 @@ type Frame = Record<string, unknown>
 function assistantTexts(frames: Frame[]): string[] {
   const out: string[] = []
   for (const f of frames) {
-    if (f.type !== 'assistant') continue
-    const content = (f.message as { content?: unknown } | undefined)?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content as Array<{ type?: string; text?: string }>) {
-      if (block.type === 'text' && typeof block.text === 'string') out.push(block.text)
-    }
+    if (f.type === 'text' && typeof f.text === 'string') out.push(f.text)
   }
   return out
 }
@@ -277,8 +272,8 @@ async function proveCase(kind: EmptyReplyCase): Promise<void> {
   section(`${kind} — ${titles[kind]}`)
   const before = failures
   const run = await runCase(kind)
-  const result = run.frames.find(f => f.type === 'result')
-  const resultText = String(result?.result ?? '')
+  const result = run.frames.find(f => f.type === 'outcome')
+  const resultText = String(result?.answer ?? '')
   const texts = assistantTexts(run.frames)
   const notes = texts.filter(t => t.startsWith('[openai]'))
   const systems = run.notices

@@ -14,8 +14,6 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const tasks = await import('../../src/utils/tasks.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
-const schemas = await import('../../src/entrypoints/sdk/coreSchemas.ts')
 
 let failures = 0
 let checks = 0
@@ -57,17 +55,20 @@ section("§1 the runner's ledger: the session's list beside the crew's board")
   check("the crew gone, the session's own list stands alone (the board is read beside, never instead)", alone.some(t => t.id === before) && !alone.some(t => t.id === after), j(alone.map(t => t.id)))
 }
 
-section('§2 the signal: one frame from the writer, read by the daemon, admitted by the schema')
+section('§2 the signal: one row from the writer, read by the daemon, admitted by the schema')
 {
-  const frame = supervisor.missionUpdatedFrame('sess-1', 'uuid-1')
-  check("the frame is a system frame with the mission subtype and the session's id", frame.type === 'system' && frame.subtype === supervisor.MISSION_UPDATED_SUBTYPE && frame.session_id === 'sess-1' && frame.uuid === 'uuid-1', j(frame))
-  const line = JSON.stringify(frame)
-  check("the reader's predicate recognises the writer's line; a foreign subtype reads false", supervisor.isMissionUpdatedParsedFrame(supervisor.parseStreamJsonFrame(line)) && !supervisor.isMissionUpdatedParsedFrame(supervisor.parseStreamJsonFrame('{"type":"system","subtype":"status"}')))
-  check('the SDK schema admits the frame, and the message union carries it', schemas.SDKMissionUpdatedMessageSchema().safeParse(JSON.parse(line)).success && schemas.SDKMessageSchema().safeParse(JSON.parse(line)).success)
+  const { missionUpdatedRow, createRowStamper } = await import('../../src/rows/project.ts')
+  const { RowSchema } = await import('../../src/rows/vocabulary.ts')
+  const { parseRow } = await import('../../src/rows/read.ts')
+  const row = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(missionUpdatedRow({ session_id: 'sess-1' }))
+  check("the row is a mission_updated row carrying the session's id", row.type === 'mission_updated' && row.session_id === 'sess-1' && typeof row.seq === 'number', j(row))
+  const line = JSON.stringify(row)
+  check("the reader parses the writer's line as its row; a foreign line reads another type", parseRow(line)?.type === 'mission_updated' && parseRow('{"type":"heartbeat","seq":1,"timestamp":"t","session_id":"s"}')?.type === 'heartbeat')
+  check('the row schema admits the row', RowSchema().safeParse(JSON.parse(line)).success)
   const seat = src('src/daemon/sessionSeat.ts')
-  check("the daemon's task-frame arm names the subtype (a task write re-asks the facts within the turn)", seat.includes(`line.includes('"mission_updated"')`))
+  check("the daemon's task-row arm names the type (a task write re-asks the facts within the turn)", /case 'mission_updated':/.test(seat))
   const print = src('src/cli/print.ts')
-  check('the runner relays listSessionMission and writes the frame on every task write (debounced)', print.includes('mission: (await listSessionMission()') && print.includes('onTasksUpdated(() => {') && print.includes('io.outbound.enqueue(missionUpdatedFrame(getSessionId(), randomUUID()))') && print.includes('MISSION_UPDATED_SUBTYPE,'))
+  check('the runner relays listSessionMission and writes the row on every task write (debounced)', print.includes('mission: (await listSessionMission()') && print.includes('onTasksUpdated(() => {') && print.includes('enqueueRow(missionUpdatedRow(liveScope()))'))
 }
 
 section("§3 the screen: every task surface reads the focused seat's relay")

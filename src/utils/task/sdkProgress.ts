@@ -1,4 +1,6 @@
-import { enqueueSdkEvent } from '../sdkEventQueue.js'
+import { getSessionId } from '../../bootstrap/state.js'
+import { taskRow } from '../../rows/project.js'
+import { enqueueRow } from '../sdkEventQueue.js'
 import type { SdkWorkflowProgress } from '../../types/tools.js'
 
 export function emitTaskProgress(params: {
@@ -12,19 +14,19 @@ export function emitTaskProgress(params: {
   summary?: string
   workflowProgress?: SdkWorkflowProgress[]
 }): void {
-  enqueueSdkEvent({
-    type: 'system',
-    subtype: 'task_progress',
-    task_id: params.taskId,
-    tool_use_id: params.toolUseId,
-    description: params.description,
-    usage: {
-      total_tokens: params.totalTokens,
-      tool_uses: params.toolUses,
-      duration_ms: Date.now() - params.startTime,
-    },
-    last_tool_name: params.lastToolName,
-    summary: params.summary,
-    workflow_progress: params.workflowProgress,
-  })
+  enqueueRow(
+    taskRow(
+      { session_id: getSessionId() },
+      {
+        state: 'progress',
+        taskId: params.taskId,
+        ...(params.toolUseId !== undefined ? { callId: params.toolUseId } : {}),
+        description: params.description,
+        usage: { tokens: params.totalTokens, toolUses: params.toolUses, durationMs: Date.now() - params.startTime },
+        ...(params.lastToolName !== undefined ? { lastTool: params.lastToolName } : {}),
+        ...(params.summary !== undefined ? { summary: params.summary } : {}),
+        ...(params.workflowProgress !== undefined ? { workflowProgress: params.workflowProgress } : {}),
+      },
+    ),
+  )
 }

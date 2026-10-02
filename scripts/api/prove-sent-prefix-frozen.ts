@@ -623,7 +623,7 @@ process.stdin.on('end', () => process.exit(0))
               buffer = buffer.slice(newline + 1)
               let row: Record<string, any>
               try { row = JSON.parse(line) } catch { continue }
-              if (row.type === 'result') {
+              if (row.type === 'outcome') {
                 results++
                 if (results === 3) { child.stdin.end(); continue }
                 if (results === 1) writeFileSync(marker, 'after')
@@ -718,7 +718,7 @@ process.stdin.on('end', () => process.exit(0))
         const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
           try { return [JSON.parse(line)] } catch { return [] }
         })
-        const forkId = envelopes.find(row => row.type === 'result')?.session_id
+        const forkId = envelopes.find(row => row.type === 'outcome')?.session_id
         check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
         if (typeof forkId === 'string' && forkId !== sid) {
           const again = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])

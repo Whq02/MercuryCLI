@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, isInit, isResult, makeTally, SCRATCH_ROOT, sleep, user } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-watch-exit')
@@ -47,8 +47,8 @@ const fixture = await startScriptedFixture(req => {
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: { ...childEnv(home, port), MERCURY_TASKS: '1' } })
 runner.send(user(ASK, 'u-arm'))
-const init = await runner.waitFor('the session init frame', isInit, bound(90_000))
-const result = await runner.waitFor('the result frame', isResult, bound(120_000))
+const init = await runner.waitFor('the session row', isSession, bound(90_000))
+const result = await runner.waitFor('the outcome row', isOutcome, bound(120_000))
 const armed = fixture.requests.find(r => r.ask.trim() === ASK && r.step === 1)
 const answer = armed?.results[0]
 let pid: number | null = null
@@ -60,7 +60,7 @@ for (const until = Date.now() + bound(10_000); pid === null && Date.now() < unti
 tally.section('the seat arms a watch, then its input closes')
 tally.check('the headless seat booted on the fixture', init !== null, runner.stderr().slice(-400))
 tally.check('the Monitor tool answered without an error', answer !== undefined && !answer.isError && /Monitor started/.test(answer.text), answer?.text.slice(0, 300) ?? 'no tool result reached the wire')
-tally.check('the turn settled with a result that is not an error', result !== null && result.is_error !== true, JSON.stringify(result).slice(0, 300))
+tally.check('the turn settled with a completed outcome', result !== null && result.status === 'completed', JSON.stringify(result).slice(0, 300))
 tally.check("the watch's process is running", pid !== null && alive(pid), `pid ${pid ?? 'unknown'}`)
 
 const closedAt = Date.now()

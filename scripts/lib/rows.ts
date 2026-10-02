@@ -51,18 +51,28 @@ export class LineReader {
   }
 }
 
-export const isResult = (f: Frame | null | undefined): boolean => f?.type === 'result'
-export const isInit = (f: Frame | null | undefined): boolean => f?.type === 'system' && f.subtype === 'init'
-export const isSystem = (f: Frame | null | undefined, subtype?: string): boolean => f?.type === 'system' && (subtype === undefined || f.subtype === subtype)
-export const isAssistant = (f: Frame | null | undefined): boolean => f?.type === 'assistant'
+export const isOutcome = (f: Frame | null | undefined): boolean => f?.type === 'outcome'
+export const isSession = (f: Frame | null | undefined): boolean => f?.type === 'session'
+export const isTurnOpen = (f: Frame | null | undefined): boolean => f?.type === 'turn' && f.state === 'started'
+export const isTurnWaiting = (f: Frame | null | undefined): boolean => f?.type === 'turn' && f.state === 'waiting'
+export const isText = (f: Frame | null | undefined): boolean => f?.type === 'text'
+export const isToolCall = (f: Frame | null | undefined): boolean => f?.type === 'tool_call'
+export const isToolResult = (f: Frame | null | undefined): boolean => f?.type === 'tool_result'
+export const isStep = (f: Frame | null | undefined): boolean => f?.type === 'step'
+export const isMainThread = (f: Frame | null | undefined): boolean => f !== null && f !== undefined && f.parent_call_id === undefined
+export const isCompleted = (f: Frame | null | undefined): boolean => isOutcome(f) && f?.status === 'completed'
+export const outcomeError = (f: Frame | null | undefined): string | undefined => (isOutcome(f) ? ((f?.error as { message?: string } | undefined)?.message ?? undefined) : undefined)
+export const answerOf = (f: Frame | null | undefined): string => (isOutcome(f) && typeof f?.answer === 'string' ? f.answer : '')
+export const textOf = (frames: readonly Frame[]): string => frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? '')).join('')
 export const isControlRequest = (f: Frame | null | undefined): boolean => f?.type === 'control_request'
 export const isControlResponse = (f: Frame | null | undefined, requestId?: string): boolean =>
   f?.type === 'control_response' && (requestId === undefined || (f.response as { request_id?: unknown } | undefined)?.request_id === requestId)
 export const isControlCancel = (f: Frame | null | undefined): boolean => f?.type === 'control_cancel_request'
 
-export const resultCount = (stdout: string): number => frameLines(stdout).filter(isResult).length
-export const hasResult = (stdout: string): boolean => frameLines(stdout).some(isResult)
-export const resultLines = (lines: readonly string[]): string[] => lines.filter(line => isResult(parseFrame(line)))
+export const outcomeCount = (stdout: string): number => frameLines(stdout).filter(isOutcome).length
+export const hasOutcome = (stdout: string): boolean => frameLines(stdout).some(isOutcome)
+export const outcomeLines = (lines: readonly string[]): string[] => lines.filter(line => isOutcome(parseFrame(line)))
+export const lastOutcome = (frames: readonly Frame[]): Frame | undefined => frames.filter(isOutcome).at(-1)
 
 export const userRow = (content: unknown, extra: Frame = {}): Frame => ({ type: 'user', message: { role: 'user', content }, ...extra })
 export const controlRequestFrame = (requestId: string, request: Frame): Frame => ({ type: 'control_request', request_id: requestId, request })
@@ -123,7 +133,7 @@ export function runTurns(opts: {
     child.stdout.on('data', d => {
       stdout += String(d)
       frames.push(...reader.feed(String(d)))
-      const results = frames.filter(isResult).length
+      const results = frames.filter(isOutcome).length
       while (resultsSeen < results) {
         resultsSeen++
         if (opts.settleMs !== undefined) setTimeout(sendNext, opts.settleMs)

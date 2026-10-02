@@ -120,7 +120,7 @@ section('(2b) client robustness + the follow-along wire (structural)')
   check('thoughts cross to the chat', ext.includes("'agent_thought_chunk'"))
   const child = readFileSync('src/services/acp/childSession.ts', 'utf8')
   check('the ACP child pipe is crash-isolated', child.includes("this.child.on('error'") && child.includes('private writeFrame'))
-  check('the ACP child spawn line carries no --verbose (the stream-json feed is complete on its own)', !child.includes("'--verbose'"))
+  check('the ACP child spawn line carries no --verbose (the rows feed is complete on its own)', !child.includes("'--verbose'"))
 }
 
 section('(2c) activation is ACP-only — nothing stamped, written or served')
