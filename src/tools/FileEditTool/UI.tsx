@@ -17,8 +17,6 @@ import { Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
 import { extractTag } from '../../utils/messages.js'
-import { getPlansDirectory } from '../../utils/plans.js'
-import { isPathInside } from '../../utils/pathPrefix.js'
 import { firstLineOf } from '../../utils/stringUtils.js'
 import type { FileEditInput, FileEditOutput } from './types.js'
 
@@ -27,18 +25,7 @@ const UNREAD_FILE_REFUSAL = 'File has not been read yet'
 
 type MaybeLegacyInput = Partial<FileEditInput> & { edits?: unknown[] }
 
-function isPlanFile(filePath: string | undefined): boolean {
-  if (!filePath) return false
-  try {
-    const plansDir = getPlansDirectory()
-    return isPathInside(filePath, plansDir)
-  } catch {
-    return false
-  }
-}
-
 export function userFacingName(input?: MaybeLegacyInput): string {
-  if (isPlanFile(input?.file_path)) return 'Update plan'
   if (input?.edits !== undefined) return 'Update'
   if (input?.old_string === '') return 'Create'
   if (!input) return 'Update'
@@ -55,7 +42,6 @@ export function renderToolUseMessage(
   { verbose }: { verbose: boolean },
 ): React.ReactNode {
   if (!input.file_path) return null
-  if (isPlanFile(input.file_path)) return null
   return (
     <FilePathLink filePath={input.file_path}>
       {getDisplayPath(input.file_path)}
@@ -90,7 +76,6 @@ export function renderToolResultMessage(
       fileContent={output.originalFile}
       verbose={verbose}
       {...(style === 'condensed' ? { style: 'condensed' as const } : {})}
-      {...(isPlanFile(output.filePath) ? { previewHint: 'preview the plan' } : {})}
     />
   )
 }

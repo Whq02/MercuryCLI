@@ -11,7 +11,6 @@ import { clearInstructionFileCaches } from '../../services/instructions/engine.j
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
 import { updateHooksConfigSnapshot } from '../../utils/hooks/hooksConfigSnapshot.js'
-import { getPlansDirectory } from '../../utils/plans.js'
 import { setCwd } from '../../utils/Shell.js'
 import { plural } from '../../utils/stringUtils.js'
 import {
@@ -97,7 +96,6 @@ function restoreSessionState(originalCwd: string, projectRootMoved: boolean): vo
     updateHooksConfigSnapshot()
   }
   clearInstructionFileCaches()
-  getPlansDirectory.cache?.clear?.()
 }
 
 const NO_SESSION_MESSAGE =

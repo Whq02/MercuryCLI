@@ -28,7 +28,7 @@ export function markSessionBootRules(context: ToolPermissionContext): void {
 const PUSH_PROBE = 'git push'
 const PUSH_RULE_SHAPE = '`Bash(git push:*)`'
 const PUSH_ROADS = `an allow rule such as ${PUSH_RULE_SHAPE} (guardrails.allow in settings, or --allowed-tools)`
-const HUMAN_CALLS = 'a question to the operator (AskUserQuestion), a plan approval (ExitStrategyMode) and every other tool that requires a human'
+const HUMAN_CALLS = 'a question to the operator (AskUserQuestion), a review approval (ApolloReview) and every other tool that requires a human'
 
 function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | null {
   try {

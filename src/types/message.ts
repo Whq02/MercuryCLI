@@ -164,7 +164,6 @@ export type UserMessage = {
   imagePasteIds?: number[]
   sourceToolAssistantUUID?: UUID
   sourceToolUseID?: string
-  planContent?: string
   permissionMode?: import('./permissions.js').PermissionMode
   origin?: MessageOrigin
 }

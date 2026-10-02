@@ -19,14 +19,12 @@ import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
 import { getTools } from '../tools.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
-import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../tools/ExitPlanModeTool/constants.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
 import { normalizeFileEditInput } from '../tools/FileEditTool/utils.js'
 import { FILE_WRITE_TOOL_NAME } from '../tools/FileWriteTool/prompt.js'
 import { getCwd } from './cwd.js'
 import { createUserMessage } from './messages.js'
 import { getFileReadIgnorePatterns, normalizePatternsToPath } from './permissions/filesystem.js'
-import { getPlan, getPlanFilePath } from './plans.js'
 import { getPlatform } from './platform.js'
 import { countFilesRoundedRg } from './ripgrep.js'
 import { jsonStringify } from './slowOperations.js'
@@ -120,7 +118,6 @@ export async function logContextMetrics(
 
 
 const SWARM_ONLY_FIELDS: Record<string, string[]> = {
-  [EXIT_PLAN_MODE_V2_TOOL_NAME]: ['launchSwarm', 'crewmateCount'],
   [AGENT_TOOL_NAME]: ['name', 'crew_name', 'mode'],
 }
 
@@ -271,14 +268,8 @@ function stripCwdChangePrefix(command: string): string {
 export function normalizeToolInput<Input extends Record<string, unknown>>(
   tool: Tool,
   input: Input,
-  agentId?: string,
 ): Input {
   switch (tool.name) {
-    case EXIT_PLAN_MODE_V2_TOOL_NAME: {
-      const plan = getPlan(agentId)
-      if (plan === null) return input
-      return { ...input, plan, planFilePath: getPlanFilePath(agentId) }
-    }
     case BASH_TOOL_NAME: {
       const parsed = reparse<{
         command: string
@@ -354,12 +345,6 @@ export function normalizeToolInputForAPI<Input extends Record<string, unknown>>(
   tool: Tool,
   input: Input,
 ): Input {
-  if (tool.name === EXIT_PLAN_MODE_V2_TOOL_NAME) {
-    const { plan, planFilePath, ...rest } = input as Record<string, unknown>
-    void plan
-    void planFilePath
-    return rest as unknown as Input
-  }
   if (tool.name === FILE_EDIT_TOOL_NAME) {
     if (Array.isArray((input as { edits?: unknown }).edits)) {
       const { old_string, new_string, replace_all, ...rest } = input as Record<string, unknown>

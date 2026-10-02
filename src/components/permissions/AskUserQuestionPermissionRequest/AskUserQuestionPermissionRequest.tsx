@@ -20,7 +20,6 @@ import {
   navigateTo,
   presentToolCall,
   requestDiscussion,
-  requestFinish,
   setNote,
   submitInterview,
   type InterviewBoundary,
@@ -37,8 +36,6 @@ import type {
   InterviewQuestionState,
   InterviewSessionState,
 } from '../../../services/interview/contracts.js'
-import type { AppState } from '../../../state/AppState.js'
-import { useAppState } from '../../../state/AppState.js'
 import { AskUserQuestionTool } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { type CliHighlight, getCliHighlightPromise } from '../../../utils/cliHighlight.js'
 import type { PastedContent } from '../../../utils/config.js'
@@ -46,8 +43,6 @@ import type { ImageDimensions } from '../../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../../utils/imageStore.js'
 import { logError } from '../../../utils/log.js'
 import { applyMarkdown } from '../../../utils/markdown.js'
-import { isPlanModeInterviewPhaseEnabled } from '../../../utils/planModeV2.js'
-import { getPlanFilePath } from '../../../utils/plans.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { composeAnswer, OTHER_OPTION_VALUE, projectQuestionState, type QuestionState } from './questionState.js'
 import { QuestionView } from './QuestionView.js'
@@ -123,9 +118,6 @@ function AskUserQuestionPermissionRequestBody(
 
   const { rows: terminalRows, columns: terminalColumns } = useTerminalSize()
   const [theme] = useTheme()
-  const toolPermissionContextMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
-  const isInPlanMode = toolPermissionContextMode === 'strategy'
-  const planFilePath = isInPlanMode ? getPlanFilePath() : undefined
 
   const railRows = useSyncExternalStore(
     subscribeSessionRailRows,
@@ -222,12 +214,6 @@ function AskUserQuestionPermissionRequestBody(
     onDone()
     requestDiscussion(boundaryWith(blocks), toolUseConfirm.input as Record<string, unknown>, target.id)
   }, [currentQuestion, questions, session, onDone, boundaryWith, toolUseConfirm, handleCancel])
-
-  const handleFinishPlanInterview = useCallback(async () => {
-    const blocks = await buildContextBlocks(session)
-    onDone()
-    requestFinish(boundaryWith(blocks), toolUseConfirm.input as Record<string, unknown>)
-  }, [session, onDone, boundaryWith, toolUseConfirm])
 
   const handleUpdateQuestionState = useCallback(
     (
@@ -419,7 +405,6 @@ function AskUserQuestionPermissionRequestBody(
         hideSubmitTab={hideSubmitTab}
         minContentHeight={globalContentHeight}
         minContentWidth={globalContentWidth}
-        planFilePath={planFilePath}
         onUpdateQuestionState={handleUpdateQuestionState}
         onAnswer={handleQuestionAnswer}
         onTextInputFocus={handleTextInputFocus}
@@ -428,7 +413,6 @@ function AskUserQuestionPermissionRequestBody(
         onTabPrev={handleTabPrev}
         onTabNext={handleTabNext}
         onRespondToClaude={() => void handleRespondToClaude().catch(logError)}
-        onFinishPlanInterview={() => void handleFinishPlanInterview().catch(logError)}
         onImagePaste={(base64, mediaType, filename, dims, path) =>
           onImagePaste(currentQuestion.text, base64, mediaType, filename, dims, path)
         }

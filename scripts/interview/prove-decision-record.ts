@@ -2,7 +2,7 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
@@ -17,7 +17,6 @@ const {
   buildDecisionRecord,
   persistDecisionRecord,
   latestDecisionRecordSync,
-  formatDecisionRecordForPlanning,
 } = await import('../../src/services/interview/decisionRecord.ts')
 import type { InterviewEvent } from '../../src/services/interview/contracts.ts'
 
@@ -104,27 +103,6 @@ t.section('§3 — sync persistence under the scratch home')
   persistDecisionRecord(record)
   const back = latestDecisionRecordSync()
   t.check('the boundary reader returns the persisted record', JSON.stringify(back) === JSON.stringify(record))
-}
-
-t.section('§4 — the REAL planning consumer')
-{
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
-  const messages = normalizeAttachmentForAPI({
-    type: 'plan_mode',
-    planFilePath: join(scratch, 'plan.md'),
-    planExists: false,
-  } as never) as { message?: { content?: unknown } }[]
-  const text = JSON.stringify(messages)
-  t.check('the plan attachment carries the record id', text.includes('ir_test'))
-  t.check('decisions arrive BY ID', text.includes('[id_engine]'))
-  t.check('the selection is quoted, not comma-lossy', text.includes('\\"Redis\\"') || text.includes('"Redis"'))
-  t.check('deliberately-open decisions are named', text.includes('[id_scope]'))
-  t.check('the do-not-re-ask law rides the handoff', text.includes('do not re-ask'))
-  const src = readFileSync('src/utils/messages/attachmentText.ts', 'utf8')
-  t.check(
-    'the attachment consumes the ONE formatter (no duplicate)',
-    src.includes('formatDecisionRecordForPlanning'),
-  )
 }
 
 rmSync(scratch, { recursive: true, force: true })

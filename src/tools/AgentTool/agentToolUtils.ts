@@ -86,12 +86,10 @@ import { emitBackgroundAgentFrames } from '../../utils/task/sdkAgentFrames.js'
 import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
 import { isInProcessCrewmate } from '../../utils/crewmateContext.js'
 import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
-import type { PermissionMode } from '../../utils/permissions/PermissionMode.js'
 import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { AGENT_TOOL_NAME } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
-const EXIT_PLAN_MODE_NAME = 'ExitStrategyMode'
 const MCP_TOOL_PREFIX = 'mcp__'
 
 
@@ -99,16 +97,12 @@ export function filterToolsForAgent(args: {
   tools: Tools
   isBuiltIn: boolean
   isAsync?: boolean
-  permissionMode?: PermissionMode
 }): Tools {
-  const { tools, isBuiltIn, isAsync, permissionMode } = args
+  const { tools, isBuiltIn, isAsync } = args
   const crewmateKeeps =
     isInProcessCrewmate() && isAgentSwarmsEnabled()
   return tools.filter(tool => {
     if (tool.name.startsWith(MCP_TOOL_PREFIX)) return true
-    if (permissionMode === 'strategy' && tool.name === EXIT_PLAN_MODE_NAME) {
-      return true
-    }
     if (ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
     if (tool.name === JEV_TOOL_NAME && !readJevSettings().subagents) return false
     if (!isBuiltIn && CUSTOM_AGENT_DISALLOWED_TOOLS.has(tool.name)) {
@@ -162,7 +156,6 @@ export function resolveAgentTools(
         tools: availableTools,
         isBuiltIn,
         isAsync,
-        permissionMode: definition.permissionMode,
       })
 
   const deniedNames = new Set(

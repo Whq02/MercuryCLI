@@ -1284,7 +1284,7 @@ section('MAPPERS — the SDK↔internal mapping table (unpinned before T18)')
 
   const asst2 = mkAssistant([txt('a'), tu('toolu_map3')])
   const asstRows = mappers.toSDKMessages([asst2] as never) as AnyMsg[]
-  check('toSDKMessages: assistant content blocks by reference (non-ExitPlan rows)',
+  check('toSDKMessages: assistant content blocks by reference',
     (asstRows[0]!.message.content as Block[])[0] === (asst2.message.content as Block[])[0] &&
       (asstRows[0]!.message.content as Block[])[1] === (asst2.message.content as Block[])[1])
 }

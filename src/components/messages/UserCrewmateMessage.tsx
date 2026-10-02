@@ -8,7 +8,6 @@ import { toInkColor } from '../../utils/ink.js'
 import { isIdleNotification, isShutdownApproved } from '../../services/crew/liveMessages.js'
 import { parseBusEnvelope } from '../../utils/swarm/busEnvelopes.js'
 import { unescapeXml, unescapeXmlAttr } from '../../utils/xml.js'
-import { tryRenderPlanApprovalMessage } from './PlanApprovalMessage.js'
 import { tryRenderShutdownMessage } from './ShutdownMessage.js'
 import { tryRenderTaskAssignmentMessage } from './TaskAssignmentMessage.js'
 
@@ -76,8 +75,6 @@ export function CrewmateMessageContent({
 }): React.ReactNode {
   const senderName = message.crewmateId
 
-  const planCard = tryRenderPlanApprovalMessage(message.content, senderName)
-  if (planCard) return planCard
   const shutdownCard = tryRenderShutdownMessage(message.content)
   if (shutdownCard) return shutdownCard
   const assignmentCard = tryRenderTaskAssignmentMessage(

@@ -3,19 +3,12 @@
   "TURNS_BETWEEN_REMINDERS": 10,
   "TURNS_SINCE_WRITE": 10
  },
- "PLAN_MODE_ATTACHMENT_CONFIG/value": {
-  "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
-  "TURNS_BETWEEN_ATTACHMENTS": 5
- },
  "AUTO_MODE_ATTACHMENT_CONFIG/value": {
   "FULL_REMINDER_EVERY_N_ATTACHMENTS": 5,
   "TURNS_BETWEEN_ATTACHMENTS": 5
  },
  "RELEVANT_MEMORIES_CONFIG/value": {
   "MAX_SESSION_BYTES": 61440
- },
- "VERIFY_PLAN_REMINDER_CONFIG/value": {
-  "TURNS_BETWEEN_REMINDERS": 10
  },
  "CONTRACT_REMINDER_CONFIG/value": {
   "TURNS_BETWEEN_REMINDERS": 12,
@@ -97,11 +90,14 @@
    "lineStart": 3
   }
  ],
- "memoryHeader/one-fact-page": "Memory (topic deploy, 1 fact): /mem/library/topic-deploy.md:",
- "memoryHeader/many-facts-page": "Memory (topic deploy, 3 facts): /mem/library/topic-deploy.md:",
- "memoryHeader/recent-rows": "Memory (recent facts, not yet on a page, 2 facts): /mem/library/current.jsonl:",
- "memoryHeader/no-slug": "Memory (1 fact): /mem/example.md:",
- "getVerifyPlanReminderTurnCount/counts": 0,
+ "memoryHeader/fresh-bucket": "Memory (saved today): /mem/example.md:",
+ "memoryHeader/stale-bucket": "This memory was written 553 days ago. A memory records an observation made at one moment, not the system's live state — claims about code behaviour and file-and-line citations may be outdated, and must be verified against the current code before being asserted as fact.\n\nMemory: /mem/old.md:",
+ "filterDuplicateMemoryAttachments/dedup-read-file": {
+  "«throws»": "readFileState.has is not a function. (In 'readFileState.has(m.path)', 'readFileState.has' is undefined)"
+ },
+ "filterDuplicateMemoryAttachments/no-overlap": {
+  "«throws»": "readFileState.has is not a function. (In 'readFileState.has(m.path)', 'readFileState.has' is undefined)"
+ },
  "createAttachmentMessage/shape": {
   "attachment": {
    "context": "x",

@@ -17,8 +17,6 @@ import {
   LOCAL_COMMAND_STDERR_TAG,
   LOCAL_COMMAND_STDOUT_TAG,
 } from '../../constants/xml.js'
-import { EXIT_PLAN_MODE_V2_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants.js'
-import { getPlan } from '../plans.js'
 import type {
   AssistantMessage,
   CompactMetadata,
@@ -274,33 +272,6 @@ export function localCommandOutputToSDKAssistantMessage(
 }
 
 
-function normalizeAssistantContentForSdk(
-  message: AssistantMessage['message'],
-): AssistantMessage['message'] {
-  const content = message.content
-  if (!Array.isArray(content)) return message
-  let changed = false
-  const mapped = content.map(block => {
-    if (
-      typeof block === 'object' &&
-      block !== null &&
-      (block as { type?: string }).type === 'tool_use' &&
-      (block as { name?: string }).name === EXIT_PLAN_MODE_V2_TOOL_NAME
-    ) {
-      changed = true
-      const input = (block as { input?: Record<string, unknown> }).input
-      return {
-        ...(block as Record<string, unknown>),
-        input: { ...(input ?? {}), plan: getPlan() ?? '' },
-      }
-    }
-    return block
-  })
-  if (!changed) return message
-  return { ...message, content: mapped } as AssistantMessage['message']
-}
-
-
 export function toSDKMessages(messages: Message[]): SDKMessage[] {
   const sessionId = getSessionId()
   const out: SDKMessage[] = []
@@ -308,7 +279,7 @@ export function toSDKMessages(messages: Message[]): SDKMessage[] {
     if (msg.type === 'assistant') {
       out.push({
         type: 'assistant',
-        message: normalizeAssistantContentForSdk(msg.message),
+        message: msg.message,
         session_id: sessionId,
         parent_tool_use_id: null,
         uuid: msg.uuid,

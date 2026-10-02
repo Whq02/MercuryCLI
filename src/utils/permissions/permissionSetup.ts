@@ -9,7 +9,7 @@ import {
   setAutoModeCircuitBroken,
   getAutoModeFlagCli,
 } from './autoModeState.js'
-import { setHasExitedPlanMode, setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
+import { setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import { getMainLoopModel } from '../model/model.js'
@@ -258,7 +258,6 @@ export function transitionPermissionMode(
   let next = context
 
   if (fromMode === 'strategy') {
-    setHasExitedPlanMode(true)
     next = clearPreStrategyMode(next)
   }
   if (toMode === 'strategy' && fromMode !== 'strategy') {

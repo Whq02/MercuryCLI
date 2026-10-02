@@ -17,8 +17,6 @@ import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getPatchForDisplay } from '../../utils/diff.js'
 import { getDisplayPath } from '../../utils/file.js'
 import { extractTag } from '../../utils/messages.js'
-import { getPlansDirectory } from '../../utils/plans.js'
-import { isPathInside } from '../../utils/pathPrefix.js'
 import { readFileInRange, FileTooLargeError } from '../../utils/readFileInRange.js'
 import { countCharInString, firstLineOf, plural } from '../../utils/stringUtils.js'
 import { FILE_WRITE_TOOL_NAME } from './prompt.js'
@@ -44,18 +42,7 @@ function hasMoreThanPreviewLines(content: string): boolean {
   return index < content.length - 1
 }
 
-function isPlanFile(filePath: string | undefined): boolean {
-  if (!filePath) return false
-  try {
-    const plansDir = getPlansDirectory()
-    return isPathInside(filePath, plansDir)
-  } catch {
-    return false
-  }
-}
-
 export function userFacingName(input?: Partial<FileWriteToolInput>): string {
-  if (isPlanFile(input?.file_path)) return 'Write plan'
   return FILE_WRITE_TOOL_NAME
 }
 
@@ -146,19 +133,10 @@ export function renderToolResultMessage(
         fileContent={output.originalFile ?? ''}
         verbose={verbose}
         {...(style === 'condensed' ? { style: 'condensed' as const } : {})}
-        {...(isPlanFile(output.filePath) ? { previewHint: 'preview the plan' } : {})}
       />
     )
   }
-  const plan = isPlanFile(output.filePath)
   if (!verbose && style === 'condensed') {
-    if (plan) {
-      return (
-        <MessageResponse>
-          <CreatedFileCard output={output} verbose={true} />
-        </MessageResponse>
-      )
-    }
     const lineCount = countLines(output.content)
     return (
       <MessageResponse>
@@ -170,21 +148,9 @@ export function renderToolResultMessage(
       </MessageResponse>
     )
   }
-  if (!verbose && plan) {
-    return <PlanHintCard />
-  }
   return (
     <MessageResponse>
       <CreatedFileCard output={output} verbose={verbose} />
-    </MessageResponse>
-  )
-}
-
-function PlanHintCard(): React.ReactNode {
-  const tokens = useMercuryTokens()
-  return (
-    <MessageResponse>
-      <Text color={tokens.textMuted}>plan written — preview the plan to review it</Text>
     </MessageResponse>
   )
 }

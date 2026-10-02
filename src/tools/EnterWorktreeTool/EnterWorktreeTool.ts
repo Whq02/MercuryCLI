@@ -6,7 +6,7 @@ import { clearInstructionFileCaches } from '../../services/instructions/engine.j
 import { buildTool } from '../../Tool.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getCwd } from '../../utils/cwd.js'
-import { getPlanSlug, getPlansDirectory } from '../../utils/plans.js'
+import { getPlanSlug } from '../../utils/plans.js'
 import {
   createWorktreeForSession,
   getCurrentWorktreeSession,
@@ -95,7 +95,6 @@ export const EnterWorktreeTool = buildTool({
     void saveWorktreeState(session as never)
 
     clearInstructionFileCaches()
-    getPlansDirectory.cache.clear()
 
     const branchNote = session.worktreeBranch
       ? ` on branch ${session.worktreeBranch}`

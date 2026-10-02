@@ -251,7 +251,7 @@ const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool
 const { FileWriteTool } = await import('../../src/tools/FileWriteTool/FileWriteTool.ts')
 const { GlobTool } = await import('../../src/tools/GlobTool/GlobTool.ts')
 const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
-const { EnterPlanModeTool } = await import('../../src/tools/EnterPlanModeTool/EnterPlanModeTool.ts')
+const { ContextLeftTool } = await import('../../src/tools/ContextLeftTool/ContextLeftTool.ts')
 const { gateToolCall } = await import('../../src/services/providers/toolCallGate.ts')
 const { replayableItems } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
@@ -282,7 +282,7 @@ const CATALOG = [
   FileWriteTool,
   GlobTool,
   GrepTool,
-  EnterPlanModeTool,
+  ContextLeftTool,
   PermissiveFixtureTool,
   RequiredFixtureTool,
 ] as never
@@ -290,7 +290,7 @@ const BASH = BashTool.name
 const READ = FileReadTool.name
 const EDIT = FileEditTool.name
 const GREP = GrepTool.name
-const PLAN = EnterPlanModeTool.name
+const EMPTY = ContextLeftTool.name
 const PERMISSIVE = PermissiveFixtureTool.name
 const REQUIRED = RequiredFixtureTool.name
 
@@ -328,7 +328,7 @@ const CASES: Case[] = [
   },
   {
     label: 'unknown field on a STRICT tool',
-    script: { calls: [{ id: 'call_strict', name: PLAN, args: '{"bogus":1}' }] },
+    script: { calls: [{ id: 'call_strict', name: EMPTY, args: '{"bogus":1}' }] },
     expect: { accepted: 0, refused: ['schema'], stop: 'end_turn' },
     reasonIncludes: '`bogus` was not expected',
   },
@@ -413,7 +413,7 @@ const CASES: Case[] = [
   },
   {
     label: 'empty argument string on a no-parameter tool is ACCEPTED as {}',
-    script: { calls: [{ id: 'call_noargs', name: PLAN, args: '' }] },
+    script: { calls: [{ id: 'call_noargs', name: EMPTY, args: '' }] },
     expect: { accepted: 1, refused: [], stop: 'tool_use' },
   },
 ]

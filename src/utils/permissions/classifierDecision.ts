@@ -1,6 +1,4 @@
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
-import { ENTER_PLAN_MODE_TOOL_NAME } from '../../tools/EnterPlanModeTool/constants.js'
-import { EXIT_PLAN_MODE_TOOL_NAME } from '../../tools/ExitPlanModeTool/constants.js'
 import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../../tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../../tools/GrepTool/prompt.js'
@@ -32,8 +30,6 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   TASK_LIST_TOOL_NAME,
   TASK_STOP_TOOL_NAME,
   ASK_USER_QUESTION_TOOL_NAME,
-  ENTER_PLAN_MODE_TOOL_NAME,
-  EXIT_PLAN_MODE_TOOL_NAME,
   SEND_MESSAGE_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
   SLEEP_TOOL_NAME,

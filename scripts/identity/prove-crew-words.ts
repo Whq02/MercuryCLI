@@ -20,7 +20,6 @@ const WORKFLOW_HOME = 'src/tools/WorkflowTool/'
 const OLD_TRANSCRIPT_RENDERERS = [
   'src/components/messages/UserCrewmateMessage.tsx',
   'src/components/messages/AttachmentMessage.tsx',
-  'src/components/messages/PlanApprovalMessage.tsx',
   'src/components/messages/nullRenderingAttachments.ts',
   'src/components/prompts-panel/rows.ts',
   'src/components/messages/ShutdownMessage.tsx',
@@ -47,7 +46,6 @@ const ALLOW: Row[] = [
   { path: 'src/tools/SendMessageTool/', fragment: null, why: 'SendMessage keeps working exactly as it does now: its schema, words and results are frozen' },
   { path: 'src/tools/AgentTool/AgentTool.tsx', fragment: null, why: "the Agent tool's schema words, launch refusals and receipts are the model's; the one start road rewrites them" },
   { path: 'src/tools/AgentTool/agentMemory.ts', fragment: null, why: "the memory file's own header speaks of the people's team, not the crew" },
-  { path: 'src/tools/ExitPlanModeTool/', fragment: null, why: "plan-mode tool results are the model's" },
   { path: 'src/tools/InspectTool/InspectTool.ts', fragment: null, why: 'the ref kinds it lists (mercury://team/…) are the wire' },
   { path: 'src/tools/TeamCreateTool/', fragment: null, why: 'the create step leaves with the team system' },
   { path: 'src/tools/TeamDeleteTool/', fragment: null, why: 'the delete step leaves with the team system' },
@@ -75,7 +73,6 @@ const ALLOW: Row[] = [
   { path: 'src/utils/healthReport.ts', fragment: 'daemon journals', why: 'the same journal in the health row' },
   { path: 'src/components/Settings/Config.tsx', fragment: 'Teammate mode', why: "the pane option's row leaves with it" },
   { path: 'src/components/Settings/Config.tsx', fragment: 'set teammate mode to', why: 'the same row\'s receipt' },
-  { path: 'src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx', fragment: 'team-creation tool', why: 'the implement-the-plan turn is sent to the model; its create-step hint leaves with the create step' },
   { path: 'src/utils/capability/declarations.ts', fragment: 'charter', why: 'the rows of the create, delete and brief tools leave with them' },
   { path: 'src/components/TrustDialog/TrustDialog.tsx', fragment: 'your own code, your team', why: "the trust question speaks of the people's team, not the crew" },
 ]

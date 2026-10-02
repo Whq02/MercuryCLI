@@ -190,7 +190,6 @@ const FILE_TOOLS = new Set(['Edit', 'Write', 'MultiEdit', 'NotebookEdit'])
 const COMMAND_TOOLS = new Set(['Bash', 'Shell'])
 const CHECK_HINTS = /\b(test|typecheck|lint|check|verify|prove)\b/i
 const QUESTION_TOOLS = new Set(['AskUserQuestion'])
-const PLAN_TOOLS = new Set(['EnterStrategyMode', 'ExitStrategyMode'])
 const WORK_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
 interface ToolUseShape {
@@ -302,21 +301,6 @@ registerActivityClassifier({
   }),
 })
 
-registerActivityClassifier({
-  name: 'stream-plan',
-  precedence: 95,
-  matches: input => {
-    const tool = streamToolUse(input)
-    return tool !== null && PLAN_TOOLS.has(tool.name ?? '')
-  },
-  lift: input => ({
-    ...base(input),
-    class: 'plan',
-    verb: 'updated',
-    objectLabel: 'the plan',
-    phase: 'running',
-  }),
-})
 
 registerActivityClassifier({
   name: 'stream-work-item',

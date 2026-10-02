@@ -228,8 +228,8 @@ check(
   `offered: ${courierUnderSwitch.join(', ')}`,
 )
 check(
-  'the census counts 68 tools: the 74 less RememberLesson, LaunchFleet, TaskOutput, SendUserMessage, TeamCreate and TeamDelete (the crew is born with the session)',
-  census.summary.tools === 68,
+  'the census counts 66 tools',
+  census.summary.tools === 66,
   `live census: ${census.summary.tools} tools`,
 )
 

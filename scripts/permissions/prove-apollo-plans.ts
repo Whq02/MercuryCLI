@@ -86,6 +86,23 @@ section('§1 the command roster: an unregistered planning word answers as any un
   check('control: a registered name never resolves as unknown', resolveUnknownSlashName('/help', roster as never) === undefined)
 }
 
+section('§2 the tool roster: the planning tools the model is offered are Apollo\'s alone')
+{
+  const before = api.messageRequests().length
+  const run2 = await run(['run', 'hello'])
+  check('control: a plain run reaches the fixture provider once', run2.code === 0 && api.messageRequests().length === before + 1, JSON.stringify(run2))
+  const request = api.messageRequests()[before] as { body?: { tools?: Array<{ name: string }> } } | undefined
+  const offered = (request?.body?.tools ?? []).map(t => t.name)
+  check('the wire carries a tool roster', offered.length > 5, offered.join(','))
+  const planning = offered.filter(name => /Strategy|PlanMode/.test(name))
+  check('no tool on the wire enters or exits a planning mode', planning.length === 0, planning.join(','))
+  check('the Apollo review stays the one mode-moving tool the roster declares', offered.includes('ApolloReview'), offered.join(','))
+
+  const { getAllBaseTools } = await import('../../src/tools.ts')
+  const names = getAllBaseTools().map(t => t.name)
+  check('the base tool registry agrees', !names.some(name => /Strategy|PlanMode/.test(name)) && names.includes('ApolloReview'), names.filter(name => /Strategy|PlanMode|Apollo/.test(name)).join(','))
+}
+
 await api.close?.()
 rmSync(HOME, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))

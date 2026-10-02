@@ -28,7 +28,6 @@ import { UserForkBoilerplateMessage } from './UserForkBoilerplateMessage.js'
 import { UserLocalCommandOutputMessage } from './UserLocalCommandOutputMessage.js'
 import { UserMemoryInputMessage } from './UserMemoryInputMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
-import { UserPlanMessage } from './UserPlanMessage.js'
 import { UserPromptMessage } from './UserPromptMessage.js'
 import { UserResourceUpdateMessage } from './UserResourceUpdateMessage.js'
 import { UserCrewmateMessage } from './UserCrewmateMessage.js'
@@ -43,7 +42,6 @@ type Props = {
   addMargin: boolean
   param: TextBlockParam
   verbose: boolean
-  planContent?: string
   isTranscriptMode?: boolean
   timestamp?: string
   notice?: boolean
@@ -56,7 +54,6 @@ export function UserTextMessage({
   addMargin,
   param,
   verbose,
-  planContent,
   isTranscriptMode,
   timestamp,
   notice = false,
@@ -68,10 +65,6 @@ export function UserTextMessage({
   const deliveredAt = meta?.queued ? null : noticeDeliveryClock(noticeSentAt, noticeDeliveredAt)
   if (param.text.trim() === NO_CONTENT_MESSAGE) {
     return null
-  }
-
-  if (planContent) {
-    return <UserPlanMessage addMargin={addMargin} planContent={planContent} />
   }
 
   const monitorBlocks = isMonitorText(param.text) ? wrappedNoticeBlocks(param.text) : null

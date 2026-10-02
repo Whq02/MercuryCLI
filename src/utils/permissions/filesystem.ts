@@ -383,14 +383,6 @@ export function checkReadableInternalPath(absolutePath: string, _input: unknown)
   return { behavior: 'passthrough', message: '' } as unknown as PermissionResult
 }
 
-function isPlanFilePath(folded: string): boolean {
-  try {
-    const plans = normalizeCaseForComparison((require('../plans.js') as { getPlansDirectory(): string }).getPlansDirectory())
-    return folded === plans || folded.startsWith(plans + platformSep.toLowerCase()) || folded.startsWith(plans + '/')
-  } catch {
-    return false
-  }
-}
 function isAgentMemory(path: string): boolean {
   try {
     return (require('../../tools/AgentTool/agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
@@ -419,7 +411,6 @@ function editableInternalCategory(path: string): string | null {
   if (folded === normalizeCaseForComparison(joinWithSep(joinWithSep(cwd, MERCURY_PROJECT_DIR), 'launch.json'))) {
     return 'preview launch config'
   }
-  if (isPlanFilePath(folded)) return 'session plan file'
   if (isAgentMemory(path)) return 'agent-memory directory'
   if (!autoMemoryOverridden() && isAutoMemory(path)) return 'auto-memory directory'
   return null
@@ -446,7 +437,6 @@ function readableInternalCategory(path: string): string | null {
     }
   } catch {
   }
-  if (isPlanFilePath(folded)) return 'session plan file'
   try {
     const toolResults = normalizeCaseForComparison((require('../toolResultStorage.js') as { getToolResultsDir(): string }).getToolResultsDir())
     if (folded.startsWith(toolResults)) return 'tool-results directory'

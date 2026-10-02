@@ -688,33 +688,6 @@ export function setPromptId(promptId: string | null): void {
 }
 
 
-export function hasExitedPlanModeInSession(): boolean {
-  return modeOneShots.hasExitedPlanMode
-}
-
-export function setHasExitedPlanMode(value: boolean): void {
-  modeOneShots.hasExitedPlanMode = value
-}
-
-export function needsPlanModeExitAttachment(): boolean {
-  return modeOneShots.needsPlanModeExitAttachment
-}
-
-export function setNeedsPlanModeExitAttachment(value: boolean): void {
-  modeOneShots.needsPlanModeExitAttachment = value
-}
-
-export function hasEnteredPlanModeThisSession(): boolean {
-  return modeOneShots.hasEnteredPlanModeThisSession
-}
-
-export function handlePlanModeTransition(
-  fromMode: string,
-  toMode: string,
-): void {
-  modeOneShots.handlePlanModeTransition(fromMode, toMode)
-}
-
 export function needsAutoModeExitAttachment(): boolean {
   return modeOneShots.needsAutoModeExitAttachment
 }

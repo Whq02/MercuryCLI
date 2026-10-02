@@ -2,15 +2,11 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 
 const t = checker()
-const ROOT = join(import.meta.dir, '..', '..')
 
 const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.js')
-const { getEnterPlanModeToolPrompt } = await import('../../src/tools/EnterPlanModeTool/prompt.js')
 
 const toolPrompt = await AskUserQuestionTool.prompt!({ getToolPermissionContext: () => ({}) } as never)
 
@@ -34,44 +30,6 @@ t.section('§1 — the assembled question-tool prompt carries the doctrine')
   for (const [name, needle] of CLAUSES) {
     t.check(`the assembled prompt carries ${name}`, toolPrompt.includes(needle), needle)
   }
-}
-
-t.section('§2 — plan approval never travels through the question tool')
-{
-  t.check(
-    'the assembled prompt forbids plan-approval questions',
-    /\b(?:never|do not|don't)\b[^.\n]*"Is my plan ready\?"/i.test(toolPrompt),
-  )
-}
-
-t.section('§3 — one selective plan-entry doctrine')
-{
-  const planPrompt = getEnterPlanModeToolPrompt()
-  t.check('plan entry keys on genuine ambiguity', planPrompt.includes('genuine ambiguity'))
-  t.check(
-    'specific questions beat a full planning phase',
-    planPrompt.includes(`prefer starting work and asking the operator about the specific decisions`),
-  )
-  t.check('the aggressive "prefer planning" marker is gone', !planPrompt.includes('Prefer using EnterPlanMode'))
-  t.check('the multi-file-count trigger is gone', !planPrompt.includes('more than 2-3 files'))
-  t.check('the Mercury doctrine appendix survives', planPrompt.includes('Mercury doctrine (this harness)'))
-}
-
-t.section('§4 — one owner per clause (the attachment defers)')
-{
-  const attachmentSrc = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
-  t.check(
-    'the attachment points at the tool doctrine instead of duplicating it',
-    attachmentSrc.includes('its usage notes carry the binding asking doctrine'),
-  )
-  t.check(
-    'the duplicated never-ask bullet left the attachment',
-    !attachmentSrc.includes('- Never ask what you could find out by reading the code'),
-  )
-  t.check(
-    'the duplicated batching bullet left the attachment',
-    !attachmentSrc.includes('Batch related questions together'),
-  )
 }
 
 t.finish('prove-asking-doctrine')

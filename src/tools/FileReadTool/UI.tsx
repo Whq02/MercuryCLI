@@ -14,7 +14,6 @@ import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
 import { extractTag } from '../../utils/messages.js'
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
 import { formatFileSize } from '../../utils/format.js'
-import { getPlansDirectory } from '../../utils/plans.js'
 import { isPathInside } from '../../utils/pathPrefix.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Input, Output } from './FileReadTool.js'
@@ -36,18 +35,7 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
   }
 }
 
-function isPlanFile(filePath: string | undefined): boolean {
-  if (!filePath) return false
-  try {
-    const plansDir = getPlansDirectory()
-    return isPathInside(filePath, plansDir)
-  } catch {
-    return false
-  }
-}
-
 export function userFacingName(input?: Partial<Input>): string {
-  if (isPlanFile(input?.file_path)) return 'Read plan'
   if (agentOutputTaskId(input?.file_path) !== null) return 'Read agent output'
   return FILE_READ_TOOL_NAME
 }

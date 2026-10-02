@@ -11,7 +11,6 @@ import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import { getContextWindowForModel } from '../context.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
 import { isThinkingMessage } from '../messages.js'
-import { isHumanTurn } from '../messagePredicates.js'
 import {
   getTaskListId,
   isTaskToolsEnabled,
@@ -205,30 +204,6 @@ export async function getContractReminderAttachments(
       ackOwed: contract.status === 'draft' || contract.status === 'amended',
     },
   ]
-}
-
-export function getVerifyPlanReminderTurnCount(messages: Message[]): number {
-  let turnCount = 0
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]
-    if (message && isHumanTurn(message)) {
-      turnCount++
-    }
-    if (
-      message?.type === 'attachment' &&
-      message.attachment.type === 'plan_mode_exit'
-    ) {
-      return turnCount
-    }
-  }
-  return 0
-}
-
-export async function getVerifyPlanReminderAttachment(
-  _messages: Message[] | undefined,
-  _toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  return []
 }
 
 export function getContextEfficiencyAttachment(

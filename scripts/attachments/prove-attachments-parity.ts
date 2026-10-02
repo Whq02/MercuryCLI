@@ -18,10 +18,8 @@ const add = (exportName: string, caseName: string, fn: () => unknown) => {
 
 for (const c of [
   'TASK_REMINDER_CONFIG',
-  'PLAN_MODE_ATTACHMENT_CONFIG',
   'AUTO_MODE_ATTACHMENT_CONFIG',
   'RELEVANT_MEMORIES_CONFIG',
-  'VERIFY_PLAN_REMINDER_CONFIG',
   'CONTRACT_REMINDER_CONFIG',
 ] as const) {
   add(c, 'value', () => (A as Record<string, unknown>)[c])
@@ -65,21 +63,6 @@ add('memoryHeader', 'no-slug', () =>
   A.memoryHeader('/mem/example.md', 0),
 )
 
-
-const humanTurn = (text: string) =>
-  ({
-    type: 'user',
-    uuid: '00000000-0000-4000-8000-000000000001',
-    timestamp: '2026-01-01T00:00:01.000Z',
-    message: { role: 'user', content: text },
-  }) as never
-add('getVerifyPlanReminderTurnCount', 'counts', () =>
-  A.getVerifyPlanReminderTurnCount([
-    humanTurn('one'),
-    { type: 'assistant' } as never,
-    humanTurn('two'),
-  ]),
-)
 
 add('createAttachmentMessage', 'shape', () =>
   A.createAttachmentMessage({ type: 'todo', itemCount: 1, context: 'x' } as never),

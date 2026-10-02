@@ -37,7 +37,6 @@ export const MERCURY_REVIEWER_AGENT: BuiltInAgentDefinition = {
     'ChangeSet',
     'EnterWorktree',
     'ExitWorktree',
-    'ExitStrategyMode',
   ],
   source: 'built-in',
   baseDir: 'built-in',

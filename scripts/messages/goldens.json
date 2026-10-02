@@ -6,7 +6,6 @@
  "REJECT_MESSAGE_WITH_REASON_PREFIX/value": "The operator declined this tool call; it was not run and nothing was changed. The operator said:\n",
  "SUBAGENT_REJECT_MESSAGE/value": "Permission for this tool call was declined; it was not run and nothing was changed. Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "SUBAGENT_REJECT_MESSAGE_WITH_REASON_PREFIX/value": "Permission for this tool call was declined; it was not run and nothing was changed. The operator said:\n",
- "PLAN_REJECTION_PREFIX/value": "The operator declined the proposed plan and chose to stay in strategy mode rather than proceed with implementation.\n\nDeclined plan:\n",
  "DENIAL_WORKAROUND_GUIDANCE/value": "Do not try to reach the same effect by another route. If the task cannot continue without this action, stop and say plainly what was not run and why the task needs it, then wait for the operator.",
  "AUTO_REJECT_MESSAGE/value": "«fn/1»",
  "DONT_ASK_REJECT_MESSAGE/value": "«fn/1»",
@@ -58,7 +57,6 @@
  "EMPTY_STRING_SET/value": {
   "«set»": []
  },
- "PLAN_PHASE4_CONTROL/value": "### Phase 4: Final Plan\nGoal: finish the plan file (still the only file you may edit).\n- Open with a **Context** section: the problem or need behind the change, what prompted it, and the outcome it should produce\n- Present one recommended approach — alternatives you rejected stay out\n- Keep the file scannable in a minute yet concrete enough to execute from\n- Name the critical files the work will touch\n- Point at the existing functions and utilities you found worth reusing, each with its file path\n- Close with a verification section: how to prove the change works end to end (run the code, drive MCP tools, run the tests)",
  "normalizeMessages/basic": [
   {
    "message": {

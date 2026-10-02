@@ -23,7 +23,6 @@ import type { RosterEntry, Health } from '../extensions/types.js'
 import { createEmptyAttributionState, type AttributionState } from '../utils/commitAttribution.js'
 import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestion.js'
 import type { REPLHookContext } from '../utils/hooks/postSamplingHooks.js'
-import type { AllowedPrompt } from '../tools/ExitPlanModeTool/ExitPlanModeV2Tool.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
 import { readRetiredGlobalConfigValue } from '../migrations/retiredCrewSpellings.js'
@@ -241,9 +240,6 @@ type AppStateMutableHalf = {
   authVersion: number
   initialMessage: {
     message: UserMessage
-    clearContext?: boolean
-    permissionMode?: InternalPermissionMode
-    allowedPrompts?: AllowedPrompt[]
     bashMode?: boolean
     armedAtLanding?: boolean
   } | null

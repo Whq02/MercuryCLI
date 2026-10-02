@@ -100,7 +100,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   const bareLine = needsLine(bare)
   check('flow seat, no push rule: the posture carries a line naming the calls that need a present operator', bareLine !== '', `posture:\n${bare}`)
   check('…the line names the channel (the call travels it and waits for the answer)', /channel/.test(bareLine), bareLine)
-  check('…the line names a question to the operator and a plan approval as calls that always travel', /question to the operator/.test(bareLine) && /plan approval/.test(bareLine), bareLine)
+  check('…the line names a question to the operator and a review approval as calls that always travel', /question to the operator/.test(bareLine) && /review approval/.test(bareLine), bareLine)
   check('…the line names the flow road: the calls the flow check blocks, anything visible outside this machine', /flow/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)

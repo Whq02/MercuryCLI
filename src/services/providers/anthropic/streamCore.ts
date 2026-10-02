@@ -872,7 +872,7 @@ async function* queryModel(
     message: {
       ...base,
       ...(servedModel && { model: servedModel }),
-      content: normalizeContentFromAPI(blocks, tools, options.agentId),
+      content: normalizeContentFromAPI(blocks, tools),
     },
     requestId: streamRequestId ?? undefined,
     type: 'assistant',

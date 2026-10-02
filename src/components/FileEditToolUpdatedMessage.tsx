@@ -14,7 +14,6 @@ type Props = {
   fileContent?: string;
   style?: 'condensed';
   verbose: boolean;
-  previewHint?: string;
 };
 export function FileEditToolUpdatedMessage({
   filePath,
@@ -23,7 +22,6 @@ export function FileEditToolUpdatedMessage({
   fileContent,
   style,
   verbose,
-  previewHint,
 }: Props): React.ReactNode {
   const { columns } = useTerminalSize();
   const numAdditions = structuredPatch.reduce(
@@ -62,15 +60,7 @@ export function FileEditToolUpdatedMessage({
     </Text>
   );
 
-  if (previewHint) {
-    if (style !== 'condensed' && !verbose) {
-      return (
-        <MessageResponse>
-          <Text dimColor>{previewHint}</Text>
-        </MessageResponse>
-      );
-    }
-  } else if (style === 'condensed' && !verbose) {
+  if (style === 'condensed' && !verbose) {
     return text;
   }
 

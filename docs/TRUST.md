@@ -126,7 +126,7 @@ own configuration and managed policy still apply.
 A headless session with a permission channel — a switchboard seat, a
 `run --permission-channel stdio` run, a run with a prompt tool — puts every
 ask to the connected client and waits for the answer: a question to the
-operator, a plan approval, and under flow any call the flow check blocks,
+operator, an Apollo review, and under flow any call the flow check blocks,
 `git push` among them (anything visible outside this machine). A push in a
 session nobody is watching therefore waits on a present operator unless a
 permission rule pre-authorises it: `Bash(git push:*)` in the

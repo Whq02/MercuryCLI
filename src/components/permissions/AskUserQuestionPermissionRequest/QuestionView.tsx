@@ -16,7 +16,6 @@ import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js'
 import { decodeDomNavKey } from '../../mercury-ui/navSemantics.js'
 import { Divider } from '../../design-system/Divider.js'
-import { FilePathLink } from '../../FilePathLink.js'
 import { PermissionRequestTitle } from '../PermissionRequestTitle.js'
 import { PreviewQuestionView } from './PreviewQuestionView.js'
 import { QuestionNavigationBar } from './QuestionNavigationBar.js'
@@ -29,7 +28,6 @@ type Props = {
   answers: Record<string, string>
   questionStates: Record<string, QuestionState>
   hideSubmitTab?: boolean
-  planFilePath?: string
   pastedContents?: Record<number, PastedContent>
   minContentHeight?: number
   minContentWidth?: number
@@ -50,7 +48,6 @@ type Props = {
   onTabPrev?: () => void
   onTabNext?: () => void
   onRespondToClaude: () => void
-  onFinishPlanInterview: () => void
   onImagePaste?: (
     base64Image: string,
     mediaType?: string,
@@ -70,7 +67,6 @@ export function QuestionView(props: Props): React.ReactNode {
     answers,
     questionStates,
     hideSubmitTab = false,
-    planFilePath,
     minContentHeight,
     minContentWidth,
     onUpdateQuestionState,
@@ -81,17 +77,14 @@ export function QuestionView(props: Props): React.ReactNode {
     onTabPrev,
     onTabNext,
     onRespondToClaude,
-    onFinishPlanInterview,
     onImagePaste,
     pastedContents,
     onRemoveImage,
     onNotesPasteLarge,
   } = props
   const permissionMode = useAppState((s: AppState) => s.toolPermissionContext.mode)
-  const isInPlanMode = permissionMode === 'strategy'
   const isApolloPoll = permissionMode === 'apollo'
   const [isFooterFocused, setIsFooterFocused] = useState(false)
-  const [footerIndex, setFooterIndex] = useState(0)
   const [isOtherFocused, setIsOtherFocused] = useState(false)
   const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
   const [isNextFocused, setIsNextFocused] = useState(false)
@@ -135,19 +128,16 @@ export function QuestionView(props: Props): React.ReactNode {
       const action = decodeDomNavKey(e, { orientation: 'vertical' })
       if (action === 'movePrevious') {
         e.preventDefault()
-        if (footerIndex === 0) setIsFooterFocused(false)
-        else setFooterIndex(0)
+        setIsFooterFocused(false)
         return
       }
       if (action === 'moveNext') {
         e.preventDefault()
-        if (isInPlanMode && footerIndex === 0) setFooterIndex(1)
         return
       }
       if (action === 'activate') {
         e.preventDefault()
-        if (footerIndex === 0) onRespondToClaude()
-        else onFinishPlanInterview()
+        onRespondToClaude()
         return
       }
       if (action === 'cancel') {
@@ -155,23 +145,17 @@ export function QuestionView(props: Props): React.ReactNode {
         onCancel()
       }
     },
-    [isFooterFocused, footerIndex, isInPlanMode, onRespondToClaude, onFinishPlanInterview, onCancel],
+    [isFooterFocused, onRespondToClaude, onCancel],
   )
 
   const routesToPreview = !question.multiSelect && question.options.some(o => o.preview)
   const chatOrdinal = String(question.options.length + 2)
-  const finishOrdinal = String(question.options.length + 3)
   useInput(
     (input, _key, event) => {
       if (routesToPreview || isOtherFocused) return
       if (input === chatOrdinal) {
         event.stopImmediatePropagation()
         onRespondToClaude()
-        return
-      }
-      if (isInPlanMode && input === finishOrdinal) {
-        event.stopImmediatePropagation()
-        onFinishPlanInterview()
       }
     },
     { isActive: true },
@@ -205,7 +189,6 @@ export function QuestionView(props: Props): React.ReactNode {
         onTabPrev={onTabPrev}
         onTabNext={onTabNext}
         onRespondToClaude={onRespondToClaude}
-        onFinishPlanInterview={onFinishPlanInterview}
         onNotesPasteLarge={onNotesPasteLarge}
       />
     )
@@ -251,27 +234,15 @@ export function QuestionView(props: Props): React.ReactNode {
     <Box flexDirection="column">
       <Divider color="inactive" />
       <Box flexDirection="row" gap={1}>
-        {isFooterFocused && footerIndex === 0 ? (
+        {isFooterFocused ? (
           <Text color="suggestion">{figures.pointer}</Text>
         ) : (
           <Text> </Text>
         )}
-        <Text color={isFooterFocused && footerIndex === 0 ? 'suggestion' : undefined}>
+        <Text color={isFooterFocused ? 'suggestion' : undefined}>
           {options.length + 1}. Chat about this
         </Text>
       </Box>
-      {isInPlanMode && (
-        <Box flexDirection="row" gap={1}>
-          {isFooterFocused && footerIndex === 1 ? (
-            <Text color="suggestion">{figures.pointer}</Text>
-          ) : (
-            <Text> </Text>
-          )}
-          <Text color={isFooterFocused && footerIndex === 1 ? 'suggestion' : undefined}>
-            {options.length + 2}. Skip interview and plan immediately
-          </Text>
-        </Box>
-      )}
     </Box>
   )
 
@@ -293,14 +264,6 @@ export function QuestionView(props: Props): React.ReactNode {
 
   return (
     <Box flexDirection="column" marginTop={0} tabIndex={0} autoFocus onKeyDown={handleKeyDown}>
-      {isInPlanMode && planFilePath && (
-        <Box flexDirection="column" gap={0}>
-          <Divider color="inactive" />
-          <Text color="inactive">
-            Planning: <FilePathLink filePath={planFilePath} />
-          </Text>
-        </Box>
-      )}
       <Box marginTop={-1}>
         <Divider color="inactive" />
       </Box>

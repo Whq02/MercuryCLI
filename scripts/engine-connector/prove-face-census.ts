@@ -123,8 +123,6 @@ const PURE_FACE: string[] = [
 
 const RESIDUE: Record<string, Partial<Record<NeedleName, number>>> = {
   'src/components/Messages.tsx': { bootstrapFacade: 1 },
-  'src/components/permissions/EnterPlanModePermissionRequest/EnterPlanModePermissionRequest.tsx': { bootstrapFacade: 1 },
-  'src/components/permissions/ExitPlanModePermissionRequest/ExitPlanModePermissionRequest.tsx': { bootstrapFacade: 1 },
   'src/hooks/useCancelRequest.ts': { queueModule: 1 },
   'src/components/PromptInput/Notifications.tsx': { modelResolution: 2 },
 }

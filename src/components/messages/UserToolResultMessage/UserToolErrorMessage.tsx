@@ -6,14 +6,13 @@ import { BULLET_OPERATOR, OUTPUT_CONNECTOR } from '../../../constants/figures.js
 import { Box, Text } from '../../../ink.js';
 import { filterToolProgressMessages, type Tool, type Tools } from '../../../Tool.js';
 import type { ProgressMessage } from '../../../types/message.js';
-import { INTERRUPT_MESSAGE_FOR_TOOL_USE, isClassifierDenial, PLAN_REJECTION_PREFIX, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../utils/messages.js';
+import { INTERRUPT_MESSAGE_FOR_TOOL_USE, isClassifierDenial, REJECT_MESSAGE_WITH_REASON_PREFIX } from '../../../utils/messages.js';
 import type { HermesKillInfo } from '../../../utils/permissions/capabilityGate.js';
 import { GLYPH } from '../../mercury-ui/glyphs.js';
 import { CRIMSON, FAINT, IVORY, SECOND } from '../../mercuryPalette.js';
 import { FallbackToolUseErrorMessage } from '../../FallbackToolUseErrorMessage.js';
 import { InterruptedByUser } from '../../InterruptedByUser.js';
 import { MessageResponse } from '../../MessageResponse.js';
-import { RejectedPlanMessage } from './RejectedPlanMessage.js';
 import { RejectedToolUseMessage } from './RejectedToolUseMessage.js';
 type Props = {
   progressMessagesForMessage: ProgressMessage[];
@@ -73,14 +72,6 @@ export function UserToolErrorMessage({
         <InterruptedByUser />
       </MessageResponse>
     );
-  }
-
-  if (
-    typeof param.content === 'string' &&
-    param.content.startsWith(PLAN_REJECTION_PREFIX)
-  ) {
-    const planContent = param.content.substring(PLAN_REJECTION_PREFIX.length);
-    return <RejectedPlanMessage plan={planContent} />;
   }
 
   if (

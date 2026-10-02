@@ -27,11 +27,6 @@ export const CONTRACT_REMINDER_CONFIG = {
   TURNS_BETWEEN_REMINDERS: 12,
 } as const
 
-export const PLAN_MODE_ATTACHMENT_CONFIG = {
-  TURNS_BETWEEN_ATTACHMENTS: 5,
-  FULL_REMINDER_EVERY_N_ATTACHMENTS: 5,
-} as const
-
 export const AUTO_MODE_ATTACHMENT_CONFIG = {
   TURNS_BETWEEN_ATTACHMENTS: 5,
   FULL_REMINDER_EVERY_N_ATTACHMENTS: 5,
@@ -39,10 +34,6 @@ export const AUTO_MODE_ATTACHMENT_CONFIG = {
 
 export const RELEVANT_MEMORIES_CONFIG = {
   MAX_SESSION_BYTES: 60 * 1024,
-} as const
-
-export const VERIFY_PLAN_REMINDER_CONFIG = {
-  TURNS_BETWEEN_REMINDERS: 10,
 } as const
 
 export type FileAttachment = {
@@ -291,22 +282,6 @@ export type Attachment =
       isNew: boolean
     }
   | {
-      type: 'plan_mode'
-      reminderType: 'full' | 'sparse'
-      isSubAgent?: boolean
-      planFilePath: string
-      planExists: boolean
-    }
-  | {
-      type: 'plan_mode_reentry'
-      planFilePath: string
-    }
-  | {
-      type: 'plan_mode_exit'
-      planFilePath: string
-      planExists: boolean
-    }
-  | {
       type: 'auto_mode'
       reminderType: 'full' | 'sparse'
     }
@@ -338,11 +313,6 @@ export type Attachment =
   | {
       type: 'critical_system_reminder'
       content: string
-    }
-  | {
-      type: 'plan_file_reference'
-      planFilePath: string
-      planContent: string
     }
   | {
       type: 'mcp_resource'

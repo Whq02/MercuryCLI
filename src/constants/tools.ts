@@ -4,11 +4,6 @@ import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { JEV_TOOL_NAME } from '../services/jev/jevContract.js'
 import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { CONTEXT_LEFT_TOOL_NAME } from '../tools/ContextLeftTool/constants.js'
-import {
-  EXIT_PLAN_MODE_TOOL_NAME,
-  EXIT_PLAN_MODE_V2_TOOL_NAME,
-} from '../tools/ExitPlanModeTool/constants.js'
-import { ENTER_PLAN_MODE_TOOL_NAME } from '../tools/EnterPlanModeTool/constants.js'
 import { ENTER_WORKTREE_TOOL_NAME } from '../tools/EnterWorktreeTool/constants.js'
 import { EXIT_WORKTREE_TOOL_NAME } from '../tools/ExitWorktreeTool/constants.js'
 import { FILE_EDIT_TOOL_NAME } from '../tools/FileEditTool/constants.js'
@@ -38,9 +33,6 @@ import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../tools/WebSea
 import { WORKFLOW_TOOL_NAME } from '../tools/WorkflowTool/constants.js'
 
 export const ALL_AGENT_DISALLOWED_TOOLS: Set<string> = new Set([
-  ENTER_PLAN_MODE_TOOL_NAME,
-  EXIT_PLAN_MODE_TOOL_NAME,
-  EXIT_PLAN_MODE_V2_TOOL_NAME,
   AGENT_TOOL_NAME,
   ASK_USER_QUESTION_TOOL_NAME,
   TASK_STOP_TOOL_NAME,

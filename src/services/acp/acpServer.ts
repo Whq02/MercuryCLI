@@ -156,8 +156,6 @@ const TOOL_KINDS: Readonly<Record<string, AcpToolKind>> = {
   TaskUpdate: 'think',
   TaskGet: 'think',
   TaskList: 'think',
-  EnterStrategyMode: 'switch_mode',
-  ExitStrategyMode: 'switch_mode',
 }
 
 export function toolKindOf(name: string): AcpToolKind {

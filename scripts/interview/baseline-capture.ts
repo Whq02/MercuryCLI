@@ -245,15 +245,6 @@ const JOURNEYS: Journey[] = [
     ready: REVIEW_READY,
   },
   {
-    name: 'j10-plan-footer',
-    note: 'contract journey 10 — plan mode (shift+tab ×2 pre-prompt) surfaces "Skip interview and plan immediately"; activating it ENDS the interview via onReject(prose)',
-    turns: [AUQ([Q()]), DONE],
-    sends: ['7000:\x1b[Z', '7400:\x1b[Z', PROMPT, SUBMIT, '12500:\x1b[B', '12900:\x1b[B', '13300:\x1b[B', '13700:\x1b[B', '14100:\r'],
-    cols: 120, rows: 40, seconds: 19,
-    screens: [13_500, 15_800, -1],
-    ready: COMPOSER_READY,
-  },
-  {
     name: 'j11-cancel-esc',
     note: 'contract journey 11 (cancel leg) — Esc rejects the card; the resume-loss half is pinned by a Wave A reproducer instead of a capture',
     turns: [AUQ([Q()]), DONE],
