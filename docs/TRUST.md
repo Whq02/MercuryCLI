@@ -73,7 +73,7 @@ starting folder.
   permission rule already allows them.
 - **Sovereign mode** does not ask because of a file's
   location. Capability gates, explicit deny rules and wards still apply.
-- **Flow, Apollo, Bubble and dontAsk** keep their existing permission
+- **Flow, Apollo and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.
 
 Sensitive files, such as credentials and Mercury configuration, retain their
