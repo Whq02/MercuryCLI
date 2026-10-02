@@ -287,7 +287,6 @@ src/utils/permissions/filesystem.ts :: bundledSkillsRootCache :: static-for-proc
 src/utils/permissions/filesystem.ts :: tempDirCache :: static-for-process
 src/utils/permissions/filesystem.ts :: workingDirResolutionCache :: keyed-by-truth
 src/utils/permissions/shellRuleMatching.ts :: compiledCache :: keyed-by-truth
-src/utils/plans.ts :: plansDirectoryMemo :: invalidator=applyHarnessGround
 src/utils/platform.ts :: getLinuxDistroInfo :: static-for-process
 src/utils/platform.ts :: getPlatform :: static-for-process
 src/utils/platform.ts :: getWslVersion :: static-for-process
