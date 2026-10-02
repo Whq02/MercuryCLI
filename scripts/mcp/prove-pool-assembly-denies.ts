@@ -93,7 +93,7 @@ section('§4 THE SERVE SURFACE LIVE')
   } else {
     const projDir = realpathSync(mkdtempSync(join(tmpdir(), 'pool-denies-proj-')))
     mkdirSync(join(projDir, '.mercury'), { recursive: true })
-    writeFileSync(join(projDir, '.mercury', 'settings.json'), JSON.stringify({ permissions: { deny: ['Write'] } }))
+    writeFileSync(join(projDir, '.mercury', 'settings.json'), JSON.stringify({ guardrails: { deny: ['Write'] } }))
     const child = spawn('node', [DIST, 'mcp', 'serve'], {
       cwd: projDir,
       env: { ...process.env, MERCURY_CONFIG_DIR: HOME },

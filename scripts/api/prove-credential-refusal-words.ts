@@ -68,7 +68,7 @@ section("§2b the header word: 'x-api-key' blames the key beside a bearer; 'auth
 section('§3 the painter recognises every spelling of the family')
 check('the env key words are the family', errors.isInvalidCredentialWords('Invalid API key · Fix ANTHROPIC_API_KEY'))
 check('the env bearer words are the family', errors.isInvalidCredentialWords('Invalid credential · Fix ANTHROPIC_AUTH_TOKEN'))
-check('the helper words are the family', errors.isInvalidCredentialWords(errors.invalidCredentialWords({ kind: 'helper' })) && errors.invalidCredentialWords({ kind: 'helper' }) === 'Invalid API key · Fix the apiKeyHelper')
+check('the helper words are the family', errors.isInvalidCredentialWords(errors.invalidCredentialWords({ kind: 'helper' })) && errors.invalidCredentialWords({ kind: 'helper' }) === 'Invalid API key · Fix the credentials.keyCommand')
 check('the older external spelling (persisted transcripts) is still the family', errors.isInvalidCredentialWords(errors.INVALID_API_KEY_ERROR_MESSAGE_EXTERNAL))
 check('the logged-out words are NOT the family (their own painter)', !errors.isInvalidCredentialWords(errors.INVALID_API_KEY_ERROR_MESSAGE) && errors.invalidCredentialWords({ kind: 'managed' }) === errors.INVALID_API_KEY_ERROR_MESSAGE && errors.invalidCredentialWords({ kind: 'none' }) === errors.INVALID_API_KEY_ERROR_MESSAGE)
 check('a plain sentence is not the family', !errors.isInvalidCredentialWords('Invalid API key mentioned in passing'))

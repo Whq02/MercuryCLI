@@ -45,7 +45,7 @@ for (const arm of arms.filter(arm => !only || arm === only)) {
     } else {
       check(`${arm}: one terminal authentication blocker`, terminal[0]?.is_error === true && errors.length === 1, { terminal, errors })
       const blockerText = JSON.stringify(errors)
-      check(`${arm}: the blocker names its remedy`, helper ? blockerText.includes('apiKeyHelper') : arm === 'api-key' ? blockerText.includes('ANTHROPIC_API_KEY') : arm === 'env-bearer' ? blockerText.includes('ANTHROPIC_AUTH_TOKEN') && !blockerText.includes('ANTHROPIC_API_KEY') : blockerText.includes('/logins anthropic') && blockerText.includes('fixture@example.invalid'), errors)
+      check(`${arm}: the blocker names its remedy`, helper ? blockerText.includes('credentials.keyCommand') : arm === 'api-key' ? blockerText.includes('ANTHROPIC_API_KEY') : arm === 'env-bearer' ? blockerText.includes('ANTHROPIC_AUTH_TOKEN') && !blockerText.includes('ANTHROPIC_API_KEY') : blockerText.includes('/logins anthropic') && blockerText.includes('fixture@example.invalid'), errors)
     }
     check(`${arm}: authentication never schedules a wait`, arm === 'burst' || retries.length === 0, retries)
   } finally {

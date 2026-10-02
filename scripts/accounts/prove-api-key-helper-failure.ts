@@ -55,7 +55,7 @@ const sdk = (await import(sdkEntry)) as { APIError: new (status: number, body: u
 function configureHelper(script: string): void {
   const path = settings.getSettingsFilePathForSource('userSettings') as string
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify({ apiKeyHelper: helperLine(script) }))
+  writeFileSync(path, JSON.stringify({ credentials: { keyCommand: helperLine(script) } }))
   resetSettingsCache()
   auth.clearApiKeyHelperCache()
 }
@@ -78,7 +78,7 @@ section('§1 A FAILED HELPER IS A NULL KEY WITH A NAMED REASON')
   check('the async reader answers null, never the one-space sentinel', key === null, JSON.stringify(key))
   check('the cached reader answers null too', auth.getApiKeyFromApiKeyHelperCached() === null, JSON.stringify(auth.getApiKeyFromApiKeyHelperCached()))
   const resolved = auth.getAnthropicApiKeyWithSource() as { key: string | null; source: string }
-  check('the key ladder reports no key from the helper source', resolved.key === null && resolved.source === 'apiKeyHelper', JSON.stringify(resolved))
+  check('the key ladder reports no key from the helper source', resolved.key === null && resolved.source === 'credentials.keyCommand', JSON.stringify(resolved))
   const failure = helperFailure()
   check('the failure is recorded with the exit code and the stderr', failure !== null && /exited with code 3/.test(failure.message) && /vault locked/.test(failure.message), failure?.message)
   check('the failed-last predicate reads it', failedLast() === true)
@@ -91,7 +91,7 @@ section('§2 A 401 WITH A FAILED HELPER FAILS FAST AND NAMES THE HELPER')
   check('the 401 is NOT retryable — no ten-lap helper re-run', retry.isRetryableError(err401()) === false)
   check('the lap still cleared the cache (the next turn re-runs the helper) and kept the record', auth.getApiKeyFromApiKeyHelperCached() === null && helperFailure() !== null)
   const painted = JSON.stringify(errors.getAssistantMessageFromError(err401(), 'claude-fable-5-1'))
-  check('the presenter names the helper and its reason', painted.includes('apiKeyHelper failed') && painted.includes('vault locked'), painted.slice(0, 240))
+  check('the presenter names the helper and its reason', painted.includes('credentials.keyCommand failed') && painted.includes('vault locked'), painted.slice(0, 240))
   check('and never "invalid API key"', !/invalid api key/i.test(painted))
 }
 
@@ -117,11 +117,11 @@ section('§4 THE RAW STDERR LINE RIDES THE HEADLESS ROAD ONLY')
     state.setIsInteractive(true)
     configureHelper(FAIL)
     await auth.getApiKeyFromApiKeyHelper(false)
-    check('interactive: no ANSI line lands on stderr (the typed message is the paint)', !writes.some(w => w.includes('apiKeyHelper failed')), writes.join('|').slice(0, 200))
+    check('interactive: no ANSI line lands on stderr (the typed message is the paint)', !writes.some(w => w.includes('credentials.keyCommand failed')), writes.join('|').slice(0, 200))
     state.setIsInteractive(false)
     configureHelper(FAIL)
     await auth.getApiKeyFromApiKeyHelper(false)
-    check('headless: the stderr line still names the failure', writes.some(w => w.includes('apiKeyHelper failed') && w.includes('vault locked')), writes.join('|').slice(0, 200))
+    check('headless: the stderr line still names the failure', writes.some(w => w.includes('credentials.keyCommand failed') && w.includes('vault locked')), writes.join('|').slice(0, 200))
   } finally {
     process.stderr.write = original as never
   }

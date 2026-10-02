@@ -20,8 +20,8 @@ t(
 t('a keychain login does NOT shadow', !isEnvShadowedAuthSource('claude.ai'))
 t("'none' does NOT shadow", !isEnvShadowedAuthSource('none'))
 t(
-  'apiKeyHelper not in the env-shadow set (different remediation path)',
-  !isEnvShadowedAuthSource('apiKeyHelper'),
+  'credentials.keyCommand not in the env-shadow set (different remediation path)',
+  !isEnvShadowedAuthSource('credentials.keyCommand'),
 )
 const w = loginShadowWarningFor('MERCURY_OAUTH_TOKEN')
 t('warning names the variable', w !== null && w.includes('MERCURY_OAUTH_TOKEN'))

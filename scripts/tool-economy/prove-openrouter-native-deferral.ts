@@ -153,7 +153,7 @@ process.env.MERCURY_MODEL = MODEL
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { updateSettingsForSource } = await import('../../src/utils/settings/settings.js')
-updateSettingsForSource('userSettings', { openrouterRouting: {} })
+updateSettingsForSource('userSettings', { routing: { openrouter: {} } })
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const wire = await import('../../src/services/providers/deferralWire.ts')
