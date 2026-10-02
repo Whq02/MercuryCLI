@@ -77,17 +77,17 @@ export function TrustDialog({ onDone, commands }: Props): React.ReactNode {
 
   const shortFrame = rows < 18;
   return (
-    <PermissionDialog color={boxTone} titleColor={boxTone} title="Accessing workspace:">
+    <PermissionDialog color={boxTone} titleColor={boxTone} title="Trust this folder?">
       <Box flexDirection="column" gap={1} paddingTop={1}>
         <Text bold={true}>{getFsImplementation().cwd()}</Text>
         {shortFrame ? (
-          <Text>Trust this folder? Mercury will read, edit, and run the files here.</Text>
+          <Text>Mercury reads, edits and runs files here.</Text>
         ) : (
-        <Text>Do you trust this folder? It could be your own code, your team{"'"}s work or a well-known open-source project. If you{"'"}re unsure, check the folder before continuing.</Text>
+        <Text>Trust a folder only if you know what is in it: its settings can run hooks and helper commands, and its files can carry instructions for the model.</Text>
         )}
         {
 }
-        {shortFrame ? null : <Text>Mercury will read, edit and run files in this folder.</Text>}
+        {shortFrame ? null : <Text>Mercury reads, edits and runs files here.</Text>}
         {
 }
         {(() => {
