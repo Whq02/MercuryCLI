@@ -102,7 +102,7 @@ function seedHome(withSettingsModel?: string): { home: string; workspace: string
     }),
   )
   if (withSettingsModel !== undefined) {
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: withSettingsModel }))
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: withSettingsModel } }))
   }
   return { home, workspace }
 }

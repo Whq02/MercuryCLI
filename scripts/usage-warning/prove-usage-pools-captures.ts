@@ -96,7 +96,7 @@ function seedHome(): { home: string; workspace: string } {
       projects: { [workspace]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     }),
   )
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ model: 'claude-opus-5' }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: 'claude-opus-5' } }))
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({

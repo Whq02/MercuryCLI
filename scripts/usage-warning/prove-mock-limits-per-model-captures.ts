@@ -94,7 +94,7 @@ function seedHome(model: string): { home: string; workspace: string } {
       projects: { [workspace]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     }),
   )
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({
