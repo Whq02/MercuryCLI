@@ -59,6 +59,7 @@ const { recordSentRequest, resetSentRequestsForTests } = await import(join(ROOT,
 const { processOwnerForLane, rosterOwnerFromToolUseContext } = await import(join(ROOT, 'src/services/run/resolveOwner.ts'))
 const OWNER = String(processOwnerForLane(null))
 const resizer = await import(join(ROOT, 'src/utils/imageResizer.ts'))
+const { createAttachmentMessage } = await import(join(ROOT, 'src/utils/attachments/orchestrator.ts'))
 const { describeImageProcessor, imageProcessorState } = await import(join(ROOT, 'src/tools/FileReadTool/imageProcessor.ts'))
 const sharp = (await import('sharp')).default
 
@@ -282,21 +283,22 @@ section('§1 the refusal sentences say what is true now')
 
 type LeftOutApi = {
   resetImagesLeftOutForTesting: () => void
-  takeImagesLeftOutNoticeOnce: (owner: string) => boolean
+  imagesLeftOutMarked: (messages: readonly unknown[]) => boolean
   takeImagesLeftOutReceipt: (owner: string) => { count: number; images: number; sidePx: number } | null
   imagesLeftOutNoticeLine: (receipt: { count: number; images: number; sidePx: number }) => string
 }
 const leftOutApi: LeftOutApi | null =
-  typeof (resizer as Partial<LeftOutApi>).resetImagesLeftOutForTesting === 'function' && typeof (resizer as Partial<LeftOutApi>).takeImagesLeftOutReceipt === 'function' && typeof (resizer as Partial<LeftOutApi>).takeImagesLeftOutNoticeOnce === 'function' && typeof (resizer as Partial<LeftOutApi>).imagesLeftOutNoticeLine === 'function'
+  typeof (resizer as Partial<LeftOutApi>).resetImagesLeftOutForTesting === 'function' && typeof (resizer as Partial<LeftOutApi>).takeImagesLeftOutReceipt === 'function' && typeof (resizer as Partial<LeftOutApi>).imagesLeftOutMarked === 'function' && typeof (resizer as Partial<LeftOutApi>).imagesLeftOutNoticeLine === 'function'
     ? (resizer as unknown as LeftOutApi)
     : null
+const leftOutMark = { type: 'attachment', attachment: { type: 'images_left_out', count: 1, images: 21, sidePx: 2000 } }
 
-section('§2 the once-per-conversation notice: the receipt, the latch, the words, the turn machine')
+section('§2 the once-per-session notice: the receipt, the transcript mark, the words, the turn machine')
 {
-  check('the sizer owns the images-left-out receipt, the once-per-conversation latch and the notice words', leftOutApi !== null, 'the base has no such seam')
+  check('the sizer owns the images-left-out receipt, the transcript-mark read and the notice words', leftOutApi !== null, 'the base has no such seam')
   if (leftOutApi !== null) {
     leftOutApi.resetImagesLeftOutForTesting()
-    check('the first turn of a conversation takes the notice, the second does not, another conversation takes its own', leftOutApi.takeImagesLeftOutNoticeOnce('owner-a') === true && leftOutApi.takeImagesLeftOutNoticeOnce('owner-a') === false && leftOutApi.takeImagesLeftOutNoticeOnce('owner-b') === true)
+    check('a session whose transcript carries the images-left-out mark has been told; one without it has not (the mark, not a process latch, is the once)', leftOutApi.imagesLeftOutMarked([{ type: 'user' }, leftOutMark]) === true && leftOutApi.imagesLeftOutMarked([{ type: 'user' }, { type: 'attachment', attachment: { type: 'dead_thinking', dead: [] } }]) === false && leftOutApi.imagesLeftOutMarked([]) === false)
     check('a receipt is read once and cleared; an owner without one reads null', leftOutApi.takeImagesLeftOutReceipt('owner-a') === null)
     const line = leftOutApi.imagesLeftOutNoticeLine({ count: 1, images: 21, sidePx: 2000 })
     check('the notice names the count, the limit, what the model sees, the transcript and the image processor', /^one image of the 21 in this request/.test(line) && /2000 px/.test(line) && /what the model sees/.test(line) && /transcript keeps the original;/.test(line) && /Image processor/.test(line), line)
@@ -304,7 +306,11 @@ section('§2 the once-per-conversation notice: the receipt, the latch, the words
     check('…and the plural form', /^2 images could not be sized to the API's 8000 px limit and were left out/.test(two) && /originals/.test(two), two)
   }
   const turn = readFileSync(join(ROOT, 'src/run-core/turn-machine.ts'), 'utf8')
-  check('the turn machine reads the conversation\'s receipt after the stream settles and paints the notice once per conversation', turn.includes('takeImagesLeftOutReceipt(owner)') && turn.includes('takeImagesLeftOutNoticeOnce(owner)') && turn.includes('createSystemMessage(imagesLeftOutNoticeLine(leftOut)'))
+  check('the turn machine reads the conversation\'s receipt after the stream settles, paints the notice when the transcript carries no mark yet, and writes the mark beside it', turn.includes('takeImagesLeftOutReceipt(owner)') && turn.includes('!imagesLeftOutMarked(iter.messagesForQuery)') && turn.includes('createSystemMessage(imagesLeftOutNoticeLine(leftOut)') && turn.includes("createAttachmentMessage({ type: 'images_left_out'"))
+  const chain = readFileSync(join(ROOT, 'src/utils/sessionStorage/chain.ts'), 'utf8')
+  const render = readFileSync(join(ROOT, 'src/components/messages/nullRenderingAttachments.ts'), 'utf8')
+  const wire = readFileSync(join(ROOT, 'src/utils/messages/attachmentText.ts'), 'utf8')
+  check('the mark persists in the transcript (a resume reads it back), renders nothing on screen and projects nothing to the wire', chain.includes("if (att.type === 'images_left_out') return true") && render.includes("'images_left_out'") && /case 'images_left_out':\n\s*return \[\]/.test(wire))
   for (const road of ['anthropic/streamCore.ts', 'openaicompat/compatChatCallModel.ts', 'openai/openaiCallModel.ts', 'zai/zaiCallModel.ts']) {
     const source = readFileSync(join(ROOT, 'src/services/providers', road), 'utf8')
     check(`${road} fits the request's images under the conversation's owner, so the receipt lands on the right conversation`, /fitImagesToRequestCap\([^)]*owner: /.test(source), road)
@@ -326,6 +332,7 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
   let receipts = 0
   let noticesPainted = 0
   for (const step of sends) {
+    if (step.label === 'S2 the next send' && leftOutApi !== null) check(`${arm.name}: the mark the first turn wrote is on the session, so no later turn paints the notice again`, leftOutApi.imagesLeftOutMarked(session))
     session.push(userRow(step.prompt))
     const run = await send(step.model, session)
     const texts = wireTexts(run.body)
@@ -337,11 +344,14 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
     if (receipt !== null) {
       receipts++
       check(`${step.label}: the request's receipt names one image left out of ${arm.images} at the ${receipt.sidePx} px limit`, receipt.count === 1 && receipt.images === arm.images && receipt.sidePx === (arm.images > MANY_THRESHOLD ? MANY_CAP : SINGLE_CAP), j(receipt))
-      if (leftOutApi?.takeImagesLeftOutNoticeOnce(OWNER)) noticesPainted++
+      if (leftOutApi !== null && !leftOutApi.imagesLeftOutMarked(session)) {
+        noticesPainted++
+        session.push(createAttachmentMessage({ type: 'images_left_out', count: receipt.count, images: receipt.images, sidePx: receipt.sidePx } as never) as unknown as AnyMsg)
+      }
     }
     for (const row of run.rows) session.push({ ...row, message: { ...(row.message as Record<string, unknown>), model: step.model } })
   }
-  check('every send of the arm left a receipt for the conversation, and the notice latch let exactly one notice through', receipts === sends.length && noticesPainted === 1, `receipts=${receipts} notices=${noticesPainted}`)
+  check('every send of the arm left a receipt for the conversation, and the transcript mark let exactly one notice through', receipts === sends.length && noticesPainted === 1, `receipts=${receipts} notices=${noticesPainted}`)
 
   section(`/compact on the ${arm.name} session as it stands`)
   {
@@ -382,6 +392,23 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
     const now = imagesOf(session)
     check('every stored image still holds the bytes it was written with (the wire carried a note in its place, the transcript keeps the original)', now.length === originals.length && sha(now.join('|')) === originalsHash, `${now.length} stored vs ${originals.length} originals`)
   }
+}
+
+section('§4 an image whose size cannot be read fails closed over the many-image threshold, and rides as it is under it')
+{
+  leftOutApi?.resetImagesLeftOutForTesting()
+  const unreadable = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xfe, 0x00, 0x10]), Buffer.alloc(4096, 0x5a)])
+  check('the header reader cannot size the fixture image (the dims-null road)', resizer.imageDimensionsOfBase64(unreadable.toString('base64')) === null)
+  const small = await flatPng(8, 8)
+  const over = userRow([imageBlock(unreadable, 'jpeg'), ...Array.from({ length: MANY_THRESHOLD }, () => imageBlock(small, 'png')), { type: 'text', text: 'twenty-one images' }])
+  const fitOver = await resizer.fitImagesToRequestCap([over], { model: MODEL_A, owner: 'f2-over' })
+  const overTexts = wireTexts({ messages: fitOver.messages.map(row => row.message) })
+  const overNote = overTexts.find(text => /whose size could not be read was left out of this request of 21 images/.test(text))
+  check(`over the threshold (${MANY_THRESHOLD + 1} images): the unreadable image is left out as a one-line note naming the request's size and the ${MANY_CAP} px cap, the other images ride`, fitOver.leftOut === 1 && overNote !== undefined && overNote.includes(`${MANY_CAP} px`) && wireImages({ messages: fitOver.messages.map(row => row.message) }).length === MANY_THRESHOLD, j({ leftOut: fitOver.leftOut, notes: overTexts.filter(t => t.startsWith('[An image')) }))
+  check('…and the receipt names it under the owner', j(leftOutApi?.takeImagesLeftOutReceipt('f2-over') ?? null).includes('"count":1'))
+  const under = userRow([imageBlock(unreadable, 'jpeg'), imageBlock(small, 'png'), { type: 'text', text: 'two images' }])
+  const fitUnder = await resizer.fitImagesToRequestCap([under], { model: MODEL_A, owner: 'f2-under' })
+  check('under the threshold nothing says the image is over the cap: it rides as it is and no receipt is written', fitUnder.leftOut === 0 && fitUnder.firstEdited === -1 && leftOutApi?.takeImagesLeftOutReceipt('f2-under') === null, j({ leftOut: fitUnder.leftOut, firstEdited: fitUnder.firstEdited }))
 }
 
 note(`fixture refusals issued in this run: ${refusals.length}${refusals.length > 0 ? ` — first: ${refusals[0]}` : ''}`)

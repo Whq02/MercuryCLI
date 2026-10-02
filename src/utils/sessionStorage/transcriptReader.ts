@@ -934,18 +934,12 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
 
   const liveIds = new Set<string>()
   const liveMessageIds = new Set<string>()
-  const toolUseIdsByAssistant = new Map<string, Set<string>>()
+  const assistantIds = new Set<string>()
   const noteAssistant = (e: Record<string, unknown>, id: string): void => {
     if (e.type !== 'assistant') return
-    const message = e.message as { id?: unknown; content?: unknown } | undefined
+    const message = e.message as { id?: unknown } | undefined
     if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
-    const ids = new Set<string>()
-    if (Array.isArray(message?.content)) {
-      for (const block of message.content as Array<{ type?: unknown; id?: unknown }>) {
-        if (block?.type === 'tool_use' && typeof block.id === 'string') ids.add(block.id)
-      }
-    }
-    toolUseIdsByAssistant.set(id, ids)
+    assistantIds.add(id)
   }
   let liveBytes = 0
   let cur: Record<string, unknown> | null = leaf
@@ -995,12 +989,10 @@ export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
     return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
   }
   const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
-    if (e.type !== 'user') return false
+    if (e.type !== 'user' || !assistantIds.has(parent)) return false
     const content = (e.message as { content?: unknown } | undefined)?.content
     if (!Array.isArray(content)) return false
-    const issued = toolUseIdsByAssistant.get(parent)
-    if (issued === undefined) return false
-    return (content as Array<{ type?: unknown; tool_use_id?: unknown }>).some(block => block?.type === 'tool_result' && typeof block.tool_use_id === 'string' && issued.has(block.tool_use_id))
+    return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
   }
   const keepsAsNote = (e: Record<string, unknown>): boolean => e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
   const consider = (slot: number, road: 'parent' | 'sibling'): void => {

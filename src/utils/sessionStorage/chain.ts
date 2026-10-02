@@ -479,6 +479,7 @@ export function isLoggableMessage(m: Message): boolean {
     if (att.type === 'bypassed_ask') return true
     if (att.type === 'bound_prefix') return true
     if (att.type === 'dead_thinking') return true
+    if (att.type === 'images_left_out') return true
     return normalizeAttachmentForAPI(att).length > 0
   }
   return true

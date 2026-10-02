@@ -49,6 +49,7 @@ export const NULL_RENDERING_ATTACHMENT_TYPES = [
   'user_context',
   'bound_prefix',
   'dead_thinking',
+  'images_left_out',
   'compact_operator_messages',
 ] as const
 

@@ -241,6 +241,7 @@ const ATTACHMENT_BODY_SHAPES: Record<string, z.ZodType> = {
   date_change: z.looseObject({ newDate: z.string() }),
   bound_prefix: z.looseObject({ boundKey: z.string(), rosterEnabled: z.boolean(), roster: objectList, sections: objectList, systemContext: z.looseObject({}).optional() }),
   dead_thinking: z.looseObject({ dead: objectList }),
+  images_left_out: z.looseObject({ count: z.number(), images: z.number(), sidePx: z.number() }),
   run_protocol_delta: z.looseObject({ tools: strings, body: z.string() }),
   lane_boundary: z.looseObject({ laneId: z.string(), goal: z.string(), boundary: z.string() }),
   bagel_console: z.looseObject({ errorCount: z.number(), warningCount: z.number(), sample: z.string() }),

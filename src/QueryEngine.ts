@@ -674,7 +674,7 @@ export class QueryEngine {
             turnMessages.push(message)
             const attachment = (projected as { attachment?: { type?: string } }).attachment
             const attachmentType = attachment?.type
-            if (attachmentType === 'dead_thinking' || attachmentType === 'bound_prefix') {
+            if (attachmentType === 'dead_thinking' || attachmentType === 'bound_prefix' || attachmentType === 'images_left_out') {
               await recordDelta()
               if (!persistenceDisabled) await flushSessionStorage()
             } else {
