@@ -302,7 +302,7 @@ const rowOf = (loop: Loop): WorkRowV1 => ({
   name: 'scout the release notes',
   status: 'running',
   startTime: t0,
-  agentType: 'mercury-general',
+  agentType: 'mercury-crew',
   model: MODEL,
   ...(loop.wait() !== null ? { wait: loop.wait() as string } : {}),
 })

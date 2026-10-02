@@ -42,13 +42,13 @@ const spend1 = spent(MESSAGE_1)
 const spend2 = spent(MESSAGE_2)
 const spendScout = spent('SCOUT-ASK')
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: 'crew', model: peerModel, subagent_type: 'mercury-general', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: 'crew', model: peerModel, subagent_type: 'mercury-crew', description: 'Wait for asks', prompt: 'Say READY and wait for messages.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: 'toolu_send_one', name: 'SendMessage', input: { to: worker, message: MESSAGE_1, summary: 'first ask' } }, SPEND_1),
   lead({ kind: 'text', text: 'LEAD-SENT-1' }, SPEND_1),
   lead({ kind: 'tool_use', id: 'toolu_send_two', name: 'SendMessage', input: { to: worker, message: MESSAGE_2, summary: 'second ask' } }, SPEND_2),
   lead({ kind: 'text', text: 'LEAD-SENT-2' }, SPEND_2),
-  lead({ kind: 'tool_use', id: 'toolu_scout', name: 'Agent', input: { model: peerModel, subagent_type: 'mercury-general', description: scout, prompt: 'SCOUT-ASK: scout the window.', run_in_background: true } }, SCOUT),
+  lead({ kind: 'tool_use', id: 'toolu_scout', name: 'Agent', input: { model: peerModel, subagent_type: 'mercury-crew', description: scout, prompt: 'SCOUT-ASK: scout the window.', run_in_background: true } }, SCOUT),
   lead({ kind: 'text', text: 'LEAD-SCOUTED' }, SCOUT),
   ...Array.from({ length: 24 }, ack),
   peer({ kind: 'text', text: 'WORKER-READY' }, 'Say READY'),

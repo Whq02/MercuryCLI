@@ -68,7 +68,7 @@ function section(t: string): void {
 }
 
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date().toISOString(), message: { role: 'user', content } }) as Message
-function params(modelId: string, querySource = 'agent:builtin:mercury-general'): CompatCallModelParams {
+function params(modelId: string, querySource = 'agent:builtin:mercury-crew'): CompatCallModelParams {
   return {
     messages: [user('Say hello.')], systemPrompt: asSystemPrompt(['Only answer the request.']), thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal,
     options: { model: modelId, querySource, agentId: 'a-review-lane', onWait: () => {}, isNonInteractiveSession: true, getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], hasAppendSystemPrompt: false, mcpTools: [], maxOutputTokensOverride: 64 } as never,

@@ -16,7 +16,7 @@
    │   ledger-keeper                                            off │  │ /repo/.mercury/agents/fixture-scout.md     │
    │                                                                │  │ scope: Shared project settings             │
    │ Built-in agents                                                │  │                                            │
-   │   mercury-general                                      inherit │  │                                            │
+   │   mercury-crew                                         inherit │  │                                            │
    ╰────────────────────────────────────────────────────────────────╯  │                                            │
                                                                        │                                            │
                                                                        │                                            │

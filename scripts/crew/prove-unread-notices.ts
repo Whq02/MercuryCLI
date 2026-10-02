@@ -59,7 +59,7 @@ function makeStore(): Store & { set: (fn: (prev: never) => never) => void; get: 
   }
   return store
 }
-const FAKE_AGENT_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_AGENT_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 const NOTE = (id: string, words: string): string =>
   `<task-notification>\n<task-id>${id}</task-id>\n<status>completed</status>\n<summary>${words}</summary>\n</task-notification>`
 

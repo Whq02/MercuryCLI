@@ -1,4 +1,4 @@
-import { VERIFICATION_AGENT_TYPE } from '../AgentTool/constants.js'
+import { VERIFIER_SKILL_NAME } from '../../skills/bundled/verifier.js'
 import { TASK_GET_TOOL_NAME } from '../TaskGetTool/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from './constants.js'
@@ -10,7 +10,7 @@ export const DESCRIPTION = 'Change one task — edit its fields, resolve it, or 
 export function getVerificationNudgeNote(): string {
   return [
     'Three or more tasks just went to completed without a verification step among them.',
-    `Spawn the ${VERIFICATION_AGENT_TYPE} agent to check the work before you write the final summary.`,
+    `Invoke the ${VERIFIER_SKILL_NAME} skill to check the work before you write the final summary.`,
     'Caveats listed in your summary are not a verdict — verdicts come from the verifier alone.',
   ].join(' ')
 }

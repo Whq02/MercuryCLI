@@ -236,7 +236,7 @@ section('P5 — KEY ON: a sub-agent ended for chanting settles to its parent as 
   const run = await runReplies([CHANT, CHANT, HONEST], 'agent-rig-chant')
   check('the sub-agent turn ended typed as loop_stopped for the reply', run.terminal.reason === 'loop_stopped' && stops(run).length === 1, JSON.stringify(run.terminal))
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
-  const finalized = finalizeAgentTool(collected as never, 'agent-rig-chant', { prompt: 'write', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'general-purpose', isAsync: false })
+  const finalized = finalizeAgentTool(collected as never, 'agent-rig-chant', { prompt: 'write', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
   check('the finalized outcome is a typed failure with the loop-stopped reason', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped', JSON.stringify(finalized.outcome))
   check('the finalized content carries none of the chant', (finalized.content ?? []).length === 0, JSON.stringify(finalized.content).slice(0, 200))
   const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'write', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }

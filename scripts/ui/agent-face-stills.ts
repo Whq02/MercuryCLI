@@ -143,7 +143,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
     disabled: true,
   })
   const builtin = mk({
-    agentType: 'mercury-general',
+    agentType: 'mercury-crew',
     whenToUse: 'General-purpose fixture for researching complex questions.',
     source: 'built-in',
   })

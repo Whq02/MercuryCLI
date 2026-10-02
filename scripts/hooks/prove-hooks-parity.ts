@@ -76,7 +76,7 @@ add('createBaseHookInput', 'pinned-session', () =>
   neutralObj(
     H.createBaseHookInput('default', 'fixture-session-1', {
       agentId: 'agent-1',
-      agentType: 'mercury-general',
+      agentType: 'mercury-crew',
     }),
   ),
 )
@@ -99,8 +99,8 @@ const fixtureAppState = {
       {
         hooks: {
           SubagentStop: [
-            mk('mercury-general', 'echo exact'),
-            mk('general.*|code-reviewer', 'echo regex'),
+            mk('mercury-crew', 'echo exact'),
+            mk('crew.*|code-reviewer', 'echo regex'),
             mk('*', 'echo star'),
             mk('other-agent', 'echo miss'),
             mk(undefined, 'echo always'),
@@ -120,7 +120,7 @@ addAsync('getMatchingHooks', 'subagentstop-matcher-semantics', async () =>
     'SubagentStop' as never,
     {
       hook_event_name: 'SubagentStop',
-      agent_type: 'mercury-general',
+      agent_type: 'mercury-crew',
       session_id: SID,
       transcript_path: '/t',
       cwd: '/c',

@@ -170,7 +170,7 @@ async function main(): Promise<void> {
   const React = (await import(Bun.resolveSync('react', join(ROOT, 'src')))).default
   const rows: WorkRowV1[] = [
     { ...(mateRow as WorkRowV1), startTime: t0 + 1_000 },
-    { id: 'ag-scout', agentId: 'ag-scout', kind: 'agent', name: 'scout the release notes', status: 'running', startTime: t0 + 4_000, agentType: 'mercury-general', model: 'claude-fable-5-1', inputTokens: 9_800, outputTokens: 2_500, contextTokens: 12_300, toolUses: 3, activity: 'reading the notes' },
+    { id: 'ag-scout', agentId: 'ag-scout', kind: 'agent', name: 'scout the release notes', status: 'running', startTime: t0 + 4_000, agentType: 'mercury-crew', model: 'claude-fable-5-1', inputTokens: 9_800, outputTokens: 2_500, contextTokens: 12_300, toolUses: 3, activity: 'reading the notes' },
   ]
   const listeners = new Set<() => void>()
   const work = { rows, mission: [] as never[], samples: [] as never[], reported: true }

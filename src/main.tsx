@@ -1325,7 +1325,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
       process.stderr.write(`${refusal} (from settings.engine.agent — running without it)\n`)
       logForDebugging(refusal)
     } else {
-      if (mainThreadAgentDefinition.agentType === 'mercury-reviewer') failCli('mercury-reviewer requires an isolated Agent dispatch with worktree_at and review_receipt')
       setMainThreadAgentType(requestedAgent)
       void import('./utils/sessionStorage.js')
         .then(storage => storage.saveAgentSetting(requestedAgent))

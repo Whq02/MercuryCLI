@@ -34,7 +34,7 @@ const stamp = new Date(0)
 stamp.setHours(18, 58, 1, 0)
 let state = { tasks: {} } as Parameters<typeof getRunningTasks>[0]
 const setState = (update: (prev: typeof state) => typeof state): void => { state = update(state) }
-const task = registerAsyncAgent({ agentId: 'crew-worker', description: 'the worker', prompt: 'keep working', setAppState: setState, selectedAgent: { agentType: 'mercury-general' } as never })
+const task = registerAsyncAgent({ agentId: 'crew-worker', description: 'the worker', prompt: 'keep working', setAppState: setState, selectedAgent: { agentType: 'mercury-crew' } as never })
 const beforeCrew = JSON.stringify(projectWorkRoster(state.tasks))
 const queue: QueuedCommand[] = [{ mode: 'prompt', value: 'start work' }]
 const outputs: StdoutMessage[] = []

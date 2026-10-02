@@ -232,7 +232,7 @@ section('§5 the agent view: view in (a CREW row), esc out, view in again')
     type: 'local_agent' as const,
     agentId: AGENT_ID,
     prompt: 'work quietly',
-    agentType: 'general-purpose',
+    agentType: 'mercury-crew',
     status: 'running' as const,
     isBackgrounded: true,
     messages: [],

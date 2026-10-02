@@ -25,8 +25,8 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'bob', crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reads the live state', prompt: `${BOB_PROMPT}: wait for a message, then read LiveComms.` } }, FIRST),
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'alice', crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Writes the live state', prompt: `${ALICE_PROMPT}: write a message, a task, a claim and your busy flag through LiveComms.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'bob', crew_name: crew, model: peerModel, subagent_type: 'mercury-crew', description: 'Reads the live state', prompt: `${BOB_PROMPT}: wait for a message, then read LiveComms.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'alice', crew_name: crew, model: peerModel, subagent_type: 'mercury-crew', description: 'Writes the live state', prompt: `${ALICE_PROMPT}: write a message, a task, a claim and your busy flag through LiveComms.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: LEAD_READ, name: 'LiveComms', input: {} }, SECOND),
   lead({ kind: 'text', text: 'LEAD-READ-DONE' }, SECOND),

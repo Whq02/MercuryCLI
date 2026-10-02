@@ -11,7 +11,7 @@ import { rosterOwnerFromToolUseContext } from '../services/run/resolveOwner.js'
 import type { AppState } from '../state/AppStateStore.js'
 import type { ToolUseContext } from '../Tool.js'
 import { withAllowedCommandRules } from '../tools/AgentTool/agentPermissionPosture.js'
-import { GENERAL_PURPOSE_AGENT } from '../tools/AgentTool/built-in/generalPurposeAgent.js'
+import { MERCURY_CREW_AGENT } from '../tools/AgentTool/built-in/mercuryCrewAgent.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { AgentId } from '../types/ids.js'
 import type { Message } from '../types/message.js'
@@ -170,7 +170,7 @@ export async function prepareForkedCommandContext(
   const active = context.options.agentDefinitions.activeAgents
   const agent =
     (command.agent ? active.find(candidate => candidate.agentType === command.agent) : undefined) ??
-    active.find(candidate => candidate.agentType === GENERAL_PURPOSE_AGENT.agentType) ??
+    active.find(candidate => candidate.agentType === MERCURY_CREW_AGENT.agentType) ??
     active[0]
   if (!agent) {
     throw new Error('No agent definition is available to run this forked command.')

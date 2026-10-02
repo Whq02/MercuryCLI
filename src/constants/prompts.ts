@@ -29,10 +29,6 @@ import {
   systemPromptSection,
 } from './systemPromptSections.js'
 import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
-import {
-  MERCURY_GUIDE_AGENT_TYPE,
-  isGuideAgentMounted,
-} from '../tools/AgentTool/built-in/mercuryGuideAgent.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'
 import { GLOB_TOOL_NAME } from '../tools/GlobTool/prompt.js'
 import { GREP_TOOL_NAME } from '../tools/GrepTool/prompt.js'
@@ -378,11 +374,11 @@ function sessionGuidanceSection(
         `For broad exploration and deep research, use the ${AGENT_TOOL_NAME} tool with the mercury-scout agent — it is slower, so reserve it for when a directed search with ${searchPhrase} proves insufficient or the task clearly needs more than a couple of queries.`,
       )
     }
-    if (isGuideAgentMounted()) {
-      items.push(
-        `For questions about Mercury itself — its commands, modes, and surfaces — ask the built-in guide: the ${AGENT_TOOL_NAME} tool with subagent_type \`${MERCURY_GUIDE_AGENT_TYPE}\`. Relay its answer instead of guessing harness behaviour.`,
-      )
-    }
+  }
+  if (toolNames.has(SKILL_TOOL_NAME)) {
+    items.push(
+      `For questions about Mercury itself — its commands, modes, settings, agents and surfaces — invoke the \`mercury-docs\` skill through the ${SKILL_TOOL_NAME} tool and answer from the documentation it opens, never from memory of how a harness usually behaves.`,
+    )
   }
   if (hasSkills && toolNames.has(SKILL_TOOL_NAME)) {
     items.push(

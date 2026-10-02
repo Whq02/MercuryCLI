@@ -19,7 +19,7 @@ const saved = {
   name: sid, createdAt: 1, leadAgentId: `${retiredLead}@${sid}`, leadSessionId: sid,
   members: [
     { agentId: `${retiredLead}@${sid}`, name: retiredLead, agentType: retiredLead, joinedAt: 1, tmuxPaneId: '', cwd, subscriptions: [] },
-    { agentId: `probe@${sid}`, name: 'probe', agentType: 'mercury-general', joinedAt: 2, tmuxPaneId: '', cwd, subscriptions: [] },
+    { agentId: `probe@${sid}`, name: 'probe', agentType: 'mercury-crew', joinedAt: 2, tmuxPaneId: '', cwd, subscriptions: [] },
     { agentId: `probe-2@${sid}`, name: 'probe-2', agentType: 'code-reviewer', joinedAt: 3, tmuxPaneId: '', cwd, subscriptions: [] },
   ],
 }
@@ -57,7 +57,7 @@ try {
   tally.check('LiveComms reads the saved roster', roster !== undefined && !roster.isError, JSON.stringify(roster))
   const rosterSection = roster?.text.split('## Roster (3)\n')[1]?.split('\n## ')[0] ?? ''
   const rows = rosterSection.split('\n').filter(line => line.startsWith('- '))
-  const expected = ['- crew-lead <crew-lead> [idle]', '- probe <mercury-general> [busy]', '- probe-2 <code-reviewer> [busy]']
+  const expected = ['- crew-lead <crew-lead> [idle]', '- probe <mercury-crew> [busy]', '- probe-2 <code-reviewer> [busy]']
   tally.check('the lead reads as crew-lead in both columns and every other row stays unchanged', JSON.stringify(rows) === JSON.stringify(expected), JSON.stringify(rows))
   tally.check('reading leaves the old roster byte-identical on disk', readFileSync(copied).equals(readFileSync(original)))
 } finally {

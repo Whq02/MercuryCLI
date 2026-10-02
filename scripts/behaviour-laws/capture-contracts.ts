@@ -58,14 +58,14 @@ async function main(): Promise<void> {
     )
   } else {
     const doctrine = await import('../../src/constants/subagentDoctrine.js')
-    const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.js')
+    const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.js')
     const agentDefinition =
       spec.kind === 'subagent-fixed'
-        ? VERIFICATION_AGENT
-        : ({ agentType: 'mercury-general' } as never)
+        ? MERCURY_SCOUT_AGENT
+        : ({ agentType: 'mercury-crew' } as never)
     const agentPrompt =
       spec.kind === 'subagent-fixed'
-        ? (VERIFICATION_AGENT as { getSystemPrompt?: (a: unknown) => string }).getSystemPrompt?.({ toolUseContext: { options: {} } }) ?? prompts.DEFAULT_AGENT_PROMPT
+        ? (MERCURY_SCOUT_AGENT as { getSystemPrompt?: (a: unknown) => string }).getSystemPrompt?.({ toolUseContext: { options: {} } }) ?? prompts.DEFAULT_AGENT_PROMPT
         : prompts.DEFAULT_AGENT_PROMPT
     segments = await prompts.enhanceSystemPromptWithEnvDetails(
       [

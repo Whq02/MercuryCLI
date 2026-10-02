@@ -102,7 +102,7 @@ t.section("§2 words typed at main while a crewmate runs are the session's own t
       input: {
         description: 'poise probe',
         prompt: 'Count to three slowly.',
-        subagent_type: 'mercury-general',
+        subagent_type: 'mercury-crew',
         run_in_background: true,
       },
       preText: 'Spawning the probe agent.',
@@ -209,7 +209,7 @@ t.section('§3 one composer, one draft: the draft rides the view swap into eithe
   const agentInput = (name: string): Record<string, unknown> => ({
     description: name,
     prompt: 'Work quietly.',
-    subagent_type: 'mercury-general',
+    subagent_type: 'mercury-crew',
     run_in_background: true,
   })
   const agentPaced: ScriptedTurn = {

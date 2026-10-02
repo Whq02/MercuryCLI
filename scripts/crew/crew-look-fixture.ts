@@ -116,7 +116,7 @@ function answer(model: string, blocks: Block[], usage: { input: number; output: 
 }
 
 const matePrompt = (name: CrewName): string => `${MATE_TAG} ${name}: run your part of the look drive`
-const launch = (name: CrewName): Block => ({ type: 'tool_use', name: 'Agent', input: { description: name, prompt: matePrompt(name), subagent_type: 'mercury-general', run_in_background: true } })
+const launch = (name: CrewName): Block => ({ type: 'tool_use', name: 'Agent', input: { description: name, prompt: matePrompt(name), subagent_type: 'mercury-crew', run_in_background: true } })
 
 export function blocksFor(route: Route, mate: CrewName | null, step: number, cwd: string): { blocks: Block[]; usage: { input: number; output: number } } {
   const usageOf = (name: CrewName | null): { input: number; output: number } => (name === 'atlas' ? { input: 900, output: 40 } : name === 'fjord' ? { input: 800, output: 40 } : name === 'harbour' ? { input: 700, output: 40 } : { input: 1200, output: 80 })

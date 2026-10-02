@@ -109,7 +109,7 @@ function baseInputs(): WorkbenchSourceInputs {
       ],
     ]),
     agentMeta: new Map([
-      ['agent-1', { worktreePath: '/wt/agent-1', model: 'sonnet-5', agentType: 'mercury-general' }],
+      ['agent-1', { worktreePath: '/wt/agent-1', model: 'sonnet-5', agentType: 'mercury-crew' }],
     ]),
     laneRuns: new Map([
       [

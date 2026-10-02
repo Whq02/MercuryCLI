@@ -45,7 +45,7 @@ const { liveMessagesFor } = await import('../../src/services/crew/liveComms.ts')
 type Message = import('../../src/types/message.ts').Message
 type AppState = import('../../src/state/AppStateStore.ts').AppState
 
-const FAKE_DEF = { agentType: 'mercury-general', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
+const FAKE_DEF = { agentType: 'mercury-crew', source: 'built-in', whenToUse: '', systemPrompt: '' } as never
 type SendAnswer = { data: { success: boolean; message: string; routing?: { target?: string } } }
 type Store = { get: () => AppState; set: (u: (prev: AppState) => AppState) => void }
 function makeStore(): Store {
@@ -75,7 +75,7 @@ const launchRow = (toolUseId: string, name: string, description: string): Messag
       id: `msg_${toolUseId}`,
       model: 'claude-fable-5-1',
       role: 'assistant',
-      content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: 'mercury-general', run_in_background: true, name } }],
+      content: [{ type: 'tool_use', id: toolUseId, name: 'Agent', input: { description, prompt: `work as ${description}`, subagent_type: 'mercury-crew', run_in_background: true, name } }],
       usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
       stop_reason: 'tool_use',
     },
@@ -103,7 +103,7 @@ const seedTranscript = (agentId: string, opening: string, reply: string): void =
 const writeSidecar = (agentId: string, name: string, description: string, launchedAt: number): void => {
   const path = getAgentMetadataPath(asAgentId(agentId))
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, JSON.stringify({ agentType: 'mercury-general', description, model: 'claude-fable-5-1', name, launchedAt }))
+  writeFileSync(path, JSON.stringify({ agentType: 'mercury-crew', description, model: 'claude-fable-5-1', name, launchedAt }))
 }
 const launchPlain = (store: Store, transcript: Message[], name: string, description: string, launchedAt: number): string => {
   const id = generateTaskId('local_agent')

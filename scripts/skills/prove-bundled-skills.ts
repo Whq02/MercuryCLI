@@ -101,13 +101,13 @@ initBundledSkills()
 const skills = getBundledSkills()
 const byName = new Map(skills.map(s => [s.name, s]))
 
-section(`§1 REGISTERED — exactly the nine source skills; sixteen bundled, each with description + prompt`)
+section(`§1 REGISTERED — exactly the nine source skills; eighteen bundled, each with description + prompt`)
 {
   check(same(EXPECTED, GENERATED), 'the source root carries exactly the nine generated skills', EXPECTED.join(' '))
   check(gen.discoverSkills().invalid.length === 0, 'every source dir name is a valid skill name')
-  check(skills.length === 16, 'sixteen bundled skills register (seven hand-written + nine generated)', skills.map(s => s.name).join(' '))
+  check(skills.length === 18, 'eighteen bundled skills register (nine hand-written + nine generated)', skills.map(s => s.name).join(' '))
   const handWritten = skills.filter(s => !GENERATED.includes(s.name)).map(s => s.name)
-  check(handWritten.length === 7, 'the seven hand-written skills register beside the generated ones', handWritten.join(' '))
+  check(handWritten.length === 9, 'the nine hand-written skills register beside the generated ones', handWritten.join(' '))
   for (const n of EXPECTED) {
     const s = byName.get(n)
     check(

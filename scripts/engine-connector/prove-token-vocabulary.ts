@@ -145,7 +145,7 @@ const agentTask = (id: string, description: string, extra: Record<string, unknow
   description,
   agentId: id,
   prompt: 'p',
-  agentType: 'mercury-general',
+  agentType: 'mercury-crew',
   isBackgrounded: false,
   outputFile: '/n',
   outputOffset: 0,
@@ -230,7 +230,7 @@ console.log('— §5 the surfaces —')
   check('§5 the Crew view paints the context with its word', !view.startsWith('RENDER FAILED') && view.includes('2.6k context') && !BARE.test(view), view.replace(/\s+/g, ' ').slice(0, 300))
   const grouped = await paint(
     ui.renderGroupedAgentToolUse(
-      [{ toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'mercury-general' }, progressMessages: [] }] as never,
+      [{ toolUseID: 'tu-ag1', input: { description: 'tide-gauges', prompt: 'p', subagent_type: 'mercury-crew' }, progressMessages: [] }] as never,
       { shouldAnimate: false, tools: [] as never },
     ),
     110,
@@ -243,7 +243,7 @@ console.log('— §5 the surfaces —')
       {
         status: 'completed',
         agentId: 'ag1',
-        agentType: 'mercury-general',
+        agentType: 'mercury-crew',
         content: [{ type: 'text', text: 'done' }],
         totalToolUseCount: 1,
         totalDurationMs: 5100,
@@ -258,7 +258,7 @@ console.log('— §5 the surfaces —')
   check('§5 the settled card names the context (2.6k) and the spend (3.5k), each with its word', settled.includes('2.6k context') && settled.includes('3.5k spent') && !BARE.test(settled), settled.replace(/\s+/g, ' ').slice(0, 300))
   const unreported = await paint(
     ui.renderToolResultMessage(
-      { status: 'completed', agentId: 'ag2', agentType: 'mercury-general', content: [{ type: 'text', text: 'done' }], totalToolUseCount: 1, totalDurationMs: 100, totalTokens: 0 } as never,
+      { status: 'completed', agentId: 'ag2', agentType: 'mercury-crew', content: [{ type: 'text', text: 'done' }], totalToolUseCount: 1, totalDurationMs: 100, totalTokens: 0 } as never,
       [],
       { tools: [] as never, verbose: false },
     ),
@@ -281,7 +281,7 @@ console.log("— §6 the Agent tool's result —")
     resolvedAgentModel: MODEL,
     isBuiltInAgent: false,
     startTime: t0,
-    agentType: 'mercury-general',
+    agentType: 'mercury-crew',
     isAsync: false,
   })
   check("§6 the result's total is the SPEND over the agent's messages (1400 + 2100: the cache read of the second reply outside it)", result.totalTokens === 3500, String(result.totalTokens))

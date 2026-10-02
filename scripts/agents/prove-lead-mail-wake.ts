@@ -40,7 +40,7 @@ const crew = sessionId
 const lead = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model, whenModel: 'fable-5-1' } as ScriptedTurn)
 const water = (turn: Record<string, unknown>): ScriptedTurn => ({ ...turn, model: crewmateModel, whenModel: 'opus-4-6' } as ScriptedTurn)
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: crewmateModel, subagent_type: 'mercury-general', description: 'Water report', prompt: 'Wait for REPORT-NOW, then send READY-WATER to crew-lead once.' } }),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: crewmateModel, subagent_type: 'mercury-crew', description: 'Water report', prompt: 'Wait for REPORT-NOW, then send READY-WATER to crew-lead once.' } }),
   lead({ kind: 'tool_use', name: 'Bash', input: { command: 'sleep 120', run_in_background: true, description: 'A pool that outlives the window' } }),
   lead({ kind: 'text', text: 'LEAD-PARKED' }),
   lead({ kind: 'paced_tool_use', whenBody: 'MIDTURN-CHECK', preDeltas: ['Working', '.', '.'], gapMs: 1000, tools: [{ name: 'Bash', input: { command: 'pwd', description: 'Reach a tool boundary' } }] }),

@@ -53,7 +53,7 @@ async function main(): Promise<void> {
 
   const t0 = 1_700_000_000_000
   const rows: WorkRowV1[] = [
-    ...[1, 2, 3, 4].map((n): WorkRowV1 => ({ id: `agent-${n}`, agentId: `agent-${n}`, kind: 'agent', name: `helper ${n}`, status: 'running', startTime: t0 + n, agentType: 'mercury-general' })),
+    ...[1, 2, 3, 4].map((n): WorkRowV1 => ({ id: `agent-${n}`, agentId: `agent-${n}`, kind: 'agent', name: `helper ${n}`, status: 'running', startTime: t0 + n, agentType: 'mercury-crew' })),
     { id: 'shell-1', kind: 'shell', name: 'sleep 600', status: 'running', startTime: t0 + 9, command: 'sleep 600' },
   ]
   const sample = (n: number): SampleRowV1 => ({ id: `sample-${n}`, title: `pricing table ${n}`, version: n, state: 'open', updatedAt: new Date(t0 + n).toISOString(), glyph: '⧉' })

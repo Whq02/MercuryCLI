@@ -20,11 +20,11 @@ const storage = await import('../../src/utils/sessionStorage.ts')
 type AgentIdArg = Parameters<typeof storage.writeAgentMetadata>[0]
 
 section('§1 the launch sidecar carries the directory')
-await storage.writeAgentMetadata('cwd-continuation-proof' as AgentIdArg, { agentType: 'mercury-general', description: 'proof', model: 'claude-fable-5-1', cwd: '/proof/lane' })
+await storage.writeAgentMetadata('cwd-continuation-proof' as AgentIdArg, { agentType: 'mercury-crew', description: 'proof', model: 'claude-fable-5-1', cwd: '/proof/lane' })
 const back = await storage.readAgentMetadata('cwd-continuation-proof' as AgentIdArg)
 check('cwd round-trips through the sidecar', back?.cwd === '/proof/lane', JSON.stringify(back))
-check('the other launch facts are intact beside it', back?.agentType === 'mercury-general' && back?.description === 'proof' && back?.model === 'claude-fable-5-1')
-await storage.writeAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg, { agentType: 'mercury-general', description: 'plain' })
+check('the other launch facts are intact beside it', back?.agentType === 'mercury-crew' && back?.description === 'proof' && back?.model === 'claude-fable-5-1')
+await storage.writeAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg, { agentType: 'mercury-crew', description: 'plain' })
 const plain = await storage.readAgentMetadata('cwd-continuation-proof-plain' as AgentIdArg)
 check('a sidecar written without a directory reads none', plain !== null && plain.cwd === undefined, JSON.stringify(plain))
 

@@ -24,7 +24,7 @@ const reads = (phase: string, when: string): ScriptedTurn[] => [
   lead({ kind: 'tool_use', id: `inspect_${phase}`, name: 'Inspect', input: { ref: 'mercury://crew' } }, when),
   lead({ kind: 'text', text: `READ-${phase}-DONE` }, when),
 ]
-const spawnInput: Record<string, unknown> = { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Keep the roster witness', prompt: 'Record HISTORY-WITNESS, then keep working.' }
+const spawnInput: Record<string, unknown> = { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-crew', description: 'Keep the roster witness', prompt: 'Record HISTORY-WITNESS, then keep working.' }
 const script: ScriptedTurn[] = [
   lead({ kind: 'tool_use', name: 'Agent', input: spawnInput }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),

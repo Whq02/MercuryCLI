@@ -88,7 +88,7 @@ const rosterRows = (): RosterRow[] =>
     status: 'running',
     startTime: NOW - 120_000 + index * 1000,
     model: 'claude-opus-5-5',
-    agentType: 'mercury-general',
+    agentType: 'mercury-crew',
     inputTokens: context - 40,
     outputTokens: 40,
     totalTokens: context,

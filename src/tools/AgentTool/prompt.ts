@@ -9,7 +9,7 @@ import { isCrewmate } from '../../utils/crewmate.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
 import { SEND_MESSAGE_TOOL_NAME } from '../SendMessageTool/constants.js'
 import { EFFORT_LEVELS } from '../../utils/effort.js'
-import { AGENT_TOOL_NAME } from './constants.js'
+import { AGENT_TOOL_NAME, MERCURY_CREW_AGENT_TYPE } from './constants.js'
 import { isForkSubagentEnabled } from './forkSubagent.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 
@@ -59,7 +59,7 @@ export async function getPrompt(
 
   const typeSelection = forkOn
     ? 'Specify `subagent_type` for a specialist, or omit it to fork yourself — the fork inherits your full conversation context.'
-    : 'Specify `subagent_type` to select an agent; omitting it gives mercury-general.'
+    : `Specify \`subagent_type\` to select an agent; omitting it gives ${MERCURY_CREW_AGENT_TYPE}.`
 
   const core = `Launch a new agent to work through a complicated, multi-step job on its own. The available agents are specialised — each has its own capabilities and tool access:
 

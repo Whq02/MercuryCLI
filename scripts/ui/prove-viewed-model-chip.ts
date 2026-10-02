@@ -122,9 +122,9 @@ function seed(parent: string, data: unknown): void {
   mkdirSync(dirname(file), { recursive: true })
   writeFileSync(file, JSON.stringify(data))
 }
-seed(focusedId, { agentType: 'mercury-general', model: agentModel, effort: 'max' })
-seed('chip-other-parent', { agentType: 'mercury-general', model: leadModel, effort: 'low' })
-await writeAgentMetadata(localAgentId, { agentType: 'mercury-general', model: agentModel, effort: 'medium' })
+seed(focusedId, { agentType: 'mercury-crew', model: agentModel, effort: 'max' })
+seed('chip-other-parent', { agentType: 'mercury-crew', model: leadModel, effort: 'low' })
+await writeAgentMetadata(localAgentId, { agentType: 'mercury-crew', model: agentModel, effort: 'medium' })
 check('the local metadata fixture has its own agent id and scope', getAgentMetadataPath(localAgentId) !== sidecar(focusedId))
 
 let store: ReturnType<typeof useAppStateStore>
@@ -187,7 +187,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   snapshot('returned-lead')
   geometry('returned-lead')
 
-  store!.setState(prev => ({ ...prev, mainChatTaskId: undefined, tasks: { [taskId]: { id: taskId, type: 'local_agent', agentId: localAgentId, agentType: 'mercury-general', description: 'atlas', prompt: '', model: agentModel, status: 'running', startTime: now, isBackgrounded: true } as never } }))
+  store!.setState(prev => ({ ...prev, mainChatTaskId: undefined, tasks: { [taskId]: { id: taskId, type: 'local_agent', agentId: localAgentId, agentType: 'mercury-crew', description: 'atlas', prompt: '', model: agentModel, status: 'running', startTime: now, isBackgrounded: true } as never } }))
   enterCrewmateView(taskId, store!.setState)
   check(`${size}: a local crewmate reads its agent id's metadata, not the hosted row's or the lead's effort`, await until(() => strip().includes(agentLabel) && /\bmedium\b/.test(strip())), strip())
   snapshot('local')

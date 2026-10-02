@@ -107,7 +107,7 @@ section('C4 the held notices: the finished agent, the operator stop, the runner-
   check("the crew view's stop is the operator's own act", held.get('beta')?.status === 'killed' && held.get('beta')?.operatorStop === true)
   check("the runner-death stop is not the operator's, and its landed writes are read", held.get('gamma')?.operatorStop === false && held.get('gamma')?.landedWrites === '7 file writes landed: /w/a.ts, /w/b.ts', j(held.get('gamma')))
   check('an outcome outranks a later stop for the same agent', held.get('delta')?.status === 'failed')
-  const record = lr.settledRecordFor({ toolUseId: 'toolu_alpha', agentId: 'alpha', description: 'alpha', prompt: 'p', agentType: 'mercury-general', launchedAt: 1 }, 'completed', 7)
+  const record = lr.settledRecordFor({ toolUseId: 'toolu_alpha', agentId: 'alpha', description: 'alpha', prompt: 'p', agentType: 'mercury-crew', launchedAt: 1 }, 'completed', 7)
   check('the settled record carries the held status, is notified, and names no restart error', record.status === 'completed' && record.notified === true && record.error === undefined && record.toolUseId === 'toolu_alpha', j(record))
 }
 

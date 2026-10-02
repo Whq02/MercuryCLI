@@ -2,7 +2,7 @@
 
  
 Shared project settings
-❯ fixture-scout    opus
+❯ fixture-scout  opus
 User settings
 ↓ 3 more
 

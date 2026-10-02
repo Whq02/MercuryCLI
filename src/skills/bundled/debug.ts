@@ -4,7 +4,7 @@ import { enableDebugLogging, getDebugLogPath } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { formatFileSize } from '../../utils/format.js'
 import { getSettingsFilePathForSource } from '../../utils/settings/settings.js'
-import { MERCURY_GUIDE_AGENT_TYPE } from '../../tools/AgentTool/built-in/mercuryGuideAgent.js'
+import { MERCURY_DOCS_SKILL_NAME } from './mercuryDocs.js'
 
 const TAIL_BYTES = 64 * 1024
 const TAIL_LINES = 20
@@ -96,7 +96,7 @@ export function registerDebugSkill(): void {
         'Procedure:',
         '1. Read the tail above, then grep the full log for [ERROR] and [WARN].',
         '2. Correlate hits with what the user was doing; read the relevant settings files.',
-        `3. Consult the ${MERCURY_GUIDE_AGENT_TYPE} subagent when you need to understand a harness feature.`,
+        `3. Invoke the ${MERCURY_DOCS_SKILL_NAME} skill when you need to understand a harness feature.`,
         '4. Finish with plain-language findings and concrete next steps.',
       ].join('\n')
 

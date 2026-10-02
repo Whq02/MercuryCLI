@@ -132,7 +132,7 @@ section('P1 the projector: the runner\'s task store → wire rows')
       description: 'audit the fixtures',
       agentId: 'ag1',
       prompt: 'p',
-      agentType: 'mercury-general',
+      agentType: 'mercury-crew',
       isBackgrounded: true,
       startTime: t0 + 1,
       outputFile: '/nowhere',

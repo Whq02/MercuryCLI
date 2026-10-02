@@ -152,7 +152,7 @@ const arena = makeArena()
 
 section('§1 process 1 — the main launches a background seat; the seat leaves a transcript with a first-exchange record of its own')
 const turns1: ScriptedTurn[] = [
-  { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'record-seat: reply in one line and finish', subagent_type: 'mercury-general', run_in_background: true, model: 'opus' }, thinking: 'launch the seat', model: MAIN, whenModel: 'fable' },
+  { kind: 'tool_use', name: 'Agent', input: { description: SEAT_DESCRIPTION, prompt: 'record-seat: reply in one line and finish', subagent_type: 'mercury-crew', run_in_background: true, model: 'opus' }, thinking: 'launch the seat', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-DISPATCHED', thinking: 'dispatched', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-NOTED-1', thinking: 'noted one', model: MAIN, whenModel: 'fable' },
   { kind: 'text', text: 'MAIN-NOTED-2', thinking: 'noted two', model: MAIN, whenModel: 'fable' },

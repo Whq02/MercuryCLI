@@ -37,7 +37,7 @@ const script: ScriptedTurn[] = [
       kind: 'tool_use',
       id: SPAWN_ID,
       name: 'Agent',
-      input: { name: SEAT, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-general', description: 'the ghost seat', prompt: 'GHOST-WORK: reply once.' },
+      input: { name: SEAT, crew_name: 'crew', model: SEAT_MODEL, subagent_type: 'mercury-crew', description: 'the ghost seat', prompt: 'GHOST-WORK: reply once.' },
     },
     FIRST,
   ),

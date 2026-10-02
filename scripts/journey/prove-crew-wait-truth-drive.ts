@@ -100,7 +100,7 @@ const agentLaunch = (seat: Seat, extra: Record<string, unknown>): string =>
   anthropicToolBlock(seat === 'fable' ? 0 : 1, `toolu_wait_agent_${++toolSeq}`, 'Agent', {
     description: SEATS[seat],
     prompt: `${SEAT_MARK}${seat} read the notes file once, then report in one line`,
-    subagent_type: 'mercury-general',
+    subagent_type: 'mercury-crew',
     run_in_background: true,
     ...extra,
   })

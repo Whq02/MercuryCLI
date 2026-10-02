@@ -34,7 +34,7 @@ function makeStore(tasks: Record<string, unknown>): { state: State; set: (fn: (p
   }
   return store
 }
-const agent = (id: string, status = 'running'): Record<string, unknown> => ({ id, type: 'local_agent', status, description: `Lane ${id}`, agentId: id, agentType: 'mercury-general', prompt: '', startTime: Date.now(), isBackgrounded: true, outputFile: '', outputOffset: 0, notified: false })
+const agent = (id: string, status = 'running'): Record<string, unknown> => ({ id, type: 'local_agent', status, description: `Lane ${id}`, agentId: id, agentType: 'mercury-crew', prompt: '', startTime: Date.now(), isBackgrounded: true, outputFile: '', outputOffset: 0, notified: false })
 const lanes = (store: ReturnType<typeof makeStore>, id: string): { pending: string[]; operator: string[] } => {
   const task = store.state.tasks[id] as { pendingMessages?: string[]; operatorMessages?: string[] }
   return { pending: task.pendingMessages ?? [], operator: task.operatorMessages ?? [] }

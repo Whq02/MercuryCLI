@@ -15,7 +15,7 @@ const turns: ScriptedTurn[] = [
     input: {
       description: 'poise probe',
       prompt: 'Count to three slowly.',
-      subagent_type: 'mercury-general',
+      subagent_type: 'mercury-crew',
       run_in_background: true,
     },
     preText: 'Spawning the probe agent.',

@@ -38,7 +38,7 @@ const SCOUT = {
   getSystemPrompt: () => 'scout prompt',
 } as never as Record<string, unknown>
 const GENERAL = {
-  agentType: 'mercury-general',
+  agentType: 'mercury-crew',
   whenToUse: 'anything',
   source: 'built-in',
   getSystemPrompt: () => 'gp prompt',
@@ -68,7 +68,7 @@ function base(over: Record<string, unknown> = {}): never {
     toolPermissionContext: getEmptyToolPermissionContext(),
     forkGateOn: false,
     forkAgent: FORK_STUB,
-    defaultAgentType: 'mercury-general',
+    defaultAgentType: 'mercury-crew',
     mainLoopModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
@@ -104,9 +104,24 @@ section('§2 — lookup, restriction, and the denial band')
   }
   check(
     'unknown type → the not-found error lists the available roster',
-    err?.message === `Agent type 'no-such-agent' not found. Available agents: mercury-scout, mercury-general, legacy-haiku-role, bg-role`,
+    err?.message === `Agent type 'no-such-agent' not found. Available agents: mercury-scout, mercury-crew, legacy-haiku-role, bg-role`,
     err?.message,
   )
+  const realRoster = getBuiltInAgents() as never[]
+  const refusalFor = (requestedType: string): string => {
+    try {
+      buildAgentLaunchPlan(base({ requestedType, activeAgents: realRoster }))
+      return 'no refusal'
+    } catch (e) {
+      return (e as Error).message
+    }
+  }
+  const madeUp = refusalFor('mercury-frobnicate')
+  check('the real built-in roster is mercury-crew and mercury-scout', realRoster.map(a => (a as { agentType: string }).agentType).join(',') === 'mercury-crew,mercury-scout')
+  check('a made-up type is refused as not found, naming the two built-ins', madeUp === `Agent type 'mercury-frobnicate' not found. Available agents: mercury-crew, mercury-scout`, madeUp)
+  for (const spelling of ['mercury-' + 'general', 'general-' + 'purpose', 'mercury-' + 'background', 'mercury-' + 'architect', 'mercury-' + 'guide', 'mercury-' + 'reviewer', 'mercury-' + 'verifier', 'verification']) {
+    check(`'${spelling}' is unknown exactly as mercury-frobnicate is`, refusalFor(spelling) === madeUp.replace('mercury-frobnicate', spelling), refusalFor(spelling))
+  }
 
   const denyCtx = {
     ...getEmptyToolPermissionContext(),
@@ -126,7 +141,7 @@ section('§2 — lookup, restriction, and the denial band')
 
   err = undefined
   try {
-    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['mercury-general'] }))
+    buildAgentLaunchPlan(base({ requestedType: 'mercury-scout', allowedAgentTypes: ['mercury-crew'] }))
   } catch (e) {
     err = e as Error
   }
@@ -142,7 +157,7 @@ section('§2 — lookup, restriction, and the denial band')
   })())
   check('stamp gate OFF + no type → the default type', (() => {
     const p = buildAgentLaunchPlan(base({}))
-    return !p.isForkPath && p.agentType === 'mercury-general'
+    return !p.isForkPath && p.agentType === 'mercury-crew'
   })())
 }
 
@@ -152,7 +167,7 @@ section('§3 — model resolution')
   check('a haiku frontmatter pin runs the haiku row it named', /haiku/i.test(pinned.model), pinned.model)
   check('nothing substitutes, so no note rides it', pinned.modelNote === undefined, pinned.modelNote)
 
-  const explicit = buildAgentLaunchPlan(base({ requestedType: 'mercury-general', modelParam: 'opus' }))
+  const explicit = buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', modelParam: 'opus' }))
   check('an explicit model param resolves without a floor note', /opus/i.test(explicit.model) && explicit.modelNote === undefined, explicit.model)
   const defPin = buildAgentLaunchPlan(base({ requestedType: 'mercury-scout' }))
   check("the definition's model pin resolves when no param is given", /sonnet/i.test(defPin.model), defPin.model)
@@ -162,16 +177,16 @@ section('§4 — isolation · the async decision law · worker permission mode')
 {
   check('explicit isolation param wins over the definition', buildAgentLaunchPlan(base({ requestedType: 'bg-role', isolationParam: 'remote' })).isolation === 'remote')
   check("the definition's isolation carries when no param is given", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).isolation === 'worktree')
-  check('no isolation anywhere → undefined', buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).isolation === undefined)
+  check('no isolation anywhere → undefined', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).isolation === undefined)
 
-  check('run_in_background → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-general', runInBackground: true })).shouldRunAsync === true)
+  check('run_in_background → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', runInBackground: true })).shouldRunAsync === true)
   check('background:true definition → async', buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).shouldRunAsync === true)
-  check('forceAsync → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-general', forceAsync: true })).shouldRunAsync === true)
-  check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).shouldRunAsync === false)
+  check('forceAsync → async', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew', forceAsync: true })).shouldRunAsync === true)
+  check('nothing forcing → sync', buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).shouldRunAsync === false)
   check('backgroundTasksDisabled kills EVERY async route', buildAgentLaunchPlan(base({ requestedType: 'bg-role', runInBackground: true, forceAsync: true, backgroundTasksDisabled: true })).shouldRunAsync === false)
 
   check("the worker mode is the definition's permissionMode", buildAgentLaunchPlan(base({ requestedType: 'bg-role' })).workerPermissionMode === 'dontAsk')
-  check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-general' })).workerPermissionMode === 'implement')
+  check("no definition mode → the 'implement' worker default", buildAgentLaunchPlan(base({ requestedType: 'mercury-crew' })).workerPermissionMode === 'implement')
 }
 
 section("§5 — the runner's definition product")

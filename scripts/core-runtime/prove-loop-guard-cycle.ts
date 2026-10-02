@@ -535,7 +535,7 @@ section('C14 — KEY ON: a sub-agent the guard ends settles to its parent as a t
   const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
   const run = await runScript(pairs(10, () => TEST), identicalResults, 'agent-rig-3')
   const collected = run.yields.filter(m => m.type === 'assistant' || m.type === 'user' || m.type === 'attachment')
-  const finalized = finalizeAgentTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'general-purpose', isAsync: false })
+  const finalized = finalizeAgentTool(collected as never, 'agent-rig-3', { prompt: 'loop', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: false })
   check('the finalized outcome is a typed failure with the loop-stopped reason and the stop text naming the cycle', finalized.outcome?.status === 'failed' && (finalized.outcome as { reason?: string }).reason === 'loop-stopped' && /the same cycle of tool calls \(Edit -> Bash\)/.test(String((finalized.outcome as { error?: string }).error)), JSON.stringify(finalized.outcome))
   const block = AgentTool.mapToolResultToToolResultBlockParam({ status: 'failed', prompt: 'loop', error: (finalized.outcome as { error?: string }).error, ...finalized } as never, 'tu_parent') as { is_error?: boolean; content?: Array<{ text?: string }> }
   const parentText = (block.content ?? []).map(b => b.text ?? '').join('\n')

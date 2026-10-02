@@ -111,7 +111,7 @@ const lane = (facts: { id: string; name: string; tokens: number }, index: number
   ...(status === 'running' ? {} : { endTime: NOW - 60_000 }),
   description: `${facts.name} — a lane of the wave`,
   model: 'claude-fable-5-1',
-  agentType: 'mercury-general',
+  agentType: 'mercury-crew',
   inputTokens: facts.tokens,
   outputTokens: 2_400,
   totalTokens: facts.tokens + 2_400,
@@ -546,7 +546,7 @@ async function run(cols: number, rows: number): Promise<void> {
       type: 'local_agent' as const,
       agentId: LOCAL_ID,
       prompt: 'work quietly',
-      agentType: 'mercury-general',
+      agentType: 'mercury-crew',
       isBackgrounded: true,
       messages: [],
     }

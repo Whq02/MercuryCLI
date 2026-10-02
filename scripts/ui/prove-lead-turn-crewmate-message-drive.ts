@@ -25,7 +25,7 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', whenBody: when }) as ScriptedTurn
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-general', description: 'Reports to the lead', prompt: `${WORKER_PROMPT}: report to crew-lead.` } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, model: peerModel, subagent_type: 'mercury-crew', description: 'Reports to the lead', prompt: `${WORKER_PROMPT}: report to crew-lead.` } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-DONE' }, FIRST),
   lead({ kind: 'text', text: 'LEAD-SECOND' }, SECOND),
   ...Array.from({ length: 6 }, ack),

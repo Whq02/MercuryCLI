@@ -17,7 +17,7 @@ const sgrClick = (col: number, row: number): string =>
 const agentInput = (name: string): Record<string, unknown> => ({
   description: name,
   prompt: 'Work quietly.',
-  subagent_type: 'mercury-general',
+  subagent_type: 'mercury-crew',
   run_in_background: true,
 })
 

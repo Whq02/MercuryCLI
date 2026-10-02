@@ -25,11 +25,8 @@ const { resolveAgentPromptPosture, composeAgentAppState, withAllowedCommandRules
   '../../src/tools/AgentTool/agentPermissionPosture.ts'
 )
 const { resolveAgentTools, filterToolsForAgent } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { MERCURY_BACKGROUND_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryBackgroundAgent.ts')
 const { MERCURY_SCOUT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryScoutAgent.ts')
-const { MERCURY_ARCHITECT_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryArchitectAgent.ts')
-const { VERIFICATION_AGENT } = await import('../../src/tools/AgentTool/built-in/verificationAgent.ts')
-const { GENERAL_PURPOSE_AGENT } = await import('../../src/tools/AgentTool/built-in/generalPurposeAgent.ts')
+const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
 
 let failures = 0
 let checks = 0
@@ -155,7 +152,7 @@ function contextFor(subject: Subject, mode: Mode, rules: Rules): unknown {
     setAppState: () => {},
     messages: [],
     agentId: isAgent ? `agent-${subject}` : undefined,
-    agentType: isAgent ? 'mercury-general' : undefined,
+    agentType: isAgent ? 'mercury-crew' : undefined,
     options: { isNonInteractiveSession, tools: [], ...(permissionChannel !== undefined ? { permissionChannel } : {}) },
     ...(isAsync ? { localDenialTracking: createDenialTrackingState() } : {}),
   }
@@ -288,7 +285,7 @@ section('§3 the roster — the shell rides every definition that carries it, fo
 {
   const POOL_NAMES = ['Agent', 'AskUserQuestion', 'Bash', 'Edit', 'Glob', 'Grep', 'NotebookEdit', 'Read', 'SendMessage', 'Skill', 'Sleep', 'TaskStop', 'ToolSearch', 'WebFetch', 'WebSearch', 'Workflow', 'Write']
   const pool = POOL_NAMES.map(name => ({ name })) as never
-  const definitions = [GENERAL_PURPOSE_AGENT, MERCURY_BACKGROUND_AGENT, MERCURY_SCOUT_AGENT, MERCURY_ARCHITECT_AGENT, VERIFICATION_AGENT]
+  const definitions = [MERCURY_CREW_AGENT, MERCURY_SCOUT_AGENT]
   for (const definition of definitions) {
     for (const isAsync of [false, true]) {
       const resolved = resolveAgentTools(definition as never, pool, isAsync, false)

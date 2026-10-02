@@ -86,7 +86,7 @@ for (const kind of ['owner', 'lead', 'mixed', 'stop'] as const) {
     await deliverOperatorMessagesAfterStop(taskId, kind, context, store.set)
   } else {
     async function* stream() { yield createAssistantMessage({ content: 'DONE' }) }
-    await runAsyncAgentLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: 'fixture', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-general', isAsync: true }, description: kind, toolUseContext: context, rootSetAppState: store.set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult: async () => ({}) })
+    await runAsyncAgentLifecycle({ taskId, abortController: task.abortController!, makeStream: stream, metadata: { prompt: 'work', resolvedAgentModel: 'fixture', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }, description: kind, toolUseContext: context, rootSetAppState: store.set, agentIdForCleanup: taskId, enableSummarization: false, getWorktreeResult: async () => ({}) })
   }
   const resumed = resumes.at(-1)
   tally.check(`${kind}: queued follow-ups retain their audience and words at the resume boundary`, resumed?.replyTarget === (kind === 'lead' || kind === 'mixed' ? 'parent' : 'operator') && (kind === 'lead' || resumed.prompt.includes('OWNER-NEXT')) && ((kind !== 'lead' && kind !== 'mixed') || resumed.prompt.includes('LEAD-NEXT')), JSON.stringify(resumed))

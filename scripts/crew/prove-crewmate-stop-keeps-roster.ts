@@ -26,7 +26,7 @@ const peer = (turn: Record<string, unknown>, when?: string): ScriptedTurn => ({ 
 const tally = makeTally('prove-crewmate-stop-keeps-roster')
 const work = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'crewmate-place-'))
 const script: ScriptedTurn[] = [
-  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, cwd: work, model: peerModel, subagent_type: 'mercury-general', description: 'Keep the place', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
+  lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, cwd: work, model: peerModel, subagent_type: 'mercury-crew', description: 'Keep the place', prompt: 'Run pwd and retain HISTORY-WITNESS in your reasoning.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
   lead({ kind: 'tool_use', id: BRIEF_1, name: 'LiveComms', input: {} }, STOP_NOTICE),
   lead({ kind: 'text', text: 'LEAD-READ-1' }, STOP_NOTICE),

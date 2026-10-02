@@ -704,7 +704,7 @@ section('R4 THE FRAME PER PARK — the row\'s words reach the daemon\'s facts wi
       name: 'scout the release notes',
       status: 'running',
       startTime: t0,
-      agentType: 'mercury-general',
+      agentType: 'mercury-crew',
       model: MODEL,
       ...(two.waitOf('scout') !== null ? { wait: two.waitOf('scout') as string } : {}),
     })

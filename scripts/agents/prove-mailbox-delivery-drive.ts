@@ -25,8 +25,8 @@ const script: ScriptedTurn[] = []
 const main = (turn: Record<string, unknown>, whenBody?: string) => ({ ...turn, model, whenModel: 'fable-5-1', ...(whenBody ? { whenBody } : {}) })
 const send = (id: string, to: string, message: string) => ({ kind: 'tool_use', name: 'SendMessage', id, input: { to, message, summary: message } })
 script.push(...[
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: 'claude-opus-4-6', subagent_type: 'mercury-general', description: 'Water report', prompt: 'Send READY-WATER to crew-lead once.' } }, 'START-GROUP'),
-  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', crew_name: 'crew', model: 'claude-sonnet-5', subagent_type: 'mercury-general', description: 'Dragon report', prompt: 'Send READY-DRAGON to crew-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'water', crew_name: 'crew', model: 'claude-opus-4-6', subagent_type: 'mercury-crew', description: 'Water report', prompt: 'Send READY-WATER to crew-lead once.' } }, 'START-GROUP'),
+  main({ kind: 'tool_use', name: 'Agent', input: { name: 'dragon', crew_name: 'crew', model: 'claude-sonnet-5', subagent_type: 'mercury-crew', description: 'Dragon report', prompt: 'Send READY-DRAGON to crew-lead once.' } }, 'START-GROUP'),
   main({ kind: 'text', text: 'GROUP-STARTED' }, 'START-GROUP'),
   main({ kind: 'text', text: 'FIRST-REPORT-RECEIVED' }, 'READY-WATER'),
   main(send('resume-water', 'water', 'RESUME-WATER: send REPORT-WATER-2 once.'), 'RESUME-GROUP'),

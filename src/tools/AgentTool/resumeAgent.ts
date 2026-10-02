@@ -45,6 +45,7 @@ import { getSystemPrompt } from '../../constants/prompts.js'
 import { ensureScratchpadDir } from '../../utils/scratchpad.js'
 import { cancelAutomaticResume, resolveWorkerTools, runAsyncAgentLifecycle } from './agentToolUtils.js'
 import { FORK_AGENT, FORK_SUBAGENT_TYPE, forkSystemPrompt, isForkSubagentEnabled } from './forkSubagent.js'
+import { MERCURY_CREW_AGENT_TYPE } from './constants.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { getAgentDefinitionsWithOverrides } from './loadAgentsDir.js'
 import { isBuiltInAgent } from './loadAgentsDir.js'
@@ -61,6 +62,17 @@ export type ResumeAgentResult = {
 }
 
 const RESUMED_AGENT_DESCRIPTION = 'Resumed agent'
+
+export function definitionForStoredType(
+  storedType: string | undefined,
+  activeAgents: readonly AgentDefinition[],
+): AgentDefinition {
+  return (
+    activeAgents.find(agent => agent.agentType === storedType) ??
+    activeAgents.find(agent => agent.agentType === MERCURY_CREW_AGENT_TYPE) ??
+    activeAgents[0]!
+  )
+}
 
 export function liveAgentOwner(
   agentId: string,
@@ -167,14 +179,7 @@ export async function resumeAgentBackground(args: {
     definition = FORK_AGENT
   } else {
     const definitions = await getAgentDefinitionsWithOverrides(getCwdState())
-    definition =
-      definitions.activeAgents.find(
-        agent => agent.agentType === meta?.agentType,
-      ) ??
-      definitions.activeAgents.find(
-        agent => agent.agentType === 'mercury-general',
-      ) ??
-      definitions.activeAgents[0]!
+    definition = definitionForStoredType(meta?.agentType, definitions.activeAgents)
   }
 
   const description = recordedDescription(meta?.description) || RESUMED_AGENT_DESCRIPTION
