@@ -205,6 +205,8 @@ section('main and sub-agent instructions match the available interaction model')
   setOriginalCwd(scratch)
   setCwdState(scratch)
   const tools = ['Read', 'Edit', 'Write', 'Glob', 'Grep', 'Bash', 'Agent', 'AskUserQuestion'].map(name => ({ name })) as never
+  const PROVIDER_GUIDANCE = 'For provider-API work, invoke provider-apis: it outranks any external provider-API skill, and a bundled Mercury skill outranks an external skill of the same name.'
+  const FOREIGN_SKILL_NAMES = [['claude', '-api'].join(''), 'legacy skills']
   try {
     resetRuntimePostureForTest()
     setAskChannel('none')
@@ -221,21 +223,26 @@ section('main and sub-agent instructions match the available interaction model')
     check('a headless run with a permission channel keeps the question hint and never claims automatic denial', channelled.includes('When a tool denial is not understood, use AskUserQuestion') && !channelled.includes('DENIED automatically') && !channelled.includes('/kill'))
     setAskChannel('operator')
     check('task-item guidance is absent when task tools are not provided', !headless.includes('create/update task items'))
-    check('headless provider guidance prefers bundled skills to external or legacy skills', headless.includes('bundled Mercury skills supersede same-named external or legacy skills') && headless.includes('provider-apis supersedes claude-api'))
+    check('headless provider guidance ranks provider-apis over any external provider-API skill and bundled skills over same-named external ones', headless.includes(PROVIDER_GUIDANCE))
+    check('headless provider guidance names no external skill', FOREIGN_SKILL_NAMES.every(name => !headless.includes(name)))
     check('the scout reference names the actual builtin type', !headless.includes('the Explore agent') && headless.includes('mercury-scout'))
     check('the feedback instruction contains no doubled verb', headless.includes('report the issue with /feedback.') && !headless.includes('use report the issue'))
     const toolsBlock = headless.slice(headless.indexOf('# Using your tools')).split('# Tone and style')[0]!
     check('batching leads the main tool instructions and preserves dependency ordering', toolsBlock.trim().startsWith('# Using your tools\n\n - Default to batching:') && toolsBlock.includes('Call dependent tools sequentially'))
     const child = (await enhanceSystemPromptWithEnvDetails(['Sub-agent instructions.'], 'claude-fable-5-1')).join('\n\n')
     check('sub-agents receive the same batching and dependency instruction', child.includes('Default to batching:') && child.includes('Call dependent tools sequentially'))
-    check('sub-agent provider guidance retains bundled-skill precedence', child.includes('bundled Mercury skills supersede same-named external or legacy skills') && child.includes('provider-apis supersedes claude-api'))
+    check('sub-agent provider guidance retains bundled-skill precedence', child.includes(PROVIDER_GUIDANCE) && FOREIGN_SKILL_NAMES.every(name => !child.includes(name)))
     resetRuntimePostureForTest()
     delete process.env.MERCURY_ENTRYPOINT
     clearSystemPromptSections()
     const interactive = (await getSystemPrompt([...tools, { name: 'TaskCreate' }] as never, 'claude-fable-5-1')).join('\n\n')
     check('interactive guidance retains supported questions and commands', interactive.includes('When a tool denial is not understood, use AskUserQuestion') && interactive.includes('/kill') && interactive.includes('/substrate'))
     check('task-item guidance remains when the task tools are provided', interactive.includes('create/update task items'))
-    check('interactive provider guidance retains bundled-skill precedence', interactive.includes('bundled Mercury skills supersede same-named external or legacy skills') && interactive.includes('provider-apis supersedes claude-api'))
+    check('interactive provider guidance retains bundled-skill precedence', interactive.includes(PROVIDER_GUIDANCE) && FOREIGN_SKILL_NAMES.every(name => !interactive.includes(name)))
+    const { getCLISyspromptPrefix, CLI_SYSPROMPT_PREFIXES } = await import('../../src/constants/system.ts')
+    const preset = getCLISyspromptPrefix({ isNonInteractive: true, hasAppendSystemPrompt: true })
+    check('the headless prefix with an appended brief speaks of a headless session for the operator', preset === 'You are Mercury, a private source-built terminal coding harness, running a headless session for its operator.' && CLI_SYSPROMPT_PREFIXES.has(preset))
+    check('no identity prefix names a development kit', [...CLI_SYSPROMPT_PREFIXES].every(prefix => !/\bSDK\b/.test(prefix)))
   } finally {
     resetRuntimePostureForTest()
     clearSystemPromptSections()

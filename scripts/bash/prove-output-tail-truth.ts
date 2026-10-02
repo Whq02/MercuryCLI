@@ -18,7 +18,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 
-delete process.env.BASH_MAX_OUTPUT_LENGTH
+delete process.env.MERCURY_SHELL_MAX_OUTPUT
 const { formatOutput } = await import('../../src/tools/BashTool/utils.ts')
 const { getMaxOutputLength } = await import('../../src/utils/shell/outputLimits.ts')
 const { generatePreview, PREVIEW_SIZE_CHARS } = await import('../../src/utils/toolResultStorage.ts')

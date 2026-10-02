@@ -19,6 +19,7 @@ const { decideSplashReceipt } = await import('../../src/substrate/splashHandover
 const { resolveConcoursePolicy } = await import('../../src/context/surfaceRoute.ts')
 const { bornSpawnSwitch } = await import('../../src/services/switchboard/spawnSwitches.ts')
 const { resolveComputerAccess } = await import('../../src/substrate/startupMenu.ts')
+const { getDefaultBashTimeoutMs, getMaxBashTimeoutMs } = await import('../../src/utils/timeouts.ts')
 
 const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
 
@@ -105,6 +106,8 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_DESKTOP_FAKE_SCENE: ['', '/tmp/sweep-scene.json'],
   MERCURY_DESKTOP_FAKE_LOG: ['', '/tmp/sweep-acts.jsonl'],
   MERCURY_DESKTOP_PACK_DIR: ['', '/tmp/sweep-desktop-pack'],
+  MERCURY_SHELL_TIMEOUT_MS: ['', '5000', '900000'],
+  MERCURY_SHELL_MAX_TIMEOUT_MS: ['', '7000'],
 }
 
 const CLUSTERS: Record<string, string[]> = {
@@ -205,6 +208,15 @@ function probeVector(clusterName: string, cluster: string[], vec: string[]): voi
     if (fsyncEnabled() !== (val('MERCURY_DURABLE_FSYNC') !== '0')) {
       assertionFailures++
       console.log(`     fsyncEnabled diverged under ${JSON.stringify(vec)}`)
+    }
+  }
+  if (clusterName === 'cross:MERCURY_SHELL_MAX_TIMEOUT_MS×MERCURY_SHELL_TIMEOUT_MS') {
+    const wantDefault = val('MERCURY_SHELL_TIMEOUT_MS') === '' ? 120_000 : Number(val('MERCURY_SHELL_TIMEOUT_MS'))
+    const ceiling = val('MERCURY_SHELL_MAX_TIMEOUT_MS') === '' ? 600_000 : Number(val('MERCURY_SHELL_MAX_TIMEOUT_MS'))
+    const wantMax = Math.max(ceiling, wantDefault)
+    if (getDefaultBashTimeoutMs() !== wantDefault || getMaxBashTimeoutMs() !== wantMax) {
+      assertionFailures++
+      console.log(`     shell timeout pair (${getDefaultBashTimeoutMs()}, ${getMaxBashTimeoutMs()}) ≠ (${wantDefault}, ${wantMax}) under ${JSON.stringify(vec)}`)
     }
   }
   if (clusterName === 'concourse') {

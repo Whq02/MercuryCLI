@@ -1459,7 +1459,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               return {
                 status: 'warn',
                 evidence: `foreign harness artifacts in ${home}: ${report.foreign.map(a => a.evidence).join(' · ')}`,
-                fix: `${writers.join(' + ')} wrote harness-state into the Mercury home (a shell exported CLAUDE_CONFIG_DIR/MERCURY_CONFIG_DIR while another tool ran). Move or remove the foreign records.`,
+                fix: `${writers.join(' + ')} wrote harness-state into the Mercury home (another tool was pointed at this home while it ran). Move or remove the foreign records.`,
                 ...(healthFixEnabled()
                   ? {
                       remedy: {
@@ -2290,11 +2290,11 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Env output limits',
           run: async () => {
             const { validateBoundedIntEnvVar } = await import('./envValidation.js')
-            const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT } = await import(
+            const { BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT, SHELL_MAX_OUTPUT_ENV } = await import(
               './shell/outputLimits.js'
             )
             const rows: Array<[string, number, number]> = [
-              ['BASH_MAX_OUTPUT_LENGTH', BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT],
+              [SHELL_MAX_OUTPUT_ENV, BASH_MAX_OUTPUT_DEFAULT, BASH_MAX_OUTPUT_UPPER_LIMIT],
             ]
             const findings: string[] = []
             for (const [name, def, cap] of rows) {

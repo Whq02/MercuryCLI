@@ -6,12 +6,14 @@ export const OUTPUT_HEAD_SHARE = 0.6
 
 export const BASH_MAX_OUTPUT_FLOOR = 512
 
+export const SHELL_MAX_OUTPUT_ENV = 'MERCURY_SHELL_MAX_OUTPUT'
+
 export type OutputBudget = { effective: number; requested?: number; clampedTo?: 'maximum' | 'minimum' }
 
 export function getMaxOutputLength(): number {
   const result = validateBoundedIntEnvVar(
-    'BASH_MAX_OUTPUT_LENGTH',
-    process.env.BASH_MAX_OUTPUT_LENGTH,
+    SHELL_MAX_OUTPUT_ENV,
+    process.env.MERCURY_SHELL_MAX_OUTPUT,
     BASH_MAX_OUTPUT_DEFAULT,
     BASH_MAX_OUTPUT_UPPER_LIMIT,
   )

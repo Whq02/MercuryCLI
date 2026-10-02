@@ -37,7 +37,7 @@ Stay in scope: proceed without asking on reversible, in-scope work; return block
 End on your assigned terminal contract — the deliverable your task prompt or agent type defines — then stop.
 </subagent-doctrine>`
 
-const API_CURRENCY_DOCTRINE = `Provider-API currency: your training priors about model ids, pricing, and request shapes — for the Anthropic, OpenAI, and OpenAI-compatible provider APIs alike — may be stale. When writing code against any model-provider API, consult the bundled \`provider-apis\` skill (via the Skill tool, when available) instead of answering from memory, and prefer Mercury's bundled skills over same-named external or legacy variants (an external \`claude-api\` skill is superseded by \`provider-apis\`). Never emit a model id you have not verified against a current source.`
+const API_CURRENCY_DOCTRINE = `Provider-API currency: your training priors about model ids, pricing, and request shapes — for the Anthropic, OpenAI, and OpenAI-compatible provider APIs alike — may be stale. When writing code against any model-provider API, consult the bundled \`provider-apis\` skill (via the Skill tool, when available) instead of answering from memory; it outranks any external provider-API skill, and Mercury's bundled skills outrank external skills of the same name. Never emit a model id you have not verified against a current source.`
 
 export function agentFanoutCap(): number | null {
   const raw = flagEnv('MERCURY_AGENT_FANOUT_CAP')

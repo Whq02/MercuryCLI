@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, w
 import { basename, extname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { whichSync } from '../../utils/which.js'
+import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { commandWords } from '../../utils/hooks/generatedAssets.js'
 import { boxLockDirOfScript } from '../../utils/boxLock.js'
@@ -63,8 +64,8 @@ function verificationCommand(command: string, worktree: string, receipt: string)
 function confinedVerification(command: string, worktree: string, receipt: string, scratch: string, lockRoot: string | undefined): string {
   const home = join(scratch, 'home')
   mkdirSync(home)
-  const bun = process.env.BUN || whichSync('bun')
-  const environment = [`HOME=${home}`, `TMPDIR=${scratch}`, `MERCURY_CONFIG_DIR=${home}`, 'MERCURY_CREDENTIAL_STORE=file', `XDG_CACHE_HOME=${join(scratch, 'cache')}`, ...(bun ? [`BUN=${bun}`] : [])]
+  const bun = flagEnv('MERCURY_BUN') || whichSync('bun')
+  const environment = [`HOME=${home}`, `TMPDIR=${scratch}`, `MERCURY_CONFIG_DIR=${home}`, 'MERCURY_CREDENTIAL_STORE=file', `XDG_CACHE_HOME=${join(scratch, 'cache')}`, ...(bun ? [`MERCURY_BUN=${bun}`, `BUN=${bun}`] : [])]
   if (process.platform === 'darwin') {
     const bin = join(scratch, 'bin')
     mkdirSync(bin)
