@@ -87,7 +87,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/identity/prove-vocabulary.ts', '*', 'this check composes the needles it holds'],
   ['src/services/ide/pythonTests.ts', 'run-short', 'pytest selects its own modules'],
   ['src/tools/BashTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
-  ['src/tools/BashTool/strategyMutation.ts', 'run-short', 'sudo argument grammar'],
   ['src/tools/PowerShellTool/readOnlyValidation.ts', 'run-short', 'shell utility argument grammars'],
   ['src/utils/shell/readOnlyCommandValidation.ts', 'run-short', 'git and language-tool argument grammars'],
   ['src/utils/bash/ast.ts', 'run-short', 'the shell wait builtin argument grammar'],
