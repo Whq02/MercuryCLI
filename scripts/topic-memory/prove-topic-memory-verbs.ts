@@ -54,6 +54,13 @@ section('§2 the four tools, with nothing set, round-trip through the isolated h
   check('force consolidation', maybeConsolidate({ force: true, dir: libDir }).consolidated)
   const recalled = recallQuery('round-trip', {})
   check('Recall finds the consolidated fact by id', recalled.hits.some(h => h.id.startsWith('seq:') && h.slug === 'tool-surface'), JSON.stringify(recalled.hits))
+  const byWords = recallQuery('how do the verbs reach the tool roster', {})
+  check('Recall finds the fact from the words of a question that is no substring of it', byWords.hits.length === 1 && byWords.hits[0]!.id === recalled.hits[0]!.id && /^seq=\d+, time=.*, source=/.test(byWords.hits[0]!.signature), JSON.stringify(byWords.hits))
+  retainItems([{ content: 'a pending fact about the lantern smoke log under build/smoke', topic: 'tool surface' }], { session: 'proof' })
+  const pendingByWords = recallQuery('where is the smoke log kept', {})
+  check('the words also reach a pending row, labelled as such', pendingByWords.hits.length === 1 && pendingByWords.hits[0]!.label === 'pending' && pendingByWords.hits[0]!.id.startsWith('pending:') && pendingByWords.hits[0]!.signature.startsWith('time='), JSON.stringify(pendingByWords.hits))
+  const nothing = recallQuery('zebrafrost quintuple', {})
+  check('words that match no fact recall nothing and the result is elidable', nothing.hits.length === 0 && nothing.elidable)
   check('the tools answer isEnabled', RetainTool.isEnabled() && RecallTool.isEnabled())
 }
 

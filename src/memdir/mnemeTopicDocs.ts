@@ -269,7 +269,9 @@ export function splitDoc(
   nowIso: string,
   taken?: ReadonlySet<string>,
 ): [MnemeTopicDoc, MnemeTopicDoc] | null {
-  if (computeDocTokens(doc) <= MAX_DOC_TOKENS || doc.sections.length < 2) return null
+  if (computeDocTokens(doc) <= MAX_DOC_TOKENS) return null
+  const liveEntries = doc.sections.reduce((n, s) => n + s.entries.length, 0)
+  if (doc.sections.length < 2 && liveEntries < 2) return null
   const total = computeDocTokens(doc)
   const a = emptyDoc(doc.slug, doc.summary, doc.created)
   a.updated = nowIso
@@ -282,16 +284,34 @@ export function splitDoc(
   }
   const b = emptyDoc(bSlug, `${doc.summary} (split)`, nowIso)
   let acc = 0
-  for (const s of doc.sections) {
-    const sTok = estimateTokens(s.entries.map(e => e.text).join(' '))
-    if (acc < total / 2) {
-      a.sections.push(s)
-      acc += sTok
-    } else b.sections.push(s)
+  let moved = ''
+  if (doc.sections.length >= 2) {
+    for (const s of doc.sections) {
+      const sTok = estimateTokens(s.entries.map(e => e.text).join(' '))
+      if (acc < total / 2) {
+        a.sections.push(s)
+        acc += sTok
+      } else b.sections.push(s)
+    }
+    if (b.sections.length === 0) b.sections.push(a.sections.pop()!)
+    moved = `${b.sections.length} section(s)`
+  } else {
+    const only = doc.sections[0]!
+    const keep: MnemeEntry[] = []
+    const move: MnemeEntry[] = []
+    for (const e of only.entries) {
+      if (acc < total / 2) {
+        keep.push(e)
+        acc += estimateTokens(e.text) + 10
+      } else move.push(e)
+    }
+    if (move.length === 0) move.push(keep.pop()!)
+    a.sections.push({ heading: only.heading, entries: keep })
+    b.sections.push({ heading: only.heading, entries: move })
+    moved = `${move.length} entr${move.length === 1 ? 'y' : 'ies'}`
   }
-  if (b.sections.length === 0) b.sections.push(a.sections.pop()!)
   a.history = doc.history
-  a.updateLog.push(`${nowIso} split: ${b.sections.length} section(s) → ${b.id}`)
+  a.updateLog.push(`${nowIso} split: ${moved} → ${b.id}`)
   b.updateLog.push(`${nowIso} split from ${doc.id}`)
   return [a, b]
 }

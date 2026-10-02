@@ -6,8 +6,9 @@ import { appendObservation, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
 import { correctFact, retireFact, type MnemeCorrectResult } from './mnemeCorrect.js'
-import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, type MnemeTopicDoc } from './mnemeTopicDocs.js'
-import { bumpUsage } from './mnemeUsage.js'
+import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
+import { bumpUsage, readUsage } from './mnemeUsage.js'
+import { candidates, rankCandidates } from './mnemeLookup.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -178,6 +179,26 @@ export function recallQuery(
       preview: clip(hit.text.trim()),
       signature: `doc=${hit.slug} line=${hit.line}`,
     })
+  }
+  if (hits.length === 0) {
+    const pool = candidates(dir)
+    for (const doc of listArchiveDocs(dir)) {
+      const pagePath = join(dir, pageFileForSlug(doc.slug))
+      for (const section of doc.sections) {
+        for (const entry of section.entries) {
+          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+        }
+      }
+    }
+    for (const hit of rankCandidates(query, pool, { limit, usage: readUsage(dir) })) {
+      hits.push({
+        id: hit.id,
+        label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
+        slug: hit.pending ? PENDING_SLUG : hit.slug,
+        preview: clip(hit.text),
+        signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
+      })
+    }
   }
   const catalogRows = catalogDocs(dir)
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))

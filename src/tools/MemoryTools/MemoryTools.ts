@@ -125,7 +125,7 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Search memory (docs + pending observations).'),
+      query: z.string().optional().describe('Search memory (pages, archive and pending observations): a phrase or regex matches lines literally; otherwise the words of the query are matched and the best facts come first.'),
       read: z.string().optional().describe('Read ONE full record by id (seq:<n> · doc:<slug> · pending:<ts>).'),
       limit: z.number().int().min(1).max(50).optional().describe('Max hits (default 12).'),
     })
