@@ -10,7 +10,6 @@ import { changeTransactionEnabled } from '../../services/changeTransaction/contr
 import { dropSeenLines } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -401,7 +400,6 @@ export const AstEditTool = buildTool({
 
     const owner = ownerFromToolUseContext(context)
     for (const f of plan.files) {
-      await diagnosticTracker.beforeFileEdited(f.abs)
       if (fileHistoryEnabled()) {
         await fileHistoryTrackEdit(context.updateFileHistoryState, f.abs, parentMessage.uuid as UUID)
       }

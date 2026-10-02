@@ -1,5 +1,4 @@
 import type { PastedContent } from '../utils/config.js'
-import type { IDESelection } from '../hooks/useIdeSelection.js'
 import type {
   EditablePromptInputMode,
   PromptInputMode,
@@ -31,7 +30,6 @@ export type ComposerDraft = {
   cursorOffset: number
   mode: PromptInputMode
   pastedContents: Record<number, PastedContent>
-  selection?: IDESelection
 }
 
 export type StashedPrompt = {
@@ -89,11 +87,7 @@ export function clearForSubmit(submittedText?: string): void {
   cancelPendingDraftSave()
   deleteDraft(owningSessionId ?? getSessionId())
   if (submittedText !== undefined) {
-    staged = { text: submittedText, at: Date.now(), selection: draft.selection }
-  }
-  if (draft.selection !== undefined) {
-    draft = { ...draft, selection: undefined }
-    commit()
+    staged = { text: submittedText, at: Date.now() }
   }
 }
 
@@ -114,10 +108,6 @@ export function pastedContents(): Record<number, PastedContent> {
 
 export function stashedPrompt(): StashedPrompt | undefined {
   return stash
-}
-
-export function selection(): IDESelection | undefined {
-  return draft.selection
 }
 
 export function editGeneration(): number {
@@ -177,7 +167,6 @@ export async function rekeyToSession(sessionId: string | null, opts?: { landing?
       saved && saved.text === text ? Math.max(0, Math.min(saved.cursorOffset, text.length)) : text.length,
     mode: saved?.mode === 'bash' || saved?.mode === 'prompt' ? saved.mode : 'prompt',
     pastedContents: saved?.pastedContents ?? {},
-    selection: draft.selection,
   }
   commit()
 }
@@ -266,12 +255,6 @@ export function reportCursor(offset: number): void {
   persistDraft()
 }
 
-export function setSelection(next: IDESelection | undefined): void {
-  if (draft.selection === next) return
-  draft = { ...draft, selection: next }
-  commit()
-}
-
 
 export function setStash(next: StashedPrompt | undefined): void {
   stash = next
@@ -304,9 +287,9 @@ export function popStash(): StashedPrompt | undefined {
 }
 
 
-let staged: { text: string; at: number; selection?: IDESelection } | null = null
+let staged: { text: string; at: number } | null = null
 
-export function stagedSubmit(): { text: string; at: number; selection?: IDESelection } | null {
+export function stagedSubmit(): { text: string; at: number } | null {
   return staged
 }
 
@@ -314,14 +297,13 @@ export function clearStaged(): void {
   staged = null
 }
 
-export function restoreStaged(expectedText?: string): { text: string; selection?: IDESelection } | null {
+export function restoreStaged(expectedText?: string): { text: string } | null {
   const record = staged
   if (record === null) return null
   if (expectedText !== undefined && record.text !== expectedText) return null
   staged = null
   edit(record.text)
-  if (record.selection !== undefined) setSelection(record.selection)
-  return { text: record.text, selection: record.selection }
+  return { text: record.text }
 }
 
 

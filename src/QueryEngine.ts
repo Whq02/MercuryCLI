@@ -323,7 +323,6 @@ export class QueryEngine {
         tools: config.tools,
         mcpClients: config.mcpClients,
         mcpResources: {},
-        ideInstallationStatus: null,
         isNonInteractiveSession: true,
         ...(config.permissionChannel !== undefined ? { permissionChannel: config.permissionChannel } : {}),
         customSystemPrompt: config.customSystemPrompt,

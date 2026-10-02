@@ -7,12 +7,11 @@ import type { ToolUseContext } from '../../Tool.js'
 import { getHarnessMapDelta } from '../cockpit/harnessMap.js'
 import { getRunProtocolDelta } from '../cockpit/runProtocol.js'
 import type { QuerySource } from '../../constants/querySource.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import { createAbortController } from '../abortController.js'
 import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { logError } from '../log.js'
-import { getDiagnosticAttachments, getLSPDiagnosticAttachments } from './diagnostics.js'
+import { getLSPDiagnosticAttachments } from './diagnostics.js'
 import { getChangedFiles } from './fileAttachments.js'
 import {
   getDateChangeAttachments,
@@ -30,9 +29,6 @@ import {
 } from './modeLifecycles.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
-  getOpenedFileFromIDE,
-  getOpenFilesFromIDE,
-  getSelectedLinesFromIDE,
   processAgentMentions,
   processAtMentionedFiles,
   processMcpResourceAttachments,
@@ -78,7 +74,6 @@ import { getUserContextAttachment } from './userContext.js'
 export async function getAttachments(
   input: string | null,
   toolUseContext: ToolUseContext,
-  ideSelection: IDESelection | null,
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
@@ -286,18 +281,6 @@ export async function getAttachments(
 
   const mainThreadAttachments = isMainThread
     ? [
-        maybe('ide_selection', async () =>
-          getSelectedLinesFromIDE(ideSelection, toolUseContext),
-        ),
-        maybe('ide_opened_file', async () =>
-          getOpenedFileFromIDE(ideSelection, toolUseContext),
-        ),
-        maybe('ide_open_files', async () =>
-          getOpenFilesFromIDE(ideSelection, toolUseContext),
-        ),
-        maybe('diagnostics', async () =>
-          getDiagnosticAttachments(toolUseContext),
-        ),
         maybe('lsp_diagnostics', async () =>
           getLSPDiagnosticAttachments(toolUseContext),
         ),
@@ -488,7 +471,6 @@ function pulseFixtureUserInputProducers(maybe: MaybeFn): Array<Promise<Attachmen
 export async function* getAttachmentMessages(
   input: string | null,
   toolUseContext: ToolUseContext,
-  ideSelection: IDESelection | null,
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
@@ -497,7 +479,6 @@ export async function* getAttachmentMessages(
   const attachments = await getAttachments(
     input,
     toolUseContext,
-    ideSelection,
     queuedCommands,
     messages,
     querySource,

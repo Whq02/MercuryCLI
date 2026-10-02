@@ -6,7 +6,6 @@ import {
   subscribeExtendedKeysSupport,
 } from '../../ink/session/capabilities.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
@@ -53,7 +52,6 @@ export function PromptInputFooter({
   debug,
   verbose,
   messages,
-  ideSelection,
   mcpClients,
   hintsEnabled = true,
   crewmateFooterIndex,
@@ -81,7 +79,6 @@ export function PromptInputFooter({
   debug: boolean
   verbose: boolean
   messages: Message[]
-  ideSelection: IDESelection | undefined
   mcpClients?: MCPServerConnection[]
   hintsEnabled?: boolean
   crewmateFooterIndex?: number
@@ -171,7 +168,6 @@ export function PromptInputFooter({
           debug={debug}
           verbose={verbose}
           messages={messages}
-          ideSelection={ideSelection}
           mcpClients={mcpClients}
           alignStart={narrow}
         />

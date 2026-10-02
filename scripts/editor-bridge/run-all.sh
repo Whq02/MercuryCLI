@@ -12,7 +12,7 @@
 # gate-watch: src/keybindings/defaultBindings.ts src/keybindings/schema.ts src/services/journeys/runner.ts
 # gate-watch: src/services/mcp/client.ts src/services/resources/registry.ts src/services/run/*
 # gate-watch: src/substrate/sourceState.ts src/utils/* src/utils/git/gitFilesystem.ts
-# gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts src/hooks/useIdeSelection.ts
+# gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts
 # gate-watch: src/utils/attachments/mentionResolvers.ts src/utils/attachments/types.ts
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/types/permissions.ts src/types/ids.ts

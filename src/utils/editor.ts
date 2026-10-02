@@ -28,6 +28,50 @@ const GUI_EDITORS = [
   'notepad',
 ]
 
+const EDITOR_DISPLAY_NAMES: Record<string, string> = {
+  code: 'VS Code',
+  'code-insiders': 'VS Code Insiders',
+  codium: 'VSCodium',
+  cursor: 'Cursor',
+  windsurf: 'Windsurf',
+  vim: 'Vim',
+  nvim: 'Neovim',
+  vi: 'Vi',
+  emacs: 'Emacs',
+  nano: 'Nano',
+  pico: 'Pico',
+  micro: 'Micro',
+  subl: 'Sublime Text',
+  sublime_text: 'Sublime Text',
+  zed: 'Zed',
+  hx: 'Helix',
+  kak: 'Kakoune',
+  mate: 'TextMate',
+  kate: 'Kate',
+  gedit: 'gedit',
+  notepad: 'Notepad',
+  'notepad++': 'Notepad++',
+}
+
+const GENERIC_EDITOR_NAME = 'your editor'
+
+function editorBaseName(token: string): string {
+  return basename(token).toLowerCase().replace(/\.(exe|cmd|bat|app)$/, '')
+}
+
+export function editorDisplayName(editor: string | null | undefined): string {
+  const trimmed = editor?.trim() ?? ''
+  if (trimmed === '') return GENERIC_EDITOR_NAME
+  const tokens = trimmed.split(/\s+/)
+  for (const token of [trimmed, ...tokens]) {
+    const known = EDITOR_DISPLAY_NAMES[editorBaseName(token)]
+    if (known !== undefined) return known
+  }
+  const base = editorBaseName(tokens[0] ?? trimmed)
+  if (base === '') return GENERIC_EDITOR_NAME
+  return base.charAt(0).toUpperCase() + base.slice(1)
+}
+
 const PLUS_LINE_EDITORS = /\b(vi|vim|nvim|nano|emacs|pico|micro|helix|hx)\b/
 
 export const getExternalEditor = memoize((): string | undefined => {

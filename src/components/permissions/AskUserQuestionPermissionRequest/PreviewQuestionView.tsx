@@ -10,8 +10,7 @@ import type { AppState } from '../../../state/AppState.js'
 import type { Question } from '../../../tools/AskUserQuestionTool/AskUserQuestionTool.js'
 import { APOLLO_OPTION_LETTERS } from '../../../tools/AskUserQuestionTool/apolloLetters.js'
 import { normalizePastedInput } from '../../../input-core/composer-document.js'
-import { getExternalEditor } from '../../../utils/editor.js'
-import { toIDEDisplayName } from '../../../utils/ide.js'
+import { editorDisplayName, getExternalEditor } from '../../../utils/editor.js'
 import { PASTE_THRESHOLD } from '../../../utils/imagePaste.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { Divider } from '../../design-system/Divider.js'
@@ -80,7 +79,7 @@ export function PreviewQuestionView({
   const [isInNotesInput, setIsInNotesInput] = useState(false)
   const [cursorOffset, setCursorOffset] = useState(0)
   const editor = getExternalEditor()
-  const editorName = editor ? toIDEDisplayName(editor) : null
+  const editorName = editor ? editorDisplayName(editor) : null
   const questionText = question.question
   const questionState = questionStates[questionText]
 

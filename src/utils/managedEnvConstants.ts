@@ -51,7 +51,6 @@ export const SAFE_ENV_VARS: Set<string> = new Set(
     'MERCURY_THINKING_BUDGET',
     'MERCURY_MCP_TIMEOUT_MS',
     'MERCURY_MCP_TOOL_TIMEOUT_MS',
-    'MERCURY_IDE_SKIP_AUTO_INSTALL',
     'MERCURY_TERMINAL_TITLE',
     'MERCURY_BUILTIN_RIPGREP',
   ].map(name => name.toUpperCase()),

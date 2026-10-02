@@ -273,11 +273,6 @@ src/utils/git/gitFilesystem.ts :: gitDirCache :: keyed-by-truth
 src/utils/hooks/hookHelpers.ts :: hookResponseSchema :: static-for-process
 src/utils/hooks/hooksConfigManager.ts :: getHookEventMetadata :: keyed-by-truth
 src/utils/hooks/hooksConfigSnapshot.ts :: snapshot :: invalidator=captureHooksConfigSnapshot
-src/utils/ide.ts :: embeddedTerminal :: static-for-process
-src/utils/ide.ts :: hostResolutionCache :: keyed-by-truth
-src/utils/ide.ts :: jetBrainsFamilyTerminal :: static-for-process
-src/utils/ide.ts :: runningIDECache :: invalidator=resetRunningIDECache
-src/utils/ide.ts :: vsCodeFamilyTerminal :: static-for-process
 src/utils/imageResizer.ts :: sizedImageCache :: keyed-by-truth
 src/utils/imageStore.ts :: readBackMemo :: keyed-by-truth
 src/utils/lockfile.ts :: cached :: static-for-process

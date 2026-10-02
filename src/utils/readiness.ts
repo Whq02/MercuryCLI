@@ -262,7 +262,6 @@ function computerToolRecord(): ReadinessRecord {
 function injectionNote(connection: MCPServerConnection): string {
   const type = connection.config?.type
   if (type === 'host') return ' (host-served)'
-  if (type === 'ws-ide' || type === 'sse-ide') return ' (runtime-injected: editor bridge)'
   return ' (runtime-injected)'
 }
 

@@ -134,11 +134,6 @@ const RULES: Array<{ test: (f: string, needle: string, excerpt: string) => boole
     why: 'the D11 alias-refusal guard names the external dir it refuses to write through — a boundary check, never a read or write path',
   },
   {
-    test: f => f === 'src/utils/ide.ts',
-    cls: 'compat-boundary',
-    why: 'external-harness IDE lockfile discovery (~/.claude/ide is the compat IDE contract)',
-  },
-  {
     test: f => f === 'src/utils/permissions/filesystem.ts',
     cls: 'compat-boundary',
     why: 'the permission estate names compat stores DELIBERATELY (skill discovery dirs + .claude.json deny surfaces)',

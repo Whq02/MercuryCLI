@@ -21,8 +21,6 @@ import { MCPToolListView } from './MCPToolListView.js'
 import type { Tool } from '../../Tool.js'
 import type { MCPViewState, ServerInfo } from './types.js'
 
-const IDE_CLIENT_NAME = 'ide'
-
 const AUTH_PROBE_TIMEOUT_MS = 3_000
 
 async function probeAuthentication(
@@ -74,9 +72,7 @@ export function MCPSettings({
   useEffect(() => {
     let cancelled = false
     void (async () => {
-      const eligible = [...clients]
-        .filter(client => client.name !== IDE_CLIENT_NAME)
-        .sort((a, b) => a.name.localeCompare(b.name))
+      const eligible = [...clients].sort((a, b) => a.name.localeCompare(b.name))
       const prepared = await Promise.all(
         eligible.map(async (client): Promise<ServerInfo> => {
           const config = client.config

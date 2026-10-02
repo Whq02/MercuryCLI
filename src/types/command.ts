@@ -8,8 +8,6 @@ import type { Message } from './message.js'
 import type { LogOption } from './logs.js'
 import type { ContentBlockParam } from './wire.js'
 import type { ExtensionManifest } from '../extensions/manifest.js'
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
-import type { IDEExtensionInstallationStatus, IdeType } from '../utils/ide.js'
 import type { ThemeName } from '../utils/theme.js'
 
 type CommandSource =
@@ -154,18 +152,12 @@ export type LocalJSXCommandContext = ToolUseContext & {
   setMessages: (updater: (prev: Message[]) => Message[]) => void
   canUseTool?: CanUseToolFn
   onChangeAPIKey: () => void
-  onChangeDynamicMcpConfig?: (
-    config: Record<string, ScopedMcpServerConfig>,
-  ) => void
-  onInstallIDEExtension?: (ide: IdeType) => void
   resume?: (
     sessionId: UUID,
     log: LogOption,
     entrypoint: ResumeEntrypoint,
   ) => Promise<void>
   options: ToolUseContext['options'] & {
-    dynamicMcpConfig?: Record<string, ScopedMcpServerConfig>
-    ideInstallationStatus?: IDEExtensionInstallationStatus | null
     theme: ThemeName
   }
 }

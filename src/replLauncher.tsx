@@ -13,7 +13,6 @@ type AppWrapperProps = {
 type McpSeed = {
   dynamicMcpConfig: Record<string, ScopedMcpServerConfig> | undefined;
   isStrictMcpConfig: boolean;
-  ideAutoConnect?: boolean;
 };
 
 const BOOT_RECOVERY_BUDGET_MS = 3_000;
@@ -91,7 +90,7 @@ export async function launchRepl(root: Root, appProps: AppWrapperProps, replProp
   const {
     seedDynamicMcpConfig
   } = await import('./services/mcp/dynamicMcpSeed.js');
-  seedDynamicMcpConfig(mcpSeed?.dynamicMcpConfig, mcpSeed?.isStrictMcpConfig ?? false, { ...(mcpSeed?.ideAutoConnect !== undefined ? { ideAutoConnect: mcpSeed.ideAutoConnect } : {}) });
+  seedDynamicMcpConfig(mcpSeed?.dynamicMcpConfig, mcpSeed?.isStrictMcpConfig ?? false);
   surfaceRoute.initializeSurfaceRoute(initialSurface.effective);
   profileCheckpoint('launch_repl_after_paint_imports');
   await renderAndRun(root, <App {...appProps}>

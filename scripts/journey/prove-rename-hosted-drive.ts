@@ -51,7 +51,6 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
     ...childEnv(home, fixture.port),
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     MERCURY_CRITTER: 'clam',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_AWAY_SUMMARY: '0',
     USER: 'sam', TERM: 'xterm-256color', TERM_PROGRAM: 'vscode',
   }

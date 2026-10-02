@@ -52,7 +52,6 @@ import { MercuryTokenWarning } from './MercuryTokenWarning.js'
 import { MercuryAutoUpdater } from './MercuryAutoUpdater.js'
 import { MercuryEffortCallout } from './MercuryEffortCallout.js'
 import { MercuryRemoteCallout } from './MercuryRemoteCallout.js'
-import { MercuryIdeStatus } from './MercuryIdeStatus.js'
 import { MercuryDegradedBanner } from './MercuryDegradedBanner.js'
 
 function specimen(node: React.ReactNode): React.ComponentType<{ onClose: () => void }> {
@@ -134,7 +133,6 @@ const ITEMS: GalleryItem[] = [
     item('mcp-list', 'MCP server list', <MercuryMcpList onClose={() => {}} />),
     item('config', 'Config / settings', <MercuryConfig onClose={() => {}} />),
     item('statusline', 'Statusline config', <MercuryStatusline />),
-    item('ide', 'IDE status', <MercuryIdeStatus />),
   ),
   ...group(
     'Plan & help',

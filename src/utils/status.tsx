@@ -1,7 +1,6 @@
 import chalk from 'chalk'
 import React from 'react'
 
-import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { Text } from '../ink.js'
 import {
   getInstructionFiles,
@@ -13,8 +12,6 @@ import { getAllowedSettingSources } from '../bootstrap/state.js'
 import { getAccountInformation } from './auth.js'
 import { getHealthDiagnostic } from './healthDiagnostic.js'
 import { formatNumber } from './format.js'
-import type { IDEExtensionInstallationStatus } from './ide.js'
-import { getIdeClientName, isJetBrainsIde, toIDEDisplayName } from './ide.js'
 import {
   getDefaultModelDescription,
   getMainLoopModel,
@@ -68,90 +65,8 @@ function nodeText(value: React.ReactNode): string {
   return ''
 }
 
-const IDE_SERVER_NAME = 'ide'
-
-export function buildIDEProperties(
-  mcpClients: MCPServerConnection[],
-  ideInstallationStatus: IDEExtensionInstallationStatus | null = null,
-  theme: ThemeName,
-): Property[] {
+export function buildMcpProperties(servers: MCPServerConnection[] = [], theme: ThemeName): Property[] {
   void theme
-  const ideClient = mcpClients.find(client => client.name === IDE_SERVER_NAME)
-
-  if (ideInstallationStatus) {
-    const integrationWord = isJetBrainsIde(ideInstallationStatus.ideType) ? 'plugin' : 'extension'
-    const ideName = toIDEDisplayName(
-      typeof ideInstallationStatus.ideType === 'string' ? ideInstallationStatus.ideType : null,
-    )
-    if (ideInstallationStatus.error) {
-      return [
-        {
-          label: 'IDE',
-          value: (
-            <Text>
-              <Text color="error">{GLYPH.fail}</Text> Failed to install the {ideName} {integrationWord}:{' '}
-              {ideInstallationStatus.error}
-              {'\n'}Restart your IDE and try again.
-            </Text>
-          ),
-        },
-      ]
-    }
-    if (ideInstallationStatus.installed && ideClient && ideClient.type === 'connected') {
-      const serverVersion = (ideClient as { serverInfo?: { version?: string } }).serverInfo?.version
-      const versionDiffers =
-        serverVersion !== undefined &&
-        serverVersion !== null &&
-        serverVersion !== ideInstallationStatus.installedVersion
-      return [
-        {
-          label: 'IDE',
-          value: (
-            <Text>
-              Connected to the {ideName} {integrationWord} (version {ideInstallationStatus.installedVersion}
-              {versionDiffers ? `; server reports ${serverVersion}` : ''})
-            </Text>
-          ),
-        },
-      ]
-    }
-    if (ideInstallationStatus.installed) {
-      return [
-        {
-          label: 'IDE',
-          value: (
-            <Text>
-              {ideName} {integrationWord} installed
-            </Text>
-          ),
-        },
-      ]
-    }
-    return []
-  }
-
-  if (ideClient) {
-    const displayName = getIdeClientName(ideClient) ?? 'IDE'
-    if (ideClient.type === 'connected') {
-      return [{ label: 'IDE', value: <Text>Connected to the {displayName} extension</Text> }]
-    }
-    return [
-      {
-        label: 'IDE',
-        value: (
-          <Text>
-            <Text color="error">{GLYPH.fail}</Text> {displayName} extension not connected
-          </Text>
-        ),
-      },
-    ]
-  }
-  return []
-}
-
-export function buildMcpProperties(clients: MCPServerConnection[] = [], theme: ThemeName): Property[] {
-  void theme
-  const servers = clients.filter(client => client.name !== IDE_SERVER_NAME)
   if (servers.length === 0) return []
   let connected = 0
   let needsAuth = 0

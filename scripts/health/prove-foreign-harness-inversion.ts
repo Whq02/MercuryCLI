@@ -111,10 +111,6 @@ try {
 
   const ccRow = KNOWN_AGENT_CLIS.find(tool => tool.id === 'claude-code')
   check(
-    'the table row owns the jetbrains plugin dir spelling',
-    ccRow?.jetbrainsPluginDir === 'claude-code-jetbrains-plugin',
-  )
-  check(
     'the table row owns the session env spellings',
     JSON.stringify(ccRow?.sessionEnvVars) ===
       JSON.stringify(['CLAUDE_CODE_OAUTH_TOKEN', 'CLAUDE_CODE_SUBSCRIPTION_TYPE', 'CLAUDE_CODE_RATE_LIMIT_TIER']) &&
@@ -131,12 +127,6 @@ try {
     geminiRow !== undefined && geminiRow.sessionEnvVars === undefined && geminiRow.tokenFdEnvVar === undefined,
   )
 
-  const jetbrainsSource = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'jetbrains.ts'), 'utf8')
-  check(
-    'jetbrains probes the table row by id lookup',
-    jetbrainsSource.includes("tool.id === 'claude-code'") &&
-      jetbrainsSource.includes('.jetbrainsPluginDir'),
-  )
   const { ALWAYS_STRIP_TOKEN_VARS } = await import('../../src/utils/subprocessEnv.js')
   check(
     'every row session spelling is in the child-env strip list (derived surface)',

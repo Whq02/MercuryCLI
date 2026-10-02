@@ -7,7 +7,6 @@ import {
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { generationOfWrittenBytes, recordWholeFileSeen, wholeFileSeen } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
@@ -177,8 +176,6 @@ export const FileWriteTool = buildTool({
     } catch (err) {
       logError(err)
     }
-
-    await diagnosticTracker.beforeFileEdited(expandedPath)
 
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)

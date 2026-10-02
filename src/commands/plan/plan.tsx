@@ -5,8 +5,7 @@ import { handlePlanModeTransition } from '../../bootstrap/state.js'
 import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
 import { getPlan, getPlanFilePath } from '../../utils/plans.js'
-import { getExternalEditor } from '../../utils/editor.js'
-import { toIDEDisplayName } from '../../utils/ide.js'
+import { editorDisplayName, getExternalEditor } from '../../utils/editor.js'
 import { editFileInEditor } from '../../utils/promptEditor.js'
 import { renderToString } from '../../utils/staticRender.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -64,7 +63,7 @@ export async function call(
       {editor !== undefined ? (
         <>
           <Text> </Text>
-          <Text dimColor>/plan open edits it in {toIDEDisplayName(editor)}</Text>
+          <Text dimColor>/plan open edits it in {editorDisplayName(editor)}</Text>
         </>
       ) : null}
     </Box>,

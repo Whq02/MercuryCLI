@@ -373,7 +373,6 @@ async function executePromptCommand(
     for await (const attachment of getAttachmentMessages(
       expansionText,
       context,
-      null,
       [],
       undefined,
       undefined,

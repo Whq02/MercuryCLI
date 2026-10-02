@@ -115,8 +115,8 @@ section('§E the delta (a dial is a delta, never a heal)')
 }
 {
   const empty = { schema: 1, mcp: [], skills: [], invocable: [] }
-  const delta = dial.kitEditMcpDelta(undefined, empty as never, dial.kitDialCandidates(undefined, empty as never, ['ide', 'mercury', 'alpha']))
-  t('E3 organs are skipped whole (ide + the coordination server); the catalogue row flips', !delta.disconnect.includes('ide') && !delta.disconnect.includes('mercury') && delta.disconnect.includes('alpha'))
+  const delta = dial.kitEditMcpDelta(undefined, empty as never, dial.kitDialCandidates(undefined, empty as never, ['mercury', 'alpha']))
+  t('E3 the organ is skipped whole (the coordination server); the catalogue row flips', !delta.disconnect.includes('mercury') && delta.disconnect.includes('alpha'))
 }
 {
   const cfg = { type: 'stdio', command: 'x', scope: 'dynamic' } as never
@@ -307,7 +307,7 @@ section('§A the screen dial rides the connector; the panel estate dials its own
 {
   const cmdSrc = read('src/commands/mcp/mcp.tsx')
   t('A1 the composer walks no client set and writes no store: the toggle rides connector.setKit over the SESSION roster', !cmdSrc.includes('useMcpToggleEnabled') && cmdSrc.includes('connector.setKit({ mcp: dials })') && cmdSrc.includes('connector.mcpRoster()'))
-  t('A1b organs are named, never dialed (ide owned by /ide)', cmdSrc.includes('isMcpOrgan(target)') && read('src/commands/mcp/route.ts').includes('owned by /ide'))
+  t('A1b organs are named, never dialed', cmdSrc.includes('isMcpOrgan(target)') && read('src/commands/mcp/route.ts').includes("is Mercury's own organ — never dialed."))
   pin._resetSessionKitPinForTesting()
   const { liveMcpRegistryPorts } = await import('../../src/services/mcp/registry/livePorts.ts')
   const ports = liveMcpRegistryPorts()

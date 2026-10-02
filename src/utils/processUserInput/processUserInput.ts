@@ -15,7 +15,6 @@ import type {
 } from '../../types/message.js'
 import type { EffortValue } from '../effort.js'
 import type { PastedContent } from '../config.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { BatchedPrompt } from '../../types/textInputTypes.js'
 import {
   createAttachmentMessage,
@@ -63,7 +62,6 @@ type ProcessUserInputOptions = {
   setToolJSX: SetToolJSXFn
   context: ProcessUserInputContext
   pastedContents?: Record<number, PastedContent>
-  ideSelection?: IDESelection | null
   messages: Message[]
   setUserInputOnProcessing?: (input: string | undefined) => void
   uuid?: string
@@ -110,7 +108,6 @@ export async function processUserInput(
           preExpansionInput: undefined,
           syntaxInput: undefined,
           pastedContents: undefined,
-          ideSelection: undefined,
           setUserInputOnProcessing: undefined,
         }),
       })
@@ -234,7 +231,6 @@ async function processUserInputBase(
     context,
     setToolJSX,
     pastedContents,
-    ideSelection,
     messages,
     uuid,
     querySource,
@@ -387,7 +383,6 @@ async function processUserInputBase(
       for await (const attachment of getAttachmentMessages(
         syntaxPrompt,
         context,
-        ideSelection ?? null,
         [],
         messages,
         querySource,

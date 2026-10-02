@@ -19,7 +19,6 @@ type LoadedFile = { exists: boolean; content: string }
 
 export function SedEditPermissionRequest({
   toolUseConfirm,
-  toolUseContext,
   onDone,
   onReject,
   workerBadge,
@@ -65,7 +64,6 @@ export function SedEditPermissionRequest({
   return (
     <FilePermissionDialog<ToolInput>
       toolUseConfirm={toolUseConfirm}
-      toolUseContext={toolUseContext}
       onDone={onDone}
       onReject={onReject}
       title="Edit file"

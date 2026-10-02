@@ -6,11 +6,6 @@ import { Text } from '../../../ink.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { isENOENT } from '../../../utils/errors.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
-import {
-  createSingleEditDiffConfig,
-  type FileEdit,
-  type IDEDiffSupport,
-} from '../FilePermissionDialog/ideDiffConfig.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { FileWriteToolDiff } from './FileWriteToolDiff.js'
 
@@ -34,7 +29,6 @@ function readExisting(filePath: string): { exists: boolean; content: string } {
 
 export function FileWritePermissionRequest({
   toolUseConfirm,
-  toolUseContext,
   onDone,
   onReject,
   workerBadge,
@@ -46,26 +40,10 @@ export function FileWritePermissionRequest({
 
   const existing = useMemo(() => readExisting(parsed.file_path), [parsed.file_path])
 
-  const ideDiffSupport = useMemo<IDEDiffSupport<WriteToolInput>>(
-    () => ({
-      getConfig: input => {
-        const before = readExisting(input.file_path)
-        return createSingleEditDiffConfig(input.file_path, before.content, input.content)
-      },
-      applyChanges: (input, modifiedEdits: FileEdit[]) => {
-        const first = modifiedEdits[0]
-        if (!first) return input
-        return { ...input, content: first.new_string }
-      },
-    }),
-    [],
-  )
-
   const verb = existing.exists ? 'overwrite' : 'create'
   return (
     <FilePermissionDialog<WriteToolInput>
       toolUseConfirm={toolUseConfirm}
-      toolUseContext={toolUseContext}
       onDone={onDone}
       onReject={onReject}
       title={existing.exists ? 'Overwrite file' : 'Create file'}
@@ -84,7 +62,6 @@ export function FileWritePermissionRequest({
         />
       }
       completionType="write_file_single"
-      ideDiffSupport={ideDiffSupport}
       path={parsed.file_path}
       parseInput={parseWriteInput}
       workerBadge={workerBadge}
