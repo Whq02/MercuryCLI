@@ -270,22 +270,6 @@ export function requestDiscussion(
   boundary.onAllow(buildUpdatedInput(interviewSnapshot(), originalInput, { kind: 'discussion-requested', questionId }))
 }
 
-export function requestFinish(boundary: InterviewBoundary, originalInput: Record<string, unknown>): void {
-  const state = interviewSnapshot()
-  const retained = state.questionOrder
-    .filter(qid => state.questions[qid]?.committed)
-    .map(qid => state.questions[qid]!.question.decisionId)
-  appendInterviewEvent({
-    kind: 'finish-requested',
-    eventId: mintInterviewId('ie'),
-    atMs: Date.now(),
-    retainedDecisionIds: retained,
-  })
-  boundary.onAllow(
-    buildUpdatedInput(interviewSnapshot(), originalInput, { kind: 'finish-requested', retainedDecisionIds: retained }),
-  )
-}
-
 export function cancelInterview(boundary: InterviewBoundary, opts?: { preserveDraft?: boolean }): void {
   appendInterviewEvent({
     kind: 'cancelled',

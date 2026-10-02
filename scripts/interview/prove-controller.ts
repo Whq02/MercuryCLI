@@ -112,19 +112,21 @@ try {
     t.check('the draft survives into the session', store.interviewSnapshot().questions['iq_engine']?.draft?.optionIds[0] === 'io_redis')
   }
 
-  t.section('§4 — finish retains only committed decisions')
+  t.section('§4 — the interview has no early-finish road')
   {
     store._resetInterviewForProofs()
     ctl.presentToolCall({ input: INPUT as never })
     ctl.commitAnswer('iq_engine', { optionIds: ['io_redis'] })
-    const boundary = mkBoundary()
-    ctl.requestFinish(boundary, INPUT as never)
-    const u = boundary.allows[0] as { outcome?: { kind?: string; retainedDecisionIds?: string[] } }
-    t.check(
-      'retained ids = the committed decision only',
-      u?.outcome?.kind === 'finish-requested' && JSON.stringify(u?.outcome?.retainedDecisionIds) === '["id_engine"]',
-      JSON.stringify(u?.outcome?.retainedDecisionIds),
-    )
+    t.check('the controller exports no finish action', !('requestFinish' in ctl), Object.keys(ctl).filter(k => /finish/i.test(k)).join(','))
+    const before = store.interviewSnapshot()
+    store.appendInterviewEvent({ kind: 'finish-requested', eventId: 'ie_foreign', atMs: 1, retainedDecisionIds: ['id_engine'] } as never)
+    const after = store.interviewSnapshot()
+    t.check('a finish row in the log folds as a foreign kind — the phase and outcome do not move', after.phase === before.phase && after.outcome === before.outcome && after.phase === 'asking', `${before.phase} → ${after.phase}`)
+    const { AskUserQuestionTool } = await import('../../src/tools/AskUserQuestionTool/AskUserQuestionTool.tsx')
+    const parsed = AskUserQuestionTool.outputSchema.safeParse({ questions: [], answers: {}, outcome: { kind: 'finish-requested', retainedDecisionIds: [] } })
+    t.check('the tool output schema has no finish outcome arm', !parsed.success)
+    const accepted = AskUserQuestionTool.outputSchema.safeParse({ questions: [], answers: {}, outcome: { kind: 'discussion-requested', questionId: 'iq_engine' } })
+    t.check('…while the discussion arm still parses', accepted.success)
   }
 
   t.section('§5 — cancel stays the historical bare reject')
