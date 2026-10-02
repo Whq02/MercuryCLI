@@ -44,7 +44,7 @@ const GUARDRAILS_WORDS = {
   title: 'Guardrails',
   mistakes: 'Mercury can be wrong.',
   mistakesTail: ' Check its edits, and read a command before you run it.',
-  injection: 'Files and pages Mercury reads can carry instructions for the model.',
+  injection: 'What Mercury reads can carry instructions for the model.',
   injectionTail: ' Work in folders you know.',
   row: ' ▸ continue',
 }
