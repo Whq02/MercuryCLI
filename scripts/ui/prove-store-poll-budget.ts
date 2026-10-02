@@ -134,7 +134,7 @@ for (const f of readdirSync(CENSUS)) {
   try {
     const p = JSON.parse(readFileSync(join(CENSUS, f), 'utf8')) as { pid: number; argv: string[] }
     const argv = p.argv.join(' ')
-    procs.set(p.pid, argv.includes(' daemon') ? 'daemon' : p.argv[2] === 'run' ? 'runner' : 'tui')
+    procs.set(p.pid, argv.includes(' steward') ? 'daemon' : p.argv[2] === 'run' ? 'runner' : 'tui')
   } catch {
   }
 }
