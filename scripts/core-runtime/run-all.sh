@@ -13,6 +13,7 @@
 # gate-watch: scripts/ink-runtime/ansiEmulator.ts scripts/ink-runtime/frameHarness.ts
 # gate-watch: src/services/tools/loopGuard* src/services/tools/toolExecution*
 # gate-watch: src/run-core/pauseGate* src/run-core/turn-machine* src/services/tools/toolOrchestration*
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 cd "$(dirname "$0")/../.." || exit 1

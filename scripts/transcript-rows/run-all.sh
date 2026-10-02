@@ -3,6 +3,7 @@
 # gate-watch: scripts/lib/seedTranscript.ts
 # gate-watch: src/ink/** src/utils/cockpit/**
 # gate-watch: docs/TERMINAL-PROFILE.md scripts/ui/motion-menu-stills.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

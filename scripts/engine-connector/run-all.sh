@@ -27,6 +27,7 @@
 # gate-watch: src/utils/messages/factories.ts src/utils/model/capabilities.ts src/utils/model/configs.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/utils/settings/types.ts src/utils/task/workRoster.ts
 # gate-watch: src/state/crewLedger.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

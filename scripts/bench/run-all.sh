@@ -2,6 +2,7 @@
 # gate-class: exclusive
 # gate-env: MERCURY_BENCH_SLACK
 # gate-watch: src/ink/stringWidth* src/utils/truncate*
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

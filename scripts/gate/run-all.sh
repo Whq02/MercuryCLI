@@ -6,6 +6,7 @@
 # gate-watch: .github/workflows/gate.yml .github/workflows/drives.yml scripts/*/run-all.sh scripts/*/members.txt
 # gate-watch: scripts/lib/** scripts/ui/vshot.py
 # gate-watch: src/daemon/controlSocket.ts src/daemon/controlServer.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

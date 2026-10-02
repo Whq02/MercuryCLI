@@ -21,6 +21,7 @@
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/model/agent.ts
 # gate-watch: src/utils/sessionStorage/* src/utils/swarm/inProcessRunner.ts src/utils/task/workRoster.ts
 # gate-watch: src/utils/verification/verificationState.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

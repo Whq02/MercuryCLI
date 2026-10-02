@@ -3,6 +3,7 @@
 # gate-watch: src/utils/sessionStorage/** src/utils/projectConfig* src/utils/json*
 # gate-watch: src/utils/envUtils* src/services/tools/toolExecution*
 # gate-watch: src/fabric/** scripts/lib/scratchSeat.ts
+# gate-watch: src/rows/* src/runner/wire/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

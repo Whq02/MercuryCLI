@@ -96,3 +96,9 @@ src/utils/config/derived.ts
 src/utils/settings/snapshot.ts
 src/cli/transports/Transport.ts
 src/cli/transports/connectionLifecycle.ts
+src/rows/vocabulary.ts
+src/rows/read.ts
+src/rows/project.ts
+src/runner/wire/errors.ts
+src/runner/wire/methods.ts
+src/runner/wire/peer.ts
