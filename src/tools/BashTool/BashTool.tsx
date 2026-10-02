@@ -59,8 +59,6 @@ import {
   formatExcerpt,
   outputBudgetClause,
   resizeShellImageOutput,
-  resetCwdIfOutsideProject,
-  stdErrAppendShellResetMessage,
 } from './utils.js'
 import { maxOutputCharsField, readMaxOutputChars, refuseMaxOutputChars } from './maxOutputChars.js'
 import { resolveOutputBudget } from '../../utils/shell/outputLimits.js'
@@ -686,12 +684,6 @@ async function* runBash(
     }
 
     let stderr = ''
-    if (isMainThread) {
-      const appContext = context.getAppState().toolPermissionContext as ToolPermissionContext
-      if (resetCwdIfOutsideProject(appContext)) {
-        stderr = stdErrAppendShellResetMessage(stderr)
-      }
-    }
 
     let out = accumulator.toString()
     const settleMs = !result.interrupted && result.code !== 0 && result.preSpawnError === undefined ? SANDBOX_RECORD_SETTLE_MS : 0

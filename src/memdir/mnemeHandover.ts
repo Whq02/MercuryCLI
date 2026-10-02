@@ -6,7 +6,7 @@ import { retainItems } from './memoryVerbs.js'
 import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './mnemeConsolidate.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
-import { getAutoMemPath, getMemoryBaseDir } from './paths.js'
+import { getAutoMemPath } from './paths.js'
 
 export const HANDOVER_FILE = 'handover.json'
 const CHUNK_CHARS = 1900
@@ -201,57 +201,6 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
     logForDebugging(`memory hand-over receipt failed: ${String(e)}`)
   }
   return receipt
-}
-
-export function listProjectMemoryDirs(home: string = getMemoryBaseDir()): string[] {
-  const projects = join(home, 'projects')
-  let keys: string[] = []
-  try {
-    keys = readdirSync(projects)
-  } catch {
-    return []
-  }
-  return keys
-    .map(k => join(projects, k, 'memory'))
-    .filter(p => {
-      try {
-        return statSync(p).isDirectory()
-      } catch {
-        return false
-      }
-    })
-    .sort()
-}
-
-export interface HomeHandoverSummary {
-  home: string
-  projects: number
-  withNotes: number
-  alreadyDone: number
-  notes: number
-  facts: number
-  pinned: number
-  receipts: HandoverReceipt[]
-}
-
-export function handoverHome(home: string = getMemoryBaseDir(), now: Date = new Date()): HomeHandoverSummary {
-  const summary: HomeHandoverSummary = { home, projects: 0, withNotes: 0, alreadyDone: 0, notes: 0, facts: 0, pinned: 0, receipts: [] }
-  for (const memoryDir of listProjectMemoryDirs(home)) {
-    summary.projects++
-    const dir = join(memoryDir, 'library')
-    if (readHandoverReceipt(dir)) {
-      summary.alreadyDone++
-      continue
-    }
-    if (listOldNotes(memoryDir).length === 0) continue
-    summary.withNotes++
-    const receipt = handoverMemoryDir(memoryDir, now)
-    summary.notes += receipt.notes
-    summary.facts += receipt.facts
-    summary.pinned += receipt.pinned
-    summary.receipts.push(receipt)
-  }
-  return summary
 }
 
 export function handoverIfDue(memoryDir: string = getAutoMemPath(), now: Date = new Date()): HandoverReceipt | null {

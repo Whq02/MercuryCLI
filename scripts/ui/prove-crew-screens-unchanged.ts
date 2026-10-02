@@ -238,7 +238,6 @@ function driveEnv(home: string, fixtureBase: string): NodeJS.ProcessEnv {
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
     MERCURY_AWAY_SUMMARY: '0',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_THEME_PIN: 'dark',
     COLORTERM: 'truecolor',
     COLORFGBG: '15;0',

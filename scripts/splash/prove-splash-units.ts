@@ -335,6 +335,14 @@ section('§11 the boot-menu floor, as ratified: WARN, NEVER WALL')
   check('no tier ever composes more lines than the window has rows (8→1)', [8, 6, 5, 4, 3, 2, 1].every(r => compose(46, r).length <= r))
 }
 
+section('§Z the menu rows carry one env spelling each and the splash resolves a row by it alone')
+{
+  const rows = (core as { MENU?: Array<Record<string, unknown>> }).MENU ?? []
+  check('the baked menu has rows', rows.length > 0, String(rows.length))
+  check('no baked row carries a second spelling', rows.every(r => !('legacy' in r)), rows.filter(r => 'legacy' in r).map(r => String(r.env)).join(','))
+  check('the splash resolves a saved or pinned row by its env alone', !/\.legacy\b/.test(src) && !/r2\.legacy|x\.legacy|r\.legacy/.test(src))
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ SPLASH UNIT PROOFS PASS')

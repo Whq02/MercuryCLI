@@ -28,7 +28,6 @@ for (const spelling of ['MERCURY_HOME', 'MERCURY_CONFIG_DIR']) {
 }
 
 const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/startupMenu.ts')
-const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel } =
@@ -56,7 +55,6 @@ function menuBlock() {
     '  ' +
     JSON.stringify({
       env: row.env,
-      legacy: getFlagSpec(row.env)?.legacy ?? null,
       label: row.label,
       group: row.group,
       summary: row.summary,

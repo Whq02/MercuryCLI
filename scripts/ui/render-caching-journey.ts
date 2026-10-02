@@ -103,7 +103,6 @@ async function drive(args: {
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     BROWSER: 'true',
     TERM_PROGRAM: 'vscode',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_CRITTER_GAZE: '0',

@@ -17,7 +17,6 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
-delete process.env.CLAUDE_CONFIG_DIR
 process.chdir(PROJ)
 const argAt = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)

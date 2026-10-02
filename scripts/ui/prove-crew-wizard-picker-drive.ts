@@ -49,7 +49,6 @@ function childEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_CRITTER_GAZE: '0',

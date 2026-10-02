@@ -498,7 +498,7 @@ function readSavedBootEnv() {
 let menuRow = 0
 const menuChoice = new Map()
 for (const [env, v] of Object.entries(readSavedBootEnv())) {
-  const row = MENU.find(r => r.env === env || (r.legacy && r.legacy === env))
+  const row = MENU.find(r => r.env === env)
   if (!row) continue
   const idx = row.choices.findIndex(c => c.v === v)
   if (idx > 0) menuChoice.set(row.env, idx)
@@ -846,11 +846,7 @@ function activateCardRow(r2) {
 }
 
 function menuData() {
-  const pinOf = r2 => process.env[r2.env] !== undefined
-    ? process.env[r2.env]
-    : r2.legacy
-      ? process.env[r2.legacy]
-      : undefined
+  const pinOf = r2 => process.env[r2.env]
   const effectiveOf = env => {
     const r2 = MENU.find(x => x.env === env)
     if (!r2) return null
@@ -872,7 +868,7 @@ function menuData() {
     }
   })
   const val = env => {
-    const r2 = MENU.find(x => x.env === env || x.legacy === env)
+    const r2 = MENU.find(x => x.env === env)
     return r2 ? choiceOf(r2).v : null
   }
   const changed = MENU.filter(r2 => choiceOf(r2).v !== null).length

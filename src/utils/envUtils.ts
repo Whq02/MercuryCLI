@@ -121,7 +121,3 @@ export function parseEnvVars(raw: string[] | undefined): Record<string, string> 
   }
   return result
 }
-
-export function shouldMaintainProjectWorkingDir(): boolean {
-  return false
-}

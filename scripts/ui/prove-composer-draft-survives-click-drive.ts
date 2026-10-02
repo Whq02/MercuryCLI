@@ -76,7 +76,6 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_BOOT_PREFLIGHT: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER: 'clam',
