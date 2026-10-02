@@ -58,7 +58,8 @@ const files: Array<[string, string]> = [
   note('card-flaky-clock', null, `---\nname: card-flaky-clock\ndescription: a proof clock lesson\nmetadata:\n  type: experience-card\n  approved: false\n---\n\nA proof that reads red under load has a clock defect: scale the budget, never shrink it.`),
   note('project-long', 'project', longBody),
   note('untyped-note', null, 'A note with no header at all.'),
-  note('empty-note', 'project', ''),
+  note('feedback-header-only', 'feedback', ''),
+  ['empty-note.md', ''],
   ['feedback-old.superseded.20260901.md', '---\nname: feedback-old\ntype: feedback\n---\n\nAn audit copy that must never be taken.\n'],
   ['TASTE.md', '# TASTE\n- a promoted lesson mirror\n'],
 ]
@@ -74,10 +75,10 @@ check('the index, the audit copy and the taste mirror are not notes', !listOldNo
 const T0 = new Date('2026-10-02T09:00:00.000Z')
 const receipt = handoverIfDue(projectMem, T0)
 check('a receipt comes back', receipt !== null, JSON.stringify(receipt))
-check('ten notes were taken (the empty one skipped, the index/audit copy/taste mirror never counted)', receipt?.notes === 10, JSON.stringify(receipt))
+check('eleven notes were taken (the empty one skipped, the index/audit copy/taste mirror never counted)', receipt?.notes === 11, JSON.stringify(receipt))
 const longChunks = chunkNote(longBody).length
-check('a long note is kept whole as numbered parts, nothing dropped for size', longChunks > 1 && receipt?.facts === 9 + longChunks, `${longChunks} parts, ${receipt?.facts} facts`)
-check('the four rulings and preferences landed pinned', receipt?.pinned === 4 && receipt.pages['preferences'] === 4, JSON.stringify(receipt?.pages))
+check('a long note is kept whole as numbered parts, nothing dropped for size', longChunks > 1 && receipt?.facts === 10 + longChunks, `${longChunks} parts, ${receipt?.facts} facts`)
+check('the five rulings and preferences landed pinned', receipt?.pinned === 5 && receipt.pages['preferences'] === 5, JSON.stringify(receipt?.pages))
 check('project facts landed on the project page', receipt?.pages['project'] === 2 + longChunks)
 check('the reference landed on the references page', receipt?.pages['references'] === 1)
 check('the lesson landed on the lessons page', receipt?.pages['lessons'] === 1)
@@ -90,7 +91,8 @@ const pages = listTopicDocs(lib)
 check('the library holds the five pages', ['preferences', 'project', 'references', 'lessons', 'notes'].every(slug => pages.some(p => p.slug === slug)), pages.map(p => p.slug).join(','))
 check('a page carries the summary memory gave it', pages.find(p => p.slug === 'preferences')?.summary.includes('standing rules and preferences') === true)
 const pinned = readPins(lib)
-check('the pinned tier holds exactly the four rulings', pinned.length === 4)
+check('the pinned tier holds exactly the five rulings', pinned.length === 5)
+check('the header-only note landed as its description, pinned', pages.find(p => p.slug === 'preferences')?.sections.some(s => s.entries.some(e => e.text === 'feedback header only' && e.source === 'handover:feedback-header-only')) === true && pinned.some(p => pages.find(d => d.slug === 'preferences')?.sections.some(s => s.entries.some(e => e.seq === p.seq && e.text === 'feedback header only'))))
 const front = readFrontPage(lib) ?? ''
 check('the pinned rules are in front of the model word for word', front.includes('- Use the model the owner names for every lane. **Why:** the owner rules on models. **How to apply:** never substitute. <seq='))
 check('the index names the pages, never the facts', /^- project — ongoing project facts/m.test(front) && !front.includes('mercury-working checkout'))
@@ -107,7 +109,7 @@ check('calling the intake again returns the same receipt without re-reading', fo
 const after = new Map(readdirSync(projectMem).filter(n => n !== 'library').map(n => [n, statSync(join(projectMem, n)).isFile() ? readFileSync(join(projectMem, n), 'utf8') : '']))
 check('every old file is still on disk with the same bytes', [...before.entries()].every(([n, body]) => after.get(n) === body) && after.size === before.size)
 check('no old file was rewritten', [...mtimes.entries()].every(([n, m]) => statSync(join(projectMem, n)).mtimeMs === m))
-check('the receipt renders for the memory centre', renderHandoverReceipt(receipt!)[0]!.startsWith('10 notes → ') && renderHandoverReceipt(receipt!)[1]!.startsWith('pages:'))
+check('the receipt renders for the memory centre', renderHandoverReceipt(receipt!)[0]!.startsWith('11 notes → ') && renderHandoverReceipt(receipt!)[1]!.startsWith('pages:'))
 check('no archive page was made of fresh facts', listArchiveDocs(lib).length === 0)
 
 section('a first intake past the pinned limit keeps every rule loaded and says so once per session')
@@ -133,7 +135,7 @@ check('the calm line names the count, the fill, the limit, that all are loaded, 
     pinnedOverLimitLine({ pinned: 1, used: 9600, limit: 8000 }) === 'Pinned memory: 1 rule, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
 const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
 check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
-check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT === 'headless') return null"))
+check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT !== 'headless'"))
 
 section('a whole home at once, and the boot wiring')
 const summary = handoverHome(home, T0)

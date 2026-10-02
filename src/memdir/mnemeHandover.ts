@@ -168,7 +168,7 @@ export function handoverMemoryDir(memoryDir: string, now: Date = new Date()): Ha
       receipt.skipped.push({ file, reason: 'unreadable' })
       continue
     }
-    const text = flattenNote(note.body)
+    const text = flattenNote(note.body) || flattenNote(note.head.description ?? '')
     if (!text) {
       receipt.skipped.push({ file, reason: 'empty' })
       continue
