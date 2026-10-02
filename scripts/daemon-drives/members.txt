@@ -10,3 +10,4 @@ prove-dupline-relaunch-drive.ts
 prove-tool-input-counter-drive.ts
 prove-turn-output-tokens-drive.ts
 prove-process-sweep-world.ts
+prove-update-old-window-drive.ts

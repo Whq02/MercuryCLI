@@ -235,7 +235,7 @@ export function daemonHandshakeEvidence(v: DaemonHandshakeVerdict | null): strin
 }
 
 const REBUILT_UNTIL = 'new sessions run on its build until it restarts'
-export const REOPEN_WORDS = 'close this window and open Mercury again to use it'
+export const REOPEN_WORDS = 'close this window and open Mercury again'
 
 function rebuiltWho(v: DaemonHandshakeVerdict): string {
   const d = v.daemon
@@ -248,9 +248,9 @@ function rebuiltWho(v: DaemonHandshakeVerdict): string {
 export function reopenLine(v: DaemonHandshakeVerdict): string {
   const d = v.daemon
   if (d !== null && d.version === v.client.version) {
-    return `this Mercury (tree ${v.client.buildTree ?? '?'}) is an older build than the installed one (tree ${d.buildTree ?? '?'}) the daemon runs — ${REOPEN_WORDS}`
+    return `${REOPEN_WORDS} — a newer Mercury (tree ${d.buildTree ?? '?'}) is installed and the daemon runs it; this Mercury (tree ${v.client.buildTree ?? '?'}) is the older build`
   }
-  return `this Mercury v${v.client.version} is an older build than the installed v${d?.version ?? '?'} the daemon runs — ${REOPEN_WORDS}`
+  return `${REOPEN_WORDS} — a newer Mercury (v${d?.version ?? '?'}) is installed and the daemon runs it; this Mercury (v${v.client.version}) is the older build`
 }
 
 export function daemonSkewLine(v: DaemonHandshakeVerdict | null): string | null {

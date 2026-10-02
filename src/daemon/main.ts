@@ -131,6 +131,7 @@ import {
 import { recordSpawnExit } from '../utils/spawnLedger.js'
 import { armDaemonHomeWatch, daemonHomeStands } from './daemonHome.js'
 import { deployedRuntime, forwardFrame, handoverRoadOf, handoverState, parseHandoverFrom, renameSocketForPredecessor, type HandoverStateV1 } from './handover.js'
+import { REOPEN_WORDS } from './handshake.js'
 import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './daemonBuild.js'
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
@@ -1065,9 +1066,13 @@ async function daemonRun(args: string[]): Promise<void> {
           const installed = deployedRuntime()
           const other = successorRuntime()
           if (other !== null) {
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] restart asked by ${by} — refused: ${otherBuildInstalledDetail(other)}`)
             return { state: 'refused' as const, live, detail: otherBuildInstalledDetail(other) }
           }
           if (installed !== null && isScreenHealAsk(by)) {
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] restart asked by ${by} — refused: ${reopenDetail(installed)}`)
             return { state: 'refused' as const, live, detail: reopenDetail(installed) }
           }
           if (handover !== null && handover.alive()) {
@@ -1634,7 +1639,7 @@ function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>
 }
 
 export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
-  return `a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it — close this window and open Mercury again to use it`
+  return `${REOPEN_WORDS} — a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it`
 }
 
 export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>): string {
