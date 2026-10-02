@@ -145,6 +145,12 @@ const excluded = lookupFacts('how is the runtime deployed from the checkout', { 
 check('an already-surfaced fact is not attached twice', excluded.every(h => !hits.some(x => x.id === h.id)))
 const many = rankCandidates('thing', Array.from({ length: 12 }, (_, i) => ({ id: `seq:${i}`, text: `always do thing ${i}`, signature: '', slug: 'rules', pagePath: 'p', seq: i, pending: false })))
 check('a word every fact shares never ranks (nothing discriminating)', many.length === 0)
+const dense = rankCandidates('where does the smoke build write its log', [
+  { id: 'seq:1', text: 'the smoke build writes its log to build/smoke/lantern.log', signature: '', slug: 'project', pagePath: 'p', seq: 1, pending: false },
+  { id: 'seq:2', text: `the packager tars bin/ and share/ into dist/, writes dist/SHA256SUMS, refuses to pack when the tree is dirty, and its smoke scenario runs the build end to end; ${'the summary names the slowest step first and the owner row in MAINTAINERS.md; '.repeat(8)}its log lines carry the prefix pack:`, signature: '', slug: 'project', pagePath: 'p', seq: 2, pending: false },
+  { id: 'seq:3', text: 'the formatter rewrites src in place', signature: '', slug: 'project', pagePath: 'p', seq: 3, pending: false },
+])
+check('a short fact made of the question\'s words outranks a long fact that mentions them in passing', dense.length === 2 && dense[0]!.id === 'seq:1', JSON.stringify(dense.map(h => [h.id, h.score.toFixed(2)])))
 check('the cap is five', lookupFacts('handle the careful way and say so in the report', { dir, exclude: new Set() }).length <= 5)
 check('a pending fact is findable before consolidation', lookupFacts('fact retained after the snapshot', { dir }).some(h => h.pending || h.slug === 'later'))
 

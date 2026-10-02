@@ -86,6 +86,7 @@ export function rankCandidates(
     df.set(m.token, n)
   }
   const total = pool.length
+  const averageLength = lowered.reduce((n, t) => n + t.length, 0) / total || 1
   const hits: LookupHit[] = []
   pool.forEach((candidate, i) => {
     if (exclude.has(candidate.id)) return
@@ -101,6 +102,7 @@ export function rankCandidates(
       if (n < total || total === 1) discriminating = true
     }
     if (matched.length === 0 || !discriminating) return
+    score /= 0.5 + 0.5 * (lowered[i]!.length / averageLength)
     hits.push({ ...candidate, score, matched })
   })
   hits.sort((a, b) => {
