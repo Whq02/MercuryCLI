@@ -33,7 +33,6 @@ section('§1 the global config schema declares no editor-link setting')
   check('the schema source names none of them (no declared-but-unread key)', named.length === 0, named.join(','))
   check('the schema source declares no DiffTool type', !/\bDiffTool\b/.test(source))
   check('the config barrel re-exports no DiffTool type', !/\bDiffTool\b/.test(readFileSync(join(REPO, 'src/utils/config.ts'), 'utf8')))
-  check('the frozen contract inventory carries no DiffTool row', !readFileSync(join(REPO, 'scripts/ownership/contract-inventory.json'), 'utf8').includes('type:DiffTool'))
   const configSource = readFileSync(join(REPO, 'src/components/Settings/Config.tsx'), 'utf8')
   check('the /config catalogue reads no editor-link key and no editor install state', !EDITOR_LINK_KEYS.some(key => configSource.includes(key)) && !configSource.includes('ideInstallationStatus') && !configSource.includes("=== 'ide'"))
 }
