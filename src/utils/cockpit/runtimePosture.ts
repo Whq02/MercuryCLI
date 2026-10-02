@@ -58,7 +58,6 @@ function modeRoad(mode: string): string {
     case 'strategy':
       return 'and under strategy the plan approval itself — a shell command that would change anything is refused until the plan is approved'
     case 'sovereign':
-    case 'autopilot':
       return `and nothing else under ${mode}: every other call runs under the bypass posture (a deny rule still refuses)`
     default:
       return 'and any call no allow rule covers'
@@ -67,7 +66,7 @@ function modeRoad(mode: string): string {
 
 function pushClause(mode: string, verdict: PermissionResult | null): string | null {
   if (verdict === null) return null
-  const bypass = mode === 'sovereign' || mode === 'autopilot'
+  const bypass = mode === 'sovereign'
   if (verdict.behavior === 'allow') return `\`git push\` is pre-authorised at boot by the allow rule ${ruleWordsOf(verdict)} and runs without the channel`
   if (verdict.behavior === 'deny') return `\`git push\` is refused at boot by the deny rule ${ruleWordsOf(verdict)} and is never asked`
   if (verdict.behavior === 'ask') {

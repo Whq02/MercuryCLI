@@ -1778,30 +1778,6 @@
       }
     },
     {
-      "name": "SetTier",
-      "category": "other",
-      "risk": "medium",
-      "cancellation": "block",
-      "deferred": false,
-      "operations": null,
-      "units": [
-        "task-coordination"
-      ],
-      "proof": "scripts/autopilot/run-all.sh",
-      "declared": {
-        "intents": [
-          "retune model and effort tier in autopilot"
-        ],
-        "units": [
-          "task-coordination"
-        ],
-        "class": "coordination",
-        "cancellation": "not-applicable",
-        "latency": "fast",
-        "gate": "MERCURY_AUTOPILOT"
-      }
-    },
-    {
       "name": "Skill",
       "category": "other",
       "risk": "medium",

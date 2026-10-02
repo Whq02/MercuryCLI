@@ -151,7 +151,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   auto_mode: { good: { reminderType: 'sparse' }, bad: [{ label: 'reminderType is a number', field: 'reminderType', fields: { reminderType: 1 } }] },
   auto_mode_exit: { good: {}, bad: [] },
   mode_pack: { good: { mode: 'apollo', text: 't' }, bad: [{ label: 'text is a list', field: 'text', fields: { mode: 'apollo', text: ['t'] } }] },
-  mode_pack_exit: { good: { mode: 'autopilot', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
+  mode_pack_exit: { good: { mode: 'apollo', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
   repo_surface_map: { good: { markdown: '# m' }, bad: [{ label: 'markdown is an object', field: 'markdown', fields: { markdown: {} } }] },
   context_capsule: {
     good: { markdown: '# c', digest: 'd', semDigest: 's', refs: ['src/a.ts'], delta: null },

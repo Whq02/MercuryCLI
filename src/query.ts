@@ -3,8 +3,6 @@ import {
   noteQueryTurnEnd,
   noteQueryTurnStart,
 } from './services/run/runTurnObserver.js'
-import { isTurnOwningQuerySource } from './utils/effort.js'
-import { tierTurnEnded } from './utils/autopilot/tierState.js'
 import type { Terminal } from './query/transitions.js'
 import { runEventCore, type QueryParams } from './run-core/turn-machine.js'
 import type { RunEvent } from './run-core/events.js'
@@ -34,9 +32,6 @@ export async function* queryEvents(
       toolUseContext: params.toolUseContext,
       reason: runTerminalReason,
     })
-    if (isTurnOwningQuerySource(params.querySource)) {
-      tierTurnEnded(params.toolUseContext.agentId)
-    }
   }
 }
 

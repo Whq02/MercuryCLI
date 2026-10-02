@@ -247,7 +247,7 @@ function clearEffortEnv(): void {
   check('the Anthropic wire resolves through resolveAppliedEffort (unchanged)', streamSrc.includes('resolveAppliedEffort(options.model, options.effortValue, { agentId: options.agentId })'))
   for (const [file, needle] of [
     ['src/components/mercury-ui/EffortChip.tsx', 'getDisplayedEffortLabel'],
-    ['src/components/MercuryFrame.tsx', 'getDisplayedEffortLabel'],
+    ['src/components/MercuryFrame.tsx', '<EffortChip model={model} />'],
     ['src/components/DeckPane.tsx', 'getDisplayedEffortLabel'],
     ['src/components/EffortIndicator.ts', 'getDisplayedEffortLabel'],
   ] as const) {

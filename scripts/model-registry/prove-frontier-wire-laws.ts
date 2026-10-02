@@ -21,7 +21,6 @@ for (const k of [
   'MERCURY_DEFAULT_FABLE_MODEL',
   'MERCURY_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT',
-  'MERCURY_AUTOPILOT_MODELS',
 ]) {
   delete process.env[k]
 }
@@ -45,7 +44,6 @@ const { getCanonicalName, parseUserSpecifiedModel, renderModelName } = await imp
 const { classOfModel } = await import('../../src/utils/router/modelRegistry.ts')
 const seatSlots = await import('../../src/utils/model/seatSlots.ts')
 const { getLaunchDefaultEffort } = await import('../../src/utils/effort.ts')
-const { autopilotTierKeys, autopilotAllowedModels } = await import('../../src/utils/autopilot/autopilotGates.ts')
 const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
 
@@ -226,8 +224,6 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check('the effort ladder reaches max on both members', getMaxSupportedEffortLevel(ID) === 'max' && modelSupportsXHighEffort(ID))
   check("the launch default follows the family table ('high', Fable 5's own)", getLaunchDefaultEffort(ID) === 'high' && getLaunchDefaultEffort(FAMILY) === 'high')
 
-  check("the autopilot keys of a session on it list 'fable51' beside 'fable'", autopilotTierKeys(ID).includes('fable') && autopilotTierKeys(ID).includes('fable51'), autopilotTierKeys(ID).join(','))
-  check('the default autopilot allowlist admits both (unset env)', autopilotAllowedModels(ID).includes('fable51') && autopilotAllowedModels(ID).includes('fable'))
   check("the subagent dispatch vocabulary and the settings alias list carry 'fable51'", (AGENT_DISPATCH_MODELS as readonly string[]).includes('fable51') && (MODEL_ALIASES as readonly string[]).includes('fable51'))
   check("a crew record's legacy keys fold to it: fable51 and the family word land on the same newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === ID)
 }

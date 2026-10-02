@@ -6,7 +6,6 @@ import { searchToolsAvailability } from './utils/ripgrep.js'
 import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
-import { isAutopilotEnabled } from './utils/autopilot/autopilotGates.js'
 import { vulcanToolCatalogEnabled } from './utils/vulcan/vulcanGates.js'
 import { unityBridgeToolCatalogEnabled } from './utils/unity/bridgeGates.js'
 import { blenderBridgeToolCatalogEnabled } from './utils/blender/bridgeGates.js'
@@ -87,7 +86,6 @@ import { ScheduleWakeupTool } from './tools/ScheduleWakeupTool/ScheduleWakeupToo
 import { SendMessageTool } from './tools/SendMessageTool/SendMessageTool.js'
 import { SendUserFileTool } from './tools/SendUserFileTool/SendUserFileTool.js'
 import { ServiceTool } from './tools/ServiceTool/ServiceTool.js'
-import { SetTierTool } from './tools/SetTierTool/SetTierTool.js'
 import { SkillTool } from './tools/SkillTool/SkillTool.js'
 import { SleepTool } from './tools/SleepTool/SleepTool.js'
 import { CheckpointTool } from './tools/CheckpointTool/CheckpointTool.js'
@@ -209,7 +207,6 @@ export function getAllBaseTools(): Tools {
     ...(unityBridgeToolCatalogEnabled() ? [UnityTool] : []),
     ...(blenderBridgeToolCatalogEnabled() ? [BlenderTool] : []),
     ...(asepriteToolCatalogEnabled() ? [AsepriteTool] : []),
-    ...(isAutopilotEnabled() ? [SetTierTool] : []),
     ...(jevEvalEnabled() ? [JevEvalTool] : []),
     ...(advisorEnabled() ? [AskAdvisorTool] : []),
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),

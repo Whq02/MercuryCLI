@@ -236,7 +236,6 @@ export function SystemTextMessage({
       const unchanged = message.previous === null && message.applied === null
       const notes: string[] = []
       if (message.boundary === 'turn-boundary') notes.push('at turn boundary')
-      if (message.boundary === 'autopilot-tool') notes.push('by autopilot')
       if (message.crossProvider) notes.push('cross-provider')
       return (
         <Text dimColor>

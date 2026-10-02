@@ -48,8 +48,7 @@ export function bypassAge(ts: string | undefined): string {
 
 export function bypassSnapshot(opts?: { bypassMode?: string }): BypassSnapshot {
   try {
-    const liveMode =
-      opts?.bypassMode === 'sovereign' || opts?.bypassMode === 'autopilot'
+    const liveMode = opts?.bypassMode === 'sovereign'
     const flag = readSovereignFlag()
     const enabled = liveMode || flag.enabled
     const via: BypassData['via'] =

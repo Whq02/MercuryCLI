@@ -13,7 +13,6 @@ const SCRIPTS = join(ROOT, 'scripts')
 
 const EXEMPT_DIRS = ['scripts/mission-runner/corpus/']
 const EXEMPT_FILES: Record<string, string> = {
-  'scripts/autopilot/prove-plan-doctrine.ts': 'the compare is a QUOTED needle inside includes(…) — the product source line is what is pinned',
   'scripts/formal-models/prove-flag-interactions.ts': '`cluster.indexOf(b) <= cluster.indexOf(a)` is loop control over a known membership, not a pin',
 }
 

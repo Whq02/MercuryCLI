@@ -210,7 +210,7 @@ async function runnerTrueMode(home: string, sessionId: string): Promise<string |
   return readSessionFacts(sessionId, dir)?.permissionMode ?? null
 }
 
-const BAND_RE = /\b(sovereign mode|implement mode|strategy mode|apollo mode|flow|autopilot|don't ask) on\b/
+const BAND_RE = /\b(sovereign mode|implement mode|strategy mode|apollo mode|flow|don't ask) on\b/
 function bandModeOf(frame: string | null): string {
   if (frame === null) return '(no frame)'
   const m = BAND_RE.exec(frame)
@@ -288,7 +288,7 @@ for (const run of RUNS) {
   if (run.bornSovereign) {
     check(`${run.id} the born session RUNS sovereign (the band says so at the chat's first paint)`, stations[0] === 'sovereign', `born=${stations[0]}`)
   } else {
-    check(`${run.id} the born session is not in a bypass posture (${run.consented ? 'consent on, default posture' : 'no consent'})`, stations[0] !== 'sovereign' && stations[0] !== 'autopilot', `born=${stations[0]}`)
+    check(`${run.id} the born session is not in a bypass posture (${run.consented ? 'consent on, default posture' : 'no consent'})`, stations[0] !== 'sovereign', `born=${stations[0]}`)
   }
   if (run.consented) {
     check(`${run.id} the shift+tab cycle OFFERS the Sovereign station`, stations.slice(1).includes('sovereign'), stations.slice(1).join(' → '))

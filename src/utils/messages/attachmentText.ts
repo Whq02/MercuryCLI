@@ -709,12 +709,14 @@ Flow is off — the user likely wants a more interactive pace again. Where the a
       ])
     }
     case 'mode_pack': {
+      if (attachment.mode !== 'apollo') return []
       return wrapMessagesInSystemReminder([
         createUserMessage({ content: attachment.text, isMeta: true }),
       ])
     }
     case 'mode_pack_exit': {
-      const label = attachment.mode === 'apollo' ? 'Apollo mode' : 'Autopilot'
+      if (attachment.mode !== 'apollo') return []
+      const label = 'Apollo mode'
       const why = attachment.reason !== undefined ? ` What ended it: ${attachment.reason}.` : ''
       const content = `## Exited ${label}
 

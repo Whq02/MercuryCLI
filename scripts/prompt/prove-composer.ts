@@ -39,7 +39,7 @@ section('(1) composer — group order, null filtering, reconcile-last')
     ],
     dynamicResolved: ['MEM', 'MCP', null],
     wrapperSections: [{ name: 'identity-floor', text: 'WRAP' }],
-    modeSections: [{ name: 'mode-autopilot', text: 'MODE' }],
+    modeSections: [{ name: 'mode-apollo', text: 'MODE' }],
     antiSycSections: [],
     reconcileTailSections: ['RECONCILE'],
   })
@@ -92,7 +92,7 @@ section('(2) provenance shape-parity — the recorder cannot drift')
       { name: 'identity-floor', text: 'w1' },
       { name: 'mercury-doctrine', text: 'w2' },
     ],
-    modeSections: [{ name: 'mode-autopilot', text: 'm' }],
+    modeSections: [{ name: 'mode-apollo', text: 'm' }],
     antiSycSections: ['anti'],
     reconcileTailSections: ['r'],
   })
@@ -108,7 +108,7 @@ section('(2) provenance shape-parity — the recorder cannot drift')
     prov?.absent.some(a => a.name === 'gone' && a.reason.length > 0) === true)
   check('wrapper sections named identity-floor + mercury-doctrine',
     prov?.sections.filter(s => s.group === 'wrapper').map(s => s.name).join(',') === 'identity-floor,mercury-doctrine')
-  check('mode section named mode-autopilot', prov?.sections.some(s => s.group === 'mode' && s.name === 'mode-autopilot') === true)
+  check('mode section named mode-apollo', prov?.sections.some(s => s.group === 'mode' && s.name === 'mode-apollo') === true)
   check('contract digest recorded (bc1-)', typeof prov?.digest === 'string' && prov.digest.startsWith('bc1-'))
   check('total chars accounted', prov?.totalChars === 'ab'.length + 'XX'.length + 'w1w2'.length + 'm'.length + 'anti'.length + 'r'.length)
   composeSystemPrompt({

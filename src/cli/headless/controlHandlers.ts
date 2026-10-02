@@ -28,7 +28,7 @@ import { logError } from 'src/utils/log.js'
 import { enqueue } from 'src/utils/messageQueueManager.js'
 import { parseUserSpecifiedModel } from 'src/utils/model/model.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
-import { isBypassPermissionsModeDisabled, transitionPermissionMode, validateModeEntry } from 'src/utils/permissions/permissionSetup.js'
+import { isBypassPermissionsModeDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
 import { findUnresolvedToolUse } from 'src/utils/sessionStorage.js'
 import { type Stream } from 'src/utils/stream.js'
 
@@ -307,18 +307,6 @@ function decidePermissionModeTransition(
       ok: false,
       error:
         'Cannot set permission mode to apollo in SDK/print mode — the Apollo pre-flight interview is interactive-only; run it in the terminal UI',
-    }
-  }
-  if (mode === 'autopilot') {
-    if (flagEnv('MERCURY_CONCOURSE_WORKER') !== '1') {
-      return {
-        ok: false,
-        error: 'Cannot set permission mode to autopilot in SDK/print mode — use sovereign (the same permission posture)',
-      }
-    }
-    const eligibility = validateModeEntry('autopilot', toolPermissionContext)
-    if (!eligibility.ok) {
-      return { ok: false, error: eligibility.error }
     }
   }
   if (mode === 'sovereign') {

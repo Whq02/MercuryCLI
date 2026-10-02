@@ -76,7 +76,7 @@ section('1 · parity — composeSystemPrompt ≡ the frozen legacy expression')
       parts({
         modeSections: [
           { name: 'mode-apollo', text: 'apollo pack' },
-          { name: 'mode-autopilot', text: 'autopilot pack' },
+          { name: 'mode-vulcan', text: 'vulcan pack' },
         ],
         antiSycSections: ['anti-syc arm'],
         reconcileTailSections: ['reconcile tail'],
@@ -253,7 +253,7 @@ section('6 · section metadata — semantic names, owner, cacheClass')
 {
   const contract = buildBehaviourContract(
     parts({
-      modeSections: [{ name: 'mode-autopilot', text: 'autopilot pack' }],
+      modeSections: [{ name: 'mode-apollo', text: 'apollo pack' }],
       antiSycSections: ['arm'],
       reconcileTailSections: ['tail'],
       dynamicBoundary: ['boundary'],
@@ -262,8 +262,8 @@ section('6 · section metadata — semantic names, owner, cacheClass')
   check('no positional wrapper-N/mode-N names', contract.sections.every(s => !/^wrapper-\d+$|^mode-\d+$/.test(s.name)))
   check('every section carries an owner', contract.sections.every(s => typeof s.owner === 'string' && s.owner.length > 0))
   check('every section carries a cacheClass', contract.sections.every(s => ['stable', 'session', 'turn'].includes(s.cacheClass)))
-  const autopilot = contract.sections.find(s => s.name === 'mode-autopilot')
-  check('mode-autopilot owner is the autopilot pack', autopilot?.owner === 'src/utils/autopilot/autopilotPrompt.ts')
+  const apollo = contract.sections.find(s => s.name === 'mode-apollo')
+  check('mode-apollo owner is the apollo pack', apollo?.owner === 'src/prompt/apolloMode.ts')
   const staticIntro = contract.sections.find(s => s.name === 'intro')
   check('static sections are cache-stable', staticIntro?.cacheClass === 'stable')
 }

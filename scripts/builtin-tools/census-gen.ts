@@ -77,8 +77,7 @@ lines.push(
   '  proof paths on disk). `—` = not declared (a named gap, not a denial).',
   '- Uniform properties not repeated per-row: every catalog tool is reachable',
   '  from Workshop (`mercury.tool`) and workflow agents unless its contract',
-  '  declares otherwise; every tool is available in all permission modes',
-  '  except SetTier (autopilot-mode-narrowed in toolPool).',
+  '  declares otherwise; every tool is available in all permission modes.',
   '',
 )
 

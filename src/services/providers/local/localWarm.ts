@@ -4,7 +4,6 @@ import type { Tools } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
 import { appendSystemContext, prependUserContext, toolToAPISchema } from '../../../utils/api.js'
 import { latestUserContextBody } from '../../../utils/attachments/userContext.js'
-import { applyTurnTierEffort } from '../../../utils/autopilot/tierState.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
 import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
@@ -215,7 +214,7 @@ export async function composeLocalWarm(record: LocalModelRecord, model: string, 
   if (apiTools.length > 0 && profile.toolCapabilityRefusal?.(wireModel) !== undefined) return { skipped: 'the model declares no tool support; the first turn refuses before sending' }
   const thinkingConfig = toolUseContext.options.thinkingConfig as { type?: string } | undefined
   const thinkingEnabled = thinkingConfig?.type !== 'disabled'
-  const effortValue = resolveWireRequestedEffort(modelId, applyTurnTierEffort(undefined, appState.effortValue), {})
+  const effortValue = resolveWireRequestedEffort(modelId, appState.effortValue, {})
   const extra = profile.buildExtras({ wireModel, effortValue, thinkingEnabled, maxOutputTokensOverride: undefined })
   const request: CompatChatRequest = {
     model: wireModel,

@@ -182,7 +182,7 @@ export function toInternalMessages(messages: readonly DeepImmutable<SDKMessage>[
         requested: string | null
         applied: string | null
         resolution: 'applied' | 'cancelled-pending'
-        boundary: 'idle' | 'turn-boundary' | 'autopilot-tool'
+        boundary: 'idle' | 'turn-boundary'
         cross_provider: boolean
         cache_disposition: string
       }

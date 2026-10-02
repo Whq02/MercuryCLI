@@ -1,6 +1,5 @@
 import type { ToolPermissionContext } from '../../Tool.js'
 import { logForDebugging } from '../debug.js'
-import { isAutopilotEnabled } from '../autopilot/autopilotGates.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { isAutoModeGateEnabled, transitionPermissionMode } from './permissionSetup.js'
 
@@ -33,9 +32,6 @@ export function getNextPermissionMode(
     case 'flow':
       return bypassAvailable(toolPermissionContext) ? 'sovereign' : 'default'
     case 'sovereign':
-      if (isAutopilotEnabled() && bypassAvailable(toolPermissionContext)) return 'autopilot'
-      return 'default'
-    case 'autopilot':
       return 'default'
     case 'dontAsk':
       return 'default'

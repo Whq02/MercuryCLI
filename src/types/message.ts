@@ -387,7 +387,7 @@ export type SystemModelTransitionMessage = {
   requested: string | null
   applied: string | null
   resolution: 'applied' | 'cancelled-pending'
-  boundary: 'idle' | 'turn-boundary' | 'autopilot-tool'
+  boundary: 'idle' | 'turn-boundary'
   crossProvider: boolean
   cacheDisposition: string
   uuid: UUID

@@ -23,7 +23,6 @@ run fable-default
 run opus-default
 run sonnet-default
 run gpt
-run autopilot MERCURY_AUTOPILOT=1
 run headless
 run subagent-normal
 run subagent-fixed

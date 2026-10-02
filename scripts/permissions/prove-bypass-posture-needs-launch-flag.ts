@@ -85,7 +85,7 @@ section('§3 WIRING')
   const setupSrc = readFileSync(join(import.meta.dir, '../../src/utils/permissions/permissionSetup.ts'), 'utf8')
   const sovereignBranch = setupSrc.slice(
     setupSrc.indexOf("if (candidate === 'sovereign')"),
-    setupSrc.indexOf("if (candidate === 'autopilot')"),
+    setupSrc.indexOf('// A surviving candidate wins'),
   )
   check(
     'the sovereign candidate branch itself carries the launch-flag guard',

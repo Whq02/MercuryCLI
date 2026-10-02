@@ -17,8 +17,7 @@ export type TipContext = {
 const DEFAULT_MODE_SUGGESTION =
   'Valid modes: "default" (standard prompting), "implement" (file edits pre-approved), ' +
   '"strategy" (read-only analysis), "dontAsk" (skip prompts, deny instead), ' +
-  '"sovereign" (bypass everything), "flow" (classifier-arbitrated), ' +
-  '"autopilot" (bypass posture; requires arming)'
+  '"sovereign" (bypass everything), "flow" (classifier-arbitrated)'
 
 function matchTip(context: TipContext): ValidationTip | null {
   if (context.path === 'guardrails.mode' && context.code === 'invalid_value') {

@@ -18,7 +18,6 @@ for (const k of [
   'MERCURY_DEFAULT_FABLE_MODEL',
   'MERCURY_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT',
-  'MERCURY_AUTOPILOT_MODELS',
 ]) {
   delete process.env[k]
 }

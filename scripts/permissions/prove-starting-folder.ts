@@ -36,7 +36,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 async function permissionContext(mode: PermissionMode, addDirs: string[] = []) {
-  const args = { allowedToolsCli: [], disallowedToolsCli: [], permissionMode: mode, allowDangerouslySkipPermissions: mode === 'sovereign' || mode === 'autopilot', addDirs }
+  const args = { allowedToolsCli: [], disallowedToolsCli: [], permissionMode: mode, allowDangerouslySkipPermissions: mode === 'sovereign', addDirs }
   return (await initializeToolPermissionContext(args)).toolPermissionContext
 }
 async function channel(tool: Tool, input: Record<string, unknown>, mode: PermissionMode, addDirs: string[] = []) {
@@ -95,7 +95,7 @@ try {
       check(`${mode}, ancestor=${added.length > 0}: no folder refusal or read-only grant`, !/ADDED directory|grants reads only|may only/.test(words), words)
     }
   }
-  for (const mode of ['default', 'implement', 'sovereign', 'autopilot'] as const) {
+  for (const mode of ['default', 'implement', 'sovereign'] as const) {
     for (const [place, directory] of [['inside', root], ['outside', sibling]] as const) {
       const file_path = join(directory, 'file.txt')
       for (const [tool, input] of [

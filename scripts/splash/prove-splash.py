@@ -563,21 +563,21 @@ try:
     sys.path = sys.path
     with open(CORE) as f:
         baked = f.read()
-    autopilot_idx = None
+    sovereign_idx = None
     _menu_at = baked.index('const MENU = [')
     for i, m in enumerate(re.finditer(r'"label":"([^"]+)"', baked[_menu_at:baked.index('\n]', _menu_at)])):
-        if m.group(1) == 'Autopilot tier mode':
-            autopilot_idx = i
+        if m.group(1) == 'Sovereign mode':
+            sovereign_idx = i
             break
-    check('Autopilot row found in the baked menu', autopilot_idx is not None)
-    downs = autopilot_idx or 0
+    check('Sovereign mode row found in the baked menu', sovereign_idx is not None)
+    downs = sovereign_idx or 0
     raw = run_pty(150, 46, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home3,
                             'MERCURY_REDUCED_MOTION': '1'},
                   send=[(0.6 + 0.25 * i, b'\x1b[B') for i in range(downs)],
                   oneshot=False, run_for=0.6 + 0.25 * downs + 1.6)
     last_frame = STRIP.sub('', raw).split('boot menu')[-1]
-    check('wide menu SURVIVES selecting Autopilot (tier = size, not selection)',
-          'SETTING DETAIL' in last_frame and '❯ Autopilot tier mode' in last_frame,
+    check('wide menu SURVIVES selecting Sovereign mode (tier = size, not selection)',
+          'SETTING DETAIL' in last_frame and '❯ Sovereign mode' in last_frame,
           'final frame lost the panels' if 'SETTING DETAIL' not in last_frame else 'selection missed')
     check('over-budget detail clamps with the honest ellipsis row',
           'the trail continues' in last_frame or 'When off' in last_frame)
@@ -617,7 +617,7 @@ try:
           and 'party' not in harness_tail and 'helm' not in harness_tail
           and 'console' not in harness_tail,
           repr(harness_tail))
-    envpin = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home4, 'MERCURY_AUTOPILOT': '1'}
+    envpin = {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home4, 'MERCURY_SKIP_PERMISSIONS': '1'}
     wide = STRIP.sub('', run_pty(150, 60, envpin))
     classic = STRIP.sub('', run_pty(100, 34, envpin))
     check('wide layout shows a legacy env pin (env=1 wins)', 'env=1 wins' in wide)

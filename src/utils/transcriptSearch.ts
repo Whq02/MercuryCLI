@@ -176,7 +176,6 @@ export const NON_INDEXING_TOOLS: ReadonlySet<string> = new Set([
   'ScheduleWakeup',
   'SendMessage',
   'SendUserFile',
-  'SetTier',
   'Skill',
   'Sleep',
   'StructuredOutput',

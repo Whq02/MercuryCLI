@@ -315,12 +315,12 @@ export type Attachment =
     }
   | {
       type: 'mode_pack'
-      mode: 'apollo' | 'autopilot'
+      mode: 'apollo'
       text: string
     }
   | {
       type: 'mode_pack_exit'
-      mode: 'apollo' | 'autopilot'
+      mode: 'apollo'
       reason?: string
     }
   | {

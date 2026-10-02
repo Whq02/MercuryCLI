@@ -175,7 +175,6 @@ section('§7 every other mode is unchanged')
     ['default', 'ask', { mode: 'default' }],
     ['implement', 'allow', { mode: 'implement' }],
     ['sovereign', 'allow', { mode: 'sovereign' }],
-    ['autopilot', 'allow', { mode: 'autopilot' }],
     ['flow', 'ask', { mode: 'flow' }],
     ['dontAsk', 'ask', { mode: 'dontAsk' }],
     ['apollo', 'ask', { mode: 'apollo' }],

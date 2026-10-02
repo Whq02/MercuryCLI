@@ -1085,7 +1085,7 @@ export const SDKModelTransitionMessageSchema = lazySchema(() =>
           .enum(['applied', 'cancelled-pending'])
           .describe('Whether the switch took effect or a pending one was withdrawn'),
         boundary: z
-          .enum(['idle', 'turn-boundary', 'autopilot-tool'])
+          .enum(['idle', 'turn-boundary'])
           .describe('The seam the switch landed on'),
         cross_provider: z.boolean().describe('True when the switch crossed provider families'),
         cache_disposition: z.string().describe('What became of the prompt cache across the switch'),

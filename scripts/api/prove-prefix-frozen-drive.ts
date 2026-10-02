@@ -189,7 +189,6 @@ process.stdin.on('end', () => process.exit(0))
     ANTHROPIC_API_KEY: PROBE_KEY,
     MERCURY_THINKING_BINDING: 'error',
     MERCURY_TOOL_SEARCH: 'on',
-    MERCURY_AUTOPILOT: '1',
     MERCURY_MCP_TIMEOUT_MS: '60000',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
     MERCURY_BOOT_PREFLIGHT: '0',

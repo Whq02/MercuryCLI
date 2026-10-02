@@ -348,14 +348,6 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     gate: 'MERCURY_SERVICES',
     proof: 'scripts/project-services/prove-services.ts',
   },
-  SetTier: {
-    intents: ['retune model and effort tier in autopilot'],
-    units: ['task-coordination'],
-    class: 'coordination',
-    cancellation: 'not-applicable',
-    latency: 'fast',
-    gate: 'MERCURY_AUTOPILOT',
-  },
   Skill: {
     intents: ['invoke a packaged skill or slash command'],
     units: ['capability-discovery'],

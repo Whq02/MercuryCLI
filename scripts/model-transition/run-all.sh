@@ -24,8 +24,8 @@
 # gate-watch: src/services/tips/tipRegistry.ts src/state/AppStateStore.ts src/substrate/flagRegistry.ts
 # gate-watch: src/substrate/startupMenu.ts src/tasks.ts src/tools/AgentTool/prompt.ts
 # gate-watch: src/tools/AgentTool/runAgent.ts src/tools/PowerShellTool/PowerShellTool.tsx
-# gate-watch: src/tools/SetTierTool/SetTierTool.ts src/types/message.ts src/utils/*
-# gate-watch: src/utils/autopilot/tierState.ts src/utils/config/globalConfig.ts src/utils/messages/*
+# gate-watch: src/types/message.ts src/utils/*
+# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/*
 # gate-watch: src/utils/model/* src/utils/shell/powershellProvider.ts src/utils/shell/shellToolUtils.ts
 # gate-watch: src/utils/task/diskOutput.ts
 set -u

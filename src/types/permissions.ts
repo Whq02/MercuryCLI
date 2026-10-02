@@ -13,14 +13,12 @@ export type InternalPermissionMode =
   | ExternalPermissionMode
   | 'flow'
   | 'bubble'
-  | 'autopilot'
   | 'apollo'
 
 export const INTERNAL_PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
   'bubble',
-  'autopilot',
   'apollo',
 ] as const satisfies readonly InternalPermissionMode[]
 
@@ -29,7 +27,6 @@ export type PermissionMode = InternalPermissionMode
 export const PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
-  'autopilot',
   'apollo',
 ] as const
 

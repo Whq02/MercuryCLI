@@ -41,7 +41,6 @@ const MODE_CONFIG: Partial<Record<PermissionMode, ModeConfig>> = {
   sovereign: { title: 'Sovereign Mode', symbol: GLYPH.modeSovereign, color: 'error', external: 'sovereign' },
   dontAsk: { title: "Don't Ask", symbol: GLYPH.modeDontAsk, color: 'error', external: 'dontAsk' },
   flow: { title: 'Flow', symbol: GLYPH.modeFlow, color: 'success', external: 'default' },
-  autopilot: { title: 'Autopilot', symbol: GLYPH.modeAutopilot, color: 'error', external: 'sovereign' },
 }
 
 function configFor(mode: PermissionMode): ModeConfig {
@@ -67,7 +66,7 @@ export function isExternalPermissionMode(_mode: PermissionMode): _mode is Extern
 }
 
 export function modeBypassesPermissions(mode: PermissionMode): boolean {
-  return mode === 'sovereign' || mode === 'autopilot'
+  return mode === 'sovereign'
 }
 
 export function toExternalPermissionMode(mode: PermissionMode): ExternalPermissionMode {

@@ -45,8 +45,8 @@ section('registry floor — rows ⊆ FLAG_REGISTRY, sane choices')
     }))
   check('toggle rows carry exactly one non-default value', STARTUP_MENU.filter(r => r.kind === 'toggle').every(r => r.options.length === 1))
   check('the memory knob is present', STARTUP_MENU.some(r => r.env === 'MERCURY_MNEME'))
-  check('the trust combo is the wards, the debugger, the C/C++ lane, Sovereign mode and Autopilot — no other row stands between a tool call and its run',
-    STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(',') === 'MERCURY_WARDS,MERCURY_DAP,MERCURY_LSP_CPP,MERCURY_SKIP_PERMISSIONS,MERCURY_AUTOPILOT', STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(','))
+  check('the trust combo is the wards, the debugger, the C/C++ lane and Sovereign mode — no other row stands between a tool call and its run',
+    STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(',') === 'MERCURY_WARDS,MERCURY_DAP,MERCURY_LSP_CPP,MERCURY_SKIP_PERMISSIONS', STARTUP_MENU.filter(r => r.group === 'trust combo').map(r => r.env).join(','))
   const missions = STARTUP_MENU.filter(r => r.group === 'memory & missions')
   check('the memory & missions group is the one MNEME row and nothing else', missions.length === 1 && missions[0]!.env === 'MERCURY_MNEME', missions.map(r => r.env).join(','))
   check('no row offers a whole-repository build or a standing planner or builder model pick (label, summary and detail)',

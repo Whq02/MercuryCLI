@@ -1,6 +1,5 @@
 
 import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
-import { isAutopilotEnabled } from '../../utils/autopilot/autopilotGates.js'
 
 export const ENTER_PLAN_MODE_TOOL_NAME = 'EnterStrategyMode'
 
@@ -36,9 +35,6 @@ const MERCURY_DOCTRINE = `## Mercury doctrine (this harness)
 - A plan that lands code states what will demonstrate it: the relevant subset of the all-suites gate script judged by its EXIT CODE, or the particular proof script that pins the change.
 - A plan that reaches the off-distribution core (the build script, the identity floor and wrapper composition, the capability gate and lease guard, daemon control-protocol authentication, compiled renderers) says so plainly: those get an operator diff-read before merge and are preferably hand-coded rather than delegated.`
 
-const AUTOPILOT_APPENDIX = `
-- Under the autopilot family, plan entry raises reasoning effort to the planning tier; after approval, mechanical execution may downshift via SetTier.`
-
 const HEADLESS_APPENDIX = `
 
 In this headless session no operator can approve a plan, so entering strategy mode is refused: write the plan in your reply and carry it out under the session's permissions.`
@@ -47,5 +43,5 @@ export function getEnterPlanModeToolPrompt(): string {
   const unanswerable = getIsNonInteractiveSession() && !canAnswerAsks()
   return `${BASE_PROMPT}
 
-${MERCURY_DOCTRINE}${isAutopilotEnabled() ? AUTOPILOT_APPENDIX : ''}${unanswerable ? HEADLESS_APPENDIX : ''}`
+${MERCURY_DOCTRINE}${unanswerable ? HEADLESS_APPENDIX : ''}`
 }

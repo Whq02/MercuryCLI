@@ -32,7 +32,6 @@ for (const key of [
   'MERCURY_DEFAULT_SONNET_MODEL',
   'MERCURY_DEFAULT_FABLE_MODEL',
   'MERCURY_DISABLE_1M_CONTEXT',
-  'MERCURY_AUTOPILOT_MODELS',
   'NODE_ENV',
 ]) {
   delete process.env[key]
