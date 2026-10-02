@@ -13,7 +13,7 @@ process.env.NODE_ENV = 'test'
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(
   join(PROJ, '.mercury', 'settings.json'),
-  JSON.stringify({ permissions: { defaultMode: 'bypassPermissions' } }),
+  JSON.stringify({ guardrails: { mode: 'sovereign' } }),
 )
 process.chdir(PROJ)
 
@@ -57,7 +57,7 @@ section('§2 THE SETTINGS ROAD')
     dangerouslySkipPermissions: false,
   })
   check(
-    'settings defaultMode=bypassPermissions cannot arm sovereign flagless (FC-001)',
+    'settings guardrails.mode=sovereign cannot arm sovereign flagless (FC-001)',
     settingsBorne.mode !== 'sovereign',
     `mode=${settingsBorne.mode}`,
   )
@@ -69,7 +69,7 @@ section('§2 THE SETTINGS ROAD')
 
   writeFileSync(
     join(PROJ, '.mercury', 'settings.json'),
-    JSON.stringify({ permissions: { defaultMode: 'implement' } }),
+    JSON.stringify({ guardrails: { mode: 'implement' } }),
   )
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   resetSettingsCache()
@@ -77,7 +77,7 @@ section('§2 THE SETTINGS ROAD')
     permissionModeCli: undefined,
     dangerouslySkipPermissions: false,
   })
-  check('control: a non-bypass settings defaultMode still applies', control.mode === 'implement', `mode=${control.mode}`)
+  check('control: a non-sovereign settings guardrails.mode still applies', control.mode === 'implement', `mode=${control.mode}`)
 }
 
 section('§3 WIRING')

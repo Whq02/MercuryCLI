@@ -134,7 +134,7 @@ operator, a plan approval, and under flow any call the flow check blocks,
 `git push` among them (anything visible outside this machine). A push in a
 session nobody is watching therefore waits on a present operator unless a
 permission rule pre-authorises it: `Bash(git push:*)` in the
-`permissions.allow` list of the user, project or local settings (a
+`guardrails.allow` list of the user, project or local settings (a
 switchboard seat carries the rules of the settings it boots with; a `run` command
 also takes `--allowed-tools "Bash(git push:*)"`) decides the push in the
 engine, so it runs without the channel; a deny rule refuses it outright; an

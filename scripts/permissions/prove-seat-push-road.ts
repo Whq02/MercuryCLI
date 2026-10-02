@@ -104,7 +104,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('…the line names the flow road: the calls the flow check blocks, anything visible outside this machine', /flow/.test(bareLine) && /outside this machine/.test(bareLine), bareLine)
   check('…the line says `git push` is NOT pre-authorised by the rules this seat carries', /`git push` is not pre-authorised/.test(bareLine), bareLine)
   check('…and says a push waits on the operator', /push waits/.test(bareLine), bareLine)
-  check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push:\*\)/.test(bareLine) && /permissions\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
+  check('…and names the rule shape and the two roads an operator pre-authorises it by', /Bash\(git push:\*\)/.test(bareLine) && /guardrails\.allow/.test(bareLine) && /--allowed-tools/.test(bareLine), bareLine)
   check('…and says a rule-allowed call runs without the channel', /without the channel/.test(bareLine), bareLine)
   check('…one line, no line break inside (the posture block is one bullet per fact)', bareLine.startsWith('- ') && !bareLine.includes('\n'), bareLine)
   check('…labelled at boot (the rules can change mid-session; the live surface is the card)', /at boot/.test(bareLine), bareLine)
@@ -242,10 +242,10 @@ const runsWithoutChannel = (c: Cell): boolean => c.behavior === 'allow' && c.wra
   check('flow-mode entry keeps `Bash(git push:*)` (a push is not a code-execution prefix) and strips the whole-tool `Bash` allow', j(stripped.alwaysAllowRules['userSettings']) === j([PUSH_RULE]), j(stripped.alwaysAllowRules))
 }
 
-section('§3 the operator\'s road on disk — permissions.allow in a settings file reaches the seat and decides')
+section('§3 the operator\'s road on disk — guardrails.allow in a settings file reaches the seat and decides')
 {
   const settingsPath = join(HOME, 'settings.json')
-  writeFileSync(settingsPath, JSON.stringify({ permissions: { allow: [PUSH_RULE] } }, null, 2))
+  writeFileSync(settingsPath, JSON.stringify({ guardrails: { allow: [PUSH_RULE] } }, null, 2))
   resetSettingsCache()
   const rules = loadAllPermissionRulesFromDisk() as Array<{ source: string; ruleBehavior: string; ruleValue: { toolName: string; ruleContent?: string } }>
   const fromDisk = rules.find(r => r.ruleValue.toolName === 'Bash' && r.ruleValue.ruleContent === 'git push:*')
@@ -270,7 +270,7 @@ section('§4 the words on disk — the flow policy names a push; the docs say ho
   const nonInteractive = trust.slice(trust.indexOf('## Non-interactive sessions'))
   const sectionText = nonInteractive.slice(0, nonInteractive.indexOf('\n## ', 1) > 0 ? nonInteractive.indexOf('\n## ', 1) : undefined)
   check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
-  check('…names the rule shape `Bash(git push:*)` and permissions.allow', /Bash\(git push:\*\)/.test(sectionText) && /permissions\.allow/.test(sectionText), sectionText.slice(0, 400))
+  check('…names the rule shape `Bash(git push:*)` and guardrails.allow', /Bash\(git push:\*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
   check('…says no push is ever allowed by default', /no push is ever allowed by default/i.test(sectionText), sectionText.slice(0, 400))
   const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'print.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')

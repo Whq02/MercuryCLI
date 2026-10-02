@@ -34,7 +34,7 @@ function runIn(home: string, project: string, body: string): Record<string, unkn
     const pu = await import(${JSON.stringify(join(SRC, 'utils/permissions/PermissionUpdate.ts'))})
     const localPath = s.getSettingsWriteFilePathForSource('localSettings')
     fs.mkdirSync(path.dirname(localPath), { recursive: true })
-    const readAllow = () => { try { return JSON.parse(fs.readFileSync(localPath, 'utf8')).permissions?.allow ?? [] } catch { return null } }
+    const readAllow = () => { try { return JSON.parse(fs.readFileSync(localPath, 'utf8')).guardrails?.allow ?? [] } catch { return null } }
     const rule = (toolName, ruleContent) => ({ toolName, ...(ruleContent === undefined ? {} : { ruleContent }) })
     const out = {}
     ${body}
@@ -49,11 +49,11 @@ console.log('L1 the stale-cache race — the peer grant survives')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
-    fs.writeFileSync(localPath, JSON.stringify({ permissions: { allow: ['Read(//tmp/**)'] } }, null, 2))
+    fs.writeFileSync(localPath, JSON.stringify({ guardrails: { allow: ['Read(//tmp/**)'] } }, null, 2))
     void s.getSettingsForSource('localSettings') // prime THIS session's cache
     // The peer session's grant lands behind the cache.
     const onDisk = JSON.parse(fs.readFileSync(localPath, 'utf8'))
-    onDisk.permissions.allow.push('WebFetch(domain:example.com)')
+    onDisk.guardrails.allow.push('WebFetch(domain:example.com)')
     fs.writeFileSync(localPath, JSON.stringify(onDisk, null, 2))
     // This session persists its own grant off the stale cache.
     pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
@@ -70,9 +70,9 @@ console.log('L2 a loader-filtered invalid rule survives an unrelated grant')
   const { home, project } = scratch()
   const r = runIn(home, project, `
     const INVALID = 'Bash(unclosed'
-    fs.writeFileSync(localPath, JSON.stringify({ permissions: { allow: [INVALID, 'Read(//tmp/**)'] } }, null, 2))
+    fs.writeFileSync(localPath, JSON.stringify({ guardrails: { allow: [INVALID, 'Read(//tmp/**)'] } }, null, 2))
     const view = s.getSettingsForSource('localSettings')
-    out.premiseFiltered = !(view?.permissions?.allow ?? []).includes(INVALID)
+    out.premiseFiltered = !(view?.guardrails?.allow ?? []).includes(INVALID)
     pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Glob')], behavior: 'allow', destination: 'localSettings' })
     out.allow = readAllow()
   `)
@@ -86,7 +86,7 @@ console.log('L3 dedup and removal honesty')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
-    fs.writeFileSync(localPath, JSON.stringify({ permissions: { allow: ['Bash(git status:*)', 'Bash(unclosed'] } }, null, 2))
+    fs.writeFileSync(localPath, JSON.stringify({ guardrails: { allow: ['Bash(git status:*)', 'Bash(unclosed'] } }, null, 2))
     pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
     out.afterReAdd = readAllow()
     pu.persistPermissionUpdate({ type: 'removeRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
@@ -123,8 +123,8 @@ console.log('L4 the writer serializes')
     const codes = await Promise.all([0, 1, 2, 3, 4, 5].map(n => child(n)))
     const allow = (() => {
       try {
-        const parsed = JSON.parse(readFileSync(localPath, 'utf8')) as { permissions?: { allow?: string[] } }
-        return parsed.permissions?.allow ?? []
+        const parsed = JSON.parse(readFileSync(localPath, 'utf8')) as { guardrails?: { allow?: string[] } }
+        return parsed.guardrails?.allow ?? []
       } catch {
         return null
       }

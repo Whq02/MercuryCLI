@@ -75,17 +75,17 @@ persistPermissionUpdate({
   destination: 'localSettings',
 } as never)
 const written = JSON.parse(readFileSync(join(PROJ, '.mercury', 'settings.local.json'), 'utf8')) as {
-  permissions?: { allow?: string[]; deny?: string[] }
+  guardrails?: { allow?: string[]; deny?: string[] }
 }
 check(
   `settings.local.json allow carries ${COMPUTER_TOOL_NAME}(${SAFARI})`,
-  (written.permissions?.allow ?? []).includes(`${COMPUTER_TOOL_NAME}(${SAFARI})`),
-  JSON.stringify(written.permissions),
+  (written.guardrails?.allow ?? []).includes(`${COMPUTER_TOOL_NAME}(${SAFARI})`),
+  JSON.stringify(written.guardrails),
 )
 check(
   `and deny carries ${COMPUTER_TOOL_NAME}(${VAULT})`,
-  (written.permissions?.deny ?? []).includes(`${COMPUTER_TOOL_NAME}(${VAULT})`),
-  JSON.stringify(written.permissions),
+  (written.guardrails?.deny ?? []).includes(`${COMPUTER_TOOL_NAME}(${VAULT})`),
+  JSON.stringify(written.guardrails),
 )
 const ctx = applyPermissionRulesToPermissionContext(emptyCtx(), loadAllPermissionRulesFromDisk())
 const allow = getRuleByContentsForToolName(ctx, COMPUTER_TOOL_NAME, 'allow')
