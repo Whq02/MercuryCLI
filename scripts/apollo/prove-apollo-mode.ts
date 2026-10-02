@@ -416,7 +416,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
   const supervisor = src('daemon', 'concourseSupervisor.ts')
-  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.permissions\?\.defaultMode\)/.test(supervisor))
+  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.guardrails\?\.mode\)/.test(supervisor))
   const hop = src('services', 'switchboard', 'hopIntoSession.ts')
   check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }
