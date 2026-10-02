@@ -54,19 +54,17 @@ section('denialTracking (LIVE) — limits + the fall-back-to-prompting threshold
   check('20 total denials: FALL BACK (total floor, independent of streak)', shouldFallbackToPrompting(t) && t.totalDenials === 20)
 }
 
-section('the FOUR auto-mode safety floors (decision/wrapper.ts) — force a human ask BEFORE the classifier')
+section('the THREE auto-mode safety floors (decision/wrapper.ts) — force a human ask BEFORE the classifier')
 {
   const perms = src('utils', 'permissions', 'decision', 'wrapper.ts')
   const has = (needle: string) => perms.includes(needle)
   check('floor: ask-rule reason → reasonCarriesAskRule', has('function reasonCarriesAskRule') && has('reasonCarriesAskRule(engineDecision.decisionReason)'))
   check("floor: org/MCP ask-ceiling (effectiveMaxPermission === 'ask')", has("tool.mcpInfo?.effectiveMaxPermission === 'ask'"))
-  check('floor: plan-mode → reasonIsPlanFloor', has('function reasonIsPlanFloor') && has('reasonIsPlanFloor(engineDecision.decisionReason)'))
   check('floor: Workflow usage-consent → workflowRequiresConsent', has('function workflowRequiresConsent') && has('workflowRequiresConsent(tool.name)'))
   check(
-    'the four floors converge on ONE guard before the classifier',
+    'the three floors converge on ONE guard before the classifier',
     has("floorTags.push('ask-rule')") &&
       has("floorTags.push('org-ceiling')") &&
-      has("floorTags.push('plan-floor')") &&
       has("floorTags.push('workflow-consent')") &&
       has('if (floorTags.length > 0)'),
   )

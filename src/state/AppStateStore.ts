@@ -242,10 +242,6 @@ type AppStateMutableHalf = {
     bashMode?: boolean
     armedAtLanding?: boolean
   } | null
-  pendingPlanVerification?: {
-    verificationStarted?: boolean
-    verificationCompleted?: boolean
-  }
   denialTracking?: DenialTrackingState
   thinkingEnabled: boolean
   channelPermissionCallbacks?: Record<string, (result: unknown) => void>
