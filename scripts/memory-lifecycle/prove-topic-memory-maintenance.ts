@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
@@ -140,17 +139,17 @@ section('§4 status shape + receipts ring bound + OFF contract')
   check('status: enabled, buffered=1, 0 topics, not running', s.enabled && s.buffered === 1 && s.topicCount === 0 && !s.running, JSON.stringify(s))
   for (let i = 0; i < 60; i++) await runDueMaintenance('operator', { dir, force: true })
   check('receipts ring bounded ≤50', readMaintenanceReceipts(dir, 500).length <= 50)
-  delete process.env.MERCURY_MNEME
+  process.env.MERCURY_BARE = '1'
   const off = mnemeStatus(dir)
   check('OFF: status inert', off.enabled === false && off.buffered === 0)
   const offRun = await runDueMaintenance('boot', { dir })
-  check('OFF: runner refuses', offRun.ran === false && offRun.reason === 'mneme off')
+  check('OFF: runner refuses', offRun.ran === false && offRun.reason === 'memory off')
   check('OFF: due-check inert', dueForMaintenance(dir).due === false)
-  process.env.MERCURY_MNEME = '1'
-}
+  delete process.env.MERCURY_BARE
+  }
 
 if (failures) {
   console.log(`\n❌ ${failures} maintenance check(s) failed`)
   process.exit(1)
 }
-console.log('\n✅ ALL MNEME MAINTENANCE PROOFS PASS')
+console.log('\n✅ ALL MEMORY MAINTENANCE PROOFS PASS')

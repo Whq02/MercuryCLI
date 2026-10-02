@@ -8,7 +8,6 @@ import {
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
 import { isLocalShellTask } from '../../tasks/LocalShellTask/guards.js'
-import { isDreamTask } from '../../tasks/DreamTask/DreamTask.js'
 import {
   buildAgentSummaries,
   groupAgentsByPhase,
@@ -225,8 +224,6 @@ export function projectWorkRoster(tasks: AppState['tasks']): WorkRowV1[] {
         ...(task.result !== undefined ? { exitCode: task.result.code } : {}),
         outputFile: task.outputFile,
       })
-    } else if (isDreamTask(task)) {
-      rows.push(plainRow(task, 'dream', task.description))
     } else {
       rows.push(plainRow(task, 'monitor', task.description))
     }

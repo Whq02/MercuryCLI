@@ -251,8 +251,7 @@ export type Attachment =
         content: string
         mtimeMs: number
         header?: string
-        limit?: number
-        rawContent?: string
+        ids?: string[]
       }[]
     }
   | {
@@ -348,10 +347,6 @@ export type Attachment =
     }
   | {
       type: 'critical_system_reminder'
-      content: string
-    }
-  | {
-      type: 'taste_recall'
       content: string
     }
   | {

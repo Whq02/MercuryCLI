@@ -6,7 +6,6 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-retain-honesty-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-process.env.MERCURY_MNEME = '1'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -41,11 +40,11 @@ check('item 0 stored', mixed[0]?.status === 'stored', JSON.stringify(mixed[0]))
 check('item 1 refused (empty content), typed', mixed[1]?.status === 'refused' && mixed[1].reason.includes('empty'), JSON.stringify(mixed[1]))
 check('item 2 stored — the batch never aborts on a sibling', mixed[2]?.status === 'stored', JSON.stringify(mixed[2]))
 
-section('backend off mid-call: refused with the gate named, never a silent success')
-process.env.MERCURY_MNEME = '0'
+section('memory switched off mid-call: refused with the switch named, never a silent success')
+process.env.MERCURY_BARE = '1'
 const off = retainItems([{ content: 'stored nowhere' }], { session: 'honesty' })
-check('refused with MNEME named', off[0]?.status === 'refused' && off[0].reason.includes('MNEME'), JSON.stringify(off))
-process.env.MERCURY_MNEME = '1'
+check('refused with memory off named', off[0]?.status === 'refused' && off[0].reason.includes('memory is off'), JSON.stringify(off))
+delete process.env.MERCURY_BARE
 
 section('the tool result never papers over refusals')
 const blockAllRefused = RetainTool.mapToolResultToToolResultBlockParam(

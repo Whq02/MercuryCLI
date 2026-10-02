@@ -796,11 +796,6 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
         createUserMessage({ content: attachment.content, isMeta: true }),
       ])
     }
-    case 'taste_recall': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({ content: attachment.content, isMeta: true }),
-      ])
-    }
     case 'mcp_resource': {
       const content = attachment.content
       if (!content || !content.contents || content.contents.length === 0) {

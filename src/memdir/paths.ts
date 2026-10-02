@@ -2,7 +2,6 @@ import { homedir } from 'node:os'
 import { isAbsolute, join, normalize, sep } from 'node:path'
 import { memoize } from 'lodash-es'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'
-import { flagEnv } from '../substrate/flagRegistry.js'
 import { getInitialSettings, getSettingsForSource } from '../utils/settings/settings.js'
 import { findCanonicalGitRoot } from '../utils/git.js'
 import { getProjectRoot } from '../bootstrap/state.js'
@@ -13,18 +12,6 @@ export function isAutoMemoryEnabled(): boolean {
   const setting = getInitialSettings().memory?.enabled
   if (setting !== undefined) return setting
   return true
-}
-
-export function relevantMemoryRecallEnabled(): boolean {
-  return flagEnv('MERCURY_RELEVANT_RECALL') === '1'
-}
-
-export function filterInjectedMemoryFilesByRecall<T extends { type: string }>(
-  files: T[],
-  recallOn: boolean,
-): T[] {
-  if (!recallOn) return [...files]
-  return files.filter(file => file.type !== 'AutoMem' && file.type !== 'TeamMem')
 }
 
 export function getMemoryBaseDir(): string {
@@ -72,17 +59,6 @@ export const getAutoMemPath = memoize((): string => {
   const key = sanitizePathComponent(canonical)
   return `${join(getMemoryBaseDir(), 'projects', key, 'memory')}${sep}`.normalize('NFC')
 }, () => getProjectRoot())
-
-export function getAutoMemDailyLogPath(date: Date = new Date()): string {
-  const year = String(date.getFullYear())
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const day = String(date.getDate()).padStart(2, '0')
-  return join(getAutoMemPath(), 'logs', year, month, `${year}-${month}-${day}.md`)
-}
-
-export function getAutoMemEntrypoint(): string {
-  return `${getAutoMemPath()}MEMORY.md`
-}
 
 export function isAutoMemPath(absolutePath: string): boolean {
   return normalize(absolutePath).startsWith(getAutoMemPath())

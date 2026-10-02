@@ -81,13 +81,13 @@ section('§1 the rows — live-class toggles over registered flags, through the 
   const record = { settingsSnapshot: snap }
   check("the record's view reads the snapshot row: off, boot menu", j(sw.spawnSwitchOfRecord(record, 'subagents')) === j({ on: false, source: 'boot-menu' }))
 
-  menu.saveBootDefaultsProfile({ MERCURY_MNEME: '1' }, path)
+  menu.saveBootDefaultsProfile({ MERCURY_AUTOPILOT: '1' }, path)
   const profile = menu.readBootDefaultsProfile(path)
   const receipts = menu.evaluateExplicitApply(snap, profile)
   const subReceipt = receipts.find(r => r.env === SUB)
   check("the live row's changed target answers 'queued' and names the session's own switch", subReceipt?.outcome === 'queued' && subReceipt.target === null && subReceipt.reason.includes('application class: live') && subReceipt.reason.includes('next turn boundary'), j(subReceipt))
-  const mneme = receipts.find(r => r.env === 'MERCURY_MNEME')
-  check("a changed new-session row still refuses with its class named", mneme?.outcome === 'refused' && mneme.reason.includes('application class: new-session'), j(mneme))
+  const autopilot = receipts.find(r => r.env === 'MERCURY_AUTOPILOT')
+  check("a changed new-session row still refuses with its class named", autopilot?.outcome === 'refused' && autopilot.reason.includes('application class: new-session'), j(autopilot))
   const liveReceipts = menu.evaluateExplicitApply(snap, profile, { [SUB]: null })
   check('the live value decides no-change (an in-session toggle moved the switch on already)', liveReceipts.find(r => r.env === SUB)?.outcome === 'no-change', j(liveReceipts.find(r => r.env === SUB)))
   const pinnedSnap = menu.resolveEffectiveSettingsSnapshot({ sessionId: 'pinned', path, env: pinned })

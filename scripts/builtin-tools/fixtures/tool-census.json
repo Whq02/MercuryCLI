@@ -582,7 +582,6 @@
         ],
         "cancellation": "not-applicable",
         "latency": "fast",
-        "gate": "MERCURY_MNEME",
         "proof": "scripts/memory/prove-verbs-lifecycle.ts"
       }
     },
@@ -1544,7 +1543,6 @@
         "class": "observation",
         "cancellation": "not-applicable",
         "latency": "fast",
-        "gate": "MERCURY_MNEME",
         "proof": "scripts/memory/prove-verbs-lifecycle.ts"
       }
     },
@@ -1600,7 +1598,6 @@
         "class": "observation",
         "cancellation": "cooperative",
         "latency": "interactive",
-        "gate": "MERCURY_MNEME",
         "proof": "scripts/memory/prove-reflect-grounding.ts"
       }
     },
@@ -1625,7 +1622,6 @@
         "class": "mutation",
         "cancellation": "not-applicable",
         "latency": "fast",
-        "gate": "MERCURY_MNEME",
         "proof": "scripts/memory/prove-retain-honesty.ts"
       }
     },

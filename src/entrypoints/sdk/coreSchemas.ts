@@ -1,7 +1,6 @@
 import { z } from 'zod/v4'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { decodePermissionModeSpelling } from '../../types/permissions.js'
-import { MEMORY_TYPES } from '../../memdir/memoryTypes.js'
 import type { TurnCutKind } from '../../utils/messages/turnCut.js'
 import { EFFORT_LEVELS } from './runtimeTypes.js'
 
@@ -1369,5 +1368,3 @@ export const SDKMessageSchema = lazySchema(() =>
     SDKPromptSuggestionMessageSchema(),
   ]),
 )
-
-export const MemoryTypeSchema = lazySchema(() => z.enum(MEMORY_TYPES))

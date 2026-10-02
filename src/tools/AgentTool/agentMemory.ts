@@ -1,6 +1,5 @@
 
 import { normalize, join, relative, sep } from 'node:path'
-import { buildMemoryPrompt, ensureMemoryDirExists } from '../../memdir/memdir.js'
 import { getMemoryBaseDir } from '../../memdir/paths.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
@@ -14,7 +13,6 @@ export type AgentMemoryScope = 'user' | 'project' | 'local'
 
 const AGENT_MEMORY_SUBDIR = 'agent-memory'
 const AGENT_MEMORY_LOCAL_SUBDIR = 'agent-memory-local'
-const MEMORY_ENTRYPOINT = 'MEMORY.md'
 
 function sanitizeAgentTypeForPath(agentType: string): string {
   return agentType.replaceAll(':', '-')
@@ -35,13 +33,6 @@ export function getAgentMemoryDir(
     case 'local':
       return projectHomeStore(getCwd(), AGENT_MEMORY_LOCAL_SUBDIR, dirName) + sep
   }
-}
-
-export function getAgentMemoryEntrypoint(
-  agentType: string,
-  scope: AgentMemoryScope,
-): string {
-  return join(getAgentMemoryDir(agentType, scope), MEMORY_ENTRYPOINT)
 }
 
 function isUnder(candidate: string, dir: string): boolean {
@@ -85,23 +76,19 @@ export function getMemoryScopeDisplay(
 }
 
 const SCOPE_GUIDELINES: Record<AgentMemoryScope, string> = {
-  user: 'This memory applies across all projects. Keep learnings general rather than project-specific.',
-  project:
-    'This memory is shared with your team through version control. Tailor it to this project.',
-  local:
-    'This memory is not version-controlled. Tailor it to this project and this machine.',
+  user: 'Keep what you save general rather than project-specific.',
+  project: 'Tailor what you save to this project.',
+  local: 'Tailor what you save to this project and this machine.',
 }
 
 export function loadAgentMemoryPrompt(
   agentType: string,
   scope: AgentMemoryScope,
 ): string {
-  const dir = getAgentMemoryDir(agentType, scope)
-  void ensureMemoryDirExists(dir)
-  const extraGuidelines = [SCOPE_GUIDELINES[scope]]
-  return buildMemoryPrompt({
-    displayName: 'persistent agent memory',
-    memoryDir: dir,
-    extraGuidelines,
-  })
+  void agentType
+  return [
+    '# Memory',
+    'You share this project\'s memory. Retain saves a durable fact for future sessions; Recall searches what is remembered or reads a page; Correct fixes a wrong fact and keeps the old one as history.',
+    SCOPE_GUIDELINES[scope],
+  ].join('\n')
 }

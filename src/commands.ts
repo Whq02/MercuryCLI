@@ -43,9 +43,6 @@ import sessiontab from './commands/sessiontab/index.js'
 import substrate from './commands/substrate/index.js'
 import trace from './commands/trace/index.js'
 import { kill, unkill } from './commands/kill/index.js'
-import remember from './commands/remember/index.js'
-import meh from './commands/meh/index.js'
-import good from './commands/good/index.js'
 import diff from './commands/diff/index.js'
 import health from './commands/health/index.js'
 import effort from './commands/effort/index.js'
@@ -97,7 +94,6 @@ import showcase from './commands/showcase/index.js'
 import fullscreen from './commands/fullscreen/index.js'
 import capabilities from './commands/capabilities/index.js'
 import harness from './commands/harness/index.js'
-import cards from './commands/cards/index.js'
 import workbench from './commands/workbench/index.js'
 import files from './commands/files/index.js'
 import router from './commands/router/index.js'
@@ -217,9 +213,6 @@ const COMMANDS = memoize((): Command[] => [
   trace,
   kill,
   unkill,
-  remember,
-  meh,
-  good,
   diff,
   health,
   effort,
@@ -271,7 +264,6 @@ const COMMANDS = memoize((): Command[] => [
   fullscreen,
   capabilities,
   harness,
-  cards,
   caching,
   workbench,
   ...(getInitialSettings().view?.files === false ? [] : [files]),

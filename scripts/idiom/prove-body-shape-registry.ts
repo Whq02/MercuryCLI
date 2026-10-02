@@ -164,7 +164,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   ultra_effort_exit: { good: {}, bad: [] },
   supercode_keyword: { good: {}, bad: [] },
   critical_system_reminder: { good: { content: 'c' }, bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'] } }] },
-  taste_recall: { good: { content: 'c' }, bad: [{ label: 'content is missing', field: 'content', fields: {} }] },
   plan_file_reference: { good: { planFilePath: 'p.md', planContent: '# p' }, bad: [{ label: 'planContent is an object', field: 'planContent', fields: { planFilePath: 'p.md', planContent: {} } }] },
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
   command_permissions: { good: { allowedTools: ['Bash(ls:*)'] }, bad: [{ label: 'allowedTools carries a number', field: 'allowedTools', fields: { allowedTools: [1] } }] },

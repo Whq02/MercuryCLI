@@ -12,6 +12,9 @@ export interface MnemeObservation {
   source: string
   text: string
   topicHint?: string
+  pin?: true
+  asked?: true
+  replaces?: number
 }
 
 const CAP = { text: 2000, source: 60, topicHint: 60 } as const
@@ -24,7 +27,7 @@ export function currentBufferPath(dir: string = mnemeLibraryDir()): string {
 }
 
 export function appendObservation(
-  input: { text: string; source: string; topicHint?: string },
+  input: { text: string; source: string; topicHint?: string; pin?: boolean; asked?: boolean; replaces?: number },
   dir: string = mnemeLibraryDir(),
 ): boolean {
   if (!mnemeEnabled()) return false
@@ -32,11 +35,15 @@ export function appendObservation(
     const text = clamp(oneLine(String(input.text ?? '')).trim(), CAP.text)
     const source = clamp(sigSafe(String(input.source ?? '')).trim(), CAP.source)
     if (!text || !source) return false
+    const replaces = input.pin === true && Number.isInteger(input.replaces) && (input.replaces as number) > 0 ? { replaces: input.replaces as number } : {}
     const row: MnemeObservation = {
       ts: new Date().toISOString(),
       source,
       text,
       ...(input.topicHint ? { topicHint: clamp(String(input.topicHint).trim(), CAP.topicHint) } : {}),
+      ...(input.pin === true ? { pin: true as const } : {}),
+      ...(input.pin === true && input.asked === true ? { asked: true as const } : {}),
+      ...replaces,
     }
     mkdirSync(dir, { recursive: true })
     appendFileSync(currentBufferPath(dir), JSON.stringify(row) + '\n', 'utf8')

@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -59,11 +58,11 @@ section('§2 typed refusals: already-superseded, unknown, invalid, off')
   check('non-positive seq → invalid', bad.ok === false && bad.code === 'invalid')
   const empty = correctFact({ targetSeq: 1, text: '  ', source: 's', dir })
   check('empty text → invalid', empty.ok === false && empty.code === 'invalid')
-  delete process.env.MERCURY_MNEME
+  process.env.MERCURY_BARE = '1'
   const off = correctFact({ targetSeq: 1, text: 'x', source: 's', dir })
   check('OFF → typed off', off.ok === false && off.code === 'off')
-  process.env.MERCURY_MNEME = '1'
-}
+  delete process.env.MERCURY_BARE
+  }
 
 section('§3 lock honesty: busy while held; correcting the CORRECTION works')
 {
@@ -104,4 +103,4 @@ if (failures) {
   console.log(`\n❌ ${failures} correction check(s) failed`)
   process.exit(1)
 }
-console.log('\n✅ ALL MNEME CORRECTION PROOFS PASS')
+console.log('\n✅ ALL MEMORY CORRECTION PROOFS PASS')

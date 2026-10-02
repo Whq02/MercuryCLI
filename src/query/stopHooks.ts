@@ -187,35 +187,10 @@ export async function* handleStopHooks(
     }
     if (!agentId) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const upkeep = require('../services/memoryUpkeep/memoryUpkeep.js') as {
-        executeMemoryUpkeep: (
-          context: REPLHookContext,
-          appendSystemMessage?: ToolUseContext['appendSystemMessage'],
-        ) => Promise<void>
-      }
-      void upkeep
-        .executeMemoryUpkeep(hookContext, toolUseContext.appendSystemMessage)
-        .catch(error => {
-          logForDebugging(`memory upkeep failed: ${errorMessage(error)}`)
-        })
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const mneme = require('../memdir/mnemeMaintenance.js') as {
         scheduleMnemeMaintenance: (trigger: 'turn-end') => void
       }
       mneme.scheduleMnemeMaintenance('turn-end')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const observe = require('../memdir/mnemeObserveTurn.js') as {
-        flushMnemeTurnObservation: (owner: string) => boolean
-      }
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const ownerResolve = require('../services/run/resolveOwner.js') as {
-        ownerFromToolUseContext: (context: { owner?: unknown; agentId?: string }) => unknown
-      }
-      try {
-        observe.flushMnemeTurnObservation(String(ownerResolve.ownerFromToolUseContext(toolUseContext)))
-      } catch (error) {
-        logForDebugging(`mneme turn observation failed: ${errorMessage(error)}`)
-      }
     }
   }
 

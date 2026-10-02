@@ -13,7 +13,6 @@ const { enableConfigs } = await import(join(repo, 'src/utils/config/globalConfig
 enableConfigs()
 const writer = await import(join(repo, 'src/services/instructions/projectInstructionWriter.js'))
 const { runWithCwdOverride } = await import(join(repo, 'src/utils/cwd.js'))
-const { call: rememberCall } = await import(join(repo, 'src/commands/remember/remember.js'))
 const { RecordConventionTool } = await import(
   join(repo, 'src/tools/RecordConventionTool/RecordConventionTool.js')
 )
@@ -38,18 +37,10 @@ function pointerFixture(): string {
 }
 const RULE = 'always use bun here'
 
-console.log('one write shape — writer fn · /remember project scope · RecordConvention tool')
+console.log('one write shape — writer fn · RecordConvention tool')
 const viaFn = pointerFixture()
 const r1 = writer.captureProjectInstruction({ cwd: viaFn, rule: RULE })
 check(r1.action === 'recorded' && !r1.created, 'writer fn records into the existing estate', JSON.stringify(r1))
-
-const viaCmd = pointerFixture()
-const cmdRes = await runWithCwdOverride(viaCmd, () => rememberCall(`project: ${RULE}`, {} as never))
-check(
-  cmdRes.type === 'text' && /Recorded in AGENTS\.md/.test(cmdRes.value),
-  '/remember project: reports the pointed guide',
-  JSON.stringify(cmdRes),
-)
 
 const viaTool = pointerFixture()
 const toolRes = await runWithCwdOverride(viaTool, () =>
@@ -63,13 +54,11 @@ check(
 
 const agentsBytes = readFileSync(join(viaFn, 'AGENTS.md'), 'utf8')
 check(
-  agentsBytes === readFileSync(join(viaCmd, 'AGENTS.md'), 'utf8') &&
-    agentsBytes === readFileSync(join(viaTool, 'AGENTS.md'), 'utf8'),
-  'all three seams produce byte-identical guides (ONE writer)',
+  agentsBytes === readFileSync(join(viaTool, 'AGENTS.md'), 'utf8'),
+  'both seams produce byte-identical guides (ONE writer)',
 )
 check(
   readFileSync(join(viaFn, 'MERCURY.md'), 'utf8') === POINTER &&
-    readFileSync(join(viaCmd, 'MERCURY.md'), 'utf8') === POINTER &&
     readFileSync(join(viaTool, 'MERCURY.md'), 'utf8') === POINTER,
   'the pointer file stays byte-untouched on every seam',
 )
@@ -144,7 +133,7 @@ check(
 )
 
 console.log('estate-wide dedup')
-const r8 = writer.captureProjectInstruction({ cwd: viaCmd, rule: 'Build with bun.' })
+const r8 = writer.captureProjectInstruction({ cwd: viaTool, rule: 'Build with bun.' })
 check(
   r8.action === 'already-recorded',
   'a rule already stated in the pointed guide is not re-recorded from the entry',

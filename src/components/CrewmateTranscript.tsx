@@ -90,6 +90,7 @@ export function TranscriptSwap({ lead, tools, commands, screen, agentDefinitions
             scrollRef={scrollRef}
             trackStickyPrompt={trackStickyPrompt}
             disableRenderCap
+            suppressNotices
           />
         )}
         <Box flexGrow={1} />

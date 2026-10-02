@@ -53,8 +53,6 @@ export function getPillLabel(tasks: BackgroundTaskState[]): string {
       return `${tasks.length} background ${plural(tasks.length, 'workflow')}`
     case 'monitor_mcp':
       return `${tasks.length} ${plural(tasks.length, 'monitor')}`
-    case 'dream':
-      return 'dreaming'
     default:
       return `${tasks.length} background ${plural(tasks.length, 'task')}`
   }

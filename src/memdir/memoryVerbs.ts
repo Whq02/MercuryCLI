@@ -3,20 +3,28 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, pendingRows } from './mnemeBuffer.js'
-import { listTopicDocs } from './mnemeConsolidate.js'
-import { grepAll, readDocLines, catalogDocs, PENDING_SLUG } from './mnemeRetrieval.js'
-import { correctFact, retireFact, type MnemeCorrectResult } from './mnemeCorrect.js'
-import { docFileName, parseEntryLine, liveSeqs } from './mnemeTopicDocs.js'
-import { isAutoMemoryEnabled } from './paths.js'
+import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
+import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
+import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
+import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
+import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
+import { candidates, rankCandidates } from './mnemeLookup.js'
+
+function allDocs(dir: string): MnemeTopicDoc[] {
+  return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
+}
+
+function recallSlug(doc: MnemeTopicDoc): string {
+  return isArchiveDoc(doc) ? `${ARCHIVE_PREFIX}${doc.slug}` : doc.slug
+}
 
 
 export function memoryVerbsEnabled(): boolean {
-  return mnemeEnabled() && isAutoMemoryEnabled()
+  return mnemeEnabled()
 }
 
 export function memoryVerbsWhyNot(): string | null {
-  if (!mnemeEnabled()) return 'MERCURY_MNEME is off (the verbs ride the MNEME backend)'
-  if (!isAutoMemoryEnabled()) return 'auto-memory is disabled in settings'
+  if (!mnemeEnabled()) return 'memory is off (memory.enabled is false in settings)'
   return null
 }
 
@@ -25,6 +33,23 @@ export interface RetainItemInput {
   content: string
   context?: string
   topic?: string
+  pin?: boolean
+  replaces?: string
+}
+
+export function replacementTarget(
+  spec: string,
+  dir: string,
+): { ok: true; seq: number; slug: string } | { ok: false; reason: string } {
+  const m = /^seq:(\d+)$/.exec(spec.trim())
+  if (!m) return { ok: false, reason: `replaces must name a pinned rule as seq:<n> (got '${spec}')` }
+  const seq = Number(m[1])
+  const pin = readPins(dir).find(p => p.seq === seq)
+  if (pin?.asked) return { ok: false, reason: `${userAskedRuleMessage(seq)}; retain the new rule without replaces to add it beside` }
+  if (!pin) return { ok: false, reason: `seq ${seq} is not a pinned rule — Correct supersedes a fact` }
+  const holder = allDocs(dir).find(doc => liveSeqs(doc).has(seq))
+  if (!holder) return { ok: false, reason: `seq ${seq} is not live in this library` }
+  return { ok: true, seq, slug: holder.slug }
 }
 
 export type RetainItemOutcome =
@@ -41,11 +66,11 @@ export function _resetMemoryVerbSessionStateForTesting(): void {
 
 export function retainItems(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
   dir: string = mnemeLibraryDir(),
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
-  const sourceBase = `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
+  const sourceBase = provenance.source ?? `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
   items.forEach((item, index) => {
     const content = (item.content ?? '').trim()
     if (!content) {
@@ -59,9 +84,22 @@ export function retainItems(
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
+    const replacement = item.replaces !== undefined ? replacementTarget(item.replaces, dir) : null
+    if (replacement && !replacement.ok) {
+      outcomes.push({ index, status: 'refused', reason: replacement.reason })
+      return
+    }
+    const pin = provenance.pin || item.pin || replacement !== null
     const before = pendingRows(dir).length
     const written = appendObservation(
-      { text, source: sourceBase, ...(item.topic ? { topicHint: item.topic } : {}) },
+      {
+        text,
+        source: sourceBase,
+        ...(item.topic ? { topicHint: item.topic } : replacement?.ok ? { topicHint: replacement.slug } : {}),
+        ...(pin ? { pin: true } : {}),
+        ...((provenance.pin && provenance.asked) || item.pin || replacement !== null ? { asked: true } : {}),
+        ...(replacement?.ok ? { replaces: replacement.seq } : {}),
+      },
       dir,
     )
     if (!written) {
@@ -70,7 +108,7 @@ export function retainItems(
         status: 'refused',
         reason: mnemeEnabled()
           ? 'the buffer append failed (disk error or over-cap content) — the fact was NOT stored'
-          : 'MNEME is off — nothing was stored',
+          : 'memory is off — nothing was stored',
       })
       return
     }
@@ -90,7 +128,7 @@ export function retainItems(
 
 export interface RecallHit {
   id: string
-  label: 'consolidated' | 'pending'
+  label: 'consolidated' | 'pending' | 'archived'
   slug: string
   preview: string
   signature: string
@@ -110,7 +148,7 @@ function historyStartLine(slug: string, dir: string, cache: Map<string, number>)
   if (cached !== undefined) return cached
   let start = Number.POSITIVE_INFINITY
   try {
-    const path = join(dir, docFileName(slug))
+    const path = join(dir, pageFileForSlug(slug))
     if (existsSync(path)) {
       const lines = readFileSync(path, 'utf8').split('\n')
       const index = lines.findIndex(line => /^##\s+history\s*$/i.test(line))
@@ -150,7 +188,7 @@ export function recallQuery(
     if (entry) {
       hits.push({
         id: `seq:${entry.seq}`,
-        label: 'consolidated',
+        label: hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
         slug: hit.slug,
         preview: clip(entry.text),
         signature: `seq=${entry.seq}, time=${entry.time}, source=${entry.source}`,
@@ -165,10 +203,31 @@ export function recallQuery(
       signature: `doc=${hit.slug} line=${hit.line}`,
     })
   }
+  if (hits.length === 0) {
+    const pool = candidates(dir)
+    for (const doc of listArchiveDocs(dir)) {
+      const pagePath = join(dir, pageFileForSlug(doc.slug))
+      for (const section of doc.sections) {
+        for (const entry of section.entries) {
+          pool.push({ id: `seq:${entry.seq}`, text: entry.text, signature: serializeSignature(entry), slug: doc.slug, pagePath, seq: entry.seq, pending: false })
+        }
+      }
+    }
+    for (const hit of rankCandidates(query, pool, { limit, usage: readUsage(dir) })) {
+      hits.push({
+        id: hit.id,
+        label: hit.pending ? 'pending' : hit.slug.startsWith(ARCHIVE_PREFIX) ? 'archived' : 'consolidated',
+        slug: hit.pending ? PENDING_SLUG : hit.slug,
+        preview: clip(hit.text),
+        signature: hit.pending ? hit.signature.replace(/^\[unconsolidated, ([^,]+), ([^\]]+)\]$/, 'time=$1, source=$2') : hit.signature.replace(/^<|>$/g, ''),
+      })
+    }
+  }
   const catalogRows = catalogDocs(dir)
     .filter(row => row.slug.includes(query.toLowerCase()) || row.summary.toLowerCase().includes(query.toLowerCase()))
     .slice(0, 6)
     .map(row => ({ slug: row.slug, summary: row.summary }))
+  bumpUsage(hits.map(h => /^seq:(\d+)$/.exec(h.id)).filter((m): m is RegExpExecArray => m !== null).map(m => Number(m[1])), dir)
   return { hits, elidable: hits.length === 0, catalog: catalogRows }
 }
 
@@ -239,13 +298,14 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
   const seqMatch = /^seq:(\d+)$/.exec(id)
   if (seqMatch) {
     const seq = Number(seqMatch[1])
-    for (const doc of listTopicDocs(dir)) {
-      const path = join(dir, docFileName(doc.slug))
+    for (const doc of allDocs(dir)) {
+      const path = join(dir, pageFileForSlug(recallSlug(doc)))
       if (!existsSync(path)) continue
       const lines = readFileSync(path, 'utf8').split('\n')
       const lineIndex = lines.findIndex(line => line.includes(`<seq=${seq},`))
       if (lineIndex < 0) continue
-      const block = readDocLines(doc.slug, { from: lineIndex + 1, to: lineIndex + 1, dir, recent: 0 })
+      bumpUsage([seq], dir)
+      const block = readDocLines(recallSlug(doc), { from: lineIndex + 1, to: lineIndex + 1, dir, recent: 0 })
       const sectionContent = block?.content ?? lines[lineIndex]!
       if (sectionContent.length > DOC_RENDER_BUDGET_CHARS) {
         const rowLine = lines[lineIndex]!
@@ -282,11 +342,12 @@ export function readMemoryRecord(id: string, dir: string = mnemeLibraryDir()): M
   const slug = docMatch?.[1] ?? (id.startsWith('pending:') ? null : id)
   if (slug) {
     const result = readDocLines(slug, { dir, recent: 0 })
-    if (!result) return { found: false, id, note: `no topic doc '${slug}'` }
-    const doc = listTopicDocs(dir).find(d => d.slug === slug)
+    if (!result) return { found: false, id, note: `no topic page '${slug}'` }
+    const doc = allDocs(dir).find(d => recallSlug(d) === slug)
     const live = doc ? liveSeqs(doc) : new Set<number>()
     const render = clipDocRender(result.content, live, DOC_RENDER_BUDGET_CHARS)
     for (const seq of render.renderedSeqs) seenFullRows.add(seq)
+    bumpUsage([...render.renderedSeqs], dir)
     if (!render.clipped) return { found: true, id, slug, content: render.content }
     return {
       found: true,
@@ -358,7 +419,7 @@ export function correctMemory(
           return { ok: false, op, code: 'invalid', message: `replacementId must be a seq:<n> id (got '${input.replacementId}')` }
         }
         const replacementSeq = Number(replacementMatch[1])
-        const live = listTopicDocs(dir).some(doc => liveSeqs(doc).has(replacementSeq))
+        const live = allDocs(dir).some(doc => liveSeqs(doc).has(replacementSeq))
         if (!live) {
           return { ok: false, op, code: 'unknown-target', message: `replacement seq ${replacementSeq} is not live in this library` }
         }

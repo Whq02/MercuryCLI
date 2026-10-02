@@ -33,10 +33,6 @@ import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
 import { setAgentColor, type AgentColorName } from './agentColorManager.js'
 import {
-  checkAgentMemorySnapshot,
-  initializeFromSnapshot,
-} from './agentMemorySnapshot.js'
-import {
   loadAgentMemoryPrompt,
   type AgentMemoryScope,
 } from './agentMemory.js'
@@ -75,7 +71,6 @@ export type BaseAgentDefinition = {
   initialPrompt?: string
   memory?: AgentMemoryScope
   isolation?: 'worktree' | 'remote'
-  pendingSnapshotUpdate?: { snapshotTimestamp: string }
   omitProjectInstructions?: boolean
   fixedOutputContract?: boolean
   operatorOverride?: AgentOverrideProvenance
@@ -500,32 +495,6 @@ export function parseAgentsFromJson(
 type FailedFileRow = { path: string; error: string }
 
 const AGENTS_SUBDIR = 'agents'
-
-export async function applyLoadTimeMemorySnapshots(
-  definitions: readonly AgentDefinition[],
-): Promise<void> {
-  for (const definition of definitions) {
-    if (definition.memory !== 'user') continue
-    const check = await checkAgentMemorySnapshot(
-      definition.agentType,
-      definition.memory,
-    )
-    if (check.action === 'initialize' && check.snapshotTimestamp) {
-      await initializeFromSnapshot(
-        definition.agentType,
-        definition.memory,
-        check.snapshotTimestamp,
-      )
-    } else if (check.action === 'prompt-update' && check.snapshotTimestamp) {
-      ;(definition as BaseAgentDefinition).pendingSnapshotUpdate = {
-        snapshotTimestamp: check.snapshotTimestamp,
-      }
-      logForDebugging(
-        `agents: ${definition.agentType} has a newer memory snapshot (${check.snapshotTimestamp})`,
-      )
-    }
-  }
-}
 
 function loadExtensionAgentsSafe(): AgentDefinition[] {
   try {

@@ -110,9 +110,11 @@
           "description": "Where auto memory is written (default under the Mercury config home); ignored when set by checked-in project settings",
           "type": "string"
         },
-        "upkeep": {
-          "description": "Background memory upkeep: the notes consolidation pass between sessions",
-          "type": "boolean"
+        "pinnedLimit": {
+          "description": "How much pinned memory text (characters) loads into every session before Mercury says the shelf is full; every pinned rule still loads past it (default 8000)",
+          "type": "integer",
+          "minimum": 1000,
+          "maximum": 9007199254740991
         }
       },
       "additionalProperties": {}

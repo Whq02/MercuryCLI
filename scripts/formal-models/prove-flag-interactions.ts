@@ -95,8 +95,6 @@ const DOMAINS: Record<string, string[]> = {
   MERCURY_FORCE_SYNC_OUTPUT: ['', '1', '0'],
   MERCURY_NO_SYNC_OUTPUT: ['', '1', '0'],
   MERCURY_STREAM_CARET: ['', '0'],
-  MERCURY_MEMORY_OBSERVE: ['', '1', '0'],
-  MERCURY_MNEME: ['', '1', '0'],
   MERCURY_SESSION_SUBAGENTS: ['', '0'],
   MERCURY_SESSION_WORKFLOWS: ['', '0'],
   MERCURY_COMPUTER_USE: ['', '0'],

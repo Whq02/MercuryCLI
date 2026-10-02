@@ -6,7 +6,7 @@
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx
 # gate-watch: src/components/messages/UserToolResultMessage/UserToolResultMessage.tsx
 # gate-watch: src/daemon/sessionSeat.ts src/fabric/entryCodec.ts src/fabric/ordinal.ts
-# gate-watch: src/memdir/findRelevantMemories.ts src/query/stopHooks.ts src/run-core/turn-machine.ts
+# gate-watch: src/query/stopHooks.ts src/run-core/turn-machine.ts
 # gate-watch: src/services/api/errors.ts src/services/concourse/coordinatorCall.ts
 # gate-watch: src/services/engine-connector/daemonConnector.ts src/services/engine-connector/recordIdentity.ts
 # gate-watch: src/services/providers/anthropic/streamCore.ts src/services/providers/openai/responsesBridge.ts

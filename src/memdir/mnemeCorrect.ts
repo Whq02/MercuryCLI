@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import {
   acquireConsolidateLock,
+  listArchiveDocs,
   listTopicDocs,
   readLibraryMeta,
   releaseConsolidateLock,
@@ -15,12 +16,18 @@ import {
 } from './mnemeConsolidate.js'
 import {
   applyRevision,
-  docFileName,
+  fileNameFor,
   liveSeqs,
   parseTopicDoc,
   type MnemeEntry,
   type MnemeTopicDoc,
 } from './mnemeTopicDocs.js'
+import { publishFrontPage } from './mnemeFrontPage.js'
+import { isPinned, movePin, readPins, unpinFact } from './mnemeUsage.js'
+
+function allDocs(dir: string): MnemeTopicDoc[] {
+  return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
+}
 
 const oneLine = (s: string): string => s.replace(/[\r\n]+/g, ' ')
 const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
@@ -29,10 +36,20 @@ export type MnemeCorrectResult =
   | { ok: true; action: 'corrected' | 'retired'; seq: number; targetSeq: number; slug: string }
   | {
       ok: false
-      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'error'
+      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'user-asked-rule' | 'error'
       message: string
       supersededBy?: number
     }
+
+export function userAskedRuleMessage(seq: number): string {
+  return `seq ${seq} is a rule the user asked Mercury to remember — only the user changes or unpins it, in /memory`
+}
+
+function userAskedRule(targetSeq: number, dir: string, byUser: boolean | undefined): MnemeCorrectResult | null {
+  if (byUser === true) return null
+  const pin = readPins(dir).find(p => p.seq === targetSeq)
+  return pin?.asked ? { ok: false, code: 'user-asked-rule', message: userAskedRuleMessage(targetSeq) } : null
+}
 
 interface Holder {
   doc: MnemeTopicDoc
@@ -44,7 +61,7 @@ function findTarget(
   targetSeq: number,
   dir: string,
 ): { live?: Holder; history?: { slug: string; supersededBy?: number } } {
-  for (const doc of listTopicDocs(dir)) {
+  for (const doc of allDocs(dir)) {
     for (const s of doc.sections) {
       const entry = s.entries.find(e => e.seq === targetSeq)
       if (entry) return { live: { doc, heading: s.heading, entry } }
@@ -55,9 +72,9 @@ function findTarget(
   return {}
 }
 
-function verifyLanded(dir: string, slug: string, newSeq: number, targetSeq: number, expectLive: boolean): boolean {
+function verifyLanded(dir: string, written: MnemeTopicDoc, newSeq: number, targetSeq: number, expectLive: boolean): boolean {
   try {
-    const p = join(dir, docFileName(slug))
+    const p = join(dir, fileNameFor(written))
     if (!existsSync(p)) return false
     const doc = parseTopicDoc(readFileSync(p, 'utf8'))
     if (!doc) return false
@@ -75,8 +92,9 @@ export function correctFact(input: {
   source: string
   dir?: string
   now?: Date
+  byUser?: boolean
 }): MnemeCorrectResult {
-  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'MNEME is disabled (MERCURY_MNEME is not on).' }
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
   const text = oneLine(String(input.text ?? '')).trim()
   const source = sigSafe(String(input.source ?? '')).trim()
@@ -100,13 +118,15 @@ export function correctFact(input: {
       }
       return { ok: false, code: 'unknown-target', message: `seq ${input.targetSeq} is not in this library` }
     }
+    const asked = userAskedRule(input.targetSeq, dir, input.byUser)
+    if (asked) return asked
     const { doc, heading } = found.live
     const meta = readLibraryMeta(dir)
     const newSeq = meta.seqCounter + 1
     const nowIso = (input.now ?? new Date()).toISOString()
     const draftRow = { ts: nowIso, source, text, topicHint: doc.slug, seq: newSeq }
     const libraryLive = new Set<number>()
-    for (const d of listTopicDocs(dir)) for (const s of liveSeqs(d)) libraryLive.add(s)
+    for (const d of allDocs(dir)) for (const s of liveSeqs(d)) libraryLive.add(s)
     const verdict = validateDraft(
       { blocks: [{ topicSlug: doc.slug, heading, entries: [{ text, seq: newSeq, time: nowIso, source, supersedes: String(input.targetSeq) }] }] },
       { rows: [draftRow], libraryLiveSeqs: libraryLive },
@@ -119,8 +139,12 @@ export function correctFact(input: {
     doc.updated = nowIso
     doc.updateLog.push(`${nowIso} corrected seq ${input.targetSeq} → ${newSeq}`)
     writeDoc(doc, dir)
-    if (!verifyLanded(dir, doc.slug, newSeq, input.targetSeq, true)) {
+    if (!verifyLanded(dir, doc, newSeq, input.targetSeq, true)) {
       return { ok: false, code: 'error', message: 'post-write verification failed — the correction may not have landed; re-read and retry' }
+    }
+    if (isPinned(input.targetSeq, dir)) {
+      movePin(input.targetSeq, newSeq, dir, input.byUser === true)
+      publishFrontPage(dir, input.now ?? new Date())
     }
     return { ok: true, action: 'corrected', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
   } catch (e) {
@@ -136,8 +160,9 @@ export function retireFact(input: {
   source: string
   dir?: string
   now?: Date
+  byUser?: boolean
 }): MnemeCorrectResult {
-  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'MNEME is disabled (MERCURY_MNEME is not on).' }
+  if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
   const reason = oneLine(String(input.reason ?? '')).trim()
   const source = sigSafe(String(input.source ?? '')).trim()
@@ -161,6 +186,8 @@ export function retireFact(input: {
       }
       return { ok: false, code: 'unknown-target', message: `seq ${input.targetSeq} is not in this library` }
     }
+    const asked = userAskedRule(input.targetSeq, dir, input.byUser)
+    if (asked) return asked
     const { doc, heading, entry: target } = found.live
     const meta = readLibraryMeta(dir)
     const newSeq = meta.seqCounter + 1
@@ -185,8 +212,12 @@ export function retireFact(input: {
     doc.updated = nowIso
     doc.updateLog.push(`${nowIso} retired seq ${input.targetSeq} (${reason.slice(0, 60)})`)
     writeDoc(doc, dir)
-    if (!verifyLanded(dir, doc.slug, newSeq, input.targetSeq, false)) {
+    if (!verifyLanded(dir, doc, newSeq, input.targetSeq, false)) {
       return { ok: false, code: 'error', message: 'post-write verification failed — the retirement may not have landed; re-read and retry' }
+    }
+    if (isPinned(input.targetSeq, dir)) {
+      unpinFact(input.targetSeq, dir)
+      publishFrontPage(dir, input.now ?? new Date())
     }
     return { ok: true, action: 'retired', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
   } catch (e) {

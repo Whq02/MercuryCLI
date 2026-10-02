@@ -7,7 +7,6 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-memverbs-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
-process.env.MERCURY_MNEME = '1'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -28,24 +27,24 @@ const { RetainTool, RecallTool, ReflectTool, CorrectTool } = await import(
 )
 const { getAllBaseTools } = await import('../../src/tools.js')
 
-section('gate law: absent when the backend is off, present when on')
-process.env.MERCURY_MNEME = '0'
-check('verbs disabled with MNEME off', memoryVerbsEnabled() === false)
-check('why-not names the gate', (memoryVerbsWhyNot() ?? '').includes('MERCURY_MNEME'), memoryVerbsWhyNot() ?? '')
+section('the one switch: absent when memory is off, present by default')
+process.env.MERCURY_BARE = '1'
+check('verbs disabled with memory off', memoryVerbsEnabled() === false)
+check('why-not names the switch', (memoryVerbsWhyNot() ?? '').includes('memory is off'), memoryVerbsWhyNot() ?? '')
 check('all four tools out of the catalogue', !getAllBaseTools().some(t => ['Retain', 'Recall', 'Reflect', 'Correct'].includes(t.name)))
-process.env.MERCURY_MNEME = '1'
-check('verbs enabled with MNEME on + auto-memory on', memoryVerbsEnabled() === true)
+delete process.env.MERCURY_BARE
+check('verbs enabled with nothing set', memoryVerbsEnabled() === true)
 check(
   'all four tools in the catalogue',
   ['Retain', 'Recall', 'Reflect', 'Correct'].every(name => getAllBaseTools().some(t => t.name === name)),
 )
 check('tools report enabled', RetainTool.isEnabled() && RecallTool.isEnabled() && ReflectTool.isEnabled() && CorrectTool.isEnabled())
 
-section('MEMORY.md is untouched by the verbs (the index law)')
+section('an ordinary file in the memory dir is untouched by the verbs')
 const memPath = getAutoMemPath()
 mkdirSync(memPath, { recursive: true })
-const indexPath = join(memPath, 'MEMORY.md')
-writeFileSync(indexPath, '# Memory index\n\n- untouched sentinel\n', 'utf8')
+const indexPath = join(memPath, 'notes.md')
+writeFileSync(indexPath, '# notes\n\n- untouched sentinel\n', 'utf8')
 const indexBefore = readFileSync(indexPath, 'utf8')
 
 section('retain → recall: pending, labeled, seconds old')
@@ -100,8 +99,8 @@ check('all eight writers stored', parallelOutcomes.every(o => o[0]?.status === '
 const countRecall = recallQuery('concurrent fact number', { limit: 50 })
 check('all eight rows readable back', countRecall.hits.length === 8, String(countRecall.hits.length))
 
-section('the index law held throughout')
-check('MEMORY.md byte-unchanged', existsSync(indexPath) && readFileSync(indexPath, 'utf8') === indexBefore)
+section('the other file is still as it was')
+check('notes.md byte-unchanged', existsSync(indexPath) && readFileSync(indexPath, 'utf8') === indexBefore)
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ ALL VERBS-LIFECYCLE PROOFS PASS' : `❌ ${failures} VERBS-LIFECYCLE PROOF(S) FAILED`)

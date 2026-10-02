@@ -54,6 +54,8 @@ const retainSchema = lazySchema(() =>
           content: z.string().describe('One self-contained durable fact.'),
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
+          pin: z.boolean().optional().describe('Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user.'),
+          replaces: z.string().optional().describe('Only when the user said this rule replaces a pinned one: that rule as seq:<n> (from the pinned shelf). The new rule takes its place and the old one becomes history. Refused for a rule marked asked for by the user — only the user changes those, in /memory.'),
         }),
       )
       .min(1)
@@ -86,7 +88,7 @@ export const RetainTool = buildTool({
     return false
   },
   toAutoClassifierInput(input: z.infer<RetainSchema>) {
-    return `retain ${input.items.length} fact(s)`
+    return `retain ${Array.isArray(input.items) ? input.items.length : 0} fact(s)`
   },
   async description() {
     return RETAIN_DESCRIPTION
@@ -124,7 +126,7 @@ export const RetainTool = buildTool({
 const recallSchema = lazySchema(() =>
   z
     .strictObject({
-      query: z.string().optional().describe('Search memory (docs + pending observations).'),
+      query: z.string().optional().describe('Search memory (pages, archive and pending observations): a phrase or regex matches lines literally; otherwise the words of the query are matched and the best facts come first.'),
       read: z.string().optional().describe('Read ONE full record by id (seq:<n> · doc:<slug> · pending:<ts>).'),
       limit: z.number().int().min(1).max(50).optional().describe('Max hits (default 12).'),
     })
@@ -155,7 +157,7 @@ export const RecallTool = buildTool({
     return true
   },
   toAutoClassifierInput(input: z.infer<RecallSchema>) {
-    return `recall ${input.query ?? input.read ?? ''}`
+    return `recall ${String(input.query ?? input.read ?? '')}`
   },
   async description() {
     return RECALL_DESCRIPTION
@@ -245,7 +247,7 @@ export const ReflectTool = buildTool({
     return true
   },
   toAutoClassifierInput(input: z.infer<ReflectSchema>) {
-    return `reflect ${input.query}`
+    return `reflect ${String(input.query ?? '')}`
   },
   async description() {
     return REFLECT_DESCRIPTION
@@ -370,7 +372,7 @@ export const CorrectTool = buildTool({
     return false
   },
   toAutoClassifierInput(input: z.infer<CorrectSchema>) {
-    return `${input.op} ${input.id}`
+    return `${String(input.op ?? '')} ${String(input.id ?? '')}`
   },
   async description() {
     return CORRECT_DESCRIPTION

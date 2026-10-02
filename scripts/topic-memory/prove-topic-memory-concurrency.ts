@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 const { appendObservation, readBuffer } = await import('../../src/memdir/mnemeBuffer.ts')
 const { listTopicDocs, maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')

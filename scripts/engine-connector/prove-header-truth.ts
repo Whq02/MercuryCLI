@@ -58,8 +58,8 @@ section('§1 the crew\'s clock')
   check('a running agent beside a settled one: the running clock alone (the settled row waits for its eviction)', bar.crewClockOf(mixed, NOW).line === 'agent thought for 4m' && bar.crewActiveIn(mixed))
   const paused = [row({ id: 'w1', kind: 'workflow', status: 'paused', startTime: NOW - 9 * M })]
   check('a paused workflow runs nothing (the glyph is still) and its span stands as the receipt', bar.crewActiveIn(paused) === false && bar.crewClockOf(paused, NOW).line === 'workflow thought for 0s')
-  const shells = [row({ id: 's1', kind: 'shell', status: 'running', startTime: NOW - 5 * M }), row({ id: 'm1', kind: 'monitor', status: 'running', startTime: NOW - M }), row({ id: 'd1', kind: 'dream', status: 'running', startTime: NOW - M })]
-  check('shells, monitors and dreams are not crew: no line, nothing active', bar.crewClockOf(shells, NOW).line === null && bar.crewActiveIn(shells) === false)
+  const shells = [row({ id: 's1', kind: 'shell', status: 'running', startTime: NOW - 5 * M }), row({ id: 'm1', kind: 'monitor', status: 'running', startTime: NOW - M })]
+  check('shells and monitors are not crew: no line, nothing active', bar.crewClockOf(shells, NOW).line === null && bar.crewActiveIn(shells) === false)
   for (const [name, rows] of [['none', []], ['one', one], ['both', both], ['settled', settled], ['paused', paused], ['shells', shells]] as const) {
     check(`crewActiveIn agrees with the clock's own fact (${name})`, bar.crewActiveIn(rows) === bar.crewClockOf(rows, NOW).active)
   }

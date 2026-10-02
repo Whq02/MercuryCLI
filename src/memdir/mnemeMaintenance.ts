@@ -4,7 +4,6 @@
 import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { logForDebugging } from '../utils/debug.js'
-import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { bufferTokens, readBuffer, readConsumingRows } from './mnemeBuffer.js'
 import {
   CONSOLIDATE_AGE_MS,
@@ -16,6 +15,7 @@ import {
   releaseConsolidateLock,
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { publishLibraryFile } from './mnemeLibrary.js'
 
 export type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'observe' | 'operator'
 
@@ -165,7 +165,7 @@ function appendReceipt(dir: string, row: MnemeMaintenanceReceipt): void {
   try {
     const rows = readMaintenanceReceipts(dir, RECEIPT_RING - 1)
     rows.push(row)
-    durableAtomicPublishSync(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
+    publishLibraryFile(receiptPath(dir), rows.map(r => JSON.stringify(r)).join('\n') + '\n')
   } catch (e) {
     logForDebugging(`mneme maintenance receipt failed: ${String(e)}`)
   }
@@ -177,7 +177,7 @@ export function runDueMaintenance(
   trigger: MnemeMaintenanceTrigger,
   opts: { dir?: string; force?: boolean } = {},
 ): Promise<MnemeMaintenanceOutcome> {
-  if (!mnemeEnabled()) return Promise.resolve({ ran: false, trigger, reason: 'mneme off' })
+  if (!mnemeEnabled()) return Promise.resolve({ ran: false, trigger, reason: 'memory off' })
   if (inflight) return inflight
   const dir = opts.dir ?? mnemeLibraryDir()
   const run = (async (): Promise<MnemeMaintenanceOutcome> => {
@@ -218,6 +218,13 @@ export function scheduleMnemeMaintenance(trigger: MnemeMaintenanceTrigger): void
   if (!mnemeEnabled()) return
   const delay = trigger === 'boot' ? 3000 : 500
   setTimeout(() => {
+    if (trigger === 'boot') {
+      void import('./mnemeHandover.js')
+        .then(m => m.handoverIfDue())
+        .catch(e => logForDebugging(`memory intake failed: ${String(e)}`))
+        .finally(() => void runDueMaintenance(trigger))
+      return
+    }
     void runDueMaintenance(trigger)
   }, delay).unref()
 }

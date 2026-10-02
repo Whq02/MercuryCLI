@@ -22,7 +22,6 @@ const taskTypes = [
   'in_process_crewmate',
   'local_workflow',
   'monitor_mcp',
-  'dream',
 ] as const
 const taskIdPrefixes = Object.fromEntries(
   taskTypes.map(t => [t, taskMod.generateTaskId(t as never)[0]]),

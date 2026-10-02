@@ -96,8 +96,8 @@ check(
   'the curation doctrine',
 )
 check(
-  prompt.includes('goes to your own memory (its own memory file, with a pointer line in MEMORY.md)'),
-  'the private-memory sentence names plain memory writing: the memory file plus the MEMORY.md pointer, no tool spelling',
+  prompt.includes('goes to your own memory (a fact saved for future sessions, never an instruction file)'),
+  'the private-memory sentence names memory itself, no file name and no tool spelling',
 )
 
 console.log('assembled prompt — narration: one rule, once; the old sentences gone')
@@ -147,7 +147,7 @@ check(
 )
 check(!bare.includes('RecordConvention'), 'no phantom tool name on a bare roster')
 check(
-  bare.includes('goes to your own memory (its own memory file, with a pointer line in MEMORY.md)'),
+  bare.includes('goes to your own memory (a fact saved for future sessions, never an instruction file)'),
   'the private-memory sentence reads the same on a bare roster',
 )
 check(

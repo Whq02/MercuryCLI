@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 const { appendObservation, readBuffer } = await import('../../src/memdir/mnemeBuffer.ts')
 const { listTopicDocs, maybeConsolidate, readLibraryMeta } = await import('../../src/memdir/mnemeConsolidate.ts')
@@ -95,17 +94,17 @@ section('§4 retrieval: catalog → grep → heading-expanded read (+ recent fol
   check('just-observed fact visible via recent (no retrievability gap)', read2.recent.some(x => x.text === 'fresh unconsolidated fact'))
 }
 
-section('§5 OFF ⇒ zero writes (runtime probe)')
+section('§5 memory off ⇒ zero writes (runtime probe)')
 {
-  delete process.env.MERCURY_MNEME
+  process.env.MERCURY_BARE = '1'
   const offDir = join(mkdtempSync(join(tmpdir(), 'mneme-off-')), 'library')
   const wrote = appendObservation({ text: 'should not land', source: 'proof' }, offDir)
   check('appendObservation returns false', wrote === false)
   check('no library dir created', !existsSync(offDir))
   const r = maybeConsolidate({ force: true, dir: offDir })
-  check('consolidate refuses while off', !r.consolidated && r.reason === 'mneme off')
-  process.env.MERCURY_MNEME = '1'
-  check('ON dir still intact (flag flip is live)', readFileSync(join(dir, 'library.json'), 'utf8').includes('seqCounter'))
+  check('consolidate refuses while off', !r.consolidated && r.reason === 'memory off')
+  delete process.env.MERCURY_BARE
+  check('ON dir still intact (the switch is live)', readFileSync(join(dir, 'library.json'), 'utf8').includes('seqCounter'))
 }
 
 section('§6 hostile content cannot make entries unparsable (signature hygiene)')

@@ -263,7 +263,7 @@ const GENERAL_TIPS: Tip[] = [
     id: 'remember-card',
     cooldownSessions: 15,
     async content() {
-      return '/remember banks a lesson as a card; /remember project: <rule> records a project convention.'
+      return 'Mercury remembers: Retain saves a fact for future sessions, /memory shows and corrects what it keeps.'
     },
     async isRelevant() {
       return true

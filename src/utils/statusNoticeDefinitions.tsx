@@ -19,6 +19,9 @@ import { binaryName } from './config/derived.js'
 import { getCwd } from './cwd.js'
 import { formatNumber } from './format.js'
 import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from './statusNoticeHelpers.js'
+import { readPinnedStatus } from '../memdir/mnemeFrontPage.js'
+import { mnemeEnabled } from '../memdir/mnemeGates.js'
+import { formatTextSize } from '../memdir/mnemeUsage.js'
 
 
 export type StatusNoticeType = 'warning' | 'info'
@@ -170,9 +173,52 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   },
 }
 
+type PinnedOverLimit = { pinned: number; used: number; limit: number } | null
+
+let pinnedOverLimitAtStart: PinnedOverLimit | undefined
+
+function pinnedOverLimit(): PinnedOverLimit {
+  if (pinnedOverLimitAtStart !== undefined) return pinnedOverLimitAtStart
+  let read: PinnedOverLimit = null
+  try {
+    if (mnemeEnabled() && process.env.MERCURY_ENTRYPOINT !== 'headless') {
+      const status = readPinnedStatus()
+      read = status && status.over ? { pinned: status.pinned, used: status.used, limit: status.limit } : null
+    }
+  } catch {
+    read = null
+  }
+  pinnedOverLimitAtStart = read
+  return read
+}
+
+export function pinnedOverLimitLine(status: { pinned: number; used: number; limit: number }): string {
+  return `Pinned memory: ${status.pinned} rule${status.pinned === 1 ? '' : 's'}, ${formatTextSize(status.used)} of the ${formatTextSize(status.limit)} limit — all still loaded. Trim in /memory or raise the limit in /config.`
+}
+
+const pinnedOverLimitNotice: StatusNoticeDefinition = {
+  id: 'pinned-over-limit',
+  type: 'info',
+  isActive: (context: StatusNoticeContext) => {
+    void context
+    return pinnedOverLimit() !== null
+  },
+  render: (context: StatusNoticeContext) => {
+    void context
+    const status = pinnedOverLimit()
+    if (!status) return null
+    return (
+      <Text dimColor>
+        {GLYPH.info} {pinnedOverLimitLine(status)}
+      </Text>
+    )
+  },
+}
+
 export const statusNoticeDefinitions: StatusNoticeDefinition[] = [
   largeMemoryFilesNotice,
   largeAgentDescriptionsNotice,
+  pinnedOverLimitNotice,
   claudeAiExternalTokenNotice,
   apiKeyConflictNotice,
   bothAuthMethodsNotice,

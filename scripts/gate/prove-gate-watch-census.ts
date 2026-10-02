@@ -28,6 +28,7 @@ export const WHOLE_TREE: Record<string, string> = {
   'ink-runtime': 'prove-deep-import-policy walks src (deep ink imports)',
   'interaction-pure': 'prove-board-coverage walks src (master-detail boards)',
   mcp: 'prove-disable-disconnects and prove-sdk-doorway walk src (MCP client seams)',
+  memory: 'prove-memory-one-store walks src (one memory store, one vocabulary)',
   'model-policy': 'prove-model-pin-census and prove-neutral-model-doors walk src (model pins and doors)',
   orphans: 'prove-reachability-manifest walks src and scripts (the reachability graph)',
   permissions: 'prove-mode-alias walks src (permission-mode spellings)',

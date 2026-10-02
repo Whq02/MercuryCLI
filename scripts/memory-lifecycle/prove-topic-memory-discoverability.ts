@@ -1,6 +1,5 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 import { mkdtempSync, writeFileSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -72,13 +71,13 @@ section('§4 read fold + OFF contract')
   appendObservation({ text: 'beta just recorded', source: 's', topicHint: 'topic-a' }, dir)
   const r = readDocLines('topic-a', { dir })
   check('read folds the just-recorded pending row', r !== null && r.recent.some(x => x.text === 'beta just recorded'))
-  delete process.env.MERCURY_MNEME
+  process.env.MERCURY_BARE = '1'
   check('OFF: appendObservation refuses', appendObservation({ text: 'x', source: 'y' }, dir) === false)
-  process.env.MERCURY_MNEME = '1'
-}
+  delete process.env.MERCURY_BARE
+  }
 
 if (failures) {
   console.log(`\n❌ ${failures} discoverability check(s) failed`)
   process.exit(1)
 }
-console.log('\n✅ ALL MNEME DISCOVERABILITY PROOFS PASS')
+console.log('\n✅ ALL MEMORY DISCOVERABILITY PROOFS PASS')

@@ -66,6 +66,20 @@ export function docFileName(slug: string): string {
   return `topic-${slug}.md`
 }
 
+export const ARCHIVE_PREFIX = 'archive-'
+
+export function archiveFileName(slug: string): string {
+  return `${ARCHIVE_PREFIX}${slug}.md`
+}
+
+export function isArchiveDoc(doc: { id: string }): boolean {
+  return doc.id.startsWith(ARCHIVE_PREFIX)
+}
+
+export function fileNameFor(doc: { id: string; slug: string }): string {
+  return isArchiveDoc(doc) ? archiveFileName(doc.slug) : docFileName(doc.slug)
+}
+
 const SIG_RE = /\s*<seq=(\d+), time=([^,>]+), source=([^,>]*?)(?:, supersedes=([0-9,\-]+))?>\s*(?:\[superseded-by (\d+)\])?\s*$/
 
 export function serializeSignature(e: MnemeEntry): string {
@@ -123,7 +137,8 @@ export function parseTopicDoc(raw: string): MnemeTopicDoc | null {
     if (kv) meta[kv[1]!] = kv[2]!.trim()
   }
   const id = meta.id ?? ''
-  if (!id.startsWith('topic-')) return null
+  const prefix = id.startsWith('topic-') ? 'topic-' : id.startsWith(ARCHIVE_PREFIX) ? ARCHIVE_PREFIX : null
+  if (prefix === null) return null
   const sections: MnemeSection[] = []
   const history: MnemeEntry[] = []
   let current: MnemeSection | null = null
@@ -150,7 +165,7 @@ export function parseTopicDoc(raw: string): MnemeTopicDoc | null {
   }
   return {
     id,
-    slug: id.slice('topic-'.length),
+    slug: id.slice(prefix.length),
     summary: meta.summary ?? '',
     tokenCount: Number(meta.token_count ?? 0) || 0,
     created: meta.created ?? '',
@@ -231,6 +246,10 @@ export function applyRevision(
   return { superseded }
 }
 
+export function emptyArchiveDoc(slug: string, summary: string, nowIso: string): MnemeTopicDoc {
+  return { ...emptyDoc(slug, summary, nowIso), id: `${ARCHIVE_PREFIX}${slug}` }
+}
+
 export function emptyDoc(slug: string, summary: string, nowIso: string): MnemeTopicDoc {
   return {
     id: `topic-${slug}`,
@@ -250,29 +269,51 @@ export function splitDoc(
   nowIso: string,
   taken?: ReadonlySet<string>,
 ): [MnemeTopicDoc, MnemeTopicDoc] | null {
-  if (computeDocTokens(doc) <= MAX_DOC_TOKENS || doc.sections.length < 2) return null
+  if (computeDocTokens(doc) <= MAX_DOC_TOKENS) return null
+  const liveEntries = doc.sections.reduce((n, s) => n + s.entries.length, 0)
+  if (doc.sections.length < 2 && liveEntries < 2) return null
   const total = computeDocTokens(doc)
   const a = emptyDoc(doc.slug, doc.summary, doc.created)
   a.updated = nowIso
   a.updateLog = [...doc.updateLog]
+  const parent = /^(.*)-(\d+)$/.exec(doc.slug)
+  const base = parent && taken?.has(parent[1]!) ? parent[1]! : doc.slug
   let n = 2
-  let bSlug = `${doc.slug}-${n}`
-  while (taken?.has(bSlug) && n < 100) {
+  let bSlug = `${base}-${n}`
+  while ((taken?.has(bSlug) || bSlug === doc.slug) && n < 100) {
     n++
-    bSlug = `${doc.slug}-${n}`
+    bSlug = `${base}-${n}`
   }
   const b = emptyDoc(bSlug, `${doc.summary} (split)`, nowIso)
   let acc = 0
-  for (const s of doc.sections) {
-    const sTok = estimateTokens(s.entries.map(e => e.text).join(' '))
-    if (acc < total / 2) {
-      a.sections.push(s)
-      acc += sTok
-    } else b.sections.push(s)
+  let moved = ''
+  if (doc.sections.length >= 2) {
+    for (const s of doc.sections) {
+      const sTok = estimateTokens(s.entries.map(e => e.text).join(' '))
+      if (acc < total / 2) {
+        a.sections.push(s)
+        acc += sTok
+      } else b.sections.push(s)
+    }
+    if (b.sections.length === 0) b.sections.push(a.sections.pop()!)
+    moved = `${b.sections.length} section(s)`
+  } else {
+    const only = doc.sections[0]!
+    const keep: MnemeEntry[] = []
+    const move: MnemeEntry[] = []
+    for (const e of only.entries) {
+      if (acc < total / 2) {
+        keep.push(e)
+        acc += estimateTokens(e.text) + 10
+      } else move.push(e)
+    }
+    if (move.length === 0) move.push(keep.pop()!)
+    a.sections.push({ heading: only.heading, entries: keep })
+    b.sections.push({ heading: only.heading, entries: move })
+    moved = `${move.length} entr${move.length === 1 ? 'y' : 'ies'}`
   }
-  if (b.sections.length === 0) b.sections.push(a.sections.pop()!)
   a.history = doc.history
-  a.updateLog.push(`${nowIso} split: ${b.sections.length} section(s) → ${b.id}`)
+  a.updateLog.push(`${nowIso} split: ${moved} → ${b.id}`)
   b.updateLog.push(`${nowIso} split from ${doc.id}`)
   return [a, b]
 }

@@ -34,6 +34,9 @@ import {
   getInitialSettings,
 } from '../../utils/settings/settings.js'
 import type { SettingsJson } from '../../utils/settings/types.js'
+import { readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
+import { runDueMaintenance } from '../../memdir/mnemeMaintenance.js'
+import { formatTextSize, PINNED_TEXT_LIMIT_MIN, PINNED_TEXT_LIMIT_STEP, pinnedTextLimit } from '../../memdir/mnemeUsage.js'
 import {
   clearInstructionFileCaches,
 } from '../../services/instructions/engine.js'
@@ -798,6 +801,27 @@ export function Config({
       }
     },
   })
+  {
+    const pinned = readPinnedStatus()
+    const limit = pinnedTextLimit()
+    const fill = pinned ? `${formatTextSize(pinned.used)} of ${formatTextSize(limit)}` : `0 of ${formatTextSize(limit)}`
+    items.push({
+      id: 'memory.pinnedLimit',
+      label: 'Pinned memory limit',
+      searchText: 'pinned memory limit rules shelf text size',
+      kind: 'enum',
+      value: <Text color={pinned?.over ? tokens.warning : undefined}>{`${fill}${pinned?.over ? ' · over, all still loaded' : ''}`}</Text>,
+      setByYou: merged.memory?.pinnedLimit !== undefined,
+      warning: `how much pinned memory text loads into every session before Mercury says the shelf is full (${pinned?.pinned ?? 0} rule${pinned?.pinned === 1 ? '' : 's'} pinned) · every pinned rule still loads past it · ←/→ move the limit by ${formatTextSize(PINNED_TEXT_LIMIT_STEP)} · pin and unpin in /memory`,
+      change: direction => {
+        const next = Math.max(PINNED_TEXT_LIMIT_MIN, limit + direction * PINNED_TEXT_LIMIT_STEP)
+        if (writeSource('userSettings', { memory: { pinnedLimit: next } })) {
+          recordSet('memory.pinnedLimit', `set the pinned memory limit to ${formatTextSize(next)}`)
+          void runDueMaintenance('operator', { force: true }).finally(() => bump())
+        }
+      },
+    })
+  }
   items.push({
     id: 'files.honourGitignore',
     label: 'Respect .gitignore in file picker',

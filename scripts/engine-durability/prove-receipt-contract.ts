@@ -53,7 +53,6 @@ t.section('§2 — one mint, and the seam consumers are pinned')
     'src/services/ide/txAutoCapture.ts',
     'src/services/counsel/counsel.ts',
     'src/services/run/runCoordinator.ts',
-    'src/memdir/mnemeObserveTurn.ts',
   ]
   const consumers = grepFiles(/subscribeToolTerminal/).filter(
     f => f !== 'src/services/run/effectObserver.ts',

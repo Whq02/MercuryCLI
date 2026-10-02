@@ -33,7 +33,6 @@ export const TRACKED_AGENT_TASK_TYPES: ReadonlySet<string> = new Set([
 export const UNTRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([
   ['local_bash', 'the follow-up scopes the redirect to SUBAGENT work; shell waits are a different contract'],
   ['monitor_mcp', 'gated off by the MONITOR_TOOL feature macro in Mercury — no producer'],
-  ['dream', 'internal daemon work; never model-awaited'],
 ])
 
 export const SUBAGENT_TRACKED_TASK_TYPES: ReadonlyMap<string, string> = new Map([

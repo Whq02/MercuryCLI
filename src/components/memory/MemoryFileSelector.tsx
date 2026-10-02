@@ -2,25 +2,16 @@
 import { mkdirSync } from 'fs'
 import { join } from 'path'
 import * as React from 'react'
-import { use, useEffect, useMemo, useState } from 'react'
+import { use, useMemo, useState } from 'react'
 import { Box, Text } from '../../ink.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { isMemoryUpkeepEnabled } from '../../services/memoryUpkeep/config.js'
-import { readLastConsolidatedAt } from '../../services/memoryUpkeep/consolidationLock.js'
 import { getInstructionFiles } from '../../services/instructions/engine.js'
 import type { InstructionSourceEntry } from '../../services/instructions/contracts.js'
-import { useAppState } from '../../state/AppState.js'
-import { isDreamTask } from '../../tasks/DreamTask/DreamTask.js'
-import {
-  getAgentMemoryDir,
-  getMemoryScopeDisplay,
-} from '../../tools/AgentTool/agentMemory.js'
 import { openPath } from '../../utils/browser.js'
 import { getMemoryPath } from '../../utils/config.js'
 import { projectIsInGitRepo } from '../../utils/memory/versions.js'
-import { formatRelativeTimeAgo } from '../../utils/format.js'
 import { toTildePath } from '../../utils/path.js'
 import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
@@ -62,31 +53,9 @@ export function MemoryFileSelector({
   useExitOnCtrlCDWithKeybindings()
 
   const [autoMemoryOn, setAutoMemoryOn] = useState(() => isAutoMemoryEnabled())
-  const [upkeepOn, setUpkeepOn] = useState(() => isMemoryUpkeepEnabled())
-  const [showUpkeepRow] = useState(() => isAutoMemoryEnabled())
-
-  const dreamRunning = useAppState(state =>
-    Object.values(state.tasks).some(
-      task => isDreamTask(task) && task.status === 'running',
-    ),
-  )
-  const [lastDreamAt, setLastDreamAt] = useState<number | null>(null)
-  useEffect(() => {
-    let live = true
-    void readLastConsolidatedAt().then(value => {
-      if (live) setLastDreamAt(value)
-    })
-    return () => {
-      live = false
-    }
-  }, [dreamRunning])
-
-  const activeAgents = useAppState(
-    state => state.agentDefinitions.activeAgents,
-  )
 
   const toggles: Array<{
-    id: 'auto-memory' | 'upkeep'
+    id: 'auto-memory'
     flip: () => void
   }> = [
     {
@@ -96,17 +65,6 @@ export function MemoryFileSelector({
         setAutoMemoryOn(value => !value)
       },
     },
-    ...(showUpkeepRow
-      ? [
-          {
-            id: 'upkeep' as const,
-            flip: () => {
-              updateSettingsForSource('userSettings', { memory: { upkeep: !upkeepOn } })
-              setUpkeepOn(value => !value)
-            },
-          },
-        ]
-      : []),
   ]
   const [focusedToggle, setFocusedToggle] = useState<number | null>(null)
   const toggleFocused = focusedToggle !== null
@@ -137,9 +95,7 @@ export function MemoryFileSelector({
   )
 
   const rows = useMemo<Row[]>(() => {
-    const visible = files.filter(
-      entry => entry.type !== 'AutoMem' && entry.type !== 'TeamMem',
-    )
+    const visible = [...files]
     const byPath = new Map(visible.map(entry => [entry.path, entry]))
     const userCanonical = getMemoryPath('User')
     const projectCanonical = getMemoryPath('Project')
@@ -201,26 +157,14 @@ export function MemoryFileSelector({
 
     if (autoMemoryOn) {
       result.push({
-        label: 'Open auto-memory folder',
+        label: 'Open the memory folder',
         value: '::open:automem',
         description: 'opens the folder in your file manager',
       })
-      for (const agent of activeAgents) {
-        if (!agent.memory) continue
-        result.push({
-          label: (
-            <Text>
-              <Text bold>{agent.agentType}</Text> memory
-            </Text>
-          ),
-          value: `::open:agent:${agent.agentType}:${agent.memory}`,
-          description: getMemoryScopeDisplay(agent.memory),
-        })
-      }
     }
 
     return result
-  }, [files, autoMemoryOn, activeAgents])
+  }, [files, autoMemoryOn])
 
   const preselect =
     lastSelectedPath !== null &&
@@ -231,15 +175,7 @@ export function MemoryFileSelector({
   const activate = (value: string) => {
     lastSelectedPath = value
     if (value.startsWith('::open:')) {
-      const dir = value.startsWith('::open:agent:')
-        ? (() => {
-            const [, , , agentType, scope] = value.split(':')
-            return getAgentMemoryDir(
-              agentType ?? '',
-              (scope ?? 'user') as 'user' | 'project' | 'local',
-            )
-          })()
-        : getAutoMemPath()
+      const dir = getAutoMemPath()
       try {
         mkdirSync(dir, { recursive: true })
       } catch {
@@ -250,14 +186,6 @@ export function MemoryFileSelector({
     onSelect(value)
   }
 
-  const dreamTail = dreamRunning
-    ? ' · running'
-    : lastDreamAt === null
-      ? ''
-      : lastDreamAt === 0
-        ? ' · never'
-        : ` · last ran ${formatRelativeTimeAgo(new Date(lastDreamAt))}`
-
   return (
     <Box flexDirection="column">
       <Box flexDirection="column" marginBottom={1}>
@@ -265,17 +193,8 @@ export function MemoryFileSelector({
           bold={focusedToggle === 0}
           inverse={focusedToggle === 0}
         >
-          Auto-memory: {autoMemoryOn ? 'on' : 'off'}
+          Memory: {autoMemoryOn ? 'on' : 'off'}
         </Text>
-        {showUpkeepRow ? (
-          <Text
-            bold={focusedToggle === 1}
-            inverse={focusedToggle === 1}
-          >
-            Upkeep: {upkeepOn ? 'on' : 'off'}
-            {dreamTail}
-          </Text>
-        ) : null}
       </Box>
       <Select
         isDisabled={toggleFocused}

@@ -12,7 +12,6 @@ export type TaskType =
   | 'in_process_crewmate'
   | 'local_workflow'
   | 'monitor_mcp'
-  | 'dream'
 
 export type TaskStatus = 'pending' | 'running' | 'completed' | 'failed' | 'killed'
 
@@ -79,7 +78,6 @@ const TASK_ID_PREFIXES: Record<TaskType, string> = {
   in_process_crewmate: 't',
   local_workflow: 'w',
   monitor_mcp: 'm',
-  dream: 'd',
 }
 
 export function generateTaskId(type: TaskType): string {

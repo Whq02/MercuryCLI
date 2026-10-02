@@ -1,4 +1,4 @@
-import { detectSecrets } from '../memdir/experienceCards.js'
+import { detectSecrets } from './detectSecrets.js'
 
 const SECRET_HEADER_NAME = /authorization|cookie|token|secret|key|password|credential/i
 const REDACTED = '[redacted]'

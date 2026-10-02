@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-process.env.MERCURY_MNEME = '1'
 
 const { appendObservation } = await import('../../src/memdir/mnemeBuffer.ts')
 const { listTopicDocs, maybeConsolidate } = await import('../../src/memdir/mnemeConsolidate.ts')
@@ -43,6 +42,26 @@ section('§1 split: an oversized doc divides at section boundaries')
   check('split recorded in update_log', a.updateLog.some(l => l.includes('split')) && b.updateLog.some(l => l.includes('split from')))
   const total = a.sections.reduce((n, s) => n + s.entries.length, 0) + b.sections.reduce((n, s) => n + s.entries.length, 0)
   check('no entry lost across the split', total === 12, `${total}`)
+}
+
+section('§1a split: a one-section page (the product\'s own grouping) divides between its entries')
+{
+  const dir = mkdtempSync(join(tmpdir(), 'mneme-split-one-'))
+  const long = 'y'.repeat(1900)
+  for (let i = 0; i < 12; i++) appendObservation({ text: `${long} n${i}`, source: 'proof', topicHint: 'project' }, dir)
+  const r = maybeConsolidate({ force: true, dir })
+  check('the batch lands and the page splits with nothing but the default grouping', r.consolidated && r.docsTouched.includes('project-2'), r.docsTouched.join(','))
+  const docs = listTopicDocs(dir)
+  const a = docs.find(d => d.slug === 'project')
+  const b = docs.find(d => d.slug === 'project-2')
+  check('both pages exist and both carry the one heading', !!a && !!b && a.sections.length === 1 && b.sections.length === 1 && a.sections[0]!.heading === b.sections[0]!.heading, `${a?.sections.length}/${b?.sections.length}`)
+  check('both pages under the cap', !!a && !!b && computeDocTokens(a) <= MAX_DOC_TOKENS && computeDocTokens(b) <= MAX_DOC_TOKENS, `${a && computeDocTokens(a)}/${b && computeDocTokens(b)}`)
+  const seqs = [...(a?.sections[0]!.entries ?? []), ...(b?.sections[0]!.entries ?? [])].map(e => e.seq).sort((x, y) => x - y)
+  check('no entry lost or doubled across the split', seqs.join(',') === Array.from({ length: 12 }, (_, i) => i + 1).join(','), seqs.join(','))
+  check('the split is in the update log of both pages', !!a && !!b && a.updateLog.some(l => /split: \d+ entries → topic-project-2/.test(l)) && b.updateLog.some(l => l.includes('split from topic-project')))
+  const one = emptyDoc('one', 'one entry', '2026-07-06T00:00:00Z')
+  one.sections.push({ heading: 'notes', entries: [{ text: 'z'.repeat(MAX_DOC_TOKENS * 4 + 400), seq: 99, time: 't', source: 'proof' }] })
+  check('a page with one entry is indivisible', splitDoc(one, '2026-07-06T00:00:00Z') === null)
 }
 
 section('§1b second split of the same topic cannot clobber the first split doc')

@@ -102,11 +102,6 @@ const RULES: Array<{ test: (f: string, mechanism: string) => boolean; cls: strin
     why: 'the documented darwin system-python fallback candidate (the pyexpat class) — a candidate list entry, not a temp/exec decision',
   },
   {
-    test: f => f === 'src/memdir/promoteRungate.ts',
-    cls: 'intentional-shell',
-    why: 'the promote rungate runs the OPERATOR-CONFIGURED gate command line — shell grammar is the feature, the shell is named at the call',
-  },
-  {
     test: (f, m) => m === 'hardcoded-interpreter' && f.startsWith('scripts/'),
     cls: 'platform-owner',
     why: 'POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform.',

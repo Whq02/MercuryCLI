@@ -5,7 +5,7 @@ const memory: Command = {
   type: 'local-jsx',
   name: 'memory',
   aliases: ['chronicle'],
-  description: 'Open the Memory Centre — facts, lessons, notes, and upkeep',
+  description: 'Open the Memory Centre — facts, pinned rules, maintenance',
   get immediate() {
     return shouldNavCommandBeImmediate()
   },

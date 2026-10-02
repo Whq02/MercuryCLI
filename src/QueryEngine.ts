@@ -63,7 +63,7 @@ import { flagEnv } from './substrate/flagRegistry.js'
 import type { ThinkingConfig } from './utils/thinking.js'
 import { shouldEnableThinkingByDefault } from './utils/thinking.js'
 import { asSystemPrompt } from './utils/systemPromptType.js'
-import { loadMemoryPrompt } from './memdir/memdir.js'
+import { loadMemoryPrompt } from './memdir/mnemeFrontPage.js'
 import { hasAutoMemPathOverride } from './memdir/paths.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5

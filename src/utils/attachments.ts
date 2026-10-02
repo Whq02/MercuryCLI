@@ -14,13 +14,9 @@ export {
 } from './attachments/nestedMemory.js'
 
 export {
-  collectRecentSuccessfulTools,
   collectSurfacedMemories,
-  filterDuplicateMemoryAttachments,
+  getRelevantMemoryAttachments,
   memoryHeader,
-  readMemoriesForSurfacing,
-  startRelevantMemoryPrefetch,
-  type MemoryPrefetch,
 } from './attachments/memorySurfacing.js'
 
 export {
