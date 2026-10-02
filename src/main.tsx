@@ -97,7 +97,7 @@ import {
   initializeToolPermissionContext,
   stripDangerousPermissionsForAutoMode,
 } from './utils/permissions/permissionSetup.js'
-import { PERMISSION_MODES, decodePermissionModeSpelling, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
+import { PERMISSION_MODES, modeBypassesPermissions, type PermissionMode } from './utils/permissions/PermissionMode.js'
 import { profileCheckpoint, profileReport } from './utils/startupProfiler.js'
 import { migrateChangelogFromConfig } from './utils/releaseNotes.js'
 import { resetUserCache, getCoreUserData } from './utils/user.js'
@@ -507,17 +507,7 @@ async function run(): Promise<void> {
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the system prompt')
     .addOption(new Option('--brief-add-file <file>', 'Append to the system prompt from a file').hideHelp())
-    .addOption(
-      new Option('--mode <mode>', 'Permission mode')
-        .choices(PERMISSION_MODES)
-        .argParser((value: string) => {
-          const decoded = decodePermissionModeSpelling(value)
-          if (!(PERMISSION_MODES as readonly string[]).includes(decoded)) {
-            throw new InvalidArgumentError(`Allowed choices are ${PERMISSION_MODES.join(', ')}.`)
-          }
-          return decoded
-        }),
-    )
+    .addOption(new Option('--mode <mode>', 'Permission mode').choices(PERMISSION_MODES))
     .option('-c, --continue', 'Continue the most recent conversation')
     .option('-r, --resume [value]', 'Resume a conversation (session id, title, or picker)')
     .option('--fork', 'Fork to a new session id on resume')
@@ -1847,7 +1837,6 @@ async function interactiveLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') addBootNote('warn', effortEnv.sentence)
   const { setDynamicCrewContext } = await import('./utils/crewmate.js')
@@ -1872,7 +1861,6 @@ async function interactiveLaunch(args: {
     verbose: config.toolOutput === 'full',
     expandedView: config.showSpinnerTree ? 'crewmates' : config.showExpandedTasks ? 'tasks' : 'none',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
-    ...(supercodeArmed ? { supercode: true } : {}),
     agent: args.mainThreadAgentDefinition?.agentType,
     agentDefinitions: { activeAgents: args.activeAgents, allAgents: args.allAgents },
     ...(initialCrewContext ? { crewContext: initialCrewContext } : {}),
@@ -2192,7 +2180,6 @@ async function printLaunch(args: {
 
   const config = getGlobalConfig()
   const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort
-  const supercodeArmed = opts.effort === undefined && Boolean(getInitialSettings().engine?.supercode)
   const effortEnv = describeEffortEnvOverride()
   if (effortEnv.state === 'ignored') process.stderr.write(`${effortEnv.sentence}\n`)
   const initialState: AppState = {
@@ -2200,7 +2187,6 @@ async function printLaunch(args: {
     toolPermissionContext: args.toolPermissionContext,
     verbose: config.toolOutput === 'full',
     ...(effortLevel !== undefined ? { effortValue: effortLevel } : {}),
-    ...(supercodeArmed ? { supercode: true } : {}),
   }
   const store = createStore<AppState>(initialState, ({ newState, oldState }) =>
     onChangeAppState({ newState, oldState }),

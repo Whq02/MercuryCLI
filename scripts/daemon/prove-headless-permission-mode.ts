@@ -63,12 +63,9 @@ section('operator overrides — live-read per spawn, no re-import')
   check("'implement' resolves (the earlier posture stays selectable)", getHeadlessPermissionMode() === 'implement')
   check("'implement' argv pair", hasPair(buildArgv(), 'implement'))
 
-  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'acceptEdits'
-  check("retired 'acceptEdits' decodes to 'implement' (bounded alias at the env boundary)", getHeadlessPermissionMode() === 'implement')
-  check("retired 'acceptEdits' argv pair carries the NEW id", hasPair(buildArgv(), 'implement'))
-  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'auto'
-  check("retired 'auto' decodes to 'flow'", getHeadlessPermissionMode() === 'flow' && hasPair(buildArgv(), 'flow'))
-  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'bypassPermissions'
+  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'frobnicate'
+  check("a word outside the mode list falls back to the default posture", getHeadlessPermissionMode() === 'flow' && hasPair(buildArgv(), 'flow'))
+  process.env.MERCURY_DAEMON_PERMISSION_MODE = 'sovereign'
   check("the mode reader selects the sovereign launch arm", buildArgv().includes('--sovereign'))
 
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'dontAsk'

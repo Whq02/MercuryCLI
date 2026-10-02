@@ -134,7 +134,7 @@ section('§1 the classifier')
 
   const { describeSettingsMove } = binding
   check('describeSettingsMove names the moved key with both values', describeSettingsMove('mode=default;profile=balanced', 'mode=apollo;profile=balanced') === 'the permission mode (default → apollo)')
-  check('…two moved keys join', describeSettingsMove('mode=default;profile=balanced', 'mode=autopilot;profile=concise') === 'the permission mode (default → autopilot) and the response profile (balanced → concise)')
+  check('…two moved keys join', describeSettingsMove('mode=default;profile=balanced', 'mode=flow;profile=concise') === 'the permission mode (default → flow) and the response profile (balanced → concise)')
   check('…nothing moved ⇒ null; an unreadable side never fakes a move', describeSettingsMove('mode=default;profile=balanced', 'mode=default;profile=balanced') === null && describeSettingsMove('mode=?;profile=balanced', 'mode=default;profile=balanced') === null && describeSettingsMove('mode=default;profile=balanced', 'mode=?;profile=balanced') === null)
   resetThinkingDropStates()
   classifyThinkingDrops('main', [], mark())

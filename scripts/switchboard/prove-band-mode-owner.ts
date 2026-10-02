@@ -9,7 +9,6 @@ const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'band-mode-home-')))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
-delete process.env.MERCURY_AUTOPILOT
 delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.MERCURY_SKIP_PERMISSIONS
 

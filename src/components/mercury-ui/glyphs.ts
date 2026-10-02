@@ -57,7 +57,6 @@ export const GLYPH = {
   modeFlow: '✦',
   modeDontAsk: '¬',
   modeSovereign: '⊠',
-  modeAutopilot: '⌖',
   modeScribe: '✎',
   modeApollo: '◇',
   modeManager: '∷',

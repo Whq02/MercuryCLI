@@ -106,7 +106,6 @@ export const TOOL_FAMILY_BY_NAME: Record<string, ToolFamily> = {
   ExitWorktree: 'system',
   Rewind: 'system',
   Service: 'system',
-  SetTier: 'system',
   StructuredOutput: 'system',
   ArtifactsList: 'external',
   Aseprite: 'external',

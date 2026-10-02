@@ -105,12 +105,12 @@ section('§4 — the crew is born with the session and founded in ONE publish: n
   check('the crews journal keeps parsing an older build\'s create/delete records and removes nothing (structural)', /'crew-create'/.test(operations) && /'crew-delete'/.test(operations) && !/cleanupCrewDirectories|rm\(/.test(operations))
 }
 
-section('§5 — the delegation doctrine names crewmates, not a create step')
+section('§5 — the model-facing text names the crewmate road, not a create step')
 {
+  const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
+  check('the Agent tool names the crewmate road (a name beside a crew_name)', agentTool.includes("crew_name: z.string().optional().describe('Crew for a crewmate spawn.')") && agentTool.includes('Name for the spawned agent'))
   const doctrine = src('utils', 'messages', 'attachmentText.ts')
-  check('the doctrine names the crewmate road (the Agent tool with a name and a crew_name)', doctrine.includes('the Agent tool with a name and a crew_name'))
-  check('the doctrine says every session has a crew from the moment it starts', doctrine.includes('every session has a crew from the moment it starts'))
-  check('the doctrine names no CrewCreate tool', !doctrine.includes('TeamCreate'))
+  check('neither the Agent tool nor the attachment text names a CrewCreate tool', !doctrine.includes('TeamCreate') && !agentTool.includes('TeamCreate'))
 }
 
 section('§6 — tool surface')

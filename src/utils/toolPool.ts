@@ -1,6 +1,5 @@
 import { isMcpTool } from '../services/mcp/utils.js'
 import type { Tool } from '../Tool.js'
-import { SET_TIER_TOOL_NAME } from '../tools/SetTierTool/constants.js'
 import type { PermissionMode } from '../types/permissions.js'
 
 
@@ -24,6 +23,5 @@ export function mergeAndFilterTools(
   const ordered = [...builtinTools, ...mcpTools]
 
   void mode
-  void SET_TIER_TOOL_NAME
   return ordered
 }

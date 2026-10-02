@@ -134,7 +134,6 @@ import { MercuryCommandPalette } from '../MercuryCommandPalette.js'
 import { MercuryFileOpen } from '../MercuryFileOpen.js'
 import { setComposerInsert } from './composerInsert.js'
 import { MercuryContentSearch } from '../MercuryContentSearch.js'
-import { MercurySupercodeKeywordHint } from '../MercurySupercodeKeywordHint.js'
 import { BackgroundTasksDialog } from '../tasks/BackgroundTasksDialog.js'
 import { isManageableTask } from '../tasks/taskStatusUtils.js'
 import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types.js'
@@ -147,8 +146,6 @@ import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
 import { AGENT_COLOR_TO_THEME_COLOR } from '../../tools/AgentTool/agentColorManager.js'
-import { findThinkingTriggerPositions, isDeepthinkEnabled } from '../../utils/thinking.js'
-import { keywordGlowSpans } from '../../utils/keywordGlow.js'
 import { findSlashCommandPositions } from '../../utils/suggestions/commandSuggestions.js'
 import { findSlackChannelPositions } from '../../utils/suggestions/slackChannelSuggestions.js'
 import { findTokenBudgetPositions } from '../../utils/tokenBudget.js'
@@ -2235,14 +2232,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         priority: 20,
       })
     }
-    spans.push(
-      ...keywordGlowSpans(
-        displayedValue,
-        { accent: tokens.accent, accentSoft: tokens.accentSoft },
-        { deepthink: isDeepthinkEnabled(), supercode: true },
-        { priority: 10, shimmer: true },
-      ),
-    )
     for (const ref of parseReferences(displayedValue)) {
       if (ref.index === cursorOffset) {
         spans.push({
@@ -2282,23 +2271,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       }
     }
     return spans
-  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext, tokens.accent, tokens.accentSoft])
-
-  const deepthinkPresent =
-    isDeepthinkEnabled() && findThinkingTriggerPositions(input).length > 0
-  useEffect(() => {
-    if (deepthinkPresent) {
-      addNotification({
-        key: 'deepthink-active',
-        text: 'deeper reasoning requested for this turn',
-        priority: 'low',
-        timeoutMs: 5000,
-      })
-      return () => removeNotification('deepthink-active')
-    }
-    removeNotification('deepthink-active')
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- keyed on presence only
-  }, [deepthinkPresent])
+  }, [displayedValue, isSearchingHistory, historySearch.historyMatch, historySearch.historyFailedMatch, historySearch.historyQuery, cursorOffset, commands, mcpClients, crewContext])
 
   const effortText = getEffortNotificationText(
     effortValue,
@@ -2954,7 +2927,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       </Box>
       {frame}
       {summaryVisible && compactWork !== undefined ? <CompactWorkSummary columns={columns} focused={compactFocus === 'summary'} vimInsert={vimEnabled && vimMode === 'INSERT'} onFocus={() => { if (canFocusSummary()) compactWork.set('summary') }} /> : null}
-      {!isCompact ? <MercurySupercodeKeywordHint value={input} /> : null}
       {!isCompact ? <PromptInputStashNotice hasStash={stash !== undefined} /> : null}
       {fullscreen ? (
         <Box maxHeight={isCompact ? Math.floor(compactTransientRows / 2) : undefined} overflow="hidden">

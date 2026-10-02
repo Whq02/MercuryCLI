@@ -7,9 +7,32 @@
 # gate-watch: src/utils/permissions/flowBlockReview* src/utils/permissions/decision/wrapper*
 # gate-watch: src/utils/messages/rejectionText* src/components/permissions/PermissionRuleExplanation* src/constants/prompts*
 # gate-watch: src/tools/BashTool/pathValidation* src/tools/BashTool/readOnlyValidation*
-# gate-watch: scripts/lib/firstRunSeed.ts
+# gate-watch: scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/lib/seedTranscript.ts
 # gate-watch: scripts/api/read-instruction-heading.ts
 # gate-watch: docs/TRUST.md
+# gate-watch: src/QueryEngine.ts src/bootstrap/state.ts src/cli/headless/controlHandlers.ts src/cli/print.ts
+# gate-watch: src/cli/structuredIO.ts src/commands.ts src/components/FileEditToolDiff.tsx
+# gate-watch: src/components/MercuryFrame.tsx src/components/mercury-ui/compactModeChip.ts
+# gate-watch: src/components/permissions/** src/context.ts src/daemon/concourseSupervisor.ts src/daemon/headlessRun.ts
+# gate-watch: src/daemon/permissionAsks.ts src/daemon/sessionKit.ts src/daemon/warmRunner.ts
+# gate-watch: src/entrypoints/sdk/coreSchemas.ts src/hooks/useCancelRequest.ts src/ink.ts
+# gate-watch: src/ink/components/StdinContext.ts src/ink/components/TerminalSizeContext.tsx src/ink/stringWidth.ts
+# gate-watch: src/interactiveHelpers.tsx src/main.tsx src/screens/REPL.tsx src/services/agents/codec.ts
+# gate-watch: src/services/desktop/toolName.ts src/services/engine-connector/daemonConnector.ts
+# gate-watch: src/services/instructions/engine.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
+# gate-watch: src/services/switchboard/bootBirthFacts.ts src/services/switchboard/runnerArgv.ts
+# gate-watch: src/skills/loadSkillsDir.ts src/state/AppState.tsx src/state/AppStateStore.ts src/state/store.ts
+# gate-watch: src/substrate/flagRegistry.ts src/tools.ts src/tools/AgentTool/** src/tools/AstEditTool/AstEditTool.ts
+# gate-watch: src/tools/BashTool/** src/tools/ChangeSetTool/ChangeSetTool.ts src/tools/FileEditTool/FileEditTool.ts
+# gate-watch: src/tools/FileEditTool/UI.tsx src/tools/FileWriteTool/FileWriteTool.ts src/tools/GlobTool/GlobTool.ts
+# gate-watch: src/tools/NotebookEditTool/NotebookEditTool.ts src/tools/PowerShellTool/** src/types/permissions.ts
+# gate-watch: src/utils/Shell.ts src/utils/astPatterns.ts src/utils/bash/ast.ts src/utils/browser.ts
+# gate-watch: src/utils/capability/declarations.ts src/utils/cockpit/runtimePosture.ts src/utils/config/**
+# gate-watch: src/utils/config.ts src/utils/cwd.ts src/utils/envUtils.ts src/utils/errors.ts src/utils/glob.ts
+# gate-watch: src/utils/healthReport.ts src/utils/messages/factories.ts src/utils/messages.ts src/utils/permissions/**
+# gate-watch: src/utils/platform.ts src/utils/sandbox/sandbox-adapter.ts src/utils/sessionStoragePortable.ts
+# gate-watch: src/utils/settings/** src/utils/subprocessEnv.ts src/utils/suggestions/directoryCompletion.ts
+# gate-watch: src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/crewmateInit.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

@@ -23,7 +23,7 @@ import { workRowRuns } from '../services/engine-connector/workCounts.js'
 import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
-import { decodePermissionModeSpelling, type PermissionMode } from '../types/permissions.js'
+import type { PermissionMode } from '../types/permissions.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
@@ -503,10 +503,9 @@ export function concourseWorkerStripEnv(): string[] {
 export function seatInitialPermissionMode(override?: PermissionMode): SeatPermissionMode {
   const asHeadless = (mode: string | undefined): HeadlessPermissionMode | undefined => {
     if (mode === undefined || mode.length === 0) return undefined
-    const decoded = decodePermissionModeSpelling(mode)
-    return (HEADLESS_PERMISSION_MODES as readonly string[]).includes(decoded) ? (decoded as HeadlessPermissionMode) : undefined
+    return (HEADLESS_PERMISSION_MODES as readonly string[]).includes(mode) ? (mode as HeadlessPermissionMode) : undefined
   }
-  if (override !== undefined && override.length > 0 && decodePermissionModeSpelling(override) === 'apollo') return 'apollo'
+  if (override === 'apollo') return 'apollo'
   const carried = asHeadless(override)
   if (carried !== undefined) return carried
   try {

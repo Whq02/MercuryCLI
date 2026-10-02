@@ -13,8 +13,6 @@ import { Box, Text } from '../ink.js'
 import { contextFillView, contextPercentLabel } from '../utils/contextFill.js'
 import { needsYouCount } from '../utils/needsYouCount.js'
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js'
-import { describeTurnOverride } from '../utils/autopilot/tierState.js'
-import { getDisplayedEffortLabel, type EffortValue } from '../utils/effort.js'
 import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
@@ -387,9 +385,6 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
     getFocusedPermissionMode,
     getFocusedPermissionMode,
   )
-  const autopilotEffort = useAppStateMaybeOutsideOfProvider(
-    (s: { effortValue?: string | number } | undefined) => s?.effortValue,
-  ) as EffortValue | undefined
   const allTasks = useAppStateMaybeOutsideOfProvider(
     (s: { tasks?: AppState['tasks'] } | undefined) => s?.tasks,
   ) as AppState['tasks'] | undefined
@@ -419,24 +414,11 @@ function MercuryFrameImpl({ model, routeSurface = false }: Props): React.ReactNo
       </Text>
     )
   }
-  const autopilotTurnTier =
-    permMode === 'autopilot' ? describeTurnOverride(undefined) : null
   const modeBand = !isDefaultMode(permMode ?? undefined) ? (
     <Box width="100%" paddingX={1} flexShrink={0}>
       {permMode === 'sovereign' ? (
         <Text bold color={tok.failure} wrap="truncate-end">
           {permissionModeSymbol('sovereign')} {permissionModeTitle('sovereign').toLowerCase()} on — all tool calls auto-approved
-        </Text>
-      ) : permMode === 'autopilot' ? (
-        <Text bold color={tok.failure} wrap="truncate-end">
-          {permissionModeSymbol('autopilot')} {permissionModeTitle('autopilot').toLowerCase()} on — permissions bypassed · self-tier armed
-          <Text color={tok.textMuted}>
-            {
-}
-            {
-}
-            {autopilotTurnTier ? ` · ⇅ ${autopilotTurnTier}` : ''}
-          </Text>
         </Text>
       ) : (
         <Text color={getModeColor(permMode as PermissionMode)} wrap="truncate-end">

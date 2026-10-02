@@ -21,9 +21,9 @@ const cmd = await import('../../src/commands/effort/effort.js')
 
 type EffortValue = import('../../src/utils/effort.js').EffortValue
 
-function sliderOpens(model: string, supercode: boolean, stored: EffortValue | undefined): string {
+function sliderOpens(model: string, stored: EffortValue | undefined): string {
   const geo = slider.getSliderGeometry(model)
-  const slot = slider.resolveOpeningStop(model, supercode, stored)
+  const slot = slider.resolveOpeningStop(model, stored)
   return String(geo.levels[slot]?.value)
 }
 
@@ -42,7 +42,7 @@ console.log('— §1 the operator scene: fresh session, no stored value —')
   const model = 'claude-opus-5'
   const chip = effort.getDisplayedEffortLabel(model, undefined)
   t('the chip says the model default (high)', chip === 'high', chip)
-  const opened = sliderOpens(model, false, undefined)
+  const opened = sliderOpens(model, undefined)
   t('the slider OPENS on the same tier', opened === chip, `slider ${opened} vs chip ${chip}`)
   t('…and never the preferred-slot xhigh', opened !== 'xhigh', opened)
   const readout = effortReadoutRuns(undefined, model)
@@ -64,7 +64,7 @@ console.log('— §2 chip ≡ slider: the whole ladder × models × env pins —
         else process.env.MERCURY_EFFORT_LEVEL = env
         const chipLevel = effort.getDisplayedEffortLevel(model, stored)
         const chipLabel = effort.getDisplayedEffortLabel(model, stored)
-        const opened = sliderOpens(model, false, stored)
+        const opened = sliderOpens(model, stored)
         cases += 1
         const agree = opened === chipLevel && chipLabel === chipLevel
         if (agree) agreements += 1
@@ -76,11 +76,11 @@ console.log('— §2 chip ≡ slider: the whole ladder × models × env pins —
   t(`chip and slider agree on all ${cases} ladder cases`, agreements === cases, firstMiss)
   process.env.MERCURY_EFFORT_LEVEL = 'high'
   const chipPinned = effort.getDisplayedEffortLabel('claude-opus-5', 'xhigh')
-  const openedPinned = sliderOpens('claude-opus-5', false, 'xhigh')
+  const openedPinned = sliderOpens('claude-opus-5', 'xhigh')
   t('an env pin below the stored value rules BOTH gauges', chipPinned === 'high' && openedPinned === 'high', `chip ${chipPinned}, slider ${openedPinned}`)
   delete process.env.MERCURY_EFFORT_LEVEL
   const chipStepped = effort.getDisplayedEffortLabel('claude-opus-4-6', 'xhigh')
-  const openedStepped = sliderOpens('claude-opus-4-6', false, 'xhigh')
+  const openedStepped = sliderOpens('claude-opus-4-6', 'xhigh')
   t('a stored tier above the model ladder steps down on BOTH gauges', chipStepped === 'high' && openedStepped === 'high', `chip ${chipStepped}, slider ${openedStepped}`)
 }
 
@@ -97,15 +97,15 @@ console.log('— §3 the /effort readout speaks the running tier —')
   }
 }
 
-console.log('— §4 supercode + override targets keep their own truths —')
+console.log('— §4 override targets keep their own truths —')
 {
   const geo = slider.getSliderGeometry('claude-opus-5')
-  const scSlot = slider.resolveOpeningStop('claude-opus-5', true, 'max')
-  t('a supercode session opens on the supercode stop', geo.levels[scSlot]?.value === 'supercode', String(geo.levels[scSlot]?.value))
-  const ovSlot = slider.resolveOpeningStop('claude-opus-5', true, 'low', 'xhigh')
-  t('an override target opens on the override (supercode ignored)', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
+  const maxSlot = slider.resolveOpeningStop('claude-opus-5', 'max')
+  t('a session at max opens on the max stop, the last stop of the rail', geo.levels[maxSlot]?.value === 'max' && maxSlot === geo.levels.length - 1, String(geo.levels[maxSlot]?.value))
+  const ovSlot = slider.resolveOpeningStop('claude-opus-5', 'low', 'xhigh')
+  t('an override target opens on the override', geo.levels[ovSlot]?.value === 'xhigh', String(geo.levels[ovSlot]?.value))
   process.env.MERCURY_EFFORT_LEVEL = 'low'
-  const ovPinned = slider.resolveOpeningStop('claude-opus-5', false, undefined, 'max')
+  const ovPinned = slider.resolveOpeningStop('claude-opus-5', undefined, 'max')
   t('…and a foreign env pin cannot move an override target', geo.levels[ovPinned]?.value === 'max', String(geo.levels[ovPinned]?.value))
   delete process.env.MERCURY_EFFORT_LEVEL
 }

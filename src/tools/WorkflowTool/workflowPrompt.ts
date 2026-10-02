@@ -7,8 +7,6 @@ export const WORKFLOW_TOOL_PROMPT: string = `Run a JavaScript orchestration scri
 Reach for a workflow when the shape of the work wants structure across agents: breadth (split a large surface and cover the pieces concurrently), rigor (independent readings plus adversarial checking before anything is trusted), or sheer size (audits, migrations, and sweeps that no single context window holds). The script is the structure — it decides what fans out, what gets verified, and what gets merged.
 
 STRICT OPT-IN. Never launch a workflow on your own judgment that one would help. Multi-agent orchestration can fan out into dozens of billed agents, so the scale must be something the user chose. You have that choice only when one of these holds:
-- Their prompt contains the keyword "supercode" (a system-reminder will confirm it).
-- A system-reminder says supercode is enabled for the session — see the Supercode paragraph below.
 - They asked for it in their own words ("run a workflow", "orchestrate this", "fan out subagents", "use multi-agent"). The words must be theirs; the mere fact that agents would speed a task up does not qualify.
 - The instructions of a skill or slash command you are executing direct you to invoke Workflow.
 - They asked to run a particular saved or built-in workflow by name.
@@ -25,8 +23,6 @@ Single-phase shapes worth chaining across turns:
 - **Migrate** — enumerate call sites, transform each in isolation, verify each
 
 Chain them one turn at a time for bigger efforts — digest each result before shaping the next launch. Every workflow stays one tightly scoped fan-out, with you between them.
-
-**Supercode.** While the session carries a live supercode reminder, the opt-in is standing: launch a workflow (or a sub-agent, or a fleet) whenever parallel agents would materially improve the speed or the quality of the answer, and optimize for the most complete, most verified answer rather than for token spend. Where they would not, work solo at max — delegation is a judgment, never a reflex. Draw on the quality patterns below (refute-to-survive checks, split-lens verification, dry-well stopping, a gap critic) wherever they fit. Once a reminder announces supercode is off, the strict opt-in above is back in force.
 
 Send the script inline through \`script\` — no need to Write it anywhere yourself; iterate by editing the persisted copy the result names (Write/Edit), then relaunching with \`{scriptPath: "<path>"}\`.
 
@@ -51,7 +47,7 @@ The script body's hooks:
   - opts.label — the display name in progress surfaces (defaults to a prompt prefix).
   - opts.phase — pin this call to a named progress group. Inside pipeline()/parallel() stages always pin explicitly; the ambient phase() pointer is global state and concurrent stages race it. Same string, same group.
   - opts.model — a model for THIS call. Omitted, the agent runs on the session's resolved model, which is the right default. Accepts anything the session's model catalog resolves: a canonical id, a registered family alias, or — when the operator has a second provider connected — that provider's engine ids. Never invent an id; if the operator named no model and the task doesn't demand a tier, leave it out.
-  - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session's own level, so a supercode session does not multiply every agent to max. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier). Setting it also turns on extended reasoning where the model supports it.
+  - opts.effort — reasoning effort for this call: ${EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never the session's own level. Spend 'low' on mechanical stages; reserve the top tiers for the hardest judge/verify stages (a tier the model's ladder lacks runs the nearest served tier). Setting it also turns on extended reasoning where the model supports it.
   - opts.tier — 'orchestrator' | 'executor': declare the call's role instead of naming a model. A junk tier throws; routing only acts when the operator armed MERCURY_WORKFLOW_ROUTING=1: an 'executor' call with no explicit model then rides the harness's pinned execution-tier model, while 'orchestrator' keeps the session model. A call that names opts.model outranks its tier.
   - opts.isolation: 'worktree' — run in a freshly created git worktree. Costly (worktree setup plus disk per agent); use it only when concurrent agents would otherwise write the same files. An untouched worktree is removed automatically; a modified one is kept for review.
   - opts.agentType — dispatch a custom subagent type (say, 'code-reviewer') rather than the built-in workflow worker; its definition's tools: list is followed exactly, as the Agent tool would; composable with \`schema\`.

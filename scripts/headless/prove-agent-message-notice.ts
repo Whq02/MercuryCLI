@@ -30,7 +30,7 @@ type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void;
 type World = 'sub-to-main-midturn' | 'sub-to-main-idle' | 'main-to-sub-midturn' | 'main-to-sub-ended'
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'bypassPermissions', '--sovereign']
+  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'sovereign', '--sovereign']
   const proc = spawn(NODE, argv, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
   let buffer = ''

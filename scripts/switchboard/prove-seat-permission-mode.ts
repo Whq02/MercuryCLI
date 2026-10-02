@@ -42,10 +42,7 @@ check("M1 override 'sovereign' is honored", resolveIn({ override: 'sovereign' })
 check("M1 override 'flow' is honored", resolveIn({ override: 'flow' }) === 'flow')
 
 check("M2 saved 'default' ⇒ the seat boots 'default' (no '✦ flow on' badge)", resolveIn({ defaultMode: 'default' }) === 'default')
-{
-  const m = resolveIn({ defaultMode: 'acceptEdits' })
-  check("M2 saved 'acceptEdits' ⇒ a valid headless posture, never 'flow'", m !== 'flow' && m.length > 0, m)
-}
+check("M2 saved 'implement' ⇒ the seat boots 'implement'", resolveIn({ defaultMode: 'implement' }) === 'implement')
 check("M2 saved 'sovereign' ⇒ the seat boots 'sovereign'", resolveIn({ defaultMode: 'sovereign' }) === 'sovereign')
 
 check("M3 no saved default, no override ⇒ 'flow' (today's behavior held)", resolveIn({}) === 'flow')

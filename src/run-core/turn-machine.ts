@@ -72,10 +72,6 @@ import { ImageResizeError, imagesLeftOutNoticeLine, takeImagesLeftOutNoticeOnce,
 import { describeInvalidArgTypeError } from '../utils/errors.js'
 import { findToolByName, type ToolUseContext } from '../Tool.js'
 import {
-  applyTurnTierEffort,
-  applyTurnTierModel,
-} from '../utils/autopilot/tierState.js'
-import {
   effortAdjustedReceiptLine,
   isTurnOwningQuerySource,
 } from '../utils/effort.js'
@@ -552,9 +548,7 @@ async function* streamModel(
         waitedMs: permit.waitedMs,
         reacquired: permit.reacquired,
       })
-      const effortValue = isTurnOwningQuerySource(run.querySource)
-        ? applyTurnTierEffort(toolUseContext.agentId, iter.appState.effortValue)
-        : iter.appState.effortValue
+      const effortValue = iter.appState.effortValue
       const callReference = buildModelCallReference({
         model: iter.currentModel,
         effort: effortValue,
@@ -950,7 +944,7 @@ export async function* runEventCore(
       exceeds200kTokens: prunePermissionMode === 'strategy' && doesMostRecentAssistantMessageExceed200k(messages),
     })
     const proactivePrune = pendingOverflow === undefined
-      ? await sizePruneRequest(messages, isTurnOwningQuerySource(querySource) ? applyTurnTierModel(toolUseContext.agentId, pruneModel) : pruneModel, querySource)
+      ? await sizePruneRequest(messages, pruneModel, querySource)
       : undefined
     const requestPlan = await buildRequestContextPlan(
       {
@@ -1145,18 +1139,13 @@ export async function* runEventCore(
 
     const appState = toolUseContext.getAppState()
     const permissionMode = appState.toolPermissionContext.mode
-    let currentModel = getRuntimeMainLoopModel({
+    const currentModel = getRuntimeMainLoopModel({
       permissionMode,
       mainLoopModel: toolUseContext.options.mainLoopModel,
       exceeds200kTokens:
         permissionMode === 'strategy' &&
         doesMostRecentAssistantMessageExceed200k(messagesForQuery),
     })
-    if (isTurnOwningQuerySource(querySource)) {
-      currentModel = applyTurnTierModel(toolUseContext.agentId, currentModel)
-    }
-
-
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
       (compactionResult.truePostCompactTokenCount === undefined ||
@@ -2019,7 +2008,6 @@ export async function* runEventCore(
       isSlashCommand,
     )
     markDraining(queuedCommandsSnapshot)
-
 
     const yieldedCommandUuids = new Set<string>()
     let drainProduced = false

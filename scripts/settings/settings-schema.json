@@ -193,7 +193,6 @@
             "sovereign",
             "strategy",
             "flow",
-            "autopilot",
             "apollo"
           ]
         },
@@ -402,9 +401,6 @@
             "xhigh",
             "max"
           ]
-        },
-        "supercode": {
-          "type": "boolean"
         },
         "sessionDefaults": {
           "type": "boolean"

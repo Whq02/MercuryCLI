@@ -251,24 +251,5 @@ section('§6 auto mode keys on the routing law, never a tier name')
   check('an id no family declares takes none', !caps.modelSupportsAutoMode('banana-9000'))
 }
 
-section("§7 the autopilot tier keys are the session family's words and live rows")
-{
-  const gates = await import('../../src/utils/autopilot/autopilotGates.ts')
-  const tier = await import('../../src/utils/autopilot/tierState.ts')
-  const onOpus = gates.autopilotTierKeys('claude-opus-5')
-  check("a first-party session's keys carry every first-party word, haiku among them, and its live rows' ids", ['fable', 'opus', 'sonnet', 'haiku', 'fable51'].every(k => onOpus.includes(k)) && onOpus.some(k => k.startsWith('claude-')), onOpus.join(','))
-  check("another family's words are not a first-party session's keys", !onOpus.includes('gpt') && !onOpus.includes('openai'), onOpus.join(','))
-  const onGpt = gates.autopilotTierKeys('gpt-5.6-sol')
-  check("a GPT session's keys are its family words (no first-party word)", onGpt.includes('gpt') && onGpt.includes('openai') && !onGpt.includes('opus'), onGpt.join(','))
-  tier.resetTierStateForTests()
-  const haiku = tier.validateTierChange({ model: 'haiku', scope: 'turn', reason: 'a mechanical stretch ahead' }, 'claude-opus-5')
-  check('haiku is a tier key of the first-party family', haiku.ok && haiku.applied.model === model.getDefaultHaikuModel(), JSON.stringify(haiku))
-  tier.resetTierStateForTests()
-  const gpt = tier.validateTierChange({ model: 'gpt', scope: 'turn', reason: 'a mechanical stretch ahead' }, 'claude-opus-5')
-  check("another family's key is refused naming the session's family", !gpt.ok && gpt.refused.includes('Anthropic'), JSON.stringify(gpt))
-  const prompt = src('tools', 'SetTierTool', 'prompt.ts')
-  check("the SetTier prompt names no provider's keys", !/'opus' \| 'sonnet'/.test(prompt) && !/Haiku is unrepresentable/.test(prompt))
-}
-
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`}`)
 process.exit(failures === 0 ? 0 : 1)

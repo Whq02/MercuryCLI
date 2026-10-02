@@ -18,15 +18,6 @@ function section(t: string): void {
 }
 const ROOT = join(import.meta.dir, '..', '..')
 const read = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
-function closingBraceAfter(src: string, open: number): number {
-  if (open < 0 || src[open] !== '{') return -1
-  let depth = 0
-  for (let i = open; i < src.length; i++) {
-    if (src[i] === '{') depth++
-    else if (src[i] === '}' && --depth === 0) return i
-  }
-  return -1
-}
 
 console.log('the metering S3 rows, each at its owner')
 
@@ -43,18 +34,6 @@ section('§17 the partial fold reports a real post figure')
   const src = read('src/services/compact/compact.ts')
   check('the partial path computes truePostCompactTokenCount over its own post-compact messages', /truePostCompactTokenCount: estimateContextTokens\(buildPostCompactMessages\(partialResult\)\)/.test(src))
   check('…so the summary card no longer falls back to the call\'s billed usage', !/no true-post estimate/.test(src))
-}
-
-section('§19 the picker\'s supercode persists like /effort')
-{
-  const src = read('src/commands/model/mercuryModel.tsx')
-  const branchAt = src.indexOf("if (mode === 'supercode') {")
-  const branch = src.slice(branchAt, closingBraceAfter(src, branchAt < 0 ? -1 : src.indexOf('{', branchAt)) + 1)
-  check('the supercode branch persists effortLevel max + supercodeEffort (the /effort contract)', /updateSettingsForSource\('userSettings', \{ effortLevel: 'max', supercodeEffort: true \}\)/.test(branch), branch.slice(0, 120))
-  check('…and releases the launch pins first', /unpinAllLaunchEffort\(\)/.test(branch))
-  check('…before the session state flips', branch.indexOf('updateSettingsForSource') !== -1 && branch.indexOf('updateSettingsForSource') < branch.indexOf('setAppState'))
-  const effortCmd = read('src/commands/effort/effort.tsx')
-  check('the /effort command still writes the same two fields (one contract, two doors)', /effortLevel: 'max',\s*\n\s*supercodeEffort: true,/.test(effortCmd))
 }
 
 section('§20 one definition of progress.tokenCount')

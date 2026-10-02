@@ -374,7 +374,7 @@ async function driveBundleOnce(dist: string, tag: string, cols: number, rows: nu
   mkdirSync(home, { recursive: true })
   mkdirSync(cwd, { recursive: true })
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false, skipSovereignConsentPrompt: true }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } }, guardrails: { sovereignConsentSeen: true } }))
   writeFileSync(join(home, 'critter-profile.json'), JSON.stringify({ v: 1, seed: '00000000-0000-4000-8000-00000000c0de', createdAt: 1787600000000, milestones: { settles: 0, recoveries: 0 }, quiet: true, seenTips: {}, openedSurfaces: [] }))
   const fixture = await startFixture()
   const run: SizeRun = { cols, rows, frames: new Map(), faults: [], hits: fixture.hits, capture: null, attempts: attempt, firstFaults: [] }

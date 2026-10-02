@@ -13,12 +13,9 @@ import {
   effortFamiliesLabel,
   getDisplayedEffortLabel,
   getDisplayedEffortLevel,
-  modelSupportsMaxEffort,
   modelSupportsXHighEffort,
   selectableEffortLevels,
 } from '../../utils/effort.js'
-import { providerMarksDelegationLead } from '../../utils/model/capabilities.js'
-import { DELEGATION_LEAD_NOTE } from '../../utils/cockpit/effortModel.js'
 import {
   AMBER,
   BELLY,
@@ -32,11 +29,9 @@ import {
 import { displayWidth } from '../../components/mercury-ui/glyphs.js'
 import { useSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
 import { interpolateColor, toRGBColor } from '../../components/Spinner/utils.js'
-import { CHALK_DISABLED_FOR_NO_COLOR } from '../../ink/colorize.js'
-import { useSettings } from '../../hooks/useSettings.js'
 
 const TRACK_WIDTH = 53
-const STOP_COLUMNS = [1, 10, 20, 30, 40, 50]
+const STOP_COLUMNS = [1, 10, 20, 30, 40]
 const LABEL_GAPS = [5, 5, 5, 6, 6]
 const PREFERRED_SLOT = 3
 
@@ -46,10 +41,9 @@ type Treatment =
   | 'accent'
   | 'shimmer'
   | 'rainbow'
-  | 'code-trace'
 
 type SliderLevel = {
-  value: EffortValue | 'supercode'
+  value: EffortValue
   label: string
   treatment: Treatment
   supported: boolean
@@ -83,8 +77,6 @@ type SliderGeometry = {
   labelStarts: number[]
   spacers: number[]
   trackChars: string
-  accentStart?: number
-  sublabel?: { text: string; start: number }
 }
 
 export function getSliderGeometry(model: string): SliderGeometry {
@@ -93,25 +85,6 @@ export function getSliderGeometry(model: string): SliderGeometry {
     ...tier,
     supported: vocabulary.has(String(tier.value)),
   }))
-  if (modelSupportsMaxEffort(model)) {
-    const supercodeStop = TRACK_WIDTH + 3
-    const levels: SliderLevel[] = [
-      ...base,
-      { value: 'supercode', label: 'supercode', treatment: 'code-trace', supported: true },
-    ]
-    const sublabelStart = supercodeStop + 4
-    const spacers = [...LABEL_GAPS, sublabelStart - TRACK_WIDTH]
-    return {
-      levels,
-      width: supercodeStop + 17,
-      trianglePositions: [...STOP_COLUMNS, supercodeStop + 8],
-      labelStarts: computeLabelStarts(levels, spacers),
-      spacers,
-      trackChars: '─'.repeat(TRACK_WIDTH + 1) + '┆' + '─'.repeat(18),
-      accentStart: TRACK_WIDTH + 2,
-      sublabel: { text: 'max + workflows', start: supercodeStop },
-    }
-  }
   return {
     levels: base,
     width: TRACK_WIDTH,
@@ -124,13 +97,8 @@ export function getSliderGeometry(model: string): SliderGeometry {
 
 function openingSlot(
   levels: SliderLevel[],
-  supercode: boolean | undefined,
   effortValue: EffortValue | undefined,
 ): number {
-  if (supercode) {
-    const slot = levels.findIndex(l => l.value === 'supercode' && l.supported)
-    if (slot >= 0) return slot
-  }
   if (typeof effortValue === 'string') {
     const slot = levels.findIndex(l => l.value === effortValue && l.supported)
     if (slot >= 0) return slot
@@ -147,15 +115,14 @@ function openingSlot(
 
 export function resolveOpeningStop(
   model: string,
-  supercode: boolean | undefined,
   sessionEffortValue: EffortValue | undefined,
   initialEffortOverride?: EffortValue,
 ): number {
   const geo = getSliderGeometry(model)
   if (initialEffortOverride !== undefined) {
-    return openingSlot(geo.levels, false, initialEffortOverride)
+    return openingSlot(geo.levels, initialEffortOverride)
   }
-  return openingSlot(geo.levels, supercode, getDisplayedEffortLevel(model, sessionEffortValue))
+  return openingSlot(geo.levels, getDisplayedEffortLevel(model, sessionEffortValue))
 }
 
 
@@ -250,51 +217,6 @@ function EmberLabel({
   )
 }
 
-const CODE_TRACE_GLYPHS = '{}();=<>+*#$_/|'
-const TRACE_MS_PER_CELL = 30
-
-function extensionCell(
-  col: number,
-  trackChar: string,
-  traceHead: number,
-): React.ReactNode {
-  const d = traceHead - col
-  const glyph = CODE_TRACE_GLYPHS[(col * 7) % CODE_TRACE_GLYPHS.length]
-  if (d >= 0 && d <= 1) {
-    return (
-      <Text key={col} color={IVORY} bold>
-        {glyph}
-      </Text>
-    )
-  }
-  if (d >= 2 && d <= 4) {
-    return (
-      <Text key={col} color={BELLY}>
-        {glyph}
-      </Text>
-    )
-  }
-  if (d >= 5 && d <= 7) {
-    return (
-      <Text key={col} color={TERRA}>
-        {trackChar}
-      </Text>
-    )
-  }
-  if (d > 7) {
-    return (
-      <Text key={col} color={CLAW}>
-        {trackChar}
-      </Text>
-    )
-  }
-  return (
-    <Text key={col} color={FAINT} dimColor>
-      {trackChar}
-    </Text>
-  )
-}
-
 
 export function EffortSlider({
   onDone,
@@ -312,7 +234,6 @@ export function EffortSlider({
 
   const geo = React.useMemo(() => getSliderGeometry(model), [model])
 
-  const supercode = useAppState((s: AppState) => s.supercode)
   const sessionEffortValue = useAppState((s: AppState) => s.effortValue)
   const effortValue = initialEffortOverride ?? sessionEffortValue
   const seatEffort = useFocusedServedEffort()
@@ -323,29 +244,15 @@ export function EffortSlider({
       : focusedEffortLabelOf(model, seatEffort, sentEffort, effortValue)
 
   const [selected, setSelected] = React.useState(() =>
-    resolveOpeningStop(model, supercode, sessionEffortValue, initialEffortOverride),
+    resolveOpeningStop(model, sessionEffortValue, initialEffortOverride),
   )
 
   const pastOpenEvent = useOpenEventGate()
 
   const level = geo.levels[selected]
-  const onSupercode = level?.value === 'supercode'
-
-  const sweepGated =
-    (useSettings().view?.reducedMotion ?? false) || CHALK_DISABLED_FOR_NO_COLOR
 
   const [done, setDone] = React.useState(false)
   const [animRef, time] = useAnimationFrame(done ? null : 33)
-
-  const sweepOriginRef = React.useRef<number | null>(null)
-  React.useEffect(() => {
-    sweepOriginRef.current = onSupercode ? time : null
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onSupercode])
-  const sweepTime =
-    onSupercode && sweepOriginRef.current != null
-      ? Math.max(0, time - sweepOriginRef.current)
-      : 0
 
   const apply = React.useContext(EffortApplyContext)
 
@@ -372,7 +279,7 @@ export function EffortSlider({
     (_input, key) => {
       if (done) return
       if (key.escape) {
-        finish(`Effort unchanged (${supercode ? 'supercode · ' : ''}${standingLabel})`)
+        finish(`Effort unchanged (${standingLabel})`)
         return
       }
       if (key.leftArrow) {
@@ -400,11 +307,6 @@ export function EffortSlider({
     { isActive: !done },
   )
 
-  const traceHead =
-    onSupercode && !sweepGated
-      ? (geo.accentStart ?? 0) + Math.floor(sweepTime / TRACE_MS_PER_CELL)
-      : Number.MAX_SAFE_INTEGER
-
   const trackCells: React.ReactNode[] = []
   for (let col = 0; col < geo.width; col++) {
     const stopIdx = geo.trianglePositions.indexOf(col)
@@ -418,27 +320,14 @@ export function EffortSlider({
     }
     if (stopIdx >= 0) {
       const isSel = stopIdx === selected
-      const isSupercode = geo.levels[stopIdx]?.value === 'supercode'
       trackCells.push(
-        <Text key={col} color={isSel ? (isSupercode ? BELLY : accent) : FAINT} bold={isSel}>
+        <Text key={col} color={isSel ? accent : FAINT} bold={isSel}>
           {isSel ? '▲' : '△'}
         </Text>,
       )
       continue
     }
     const ch = geo.trackChars[col] ?? ' '
-    if (onSupercode && geo.accentStart != null && col >= geo.accentStart) {
-      trackCells.push(extensionCell(col, ch, traceHead))
-      continue
-    }
-    if (onSupercode && ch === '┆') {
-      trackCells.push(
-        <Text key={col} color={BELLY} bold>
-          {ch}
-        </Text>,
-      )
-      continue
-    }
     trackCells.push(
       <Text key={col} color={FAINT} dimColor>
         {ch}
@@ -462,25 +351,14 @@ export function EffortSlider({
         <Text>{trackCells}</Text>
       </Box>
 
-      {
-}
+      {}
       <Box>
         <TierWords geo={geo} selected={selected} accent={accent} time={time} />
       </Box>
 
       {}
-      {geo.sublabel ? (
-        <Box>
-          <Text>{' '.repeat(geo.sublabel.start)}</Text>
-          <Text color={FAINT} dimColor>
-            {geo.sublabel.text}
-          </Text>
-        </Box>
-      ) : null}
-
-      {}
       <Box marginTop={1}>
-        <Text color={SECOND}>{tierSummary(level, model)}</Text>
+        <Text color={SECOND}>{tierSummary(level)}</Text>
       </Box>
       <Box>
         <Text color={FAINT}>←/→ adjust · ↵ apply · esc cancel</Text>
@@ -566,20 +444,12 @@ function TierWord({
       )
     case 'rainbow':
       return <EmberLabel text={tier.label} active={selected} time={time} bold={bold} />
-    case 'code-trace':
-      return selected ? (
-        <BreathingLabel text={tier.label} active time={time} bold={bold} />
-      ) : (
-        <Text color={FAINT} dimColor>
-          {tier.label}
-        </Text>
-      )
     default:
       return <Text dimColor>{tier.label}</Text>
   }
 }
 
-function tierSummary(level: SliderLevel | undefined, model: string): string {
+function tierSummary(level: SliderLevel | undefined): string {
   switch (level?.value) {
     case 'low':
       return 'low — quick, straightforward implementation'
@@ -593,12 +463,10 @@ function tierSummary(level: SliderLevel | undefined, model: string): string {
     }
     case 'max':
       return 'max — maximum capability with the deepest reasoning'
-    case 'supercode':
-      return `supercode — max + proactive delegation where parallel agents help (session-only)${providerMarksDelegationLead(model) ? ` · ${DELEGATION_LEAD_NOTE}` : ''}`
     default:
       return ''
   }
 }
 
-export type EffortApplier = (value: EffortValue | 'supercode') => string | Promise<string>
+export type EffortApplier = (value: EffortValue) => string | Promise<string>
 export const EffortApplyContext = React.createContext<EffortApplier>(() => '')

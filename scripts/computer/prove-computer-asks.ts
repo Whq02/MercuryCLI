@@ -276,7 +276,7 @@ section('§8 the relayed ask keeps the application name and its rule identity di
 }
 
 section('§9 sovereign mode is the one bypass: with the access type unset the first act asks in a posture that asks and is allowed under the bypass posture, where the access reads full')
-for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implement', true, true], ['strategy', false, true], ['strategy', true, false], ['sovereign', true, false], ['autopilot', true, false]] as const) {
+for (const [mode, bypassAvailable, asks] of [['default', true, true], ['implement', true, true], ['strategy', false, true], ['strategy', true, false], ['sovereign', true, false]] as const) {
   const tag = `${mode}${mode === 'strategy' ? (bypassAvailable ? ' (bypass available)' : ' (no bypass)') : ''}`
   const { context, owner } = await fresh(`posture-${mode}-${bypassAvailable ? 'b' : 'n'}`, null)
   const permissionContext = context.getAppState().toolPermissionContext

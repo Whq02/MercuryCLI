@@ -15,7 +15,7 @@ export default {
     if (facts.effortSent === undefined) return `${facts.effort} (asked)`
     return resolveStampedEffortTruth(facts.effective, parseEffortValue(facts.effort)).label
   },
-  argumentHint: `[${EFFORT_LEVELS.join('|')}|supercode|auto]`,
+  argumentHint: `[${EFFORT_LEVELS.join('|')}|auto]`,
   get immediate() {
     return shouldInferenceConfigCommandBeImmediate()
   },

@@ -98,7 +98,6 @@ const PROOF_MAP: Record<string, string> = {
   SendMessage: 'scripts/crew/run-all.sh',
   Sleep: 'scripts/tools/prove-sleep-tool.ts',
   Godot: 'scripts/vulcan/run-all.sh',
-  SetTier: 'scripts/autopilot/run-all.sh',
 }
 
 function extractOperations(tool: Tool): string[] | null {
@@ -185,7 +184,6 @@ function supplementalTools(): Tool[] {
     () => require('../../tools/GodotTool/GodotTool.js').GodotTool,
     () => require('../../tools/AsepriteTool/AsepriteTool.js').AsepriteTool,
     () => require('../../tools/ComputerTool/ComputerTool.js').ComputerTool,
-    () => require('../../tools/SetTierTool/SetTierTool.js').SetTierTool,
     () => require('../../tools/ToolSearchTool/ToolSearchTool.js').ToolSearchTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').RetainTool,
     () => require('../../tools/MemoryTools/MemoryTools.js').RecallTool,

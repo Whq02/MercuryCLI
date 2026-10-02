@@ -12,15 +12,14 @@ for the user to decide whether the idea is worth continuing.
 `apollo` is always available, directly after implement in the Shift+Tab carousel:
 
 ```
-default → implement → apollo → flow → sovereign → autopilot → default
+default → implement → apollo → flow → sovereign → default
 ```
 
 Shift+Tab from an explicit Strategy session also reaches Apollo.
 
 Each step falls through when its mode is unavailable: from apollo the carousel
 lands on flow when the live flow gate allows it, else on sovereign when bypass is
-available on the context, else on default (autopilot sits in the cycle only while
-it is armed).
+available on the context, else on default.
 
 Presentation: title "Apollo Mode", seal `◇`, its own tint; the title distinguishes
 it from Strategy's `◇`. Externally the mode projects as `default`: Apollo is never

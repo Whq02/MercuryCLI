@@ -93,7 +93,7 @@ const bashTool = {
 }
 
 type Rules = 'none' | 'allow' | 'deny' | 'ask' | 'ask-tool'
-type Mode = 'default' | 'flow' | 'autopilot' | 'sovereign' | 'dontAsk'
+type Mode = 'default' | 'flow' | 'sovereign' | 'dontAsk'
 type Subject = 'main' | 'fg-agent' | 'bg-agent' | 'main-headless' | 'bg-agent-of-headless' | 'main-print' | 'fg-agent-of-print' | 'bg-agent-of-print' | 'main-seat' | 'bg-agent-of-seat'
 const PEER: Record<Subject, Subject> = {
   main: 'main',
@@ -117,7 +117,7 @@ function parentState(mode: Mode, rules: Rules, headless: boolean): Record<string
       alwaysAllowRules: rules === 'allow' ? { userSettings: ALLOW_RULES } : {},
       alwaysDenyRules: rules === 'deny' ? { userSettings: DENY_RULES } : {},
       alwaysAskRules: rules === 'ask' ? { userSettings: ASK_RULES } : rules === 'ask-tool' ? { userSettings: ASK_TOOL_RULES } : {},
-      isBypassPermissionsModeAvailable: mode === 'autopilot' || mode === 'sovereign',
+      isBypassPermissionsModeAvailable: mode === 'sovereign',
       ...(headless ? { shouldAvoidPermissionPrompts: true } : {}),
     },
     denialTracking: undefined,
@@ -247,7 +247,6 @@ const ROWS: Row[] = [
     print: { behavior: 'deny', wrapper: 'classifier', classifier: 1 },
     seat: { behavior: 'ask', wrapper: 'classifier', classifier: 1 },
   },
-  { label: 'autopilot · no rule · writing command → the bypass posture allows in the engine', mode: 'autopilot', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
   { label: 'sovereign · no rule · writing command → the bypass posture allows in the engine', mode: 'sovereign', rules: 'none', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', engine: 'bypassPosture', classifier: 0 } },
   { label: 'dontAsk · no rule · writing command → the ask converts to a deny, no classifier', mode: 'dontAsk', rules: 'none', command: WRITING, main: { behavior: 'deny', wrapper: 'dontAskConversion', classifier: 0 } },
   { label: 'dontAsk · allow rule · writing command → the rule still allows', mode: 'dontAsk', rules: 'allow', command: WRITING, main: { behavior: 'allow', wrapper: 'engine', classifier: 0 } },
@@ -262,8 +261,6 @@ const ROWS: Row[] = [
   { label: 'sovereign · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
   { label: 'default · whole-tool ask rule → the 1b road asks, the rule its reason', mode: 'default', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'ask', engine: 'toolAskRule', classifier: 0 } },
   { label: 'sovereign · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'sovereign', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
-  { label: 'autopilot · whole-tool ask rule → the 1b road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask-tool', command: READ_ONLY, main: { behavior: 'allow', wrapper: 'engine', engine: 'toolAskRuleCarried', classifier: 0 } },
-  { label: 'autopilot · ask rule · simple command → the ask road stands down; the engine allows at the road', mode: 'autopilot', rules: 'ask', command: ASKING, main: { behavior: 'allow', wrapper: 'engine', engine: 'contentAskRule', classifier: 0 } },
   { label: 'flow · ask rule · simple command → the floor keeps the human ask; no classifier', mode: 'flow', rules: 'ask', command: ASKING, main: { behavior: 'ask', engine: 'contentAskRule', classifier: 0 } },
 ]
 

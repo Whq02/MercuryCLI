@@ -9,7 +9,7 @@
 
    ╭────────────────────────────────────────────────────────────────╮  ╭────────────────────────────────────────────╮
    │ CONTROL PLANE                                                  │  │ SETTING DETAIL                             │
-   │ … 9 more above                                                 │  │ ❯ Motion                                   │
+   │ … 8 more above                                                 │  │ ❯ Motion                                   │
    │   Access type                                   default (asks) │  │                                            │
    │                                                                │  │ What it controls                           │
    │ SAMPLES                                                        │  │ The cockpit's idle motion — the mascot's   │

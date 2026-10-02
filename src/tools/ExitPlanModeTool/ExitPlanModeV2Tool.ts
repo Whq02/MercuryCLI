@@ -60,7 +60,6 @@ export const outputSchema = z.object({
   planWasEdited: z.boolean().optional(),
   awaitingLeaderApproval: z.boolean().optional(),
   requestId: z.string().optional(),
-  autopilotDownshiftNudge: z.boolean().optional(),
 })
 
 export type Input = z.infer<typeof inputSchema> & {
@@ -68,9 +67,6 @@ export type Input = z.infer<typeof inputSchema> & {
   planFilePath?: string
 }
 export type Output = z.infer<typeof outputSchema>
-
-const DOWNSHIFT_NUDGE_TEXT =
-  'Entering the planning phase pushed reasoning effort up to the tier planning warrants. Execution is starting now: purely mechanical work does not need that tier — you may lower it (downshift via SetTier), saying why, scoping the change to the current turn unless the nature of the work has genuinely changed for good.'
 
 export const ExitPlanModeV2Tool = buildTool({
   name: EXIT_PLAN_MODE_TOOL_NAME,
@@ -183,8 +179,6 @@ export const ExitPlanModeV2Tool = buildTool({
 
     const permissionContext = context.getAppState().toolPermissionContext
     const preStrategyMode = permissionContext.preStrategyMode as string | undefined
-    const autopilotDownshiftNudge =
-      permissionContext.mode === 'strategy' && preStrategyMode === 'autopilot'
 
     if (permissionContext.mode === 'strategy') {
       let restoreMode = preStrategyMode ?? 'default'
@@ -222,7 +216,6 @@ export const ExitPlanModeV2Tool = buildTool({
         filePath,
         hasTaskTool,
         planWasEdited,
-        ...(autopilotDownshiftNudge ? { autopilotDownshiftNudge } : {}),
       } as Output,
     }
   },
@@ -249,9 +242,6 @@ export const ExitPlanModeV2Tool = buildTool({
         parts.push(
           'If the plan decomposes into independent tasks, consider the crew-creation tool to parallelise them.',
         )
-      }
-      if (output.autopilotDownshiftNudge) {
-        parts.push(DOWNSHIFT_NUDGE_TEXT)
       }
       parts.push(
         `## The plan${output.planWasEdited ? ' (edited by the user)' : ''}\n${output.plan}`,

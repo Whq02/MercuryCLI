@@ -232,11 +232,11 @@ try {
   check('D10 the steered words paint as a row of the chat (the echo)', JSON.stringify(connector.records()).includes('steer these words in'))
   check('D10 a steered send is never "waiting for its turn" (the count itself is gone)', !('waitingWords' in connector.status()))
 
-  connector.setPermissionMode('acceptEdits' as never)
-  check('D7 setPermissionMode flips the readout at once', connector.permissionMode() === 'acceptEdits')
+  connector.setPermissionMode('implement')
+  check('D7 setPermissionMode flips the readout at once', connector.permissionMode() === 'implement')
   check('D7 the session confirms the mode in its facts', await untilAsync(() => {
     const raw = readFileSync(join(daemonDir, 'session-facts', `${sid}.json`), 'utf8')
-    return (JSON.parse(raw) as { permissionMode?: string }).permissionMode === 'acceptEdits'
+    return (JSON.parse(raw) as { permissionMode?: string }).permissionMode === 'implement'
   }, 10_000))
 
   check('D8 loadFullLog returns EVERY delivered turn (the record chain is whole)', await untilAsync(() => {

@@ -19,9 +19,6 @@ export function compactModeChip(mode: PermissionMode | null): CompactModeChip | 
   if (mode === 'sovereign') {
     return { text: `${permissionModeSymbol(mode)} sovereign · auto-approved`, tone: 'bypass', modeColor: getModeColor(mode) }
   }
-  if (mode === 'autopilot') {
-    return { text: `${permissionModeSymbol(mode)} autopilot · permissions bypassed`, tone: 'bypass', modeColor: getModeColor(mode) }
-  }
   return { text: `${permissionModeSymbol(mode)} ${permissionModeTitle(mode).toLowerCase()}`, tone: 'mode', modeColor: getModeColor(mode) }
 }
 

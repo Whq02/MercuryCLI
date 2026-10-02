@@ -84,7 +84,7 @@ try {
     'the pack teaches the three review answers and the only-door law',
     /yes-but-ask-first/.test(text) && /Ask me more questions/.test(text) && /only door to the build/.test(text),
   )
-  for (const off of [undefined, 'default', 'strategy', 'implement', 'flow', 'sovereign', 'autopilot'] as const) {
+  for (const off of [undefined, 'default', 'strategy', 'implement', 'flow', 'sovereign'] as const) {
     check(`${String(off)} ⇒ [] (byte-identical prompt off-mode)`, pack.getApolloModeSections(off as never).length === 0)
   }
 } catch (e) {
@@ -273,7 +273,7 @@ section('headless/ACP: honest availability — and the SEAT-RUNNER acceptance')
     /mode === 'apollo' && flagEnv\('MERCURY_CONCOURSE_WORKER'\) !== '1'[\s\S]{0,500}interactive-only/.test(handlers),
   )
   const acp = src('services', 'acp', 'acpServer.ts')
-  check('the ACP advertised mode list does NOT advertise apollo (autopilot precedent)', !/id: 'apollo'/.test(acp))
+  check('the ACP advertised mode list does NOT advertise apollo', !/id: 'apollo'/.test(acp))
 }
 
 section('the seat runner accepts apollo; the SDK embedder still refuses')
@@ -321,64 +321,6 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     else process.env.MERCURY_CONCOURSE_WORKER = priorMarker
   }
 
-  const priorMarker2 = process.env.MERCURY_CONCOURSE_WORKER
-  const priorAutopilot = process.env.MERCURY_AUTOPILOT
-  try {
-    const { resolvePermissionModeTransition } = (await import(
-      '../../src/cli/headless/controlHandlers.js'
-    )) as typeof import('../../src/cli/headless/controlHandlers.js')
-    const bypassContext = {
-      mode: 'default',
-      additionalWorkingDirectories: new Map(),
-      alwaysAllowRules: {},
-      alwaysDenyRules: {},
-      isBypassPermissionsModeAvailable: true,
-    } as never
-    const noBypassContext = {
-      mode: 'default',
-      additionalWorkingDirectories: new Map(),
-      alwaysAllowRules: {},
-      alwaysDenyRules: {},
-      isBypassPermissionsModeAvailable: false,
-    } as never
-
-    delete process.env.MERCURY_CONCOURSE_WORKER
-    process.env.MERCURY_AUTOPILOT = '1'
-    const embedder = resolvePermissionModeTransition('autopilot' as never, bypassContext)
-    check(
-      'autopilot, no role stamp: the embedder still refuses toward sovereign',
-      embedder.ok === false && /in SDK\/print mode/.test(embedder.ok === false ? embedder.error : ''),
-      JSON.stringify(embedder),
-    )
-
-    process.env.MERCURY_CONCOURSE_WORKER = '1'
-    delete process.env.MERCURY_AUTOPILOT
-    const unarmed = resolvePermissionModeTransition('autopilot' as never, bypassContext)
-    check(
-      'autopilot on the seat WITHOUT the opt-in: the eligibility owner refuses (no consent backdoor)',
-      unarmed.ok === false && /MERCURY_AUTOPILOT/.test(unarmed.ok === false ? unarmed.error : ''),
-      JSON.stringify(unarmed),
-    )
-    process.env.MERCURY_AUTOPILOT = '1'
-    const noLaunch = resolvePermissionModeTransition('autopilot' as never, noBypassContext)
-    check(
-      'autopilot on the seat WITHOUT the bypass launch flag: refused with the runtime guard sentence',
-      noLaunch.ok === false && /--sovereign/.test(noLaunch.ok === false ? noLaunch.error : ''),
-      JSON.stringify(noLaunch),
-    )
-    const eligible = resolvePermissionModeTransition('autopilot' as never, bypassContext)
-    check(
-      "the FULLY ELIGIBLE seat (opt-in + bypass launch) accepts autopilot, context on mode 'autopilot'",
-      eligible.ok === true && (eligible.ok ? (eligible.context as { mode?: string }).mode === 'autopilot' : false),
-      JSON.stringify(eligible),
-    )
-  } finally {
-    if (priorMarker2 === undefined) delete process.env.MERCURY_CONCOURSE_WORKER
-    else process.env.MERCURY_CONCOURSE_WORKER = priorMarker2
-    if (priorAutopilot === undefined) delete process.env.MERCURY_AUTOPILOT
-    else process.env.MERCURY_AUTOPILOT = priorAutopilot
-  }
-
   const engine = src('QueryEngine.ts')
   check(
     'QueryEngine threads the live toolPermissionContext.mode into fetchSystemPromptParts',
@@ -416,7 +358,7 @@ section("the seat's initial posture: a carried 'apollo' crosses the admission; t
     else process.env.MERCURY_DAEMON_PERMISSION_MODE = priorEnv
   }
   const supervisor = src('daemon', 'concourseSupervisor.ts')
-  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /decodePermissionModeSpelling\(override\) === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.guardrails\?\.mode\)/.test(supervisor))
+  check("the apollo arm sits on the CARRIED road alone (the saved default still resolves through the headless list)", /override === 'apollo'\) return 'apollo'/.test(supervisor) && /const saved = asHeadless\(getInitialSettings\(\)\.guardrails\?\.mode\)/.test(supervisor))
   const hop = src('services', 'switchboard', 'hopIntoSession.ts')
   check('the birth road carries the boot facts posture into the admission', /bootBirthFacts\(\)\.permissionMode/.test(hop))
 }

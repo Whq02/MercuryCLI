@@ -14,7 +14,7 @@ const { decideToolPermission, decideRuleBasedPermissions } = await import('../..
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { permissionModeFromString, permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.ts')
+const { permissionModeTitle } = await import('../../src/utils/permissions/PermissionMode.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -175,7 +175,6 @@ section('§7 every other mode is unchanged')
     ['default', 'ask', { mode: 'default' }],
     ['implement', 'allow', { mode: 'implement' }],
     ['sovereign', 'allow', { mode: 'sovereign' }],
-    ['autopilot', 'allow', { mode: 'autopilot' }],
     ['flow', 'ask', { mode: 'flow' }],
     ['dontAsk', 'ask', { mode: 'dontAsk' }],
     ['apollo', 'ask', { mode: 'apollo' }],
@@ -196,14 +195,6 @@ section('§7 every other mode is unchanged')
     ruled.decision.behavior === 'allow' && j(ruled.decision.decisionReason).includes('"ruleContent":"git commit:*"'),
     `behavior=${ruled.decision.behavior} decidedBy=${ruled.trace.decidedBy} reason=${j(ruled.decision.decisionReason)}`,
   )
-}
-
-section('§8 the retired spelling decodes to the same mode, so the refusal follows the alias')
-{
-  const decoded = permissionModeFromString('plan')
-  check("'plan' decodes to 'strategy' at the read boundary", decoded === 'strategy', decoded)
-  const r = await engine(MUTATION, { mode: decoded, bypassAvailable: true })
-  check('a session resumed under the retired spelling refuses the same mutation', refused(r.decision, MUTATION), `behavior=${r.decision.behavior}`)
 }
 
 rmSync(HOME, { recursive: true, force: true })

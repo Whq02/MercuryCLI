@@ -112,11 +112,6 @@ section('§3 the wiring — every silent road rides the ONE door (structural)')
   const writeFail = config.slice(config.indexOf('const writeSource'), config.indexOf('const globalTouchedRef'))
   check("/config's write-fail arm discloses through the door", writeFail.includes('enqueueNotification(setAppState') && writeFail.includes("key: 'config-write-failed'"), writeFail.slice(0, 120))
   check('…beside (not instead of) the debug log', writeFail.includes('logForDebugging'))
-  const planTool = src('tools/EnterPlanModeTool/EnterPlanModeTool.ts')
-  check(
-    'the plan tool rides the door (the bare notifications-state push is gone)',
-    planTool.includes('enqueueNotification(context.setAppState') && !/notifications:\s*\{/.test(planTool),
-  )
   const channel = src('context/notifications.tsx')
   check('the hook DELEGATES to the door (one channel, one code path)', channel.includes('enqueueNotification(setAppState, incoming)'))
   const wards = src('utils/hooks/wardsHook.ts')

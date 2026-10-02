@@ -21,12 +21,6 @@ import {
   getRepoSurfaceMapAttachment,
 } from './modeLifecycles.js'
 import { getContextCapsuleAttachment } from './contextCapsule.js'
-import {
-  getUltraEffortAttachments,
-  getUltraEffortExitAttachment,
-  getSupercodeKeywordAttachment,
-  getDeepthinkEffortAttachment,
-} from './modeLifecycles.js'
 import { getNestedMemoryAttachments } from './nestedMemory.js'
 import {
   processAgentMentions,
@@ -77,7 +71,7 @@ export async function getAttachments(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { skipSkillDiscovery?: boolean; localSubmission?: boolean },
+  options?: { localSubmission?: boolean },
 ): Promise<Attachment[]> {
   if (isEnvTruthy(process.env.MERCURY_BARE)) {
     return getQueuedCommandAttachments(queuedCommands)
@@ -139,16 +133,6 @@ export async function getAttachments(
     }),
     maybe('date_change', () =>
       Promise.resolve(getDateChangeAttachments(messages)),
-    ),
-    maybe('deepthink_effort', () =>
-      Promise.resolve(
-        getDeepthinkEffortAttachment(
-          input,
-          toolUseContext,
-          options,
-          queuedCommands,
-        ),
-      ),
     ),
     maybe('deferred_tools_delta', () =>
       Promise.resolve(
@@ -229,17 +213,6 @@ export async function getAttachments(
       options?.localSubmission
         ? Promise.resolve([])
         : getContextCapsuleAttachment(input, messages, toolUseContext),
-    ),
-    maybe('ultra_effort', () =>
-      Promise.resolve(getUltraEffortAttachments(messages, toolUseContext)),
-    ),
-    maybe('ultra_effort_exit', () =>
-      Promise.resolve(getUltraEffortExitAttachment(messages, toolUseContext)),
-    ),
-    maybe('supercode_keyword', () =>
-      Promise.resolve(
-        getSupercodeKeywordAttachment(input, toolUseContext, options),
-      ),
     ),
     maybe('task_reminders', () => getTaskReminderAttachments(messages, toolUseContext)),
     maybe('contract_reminder', () =>
@@ -481,7 +454,7 @@ export async function* getAttachmentMessages(
   queuedCommands: QueuedCommand[],
   messages?: Message[],
   querySource?: QuerySource,
-  options?: { skipSkillDiscovery?: boolean; localSubmission?: boolean },
+  options?: { localSubmission?: boolean },
 ): AsyncGenerator<AttachmentMessage, void> {
   const attachments = await getAttachments(
     input,

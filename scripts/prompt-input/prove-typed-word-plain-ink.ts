@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+// gate-watch: src/components/PromptInput/PromptInput.tsx src/components/PromptInput/ShimmeredInput.tsx
+// gate-watch: src/components/messages/HighlightedThinkingText.tsx src/utils/textHighlighting.ts
 import { spawn } from 'node:child_process'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -6,20 +8,17 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = join(REPO, 'dist', 'mercury.mjs')
+const BIN = process.env.MERCURY_PROOF_BUNDLE ?? join(REPO, 'dist', 'mercury.mjs')
 const VSHOT = join(REPO, 'scripts', 'ui', 'vshot.py')
 if (!existsSync(BIN)) {
-  console.error('✗ dist/mercury.mjs missing — run `bun run build.ts` first')
+  console.error(`prove-typed-word-plain-ink: ${BIN} missing — run \`bun run build.ts\` first`)
   process.exit(1)
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
-const { CRITTERS } = await import('../../src/components/mercury-ui/sessionAccent.ts')
-const { deriveAccentSoft } = await import('../../src/utils/mercuryTokens.ts')
-const { BELLY, IVORY, TERRA } = await import('../../src/components/mercuryPalette.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
-  console.error(`prove-keyword-glow-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
+  console.error(`prove-typed-word-plain-ink: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
   process.exit(1)
 }
 
@@ -30,17 +29,16 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'
-const WORDS = 'deepthink supercode'
-const REPLY = 'glow-noted'
-const RAINBOW = new Set(['eb5a5a', 'f08c82', 'eb9b5a', 'f0b98c', 'e5c76b', 'eeda9b', '78c790', 'a5dbb4', '6ba6ef', '9bc3f3', '8282eb', 'aaaaf1', 'ba82eb', 'cfaaf1'])
-const cellHex = (hex: string): string => hex.replace('#', '').toLowerCase()
-const softOf = (accent: string): string => (accent === TERRA ? BELLY : deriveAccentSoft(accent, IVORY))
+const CONTROL = 'plainword'
+const TRIGGERS = ['deepthink', 'supercode', 'ultrathink']
+const TYPED = `${TRIGGERS.join(' ')} ${CONTROL}`
+const REPLY = 'ink-noted'
 
 const sse = (obj: unknown): string => `data: ${JSON.stringify(obj)}\n\n`
 let msgSeq = 0
 function textAnswer(model: string, text: string): string {
   return [
-    `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_glow_${++msgSeq}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 20, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
+    `event: message_start\n${sse({ type: 'message_start', message: { id: `msg_ink_${++msgSeq}`, type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 20, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 1 } } })}`,
     `event: content_block_start\n${sse({ type: 'content_block_start', index: 0, content_block: { type: 'text', text: '' } })}`,
     `event: content_block_delta\n${sse({ type: 'content_block_delta', index: 0, delta: { type: 'text_delta', text } })}`,
     `event: content_block_stop\n${sse({ type: 'content_block_stop', index: 0 })}`,
@@ -48,7 +46,7 @@ function textAnswer(model: string, text: string): string {
     `event: message_stop\n${sse({ type: 'message_stop' })}`,
   ].join('')
 }
-async function startFixture(port: number): Promise<{ base: string; close(): Promise<void> }> {
+async function startFixture(): Promise<{ base: string; close(): Promise<void> }> {
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = []
     req.on('data', c => chunks.push(c))
@@ -64,6 +62,7 @@ async function startFixture(port: number): Promise<{ base: string; close(): Prom
         const body = JSON.parse(Buffer.concat(chunks).toString('utf8')) as { model?: unknown }
         if (typeof body.model === 'string') model = body.model
       } catch {
+        model = 'fixture'
       }
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
       res.end(textAnswer(model, REPLY))
@@ -71,8 +70,10 @@ async function startFixture(port: number): Promise<{ base: string; close(): Prom
   })
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)
-    server.listen(port, '127.0.0.1', () => resolve())
+    server.listen(0, '127.0.0.1', () => resolve())
   })
+  const address = server.address()
+  const port = typeof address === 'object' && address !== null ? address.port : 0
   return { base: `http://127.0.0.1:${port}`, close: () => new Promise<void>(resolve => server.close(() => resolve())) }
 }
 
@@ -84,7 +85,7 @@ const gridFrame = (grid: Grid): Frame => ({ text: grid.map(r => rowText(r).trimE
 type Capture = { marks: Record<string, Frame>; receipts: number; endReason: string; stderr: string }
 
 async function capture(cfg: Record<string, unknown>, env: Record<string, string>, budgetMs: number): Promise<Capture> {
-  const dir = mkdtempSync(join(tmpdir(), 'keyword-glow-cfg-'))
+  const dir = mkdtempSync(join(tmpdir(), 'typed-word-ink-cfg-'))
   const cfgPath = join(dir, 'cfg.json')
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
@@ -124,7 +125,9 @@ function wordInks(frame: Frame | undefined, rowNeedle: RegExp, word: string): { 
   return null
 }
 
-function driveEnv(home: string, fixtureBase: string, critter: string): Record<string, string> {
+const distinct = (inks: string[]): string => [...new Set(inks)].sort().join(',')
+
+function driveEnv(home: string, fixtureBase: string): Record<string, string> {
   return {
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
@@ -133,7 +136,7 @@ function driveEnv(home: string, fixtureBase: string, critter: string): Record<st
     ANTHROPIC_BASE_URL: fixtureBase,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     OPENAI_API_KEY: '',
-    MERCURY_CRITTER: critter,
+    MERCURY_CRITTER: 'crab',
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',
@@ -143,10 +146,11 @@ function driveEnv(home: string, fixtureBase: string, critter: string): Record<st
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_OASIS_BG: '0',
+    MERCURY_LOCAL_PROBE_TARGETS: 'none',
   }
 }
 
-const KEEP = process.env.KEYWORD_GLOW_KEEP === '1'
+const KEEP = process.env.TYPED_WORD_INK_KEEP === '1'
 function dump(label: string, frame: Frame | undefined): void {
   console.log(`\n── ${label} ──`)
   if (!frame) {
@@ -157,63 +161,61 @@ function dump(label: string, frame: Frame | undefined): void {
 }
 
 console.log('============================================================')
-console.log(' the keyword glow wears the session accent — real bundle, PTY')
+console.log(' a typed word wears the ink of any word — real bundle, PTY')
 console.log('============================================================')
-const fixture = await startFixture(Number(process.env.KEYWORD_GLOW_PORT ?? 25203))
-const worlds: string[] = []
+console.log(`  bundle: ${BIN}`)
+const fixture = await startFixture()
+const home = realpathSync(mkdtempSync(join(tmpdir(), 'typed-word-ink-home-')))
+const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'typed-word-ink-cwd-')))
+seedFirstRun(home, [cwd])
+let cap: Capture | null = null
 try {
-  for (const key of ['crab', 'octopus'] as const) {
-    const critter = CRITTERS[key]!
-    const accent = cellHex(critter.accent)
-    const soft = cellHex(softOf(critter.accent))
-    const home = realpathSync(mkdtempSync(join(tmpdir(), `keyword-glow-home-${key}-`)))
-    const cwd = realpathSync(mkdtempSync(join(tmpdir(), `keyword-glow-cwd-${key}-`)))
-    worlds.push(home, cwd)
-    seedFirstRun(home, [cwd])
-    let cap: Capture | null = null
-    try {
-      cap = await capture(
-        {
-          argv: ['node', BIN],
-          cwd,
-          cols: 120,
-          rows: 40,
-          sends: [
-            { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
-            { data: WORDS, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
-            { data: '', afterPrevTicks: 6, mark: 'composer' },
-            { data: '\r', afterPrevTicks: 2 },
-            { data: '', awaitText: REPLY, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'row' },
-          ],
-          stableTicks: 6,
-          total: 400,
-        },
-        driveEnv(home, fixture.base, key),
-        150_000,
-      )
-    } catch (error) {
-      check(`[${key}] the capture ran`, false, String(error).slice(0, 400))
-      continue
-    }
-    console.log(`\n— ${key}: accent ${accent} · soft ${soft} —`)
-    if (KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(`${key} ${label}`, frame)
-    check(`[${key}] every send became due`, cap.receipts === 5, `${cap.receipts}/5 · end ${cap.endReason}`)
-    const wears = (inks: string[]): boolean => inks.every(ink => ink === accent || ink === soft) && inks.filter(ink => ink === accent).length >= Math.ceil(inks.length / 2)
-    for (const word of ['deepthink', 'supercode']) {
-      const composer = wordInks(cap.marks['composer'], /❯.*deepthink supercode/, word)
-      check(`K1 [${key}] the composer's "${word}" wears the accent (its soft companion mid-sweep), every cell`, composer !== null && wears(composer.inks), composer ? `${composer.inks.join(',')} · ${composer.row.slice(0, 80)}` : 'no composer row')
-      check(`K1 [${key}] …and no cell of it wears a rainbow hue`, composer !== null && !composer.inks.some(ink => RAINBOW.has(ink)), composer?.inks.join(',') ?? '')
-      const row = wordInks(cap.marks['row'], /\[sam\].*deepthink supercode/, word)
-      check(`K2 [${key}] the transcript row's "${word}" wears the accent, static, every cell`, row !== null && row.inks.every(ink => ink === accent), row ? `${row.inks.join(',')} · ${row.row.slice(0, 80)}` : 'no user row')
-      check(`K2 [${key}] …and no cell of it wears a rainbow hue`, row !== null && !row.inks.some(ink => RAINBOW.has(ink)), row?.inks.join(',') ?? '')
-    }
-    if (failures > 0 && !KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(`${key} ${label}`, frame)
-  }
-  check('K3 the two critters paint different accents (the glow follows the session)', cellHex(CRITTERS.crab!.accent) !== cellHex(CRITTERS.octopus!.accent))
+  cap = await capture(
+    {
+      argv: ['node', BIN],
+      cwd,
+      cols: 120,
+      rows: 40,
+      sends: [
+        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: TYPED, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
+        { data: '', awaitText: CONTROL, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 2, mark: 'composer' },
+        { data: '\r', awaitText: CONTROL, requireAwait: true, minTick: 1, awaitSettleTicks: 1 },
+        { data: '', awaitText: REPLY, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'row' },
+      ],
+      stableTicks: 6,
+      total: 400,
+    },
+    driveEnv(home, fixture.base),
+    150_000,
+  )
+} catch (error) {
+  check('the capture ran', false, String(error).slice(0, 400))
 } finally {
   await fixture.close()
-  if (!KEEP) for (const d of worlds) rmSync(d, { recursive: true, force: true })
-  else console.log(`[kept] ${worlds.join(' ')}`)
 }
-console.log(failures === 0 ? '\nprove-keyword-glow-drive: ALL LAWS HOLD' : `\nprove-keyword-glow-drive: ${failures} FAILURE(S)`)
+if (cap) {
+  if (KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(label, frame)
+  check('every send became due', cap.receipts === 5, `${cap.receipts}/5 · end ${cap.endReason}`)
+  const composerNeedle = new RegExp(`❯.*${TYPED}`)
+  const control = wordInks(cap.marks['composer'], composerNeedle, CONTROL)
+  check(`the composer shows the typed line with "${CONTROL}"`, control !== null, control ? control.row.slice(0, 100) : 'no composer row')
+  for (const word of TRIGGERS) {
+    const typed = wordInks(cap.marks['composer'], composerNeedle, word)
+    check(`the composer paints "${word}" in the ink of "${CONTROL}", every cell`, typed !== null && control !== null && distinct(typed.inks) === distinct(control.inks), typed && control ? `${word}: ${distinct(typed.inks)} · ${CONTROL}: ${distinct(control.inks)}` : 'no composer row')
+  }
+  const rowNeedle = new RegExp(`\\[sam\\].*${TYPED}`)
+  const rowControl = wordInks(cap.marks['row'], rowNeedle, CONTROL)
+  check(`the sent row shows the line with "${CONTROL}"`, rowControl !== null, rowControl ? rowControl.row.slice(0, 100) : 'no user row')
+  for (const word of TRIGGERS) {
+    const sent = wordInks(cap.marks['row'], rowNeedle, word)
+    check(`the sent row paints "${word}" in the ink of "${CONTROL}", every cell`, sent !== null && rowControl !== null && distinct(sent.inks) === distinct(rowControl.inks), sent && rowControl ? `${word}: ${distinct(sent.inks)} · ${CONTROL}: ${distinct(rowControl.inks)}` : 'no user row')
+  }
+  if (failures > 0 && !KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(label, frame)
+}
+if (!KEEP) {
+  rmSync(home, { recursive: true, force: true })
+  rmSync(cwd, { recursive: true, force: true })
+} else console.log(`[kept] ${home} ${cwd}`)
+console.log(failures === 0 ? '\nprove-typed-word-plain-ink: green' : `\nprove-typed-word-plain-ink: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

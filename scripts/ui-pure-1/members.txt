@@ -28,7 +28,6 @@ prove-headless-writes-nothing.ts
 prove-home-hero-noise.ts
 prove-ink-feel.ts
 prove-interrupt-arity.ts
-prove-keyword-glow.ts
 prove-kit-menu.ts
 prove-list-door-single-swing.ts
 prove-markdown-layout.ts
@@ -55,7 +54,6 @@ prove-size-honesty.ts
 prove-specimen-padto.ts
 prove-status-band.ts
 prove-sup2-hardening.ts
-prove-supercode-doctrine.ts
 prove-theme-color-unify.ts
 prove-tool-result-summary.ts
 prove-transcript-list-keys.ts

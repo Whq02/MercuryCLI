@@ -292,7 +292,7 @@ function scratchDirInCwd(tag: string): string {
   rmSync(dir, { recursive: true, force: true })
 }
 
-for (const mode of ['implement', 'default', 'sovereign', 'autopilot']) {
+for (const mode of ['implement', 'default', 'sovereign']) {
   for (const answer of [false, true]) {
     const dir = scratchDirInCwd('permission')
     const outside = mkdtempSync(path.join(tmpdir(), 'lsp-outside-'))
@@ -317,7 +317,7 @@ for (const mode of ['implement', 'default', 'sovereign', 'autopilot']) {
       context: env.context as never,
       requestWritePermission: async file => { asks.push(file); return answer },
     })
-    const bypass = mode === 'sovereign' || mode === 'autopilot'
+    const bypass = mode === 'sovereign'
     const applied = bypass || answer
     check(`${mode}: an additional outside file ${bypass ? 'never asks' : 'asks once'}`, asks.length === (bypass ? 0 : 1) && asks.every(file => file === outsideFile), JSON.stringify(asks))
     check(`${mode}: outside answer=${answer}, applied=${applied}`, out.applied === applied && readFileSync(outsideFile, 'utf8') === (applied ? 'const xyz = 1\n' : 'const abc = 1\n'), out.result.slice(0, 180))

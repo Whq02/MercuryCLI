@@ -374,9 +374,6 @@ async function executePromptCommand(
       expansionText,
       context,
       [],
-      undefined,
-      undefined,
-      { skipSkillDiscovery: true },
     )) {
       extraAttachments.push(attachment)
     }

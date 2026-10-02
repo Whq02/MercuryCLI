@@ -308,7 +308,7 @@ export type Runner = {
   kill: () => void
 }
 export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[] }): Runner {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'bypassPermissions', ...(args.extraArgv ?? [])]
+  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'sovereign', ...(args.extraArgv ?? [])]
   const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void; reject: (error: Error) => void }> = []

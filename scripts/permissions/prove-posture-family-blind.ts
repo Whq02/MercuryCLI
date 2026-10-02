@@ -40,37 +40,8 @@ function withModelEnv<T>(model: string | undefined, fn: () => T): T {
 
 async function main(): Promise<void> {
   console.log('============================================================')
-  console.log(' posture rows are family-blind — skip-permissions + autopilot')
+  console.log(' the posture row is family-blind — skip-permissions')
   console.log('============================================================')
-
-  section('§1 gate module census — autopilot availability is an env fact')
-  {
-    const gatesSrc = readFileSync(join(ROOT, 'src', 'utils', 'autopilot', 'autopilotGates.ts'), 'utf-8')
-    const imports: string[] = []
-    const re = /^import\s[^;]*?from\s+['"]([^'"]+)['"]/gms
-    let m: RegExpExecArray | null
-    while ((m = re.exec(gatesSrc)) !== null) imports.push(m[1]!)
-    const ADJUDICATED = new Set(['../envUtils.js', '../../substrate/flagRegistry.js'])
-    const strays = imports.filter(spec => !ADJUDICATED.has(spec))
-    check('autopilotGates.ts imports exactly {envUtils, flagRegistry}', strays.length === 0, strays.join(', '))
-    const FORBIDDEN = [
-      'getMainLoopModel',
-      'getSmallFastModel',
-      'resolveCallModelRoute',
-  'classifyModelRoute',
-  'declaredRouteOf',
-      'providerFrontier',
-      'callModelRouter',
-      'queryModel',
-      'sideQuery',
-      'getAnthropicClient',
-      'MERCURY_MODEL',
-    ]
-    const availability = gatesSrc.slice(gatesSrc.indexOf('export function isAutopilotEnabled'), gatesSrc.indexOf('const SESSION_WORDS'))
-    check('the availability read exists before the tier vocabulary', availability.length > 0)
-    const hits = FORBIDDEN.filter(f => availability.includes(f))
-    check('the autopilot availability read references no model seam (the tier vocabulary keys on the routing law, ruled 2026-09-21)', hits.length === 0, hits.join(', '))
-  }
 
   section('§2 boot arming is env+argv only — the main.tsx bypass expression')
   {
@@ -102,37 +73,7 @@ async function main(): Promise<void> {
 
   section('§3 guarded entries — byte-identical verdicts across family plants')
   {
-    delete process.env.MERCURY_AUTOPILOT
     const CASES: ReadonlyArray<[label: string, run: () => string, expectOk: boolean]> = [
-      [
-        'autopilot WITHOUT the opt-in ⇒ refused',
-        () => runEntry('autopilot', { mode: 'implement', isBypassPermissionsModeAvailable: true }),
-        false,
-      ],
-      [
-        'autopilot WITH opt-in but NO bypass eligibility ⇒ refused (no consent backdoor)',
-        () => {
-          process.env.MERCURY_AUTOPILOT = '1'
-          try {
-            return runEntry('autopilot', { mode: 'implement', isBypassPermissionsModeAvailable: false })
-          } finally {
-            delete process.env.MERCURY_AUTOPILOT
-          }
-        },
-        false,
-      ],
-      [
-        'autopilot WITH opt-in AND eligibility ⇒ granted',
-        () => {
-          process.env.MERCURY_AUTOPILOT = '1'
-          try {
-            return runEntry('autopilot', { mode: 'implement', isBypassPermissionsModeAvailable: true })
-          } finally {
-            delete process.env.MERCURY_AUTOPILOT
-          }
-        },
-        true,
-      ],
       [
         'sovereign WITHOUT eligibility ⇒ refused',
         () => runEntry('sovereign', { mode: 'implement', isBypassPermissionsModeAvailable: false }),
@@ -156,7 +97,7 @@ async function main(): Promise<void> {
     }
   }
 
-  section('§4 the one model read is the flow gate’s — sovereign/autopilot arms never read identity')
+  section('§4 the one model read is the flow gate’s — the sovereign arm never reads identity')
   {
     const setupSrc = readFileSync(
       join(ROOT, 'src', 'utils', 'permissions', 'permissionSetup.ts'),
@@ -172,7 +113,7 @@ async function main(): Promise<void> {
     const validateEnd = setupSrc.indexOf('\nexport ', validateStart + 1)
     const validateBody = setupSrc.slice(validateStart, validateEnd === -1 ? undefined : validateEnd)
     check(
-      'validateModeEntry (sovereign/autopilot/flow arms) reads no model identity',
+      'validateModeEntry (sovereign/flow arms) reads no model identity',
       validateStart !== -1 &&
         !/getMainLoopModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
     )
@@ -183,7 +124,7 @@ async function main(): Promise<void> {
     console.log(`❌ ${failures} CHECK(S) FAILED`)
     process.exit(1)
   }
-  console.log('✅ POSTURE ROWS ARE FAMILY-BLIND')
+  console.log('✅ THE POSTURE ROW IS FAMILY-BLIND')
 }
 
 void main()

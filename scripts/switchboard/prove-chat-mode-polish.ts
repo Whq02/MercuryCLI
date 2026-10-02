@@ -117,9 +117,9 @@ t.section('§G — the next-session facts (L18): one record, every door, never a
 {
   const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
   facts._resetBootBirthFactsForTesting()
-  facts.setNextSessionFacts({ title: 'once', model: 'claude-opus-5', effort: 'max', permissionMode: 'plan' as never, runnerArgv: ['--x'] })
+  facts.setNextSessionFacts({ title: 'once', model: 'claude-opus-5', effort: 'max', permissionMode: 'strategy', runnerArgv: ['--x'] })
   t.check('the title is ONE-SHOT: the first taker consumes it, the second reads null', facts.takeBootTitle() === 'once' && facts.takeBootTitle() === null)
-  t.check('model · effort · permissionMode · runnerArgv are STICKY: two reads, one answer', facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().effort === 'max' && (facts.bootBirthFacts().permissionMode as string) === 'plan' && facts.bootBirthFacts().runnerArgv.join(',') === '--x')
+  t.check('model · effort · permissionMode · runnerArgv are STICKY: two reads, one answer', facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().model === 'claude-opus-5' && facts.bootBirthFacts().effort === 'max' && facts.bootBirthFacts().permissionMode === 'strategy' && facts.bootBirthFacts().runnerArgv.join(',') === '--x')
   t.check("the model precedence: the record (the menu's explicit choice) → a door's inheritance → the screen's main model", facts.birthModelOf({ model: 'a' }, 'b', 'c') === 'a' && facts.birthModelOf({ model: null }, 'b', 'c') === 'b' && facts.birthModelOf({ model: null }, null, 'c') === 'c' && facts.birthModelOf({ model: null }, undefined, 'c') === 'c')
   facts._resetBootBirthFactsForTesting()
   const born = read('src/services/switchboard/bornSession.ts')

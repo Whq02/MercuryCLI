@@ -1148,7 +1148,7 @@ export function Config({
   items.push({
     id: 'agentsDefaultEffort',
     label: 'Sub-agent default effort',
-    searchText: 'sub-agent subagent agent default effort delegate workflow supercode',
+    searchText: 'sub-agent subagent agent default effort delegate workflow',
     kind: 'enum',
     value: (
       <Text>
@@ -1156,7 +1156,7 @@ export function Config({
         {agentDefaults.effortSource === 'convention' ? <Text color={tokens.textSecondary}> (default)</Text> : null}
       </Text>
     ),
-    warning: 'the effort a spawned agent runs at when the call names none — never the session\'s own level, so supercode pins max on the lead alone · ←/→ walk the ladder',
+    warning: 'the effort a spawned agent runs at when the call names none — never the session\'s own level, so a session at max pins it on the lead alone · ←/→ walk the ladder',
     change: direction => {
       const next = cycleIn(EFFORT_LEVELS, agentDefaults.effort, direction)
       writeAgents({ defaultEffort: next })

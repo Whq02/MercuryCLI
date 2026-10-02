@@ -50,7 +50,6 @@ import { MercuryCompactSummary } from './MercuryCompactSummary.js'
 import { MercuryPrBadge } from './MercuryPrBadge.js'
 import { MercuryTokenWarning } from './MercuryTokenWarning.js'
 import { MercuryAutoUpdater } from './MercuryAutoUpdater.js'
-import { MercuryEffortCallout } from './MercuryEffortCallout.js'
 import { MercuryRemoteCallout } from './MercuryRemoteCallout.js'
 import { MercuryDegradedBanner } from './MercuryDegradedBanner.js'
 
@@ -141,7 +140,6 @@ const ITEMS: GalleryItem[] = [
   ...group(
     'Status & spinner',
     item('spinner', 'Spinner line', <MercurySpinnerLine />),
-    item('effort', 'Effort callout', <MercuryEffortCallout />),
     item('token-warning', 'Token warning', <MercuryTokenWarning />),
     item('context-viz', 'Context viz', <MercuryContextViz />),
     item('compact', 'Compact', <MercuryCompact />),

@@ -1,4 +1,5 @@
 
+
   (>_) MERCURY · boot menu
 
   trust combo
@@ -6,7 +7,6 @@
     Debug tool (real debugger)      default (on)
     C/C++ IDE lane (clangd)         default (on)
     Sovereign mode                  default (off)
-    Autopilot tier mode             default (off)
   computer use
     Computer use                    default (on)
     Access type                     default (asks)

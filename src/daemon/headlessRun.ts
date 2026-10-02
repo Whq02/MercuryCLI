@@ -16,7 +16,6 @@ import { WORKER_PARENT_PID_ENV } from './workerParentWatch.js'
 import { selfScriptPath } from './daemonBuild.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
-import { decodePermissionModeSpelling } from '../types/permissions.js'
 import { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS } from '../utils/workerRole.js'
 
 export { ALL_ROLE_ENV_VARS } from '../utils/workerRole.js'
@@ -100,9 +99,8 @@ export function getHeadlessPermissionMode(
   const fallback = specDefault ?? HEADLESS_PERMISSION_MODE_DEFAULT
   const raw = (flagEnv('MERCURY_DAEMON_PERMISSION_MODE') ?? '').trim()
   if (!raw) return fallback
-  const decoded = decodePermissionModeSpelling(raw)
-  if ((HEADLESS_PERMISSION_MODES as readonly string[]).includes(decoded)) {
-    return decoded as HeadlessPermissionMode
+  if ((HEADLESS_PERMISSION_MODES as readonly string[]).includes(raw)) {
+    return raw as HeadlessPermissionMode
   }
   logForDebugging(
     `[daemon] MERCURY_DAEMON_PERMISSION_MODE=${raw} is not one of ${HEADLESS_PERMISSION_MODES.join('|')} — using ${fallback}`,

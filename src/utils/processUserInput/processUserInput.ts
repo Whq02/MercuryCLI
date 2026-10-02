@@ -57,7 +57,6 @@ function truncateHookText(text: string): string {
 type ProcessUserInputOptions = {
   input: string | ContentBlockParam[]
   syntaxInput?: string
-  preExpansionInput?: string
   mode: string
   setToolJSX: SetToolJSXFn
   context: ProcessUserInputContext
@@ -105,7 +104,6 @@ export async function processUserInput(
           skipSlashCommands: true,
           bridgeOrigin: false,
           origin: prompt.origin,
-          preExpansionInput: undefined,
           syntaxInput: undefined,
           pastedContents: undefined,
           setUserInputOnProcessing: undefined,

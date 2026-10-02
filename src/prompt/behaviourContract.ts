@@ -48,7 +48,6 @@ const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
   ['dynamic:runtime_posture', 'src/utils/cockpit/runtimePosture.ts'],
   ['wrapper:identity-floor', 'src/prompt/mercuryContract.ts'],
   ['wrapper:mercury-doctrine', 'src/prompt/mercuryContract.ts'],
-  ['mode:mode-autopilot', 'src/utils/autopilot/autopilotPrompt.ts'],
   ['mode:mode-apollo', 'src/prompt/apolloMode.ts'],
   ['mode:mode-vulcan', 'src/utils/vulcan/vulcanGates.ts'],
 ])

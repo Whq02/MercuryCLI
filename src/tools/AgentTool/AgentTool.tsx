@@ -2,7 +2,7 @@
 import { realpathSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { z, type ZodType } from 'zod'
-import { decodePermissionModeSpelling, type PermissionAskDecision } from '../../types/permissions.js'
+import type { PermissionAskDecision } from '../../types/permissions.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import {
   getCwdState,
@@ -189,7 +189,7 @@ const MODEL_PARAM_DESCRIPTION =
   "Model override for this launch. A family word selects that family (the [1m] forms select the 1M-context variant; a word naming the parent's own family keeps the parent's exact model) and an exact id names its model exactly; an explicit model here wins over the agent definition's own model; omitted, the agent inherits the parent's model. Engine backends all run in-process with this harness's own tools. Class aliases: 'gpt' (qualified OpenAI default) · 'glm' (Z.AI's newest GLM row) · 'kimi' (Moonshot's newest Kimi row) · 'deepseek' (DeepSeek's newest row) · 'grok' (xAI's newest Grok row) · 'muse' (Meta's newest served Standard Muse Spark row) · 'compat' (the operator-named OpenAI-compatible endpoint's first model) · 'huggingface' (the session's own Hugging Face model, else the router flagship) · 'local' (the session's own local model, else the first discovered one) · 'gemini' (the session's own Gemini model, else the live catalogue head) · 'openrouter' (the session's own OpenRouter model, else the auto router). An exact engine id (gpt-*, glm-*, kimi-*, deepseek-*, grok-*, gemini-*, compat/*, huggingface/*, local/*, openrouter/*) must be in its live catalogue."
 
 function effortParamDescription(): string {
-  return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never your own level, so a supercode session does not multiply every agent to max. A level the agent's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
+  return `Reasoning effort for this agent: ${EFFORT_LEVELS.join(' | ')}. Omitted, the configured sub-agent default applies (high unless the operator changed it in /config) — never your own level. A level the agent's model does not serve runs the nearest level it does; a model with no effort control runs without one. Setting it also turns on extended reasoning where the model supports it. Spend the top tiers on the hardest judge and verify work.`
 }
 
 export const inputSchema = lazySchema(() => {
@@ -547,8 +547,7 @@ export const AgentTool = buildTool({
           ...(input.subagent_type ? { agent_type: input.subagent_type } : {}),
           ...(crewmateModel ? { model: crewmateModel } : {}),
           ...(input.effort !== undefined ? { effort: input.effort } : {}),
-          plan_mode_required:
-            input.mode !== undefined && decodePermissionModeSpelling(input.mode) === 'strategy',
+          plan_mode_required: input.mode === 'strategy',
           description: input.description,
           ...(parentAssistantMessage.requestId
             ? { invokingRequestId: parentAssistantMessage.requestId }

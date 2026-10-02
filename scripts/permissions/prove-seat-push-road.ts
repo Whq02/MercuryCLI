@@ -59,7 +59,7 @@ const BLOCK_REASON = 'the fixture classifier blocks a push: anything visible out
 
 type Source = 'userSettings' | 'projectSettings' | 'localSettings' | 'cliArg' | 'session'
 type Rules = { allow?: string[]; deny?: string[]; ask?: string[] }
-type Mode = 'default' | 'flow' | 'implement' | 'strategy' | 'dontAsk' | 'sovereign' | 'autopilot'
+type Mode = 'default' | 'flow' | 'implement' | 'strategy' | 'dontAsk' | 'sovereign'
 
 function contextOf(mode: Mode, rules: Rules = {}, source: Source = 'userSettings'): Record<string, unknown> {
   return {
@@ -68,7 +68,7 @@ function contextOf(mode: Mode, rules: Rules = {}, source: Source = 'userSettings
     alwaysAllowRules: rules.allow ? { [source]: rules.allow } : {},
     alwaysDenyRules: rules.deny ? { [source]: rules.deny } : {},
     alwaysAskRules: rules.ask ? { [source]: rules.ask } : {},
-    isBypassPermissionsModeAvailable: mode === 'sovereign' || mode === 'autopilot',
+    isBypassPermissionsModeAvailable: mode === 'sovereign',
   }
 }
 

@@ -3010,23 +3010,6 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: 70, cols, rows,
     }
   }
-  if (name === 'autopilot-band') {
-    process.env.MERCURY_AUTOPILOT = '1'
-    const settingsPath = join(tmpdir(), 'autopilot-band-settings.json')
-    writeFileSync(
-      settingsPath,
-      JSON.stringify({ skipSovereignConsentPrompt: true }),
-    )
-    writeSyntheticSession('short')
-    return {
-      argv: [
-        'node', BIN, '--resume', SID,
-        '--sovereign', '--settings', settingsPath,
-      ],
-      sends: [{ atTick: 32, data: '\x1b[Z' }],
-      total: 52, cols, rows,
-    }
-  }
   if (name === 'mode-band-accept' || name === 'mode-band-plan' || name === 'mode-band-auto') {
     const mode = { 'mode-band-accept': 'implement', 'mode-band-plan': 'strategy', 'mode-band-auto': 'flow' }[name]!
     writeSyntheticSession('short')

@@ -10,7 +10,6 @@ import {
   getAutoModeFlagCli,
 } from './autoModeState.js'
 import { setHasExitedPlanMode, setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
-import { isAutopilotEnabled } from '../autopilot/autopilotGates.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
 import { getMainLoopModel } from '../model/model.js'
@@ -356,24 +355,6 @@ export function validateModeEntry(mode: PermissionMode, context: ToolPermissionC
       return { ok: false, error: `Flow is not available.${suffix}` }
     }
   }
-  if (mode === 'autopilot') {
-    if (!isAutopilotEnabled()) {
-      return {
-        ok: false,
-        error: 'Autopilot requires the MERCURY_AUTOPILOT opt-in to be armed.',
-      }
-    }
-    if (isBypassDisabledBySettingsOrPolicy()) {
-      return { ok: false, error: 'Autopilot is disabled because sovereign mode is disabled by settings or policy.' }
-    }
-    if (!bypassAvailable) {
-      return {
-        ok: false,
-        error:
-          'Cannot set permission mode to autopilot because the session was not launched with --sovereign',
-      }
-    }
-  }
   return { ok: true, mode }
 }
 
@@ -538,7 +519,6 @@ export function initialPermissionModeFromCLI({
   const candidates: PermissionMode[] = []
 
   if (dangerouslySkipPermissions) {
-    if (requested === 'autopilot') candidates.push('autopilot')
     candidates.push('sovereign')
   }
   if (requested) candidates.push(requested)
@@ -559,20 +539,6 @@ export function initialPermissionModeFromCLI({
       if (!dangerouslySkipPermissions) {
         notification =
           'Sovereign Mode requires launching with --sovereign because it is a bypass-posture mode.'
-        continue
-      }
-    }
-    if (candidate === 'autopilot') {
-      if (!isAutopilotEnabled()) {
-        notification = 'Autopilot requires the MERCURY_AUTOPILOT opt-in.'
-        continue
-      }
-      if (sovereignDisabled) {
-        notification = settingsNotice
-        continue
-      }
-      if (!dangerouslySkipPermissions) {
-        notification = 'Autopilot requires launching with --sovereign because it is a bypass-posture mode.'
         continue
       }
     }

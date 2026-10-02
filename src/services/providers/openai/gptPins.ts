@@ -58,12 +58,6 @@ export function isRankedWireEffort(word: string): boolean {
   return WIRE_EFFORT_RANK[word] !== undefined
 }
 
-export const DELEGATION_LEAD_LIST_WORD = 'ultra'
-
-export function listMarksDelegationLead(listed: readonly string[] | undefined): boolean {
-  return listed !== undefined && listed.includes(DELEGATION_LEAD_LIST_WORD)
-}
-
 export function nearestSupportedWireEffort(
   requested: string,
   supported: readonly string[],

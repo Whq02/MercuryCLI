@@ -44,7 +44,7 @@ export interface ModelTransitionReceipt {
   requested: string | null
   applied: string | null
   resolution: 'applied' | 'cancelled-pending'
-  boundary: 'idle' | 'turn-boundary' | 'autopilot-tool'
+  boundary: 'idle' | 'turn-boundary'
   crossProvider: boolean
   cacheDisposition: 'keyed-sections-recompute-once' | 'none'
 }
@@ -80,7 +80,7 @@ export function settleModelSelection(
   next: string | null,
   opts: {
     turnActive: boolean
-    boundary?: 'idle' | 'autopilot-tool'
+    boundary?: 'idle'
   },
 ): SettledSelection {
   const current = prev.mainLoopModelForSession ?? prev.mainLoopModel

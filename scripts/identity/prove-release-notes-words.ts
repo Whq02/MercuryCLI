@@ -36,7 +36,7 @@ const HOUSE_WORDS: Array<[string, RegExp]> = [
   ['pin', /\bpin(s|ned)?\b/i],
   ['prover', /\bprovers?\b/i],
   ['turn receipt', /turn receipt/i],
-  ['supercode (outside /supercode)', /(?<!\/)\bsupercode\b/i],
+  ['supercode', /\bsupercode\b/i],
 ]
 const houseWordHits = (bullets: string[]): string[] =>
   bullets.flatMap((b, i) => HOUSE_WORDS.filter(([, re]) => re.test(b)).map(([label]) => `bullet ${i + 1}: ${label}`))
@@ -46,11 +46,11 @@ console.log(' release notes — the plain words')
 console.log('============================================================')
 
 {
-  const fixture = ['# x', '', '## 9.9.9', '- Added a browser road for /bug, each with its own door', '- a note wrapped', '  onto a second line', '- /supercode and /seats are commands', '', '## 9.9.8', '- older', '`'].join('\n')
+  const fixture = ['# x', '', '## 9.9.9', '- Added a browser road for /bug, each with its own door', '- a note wrapped', '  onto a second line', '- /seats is a command', '', '## 9.9.8', '- older', '`'].join('\n')
   const s = sectionOf(fixture, null)
   check('self-test: the newest section is the first one, strays counted', s.bullets.length === 3 && s.strays.length === 1, JSON.stringify(s))
   check('self-test: the planted words trip (road · door)', houseWordHits(s.bullets).length === 2, houseWordHits(s.bullets).join(' · '))
-  check('self-test: the slash commands stay silent', houseWordHits(['/supercode and /seats are commands']).length === 0)
+  check('self-test: the slash command stays silent', houseWordHits(['/seats is a command']).length === 0)
   check('self-test: an older section is reachable by name', sectionOf(fixture, '9.9.8').bullets.length === 1)
 }
 

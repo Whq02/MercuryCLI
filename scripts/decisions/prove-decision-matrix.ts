@@ -142,7 +142,6 @@ section('stage 3 + 2a — mode outcomes for an opinion-less tool')
     ['acceptEdits + passthrough → ask', { mode: 'implement' }, 'ask', undefined],
     ['strategy (no bypass) + passthrough → ask', { mode: 'strategy' }, 'ask', undefined],
     ['bypassPermissions → allow (mode reason)', { mode: 'sovereign' }, 'allow', 'mode'],
-    ['autopilot → allow (bypass-posture twin)', { mode: 'autopilot' }, 'allow', 'mode'],
     ['strategy + bypassAvailable → allow', { mode: 'strategy', bypassAvailable: true }, 'allow', 'mode'],
     ['dontAsk converts ask → deny', { mode: 'dontAsk' }, 'deny', 'mode'],
   ]
@@ -219,7 +218,6 @@ section("stages 1f/1f'/1g × the postures — the three ask roads ask, and stand
   ]
   const bypassing: Array<[string, Record<string, unknown>, string]> = [
     ['sovereign', { mode: 'sovereign' }, 'sovereign'],
-    ['autopilot', { mode: 'autopilot' }, 'autopilot'],
     ['strategy + bypassAvailable', { mode: 'strategy', bypassAvailable: true }, 'strategy'],
   ]
   for (const [posture, ctx] of asking) {

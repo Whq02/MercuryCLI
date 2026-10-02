@@ -237,7 +237,6 @@ type AppStateMutableHalf = {
   pendingWorkerRequest: { toolName: string; description: string; toolUseId: string } | null
 
   effortValue: EffortValue | undefined
-  supercode: boolean | undefined
 
   authVersion: number
   initialMessage: {
@@ -327,7 +326,6 @@ export function getDefaultAppState(): AppState {
     pendingWorkerRequest: null,
 
     effortValue: undefined,
-    supercode: undefined,
 
     authVersion: 0,
     initialMessage: null,

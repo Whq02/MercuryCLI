@@ -1,11 +1,9 @@
 
 import { z } from 'zod'
-import { enqueueNotification } from '../../context/notifications.js'
 import { buildTool } from '../../Tool.js'
 import { canAnswerAsks, getIsNonInteractiveSession } from '../../bootstrap/state.js'
 import { getAgentContext } from '../../utils/agentContext.js'
 import { isCrewmate } from '../../utils/crewmate.js'
-import { EFFORT_LEVELS, isEffortLevel, type EffortLevel } from '../../utils/effort.js'
 import { recordModeTransition } from '../../utils/permissions/modeTransitions.js'
 import { prepareContextForPlanMode } from '../../utils/permissions/permissionSetup.js'
 import { isPlanModeInterviewPhaseEnabled } from '../../utils/planModeV2.js'
@@ -73,28 +71,6 @@ export const EnterPlanModeTool = buildTool({
 
     const appState = context.getAppState()
     const currentMode = appState.toolPermissionContext.mode
-
-    if (appState.toolPermissionContext.mode === 'autopilot') {
-      const current = appState.effortValue
-      const shouldRaise =
-        current === undefined ||
-        (typeof current === 'string' &&
-          isEffortLevel(current) &&
-          EFFORT_LEVELS.indexOf(current) < EFFORT_LEVELS.indexOf('high'))
-      if (shouldRaise) {
-        context.setAppState(prev => ({
-          ...prev,
-          effortValue: 'high' as EffortLevel,
-        }))
-        enqueueNotification(context.setAppState, {
-          key: 'autopilot-plan-effort-raise',
-          text: 'Autopilot plan entry raised reasoning effort to the planning tier (high).',
-          color: 'warning',
-          priority: 'medium',
-          timeoutMs: 8000,
-        })
-      }
-    }
 
     context.setAppState(prev => {
       const prepared = prepareContextForPlanMode(prev.toolPermissionContext)

@@ -13,14 +13,12 @@ export type InternalPermissionMode =
   | ExternalPermissionMode
   | 'flow'
   | 'bubble'
-  | 'autopilot'
   | 'apollo'
 
 export const INTERNAL_PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
   'bubble',
-  'autopilot',
   'apollo',
 ] as const satisfies readonly InternalPermissionMode[]
 
@@ -29,22 +27,10 @@ export type PermissionMode = InternalPermissionMode
 export const PERMISSION_MODES = [
   ...EXTERNAL_PERMISSION_MODES,
   'flow',
-  'autopilot',
   'apollo',
 ] as const
 
 export const VALID_PERMISSION_MODES = PERMISSION_MODES
-
-export const RETIRED_PERMISSION_MODE_SPELLINGS: Readonly<Record<string, PermissionMode>> = {
-  acceptEdits: 'implement',
-  auto: 'flow',
-  bypassPermissions: 'sovereign',
-  plan: 'strategy',
-}
-
-export function decodePermissionModeSpelling(raw: string): string {
-  return RETIRED_PERMISSION_MODE_SPELLINGS[raw] ?? raw
-}
 
 export type PermissionBehavior = 'allow' | 'deny' | 'ask'
 

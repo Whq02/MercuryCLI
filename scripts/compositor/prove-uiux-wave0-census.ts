@@ -481,7 +481,7 @@ section('RV — reasoning depth is not answer length; one balanced default + one
       contract.MERCURY_DOCTRINE.includes(contract.PERSISTENCE_LAW),
   )
   check(
-    'RV-02/08: the doctrine separates reasoning depth from answer verbosity (effort/ultrathink/ultracode never silently change length)',
+    'RV-02/08: the doctrine separates reasoning depth from answer verbosity (effort never silently changes length)',
     /answer length is its own control/.test(contract.MERCURY_DOCTRINE) &&
       /never answer verbosity/.test(contract.MERCURY_DOCTRINE),
   )

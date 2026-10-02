@@ -6,7 +6,7 @@ import { rehydrateScreenshots } from '../services/desktop/screenshotRetention.js
 import { restoreBoundPrefixFromMessages } from '../services/providers/anthropic/boundPrefixRecord.js'
 import type { AttachmentMessage, Message, NormalizedUserMessage, UserMessage } from '../types/message.js'
 import type { LogOption, SerializedMessage, TranscriptMessage } from '../types/logs.js'
-import { PERMISSION_MODES, decodePermissionModeSpelling } from '../types/permissions.js'
+import { PERMISSION_MODES } from '../types/permissions.js'
 import { suppressNextSkillListing } from './attachments/skillListing.js'
 import { getCwd } from './cwd.js'
 import { copyFileHistoryForResume } from './fileHistory.js'
@@ -96,10 +96,6 @@ function scrubPermissionMode(message: Message): Message {
   const mode = (message as UserMessage).permissionMode
   if (mode === undefined) return message
   if ((PERMISSION_MODES as readonly string[]).includes(mode)) return message
-  const decoded = decodePermissionModeSpelling(mode)
-  if (decoded !== mode && (PERMISSION_MODES as readonly string[]).includes(decoded)) {
-    return { ...message, permissionMode: decoded } as Message
-  }
   if (!noticedPermissionModes.has(mode)) {
     noticedPermissionModes.add(mode)
     mintImmediateReceipt(

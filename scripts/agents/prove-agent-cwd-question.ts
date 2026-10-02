@@ -34,12 +34,12 @@ try {
   check('resolving a launch does not grant a second root', agentCwdQuestion(outside, context)?.behavior === 'ask')
   check('a missing folder reaches the typed validation, not a permission ask', agentCwdQuestion(join(work, 'missing'), context) === null)
   check('a relative path reaches typed validation, not a permission ask', agentCwdQuestion('inside', context) === null)
-  for (const mode of ['default', 'implement', 'sovereign', 'autopilot']) {
+  for (const mode of ['default', 'implement', 'sovereign']) {
     const permission = { ...context, mode }
     const seat = { getAppState: () => ({ toolPermissionContext: permission }), abortController: new AbortController(), options: {} }
     const input = { description: 'probe', prompt: 'report directory', cwd: outside }
     const decision = await decideToolPermission(AgentTool, input, seat as never)
-    const bypass = mode === 'sovereign' || mode === 'autopilot'
+    const bypass = mode === 'sovereign'
     check(`${mode}: outside launch ${bypass ? 'proceeds' : 'asks'}`, decision.decision.behavior === (bypass ? 'allow' : 'ask'), decision.decision.behavior)
     const crewmate = await AgentTool.checkPermissions({ ...input, name: 'mate', crew_name: 'crew' }, seat as never)
     check(`${mode}: named crewmate follows the same law`, crewmate.behavior === (bypass ? 'allow' : 'ask'))

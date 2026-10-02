@@ -151,7 +151,7 @@ const ATTACHMENTS: Record<string, Fixture> = {
   auto_mode: { good: { reminderType: 'sparse' }, bad: [{ label: 'reminderType is a number', field: 'reminderType', fields: { reminderType: 1 } }] },
   auto_mode_exit: { good: {}, bad: [] },
   mode_pack: { good: { mode: 'apollo', text: 't' }, bad: [{ label: 'text is a list', field: 'text', fields: { mode: 'apollo', text: ['t'] } }] },
-  mode_pack_exit: { good: { mode: 'autopilot', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
+  mode_pack_exit: { good: { mode: 'apollo', reason: 'r' }, bad: [{ label: 'mode is missing', field: 'mode', fields: { reason: 'r' } }] },
   repo_surface_map: { good: { markdown: '# m' }, bad: [{ label: 'markdown is an object', field: 'markdown', fields: { markdown: {} } }] },
   context_capsule: {
     good: { markdown: '# c', digest: 'd', semDigest: 's', refs: ['src/a.ts'], delta: null },
@@ -160,9 +160,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
       { label: 'delta is a number', field: 'delta', fields: { markdown: '# c', digest: 'd', refs: [], delta: 5 } },
     ],
   },
-  ultra_effort: { good: { reminderType: 'full' }, bad: [{ label: 'reminderType is null', field: 'reminderType', fields: { reminderType: null } }] },
-  ultra_effort_exit: { good: {}, bad: [] },
-  supercode_keyword: { good: {}, bad: [] },
   critical_system_reminder: { good: { content: 'c' }, bad: [{ label: 'content is a list', field: 'content', fields: { content: ['c'] } }] },
   plan_file_reference: { good: { planFilePath: 'p.md', planContent: '# p' }, bad: [{ label: 'planContent is an object', field: 'planContent', fields: { planFilePath: 'p.md', planContent: {} } }] },
   mcp_resource: { good: { server: 's', uri: 'u', name: 'n', content: { contents: [] } }, bad: [{ label: 'content is text', field: 'content', fields: { server: 's', uri: 'u', name: 'n', content: 'c' } }] },
@@ -207,8 +204,8 @@ const ATTACHMENTS: Record<string, Fixture> = {
   hook_system_message: { good: { content: 'c', hookName: 'h', toolUseID: 't', hookEvent: 'PreToolUse' }, bad: [{ label: 'toolUseID is missing', field: 'toolUseID', fields: { content: 'c', hookName: 'h', hookEvent: 'PreToolUse' } }] },
   hook_permission_decision: { good: { decision: 'allow', toolUseID: 't', hookEvent: 'PermissionRequest' }, bad: [{ label: 'decision is a boolean', field: 'decision', fields: { decision: true, toolUseID: 't', hookEvent: 'PermissionRequest' } }] },
   bypassed_ask: {
-    good: { toolUseID: 't', mode: 'bypassPermissions', road: 'toolAskRule', reason: 'r' },
-    bad: [{ label: 'reason is missing', field: 'reason', fields: { toolUseID: 't', mode: 'bypassPermissions', road: 'toolAskRule' } }],
+    good: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule', reason: 'r' },
+    bad: [{ label: 'reason is missing', field: 'reason', fields: { toolUseID: 't', mode: 'sovereign', road: 'toolAskRule' } }],
   },
   verify_plan_reminder: { good: {}, bad: [] },
   max_turns_reached: { good: { maxTurns: 3, turnCount: 3 }, bad: [{ label: 'maxTurns is text', field: 'maxTurns', fields: { maxTurns: '3', turnCount: 3 } }] },
@@ -217,7 +214,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   compaction_reminder: { good: {}, bad: [] },
   context_efficiency: { good: {}, bad: [] },
   date_change: { good: { newDate: '2026-08-02' }, bad: [{ label: 'newDate is a number', field: 'newDate', fields: { newDate: 20260802 } }] },
-  deepthink_effort: { good: {}, bad: [] },
   bound_prefix: {
     good: { boundKey: 'k', rosterEnabled: true, roster: [{ name: 'Read', deferred: false }], sections: [{ name: 's', key: null, text: 't' }], systemContext: { gitStatus: 'clean' } },
     bad: [

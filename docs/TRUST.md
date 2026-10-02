@@ -69,7 +69,7 @@ starting folder.
   it proceed.
 - **Default mode** asks for writes and edits in either place unless a
   permission rule already allows them.
-- **Sovereign mode**, including Autopilot, does not ask because of a file's
+- **Sovereign mode** does not ask because of a file's
   location. Capability gates, explicit deny rules and wards still apply.
 - **Flow, Strategy, Apollo, Bubble and dontAsk** keep their existing permission
   behaviour; a folder does not add a separate refusal.

@@ -9,29 +9,6 @@ export type ThinkingConfig =
   | { type: 'enabled'; budgetTokens: number }
   | { type: 'disabled' }
 
-export function isDeepthinkEnabled(): boolean {
-  return true
-}
-
-const DEEPTHINK_SOURCE = String.raw`\bdeepthink\b`
-const DEEPTHINK_TEST = new RegExp(DEEPTHINK_SOURCE, 'i')
-
-export function hasDeepthinkKeyword(text: string): boolean {
-  return DEEPTHINK_TEST.test(text)
-}
-
-export function findThinkingTriggerPositions(
-  text: string,
-): Array<{ word: string; start: number; end: number }> {
-  const pattern = new RegExp(DEEPTHINK_SOURCE, 'gi')
-  const positions: Array<{ word: string; start: number; end: number }> = []
-  for (const match of text.matchAll(pattern)) {
-    if (match.index === undefined) continue
-    positions.push({ word: match[0], start: match.index, end: match.index + match[0].length })
-  }
-  return positions
-}
-
 export function shouldEnableThinkingByDefault(): boolean {
   const envValue = flagEnv('MERCURY_THINKING_BUDGET')
   if (envValue !== undefined && envValue !== '') {

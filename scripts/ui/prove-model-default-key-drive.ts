@@ -468,7 +468,7 @@ if (CASE === undefined || CASE === 'session-effort') {
     const after = c.marks.get('after-arrow') ?? []
     check(`${cols}x${rows}: the drive delivered every send`, c.status === 0, `exit ${c.status}`)
     check(`${cols}x${rows}: the session picker opens on low`, opened.some(l => l.includes('[low]')), opened.filter(l => l.includes('effort')).join(' | '))
-    check(`${cols}x${rows}: the session ladder carries no supercode`, opened.length > 0 && !opened.some(l => l.includes('supercode')))
+    check(`${cols}x${rows}: the session ladder ends at max`, opened.length > 0 && opened.some(l => /\bmax\s+·/.test(l)))
     check(`${cols}x${rows}: e advances the effort from low to medium`, after.some(l => l.includes('[medium]')), after.filter(l => l.includes('effort')).join(' | '))
     check(`${cols}x${rows}: the saved default remains high`, settingsOf(home).effortLevel === 'high')
     if (FRAMES !== undefined) {

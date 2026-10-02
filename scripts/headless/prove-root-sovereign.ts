@@ -13,7 +13,7 @@ const notice = 'Running as root in sovereign mode: the agent can change any file
 for (const [uid, modes, expected] of [
   [0, ['sovereign'], notice],
   [1000, ['sovereign'], ''],
-  [0, ['default', 'implement', 'flow', 'dontAsk', 'strategy', 'apollo', 'autopilot'], ''],
+  [0, ['default', 'implement', 'flow', 'dontAsk', 'strategy', 'apollo'], ''],
   [0, ['default', 'sovereign', 'flow', 'sovereign'], notice],
 ] as const) {
   const result = spawnSync(process.execPath, ['-e', `process.getuid = () => ${uid}; const { noteRootSovereign } = await import(${JSON.stringify(modulePath)}); for (const mode of ${JSON.stringify(modes)}) noteRootSovereign(mode); console.log('continued')`], { env: process.env, encoding: 'utf8' })

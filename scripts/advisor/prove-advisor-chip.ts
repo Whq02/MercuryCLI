@@ -165,7 +165,7 @@ section('§2 the status row, rendered from source: the chip stands after the vit
     const stdout = new Output(cols, rows)
     const ink = new Ink({ stdout: stdout as never, stdin: new Input() as never, stderr: new Output(cols, rows) as never, exitOnCtrlC: false, patchConsole: false })
     instances.set(stdout as never, ink)
-    const state = { ...getDefaultAppState(), effortValue: 'high', supercode: false } as AppState
+    const state = { ...getDefaultAppState(), effortValue: 'high' } as AppState
     ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined }, h(Harness)))
     const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
     const statusRow = (): string => {
