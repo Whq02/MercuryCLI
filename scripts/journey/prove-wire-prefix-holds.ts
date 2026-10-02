@@ -734,7 +734,7 @@ async function drive(): Promise<void> {
   if (failures > 0 || REPORT) {
     for (const leg of [leg1, leg2]) {
       console.log(`\n[forensics] ${leg.name} capture: ${leg.captureFile}`)
-      console.log(`[forensics] replay:  node scripts/api/wire-prefix-replay.ts ${leg.captureFile} --debug-file ${leg.debugFile} --home ${RUN_HOME}`)
+      console.log(`[forensics] replay:  node scripts/api/wire-prefix-replay.ts ${leg.captureFile} --log-file ${leg.debugFile} --home ${RUN_HOME}`)
     }
     if (failures > 0) {
       console.log(`[forensics] leg 2 final screen:\n${leg2.finalGrid.split('\n').slice(-20).join('\n')}`)
