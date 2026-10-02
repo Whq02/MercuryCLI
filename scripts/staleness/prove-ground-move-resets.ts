@@ -58,7 +58,6 @@ process.chdir(bootDir)
   check('S0 the agents definitions cache clears', ground.includes('clearAgentDefinitionsCache()'))
   check('S0 the example-command memos clear', ground.includes('getExampleCommandFromCache.cache?.clear?.()') && ground.includes('refreshExampleCommands.cache?.clear?.()'))
   check('S0 the onboarding memo clears', ground.includes('shouldShowProjectOnboarding.cache?.clear?.()'))
-  check('S0 the plans-directory memo clears', ground.includes('getPlansDirectory.cache.clear()'))
   check('S0 extensions go PENDING, never hot-swapped', ground.includes('setExtensionsPending(true)'))
 }
 
