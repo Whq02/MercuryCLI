@@ -86,13 +86,13 @@ check('the tool result says the operator moved the command to the background as 
 
 section('§6 the two rows and the key, behind one setting')
 const footer = read('src/components/PromptInput/PromptInputFooterLeftSide.tsx')
-check('the hint row adds ⇧b background the command beside esc interrupt only while a shell command runs and the key is on', footer.includes("if (shellRunning && getSettingsSnapshot().settings.backgroundKey !== false) {") && footer.includes(`shortcut={keyHintLabel('⇧b')} action="background the command"`))
+check('the hint row adds ⇧b background the command beside esc interrupt only while a shell command runs and the key is on', footer.includes("if (shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false) {") && footer.includes(`shortcut={keyHintLabel('⇧b')} action="background the command"`))
 const tag = read('src/components/SwitchboardTagBar.tsx')
-check('the ready line reads the shell fact through the same setting', tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.backgroundKey !== false)'))
+check('the ready line reads the shell fact through the same setting', tag.includes('escBackHint(live, status, shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false)'))
 const cancel = read('src/hooks/useCancelRequest.ts')
-check('the chord rides the Chat context, armed only while a shell runs and the key is on, and lets a draft keep its letter', cancel.includes("'chat:backgroundShell',") && cancel.includes("if (pendingInput.text() !== '') return false") && cancel.includes('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.backgroundKey !== false'))
+check('the chord rides the Chat context, armed only while a shell runs and the key is on, and lets a draft keep its letter', cancel.includes("'chat:backgroundShell',") && cancel.includes("if (pendingInput.text() !== '') return false") && cancel.includes('isActive: isEscapeActive && shellRunning && getSettingsSnapshot().settings.view?.backgroundKey !== false'))
 const settings = read('src/utils/settings/types.ts')
-check('the setting is declared in the settings store', settings.includes('backgroundKey: z.boolean().optional()'))
+check('the setting is declared in the settings store under view', /view: z\.object\(\{[\s\S]{0,600}backgroundKey: z\.boolean\(\)\.optional\(\)/.test(settings))
 
 section('§7 the receipt — an applied verb paints nothing; a refusal paints the connector\'s own sentence on the notice row')
 const hook = (await import('../../src/hooks/useCancelRequest.ts')) as { backgroundShellNotice?: (receipt: { outcome: 'applied' | 'refused'; detail?: string }) => { key: string; text?: string; priority: string; timeoutMs?: number } | null }

@@ -644,7 +644,7 @@ function modelLabel() {
 function computeModelLabel() {
   try {
     const s = JSON.parse(readFileSync(join(CONFIG_HOME, 'settings.json'), 'utf8'))
-    const m = typeof s.model === 'string' ? s.model.trim() : null
+    const m = typeof s.engine?.model === 'string' ? s.engine.model.trim() : null
     if (!m) return 'default'
     const oneM = /\[1m\]$/i.test(m)
     const bare = m.replace(/\[1m\]$/i, '').trim()

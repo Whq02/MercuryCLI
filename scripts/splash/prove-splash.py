@@ -475,7 +475,7 @@ def strip_with_model(model_value):
     home = tempfile.mkdtemp(prefix='splash-model-home-')
     try:
         with open(os.path.join(home, 'settings.json'), 'w') as f:
-            json.dump({'model': model_value}, f)
+            json.dump({'engine': {'model': model_value}}, f)
         return STRIP.sub('', run_pty(120, 50, {'MERCURY_HOME': home, 'MERCURY_REDUCED_MOTION': '1', **INLINE}))
     finally:
         shutil.rmtree(home, ignore_errors=True)

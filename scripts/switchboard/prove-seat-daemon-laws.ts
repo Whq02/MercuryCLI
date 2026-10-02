@@ -44,7 +44,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): P
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 seedFirstRun(home, [work])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { ask: ['Bash(rm:*)'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm:*)'] } }))
 
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([

@@ -27,6 +27,57 @@ const WORDS: Array<[string, RegExp]> = [
 ]
 
 const RUN_SCOPE = /^(?:src\/|docs\/|README\.md$|bench\/|\.github\/)/
+const SETTINGS_SCOPE = /^(?:src\/|docs\/|README\.md$|scripts\/settings\/)/
+const RETIRED_SETTINGS_ROOTS = [
+  'apiKeyHelper', 'proxyAuthHelper', 'forceLoginMethod', 'forceLoginOrgUUID', 'fileSuggestion', 'respectGitignore', 'cleanupPeriodDays',
+  'instructionExcludes', 'includeGitInstructions', 'instructionProfile', 'plansDirectory', 'showClearContextOnStrategyAccept', 'autoMemoryEnabled',
+  'autoMemoryDirectory', 'memoryUpkeepEnabled', 'loopGuardStopEnabled', 'includeMercuryCoAuthor', 'allowManagedPermissionRulesOnly',
+  'skipSovereignConsentPrompt', 'availableModels', 'modelOverrides', 'effortLevel', 'supercodeEffort', 'sessionDefaultsKey', 'alwaysThinkingEnabled',
+  'enableAllProjectMcpServers', 'enabledMcpjsonServers', 'disabledMcpjsonServers', 'allowedMcpServers', 'deniedMcpServers', 'allowManagedMcpServersOnly',
+  'disableAllHooks', 'allowManagedHooksOnly', 'allowedHttpHookUrls', 'httpHookAllowedEnvVars', 'strictExtensionOnlyCustomization', 'spinnerTipsEnabled',
+  'spinnerTipsOverride', 'spinnerVerbs', 'progressReporting', 'filesBox', 'modelPickerCentred', 'syntaxHighlightingDisabled', 'prefersReducedMotion',
+  'backgroundKey', 'sessionsBar', 'firstRunCards', 'compactWayBack', 'promptSuggestionEnabled', 'defaultShell', 'shellEngine', 'shellEngineSessions',
+  'openrouterRouting', 'channelsEnabled', 'localServer',
+]
+const RETIRED_SETTINGS_GENERIC_ROOTS = ['env', 'attribution', 'permissions', 'sandbox', 'model', 'agent', 'hooks', 'language', 'worktree']
+const RETIRED_SETTINGS_FIELDS = [
+  'disableBypassPermissionsMode', 'disableAutoMode', 'skipDangerousModePermissionPrompt', 'autoDreamEnabled', 'showClearContextOnPlanAccept',
+  J('claudeMd', 'Excludes'), J('Tea', 'mmateIdle'), 'defaultMode',
+]
+const RETIRED_SETTINGS_MODULES = [
+  'migrateSettingsSpellings', 'migrateEnableAllProjectMcpServersToSettings', 'migrateBypassPermissionsAcceptedToSettings', 'migrateAutoupdateEnvName',
+  'migrateConfigSpellings',
+]
+const RETIRED_POLICY_PLACES = [J('com.anthropic.', 'claudecode'), J('Policies\\\\', 'ClaudeCode')]
+const SETTINGS_LEAF_KEPT = new Set(['model', 'agent', 'hooks', 'sandbox', 'worktree', 'language', 'env', 'attribution', 'permissions'])
+const SETTINGS_LEAF_NAMES = new Set(['backgroundKey', 'sessionsBar', 'firstRunCards'])
+const asRoot = (key: string): RegExp => new RegExp(
+  '(?:[sS]ettings\\w*(?:\\([^)]*\\))?\\??\\.' + key + '(?![\\w$])|(?:writeFileSync\\([^;]*JSON\\.stringify\\(|updateSettingsForSource\\([^,]+,\\s*|safeParse\\(|parse\\()\\s*\\{\\s*' + key + '\\s*:|SettingsJson\\[["\']' + key + '["\']\\])',
+)
+const asDistinctRoot = (key: string): RegExp => new RegExp('(?:\\)\\??\\.' + key + '(?![\\w$])|`' + key + '`)')
+const asJsonKey = (key: string): RegExp => new RegExp('"' + key + '"\\s*:')
+const inDocs = (key: string): RegExp => new RegExp('(?<![\\w$./\'"-])' + key + '(?![\\w$/-])')
+const dottedOrNamed = (key: string): RegExp => new RegExp('`' + key + '(?:\\.[A-Za-z]+)+`|`' + key + '`\\s+(?:setting|key|block|list)')
+const plainName = (key: string): RegExp => new RegExp('(?<![\\w$./\'"-])' + key + '(?![\\w$/-])')
+const moduleName = (name: string): RegExp => new RegExp('(?<![\\w$-])' + name + '(?![\\w$-])')
+const RELEASE_SETTINGS_LINES: Readonly<Record<string, string>> = {
+  'docs/releases/1.0.0-beta.21.md': '  one stretch is asked once to continue past it; with loopGuardStopEnabled',
+  'src/constants/changelog.ts': '- Added a loop guard: a tool call repeated with identical arguments and an identical result is reminded at the third, fifth and eighth repeat, a cycle of up to five calls repeated five times is named, and a reply that chants one stretch is asked once to continue past it; with loopGuardStopEnabled true in settings the second detection of the same cycle ends the turn as loop_stopped (by default nothing is ended)',
+}
+function settingsViolation(path: string, line: string): string | null {
+  if (!SETTINGS_SCOPE.test(path) || allowed(path, 'settings')) return null
+  if (RELEASE_SETTINGS_LINES[path] === line) return null
+  const prose = /\.md$/.test(path) || path === 'src/constants/changelog.ts'
+  for (const place of RETIRED_POLICY_PLACES) if (line.includes(place)) return `settings:${place}`
+  for (const name of RETIRED_SETTINGS_MODULES) if (moduleName(name).test(line)) return `settings:${name}`
+  for (const key of [...RETIRED_SETTINGS_ROOTS, ...RETIRED_SETTINGS_GENERIC_ROOTS, ...RETIRED_SETTINGS_FIELDS]) {
+    if (asRoot(key).test(line) || dottedOrNamed(key).test(line)) return `settings:${key}`
+    if (SETTINGS_LEAF_KEPT.has(key)) continue
+    if (asDistinctRoot(key).test(line) || (!SETTINGS_LEAF_NAMES.has(key) && asJsonKey(key).test(line))) return `settings:${key}`
+    if (prose && inDocs(key).test(line)) return `settings:${key}`
+  }
+  return null
+}
 const CONCOURSE_HOME = new RegExp('^src/(components|services)/concourse/')
 const crumbUpperRe = new RegExp('[Mm]ain[- ]' + J('RE', 'PL'))
 const crumbSpacedRe = new RegExp(J('main', '[ ]', 'repl'), 'i')
@@ -119,6 +170,8 @@ function scan(files: Array<{ path: string; content: string }>): Violation[] {
       if (srcCode && (concourse || !isCommentLine(line)) && (crumbUpperRe.test(line) || crumbSpacedRe.test(line))) {
         out.push({ path: f.path, line: i + 1, rule: 'focused-chat', text: line.trim().slice(0, 140) })
       }
+      const settingsRule = settingsViolation(f.path, line)
+      if (settingsRule !== null) out.push({ path: f.path, line: i + 1, rule: settingsRule, text: line.trim().slice(0, 140) })
     }
   }
   return out
@@ -182,6 +235,40 @@ console.log('============================================================')
   check('§3 self-test: the concourse holds the rule on every line', crumbConcourse.length === 1, JSON.stringify(crumbConcourse))
   const routeId = scan([{ path: 'src/components/x.tsx', content: "const id = '" + J('main-re', 'pl') + "'" }])
   check('§3 self-test: the route id stays legal', routeId.length === 0, JSON.stringify(routeId))
+}
+
+{
+  const settingsHits = (path: string, content: string): string[] => scan([{ path, content }]).filter(v => v.rule.startsWith('settings:')).map(v => v.rule)
+  const everyRoot = [...RETIRED_SETTINGS_ROOTS, ...RETIRED_SETTINGS_GENERIC_ROOTS]
+  check('§4 self-test: every former root trips as a settings write in a proof', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `writeFileSync(join(home, 'settings.json'), JSON.stringify({ ${key}: value }))`).length === 1))
+  check('§4 self-test: every former root trips as an updateSettingsForSource write', everyRoot.every(key => settingsHits('src/x.ts', `updateSettingsForSource('userSettings', { ${key}: value })`).length === 1))
+  check('§4 self-test: every former root trips as a read off the settings', everyRoot.every(key => settingsHits('src/x.ts', `const v = getInitialSettings().${key} ?? settings.${key}`).length === 1))
+  check('§4 self-test: every former root trips as a SettingsJson index', everyRoot.every(key => settingsHits('scripts/settings/prove-x.ts', `type T = SettingsJson['${key}']`).length === 1))
+  check('§4 self-test: every former root trips as a dotted path in the docs', everyRoot.every(key => settingsHits('docs/x.md', 'set `' + key + '.leaf` in settings.json').length === 1))
+  check('§4 self-test: a distinct former root trips as a backticked name and as a settings word in the docs', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('README.md', 'toggle `' + key + '` in /config').length === 1 && settingsHits('docs/x.md', `the ${key} setting (toggled in /config)`).length === 1))
+  check('§4 self-test: a distinct former root trips as a JSON key unless it lives on as a leaf name under a group', RETIRED_SETTINGS_ROOTS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === (SETTINGS_LEAF_NAMES.has(key) ? 0 : 1)))
+  check('§4 self-test: every former adoption field trips in a settings file', RETIRED_SETTINGS_FIELDS.every(key => settingsHits('scripts/settings/fixture.json', `  "${key}": true,`).length === 1))
+  check('§4 self-test: every retired module name trips in src', RETIRED_SETTINGS_MODULES.every(name => settingsHits('src/x.ts', `import { x } from './migrations/${name}.js'`).length === 1))
+  check('§4 self-test: the two former policy places trip in src', RETIRED_POLICY_PLACES.every(place => settingsHits('src/utils/settings/mdm/x.ts', `const DOMAIN = '${place}'`).length === 1))
+  const quiet: Array<[string, string]> = [
+    ['src/x.ts', "const prefersReducedMotion = useAppState(state => state.settings.view?.reducedMotion === true)"],
+    ['src/x.ts', "const effortLevel = (opts.effort as EffortLevel | undefined) ?? getInitialSettings().engine?.effort"],
+    ['src/x.ts', "facts: { modelId, effortLevel: 'high', instructionProfile: 'native' }"],
+    ['src/x.ts', "const shell = manifest.shellEngine as { vendored?: boolean }"],
+    ['src/x.ts', "body: JSON.stringify({ model: tag, stream: true })"],
+    ['src/x.ts', "const id = `agent:${agentId}`; const row = `model:${modelId}`; env: subprocessEnv()"],
+    ['src/x.ts', "import { localServerSettingsOf } from '../../services/localServer/localServerKnobs.js'"],
+    ['src/x.ts', "updateSettingsForSource('userSettings', { guardrails: { allow: rules }, events: { hooks }, extensions: { exclusive: true }, local: { server: { keepAlive: '30m' } } })"],
+    ['src/x.ts', "const centred = settings.view?.modelPicker?.centred ?? settings.view?.sessionsBar; const m = getInitialSettings().engine?.model"],
+    ['scripts/settings/settings-schema.json', '        "sessionsBar": {'],
+    ['scripts/settings/settings-schema.json', '        "backgroundKey": {'],
+    ['docs/x.md', 'Set `guardrails.allow`, `events.hooks.PreToolUse`, `view.sessionsBar`, `engine.model` and `local.server.keepAlive` in settings.json.'],
+    ['docs/x.md', 'The `/model` picker and the `agent` definitions, with `permissions` in the plain sense.'],
+    ['src/x.ts', "process.env.MERCURY_SHELL_ENGINE ?? process.env.MERCURY_REDUCED_MOTION"],
+  ]
+  check('§4 self-test: the current nested forms, the ordinary identifiers and the API bodies stay quiet', quiet.every(([path, content]) => settingsHits(path, content).length === 0), quiet.filter(([path, content]) => settingsHits(path, content).length > 0).map(([, content]) => content).join(' | '))
+  check('§4 self-test: the settings rows do not reach the rest of the script estate', settingsHits('scripts/ui/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 0 && settingsHits('scripts/settings/prove-x.ts', "writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true }))").length === 1)
+  check('§4 self-test: the two published release lines keep their recorded bytes, and a changed line trips', Object.entries(RELEASE_SETTINGS_LINES).every(([path, content]) => settingsHits(path, content).length === 0 && settingsHits(path, content + ' more').length === 1))
 }
 
 const tracked = execSync('git ls-files -z', { cwd: ROOT })

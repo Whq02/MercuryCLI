@@ -29,18 +29,18 @@ const source = (file: string): string => readFileSync(join(repo, file), 'utf8')
 try {
   const { PermissionsSchema } = await import('../../src/utils/settings/types.js')
   for (const value of [[scratch], 'old-invalid-value', null, 17]) {
-    const parsed = PermissionsSchema().safeParse({ defaultMode: 'implement', additionalDirectories: value })
-    check('a retired saved directory key is accepted without validation errors', parsed.success, JSON.stringify(value))
-    check('the read-side result ignores the retired key', parsed.success && !Object.hasOwn(parsed.data, 'additionalDirectories'))
-    check('the remaining permission settings survive', parsed.success && parsed.data.defaultMode === 'implement')
+    const parsed = PermissionsSchema().safeParse({ mode: 'implement', additionalDirectories: value })
+    check('a saved directory key is accepted without validation errors, like any unknown key', parsed.success, JSON.stringify(value))
+    check('the declared guardrail beside it applies', parsed.success && parsed.data.mode === 'implement')
   }
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [scratch], defaultMode: 'implement' } }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { additionalDirectories: [scratch], mode: 'implement' } }))
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.js')
   const loaded = getSettingsWithErrors()
-  check('an old settings file boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors))
-  check('the loaded permission map has no additional directory', !Object.hasOwn(loaded.settings.permissions ?? {}, 'additionalDirectories'))
+  check('a settings file carrying a saved directory boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors))
+  check('the declared guardrail mode is read', loaded.settings.guardrails?.mode === 'implement')
+  check('no settings reader names a saved directory key', !/additionalDirectories/.test(source('src/utils/settings/types.ts')) && !/additionalDirectories/.test(source('src/utils/settings/settings.ts')))
   const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.js')
   const init = await initializeToolPermissionContext({ allowedToolsCli: [], disallowedToolsCli: [], permissionMode: 'implement', allowDangerouslySkipPermissions: false })
   check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'))
@@ -52,7 +52,6 @@ try {
   ]) {
     check(`${file}: no added-directory surface or reader`, !/additionalWorkingDirectories|--add-dir|\/add-dir|AddWorkspaceDirectory|getAddedDirectories/.test(source(file)))
   }
-  check('the retired settings reader says it was ignored in debug output', /logForDebugging\([^;]*additionalDirectories[^;]*ignored/s.test(source('src/utils/settings/types.ts')))
   check('the workspace permission tab is absent', !source('src/components/permissions/rules/PermissionRuleList.tsx').includes('id="workspace"'))
   const trust = source('docs/TRUST.md')
   check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode/.test(trust) && /outside/.test(trust))

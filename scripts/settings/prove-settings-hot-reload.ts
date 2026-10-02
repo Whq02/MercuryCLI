@@ -40,7 +40,7 @@ const projDir = join(PROJ, '.mercury')
 mkdirSync(projDir, { recursive: true })
 const projPath = join(projDir, 'settings.json')
 
-writeFileSync(userPath, JSON.stringify({ model: 'initial' }))
+writeFileSync(userPath, JSON.stringify({ engine: { model: 'initial' } }))
 writeFileSync(projPath, JSON.stringify({}))
 
 const events: Array<{ source: string; modelAtNotify: unknown }> = []
@@ -50,7 +50,7 @@ await settingsChangeDetector.resetForTesting({
   deletionGrace: 250,
 })
 settingsChangeDetector.subscribe(source => {
-  events.push({ source, modelAtNotify: getInitialSettings().model })
+  events.push({ source, modelAtNotify: getInitialSettings().engine?.model })
 })
 await settingsChangeDetector.initialize()
 
@@ -81,7 +81,7 @@ async function waitForEvents(n: number, ms = 8000): Promise<boolean> {
   }
   await quiet(5000)
   const before = events.length
-  writeFileSync(userPath, JSON.stringify({ model: 'initial', __probe: Date.now() }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'initial' }, __probe: Date.now() }))
   if (!(await waitForEvents(before + 1, 10_000))) {
     console.log('❌ SETTLE PROBE — the watcher never delivered the sentinel edit (watcher not armed)')
     process.exit(1)
@@ -96,7 +96,7 @@ console.log('============================================================')
 
 section('(1) external edit → one notification, fresh truth at notify time')
 {
-  writeFileSync(userPath, JSON.stringify({ model: 'externally-changed' }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'externally-changed' } }))
   const fired = await waitForEvents(1)
   check('notification fired for the external edit', fired, `events=${events.length}`)
   check('source attributed to userSettings', events[0]?.source === 'userSettings', JSON.stringify(events[0]))
@@ -113,7 +113,7 @@ section('(2) internal writes are suppressed')
 {
   const before = events.length
   markInternalWrite(userPath)
-  writeFileSync(userPath, JSON.stringify({ model: 'internal-write' }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'internal-write' } }))
   await waitMs(900)
   check('no notification for the internal write', events.length === before, `events=${events.length - before}`)
 }
@@ -132,7 +132,7 @@ section('(4) delete-then-recreate inside the grace window collapses to a change'
   const before = events.length
   rmSync(userPath)
   await waitMs(80)
-  writeFileSync(userPath, JSON.stringify({ model: 'recreated' }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'recreated' } }))
   const fired = await waitForEvents(before + 1)
   check('recreate fired a change notification', fired, `events=${events.length}`)
   await waitMs(600)
@@ -157,7 +157,7 @@ section('(6) dispose() stops the watcher')
 {
   await settingsChangeDetector.dispose()
   const before = events.length
-  writeFileSync(userPath, JSON.stringify({ model: 'after-dispose' }))
+  writeFileSync(userPath, JSON.stringify({ engine: { model: 'after-dispose' } }))
   await waitMs(700)
   check('no events after dispose', events.length === before, String(events.length - before))
 }

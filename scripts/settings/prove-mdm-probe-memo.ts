@@ -96,8 +96,8 @@ section('M5 the barrier shape — the skip arm never waits on the spawns; the aw
   }
   const race = (p: Promise<string>): Promise<string> => Promise.race([p, new Promise<string>(resolve => setTimeout(() => resolve('waited'), 150))])
   check('win32 + absent memo: the skip arm proceeds at once (0 awaited spawns)', (await race(barrier(memo.mdmBootAwaitsRawRead('win32', hAbsent)))) === 'proceeded')
-  check('win32 + no memo (the control): the await arm waits on the read (4 awaited spawns — the cost the row removes)', (await race(barrier(memo.mdmBootAwaitsRawRead('win32', hNone)))) === 'waited')
-  console.log('  BEFORE: 4 awaited reg.exe spawns (5 s timeout each) before the settings merge on every win32 boot · AFTER (memo says absent): 0 awaited; the 4 still fire in the background')
+  check('win32 + no memo (the control): the await arm waits on the read (2 awaited spawns — the cost the row removes)', (await race(barrier(memo.mdmBootAwaitsRawRead('win32', hNone)))) === 'waited')
+  console.log('  BEFORE: 2 awaited reg.exe spawns (5 s timeout each) before the settings merge on every win32 boot · AFTER (memo says absent): 0 awaited; the 2 still fire in the background')
 }
 
 section('M6 wiring')
@@ -113,7 +113,7 @@ section('M6 wiring')
   check('the load records the completed read\'s outcome right after filling the tier caches', /hkcuCache = hkcu\n[\s\S]{0,200}?recordMdmProbeOutcome\(raw\)/.test(settingsSrc) && settingsSrc.includes("export { mdmBootAwaitsRawRead } from './probeMemo.js'"))
   const rawSrc = readFileSync(join(ROOT, 'src/utils/settings/mdm/rawRead.ts'), 'utf8')
   const spawns = rawSrc.match(/runSubprocess\('reg', \['query'/g) ?? []
-  check('the four registry spawns still fire (the read is unchanged; only the await moved)', spawns.length === 4 && /startMdmRawRead\(\);/.test(main))
+  check('the two registry spawns, one per hive, still fire (only the await moved)', spawns.length === 2 && /startMdmRawRead\(\);/.test(main))
   const probeSrc = readFileSync(join(ROOT, 'src/utils/settings/mdm/probeMemo.ts'), 'utf8')
   check('the memo is win32-only at both ends (record and predicate)', (probeSrc.match(/if \(platform !== 'win32'\) return/g) ?? []).length === 2)
 }

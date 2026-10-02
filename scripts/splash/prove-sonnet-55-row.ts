@@ -64,7 +64,7 @@ section("§3 the strip's own label law, run from the splash's source against the
   const home = join(scratch, 'strip-home')
   mkdirSync(home, { recursive: true })
   const label = (model: string): string => {
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
     const factory = new Function('readFileSync', 'join', 'CONFIG_HOME', 'MODEL_NAMES', `${fn}\nreturn computeModelLabel()`) as (a: typeof readFileSync, b: typeof join, c: string, d: Record<string, string>) => string
     return factory(readFileSync, join, home, MODEL_NAMES)
   }

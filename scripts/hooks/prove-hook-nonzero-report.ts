@@ -62,11 +62,13 @@ console.log('§1 LIVE — the settled turn reports the failed hook')
     writeFileSync(
       join(home, 'settings.json'),
       JSON.stringify({
-        model: 'compat/w17-mock',
-        hooks: {
-          UserPromptSubmit: [
-            { hooks: [{ type: 'command', command: 'echo FEEDBACK-SENTINEL 1>&2; exit 1' }] },
-          ],
+        engine: { model: 'compat/w17-mock' },
+        events: {
+          hooks: {
+            UserPromptSubmit: [
+              { hooks: [{ type: 'command', command: 'echo FEEDBACK-SENTINEL 1>&2; exit 1' }] },
+            ],
+          },
         },
       }),
     )

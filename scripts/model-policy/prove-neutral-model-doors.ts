@@ -92,7 +92,7 @@ section('§2 the model allowlist: a family word is any family the live list know
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   const settingsPath = join(scratch, 'settings.json')
   const withList = (list: string[] | null, fn: () => void): void => {
-    writeFileSync(settingsPath, JSON.stringify(list === null ? {} : { availableModels: list }))
+    writeFileSync(settingsPath, JSON.stringify(list === null ? {} : { engine: { roster: list } }))
     resetSettingsCache()
     fn()
   }

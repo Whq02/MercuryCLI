@@ -13,7 +13,7 @@ mkdirSync(join(project, '.mercury', 'skills'), { recursive: true })
 process.chdir(project)
 writeFileSync(
   join(process.env.MERCURY_CONFIG_DIR, 'settings.json'),
-  JSON.stringify({ sandbox: { enabled: true, network: { allowedDomains: [], deniedDomains: [] }, filesystem: { allowRead: [], denyRead: [], allowWrite: [] } } }, null, 2),
+  JSON.stringify({ guardrails: { sandbox: { enabled: true, network: { allowedDomains: [], deniedDomains: [] }, filesystem: { allowRead: [], denyRead: [], allowWrite: [] } } } }, null, 2),
 )
 
 let failures = 0

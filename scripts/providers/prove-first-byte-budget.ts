@@ -20,7 +20,7 @@ const src = (p: string): string => readFileSync(join(ROOT, p), 'utf8')
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 const home = mkdtempSync(join(tmpdir(), 'first-byte-budget-'))
 process.env.MERCURY_CONFIG_DIR = home
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { defaultMode: 'flow' } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { mode: 'flow' } }))
 
 const budget = await import('../../src/services/providers/streamIdleBudget.ts')
 const { enableConfigs } = await import('../../src/utils/config.ts')

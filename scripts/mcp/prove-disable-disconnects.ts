@@ -116,14 +116,14 @@ section('§1c the health check reads the POLICY FILE and can warn (field F-2.1)'
   try {
     setFsImplementation(
       fakeFs(path => {
-        if (path === policyFile) return JSON.stringify({ strictExtensionOnlyCustomization: 12345 })
+        if (path === policyFile) return JSON.stringify({ extensions: { exclusive: 12345 } })
         if (path === root) return errnoThrow('EISDIR')
         return errnoThrow('ENOENT')
       }),
     )
     const invalidType = detectManagedSettingsWarnings()
     t(
-      '§1c an invalid strictExtensionOnlyCustomization value WARNS',
+      '§1c an invalid extensions.exclusive value WARNS',
       invalidType.length === 1 && invalidType[0]!.issue.includes('invalid value of type number'),
       JSON.stringify(invalidType),
     )

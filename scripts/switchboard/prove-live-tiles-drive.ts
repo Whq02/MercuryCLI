@@ -123,7 +123,7 @@ try {
       seedFirstRun(configDir, [cwd, work, workB])
       spawnSync('git', ['init', '-q', '-b', 'main'], { cwd })
       spawnSync('git', ['-c', 'user.name=tiles', '-c', 'user.email=tiles@example.invalid', 'commit', '-q', '--allow-empty', '-m', 'seed'], { cwd })
-      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ permissions: { ask: ['Bash(rm:*)'] } }))
+      writeFileSync(join(configDir, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm:*)'] } }))
       spawnDaemonWithHome(configDir, cwd)
       check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
       const a = (await daemonControlRpc({

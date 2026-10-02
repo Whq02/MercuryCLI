@@ -53,7 +53,7 @@ const LIST_WORD = 'ultra'
   const slider = src('src/commands/effort/EffortSlider.tsx')
   check("the slider's treatments are a Record over the ladder type with no word above max", /const TREATMENTS: Record<EffortLevel, Treatment> = \{/.test(slider) && !/\bultra\b/.test(slider) && !/blaze/.test(slider))
   check('the /effort option list derives from the tuple', src('src/commands/effort/effort.tsx').includes("const OPTION_LIST = `${EFFORT_LEVELS.join('|')}|supercode|auto`"))
-  check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effortLevel: z.enum(EFFORT_LEVELS)'))
+  check('the settings schema takes its enum from the tuple', src('src/utils/settings/types.ts').includes('effort: z.enum(EFFORT_LEVELS)'))
   check("the Agent tool's effort field takes its enum from the tuple", /effort: z\s*\.enum\(EFFORT_LEVELS\)/.test(src('src/tools/AgentTool/AgentTool.tsx')))
   check('the workflow prompt spells the ladder from the tuple and no longer names a word above max', src('src/tools/WorkflowTool/workflowPrompt.ts').includes("EFFORT_LEVELS.map(level => `'${level}'`).join(' | ')") && !/\bultra\b/.test(src('src/tools/WorkflowTool/workflowPrompt.ts')))
   const coordinator = src('src/services/concourse/coordinatorTools.ts')

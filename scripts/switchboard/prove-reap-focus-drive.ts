@@ -58,7 +58,7 @@ seedFirstRun(home, [ground])
   writeFileSync(cfgPath, JSON.stringify(cfg))
 }
 
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { ask: ['Bash(rm:*)'] } }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { ask: ['Bash(rm:*)'] } }))
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const api = await startFixtureApi([
   { kind: 'tool_use', whenModel: 'opus', name: 'Bash', input: { command: `rm -f ${join(SCRATCH, 'nothing-here')}`, description: 'tidy' }, preText: 'about to tidy up. ' },

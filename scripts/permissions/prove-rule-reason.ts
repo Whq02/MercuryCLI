@@ -100,25 +100,25 @@ const ctxWith = (rules: { allow?: string[]; deny?: string[]; ask?: string[] }, r
     ...(reasons ? { ruleReasons: { [source]: reasons } } : {}),
   }) as unknown as Ctx
 
-section('§1 THE SETTINGS SCHEMA — permissions.reasons is declared, typed, and optional')
+section('§1 THE SETTINGS SCHEMA — guardrails.reasons is declared, typed, and optional')
 {
-  const schema = JSON.parse(generateSettingsJSONSchema()) as { properties: { permissions: { properties: Record<string, { type?: string; additionalProperties?: { type?: string } }> } } }
-  const declared = Object.keys(schema.properties.permissions.properties)
-  const reasons = schema.properties.permissions.properties['reasons']
+  const schema = JSON.parse(generateSettingsJSONSchema()) as { properties: { guardrails: { properties: Record<string, { type?: string; additionalProperties?: { type?: string } }> } } }
+  const declared = Object.keys(schema.properties.guardrails.properties)
+  const reasons = schema.properties.guardrails.properties['reasons']
   check(
-    'the generated settings schema declares permissions.reasons as a rule-spelling → words map',
+    'the generated settings schema declares guardrails.reasons as a rule-spelling → words map',
     reasons !== undefined && reasons.type === 'object' && reasons.additionalProperties?.type === 'string',
-    `permissions declares only: ${declared.join(', ')}`,
+    `guardrails declares only: ${declared.join(', ')}`,
   )
   const ajv = new Ajv2020({ strict: false, allErrors: true, logger: false })
   const validate = ajv.compile(schema as object)
-  const withMap = { permissions: { deny: ['Read(secrets/**)'], reasons: { 'Read(secrets/**)': R_SECRETS } } }
-  const withoutMap = { permissions: { deny: ['Read(secrets/**)'] } }
+  const withMap = { guardrails: { deny: ['Read(secrets/**)'], reasons: { 'Read(secrets/**)': R_SECRETS } } }
+  const withoutMap = { guardrails: { deny: ['Read(secrets/**)'] } }
   check('a file carrying the map validates against the schema', validate(withMap) === true, j(validate.errors))
   check('a file without the map (an older build wrote it) validates against the schema', validate(withoutMap) === true, j(validate.errors))
-  check('a non-string reason is refused by the schema', validate({ permissions: { reasons: { Read: 5 } } }) === false, 'the schema accepted { reasons: { Read: 5 } }')
+  check('a non-string reason is refused by the schema', validate({ guardrails: { reasons: { Read: 5 } } }) === false, 'the schema accepted { reasons: { Read: 5 } }')
   const parsed = SettingsSchema().safeParse(withMap)
-  check('the runtime settings parse keeps the map', parsed.success && j((parsed.data as { permissions?: { reasons?: unknown } }).permissions?.reasons) === j(withMap.permissions.reasons))
+  check('the runtime settings parse keeps the map', parsed.success && j((parsed.data as { guardrails?: { reasons?: unknown } }).guardrails?.reasons) === j(withMap.guardrails.reasons))
   check('the runtime settings parse of an older file still succeeds', SettingsSchema().safeParse(withoutMap).success)
   check('the strict edit-time validation admits the map', validateSettingsFileContent(JSON.stringify(withMap)).isValid)
 }
@@ -127,7 +127,7 @@ section('§2 THE LOADER AND THE CONTEXT — the words ride from the file into th
 {
   const settingsPath = join(HOME, 'settings.json')
   const file = {
-    permissions: {
+    guardrails: {
       deny: ['Read(secrets/**)', 'WebFetch'],
       ask: [' Bash(git push:*) '],
       reasons: { 'Read(secrets/**)': R_SECRETS, WebFetch: R_FETCH, 'Bash(git push:*)': R_PUSH, 'Bash(git fetch:*)': 'a reason for a rule that is not there' },
@@ -146,7 +146,7 @@ section('§2 THE LOADER AND THE CONTEXT — the words ride from the file into th
   check('the posture carries the padded ask rule under its parsed spelling', ctx.ruleReasons?.['userSettings']?.['Bash(git push:*)'] === R_PUSH, j(ctx.ruleReasons))
   check('a reason whose rule is not in any array never enters the posture', ctx.ruleReasons?.['userSettings']?.['Bash(git fetch:*)'] === undefined, j(ctx.ruleReasons))
   check('the rule arrays are what they were', j(ctx.alwaysDenyRules['userSettings']) === j(['Read(secrets/**)', 'WebFetch']), j(ctx.alwaysDenyRules))
-  writeFileSync(settingsPath, JSON.stringify({ permissions: { deny: ['Read(secrets/**)', 'WebFetch'], ask: ['Bash(git push:*)'] } }, null, 2))
+  writeFileSync(settingsPath, JSON.stringify({ guardrails: { deny: ['Read(secrets/**)', 'WebFetch'], ask: ['Bash(git push:*)'] } }, null, 2))
   resetSettingsCache()
   const synced = syncPermissionRulesFromDisk(ctx as never, loadAllPermissionRulesFromDisk()) as unknown as { ruleReasons?: Record<string, Reasons>; alwaysDenyRules: Record<string, string[]> }
   check('a hot reload of the file without the map drops the words (no stale reason survives)', synced.ruleReasons?.['userSettings']?.['Read(secrets/**)'] === undefined && synced.ruleReasons?.['userSettings']?.['WebFetch'] === undefined, j(synced.ruleReasons))

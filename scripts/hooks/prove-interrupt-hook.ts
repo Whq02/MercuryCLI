@@ -84,7 +84,7 @@ const waitForRecords = async (path: string, count: number): Promise<HookRecord[]
 }
 const appendRecord = (path: string): string => `cat >> "${path}"; printf '\\n' >> "${path}"`
 const wire = (hooks: unknown): void => {
-  writeFileSync(SETTINGS, JSON.stringify(hooks === null ? {} : { hooks }))
+  writeFileSync(SETTINGS, JSON.stringify(hooks === null ? {} : { events: { hooks } }))
   updateHooksConfigSnapshot()
 }
 const clearMarks = (): void => {
@@ -261,9 +261,9 @@ section('§1 THE VOCABULARY: Interrupt is a hook event the schema accepts')
 {
   check("HOOK_EVENTS carries 'Interrupt'", (HOOK_EVENTS as readonly string[]).includes('Interrupt'), j(HOOK_EVENTS))
   check('the schema tuple in coreSchemas.ts agrees element-wise', j(HOOK_EVENTS) === j(HOOK_EVENTS_SCHEMA_TUPLE), j({ types: HOOK_EVENTS, schema: HOOK_EVENTS_SCHEMA_TUPLE }))
-  const parsed = SettingsSchema().safeParse({ hooks: observers })
+  const parsed = SettingsSchema().safeParse({ events: { hooks: observers } })
   check(
-    'SettingsSchema accepts a hooks.Interrupt entry',
+    'SettingsSchema accepts an events.hooks.Interrupt entry',
     parsed.success,
     parsed.success ? '' : `the schema refused it: ${parsed.error.issues.map(issue => `${issue.message} at ${issue.path.join('.')}`).join('; ')}`,
   )
@@ -271,7 +271,7 @@ section('§1 THE VOCABULARY: Interrupt is a hook event the schema accepts')
   const loaded = parseSettingsFile(SETTINGS)
   check(
     'the settings loader keeps the Interrupt hook (no salvage warning names it)',
-    loaded.errors.length === 0 && loaded.settings?.hooks?.Interrupt !== undefined,
+    loaded.errors.length === 0 && loaded.settings?.events?.hooks?.Interrupt !== undefined,
     j(loaded.errors.map(error => error.message ?? error)),
   )
 }

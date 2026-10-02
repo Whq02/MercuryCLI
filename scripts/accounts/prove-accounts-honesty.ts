@@ -360,7 +360,7 @@ section('§5 the presence owner counts what the wire would send')
   const helperOnly = anthropicCredentialPresence({
     claudeSubscriber: () => false,
     anthropicApiKeyPresent: () => false,
-    bearerTokenSource: () => ({ source: 'apiKeyHelper', hasToken: true }),
+    bearerTokenSource: () => ({ source: 'credentials.keyCommand', hasToken: true }),
   })
   check('a configured helper with no key yet is the key ladder’s to report, never a bearer', !helperOnly.credentialed)
 }

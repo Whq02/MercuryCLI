@@ -85,7 +85,7 @@ Sovereign mode writes nothing into the row. A saved value wins either way:
 asking while every other permission question is skipped, and `full` saved
 with sovereign mode off makes computer use never ask while files and
 commands ask as the permission mode says. Whatever the value, a
-`permissions.deny` rule refuses its application before any act, the
+`guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, an application that moved in
 front between the check and the act is not driven, and one session drives
 at a time. The row is saved where the Boot Menu keeps its other choices and
@@ -109,7 +109,7 @@ session launched with the bypass flag. Computer use follows it through the
 `Access type` row's default — unset, the row reads `full` under sovereign
 mode — and a saved `asks` or `permissive` keeps computer use asking even
 then. What stays under sovereign mode is what was never a question: a
-`permissions.deny` rule refuses its application before any act, the
+`guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, and an application that
 moved in front between the check and the act is not driven. `mercury
 doctor` and `/health` carry a `Sovereign mode` row that names the one
@@ -118,12 +118,12 @@ setting and what armed it.
 ## The allowlist
 
 A grant that outlives the session is a permission rule in the
-`permissions.allow` list of your settings: `Computer(app:<identity>)`,
+`guardrails.allow` list of your settings: `Computer(app:<identity>)`,
 where the identity is the one the application's row shows beside its name
 — a bundle identifier on macOS (`com.apple.Safari`), an executable name on
 Windows (`chrome.exe`), a window class on Linux (`firefox`). You write the
-rule yourself; the card writes none. A rule in `permissions.deny` refuses
-that application before any ask, in every mode; a rule in `permissions.ask`
+rule yourself; the card writes none. A rule in `guardrails.deny` refuses
+that application before any ask, in every mode; a rule in `guardrails.ask`
 asks for it in every mode that asks and, like every other ask rule, stands
 down under sovereign mode. A rule written on one platform matches only that
 platform's identities.

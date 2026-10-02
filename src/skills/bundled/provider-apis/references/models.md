@@ -2,7 +2,7 @@ Checked: 2026-09-15
 # Model selection
 
 Use `/model` for the offered catalogue and `/submodels` for signed-in families.
-Respect `availableModels` filtering; verify account access before choosing an ID.
+Respect `engine.roster` filtering; verify account access before choosing an ID.
 
 | Anthropic ID | Mercury label |
 |---|---|

@@ -47,12 +47,12 @@ section('§2 THE PERSISTED WRITE')
   const grant = createEditRuleSuggestion(OUTSIDE, 'localSettings')!
   persistPermissionUpdate(grant)
   const written = JSON.parse(readFileSync(join(PROJ, '.mercury', 'settings.local.json'), 'utf8')) as {
-    permissions?: { allow?: string[]; additionalDirectories?: unknown }
+    guardrails?: { allow?: string[]; additionalDirectories?: unknown }
   }
   check(
     'the ordinary Edit rule lands in settings.local.json without another root',
-    (written.permissions?.allow ?? []).includes(`Edit(/${OUTSIDE}/**)`) && !Object.hasOwn(written.permissions ?? {}, 'additionalDirectories'),
-    JSON.stringify(written.permissions),
+    (written.guardrails?.allow ?? []).includes(`Edit(/${OUTSIDE}/**)`) && !Object.hasOwn(written.guardrails ?? {}, 'additionalDirectories'),
+    JSON.stringify(written.guardrails),
   )
 }
 

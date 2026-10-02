@@ -58,7 +58,7 @@ writeFileSync(
 mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(
   join(PROJ, '.mercury', 'settings.json'),
-  JSON.stringify({ disabledMcpjsonServers: ['proj-rejected'] }),
+  JSON.stringify({ kit: { projectOff: ['proj-rejected'] } }),
 )
 
 saveCurrentProjectConfig(current => ({
@@ -95,7 +95,7 @@ section('W1–W5 — the hermetic walk (trusted workspace)')
   const projOnly = servers['proj-only'] as { scope?: string } | undefined
   check('W2 non-interactive + projectSettings enabled ⇒ the .mcp.json server auto-approves', projOnly?.scope === 'project', j(projOnly))
 
-  check('W3 disabledMcpjsonServers REJECTS the named project server', !('proj-rejected' in servers))
+  check('W3 kit.projectOff REJECTS the named project server', !('proj-rejected' in servers))
 
   const dup = servers['dup'] as { scope?: string; command?: string } | undefined
   check('W4 precedence: user < project < LOCAL — the local entry wins', dup?.scope === 'local' && j(dup).includes('local-dup-cmd'), j(dup))

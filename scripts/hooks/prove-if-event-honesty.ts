@@ -50,10 +50,12 @@ section('§2 THE HEADLESS DRIVE: SKIPPED, AND SAID')
   writeFileSync(
     join(HOME, 'settings.json'),
     JSON.stringify({
-      hooks: {
-        SessionStart: [
-          { hooks: [{ type: 'command', command: `echo ran >> ${MARK}`, if: 'Bash' }] },
-        ],
+      events: {
+        hooks: {
+          SessionStart: [
+            { hooks: [{ type: 'command', command: `echo ran >> ${MARK}`, if: 'Bash' }] },
+          ],
+        },
       },
     }),
   )

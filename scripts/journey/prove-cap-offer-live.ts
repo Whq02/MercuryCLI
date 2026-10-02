@@ -57,7 +57,7 @@ writeFileSync(
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),
 )
-writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
 writeFileSync(
   path.join(RUN_HOME, '.openai-auth.json'),
   JSON.stringify({

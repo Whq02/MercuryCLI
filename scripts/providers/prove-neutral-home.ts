@@ -116,7 +116,7 @@ enableConfigs()
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.js')
 
 function seedHome(model: string): void {
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ model }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model } }))
   resetSettingsCache()
 }
 

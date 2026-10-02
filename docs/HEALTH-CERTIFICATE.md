@@ -88,7 +88,7 @@ one.
 RUNTIME's `OS Bash sandbox` row reads the one OS-level boundary in the stack.
 Off, the shipped default, reads `info`: `off — Bash runs unconfined (no OS
 filesystem/network boundary)`. Enabled but unavailable (an unsupported
-platform, a platform left out of `sandbox.enabledPlatforms`, a missing
+platform, a platform left out of `guardrails.sandbox.enabledPlatforms`, a missing
 dependency) reads `warn` with the reason. On, the row names what confines
 Bash. On macOS it reads `ON — Bash filesystem + network confined
 (seatbelt/bubblewrap)`. On Linux and WSL2 it also says what the sandbox does

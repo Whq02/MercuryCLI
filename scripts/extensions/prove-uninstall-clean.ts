@@ -180,7 +180,7 @@ console.log('[4] bundled: x is refused')
 
 console.log('[5] a seeded settings file returns to its prior bytes — never deleted')
 {
-  settingsSeed.updateSettingsForSource('userSettings', { spinnerTipsEnabled: true } as never)
+  settingsSeed.updateSettingsForSource('userSettings', { activity: { tips: { enabled: true } } } as never)
   const seededBytes = readFileSync(join(home, 'settings.json'), 'utf8')
   const again = await install.installFromSource('fixture-source', 'kitchen-sink')
   check('install lands on the seeded home', again.ok)

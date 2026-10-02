@@ -47,7 +47,7 @@ for (const size of SIZES) {
   const tag = `workshop-cell-card-${size.cols}x${size.rows}`
   console.log(`\n── ${tag}: a cell fails with a three-line error; the row, the card, esc back ──`)
   const leg = await startLeg(tag, TURNS, null)
-  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Workshop'] } }))
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workshop'] } }))
   const sends = [
     { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 120, awaitText: ADMITTED, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '' },

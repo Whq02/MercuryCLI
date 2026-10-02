@@ -47,7 +47,7 @@ function drive(options: { touch?: string; bare?: boolean; retired?: boolean } = 
   const home = mkdtempSync(join(scratch, 'home-'))
   seedFirstRun(home, [project])
   const result = join(home, 'result.json')
-  if (options.retired) writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { additionalDirectories: [outside] } }))
+  if (options.retired) writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { additionalDirectories: [outside] } }))
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(MERCURY_|CLAUDE_|ANTHROPIC_)/.test(key)))
   const run = spawnSync(process.execPath, ['run', driver, result], { cwd: project, env: { ...env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1', ...(options.bare ? { MERCURY_BARE: '1' } : {}), ...(options.touch ? { DRV_TOUCH: options.touch } : {}) }, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', timeout: 60_000 })
   if (run.error) throw run.error

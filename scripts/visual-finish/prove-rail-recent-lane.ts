@@ -110,7 +110,7 @@ const SESSIONS_SEND: Send[] = [
   { minTick: 4, requireAwait: true, awaitText: 'Switch to', awaitStableTicks: 3, data: '', mark: 'picker' },
 ]
 try {
-  const direct = capture('direct', 'resume-2turn', 120, 44, SESSIONS_SEND, 120, { sessionsBar: true })
+  const direct = capture('direct', 'resume-2turn', 120, 44, SESSIONS_SEND, 120, { view: { sessionsBar: true } })
   const home = direct.marks.direct ?? direct.frame
   saveFrame('120x44-direct', home)
   const homeRail = railLines(home)

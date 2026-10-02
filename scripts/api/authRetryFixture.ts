@@ -131,7 +131,7 @@ export async function authWorld(arm: Arm, retryAfter = '0.001') {
   if (arm.startsWith('helper-')) {
     const helper = join(home, 'helper.cjs')
     writeFileSync(helper, `const fs = require('node:fs'); const p = ${JSON.stringify(helperCount)}; const n = fs.existsSync(p) ? Number(fs.readFileSync(p, 'utf8')) + 1 : 1; fs.writeFileSync(p, String(n)); process.stdout.write(${JSON.stringify(arm)} === 'helper-refreshed' && n > 1 ? 'fixture-fresh' : 'fixture-stale');\n`)
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ apiKeyHelper: `"${process.execPath}" "${helper}"` }))
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ credentials: { keyCommand: `"${process.execPath}" "${helper}"` } }))
   } else {
     writeFileSync(join(home, 'settings.json'), '{}')
   }

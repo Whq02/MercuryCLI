@@ -71,7 +71,7 @@ if (existsSync(DIST)) {
       projects: { [bundleCwd]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     }),
   )
-  writeFileSync(join(bundleHome, 'settings.json'), JSON.stringify({ enableAllProjectMcpServers: true }))
+  writeFileSync(join(bundleHome, 'settings.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
   writeFileSync(join(bundleCwd, '.mcp.json'), JSON.stringify({ mcpServers: { x: document.mcpServers.x, y: document.mcpServers.y } }))
   const env = { ...process.env, MERCURY_CONFIG_DIR: bundleHome, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', BROWSER: '/usr/bin/true' }
   const list = spawnSync(node, [DIST, 'mcp', 'list'], { cwd: bundleCwd, env, encoding: 'utf8', timeout: 120_000 })

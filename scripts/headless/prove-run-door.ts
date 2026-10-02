@@ -60,7 +60,7 @@ try {
     const result = await run(['run', 'hello', '--sovereign', '--mode', mode])
     check(`sovereign refuses the conflicting ${mode} posture`, result.code === 2 && result.out === '' && result.err.trim().split('\n').length === 1 && result.err.includes('--sovereign') && result.err.includes('--mode'), JSON.stringify(result))
   }
-  const policy = await run(['run', 'hello', '--sovereign', '--config', JSON.stringify({ permissions: { disableSovereignMode: true } })])
+  const policy = await run(['run', 'hello', '--sovereign', '--config', JSON.stringify({ guardrails: { disableSovereignMode: true } })])
   check('the permissions policy refuses sovereign rather than changing its posture', policy.code === 2 && policy.out === '' && /policy/i.test(policy.err) && policy.err.trim().split('\n').length === 1, JSON.stringify(policy))
   const apollo = await run(['run', 'hello', '--mode', 'apollo'])
   check('apollo without a channel refuses with its reason', apollo.code === 2 && apollo.out === '' && /apollo.*channel/.test(apollo.err), JSON.stringify(apollo))

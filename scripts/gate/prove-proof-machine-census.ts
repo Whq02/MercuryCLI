@@ -210,7 +210,7 @@ const scratch = mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/m
 try {
   const home = join(scratch, 'home')
   mkdirSync(join(home, '.mercury'), { recursive: true })
-  writeFileSync(join(home, '.mercury', 'settings.json'), JSON.stringify({ model: OWNER_MODEL }))
+  writeFileSync(join(home, '.mercury', 'settings.json'), JSON.stringify({ engine: { model: OWNER_MODEL } }))
   const before = readdirSync(join(home, '.mercury')).sort().join(',')
   const clean = (extra: Record<string, string>): NodeJS.ProcessEnv => ({
     PATH: process.env.PATH ?? '',
@@ -227,7 +227,7 @@ try {
   check(preload.status === 0 && pinnedHome !== '' && !pinnedHome.startsWith(home) && pinnedHome.startsWith(scratch), "a scripts/ entry launched with MERCURY_CONFIG_DIR at the operator's own $HOME/.mercury runs on a scratch home", `rc=${preload.status} home=${pinnedHome} ${preload.stderr.trim()}`)
   check(probe === 'none', 'that entry runs with the local-server probe off', `probe=${JSON.stringify(probe)}`)
   check(readdirSync(join(home, '.mercury')).sort().join(',') === before, "the operator's own .mercury is untouched (no seed, no write)", readdirSync(join(home, '.mercury')).join(','))
-  check(JSON.parse(readFileSync(join(home, '.mercury', 'settings.json'), 'utf8')).model === OWNER_MODEL, 'its settings.json still carries the model line, unread and unwritten')
+  check(JSON.parse(readFileSync(join(home, '.mercury', 'settings.json'), 'utf8')).engine?.model === OWNER_MODEL, 'its settings.json still carries the model line, unread and unwritten')
 
   const guardProbe = (env: NodeJS.ProcessEnv): { rc: number | null; out: string } => {
     const r = spawnSync('bash', ['-c', '. "$1" || exit 78; suite_env_guard "$2"; printf "%s\\n" "${MERCURY_LOCAL_PROBE_TARGETS:-}"', '_', join(ROOT, 'scripts', 'lib', 'suite-env.sh'), join(ROOT, 'scripts', 'gate', 'run-all.sh')], {

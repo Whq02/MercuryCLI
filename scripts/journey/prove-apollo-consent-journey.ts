@@ -71,7 +71,7 @@ async function driveBranch(branch: Branch, cols: number): Promise<void> {
   )
   writeFileSync(
     path.join(RUN_HOME, 'settings.json'),
-    JSON.stringify({ permissions: { disableFlowMode: true } }),
+    JSON.stringify({ guardrails: { disableFlowMode: true } }),
   )
 
   const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')

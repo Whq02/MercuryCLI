@@ -114,7 +114,7 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 
 {
   const r = drive(
-    { instructionExcludes: [join(rulesDir, 'linked-file.md')] },
+    { briefs: { exclude: [join(rulesDir, 'linked-file.md')] } },
     [
       [spelling.linkedFileTarget, 'Managed'],
       [spelling.linkedFileTarget, 'User'],
@@ -128,41 +128,38 @@ console.log('instruction excludes — the setting, the symlink law, the immuniti
 }
 
 {
-  const r = drive({ instructionExcludes: [join(targets, 'ROOT-GUIDE.md')] })
+  const r = drive({ briefs: { exclude: [join(targets, 'ROOT-GUIDE.md')] } })
   check(!r.paths.includes(spelling.root), '(b) target-spelling pattern excludes the root file tested under its symlink spelling')
   check(r.paths.includes(spelling.real), '(b) the plain rule still composes')
 }
 
 {
-  const r = drive({ instructionExcludes: [join(rulesDir, 'linked-dir') + '/**'] })
+  const r = drive({ briefs: { exclude: [join(rulesDir, 'linked-dir') + '/**'] } })
   check(!r.paths.includes(spelling.packedTarget), '(c) symlink-dir glob excludes files walked under the target directory')
   check(r.paths.includes(spelling.real), '(c) the plain rule still composes')
   check(r.paths.includes(spelling.linkedFileTarget), '(c) the sibling symlinked file is untouched')
 }
 
 {
-  const r = drive({ instructionExcludes: ['**/secret-*.md'] })
+  const r = drive({ briefs: { exclude: ['**/secret-*.md'] } })
   check(!r.paths.includes(spelling.secret), '(d) a pure glob excludes without touching the filesystem')
   check(r.paths.includes(spelling.real), '(d) the plain rule still composes')
 }
 
 {
-  const r = drive({ claudeMdExcludes: [join(rulesDir, 'linked-file.md')] })
-  check(!r.paths.includes(spelling.linkedFileTarget), 'the claudeMdExcludes alias key is ACCEPTED: its pattern excludes exactly as instructionExcludes would')
-  check(r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'a settings file carrying only the alias key still parses (composition ran; the unmatched rules compose)')
-  const aliasWarning = r.warnings.find(w => w.path.includes('claudeMdExcludes'))
-  check(aliasWarning !== undefined && aliasWarning.message.includes('instructionExcludes'), 'the acceptance is NAMED as a settings warning that names instructionExcludes (never silent)')
-  const both = drive({ claudeMdExcludes: ['**/*.md'], instructionExcludes: [join(rulesDir, 'secret-skip.md')] })
-  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'when both keys are present instructionExcludes wins (the alias value never overrides it)')
-  check(!drive({ instructionExcludes: [join(rulesDir, 'secret-skip.md')] }).warnings.some(w => w.path.includes('claudeMdExcludes')), 'instructionExcludes alone raises no alias warning')
+  const r = drive({ notAnExcludeKey: [join(rulesDir, 'linked-file.md')] })
+  check(r.paths.includes(spelling.linkedFileTarget) && r.paths.includes(spelling.real) && r.paths.includes(spelling.root), 'an unknown key carrying a pattern excludes nothing: every rule composes')
+  check(!r.warnings.some(w => w.path.includes('notAnExcludeKey')), 'the unknown key raises no settings warning')
+  const both = drive({ notAnExcludeKey: ['**/*.md'], briefs: { exclude: [join(rulesDir, 'secret-skip.md')] } })
+  check(!both.paths.includes(spelling.secret) && both.paths.includes(spelling.real) && both.paths.includes(spelling.root), 'briefs.exclude beside an unknown key applies alone (the unknown value steers nothing)')
 }
 
 {
   const { SettingsSchema } = await import(join(repo, 'src/utils/settings/types.ts'))
-  const good = SettingsSchema().safeParse({ instructionExcludes: ['**/x.md'] })
-  check(good.success === true && Array.isArray((good as { data?: Record<string, unknown> }).data?.instructionExcludes), 'schema: instructionExcludes is a typed key')
-  const old = SettingsSchema().safeParse({ claudeMdExcludes: ['**/x.md'] })
-  check(old.success === true && (old as { data?: Record<string, unknown> }).data?.instructionExcludes === undefined, 'schema: the alias key neither fails the parse nor lands as instructionExcludes')
+  const good = SettingsSchema().safeParse({ briefs: { exclude: ['**/x.md'] } })
+  check(good.success === true && Array.isArray((good as { data?: { briefs?: { exclude?: unknown } } }).data?.briefs?.exclude), 'schema: briefs.exclude is a typed key')
+  const stray = SettingsSchema().safeParse({ notAnExcludeKey: ['**/x.md'] })
+  check(stray.success === true && (stray as { data?: { briefs?: unknown } }).data?.briefs === undefined, 'schema: an unknown key neither fails the parse nor lands as briefs.exclude')
 
   const { matchesInstructionExcludes } = await import(join(repo, 'src/services/instructions/discovery.ts'))
   const home = homedir()

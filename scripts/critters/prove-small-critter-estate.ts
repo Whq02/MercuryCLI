@@ -30,9 +30,9 @@ t.check('the turn-signal seam is the sleep reader\'s one source, named for what 
 t.section('§2 — the big critter is gone: no size setting, no hero art reader, one small sprite')
 t.check('no src file reads critterSize or HERO_ART', readersOf(/critterSize|HERO_ART/).length === 0, readersOf(/critterSize|HERO_ART/).join(', '))
 const types = read('src/utils/settings/types.ts')
-t.check('the settings schema declares sessionsBar and no critterSize', types.includes('sessionsBar: z.boolean()') && !types.includes('critterSize'))
-const schema = JSON.parse(read('scripts/settings/settings-schema.json')) as { properties?: Record<string, unknown> }
-t.check('the generated settings schema carries sessionsBar and no critterSize', schema.properties !== undefined && 'sessionsBar' in schema.properties && !('critterSize' in schema.properties))
+t.check('the settings schema declares view.sessionsBar and no critterSize', /view: z\.object\(\{[\s\S]{0,600}sessionsBar: z\.boolean\(\)/.test(types) && !types.includes('critterSize'))
+const schema = JSON.parse(read('scripts/settings/settings-schema.json')) as { properties?: Record<string, { properties?: Record<string, unknown> }> }
+t.check('the generated settings schema carries view.sessionsBar and no critterSize', schema.properties !== undefined && 'sessionsBar' in (schema.properties['view']?.properties ?? {}) && !('critterSize' in schema.properties) && !('critterSize' in (schema.properties['view']?.properties ?? {})))
 const cd = await import('../../src/utils/cockpit/critterData.ts')
 for (const def of cd.CRITTERS) {
   const record = def as unknown as Record<string, unknown>

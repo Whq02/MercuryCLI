@@ -111,10 +111,10 @@ console.log('L5 the sibling writers — settings and keybindings round-trip on a
   const home = mkdtempSync(join(tmpdir(), 'cfg-lock-siblings-'))
   const r = runIn(home, `
     const settings = await import(${JSON.stringify(join(SRC, 'utils/settings/settings.ts'))})
-    const res = settings.updateSettingsForSource('userSettings', { language: 'nl' })
+    const res = settings.updateSettingsForSource('userSettings', { voice: { language: 'nl' } })
     out.settingsError = res.error ? String(res.error) : null
     const sfile = settings.getSettingsWriteFilePathForSource ? settings.getSettingsWriteFilePathForSource('userSettings') : null
-    out.settingsOnDisk = sfile ? (JSON.parse(fs.readFileSync(sfile, 'utf8')).language === 'nl') : 'no-path-api'
+    out.settingsOnDisk = sfile ? (JSON.parse(fs.readFileSync(sfile, 'utf8')).voice?.language === 'nl') : 'no-path-api'
     const kb = await import(${JSON.stringify(join(SRC, 'keybindings/writeBindings.ts'))})
     const w = await kb.writeUserBinding({ context: 'Global', chord: 'ctrl+alt+9', action: 'app:redraw' })
     out.kbOk = w.ok === true

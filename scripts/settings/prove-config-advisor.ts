@@ -182,24 +182,19 @@ section('§4 ↵ saves: the advisor on at 30 minutes survives the close and read
   check('the global config carries no other advisor key', JSON.stringify(Object.keys((getGlobalConfig().advisor ?? {}) as object).sort()) === JSON.stringify(['enabled', 'minutes']))
 }
 
-section('§5 the keys of older builds: a saved turn count (`seats`) and a saved crewmate switch (`crewmates`) are dropped at read, the default interval applies, and the next save no longer carries them (red on the base: crewmates read back as an opt-in)')
+section('§5 a key nothing reads inside the advisor block is carried as it stands at read: the service reads the default interval, nothing rewrites it, and the next save writes the block the advisor owns')
 {
   const { readGlobalConfigAgain } = await import('../../src/utils/config/globalConfig.js')
-  const { dropRetiredAdvisorConfigKeys, DROPPED_ADVISOR_CONFIG_KEYS } = await import('../../src/migrations/migrateConfigSpellings.js')
   const { setAdvisorMinutes } = ready.service
-  check('the retired advisor keys name seats and crewmates', JSON.stringify(DROPPED_ADVISOR_CONFIG_KEYS) === JSON.stringify(['seats', 'crewmates']))
-  const untouched = { advisor: { enabled: true, minutes: 20 } }
-  check('the pure drop: a block without a retired key comes back as the same object', dropRetiredAdvisorConfigKeys(untouched) === untouched && dropRetiredAdvisorConfigKeys({}) !== undefined)
-  check('the pure drop keeps the switch and the interval and loses the turn count and the crewmate switch; a block that was only retired keys goes entirely', JSON.stringify(dropRetiredAdvisorConfigKeys({ advisor: { enabled: true, crewmates: true, seats: 20 } } as never)) === JSON.stringify({ advisor: { enabled: true } }) && JSON.stringify(dropRetiredAdvisorConfigKeys({ other: 1, advisor: { seats: 5, crewmates: true } } as never)) === JSON.stringify({ other: 1 }))
   const file = join(HOME, '.mercury.json')
   const onDisk = JSON.parse(readFileSync(file, 'utf8').trim() || '{}') as Record<string, unknown>
-  onDisk.advisor = { enabled: true, crewmates: true, seats: 20 }
+  onDisk.advisor = { enabled: true, notAnAdvisorKey: 20 }
   await settle(20)
   writeFileSync(file, `${JSON.stringify(onDisk, null, 2)}\n`)
   readGlobalConfigAgain()
-  check('read back from disk, the config holds the switch alone, and the service reads the default ten minutes', JSON.stringify(getGlobalConfig().advisor) === JSON.stringify({ enabled: true }) && readAdvisorSettings().enabled && readAdvisorSettings().minutes === 10, JSON.stringify(getGlobalConfig().advisor))
+  check('read back from disk, the config holds the switch and the unknown key as written, and the service reads the default ten minutes', JSON.stringify(getGlobalConfig().advisor) === JSON.stringify({ enabled: true, notAnAdvisorKey: 20 }) && readAdvisorSettings().enabled && readAdvisorSettings().minutes === 10, JSON.stringify(getGlobalConfig().advisor))
   setAdvisorMinutes(20)
-  check('the next save writes the minutes key beside the switch; the turn count and the crewmate switch are gone from the file', JSON.stringify(storedAdvisor()) === JSON.stringify({ enabled: true, minutes: 20 }), JSON.stringify(storedAdvisor()))
+  check('the next save writes the minutes key beside the switch: the writer writes the keys it owns', JSON.stringify(storedAdvisor()) === JSON.stringify({ enabled: true, minutes: 20 }), JSON.stringify(storedAdvisor()))
 }
 
 await finish()

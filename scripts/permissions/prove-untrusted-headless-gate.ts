@@ -22,16 +22,16 @@ mkdirSync(join(PROJ, '.mercury'), { recursive: true })
 writeFileSync(
   join(PROJ, '.mercury', 'settings.json'),
   JSON.stringify({
-    apiKeyHelper: `touch ${join(PROJ, 'helper-marker')} && echo sk-proj-fixture`,
-    hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'proj-marker')}` }] }] },
+    credentials: { keyCommand: `touch ${join(PROJ, 'helper-marker')} && echo sk-proj-fixture` },
+    events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'proj-marker')}` }] }] } },
   }),
 )
 writeFileSync(join(PROJ, '.mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
 writeFileSync(
   join(HOME, 'settings.json'),
   JSON.stringify({
-    apiKeyHelper: 'echo sk-user-fixture',
-    hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'user-marker')}` }] }] },
+    credentials: { keyCommand: 'echo sk-user-fixture' },
+    events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${join(PROJ, 'user-marker')}` }] }] } },
   }),
 )
 
@@ -184,16 +184,16 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
     writeFileSync(
       join(LIVE_PROJ, '.mercury', 'settings.json'),
       JSON.stringify({
-        apiKeyHelper: `touch ${marker('helper-marker')} && echo sk-proj-fixture`,
-        hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('proj-marker')}` }] }] },
+        credentials: { keyCommand: `touch ${marker('helper-marker')} && echo sk-proj-fixture` },
+        events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('proj-marker')}` }] }] } },
       }),
     )
     writeFileSync(join(LIVE_PROJ, '.mcp.json'), JSON.stringify({ mcpServers: { fixsrv: { command: 'node', args: ['-e', 'setTimeout(()=>{},100)'] } } }))
     writeFileSync(
       join(LIVE_HOME, 'settings.json'),
       JSON.stringify({
-        apiKeyHelper: 'echo sk-user-fixture',
-        hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('user-marker')}` }] }] },
+        credentials: { keyCommand: 'echo sk-user-fixture' },
+        events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `touch ${marker('user-marker')}` }] }] } },
       }),
     )
     const childEnv: Record<string, string | undefined> = {
@@ -216,7 +216,7 @@ section('§5 THE ARTIFACT LIVE (fresh checkout, headless)')
 
     const untrustedRun = run(['run', 'hi'])
     check('untrusted run: the checkout SessionStart hook did NOT fire', !existsSync(marker('proj-marker')))
-    check('untrusted run: the checkout apiKeyHelper did NOT execute', !existsSync(marker('helper-marker')))
+    check('untrusted run: the checkout credentials.keyCommand did NOT execute', !existsSync(marker('helper-marker')))
     check(
       'untrusted run: the config-home SessionStart hook DID fire (source-scoped, not blanket)',
       existsSync(marker('user-marker')),

@@ -34,7 +34,7 @@ git(repoA, '-c', 'user.email=stale@ground', '-c', 'user.name=staleground', 'comm
 git(repoA, 'worktree', 'add', '-q', worktreeW)
 git(repoB, 'init', '-q')
 mkdirSync(join(repoB, '.mercury'), { recursive: true })
-writeFileSync(join(repoB, '.mercury', 'settings.json'), JSON.stringify({ env: { STALE_GROUND_PIN: 'B' } }, null, 2))
+writeFileSync(join(repoB, '.mercury', 'settings.json'), JSON.stringify({ environment: { values: { STALE_GROUND_PIN: 'B' } } }, null, 2))
 const bootReal = realpathSync(bootDir).normalize('NFC')
 const repoAReal = realpathSync(repoA).normalize('NFC')
 const worktreeWReal = realpathSync(worktreeW).normalize('NFC')
@@ -121,10 +121,10 @@ await detector.initialize()
 {
   await ground.applyHarnessGround(bootReal)
   const pre = settings.getSettingsForSource('projectSettings')
-  check('S4 pre-move: the boot ground has no project settings', pre === null || (pre as { env?: Record<string, string> }).env?.STALE_GROUND_PIN === undefined)
+  check('S4 pre-move: the boot ground has no project settings', pre === null || (pre as { environment?: { values?: Record<string, string> } }).environment?.values?.STALE_GROUND_PIN === undefined)
   await ground.applyHarnessGround(repoBReal)
-  const post = settings.getSettingsForSource('projectSettings') as { env?: Record<string, string> } | null
-  check('S4 post-move: the PICKED repo’s settings answer (write, move, read)', post?.env?.STALE_GROUND_PIN === 'B', JSON.stringify(post))
+  const post = settings.getSettingsForSource('projectSettings') as { environment?: { values?: Record<string, string> } } | null
+  check('S4 post-move: the PICKED repo’s settings answer (write, move, read)', post?.environment?.values?.STALE_GROUND_PIN === 'B', JSON.stringify(post))
 }
 
 {
