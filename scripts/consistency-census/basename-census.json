@@ -68,7 +68,7 @@
     {
       "file": "src/services/instructions/effectiveSize.ts",
       "needle": "MERCURY.md",
-      "excerpt": "const ENTRY_BASENAMES = new Set(['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE])",
+      "excerpt": "const ENTRY_BASENAMES_BY_RANK = ['MERCURY.md', 'MERCURY.local.md', SHARED_INSTRUCTION_FILE]",
       "cls": "guide-probe",
       "why": "the instruction engine: the native convention names MERCURY.md, the shared convention AGENTS.md (composed when no MERCURY.md stands), the capture writer and the effective-size measure name the entry files"
     },
