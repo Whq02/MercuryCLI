@@ -3,7 +3,7 @@ _mercury_completions() {
   cur="${COMP_WORDS[COMP_CWORD]}"
   prev="${COMP_WORDS[1]}"
   local subcommands="acp auth bridge doctor extensions godot health image install mcp roster run steward update upgrade"
-  local root_opts="--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --editor-link --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree"
+  local root_opts="--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree"
   case "$prev" in
     acp)
       COMPREPLY=( $(compgen -W "" -- "$cur") )
@@ -50,7 +50,7 @@ _mercury_completions() {
       return 0
       ;;
     run)
-      COMPREPLY=( $(compgen -W "--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --editor-link --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree" -- "$cur") )
+      COMPREPLY=( $(compgen -W "--advise --agent --agent-defs --allow-sovereign --allowed-tools --backup-model --block-tools --brief --brief-add --budget --chat --concourse-off --concourse-on --config --config-layers --continue --debug --effort --ephemeral --extension --fork --format --help --input --lean --log-file --mcp --mode --model --multiplex --no-commands --only-mcp --partial --pr --project --provider-preview --replay-user-messages --resume --schema --session-id --sovereign --title --toolset --version --worktree" -- "$cur") )
       return 0
       ;;
     steward)

@@ -200,7 +200,7 @@ async function ensureClient(context) {
     started.dispose()
     client = null
     throw new Error(
-      `Mercury speaks ACP v${init.protocolVersion}; this extension speaks v${ACP_PROTOCOL_VERSION}. Reinstall the extension shipped with this Mercury: run \`mercury editor install\`.`,
+      `Mercury speaks ACP v${init.protocolVersion}; this extension speaks v${ACP_PROTOCOL_VERSION}. Reinstall the extension shipped with this Mercury: run \`mercury bridge install\`.`,
     )
   }
   agentVersion = init.agentInfo && init.agentInfo.version ? String(init.agentInfo.version) : null
@@ -209,7 +209,7 @@ async function ensureClient(context) {
   const extMajor = majorOf(extensionVersion)
   if (agentMajor !== null && extMajor !== null && agentMajor !== extMajor) {
     void vscode.window.showWarningMessage(
-      `Mercury ${agentVersion} and this extension (${extensionVersion}) are different major versions — run \`mercury editor install\` to match them.`,
+      `Mercury ${agentVersion} and this extension (${extensionVersion}) are different major versions — run \`mercury bridge install\` to match them.`,
     )
   }
   return started

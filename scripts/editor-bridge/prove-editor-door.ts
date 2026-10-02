@@ -67,8 +67,8 @@ try {
   check('/ide answers exactly as any unknown command does', ide.code === unknown.code && ide.out === unknown.out.replaceAll('frobnicate', 'ide') && ide.err === unknown.err, JSON.stringify(ide))
 
   console.log('§3 the door that stands')
-  const status = await run(['editor', 'status'], { PATH: '/usr/bin:/bin' })
-  check('mercury editor status answers from the bundle (no editor CLI on the path — the manual road)', status.code === 0 && status.out.includes('vsix:') && status.out.includes('manual install'), JSON.stringify(status))
+  const status = await run(['bridge', 'status'], { PATH: '/usr/bin:/bin' })
+  check('mercury bridge status answers from the bundle (no editor CLI on the path — the manual road)', status.code === 0 && status.out.includes('vsix:') && status.out.includes('manual install'), JSON.stringify(status))
   check('the ACP server module is product', existsSync(join(import.meta.dir, '../../src/services/acp/acpServer.ts')))
 } finally {
   rmSync(root, { recursive: true, force: true })

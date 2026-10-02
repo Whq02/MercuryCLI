@@ -55,7 +55,7 @@ t.section('§2 locateBridgeVsix — beside the bundle, else dist/, else null')
   )
 }
 
-t.section('§3 `mercury editor` — the one installer, every VS Code-family CLI')
+t.section('§3 `mercury bridge` — the one installer, every VS Code-family CLI')
 {
   const cli = readFileSync('src/cli/editorBridge.ts', 'utf8')
   t.check('the verb imports the one package owner', cli.includes("from '../utils/editorExtensionPackage.js'") && cli.includes('locateBridgeVsix()'))

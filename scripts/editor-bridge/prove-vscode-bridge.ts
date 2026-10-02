@@ -108,7 +108,7 @@ section('(2b) client robustness + the follow-along wire (structural)')
   check('stdin writes are guarded (safeWrite)', ext.includes('safeWrite(payload)'))
   check('inbound requests ALWAYS settle (responded-once + catch)', ext.includes('let responded = false') && ext.includes(".catch(() => respond({ outcome: { outcome: 'cancelled' } }))"))
   check('stderr reaches the log and names the exit cause', ext.includes("this.child.stderr.on('data'") && ext.includes('stderrTail'))
-  check('the handshake checks the protocol version and names the next step', ext.includes('init.protocolVersion !== ACP_PROTOCOL_VERSION') && ext.includes('mercury editor install'))
+  check('the handshake checks the protocol version and names the next step', ext.includes('init.protocolVersion !== ACP_PROTOCOL_VERSION') && ext.includes('mercury bridge install'))
   check(
     'changed files come from the tool_call KIND, never the title',
     ext.includes("update.kind === 'edit' || update.kind === 'delete' || update.kind === 'move'") && !ext.includes("['Write', 'Edit', 'MultiEdit', 'NotebookEdit']"),
@@ -157,12 +157,12 @@ section('(3) deterministic .vsix build')
   check('the staged manifest carries the harness version', (JSON.parse(staged) as { version: string }).version === harnessVersion, `${(JSON.parse(staged) as { version: string }).version} vs ${harnessVersion}`)
 }
 
-section('(4) mercury editor status — honest E2E from the dist bundle')
+section('(4) mercury bridge status — honest E2E from the dist bundle')
 {
   if (!existsSync('dist/mercury.mjs')) {
     check('dist present for the editor E2E', false, 'run bun run build.ts')
   } else {
-    const out = execFileSync(NODE, ['dist/mercury.mjs', 'editor', 'status'], {
+    const out = execFileSync(NODE, ['dist/mercury.mjs', 'bridge', 'status'], {
       encoding: 'utf8',
       timeout: 60_000,
       env: { ...process.env, PATH: '/usr/bin:/bin' },
@@ -172,7 +172,7 @@ section('(4) mercury editor status — honest E2E from the dist bundle')
     check('manual instructions offered without code', out.includes('manual install') || out.includes('editor CLI:'))
     let badExit = 0
     try {
-      execFileSync(NODE, ['dist/mercury.mjs', 'editor', 'bogus'], {
+      execFileSync(NODE, ['dist/mercury.mjs', 'bridge', 'bogus'], {
         encoding: 'utf8',
         timeout: 60_000,
       })

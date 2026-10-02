@@ -34,9 +34,9 @@ it shows comes from Mercury.
 Multi-root workspaces: the first folder is the session's working
 directory; every folder rides the live editor context.
 
-Install with `mercury editor install` (uses the `code` CLI — or the
+Install with `mercury bridge install` (uses the `code` CLI — or the
 `code-insiders`, `cursor`, `codium` or `windsurf` CLI when that is what is
-installed; prints manual steps otherwise). `mercury editor status` shows
+installed; prints manual steps otherwise). `mercury bridge status` shows
 what is installed. The extension version is stamped from the Mercury build
 it ships with; a different major version of either side is named in a
 warning, and an ACP protocol the extension does not speak stops with the

@@ -435,7 +435,7 @@ Available commands include:
 - **`mercury agents`**: list the agent inventory.
 - **`mercury daemon`**: run the background daemon that hosts sessions.
 - **`mercury acp --stdio`**: connect an editor through the Agent Client
-  Protocol. `mercury editor <action>` manages the IDE integration.
+  Protocol. `mercury bridge <action>` installs the VS Code extension.
 - **`mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`**:
   manage engine jobs for the Godot project in the current directory. Mercury
   runs suites on its own headless workers from a frozen project copy. The
@@ -476,7 +476,7 @@ Available commands include:
   to complete the specification it will use to build a prototype. See
   [docs/APOLLO-MODE.md](docs/APOLLO-MODE.md).
 - **Editor integrations.** `mercury acp` connects to editors that support the
-  Agent Client Protocol. The VS Code extension (`mercury editor install`)
+  Agent Client Protocol. The VS Code extension (`mercury bridge install`)
   runs Mercury in the editor over that protocol: chat, sessions, agents,
   artifacts and reviews, with the editor's selection and diagnostics riding
   each prompt. Separate, opt-in integrations connect to running Unity,
