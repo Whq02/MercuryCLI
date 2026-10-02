@@ -3231,45 +3231,22 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           },
         },
         {
-          id: 'editor-bridge',
-          label: 'Editor bridge',
+          id: 'editor-door',
+          label: 'Editor door',
           run: async () => {
             const { installedEditorExtensions } = await import('./editorExtensionPackage.js')
-            const { detectIDEs, getTerminalIdeType, isSupportedTerminal, toIDEDisplayName } = await import('./ide.js')
-            const { flagEnv } = await import('../substrate/flagRegistry.js')
             const installed = installedEditorExtensions()
-            const advertised = await detectIDEs(true)
-            const valid = advertised.filter(ide => ide.isValid)
-            const embedded = isSupportedTerminal()
-            const port = flagEnv('MERCURY_IDE_PORT')
-            const parts = [
+            const evidence = [
               installed.length > 0
                 ? `extension installed: ${installed.map(i => `${i.editor} ${i.version}`).join(', ')}`
                 : 'extension NOT installed in any VS Code-family editor',
-              advertised.length === 0
-                ? 'no editor advertising a bridge'
-                : `${valid.length} of ${advertised.length} advertising editor(s) match this workspace (${advertised
-                    .slice(0, 3)
-                    .map(i => `${i.name} :${i.port}`)
-                    .join(', ')})`,
-              embedded
-                ? `terminal: ${toIDEDisplayName(getTerminalIdeType())}${port ? ` · port ${port} advertised` : ' · no port advertised (open a new terminal after installing)'}`
-                : 'terminal: not an editor terminal',
               'acp: mercury acp --stdio',
-            ]
-            const evidence = parts.join(' · ')
-            if (valid.length > 0) return { status: 'ok' as const, evidence }
-            if (installed.length === 0) {
-              return {
-                status: 'info' as const,
-                evidence,
-                fix: 'mercury bridge install (installs the extension from this build), then reload the editor window.',
-              }
-            }
+            ].join(' · ')
+            if (installed.length > 0) return { status: 'ok' as const, evidence }
             return {
               status: 'info' as const,
               evidence,
-              fix: 'Open this workspace in an editor with the Mercury extension; a terminal opened there carries MERCURY_IDE_PORT and /ide lists it.',
+              fix: 'mercury bridge install (installs the extension from this build), then reload the editor window; any ACP editor runs mercury acp --stdio directly.',
             }
           },
         },
