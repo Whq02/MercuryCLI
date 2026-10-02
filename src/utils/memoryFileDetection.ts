@@ -2,6 +2,7 @@ import { normalize } from 'node:path'
 
 import { getAutoMemPath, getMemoryBaseDir, isAutoMemoryEnabled, isAutoMemPath } from '../memdir/paths.js'
 import { isAgentMemoryPath } from '../tools/AgentTool/agentMemory.js'
+import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { getMercuryHome } from './envUtils.js'
 import { posixPathToWindowsPath, windowsPathToPosixPath } from './windowsPaths.js'
 
@@ -45,6 +46,11 @@ export function detectSessionPatternType(pattern: string): 'session_memory' | 's
 export function isAutoMemFile(filePath: string): boolean {
   if (!isAutoMemoryEnabled()) return false
   return isAutoMemPath(filePath)
+}
+
+export function memoryWriteRefusal(filePath: string): string | null {
+  if (!isAutoMemFile(filePath)) return null
+  return `${filePath} is Mercury's memory: save with ${RETAIN_TOOL_NAME} and change with ${CORRECT_TOOL_NAME} — a direct write is refused.`
 }
 
 export type MemoryScope = 'personal' | 'team'

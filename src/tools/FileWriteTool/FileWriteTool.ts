@@ -31,6 +31,7 @@ import { logError } from '../../utils/log.js'
 import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
+import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import type { UUID } from 'node:crypto'
 
@@ -142,6 +143,10 @@ export const FileWriteTool = buildTool({
         message: ruleSentence(`Writing to ${input.file_path}`, 'deny', writeDeny),
         errorCode: 1,
       }
+    }
+    const memoryRefusal = memoryWriteRefusal(expandedPath)
+    if (memoryRefusal) {
+      return { result: false as const, message: memoryRefusal, errorCode: 3 }
     }
     if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {
       return { result: true as const }
