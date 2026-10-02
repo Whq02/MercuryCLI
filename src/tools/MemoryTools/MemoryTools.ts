@@ -15,6 +15,7 @@ import {
   type RecallResult,
   type RetainItemOutcome,
 } from '../../memdir/memoryVerbs.js'
+import { runDueMaintenance } from '../../memdir/mnemeMaintenance.js'
 import {
   CORRECT_DESCRIPTION,
   CORRECT_PROMPT,
@@ -68,6 +69,14 @@ export interface RetainOutput {
   outcomes: RetainItemOutcome[]
   stored: number
   refused: number
+  shelf?: { landed: boolean; reason: string }
+}
+
+function pinnedItemStored(items: Array<{ pin?: boolean; replaces?: string }>, outcomes: RetainItemOutcome[]): boolean {
+  return outcomes.some(outcome => {
+    const item = items[outcome.index]
+    return outcome.status === 'stored' && (item?.pin === true || (item?.replaces ?? '').trim() !== '')
+  })
 }
 
 export const RetainTool = buildTool({
@@ -103,7 +112,9 @@ export const RetainTool = buildTool({
     })
     const stored = outcomes.filter(o => o.status === 'stored').length
     const refused = outcomes.filter(o => o.status === 'refused').length
-    return { data: { outcomes, stored, refused } }
+    if (!pinnedItemStored(input.items, outcomes)) return { data: { outcomes, stored, refused } }
+    const landed = await runDueMaintenance('retain')
+    return { data: { outcomes, stored, refused, shelf: { landed: landed.consolidated === true, reason: landed.reason } } }
   },
   mapToolResultToToolResultBlockParam(output: RetainOutput, toolUseID) {
     const lines = output.outcomes.map(outcome =>
@@ -111,6 +122,13 @@ export const RetainTool = buildTool({
         ? `- item ${outcome.index}: REFUSED — ${outcome.reason} (the fact was NOT stored)`
         : `- item ${outcome.index}: ${outcome.status} → ${outcome.id}`,
     )
+    if (output.shelf) {
+      lines.push(
+        output.shelf.landed
+          ? '- the pinned rule is on the shelf now and loads into every session from the next request'
+          : `- the pinned rule lands on the shelf at the next maintenance pass (${output.shelf.reason})`,
+      )
+    }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',

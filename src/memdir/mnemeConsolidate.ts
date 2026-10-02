@@ -36,6 +36,11 @@ const sigSafe = (s: string): string => s.replace(/[,<>\r\n]+/g, '-')
 
 export const CONSOLIDATE_TOKENS = 5000
 export const CONSOLIDATE_AGE_MS = 24 * 60 * 60 * 1000
+export const PINNED_ROW_WAITS = 'a pinned rule waits'
+
+export function pinnedRowWaits(rows: readonly MnemeObservation[]): boolean {
+  return rows.some(row => row.pin === true)
+}
 
 export interface AssignedRow extends MnemeObservation {
   seq: number
@@ -438,7 +443,7 @@ export function maybeConsolidate(
     const oldest = Date.parse(peek[0]!.ts)
     const dueBySize = bufferTokens(dir) >= CONSOLIDATE_TOKENS
     const dueByAge = Number.isFinite(oldest) && now.getTime() - oldest >= CONSOLIDATE_AGE_MS
-    if (!dueBySize && !dueByAge) return none('below thresholds')
+    if (!dueBySize && !dueByAge && !pinnedRowWaits(peek)) return none('below thresholds')
   }
   if (!acquireConsolidateLock(dir)) return none('consolidation in progress (lock held)')
   let consumed: Consumed = { files: [], rows: [], staleManifests: [], landedCount: 0, landedPins: [] }

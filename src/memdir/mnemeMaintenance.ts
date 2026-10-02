@@ -8,16 +8,18 @@ import { bufferTokens, readBuffer, readConsumingRows } from './mnemeBuffer.js'
 import {
   CONSOLIDATE_AGE_MS,
   CONSOLIDATE_TOKENS,
+  PINNED_ROW_WAITS,
   acquireConsolidateLock,
   listTopicDocs,
   maybeConsolidate,
+  pinnedRowWaits,
   readLibraryMeta,
   releaseConsolidateLock,
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 
-export type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'observe' | 'operator'
+export type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
 
 export interface MnemeStatus {
   enabled: boolean
@@ -85,6 +87,7 @@ export function dueForMaintenance(
   if (lock.present && lock.holderAlive === false) return { due: true, reason: 'stale lock held by a dead process' }
   const rows = readBuffer(dir)
   if (rows.length === 0) return { due: false, reason: null }
+  if (pinnedRowWaits(rows)) return { due: true, reason: PINNED_ROW_WAITS }
   if (bufferTokens(dir) >= CONSOLIDATE_TOKENS) return { due: true, reason: 'buffer over the size threshold' }
   const oldest = Date.parse(rows[0]!.ts)
   if (Number.isFinite(oldest) && now.getTime() - oldest >= CONSOLIDATE_AGE_MS) {
