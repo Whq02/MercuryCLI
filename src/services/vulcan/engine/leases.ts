@@ -27,6 +27,8 @@ export type ProjectLeaseTakeResult =
   | { ok: true; leases: ProjectLease[] }
   | { ok: false; conflict: ProjectLease; message: string }
 
+const LEASE_FILENAME = 'project-leases.sqlite'
+const LEASE_STORAGE_NAMES = [LEASE_FILENAME, `${LEASE_FILENAME}-journal`, `${LEASE_FILENAME}-wal`, `${LEASE_FILENAME}-shm`]
 const owned = new Map<string, { root: string; holder: LeaseHolder }>()
 const ended = new Set<string>()
 let closing = false
@@ -97,7 +99,7 @@ export function canonicalProjectLeasePath(projectRoot: string, input: string): s
   }
   const relative = path.relative(root, current).split(path.sep).join('/')
   const rel = caseInsensitiveProject(root) ? relative.toLowerCase() : relative
-  if (rel === MERCURY_PROJECT_DIR || rel.startsWith(`${MERCURY_PROJECT_DIR}/`)) throw new Error('project lease storage cannot itself be leased')
+  if (LEASE_STORAGE_NAMES.some(name => rel === `${MERCURY_PROJECT_DIR}/${name}`)) throw new Error(`${input} is the lease store itself and cannot be leased`)
   return rel
 }
 
@@ -113,8 +115,9 @@ function leaseFile(projectRoot: string): string {
     const made = lstatSync(dir)
     if (made.isSymbolicLink() || !made.isDirectory()) throw new Error('project lease directory was redirected')
   }
-  const file = path.join(dir, 'project-leases.sqlite')
-  for (const candidate of [file, `${file}-journal`, `${file}-wal`, `${file}-shm`]) {
+  const file = path.join(dir, LEASE_FILENAME)
+  for (const name of LEASE_STORAGE_NAMES) {
+    const candidate = path.join(dir, name)
     try {
       const st = lstatSync(candidate)
       if (st.isSymbolicLink() || !st.isFile() || st.nlink > 1) throw new Error('project lease storage must be a regular file with one link')
