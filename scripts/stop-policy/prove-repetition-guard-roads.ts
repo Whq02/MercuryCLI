@@ -265,7 +265,7 @@ if (import.meta.main) {
     const port = (server.address() as { port: number }).port
     const debug = join(home, 'debug.log')
     const env = childEnv(home, port)
-    const child = Bun.spawn([NODE, DIST, 'run', ask, '--model', MODEL, '--mode', 'sovereign', '--allowed-tools', 'Skill', '--format', 'text', '--max-turns', '12', '--debug-file', debug], { cwd, env, stdout: 'pipe', stderr: 'pipe' })
+    const child = Bun.spawn([NODE, DIST, 'run', ask, '--model', MODEL, '--mode', 'sovereign', '--allowed-tools', 'Skill', '--format', 'text', '--max-turns', '12', '--log-file', debug], { cwd, env, stdout: 'pipe', stderr: 'pipe' })
     const stdout = new Response(child.stdout).text()
     const stderr = new Response(child.stderr).text()
     const code = await child.exited
