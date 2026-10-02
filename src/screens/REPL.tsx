@@ -56,16 +56,8 @@ import { activeToolVerb } from '../utils/cockpit/toolVerb.js';
 import { isSettingsPopupOpen } from '../utils/cockpit/settingsPopup.js';
 import { publishTurnSignals, turnEndedInError } from '../utils/cockpit/turnSignals.js';
 import { publishMcpConnections } from '../utils/cockpit/mcpGauge.js';
-import { dynamicMcpConfigSnapshot, ideAutoConnectSeed, setDynamicMcpConfig } from '../services/mcp/dynamicMcpSeed.js';
-import type { ScopedMcpServerConfig } from '../services/mcp/types.js';
-import { useIDEIntegration } from '../hooks/useIDEIntegration.js';
-import { useIdeSelection, type IDESelection } from '../hooks/useIdeSelection.js';
-import { useIdeLogging } from '../hooks/useIdeLogging.js';
-import { useIDEStatusIndicator } from '../hooks/notifs/useIDEStatusIndicator.js';
 import { useSeatReceipts } from '../hooks/useSeatReceipts.js';
 import { useAgentStateClassifier } from '../hooks/useAgentStateClassifier.js';
-import { IdeOnboardingDialog } from '../components/IdeOnboardingDialog.js';
-import { type IDEExtensionInstallationStatus, type IdeType } from '../utils/ide.js';
 import { ElicitationDialog } from '../components/mcp/ElicitationDialog.js';
 import { useMcpConnectivityStatus } from '../hooks/notifs/useMcpConnectivityStatus.js';
 import { recordBootInteractive } from '../utils/observability/frictionStopwatch.js';
@@ -299,7 +291,7 @@ const INERT_PROMPT_HELPERS: PromptInputHelpers = {
 
 type PaintsRows = { addDisplayRow?: (row: Message) => void; transcriptFile?: () => string };
 
-type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'ide-onboarding' | 'cost-threshold' | 'crash-resume';
+type FocusedInputDialog = 'message-selector' | 'tool-permission' | 'elicitation' | 'cost-threshold' | 'crash-resume';
 
 type ToolJSXState = Parameters<SetToolJSXFn>[0];
 
@@ -316,11 +308,10 @@ function getFocusedInputDialog(args: {
   toolJSX: ToolJSXState;
   toolUseConfirmQueueLength: number;
   elicitationQueueLength: number;
-  showIdeOnboarding: boolean;
   showCostThreshold: boolean;
   showCrashResume: boolean;
 }): FocusedInputDialog | undefined {
-  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showIdeOnboarding, showCostThreshold, showCrashResume } = args;
+  const { isExiting, showMessageSelector, isPromptInputActive, toolJSX, toolUseConfirmQueueLength, elicitationQueueLength, showCostThreshold, showCrashResume } = args;
   if (isExiting) return undefined;
   if (showMessageSelector) return 'message-selector';
   if (isPromptInputActive) return undefined;
@@ -328,7 +319,6 @@ function getFocusedInputDialog(args: {
   if (blocked) return undefined;
   if (toolUseConfirmQueueLength > 0) return 'tool-permission';
   if (elicitationQueueLength > 0) return 'elicitation';
-  if (showIdeOnboarding) return 'ide-onboarding';
   if (showCostThreshold) return 'cost-threshold';
   if (showCrashResume) return 'crash-resume';
   return undefined;
@@ -860,27 +850,6 @@ export function REPL({
     [setAppState, adoptRunnerMode, addNotification],
   );
 
-  const [showIdeOnboarding, setShowIdeOnboarding] = useState(false);
-  const [ideInstallationStatus, setIDEInstallationState] = useState<IDEExtensionInstallationStatus | null>(null);
-  const [ideToInstallExtension, setIdeToInstallExtension] = useState<IdeType | null>(null);
-  const [ideSelection, setIdeSelectionState] = useState<IDESelection | undefined>(undefined);
-  const setIdeSelection = useCallback((next: IDESelection | undefined): void => {
-    setIdeSelectionState(next);
-    pendingInput.setSelection(next);
-  }, []);
-  useIdeSelection(mcpState.clients, setIdeSelection);
-  useIDEIntegration({
-    autoConnectIdeFlag: ideAutoConnectSeed(),
-    ideToInstallExtension,
-    setDynamicMcpConfig: updater => {
-      const previous = dynamicMcpConfigSnapshot();
-      setDynamicMcpConfig(typeof updater === 'function' ? updater(previous) : updater);
-    },
-    setShowIdeOnboarding,
-    setIDEInstallationState,
-  });
-  useIdeLogging(mcpState.clients);
-  useIDEStatusIndicator({ ideInstallationStatus, ideSelection, mcpClients: mcpState.clients });
   useSeatReceipts({
     setMessages: next => {
       const rows = typeof next === 'function' ? next([]) : next;
@@ -916,7 +885,6 @@ export function REPL({
     toolJSX,
     toolUseConfirmQueueLength: toolUseConfirmQueue.length,
     elicitationQueueLength: elicitationQueue.length,
-    showIdeOnboarding,
     showCostThreshold,
     showCrashResume: crashResumeStaged !== null,
   });
@@ -1011,10 +979,6 @@ export function REPL({
         onChangeAPIKey: () => {
           void apiKeyVerification.reverify();
         },
-        onChangeDynamicMcpConfig: (config: Record<string, ScopedMcpServerConfig>) => {
-          setDynamicMcpConfig(config);
-        },
-        onInstallIDEExtension: (ide: IdeType) => setIdeToInstallExtension(ide),
         resume: (sessionId: UUID, log: LogOption, entrypoint: ResumeEntrypoint) => resumeRef.current(sessionId, log, entrypoint),
       };
       return context;
@@ -1184,7 +1148,6 @@ export function REPL({
       if (composerLine === '' || composerLine === input) {
         setInputValue('');
         setPastedContents({});
-        setIdeSelection(undefined);
         helpers.clearBuffer();
         helpers.setCursorOffset(0);
         helpers.resetHistory();
@@ -2300,8 +2263,6 @@ export function REPL({
   const focusedBottomDialog: React.ReactNode = replSurfaceCovered ? null :
     focusedInputDialog === 'elicitation' && elicitationQueue[0] ? (
       <ElicitationDialog event={elicitationQueue[0]} onResponse={respondToElicitation} onWaitingDismiss={dismissElicitationWaiting} />
-    ) : focusedInputDialog === 'ide-onboarding' ? (
-      <IdeOnboardingDialog installationStatus={ideInstallationStatus} onDone={() => setShowIdeOnboarding(false)} />
     ) : focusedInputDialog === 'cost-threshold' ? (
       <CostThresholdDialog
         onDone={() => {
@@ -2380,7 +2341,6 @@ export function REPL({
       compactWork={compactWork}
       compactFocus={compactFocus}
       debug={debug}
-      ideSelection={undefined}
       toolPermissionContext={toolPermissionContext}
       setToolPermissionContext={setToolPermissionContext}
       apiKeyStatus={apiKeyVerification.status}

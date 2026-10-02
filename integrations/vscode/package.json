@@ -1,7 +1,7 @@
 {
   "name": "mercury-vscode",
   "displayName": "Mercury",
-  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio), plus the bridge a Mercury session in the integrated terminal attaches to (selection, diagnostics, native diffs). A thin bridge: no second agent runtime.",
+  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio). A thin bridge: no second agent runtime.",
   "version": "0.1.0",
   "publisher": "mercury",
   "license": "SEE LICENSE IN LICENSE.txt",
@@ -83,7 +83,6 @@
       { "command": "mercury.openArtifact", "title": "Mercury: Open Artifact" },
       { "command": "mercury.showReviewComments", "title": "Mercury: Show Review Comments" },
       { "command": "mercury.openTerminal", "title": "Mercury: Open in Mercury Terminal" },
-      { "command": "mercury.mentionInTerminal", "title": "Mercury: Send Selection to the Terminal Session" },
       { "command": "mercury.setMode", "title": "Mercury: Set Session Mode" },
       { "command": "mercury.showLog", "title": "Mercury: Show Log" },
       { "command": "mercury.refreshViews", "title": "Mercury: Refresh Views" }
@@ -107,12 +106,6 @@
         "when": "editorTextFocus && editorHasSelection"
       },
       {
-        "command": "mercury.mentionInTerminal",
-        "key": "ctrl+alt+k",
-        "mac": "cmd+alt+k",
-        "when": "editorTextFocus"
-      },
-      {
         "command": "mercury.cancelTurn",
         "key": "ctrl+alt+escape",
         "mac": "cmd+alt+escape"
@@ -128,10 +121,6 @@
           "command": "mercury.editSelection",
           "when": "editorHasSelection",
           "group": "mercury@2"
-        },
-        {
-          "command": "mercury.mentionInTerminal",
-          "group": "mercury@3"
         }
       ],
       "view/title": [
@@ -159,11 +148,6 @@
           "type": "boolean",
           "default": true,
           "description": "Push the editor's state (active file, selection, open files, diagnostics, workspace folders) to the chat session as it changes, so the next prompt carries it. Off: only Ask/Edit Selection send editor context."
-        },
-        "mercury.terminalBridge": {
-          "type": "boolean",
-          "default": true,
-          "description": "Serve the terminal bridge: a Mercury session started in this window's integrated terminal attaches to the editor (its selection and diagnostics reach the session; its edits open as native diffs you accept or reject; /ide lists this window). Off: no advertisement file, no MERCURY_IDE_PORT in terminals."
         }
       }
     }

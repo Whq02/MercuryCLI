@@ -12,7 +12,7 @@ export const MCP_EMPTY_ROSTER_LINE =
   "No MCP servers in this session. The boot menu's MCPs & Skills sets the next session's; .mcp.json or settings.json add new ones."
 
 export const MCP_ORGAN_LINE = (name: string): string =>
-  `MCP server "${name}" is Mercury's own organ — never dialed. The ide connection is owned by /ide.`
+  `MCP server "${name}" is Mercury's own organ — never dialed.`
 
 export function kitDialLine(receipt: KitDialReceiptV1, asked: string): string {
   switch (receipt.outcome) {

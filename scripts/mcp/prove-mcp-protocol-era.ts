@@ -235,9 +235,10 @@ section("(7) production's client shape, structurally")
   const client = SRC('src/services/mcp/client.ts')
   check('both elicitation modes are declared on the wire', client.includes('elicitation: { form: {}, url: {} }'))
   check(
-    'external servers negotiate; the editor bridges keep the handshake',
+    'every server negotiates on the one connection; only the older-server respawn keeps the handshake alone',
     client.includes("versionNegotiation: negotiate ? externalVersionNegotiation(transportKind) : { mode: 'legacy' }") &&
-      client.includes("buildClient(!isIde, stdioTransport !== null ? 'stdio' : 'remote')"),
+      client.includes("buildClient(true, stdioTransport !== null ? 'stdio' : 'remote')") &&
+      client.includes('client = buildClient(false)'),
   )
   check(
     'the SDK host on the control channel keeps the handshake',

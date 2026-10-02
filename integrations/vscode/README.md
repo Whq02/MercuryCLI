@@ -2,7 +2,7 @@
 
 A thin bridge to Mercury. It launches `mercury acp --stdio` (the
 `mercury.path` setting) and never runs an agent loop of its own; every fact
-it shows comes from Mercury. It works in both directions:
+it shows comes from Mercury.
 
 **Editor → Mercury (the Agent Client Protocol)**
 
@@ -29,26 +29,14 @@ it shows comes from Mercury. It works in both directions:
 - **Open Artifact / Show Review Comments** — artifact bodies as markdown;
   anchored diff-line comments decorate open editors (outdated anchors say
   so).
-
-**Mercury → editor (the terminal bridge)**
-
-- **Open in Mercury Terminal** — the full TUI in a VS Code terminal. Every
-  terminal in the window carries `MERCURY_IDE_PORT`, so a Mercury started
-  there attaches to this editor (`/ide` lists it); the status bar shows
-  the attachment.
-- While attached: your selection reaches the session as you make it;
-  `Ctrl/Cmd+Alt+K` sends the selection as an `@file#L1-L2` mention; the
-  session reads diagnostics and opens files; its edits open as native diffs
-  you accept (save) or reject (close). `mercury.terminalBridge` turns the
-  bridge off.
+- **Open in Mercury Terminal** — the full TUI in a VS Code terminal.
 
 Multi-root workspaces: the first folder is the session's working
-directory; every folder rides the live editor context and the bridge's
-advertisement.
+directory; every folder rides the live editor context.
 
-Install with `mercury editor install` (uses the `code` CLI — or the
+Install with `mercury bridge install` (uses the `code` CLI — or the
 `code-insiders`, `cursor`, `codium` or `windsurf` CLI when that is what is
-installed; prints manual steps otherwise). `mercury editor status` shows
+installed; prints manual steps otherwise). `mercury bridge status` shows
 what is installed. The extension version is stamped from the Mercury build
 it ships with; a different major version of either side is named in a
 warning, and an ACP protocol the extension does not speak stops with the

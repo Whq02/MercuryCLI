@@ -10,7 +10,6 @@ export function footerNoticeLine(text: string): string {
 import { basename } from 'node:path'
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { Box, Text } from '../../ink.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { Message } from '../../types/message.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
@@ -38,7 +37,6 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
 import { calculateTokenWarningState } from '../../services/compact/autoCompact.js'
 import { RowErrorBoundary } from '../RowErrorBoundary.js'
-import { IdeStatusIndicator } from '../IdeStatusIndicator.js'
 import { TokenWarning } from '../TokenWarning.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../services/engine-connector/focusedConnector.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -102,7 +100,6 @@ function NotificationsColumn({
   debug,
   verbose,
   messages,
-  ideSelection,
   mcpClients,
   isInputWrapped = false,
   alignStart = false,
@@ -112,7 +109,6 @@ function NotificationsColumn({
   debug: boolean
   verbose: boolean
   messages: Message[]
-  ideSelection: IDESelection | undefined
   mcpClients?: MCPServerConnection[]
   isInputWrapped?: boolean
   alignStart?: boolean
@@ -226,7 +222,6 @@ function NotificationsColumn({
       alignItems={alignStart ? 'flex-start' : 'flex-end'}
     >
       <FaultInjector />
-      <IdeStatusIndicator ideSelection={ideSelection} mcpClients={mcpClients} />
       {overageLine ? (
         <Text dimColor wrap="truncate-end">
           Anthropic says this account is on extra usage
@@ -275,7 +270,6 @@ export function Notifications(props: {
   debug: boolean
   verbose: boolean
   messages: Message[]
-  ideSelection: IDESelection | undefined
   mcpClients?: MCPServerConnection[]
   isInputWrapped?: boolean
   alignStart?: boolean

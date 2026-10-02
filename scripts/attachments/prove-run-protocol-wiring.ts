@@ -44,7 +44,7 @@ const context = (over: Record<string, unknown> = {}, pool: unknown = withLsp) =>
     ...over,
   }) as never
 const collect = async (ctx: never, messages: unknown[]): Promise<Array<Record<string, unknown>>> =>
-  ((await getAttachments('hello', ctx, null, [], messages as never, undefined, { skipSkillDiscovery: true })) as Array<Record<string, unknown>>).filter(a => a.type === 'run_protocol_delta')
+  ((await getAttachments('hello', ctx, [], messages as never, undefined, { skipSkillDiscovery: true })) as Array<Record<string, unknown>>).filter(a => a.type === 'run_protocol_delta')
 
 console.log('\nrun-protocol wiring — the capability delta reaches the model through the real collection')
 clearSystemPromptSections()

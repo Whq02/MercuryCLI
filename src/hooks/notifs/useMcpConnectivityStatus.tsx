@@ -8,7 +8,7 @@ import { Text } from '../../ink.js'
 import { hasClaudeAiMcpEverConnected } from '../../services/mcp/claudeai.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 
-const IDE_OR_PROXY_TYPES = ['sse-ide', 'ws-ide', 'claudeai-proxy']
+const PROXY_TYPES = ['claudeai-proxy']
 
 const EMPTY_CLIENTS: MCPServerConnection[] = []
 
@@ -26,7 +26,7 @@ export function useMcpConnectivityStatus({ mcpClients }: Props): void {
     const failedLocal = clients.filter(
       client =>
         client.type === 'failed' &&
-        !IDE_OR_PROXY_TYPES.includes(client.config.type ?? ''),
+        !PROXY_TYPES.includes(client.config.type ?? ''),
     )
     const failedClaudeAi = clients.filter(
       client =>

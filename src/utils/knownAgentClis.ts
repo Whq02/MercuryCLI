@@ -6,7 +6,6 @@ export interface AgentCliSignature {
   id: string
   displayName: string
   pattern: RegExp
-  jetbrainsPluginDir?: string
   sessionEnvVars?: readonly string[]
   tokenFdEnvVar?: string
 }
@@ -16,7 +15,6 @@ export const KNOWN_AGENT_CLIS: readonly AgentCliSignature[] = [
     id: 'claude-code',
     displayName: 'Claude Code',
     pattern: /@anthropic-ai\/claude-code|\bclaude[-_ ]code\b/i,
-    jetbrainsPluginDir: 'claude-code-jetbrains-plugin',
     sessionEnvVars: [
       'CLAUDE_CODE_OAUTH_TOKEN',
       'CLAUDE_CODE_SUBSCRIPTION_TYPE',

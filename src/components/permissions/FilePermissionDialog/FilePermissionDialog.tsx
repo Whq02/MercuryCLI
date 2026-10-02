@@ -1,25 +1,21 @@
 import * as React from 'react'
-import { useCallback, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { lstatSync, realpathSync } from 'node:fs'
 import { relative } from 'node:path'
 import { Box, Text } from '../../../ink.js'
 import { Select } from '../../CustomSelect/select.js'
-import { ShowInIDEPrompt } from '../../ShowInIDEPrompt.js'
-import { useDiffInIDE } from '../../../hooks/useDiffInIDE.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { expandPath } from '../../../utils/path.js'
 import type { CompletionType } from '../../../utils/unaryLogging.js'
 import { PermissionDialog } from '../PermissionDialog.js'
 import { PermissionRuleExplanation } from '../PermissionRuleExplanation.js'
-import type { PermissionRequestProps, ToolUseConfirm } from '../PermissionRequest.js'
+import type { ToolUseConfirm } from '../PermissionRequest.js'
 import type { WorkerBadgeProps } from '../WorkerBadge.js'
-import type { FileEdit, IDEDiffSupport } from './ideDiffConfig.js'
-import type { FileOperationType, PermissionOption, ToolInput } from './permissionOptions.js'
+import type { FileOperationType, ToolInput } from './permissionOptions.js'
 import { useFilePermissionDialog } from './useFilePermissionDialog.js'
 
 export type FilePermissionDialogProps<T extends ToolInput> = {
   toolUseConfirm: ToolUseConfirm
-  toolUseContext: PermissionRequestProps['toolUseContext']
   onDone: () => void
   onReject: () => void
   title: string
@@ -29,7 +25,6 @@ export type FilePermissionDialogProps<T extends ToolInput> = {
   completionType?: CompletionType
   languageName?: string | Promise<string>
   operationType?: FileOperationType
-  ideDiffSupport?: IDEDiffSupport<T>
   path: string | null
   parseInput: (input: unknown) => T
   workerBadge?: WorkerBadgeProps
@@ -37,7 +32,6 @@ export type FilePermissionDialogProps<T extends ToolInput> = {
 
 export function FilePermissionDialog<T extends ToolInput>({
   toolUseConfirm,
-  toolUseContext,
   onDone,
   onReject,
   title,
@@ -47,7 +41,6 @@ export function FilePermissionDialog<T extends ToolInput>({
   completionType = 'tool_use_single',
   languageName,
   operationType = 'write',
-  ideDiffSupport,
   path,
   parseInput,
   workerBadge,
@@ -80,58 +73,6 @@ export function FilePermissionDialog<T extends ToolInput>({
   }, [operationType, path])
   const symlinkEscapes =
     symlinkTarget !== undefined && relative(getFocusedSessionConnector().workspace().cwd, symlinkTarget).startsWith('..')
-
-  const ideConfig = useMemo(
-    () => (ideDiffSupport ? ideDiffSupport.getConfig(parsedInput) : undefined),
-    [ideDiffSupport, parsedInput],
-  )
-
-  const handleIdeChangeRef = useRef<
-    (option: PermissionOption, changed: { file_path: string; edits: FileEdit[] }) => void
-  >(() => {})
-  const onIdeChange = useCallback(
-    (option: PermissionOption, changed: { file_path: string; edits: FileEdit[] }) =>
-      handleIdeChangeRef.current(option, changed),
-    [],
-  )
-
-  const { closeTabInIDE, showingDiffInIDE, ideName } = useDiffInIDE({
-    onChange: onIdeChange,
-    toolUseContext,
-    filePath: ideConfig?.filePath ?? '',
-    edits: ideConfig?.edits ?? [],
-    editMode: ideConfig?.editMode ?? 'single',
-  })
-
-  handleIdeChangeRef.current = (option, changed) => {
-    if (!ideDiffSupport) return
-    const modifiedInput = ideDiffSupport.applyChanges(parsedInput, changed.edits)
-    void Promise.resolve(closeTabInIDE()).then(() => dialog.onChange(option, modifiedInput))
-  }
-
-  if (showingDiffInIDE && ideConfig && path !== null) {
-    return (
-      <ShowInIDEPrompt
-        filePath={path}
-        input={undefined}
-        onChange={(option: PermissionOption, feedback?: string) => {
-          void Promise.resolve(closeTabInIDE()).then(() =>
-            dialog.onChange(option, parsedInput, feedback),
-          )
-        }}
-        options={dialog.options}
-        ideName={ideName}
-        symlinkTarget={symlinkTarget}
-        acceptFeedback={dialog.acceptFeedback}
-        rejectFeedback={dialog.rejectFeedback}
-        setFocusedOption={dialog.setFocusedOption}
-        onInputModeToggle={dialog.handleInputModeToggle}
-        focusedOption={dialog.focusedOption}
-        yesInputMode={dialog.yesInputMode}
-        noInputMode={dialog.noInputMode}
-      />
-    )
-  }
 
   const focused = dialog.options.find(option => option.value === dialog.focusedOption)
   const showAmendHint =

@@ -30,7 +30,6 @@ import {
   mintFileAnchor,
 } from '../../services/changeTransaction/snapshotAnchor.js'
 import { serializeIntentDigest } from '../../services/changeTransaction/repetitionPolicy.js'
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import { clearDeliveredDiagnosticsForFile } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
@@ -1058,7 +1057,6 @@ export const FileEditTool = buildTool({
     if (!isEnvTruthy(process.env.MERCURY_BARE)) {
       await discoverSkillsForPath(context, expandedPath)
     }
-    await diagnosticTracker.beforeFileEdited(expandedPath)
     const parentDir = expandedPath.split(/[\\/]/).slice(0, -1).join('/')
     if (parentDir) {
       await getFsImplementation().mkdir(parentDir)

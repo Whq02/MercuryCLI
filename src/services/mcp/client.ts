@@ -144,8 +144,6 @@ const TOOLS_MAX_PER_SERVER = 1000
 const TERMINAL_ERROR_LIMIT = 3
 const NEEDS_AUTH_TTL_MS = 15 * 60 * 1000
 const URL_ELICITATION_RETRIES = 3
-const IDE_SERVER_NAME = 'ide'
-const IDE_TOOL_ALLOWLIST = new Set(['mcp__ide__executeCode', 'mcp__ide__getDiagnostics'])
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 const TERMINAL_ERROR_SUBSTRINGS = [
   'ECONNRESET',
@@ -541,7 +539,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   let stdioTransport: StdioClientTransport | null = null
   let stderrBuffer = ''
   let inProcess = false
-  const isIde = type === 'sse-ide' || type === 'ws-ide'
   const buildStdioTransport = (): StdioClientTransport => {
     const stdioConfig = config as { command: string; args?: string[]; env?: Record<string, string> }
     const prefix = flagEnv('MERCURY_SHELL_PREFIX')
@@ -577,29 +574,12 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
           },
         } as never,
       })
-    } else if (type === 'sse-ide') {
-      const proxyUrl = getProxyUrl()
-      transport = proxyUrl
-        ? new SSEClientTransport(new URL(config.url as string), {
-            eventSourceInit: {
-              fetch: (input: string | URL, init?: RequestInit) =>
-                getApiFetch()(input as string, { ...init, ...getProxyFetchOptions() } as never),
-            } as never,
-          })
-        : new SSEClientTransport(new URL(config.url as string))
-    } else if (type === 'ws-ide' || type === 'ws') {
-      const ideToken = (config as { authToken?: string }).authToken
+    } else if (type === 'ws') {
       const wsHeaders: Record<string, string> = { 'User-Agent': getMCPUserAgent() }
-      if (type === 'ws-ide') {
-        if (ideToken) wsHeaders['X-Claude-Code-Ide-Authorization'] = ideToken
-      } else {
-        Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
-      }
-      if (type === 'ws') {
-        const logged = { ...wsHeaders }
-        for (const key of Object.keys(logged)) if (key.toLowerCase() === 'authorization') logged[key] = '[REDACTED]'
-        logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: logged, tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
-      }
+      Object.assign(wsHeaders, await getMcpServerHeaders(name, config as never))
+      const logged = { ...wsHeaders }
+      for (const key of Object.keys(logged)) if (key.toLowerCase() === 'authorization') logged[key] = '[REDACTED]'
+      logMCPDebug(name, `WebSocket connection options: ${JSON.stringify({ headers: logged, tls: Boolean(getWebSocketTLSOptions()), proxy: Boolean(getProxyUrl()) })}`)
       transport = await createWsTransport(config.url as string, wsHeaders)
     } else if (type === 'http') {
       const headers = await getMcpServerHeaders(name, config as never)
@@ -679,10 +659,10 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     }
   }
 
-  let client = buildClient(!isIde, stdioTransport !== null ? 'stdio' : 'remote')
+  let client = buildClient(true, stdioTransport !== null ? 'stdio' : 'remote')
   installRootsHandler(client)
   const eraKey = getServerCacheKey(name, serverRef)
-  const prior = isIde ? undefined : await readEraVerdict(eraKey)
+  const prior = await readEraVerdict(eraKey)
 
   const connectPromise = (async (): Promise<void> => {
     try {
@@ -726,9 +706,9 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     logMCPDebug(name, `Connected in ${Date.now() - startedAt}ms via ${type}`)
     const era = client.getProtocolEra()
     logMCPDebug(name, `protocol ${client.getNegotiatedProtocolVersion() ?? 'unknown'} (${era ?? 'unknown'} era)`)
-    if (era !== undefined && !isIde) void recordEraVerdict(eraKey, era)
+    if (era !== undefined) void recordEraVerdict(eraKey, era)
   } catch (err) {
-    if (!isIde) void clearEraVerdict(eraKey)
+    void clearEraVerdict(eraKey)
     if (type === 'sse') logMCPError(name, `SSE connect failed: ${getLoggingSafeMcpBaseUrl(config) ?? '(url withheld)'} ${errorMessage(err)} ${(err as Error)?.stack ?? ''}`)
     else if (type === 'http') logMCPError(name, `HTTP connect failed: ${errorMessage(err)} code=${getErrnoCode(err) ?? 'none'}`)
     else if (type === 'claudeai-proxy') logMCPError(name, `proxy connect failed: ${errorMessage(err)}`)
@@ -766,11 +746,6 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     logMCPDebug(name, `instructions truncated ${original} → ${instructions.length}`)
   }
   client.setRequestHandler('elicitation/create', async () => ({ action: 'cancel' as const }))
-  if (isIde) {
-    client.notification({ method: 'ide_connected', params: { pid: process.pid } }).catch(err => {
-      logMCPDebug(name, `ide_connected notification failed: ${errorMessage(err)}`)
-    })
-  }
 
   const originalOnError = client.onerror
   const originalOnClose = client.onclose
@@ -1026,7 +1001,6 @@ const fetchToolsForClientMemo = memoize(
       const tools = sanitized.map(sdkTool => buildMcpTool(client, sdkTool))
       toolDiscoveryFailures.delete(client.name)
       return tools.filter(tool => {
-        if (tool.name.startsWith('mcp__ide__') && !IDE_TOOL_ALLOWLIST.has(tool.name)) return false
         const info = (tool as { mcpInfo?: { toolName: string } }).mcpInfo
         const annotations = sanitized.find(entry => entry.name === info?.toolName)?.annotations as McpToolAnnotations
         return mcpToolAllowed(client.name, info?.toolName ?? tool.name, annotations)
@@ -1273,7 +1247,6 @@ export async function transformMCPResult(result: unknown, tool: string, name: st
 
 export async function processMCPResult(result: unknown, tool: string, name: string): Promise<MCPToolResult> {
   const transformed = await transformMCPResult(result, tool, name)
-  if (name === IDE_SERVER_NAME) return transformed.content
   if (transformed.content === undefined) return transformed.content
   if (!(await mcpContentNeedsTruncation(transformed.content))) return transformed.content
   if (!flagEnabled('MERCURY_MCP_LARGE_OUTPUT_FILES')) return truncateMcpContent(transformed.content)
@@ -1577,19 +1550,6 @@ function queueUrlElicitation(
       return { ...state, elicitation: { ...(state.elicitation ?? {}), queue: [...queue, event] } }
     })
   })
-}
-
-export async function callIdeRpc(
-  toolName: string,
-  args: Record<string, unknown>,
-  client: ConnectedMCPServer,
-): Promise<string | ContentBlockParam[] | undefined> {
-  const controller = new AbortController()
-  const result = await client.client.request(
-    { method: 'tools/call', params: { name: toolName, arguments: args } },
-    { signal: controller.signal, timeout: 10 * 60_000 },
-  )
-  return processMCPResult(result, toolName, client.name)
 }
 
 

@@ -28,6 +28,6 @@ setTimeout(() => {
     } catch {
     }
   }
-  console.log(JSON.stringify({ registered: state.registered, subscriptions: context.subscriptions.length }))
+  console.log(JSON.stringify({ registered: state.registered, subscriptions: context.subscriptions.length, env: state.env }))
   setTimeout(() => process.exit(0), 50)
 }, 300)

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useCallback, useMemo } from 'react'
+import { useMemo } from 'react'
 import { readFileSync } from 'node:fs'
 import { basename, relative } from 'node:path'
 import { Text } from '../../../ink.js'
@@ -11,7 +11,7 @@ import {
 } from '../../../services/changeTransaction/hunks.js'
 import { getFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js'
 import { FilePermissionDialog } from '../FilePermissionDialog/FilePermissionDialog.js'
-import type { FileEdit, IDEDiffSupport } from '../FilePermissionDialog/ideDiffConfig.js'
+import type { FileEdit } from '../../../tools/FileEditTool/types.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 
 type EditToolInput = {
@@ -52,7 +52,6 @@ function previewEditsFor(input: EditToolInput): FileEdit[] {
 
 export function FileEditPermissionRequest({
   toolUseConfirm,
-  toolUseContext,
   onDone,
   onReject,
   workerBadge,
@@ -63,35 +62,9 @@ export function FileEditPermissionRequest({
   )
   const previewEdits = useMemo(() => previewEditsFor(parsed), [parsed])
 
-  const getConfig = useCallback(
-    (input: EditToolInput) => ({
-      filePath: input.file_path,
-      edits: previewEditsFor(input),
-      editMode:
-        input.hunks && input.hunks.length > 0 ? ('multiple' as const) : ('single' as const),
-    }),
-    [],
-  )
-  const applyChanges = useCallback((input: EditToolInput, modifiedEdits: FileEdit[]) => {
-    if (input.hunks && input.hunks.length > 0) return input
-    const first = modifiedEdits[0]
-    if (!first) return input
-    return {
-      ...input,
-      old_string: first.old_string,
-      new_string: first.new_string,
-      replace_all: first.replace_all,
-    }
-  }, [])
-  const ideDiffSupport = useMemo<IDEDiffSupport<EditToolInput>>(
-    () => ({ getConfig, applyChanges }),
-    [getConfig, applyChanges],
-  )
-
   return (
     <FilePermissionDialog<EditToolInput>
       toolUseConfirm={toolUseConfirm}
-      toolUseContext={toolUseContext}
       onDone={onDone}
       onReject={onReject}
       title="Edit file"
@@ -103,7 +76,6 @@ export function FileEditPermissionRequest({
       }
       content={<ConsentFileEditDiff file_path={parsed.file_path} edits={previewEdits} />}
       completionType="str_replace_single"
-      ideDiffSupport={ideDiffSupport}
       path={parsed.file_path}
       parseInput={parseEditInput}
       workerBadge={workerBadge}

@@ -349,7 +349,7 @@ async function mainTurn(prompt: string, messages: AnyMsg[]): Promise<{ yields: A
   const userRow = createUserMessage({ content: prompt }) as unknown as AnyMsg
   messages.push(userRow)
   ;(ctx as { messages: unknown }).messages = messages
-  const collected = (await getAttachments(prompt, ctx as never, null, [], messages as never, 'sdk' as never)) as Raw[]
+  const collected = (await getAttachments(prompt, ctx as never, [], messages as never, 'sdk' as never)) as Raw[]
   const landed = collected.filter(a => a.type === 'queued_command' && rows.isAdvisorOrigin(a.origin)).map(a => createAttachmentMessage(a as never) as unknown as AnyMsg)
   messages.push(...landed)
   const yields: AnyMsg[] = []

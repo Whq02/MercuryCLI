@@ -545,7 +545,6 @@ async function run(): Promise<void> {
       throw new Error('--project must appear before all other arguments')
     })
     .option('--config <file-or-json>', 'Extra settings (path or inline JSON)')
-    .option('--editor-link', 'Auto-connect to the IDE')
     .option('--session-id <uuid>', 'Use a specific session id')
     .option('--title <name>', 'Session title')
     .option('--chat', 'Boot the plain world: the Boot face and a chat, nothing else on the strip — no concourse in this boot; ↵ New Session on the menu starts the chat (the classic feel; `-chat` is the same switch)')
@@ -2023,7 +2022,6 @@ async function interactiveLaunch(args: {
     await launchRepl(root, appProps, replProps, renderAndRun, {
       dynamicMcpConfig: args.dynamicMcpConfig,
       isStrictMcpConfig: Boolean(args.opts.onlyMcp),
-      ...(args.opts.editorLink !== undefined ? { ideAutoConnect: Boolean(args.opts.editorLink) } : {}),
     })
   } catch (error) {
     logError(error)

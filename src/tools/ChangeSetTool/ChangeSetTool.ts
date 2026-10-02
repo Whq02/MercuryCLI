@@ -52,7 +52,6 @@ import {
   type RepetitionVerdict,
 } from '../../services/changeTransaction/repetitionPolicy.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import { getLspServerManager } from '../../services/lsp/manager.js'
 import { notifyVscodeFileUpdated } from '../../services/mcp/vscodeSdkMcp.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
@@ -660,7 +659,6 @@ async function runApply(
   }
 
   for (const t of changedTargets) {
-    await diagnosticTracker.beforeFileEdited(t.canonicalPath)
     if (fileHistoryEnabled()) {
       await fileHistoryTrackEdit(
         context.updateFileHistoryState,

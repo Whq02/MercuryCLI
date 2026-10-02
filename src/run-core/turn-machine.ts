@@ -2034,7 +2034,6 @@ export async function* runEventCore(
       for await (const attachment of getAttachmentMessages(
         null,
         updatedToolUseContext,
-        null,
         queuedCommandsSnapshot,
         [...messagesForQuery, ...assistantMessages, ...toolResults],
         querySource,

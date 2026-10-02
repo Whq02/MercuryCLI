@@ -9,8 +9,6 @@ import { getAllMcpConfigs } from '../mcp/config.js'
 import type { ScopedMcpServerConfig } from '../mcp/types.js'
 import type { KitCatalogue, KitRow } from './kitTypes.js'
 
-export const IDE_CLIENT_NAME = 'ide'
-
 export const MCP_SKILLS_NOTE = 'skills from MCP servers appear once a session connects them'
 
 export interface KitDoors {
@@ -100,7 +98,6 @@ export async function enumerateKitCatalogue(cwd: string, doors: KitDoors = REAL_
   const mcpPlain: KitRow[] = []
   const mcpByExtension = new Map<string, KitRow[]>()
   for (const [name, config] of Object.entries(servers)) {
-    if (name === IDE_CLIENT_NAME) continue
     const owner = config.extensionSource ? (parseServerRuntimeName(name)?.name ?? null) : null
     const row: KitRow = { kind: 'mcp', section: 'mcp', name, scope: config.scope, extension: owner }
     if (owner === null) mcpPlain.push(row)

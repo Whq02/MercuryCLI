@@ -2,10 +2,8 @@
 import { readdir, stat } from 'fs/promises'
 import { relative } from 'path'
 import { getCwd } from 'src/utils/cwd.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
-import { getConnectedIdeName } from '../ide.js'
 import { logError } from '../log.js'
 import { expandPath } from '../path.js'
 import { generateFileAttachment } from './fileAttachments.js'
@@ -15,92 +13,8 @@ import {
   extractMcpResourceMentions,
   parseAtMentionedFileLines,
 } from './mentions.js'
-import { getNestedMemoryAttachmentsForFile } from './nestedMemory.js'
 import { isFileReadDenied } from './shared.js'
 import type { Attachment } from './types.js'
-
-export async function getSelectedLinesFromIDE(
-  ideSelection: IDESelection | null,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  const ideName = getConnectedIdeName(toolUseContext.options.mcpClients)
-  if (
-    !ideName ||
-    ideSelection?.lineStart === undefined ||
-    !ideSelection.text ||
-    !ideSelection.filePath
-  ) {
-    return []
-  }
-
-  const appState = toolUseContext.getAppState()
-  if (isFileReadDenied(ideSelection.filePath, appState.toolPermissionContext)) {
-    return []
-  }
-
-  return [
-    {
-      type: 'selected_lines_in_ide',
-      ideName,
-      lineStart: ideSelection.lineStart,
-      lineEnd: ideSelection.lineStart + ideSelection.lineCount - 1,
-      filename: ideSelection.filePath,
-      content: ideSelection.text,
-      displayPath: relative(getCwd(), ideSelection.filePath),
-    },
-  ]
-}
-
-export async function getOpenedFileFromIDE(
-  ideSelection: IDESelection | null,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (!ideSelection?.filePath || ideSelection.text) {
-    return []
-  }
-
-  const appState = toolUseContext.getAppState()
-  if (isFileReadDenied(ideSelection.filePath, appState.toolPermissionContext)) {
-    return []
-  }
-
-  const nestedMemoryAttachments = await getNestedMemoryAttachmentsForFile(
-    ideSelection.filePath,
-    toolUseContext,
-    appState,
-  )
-
-  return [
-    ...nestedMemoryAttachments,
-    {
-      type: 'opened_file_in_ide',
-      filename: ideSelection.filePath,
-    },
-  ]
-}
-
-const OPEN_FILES_IN_IDE_LIMIT = 30
-
-export async function getOpenFilesFromIDE(
-  ideSelection: IDESelection | null,
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (!ideSelection?.openFiles || ideSelection.openFiles.length === 0) {
-    return []
-  }
-
-  const appState = toolUseContext.getAppState()
-  const filenames: string[] = []
-  for (const filePath of ideSelection.openFiles) {
-    if (filenames.length >= OPEN_FILES_IN_IDE_LIMIT) break
-    if (filenames.includes(filePath)) continue
-    if (isFileReadDenied(filePath, appState.toolPermissionContext)) continue
-    filenames.push(filePath)
-  }
-  if (filenames.length === 0) return []
-
-  return [{ type: 'open_files_in_ide', filenames }]
-}
 
 export async function processAtMentionedFiles(
   input: string,

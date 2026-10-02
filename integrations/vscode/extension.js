@@ -3,15 +3,10 @@
 
 const vscode = require('vscode')
 const { spawn } = require('node:child_process')
-const http = require('node:http')
-const fs = require('node:fs')
-const os = require('node:os')
 const path = require('node:path')
 const { randomUUID } = require('node:crypto')
 
 const ACP_PROTOCOL_VERSION = 1
-const IDE_NAME = 'VS Code'
-const DIFF_SCHEME = 'mercury-diff'
 
 
 let output = null
@@ -144,7 +139,6 @@ const chatLog = []
 const lastTurnChangedFiles = new Set()
 let decorationType = null
 let usageStatus = null
-let bridgeStatus = null
 let extensionVersion = '0.0.0'
 let agentVersion = null
 let previewProvider = null
@@ -206,7 +200,7 @@ async function ensureClient(context) {
     started.dispose()
     client = null
     throw new Error(
-      `Mercury speaks ACP v${init.protocolVersion}; this extension speaks v${ACP_PROTOCOL_VERSION}. Reinstall the extension shipped with this Mercury: run \`mercury editor install\`.`,
+      `Mercury speaks ACP v${init.protocolVersion}; this extension speaks v${ACP_PROTOCOL_VERSION}. Reinstall the extension shipped with this Mercury: run \`mercury bridge install\`.`,
     )
   }
   agentVersion = init.agentInfo && init.agentInfo.version ? String(init.agentInfo.version) : null
@@ -215,7 +209,7 @@ async function ensureClient(context) {
   const extMajor = majorOf(extensionVersion)
   if (agentMajor !== null && extMajor !== null && agentMajor !== extMajor) {
     void vscode.window.showWarningMessage(
-      `Mercury ${agentVersion} and this extension (${extensionVersion}) are different major versions — run \`mercury editor install\` to match them.`,
+      `Mercury ${agentVersion} and this extension (${extensionVersion}) are different major versions — run \`mercury bridge install\` to match them.`,
     )
   }
   return started
@@ -654,620 +648,13 @@ async function showReviewComments(context) {
 }
 
 
-function bridgeHome() {
-  const home = process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_HOME || path.join(os.homedir(), '.mercury')
-  return path.join(home, 'ide')
-}
-
-class DiffFileSystem {
-  constructor() {
-    this.files = new Map()
-    this.emitter = new vscode.EventEmitter()
-    this.onDidChangeFile = this.emitter.event
-    this.onWrite = null
-  }
-  watch() {
-    return { dispose() {} }
-  }
-  stat(uri) {
-    const entry = this.files.get(uri.toString())
-    if (!entry) throw vscode.FileSystemError.FileNotFound(uri)
-    return {
-      type: vscode.FileType.File,
-      ctime: entry.at,
-      mtime: entry.at,
-      size: entry.data.length,
-      permissions: entry.readonly ? vscode.FilePermission.Readonly : undefined,
-    }
-  }
-  readDirectory() {
-    return []
-  }
-  createDirectory() {}
-  readFile(uri) {
-    const entry = this.files.get(uri.toString())
-    if (!entry) throw vscode.FileSystemError.FileNotFound(uri)
-    return entry.data
-  }
-  writeFile(uri, content) {
-    const entry = this.files.get(uri.toString())
-    if (!entry) throw vscode.FileSystemError.FileNotFound(uri)
-    if (entry.readonly) throw vscode.FileSystemError.NoPermissions(uri)
-    entry.data = content
-    entry.at = Date.now()
-    if (this.onWrite) this.onWrite(uri, Buffer.from(content).toString('utf8'))
-  }
-  delete(uri) {
-    this.files.delete(uri.toString())
-  }
-  rename() {
-    throw vscode.FileSystemError.NoPermissions('rename')
-  }
-  put(uri, text, readonly) {
-    this.files.set(uri.toString(), { data: Buffer.from(text, 'utf8'), at: Date.now(), readonly })
-  }
-  drop(uri) {
-    this.files.delete(uri.toString())
-  }
-}
-
-const TOOL_SCHEMAS = [
-  {
-    name: 'openDiff',
-    description: 'Open a native diff of a proposed file change; resolves when the operator saves (FILE_SAVED + the saved text), closes the tab (DIFF_REJECTED), or the tab is closed by close_tab (TAB_CLOSED).',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        old_file_path: { type: 'string' },
-        new_file_path: { type: 'string' },
-        new_file_contents: { type: 'string' },
-        tab_name: { type: 'string' },
-      },
-      required: ['old_file_path', 'new_file_path', 'new_file_contents', 'tab_name'],
-    },
-  },
-  {
-    name: 'close_tab',
-    description: 'Close the diff tab opened by openDiff with this tab name.',
-    inputSchema: { type: 'object', properties: { tab_name: { type: 'string' } }, required: ['tab_name'] },
-  },
-  { name: 'closeAllDiffTabs', description: 'Close every diff tab openDiff opened.', inputSchema: { type: 'object', properties: {} } },
-  {
-    name: 'openFile',
-    description: 'Open a file in the editor; optionally select the span between startText and endText.',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        filePath: { type: 'string' },
-        preview: { type: 'boolean' },
-        startText: { type: 'string' },
-        endText: { type: 'string' },
-        selectToEndOfLine: { type: 'boolean' },
-        makeFrontmost: { type: 'boolean' },
-      },
-      required: ['filePath'],
-    },
-  },
-  {
-    name: 'getDiagnostics',
-    description: 'Language diagnostics for one file (uri) or for every open file.',
-    inputSchema: { type: 'object', properties: { uri: { type: 'string' } } },
-  },
-  { name: 'getOpenEditors', description: 'The open editor tabs.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'getWorkspaceFolders', description: 'The workspace folders of this window.', inputSchema: { type: 'object', properties: {} } },
-  { name: 'getCurrentSelection', description: 'The active editor selection (file, range, text).', inputSchema: { type: 'object', properties: {} } },
-  { name: 'getLatestSelection', description: 'The most recent non-empty selection.', inputSchema: { type: 'object', properties: {} } },
-  {
-    name: 'checkDocumentDirty',
-    description: 'Whether the file has unsaved changes in the editor.',
-    inputSchema: { type: 'object', properties: { filePath: { type: 'string' } }, required: ['filePath'] },
-  },
-  {
-    name: 'saveDocument',
-    description: 'Save the file if it is open in the editor.',
-    inputSchema: { type: 'object', properties: { filePath: { type: 'string' } }, required: ['filePath'] },
-  },
-]
-
-function selectionWire(editor) {
-  if (!editor || !editor.document) return { success: false, text: '', selection: null }
-  const sel = editor.selection
-  const doc = editor.document
-  return {
-    success: true,
-    text: doc.getText(sel),
-    filePath: doc.uri.fsPath,
-    fileUrl: doc.uri.toString(),
-    selection: {
-      start: { line: sel.start.line, character: sel.start.character },
-      end: { line: sel.end.line, character: sel.end.character },
-      isEmpty: sel.isEmpty,
-    },
-  }
-}
-
-class TerminalBridge {
-  constructor(context) {
-    this.context = context
-    this.server = null
-    this.port = null
-    this.lockPath = null
-    this.streams = new Map()
-    this.attachedPid = null
-    this.fsProvider = new DiffFileSystem()
-    this.diffs = new Map()
-    this.latestSelection = null
-    this.selectionTimer = null
-    this.contextTimer = null
-    this.disposables = []
-    this.disposables.push(vscode.workspace.registerFileSystemProvider(DIFF_SCHEME, this.fsProvider, { isCaseSensitive: true }))
-    this.fsProvider.onWrite = (uri, text) => this.onDiffSaved(uri, text)
-    if (vscode.window.tabGroups && vscode.window.tabGroups.onDidChangeTabs) {
-      this.disposables.push(vscode.window.tabGroups.onDidChangeTabs(e => this.onTabsChanged(e)))
-    }
-    this.disposables.push(
-      vscode.window.onDidChangeTextEditorSelection(e => {
-        if (!e.selections[0].isEmpty) this.latestSelection = selectionWire(e.textEditor)
-        this.queueSelection(e.textEditor)
-        this.queueEditorContext()
-      }),
-      vscode.window.onDidChangeActiveTextEditor(() => this.queueEditorContext()),
-      vscode.window.onDidChangeVisibleTextEditors(() => this.queueEditorContext()),
-      vscode.languages.onDidChangeDiagnostics(() => this.queueEditorContext()),
-      vscode.workspace.onDidChangeWorkspaceFolders(() => this.queueEditorContext()),
-    )
-  }
-
-  async start() {
-    if (this.server) return
-    const server = http.createServer((req, res) => this.onRequest(req, res))
-    await new Promise((resolve, reject) => {
-      server.once('error', reject)
-      server.listen(0, '127.0.0.1', () => resolve())
-    })
-    this.server = server
-    this.port = server.address().port
-    this.writeAdvertisement()
-    const env = this.context.environmentVariableCollection
-    if (env) {
-      env.replace('MERCURY_IDE_PORT', String(this.port))
-      env.description = 'Mercury: the editor bridge port for terminals in this window'
-    }
-    log(`terminal bridge: listening on 127.0.0.1:${this.port}, advertised at ${this.lockPath}`)
-    this.updateStatus()
-  }
-
-  writeAdvertisement() {
-    const dir = bridgeHome()
-    try {
-      fs.mkdirSync(dir, { recursive: true })
-      this.lockPath = path.join(dir, `${this.port}.lock`)
-      fs.writeFileSync(
-        this.lockPath,
-        JSON.stringify({
-          pid: process.pid,
-          workspaceFolders: workspaceFolderPaths(),
-          ideName: IDE_NAME,
-          transport: 'sse',
-        }),
-      )
-    } catch (e) {
-      log(`terminal bridge: could not write the advertisement in ${dir}: ${e.message}`)
-      void vscode.window.showWarningMessage(`Mercury terminal bridge: could not write ${dir} — a Mercury in this terminal will not find the editor. ${e.message}`)
-    }
-  }
-
-  stop() {
-    if (this.server) {
-      for (const res of this.streams.values()) {
-        try {
-          res.end()
-        } catch {
-        }
-      }
-      this.streams.clear()
-      this.server.close()
-      this.server = null
-    }
-    if (this.lockPath) {
-      try {
-        fs.unlinkSync(this.lockPath)
-      } catch {
-      }
-      this.lockPath = null
-    }
-    const env = this.context.environmentVariableCollection
-    if (env) env.clear()
-    this.port = null
-    this.attachedPid = null
-    this.updateStatus()
-  }
-
-  dispose() {
-    this.stop()
-    for (const d of this.disposables) d.dispose()
-  }
-
-  updateStatus() {
-    if (!bridgeStatus) return
-    if (!this.port) {
-      bridgeStatus.text = '$(debug-disconnect) Mercury'
-      bridgeStatus.tooltip = 'Mercury terminal bridge is off (mercury.terminalBridge)'
-    } else if (this.attachedPid) {
-      bridgeStatus.text = '$(plug) Mercury attached'
-      bridgeStatus.tooltip = `A Mercury session (pid ${this.attachedPid}) is attached to this editor on port ${this.port}`
-    } else {
-      bridgeStatus.text = '$(plug) Mercury'
-      bridgeStatus.tooltip = `Mercury terminal bridge on port ${this.port} — open a terminal and run mercury; it attaches to this editor`
-    }
-    bridgeStatus.show()
-  }
-
-  onRequest(req, res) {
-    const url = new URL(req.url, 'http://127.0.0.1')
-    if (req.method === 'GET' && url.pathname === '/sse') {
-      const id = randomUUID()
-      res.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      })
-      res.write(`event: endpoint\ndata: /message?sessionId=${id}\n\n`)
-      this.streams.set(id, res)
-      const keepAlive = setInterval(() => {
-        try {
-          res.write(': ping\n\n')
-        } catch {
-        }
-      }, 25000)
-      req.on('close', () => {
-        clearInterval(keepAlive)
-        this.streams.delete(id)
-        if (this.streams.size === 0) {
-          this.attachedPid = null
-          this.updateStatus()
-        }
-      })
-      return
-    }
-    if (req.method === 'POST' && url.pathname === '/message') {
-      const id = url.searchParams.get('sessionId')
-      const stream = id ? this.streams.get(id) : null
-      if (!stream) {
-        res.writeHead(404).end('unknown session')
-        return
-      }
-      let body = ''
-      req.setEncoding('utf8')
-      req.on('data', chunk => {
-        body += chunk
-        if (body.length > 8 * 1024 * 1024) req.destroy()
-      })
-      req.on('end', () => {
-        res.writeHead(202).end('Accepted')
-        let msg
-        try {
-          msg = JSON.parse(body)
-        } catch {
-          return
-        }
-        void this.onMessage(msg, stream)
-      })
-      return
-    }
-    res.writeHead(404).end('not found')
-  }
-
-  send(stream, msg) {
-    try {
-      stream.write(`event: message\ndata: ${JSON.stringify(msg)}\n\n`)
-    } catch (e) {
-      log(`terminal bridge: write failed: ${e.message}`)
-    }
-  }
-
-  broadcast(method, params) {
-    for (const stream of this.streams.values()) this.send(stream, { jsonrpc: '2.0', method, params })
-  }
-
-  async onMessage(msg, stream) {
-    if (msg.method === undefined) return
-    if (msg.id === undefined) {
-      if (msg.method === 'ide_connected' && msg.params && typeof msg.params.pid === 'number') {
-        this.attachedPid = msg.params.pid
-        this.updateStatus()
-        log(`terminal bridge: Mercury pid ${msg.params.pid} attached`)
-        this.queueEditorContext()
-      }
-      return
-    }
-    const reply = result => this.send(stream, { jsonrpc: '2.0', id: msg.id, result })
-    const fail = (code, message) => this.send(stream, { jsonrpc: '2.0', id: msg.id, error: { code, message } })
-    try {
-      switch (msg.method) {
-        case 'initialize': {
-          const requested = msg.params && typeof msg.params.protocolVersion === 'string' ? msg.params.protocolVersion : '2025-06-18'
-          reply({
-            protocolVersion: requested,
-            capabilities: { tools: { listChanged: false } },
-            serverInfo: { name: 'mercury-vscode', version: extensionVersion },
-          })
-          return
-        }
-        case 'ping':
-          reply({})
-          return
-        case 'tools/list':
-          reply({ tools: TOOL_SCHEMAS })
-          return
-        case 'tools/call': {
-          const name = msg.params && msg.params.name
-          const args = (msg.params && msg.params.arguments) || {}
-          reply(await this.callTool(name, args))
-          return
-        }
-        default:
-          fail(-32601, `method not found: ${msg.method}`)
-      }
-    } catch (e) {
-      fail(-32603, e.message)
-    }
-  }
-
-  async callTool(name, args) {
-    const text = value => ({ content: [{ type: 'text', text: typeof value === 'string' ? value : JSON.stringify(value) }] })
-    const error = message => ({ content: [{ type: 'text', text: message }], isError: true })
-    switch (name) {
-      case 'openDiff':
-        return this.openDiff(args)
-      case 'close_tab': {
-        const entry = this.diffs.get(args.tab_name)
-        if (!entry) return text('TAB_CLOSED')
-        this.settleDiff(args.tab_name, [{ type: 'text', text: 'TAB_CLOSED' }])
-        return text('TAB_CLOSED')
-      }
-      case 'closeAllDiffTabs': {
-        const names = [...this.diffs.keys()]
-        for (const n of names) this.settleDiff(n, [{ type: 'text', text: 'TAB_CLOSED' }])
-        return text(`closed ${names.length} diff tab(s)`)
-      }
-      case 'openFile': {
-        if (typeof args.filePath !== 'string') return error('filePath required')
-        const uri = vscode.Uri.file(args.filePath)
-        const doc = await vscode.workspace.openTextDocument(uri)
-        const editor = await vscode.window.showTextDocument(doc, {
-          preview: args.preview !== false,
-          preserveFocus: args.makeFrontmost === false,
-        })
-        if (typeof args.startText === 'string' && args.startText !== '') {
-          const all = doc.getText()
-          const start = all.indexOf(args.startText)
-          if (start !== -1) {
-            let end = start + args.startText.length
-            if (typeof args.endText === 'string' && args.endText !== '') {
-              const endAt = all.indexOf(args.endText, end)
-              if (endAt !== -1) end = endAt + args.endText.length
-            }
-            let endPos = doc.positionAt(end)
-            if (args.selectToEndOfLine) endPos = doc.lineAt(endPos.line).range.end
-            const range = new vscode.Range(doc.positionAt(start), endPos)
-            editor.selection = new vscode.Selection(range.start, range.end)
-            editor.revealRange(range, vscode.TextEditorRevealType.InCenter)
-          }
-        }
-        return text(`opened ${args.filePath}`)
-      }
-      case 'getDiagnostics': {
-        const wanted = typeof args.uri === 'string' ? vscode.Uri.parse(args.uri) : null
-        const entries = wanted ? [[wanted, vscode.languages.getDiagnostics(wanted)]] : vscode.languages.getDiagnostics()
-        const files = []
-        for (const [uri, diags] of entries) {
-          if (!diags || diags.length === 0) continue
-          files.push({
-            uri: uri.toString(),
-            diagnostics: diags.map(d => ({
-              message: d.message,
-              severity: severityWord(d.severity),
-              range: {
-                start: { line: d.range.start.line, character: d.range.start.character },
-                end: { line: d.range.end.line, character: d.range.end.character },
-              },
-              ...(d.source ? { source: d.source } : {}),
-            })),
-          })
-        }
-        return text(files)
-      }
-      case 'getOpenEditors': {
-        const tabs = []
-        const groups = vscode.window.tabGroups
-        for (const group of (groups && groups.all) || []) {
-          for (const tab of group.tabs) {
-            const input = tab.input
-            if (!input || !input.uri) continue
-            const doc = vscode.workspace.textDocuments.find(d => d.uri.toString() === input.uri.toString())
-            tabs.push({
-              uri: input.uri.toString(),
-              filePath: input.uri.scheme === 'file' ? input.uri.fsPath : undefined,
-              label: tab.label,
-              isActive: tab.isActive && group.isActive,
-              isDirty: tab.isDirty,
-              ...(doc ? { languageId: doc.languageId } : {}),
-            })
-          }
-        }
-        return text({ tabs })
-      }
-      case 'getWorkspaceFolders':
-        return text({
-          success: true,
-          folders: (vscode.workspace.workspaceFolders || []).map(f => ({ name: f.name, uri: f.uri.toString(), path: f.uri.fsPath })),
-          rootPath: workspaceCwd(),
-        })
-      case 'getCurrentSelection':
-        return text(selectionWire(vscode.window.activeTextEditor))
-      case 'getLatestSelection':
-        return text(this.latestSelection || selectionWire(vscode.window.activeTextEditor))
-      case 'checkDocumentDirty': {
-        if (typeof args.filePath !== 'string') return error('filePath required')
-        const doc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === args.filePath)
-        return text({ success: true, filePath: args.filePath, isOpen: Boolean(doc), isDirty: Boolean(doc && doc.isDirty), isUntitled: Boolean(doc && doc.isUntitled) })
-      }
-      case 'saveDocument': {
-        if (typeof args.filePath !== 'string') return error('filePath required')
-        const doc = vscode.workspace.textDocuments.find(d => d.uri.fsPath === args.filePath)
-        if (!doc) return text({ success: false, message: 'not open in the editor' })
-        const saved = await doc.save()
-        return text({ success: saved, filePath: args.filePath })
-      }
-      default:
-        return error(`unknown tool: ${name}`)
-    }
-  }
-
-  async openDiff(args) {
-    const oldPath = typeof args.old_file_path === 'string' ? args.old_file_path : ''
-    const tabName = typeof args.tab_name === 'string' && args.tab_name !== '' ? args.tab_name : `Mercury diff ${this.diffs.size + 1}`
-    const newText = typeof args.new_file_contents === 'string' ? args.new_file_contents : ''
-    let oldText = ''
-    try {
-      oldText = fs.readFileSync(oldPath, 'utf8')
-    } catch {
-      oldText = ''
-    }
-    if (this.diffs.has(tabName)) this.settleDiff(tabName, [{ type: 'text', text: 'TAB_CLOSED' }])
-    const id = randomUUID().slice(0, 8)
-    const name = path.basename(args.new_file_path || oldPath || 'file')
-    const left = vscode.Uri.parse(`${DIFF_SCHEME}:/${id}/before/${name}`)
-    const right = vscode.Uri.parse(`${DIFF_SCHEME}:/${id}/after/${name}`)
-    this.fsProvider.put(left, oldText, true)
-    this.fsProvider.put(right, newText, false)
-    const entry = { left, right, resolve: null, settled: false }
-    entry.done = new Promise(resolve => {
-      entry.resolve = resolve
-    })
-    this.diffs.set(tabName, entry)
-    try {
-      await vscode.commands.executeCommand('vscode.diff', left, right, tabName, { preview: false })
-    } catch (e) {
-      this.diffs.delete(tabName)
-      this.fsProvider.drop(left)
-      this.fsProvider.drop(right)
-      return { content: [{ type: 'text', text: `could not open the diff: ${e.message}` }], isError: true }
-    }
-    const content = await entry.done
-    return { content }
-  }
-
-  settleDiff(tabName, content) {
-    const entry = this.diffs.get(tabName)
-    if (!entry || entry.settled) return
-    entry.settled = true
-    this.diffs.delete(tabName)
-    entry.resolve(content)
-    void closeTabsWhere(tab => {
-      const input = tab.input
-      return input && input.original && input.modified && input.modified.toString() === entry.right.toString()
-    }).finally(() => {
-      this.fsProvider.drop(entry.left)
-      this.fsProvider.drop(entry.right)
-    })
-  }
-
-  onDiffSaved(uri, text) {
-    for (const [tabName, entry] of this.diffs) {
-      if (entry.right.toString() === uri.toString()) {
-        this.settleDiff(tabName, [
-          { type: 'text', text: 'FILE_SAVED' },
-          { type: 'text', text },
-        ])
-        return
-      }
-    }
-  }
-
-  onTabsChanged(e) {
-    this.queueEditorContext()
-    for (const tab of e.closed || []) {
-      const input = tab.input
-      if (!input || !input.modified) continue
-      for (const [tabName, entry] of this.diffs) {
-        if (entry.right.toString() === input.modified.toString() && !entry.settled) {
-          this.settleDiff(tabName, [{ type: 'text', text: 'DIFF_REJECTED' }])
-        }
-      }
-    }
-  }
-
-  queueSelection(editor) {
-    if (this.streams.size === 0) return
-    if (this.selectionTimer) clearTimeout(this.selectionTimer)
-    this.selectionTimer = setTimeout(() => {
-      this.selectionTimer = null
-      if (!editor || !editor.document || editor.document.uri.scheme !== 'file') return
-      const wire = selectionWire(editor)
-      this.broadcast('selection_changed', {
-        text: wire.text,
-        filePath: wire.filePath,
-        fileUrl: wire.fileUrl,
-        selection: wire.selection,
-      })
-    }, 100)
-  }
-
-  queueEditorContext() {
-    if (this.streams.size === 0 || !liveContextEnabled()) return
-    if (this.contextTimer) clearTimeout(this.contextTimer)
-    this.contextTimer = setTimeout(() => {
-      this.contextTimer = null
-      if (this.streams.size === 0) return
-      this.broadcast('editor_context', editorContextWire(undefined))
-    }, 100)
-  }
-
-  mention(editor) {
-    if (!editor || !editor.document || editor.document.uri.scheme !== 'file') return false
-    if (this.streams.size === 0) return false
-    const sel = editor.selection
-    this.broadcast('at_mentioned', {
-      filePath: editor.document.uri.fsPath,
-      lineStart: sel.start.line + 1,
-      lineEnd: sel.end.line + 1,
-    })
-    return true
-  }
-}
-
-let terminalBridge = null
-
-function terminalBridgeEnabled() {
-  return vscode.workspace.getConfiguration('mercury').get('terminalBridge') !== false
-}
-
-async function applyTerminalBridgeSetting(context) {
-  if (!terminalBridge) terminalBridge = new TerminalBridge(context)
-  if (terminalBridgeEnabled()) {
-    try {
-      await terminalBridge.start()
-    } catch (e) {
-      log(`terminal bridge: could not start: ${e.message}`)
-      void vscode.window.showWarningMessage(`Mercury terminal bridge could not start: ${e.message}`)
-    }
-  } else {
-    terminalBridge.stop()
-  }
-}
-
-
 function activate(context) {
   output = vscode.window.createOutputChannel('Mercury')
   context.subscriptions.push(output)
   extensionVersion = (context.extension && context.extension.packageJSON && context.extension.packageJSON.version) || '0.0.0'
   usageStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50)
   usageStatus.command = 'mercury.openChat'
-  bridgeStatus = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 49)
-  bridgeStatus.command = 'mercury.openTerminal'
-  context.subscriptions.push(usageStatus, bridgeStatus)
+  context.subscriptions.push(usageStatus)
   previewProvider = new PreviewProvider()
   context.subscriptions.push(vscode.workspace.registerTextDocumentContentProvider('mercury-preview', previewProvider))
 
@@ -1357,13 +744,7 @@ function activate(context) {
     vscode.window.onDidChangeTextEditorSelection(() => pushEditorContext()),
     vscode.window.onDidChangeVisibleTextEditors(() => pushEditorContext()),
     vscode.languages.onDidChangeDiagnostics(() => pushEditorContext()),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => {
-      pushEditorContext()
-      if (terminalBridge && terminalBridge.port) terminalBridge.writeAdvertisement()
-    }),
-    vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration('mercury.terminalBridge')) void applyTerminalBridgeSetting(context)
-    }),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => pushEditorContext()),
   )
 
   const register = (name, fn) =>
@@ -1481,24 +862,9 @@ function activate(context) {
   })
   register('mercury.showReviewComments', () => showReviewComments(context))
   register('mercury.openTerminal', () => {
-    const terminal = vscode.window.createTerminal({
-      name: 'Mercury',
-      cwd: workspaceCwd(),
-      ...(terminalBridge && terminalBridge.port ? { env: { MERCURY_IDE_PORT: String(terminalBridge.port) } } : {}),
-    })
+    const terminal = vscode.window.createTerminal({ name: 'Mercury', cwd: workspaceCwd() })
     terminal.sendText(mercuryPath())
     terminal.show()
-  })
-  register('mercury.mentionInTerminal', () => {
-    const editor = vscode.window.activeTextEditor
-    if (!editor) return
-    if (!terminalBridge || !terminalBridge.port) {
-      vscode.window.setStatusBarMessage('Mercury: the terminal bridge is off (mercury.terminalBridge)', 4000)
-      return
-    }
-    if (!terminalBridge.mention(editor)) {
-      vscode.window.setStatusBarMessage('Mercury: no session is attached — run mercury in a terminal of this window first', 5000)
-    }
   })
   register('mercury.setMode', async () => {
     if (!client || !activeSessionId) {
@@ -1523,14 +889,10 @@ function activate(context) {
   })
   register('mercury.showLog', () => output && output.show(true))
   register('mercury.refreshViews', refreshAllViews)
-
-  void applyTerminalBridgeSetting(context)
-  context.subscriptions.push({ dispose: () => terminalBridge && terminalBridge.dispose() })
 }
 
 function deactivate() {
   if (client) client.dispose()
-  if (terminalBridge) terminalBridge.dispose()
 }
 
 module.exports = { activate, deactivate }

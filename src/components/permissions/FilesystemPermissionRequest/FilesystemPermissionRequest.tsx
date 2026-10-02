@@ -58,7 +58,6 @@ export function FilesystemPermissionRequest(props: PermissionRequestProps): Reac
   return (
     <FilePermissionDialog<ToolInput>
       toolUseConfirm={toolUseConfirm}
-      toolUseContext={toolUseContext}
       onDone={onDone}
       onReject={onReject}
       title={readOnly ? 'Read file' : 'Edit file'}

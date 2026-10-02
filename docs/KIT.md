@@ -16,8 +16,7 @@ session actually gets. Two sections:
 - **MCP** — configured servers, extension servers and eligible account
   connectors, by their resolved names (`ext:<extension>:<server>` for
   extension-shipped ones), each `on ⇄ off`. Session-only servers, including
-  Mercury's built-in `mercury` server and the reserved `ide` bridge, are not
-  listed here. The `ide` bridge is managed through `/ide`, not this menu.
+  Mercury's built-in `mercury` server, are not listed here.
 - **Skills** — user, project, managed and extension skills, tri-state: `on`
   is ambient (the agent can reach for it), `invocable` is listed but loads only when you `/name` it, `off` is
   absent from the next session. An extension's **master row** sits above its

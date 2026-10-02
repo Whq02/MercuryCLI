@@ -3,7 +3,7 @@
 # gate-watch: src/services/dap/dapClient* src/services/lsp/** src/services/run/effectObserver*
 # gate-watch: src/services/run/ownerKey* src/services/tcpBridge/entry* src/substrate/flagRegistry*
 # gate-watch: src/tools/LSPTool/** src/utils/**
-# gate-watch: src/Tool.ts src/bootstrap/state.ts src/commands/ide/ide.tsx src/constants/subagentDoctrine.ts
+# gate-watch: src/Tool.ts src/bootstrap/state.ts src/constants/subagentDoctrine.ts
 # gate-watch: src/entrypoints/cli.tsx src/services/changeTransaction/changeSetCommit.ts
 # gate-watch: src/services/changeTransaction/contracts.ts src/tools.ts src/tools/DebugTool/DebugTool.ts
 set -uo pipefail

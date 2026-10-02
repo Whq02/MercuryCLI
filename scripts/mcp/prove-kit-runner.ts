@@ -149,7 +149,7 @@ section('§S the swap: every membership road answers the process kit through the
 
   latch({ schema: 1, mcp: [], skills: [], invocable: [] })
   t('S4 the EMPTY resolved kit admits NOTHING configured (empty ≠ absent — L24(1) "absent from that session\'s process")', membership.isMcpCatalogueMember('alpha') === false && membership.isMcpCatalogueMember('beta') === false)
-  t("S5 ORGANS OUTSIDE (Q1): the EMPTY kit still mounts the ide bridge and the enabled coordination server ('mercury')", membership.isMcpCatalogueMember('ide') === true && membership.isMcpCatalogueMember('mercury') === true && membership.isMcpOrgan('ide') && membership.isMcpOrgan('mercury'))
+  t("S5 ORGANS OUTSIDE (Q1): the EMPTY kit still mounts the enabled coordination server ('mercury')", membership.isMcpCatalogueMember('mercury') === true && membership.isMcpOrgan('mercury'))
   process.env.MERCURY_COORDINATION_MCP = '0'
   t("S6 with the coordination server OFF, 'mercury' is an ordinary name — the kit governs it (no organ hole for a user server that borrowed the name)", membership.isMcpCatalogueMember('mercury') === false && !membership.isMcpOrgan('mercury'))
   delete process.env.MERCURY_COORDINATION_MCP
@@ -166,8 +166,7 @@ section('§S the swap: every membership road answers the process kit through the
 
   const owner = readFileSync(join(REPO, 'src', 'services', 'mcp', 'membership.ts'), 'utf8')
   const coord = readFileSync(join(REPO, 'src', 'services', 'mcp', 'coordinationServer.ts'), 'utf8')
-  const catalogue = readFileSync(join(REPO, 'src', 'services', 'kitMenu', 'kitCatalogue.ts'), 'utf8')
-  t('S9 the organ spellings are pinned equal to their owners (coordination name + env + the =0-only off-switch; the ide client name)', owner.includes("COORDINATION_ORGAN_NAME = 'mercury'") && coord.includes("COORDINATION_SERVER_NAME = 'mercury'") && coord.includes("'MERCURY_COORDINATION_MCP'") && coord.includes("=== '0'") && owner.includes("flagEnv('MERCURY_COORDINATION_MCP') !== '0'") && owner.includes("IDE_ORGAN_NAME = 'ide'") && catalogue.includes("IDE_CLIENT_NAME = 'ide'"))
+  t('S9 the organ spelling is pinned equal to its owner (coordination name + env + the =0-only off-switch)', owner.includes("COORDINATION_ORGAN_NAME = 'mercury'") && coord.includes("COORDINATION_SERVER_NAME = 'mercury'") && coord.includes("'MERCURY_COORDINATION_MCP'") && coord.includes("=== '0'") && owner.includes("flagEnv('MERCURY_COORDINATION_MCP') !== '0'"))
   const kitFiles = ['src/services/mcp/sessionKitPin.ts', 'src/services/mcp/membership.ts', 'src/skills/kitGovernance.ts']
   const worldDirty = kitFiles.filter(f => /chatOnlyBoot|chatBoot\(|MERCURY_SPLASH_CHAT/.test(readFileSync(join(REPO, f), 'utf8')))
   t('S10 no world check anywhere in the kit path (the L24(6-SUPERSEDED) law): the kit modules read no world predicate', worldDirty.length === 0, worldDirty.join(','))

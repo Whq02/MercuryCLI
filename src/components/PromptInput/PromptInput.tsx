@@ -40,11 +40,9 @@ import { useHistorySearch } from '../../hooks/useHistorySearch.js'
 import { useInputBuffer } from '../../hooks/useInputBuffer.js'
 import { usePromptSuggestion } from '../../hooks/usePromptSuggestion.js'
 import { useDoublePress } from '../../hooks/useDoublePress.js'
-import { useIdeAtMentioned } from '../../hooks/useIdeAtMentioned.js'
 import { useTypeahead, type SuggestionsState } from '../../hooks/useTypeahead.js'
 import { useKeybinding, useKeybindings } from '../../keybindings/useKeybinding.js'
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js'
-import type { IDESelection } from '../../hooks/useIdeSelection.js'
 import type { VerificationStatus } from '../../hooks/useApiKeyVerification.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import type { AgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
@@ -271,7 +269,6 @@ export type PromptInputProps = {
   compactWork?: CompactWorkControls
   compactFocus?: CompactWorkFocus
   debug: boolean
-  ideSelection: IDESelection | undefined
   toolPermissionContext: AppState['toolPermissionContext']
   setToolPermissionContext: (
     context: AppState['toolPermissionContext'],
@@ -354,7 +351,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     compactWork,
     compactFocus = 'composer',
     debug,
-    ideSelection,
     toolPermissionContext,
     setToolPermissionContext,
     apiKeyStatus,
@@ -1235,27 +1231,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     },
     [input, rows, cursorOffset, pastedContents, buffer, insertAtCursor, setMode, setCursorOffset, setPastedContents],
   )
-
-  useIdeAtMentioned(mcpClients, atMentioned => {
-    const mention = atMentioned as {
-      filePath?: string
-      lineStart?: number
-      lineEnd?: number
-    }
-    if (typeof mention.filePath !== 'string') return
-    const cwd = getFocusedSessionConnector().workspace().cwd
-    const relative = mention.filePath.startsWith(cwd)
-      ? mention.filePath.slice(cwd.length).replace(/^\//, '')
-      : mention.filePath
-    let ref = `@${relative}`
-    if (typeof mention.lineStart === 'number') {
-      ref +=
-        typeof mention.lineEnd === 'number' && mention.lineEnd !== mention.lineStart
-          ? `#L${mention.lineStart}-${mention.lineEnd}`
-          : `#L${mention.lineStart}`
-    }
-    insertAtCursor(`${ref} `, { atomic: true })
-  })
 
   const cursorRef = useRef(cursorOffset)
   cursorRef.current = cursorOffset
@@ -2989,7 +2964,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
             debug={debug}
             verbose={verbose}
             messages={messages}
-            ideSelection={ideSelection}
             mcpClients={mcpClients}
             isInputWrapped={input.includes('\n')}
             alignStart
@@ -3019,7 +2993,6 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         debug={debug}
         verbose={verbose}
         messages={messages}
-        ideSelection={ideSelection}
         mcpClients={mcpClients}
         crewmateFooterIndex={crewmateFooterIndex}
         onOpenTasksDialog={() => setOverlay('tasks-dialog')}

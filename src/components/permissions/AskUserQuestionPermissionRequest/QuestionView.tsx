@@ -10,8 +10,7 @@ import {
   apolloIndexLabel,
 } from '../../../tools/AskUserQuestionTool/apolloLetters.js'
 import type { PastedContent } from '../../../utils/config.js'
-import { getExternalEditor } from '../../../utils/editor.js'
-import { toIDEDisplayName } from '../../../utils/ide.js'
+import { editorDisplayName, getExternalEditor } from '../../../utils/editor.js'
 import type { ImageDimensions } from '../../../utils/imageResizer.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { type OptionWithDescription, Select, SelectMulti } from '../../CustomSelect/index.js'
@@ -97,7 +96,7 @@ export function QuestionView(props: Props): React.ReactNode {
   const [showEmptyOtherHint, setShowEmptyOtherHint] = useState(false)
   const [isNextFocused, setIsNextFocused] = useState(false)
   const editor = getExternalEditor()
-  const editorName = editor ? toIDEDisplayName(editor) : null
+  const editorName = editor ? editorDisplayName(editor) : null
 
   const questionText = question.question
   const questionState = questionStates[questionText]

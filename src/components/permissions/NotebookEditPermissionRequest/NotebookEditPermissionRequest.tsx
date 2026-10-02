@@ -26,7 +26,6 @@ function parseNotebookInput(input: unknown): NotebookEditInput {
 
 export function NotebookEditPermissionRequest({
   toolUseConfirm,
-  toolUseContext,
   onDone,
   onReject,
   verbose,
@@ -47,7 +46,6 @@ export function NotebookEditPermissionRequest({
   return (
     <FilePermissionDialog<NotebookEditInput>
       toolUseConfirm={toolUseConfirm}
-      toolUseContext={toolUseContext}
       onDone={onDone}
       onReject={onReject}
       title="Edit notebook"

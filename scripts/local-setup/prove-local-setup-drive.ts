@@ -188,7 +188,6 @@ function childEnv(world: World): NodeJS.ProcessEnv {
     MERCURY_LIVE_GLYPHS: '0',
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_BOOT_PREFLIGHT: '0',
-    MERCURY_IDE_SKIP_AUTO_INSTALL: '1',
     MERCURY_DISABLE_NONESSENTIAL_TRAFFIC: '1',
     MERCURY_DOCTOR_STATE_DIR: join(world.home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(world.home, 'daemon'),

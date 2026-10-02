@@ -13,7 +13,6 @@ import { canonicalPathKey, sha256Hex } from '../../services/changeTransaction/ch
 import { checkSeenLines, dropSeenLines, fileGeneration } from '../../services/changeTransaction/seenLines.js'
 import { mintFileAnchor } from '../../services/changeTransaction/snapshotAnchor.js'
 import { rememberAnchoredSnapshot } from '../../services/changeTransaction/snapshotRing.js'
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import {
   clearDeliveredDiagnosticsForFile,
   subscribeLSPDiagnosticPublish,
@@ -1046,11 +1045,6 @@ async function applyPrepared(
   }
 
   for (const file of planned) {
-    try {
-      await diagnosticTracker.beforeFileEdited(file.abs)
-    } catch (error) {
-      logForDebugging(`lsp ops: diagnostics baseline failed for ${file.abs}: ${String(error)}`)
-    }
     if (env.messageId !== undefined && fileHistoryEnabled()) {
       try {
         await fileHistoryTrackEdit(env.context.updateFileHistoryState, file.abs, env.messageId)

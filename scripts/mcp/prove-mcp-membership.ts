@@ -51,10 +51,6 @@ section('§1 owner semantics: the per-project record, verbatim')
   setMcpServerEnabled('blocked-server', true)
   t('re-enable restores membership', isMcpCatalogueMember('blocked-server') === true)
   setMcpServerEnabled('blocked-server', false)
-  t(
-    'the ide bridge name is a member by default (no record row — never severed by any product door)',
-    isMcpCatalogueMember('ide') === true,
-  )
 }
 
 section('§2 runner partition: excluded never reaches the member half')

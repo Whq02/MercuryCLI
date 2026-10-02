@@ -62,11 +62,6 @@ identifiers external services require, enumerated below with their owners.
   `x-anthropic-additional-protection` header (`src/services/api/client.ts`)
   — server-read request shape; only the opt-in env label is Mercury's
   (`MERCURY_ADDITIONAL_PROTECTION`).
-- The IDE websocket auth header `X-Claude-Code-Ide-Authorization` and the
-  JetBrains plugin directory name (`src/services/mcp/client.ts`;
-  `src/utils/jetbrains.ts` reads the name from that tool's row in the
-  signature table, `src/utils/knownAgentClis.ts`) — the installed IDE
-  extensions read that exact header and live in that exact directory.
 - Foreign-artifact detection: the GitHub Actions context (`src/utils/env.ts`),
   the harness-state classifier behind `/health`
   (`src/utils/knownAgentClis.ts` — Mercury's own fingerprint decides what is

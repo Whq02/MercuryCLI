@@ -6,8 +6,7 @@ import { basename } from 'node:path'
 import instances from '../ink/instances.js'
 import { expandPastedTextRefs, formatPastedTextRef, getPastedTextRefNumLines } from '../history.js'
 import type { PastedContent } from './config/schema.js'
-import { classifyGuiEditor, getExternalEditor } from './editor.js'
-import { toIDEDisplayName } from './ide.js'
+import { classifyGuiEditor, editorDisplayName, getExternalEditor } from './editor.js'
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
@@ -85,7 +84,7 @@ async function editFileInEditorInner(filePath: string): Promise<EditorResult> {
       if (exitCode !== null && exitCode !== 0) {
         return {
           content: null,
-          error: `${toIDEDisplayName(basename(editorExe))} exited with code ${exitCode}`,
+          error: `${editorDisplayName(basename(editorExe))} exited with code ${exitCode}`,
         }
       }
       return { content: readFileSync(filePath, 'utf8') }

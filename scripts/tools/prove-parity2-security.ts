@@ -132,12 +132,6 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
-  const { displayedLineOf } = await import('../../src/hooks/useIdeSelection.ts')
-  t('wire line 12 displays as line 13', displayedLineOf(12) === 13)
-  t('wire line 0 displays as line 1', displayedLineOf(0) === 1)
-}
-
-{
   const { onWorkerControlRequest, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage, permissionAskExpiryMs, DEFAULT_PERMISSION_ASK_EXPIRY_MINUTES } =
     await import('../../src/daemon/permissionAsks.ts')
   const { concourseWorkersPath } = await import('../../src/daemon/concourseSupervisor.ts')

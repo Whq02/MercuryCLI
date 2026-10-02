@@ -1,5 +1,4 @@
 
-import { diagnosticTracker } from '../../services/diagnosticTracking.js'
 import {
   checkForLSPDiagnostics,
   clearAllLSPDiagnostics,
@@ -10,29 +9,6 @@ import { logForDebugging } from '../debug.js'
 import { toError } from '../errors.js'
 import { logError } from '../log.js'
 import type { Attachment } from './types.js'
-
-export async function getDiagnosticAttachments(
-  toolUseContext: ToolUseContext,
-): Promise<Attachment[]> {
-  if (
-    !toolUseContext.options.tools.some(t => toolMatchesName(t, BASH_TOOL_NAME))
-  ) {
-    return []
-  }
-
-  const newDiagnostics = await diagnosticTracker.getNewDiagnostics()
-  if (newDiagnostics.length === 0) {
-    return []
-  }
-
-  return [
-    {
-      type: 'diagnostics',
-      files: newDiagnostics,
-      isNew: true,
-    },
-  ]
-}
 
 export async function getLSPDiagnosticAttachments(
   toolUseContext: ToolUseContext,

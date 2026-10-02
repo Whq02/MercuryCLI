@@ -88,7 +88,7 @@ section('C1 §end-to-end — phase-one exhaustion cannot unbound the collection'
   } as never
   const queued = [{ value: 'queued operator note', mode: 'prompt' }] as never
   const t0 = Date.now()
-  const attachments = (await getAttachments('hello there', ctx, null, queued)) as Array<{
+  const attachments = (await getAttachments('hello there', ctx, queued)) as Array<{
     type: string
   }>
   const wall = Date.now() - t0

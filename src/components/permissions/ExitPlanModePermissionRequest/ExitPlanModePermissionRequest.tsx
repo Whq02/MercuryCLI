@@ -20,8 +20,7 @@ import type { AllowedPrompt } from '../../../tools/ExitPlanModeTool/ExitPlanMode
 import { createUserMessage } from '../../../utils/messages/factories.js'
 import { generateSessionName } from '../../../commands/rename/generateSessionName.js'
 import { isAgentSwarmsEnabled } from '../../../utils/agentSwarmsEnabled.js'
-import { getExternalEditor } from '../../../utils/editor.js'
-import { toIDEDisplayName } from '../../../utils/ide.js'
+import { editorDisplayName, getExternalEditor } from '../../../utils/editor.js'
 import { editFileInEditor } from '../../../utils/promptEditor.js'
 import { logError } from '../../../utils/log.js'
 import { getDisplayPath } from '../../../utils/file.js'
@@ -337,7 +336,7 @@ export function ExitPlanModePermissionRequest({
   )
 
 
-  const editorName = toIDEDisplayName(getExternalEditor() ?? null)
+  const editorName = editorDisplayName(getExternalEditor())
   const planFilePath = getPlanFilePath()
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 

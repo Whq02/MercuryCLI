@@ -5,10 +5,8 @@ import { sessionKitOf } from './sessionKitPin.js'
 import type { ScopedMcpServerConfig } from './types.js'
 
 const COORDINATION_ORGAN_NAME = 'mercury'
-const IDE_ORGAN_NAME = 'ide'
 
 export function isMcpOrgan(name: string): boolean {
-  if (name === IDE_ORGAN_NAME) return true
   return name === COORDINATION_ORGAN_NAME && flagEnv('MERCURY_COORDINATION_MCP') !== '0'
 }
 

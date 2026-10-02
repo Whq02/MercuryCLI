@@ -55,20 +55,12 @@ t.section('§2 locateBridgeVsix — beside the bundle, else dist/, else null')
   )
 }
 
-t.section('§3 the /ide install arm installs the shipped package')
-{
-  const ide = readFileSync('src/utils/ide.ts', 'utf8')
-  t.check('no "not published" refusal survives', !ide.includes('No published Mercury extension artifact') && !ide.includes('MERCURY_EXTENSION_ARTIFACT_PUBLISHED'))
-  t.check('the arm asks the one package owner', ide.includes("from './editorExtensionPackage.js'") && ide.includes('locateBridgeVsix()'))
-  t.check('the CLI installs the located package file, not a catalogue id', ide.includes("['--force', '--install-extension', vsix]"))
-  t.check('a missing package is a named failure that says where one comes from', ide.includes('mercury-vscode.vsix) beside this build') && ide.includes('scripts/vscode/build-vsix.sh'))
-  t.check('the identity is re-exported from the owner (importers survive)', ide.includes("export { MERCURY_IDE_EXTENSION_ID } from './editorExtensionPackage.js'"))
-}
-
-t.section('§4 `mercury editor` — same owner, every VS Code-family CLI')
+t.section('§3 `mercury bridge` — the one installer, every VS Code-family CLI')
 {
   const cli = readFileSync('src/cli/editorBridge.ts', 'utf8')
   t.check('the verb imports the one package owner', cli.includes("from '../utils/editorExtensionPackage.js'") && cli.includes('locateBridgeVsix()'))
+  t.check('the verb installs the located package file, not a catalogue id', cli.includes("['--install-extension', vsix, '--force']"))
+  t.check('a missing package is a named failure that says where one comes from', cli.includes('mercury-vscode.vsix not found') && cli.includes('scripts/vscode/build-vsix.sh'))
   for (const name of ['code', 'code-insiders', 'cursor', 'codium', 'windsurf']) {
     t.check(`probes the ${name} CLI`, new RegExp(`'${name}'`).test(cli))
   }
