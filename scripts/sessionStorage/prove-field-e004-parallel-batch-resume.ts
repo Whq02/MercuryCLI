@@ -70,6 +70,8 @@ for (const t of tools) {
 }
 const results = tools.map((t, i) => ({ uuid: uid(), asst: t.asst, call: t.call, seed: i + 1 }))
 for (const r of results) rows.push(toolResultRow(r.uuid, r.asst, r.call, r.seed, FAT))
+const stray = uid()
+rows.push(toolResultRow(stray, tools[1]!.asst, 'toolu_nobody_issued', 7, FAT))
 const a2 = uid()
 rows.push(textRow(a2, results[results.length - 1]!.uuid, 'msg_done', 'DONE 3'))
 const u2 = uid()
@@ -80,7 +82,7 @@ rows.push(toolUseRow(dead.asst, dead.prompt, 'msg_dead', 'toolu_dead', '/shots/d
 rows.push(toolResultRow(dead.fat, dead.asst, 'toolu_dead', 9, 5 * FAT))
 const a3 = uid()
 rows.push(textRow(a3, u2, 'msg_last', 'Nothing is pending. I read all 3 images.'))
-const liveUuids = [u0, a0, u1, ...tools.map(t => t.asst), ...results.map(r => r.uuid), a2, u2, a3]
+const liveUuids = [u0, a0, u1, ...tools.map(t => t.asst), ...results.map(r => r.uuid), stray, a2, u2, a3]
 const deadUuids = [dead.prompt, dead.asst, dead.fat]
 
 const path = join(scratch, `${sessionId}.jsonl`)
@@ -98,6 +100,7 @@ section('§A the on-disk shape a parallel batch has (the writer\'s own parent la
   for (let cur: typeof leaf | undefined = leaf; cur !== undefined; cur = cur.parentUuid ? full.messages.get(cur.parentUuid) : undefined) walk.add(cur.uuid)
   check('on the single-parent walk every tool_use is an ancestor of the leaf and only the LAST tool_result is', tools.every(t => walk.has(t.asst)) && results.filter(r => walk.has(r.uuid)).length === 1 && walk.has(results[2]!.uuid))
   check('the full load\'s chain builder recovers all three results (the <5MB road)', results.every(r => chain.some(m => m.uuid === r.uuid)) && !deadUuids.some(u => chain.some(m => m.uuid === u)))
+  check('…and a tool_result under a batch assistant whose id that assistant never issued (the chain builder keys by parent alone)', chain.some(m => m.uuid === stray))
 }
 
 section('§B the pruner keeps what the chain builder recovers, and nothing dead')
@@ -106,6 +109,7 @@ section('§B the pruner keeps what the chain builder recovers, and nothing dead'
   const prunedText = pruned.toString('utf8')
   check('the buffer was pruned (the dead branch and nothing live is gone)', pruned.length < raw.length && liveUuids.every(u => prunedText.includes(u)), `${pruned.length}/${raw.length}`)
   check('THE FIELD DEFECT: the two off-chain tool results of the batch survive the prune', results.every(r => prunedText.includes(r.uuid)), results.filter(r => !prunedText.includes(r.uuid)).map(r => r.uuid).join(','))
+  check('the pruner keeps what the chain builder keeps: the stray tool_result under a kept assistant survives too (the chain builder\'s rule, not a stricter one)', prunedText.includes(stray))
   check('the rewound branch is still pruned whole (its prompt, its assistant, its fat result)', !deadUuids.some(u => prunedText.includes(u)), deadUuids.filter(u => prunedText.includes(u)).join(','))
 }
 
@@ -116,9 +120,9 @@ section('§C the resume road (the one the headless --resume and the chat take) r
   check('the session resumes (a cold read, as a fresh process makes it)', loaded !== null)
   const messages = (loaded?.messages ?? []) as Array<{ uuid?: string; type?: string; message?: { content?: unknown } }>
   const toolResults = messages.flatMap(m => (m.type === 'user' && Array.isArray(m.message?.content) ? (m.message!.content as Array<{ type?: string; tool_use_id?: string }>).filter(b => b.type === 'tool_result').map(b => b.tool_use_id) : []))
-  check('all three tool results are in the rebuilt conversation (base: one — the last ancestor only)', toolResults.length === 3 && tools.every(t => toolResults.includes(t.call)), `tool_results on resume: ${toolResults.length} (${toolResults.join(',')})`)
+  check('all three tool results are in the rebuilt conversation (base: one — the last ancestor only)', tools.every(t => toolResults.includes(t.call)) && toolResults.filter(id => id !== 'toolu_nobody_issued').length === 3, `tool_results on resume: ${toolResults.length} (${toolResults.join(',')})`)
   const toolUses = messages.flatMap(m => (m.type === 'assistant' && Array.isArray(m.message?.content) ? (m.message!.content as Array<{ type?: string; id?: string }>).filter(b => b.type === 'tool_use').map(b => b.id) : []))
-  check('the API\'s rule holds: every tool_use of the turn has its tool_result', toolUses.length === 3 && toolUses.every(id => toolResults.includes(id as string)))
+  check('the API\'s rule holds: every tool_use of the turn has its tool_result (the stray result is the wire\'s to strip, as it always was)', toolUses.length === 3 && toolUses.every(id => toolResults.includes(id as string)))
   const order = messages.map(m => m.uuid)
   const lastUse = Math.max(...tools.map(t => order.indexOf(t.asst)))
   const firstResult = Math.min(...results.map(r => order.indexOf(r.uuid)))
@@ -127,7 +131,7 @@ section('§C the resume road (the one the headless --resume and the chat take) r
   _resetTranscriptReaderForTesting()
   const full = await loadTranscriptFile(path, { keepAllLeaves: true })
   const fullChain = buildConversationChain(full.messages, full.messages.get(a3 as never)!).map(m => m.uuid)
-  check('the pruned resume equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(order), `full=${fullChain.length} pruned=${order.length}`)
+  check('the pruned resume equals the full-load chain, uuid for uuid — the stray result included', JSON.stringify(fullChain) === JSON.stringify(order) && order.includes(stray), `full=${fullChain.length} pruned=${order.length}`)
 }
 
 section('§D the on-disk shape is untouched')

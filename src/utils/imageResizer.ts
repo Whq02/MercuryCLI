@@ -379,10 +379,17 @@ const sizedImageCache = new Map<string, Base64ImageSource>()
 let sizedImageCacheBytes = 0
 const leftOutImages = new Set<string>()
 const leftOutReceipts = new Map<string, ImagesLeftOutReceiptV1>()
-const leftOutNoticed = new Set<string>()
 
 export function imageLeftOutNote(dims: { width: number; height: number }, mediaType: string | undefined, sidePx: number): string {
   return `[An image of ${dims.width}x${dims.height} px${mediaType ? ` (${mediaType})` : ''} could not be sized to this request's ${sidePx} px limit and was left out of the request; the transcript keeps it.]`
+}
+
+export function imageUnreadableNote(mediaType: string | undefined, sidePx: number, imagesInRequest: number): string {
+  return `[An image${mediaType ? ` (${mediaType})` : ''} whose size could not be read was left out of this request of ${imagesInRequest} images, which the API holds to ${sidePx} px a side; the transcript keeps it.]`
+}
+
+export function overManyImagesThreshold(limits: ImageLimits, imagesInRequest: number): boolean {
+  return limits.manyImages !== null && imagesInRequest > limits.manyImages.threshold
 }
 
 export function imagesLeftOutNoticeLine(receipt: { count: number; images: number; sidePx: number }): string {
@@ -398,16 +405,16 @@ export function takeImagesLeftOutReceipt(owner: string): ImagesLeftOutReceiptV1 
   return receipt
 }
 
-export function takeImagesLeftOutNoticeOnce(owner: string): boolean {
-  if (leftOutNoticed.has(owner)) return false
-  leftOutNoticed.add(owner)
-  return true
+export function imagesLeftOutMarked(messages: readonly unknown[]): boolean {
+  return messages.some(message => {
+    const row = message as { type?: unknown; attachment?: { type?: unknown } } | null
+    return row?.type === 'attachment' && row.attachment?.type === 'images_left_out'
+  })
 }
 
 export function resetImagesLeftOutForTesting(): void {
   leftOutImages.clear()
   leftOutReceipts.clear()
-  leftOutNoticed.clear()
 }
 
 export function imageDimensionsOfBase64(data: string): { width: number; height: number } | null {
@@ -475,7 +482,12 @@ async function sizedImageSource(
   imagesInRequest: number,
 ): Promise<SizedImage> {
   const dims = imageDimensionsOfBase64(block.source.data)
-  if (dims === null || Math.max(dims.width, dims.height) <= sidePx) return { kind: 'as-is' }
+  if (dims === null) {
+    if (!overManyImagesThreshold(limits, imagesInRequest)) return { kind: 'as-is' }
+    logForDebugging(`an image whose size could not be read is left out of a request of ${imagesInRequest} images (the ${sidePx} px cap applies and nothing says it fits; a one-line note takes its place; the transcript keeps it)`, { level: 'warn' })
+    return { kind: 'left-out', note: imageUnreadableNote(block.source.media_type, sidePx, imagesInRequest) }
+  }
+  if (Math.max(dims.width, dims.height) <= sidePx) return { kind: 'as-is' }
   const key = sizedImageKey(block.source.data, sidePx, limits)
   const remembered = sizedImageCache.get(key)
   if (remembered !== undefined) return { kind: 'sized', source: remembered }

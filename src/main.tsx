@@ -946,7 +946,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   for (const [name, usage] of [
-    ['steward [subcommand]', `Usage: ${cliName} steward <run|status|stop>`],
+    ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
     ['acp', `Usage: ${cliName} acp [--stdio]`],
   ] as const) {
     program

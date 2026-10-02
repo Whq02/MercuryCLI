@@ -308,7 +308,7 @@ function kindFromArgs(args: readonly string[]): ProcessSweepKind {
   const inspected = inspectRunArgs(rest)
   if (inspected.runner) return 'runner'
   const word = inspected.command
-  if (word === 'steward') return 'daemon'
+  if (word === 'daemon') return 'daemon'
   if (word !== undefined) return 'command'
   return 'window'
 }

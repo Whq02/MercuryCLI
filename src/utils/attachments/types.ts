@@ -442,6 +442,12 @@ export type Attachment =
       dead: DeadThinkingMark[]
     }
   | {
+      type: 'images_left_out'
+      count: number
+      images: number
+      sidePx: number
+    }
+  | {
       type: 'agent_listing_delta'
       addedTypes: string[]
       addedLines: string[]

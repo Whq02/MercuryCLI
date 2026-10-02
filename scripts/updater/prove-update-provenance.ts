@@ -201,14 +201,15 @@ const seedForUpdate = (): string => {
   check('(a) and nothing is said about the `mercury` the shell runs', !r.stdout.includes('your shell runs') && !r.stdout.includes('is on your PATH'), r.stdout)
 }
 const daemonLast = `background daemon: none running — the next session starts one on v${V_NEW}`
+const openWindowsLast = `any Mercury window still open keeps working on v${V_OLD} until it is closed and opened again`
 {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf(otherBin, binDir)))
   const lines = r.stdout.trim().split('\n').map(l => l.trim())
-  const last = lines.slice(-3, -1)
+  const last = lines.slice(-4, -2)
   check(
-    '(b) another `mercury` ahead of it: the update lands, the two lines above the daemon line name both paths and the fix, and the last line says what the background daemon did',
-    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix && lines[lines.length - 1] === daemonLast,
+    '(b) another `mercury` ahead of it: the update lands, the two lines above the daemon line name both paths and the fix, the daemon line says what the background daemon did, and the last line says that open windows keep working on the old build until reopened',
+    r.code === 0 && pointer() === V_NEW && last[0] === `the \`mercury\` your shell runs is ${foreignMercury}; the updated one is ${shim}` && last[1] === aheadFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLast,
     r.all.slice(0, 900),
   )
 }
@@ -218,10 +219,10 @@ if (IS_WIN) {
   const bundle = seedForUpdate()
   const r = run(bundle, ['update', '--allow-unsigned'], env(pathOf()))
   const lines = r.stdout.trim().split('\n').map(l => l.trim())
-  const last = lines.slice(-3, -1)
+  const last = lines.slice(-4, -2)
   check(
-    '(c) no `mercury` on PATH at all: the update lands, the two lines above the daemon line say so with the fix, and the last line says what the background daemon did',
-    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix && lines[lines.length - 1] === daemonLast,
+    '(c) no `mercury` on PATH at all: the update lands, the two lines above the daemon line say so with the fix, the daemon line says what the background daemon did, and the last line says that open windows keep working on the old build until reopened',
+    r.code === 0 && pointer() === V_NEW && last[0] === `no \`mercury\` is on your PATH; the updated one is ${shim}` && last[1] === onFix && lines[lines.length - 2] === daemonLast && lines[lines.length - 1] === openWindowsLast,
     r.all.slice(0, 900),
   )
 }

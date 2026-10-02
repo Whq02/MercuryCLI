@@ -33,14 +33,17 @@ const fx = await writeForkedFixture({
 })
 const raw = readFileSync(fx.path)
 check('fixture is big enough for the big-file path', raw.length > 5 * 1024 * 1024, String(raw.length))
+const forkFirst = fx.deadUuids.filter((_, i) => i % 4 === 0)
+const forkRest = fx.deadUuids.filter((_, i) => i % 4 !== 0)
 
-section('§A unit — the pruner keeps meta + live, drops every dead line')
+section('§A unit — the pruner keeps meta + live + what the chain builder recovers, drops every other dead line')
 {
   const pruned = pruneRecordBranchesBeforeParse(raw)
   const prunedText = pruned.toString('utf8')
   check('a pruned buffer came back smaller', pruned.length < raw.length, `${pruned.length}/${raw.length}`)
   check('every live uuid survives', fx.liveUuids.every(u => prunedText.includes(u)), 'missing live rows')
-  check('no dead uuid survives', !fx.deadUuids.some(u => prunedText.includes(u)))
+  check('every dead row beyond the first of its fork is gone', !forkRest.some(u => prunedText.includes(u)))
+  check("the first row of each fork — a tool_result under a live assistant — is kept: exactly what the full load's chain builder recovers (its rule keys by parent alone)", forkFirst.every(u => prunedText.includes(u)), String(forkFirst.filter(u => !prunedText.includes(u)).length))
   check(
     'metadata lines survive (title, tag, summary, header)',
     prunedText.includes('forked odyssey') &&
@@ -57,7 +60,7 @@ const prunedLoad = await loadTranscriptFile(fx.path)
 const fullLoad = await loadTranscriptFile(fx.path, { keepAllLeaves: true })
 {
   check('full fold holds live + dead rows', fullLoad.messages.size === fx.liveUuids.length + fx.deadUuids.length, String(fullLoad.messages.size))
-  check('pruned fold holds EXACTLY the live chain', prunedLoad.messages.size === fx.liveUuids.length, String(prunedLoad.messages.size))
+  check('pruned fold holds the live chain plus the one recovered row per fork, nothing else', prunedLoad.messages.size === fx.liveUuids.length + forkFirst.length, String(prunedLoad.messages.size))
   let equal = 0
   for (const u of fx.liveUuids) {
     const a = prunedLoad.messages.get(u as never)
@@ -72,13 +75,17 @@ const fullLoad = await loadTranscriptFile(fx.path, { keepAllLeaves: true })
       JSON.stringify([...prunedLoad.summaries]) === JSON.stringify([...fullLoad.summaries]),
   )
   const liveTail = fx.liveUuids[fx.liveUuids.length - 1]!
-  check('the pruned load resumes at the live tail (ONE leaf)', prunedLoad.leafUuids.size === 1 && prunedLoad.leafUuids.has(liveTail as never))
+  check('the pruned load resumes at the live tail; its other leaves are the recovered rows, as in the full load', prunedLoad.leafUuids.size === 1 + forkFirst.length && prunedLoad.leafUuids.has(liveTail as never), String(prunedLoad.leafUuids.size))
   check('the full load still sees every fork tip as a leaf (+ the live tail)', fullLoad.leafUuids.size === 1 + fx.deadUuids.length / 4 && fullLoad.leafUuids.has(liveTail as never), String(fullLoad.leafUuids.size))
+  const { buildConversationChain } = await import('../../src/utils/sessionStorage/chain.ts')
+  const fullChain = buildConversationChain(fullLoad.messages, fullLoad.messages.get(liveTail as never)!).map(m => m.uuid)
+  const prunedChain = buildConversationChain(prunedLoad.messages, prunedLoad.messages.get(liveTail as never)!).map(m => m.uuid)
+  check('THE LAW: the pruned resume equals the full-load chain, uuid for uuid', JSON.stringify(fullChain) === JSON.stringify(prunedChain), `full=${fullChain.length} pruned=${prunedChain.length}`)
 }
 
-section('§C dead rows never folded')
+section('§C dead rows beyond the recovered ones never folded')
 {
-  check('no dead uuid in the pruned fold', !fx.deadUuids.some(u => prunedLoad.messages.has(u as never)))
+  check('no dead row beyond the first of its fork reaches the pruned fold', !forkRest.some(u => prunedLoad.messages.has(u as never)))
   check('the fixture is REAL — the full fold does hold the dead rows', fx.deadUuids.every(u => fullLoad.messages.has(u as never)))
 }
 
@@ -90,8 +97,8 @@ section('§D the measured win')
   console.log(`  bytes: ${raw.length} → ${pruned.length} (${((pruned.length / raw.length) * 100).toFixed(1)}% kept)`)
   console.log(`  decoded rows: ${fullRows} → ${prunedRows}`)
   console.log(`  folded rows: ${fullLoad.messages.size} → ${prunedLoad.messages.size}`)
-  check('the dead byte majority never reaches the parse (≤ 20% of bytes kept)', pruned.length <= raw.length * 0.2, String(pruned.length / raw.length))
-  check('decoded row count drops by the dead-row count', fullRows - prunedRows === fx.deadUuids.length, `${fullRows}-${prunedRows}`)
+  check('the dead byte majority never reaches the parse (three of every four dead rows are gone; ≤ 35% of bytes kept)', pruned.length <= raw.length * 0.35, String(pruned.length / raw.length))
+  check('decoded row count drops by the dead rows beyond the first of each fork', fullRows - prunedRows === forkRest.length, `${fullRows}-${prunedRows} vs ${forkRest.length}`)
 }
 
 section('§E safety gates — anything unexpected is untouched')

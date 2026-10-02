@@ -4,7 +4,7 @@
 # (the prove-completions-current.ts gate enforces this).
 _mercury() {
   local -a subcommands root_opts
-  subcommands=('acp' 'auth' 'bridge' 'doctor' 'extensions' 'godot' 'health' 'image' 'install' 'mcp' 'roster' 'run' 'steward' 'update' 'upgrade')
+  subcommands=('acp' 'auth' 'bridge' 'daemon' 'doctor' 'extensions' 'godot' 'health' 'image' 'install' 'mcp' 'roster' 'run' 'update' 'upgrade')
   root_opts=('--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--partial' '--pr' '--project' '--provider-preview' '--replay-user-messages' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree')
   if (( CURRENT == 2 )); then
     _describe 'mercury command' subcommands
@@ -20,6 +20,9 @@ _mercury() {
       ;;
     bridge)
       compadd -- '--help'
+      ;;
+    daemon)
+      compadd --
       ;;
     doctor)
       compadd -- '--deep' '--end-stale' '--fix' '--help' '--json' '--only' '--yes'
@@ -47,9 +50,6 @@ _mercury() {
       ;;
     run)
       compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--partial' '--pr' '--project' '--provider-preview' '--replay-user-messages' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
-      ;;
-    steward)
-      compadd --
       ;;
     update)
       compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'

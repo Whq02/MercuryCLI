@@ -874,6 +874,7 @@ capsule-digest:${attachment.digest}${attachment.delta ? `\nWorking-set delta vs 
     case 'bound_prefix':
       return []
     case 'dead_thinking':
+    case 'images_left_out':
       return []
   }
 

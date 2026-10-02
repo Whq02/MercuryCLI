@@ -11,7 +11,7 @@ export type DaemonVerb =
   | { kind: 'unknown-flag'; verb: 'stop'; word: string }
 
 export const DAEMON_USAGE = [
-  'usage: mercury steward [run [dir] | status | stop | restart | --help]',
+  'usage: mercury daemon [run [dir] | status | stop | restart | --help]',
   '  (bare)          start the supervisor for the current folder (same as run)',
   '  run [dir]       start the supervisor scheduling for dir (default: the current folder)',
   '  status          probe the running supervisor and print its state',
@@ -25,6 +25,12 @@ const defaultIsDir = (p: string): boolean => {
   } catch {
     return false
   }
+}
+
+const SCREEN_HEAL_ASK = /^screen \d+$/
+
+export function isScreenHealAsk(by: string): boolean {
+  return SCREEN_HEAL_ASK.test(by)
 }
 
 export function looksLikeDirectoryArg(word: string, isDir: (p: string) => boolean = defaultIsDir): boolean {

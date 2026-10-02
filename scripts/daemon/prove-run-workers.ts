@@ -42,7 +42,7 @@ try {
   let oneShotArgv: string[] = []
   const oneShot = await runTaskHeadless({ id: 'scheduled', prompt: 'answer the scheduled run', permissionMode: 'flow', allowedTools: ['Read', 'Bash'] }, home, child => { oneShotArgv = child.spawnargs }, 60_000)
   check('the scheduled run protects its prompt from tool-list parsing', oneShotArgv.includes('run') && oneShotArgv[oneShotArgv.length - 2] === '--' && oneShot.code === 0 && oneShot.stdout.trim() === 'The scheduled run answered.', JSON.stringify({ oneShotArgv, oneShot }))
-  for (const [args, kind] of [[['run', '--format', 'rows'], 'runner'], [['--format', 'rows'], 'window'], [['--model', 'run', 'steward'], 'daemon'], [['steward', 'run'], 'daemon'], [['--', 'run'], 'window']] as const) {
+  for (const [args, kind] of [[['run', '--format', 'rows'], 'runner'], [['--format', 'rows'], 'window'], [['--model', 'run', 'daemon'], 'daemon'], [['daemon', 'run'], 'daemon'], [['--', 'run'], 'window']] as const) {
     const facts = composeProcessSweepFacts({ complete: true, observations: [{ process: { pid: 2222, ppid: 1, exe: 'node', args: ['node', '/fixture/mercury.mjs', ...args], startedAtMs: 1, user: 'fixture', terminal: null }, startToken: 'fixture', state: 'S', terminalAlive: false }] }, { nowMs: 1000, platform: 'linux', selfPid: 3333, user: 'fixture', configHome: home, drainMs: 1, heartbeatAllowanceMs: 1, planes: [], registrations: [], memory: {} })
     check(`the process sweep classifies ${args.join(' ')} as ${kind}`, facts[0]?.kind === kind, JSON.stringify(facts[0]))
   }
