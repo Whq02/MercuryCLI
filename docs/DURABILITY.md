@@ -120,7 +120,7 @@ after every call made on its behalf, however deep the nesting and however
 many there are, so nothing the model issued earlier in that response is
 dropped or reordered. The operator sees each reminder as a recorded informational
 row.
-With `loopGuardStopEnabled: true` in settings, the second detection of the
+With `turns.loopGuard: true` in settings, the second detection of the
 same cycle of two to five calls ends the turn after the round it landed in
 has settled: the model's context carries a `loop_stopped` note naming the
 cycle in the order the calls were issued, the operator sees a warning row, a

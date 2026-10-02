@@ -258,7 +258,7 @@ description says so there): run a `.cmd` shim such as `npm` or `npx`
 directly (`cmd /c npm …` works, or `node` on the script), and find a
 program named by a relative path after a `cd` (use its absolute path).
 
-The sessions have a ceiling: the `shellEngineSessions` setting (a whole
+The sessions have a ceiling: the `shell.sessions` setting (a whole
 number, 8 by default — the conversation plus seven agents), the
 `MERCURY_SHELL_ENGINE_SESSIONS` env pin over it, and the `/config` row
 **Shell engine sessions** beside **Shell engine**. The main conversation
@@ -277,7 +277,7 @@ runs ends that command and resets the session, and the result says so; a
 message typed while a command runs is queued and delivered when the command
 ends.
 
-Select it with the **Shell engine** row in `/config` (setting `shellEngine`:
+Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
 outranks the setting; the system shell stays the default. A `brush` choice
 whose pack is absent degrades to the system shell and the `doctor` row names

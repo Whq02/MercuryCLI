@@ -121,7 +121,7 @@ oasis navy when that appearance is chosen in `/appearance`).
 
 Two inputs, either suffices:
 
-- the `prefersReducedMotion` setting (toggled in `/config`);
+- the `view.reducedMotion` setting (toggled in `/config`);
 - `MERCURY_REDUCED_MOTION=1` (registered; reaches the pre-boot splash too).
 
 Reduced motion suppresses authored animation across the product: the launch

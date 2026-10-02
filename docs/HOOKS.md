@@ -3,7 +3,7 @@
 A hook is something Mercury runs at a named moment of a session: a shell
 command, a prompt a model answers, an agent that checks something, or an
 HTTP endpoint that receives the moment's facts. Hooks live in settings files
-(user, project, local and managed policy) under the `hooks` key; a skill or
+(user, project, local and managed policy) under the `events.hooks` key; a skill or
 an extension can declare its own in its frontmatter or manifest, and
 `/hooks` browses every hook the session carries.
 
@@ -11,13 +11,15 @@ an extension can declare its own in its frontmatter or manifest, and
 
 ```json
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [{ "type": "command", "command": "./scripts/check-command.sh" }]
-      }
-    ]
+  "events": {
+    "hooks": {
+      "PreToolUse": [
+        {
+          "matcher": "Bash",
+          "hooks": [{ "type": "command", "command": "./scripts/check-command.sh" }]
+        }
+      ]
+    }
   }
 }
 ```
@@ -139,8 +141,8 @@ the same JSON object.
 
 ## Policy
 
-Managed policy settings can tighten the hook surface: `disableAllHooks`
-disables every hook, managed ones included, and `allowManagedHooksOnly`
+Managed policy settings can tighten the hook surface: `events.disabled`
+disables every hook, managed ones included, and `events.managedOnly`
 restricts execution to the hooks the policy settings define. The trust gate
 that keeps a project's hooks from running before the workspace is trusted is
 in [TRUST.md](TRUST.md).

@@ -47,10 +47,10 @@ Until trust is granted in an interactive session:
   config is captured before the trust dialog resolves, so rather than reasoning
   about which code paths could fire a hook pre-trust, every execution asks the
   one question.
-- **The file-suggestion command does not run.** A configured `fileSuggestion`
+- **The file-suggestion command does not run.** A configured `files.suggester`
   command is still a command from workspace config; pre-trust it is skipped and
   the suggestion list stays empty.
-- **Project-scope credential helpers do not run.** An `apiKeyHelper` configured
+- **Project-scope credential helpers do not run.** A `credentials.keyCommand` configured
   in project or project-local settings is declined before trust, and an MCP server `headersHelper` from project or
   local scope is not executed — the server gets no dynamic headers and the
   refusal is logged.
@@ -147,15 +147,15 @@ operator and whether the rules it carries pre-authorise a push.
 
 Managed policy settings tighten the hook surface beyond the trust gate:
 
-- `disableAllHooks` in policy settings disables every hook, managed ones
+- `events.disabled` in policy settings disables every hook, managed ones
   included.
-- `allowManagedHooksOnly` restricts execution to hooks the policy settings
+- `events.managedOnly` restricts execution to hooks the policy settings
   define. The same posture takes effect when non-managed settings disable all
   hooks while policy does not. Under managed-only, the file-suggestion command
   likewise runs only from policy settings.
 
 Adjacent to workspace trust sits the Sovereign-mode consent:
-`skipSovereignConsentPrompt` is honoured from the user, local, flag, and
+`guardrails.sovereignConsentSeen` is honoured from the user, local, flag, and
 policy settings sources — the project source is deliberately excluded, so a
 hostile repository cannot pre-accept the Sovereign-mode consent dialog.
 

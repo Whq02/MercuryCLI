@@ -481,7 +481,7 @@ come from its owning account resolvers:
   body, every token, key and client secret masked;
 - **moonshot** — stored OAuth tokens or stored key;
 - **openrouter** — an OAuth-minted key or a stored key, env pin winning honestly;
-  `/config → OpenRouter routing policy` chooses strict, balanced or open routing. Balanced is on from the start: model requests deny data collection and require every parameter, with fallbacks on and zero data retention off. An absent or empty `openrouterRouting` setting selects these defaults; strict turns fallbacks off and zero data retention on. Choose open to allow collection and make parameters optional, leaving routing to OpenRouter; only an explicit all-off policy sends no request-level routing preference. A no-provider refusal points back to this row to widen the policy;
+  `/config → OpenRouter routing policy` chooses strict, balanced or open routing. Balanced is on from the start: model requests deny data collection and require every parameter, with fallbacks on and zero data retention off. An absent or empty `routing.openrouter` setting selects these defaults; strict turns fallbacks off and zero data retention on. Choose open to allow collection and make parameters optional, leaving routing to OpenRouter; only an explicit all-off policy sends no request-level routing preference. A no-provider refusal points back to this row to widen the policy;
 - **xai** — a Grok subscription sign-in or an API key, with an optional management key for the API team's
   usage meter. The API-key leg of `/logins xai` offers the management key as its second step;
   leave it empty or press escape to keep using just the API key. An existing
@@ -634,7 +634,7 @@ truth: the server and its version, the loaded models with their windows and
 memory from `/api/ps`, the runner's slot count and context from its command
 line, and the launch form Mercury found — a launch agent plist, the Homebrew
 plist, the Ollama app, a systemd override, Windows, or unknown. Each knob row
-is a Mercury setting (`localServer` in the user settings) with the memory
+is a Mercury setting (`local.server` in the user settings) with the memory
 arithmetic beside it, read from the model geometry `/api/show` states: a
 slot costs a full window of cache, so one loaded copy with several slots
 serves a swarm where several copies would not fit. The ceiling the

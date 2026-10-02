@@ -223,7 +223,7 @@ is compiled there too because upstream has no Windows binary.
 
 brush is a bash-compatible shell written in Rust. It is optional on macOS
 and Linux, where the system shell remains the default. Select it through
-`/config` (`shellEngine`) or `MERCURY_SHELL_ENGINE=brush` to use it for Bash
+`/config` (`shell.engine`) or `MERCURY_SHELL_ENGINE=brush` to use it for Bash
 tool calls with persistent shell state. On Windows, it is selected
 automatically when `bash.exe` is missing. See
 [docs/TERMINAL-RUNTIME.md](docs/TERMINAL-RUNTIME.md).

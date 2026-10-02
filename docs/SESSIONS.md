@@ -113,7 +113,7 @@ otherwise: `--continue --model <id> --effort <level>` brings the session
 back on the launch's model and effort, its record is re-stamped, and the
 resume card names which won when the launch's word and the session's saved
 word differ. `/model default` clears the saved choice. In the chat the
-picker opens centred, as it does over the board; `modelPickerCentred: false`
+picker opens centred, as it does over the board; `view.modelPicker.centred: false`
 in settings.json puts it back at the left edge.
 `/model` or `/effort` sent while a turn runs answers "applies when this turn
 ends", and lands exactly there: at that turn's end, before any line waiting
@@ -263,7 +263,7 @@ critter's glyph, the model and its effort, the folder and branch, the
 context mark — is off unless you turn it on, so a tall window gives the
 chat its rows. `/view on` shows it and `/view off` hides it, a click on
 `✶ VIEW` flips it the same way, and `/view` alone says which it is; the
-choice is kept in the settings store (`sessionsBar`) across resizes,
+choice is kept in the settings store (`view.sessionsBar`) across resizes,
 layouts and boots.
 
 The status row above the composer rests on `ready · <model> · <effort>` —
@@ -302,7 +302,7 @@ reads `esc interrupt · ⇧b background the command` and the row's tail
 `esc interrupts · ⇧b backgrounds · ⇧← back` for as long as the command
 runs, and the agent is told the command was moved to the background as a
 task whose output arrives as a notification; with a draft in the composer
-the key types its letter. `backgroundKey: false` in settings.json turns the
+the key types its letter. `view.backgroundKey: false` in settings.json turns the
 key and both hints off, and esc keeps its meaning either way. The row's
 warnings stay its own: a request wait names what the runner waits on and the budget that
 fires ("waiting for the first byte from Opus 5.5 — within 6m"); a held turn
@@ -388,7 +388,7 @@ chord on that line clears nothing. The project's whole history
 is also a command away: `/sessions` in the chat (project-scoped; `a` widens
 it to every project's history), where a chat is brought back, or cleared,
 one at a time. Nothing deletes a transcript — no row or key unlinks a
-chat, and the retention sweep (`cleanupPeriodDays`, default 30
+chat, and the retention sweep (`records.retentionDays`, default 30
 days) ages only recordings and tool results, never
 a session transcript: a chat is yours until your own act removes it.
 
@@ -458,7 +458,7 @@ changed files, and a changed file carries its mark at the row's right edge.
 The same click outside closes every panel over the chat that `esc` closes.
 It goes back one level, just like `esc`, without selecting text, opening a
 link or pressing anything in the chat beneath it.
-The `filesBox` setting set to false restores the rail as it was, the command
+The `view.files` setting set to false restores the rail as it was, the command
 with it.
 
 A session can work in a worktree of its repository instead of the checkout
@@ -613,7 +613,7 @@ the face's key-map row reads "⇧→ chat" while a session is focused and "⇧�
 no chat open" otherwise, and in a `--chat` boot it also offers `m to select
 model-default`: `m` opens the model picker over the face and the pick is
 saved as the default a new session starts on, while the Boot Menu stays on
-its own card row. The setting `sessionDefaultsKey` in `settings.json` (absent
+its own card row. The setting `engine.sessionDefaults` in `settings.json` (absent
 reads as on) switches this off: with it `false`, the face and the board read
 as they did before, `m menu` included. `/concourse` still opens the plain
 live view of your sessions there.
@@ -781,7 +781,7 @@ return in the same place when it clears, so a receipt's fact — the model id a
 `/defaultprovider` switch resolved, say — is readable at 80 columns. On a
 narrow window the session counts step aside the same way, the notice is cut
 to what fits with an ellipsis, and the way back (`⇧← concourse`) keeps the
-row's right end; `compactWayBack: false` in settings.json gives the notice
+row's right end; `context.wayBack: false` in settings.json gives the notice
 the whole row instead. The composer never moves for a notice.
 
 ## A notice an agent has not read

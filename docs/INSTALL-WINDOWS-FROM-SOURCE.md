@@ -115,7 +115,7 @@ tool list (the PowerShell tool stays), the **Bash tool shell** row warns,
 and a notice at the start of a session names the ways out: install Git for
 Windows; set `MERCURY_GIT_BASH_PATH` to your `bash.exe` when Git is
 installed somewhere Mercury does not look; or build the engine (step 7).
-`$env:MERCURY_SHELL_ENGINE = "system"` (or the `shellEngine` setting written
+`$env:MERCURY_SHELL_ENGINE = "system"` (or the `shell.engine` setting written
 as `system`) keeps the Bash tool on `bash.exe` alone, and `brush` runs it on
 the engine even when `bash.exe` is present; the `/config` row **Shell
 engine** shows `system` for the default, which lets the engine arm itself.
