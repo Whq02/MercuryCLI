@@ -23,7 +23,7 @@ guard.unref?.()
 const MOCK = join(import.meta.dir, 'mock-native-dap-adapter.mjs')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({
   'native-mock': { command: process.execPath, args: [MOCK] },
-  'bare-mock': { command: process.execPath, args: [MOCK, '--bare'] },
+  'bare-mock': { command: process.execPath, args: [MOCK, '--thin'] },
 })
 delete process.env.MERCURY_DAP
 
@@ -131,7 +131,7 @@ section('(2) the journey — full-caps mock through the REAL Debug tool')
   check('attached session disconnects clean', disc2.data.result.includes('disconnected'))
 }
 
-section('(3) precise refusals — the --bare mock advertises nothing')
+section('(3) precise refusals — the --thin mock advertises nothing')
 {
   const launch = await call({
     op: 'launch',

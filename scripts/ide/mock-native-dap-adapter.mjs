@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const BARE = process.argv.includes('--bare')
+const BARE = process.argv.includes('--thin')
 
 let buffer = Buffer.alloc(0)
 let seq = 1000
