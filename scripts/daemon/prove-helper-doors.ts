@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { spawn, type ChildProcess } from 'node:child_process'
-import { copyFileSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
+import { copyFileSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, readlinkSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import net from 'node:net'
 import { tmpdir } from 'node:os'
 import { basename, join, resolve } from 'node:path'
@@ -120,6 +120,27 @@ const cli = async (args: string[], dir: string, extraEnv: Record<string, string 
   return new Promise(resolve => child.once('exit', code => resolve({ code, text })))
 }
 const helpersLine = (text: string): string => text.split('\n').filter(l => /^\s+helpers:|^\s+pid \d+:/.test(l)).join(' | ')
+const OLD_SHA = '5acf54bac'
+const OLD_RELEASE = '1.0.0-beta.26'
+const releaseDist = (): string | null => {
+  const pinned = process.env.HELPERS_OLD_DIST
+  if (pinned !== undefined && existsSync(join(pinned, 'mercury.mjs'))) return pinned
+  const cache = join(realpathSync(tmpdir()), `mercury-release-${OLD_SHA}`)
+  const built = join(cache, 'dist')
+  const answers = (): boolean => existsSync(join(built, 'mercury.mjs')) && spawnSync('node', [join(built, 'mercury.mjs'), '--version'], { encoding: 'utf8' }).stdout.includes(OLD_RELEASE)
+  if (answers()) return built
+  if (spawnSync('git', ['-C', root, 'cat-file', '-e', `${OLD_SHA}^{commit}`]).status !== 0) return null
+  rmSync(cache, { recursive: true, force: true })
+  mkdirSync(cache, { recursive: true })
+  if (spawnSync('sh', ['-c', `git -C "${root}" archive ${OLD_SHA} | tar -x -C "${cache}"`]).status !== 0) return null
+  symlinkSync(join(root, 'node_modules'), join(cache, 'node_modules'))
+  const build = spawnSync(process.execPath, ['run', 'build.ts'], { cwd: cache, encoding: 'utf8', env: { ...process.env, MERCURY_GATE_PREBUILT: undefined } })
+  if (build.status !== 0) {
+    note(`the ${OLD_SHA} tree did not build: ${(build.stdout + build.stderr).slice(-600)}`)
+    return null
+  }
+  return answers() ? built : null
+}
 const listen = (path: string): Promise<net.Server> => new Promise((resolveServer, reject) => {
   const server = net.createServer(() => {})
   server.once('error', reject)
@@ -267,6 +288,40 @@ try {
     const after = await cli(['status'], join(home, 'runtime/current'))
     check('the final status says zero helpers and zero live workers', after.text.includes('0 running / 0 live workers'), helpersLine(after.text))
     check('no socket or link is left behind', !readdirSync(planeDir).some(entry => entry.startsWith('control.sock')), readdirSync(planeDir))
+  }
+
+  console.log(`§G an idle helper of the shipped ${OLD_RELEASE} release that the plane was taken over from is asked to leave once it reads idle, through its own socket`)
+  {
+    const oldDist = releaseDist()
+    if (oldDist === null) {
+      note(`SKIPPED — the ${OLD_RELEASE} release could not be built beside this proof (its commit ${OLD_SHA} is not in this clone, or its tree did not build)`)
+    } else {
+      const oldDir = join(world, 'r26')
+      mkdirSync(oldDir)
+      copyFileSync(join(oldDist, 'mercury.mjs'), join(oldDir, 'mercury.mjs'))
+      const manifest = JSON.parse(readFileSync(join(oldDist, 'manifest.json'), 'utf8')) as { buildTree?: string | null }
+      writeFileSync(join(oldDir, 'manifest.json'), JSON.stringify({ ...manifest, buildTree: typeof manifest.buildTree === 'string' && manifest.buildTree !== '' ? manifest.buildTree : 'r26'.repeat(14).slice(0, 40) }))
+      deploy(oldDir)
+      const old = spawnHelper(oldDir)
+      const oldReady = await until(async () => { const h = await hello(); return h.ok && h.op === 'hello' && h.pid === old && h.ready && h.version === OLD_RELEASE })
+      check(`a helper of the ${OLD_RELEASE} release serves the plane with nothing live`, oldReady, logs.get(old))
+      const gDir = payload('g')
+      const t0 = Date.now()
+      const g = await boot(gDir, old)
+      check("the plane helper's handover line says the old helper holds no live session", await until(() => /it holds no live session/.test(logs.get(g) ?? ''), 5000), logs.get(g))
+      const asked = await until(() => /holds no live session and has not left on its own — asking it to leave/.test(logs.get(g) ?? ''), 25_000)
+      const gone = await until(() => !isProcessAlive(old), 10_000)
+      const elapsed = Date.now() - t0
+      note(`the ${OLD_RELEASE} helper left ${elapsed} ms after the handover; asked=${asked}; its last lines: ${(logs.get(old) ?? '').trim().split('\n').slice(-2).join(' | ')}`)
+      check('the plane helper asks the idle older helper to leave through its own socket, and it leaves', asked && gone, { asked, gone })
+      check("…well before the old release's own half-minute grace", gone && elapsed < 25_000, elapsed)
+      const status = await cli(['status'], gDir)
+      check('status counts the plane helper alone', status.text.includes('1 running / 0 live workers'), helpersLine(status.text))
+      check("the plane helper sweeps the departed helper's socket on its next beat", await until(() => !present(predecessorSockPath(old)), 12_000), readdirSync(planeDir))
+      check('the plane link names the plane helper', node(planeLink)?.kind === 'link' && readlinkSync(planeLink) === basename(predecessorSockPath(g)), readdirSync(planeDir))
+      const bye = await cli(['stop'], gDir)
+      check('the plane helper stops through Mercury', bye.code === 0 && (await until(() => !isProcessAlive(g))), bye)
+    }
   }
 } catch (error) {
   check('the drive completes', false, String(error))

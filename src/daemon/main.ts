@@ -1,7 +1,7 @@
 
 import { randomUUID } from 'crypto'
 import { existsSync, readFileSync, watch as watchDir, type FSWatcher } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'fs/promises'
 import { homedir } from 'os'
 import { basename, dirname, join, resolve } from 'path'
 import { MERCURY_VERSION } from '../constants/product.js'
@@ -136,7 +136,7 @@ import { holdBuild, nodeForBuild, resolveScriptPath, selfScriptPath } from './da
 import { decidePlaneBoot, sameBuildTree, type PlaneBootDecisionV1, type PlaneBootFactsV1 } from './planeBoot.js'
 import { lockHeldByLivePidSync, readPlaneOwnerSync, supersededByLivePlaneOwnerSync, type PlaneOwnerV1 } from './planeRecords.js'
 import { decideSessionlessExit, initialSessionlessState, SESSIONLESS_EXIT_BEAT_MS } from './sessionlessExit.js'
-import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidsOfHome } from './status.js'
+import { getMercuryDaemonStatus, formatMercuryDaemonStatus, helperPidSocketsOnDisk, helperPidsOfHome } from './status.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 
 function resolveDir(args: string[]): string {
@@ -629,8 +629,9 @@ async function daemonRun(args: string[]): Promise<void> {
         )
         await persistSupervisorRecord(currentOwnerPid)
         const moved = renameSocketForPredecessor(handoverPredecessor)
+        const held = handover.heldRunners(handoverPredecessor).size
         // eslint-disable-next-line no-console
-        console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; it keeps ${handover.heldRunners(handoverPredecessor).size} live session(s) until they finish`)
+        console.error(`[daemon] handover from pid ${handoverPredecessor}: took the plane (v${currentVersion()} proto ${MERCURY_DAEMON_PROTO}); its socket ${moved ? `serves on at ${handover.sockPath}` : 'was not on the path'}; ${held > 0 ? `it keeps ${held} live session(s) until they finish` : 'it holds no live session — it leaves on its own, or is asked to once it reads idle'}`)
       }
       const handoverRef = handover
       const countBirth = async <T>(door: () => Promise<T>): Promise<T> => {
@@ -1303,6 +1304,49 @@ async function daemonRun(args: string[]): Promise<void> {
         sessionlessBeat.unref?.()
         stopSessionlessBeat = () => clearInterval(sessionlessBeat)
       }
+      if (handover !== null) {
+        const idleReads = new Map<number, number>()
+        let sweepInflight = false
+        const predecessors = handover
+        const askIdlePredecessorsToLeave = async (): Promise<void> => {
+          if (sweepInflight || planeServedByOther !== null || successorRuntime() !== null) return
+          sweepInflight = true
+          try {
+            for (const pid of helperPidSocketsOnDisk()) {
+              if (pid !== process.pid && !isProcessAlive(pid) && daemonHomeStands('the departed-helper sweep')) await unlink(predecessorSockPath(pid)).catch(() => undefined)
+            }
+            for (const pid of predecessors.predecessorPids()) {
+              if (predecessors.heldRunners(pid).size > 0) {
+                idleReads.delete(pid)
+                continue
+              }
+              const reply = await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: bootBuildTree }), 1500)
+              if (!reply.ok || reply.op !== 'hello' || reply.pid !== pid || reply.live > 0 || !isProcessAlive(pid)) {
+                idleReads.delete(pid)
+                continue
+              }
+              const reads = (idleReads.get(pid) ?? 0) + 1
+              idleReads.set(pid, reads)
+              if (reads < IDLE_PREDECESSOR_READS) continue
+              idleReads.delete(pid)
+              // eslint-disable-next-line no-console
+              console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
+              await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers: false, forwarded: true }), 3000).catch(() => undefined)
+            }
+          } finally {
+            sweepInflight = false
+          }
+        }
+        const idleSweep = setInterval(() => {
+          void askIdlePredecessorsToLeave().catch(e => logForDebugging(`[daemon] the idle-predecessor sweep failed (the next beat retries): ${e}`))
+        }, SESSIONLESS_EXIT_BEAT_MS)
+        idleSweep.unref?.()
+        const stopBeat = stopSessionlessBeat
+        stopSessionlessBeat = () => {
+          clearInterval(idleSweep)
+          stopBeat?.()
+        }
+      }
       if (handoverPredecessor !== null && supervisorLock === null) {
         let lockClaimInflight = false
         const lockBeat = setInterval(() => {
@@ -1630,6 +1674,7 @@ const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 2_000
+const IDLE_PREDECESSOR_READS = 3
 
 async function planeAnswer(bootBuildTree: string | null): Promise<{ pid: number; buildTree: string | null } | null> {
   const reply = await daemonControlRpc(
