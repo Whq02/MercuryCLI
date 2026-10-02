@@ -96,7 +96,7 @@ t.section('§3 — THE SILENT ALIAS: login stays because a saved keybinding can 
     'findCommand resolves login through the alias alone — without it a saved command:login chord goes dead',
     findCommand('login', [fake({ aliases: ['login'] })]) !== undefined && findCommand('login', [fake({})]) === undefined && findCommand('logins', [fake({})]) !== undefined,
   )
-  const table = [fake({ aliases: ['login'] }), fake({ name: 'health', aliases: ['doctor'], description: 'Health' })]
+  const table = [fake({ aliases: ['login'] }), fake({ name: 'health', aliases: ['certify'], description: 'Health' })]
   const rowsFor = (input: string): string[] => generateCommandSuggestions(input, table).map(s => s.displayText)
   const prefixes = ['/lo', '/log', '/logi', '/login']
   t.check(
@@ -105,7 +105,7 @@ t.section('§3 — THE SILENT ALIAS: login stays because a saved keybinding can 
     prefixes.map(q => `${q} → ${rowsFor(q).join(' | ')}`).join(' ; '),
   )
   t.check('/login typed whole still ranks /logins first (the alias resolves)', rowsFor('/login')[0] === '/logins', rowsFor('/login').join(' | '))
-  t.check('an alias the name does not begin with still paints its parenthetical (the general rule kept)', rowsFor('/doc').includes('/health (doctor)'), rowsFor('/doc').join(' | '))
+  t.check('an alias the name does not begin with still paints its parenthetical (the general rule kept)', rowsFor('/cer').includes('/health (certify)'), rowsFor('/cer').join(' | '))
   t.check('help lists no aliases (the typeahead was the one listing)', !read('src/commands/help/help.tsx').includes('aliases'))
 }
 

@@ -31,26 +31,29 @@ const domains = await import('../../src/components/HelpV2/commandDomains.ts')
 
 const roster = [...commands.builtinCommands()]
 const RETIRED = 'insights'
+const NAMES = [RETIRED, 'doctor']
 const NEVER_HAD = 'frobnicate'
-
-check('the built-in roster carries no row for the name', commands.findCommand(RETIRED, roster) === undefined)
-check('…exactly as for a name Mercury never had', commands.findCommand(NEVER_HAD, roster) === undefined)
-check('no built-in command claims it as an alias', roster.every(command => !(command.aliases ?? []).includes(RETIRED)))
-check('the effective catalogue carries no row for it', catalogue.effectiveCatalogue().every(surface => surface.name !== RETIRED), catalogue.effectiveCatalogue().map(s => s.name).filter(n => n === RETIRED).join(','))
-check('no /help domain lists it', domains.COMMAND_DOMAINS.every(domain => !domain.names.includes(RETIRED)))
-
-const retiredLine = slash.unknownCommandLine(RETIRED, roster)
-const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)
 const shape = (line: string, name: string): string => line.replace(`/${name}`, '/<name>').replace(/ — closest: \/[\w:-]+/, '')
-check('typed, it answers with the ordinary unknown-command sentence', retiredLine.startsWith(`Unknown command: /${RETIRED}`) && retiredLine.endsWith('/help lists commands'), retiredLine)
-check('…the same sentence a never-registered name gets (no special line, no pointer to a replacement)', shape(retiredLine, RETIRED) === shape(neverLine, NEVER_HAD), `${retiredLine} | ${neverLine}`)
-check('the sentence never says the name was ever a command', !/retired|removed|renamed|no longer|replaced|use \//.test(retiredLine), retiredLine)
+const neverLine = slash.unknownCommandLine(NEVER_HAD, roster)
+const surfaces = catalogue.effectiveCatalogue()
+const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
 
-check('the command module is gone from the tree', !existsSync(join(REPO, 'src/commands', `${RETIRED}.ts`)))
+check('a name Mercury never had resolves to no command', commands.findCommand(NEVER_HAD, roster) === undefined)
+for (const name of NAMES) {
+  console.log(`\n/${name}`)
+  check('the built-in roster carries no row for the name', commands.findCommand(name, roster) === undefined)
+  check('no built-in command claims it as an alias', roster.every(command => !(command.aliases ?? []).includes(name)))
+  check('the effective catalogue carries no row for it, by name or alias', surfaces.every(surface => surface.name !== name && !surface.aliases.includes(name)), surfaces.filter(s => s.name === name || s.aliases.includes(name)).map(s => s.name).join(','))
+  check('no /help domain lists it', domains.COMMAND_DOMAINS.every(domain => !domain.names.includes(name)))
+  const line = slash.unknownCommandLine(name, roster)
+  check('typed, it answers with the ordinary unknown-command sentence', line.startsWith(`Unknown command: /${name}`) && line.endsWith('/help lists commands'), line)
+  check('…the same sentence a never-registered name gets (no special line, no pointer to a replacement)', shape(line, name) === shape(neverLine, NEVER_HAD), `${line} | ${neverLine}`)
+  check('the sentence never says the name was ever a command', !/retired|removed|renamed|no longer|replaced|use \//.test(line), line)
+  check('the command module is gone from the tree', !existsSync(join(REPO, 'src/commands', `${name}.ts`)) && !existsSync(join(REPO, 'src/commands', name)))
+  check("the README's command table carries no such cell", !readme.includes(`\`/${name}\``))
+}
 check('the roster module imports no such command', !readFileSync(join(REPO, 'src/commands.ts'), 'utf8').includes(RETIRED))
 check('the query sources name no such caller', !readFileSync(join(REPO, 'src/constants/querySource.ts'), 'utf8').includes(RETIRED))
-const readme = readFileSync(join(REPO, 'README.md'), 'utf8')
-check("the README's command table carries no such cell", !readme.includes(`\`/${RETIRED}\``))
 
 const dist = join(REPO, 'dist/mercury.mjs')
 check('the built bundle stands for the headless door (bun run build.ts first)', existsSync(dist), dist)
@@ -78,10 +81,12 @@ if (existsSync(dist)) {
     return { code: result.status, out: result.stdout ?? '', err: result.stderr ?? '' }
   }
   try {
-    const retired = door(RETIRED)
     const never = door(NEVER_HAD)
-    check("typed at the headless door, the name gets the runner's own unknown-skill line and exit 0", retired.code === 0 && retired.out.trim() === `Unknown skill: ${RETIRED}`, JSON.stringify(retired))
-    check('…byte for byte the answer a never-registered name gets, with the name swapped', retired.code === never.code && retired.out === never.out.replaceAll(NEVER_HAD, RETIRED) && retired.err === never.err, JSON.stringify(never))
+    for (const name of [RETIRED, 'doctor']) {
+      const typed = door(name)
+      check(`typed at the headless door, /${name} gets the runner's own unknown-skill line and exit 0`, typed.code === 0 && typed.out.trim() === `Unknown skill: ${name}`, JSON.stringify(typed))
+      check('…byte for byte the answer a never-registered name gets, with the name swapped', typed.code === never.code && typed.out === never.out.replaceAll(NEVER_HAD, name) && typed.err === never.err, JSON.stringify(never))
+    }
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
