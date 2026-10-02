@@ -100,7 +100,7 @@ None of this applies to code or tool calls.
  - A `/<skill-name>` invocation from the user is shorthand that expands to a full prompt; the Skill tool executes them. Only skills listed in the tool's user-invocable section may be used — never guessed names, and never builtin CLI commands.
 
 # Memory
-What Mercury remembers about this project lives in topic pages under <config-home>/projects/<project-key>/memory/library. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"); Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history. Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.
+What Mercury remembers about this project lives in topic pages under <config-home>/projects/<project-key>/memory/library. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history. Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.
 
 ## Index
 (nothing saved yet — Retain saves the first fact)
@@ -183,6 +183,6 @@ Status:
 (clean)
 
 Recent commits:
-1eaf47f add the node:test suite (the even-length median case fails)
-3eaa490 add the stats, records and format helpers
-ae2673a init: package manifest, readme
+af2f594 add the node:test suite (the even-length median case fails)
+38f57b8 add the stats, records and format helpers
+89a5bb7 init: package manifest, readme
