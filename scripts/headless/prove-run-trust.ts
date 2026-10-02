@@ -24,7 +24,7 @@ for (const trusted of [false, true]) {
   writeFileSync(hookScript, `require('node:fs').writeFileSync(${JSON.stringify(hookMark)}, 'yes')`)
   writeFileSync(serverScript, `require('node:fs').writeFileSync(${JSON.stringify(mcpMark)}, 'yes'); const r = require('node:readline').createInterface({input:process.stdin}); r.on('line', line => { const q = JSON.parse(line); if (q.id === undefined) return; const result = q.method === 'initialize' ? {protocolVersion:q.params.protocolVersion,capabilities:{tools:{}},serverInfo:{name:'trust-fixture',version:'1'}} : q.method === 'tools/list' ? {tools:[]} : {}; process.stdout.write(JSON.stringify({jsonrpc:'2.0',id:q.id,result})+'\\n'); });`)
   writeFileSync(join(cwd, '.mercury/settings.json'), JSON.stringify({ events: { hooks: { SessionStart: [{ hooks: [{ type: 'command', command: `node ${JSON.stringify(hookScript)}` }] }] } } }))
-  writeFileSync(join(cwd, '.mcp.json'), JSON.stringify({ mcpServers: { trustFixture: { command: 'node', args: [serverScript] } } }))
+  writeFileSync(join(cwd, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { trustFixture: { command: 'node', args: [serverScript] } } }))
   const api = await startFixtureApi([{ kind: 'text', text: 'The trust turn completed.' }])
   const child = spawn('node', [dist, 'run', 'answer the trust fixture'], { cwd, env: { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(root, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', ANTHROPIC_API_KEY: 'fixture-key', ANTHROPIC_BASE_URL: api.url }, stdio: ['ignore', 'pipe', 'pipe'] })
   let out = '', err = ''
