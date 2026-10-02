@@ -3025,13 +3025,13 @@ function scenarioInner(name: string, cols: number, rows: number) {
     const settingsPath = join(tmpdir(), 'mode-band-bypass-settings.json')
     writeFileSync(
       settingsPath,
-      JSON.stringify({ skipSovereignConsentPrompt: true }),
+      JSON.stringify({ guardrails: { sovereignConsentSeen: true } }),
     )
     writeSyntheticSession('short')
     return {
       argv: [
         'node', BIN, '--resume', SID,
-        '--sovereign', '--settings', settingsPath,
+        '--sovereign', '--config', settingsPath,
       ],
       sends: [],
       readyText: 'auto-approved',

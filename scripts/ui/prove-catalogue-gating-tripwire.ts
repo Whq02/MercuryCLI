@@ -221,7 +221,7 @@ function drive(tag: string, home: string, netlog: string, sends: unknown[], tota
   const grid = join(scratch, `${tag}-grid.json`)
   const cfgPath = join(scratch, `${tag}-vshot.json`)
   const debugFile = process.env.CATGATE_DEBUG_FILE
-  const argv = debugFile ? ['node', DIST, '--debug', `--debug-file=${debugFile}.${tag}.log`] : ['node', DIST]
+  const argv = debugFile ? ['node', DIST, '--debug', `--log-file=${debugFile}.${tag}.log`] : ['node', DIST]
   writeFileSync(cfgPath, JSON.stringify({ argv, sends, total, cols: 120, rows: 40, out: grid, title: tag }))
   const res = spawnSync(driver.python, [VSHOT, cfgPath], {
     encoding: 'utf-8',
