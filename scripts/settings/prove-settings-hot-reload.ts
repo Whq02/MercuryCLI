@@ -121,7 +121,7 @@ section('(2) internal writes are suppressed')
 section('(3) project-file edit attributes to projectSettings')
 {
   const before = events.length
-  writeFileSync(projPath, JSON.stringify({ env: { X: '1' } }))
+  writeFileSync(projPath, JSON.stringify({ environment: { values: { X: '1' } } }))
   const fired = await waitForEvents(before + 1)
   check('project edit fires', fired, `events=${events.length}`)
   check('source is projectSettings', events[before]?.source === 'projectSettings', JSON.stringify(events[before]))
