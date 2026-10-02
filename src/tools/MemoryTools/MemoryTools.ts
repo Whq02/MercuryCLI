@@ -54,6 +54,7 @@ const retainSchema = lazySchema(() =>
           content: z.string().describe('One self-contained durable fact.'),
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
+          pin: z.boolean().optional().describe('Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user.'),
         }),
       )
       .min(1)

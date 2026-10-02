@@ -2,6 +2,7 @@
 // gate-watch: src/memdir/mnemeFrontPage.ts src/memdir/mnemeUsage.ts src/memdir/mnemeArchive.ts
 // gate-watch: src/memdir/mnemeLookup.ts src/memdir/mnemeConsolidate.ts src/memdir/mnemeCorrect.ts
 // gate-watch: src/memdir/mnemeLibrary.ts src/memdir/mnemeTopicDocs.ts src/constants/prompts.ts
+// gate-watch: src/memdir/mnemePinnedConflicts.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -35,7 +36,7 @@ const { renderFrontPage, publishFrontPage, readFrontPage, readPinnedStatus, fron
 const { retainItems, recallQuery, _resetMemoryVerbSessionStateForTesting } = await import('../../src/memdir/memoryVerbs.js')
 const { maybeConsolidate, listTopicDocs, listArchiveDocs } = await import('../../src/memdir/mnemeConsolidate.js')
 const { correctFact } = await import('../../src/memdir/mnemeCorrect.js')
-const { pinFact, unpinFact, readPins, bumpUsage, PINNED_LIMIT } = await import('../../src/memdir/mnemeUsage.js')
+const { pinFact, unpinFact, readPins, bumpUsage } = await import('../../src/memdir/mnemeUsage.js')
 const { lookupFacts, rankCandidates } = await import('../../src/memdir/mnemeLookup.js')
 const { seqCensus, INDEX_LIMIT, ARCHIVE_AFTER_DAYS } = await import('../../src/memdir/mnemeArchive.js')
 const { appendObservation } = await import('../../src/memdir/mnemeBuffer.js')
@@ -84,34 +85,56 @@ unpinFact(fixed.ok ? fixed.seq : 0, dir)
 maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 3000) })
 check('unpin empties the tier', (readFrontPage(dir) ?? '').includes('no pinned rules'))
 
-section('over the limit: /memory never pins past it; an intake may, and then every rule stays loaded')
-for (let i = 0; i < PINNED_LIMIT + 2; i++) {
-  retainItems([{ content: `standing rule number ${i}: always do thing ${i}`, topic: 'rules' }], { session: `fp-${i}` }, dir)
+section('the pinned shelf: never refuses, measured as text against the limit, every rule loaded')
+const RULE_WORDS = ['deploys', 'commits', 'reviews', 'suites', 'worktrees', 'releases', 'docs', 'frames', 'keys', 'lanes', 'folds', 'censuses', 'drives', 'briefs']
+const RULES = RULE_WORDS.length
+for (let i = 0; i < RULES; i++) {
+  retainItems([{ content: `about ${RULE_WORDS[i]}: handle ${RULE_WORDS[i]} the careful way, ${'with care '.repeat(3)}and say so in the ${RULE_WORDS[i]} report`, topic: 'rules' }], { session: `fp-${i}` }, dir)
 }
 _resetMemoryVerbSessionStateForTesting()
 maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 4000) })
 const ruleSeqs = listTopicDocs(dir).find(d => d.slug === 'rules')!.sections[0]!.entries.map(e => e.seq)
-const pinOutcomes = ruleSeqs.map((seq, i) => pinFact(seq, dir, new Date(T0.getTime() + 5000 + i * 1000)))
-check(`the operator can pin up to the limit of ${PINNED_LIMIT}`, pinOutcomes.slice(0, PINNED_LIMIT).every(o => o.ok))
-check('the operator cannot pin past the limit', pinOutcomes.slice(PINNED_LIMIT).every(o => !o.ok && o.code === 'limit'), JSON.stringify(pinOutcomes.slice(PINNED_LIMIT)))
-const intakePins = ruleSeqs.slice(PINNED_LIMIT).map((seq, i) => pinFact(seq, dir, new Date(T0.getTime() + 20_000 + i * 1000), { pastLimit: true }))
-check('an intake may pin past the limit', intakePins.every(o => o.ok))
+const pinOutcomes = ruleSeqs.map((seq, i) => pinFact(seq, dir, new Date(T0.getTime() + 5000 + i * 1000), { asked: i % 2 === 0 }))
+check('a pin is never refused', pinOutcomes.every(o => o.ok) && readPins(dir).length === RULES)
+const smallLimit = 600
+const overRender = renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: {}, now: T0, limit: smallLimit })
+check('the limit is how much text, not how many rules', overRender.status.used > smallLimit && overRender.status.over === true && overRender.status.limit === smallLimit, JSON.stringify({ used: overRender.status.used, limit: overRender.status.limit }))
+check('every rule stays loaded when over', overRender.status.loaded.length === RULES && ruleSeqs.every(seq => overRender.text.includes(`<seq=${seq}`)))
+check('the rules are distinct enough that the conflict rule leaves them alone', readPins(dir).length === RULES)
+check('the page says how full the shelf is and where to trim or raise the limit', overRender.text.includes(`fill ${overRender.status.used} of the ${smallLimit}-character limit`) && overRender.text.includes('raises the limit in /config'))
+check('a rule the user asked for is marked as asked for by the user', ruleSeqs.filter((_, i) => i % 2 === 0).every(seq => overRender.text.includes(`<seq=${seq}, asked for by the user>`)) && overRender.status.asked.length === RULES / 2)
+check('a rule Mercury pinned on its own carries no asked mark', ruleSeqs.filter((_, i) => i % 2 === 1).every(seq => overRender.text.includes(`<seq=${seq}>`)))
+const roomy = renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: {}, now: T0, limit: 100_000 })
+check('under the limit the same rules load without the over line', roomy.status.over === false && !roomy.text.includes('-character limit'))
+const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
+check('the start-of-session line is one calm sentence with the fill, the limit and both ways out',
+  pinnedOverLimitLine({ pinned: 23, used: 9600, limit: 8000 }) === 'Pinned memory: 23 rules, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
+const { pinnedTextLimit, PINNED_TEXT_LIMIT_DEFAULT } = await import('../../src/memdir/mnemeUsage.js')
+check(`the default limit is ${PINNED_TEXT_LIMIT_DEFAULT} characters of pinned text`, pinnedTextLimit() === PINNED_TEXT_LIMIT_DEFAULT)
 maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 60_000) })
 const status = readPinnedStatus(dir)
-check('the status counts the pins against the limit and says it is over', status?.pinned === PINNED_LIMIT + 2 && status.limit === PINNED_LIMIT && status.over === true, JSON.stringify(status))
-check('every rule stays loaded', status?.loaded.length === PINNED_LIMIT + 2)
-const page4 = readFrontPage(dir) ?? ''
-check('the front page carries all the rules word for word', ruleSeqs.every(seq => page4.includes(`<seq=${seq}>`)) && page4.includes('always do thing 11'))
-check('the front page says it is over the limit and where to trim', page4.includes(`${PINNED_LIMIT + 2} pinned rules, limit ${PINNED_LIMIT} — all loaded; the user trims in /memory`))
-const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
-check('the start-of-session line is one calm sentence', pinnedOverLimitLine({ pinned: 12, limit: 10 }) === '12 pinned memory rules, limit 10 — all still loaded. Trim in /memory.')
-unpinFact(ruleSeqs[0]!, dir)
-unpinFact(ruleSeqs[1]!, dir)
-unpinFact(ruleSeqs[2]!, dir)
-maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 70_000) })
-check('after trimming under the limit the notice is off', readPinnedStatus(dir)?.over === false)
-check('and the limit applies as normal again', pinFact(ruleSeqs[0]!, dir, new Date(T0.getTime() + 80_000)).ok === true && pinFact(ruleSeqs[1]!, dir, new Date(T0.getTime() + 81_000)).ok === false)
-maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 90_000) })
+check('the published status carries the fill and the limit', status !== null && status.used > 0 && status.limit === PINNED_TEXT_LIMIT_DEFAULT && status.pinned === RULES, JSON.stringify(status))
+
+section('two rules on the same matter: the newer replaces the older in place, never over a user-asked one')
+const { resolvePinnedConflicts, rulesOverlap } = await import('../../src/memdir/mnemePinnedConflicts.js')
+check('near-identical rules overlap above the threshold', rulesOverlap('always run the suites in parallel on the mini', 'always run the suites in parallel on the mini, never serialise') >= 0.6)
+check('unrelated rules do not', rulesOverlap('always run the suites in parallel', 'commit as Whq02 with a heredoc message') < 0.6)
+retainItems([{ content: 'about commits: handle commits the careful way, with care with care with care and say so in the commits report — and sign as Whq02', topic: 'rules', pin: true }], { session: 'fp-conflict' }, dir)
+_resetMemoryVerbSessionStateForTesting()
+const beforeConflict = readPins(dir).map(p => p.seq)
+const conflictRun = maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 90_000) })
+check('the batch landed', conflictRun.consolidated, conflictRun.reason)
+const afterConflict = readPins(dir)
+const rulesDoc = listTopicDocs(dir).find(d => d.slug === 'rules')!
+const newest = Math.max(...rulesDoc.sections.flatMap(s => s.entries.map(e => e.seq)))
+check('the older rule (Mercury-pinned, not asked) left the live page for history, superseded by the newer', rulesDoc.history.some(e => e.seq === ruleSeqs[1] && e.supersededBy === newest))
+check('the pin kept its slot and now points at the newer rule', afterConflict.length === beforeConflict.length && afterConflict.some(p => p.seq === newest) && !afterConflict.some(p => p.seq === ruleSeqs[1]))
+retainItems([{ content: 'about deploys: handle deploys the careful way, with care with care with care and say so in the deploys report — but faster', topic: 'rules' }], { session: 'fp-conflict-2', pin: true, asked: false }, dir)
+_resetMemoryVerbSessionStateForTesting()
+maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 95_000) })
+const rulesDoc2 = listTopicDocs(dir).find(d => d.slug === 'rules')!
+check('a user-asked rule is never replaced by a rule Mercury pinned on its own', rulesDoc2.sections.some(s => s.entries.some(e => e.seq === ruleSeqs[0])) && readPins(dir).some(p => p.seq === ruleSeqs[0] && p.asked))
+void resolvePinnedConflicts
 
 section('the automatic lookup: up to five facts, pointing at the pages, never a loaded pin')
 const hits = lookupFacts('how is the runtime deployed from the checkout', { dir })
@@ -122,7 +145,7 @@ const excluded = lookupFacts('how is the runtime deployed from the checkout', { 
 check('an already-surfaced fact is not attached twice', excluded.every(h => !hits.some(x => x.id === h.id)))
 const many = rankCandidates('thing', Array.from({ length: 12 }, (_, i) => ({ id: `seq:${i}`, text: `always do thing ${i}`, signature: '', slug: 'rules', pagePath: 'p', seq: i, pending: false })))
 check('a word every fact shares never ranks (nothing discriminating)', many.length === 0)
-check('the cap is five', lookupFacts('standing rule always do thing', { dir, exclude: new Set() }).length <= 5)
+check('the cap is five', lookupFacts('handle the careful way and say so in the report', { dir, exclude: new Set() }).length <= 5)
 check('a pending fact is findable before consolidation', lookupFacts('fact retained after the snapshot', { dir }).some(h => h.pending || h.slug === 'later'))
 
 section('archive: facts nobody has used in a long time leave the index, nothing is lost')
@@ -182,6 +205,8 @@ section('the system prompt wiring')
 const prompts = readFileSync(join(ROOT, 'src/constants/prompts.ts'), 'utf8')
 check("the memory section is keyed on the front page so it moves only at consolidation", /keyedSystemPromptSection\(\s*'memory',\s*\(\) => memoryPromptKey\(\),\s*\(\) => loadMemoryPrompt\(\),?\s*\)/.test(prompts))
 check('the memory prompt comes from the front page module', prompts.includes("from '../memdir/mnemeFrontPage.js'"))
+const doctrine = readFileSync(join(ROOT, 'src/constants/subagentDoctrine.ts'), 'utf8')
+check('crewmates and sub-agents get the front page with the pinned rules', doctrine.includes("from '../memdir/mnemeFrontPage.js'") && /\.\.\.\(memory \? \[memory\] : \[\]\)/.test(doctrine))
 
 console.log('\n' + '═'.repeat(76))
 console.log(failures === 0 ? '✅ FRONT PAGE, PINNED TIER, LOOKUP AND ARCHIVE PROVEN' : `❌ ${failures} FRONT-PAGE CHECK(S) FAILED`)

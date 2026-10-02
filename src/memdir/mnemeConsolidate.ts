@@ -28,6 +28,7 @@ import { listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibrary
 import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
 import { movePin, pinFact, readPins, readUsage } from './mnemeUsage.js'
+import { resolvePinnedConflicts } from './mnemePinnedConflicts.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -513,9 +514,14 @@ export function maybeConsolidate(
     let tidy: TidyResult = { archived: 0, restored: 0, topicsArchived: [], conserved: true, touchedTopics: new Set(), touchedArchives: new Set(), removedTopics: new Set() }
     try {
       for (const [from, to] of pinMoves) movePin(from, to, dir)
+      const newPins: number[] = []
       for (const row of assigned) {
-        if (row.pin === true && !supersededInBatch.has(row.seq)) pinFact(row.seq, dir, now, { pastLimit: true })
+        if (row.pin === true && !supersededInBatch.has(row.seq)) {
+          pinFact(row.seq, dir, now, { asked: row.asked === true })
+          newPins.push(row.seq)
+        }
       }
+      resolvePinnedConflicts(dir, newPins, now)
       tidy = tidyUp(dir, now, touched)
       publishFrontPage(dir, now)
     } catch (e) {

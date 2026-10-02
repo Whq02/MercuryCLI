@@ -4,7 +4,7 @@ export const REFLECT_TOOL_NAME = 'Reflect'
 export const CORRECT_TOOL_NAME = 'Correct'
 
 export const RETAIN_DESCRIPTION =
-  'Store durable facts into project memory (the MNEME observation buffer). Per-item outcomes — a failed store is reported, never swallowed.'
+  'Store durable facts into project memory; a rule the user asks to remember is pinned in their words. Per-item outcomes — a failed store is reported, never swallowed.'
 export const RECALL_DESCRIPTION =
   'Search project memory: topic documents AND still-unconsolidated observations, with stable ids and provenance signatures. Read a full record by id.'
 export const REFLECT_DESCRIPTION =
@@ -16,8 +16,8 @@ export const RETAIN_PROMPT = `Store one or more durable facts into project memor
 
 - Each item is ONE self-contained fact (content), with optional context (where it came from) and topic (routing hint).
 - The response reports a PER-ITEM outcome: stored (with its id), already-staged (this session), or refused with the reason. A refusal means the fact was NOT stored — surface it, never assume success.
-- Facts stage as pending observations and consolidate into topic documents automatically; they are recallable seconds after storing, labeled pending until consolidation.
-- This writes the OBSERVATIONAL memory log. The curated memory index (MEMORY.md) is a different store with its own lifecycle — Retain never touches it.
+- Facts stage as pending observations and consolidate into topic pages automatically; they are recallable seconds after storing, labeled pending until consolidation.
+- When the user asks you to remember a rule or a preference ("remember: …", "always …", "from now on …"), store their words AS SAID with pin: true — it joins the pinned rules loaded into every session, marked as asked for by the user, and is never reworded, merged or dropped by Mercury. Never pin on your own judgement.
 - Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records.`
 
 export const RECALL_PROMPT = `Search project memory, or read one full record.

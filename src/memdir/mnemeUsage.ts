@@ -2,13 +2,29 @@ import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
+import { getInitialSettings } from '../utils/settings/settings.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 
-export const PINNED_LIMIT = 10
+export const PINNED_TEXT_LIMIT_DEFAULT = 8000
+export const PINNED_TEXT_LIMIT_MIN = 1000
+export const PINNED_TEXT_LIMIT_STEP = 1000
+
+export function pinnedTextLimit(): number {
+  const raw = (getInitialSettings() as { memoryPinnedLimit?: unknown }).memoryPinnedLimit
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw >= PINNED_TEXT_LIMIT_MIN) return Math.floor(raw)
+  return PINNED_TEXT_LIMIT_DEFAULT
+}
+
+export function formatTextSize(chars: number): string {
+  if (chars < 1000) return `${chars}`
+  const k = chars / 1000
+  return `${k >= 10 ? Math.round(k) : Math.round(k * 10) / 10}k`
+}
 
 export interface PinRecord {
   seq: number
   at: string
+  asked?: true
 }
 
 interface PinsFile {
@@ -38,7 +54,9 @@ export function readPins(dir: string = mnemeLibraryDir()): PinRecord[] {
   try {
     const parsed = JSON.parse(readFileSync(pinsPath(dir), 'utf8')) as PinsFile
     if (!Array.isArray(parsed?.pins)) return []
-    return parsed.pins.filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
+    return parsed.pins
+      .filter(p => Number.isInteger(p?.seq) && p.seq > 0 && typeof p?.at === 'string')
+      .map(p => ({ seq: p.seq, at: p.at, ...(p.asked === true ? { asked: true as const } : {}) }))
   } catch {
     return []
   }
@@ -53,18 +71,24 @@ export function isPinned(seq: number, dir: string = mnemeLibraryDir()): boolean 
   return readPins(dir).some(p => p.seq === seq)
 }
 
-export type PinOutcome = { ok: true; pinned: number } | { ok: false; code: 'limit'; pinned: number; limit: number }
+export type PinOutcome = { ok: true; pinned: number }
 
 export function pinFact(
   seq: number,
   dir: string = mnemeLibraryDir(),
   now: Date = new Date(),
-  opts: { pastLimit?: boolean } = {},
+  opts: { asked?: boolean } = {},
 ): PinOutcome {
   const pins = readPins(dir)
-  if (pins.some(p => p.seq === seq)) return { ok: true, pinned: pins.length }
-  if (!opts.pastLimit && pins.length >= PINNED_LIMIT) return { ok: false, code: 'limit', pinned: pins.length, limit: PINNED_LIMIT }
-  pins.push({ seq, at: now.toISOString() })
+  const existing = pins.find(p => p.seq === seq)
+  if (existing) {
+    if (opts.asked && !existing.asked) {
+      existing.asked = true
+      writePins(pins, dir)
+    }
+    return { ok: true, pinned: pins.length }
+  }
+  pins.push({ seq, at: now.toISOString(), ...(opts.asked ? { asked: true as const } : {}) })
   writePins(pins, dir)
   return { ok: true, pinned: pins.length }
 }
@@ -76,12 +100,15 @@ export function unpinFact(seq: number, dir: string = mnemeLibraryDir()): { ok: b
   return { ok: true, pinned: kept.length }
 }
 
-export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibraryDir()): boolean {
+export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibraryDir(), asked?: boolean): boolean {
   const pins = readPins(dir)
   const at = pins.findIndex(p => p.seq === fromSeq)
   if (at < 0) return false
-  pins[at] = { seq: toSeq, at: pins[at]!.at }
-  writePins(pins, dir)
+  const kept = pins.filter((p, i) => i === at || p.seq !== toSeq)
+  const slot = kept.findIndex(p => p.seq === fromSeq)
+  const prior = kept[slot]!
+  kept[slot] = { seq: toSeq, at: prior.at, ...(prior.asked || asked ? { asked: true as const } : {}) }
+  writePins(kept, dir)
   return true
 }
 

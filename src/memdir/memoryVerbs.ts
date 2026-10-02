@@ -32,6 +32,7 @@ export interface RetainItemInput {
   content: string
   context?: string
   topic?: string
+  pin?: boolean
 }
 
 export type RetainItemOutcome =
@@ -48,7 +49,7 @@ export function _resetMemoryVerbSessionStateForTesting(): void {
 
 export function retainItems(
   items: RetainItemInput[],
-  provenance: { session: string; agent?: string; source?: string; pin?: boolean },
+  provenance: { session: string; agent?: string; source?: string; pin?: boolean; asked?: boolean },
   dir: string = mnemeLibraryDir(),
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
@@ -68,7 +69,13 @@ export function retainItems(
     }
     const before = pendingRows(dir).length
     const written = appendObservation(
-      { text, source: sourceBase, ...(item.topic ? { topicHint: item.topic } : {}), ...(provenance.pin ? { pin: true } : {}) },
+      {
+        text,
+        source: sourceBase,
+        ...(item.topic ? { topicHint: item.topic } : {}),
+        ...(provenance.pin || item.pin ? { pin: true } : {}),
+        ...((provenance.pin && provenance.asked) || item.pin ? { asked: true } : {}),
+      },
       dir,
     )
     if (!written) {

@@ -6,7 +6,7 @@ import { indexTopics, liveCount } from './mnemeArchive.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import type { MnemeEntry, MnemeTopicDoc } from './mnemeTopicDocs.js'
-import { PINNED_LIMIT, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
 
 export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
@@ -14,9 +14,11 @@ const INDEX_LINE_CAP = 160
 
 export interface PinnedStatus {
   pinned: number
+  used: number
   limit: number
   over: boolean
   loaded: number[]
+  asked: number[]
   renderedAt: string
 }
 
@@ -42,6 +44,10 @@ function clipLine(text: string, cap: number): string {
   return one.length > cap ? `${one.slice(0, cap - 1)}…` : one
 }
 
+export function pinnedLine(entry: MnemeEntry, pin: PinRecord): string {
+  return `- ${entry.text} <seq=${entry.seq}${pin.asked ? ', asked for by the user' : ''}>`
+}
+
 export function renderFrontPage(input: {
   dir: string
   topics: readonly MnemeTopicDoc[]
@@ -49,8 +55,10 @@ export function renderFrontPage(input: {
   pins: readonly PinRecord[]
   usage: Record<string, UsageRecord>
   now: Date
+  limit?: number
 }): { text: string; status: PinnedStatus } {
   const { dir, topics, archives, pins, usage, now } = input
+  const limit = input.limit ?? pinnedTextLimit()
   const lines: string[] = [
     '# Memory',
     `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"); Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history. Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
@@ -78,21 +86,25 @@ export function renderFrontPage(input: {
   lines.push('', '## Pinned')
   const live = liveEntryIndex(topics)
   const view = pinnedView(pins, live)
+  const pinnedLines = view.loaded.map(row => pinnedLine(row.entry, row.pin))
+  const used = pinnedLines.reduce((n, l) => n + l.length + 1, 0)
   if (view.loaded.length === 0) {
-    lines.push('(no pinned rules — the user pins standing rules and preferences in /memory; follow a pinned rule word for word)')
+    lines.push('(no pinned rules — a rule the user asks to remember is pinned as said; the user pins and unpins in /memory; follow a pinned rule word for word)')
   } else {
-    lines.push('Standing rules and preferences the user pinned — follow them word for word:')
-    for (const row of view.loaded) lines.push(`- ${row.entry.text} <seq=${row.entry.seq}>`)
+    lines.push('Standing rules and preferences the user pinned — follow them word for word; one marked "asked for by the user" is never reworded, merged or dropped:')
+    lines.push(...pinnedLines)
   }
-  if (view.loaded.length > PINNED_LIMIT) {
-    lines.push(`(${view.loaded.length} pinned rules, limit ${PINNED_LIMIT} — all loaded; the user trims in /memory)`)
+  if (used > limit) {
+    lines.push(`(the pinned rules fill ${used} of the ${limit}-character limit — all loaded; the user trims in /memory or raises the limit in /config)`)
   }
   lines.push('')
   const status: PinnedStatus = {
     pinned: view.loaded.length,
-    limit: PINNED_LIMIT,
-    over: view.loaded.length > PINNED_LIMIT,
+    used,
+    limit,
+    over: used > limit,
     loaded: view.loaded.map(r => r.entry.seq),
+    asked: view.loaded.filter(r => r.pin.asked).map(r => r.entry.seq),
     renderedAt: now.toISOString(),
   }
   void factCount
@@ -138,7 +150,7 @@ export function readFrontPage(dir: string = mnemeLibraryDir()): string | null {
 export function readPinnedStatus(dir: string = mnemeLibraryDir()): PinnedStatus | null {
   try {
     const parsed = JSON.parse(readFileSync(pinnedStatusPath(dir), 'utf8')) as PinnedStatus
-    return typeof parsed?.pinned === 'number' && typeof parsed?.limit === 'number' ? parsed : null
+    return typeof parsed?.pinned === 'number' && typeof parsed?.limit === 'number' && typeof parsed?.used === 'number' ? parsed : null
   } catch {
     return null
   }

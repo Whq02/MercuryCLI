@@ -3,10 +3,10 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import type { ToolUseContext } from '../Tool.js'
 import { MERCURY_IDENTITY_FLOOR, PERSISTENCE_LAW } from '../prompt/mercuryContract.js'
-import { experienceCardDoctrineLines } from '../memdir/experienceCards.js'
 import { getLspDoctrineLine } from '../services/lsp/mercuryLsp.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
+import { loadMemoryPrompt } from '../memdir/mnemeFrontPage.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { VERIFICATION_AGENT } from '../tools/AgentTool/built-in/verificationAgent.js'
@@ -46,6 +46,14 @@ export function agentFanoutCap(): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
+function safeMemoryPrompt(): string | null {
+  try {
+    return loadMemoryPrompt()
+  } catch {
+    return null
+  }
+}
+
 export function buildSubagentMercurySections(args: {
   agentDefinition: Pick<AgentDefinition, 'agentType'>
   toolUseContext?: Pick<ToolUseContext, 'options'>
@@ -59,8 +67,6 @@ export function buildSubagentMercurySections(args: {
 
   const operating = SUBAGENT_DOCTRINE_NORMAL
 
-  const cardDoctrine = exempt ? [] : experienceCardDoctrineLines()
-
   const posture = getRuntimePostureDoctrineLine()
 
   const lspDoctrine = getLspDoctrineLine()
@@ -70,14 +76,16 @@ export function buildSubagentMercurySections(args: {
   const envelopeDoctrine =
     changeTransactionEnabled() && !exempt ? ENVELOPE_DOCTRINE : null
 
+  const memory = safeMemoryPrompt()
+
   return [
     floor,
     operating,
-    ...cardDoctrine,
     API_CURRENCY_DOCTRINE,
     ...(posture ? [posture] : []),
     ...(lspDoctrine ? [lspDoctrine] : []),
     ...(vulcanDoctrine ? [vulcanDoctrine] : []),
     ...(envelopeDoctrine ? [envelopeDoctrine] : []),
+    ...(memory ? [memory] : []),
   ]
 }

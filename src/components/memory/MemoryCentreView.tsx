@@ -14,17 +14,10 @@ import {
   runDueMaintenance,
 } from '../../memdir/mnemeMaintenance.js'
 import { readDocLines } from '../../memdir/mnemeRetrieval.js'
-import { listExperienceCards } from '../../memdir/experienceCards.js'
-import {
-  applyCurationProposals,
-  proposeCuration,
-  readCurationReceipts,
-  readCurationSweep,
-  writeCurationSweep,
-} from '../../memdir/curationLoop.js'
-import { getAutoMemPath, isAutoMemoryEnabled } from '../../memdir/paths.js'
-import { getProjectRoot } from '../../bootstrap/state.js'
-import { isMemoryUpkeepEnabled } from '../../services/memoryUpkeep/config.js'
+import { readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
+import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../memdir/mnemeHandover.js'
+import { formatTextSize, pinFact, pinnedTextLimit, readPins, unpinFact } from '../../memdir/mnemeUsage.js'
+import { getAutoMemPath } from '../../memdir/paths.js'
 
 
 const MAX_ROWS = 10
@@ -38,7 +31,6 @@ const NOTE_COLOR: Record<'ok' | 'warn' | 'fail' | 'pending', string> = {
 
 const STATUS_TONE: Record<MemoryRef['status'], { glyph: string; color: string; label: string }> = {
   current: { glyph: '●', color: TEAL, label: 'current' },
-  candidate: { glyph: '○', color: AMBER, label: 'candidate — unverified' },
   unconsolidated: { glyph: '◌', color: SECOND, label: 'recent, unconsolidated' },
   'needs-review': { glyph: '▲', color: AMBER, label: 'needs review — cited path moved' },
 }
@@ -51,6 +43,11 @@ interface CentreRow {
   run?: () => void
 }
 
+function seqOf(ref: MemoryRef): number | null {
+  const m = /^mneme:(\d+)$/.exec(ref.refId)
+  return m ? Number(m[1]) : null
+}
+
 function refDetail(ref: MemoryRef): string[] {
   const lines: string[] = []
   if (ref.kind === 'mneme-topic' || ref.kind === 'mneme-fact') {
@@ -59,19 +56,20 @@ function refDetail(ref: MemoryRef): string[] {
     if (r) {
       lines.push(...r.content.split('\n').slice(0, 14))
       if (r.recent.length > 0) lines.push(`(+${r.recent.length} recent unconsolidated)`)
-    } else lines.push('(topic document unavailable)')
-  } else if (ref.kind === 'mneme-pending') {
-    lines.push(ref.summary, '(unconsolidated — consolidates at the next maintenance pass)')
+    } else lines.push('(topic page unavailable)')
   } else {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { readFileSync } = require('node:fs') as typeof import('node:fs')
-      lines.push(...readFileSync(ref.deref, 'utf8').split('\n').slice(0, 14))
-    } catch {
-      lines.push('(file unreadable)')
-    }
+    lines.push(ref.summary, '(unconsolidated — consolidates at the next maintenance pass)')
   }
   return lines
+}
+
+export function pinnedShelfWords(status: { pinned: number; used: number; limit: number; over: boolean } | null): string {
+  const limit = status?.limit ?? pinnedTextLimit()
+  if (!status || status.pinned === 0) return `pinned rules: none — ${formatTextSize(limit)} of room; search a fact and press p to pin it, word for word`
+  const fill = `${formatTextSize(status.used)} of ${formatTextSize(limit)}`
+  return status.over
+    ? `pinned rules: ${status.pinned} · ${fill} — over the limit, all still loaded; press u on a rule to unpin, or raise the limit in /config`
+    : `pinned rules: ${status.pinned} · ${fill} — loaded word for word every session`
 }
 
 export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
@@ -83,53 +81,31 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
 
   const buildRows = React.useCallback(async (): Promise<CentreRow[]> => {
     if (query.trim().length > 0) {
+      const pins = new Set(readPins().map(p => p.seq))
       const refs = collectMemoryRefs(query, { maxRefs: 12 })
-      return refs.map(r => ({ id: r.refId, kind: 'ref' as const, label: r.summary, ref: r }))
+      return refs.map(r => {
+        const seq = seqOf(r)
+        return { id: r.refId, kind: 'ref' as const, label: `${seq !== null && pins.has(seq) ? 'pinned · ' : ''}${r.summary}`, ref: r }
+      })
     }
     const rows: CentreRow[] = []
-    const autoOn = isAutoMemoryEnabled()
-    const cards = autoOn ? await listExperienceCards(getAutoMemPath()) : []
-    const cand = cards.filter(c => !c.meta.approved).length
     const st = mnemeStatus()
     rows.push({
       id: 'facts',
       kind: 'info',
       label: st.enabled
-        ? `project facts & decisions (mneme): ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`
-        : 'project facts & decisions: off — memory is disabled in settings (autoMemoryEnabled)',
+        ? `project facts & decisions: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`
+        : 'project facts & decisions: off — memory is disabled in settings (memory.enabled)',
     })
-    rows.push({
-      id: 'lessons',
-      kind: 'info',
-      label: `reusable lessons (cards): ${cards.length - cand} trusted · ${cand} candidate${cand === 1 ? '' : 's'} — review in /cards`,
-    })
-    rows.push({
-      id: 'notes',
-      kind: 'info',
-      label: autoOn
-        ? `auto-memory notes: on — the agent saves typed notes + MEMORY.md index here`
-        : 'auto-memory notes: off (settings memory.enabled)',
-    })
-    rows.push({
-      id: 'dream',
-      kind: 'info',
-      label: `nightly notes consolidation (upkeep): ${isMemoryUpkeepEnabled() ? 'on' : 'off'} — toggle in /memory files`,
-    })
-    if (autoOn) {
-      const sweep = readCurationSweep(getAutoMemPath())
-      const safe = sweep?.proposals.filter(p => p.safe).length ?? 0
-      const judgment = (sweep?.proposals.length ?? 0) - safe
-      const receipts = readCurationReceipts(getAutoMemPath()).length
-      rows.push({
-        id: 'curation',
-        kind: 'action',
-        label: sweep
-          ? `curation: ${safe} safe · ${judgment} judgment proposal${safe + judgment === 1 ? '' : 's'} · ${receipts} receipt${receipts === 1 ? '' : 's'} — ↵ ${safe > 0 ? 'apply safe (audit-copied)' : 're-sweep'}`
-          : 'curation: not yet swept — ↵ sweep now',
-        run: () => {},
-      })
-    }
     if (st.enabled) {
+      rows.push({ id: 'pinned', kind: 'info', label: pinnedShelfWords(readPinnedStatus()) })
+      const intake = readHandoverReceipt()
+      if (intake) {
+        const [first, pages] = renderHandoverReceipt(intake)
+        rows.push({ id: 'intake', kind: 'info', label: `notes taken in: ${first} · ${pages}` })
+      } else if (handoverDue(getAutoMemPath())) {
+        rows.push({ id: 'intake', kind: 'action', label: 'notes to take in: the existing notes are not in memory yet — ↵ take them in now', run: () => {} })
+      }
       const due = st.due ? `DUE — ${st.dueReason}` : st.running ? 'running' : 'idle'
       const degraded = st.degraded.length > 0 ? ` · ${GLYPH.fail} ${st.degraded[0]}` : ''
       rows.push({
@@ -146,7 +122,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         })
       }
     }
-    rows.push({ id: 'files', kind: 'action', label: 'instruction & note files (MERCURY.md, editor, toggles) — ↵ open picker', run: onOpenFiles })
+    rows.push({ id: 'files', kind: 'action', label: 'instruction files (MERCURY.md, editor, the memory switch) — ↵ open picker', run: onOpenFiles })
     return rows
   }, [query, onOpenFiles])
 
@@ -164,7 +140,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     onPrimary: row => {
       if (row.kind === 'ref' && row.ref) setDetail(row.ref)
       else if (row.id === 'maintenance') runMaintenance()
-      else if (row.id === 'curation') runCuration()
+      else if (row.id === 'intake' && row.kind === 'action') runIntake()
       else if (row.id === 'files' && onOpenFiles) onOpenFiles()
     },
     reloadNote: 're-read memory stores',
@@ -196,32 +172,34 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       })
   }
 
-  function runCuration(): void {
+  function runIntake(): void {
     if (fl.busyRef.current) return
     fl.busyRef.current = true
-    const dir = getAutoMemPath()
-    const pending = readCurationSweep(dir)
-    const safe = pending?.proposals.filter(p => p.safe) ?? []
-    const work =
-      safe.length > 0
-        ? (fl.setNote({ text: `applying ${safe.length} safe proposal${safe.length === 1 ? '' : 's'} …`, kind: 'pending' }),
-          applyCurationProposals(dir, safe, { approvedBy: 'operator' }).then(async out => {
-            await writeCurationSweep(dir, await proposeCuration(dir, { projectRoot: getProjectRoot() }))
-            fl.setNote({
-              text: `${GLYPH.check} applied ${out.applied.length}, refused ${out.refused.length} — audit copies kept, receipts written`,
-              kind: out.refused.length === 0 ? 'ok' : 'warn',
-            })
-          }))
-        : (fl.setNote({ text: 'sweeping the store …', kind: 'pending' }),
-          proposeCuration(dir, { projectRoot: getProjectRoot() }).then(async sweep => {
-            await writeCurationSweep(dir, sweep)
-            fl.setNote({
-              text: `${GLYPH.check} swept ${sweep.scanned} memories — ${sweep.proposals.length} proposal${sweep.proposals.length === 1 ? '' : 's'}`,
-              kind: 'ok',
-            })
-          }))
-    void work
-      .catch((e: unknown) => fl.setNote({ text: `${GLYPH.fail} curation failed: ${String(e)}`, kind: 'fail' }))
+    fl.setNote({ text: 'taking the existing notes into memory …', kind: 'pending' })
+    try {
+      const receipt = handoverIfDue(getAutoMemPath())
+      fl.setNote(receipt ? { text: `${GLYPH.check} ${renderHandoverReceipt(receipt)[0]}`, kind: 'ok' } : { text: 'nothing to take in', kind: 'warn' })
+    } catch (e) {
+      fl.setNote({ text: `${GLYPH.fail} intake failed: ${String(e)}`, kind: 'fail' })
+    } finally {
+      fl.busyRef.current = false
+      fl.reload()
+    }
+  }
+
+  function togglePin(seq: number, pin: boolean): void {
+    if (fl.busyRef.current) return
+    fl.busyRef.current = true
+    if (pin) pinFact(seq, undefined, undefined, { asked: true })
+    else unpinFact(seq)
+    fl.setNote({ text: pin ? 'pinning — republishing the front page …' : 'unpinning — republishing the front page …', kind: 'pending' })
+    void runDueMaintenance('operator', { force: true })
+      .then(() => {
+        const status = readPinnedStatus()
+        const over = status?.over ? ` — the shelf is over its limit (${formatTextSize(status.used)} of ${formatTextSize(status.limit)}); every rule still loads` : ''
+        fl.setNote({ text: `${GLYPH.check} seq ${seq} ${pin ? 'pinned word for word, marked as asked for by you' : 'unpinned'}${over}`, kind: over ? 'warn' : 'ok' })
+      })
+      .catch((e: unknown) => fl.setNote({ text: `${GLYPH.fail} pin failed: ${String(e)}`, kind: 'fail' }))
       .finally(() => {
         fl.busyRef.current = false
         fl.reload()
@@ -258,7 +236,8 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     fl.reload()
   }
 
-  const detailSeq = detail && /^mneme:(\d+)$/.exec(detail.refId)
+  const detailSeq = detail ? seqOf(detail) : null
+  const detailPinned = detailSeq !== null && readPins().some(p => p.seq === detailSeq)
   useInput(
     (input, key) => {
       if (correcting) {
@@ -268,8 +247,10 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         return
       }
       if (detail) {
-        if (input === 'c' && !key.ctrl && !key.meta && detailSeq && mnemeEnabled()) setCorrecting({ seq: Number(detailSeq[1]), buffer: '' })
-        else if (input === 'x' && detailSeq && mnemeEnabled()) retireSelected(Number(detailSeq[1]))
+        if (input === 'c' && !key.ctrl && !key.meta && detailSeq !== null && mnemeEnabled()) setCorrecting({ seq: detailSeq, buffer: '' })
+        else if (input === 'x' && detailSeq !== null && mnemeEnabled()) retireSelected(detailSeq)
+        else if (input === 'p' && detailSeq !== null && mnemeEnabled() && !detailPinned) togglePin(detailSeq, true)
+        else if (input === 'u' && detailSeq !== null && mnemeEnabled() && detailPinned) togglePin(detailSeq, false)
         return
       }
       if (loadError && input === 'r' && !key.ctrl && !key.meta) {
@@ -292,7 +273,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
   const footer = correcting
     ? '↵ save correction · esc cancel'
     : detail
-      ? `${detailSeq && mnemeEnabled() ? 'c correct · x retire · ' : ''}esc back`
+      ? `${detailSeq !== null && mnemeEnabled() ? `c correct · x retire · ${detailPinned ? 'u unpin' : 'p pin'} · ` : ''}esc back`
       : query
         ? '↑↓ move · ↵ inspect · esc clear'
         : 'type to search · ↑↓ move · ↵ act · esc close'
@@ -302,7 +283,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       <Box flexDirection="column">
         <Box marginTop={1}>
           <Text color={FAINT}>{'search: '}</Text>
-          <Text color={query ? IVORY : FAINT}>{query || '(type to search facts, lessons and notes)'}</Text>
+          <Text color={query ? IVORY : FAINT}>{query || '(type to search facts and rules)'}</Text>
           <Text color={accent}>{correcting ? '' : '▁'}</Text>
         </Box>
 
@@ -315,7 +296,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           <Box marginTop={1} flexDirection="column">
             <Box>
               <StateBadge state={detail.status === 'current' ? 'live' : 'gated'} label={STATUS_TONE[detail.status].label} />
-              <Text color={FAINT}>{`  ${detail.refId}`}</Text>
+              <Text color={FAINT}>{`  ${detail.refId}${detailPinned ? ' · pinned' : ''}`}</Text>
             </Box>
             <Text color={FAINT}>{truncateToWidth(`why recalled: ${detail.why}${detail.capturedAt ? ` · captured ${detail.capturedAt.slice(0, 16)}` : ''}${detail.source ? ` · source ${detail.source}` : ''}`, 76)}</Text>
             <Box marginTop={1} flexDirection="column">
@@ -368,7 +349,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         ) : null}
 
         <Box marginTop={1}>
-          <Text color={FAINT}>facts & decisions live in topic documents; corrections keep history · lessons: /cards · save: /remember</Text>
+          <Text color={FAINT}>facts live in topic pages; corrections keep history · pinned rules load every session · the model saves with Retain</Text>
         </Box>
       </Box>
     </CommandCenter>

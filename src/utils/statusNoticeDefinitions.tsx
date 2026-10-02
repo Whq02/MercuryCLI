@@ -21,6 +21,7 @@ import { formatNumber } from './format.js'
 import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from './statusNoticeHelpers.js'
 import { readPinnedStatus } from '../memdir/mnemeFrontPage.js'
 import { mnemeEnabled } from '../memdir/mnemeGates.js'
+import { formatTextSize } from '../memdir/mnemeUsage.js'
 
 
 export type StatusNoticeType = 'warning' | 'info'
@@ -172,18 +173,19 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
   },
 }
 
-function pinnedOverLimit(): { pinned: number; limit: number } | null {
+function pinnedOverLimit(): { pinned: number; used: number; limit: number } | null {
   try {
     if (!mnemeEnabled()) return null
+    if (process.env.MERCURY_ENTRYPOINT === 'headless') return null
     const status = readPinnedStatus()
-    return status && status.over ? { pinned: status.pinned, limit: status.limit } : null
+    return status && status.over ? { pinned: status.pinned, used: status.used, limit: status.limit } : null
   } catch {
     return null
   }
 }
 
-export function pinnedOverLimitLine(status: { pinned: number; limit: number }): string {
-  return `${status.pinned} pinned memory rules, limit ${status.limit} — all still loaded. Trim in /memory.`
+export function pinnedOverLimitLine(status: { pinned: number; used: number; limit: number }): string {
+  return `Pinned memory: ${status.pinned} rule${status.pinned === 1 ? '' : 's'}, ${formatTextSize(status.used)} of the ${formatTextSize(status.limit)} limit — all still loaded. Trim in /memory or raise the limit in /config.`
 }
 
 const pinnedOverLimitNotice: StatusNoticeDefinition = {

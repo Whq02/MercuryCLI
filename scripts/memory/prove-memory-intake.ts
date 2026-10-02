@@ -33,7 +33,7 @@ if (!intake) {
 }
 const { handoverIfDue, handoverMemoryDir, handoverDue, readHandoverReceipt, handoverHome, listOldNotes, chunkNote, renderHandoverReceipt } = intake
 const { listTopicDocs, listArchiveDocs } = await import('../../src/memdir/mnemeConsolidate.js')
-const { readPins, pinFact, PINNED_LIMIT } = await import('../../src/memdir/mnemeUsage.js')
+const { readPins, pinFact } = await import('../../src/memdir/mnemeUsage.js')
 const { readFrontPage, readPinnedStatus } = await import('../../src/memdir/mnemeFrontPage.js')
 const { readBuffer } = await import('../../src/memdir/mnemeBuffer.js')
 const { seqCensus } = await import('../../src/memdir/mnemeArchive.js')
@@ -110,27 +110,31 @@ check('no old file was rewritten', [...mtimes.entries()].every(([n, m]) => statS
 check('the receipt renders for the memory centre', renderHandoverReceipt(receipt!)[0]!.startsWith('10 notes → ') && renderHandoverReceipt(receipt!)[1]!.startsWith('pages:'))
 check('no archive page was made of fresh facts', listArchiveDocs(lib).length === 0)
 
-section('a first intake over the pinned limit keeps every rule loaded and says so once per session')
+section('a first intake past the pinned limit keeps every rule loaded and says so once per session')
 const bigMem = join(home, 'projects', '-Users-someone-code-big', 'memory')
 mkdirSync(bigMem, { recursive: true })
-for (let i = 0; i < PINNED_LIMIT + 3; i++) {
-  const [name, body] = note(`feedback-rule-${String(i).padStart(2, '0')}`, 'feedback', `Standing rule ${i}: do the thing ${i} this way.`)
+const BIG = 40
+for (let i = 0; i < BIG; i++) {
+  const [name, body] = note(`feedback-rule-${String(i).padStart(2, '0')}`, 'feedback', `Standing rule ${i}: do the thing ${i} this way, every time, with the long explanation of why that fills the shelf with text (${'x'.repeat(200)}).`)
   writeFileSync(join(bigMem, name), body)
 }
 const bigReceipt = handoverIfDue(bigMem, T0)
-check(`all ${PINNED_LIMIT + 3} rules landed pinned`, bigReceipt?.pinned === PINNED_LIMIT + 3, JSON.stringify(bigReceipt))
+check(`all ${BIG} rules landed pinned`, bigReceipt?.pinned === BIG, JSON.stringify(bigReceipt))
 const bigLib = join(bigMem, 'library')
 const bigStatus = readPinnedStatus(bigLib)
-check('every rule is loaded and the tier is over its limit', bigStatus?.loaded.length === PINNED_LIMIT + 3 && bigStatus.over === true, JSON.stringify(bigStatus))
-check('the front page carries all of them', (readFrontPage(bigLib) ?? '').includes(`Standing rule ${PINNED_LIMIT + 2}:`))
+check('every rule is loaded and the shelf is over its text limit', bigStatus?.loaded.length === BIG && bigStatus.over === true && bigStatus.used > bigStatus.limit, JSON.stringify(bigStatus))
+check('the front page carries all of them', (readFrontPage(bigLib) ?? '').includes(`Standing rule ${BIG - 1}:`))
+check('an intake pin is not marked as asked for by the user', bigStatus?.asked.length === 0)
 const extraSeq = listTopicDocs(bigLib)[0]!.sections[0]!.entries[0]!.seq
-check('the centre cannot pin past the limit while over it', pinFact(extraSeq + 1000, bigLib).ok === false)
+check('a later pin is still never refused', pinFact(extraSeq, bigLib).ok === true)
 const { pinnedOverLimitLine } = await import('../../src/utils/statusNoticeDefinitions.js')
-check('the calm line names the count, the limit, that all are loaded, and where to trim',
-  pinnedOverLimitLine({ pinned: bigStatus?.pinned ?? 0, limit: PINNED_LIMIT }) === `${PINNED_LIMIT + 3} pinned memory rules, limit ${PINNED_LIMIT} — all still loaded. Trim in /memory.`)
+check('the calm line names the count, the fill, the limit, that all are loaded, and both ways out',
+  pinnedOverLimitLine({ pinned: bigStatus?.pinned ?? 0, used: bigStatus?.used ?? 0, limit: bigStatus?.limit ?? 0 }).startsWith(`Pinned memory: ${BIG} rules, `) &&
+    pinnedOverLimitLine({ pinned: 1, used: 9600, limit: 8000 }) === 'Pinned memory: 1 rule, 9.6k of the 8k limit — all still loaded. Trim in /memory or raise the limit in /config.')
 const notices = readFileSync(join(ROOT, 'src/utils/statusNoticeDefinitions.tsx'), 'utf8')
 check('the line is a start-of-session notice row, not a composer line', notices.includes("id: 'pinned-over-limit'") && notices.includes("type: 'info'"))
-check('the composer carries no pinned line', !existsSync(join(ROOT, 'src/components/PromptInput/PinnedOverLimitLine.tsx')) && !/pinned.*limit/i.test(readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')))
+check('the line never shows in a headless run', notices.includes("process.env.MERCURY_ENTRYPOINT === 'headless') return null"))
+check('the composer carries no pinned line', !/pinned.*limit/i.test(readFileSync(join(ROOT, 'src/components/PromptInput/PromptInput.tsx'), 'utf8')))
 
 section('a whole home at once, and the boot wiring')
 const summary = handoverHome(home, T0)
