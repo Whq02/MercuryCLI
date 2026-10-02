@@ -9,6 +9,7 @@ import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult 
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
+import { isCrewRole } from '../utils/workerRole.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -71,6 +72,7 @@ export function retainItems(
 ): RetainItemOutcome[] {
   const outcomes: RetainItemOutcome[] = []
   const sourceBase = provenance.source ?? `tool:Retain s:${provenance.session.slice(0, 8)}${provenance.agent ? ` a:${provenance.agent.slice(0, 12)}` : ''}`
+  const usersOwnChat = provenance.agent === undefined && !isCrewRole()
   items.forEach((item, index) => {
     const content = (item.content ?? '').trim()
     if (!content) {
@@ -93,6 +95,7 @@ export function retainItems(
       return
     }
     const pin = provenance.pin || item.pin || replacement !== null
+    const askedByUser = (provenance.pin && provenance.asked) || (usersOwnChat && (item.pin || replacement !== null))
     const before = pendingRows(dir).length
     const written = appendObservation(
       {
@@ -100,7 +103,7 @@ export function retainItems(
         source: sourceBase,
         ...(topic ? { topicHint: topic } : replacement?.ok ? { topicHint: replacement.slug } : {}),
         ...(pin ? { pin: true } : {}),
-        ...((provenance.pin && provenance.asked) || item.pin || replacement !== null ? { asked: true } : {}),
+        ...(askedByUser ? { asked: true } : {}),
         ...(replacement?.ok ? { replaces: replacement.seq } : {}),
       },
       dir,
