@@ -66,9 +66,13 @@ says so — how much is pinned, the limit, that all of it is loaded, and where
 to trim. The line never appears in a crewmate's chat or in `mercury run`
 output. Crewmates and sub-agents receive the front page with the pinned rules.
 
-Two pinned rules on the same matter resolve in favour of the newer one: it
-takes the older rule's place and the older text is kept as history. A rule
-you asked for is never replaced by one Mercury pinned on its own.
+A pinned rule is replaced only when the newer rule names it: you say the new
+rule replaces the old one (the model passes the old rule's id with the new
+rule), or you correct the rule yourself in the memory centre. The newer rule
+then takes the older one's place on the shelf and the older text is kept as
+history. Rules that merely share words are not a conflict — both stay. A rule
+you asked for is yours alone: the model's Correct refuses it, consolidation
+leaves it as said, and only you change or unpin it in `/memory`.
 
 ## Existing notes
 

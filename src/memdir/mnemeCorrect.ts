@@ -23,7 +23,7 @@ import {
   type MnemeTopicDoc,
 } from './mnemeTopicDocs.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
-import { isPinned, movePin, unpinFact } from './mnemeUsage.js'
+import { isPinned, movePin, readPins, unpinFact } from './mnemeUsage.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -36,10 +36,20 @@ export type MnemeCorrectResult =
   | { ok: true; action: 'corrected' | 'retired'; seq: number; targetSeq: number; slug: string }
   | {
       ok: false
-      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'error'
+      code: 'off' | 'unknown-target' | 'already-superseded' | 'busy' | 'invalid' | 'user-asked-rule' | 'error'
       message: string
       supersededBy?: number
     }
+
+export function userAskedRuleMessage(seq: number): string {
+  return `seq ${seq} is a rule the user asked Mercury to remember — only the user changes or unpins it, in /memory`
+}
+
+function userAskedRule(targetSeq: number, dir: string, byUser: boolean | undefined): MnemeCorrectResult | null {
+  if (byUser === true) return null
+  const pin = readPins(dir).find(p => p.seq === targetSeq)
+  return pin?.asked ? { ok: false, code: 'user-asked-rule', message: userAskedRuleMessage(targetSeq) } : null
+}
 
 interface Holder {
   doc: MnemeTopicDoc
@@ -82,6 +92,7 @@ export function correctFact(input: {
   source: string
   dir?: string
   now?: Date
+  byUser?: boolean
 }): MnemeCorrectResult {
   if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
@@ -107,6 +118,8 @@ export function correctFact(input: {
       }
       return { ok: false, code: 'unknown-target', message: `seq ${input.targetSeq} is not in this library` }
     }
+    const asked = userAskedRule(input.targetSeq, dir, input.byUser)
+    if (asked) return asked
     const { doc, heading } = found.live
     const meta = readLibraryMeta(dir)
     const newSeq = meta.seqCounter + 1
@@ -130,7 +143,7 @@ export function correctFact(input: {
       return { ok: false, code: 'error', message: 'post-write verification failed — the correction may not have landed; re-read and retry' }
     }
     if (isPinned(input.targetSeq, dir)) {
-      movePin(input.targetSeq, newSeq, dir)
+      movePin(input.targetSeq, newSeq, dir, input.byUser === true)
       publishFrontPage(dir, input.now ?? new Date())
     }
     return { ok: true, action: 'corrected', seq: newSeq, targetSeq: input.targetSeq, slug: doc.slug }
@@ -147,6 +160,7 @@ export function retireFact(input: {
   source: string
   dir?: string
   now?: Date
+  byUser?: boolean
 }): MnemeCorrectResult {
   if (!mnemeEnabled()) return { ok: false, code: 'off', message: 'memory is off (memory.enabled is false in settings).' }
   const dir = input.dir ?? mnemeLibraryDir()
@@ -172,6 +186,8 @@ export function retireFact(input: {
       }
       return { ok: false, code: 'unknown-target', message: `seq ${input.targetSeq} is not in this library` }
     }
+    const asked = userAskedRule(input.targetSeq, dir, input.byUser)
+    if (asked) return asked
     const { doc, heading, entry: target } = found.live
     const meta = readLibraryMeta(dir)
     const newSeq = meta.seqCounter + 1

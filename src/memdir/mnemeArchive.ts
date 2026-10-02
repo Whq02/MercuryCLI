@@ -1,4 +1,4 @@
-import { emptyArchiveDoc, emptyDoc, isArchiveDoc, type MnemeEntry, type MnemeTopicDoc } from './mnemeTopicDocs.js'
+import { emptyArchiveDoc, emptyDoc, isArchiveDoc, type MnemeEntry, type MnemeSection, type MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { lastUsedMs, type PinRecord, type UsageRecord } from './mnemeUsage.js'
 
 export const ARCHIVE_AFTER_DAYS = 90
@@ -17,11 +17,60 @@ export interface TidyInput {
 export interface TidyResult {
   archived: number
   restored: number
+  merged: number
   topicsArchived: string[]
   conserved: boolean
   touchedTopics: Set<string>
   touchedArchives: Set<string>
   removedTopics: Set<string>
+  pinMoves: Array<[number, number]>
+}
+
+export function normaliseFact(text: string): string {
+  return text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+}
+
+interface LiveHolder {
+  doc: MnemeTopicDoc
+  section: MnemeSection
+  entry: MnemeEntry
+}
+
+function mergeDuplicates(topics: Map<string, MnemeTopicDoc>, pins: readonly PinRecord[], nowIso: string, result: TidyResult): void {
+  const asked = new Set(pins.filter(p => p.asked).map(p => p.seq))
+  const pinned = new Set(pins.map(p => p.seq))
+  const groups = new Map<string, LiveHolder[]>()
+  for (const doc of topics.values()) {
+    for (const section of doc.sections) {
+      for (const entry of section.entries) {
+        const key = normaliseFact(entry.text)
+        if (!key) continue
+        const list = groups.get(key) ?? []
+        list.push({ doc, section, entry })
+        groups.set(key, list)
+      }
+    }
+  }
+  const rank = (h: LiveHolder): number => (asked.has(h.entry.seq) ? 2 : pinned.has(h.entry.seq) ? 1 : 0)
+  for (const holders of groups.values()) {
+    if (holders.length < 2) continue
+    const keeper = holders.reduce((best, h) => (rank(h) > rank(best) || (rank(h) === rank(best) && h.entry.seq > best.entry.seq) ? h : best))
+    for (const h of holders) {
+      if (h === keeper || asked.has(h.entry.seq)) continue
+      const at = h.section.entries.indexOf(h.entry)
+      if (at < 0) continue
+      h.section.entries.splice(at, 1)
+      h.doc.history.push({ ...h.entry, supersededBy: keeper.entry.seq })
+      h.doc.updated = nowIso
+      h.doc.updateLog.push(`${nowIso} seq ${h.entry.seq} merged into seq ${keeper.entry.seq} (the same fact twice)`)
+      keeper.entry.supersedes = keeper.entry.supersedes ? `${keeper.entry.supersedes},${h.entry.seq}` : String(h.entry.seq)
+      keeper.doc.updated = nowIso
+      if (pinned.has(h.entry.seq)) result.pinMoves.push([h.entry.seq, keeper.entry.seq])
+      result.merged++
+      result.touchedTopics.add(h.doc.slug)
+      result.touchedTopics.add(keeper.doc.slug)
+    }
+  }
 }
 
 export function seqCensus(docs: Iterable<MnemeTopicDoc>): string {
@@ -108,12 +157,16 @@ export function tidyLibrary(input: TidyInput): TidyResult {
   const result: TidyResult = {
     archived: 0,
     restored: 0,
+    merged: 0,
     topicsArchived: [],
     conserved: true,
     touchedTopics: new Set(),
     touchedArchives: new Set(),
     removedTopics: new Set(),
+    pinMoves: [],
   }
+
+  mergeDuplicates(topics, pins, nowIso, result)
 
   for (const [slug, archive] of [...archives.entries()]) {
     if (isArchiveDoc(archive) === false) continue

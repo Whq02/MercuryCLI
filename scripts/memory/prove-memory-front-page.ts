@@ -2,7 +2,7 @@
 // gate-watch: src/memdir/mnemeFrontPage.ts src/memdir/mnemeUsage.ts src/memdir/mnemeArchive.ts
 // gate-watch: src/memdir/mnemeLookup.ts src/memdir/mnemeConsolidate.ts src/memdir/mnemeCorrect.ts
 // gate-watch: src/memdir/mnemeLibrary.ts src/memdir/mnemeTopicDocs.ts src/constants/prompts.ts
-// gate-watch: src/memdir/mnemePinnedConflicts.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
+// gate-watch: src/memdir/memoryVerbs.ts src/memdir/mnemeBuffer.ts src/utils/statusNoticeDefinitions.tsx src/constants/subagentDoctrine.ts
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -115,26 +115,116 @@ maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 60_000) })
 const status = readPinnedStatus(dir)
 check('the published status carries the fill and the limit', status !== null && status.used > 0 && status.limit === PINNED_TEXT_LIMIT_DEFAULT && status.pinned === RULES, JSON.stringify(status))
 
-section('two rules on the same matter: the newer replaces the older in place, never over a user-asked one')
-const { resolvePinnedConflicts, rulesOverlap } = await import('../../src/memdir/mnemePinnedConflicts.js')
-check('near-identical rules overlap above the threshold', rulesOverlap('always run the suites in parallel on the mini', 'always run the suites in parallel on the mini, never serialise') >= 0.6)
-check('unrelated rules do not', rulesOverlap('always run the suites in parallel', 'commit as Whq02 with a heredoc message') < 0.6)
-retainItems([{ content: 'about commits: handle commits the careful way, with care with care with care and say so in the commits report — and sign as Whq02', topic: 'rules', pin: true }], { session: 'fp-conflict' }, dir)
+section("a rule the user asked for is the user's: the model's Correct is refused, consolidation leaves it alone, only the user changes it")
+const { correctMemory } = await import('../../src/memdir/memoryVerbs.js')
+const { readBuffer } = await import('../../src/memdir/mnemeBuffer.js')
+const liveIn = (slug: string, seq: number): boolean => listTopicDocs(dir).find(d => d.slug === slug)?.sections.some(s => s.entries.some(e => e.seq === seq)) === true
+const askedSeq = ruleSeqs[0]!
+const modelSupersede = correctMemory({ op: 'supersede', id: `seq:${askedSeq}`, content: 'handle deploys however is fastest', reason: 'the model judged the rule outdated', session: 'model-session' }, dir)
+check("the model's supersede of an asked rule is refused with one line that says the rule is the user's", !modelSupersede.ok && modelSupersede.code === 'user-asked-rule' && modelSupersede.message.includes('only the user') && modelSupersede.message.includes('/memory'), JSON.stringify(modelSupersede))
+const modelRetract = correctMemory({ op: 'retract', id: `seq:${askedSeq}`, reason: 'the model thinks it is wrong', session: 'model-session' }, dir)
+check("the model's retract is refused the same way", !modelRetract.ok && modelRetract.code === 'user-asked-rule', JSON.stringify(modelRetract))
+check('the asked rule is still live, pinned and marked, word for word', liveIn('rules', askedSeq) && readPins(dir).some(p => p.seq === askedSeq && p.asked) && (readFrontPage(dir) ?? '').includes(`<seq=${askedSeq}, asked for by the user>`))
+const plainSeq = ruleSeqs[1]!
+const modelFix = correctMemory({ op: 'supersede', id: `seq:${plainSeq}`, content: 'about commits: sign them as Whq02 and say so in the commits report', reason: 'the owner said so', session: 'model-session' }, dir)
+check('the model may still correct a rule Mercury pinned on its own', modelFix.ok, JSON.stringify(modelFix))
+check('the pin followed the correction and carries no asked mark — the mark never travels onto model words', modelFix.ok && readPins(dir).some(p => p.seq === modelFix.newSeq && !p.asked) && !readPins(dir).some(p => p.seq === plainSeq))
+appendObservation({ text: 'a rewrite of the asked rule', source: 'proof', topicHint: 'rules' }, dir)
+const refusedDraft = maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 70_000), rewriter: ({ rows }) => ({ blocks: [{ topicSlug: 'rules', heading: 'notes', entries: rows.map(r => ({ text: r.text, seq: r.seq, time: r.ts, source: r.source, supersedes: String(askedSeq) })) }] }) })
+check('a consolidation draft that would replace an asked rule is refused by the checker and the batch goes back to the buffer', !refusedDraft.consolidated && (refusedDraft.refusedDraft ?? '').includes('asked for') && readBuffer(dir).length === 1 && liveIn('rules', askedSeq), refusedDraft.reason)
+maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 75_000) })
+const userFix = correctFact({ targetSeq: askedSeq, text: 'about deploys: deploy from the mercury-working checkout, say so in the deploys report', source: 'operator', dir, now: new Date(T0.getTime() + 80_000), byUser: true })
+check("the user's own correction in /memory replaces the asked rule in place: the old words are history, the pin slot keeps the asked mark", userFix.ok && !liveIn('rules', askedSeq) && listTopicDocs(dir).find(d => d.slug === 'rules')!.history.some(e => e.seq === askedSeq && e.supersededBy === userFix.seq) && readPins(dir).some(p => p.seq === userFix.seq && p.asked) && !readPins(dir).some(p => p.seq === askedSeq), JSON.stringify(userFix))
+
+section('two rules conflict only when the newer one names the older: a named replacement takes the slot; rules that merely share words both stay')
+const seqOfText = (slug: string, text: string): number => listTopicDocs(dir).find(d => d.slug === slug)?.sections.flatMap(s => s.entries).find(e => e.text === text)?.seq ?? -1
+retainItems([{ content: 'never run the pool before a fold', pin: true }], { session: 'fp-pool' }, dir)
 _resetMemoryVerbSessionStateForTesting()
-const beforeConflict = readPins(dir).map(p => p.seq)
-const conflictRun = maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 90_000) })
-check('the batch landed', conflictRun.consolidated, conflictRun.reason)
-const afterConflict = readPins(dir)
-const rulesDoc = listTopicDocs(dir).find(d => d.slug === 'rules')!
-const newest = Math.max(...rulesDoc.sections.flatMap(s => s.entries.map(e => e.seq)))
-check('the older rule (Mercury-pinned, not asked) left the live page for history, superseded by the newer', rulesDoc.history.some(e => e.seq === ruleSeqs[1] && e.supersededBy === newest))
-check('the pin kept its slot and now points at the newer rule', afterConflict.length === beforeConflict.length && afterConflict.some(p => p.seq === newest) && !afterConflict.some(p => p.seq === ruleSeqs[1]))
-retainItems([{ content: 'about deploys: handle deploys the careful way, with care with care with care and say so in the deploys report — but faster', topic: 'rules' }], { session: 'fp-conflict-2', pin: true, asked: false }, dir)
+maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 90_000) })
+retainItems([{ content: 'never run the drives before a fold', pin: true }], { session: 'fp-drives' }, dir)
 _resetMemoryVerbSessionStateForTesting()
-maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 95_000) })
-const rulesDoc2 = listTopicDocs(dir).find(d => d.slug === 'rules')!
-check('a user-asked rule is never replaced by a rule Mercury pinned on its own', rulesDoc2.sections.some(s => s.entries.some(e => e.seq === ruleSeqs[0])) && readPins(dir).some(p => p.seq === ruleSeqs[0] && p.asked))
-void resolvePinnedConflicts
+maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 91_000) })
+const poolSeq = seqOfText('general', 'never run the pool before a fold')
+const drivesSeq = seqOfText('general', 'never run the drives before a fold')
+check('two rules that share most of their words both stay live and pinned — no word-overlap guess decides a conflict', liveIn('general', poolSeq) && liveIn('general', drivesSeq) && readPins(dir).some(p => p.seq === poolSeq) && readPins(dir).some(p => p.seq === drivesSeq))
+appendObservation({ text: 'deploy from the worktree after the gate', source: 'handover:project-deploy', topicHint: 'preferences', pin: true }, dir)
+maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 92_000) })
+const oldDeploy = seqOfText('preferences', 'deploy from the worktree after the gate')
+const oldSlot = readPins(dir).find(p => p.seq === oldDeploy)!
+check('a rule pinned without the user asking (as the intake pins) carries no asked mark', oldSlot.asked !== true)
+const replacing = retainItems([{ content: 'deploy from the mercury-working checkout after the gate, never from a worktree', replaces: `seq:${oldDeploy}` }], { session: 'fp-replace' }, dir)
+_resetMemoryVerbSessionStateForTesting()
+check('a retain that names the pinned rule it replaces is stored', replacing[0]?.status === 'stored', JSON.stringify(replacing))
+const replaced = maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 93_000) })
+check('the batch landed', replaced.consolidated, replaced.reason)
+const newDeploy = seqOfText('preferences', 'deploy from the mercury-working checkout after the gate, never from a worktree')
+const prefDoc = listTopicDocs(dir).find(d => d.slug === 'preferences')!
+check('the newer rule took the older\'s place: the older is history under it, on the same page', !liveIn('preferences', oldDeploy) && prefDoc.history.some(e => e.seq === oldDeploy && e.supersededBy === newDeploy) && prefDoc.sections.some(s => s.entries.some(e => e.seq === newDeploy && e.supersedes === String(oldDeploy))))
+const newSlot = readPins(dir).find(p => p.seq === newDeploy)
+check('the pin kept its slot, now holds the newer rule and is marked asked for by the user', newSlot !== undefined && newSlot.at === oldSlot.at && newSlot.asked === true && !readPins(dir).some(p => p.seq === oldDeploy), JSON.stringify(newSlot))
+const refusedAsked = retainItems([{ content: 'deploy however you like', replaces: `seq:${newDeploy}` }], { session: 'fp-replace-asked' }, dir)
+check("a replacement naming a rule the user asked for is refused, with the way out", refusedAsked[0]?.status === 'refused' && refusedAsked[0].reason.includes('only the user') && refusedAsked[0].reason.includes('/memory'), JSON.stringify(refusedAsked))
+const refusedPlain = retainItems([{ content: 'a fact about deploys', replaces: `seq:${listTopicDocs(dir).find(d => d.slug === 'deploy')!.sections[0]!.entries[0]!.seq}` }], { session: 'fp-replace-plain' }, dir)
+check('a replacement naming a plain fact is refused — Correct supersedes facts', refusedPlain[0]?.status === 'refused' && refusedPlain[0].reason.includes('not a pinned rule'), JSON.stringify(refusedPlain))
+check('the refused retains stored nothing', readBuffer(dir).length === 0)
+
+section('consolidation merges duplicates: the same fact retained again becomes one live copy with its history kept, nothing lost')
+const { normaliseFact } = await import('../../src/memdir/mnemeArchive.js')
+const dupDir = join(scratch, 'library-dupes')
+const COPIES = ['The gate runs before every deploy.', 'the gate runs before every deploy', 'The gate runs before every deploy!']
+check('the three copies share one shape (case, spacing and punctuation aside)', typeof normaliseFact === 'function' && new Set(COPIES.map(normaliseFact)).size === 1)
+COPIES.forEach((text, i) => {
+  retainItems([{ content: text, topic: 'project' }], { session: `dup-${i}` }, dupDir)
+  _resetMemoryVerbSessionStateForTesting()
+  maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + i * 1000) })
+})
+retainItems([{ content: 'the gate runs after every deploy', topic: 'project' }], { session: 'dup-other' }, dupDir)
+_resetMemoryVerbSessionStateForTesting()
+const dupRun = maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 5000) })
+const projectDoc = listTopicDocs(dupDir).find(d => d.slug === 'project')!
+const liveTexts = projectDoc.sections.flatMap(s => s.entries.map(e => e.text))
+check('one live copy remains — the newest — beside the different fact', liveTexts.length === 2 && liveTexts.includes(COPIES[2]!) && liveTexts.includes('the gate runs after every deploy'), JSON.stringify(liveTexts))
+check('the earlier copies are history, each under the copy that followed it', projectDoc.history.some(e => e.seq === 1 && e.supersededBy === 2) && projectDoc.history.some(e => e.seq === 2 && e.supersededBy === 3) && projectDoc.history.length === 2, JSON.stringify(projectDoc.history.map(e => [e.seq, e.supersededBy])))
+check('the checker conserved every seq', seqCensus([...listTopicDocs(dupDir), ...listArchiveDocs(dupDir)]) === '1,2,3,4' && (dupRun.tidy?.conserved ?? false))
+check('the index line counts two facts, not four', /^- project \(2 facts\)$/m.test(readFrontPage(dupDir) ?? ''), (readFrontPage(dupDir) ?? '').split('\n').find(l => l.startsWith('- project')))
+retainItems([{ content: 'Never push to main.', pin: true }], { session: 'dup-asked' }, dupDir)
+_resetMemoryVerbSessionStateForTesting()
+maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 6000) })
+retainItems([{ content: 'never push to main', topic: 'project' }], { session: 'dup-echo' }, dupDir)
+_resetMemoryVerbSessionStateForTesting()
+maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 7000) })
+const allLive = listTopicDocs(dupDir).flatMap(d => d.sections.flatMap(s => s.entries))
+check("a copy of a rule the user asked for merges into the asked rule — the user's words stay as said", allLive.some(e => e.text === 'Never push to main.') && !allLive.some(e => e.text === 'never push to main') && listTopicDocs(dupDir).some(d => d.history.some(e => e.text === 'never push to main')))
+retainItems([{ content: 'Never push to main.', pin: true }], { session: 'dup-asked-again' }, dupDir)
+_resetMemoryVerbSessionStateForTesting()
+maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 8000) })
+check('two copies the user asked for both stay — Mercury never merges an asked rule away', listTopicDocs(dupDir).flatMap(d => d.sections.flatMap(s => s.entries)).filter(e => e.text === 'Never push to main.').length === 2 && readPins(dupDir).filter(p => p.asked).length === 2)
+
+section('a crash between the pages and the pins loses no pin: the batch manifest carries the pin intent')
+const { unpinFact: unpinCrash } = await import('../../src/memdir/mnemeUsage.js')
+const { writeFileSync: writeCrash } = await import('node:fs')
+const crashDir = join(scratch, 'library-crash')
+appendObservation({ text: 'always say what happened first', source: 'tool:Retain s:crash', topicHint: 'rules', pin: true, asked: true }, crashDir)
+const crashRow = readBuffer(crashDir)[0]!
+maybeConsolidate({ force: true, dir: crashDir, now: T0 })
+const crashSeq = listTopicDocs(crashDir)[0]!.sections[0]!.entries[0]!.seq
+check('the rule is pinned after a clean run', readPins(crashDir).some(p => p.seq === crashSeq && p.asked))
+unpinCrash(crashSeq, crashDir)
+const fnv = (s: string): string => {
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  return (h >>> 0).toString(16)
+}
+writeCrash(join(crashDir, `batch-${crashSeq}-${crashSeq}.json`), JSON.stringify({ version: 1, rows: [{ seq: crashSeq, h: fnv(`${crashRow.ts}\u0000${crashRow.source}\u0000${crashRow.text}`), pin: true, asked: true }] }))
+writeCrash(join(crashDir, 'consuming-1-crash.jsonl'), JSON.stringify(crashRow) + '\n')
+const recovered = maybeConsolidate({ force: true, dir: crashDir, now: new Date(T0.getTime() + 1000) })
+check('the re-absorption finds the rows landed and finishes the cleanup', recovered.reason === 'crashed batch had fully landed; cleanup completed', recovered.reason)
+check('the pin is replayed from the manifest with its asked mark', readPins(crashDir).some(p => p.seq === crashSeq && p.asked), JSON.stringify(readPins(crashDir)))
+check('the front page shows the rule pinned again', (readFrontPage(crashDir) ?? '').includes(`<seq=${crashSeq}, asked for by the user>`))
+check('no duplicate landed', listTopicDocs(crashDir).reduce((n, d) => n + d.sections.reduce((m, s) => m + s.entries.length, 0), 0) === 1)
 
 section('the automatic lookup: up to five facts, pointing at the pages, never a loaded pin')
 const hits = lookupFacts('how is the runtime deployed from the checkout', { dir })
@@ -166,7 +256,7 @@ const after = seqCensus([...listTopicDocs(dir), ...listArchiveDocs(dir)])
 const freshSeq = listTopicDocs(dir).find(d => d.slug === 'fresh')!.sections[0]!.entries[0]!.seq
 check('every seq is still in the library (archive included), plus the new one', after === [...before.split(',').map(Number), freshSeq].sort((a, b) => a - b).join(','))
 check('the pinned rules were not archived', listArchiveDocs(dir).every(d => !d.sections.some(s => s.entries.some(e => readPins(dir).some(p => p.seq === e.seq)))))
-check('an archive page exists off the index', existsSync(join(dir, 'archive-deploy.md')) && !/^- deploy\b/m.test(readFrontPage(dir) ?? ''))
+check('an archive page exists off the index', existsSync(join(dir, 'archive-deploy.md')) && !/^- deploy\b/m.test((readFrontPage(dir) ?? '').split('## Pinned')[0]!))
 check('the front page counts the archived facts', /\d+ facts? not used in a long time sit in archive pages/.test(readFrontPage(dir) ?? ''))
 const archivedRecall = recallQuery('deploy-runtime', { dir })
 check('Recall still finds an archived fact and labels it', archivedRecall.hits.some(h => h.label === 'archived'), JSON.stringify(archivedRecall.hits.map(h => h.label)))

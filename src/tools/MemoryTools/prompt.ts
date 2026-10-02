@@ -18,6 +18,7 @@ export const RETAIN_PROMPT = `Store one or more durable facts into project memor
 - The response reports a PER-ITEM outcome: stored (with its id), already-staged (this session), or refused with the reason. A refusal means the fact was NOT stored — surface it, never assume success.
 - Facts stage as pending observations and consolidate into topic pages automatically; they are recallable seconds after storing, labeled pending until consolidation.
 - When the user asks you to remember a rule or a preference ("remember: …", "always …", "from now on …"), store their words AS SAID with pin: true — it joins the pinned rules loaded into every session, marked as asked for by the user, and is never reworded, merged or dropped by Mercury. Never pin on your own judgement.
+- When the user says the new rule replaces a pinned one ("instead of …", "that replaces the old rule"), pass replaces: "seq:<n>" naming that rule from the pinned shelf: the new rule takes its place and the old one is kept as history. Two rules that merely share words are not a conflict — both stay. A rule marked asked for by the user is never replaced by you: tell the user to change it in /memory.
 - Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records.`
 
 export const RECALL_PROMPT = `Search project memory, or read one full record.
@@ -38,4 +39,5 @@ export const CORRECT_PROMPT = `Correct one consolidated memory record (id seq:<n
 - op 'supersede' — a NEW truth replaces the fact; pass content (or replacementId naming an existing seq that already carries the truth). The old fact moves to history with a superseded-by pointer.
 - op 'amend' — fix the RECORD's own wording; requires the full record to have been read this session (Recall read:"seq:<n>" first) so a clipped preview can never destroy an unseen tail.
 - op 'retract' — mark the fact wrong with a reason. Nothing is ever hard-deleted: history is the audit spine.
+- A pinned rule marked "asked for by the user" is the user's: every op on it is refused — the user changes or unpins it in /memory. Tell the user that when they want it changed.
 - Always pass reason. Pending rows are not correctable — they resolve at consolidation.`

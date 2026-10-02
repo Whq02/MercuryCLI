@@ -104,10 +104,11 @@ export function movePin(fromSeq: number, toSeq: number, dir: string = mnemeLibra
   const pins = readPins(dir)
   const at = pins.findIndex(p => p.seq === fromSeq)
   if (at < 0) return false
+  const already = pins.find(p => p.seq === toSeq)
   const kept = pins.filter((p, i) => i === at || p.seq !== toSeq)
   const slot = kept.findIndex(p => p.seq === fromSeq)
   const prior = kept[slot]!
-  kept[slot] = { seq: toSeq, at: prior.at, ...(prior.asked || asked ? { asked: true as const } : {}) }
+  kept[slot] = { seq: toSeq, at: prior.at, ...(prior.asked || already?.asked || asked ? { asked: true as const } : {}) }
   writePins(kept, dir)
   return true
 }

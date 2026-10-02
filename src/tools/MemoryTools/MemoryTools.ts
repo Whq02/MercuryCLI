@@ -55,6 +55,7 @@ const retainSchema = lazySchema(() =>
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
           pin: z.boolean().optional().describe('Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user.'),
+          replaces: z.string().optional().describe('Only when the user said this rule replaces a pinned one: that rule as seq:<n> (from the pinned shelf). The new rule takes its place and the old one becomes history. Refused for a rule marked asked for by the user — only the user changes those, in /memory.'),
         }),
       )
       .min(1)

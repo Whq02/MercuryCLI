@@ -27,8 +27,7 @@ import {
 import { listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 import { tidyLibrary, type TidyResult } from './mnemeArchive.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
-import { movePin, pinFact, readPins, readUsage } from './mnemeUsage.js'
-import { resolvePinnedConflicts } from './mnemePinnedConflicts.js'
+import { movePin, pinFact, readPins, readUsage, type PinRecord } from './mnemeUsage.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -82,13 +81,14 @@ export const deterministicRewriter: MnemeRewriter = ({ rows }) => {
 
 export function validateDraft(
   draft: MnemeDraft,
-  input: { rows: readonly AssignedRow[]; libraryLiveSeqs: ReadonlySet<number> },
+  input: { rows: readonly AssignedRow[]; libraryLiveSeqs: ReadonlySet<number>; userAskedSeqs?: ReadonlySet<number> },
 ): { ok: true } | { ok: false; reason: string } {
   if (!draft || !Array.isArray(draft.blocks)) return { ok: false, reason: 'draft is not {blocks[]}' }
   const bySeq = new Map(input.rows.map(r => [r.seq, r]))
   const seen = new Set<number>()
   const supersededBatch = new Map<number, number>()
   const supersededLib = new Set<number>()
+  const userAsked = input.userAskedSeqs ?? new Set<number>()
   for (const block of draft.blocks) {
     if (typeof block.topicSlug !== 'string' || slugify(block.topicSlug) !== block.topicSlug || !block.topicSlug) {
       return { ok: false, reason: `block slug not slug-safe: '${String(block.topicSlug)}'` }
@@ -111,6 +111,7 @@ export function validateDraft(
         const targets = expandSeqRange(e.supersedes)
         if (targets.length === 0) return { ok: false, reason: `seq ${e.seq} has unparseable supersedes '${e.supersedes}'` }
         for (const t of targets) {
+          if (userAsked.has(t)) return { ok: false, reason: `seq ${t} is a rule the user asked for — only the user changes it, in /memory` }
           if (bySeq.has(t)) {
             if (t === e.seq) return { ok: false, reason: `seq ${e.seq} supersedes itself` }
             if (supersededBatch.has(t)) return { ok: false, reason: `batch seq ${t} superseded twice` }
@@ -142,7 +143,7 @@ export interface ConsolidateResult {
   docsTouched: string[]
   entries: number
   refusedDraft?: string
-  tidy?: { archived: number; restored: number; topicsArchived: string[]; conserved: boolean }
+  tidy?: { archived: number; restored: number; merged: number; topicsArchived: string[]; conserved: boolean }
 }
 
 const LOCK_STALE_MS = 5 * 60 * 1000
@@ -208,7 +209,7 @@ export function consolidateLockOwnedBy(lock: string, pid: number): boolean {
   return !Number.isInteger(holder) || holder <= 0 || holder === pid
 }
 
-function rowHash(r: { ts: string; source: string; text: string }): string {
+export function rowHash(r: { ts: string; source: string; text: string }): string {
   const s = `${r.ts}\u0000${r.source}\u0000${r.text}`
   let h = 0x811c9dc5
   for (let i = 0; i < s.length; i++) {
@@ -227,7 +228,22 @@ function allLibrarySeqs(dir: string): Set<number> {
   return out
 }
 
-function consumeBuffer(dir: string): { files: string[]; rows: MnemeObservation[]; staleManifests: string[]; landedCount: number } {
+interface ManifestRow {
+  seq: number
+  h: string
+  pin?: true
+  asked?: true
+}
+
+interface Consumed {
+  files: string[]
+  rows: MnemeObservation[]
+  staleManifests: string[]
+  landedCount: number
+  landedPins: ManifestRow[]
+}
+
+function consumeBuffer(dir: string): Consumed {
   const files: string[] = []
   const staleManifests: string[] = []
   try {
@@ -255,17 +271,18 @@ function consumeBuffer(dir: string): { files: string[]; rows: MnemeObservation[]
     } catch {
     }
   }
-  const landedByHash = new Map<string, number>()
+  const landedByHash = new Map<string, ManifestRow>()
   for (const m of staleManifests) {
     try {
-      const parsed = JSON.parse(readFileSync(m, 'utf8')) as { rows?: Array<{ seq: number; h: string }> }
-      for (const r of parsed.rows ?? []) if (typeof r?.h === 'string' && typeof r?.seq === 'number') landedByHash.set(r.h, r.seq)
+      const parsed = JSON.parse(readFileSync(m, 'utf8')) as { rows?: ManifestRow[] }
+      for (const r of parsed.rows ?? []) if (typeof r?.h === 'string' && typeof r?.seq === 'number') landedByHash.set(r.h, r)
     } catch {
       logForDebugging(`mneme consumeBuffer: unreadable batch manifest ${m}`)
     }
   }
   const librarySeqs = landedByHash.size > 0 ? allLibrarySeqs(dir) : null
   const rows: MnemeObservation[] = []
+  const landedPins: ManifestRow[] = []
   let landedCount = 0
   for (const f of files) {
     try {
@@ -275,9 +292,10 @@ function consumeBuffer(dir: string): { files: string[]; rows: MnemeObservation[]
           const row = JSON.parse(line) as MnemeObservation
           if (typeof row?.text === 'string' && typeof row?.source === 'string' && typeof row?.ts === 'string') {
             if (librarySeqs) {
-              const seq = landedByHash.get(rowHash(row))
-              if (seq !== undefined && librarySeqs.has(seq)) {
+              const landed = landedByHash.get(rowHash(row))
+              if (landed !== undefined && librarySeqs.has(landed.seq)) {
                 landedCount++
+                if (landed.pin === true) landedPins.push(landed)
                 continue
               }
             }
@@ -291,7 +309,29 @@ function consumeBuffer(dir: string): { files: string[]; rows: MnemeObservation[]
     }
   }
   if (landedCount > 0) logForDebugging(`mneme consumeBuffer: ${landedCount} row(s) already landed pre-crash (manifest dedup)`)
-  return { files, rows, staleManifests, landedCount }
+  return { files, rows, staleManifests, landedCount, landedPins }
+}
+
+function replayLandedPins(dir: string, landedPins: readonly ManifestRow[], now: Date): void {
+  const docs = [...listTopicDocs(dir), ...listArchiveDocs(dir)]
+  const live = new Set<number>()
+  const supersededBy = new Map<number, number>()
+  for (const d of docs) {
+    for (const s of liveSeqs(d)) live.add(s)
+    for (const e of d.history) if (e.supersededBy !== undefined) supersededBy.set(e.seq, e.supersededBy)
+  }
+  for (const pin of readPins(dir)) {
+    let seq = pin.seq
+    let hops = 0
+    while (!live.has(seq) && supersededBy.has(seq) && hops < 100) {
+      seq = supersededBy.get(seq)!
+      hops++
+    }
+    if (seq !== pin.seq && live.has(seq)) movePin(pin.seq, seq, dir)
+  }
+  for (const row of landedPins) {
+    if (live.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true })
+  }
 }
 
 function restoreConsumed(dir: string, files: string[]): void {
@@ -306,7 +346,30 @@ function restoreConsumed(dir: string, files: string[]): void {
 }
 
 function tidySummary(tidy: TidyResult): NonNullable<ConsolidateResult['tidy']> {
-  return { archived: tidy.archived, restored: tidy.restored, topicsArchived: tidy.topicsArchived, conserved: tidy.conserved }
+  return { archived: tidy.archived, restored: tidy.restored, merged: tidy.merged, topicsArchived: tidy.topicsArchived, conserved: tidy.conserved }
+}
+
+export function replacementAllowed(target: number, pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): boolean {
+  const pin = pins.find(p => p.seq === target)
+  return pin !== undefined && pin.asked !== true && libraryLive.has(target)
+}
+
+function applyNamedReplacements(draft: MnemeDraft, rows: readonly AssignedRow[], pins: readonly PinRecord[], libraryLive: ReadonlySet<number>): void {
+  const named = new Set<number>()
+  for (const block of draft.blocks) {
+    for (const e of block.entries) for (const t of e.supersedes ? expandSeqRange(e.supersedes) : []) named.add(t)
+  }
+  for (const row of rows) {
+    const target = row.replaces
+    if (target === undefined || named.has(target) || !replacementAllowed(target, pins, libraryLive)) continue
+    for (const block of draft.blocks) {
+      const entry = block.entries.find(e => e.seq === row.seq)
+      if (!entry) continue
+      entry.supersedes = entry.supersedes ? `${entry.supersedes},${target}` : String(target)
+      named.add(target)
+      break
+    }
+  }
 }
 
 function tidyUp(dir: string, now: Date, alreadyTouched: Set<string>): TidyResult {
@@ -317,6 +380,7 @@ function tidyUp(dir: string, now: Date, alreadyTouched: Set<string>): TidyResult
     logForDebugging('memory tidy-up refused: the seq census changed — nothing written')
     return result
   }
+  for (const [from, to] of result.pinMoves) movePin(from, to, dir)
   for (const slug of result.touchedTopics) {
     const doc = topics.get(slug)
     if (doc) writeDoc(doc, dir)
@@ -377,10 +441,14 @@ export function maybeConsolidate(
     if (!dueBySize && !dueByAge) return none('below thresholds')
   }
   if (!acquireConsolidateLock(dir)) return none('consolidation in progress (lock held)')
-  let consumed: { files: string[]; rows: MnemeObservation[]; staleManifests: string[]; landedCount: number } = { files: [], rows: [], staleManifests: [], landedCount: 0 }
+  let consumed: Consumed = { files: [], rows: [], staleManifests: [], landedCount: 0, landedPins: [] }
   try {
     consumed = consumeBuffer(dir)
     const rows = consumed.rows
+    if (consumed.landedCount > 0) {
+      replayLandedPins(dir, consumed.landedPins, now)
+      publishFrontPage(dir, now)
+    }
     if (rows.length === 0) {
       if (consumed.landedCount > 0) {
         for (const f of [...consumed.files, ...consumed.staleManifests]) {
@@ -400,10 +468,13 @@ export function maybeConsolidate(
     const catalog = docs.map(d => ({ id: d.id, slug: d.slug, summary: d.summary }))
     const libraryLive = new Set<number>()
     for (const d of docs) for (const s of liveSeqs(d)) libraryLive.add(s)
+    const pinsBefore = readPins(dir)
+    const userAskedSeqs = new Set<number>([...pinsBefore.filter(p => p.asked).map(p => p.seq), ...assigned.filter(r => r.asked === true).map(r => r.seq)])
 
     const rewriter = opts.rewriter ?? deterministicRewriter
     const draft = rewriter({ rows: assigned, catalog })
-    const verdict = validateDraft(draft, { rows: assigned, libraryLiveSeqs: libraryLive })
+    applyNamedReplacements(draft, assigned, pinsBefore, libraryLive)
+    const verdict = validateDraft(draft, { rows: assigned, libraryLiveSeqs: libraryLive, userAskedSeqs })
     if (!verdict.ok) {
       restoreConsumed(dir, consumed.files)
       return { ...none(`draft refused: ${verdict.reason}`), refusedDraft: verdict.reason }
@@ -415,10 +486,8 @@ export function maybeConsolidate(
       dir,
     )
     const manifestPath = join(dir, `batch-${meta.seqCounter + 1}-${meta.seqCounter + assigned.length}.json`)
-    durableAtomicPublishSync(
-      manifestPath,
-      JSON.stringify({ version: 1, rows: assigned.map(r => ({ seq: r.seq, h: rowHash(r) })) }),
-    )
+    const manifestRows: ManifestRow[] = assigned.map(r => ({ seq: r.seq, h: rowHash(r), ...(r.pin === true ? { pin: true as const } : {}), ...(r.pin === true && r.asked === true ? { asked: true as const } : {}) }))
+    durableAtomicPublishSync(manifestPath, JSON.stringify({ version: 1, rows: manifestRows }))
     const byId = new Map(docs.map(d => [d.slug, d]))
     const bySeq = new Map(assigned.map(r => [r.seq, r]))
     const supersededBatchSeqs = new Set<number>()
@@ -511,17 +580,12 @@ export function maybeConsolidate(
       const doc = byId.get(slug)
       if (doc) writeDoc(doc, dir)
     }
-    let tidy: TidyResult = { archived: 0, restored: 0, topicsArchived: [], conserved: true, touchedTopics: new Set(), touchedArchives: new Set(), removedTopics: new Set() }
+    let tidy: TidyResult = { archived: 0, restored: 0, merged: 0, topicsArchived: [], conserved: true, touchedTopics: new Set(), touchedArchives: new Set(), removedTopics: new Set(), pinMoves: [] }
     try {
       for (const [from, to] of pinMoves) movePin(from, to, dir)
-      const newPins: number[] = []
       for (const row of assigned) {
-        if (row.pin === true && !supersededInBatch.has(row.seq)) {
-          pinFact(row.seq, dir, now, { asked: row.asked === true })
-          newPins.push(row.seq)
-        }
+        if (row.pin === true && !supersededInBatch.has(row.seq)) pinFact(row.seq, dir, now, { asked: row.asked === true })
       }
-      resolvePinnedConflicts(dir, newPins, now)
       tidy = tidyUp(dir, now, touched)
       publishFrontPage(dir, now)
     } catch (e) {

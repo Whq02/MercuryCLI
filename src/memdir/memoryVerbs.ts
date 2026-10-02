@@ -5,9 +5,9 @@ import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { appendObservation, pendingRows } from './mnemeBuffer.js'
 import { listArchiveDocs, listTopicDocs } from './mnemeLibrary.js'
 import { grepAll, readDocLines, catalogDocs, pageFileForSlug, PENDING_SLUG } from './mnemeRetrieval.js'
-import { correctFact, retireFact, type MnemeCorrectResult } from './mnemeCorrect.js'
+import { correctFact, retireFact, userAskedRuleMessage, type MnemeCorrectResult } from './mnemeCorrect.js'
 import { ARCHIVE_PREFIX, isArchiveDoc, parseEntryLine, liveSeqs, serializeSignature, type MnemeTopicDoc } from './mnemeTopicDocs.js'
-import { bumpUsage, readUsage } from './mnemeUsage.js'
+import { bumpUsage, readPins, readUsage } from './mnemeUsage.js'
 import { candidates, rankCandidates } from './mnemeLookup.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
@@ -34,6 +34,22 @@ export interface RetainItemInput {
   context?: string
   topic?: string
   pin?: boolean
+  replaces?: string
+}
+
+export function replacementTarget(
+  spec: string,
+  dir: string,
+): { ok: true; seq: number; slug: string } | { ok: false; reason: string } {
+  const m = /^seq:(\d+)$/.exec(spec.trim())
+  if (!m) return { ok: false, reason: `replaces must name a pinned rule as seq:<n> (got '${spec}')` }
+  const seq = Number(m[1])
+  const pin = readPins(dir).find(p => p.seq === seq)
+  if (pin?.asked) return { ok: false, reason: `${userAskedRuleMessage(seq)}; retain the new rule without replaces to add it beside` }
+  if (!pin) return { ok: false, reason: `seq ${seq} is not a pinned rule — Correct supersedes a fact` }
+  const holder = allDocs(dir).find(doc => liveSeqs(doc).has(seq))
+  if (!holder) return { ok: false, reason: `seq ${seq} is not live in this library` }
+  return { ok: true, seq, slug: holder.slug }
 }
 
 export type RetainItemOutcome =
@@ -68,14 +84,21 @@ export function retainItems(
       outcomes.push({ index, status: 'already-staged', id: existing })
       return
     }
+    const replacement = item.replaces !== undefined ? replacementTarget(item.replaces, dir) : null
+    if (replacement && !replacement.ok) {
+      outcomes.push({ index, status: 'refused', reason: replacement.reason })
+      return
+    }
+    const pin = provenance.pin || item.pin || replacement !== null
     const before = pendingRows(dir).length
     const written = appendObservation(
       {
         text,
         source: sourceBase,
-        ...(item.topic ? { topicHint: item.topic } : {}),
-        ...(provenance.pin || item.pin ? { pin: true } : {}),
-        ...((provenance.pin && provenance.asked) || item.pin ? { asked: true } : {}),
+        ...(item.topic ? { topicHint: item.topic } : replacement?.ok ? { topicHint: replacement.slug } : {}),
+        ...(pin ? { pin: true } : {}),
+        ...((provenance.pin && provenance.asked) || item.pin || replacement !== null ? { asked: true } : {}),
+        ...(replacement?.ok ? { replaces: replacement.seq } : {}),
       },
       dir,
     )

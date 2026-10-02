@@ -214,7 +214,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       setCorrecting(null)
       return
     }
-    const r = correctFact({ targetSeq: correcting.seq, text, source: 'operator' })
+    const r = correctFact({ targetSeq: correcting.seq, text, source: 'operator', byUser: true })
     if (r.ok) {
       fl.setNote({ text: `${GLYPH.check} corrected seq ${r.targetSeq} → ${r.seq} (old kept as history)`, kind: 'ok' })
       setDetail(null)
@@ -226,7 +226,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
   }
 
   function retireSelected(seq: number): void {
-    const r = retireFact({ targetSeq: seq, reason: 'operator marked no longer current', source: 'operator' })
+    const r = retireFact({ targetSeq: seq, reason: 'operator marked no longer current', source: 'operator', byUser: true })
     fl.setNote(
       r.ok
         ? { text: `${GLYPH.check} retired seq ${r.targetSeq} — kept in history`, kind: 'ok' }
