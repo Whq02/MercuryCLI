@@ -36,7 +36,7 @@ import {
 import { applyConcourseScheduleOp, saturnFactsOf, SATURN_EDIT_BURST_CAP } from './saturn.js'
 import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVerdict } from './saturnAccount.js'
 import { applyConcourseKitOp } from './sessionKitOp.js'
-import { onWorkerControlCancel } from './permissionAsks.js'
+import { onWorkerControlCancel, retireWorkerAsks, RUNNER_ENDED_ASK_CAUSE, RUNNER_RESTARTED_ASK_CAUSE } from './permissionAsks.js'
 import type { QuiescenceAnswer, QuiescenceRequest } from './runnerQuiescence.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1 } from './protocol.js'
 
@@ -888,6 +888,7 @@ export function onSeatSpawned(short: string, roster: SeatRosterPort, dir?: strin
   rejectAgentVerbWaiters(short, "the session's runner restarted before it answered — nothing is assumed stopped or resumed")
   rejectWithdrawWaiters(short, "the session's runner restarted before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner restarted before it answered the mode change — the band follows its facts")
+  retireWorkerAsks(short, RUNNER_RESTARTED_ASK_CAUSE, dir)
   const seat = seatOf(short)
   seat.lastAnswer = null
   seat.generation += 1
@@ -934,6 +935,7 @@ export function onSeatSettled(short: string): void {
   rejectWithdrawWaiters(short, "the session's runner ended before it answered the withdraw — nothing is assumed taken back")
   rejectModeWaiters(short, "the session's runner ended before it answered the mode change")
   rejectSeatVerbWaiters(short)
+  retireWorkerAsks(short, RUNNER_ENDED_ASK_CAUSE)
   const seat = seats.get(short)
   if (seat?.debounce !== null && seat?.debounce !== undefined) clearTimeout(seat.debounce)
   if (seat?.workPoll !== null && seat?.workPoll !== undefined) clearTimeout(seat.workPoll)
