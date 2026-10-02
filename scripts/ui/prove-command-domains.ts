@@ -63,6 +63,16 @@ function check(name: string, ok: boolean, detail = ''): void {
 }
 
 {
+  ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
+  const { effectiveCatalogue } = await import('../../src/commands/effectiveCatalogue.js')
+  const known = new Set(effectiveCatalogue().flatMap(surface => [surface.name, ...((surface as { aliases?: string[] }).aliases ?? [])]))
+  const memory = COMMAND_DOMAINS.find(d => d.key === 'memory')
+  const dead = (memory?.names ?? []).filter(n => !known.has(n))
+  check('the memory domain names only commands the catalogue has', memory !== undefined && dead.length === 0, dead.join(', '))
+  check('the memory domain still curates /memory', memory?.names.includes('memory') === true)
+}
+
+{
   const dist = readFileSync(join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs'), 'utf8')
   check('domain labels ship in dist', dist.includes('crew & delegation') && dist.includes(FALLBACK_DOMAIN_LABEL))
 }

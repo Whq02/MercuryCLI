@@ -39,7 +39,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     key: 'memory',
     label: 'memory & goals',
     names: [
-      'cards', 'remember', 'memory', 'meh', 'good',
+      'memory',
       'console',
       'orient',
     ],
