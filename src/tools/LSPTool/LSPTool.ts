@@ -1,6 +1,7 @@
 import type { UUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { open } from 'node:fs/promises'
+import { resolve as resolvePath } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 
@@ -17,6 +18,15 @@ import {
   mercuryLspEnabled,
   mercuryLspWriteOpsEnabled,
 } from '../../services/lsp/mercuryLsp.js'
+import {
+  clearLspCall,
+  LSP_TRIES_BEFORE_REFUSAL,
+  lspCallKey,
+  lspCallRefusal,
+  lspServerRefusal,
+  recordLspCallFailure,
+  recordLspServerFailure,
+} from '../../services/lsp/failureLedger.js'
 import { remedyForLanguageServer, serverTitle, unclaimedCause } from '../../services/lsp/failureWords.js'
 import { isLspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import { runWithLspAbortSignal } from '../../services/lsp/lspAbort.js'
@@ -440,13 +450,92 @@ function invalidArgumentsMessage(operation: string, issues: ZodIssueLike[]): str
 }
 
 
-async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>) {
+type ServerFailure = { server: string; cause: string }
+type Settled = { data: Output; effect: ToolEffect }
+
+function callTargets(input: Input, cwd: string): string[] {
+  const targets: string[] = []
+  const filePath = 'filePath' in input ? (input as { filePath?: string }).filePath : undefined
+  if (filePath) targets.push(expandPath(filePath))
+  const paths = 'paths' in input ? (input as { paths?: string[] }).paths : undefined
+  for (const raw of paths ?? []) targets.push(resolvePath(cwd, raw))
+  return targets
+}
+
+function serverFailuresOf(effect: ToolEffect): ServerFailure[] {
+  const raw = effect.details?.serverFailures
+  return Array.isArray(raw) ? (raw as ServerFailure[]) : []
+}
+
+async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>): Promise<Settled> {
+  const startedAt = Date.now()
+  const operation = input.operation
+  const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
+  const cwd = getCwd()
+  const callKey = lspCallKey(operation, input)
+  const fail = (result: string, overrides: Partial<ToolEffect> = {}): Settled => ({
+    data: { operation, result, filePath, outcome: 'failed' as const } satisfies Output,
+    effect: makeEffect(operation, 'failed', result, startedAt, overrides),
+  })
+
+  const refusedCall = lspCallRefusal(callKey)
+  if (refusedCall !== undefined) {
+    return fail(
+      `Not tried: the same ${operation} call has failed ${refusedCall.count} times this session (${refusedCall.summary}); it will not be tried again this session.`,
+      { details: { refused: true } },
+    )
+  }
+  if (getInitializationStatus().status === 'pending') {
+    await waitForInitialization()
+  }
+  const manager = getLspServerManager()
+  if (manager) {
+    for (const target of callTargets(input, cwd)) {
+      for (const server of manager.getServersForFile(target)) {
+        const latched = lspServerRefusal(server.name)
+        if (latched === undefined) continue
+        const remedy = remedyForLanguageServer(server, target, latched.cause, cwd)
+        return fail(
+          `Not tried: ${serverTitle(server, target)} did not start ${latched.count} times this session (${latched.cause}); calls that need it will not be tried again this session.${remedy ? ` What helps: ${remedy}.` : ''}`,
+          { details: { refused: true, serverFailures: [{ server: server.name, cause: latched.cause }] } },
+        )
+      }
+    }
+  }
+
+  const settled = await runLspOperation(input, context, messageId, requestWritePermission)
+  if (settled.effect.outcome !== 'failed') {
+    clearLspCall(callKey)
+    return settled
+  }
+  const serverFailures = serverFailuresOf(settled.effect)
+  const summary = settled.effect.evidence || (settled.data.result.split('\n')[0] ?? '')
+  const count = recordLspCallFailure(callKey, summary, serverFailures.map(f => f.server))
+  const notes: string[] = []
+  if (count >= LSP_TRIES_BEFORE_REFUSAL) notes.push(`This call has failed ${count} times this session; it will not be tried again.`)
+  else if (count > 1) notes.push(`This call has failed the same way ${count} times this session.`)
+  for (const failure of serverFailures) {
+    const serverCount = recordLspServerFailure(failure.server, failure.cause)
+    if (serverCount >= LSP_TRIES_BEFORE_REFUSAL) {
+      const server = manager ? [...manager.getAllServers().values()].find(s => s.name === failure.server) : undefined
+      const title = server ? serverTitle(server, callTargets(input, cwd)[0] ?? '') : `the language server ${failure.server}`
+      notes.push(`${title[0]!.toUpperCase()}${title.slice(1)} did not start ${serverCount} times this session; calls that need it will not be tried again.`)
+    }
+  }
+  if (notes.length === 0) return settled
+  return {
+    data: { ...settled.data, result: `${settled.data.result}\n${notes.join(' ')}` },
+    effect: { ...settled.effect, details: { ...(settled.effect.details ?? {}), tries: count } },
+  }
+}
+
+async function runLspOperation(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>): Promise<Settled> {
   const startedAt = Date.now()
   const operation = input.operation
   const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
   const cwd = getCwd()
 
-  const fail = (result: string, overrides: Partial<ToolEffect> = {}) => ({
+  const fail = (result: string, overrides: Partial<ToolEffect> = {}): Settled => ({
     data: { operation, result, filePath, outcome: 'failed' as const } satisfies Output,
     effect: makeEffect(operation, 'failed', result, startedAt, overrides),
   })
@@ -462,7 +551,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     return fail(message)
   }
 
-  const failureWords = (err: unknown, path: string): { result: string; servers: string[] } => {
+  const failureWords = (err: unknown, path: string): { result: string; serverFailures: Array<{ server: string; cause: string }> } => {
     const primary = path ? manager.getServerForFile(expandPath(path)) : undefined
     if (isLspStartFailure(err)) {
       const server = primary && primary.name === err.server ? primary : [...manager.getAllServers().values()].find(s => s.name === err.server)
@@ -470,10 +559,10 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
       const remedy = server ? remedyForLanguageServer(server, path, err.lspCause, cwd) : ''
       return {
         result: `The ${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`,
-        servers: [err.server],
+        serverFailures: [{ server: err.server, cause: err.lspCause }],
       }
     }
-    return { result: `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`, servers: [] }
+    return { result: `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`, serverFailures: [] }
   }
 
   if (MERCURY_BRIDGE_OPERATIONS.has(input.operation)) {
@@ -519,7 +608,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     } catch (err) {
       logError(err)
       const words = failureWords(err, filePath)
-      return fail(words.result, words.servers.length > 0 ? { details: { failedServers: words.servers } } : {})
+      return fail(words.result, words.serverFailures.length > 0 ? { details: { serverFailures: words.serverFailures } } : {})
     }
   }
 
@@ -746,7 +835,7 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
   } catch (err) {
     logError(err)
     const words = failureWords(err, filePath)
-    return fail(words.result, words.servers.length > 0 ? { details: { failedServers: words.servers } } : {})
+    return fail(words.result, words.serverFailures.length > 0 ? { details: { serverFailures: words.serverFailures } } : {})
   }
 }
 
@@ -815,13 +904,29 @@ export const LSPTool = buildTool({
     return checkReadPermissionForTool(lspPermissionShim, input, permissionContext)
   },
   async validateInput(input: LooseInput) {
-    const parsed = lspToolInputSchema().safeParse(input)
-    if (!parsed.success) {
+    const operation = input.operation ?? ''
+    const key = lspCallKey(operation, input)
+    const refused = lspCallRefusal(key)
+    if (refused !== undefined) {
       return {
         result: false as const,
-        message: invalidArgumentsMessage(input.operation ?? '', parsed.error.issues as ZodIssueLike[]),
+        message: `Not tried: the same ${operation} call has failed ${refused.count} times this session (${refused.summary}); it will not be tried again this session.`,
         errorCode: 3,
       }
+    }
+    const refuse = (message: string, errorCode: number) => {
+      const count = recordLspCallFailure(key, message.split('. ')[0] ?? message)
+      const note =
+        count >= LSP_TRIES_BEFORE_REFUSAL
+          ? ` This call has failed ${count} times this session; it will not be tried again.`
+          : count > 1
+            ? ` This call has failed the same way ${count} times this session.`
+            : ''
+      return { result: false as const, message: `${message}${note}`, errorCode }
+    }
+    const parsed = lspToolInputSchema().safeParse(input)
+    if (!parsed.success) {
+      return refuse(invalidArgumentsMessage(operation, parsed.error.issues as ZodIssueLike[]), 3)
     }
     const filePath = (parsed.data as { filePath?: string }).filePath
     if (filePath === undefined) {
@@ -836,25 +941,13 @@ export const LSPTool = buildTool({
       stats = await stat(expanded)
     } catch (err) {
       if (isENOENT(err)) {
-        return {
-          result: false as const,
-          message: `File does not exist: ${filePath}`,
-          errorCode: 1,
-        }
+        return refuse(`File does not exist: ${filePath}. The same arguments will fail the same way; nothing was asked of a language server.`, 1)
       }
       logError(err)
-      return {
-        result: false as const,
-        message: `Cannot access ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
-        errorCode: 4,
-      }
+      return refuse(`Cannot access ${filePath}: ${err instanceof Error ? err.message : String(err)}`, 4)
     }
     if (!stats.isFile()) {
-      return {
-        result: false as const,
-        message: `Path is not a file: ${filePath}`,
-        errorCode: 2,
-      }
+      return refuse(`Path is not a file: ${filePath}. The same arguments will fail the same way; nothing was asked of a language server.`, 2)
     }
     return { result: true as const }
   },

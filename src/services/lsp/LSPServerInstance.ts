@@ -14,6 +14,7 @@ import type { ExecutionState } from '../primitives/execution.js'
 import { registerExecutionDomain } from '../primitives/executionPlane.js'
 import { projectExternalState } from '../primitives/externalProjection.js'
 import { processMainOwner } from '../run/resolveOwner.js'
+import { clearLspServer, lspServerRefusal } from './failureLedger.js'
 import { startFailureCause } from './failureWords.js'
 import type { LSPClient } from './LSPClient.js'
 import { currentLspAbortSignal } from './lspAbort.js'
@@ -52,11 +53,11 @@ function timedOutRequest(method: string, server: string, budgetMs: number): Erro
   return error
 }
 
-export type LspStartFailure = Error & { server: string; attempts: number; lspCause: string }
+export type LspStartFailure = Error & { server: string; attempts: number; lspCause: string; refused?: boolean }
 
 function startFailure(server: string, attempts: number, cause: unknown): LspStartFailure {
   const lspCause = startFailureCause(server, cause)
-  const error = Object.assign(
+  const error: LspStartFailure = Object.assign(
     new Error(`LSP server ${server} did not start (${attempts} attempt${attempts === 1 ? '' : 's'} this session): ${lspCause}`),
     { server, attempts, lspCause },
   )
@@ -278,6 +279,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       initFailures = 0
       generation++
       lastActivityAt = Date.now()
+      clearLspServer(name)
       armIdleTimer()
     } catch (err) {
       if (spawned) {
@@ -303,6 +305,12 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
     if (state === 'running') return
     if (state === 'starting' && inFlightStart !== null) {
       return inFlightStart
+    }
+    const latched = lspServerRefusal(name)
+    if (latched !== undefined) {
+      const error = startFailure(name, Math.max(initFailures, latched.count), latched.cause)
+      error.refused = true
+      throw error
     }
     const backoffMs = initBackoffRemainingMs()
     if (backoffMs > 0) {

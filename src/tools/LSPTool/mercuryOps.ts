@@ -1261,10 +1261,10 @@ async function applyPrepared(
 }
 
 
-function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: string[] } {
+function unavailableWords(failed: ClaimantFailure[], path: string, cwd: string): { what: string; remedy: string; servers: Array<{ server: string; cause: string }> } {
   const words = failed.map(failure => claimantFailureWords(failure, path, cwd))
   const remedies = [...new Set(words.map(w => w.remedy).filter(r => r !== ''))]
-  return { what: words.map(w => w.what).join('; '), remedy: remedies.join('; '), servers: failed.map(f => f.server.name) }
+  return { what: words.map(w => w.what).join('; '), remedy: remedies.join('; '), servers: failed.map(f => ({ server: f.server.name, cause: f.cause })) }
 }
 
 async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
@@ -1306,7 +1306,7 @@ async function opDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
         outcome: 'failed',
         changedPaths: [],
         evidence: words.what,
-        details: { failedServers: words.servers },
+        details: { serverFailures: words.servers },
       },
     }
   }
@@ -1976,12 +1976,12 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
   let filesWithFindings = 0
   let answered = 0
   let indeterminate = 0
-  const failedServers = new Set<string>()
+  const failedServers = new Map<string, string>()
   const remedies = new Set<string>()
   const lines: string[] = []
-  const notChecked = (display: string, words: { what: string; remedy: string; servers: string[] }): void => {
+  const notChecked = (display: string, words: { what: string; remedy: string; servers: Array<{ server: string; cause: string }> }): void => {
     lines.push(`  not checked: ${display} — ${words.what}`)
-    for (const server of words.servers) failedServers.add(server)
+    for (const failure of words.servers) failedServers.set(failure.server, failure.cause)
     if (words.remedy !== '') remedies.add(words.remedy)
   }
   for (const abs of included) {
@@ -2004,7 +2004,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
         if (pulled.failed && pulled.failed.length > 0) {
           const words = unavailableWords(pulled.failed, abs, env.cwd)
           lines.push(`  partly checked: ${display} — ${words.what}`)
-          for (const server of words.servers) failedServers.add(server)
+          for (const failure of words.servers) failedServers.set(failure.server, failure.cause)
         }
       } else if (pulled.kind === 'unavailable') {
         notChecked(display, unavailableWords(pulled.failed, abs, env.cwd))
@@ -2048,7 +2048,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       outcome: noneAnswered ? 'failed' : complete ? 'succeeded' : 'indeterminate',
       changedPaths: [],
       evidence: noneAnswered ? (lines[0] ?? 'no file answered').trim() : `${errors} error(s), ${warnings} warning(s) across ${answered} of ${included.length} file(s)`,
-      details: { truncated, skipped: skipped.length, indeterminate, notChecked: failedFiles, ...(failedServers.size > 0 ? { failedServers: [...failedServers] } : {}) },
+      details: { truncated, skipped: skipped.length, indeterminate, notChecked: failedFiles, ...(failedServers.size > 0 ? { serverFailures: [...failedServers].map(([server, cause]) => ({ server, cause })) } : {}) },
     },
   }
 }
@@ -2588,7 +2588,7 @@ async function opFixDiagnostic(env: OpEnv): Promise<MercuryLspOpOutput> {
         outcome: 'failed',
         changedPaths: [],
         evidence: words.what,
-        details: { failedServers: words.servers },
+        details: { serverFailures: words.servers },
       },
     }
   }
