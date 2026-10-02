@@ -106,7 +106,7 @@ import { armDispatchDrain, type DispatchDrainHandle } from './dispatchDrain.js'
 import { startControlServer, type ControlServerHandle } from './controlServer.js'
 import { tokenBinding, type ProcessSweepDaemonAnswer, type ProcessSweepRunnerRecord } from './processSweep.js'
 import { recordProcessCensusAtBoot, sweepRunnerRecord } from './processSweepRun.js'
-import { DAEMON_USAGE, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
+import { DAEMON_USAGE, isScreenHealAsk, parseDaemonVerb, supervisorRecordIdentity } from './verbs.js'
 import { hostedCallerOf, hostedCallerRefusalLine } from './hostedCaller.js'
 import {
   acquireSupervisorLock,
@@ -1062,6 +1062,17 @@ async function daemonRun(args: string[]): Promise<void> {
           if (foreground) {
             return { state: 'refused' as const, live, detail: 'runs on a terminal: stop it there (ctrl-c) and run `mercury daemon` again' }
           }
+          const installed = deployedRuntime()
+          const other = successorRuntime()
+          if (other !== null) {
+            return { state: 'refused' as const, live, detail: otherBuildInstalledDetail(other) }
+          }
+          if (installed !== null && isScreenHealAsk(by)) {
+            return { state: 'refused' as const, live, detail: reopenDetail(installed) }
+          }
+          if (handover !== null && handover.alive()) {
+            return { state: 'refused' as const, live, detail: `the daemon this one took over from (pid ${handover.predecessorPid}) is still leaving — ask again once it has gone` }
+          }
           if (flagEnv('MERCURY_DAEMON_SUCCESSOR_OF') && Date.now() - startedAt < RESTART_STORM_GUARD_MS) {
             return {
               state: 'refused' as const,
@@ -1214,6 +1225,13 @@ async function daemonRun(args: string[]): Promise<void> {
           if (!restartArmed || restartAfterTeardown) return
           if (liveWorkers().live > 0) return
           restartArmed = false
+          const other = successorRuntime()
+          if (other !== null) {
+            // eslint-disable-next-line no-console
+            console.error(`[daemon] armed restart — idle now; ${otherBuildInstalledDetail(other)}, so this daemon leaves without re-executing`)
+            requestShutdown('restart-when-idle:armed')
+            return
+          }
           restartAfterTeardown = true
           // eslint-disable-next-line no-console
           console.error('[daemon] armed restart — idle now, re-executing as the deployed build')
@@ -1611,14 +1629,26 @@ function successorRuntime(): ReturnType<typeof deployedRuntime> {
   return own !== '' && resolveScriptPath(deployed.script) === own ? null : deployed
 }
 
+function installedWords(runtime: NonNullable<ReturnType<typeof deployedRuntime>>): string {
+  return runtime.version !== null && runtime.version !== currentVersion() ? `v${runtime.version}` : `tree ${runtime.buildTree ?? 'unstamped'}`
+}
+
+export function reopenDetail(installed: NonNullable<ReturnType<typeof deployedRuntime>>): string {
+  return `a newer Mercury (${installedWords(installed)}) is installed and this daemon already runs it — close this window and open Mercury again to use it`
+}
+
+export function otherBuildInstalledDetail(other: NonNullable<ReturnType<typeof deployedRuntime>>): string {
+  return `another build (${installedWords(other)}) is installed — a Mercury of that build starts its own daemon, and this one keeps what it holds until then`
+}
+
 function unchangedSuccessorDetail(ageSeconds: number): string {
   const deployed = deployedRuntime()
   const still = `came back unchanged ${ageSeconds}s ago (still v${currentVersion()}, protocol ${MERCURY_DAEMON_PROTO})`
-  if (deployed === null) return `${still}: the bundle at ${process.argv[1] ?? '?'} is what a restart runs — deploy the new build first`
+  if (deployed === null) return `${still}: a restart runs this same build — deploy a new build first`
   if (deployed.layout === 'release') {
-    return `${still}: the install's current version is still v${deployed.version ?? currentVersion()} (${deployed.script}) — run \`mercury update\` to install a newer one first`
+    return `${still}: the install's current version is still v${deployed.version ?? currentVersion()} — a restart runs this same build`
   }
-  return `${still}: the deployed build at ${deployed.script} is still this one — deploy the new build first`
+  return `${still}: the deployed build is still this one — deploy a new build first`
 }
 
 function spawnSuccessorDaemon(): number | undefined {
@@ -1637,10 +1667,9 @@ function spawnSuccessorDaemon(): number | undefined {
         console.error(`[daemon] successor scrub — a stored sign-in exists; the successor re-resolves it (dropped: ${stripped.join(', ')})`)
       }
     }
-    const script = process.argv[1]
-    const deployed = successorRuntime()
-    const node = deployed !== null ? (deployed.node ?? nodeForBuild(deployed.dir)) : nodeForBuild(script ? dirname(resolveScriptPath(script)) : '')
-    const args = deployed !== null ? [...process.execArgv, deployed.script, ...process.argv.slice(2)] : [...process.execArgv, ...process.argv.slice(1)]
+    const script = selfScriptPath()
+    const node = nodeForBuild(script ? dirname(script) : '')
+    const args = script ? [...process.execArgv, script, ...process.argv.slice(2)] : [...process.execArgv, ...process.argv.slice(1)]
     const child = spawn(node, args, {
       cwd: process.cwd(),
       env,
@@ -1651,11 +1680,7 @@ function spawnSuccessorDaemon(): number | undefined {
     child.on('error', e => logForDebugging(`[daemon] successor spawn error (ignored): ${e}`))
     child.unref()
     // eslint-disable-next-line no-console
-    console.error(
-      deployed !== null
-        ? `[daemon] successor spawned — pid ${child.pid} runs ${deployed.script} (the ${deployed.layout} layout's current build${deployed.version ? ` v${deployed.version}` : ''}, tree ${deployed.buildTree ?? 'unstamped'}) on ${node}`
-        : `[daemon] successor spawned — pid ${child.pid} runs ${script ?? '?'} as deployed on ${node}`,
-    )
+    console.error(`[daemon] successor spawned — pid ${child.pid} runs ${script || process.argv[1] || '?'} (this same build, v${currentVersion()}) on ${node}`)
     return child.pid
   } catch (e) {
     // eslint-disable-next-line no-console

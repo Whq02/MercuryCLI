@@ -27,6 +27,12 @@ const defaultIsDir = (p: string): boolean => {
   }
 }
 
+const SCREEN_HEAL_ASK = /^screen \d+$/
+
+export function isScreenHealAsk(by: string): boolean {
+  return SCREEN_HEAL_ASK.test(by)
+}
+
 export function looksLikeDirectoryArg(word: string, isDir: (p: string) => boolean = defaultIsDir): boolean {
   if (word.startsWith('-')) return false
   if (isAbsolute(word) || /^[A-Za-z]:[\\/]/.test(word)) return true

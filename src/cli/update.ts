@@ -52,6 +52,10 @@ async function moveDaemonAfterUpdate(): Promise<{ state: string; line: string } 
   }
 }
 
+export function openWindowsLine(from: string | null): string {
+  return `any Mercury window still open keeps working on ${from ? `v${from}` : 'the build it started with'} until it is closed and opened again`
+}
+
 function provenanceStatusWords(p: InstallProvenanceV1, npmWrapper: string | null): string {
   const installer = foreignInstallerOf(p)
   if (installer) return `installed by ${installer.name} at ${p.activeRoot} — ${installerRoadWords(installer)}`
@@ -199,12 +203,14 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
     }
     reconcileManagedShims(roots)
     const rolled = await performRollback(roots, progress)
+    const daemon = rolled.state === 'rolled-back' ? await moveDaemonAfterUpdate() : null
+    const openWindows = rolled.state === 'rolled-back' ? openWindowsLine(rolled.from) : null
     if (options.json) {
-      return rolled.state === 'rolled-back' ? emitJson({ mode: 'rollback', ...rolled }) : failJson({ mode: 'rollback', ...rolled })
+      return rolled.state === 'rolled-back' ? emitJson({ mode: 'rollback', ...rolled, daemon, openWindows }) : failJson({ mode: 'rollback', ...rolled })
     }
     if (rolled.state === 'rolled-back') {
       return cliOk(
-        `rolled back: ${rolled.from ?? '(unknown)'} → ${rolled.to}\nthe newer version stays under the versions directory for diagnosis; \`mercury update\` reinstalls it`,
+        `rolled back: ${rolled.from ?? '(unknown)'} → ${rolled.to}\nthe newer version stays under the versions directory for diagnosis; \`mercury update\` reinstalls it${daemon === null ? '' : `\n${daemon.line}`}\n${openWindows}`,
       )
     }
     return cliError(`rollback refused: ${rolled.reason}\n  ${rolled.remedy}`)
@@ -256,6 +262,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   }
   const daemon = installCurrent ? await moveDaemonAfterUpdate() : null
   const daemonLine = daemon === null ? '' : `\n${daemon.line}`
+  const openWindows = result.state === 'updated' ? openWindowsLine(result.from) : null
+  const openWindowsLineText = openWindows === null ? '' : `\n${openWindows}`
   const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
@@ -267,7 +275,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       result.state === 'updated' ||
       (result.state === 'no-update' && (result.check.state === 'current' || result.check.state === 'no-releases'))
     const base = shellCommand ? { mode: 'update', ...result, commandOnPath: shellCommand } : { mode: 'update', ...result }
-    const record = daemon === null ? base : { ...base, daemon }
+    const withDaemon = daemon === null ? base : { ...base, daemon }
+    const record = openWindows === null ? withDaemon : { ...withDaemon, openWindows }
     return ok ? emitJson(record) : failJson(record)
   }
   switch (result.state) {
@@ -281,7 +290,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
       const shellLines = shellCommand ? commandOnPathWarning(roots, shellCommand, 'the updated one') : null
       const shellWords = shellLines ? `\n  ${shellLines[0]}\n  ${shellLines[1]}` : ''
       return cliOk(
-        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}${daemonLine}`,
+        `updated: ${result.from} → ${result.to} (${describeChannelRoad(result.road)})\n  signature: ${result.signature}${result.unsignedOverride ? ' (accepted by explicit --allow-unsigned)' : ''}\n  previous version kept${result.previousKept ? '' : ' (none was installed)'} — \`mercury update --rollback\` returns to it${shimLine}${shellWords}${daemonLine}${openWindowsLineText}`,
       )
     }
     case 'no-update':
