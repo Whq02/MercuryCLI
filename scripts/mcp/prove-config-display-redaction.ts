@@ -64,7 +64,7 @@ try {
   }
   safe('mcp add userinfo', cli('add', 'display-userinfo', credentialUrl, '--transport', 'http', '--scope', 'user'))
   for (const type of ['ws', 'claudeai-proxy']) {
-    safe(`mcp add-json ${type}`, cli('add-json', `display-${type}`, JSON.stringify({ type, url, ...(type === 'claudeai-proxy' ? { id: 'display-proxy' } : {}) }), '--scope', 'user'))
+    safe(`mcp import ${type}`, cli('import', `display-${type}`, JSON.stringify({ type, url, ...(type === 'claudeai-proxy' ? { id: 'display-proxy' } : {}) }), '--scope', 'user'))
   }
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()

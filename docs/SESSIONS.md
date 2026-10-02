@@ -462,7 +462,7 @@ The `view.files` setting set to false restores the rail as it was, the command
 with it.
 
 A session can work in a worktree of its repository instead of the checkout
-itself: `--worktree [name]` at launch cuts one (with `--tmux`, inside a tmux
+itself: `--worktree [name]` at launch cuts one (with `--multiplex`, inside a tmux
 session of its own), and the EnterWorktree tool cuts one mid-session on the
 word "worktree". The worktree lives under the repository's
 `.mercury/worktrees/` on a branch of its own, cut from the commit the checkout

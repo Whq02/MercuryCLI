@@ -231,7 +231,7 @@ function staticImports(src: string): {
   const sh = staticImports(shutdownSrc)
   const expected = [
     '../bootstrap/state.js',
-    '../cli/runArgs.js',
+    '../cli/sessionArgs.js',
     './cleanupRegistry.js',
     './deadline.js',
     './debug.js',
@@ -287,8 +287,8 @@ function staticImports(src: string): {
   const loaderSrc = readFileSync(join(SRC, 'utils/conversationRecovery.ts'), 'utf8')
   const doorSrc = readFileSync(join(SRC, 'cli/headless/resume.ts'), 'utf8')
   const resumeBlock = mainSrc.slice(
-    mainSrc.indexOf('} else if (opts.resume || opts.fromPr) {'),
-    mainSrc.indexOf('launchPayload = {', mainSrc.indexOf('} else if (opts.resume || opts.fromPr) {')),
+    mainSrc.indexOf('} else if (opts.resume || opts.pr) {'),
+    mainSrc.indexOf('launchResumeChooser(root, appProps', mainSrc.indexOf('} else if (opts.resume || opts.pr) {')),
   )
   check('resume-identity: the --resume branch exists', resumeBlock.length > 0)
   check(
@@ -358,7 +358,7 @@ function staticImports(src: string): {
   at('getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)')
   const managerSrc = readFileSync(join(SRC, 'services/mcp/MCPConnectionManager.tsx'), 'utf8')
   check(
-    'launch-graph: MCPConnectionManager forwards --strict-mcp-config into the registry hook',
+    'launch-graph: MCPConnectionManager forwards --only-mcp into the registry hook',
     managerSrc.includes('useManageMCPConnections(dynamicMcpConfig, isStrictMcpConfig)'),
   )
   const armAt = at('armBackgroundDiscovery();')

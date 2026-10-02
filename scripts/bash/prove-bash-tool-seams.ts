@@ -38,10 +38,12 @@ console.log('============================================================')
 const HOME = process.env.MERCURY_CONFIG_DIR as string
 mkdirSync(HOME, { recursive: true })
 const SANDBOX_SETTINGS = {
-  sandbox: {
-    enabled: true,
-    autoAllowBashIfSandboxed: true,
-    ...(process.env.SEAMS_SANDBOX_UNAVAILABLE === '1' ? { enabledPlatforms: [] as string[] } : {}),
+  guardrails: {
+    sandbox: {
+      enabled: true,
+      autoAllowBashIfSandboxed: true,
+      ...(process.env.SEAMS_SANDBOX_UNAVAILABLE === '1' ? { enabledPlatforms: [] as string[] } : {}),
+    },
   },
 }
 writeFileSync(join(HOME, 'settings.json'), JSON.stringify(SANDBOX_SETTINGS, null, 2))

@@ -57,7 +57,7 @@ const cfgPath = join(tmpdir(), `mcp-live-vshot-${process.pid}.json`)
 writeFileSync(
   cfgPath,
   JSON.stringify({
-    argv: ['node', BIN, '--strict-mcp-config', '--mcp-config', mcpCfgPath],
+    argv: ['node', BIN, '--only-mcp', '--mcp', mcpCfgPath],
     cwd: FIX,
     sends: [
       { atTick: 999, awaitText: 'New Session', minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3, data: '\r', mark: 'face' },

@@ -19,7 +19,7 @@ if (!existsSync(DIST)) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'show-verb-')))
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'show-fixtures-')))
   const run = (args: string[]): { status: number | null; err: string } => {
-    const r = spawnSync('node', [DIST, 'show', ...args], {
+    const r = spawnSync('node', [DIST, 'image', ...args], {
       env: { ...process.env, MERCURY_CONFIG_DIR: home, NODE_ENV: undefined } as NodeJS.ProcessEnv,
       encoding: 'utf8',
       timeout: 60000,

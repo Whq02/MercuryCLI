@@ -640,7 +640,7 @@ process.stdin.on('end', () => process.exit(0))
         writeFileSync(config, j({ mcpServers: { fixture: { type: 'stdio', command: nodeBin, args: [server, marker] } } }))
         const sid = 'c0ffee00-0000-4000-8000-00000000c113'
         const result = await new Promise<RunResult>(resolveRun => {
-          const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', model, '--session-id', sid, '--mcp-config', config, '--strict-mcp-config', '--allowed-tools', 'ToolSearch', toolName], { cwd: arena.cwd, env: arena.env })
+          const child = spawn(nodeBin!, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', model, '--session-id', sid, '--mcp', config, '--only-mcp', '--allowed-tools', 'ToolSearch', toolName], { cwd: arena.cwd, env: arena.env })
           let stdout = ''
           let stderr = ''
           let buffer = ''
@@ -747,7 +747,7 @@ process.stdin.on('end', () => process.exit(0))
         check('§11 the live conversation settles all three turns', live.exit === 0 && ['PRUNE-READY', 'PRUNE-APPLIED', 'PRUNE-NEXT'].every(text => live.stdout.includes(text)), live.stderr.slice(-300))
         const resumed = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
         check('§11 a new process resumes the cleared conversation', resumed.exit === 0 && resumed.stdout.includes('PRUNE-RESUMED'), resumed.stderr.slice(-300))
-        const forked = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid, '--fork-session'], [{ prompt: 'Fork and continue without tools.' }])
+        const forked = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid, '--fork'], [{ prompt: 'Fork and continue without tools.' }])
         const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
           try { return [JSON.parse(line)] } catch { return [] }
         })
@@ -791,7 +791,7 @@ process.stdin.on('end', () => process.exit(0))
       ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       ;(turns[2] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       const SID = 'c0ffee00-0000-4000-8000-00000000c0ff'
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--debug-file', join(arena.home, 's2.debug.log')], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', join(arena.home, 's2.debug.log')], [
         { prompt: 'read @note.txt and tell me what it says' },
         { prompt: 'the note changed — read @note.txt again', before: () => writeFileSync(notePath, 'REWRITTEN bytes of the note, longer than before\n') },
         { prompt: 'anything else?' },
@@ -851,7 +851,7 @@ process.stdin.on('end', () => process.exit(0))
       const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f4'
       const debugFile = join(arena.home, 's4.debug.log')
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--debug-file', debugFile], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', debugFile], [
         { prompt: 'hi big' },
         { prompt: 'hi after' },
       ])
@@ -890,8 +890,8 @@ process.stdin.on('end', () => process.exit(0))
       const r2 = await run(arena, ['run', 'second on opus', ...switchArgs('claude-opus-4-8'), '--resume', SID])
       const debug3 = join(arena.home, 's5-switch-3.debug.log')
       const debug4 = join(arena.home, 's5-switch-4.debug.log')
-      const r3 = await run(arena, ['run', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug3])
-      const r4 = await run(arena, ['run', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--debug-file', debug4])
+      const r3 = await run(arena, ['run', 'now on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--log-file', debug3])
+      const r4 = await run(arena, ['run', 'still on fable', ...switchArgs('claude-fable-5-1'), '--resume', SID, '--log-file', debug4])
       check('four turns exit 0', [r1, r2, r3, r4].every(r => r.exit === 0), [r1, r2, r3, r4].map(r => `${r.exit}:${r.stderr.slice(0, 120)}`).join(' | '))
       const reqs = fixture.messageRequests()
       check('four message requests', reqs.length === 4, String(reqs.length))
@@ -1113,7 +1113,7 @@ process.stdin.on('end', () => process.exit(0))
       }))
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--permission-channel', 'stdio', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--permission-channel', 'stdio', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },
@@ -1197,7 +1197,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, 's8.debug.log')
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--allowed-tools', 'Read', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--allowed-tools', 'Read', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'first on fable' },
           { prompt: 'read the note' },
@@ -1259,7 +1259,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, 's9.debug.log')
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'launch the seat and carry on' }],
       )
       check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
@@ -1329,7 +1329,7 @@ process.stdin.on('end', () => process.exit(0))
       const debugFile = join(arena.home, `s10-${tag}.debug.log`)
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile],
+        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'dispatch three agents and carry on' }, { prompt: 'and now say noted' }],
       )
       check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)

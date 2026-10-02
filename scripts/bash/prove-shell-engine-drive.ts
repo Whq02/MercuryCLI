@@ -240,7 +240,7 @@ function seedWorld(): { home: string; cwd: string } {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), 'shell-drive-cwd-')))
   mkdirSync(join(cwd, SUBDIR_NAME))
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash'] }, skipSovereignConsentPrompt: true }, null, 2))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash'], sovereignConsentSeen: true } }, null, 2))
   return { home, cwd }
 }
 

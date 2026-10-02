@@ -45,14 +45,14 @@ function setStopKey(value: boolean | null): void {
   if (value === null) fs.rmSync(path, { force: true })
   else {
     fs.mkdirSync(dirname(path), { recursive: true })
-    fs.writeFileSync(path, JSON.stringify({ loopGuardStopEnabled: value }, null, 2))
+    fs.writeFileSync(path, JSON.stringify({ turns: { loopGuard: value } }, null, 2))
   }
   resetSettingsCache()
 }
 function stopKeyReadsBack(): { value: unknown; errors: string[] } {
   const merged = settingsRoad.getSettingsWithErrors()
   return {
-    value: (merged.settings as Record<string, unknown>).loopGuardStopEnabled,
+    value: (merged.settings as { turns?: { loopGuard?: unknown } }).turns?.loopGuard,
     errors: merged.errors.map(e => JSON.stringify(e)),
   }
 }
@@ -386,7 +386,7 @@ section('C1 — DEFAULT (no key): Edit/Bash pairs with identical arguments and a
   check('the second detection (after the 20th call) is a stronger reminder, not a stop', requestText(run, 20).includes(REPEAT) && /2 detections this turn/.test(requestText(run, 20)), `request 20: ${requestText(run, 20).slice(-500)}`)
   check('no loop_stopped attachment was yielded', attachmentsOf(run, 'loop_stopped').length === 0)
   const rows = noticeRows(run)
-  check('the operator gets two info rows, the second saying the turn continues and naming the key', rows.length === 2 && rows.every(r => r.level === 'info') && /turn continues \(loopGuardStopEnabled is off\)/.test(String(rows[1]?.content)), JSON.stringify(rows.map(r => [r.level, r.content])))
+  check('the operator gets two info rows, the second saying the turn continues and naming the key', rows.length === 2 && rows.every(r => r.level === 'info') && /turn continues \(turns\.loopGuard is off\)/.test(String(rows[1]?.content)), JSON.stringify(rows.map(r => [r.level, r.content])))
   check('every one of the twenty calls ran (nothing blocked)', run.ids.length === 20)
 }
 
@@ -471,13 +471,14 @@ section('C8 — DEFAULT: a run of ONE identical call with identical results stay
 
 setStopKey(true)
 
-section('C9 — KEY ON (loopGuardStopEnabled: true in the scratch home\'s settings.json): the second detection of the SAME cycle ends the turn with loop_stopped naming that cycle')
+section('C9 — KEY ON (turns.loopGuard: true in the scratch home\'s settings.json): the second detection of the SAME cycle ends the turn with loop_stopped naming that cycle')
 {
   const read = stopKeyReadsBack()
   check('the key reads back true through the ordinary settings road (a settings-file change hot-applies)', read.value === true, JSON.stringify(read))
   const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
-  const declared = Object.prototype.hasOwnProperty.call((SettingsSchema() as { shape: Record<string, unknown> }).shape, 'loopGuardStopEnabled')
-  check('the key is DECLARED in the settings schema, not merely carried through as an unknown key nothing reads', declared, `schema keys with "loop": ${Object.keys((SettingsSchema() as { shape: Record<string, unknown> }).shape).filter(k => /loop/i.test(k)).join(',') || '(none — the passthrough schema carries the key silently and nothing reads it)'}`)
+  const turnsShape = ((SettingsSchema() as { shape: Record<string, { unwrap?: () => { shape?: Record<string, unknown> } }> }).shape.turns?.unwrap?.().shape) ?? {}
+  const declared = Object.prototype.hasOwnProperty.call(turnsShape, 'loopGuard')
+  check('the key is DECLARED in the settings schema, not merely carried through as an unknown key nothing reads', declared, `schema keys under turns with "loop": ${Object.keys(turnsShape).filter(k => /loop/i.test(k)).join(',') || '(none — the passthrough schema carries the key silently and nothing reads it)'}`)
   const run = await runScript(pairs(10, () => TEST))
   check('the loop did NOT run to the end of the script: the model was called twenty times, never a twenty-first', run.calls.length === 20, `calls=${run.calls.length}`)
   check('the turn ended typed as loop_stopped, carrying the cycle', run.terminal.reason === 'loop_stopped' && JSON.stringify((run.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['Edit', 'Bash']), JSON.stringify(run.terminal))
@@ -485,7 +486,7 @@ section('C9 — KEY ON (loopGuardStopEnabled: true in the scratch home\'s settin
   const stops = attachmentsOf(run, 'loop_stopped')
   check('one loop_stopped attachment was yielded, naming the cycle that fired', stops.length === 1 && JSON.stringify(stops[0]?.cycle) === JSON.stringify(['Edit', 'Bash']) && /the same cycle of tool calls \(Edit -> Bash\)/.test(String(stops[0]?.message)), JSON.stringify(stops))
   const rows = noticeRows(run)
-  check('the operator gets an info row for the nudge and a warning row for the end that names the key', rows.length === 2 && rows[0]?.level === 'info' && rows[1]?.level === 'warning' && /ended the turn/.test(String(rows[1]?.content)) && /loopGuardStopEnabled/.test(String(rows[1]?.content)), JSON.stringify(rows.map(r => [r.level, r.content])))
+  check('the operator gets an info row for the nudge and a warning row for the end that names the key', rows.length === 2 && rows[0]?.level === 'info' && rows[1]?.level === 'warning' && /ended the turn/.test(String(rows[1]?.content)) && /turns\.loopGuard/.test(String(rows[1]?.content)), JSON.stringify(rows.map(r => [r.level, r.content])))
   check('every one of the twenty calls ran (nothing blocked before the end)', run.ids.length === 20)
 }
 

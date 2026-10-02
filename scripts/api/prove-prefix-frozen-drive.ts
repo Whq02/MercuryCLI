@@ -237,7 +237,7 @@ process.stdin.on('end', () => process.exit(0))
     })
     const debugFile = path.join(RUN_HOME, `${name}.debug.log`)
     const out = path.join(RUN_HOME, `grid-${name}.json`)
-    const cfg = { argv: ['node', DIST, '--model', MODEL, '--debug-file', debugFile, ...extraArgv], cwd: CWD, sends, readyText: [readyText], stableTicks: 4, total, cols: 120, rows: 40, out }
+    const cfg = { argv: ['node', DIST, '--model', MODEL, '--log-file', debugFile, ...extraArgv], cwd: CWD, sends, readyText: [readyText], stableTicks: 4, total, cols: 120, rows: 40, out }
     const cfgPath = path.join(RUN_HOME, `cfg-${name}.json`)
     writeFileSync(cfgPath, j(cfg))
     const startedAt = Date.now()
@@ -340,7 +340,7 @@ process.stdin.on('end', () => process.exit(0))
     { atTick: 2160, minTick: 10, awaitText: 'TURN-9-DONE', awaitSettleTicks: 4, data: 'drive turn 10\r', mark: 't9' },
   ]
   section('1D — leg 1 (ten turns, every perturbation): the drive completed')
-  const leg1 = await runLeg('frozen', sends1, 2320, 'TURN-10-DONE', {}, ['--allow-sovereign', '--mcp-config', mcpConfig, '--strict-mcp-config'])
+  const leg1 = await runLeg('frozen', sends1, 2320, 'TURN-10-DONE', {}, ['--allow-sovereign', '--mcp', mcpConfig, '--only-mcp'])
   check('leg 1: vshot exited 0 with a grid', leg1.status === 0 && leg1.payload !== null, `status=${leg1.status} stderr=${leg1.stderr.slice(-400)}`)
   console.log(`  leg 1: sends fired at ticks ${leg1.fired.join(', ')}; ended: ${leg1.payload?.endReason ?? '?'} after ${leg1.seconds}s`)
   check('leg 1: the tenth reply painted (TURN-10-DONE)', leg1.finalGrid.includes('TURN-10-DONE'), leg1.finalGrid.split('\n').slice(-14).join('\n'))

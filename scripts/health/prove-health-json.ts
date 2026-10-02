@@ -255,7 +255,7 @@ try {
     copyFileSync(BIN, join(bundleDir, 'mercury.mjs'))
     const helper = join(bundleDir, 'vendor', 'seccomp', process.arch, 'apply-seccomp')
     const sandboxRow = (sandbox: Record<string, unknown>, linux: boolean, bundle: string = BIN): Check | undefined => {
-      writeFileSync(settings, JSON.stringify({ sandbox }))
+      writeFileSync(settings, JSON.stringify({ guardrails: { sandbox } }))
       const env: Record<string, string> = { MERCURY_CONFIG_DIR: home, PATH: `${bin}:${process.env.PATH ?? ''}` }
       if (linux) {
         env.SANDBOX_PATHS_PLATFORM = 'linux'

@@ -417,22 +417,22 @@ a later switch. Permission policy and deny rules still apply. A root user
 entering sovereign mode gets one notice on stderr; the run continues.
 
 Use `-c` to continue the most recent conversation, `-r` to resume by ID, title
-or picker, `-w` to run in a managed worktree, and `--bare` for minimal mode.
+or picker, `-w` to run in a managed worktree, and `--lean` for a minimal session.
 
 Available commands include:
 
 - **`mercury health`** (alias `doctor`): diagnostic report, also called the
   health certificate. `--json` returns the full report, `--deep` runs the deep
   inventory, and `--fix` runs guided fixes.
-- **`mercury auth login|status|logout|token`**: sign in, check authentication,
+- **`mercury auth login|status|logout|mint`**: sign in, check authentication,
   sign out, or create a long-lived token.
-- **`mercury mcp`**: manage MCP servers with `add`, `add-json`, `list`, `get`,
-  `remove` and `serve`.
+- **`mercury mcp`**: manage MCP servers with `add`, `import`, `list`, `get`,
+  `remove`, `trust-reset` and `serve`.
 - **`mercury extensions`**: install extensions and manage their sources.
-  Actions: `list`, `sources`, `add`, `remove`, `check`, `install`, `approve`,
-  `enable`, `disable`, `update`, `uninstall`, `block`, `unblock`, `validate`
-  and `init`.
-- **`mercury agents`**: list the agent inventory.
+  Actions: `list`, `sources`, `add`, `remove`, `refresh`, `install`, `trust`,
+  `enable`, `disable`, `update`, `uninstall`, `fence`, `unfence`, `inspect`
+  and `scaffold`.
+- **`mercury roster`**: list the agent inventory.
 - **`mercury daemon`**: run the background daemon that hosts sessions.
 - **`mercury acp --stdio`**: connect an editor through the Agent Client
   Protocol. `mercury bridge <action>` installs the VS Code extension.
@@ -442,7 +442,7 @@ Available commands include:
   service includes a compilation gate, captures, frame statistics, settled
   profiles, job queue access, cancellation and results by ID. See
   [docs/VULCAN-GODOT-TOOLS.md](docs/VULCAN-GODOT-TOOLS.md).
-- **`mercury show <image>`**: display an image in the terminal.
+- **`mercury image <image>`**: display an image in the terminal.
 - **`mercury install`** and **`mercury update`** (alias `upgrade`): install or
   update release archives. See [Install](#install).
 

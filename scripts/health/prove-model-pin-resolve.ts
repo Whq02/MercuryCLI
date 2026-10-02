@@ -24,7 +24,7 @@ const modelRow = async (): Promise<{ status: string; evidence: string }> => {
   return { status: String(row?.status), evidence: String(row?.evidence) }
 }
 
-writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ model: 'sonnet5' }))
+writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'sonnet5' } }))
 {
   const row = await modelRow()
   check(

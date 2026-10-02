@@ -40,7 +40,7 @@ const daemonDir = join(home, 'daemon')
 mkdirSync(cwd, { recursive: true })
 mkdirSync(daemonDir, { recursive: true })
 seedFirstRun(home, [cwd])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ skipSovereignConsentPrompt: true }, null, 2))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { sovereignConsentSeen: true } }, null, 2))
 writeFileSync(join(cwd, 'README.md'), '# guard probe\n')
 
 const drivePins = ['MERCURY_TERMINAL_TITLE', 'MERCURY_LOCAL_PROBE_TARGETS', 'MERCURY_UPDATE_NOTICE', 'MERCURY_TURN_RECEIPT', 'MERCURY_VERIFY_EVIDENCE', 'MERCURY_LIVE_GLYPHS', 'MERCURY_LIVE_CLOCK', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_SLEEP', 'MERCURY_OASIS_BG', 'MERCURY_BOOT_PREFLIGHT']

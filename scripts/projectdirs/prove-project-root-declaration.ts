@@ -16,25 +16,25 @@ const check = (label: string, ok: unknown): void => { assert(ok, label); checks+
 try {
   const plain = ['node', 'app', 'run', 'hello']
   check('an undeclared launch changes neither cwd nor arguments', !applyProjectRoot(plain) && process.cwd() === original && plain.join('|') === 'node|app|run|hello')
-  const args = ['node', 'app', '--project-root', link, 'run', 'hello']
+  const args = ['node', 'app', '--project', link, 'run', 'hello']
   check('the declaration applies before ordinary arguments', applyProjectRoot(args))
   check('the declared project is canonical and supports spaces', process.cwd() === target)
   assert.deepEqual(args, ['node', 'app', 'run', 'hello'])
   process.chdir(original)
-  const equals = ['node', 'app', `--project-root=${target}`, '--help']
+  const equals = ['node', 'app', `--project=${target}`, '--help']
   check('the equals spelling selects the same root', applyProjectRoot(equals) && process.cwd() === target)
   assert.deepEqual(equals, ['node', 'app', '--help'])
   process.chdir(original)
   const file = join(scratch, 'file.txt')
   writeFileSync(file, 'not a directory')
   for (const value of ['', '--help', join(scratch, 'missing'), file]) {
-    const invalid = ['node', 'app', '--project-root', value, 'run']
+    const invalid = ['node', 'app', '--project', value, 'run']
     const before = [...invalid]
     assert.throws(() => applyProjectRoot(invalid))
     assert.deepEqual(invalid, before)
     check('an invalid declaration changes nothing', process.cwd() === original)
   }
-  const afterEnd = ['node', 'app', '--', '--project-root', target]
+  const afterEnd = ['node', 'app', '--', '--project', target]
   check('a prompt operand cannot move the project', !applyProjectRoot(afterEnd) && process.cwd() === original)
   const entry = readFileSync(join(import.meta.dir, '../../src/entrypoints/cli.tsx'), 'utf8')
   const declared = entry.indexOf('applyProjectRoot(process.argv)')

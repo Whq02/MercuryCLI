@@ -346,13 +346,13 @@ if (!existsSync(DIST)) {
     ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
     const debugFile = (n: number): string => join(arena.home, `turn-${n}.debug.log`)
     const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
-    const r1 = await run(arena, ['run', 'read the note', ...common, '--session-id', SID, '--debug-file', debugFile(1)])
+    const r1 = await run(arena, ['run', 'read the note', ...common, '--session-id', SID, '--log-file', debugFile(1)])
     check('turn 1 (a tool round) exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     check('turn 1 answered with the post-tool text', r1.stdout.includes('B-TURN-1-DONE'), j(r1.stdout.slice(0, 200)))
-    const r2 = await run(arena, ['run', 'second prompt', ...common, '--resume', SID, '--debug-file', debugFile(2)])
+    const r2 = await run(arena, ['run', 'second prompt', ...common, '--resume', SID, '--log-file', debugFile(2)])
     check('turn 2 (resumed) exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
     check('turn 2 answered', r2.stdout.includes('B-TURN-2-DONE'), j(r2.stdout.slice(0, 200)))
-    const r3 = await run(arena, ['run', 'third prompt', ...common, '--resume', SID, '--debug-file', debugFile(3)])
+    const r3 = await run(arena, ['run', 'third prompt', ...common, '--resume', SID, '--log-file', debugFile(3)])
     check('turn 3 (resumed) exit 0', r3.exit === 0, `exit=${r3.exit} stderr=${r3.stderr.slice(0, 300)}`)
     check('turn 3 answered', r3.stdout.includes('B-TURN-3-DONE'), j(r3.stdout.slice(0, 200)))
 
@@ -416,14 +416,14 @@ if (!existsSync(DIST)) {
 
     const envelopes = r3.stdout.split('\n').filter(l => l.trim() !== '').map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return null } }).filter((e): e is Record<string, unknown> => e !== null)
     const carried = envelopes.filter(e => e.type === 'assistant' && Array.isArray((e.message as { input_transformations?: unknown } | undefined)?.input_transformations))
-    check('the scripted drop list rides the assistant envelope on stream-json stdout', carried.length > 0 && j((carried[0]!.message as { input_transformations: unknown }).input_transformations) === j([DROP]), j(carried[0]?.message ?? envelopes.map(e => e.type)).slice(0, 300))
+    check('the scripted drop list rides the assistant envelope on the rows stdout', carried.length > 0 && j((carried[0]!.message as { input_transformations: unknown }).input_transformations) === j([DROP]), j(carried[0]?.message ?? envelopes.map(e => e.type)).slice(0, 300))
     const noticeText = 'Preserved thinking: the API dropped 1 thinking block'
     const stdoutNotices = envelopes.filter(e => j(e).includes(noticeText)).length
     const debugLogOf = (n: number): string => { try { return readFileSync(debugFile(n), 'utf8') } catch { return '' } }
     const dropLine = 'preserved thinking: [{"type":"thinking_dropped"'
     const debugNotices = debugLogOf(3).split('\n').filter(l => l.includes(dropLine)).length
     check('the notice reaches the debug log exactly once (one envelope per block, one response id)', debugNotices === 1, `debug lines=${debugNotices} stdout notices=${stdoutNotices} log=${debugLogOf(3).length}B`)
-    console.log(`    (stream-json system rows carrying the notice: ${stdoutNotices})`)
+    console.log(`    (system rows on stdout carrying the notice: ${stdoutNotices})`)
     const early = r1.stdout + r1.stderr + r2.stdout + r2.stderr + debugLogOf(1) + debugLogOf(2)
     const earlyNotices = early.includes(noticeText) || early.includes(dropLine)
     check('an empty or absent drop list never writes a receipt (turns 1 and 2)', !earlyNotices)

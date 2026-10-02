@@ -25,7 +25,7 @@ export const fixtureReads = {
   connector: () => connector,
   telemetry: () => ({ sessions: { state: 'known', rows: [{ sessionId: 'fixture', live: true, paused: false, parked: false, stopped: false }] }, trace: { state: 'live', data: { total: 17274 } }, workflowsDisk: [] }),
   seats: () => ({ seats: 17 }),
-  settings: () => ({ shellEngine: 'system' }),
+  settings: () => ({ shell: { engine: 'system' } }),
   shell: () => ({ engine: 'system' }),
   families: () => [
     { id: 'anthropic', credentialed: true, credentialLabel: 'Claude subscription (max)' },

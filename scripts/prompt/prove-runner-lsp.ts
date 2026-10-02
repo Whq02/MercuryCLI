@@ -67,11 +67,11 @@ const server = createServer((req, res) => {
 await new Promise<void>(done => server.listen(0, '127.0.0.1', done))
 const base = `http://127.0.0.1:${(server.address() as { port: number }).port}`
 try {
-  for (const mode of ['on', 'off', 'bare', 'stream-json', 'edit-on', 'edit-off']) {
+  for (const mode of ['on', 'off', 'lean', 'rows', 'edit-on', 'edit-off']) {
     const home = join(scratch, mode)
     const cwd = join(home, 'project')
     activeCwd = cwd
-    const enabled = ['on', 'stream-json', 'edit-on'].includes(mode)
+    const enabled = ['on', 'rows', 'edit-on'].includes(mode)
     const edits = mode.startsWith('edit-')
     mkdirSync(cwd, { recursive: true })
     writeFileSync(join(cwd, 'file.ts'), 'export const value = 1\n')
@@ -83,9 +83,9 @@ try {
       MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0', MERCURY_TOOL_SEARCH: 'on',
       ANTHROPIC_API_KEY: key, ANTHROPIC_BASE_URL: base,
       MERCURY_LSP_SERVERS: JSON.stringify({ fixture: { command: node, args: [join(root, 'scripts/lsp/fixtures/fake-lsp-server.mjs')], extensionToLanguage: { '.fk': 'fixture' }, transport: 'stdio' } }),
-      ...(!enabled && mode !== 'bare' ? { MERCURY_LSP: '0' } : {}),
+      ...(!enabled && mode !== 'lean' ? { MERCURY_LSP: '0' } : {}),
     }
-    const argv = [dist, 'run', ...(mode === 'stream-json' ? ['--input=rows'] : [edits ? 'RUNNER-LSP-EDIT: Change value from 1 to 2 in file.ts.' : 'Reply with ready.']), '--format=rows', '--model', 'claude-sonnet-5', '--allowed-tools', 'Read,Edit', '--mode', 'sovereign', ...(mode === 'bare' ? ['--bare'] : [])]
+    const argv = [dist, 'run', ...(mode === 'rows' ? ['--input=rows'] : [edits ? 'RUNNER-LSP-EDIT: Change value from 1 to 2 in file.ts.' : 'Reply with ready.']), '--format=rows', '--model', 'claude-sonnet-5', '--allowed-tools', 'Read,Edit', '--mode', 'sovereign', ...(mode === 'lean' ? ['--lean'] : [])]
     const before = captured.length
     const start = performance.now()
     const result = await new Promise<{ code: number | null; out: string; err: string }>(done => {
@@ -95,7 +95,7 @@ try {
       child.stderr.on('data', d => { err += d })
       const timeout = setTimeout(() => child.kill('SIGKILL'), 90000)
       child.on('close', code => { clearTimeout(timeout); done({ code, out, err }) })
-      child.stdin.end(mode === 'stream-json' ? `${JSON.stringify({ type: 'user', message: { role: 'user', content: 'Reply with ready.' }, session_id: '', parent_tool_use_id: null })}\n` : '')
+      child.stdin.end(mode === 'rows' ? `${JSON.stringify({ type: 'user', message: { role: 'user', content: 'Reply with ready.' }, session_id: '', parent_tool_use_id: null })}\n` : '')
     })
     check(`${mode}: the real runner completes its fixture turn`, result.code === 0 && result.out.includes('RUNNER-LSP-DONE'), result.err.slice(0, 300))
     const requests = captured.slice(before)

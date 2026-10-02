@@ -74,7 +74,7 @@ function setStopKey(value: boolean | null): void {
   if (value === null) rmSync(path, { force: true })
   else {
     mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(path, JSON.stringify({ loopGuardStopEnabled: value }, null, 2))
+    writeFileSync(path, JSON.stringify({ turns: { loopGuard: value } }, null, 2))
   }
   resetSettingsCache()
 }

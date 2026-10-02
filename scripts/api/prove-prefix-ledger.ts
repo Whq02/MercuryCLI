@@ -655,7 +655,7 @@ if (!existsSync(DIST)) {
       const fixture = await startFixtureApi(scripted(leg.edit, 3), { bindingCheck: true })
       const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: leg.edit })
       const debugFile = join(arena.home, `${leg.edit}.debug.log`)
-      const r = await runStreaming(arena, [...common, '--session-id', leg.sid, '--debug-file', debugFile], [{ prompt: 'ledger turn 1' }, { prompt: 'ledger turn 2' }, { prompt: 'ledger turn 3' }])
+      const r = await runStreaming(arena, [...common, '--session-id', leg.sid, '--log-file', debugFile], [{ prompt: 'ledger turn 1' }, { prompt: 'ledger turn 2' }, { prompt: 'ledger turn 3' }])
       check(`[${leg.edit}] the three-turn process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests().map(q => q.body as Body)
       check(`[${leg.edit}] three requests; the first clean, the second carrying the induced edit on the wire`, reqs.length === 3 && leg.wireCheck(reqs[0]!, reqs[1]!), `${reqs.length} requests`)
@@ -673,7 +673,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: 'system', MERCURY_THINKING_BINDING: 'error' })
       const SID = 'c0ffee00-0000-4000-8000-00000000d004'
       const debugFile = join(arena.home, 'err.debug.log')
-      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [{ prompt: 'error turn 1' }, { prompt: 'error turn 2' }])
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [{ prompt: 'error turn 1' }, { prompt: 'error turn 2' }])
       check('[error] the process ends (a refused request is an API error, never a hang)', r.exit !== null, `exit=${r.exit}`)
       check('[error] the fixture refused the edited request with the binding sentence (a drop fails the run)', fixture.refusals.length >= 1 && fixture.refusals[0]!.message.includes('binding does not match'), j(fixture.refusals))
       check('[error] the ledger still named the part in the debug log', debugText(debugFile).includes("the prefix ledger names a rewrite of sent history before the request went out — the system prompt's"))
@@ -698,7 +698,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture, { MERCURY_PREFIX_INDUCE_EDIT: 'system' })
       const SID = 'c0ffee00-0000-4000-8000-00000000d007'
       const debugFile = join(arena.home, 'kill.debug.log')
-      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [1, 2, 3, 4, 5].map(n => ({ prompt: `kill turn ${n}` })))
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [1, 2, 3, 4, 5].map(n => ({ prompt: `kill turn ${n}` })))
       check('[killer] the five-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests().map(q => q.body as Body)
       const dropsPer = fixture.messageRequests().map(q => (fixture as unknown as { drops?: unknown }) && 0)
@@ -716,7 +716,7 @@ if (!existsSync(DIST)) {
       const rowsText = (() => { const dir = join(arena.home, '.mercury', 'projects'); const files: string[] = []; const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }; if (existsSync(dir)) walk(dir); return files.map(f => readFileSync(f, 'utf8')).join('\n') })()
       check('[killer] the dead marks persist in the transcript as a dead_thinking attachment (an info notice was lost before disk)', rowsText.includes('"attachmentType":"dead_thinking"') && rowsText.includes('"blockIndex":0'), rowsText.split('\n').filter(l => l.includes('dead_thinking')).join(' | ').slice(0, 300))
       const resumeArena = { ...arena, env: { ...arena.env, MERCURY_THINKING_BINDING: 'error' } }
-      const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--debug-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
+      const r2 = await runStreaming(resumeArena, [...common, '--resume', SID, '--log-file', join(arena.home, 'kill-resume.debug.log')], [{ prompt: 'kill turn 6 after the resume' }])
       check('[killer] the resumed turn exits 0 under `error` (nothing refused)', r2.exit === 0 && fixture.refusals.length === 0, `exit=${r2.exit} refusals=${j(fixture.refusals)} stderr=${r2.stderr.slice(0, 200)}`)
       const resumed = fixture.messageRequests().map(q => q.body as Body)
       const resumedThinking = ((resumed[5]?.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
@@ -770,7 +770,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture)
       const SID = 'c0ffee00-0000-4000-8000-00000000d010'
       const debugFile = join(arena.home, 'after-drop.debug.log')
-      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [{ prompt: 'after-drop turn 1' }, { prompt: 'after-drop turn 2' }, { prompt: 'after-drop turn 3' }, { prompt: 'after-drop turn 4' }])
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [{ prompt: 'after-drop turn 1' }, { prompt: 'after-drop turn 2' }, { prompt: 'after-drop turn 3' }, { prompt: 'after-drop turn 4' }])
       check('[after drop] the four-turn process exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests().map(q => q.body as Body)
       const rowThree = reqs[2]?.messages?.[3] as { role?: string; content?: Block[] } | undefined
@@ -800,7 +800,7 @@ if (!existsSync(DIST)) {
       spawnSync('git', ['commit', '-q', '-m', 'seed'], { cwd: arena.cwd, stdio: 'ignore', env: gitEnv })
       const SID = 'c0ffee00-0000-4000-8000-00000000d008'
       const debugFile = join(arena.home, 'wt.debug.log')
-      const r = await runStreaming(arena, ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'Read,EnterWorktree', '--format', 'rows', '--session-id', SID, '--debug-file', debugFile], [
+      const r = await runStreaming(arena, ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'Read,EnterWorktree', '--format', 'rows', '--session-id', SID, '--log-file', debugFile], [
         { prompt: 'worktree turn 1' },
         { prompt: 'worktree turn 2: hop into a worktree' },
         { prompt: 'worktree turn 3' },
@@ -820,7 +820,7 @@ if (!existsSync(DIST)) {
       const SID = 'c0ffee00-0000-4000-8000-00000000d006'
       const debugFile = join(arena.home, 'ctl.debug.log')
       const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' }
-      const r = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', debugFile], [
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [
         { prompt: 'control turn 1' },
         { prompt: 'control turn 2 after git init', before: () => { spawnSync('git', ['init', '-q'], { cwd: arena.cwd, stdio: 'ignore' }); spawnSync('git', ['add', '.'], { cwd: arena.cwd, stdio: 'ignore' }); spawnSync('git', ['commit', '-q', '-m', 'seed'], { cwd: arena.cwd, stdio: 'ignore', env: gitEnv }) } },
         { prompt: 'control turn 3' },

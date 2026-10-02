@@ -24,7 +24,7 @@ process.env.MERCURY_CONFIG_DIR ??= mkdtempSync(join(tmpdir(), 'dap-data-breakpoi
 const MOCK = join(import.meta.dir, 'mock-dap-adapter-memory.mjs')
 process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({
   'memory-mock': { command: process.execPath, args: [MOCK] },
-  'memory-bare': { command: process.execPath, args: [MOCK, '--bare'] },
+  'memory-bare': { command: process.execPath, args: [MOCK, '--thin'] },
 })
 delete process.env.MERCURY_DAP
 
@@ -129,7 +129,7 @@ section('(1) the journey — the wrong value mid-computation, caught on its writ
   check('disconnect reaps', /disconnected/.test(disc.data.result))
 }
 
-section('(2) precise refusals — the --bare persona advertises none of the three')
+section('(2) precise refusals — the --thin persona advertises none of the three')
 {
   await call({ op: 'launch', adapter: 'memory-bare', program: '/tmp/demo.c', file: '/tmp/demo.c', lines: [4], session: 'bare' })
   const cases: Array<{ label: string; input: Record<string, unknown>; capability: string }> = [

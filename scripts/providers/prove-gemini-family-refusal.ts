@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 const scratch = mkdtempSync(join(tmpdir(), 'gemini-oauth-family-'))
 const debugLog = join(scratch, 'debug.txt')
-process.argv.push(`--debug-file=${debugLog}`)
+process.argv.push(`--log-file=${debugLog}`)
 const path = process.env.PATH
 for (const key of Object.keys(process.env)) delete process.env[key]
 Object.assign(process.env, {

@@ -56,7 +56,7 @@ function setStopKey(value: boolean | null): void {
   if (value === null) rmSync(path, { force: true })
   else {
     mkdirSync(dirname(path), { recursive: true })
-    writeFileSync(path, JSON.stringify({ loopGuardStopEnabled: value }, null, 2))
+    writeFileSync(path, JSON.stringify({ turns: { loopGuard: value } }, null, 2))
   }
   resetSettingsCache()
 }
@@ -196,10 +196,10 @@ section('P2 — DEFAULT (no key): a chanting reply is cut once with the loop nud
   check('the turn completed on the continuation\'s own words, no loop_stopped', once.terminal.reason === 'completed' && stops(once).length === 0, JSON.stringify(once.terminal))
   const twice = await runReplies([CHANT, CHANT])
   check('a second chant after the nudge is not cut again: two model calls, the reply stands, the turn completes', twice.calls.length === 2 && twice.terminal.reason === 'completed' && stops(twice).length === 0, `calls=${twice.calls.length} ${JSON.stringify(twice.terminal)}`)
-  check('the operator got the continuation row and then the row saying the reply stands, claiming no end', rows(twice).length === 2 && /the reply stands, and the loop guard ends no turn without loopGuardStopEnabled/.test(String(rows(twice)[1]?.content)) && !/turn ends/.test(String(rows(twice)[1]?.content)), JSON.stringify(rows(twice).map(r => r.content)))
+  check('the operator got the continuation row and then the row saying the reply stands, claiming no end', rows(twice).length === 2 && /the reply stands, and the loop guard ends no turn without turns\.loopGuard/.test(String(rows(twice)[1]?.content)) && !/turn ends/.test(String(rows(twice)[1]?.content)), JSON.stringify(rows(twice).map(r => r.content)))
 }
 
-section('P3 — KEY ON (loopGuardStopEnabled: true): the second chant ends the turn typed as loop_stopped')
+section('P3 — KEY ON (turns.loopGuard: true): the second chant ends the turn typed as loop_stopped')
 {
   setStopKey(true)
   const run = await runReplies([CHANT, CHANT, HONEST])
@@ -207,7 +207,7 @@ section('P3 — KEY ON (loopGuardStopEnabled: true): the second chant ends the t
   check('the turn ended typed as loop_stopped for the reply', run.terminal.reason === 'loop_stopped' && JSON.stringify((run.terminal as { cycle?: unknown }).cycle) === JSON.stringify(['reply']), JSON.stringify(run.terminal))
   const stop = stops(run)
   check('one loop_stopped attachment was yielded with the stop text naming the repeated stretch', stop.length === 1 && String(stop[0]?.message).startsWith(STOP) && String(stop[0]?.message).includes('I will now check the configuration file'), JSON.stringify(stop))
-  check('the operator got the continuation row and then the warning row naming the key', rows(run).length === 2 && rows(run).every(r => r.level === 'warning') && /loopGuardStopEnabled/.test(String(rows(run)[1]?.content)), JSON.stringify(rows(run).map(r => r.content)))
+  check('the operator got the continuation row and then the warning row naming the key', rows(run).length === 2 && rows(run).every(r => r.level === 'warning') && /turns\.loopGuard/.test(String(rows(run)[1]?.content)), JSON.stringify(rows(run).map(r => r.content)))
   const single = await runReplies([CHANT, HONEST])
   check('with the key on, a single chant is still only cut once and the continuation completes the turn', single.calls.length === 2 && single.terminal.reason === 'completed' && stops(single).length === 0, `calls=${single.calls.length} ${JSON.stringify(single.terminal)}`)
   setStopKey(null)

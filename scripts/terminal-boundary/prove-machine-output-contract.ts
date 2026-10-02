@@ -183,7 +183,7 @@ function parseLines(cap: Capture): { parsed: Record<string, unknown>[]; bad: str
   return { parsed, bad }
 }
 
-section('L7 — stream-json success: every stdout line parses; typed result envelope')
+section('L7 — rows success: every stdout line parses; typed result envelope')
 {
   const fx = await fixture([{ kind: 'text', text: 'PROOF-SJ-OK.' }])
   const cap = await runDist(['run', 'hello', '--format', 'rows'], { baseUrl: fx.url })
@@ -197,7 +197,7 @@ section('L7 — stream-json success: every stdout line parses; typed result enve
   assertClean('L7', cap)
 }
 
-section('L8 — stream-json failure: framing holds; the typed error record rides the schema')
+section('L8 — rows failure: framing holds; the typed error record rides the schema')
 {
   const fx = await fixture([
     { kind: 'error', status: 400, errorType: 'invalid_request_error', message: 'lucid-sj-bad-request' },
@@ -415,8 +415,8 @@ section('L13 — no credentials: an operational error, exit 1, the refusal where
   const sj = await runDist(['run', 'hello', '--max-turns', '1', '--format', 'rows'], noKey)
   const { parsed: frames, bad } = parseLines(sj)
   const result = frames.find(f => f.type === 'result') as { is_error?: boolean } | undefined
-  check('stream-json: exit 1', sj.exit === 1, String(sj.exit))
-  check('stream-json: every line parses and the result envelope carries is_error', bad.length === 0 && result?.is_error === true, bad[0]?.slice(0, 80) ?? '')
+  check('rows: exit 1', sj.exit === 1, String(sj.exit))
+  check('rows: every line parses and the result envelope carries is_error', bad.length === 0 && result?.is_error === true, bad[0]?.slice(0, 80) ?? '')
   assertClean('L13 text', text)
   assertClean('L13 json', json)
 }
@@ -427,7 +427,7 @@ section('L14 — --help carries none of the retired option spellings and every k
   check('--help exits 0', cap.exit === 0, String(cap.exit))
   const retired = ['--include-hook-events', '--mcp-debug', '--file ', '--allowedTools', '--disallowedTools', '--dangerously-skip-permissions', '--allow-dangerously-skip-permissions', '--enable-auth-status', '--max-thinking-tokens', '--deep-link', '--verbose', 'setup-token']
   for (const spelling of retired) check(`--help does not carry ${spelling.trim()}`, !cap.stdout.includes(spelling))
-  const kept = ['--allowed-tools', '--disallowed-tools', '--sovereign', '--allow-sovereign', '--mode', '--format', '--input', '--partial', '--betas', '--bare', '--replay-user-messages', '--no-session-persistence']
+  const kept = ['--allowed-tools', '--block-tools', '--sovereign', '--allow-sovereign', '--mode', '--format', '--input', '--partial', '--provider-preview', '--lean', '--replay-user-messages', '--ephemeral']
   for (const spelling of kept) check(`--help carries ${spelling}`, cap.stdout.includes(spelling))
 }
 

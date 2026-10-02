@@ -131,17 +131,17 @@ function withTtyStdout<T>(fn: () => T): T {
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   const fixture = join(mkdtempSync(join(tmpdir(), 'vista-show-')), 'fixture.png')
   writeFileSync(fixture, png)
-  const cellsRun = spawnSync('node', [dist, 'show', fixture, '--protocol', 'cells', '--cols', '20'], {
+  const cellsRun = spawnSync('node', [dist, 'image', fixture, '--protocol', 'cells', '--cols', '20'], {
     encoding: 'utf8',
     timeout: 60_000,
   })
-  check('show (bundle): cells tier renders half-blocks on stdout', cellsRun.status === 0 && cellsRun.stdout.includes('▀'), cellsRun.stderr.slice(0, 120))
-  check('show (bundle): names the tier on stderr', cellsRun.stderr.includes('[cells]'))
-  const itermRun = spawnSync('node', [dist, 'show', fixture, '--protocol', 'iterm'], {
+  check('image (bundle): cells tier renders half-blocks on stdout', cellsRun.status === 0 && cellsRun.stdout.includes('▀'), cellsRun.stderr.slice(0, 120))
+  check('image (bundle): names the tier on stderr', cellsRun.stderr.includes('[cells]'))
+  const itermRun = spawnSync('node', [dist, 'image', fixture, '--protocol', 'iterm'], {
     encoding: 'utf8',
     timeout: 60_000,
   })
-  check('show (bundle): iterm tier emits OSC 1337 on stdout', itermRun.status === 0 && itermRun.stdout.startsWith(`${ESC}]1337;File=`))
+  check('image (bundle): iterm tier emits OSC 1337 on stdout', itermRun.status === 0 && itermRun.stdout.startsWith(`${ESC}]1337;File=`))
 }
 
 console.log('\nWI-6 — link fallback when native decode is unavailable:')

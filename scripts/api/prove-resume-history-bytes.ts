@@ -423,7 +423,7 @@ if (!existsSync(DIST)) {
     const fixture = await startFixtureApi(scripted(3), { bindingCheck: true })
     const arena = makeArena(fixture)
     const firstDebug = join(arena.home, 'first.debug.log')
-    const first = await runStreaming(arena, [...common, '--session-id', SID, '--debug-file', firstDebug], ['revive turn 1', 'revive turn 2'])
+    const first = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', firstDebug], ['revive turn 1', 'revive turn 2'])
     check('[wire] the first process runs two turns and exits 0', first.exit === 0, `exit=${first.exit} stderr=${first.stderr.slice(0, 300)}`)
     const recordFile = join(arena.home, '.mercury', 'sessions', SID, 'prefix-ledger.json')
     check("[wire] the first process left the ledger's record beside its session", existsSync(recordFile), recordFile)
@@ -433,7 +433,7 @@ if (!existsSync(DIST)) {
     if (existsSync(recordFile) && transcriptBytes > 0) note(`the record is ${statSync(recordFile).size} bytes against a transcript of ${transcriptBytes} bytes: ${(statSync(recordFile).size / transcriptBytes).toFixed(2)} bytes of record per byte of transcript`)
     const revivedDebug = join(arena.home, 'revived.debug.log')
     const revivedArena = { ...arena, env: { ...arena.env, MERCURY_PREFIX_INDUCE_EDIT: 'system' } }
-    const second = await runStreaming(revivedArena, [...common, '--resume', SID, '--debug-file', revivedDebug], ['revive turn 3'])
+    const second = await runStreaming(revivedArena, [...common, '--resume', SID, '--log-file', revivedDebug], ['revive turn 3'])
     check('[wire] the revived process runs its turn and exits 0', second.exit === 0, `exit=${second.exit} stderr=${second.stderr.slice(0, 300)}`)
     const reqs = fixture.messageRequests().map(q => q.body as Body)
     check('[wire] three requests; only the revived one carries the system edit', reqs.length === 3 && !systemTextOf(reqs[1]!).includes('[induced edit]') && systemTextOf(reqs[2]!).endsWith('[induced edit]'), `${reqs.length} requests`)
