@@ -12,7 +12,8 @@ const WIDE = /^(?:src|docs|scripts|bench|integrations)\/|^README\.md$|^\.github\
 const SRC = /^src\//
 const CODE = /^(?:src|scripts|docs)\//
 
-type Row = { id: string; needle: RegExp; scope: RegExp; what: string; allow: Array<[string, string]> }
+type Allowance = [path: string, why: string, pending?: 'pending']
+type Row = { id: string; needle: RegExp; scope: RegExp; what: string; allow: Allowance[] }
 
 const ROWS: Row[] = [
   {
@@ -21,7 +22,6 @@ const ROWS: Row[] = [
     scope: WIDE,
     what: "another tool's instruction file is an ordinary file: nothing probes, lists, composes or names it",
     allow: [
-      ['scripts/consistency-census/gen-basename-census.ts', 'the basename census hunts the spelling as a detector needle'],
       ['scripts/consistency-census/basename-census.json', 'the generated census records the needles it hunts'],
       ['scripts/consistency-census/prove-census-comment-invariance.ts', 'a planted comment fixture proves comments never count'],
       ['scripts/dev-context/prove-root-guide.ts', "proves no second guide file sits beside this repository's AGENTS.md"],
@@ -56,8 +56,7 @@ const ROWS: Row[] = [
     allow: [
       ['src/utils/permissions/filesystem.ts', "a protection naming another tool's executable config (never a read)"],
       ['scripts/core-runtime/prove-boot-mcp-independence.ts', 'names its --mcp fixture files <stub>.mcp.json — files handed on the command line, any name'],
-      ['src/daemon/sessionKit.ts', "a comment in the protocol lane's daemon door file (queue row posted)"],
-      ['scripts/headless/prove-run-trust.ts', "the protocol lane's trusted-run fixture (ask posted: one line)"],
+      ['src/daemon/sessionKit.ts', "a comment in the protocol lane's daemon door file (queue row posted)", 'pending'],
     ],
   },
   {
@@ -99,6 +98,12 @@ for (const row of ROWS) {
 check('other-guide-file: the native guide passes', !ROWS[0]!.needle.test("join(dir, 'MERCURY.md')"))
 check('other-mcp-file: the project MCP file passes', !ROWS[4]!.needle.test("join(home, 'mcp.json') + '.mercury/mcp.json'"))
 check('other-guide-env: a Mercury env read passes', !ROWS[1]!.needle.test("process.env.MERCURY_HOME ?? flagEnv('MERCURY_ONBOARDING')"))
+
+const mootAllowances = (allow: Allowance[], used: Set<string>): Allowance[] => allow.filter(([p]) => !used.has(p))
+{
+  const planted = mootAllowances([...ROWS[0]!.allow, ['src/no-such-file.ts', 'poison: an allowance no line needs']], new Set(ROWS[0]!.allow.map(([p]) => p)))
+  check('allowance self-test: an allowance no line needs is reported', planted.length === 1 && planted[0]![0] === 'src/no-such-file.ts', planted.map(([p]) => p).join(' · '))
+}
 
 function sample(id: string): string {
   switch (id) {
@@ -149,8 +154,9 @@ for (const row of ROWS) {
     rowHits.length === 0,
     `${rowHits.length} found:` + rowHits.slice(0, 40).map(h => `\n      ${h.file}:${h.line} ${h.text}`).join('') + (rowHits.length > 40 ? `\n      … and ${rowHits.length - 40} more` : ''),
   )
-  for (const [p] of row.allow) {
-    if (!(allowed.get(row.id)?.has(p) ?? false)) console.log(`  [NOTE] ${row.id}: the allowance for ${p} is no longer needed — drop the row`)
+  for (const [p, , pending] of mootAllowances(row.allow, allowed.get(row.id) ?? new Set())) {
+    if (pending) console.log(`  [NOTE] ${row.id}: the allowance for ${p} is no longer needed — drop the row when that lane lands`)
+    else check(`${row.id}: the allowance for ${p} is still needed`, false, 'no tracked line needs it — drop the row')
   }
 }
 
