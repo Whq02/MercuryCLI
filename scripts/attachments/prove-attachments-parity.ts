@@ -3,7 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as A from '../../src/utils/attachments.ts'
-import { recordOrVerify, snap, clone } from '../lib/goldenReplay.ts'
+import { recordOrVerify, snap } from '../lib/goldenReplay.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const GOLDEN_PATH = join(HERE, 'goldens.json')
@@ -52,29 +52,19 @@ add('parseAtMentionedFileLines', 'shapes', () =>
   ),
 )
 
-add('memoryHeader', 'fresh-bucket', () =>
-  A.memoryHeader('/mem/example.md', Date.now() - 60_000),
+add('memoryHeader', 'one-fact-page', () =>
+  A.memoryHeader('/mem/library/topic-deploy.md', 0, 1, 'deploy'),
 )
-add('memoryHeader', 'stale-bucket', () =>
-  A.memoryHeader('/mem/old.md', Date.now() - 553 * 86_400_000),
+add('memoryHeader', 'many-facts-page', () =>
+  A.memoryHeader('/mem/library/topic-deploy.md', 0, 3, 'deploy'),
+)
+add('memoryHeader', 'recent-rows', () =>
+  A.memoryHeader('/mem/library/current.jsonl', 0, 2, '(recent)'),
+)
+add('memoryHeader', 'no-slug', () =>
+  A.memoryHeader('/mem/example.md', 0),
 )
 
-const memoriesAttachment = {
-  type: 'relevant_memories',
-  memories: [
-    { path: '/m/a.md', content: 'alpha', mtimeMs: 1, header: 'H-a' },
-    { path: '/m/b.md', content: 'beta', mtimeMs: 2, header: 'H-b' },
-  ],
-} as never
-add('filterDuplicateMemoryAttachments', 'dedup-read-file', () =>
-  A.filterDuplicateMemoryAttachments(
-    [clone(memoriesAttachment)],
-    { '/m/a.md': { content: 'alpha' } } as never,
-  ),
-)
-add('filterDuplicateMemoryAttachments', 'no-overlap', () =>
-  A.filterDuplicateMemoryAttachments([clone(memoriesAttachment)], {} as never),
-)
 
 const humanTurn = (text: string) =>
   ({
@@ -120,10 +110,8 @@ const SKIPPED: Record<string, string> = {
   getMcpInstructionsDeltaAttachment: 'reads MCP connection state',
   memoryFilesToAttachments: 'filesystem-coupled (memdir reads)',
   getChangedFiles: 'reads readFileState vs disk mtimes',
-  collectSurfacedMemories: 'memdir + config coupled',
-  readMemoriesForSurfacing: 'filesystem-coupled',
-  startRelevantMemoryPrefetch: 'spawns async prefetch state',
-  collectRecentSuccessfulTools: 'reads live message history shapes OK but feeds prefetch — cover with extraction',
+  collectSurfacedMemories: 'reads the live message history for the attachments already surfaced',
+  getRelevantMemoryAttachments: 'reads the memory library on disk (the automatic lookup) — pinned by the memory suite (prove-memory-front-page, prove-memory-always-on)',
   resetSentSkillNames: 'module-state mutator',
   suppressNextSkillListing: 'module-state mutator',
   tryGetPDFReference: 'filesystem stat-coupled',

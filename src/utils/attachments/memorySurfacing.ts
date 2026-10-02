@@ -26,8 +26,8 @@ export function collectSurfacedMemories(messages: ReadonlyArray<Message>): {
 }
 
 export function memoryHeader(path: string, _mtimeMs: number, facts = 1, slug?: string): string {
-  const where = slug ? (slug === '(recent)' ? 'recent facts, not yet on a page' : `topic ${slug}`) : 'memory'
-  return `Memory (${where}, ${facts} fact${facts === 1 ? '' : 's'}): ${path}:`
+  const where = slug ? (slug === '(recent)' ? 'recent facts, not yet on a page, ' : `topic ${slug}, `) : ''
+  return `Memory (${where}${facts} fact${facts === 1 ? '' : 's'}): ${path}:`
 }
 
 function groupByPage(hits: readonly LookupHit[]): Attachment[] {
