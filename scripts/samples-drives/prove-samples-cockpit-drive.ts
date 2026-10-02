@@ -88,7 +88,7 @@ async function drive(cols: number, rows: number): Promise<void> {
   const tag = `samples-${cols}x${rows}`
   const full = cols >= 100 && rows >= 26
   const leg = await startLeg(tag, TURNS, null)
-  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ permissions: { allow: ['Workshop'] } }))
+  writeFileSync(join(leg.home, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Workshop'] } }))
   const browserLog = join(scratch, `${tag}-browser.log`)
   const out = join(scratch, `${tag}.json`)
   const cfgPath = join(scratch, `${tag}-config.json`)

@@ -491,7 +491,7 @@ async function drive(): Promise<void> {
       customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
     }),
   )
-  writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ permissions: { allow: ['Bash(echo:*)'] } }))
+  writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { allow: ['Bash(echo:*)'] } }))
   writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# wire prefix drive fixture\n')
 
   const fixtures: ChildProcess[] = []

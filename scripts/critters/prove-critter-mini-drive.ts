@@ -61,7 +61,7 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
   mkdirSync(cwd, { recursive: true })
   mkdirSync(configHome, { recursive: true })
   seedFirstRun(configHome, [cwd])
-  if (verb !== undefined) writeFileSync(join(configHome, 'settings.json'), JSON.stringify({ spinnerVerbs: { mode: 'replace', verbs: [verb] } }))
+  if (verb !== undefined) writeFileSync(join(configHome, 'settings.json'), JSON.stringify({ activity: { verbs: { mode: 'replace', verbs: [verb] } } }))
   return { configHome, cwd }
 }
 
@@ -146,7 +146,7 @@ const text = (g: Grid): string[] => g.map(row => row.map(c => c.c).join(''))
 const savedBarOf = (configHome: string): boolean | undefined => {
   const path = join(configHome, 'settings.json')
   if (!existsSync(path)) return undefined
-  return (JSON.parse(readFileSync(path, 'utf8')) as { sessionsBar?: boolean }).sessionsBar
+  return (JSON.parse(readFileSync(path, 'utf8')) as { view?: { sessionsBar?: boolean } }).view?.sessionsBar
 }
 const rowWith = (g: Grid, needle: string): number => text(g).findIndex(line => line.includes(needle))
 const sameCell = (a: Cell, b: Cell): boolean => a.c === b.c && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.rev === b.rev
@@ -269,7 +269,7 @@ try {
   const midBoot = c.marks['boot']!
   const midBar = c.grid
   const tripHome = homeFor('trip')
-  writeFileSync(join(tripHome.configHome, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+  writeFileSync(join(tripHome.configHome, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
   const trip = await capture('trip', tripHome, 178, 51, [onReady('', 'wide')], '← back', [{ atTick: 70, cols: 80, rows: 21 }, { atTick: 85, cols: 178, rows: 51 }])
   const tripWide = trip.marks['wide']!
   const tripNarrow = trip.marks['stage1:80x21']!

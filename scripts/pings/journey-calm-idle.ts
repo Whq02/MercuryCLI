@@ -47,7 +47,7 @@ mkdirSync(aux, { recursive: true })
 const cwd = realpathSync(join(scratch, 'cwd')).normalize('NFC')
 spawnSync('git', ['init', '-q'], { cwd })
 seedFirstRun(home, [cwd])
-writeFileSync(join(home, 'settings.json'), JSON.stringify({ sessionsBar: true }))
+writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { sessionsBar: true } }))
 const SID = '00000000-aaaa-bbbb-cccc-000000000042'
 
 {

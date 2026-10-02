@@ -48,7 +48,7 @@ writeFileSync(
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }),
 )
-writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ permissions: { defaultMode: 'flow' } }))
+writeFileSync(path.join(RUN_HOME, 'settings.json'), JSON.stringify({ guardrails: { mode: 'flow' } }))
 writeFileSync(path.join(FIXTURE_CWD, 'README.md'), '# interrupt drive fixture\n')
 
 const captureFile = path.join(RUN_HOME, 'wire-captures.jsonl')

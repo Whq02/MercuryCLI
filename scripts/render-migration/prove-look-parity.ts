@@ -64,7 +64,7 @@ function capture(cols: number, rows: number, theme: string, leg: Leg): Capture {
   writeFileSync(cfgFile, JSON.stringify(cfg, null, 2))
   writeFileSync(
     join(home, 'settings.json'),
-    JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }),
+    JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }),
   )
   writeFileSync(
     join(home, 'critter-profile.json'),

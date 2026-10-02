@@ -141,7 +141,7 @@ async function drive(): Promise<void> {
     projects: { [CWD]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } },
     customApiKeyResponses: { approved: [PROBE_KEY.slice(-20)], rejected: [] },
   }))
-  writeFileSync(path.join(RUN_HOME, 'settings.json'), j({ permissions: { allow: ['Bash(echo:*)', 'Bash(git:*)', 'Bash(rm:*)', 'Bash(printf:*)', 'Bash(sh:*)'] } }))
+  writeFileSync(path.join(RUN_HOME, 'settings.json'), j({ guardrails: { allow: ['Bash(echo:*)', 'Bash(git:*)', 'Bash(rm:*)', 'Bash(printf:*)', 'Bash(sh:*)'] } }))
   writeFileSync(path.join(CWD, 'README.md'), '# prefix frozen drive fixture\n')
   writeFileSync(path.join(CWD, 'MERCURY.md'), '# project\nbe brief\n')
   const slowServer = path.join(RUN_HOME, 'slow-mcp-server.mjs')

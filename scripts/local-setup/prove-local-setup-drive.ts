@@ -153,7 +153,7 @@ async function makeWorld(size: string): Promise<World> {
   const state = join(root, 'state')
   for (const dir of [home, userHome, cwd, bin, state, join(userHome, 'Library', 'LaunchAgents'), join(userHome, 'Applications'), join(userHome, 'Downloads')]) mkdirSync(dir, { recursive: true })
   seedFirstRun(home, [cwd])
-  writeFileSync(join(home, 'settings.json'), JSON.stringify({ prefersReducedMotion: true, spinnerTipsEnabled: false }))
+  writeFileSync(join(home, 'settings.json'), JSON.stringify({ view: { reducedMotion: true }, activity: { tips: { enabled: false } } }))
   writeFileSync(join(cwd, 'README.md'), 'a fixture folder for the local set-up drive\n')
   const port = await freePort()
   return { tag, cols, rows, root, home, userHome, cwd, bin, state, log: join(state, 'requests.jsonl'), pidfile: join(state, 'server.pid'), port }
