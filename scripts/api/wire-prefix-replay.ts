@@ -512,7 +512,7 @@ export async function startTap(opts: { out: string; upstream: string; port?: num
 
 function usage(): never {
   console.log(`usage:
-  wire-prefix-replay.ts <capture.jsonl> [--all] [--quiet] [--expect-held] [--debug-file <file>] [--home <config-home>] [--transcript <session.jsonl>]
+  wire-prefix-replay.ts <capture.jsonl> [--all] [--quiet] [--expect-held] [--log-file <file>] [--home <config-home>] [--transcript <session.jsonl>]
   wire-prefix-replay.ts tap --out <capture.jsonl> [--upstream https://api.anthropic.com] [--port N]`)
   process.exit(2)
 }
@@ -541,7 +541,7 @@ async function main(argv: string[]): Promise<void> {
   }
   const rows = readCapture(file)
   const pairs = printReport(rows, { all: argv.includes('--all'), quiet: argv.includes('--quiet') })
-  const debugFile = arg(argv, '--debug-file')
+  const debugFile = arg(argv, '--log-file')
   if (debugFile) {
     const word = debugLogWord(debugFile)
     console.log(`\nthe product's own word (${debugFile}): ${word.length} line(s)`)

@@ -93,7 +93,7 @@ function rowsOf(stdout: string, turnLabel: (index: number) => string): RequestRo
 
 function runStreaming(args: string[], prompts: string[], debugFile: string): Promise<RunResult> {
   return new Promise(resolvePromise => {
-    const child = spawn('node', [DIST, ...args, '--debug-file', debugFile], { env, cwd: REPO })
+    const child = spawn('node', [DIST, ...args, '--log-file', debugFile], { env, cwd: REPO })
     let stdout = ''
     let stderr = ''
     let sent = 0
