@@ -133,7 +133,7 @@ check(
 )
 
 console.log('estate-wide dedup')
-const r8 = writer.captureProjectInstruction({ cwd: viaCmd, rule: 'Build with bun.' })
+const r8 = writer.captureProjectInstruction({ cwd: viaTool, rule: 'Build with bun.' })
 check(
   r8.action === 'already-recorded',
   'a rule already stated in the pointed guide is not re-recorded from the entry',
