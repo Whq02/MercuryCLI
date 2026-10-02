@@ -33,7 +33,7 @@ const { parseAgentFromJson, parseAgentsFromJson } = await import('../../src/tool
 const { decodeAgentDocument } = await import('../../src/services/agents/codec.ts')
 const { PERMISSION_MODES } = await import('../../src/types/permissions.ts')
 
-const UNKNOWN_WORDS = ['acceptEdits', 'bypassPermissions', 'plan', 'auto', 'strategy', 'autopilot', 'bubble', 'frobnicate']
+const UNKNOWN_WORDS = ['frobnicate', 'bubble', 'wibble', 'Default', 'SOVEREIGN']
 type Ctx = { mode: string; isBypassPermissionsModeAvailable: boolean }
 const parentOf = (mode: string, consent: boolean): { toolPermissionContext: Ctx } => ({
   toolPermissionContext: { mode, alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: consent } as unknown as Ctx,
