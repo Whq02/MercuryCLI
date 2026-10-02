@@ -26,12 +26,6 @@ import { crashReportDir } from './crashReport.js'
 import { getAuthConfigHomeDir, getMercuryHome } from './envUtils.js'
 import { classifyHarnessHome, harnessArtifactPath, type HarnessHomeReport } from './knownAgentClis.js'
 import { pidAlive } from './pidAlive.js'
-import { listExperienceCards, experienceCardsEnabled } from '../memdir/experienceCards.js'
-import {
-  ENTRYPOINT_NAME,
-  MAX_ENTRYPOINT_BYTES,
-  MAX_ENTRYPOINT_LINES,
-} from '../memdir/memdir.js'
 import { getAutoMemPath } from '../memdir/paths.js'
 import { isAwaySummaryEnabled } from './cockpit/awaySummary.js'
 import { isMercuryCompactKeepTailEnabled } from '../services/compact/verbatimTail.js'
@@ -2142,44 +2136,30 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
       checks: [
         {
           id: 'memory',
-          label: 'Memory index',
+          label: 'Memory front page',
           run: async () => {
-            const memPath = getAutoMemPath()
-            const indexPath = join(memPath, ENTRYPOINT_NAME)
-            if (!existsSync(indexPath)) {
-              return {
-                status: 'info',
-                evidence: `no ${ENTRYPOINT_NAME} yet at ${memPath} — memory starts on first save`,
-              }
+            const { mnemeEnabled, mnemeLibraryDir } = await import('../memdir/mnemeGates.js')
+            if (!mnemeEnabled()) {
+              return { status: 'off', evidence: 'memory is off (autoMemoryEnabled is false in settings) — nothing is loaded or saved' }
             }
-            const raw = readFileSync(indexPath, 'utf8')
-            const lines = raw.split('\n').length
-            const bytes = Buffer.byteLength(raw, 'utf8')
-            const linePct = Math.round((lines / MAX_ENTRYPOINT_LINES) * 100)
-            const cards = experienceCardsEnabled() ? await listExperienceCards(memPath) : []
-            const candidates = cards.filter(c => !c.meta.approved).length
-            const recall = flagEnv('MERCURY_RELEVANT_RECALL') === '1' ? 'on' : 'off'
-            const evidence = `${ENTRYPOINT_NAME} ${lines}/${MAX_ENTRYPOINT_LINES} lines · ${(bytes / 1000).toFixed(1)}/${(MAX_ENTRYPOINT_BYTES / 1000).toFixed(0)}KB · cards ${cards.length - candidates} approved · ${candidates} candidate · recall ${recall}`
-            if (lines > MAX_ENTRYPOINT_LINES || bytes > MAX_ENTRYPOINT_BYTES) {
+            const { readFrontPage, readPinnedStatus } = await import('../memdir/mnemeFrontPage.js')
+            const { formatTextSize } = await import('../memdir/mnemeUsage.js')
+            const { readHandoverReceipt } = await import('../memdir/mnemeHandover.js')
+            const dir = mnemeLibraryDir()
+            const page = readFrontPage(dir)
+            if (page === null) {
+              return { status: 'info', evidence: `no front page yet under ${getAutoMemPath()} — it is written at the first consolidation` }
+            }
+            const pinned = readPinnedStatus(dir)
+            const topics = page.split('\n').filter(l => /^- /.test(l) && !/ <seq=/.test(l)).length
+            const intake = readHandoverReceipt(dir)
+            const evidence = `front page ${formatTextSize(page.length)} · ${topics} topic line(s) · pinned ${pinned?.pinned ?? 0} rule(s) ${pinned ? `${formatTextSize(pinned.used)} of ${formatTextSize(pinned.limit)}` : ''}${intake ? ` · intake ${intake.notes} note(s) → ${intake.facts} fact(s)` : ''}`
+            if (pinned?.over) {
               return {
                 status: 'warn',
                 evidence,
-                fix: `The index EXCEEDS its injection cap — everything past ${MAX_ENTRYPOINT_LINES} lines/${(MAX_ENTRYPOINT_BYTES / 1000).toFixed(0)}KB is silently not loaded. Compact ${ENTRYPOINT_NAME}.`,
-              }
-            }
-            if (linePct >= 90 || bytes >= MAX_ENTRYPOINT_BYTES * 0.9) {
-              return {
-                status: 'warn',
-                evidence,
-                fix: `The index is at ${Math.max(linePct, Math.round((bytes / MAX_ENTRYPOINT_BYTES) * 100))}% of its injection cap — compact ${ENTRYPOINT_NAME} before pointers start dropping.`,
-              }
-            }
-            if (candidates > 0) {
-              return {
-                status: 'info',
-                evidence,
-                fix: 'Review + promote candidate cards with /cards (p to promote).',
-                link: '/cards',
+                fix: 'The pinned rules fill more than the limit — every rule still loads. Unpin in /memory (u on a rule) or raise the limit in /config.',
+                link: '/memory',
               }
             }
             return { status: 'ok', evidence }
@@ -2200,7 +2180,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             const status = mnemeStatus()
             return {
               status: 'ok',
-              evidence: `Retain/Recall/Reflect/Correct live · buffer ${status.buffered} · ${status.topicCount} topic doc(s) · ${status.entryCount} entr(ies)`,
+              evidence: `Retain/Recall/Reflect/Correct live · buffer ${status.buffered} · ${status.topicCount} topic page(s) · ${status.entryCount} fact(s)`,
             }
           },
         },
@@ -2619,24 +2599,17 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'memory-lifecycle',
           label: 'Memory lifecycle',
           run: async () => {
-            const { isAutoMemoryEnabled } = await import('../memdir/paths.js')
-            if (!isAutoMemoryEnabled()) {
-              return {
-                status: 'off' as const,
-                evidence: 'auto-memory disabled (settings/env) — no notes, cards, or topic memory this session',
-              }
-            }
             const { mnemeEnabled } = await import('../memdir/mnemeGates.js')
             if (!mnemeEnabled()) {
               return {
-                status: 'info' as const,
-                evidence: 'auto-memory ON (notes + cards) · topic memory (MERCURY_MNEME) off — /memory is the front door',
+                status: 'off' as const,
+                evidence: 'memory is off (autoMemoryEnabled is false in settings) — nothing saved or recalled this session',
               }
             }
             const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
             const st = mnemeStatus()
             const evidence = [
-              `topic memory ON: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`,
+              `memory: ${st.entryCount} current · ${st.buffered + st.pendingConsuming} recent · ${st.historyCount} history · ${st.topicCount} topics`,
               st.running ? 'maintenance running' : st.due ? `maintenance DUE (${st.dueReason})` : 'maintenance idle',
               st.lastConsolidatedAt ? `last ${st.lastConsolidatedAt.slice(0, 16)}` : 'never consolidated',
             ].join(' · ')
