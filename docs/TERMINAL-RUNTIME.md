@@ -174,9 +174,28 @@ update to install it` on the channel's own layout); `--status` names where
 this Mercury came from. On Windows the PowerShell installer and the `.zip`
 archive make a managed install, so the channel road applies there; Homebrew
 does not exist on Windows and the npm road there is untested. After an update
-of a managed install, the last lines name the `mercury` the shell would run
-when it is not the stable command — another file ahead of it on PATH, or none
-at all — with the fix; the doctor's Command on PATH row says the same.
+of a managed install, the lines after the update name the `mercury` the shell
+would run when it is not the stable command — another file ahead of it on
+PATH, or none at all — with the fix; the doctor's Command on PATH row says
+the same.
+
+The update, and `--rollback`, end with the background daemon. The daemon that
+hosts sessions runs the build it was started from, so after the pointer moves
+the verb asks it to move to the installed build and says what happened on the
+`background daemon:` line: `moved to v… — new sessions run on it`; `v… takes
+new sessions; daemon v… keeps its N live sessions until they finish` (the
+installed build's daemon takes the plane while the old one keeps the sessions
+it holds, and leaves when they end); `moves to v… when its N live sessions
+finish`; `already on v…`; `none running — the next session starts one on v…`;
+or `could not be moved — <why>; mercury daemon stop ends it and the next
+session starts one on v…`. The very last line then says that any Mercury
+window still open keeps working on the build it started with until it is
+closed and opened again: an open window's sessions keep flowing, and the
+window is told, at its next contact with the daemon, that a newer Mercury is
+installed and to close and open Mercury again to use it — nothing restarts the
+installed daemon for a window of an older build. `--json` carries the same
+two facts as `daemon: { state, line }` (state one of `moved`, `moving`,
+`when-idle`, `current`, `absent`, `stop`, `unknown`) and `openWindows`.
 
 The activation law:
 
