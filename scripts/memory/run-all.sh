@@ -9,7 +9,7 @@
 # gate-watch: src/utils/statusNoticeDefinitions.tsx src/substrate/flagRegistry.ts src/substrate/startupMenu.ts
 # gate-watch: src/services/mcp/coordinationServer.ts src/utils/capability/declarations.ts src/query/stopHooks.ts
 # gate-watch: src/commands.ts src/utils/memory/types.ts src/tools/AgentTool/agentMemory.ts
-# gate-watch: src/utils/config/globalConfig.ts
+# gate-watch: src/utils/config/globalConfig.ts scripts/lib/settingsPopupHarness.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }
