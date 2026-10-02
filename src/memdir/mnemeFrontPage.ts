@@ -10,6 +10,9 @@ import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord 
 export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
 const INDEX_LINE_CAP = 160
+export const MEMORY_WRITE_VERBS_SENTENCE = 'Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history.'
+export const EMPTY_INDEX_LINE = '(nothing saved yet — Retain saves the first fact)'
+const EMPTY_INDEX_LINE_READ_ONLY = '(nothing saved yet)'
 
 export interface PinnedStatus {
   pinned: number
@@ -60,14 +63,14 @@ export function renderFrontPage(input: {
   const limit = input.limit ?? pinnedTextLimit()
   const lines: string[] = [
     '# Memory',
-    `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"); Retain saves a new fact; Correct supersedes a wrong one and keeps the old fact as history. Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
+    `What Mercury remembers about this project lives in topic pages under ${dir}. The index below names each topic; Recall searches the pages (query) or reads one whole (read:"doc:<slug>"). ${MEMORY_WRITE_VERBS_SENTENCE} Memory is a record of what was learned, not a second copy of the project: never save what the code, the git history or the instruction files already hold.`,
     '',
     '## Index',
   ]
   const groups = indexTopics(topics)
   let factCount = 0
   if (groups.size === 0) {
-    lines.push('(nothing saved yet — Retain saves the first fact)')
+    lines.push(EMPTY_INDEX_LINE)
   } else {
     for (const [key, docs] of groups) {
       const facts = docs.reduce((n, d) => n + liveCount(d), 0)
@@ -169,13 +172,19 @@ export function memoryPromptKey(): string | null {
   return frontPageKey()
 }
 
-export function loadMemoryPrompt(): string | null {
+export function forReader(page: string, verbs: 'all' | 'read'): string {
+  if (verbs === 'all') return page
+  return page.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace(EMPTY_INDEX_LINE, EMPTY_INDEX_LINE_READ_ONLY)
+}
+
+export function loadMemoryPrompt(opts: { verbs?: 'all' | 'read' } = {}): string | null {
   if (!mnemeEnabled()) return null
   const dir = mnemeLibraryDir()
+  const verbs = opts.verbs ?? 'all'
   const snapshot = readFrontPage(dir)
-  if (snapshot !== null) return snapshot
+  if (snapshot !== null) return forReader(snapshot, verbs)
   if (existsSync(dir)) {
-    return renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: readUsage(dir), now: new Date(0) }).text
+    return forReader(renderFrontPage({ dir, topics: listTopicDocs(dir), archives: listArchiveDocs(dir), pins: readPins(dir), usage: readUsage(dir), now: new Date(0) }).text, verbs)
   }
-  return renderFrontPage({ dir, topics: [], archives: [], pins: [], usage: {}, now: new Date(0) }).text
+  return forReader(renderFrontPage({ dir, topics: [], archives: [], pins: [], usage: {}, now: new Date(0) }).text, verbs)
 }

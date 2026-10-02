@@ -696,6 +696,7 @@ export const AgentTool = buildTool({
           context,
           plan.model,
           earlyAgentId,
+          new Set(workerTools.map(tool => tool.name)),
         )
       } catch (error) {
         logForDebugging(
@@ -1151,6 +1152,7 @@ async function buildDefaultSystemPrompt(
   context: ToolUseContext,
   childModel: string,
   agentId: AgentId,
+  toolNames: ReadonlySet<string>,
 ): Promise<string[]> {
   const ownPrompt = isBuiltInAgent(definition)
     ? definition.getSystemPrompt({ toolUseContext: context })
@@ -1158,6 +1160,7 @@ async function buildDefaultSystemPrompt(
   const doctrine = buildSubagentMercurySections({
     agentDefinition: definition,
     toolUseContext: context,
+    toolNames,
   })
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],
