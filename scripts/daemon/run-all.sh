@@ -102,6 +102,7 @@ __t=$SECONDS; __rc=0; "$bun" run "$here/prove-install-fresh-folder.ts" || { __rc
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-idle-daemon-launches-nothing.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-idle-daemon-launches-nothing.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-log-stamps.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-log-stamps.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-restart-waits-live.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-restart-waits-live.ts" "$__t" "$__rc"
+__t=$SECONDS; __rc=0; "$bun" run "$here/prove-helper-restart.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-helper-restart.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-stop-inside-hosted-session.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-stop-inside-hosted-session.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-daemon-departure.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-daemon-departure.ts" "$__t" "$__rc"
 __t=$SECONDS; __rc=0; "$bun" run "$here/prove-compaction-hold.ts" || { __rc=$?; fail=1; }; prover_mark "$here/prove-compaction-hold.ts" "$__t" "$__rc"
