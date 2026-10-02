@@ -73,7 +73,7 @@ const env = {
   ANTHROPIC_BASE_URL: api.url,
   MERCURY_CACHE_CLOCK: '0',
 }
-const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'steward', 'run', work], {
+const daemon = spawn(process.execPath.includes('bun') ? 'node' : process.execPath, [DIST, 'daemon', 'run', work], {
   cwd: work,
   env,
   stdio: ['ignore', logFd, logFd],

@@ -137,7 +137,7 @@ interface Proc { pid: number; argv: string[]; role: Role; spawns: Spawn[]; stall
 
 function roleOf(argv: string[]): Role {
   const rest = argv.slice(2)
-  if (rest.includes('steward')) return 'daemon'
+  if (rest.includes('daemon')) return 'daemon'
   if (rest.includes('--lsp-ts-sidecar') || rest.includes('--lsp-web-sidecar')) return 'sidecar'
   if (rest[0] === 'run') return 'runner'
   if ((argv[1] ?? '').endsWith('mercury.mjs')) return 'interface'
