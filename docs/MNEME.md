@@ -58,7 +58,7 @@ The model works its memory through four tools:
 ## The pinned shelf and its limit
 
 The shelf has a limit on how much text it loads into every session, not on
-how many rules it holds. The limit is yours: `memoryPinnedLimit` in settings
+how many rules it holds. The limit is yours: `memory.pinnedLimit` in settings
 (characters; the default is 8000), and the **Pinned memory limit** row in
 `/config` moves it. A new rule is never refused. When the shelf is over its
 limit every rule still loads, and a chat you are in opens with one line that
@@ -104,5 +104,5 @@ The library lives at `<config home>/projects/<project>/memory/library/`:
 - `library.json` — the sequence counter; `maintenance.jsonl` — the receipts;
 - `handover.json` — the intake receipt, once it has run.
 
-Memory is off when `autoMemoryEnabled` is `false` in settings; then nothing
+Memory is off when `memory.enabled` is `false` in settings; then nothing
 is loaded, saved or looked up, and the four tools leave the roster.

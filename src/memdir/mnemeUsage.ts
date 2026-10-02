@@ -10,7 +10,7 @@ export const PINNED_TEXT_LIMIT_MIN = 1000
 export const PINNED_TEXT_LIMIT_STEP = 1000
 
 export function pinnedTextLimit(): number {
-  const raw = (getInitialSettings() as { memoryPinnedLimit?: unknown }).memoryPinnedLimit
+  const raw: unknown = getInitialSettings().memory?.pinnedLimit
   if (typeof raw === 'number' && Number.isFinite(raw) && raw >= PINNED_TEXT_LIMIT_MIN) return Math.floor(raw)
   return PINNED_TEXT_LIMIT_DEFAULT
 }

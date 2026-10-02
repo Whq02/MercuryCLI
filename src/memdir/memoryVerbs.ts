@@ -24,7 +24,7 @@ export function memoryVerbsEnabled(): boolean {
 }
 
 export function memoryVerbsWhyNot(): string | null {
-  if (!mnemeEnabled()) return 'memory is off (autoMemoryEnabled is false in settings)'
+  if (!mnemeEnabled()) return 'memory is off (memory.enabled is false in settings)'
   return null
 }
 

@@ -2140,7 +2140,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           run: async () => {
             const { mnemeEnabled, mnemeLibraryDir } = await import('../memdir/mnemeGates.js')
             if (!mnemeEnabled()) {
-              return { status: 'off', evidence: 'memory is off (autoMemoryEnabled is false in settings) — nothing is loaded or saved' }
+              return { status: 'off', evidence: 'memory is off (memory.enabled is false in settings) — nothing is loaded or saved' }
             }
             const { readFrontPage, readPinnedStatus } = await import('../memdir/mnemeFrontPage.js')
             const { formatTextSize } = await import('../memdir/mnemeUsage.js')
@@ -2603,7 +2603,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
             if (!mnemeEnabled()) {
               return {
                 status: 'off' as const,
-                evidence: 'memory is off (autoMemoryEnabled is false in settings) — nothing saved or recalled this session',
+                evidence: 'memory is off (memory.enabled is false in settings) — nothing saved or recalled this session',
               }
             }
             const { mnemeStatus } = await import('../memdir/mnemeMaintenance.js')
