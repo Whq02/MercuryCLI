@@ -24,7 +24,7 @@ const mdm = await import('../../src/utils/settings/mdm/settings.ts')
 
 const scratch = (): string => mkdtempSync(join(tmpdir(), 'mdm-probe-home-'))
 const absentRead = { plistStdouts: null, hklmStdout: null, hkcuStdout: null }
-const hklmRead = { plistStdouts: null, hklmStdout: '    Settings    REG_SZ    {"permissions":{"deny":["Bash(rm:*)"]}}', hkcuStdout: null }
+const hklmRead = { plistStdouts: null, hklmStdout: '    Settings    REG_SZ    {"permissions":{"deny":["Bash(rm *)"]}}', hkcuStdout: null }
 const hkcuRead = { plistStdouts: null, hklmStdout: null, hkcuStdout: '    Settings    REG_SZ    {}' }
 
 section('M1 no record ⇒ the barrier awaits, on every platform')

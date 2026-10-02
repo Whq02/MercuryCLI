@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Text } from '../../../ink.js'
 import { BASH_TOOL_NAME } from '../../../tools/BashTool/toolName.js'
 import type { PermissionRuleValue } from '../../../types/permissions.js'
+import { hasWildcards, permissionRuleExtractPrefix } from '../../../utils/permissions/shellRuleMatching.js'
 
 export function PermissionRuleDescription({
   ruleValue,
@@ -13,10 +14,18 @@ export function PermissionRuleDescription({
     if (ruleContent === undefined || ruleContent === '') {
       return <Text dimColor>any Bash command</Text>
     }
-    if (ruleContent.endsWith(':*')) {
+    const prefix = permissionRuleExtractPrefix(ruleContent)
+    if (prefix !== null) {
       return (
         <Text dimColor>
-          any Bash command starting with <Text bold>{ruleContent.slice(0, -2)}</Text>
+          any Bash command starting with <Text bold>{prefix}</Text>
+        </Text>
+      )
+    }
+    if (hasWildcards(ruleContent)) {
+      return (
+        <Text dimColor>
+          any Bash command matching <Text bold>{ruleContent}</Text>
         </Text>
       )
     }

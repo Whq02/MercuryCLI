@@ -2,28 +2,28 @@ import { logForDebugging } from '../utils/debug.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 export const SEAT_RECON_ALLOW: readonly string[] = [
-  'Bash(git status:*)',
-  'Bash(git log:*)',
-  'Bash(git diff:*)',
-  'Bash(git show:*)',
-  'Bash(git rev-parse:*)',
-  'Bash(git blame:*)',
-  'Bash(ls:*)',
-  'Bash(rg:*)',
-  'Bash(grep:*)',
-  'Bash(wc:*)',
-  'Bash(cat:*)',
-  'Bash(head:*)',
-  'Bash(tail:*)',
-  'Bash(echo:*)',
+  'Bash(git status *)',
+  'Bash(git log *)',
+  'Bash(git diff *)',
+  'Bash(git show *)',
+  'Bash(git rev-parse *)',
+  'Bash(git blame *)',
+  'Bash(ls *)',
+  'Bash(rg *)',
+  'Bash(grep *)',
+  'Bash(wc *)',
+  'Bash(cat *)',
+  'Bash(head *)',
+  'Bash(tail *)',
+  'Bash(echo *)',
   'Bash(pwd)',
-  'Bash(which:*)',
+  'Bash(which *)',
 ]
 
 export function isValidReconAllowRule(rule: string): boolean {
   if (!/^[A-Z][A-Za-z0-9_]*\([^()]{1,200}\)$/.test(rule)) return false
   const spec = rule.slice(rule.indexOf('(') + 1, -1).trim()
-  return spec !== '*' && spec !== ':*' && spec.length > 0
+  return spec !== '*' && spec.length > 0
 }
 
 export function resolveWorkerReconAllow(): readonly string[] {

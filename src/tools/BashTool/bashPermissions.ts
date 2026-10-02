@@ -317,23 +317,11 @@ function ruleMatches(
   switch (rule.type) {
     case 'exact':
       return candidate === rule.command
-    case 'prefix':
-      if (mode === 'exact') return candidate === rule.prefix
-      if (isCompound && !skipCompoundGuard) return false
-      return matchesPrefixRule(candidate, rule.prefix)
     case 'wildcard':
       if (mode === 'exact') return false
       if (isCompound && !skipCompoundGuard) return false
       return matchWildcardPattern(rule.pattern, candidate)
   }
-}
-
-function matchesPrefixRule(candidate: string, prefix: string): boolean {
-  if (candidate === prefix) return true
-  if (candidate.startsWith(prefix + ' ')) return true
-  if (candidate === `xargs ${prefix}`) return true
-  if (candidate.startsWith(`xargs ${prefix} `)) return true
-  return false
 }
 
 function isCompoundCandidate(candidate: string): boolean {

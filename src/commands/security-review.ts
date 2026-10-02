@@ -12,11 +12,11 @@ const DESCRIPTION = 'Analyze the changes on this branch for security risks'
 const SECURITY_REVIEW_DOCUMENT = `---
 description: ${DESCRIPTION}
 allowed-tools:
-  - "Bash(git diff:*)"
-  - "Bash(git status:*)"
-  - "Bash(git log:*)"
-  - "Bash(git show:*)"
-  - "Bash(git remote show:*)"
+  - "Bash(git diff *)"
+  - "Bash(git status *)"
+  - "Bash(git log *)"
+  - "Bash(git show *)"
+  - "Bash(git remote show *)"
   - Read
   - Glob
   - Grep

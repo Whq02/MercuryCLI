@@ -129,8 +129,8 @@ section('§2 THE LOADER AND THE CONTEXT — the words ride from the file into th
   const file = {
     guardrails: {
       deny: ['Read(secrets/**)', 'WebFetch'],
-      ask: [' Bash(git push:*) '],
-      reasons: { 'Read(secrets/**)': R_SECRETS, WebFetch: R_FETCH, 'Bash(git push:*)': R_PUSH, 'Bash(git fetch:*)': 'a reason for a rule that is not there' },
+      ask: [' Bash(git push *) '],
+      reasons: { 'Read(secrets/**)': R_SECRETS, WebFetch: R_FETCH, 'Bash(git push *)': R_PUSH, 'Bash(git fetch *)': 'a reason for a rule that is not there' },
     },
   }
   writeFileSync(settingsPath, JSON.stringify(file, null, 2))
@@ -140,18 +140,18 @@ section('§2 THE LOADER AND THE CONTEXT — the words ride from the file into th
     rules.find(r => r.ruleValue.toolName === toolName && r.ruleValue.ruleContent === content)
   check('a deny rule loaded from the file carries its reason', byName('Read', 'secrets/**')?.ruleValue.reason === R_SECRETS, j(byName('Read', 'secrets/**')))
   check('a whole-tool deny rule carries its reason', byName('WebFetch')?.ruleValue.reason === R_FETCH, j(byName('WebFetch')))
-  check('a padded rule spelling still finds its reason (the key is matched on the parsed spelling)', byName('Bash', 'git push:*')?.ruleValue.reason === R_PUSH, j(byName('Bash', 'git push:*')))
+  check('a padded rule spelling still finds its reason (the key is matched on the parsed spelling)', byName('Bash', 'git push *')?.ruleValue.reason === R_PUSH, j(byName('Bash', 'git push *')))
   const ctx = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), rules as never) as unknown as { ruleReasons?: Record<string, Reasons>; alwaysDenyRules: Record<string, string[]> }
   check('the posture carries the words by source and rule spelling', ctx.ruleReasons?.['userSettings']?.['Read(secrets/**)'] === R_SECRETS && ctx.ruleReasons?.['userSettings']?.['WebFetch'] === R_FETCH, j(ctx.ruleReasons))
-  check('the posture carries the padded ask rule under its parsed spelling', ctx.ruleReasons?.['userSettings']?.['Bash(git push:*)'] === R_PUSH, j(ctx.ruleReasons))
-  check('a reason whose rule is not in any array never enters the posture', ctx.ruleReasons?.['userSettings']?.['Bash(git fetch:*)'] === undefined, j(ctx.ruleReasons))
+  check('the posture carries the padded ask rule under its parsed spelling', ctx.ruleReasons?.['userSettings']?.['Bash(git push *)'] === R_PUSH, j(ctx.ruleReasons))
+  check('a reason whose rule is not in any array never enters the posture', ctx.ruleReasons?.['userSettings']?.['Bash(git fetch *)'] === undefined, j(ctx.ruleReasons))
   check('the rule arrays are what they were', j(ctx.alwaysDenyRules['userSettings']) === j(['Read(secrets/**)', 'WebFetch']), j(ctx.alwaysDenyRules))
-  writeFileSync(settingsPath, JSON.stringify({ guardrails: { deny: ['Read(secrets/**)', 'WebFetch'], ask: ['Bash(git push:*)'] } }, null, 2))
+  writeFileSync(settingsPath, JSON.stringify({ guardrails: { deny: ['Read(secrets/**)', 'WebFetch'], ask: ['Bash(git push *)'] } }, null, 2))
   resetSettingsCache()
   const synced = syncPermissionRulesFromDisk(ctx as never, loadAllPermissionRulesFromDisk()) as unknown as { ruleReasons?: Record<string, Reasons>; alwaysDenyRules: Record<string, string[]> }
   check('a hot reload of the file without the map drops the words (no stale reason survives)', synced.ruleReasons?.['userSettings']?.['Read(secrets/**)'] === undefined && synced.ruleReasons?.['userSettings']?.['WebFetch'] === undefined, j(synced.ruleReasons))
   check('…and the rules themselves stay', j(synced.alwaysDenyRules['userSettings']) === j(['Read(secrets/**)', 'WebFetch']))
-  const grant = applyPermissionUpdate(getEmptyToolPermissionContext(), { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm test:*' }], behavior: 'allow', destination: 'session' })
+  const grant = applyPermissionUpdate(getEmptyToolPermissionContext(), { type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'npm test *' }], behavior: 'allow', destination: 'session' })
   check('a session grant without a reason leaves the posture shape exactly as today (no reasons key)', !('ruleReasons' in grant), j(Object.keys(grant)))
   const removed = applyPermissionUpdate(ctx as never, { type: 'removeRules', rules: [{ toolName: 'WebFetch' }], behavior: 'deny', destination: 'userSettings' }) as unknown as { ruleReasons?: Record<string, Reasons> }
   check('removing a rule removes its words', removed.ruleReasons?.['userSettings']?.['WebFetch'] === undefined && removed.ruleReasons?.['userSettings']?.['Read(secrets/**)'] === R_SECRETS, j(removed.ruleReasons))
@@ -251,7 +251,7 @@ section('§5 THE HELPER — one composer, one specificity order')
     check('a content rule outranks the whole-tool rule and a longer literal outranks a shorter one', order[0]! < order[1]! && order[1]! < order[2]!, j(order))
     const mcp = [{ toolName: 'mcp__srv' }, { toolName: 'mcp__srv__*' }, { toolName: 'mcp__srv__tool' }].map(h.ruleSpecificity)
     check('the MCP ladder: server, then wildcard, then the named tool', mcp[0]! < mcp[1]! && mcp[1]! < mcp[2]!, j(mcp))
-    const bash = [{ toolName: 'Bash', ruleContent: 'git:*' }, { toolName: 'Bash', ruleContent: 'git push:*' }].map(h.ruleSpecificity)
+    const bash = [{ toolName: 'Bash', ruleContent: 'git *' }, { toolName: 'Bash', ruleContent: 'git push *' }].map(h.ruleSpecificity)
     check('a longer command prefix outranks a shorter one', bash[0]! < bash[1]!, j(bash))
     const normalised = h.normaliseRuleReasons({ ' Read(secrets/**) ': '  one\nline\tonly \u001b[31m ', Bash: 42, Empty: '   ' })
     check('the map is normalised: parsed spelling keys, one-line words, non-strings and blanks dropped', j(normalised) === j({ 'Read(secrets/**)': 'one line only [31m' }), j(normalised))
@@ -273,16 +273,16 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   check('1 the exact-match deny says the words', exactSaid.behavior === 'deny' && exactSaid.message === `Bash(git push origin main) is blocked by a deny rule: ${R_PUSH}.`, j(exactSaid))
   check('…and its rule carries the reason for the transcript', exactSaid.decisionReason?.rule?.ruleValue.reason === R_PUSH, j(exactSaid.decisionReason))
 
-  const subPlain = perSub('git push origin main', bashCtx(['Bash(git push:*)']))
+  const subPlain = perSub('git push origin main', bashCtx(['Bash(git push *)']))
   check('control: a prefix deny without a reason keeps today\'s sentence', subPlain.behavior === 'deny' && subPlain.message === 'Bash deny rule matched.', j(subPlain))
-  const subSaid = perSub('git push origin main', bashCtx(['Bash(git push:*)'], { 'Bash(git push:*)': R_PUSH }))
+  const subSaid = perSub('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
   check('2 the per-subcommand prefix deny says the words', subSaid.behavior === 'deny' && subSaid.message === `Bash deny rule matched: ${R_PUSH}.`, j(subSaid))
-  const bothPrefixes = { 'Bash(git:*)': R_GIT, 'Bash(git push:*)': R_PUSH }
-  const shortFirst = perSub('git push origin main', bashCtx(['Bash(git:*)', 'Bash(git push:*)'], bothPrefixes))
+  const bothPrefixes = { 'Bash(git *)': R_GIT, 'Bash(git push *)': R_PUSH }
+  const shortFirst = perSub('git push origin main', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
   check('two matching prefix rules, the short one listed first: the longer prefix\'s words win', shortFirst.message === `Bash deny rule matched: ${R_PUSH}.`, j(shortFirst))
-  const longFirst = perSub('git push origin main', bashCtx(['Bash(git push:*)', 'Bash(git:*)'], bothPrefixes))
+  const longFirst = perSub('git push origin main', bashCtx(['Bash(git push *)', 'Bash(git *)'], bothPrefixes))
   check('…in either order', longFirst.message === `Bash deny rule matched: ${R_PUSH}.`, j(longFirst))
-  const fetchSaid = perSub('git fetch origin', bashCtx(['Bash(git:*)', 'Bash(git push:*)'], bothPrefixes))
+  const fetchSaid = perSub('git fetch origin', bashCtx(['Bash(git *)', 'Bash(git push *)'], bothPrefixes))
   check('a command only the short prefix covers gets the short prefix\'s words', fetchSaid.message === `Bash deny rule matched: ${R_GIT}.`, j(fetchSaid))
 
   const gates = { enabled: SandboxManager.isSandboxingEnabled, auto: SandboxManager.isAutoAllowBashIfSandboxedEnabled, unsandboxed: SandboxManager.areUnsandboxedCommandsAllowed }
@@ -290,11 +290,11 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   SandboxManager.isAutoAllowBashIfSandboxedEnabled = () => true
   SandboxManager.areUnsandboxedCommandsAllowed = () => false
   try {
-    const fullPlain = await whole('git push origin main', bashCtx(['Bash(git push:*)']))
+    const fullPlain = await whole('git push origin main', bashCtx(['Bash(git push *)']))
     check('control: the sandbox road\'s full-command deny without a reason keeps today\'s sentence', fullPlain.behavior === 'deny' && fullPlain.message === 'git push origin main is blocked by a deny rule.', j(fullPlain))
-    const fullSaid = await whole('git push origin main', bashCtx(['Bash(git push:*)'], { 'Bash(git push:*)': R_PUSH }))
+    const fullSaid = await whole('git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
     check('3 the sandbox road\'s full-command deny says the words', fullSaid.behavior === 'deny' && fullSaid.message === `git push origin main is blocked by a deny rule: ${R_PUSH}.`, j(fullSaid))
-    const subSandboxSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push:*)'], { 'Bash(git push:*)': R_PUSH }))
+    const subSandboxSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
     check('4 the sandbox road\'s subcommand deny names the whole command and says the words', subSandboxSaid.behavior === 'deny' && subSandboxSaid.message === `echo ok && git push origin main is blocked by a deny rule: ${R_PUSH}.`, j(subSandboxSaid))
   } finally {
     SandboxManager.isSandboxingEnabled = gates.enabled
@@ -303,9 +303,9 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
   }
 
   parseRoutes.set('git push origin {main,dev}', { kind: 'too-complex', reason: 'contains brace expansion syntax' })
-  const earlyPlain = await whole('git push origin {main,dev}', bashCtx(['Bash(git push:*)']))
+  const earlyPlain = await whole('git push origin {main,dev}', bashCtx(['Bash(git push *)']))
   check('control: the early-exit deny without a reason keeps today\'s sentence', earlyPlain.behavior === 'deny' && earlyPlain.message === 'git push origin {main,dev} is blocked by a deny rule.', j(earlyPlain))
-  const earlySaid = await whole('git push origin {main,dev}', bashCtx(['Bash(git push:*)'], { 'Bash(git push:*)': R_PUSH }))
+  const earlySaid = await whole('git push origin {main,dev}', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
   check('5 the early-exit deny (a too-complex parse) says the words', earlySaid.behavior === 'deny' && earlySaid.message === `git push origin {main,dev} is blocked by a deny rule: ${R_PUSH}.`, j(earlySaid))
   const environ = 'echo ok && cat /proc/self/environ'
   parseRoutes.set(environ, {
@@ -315,15 +315,15 @@ section('§6 THE BASH ROAD — every deny sentence says the words; the longer pr
       { argv: ['cat', '/proc/self/environ'], envVars: [], redirects: [], text: 'cat /proc/self/environ' },
     ],
   })
-  const semanticsPlain = await whole(environ, bashCtx(['Bash(cat:*)']))
+  const semanticsPlain = await whole(environ, bashCtx(['Bash(cat *)']))
   check('control: the semantics deny without a reason keeps today\'s sentence', semanticsPlain.behavior === 'deny' && semanticsPlain.message === 'cat /proc/self/environ is blocked by a deny rule.', j(semanticsPlain))
-  const semanticsSaid = await whole(environ, bashCtx(['Bash(cat:*)'], { 'Bash(cat:*)': R_ENVIRON }))
+  const semanticsSaid = await whole(environ, bashCtx(['Bash(cat *)'], { 'Bash(cat *)': R_ENVIRON }))
   check('6 the semantics deny (a red-flagged subcommand) says the words', semanticsSaid.behavior === 'deny' && semanticsSaid.message === `cat /proc/self/environ is blocked by a deny rule: ${R_ENVIRON}.`, j(semanticsSaid))
   parseRoutes.clear()
 
-  const aggregatePlain = await whole('echo ok && git push origin main', bashCtx(['Bash(git push:*)']))
+  const aggregatePlain = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)']))
   check('control: a compound command\'s aggregate deny without a reason keeps today\'s sentence', aggregatePlain.behavior === 'deny' && aggregatePlain.message === 'A subcommand was denied.', j(aggregatePlain))
-  const aggregateSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push:*)'], { 'Bash(git push:*)': R_PUSH }))
+  const aggregateSaid = await whole('echo ok && git push origin main', bashCtx(['Bash(git push *)'], { 'Bash(git push *)': R_PUSH }))
   check('7 a compound command\'s aggregate deny says the denied subcommand\'s words', aggregateSaid.behavior === 'deny' && aggregateSaid.message === `A subcommand was denied: ${R_PUSH}.`, j(aggregateSaid))
 }
 
@@ -364,28 +364,28 @@ section('§7 THE CONSENT CARD — one line under the rule, the hint below it; no
   }
   const lines = (frame: string): string[] => frame.split('\n').map(line => line.trimEnd())
   const askFor = (rule: Rule): Decision => ({ behavior: 'ask', message: 'Permission to use Bash requires confirmation.', decisionReason: { type: 'rule', rule } })
-  const pushRule = (reason?: string): Rule => ({ source: 'userSettings', ruleBehavior: 'ask', ruleValue: { toolName: 'Bash', ruleContent: 'git push:*', ...(reason ? { reason } : {}) } })
+  const pushRule = (reason?: string): Rule => ({ source: 'userSettings', ruleBehavior: 'ask', ruleValue: { toolName: 'Bash', ruleContent: 'git push *', ...(reason ? { reason } : {}) } })
   const explanation = (decision: Decision): React.ReactNode => React.createElement(PermissionRuleExplanation, { permissionResult: decision as never, toolType: 'command' })
 
-  const bare = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push:*)'] }, undefined, 'userSettings'))
+  const bare = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'userSettings'))
   const bareLines = lines(bare.frame())
-  check('control: without a reason the explanation is exactly today\'s two lines', j(bareLines) === j(['The rule Bash(git push:*) requires confirmation for this command', 'Permission rules can be changed in /permissions']), j(bareLines))
+  check('control: without a reason the explanation is exactly today\'s two lines', j(bareLines) === j(['The rule Bash(git push *) requires confirmation for this command', 'Permission rules can be changed in /permissions']), j(bareLines))
   bare.close()
 
-  const stamped = await mount(explanation(askFor(pushRule(R_PUSH))), ctxWith({ ask: ['Bash(git push:*)'] }, undefined, 'userSettings'))
+  const stamped = await mount(explanation(askFor(pushRule(R_PUSH))), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'userSettings'))
   const stampedLines = lines(stamped.frame())
-  check('a rule carrying its reason paints the words on one line between the rule and the hint', j(stampedLines) === j(['The rule Bash(git push:*) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(stampedLines))
+  check('a rule carrying its reason paints the words on one line between the rule and the hint', j(stampedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(stampedLines))
   if (frameDir) writeFileSync(join(frameDir, 'explanation-178.txt'), stamped.frame() + '\n')
   stamped.close()
 
-  const looked = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push:*)'] }, { 'Bash(git push:*)': R_PUSH }, 'userSettings'))
+  const looked = await mount(explanation(askFor(pushRule())), ctxWith({ ask: ['Bash(git push *)'] }, { 'Bash(git push *)': R_PUSH }, 'userSettings'))
   const lookedLines = lines(looked.frame())
-  check('a rule without a stamped reason still finds its words in the posture (every ask road paints the line)', j(lookedLines) === j(['The rule Bash(git push:*) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(lookedLines))
+  check('a rule without a stamped reason still finds its words in the posture (every ask road paints the line)', j(lookedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH, 'Permission rules can be changed in /permissions']), j(lookedLines))
   looked.close()
 
-  const managed = await mount(explanation(askFor({ ...pushRule(R_PUSH), source: 'policySettings' })), ctxWith({ ask: ['Bash(git push:*)'] }, undefined, 'policySettings'))
+  const managed = await mount(explanation(askFor({ ...pushRule(R_PUSH), source: 'policySettings' })), ctxWith({ ask: ['Bash(git push *)'] }, undefined, 'policySettings'))
   const managedLines = lines(managed.frame())
-  check('a managed-policy rule paints its words and still omits the /permissions hint', j(managedLines) === j(['The rule Bash(git push:*) requires confirmation for this command', R_PUSH]), j(managedLines))
+  check('a managed-policy rule paints its words and still omits the /permissions hint', j(managedLines) === j(['The rule Bash(git push *) requires confirmation for this command', R_PUSH]), j(managedLines))
   managed.close()
 
   const fetchTool = {

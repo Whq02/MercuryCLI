@@ -34,7 +34,7 @@ export function PermissionRuleInput({
   const exampleTool = permissionRuleValueToString({ toolName: WebFetchTool.name })
   const exampleBash = permissionRuleValueToString({
     toolName: BASH_TOOL_NAME,
-    ruleContent: 'ls:*',
+    ruleContent: 'ls *',
   })
 
   function handleSubmit(submitted: string): void {

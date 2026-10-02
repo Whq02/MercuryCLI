@@ -104,7 +104,7 @@ try {
     mkdirSync(dest, { recursive: true })
     for (let n = 1; n <= count; n++) writeFileSync(join(cwd, `f${String(n).padStart(2, '0')}.txt`), `Fixture ${n}.\n`)
     seedFirstRun(home, [cwd])
-    writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { tips: { enabled: false } }, ...(scene === 'shell' ? { guardrails: { allow: ['Bash(printf:*)'] } } : {}) }))
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ activity: { tips: { enabled: false } }, ...(scene === 'shell' ? { guardrails: { allow: ['Bash(printf *)'] } } : {}) }))
     const wire: Wire[] = []
     let burst = false
     const server = createServer((req, res) => {

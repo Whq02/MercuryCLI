@@ -72,7 +72,7 @@ type TurnObs = {
   wallMs: number
 }
 
-const ALLOW = ['Bash(ls:*)', 'Bash(cat:*)', 'Bash(rg:*)', 'Bash(grep:*)', 'Bash(find:*)', 'Bash(git status:*)', 'Bash(git log:*)']
+const ALLOW = ['Bash(ls *)', 'Bash(cat *)', 'Bash(rg *)', 'Bash(grep *)', 'Bash(find *)', 'Bash(git status *)', 'Bash(git log *)']
 
 
 function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> {

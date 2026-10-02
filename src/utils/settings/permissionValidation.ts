@@ -31,10 +31,6 @@ function countUnescaped(rule: string, char: string): number {
   return count
 }
 
-function fileToolExamples(toolName: string): string[] {
-  return [`${toolName}(*.ts)`, `${toolName}(src/**)`, `${toolName}(tests/**/*.test.ts)`]
-}
-
 function hasSuspiciousWildcardPlacement(content: string): boolean {
   if (content.includes('**')) return false
   for (let index = 0; index < content.length; index++) {
@@ -137,35 +133,10 @@ export function validatePermissionRule(rule: string): PermissionRuleValidation {
     }
 
     if (isBashPrefixTool(toolName)) {
-      if (content === ':*') {
-        return {
-          valid: false,
-          error: 'A command prefix is required before :*',
-          suggestion: 'Supply the command to prefix-match',
-          examples: ['Bash(npm:*)', 'Bash(git:*)'],
-        }
-      }
-      const prefixIndex = content.indexOf(':*')
-      if (prefixIndex !== -1 && prefixIndex !== content.length - 2) {
-        return {
-          valid: false,
-          error: 'The :* form is only legal at the end of a Bash rule',
-          suggestion: 'Move :* to the end for prefix matching, or use * for wildcard matching',
-          examples: ['Bash(npm run:*)', 'Bash(npm run *)'],
-        }
-      }
       return { valid: true }
     }
 
     if (isFilePatternTool(toolName)) {
-      if (content.includes(':*')) {
-        return {
-          valid: false,
-          error: 'The :* syntax belongs to Bash prefix rules only',
-          suggestion: 'Use glob patterns for file rules',
-          examples: fileToolExamples(toolName),
-        }
-      }
       if (content.includes('*') && hasSuspiciousWildcardPlacement(content)) {
         return {
           valid: false,

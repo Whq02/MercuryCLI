@@ -17,16 +17,16 @@ section('§1 THE PARSER')
   check('trailing space on a bare tool rule is trimmed', padded.toolName === 'Bash', JSON.stringify(padded))
   const leading = permissionRuleValueFromString('  Read')
   check('leading whitespace is trimmed', leading.toolName === 'Read', JSON.stringify(leading))
-  const beforeParen = permissionRuleValueFromString('Bash (npm:*)')
+  const beforeParen = permissionRuleValueFromString('Bash (npm *)')
   check(
     'a space before the parenthesis still names the tool',
-    beforeParen.toolName === 'Bash' && beforeParen.ruleContent === 'npm:*',
+    beforeParen.toolName === 'Bash' && beforeParen.ruleContent === 'npm *',
     JSON.stringify(beforeParen),
   )
-  const afterParen = permissionRuleValueFromString('Bash(npm:*) ')
+  const afterParen = permissionRuleValueFromString('Bash(npm *) ')
   check(
     'a space after the closing parenthesis is not "malformed"',
-    afterParen.toolName === 'Bash' && afterParen.ruleContent === 'npm:*',
+    afterParen.toolName === 'Bash' && afterParen.ruleContent === 'npm *',
     JSON.stringify(afterParen),
   )
   const inner = permissionRuleValueFromString('Bash( spaced content )')
@@ -35,8 +35,8 @@ section('§1 THE PARSER')
     inner.ruleContent === ' spaced content ',
     JSON.stringify(inner),
   )
-  const control = permissionRuleValueFromString('Bash(npm:*)')
-  check('control: the unpadded spelling parses as before', control.toolName === 'Bash' && control.ruleContent === 'npm:*')
+  const control = permissionRuleValueFromString('Bash(npm *)')
+  check('control: the unpadded spelling parses as before', control.toolName === 'Bash' && control.ruleContent === 'npm *')
 }
 
 section('§2 THE DENY DOOR')

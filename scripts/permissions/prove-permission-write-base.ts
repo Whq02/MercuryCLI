@@ -56,12 +56,12 @@ console.log('L1 the stale-cache race — the peer grant survives')
     onDisk.guardrails.allow.push('WebFetch(domain:example.com)')
     fs.writeFileSync(localPath, JSON.stringify(onDisk, null, 2))
     // This session persists its own grant off the stale cache.
-    pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
+    pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status *')], behavior: 'allow', destination: 'localSettings' })
     out.allow = readAllow()
   `)
   const allow = r.allow as string[]
   check("the peer session's rule survives", Array.isArray(allow) && allow.includes('WebFetch(domain:example.com)'), JSON.stringify(allow))
-  check('the new grant landed beside it', Array.isArray(allow) && allow.includes('Bash(git status:*)'), JSON.stringify(allow))
+  check('the new grant landed beside it', Array.isArray(allow) && allow.includes('Bash(git status *)'), JSON.stringify(allow))
   check('the original rule is still there', Array.isArray(allow) && allow.includes('Read(//tmp/**)'))
 }
 
@@ -86,16 +86,16 @@ console.log('L3 dedup and removal honesty')
 {
   const { home, project } = scratch()
   const r = runIn(home, project, `
-    fs.writeFileSync(localPath, JSON.stringify({ guardrails: { allow: ['Bash(git status:*)', 'Bash(unclosed'] } }, null, 2))
-    pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
+    fs.writeFileSync(localPath, JSON.stringify({ guardrails: { allow: ['Bash(git status *)', 'Bash(unclosed'] } }, null, 2))
+    pu.persistPermissionUpdate({ type: 'addRules', rules: [rule('Bash', 'git status *')], behavior: 'allow', destination: 'localSettings' })
     out.afterReAdd = readAllow()
-    pu.persistPermissionUpdate({ type: 'removeRules', rules: [rule('Bash', 'git status:*')], behavior: 'allow', destination: 'localSettings' })
+    pu.persistPermissionUpdate({ type: 'removeRules', rules: [rule('Bash', 'git status *')], behavior: 'allow', destination: 'localSettings' })
     out.afterRemove = readAllow()
   `)
   const afterReAdd = r.afterReAdd as string[]
   const afterRemove = r.afterRemove as string[]
-  check('re-adding an existing raw rule does not duplicate it', afterReAdd.filter(x => x === 'Bash(git status:*)').length === 1, JSON.stringify(afterReAdd))
-  check('removeRules removes exactly its target and keeps the unparseable raw entry', !afterRemove.includes('Bash(git status:*)') && afterRemove.includes('Bash(unclosed'), JSON.stringify(afterRemove))
+  check('re-adding an existing raw rule does not duplicate it', afterReAdd.filter(x => x === 'Bash(git status *)').length === 1, JSON.stringify(afterReAdd))
+  check('removeRules removes exactly its target and keeps the unparseable raw entry', !afterRemove.includes('Bash(git status *)') && afterRemove.includes('Bash(unclosed'), JSON.stringify(afterRemove))
 }
 
 console.log('L4 the writer serializes')

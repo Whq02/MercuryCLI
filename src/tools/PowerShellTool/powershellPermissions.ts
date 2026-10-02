@@ -47,10 +47,6 @@ function ruleMatches(rule: ShellPermissionRule, candidate: string, mode: 'exact'
   switch (rule.type) {
     case 'exact':
       return c === rule.command.toLowerCase()
-    case 'prefix': {
-      const p = rule.prefix.toLowerCase()
-      return mode === 'exact' ? c === p : c === p || c.startsWith(p + ' ')
-    }
     case 'wildcard':
       return mode === 'exact' ? false : matchWildcardPattern(rule.pattern, candidate, true)
   }

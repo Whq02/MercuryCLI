@@ -17,7 +17,7 @@ const BUN = process.execPath.includes('bun') ? process.execPath : join(process.e
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const SEAM_PRESENT = existsSync(join(SRC, 'utils/settings/mdm/rawRead.ts')) && readFileSync(join(SRC, 'utils/settings/mdm/rawRead.ts'), 'utf8').includes('_setMdmRawReadForProofs')
 
-const POLICY = { guardrails: { deny: ['Bash(rm:*)'], disableSovereignMode: true }, events: { managedOnly: true } }
+const POLICY = { guardrails: { deny: ['Bash(rm *)'], disableSovereignMode: true }, events: { managedOnly: true } }
 
 function runIn(body: string): Record<string, unknown> {
   const home = mkdtempSync(join(tmpdir(), 'mdm-boot-'))
@@ -76,7 +76,7 @@ else {
   const merged = r.merged as { deny: string[] | null; sovereignLock: boolean | null; hooksLock: boolean | null }
   check('the mdm tier carries the policy keys', tier.keys.includes('guardrails') && tier.keys.includes('events'), JSON.stringify(tier))
   check('the policy origin is the plist tier', tier.origin === 'plist', `origin=${tier.origin}`)
-  check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm:*)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged))
+  check('the merged settings carry the deny rule, the sovereign lock and the hooks lock', merged.deny?.[0] === 'Bash(rm *)' && merged.sovereignLock === true && merged.hooksLock === true, JSON.stringify(merged))
   check('the load reused the one in-flight startup read', r.reads === 1, `reads=${r.reads}`)
 }
 

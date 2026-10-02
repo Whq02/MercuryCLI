@@ -21,7 +21,7 @@ const section = (title: string): void => console.log(`\n${title}`)
 const MERCURY_DOMAIN = 'com.mercury.harness'
 const MERCURY_HKLM = 'HKLM\\SOFTWARE\\Policies\\Mercury'
 const MERCURY_HKCU = 'HKCU\\SOFTWARE\\Policies\\Mercury'
-const POLICY = '    Settings    REG_SZ    {"guardrails":{"deny":["Bash(rm:*)"]}}'
+const POLICY = '    Settings    REG_SZ    {"guardrails":{"deny":["Bash(rm *)"]}}'
 
 const queried: string[][] = []
 let answers: (args: string[]) => string | null = () => null

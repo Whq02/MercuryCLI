@@ -76,7 +76,7 @@ export function bashToolUseOptions({
         value: 'yes-edited-prefix',
         initialValue: editablePrefix,
         onChange: onEditablePrefixChange,
-        placeholder: 'npm run:*',
+        placeholder: 'npm run *',
         showLabelWithValue: true,
         labelValueSeparator: ': ',
         resetCursorOnUpdate: true,

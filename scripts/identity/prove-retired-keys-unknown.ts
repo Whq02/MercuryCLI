@@ -55,7 +55,7 @@ const RETIRED_SETTINGS_ROOTS: Record<string, unknown> = {
   env: { RETIRED_FIXTURE: '1' },
   attribution: { commit: 'x' },
   includeMercuryCoAuthor: false,
-  permissions: { allow: ['Bash(echo:*)'], deny: ['Write'] },
+  permissions: { allow: ['Bash(echo *)'], deny: ['Write'] },
   allowManagedPermissionRulesOnly: true,
   skipSovereignConsentPrompt: true,
   sandbox: { enabled: true },

@@ -2,7 +2,6 @@ import type { PermissionUpdate } from '../../types/permissions.js'
 
 export type ShellPermissionRule =
   | { type: 'exact'; command: string }
-  | { type: 'prefix'; prefix: string }
   | { type: 'wildcard'; pattern: string }
 
 function precedingBackslashes(text: string, i: number): number {
@@ -16,7 +15,6 @@ function precedingBackslashes(text: string, i: number): number {
 }
 
 export function hasWildcards(pattern: string): boolean {
-  if (pattern.endsWith(':*')) return false
   for (let i = 0; i < pattern.length; i++) {
     if (pattern[i] === '*' && precedingBackslashes(pattern, i) % 2 === 0) return true
   }
@@ -32,13 +30,6 @@ function countUnescapedWildcards(pattern: string): number {
 }
 
 export function parsePermissionRule(rule: string): ShellPermissionRule {
-  if (rule.endsWith(':*')) {
-    const prefix = rule.slice(0, -2)
-    if (prefix.length > 0 && !prefix.includes('\n')) {
-      return { type: 'prefix', prefix }
-    }
-    return { type: 'exact', command: rule }
-  }
   if (hasWildcards(rule)) {
     return { type: 'wildcard', pattern: rule }
   }
@@ -46,8 +37,10 @@ export function parsePermissionRule(rule: string): ShellPermissionRule {
 }
 
 export function permissionRuleExtractPrefix(rule: string): string | null {
-  const parsed = parsePermissionRule(rule)
-  return parsed.type === 'prefix' ? parsed.prefix : null
+  if (!rule.endsWith(' *') || countUnescapedWildcards(rule) !== 1) return null
+  const prefix = rule.slice(0, -2)
+  if (prefix.trim() === '' || prefix.includes('\n')) return null
+  return prefix
 }
 
 const LITERAL_STAR = '\x00MERCURY_STAR\x00'
@@ -116,5 +109,5 @@ export function suggestionForExactCommand(toolName: string, command: string): Pe
 }
 
 export function suggestionForPrefix(toolName: string, prefix: string): PermissionUpdate[] {
-  return [localAllowUpdate(toolName, `${prefix}:*`)]
+  return [localAllowUpdate(toolName, `${prefix} *`)]
 }

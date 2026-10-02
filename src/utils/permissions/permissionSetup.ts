@@ -37,7 +37,6 @@ function contentMatchesDangerousPattern(content: string | undefined, patterns: s
     const pl = p.toLowerCase()
     return (
       c === pl ||
-      c === `${pl}:*` ||
       c === `${pl}*` ||
       c === `${pl} *` ||
       (c.startsWith(`${pl} -`) && c.endsWith('*'))

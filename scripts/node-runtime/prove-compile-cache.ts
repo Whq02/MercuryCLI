@@ -111,7 +111,7 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
   }
 
   const mega = `Bash(${'x'.repeat(1024)})`
-  const small = 'Bash(npm run build:*)'
+  const small = 'Bash(npm run build *)'
   const megaOk = addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'x'.repeat(1024) }], ruleBehavior: 'allow' },
     'userSettings',
@@ -124,10 +124,10 @@ section('§2 PERSISTED-RULE CAP (mega-command approvals stay session-scoped)')
   check('the cap is declared and generous for real patterns', MAX_PERSISTED_ALLOW_RULE_LENGTH >= small.length * 2)
 
   addPermissionRulesToSettings(
-    { ruleValues: [{ toolName: 'Bash', ruleContent: 'npm run build:*' }], ruleBehavior: 'allow' },
+    { ruleValues: [{ toolName: 'Bash', ruleContent: 'npm run build *' }], ruleBehavior: 'allow' },
     'userSettings',
   )
-  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build:*'))
+  check('a genuine reusable pattern persists', settingsRaw().includes('npm run build *'))
 
   addPermissionRulesToSettings(
     { ruleValues: [{ toolName: 'Bash', ruleContent: 'y'.repeat(1024) }], ruleBehavior: 'deny' },

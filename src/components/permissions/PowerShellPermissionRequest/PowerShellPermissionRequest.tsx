@@ -90,7 +90,7 @@ export function PowerShellPermissionRequest({
       .then(prefixes => {
         if (cancelled || userEditedRef.current) return
         const first = prefixes[0]
-        if (first) setEditablePrefix(`${first}:*`)
+        if (first) setEditablePrefix(`${first} *`)
       })
       .catch(() => {
       })

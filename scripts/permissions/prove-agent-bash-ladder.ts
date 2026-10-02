@@ -77,9 +77,9 @@ section('§2 the ladder — the agent\'s Bash answers from the stage the main th
 const READ_ONLY = 'git rev-parse --short HEAD'
 const WRITING = 'git commit --allow-empty -q -m agent-bash-probe && git rev-parse --short HEAD'
 const ASKING = 'git commit --allow-empty -q -m agent-bash-probe'
-const ALLOW_RULES = ['Bash(git commit:*)']
-const DENY_RULES = ['Bash(git commit:*)']
-const ASK_RULES = ['Bash(git commit:*)']
+const ALLOW_RULES = ['Bash(git commit *)']
+const DENY_RULES = ['Bash(git commit *)']
+const ASK_RULES = ['Bash(git commit *)']
 const ASK_TOOL_RULES = ['Bash']
 
 const bashTool = {
@@ -305,13 +305,13 @@ section('§4 the allow-rule merge — allowedTools ADD to the operator\'s layers
   const state = {
     ...parentState('default', 'allow', false),
   } as { toolPermissionContext: { alwaysAllowRules: Record<string, string[]> } }
-  state.toolPermissionContext.alwaysAllowRules = { userSettings: ['Bash(git:*)'], command: ['Read'] }
-  const merged = withAllowedCommandRules(state as never, ['Bash(npm test:*)', 'Read']) as typeof state
-  check('the operator\'s settings layer survives', j(merged.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git:*)']), j(merged.toolPermissionContext.alwaysAllowRules))
-  check('the command layer gains the run\'s rules, deduplicated', j(merged.toolPermissionContext.alwaysAllowRules.command) === j(['Read', 'Bash(npm test:*)']), j(merged.toolPermissionContext.alwaysAllowRules))
+  state.toolPermissionContext.alwaysAllowRules = { userSettings: ['Bash(git *)'], command: ['Read'] }
+  const merged = withAllowedCommandRules(state as never, ['Bash(npm test *)', 'Read']) as typeof state
+  check('the operator\'s settings layer survives', j(merged.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git *)']), j(merged.toolPermissionContext.alwaysAllowRules))
+  check('the command layer gains the run\'s rules, deduplicated', j(merged.toolPermissionContext.alwaysAllowRules.command) === j(['Read', 'Bash(npm test *)']), j(merged.toolPermissionContext.alwaysAllowRules))
   check('an empty list is the identity', withAllowedCommandRules(state as never, []) === (state as never))
-  const composed = composeAgentAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: true, allowedTools: ['Bash(npm test:*)'], effortValue: undefined }) as typeof state
-  check('the agent\'s composed view keeps the settings layer beside the run\'s rules', j(composed.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git:*)']) && (composed.toolPermissionContext.alwaysAllowRules.command ?? []).includes('Bash(npm test:*)'), j(composed.toolPermissionContext.alwaysAllowRules))
+  const composed = composeAgentAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: true, allowedTools: ['Bash(npm test *)'], effortValue: undefined }) as typeof state
+  check('the agent\'s composed view keeps the settings layer beside the run\'s rules', j(composed.toolPermissionContext.alwaysAllowRules.userSettings) === j(['Bash(git *)']) && (composed.toolPermissionContext.alwaysAllowRules.command ?? []).includes('Bash(npm test *)'), j(composed.toolPermissionContext.alwaysAllowRules))
   const bare = composeAgentAppState(state as never, { definitionMode: undefined, avoidPrompts: false, isAsync: false, allowedTools: undefined, effortValue: undefined })
   check('an agent with nothing to overlay reads the parent state itself', bare === (state as never))
 }

@@ -494,11 +494,11 @@ async function main(): Promise<void> {
     ]
     for (const call of reads) check(`lets the git read ${shown(call)} through`, refusedAs(call) === null, String(refusedAs(call)))
     const recon: Array<[string, Call]> = [
-      ['Bash(git status:*)', bash('git status --short')], ['Bash(git log:*)', bash('git log --oneline -3')], ['Bash(git diff:*)', bash('git diff HEAD~1 -- src')],
-      ['Bash(git show:*)', bash('git show HEAD --stat')], ['Bash(git rev-parse:*)', bash('git rev-parse --show-toplevel')], ['Bash(git blame:*)', bash('git blame -L 1,5 README.md')],
-      ['Bash(ls:*)', bash('ls -la /etc')], ['Bash(rg:*)', bash('rg -n sudo src/')], ['Bash(grep:*)', bash('grep -rn "rm -rf" docs/')], ['Bash(wc:*)', bash('wc -l src/x.ts')],
-      ['Bash(cat:*)', bash('cat /etc/hosts')], ['Bash(head:*)', bash('head -20 x')], ['Bash(tail:*)', bash('tail -f log')], ['Bash(echo:*)', bash('echo "sudo is not run here"')],
-      ['Bash(pwd)', bash('pwd')], ['Bash(which:*)', bash('which sudo')],
+      ['Bash(git status *)', bash('git status --short')], ['Bash(git log *)', bash('git log --oneline -3')], ['Bash(git diff *)', bash('git diff HEAD~1 -- src')],
+      ['Bash(git show *)', bash('git show HEAD --stat')], ['Bash(git rev-parse *)', bash('git rev-parse --show-toplevel')], ['Bash(git blame *)', bash('git blame -L 1,5 README.md')],
+      ['Bash(ls *)', bash('ls -la /etc')], ['Bash(rg *)', bash('rg -n sudo src/')], ['Bash(grep *)', bash('grep -rn "rm -rf" docs/')], ['Bash(wc *)', bash('wc -l src/x.ts')],
+      ['Bash(cat *)', bash('cat /etc/hosts')], ['Bash(head *)', bash('head -20 x')], ['Bash(tail *)', bash('tail -f log')], ['Bash(echo *)', bash('echo "sudo is not run here"')],
+      ['Bash(pwd)', bash('pwd')], ['Bash(which *)', bash('which sudo')],
     ]
     check('the read-only recon registry is sampled entry for entry', SEAT_RECON_ALLOW.every(rule => recon.some(([r]) => r === rule)) && recon.every(([r]) => SEAT_RECON_ALLOW.includes(r)), SEAT_RECON_ALLOW.filter(rule => !recon.some(([r]) => r === rule)).join(','))
     for (const [, call] of recon) check(`the read-only registry command ${shown(call)} passes`, refusedAs(call) === null, String(refusedAs(call)))

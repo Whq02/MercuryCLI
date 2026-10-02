@@ -41,13 +41,13 @@ function matchTip(context: TipContext): ValidationTip | null {
     }
   }
   if (
-    (context.path === 'guardrails.allow' || context.path === 'guardrails.deny') &&
+    (context.path === 'guardrails.allow' || context.path === 'guardrails.ask' || context.path === 'guardrails.deny') &&
     context.code === 'invalid_type' &&
     context.expected === 'array'
   ) {
     return {
       suggestion:
-        'Use an array of Tool(specifier) rules, e.g. ["Bash(npm run build)", "Edit(src/**)", "Read(~/docs/**)"]. The * character is the wildcard',
+        'Use an array of Tool(specifier) rules, e.g. ["Bash(npm run build)", "Bash(npm run *)", "Edit(src/**)", "Read(~/docs/**)"]. The * character is the wildcard; a space and a star end a "starts with" rule',
     }
   }
   if (context.path.includes('hooks') && context.code === 'invalid_type') {
