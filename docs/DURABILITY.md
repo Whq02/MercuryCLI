@@ -80,9 +80,10 @@ the complete index; the load-bearing ones:
   consent card) is waiting on the operator, the clock pauses, and the time
   spent answering never counts against the call — it resumes where it
   stopped the moment the answer lands.
-- **Daemon run wall-clock** (`MERCURY_DAEMON_RUN_TIMEOUT_MS`, default 30
-  minutes, read at fire time): a headless run past its cap gets SIGTERM, then
-  SIGKILL after a five-second grace.
+- **Daemon one-shot run wall-clock** (`MERCURY_DAEMON_RUN_TIMEOUT_MS`, default
+  30 minutes, read at fire time): a one-shot run past its cap gets SIGTERM,
+  then SIGKILL after a five-second grace. Long-lived session and crew runners
+  have no such wall-clock cap.
 - **API connect budget** (`MERCURY_CONNECT_TIMEOUT_MS`, default 30000 ms): the
   transport's TCP/TLS connect timeout.
 - **Dead connection after the headers** (`MERCURY_SILENT_AFTER_HEADERS_MS`,
@@ -101,8 +102,11 @@ the complete index; the load-bearing ones:
 
 Mercury never stops or parks a runner for its memory use.
 
-A repeated tool call is never refused. In interactive sessions the loop
-guard only reminds by default. A reminder rides into context
+The loop guard does not refuse individual calls for repeating. In interactive
+sessions it only reminds by default. Tool-specific failure guards still
+apply: the language service refuses an unchanged failing call after three
+attempts, as [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md) describes.
+A reminder rides into context
 after the third, fifth and eighth identical call whose result is identical
 too, counted across model responses — a response is judged once, after all
 of its calls have settled, in the order the model issued them, so the calls
@@ -124,8 +128,8 @@ With `turns.loopGuard: true` in settings, the second detection of the
 same cycle of two to five calls ends the turn after the round it landed in
 has settled: the model's context carries a `loop_stopped` note naming the
 cycle in the order the calls were issued, the operator sees a warning row, a
-headless run settles with the `error_loop_stopped` result, and a sub-agent
-so ended reports a typed failure to its parent. A run of one identical
+headless run settles with an `outcome` whose status is `loop_stopped`, and
+a sub-agent so ended reports a typed failure to its parent. A run of one identical
 successful call is advisory on both roads, and the key is read live from the
 settings files.
 
@@ -135,7 +139,7 @@ round settles. A successful call, another tool, changed input or a different
 first error line resets that count; changing detail below the first line
 does not. Failed bookkeeping calls count too. The output and debug log say
 `stopped: the tool call <name> failed the same way 8 times in a row: <error>`,
-the result is `error_loop_stopped`, and text mode exits with status 1. This
+the outcome's status is `loop_stopped`, and the run exits with status 1. This
 failure-only rule does not depend on the optional cycle-stop setting and
 counts no thinking time, elapsed time or tokens.
 
@@ -158,11 +162,11 @@ them, and the turn ends there, with no second request. Only a stream that
 ends with nothing at all is sent again once.
 
 A run is never recorded complete while a task it filed stays open, on a
-print or worker seat exactly as in the cockpit: the stop asks for the open
-work instead, and the record names how many deliverables remain. A record
-that reads complete with open deliverables (one written by an earlier build)
-is reopened as continuing on its next fold, with the open count named, never
-left as a receipt that contradicts its own task list.
+headless run or hosted seat exactly as in the cockpit: the stop asks for the
+open work, and the record names how many deliverables remain. A record
+that reads complete with open deliverables is reopened as continuing on its
+next fold, with the open count named, never left as a receipt that
+contradicts its own task list.
 
 ## Resource bounds
 
