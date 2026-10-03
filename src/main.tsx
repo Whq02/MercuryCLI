@@ -941,13 +941,13 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(await godotEngineCli(command.args))
     })
 
-  for (const [name, usage] of [
-    ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
-    ['acp', `Usage: ${cliName} acp`],
+  for (const [name, description, usage] of [
+    ['daemon [subcommand]', 'The background daemon: run | status | stop | restart', `Usage: ${cliName} daemon <run|status|stop|restart>`],
+    ['acp', 'Serve an editor over the Agent Client Protocol on stdio', `Usage: ${cliName} acp`],
   ] as const) {
     program
       .command(name)
-      .description('Managed by the launcher fast path')
+      .description(description)
       .allowUnknownOption(true)
       .action(() => {
         writeErr(usage)
@@ -966,7 +966,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   program
     .command('bridge <action>')
-    .description('IDE bridge editor actions')
+    .description('Install, check or remove the VS Code extension: install | status | uninstall')
     .action(async (action: string) => {
       const { editorBridgeMain } = await import('./cli/editorBridge.js')
       process.exit(await editorBridgeMain(action))

@@ -508,8 +508,8 @@ Available commands include:
   `enable`, `disable`, `update`, `uninstall`, `fence`, `unfence`, `inspect`
   and `scaffold`.
 - **`mercury roster`**: list the agent inventory.
-- **`mercury daemon run|status|stop`**: run, inspect or stop the background
-  daemon. Its session seats and named crewmates are `mercury runner`
+- **`mercury daemon run|status|stop|restart`**: run, inspect, stop or restart
+  the background daemon. Its session seats and named crewmates are `mercury runner`
   children; the daemon sends their prompts and hosts their permission asks.
 - **`mercury acp`**: serve an editor over the Agent Client Protocol, with a
   runner child for each session. `mercury bridge install` installs the

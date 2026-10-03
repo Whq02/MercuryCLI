@@ -20,8 +20,7 @@ the launcher picks is the runtime the whole session runs on. The same bundle ser
 (background workers); `runner` (a hosted session over JSON-RPC 2.0 on
 stdio); `acp` (the editor protocol, with a runner child per session); and
 the command estate — interactive boot, `run`, `update`, `install`,
-`health`, and the rest. A lone
-`--update`/`--upgrade` splices into `update`. On interactive boots the
+`health`, and the rest. On interactive boots the
 crash handlers are armed before any route does async work.
 
 ## The deployed runtime
@@ -76,7 +75,7 @@ into it; the accounts board shows it for honesty only.
 
 On an interactive boot the launcher paints the enter screen before the main
 bundle loads (release archives carry it as `splash.mjs` + `splash-core.mjs`);
-print, help and version runs and non-TTY invocations skip it, and
+`run`, help and version runs and non-TTY invocations skip it, and
 `MERCURY_SPLASH=off` skips it always. A direct `node dist/mercury.mjs` start
 paints it too: the runtime runs the same asset itself — found beside the
 bundle first (the ordinary build copies the pair there), then in the config
@@ -197,6 +196,9 @@ installed and to close and open Mercury again to use it — nothing restarts the
 installed daemon for a window of an older build. `--json` carries the same
 two facts as `daemon: { state, line }` (state one of `moved`, `moving`,
 `when-idle`, `current`, `absent`, `stop`, `unknown`) and `openWindows`.
+`mercury daemon restart` makes the same move by hand: the running daemon
+re-executes itself on the installed build now if it is idle, or once its live
+sessions finish.
 
 The activation law:
 
