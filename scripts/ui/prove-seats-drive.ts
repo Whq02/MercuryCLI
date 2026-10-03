@@ -223,11 +223,24 @@ const gridText = (grid: Grid): string =>
 type Capture = { text: string; marks: Record<string, string>; markTicks: Record<string, number>; receipts: Array<{ atTick: number; ts: number }>; sends: number; endReason: string; stderr: string; rss: RssSample[] }
 type RssSample = { at: number; pid: number; rssBytes: number; role: 'daemon' | 'runner' | 'screen' | 'other' }
 
-function startRssSampler(): { stop(): RssSample[] } {
+function startRssSampler(root: () => number | undefined): { stop(): RssSample[] } {
   const samples: RssSample[] = []
-  const tick = (): void => {
-    execFile('ps', ['-axo', 'pid=,ppid=,rss=,command='], { encoding: 'utf8' }, (err, out) => {
-      if (err) return
+  let sampling = false
+  const run = (cmd: string, args: string[]): Promise<string> =>
+    new Promise(resolve => execFile(cmd, args, { encoding: 'utf8' }, (err, out) => resolve(err ? '' : out)))
+  const tick = async (): Promise<void> => {
+    const top = root()
+    if (top === undefined || sampling) return
+    sampling = true
+    try {
+      const pids = new Set<number>([top])
+      let frontier = [top]
+      for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
+        const children = (await run('pgrep', ['-P', frontier.join(',')])).split('\n').map(Number).filter(n => Number.isInteger(n) && n > 0 && !pids.has(n))
+        for (const n of children) pids.add(n)
+        frontier = children
+      }
+      const out = await run('ps', ['-o', 'pid=,ppid=,rss=,command=', '-p', [...pids].join(',')])
       const at = Date.now()
       const rows: Array<{ pid: number; ppid: number; rss: number; command: string }> = []
       for (const line of out.split('\n')) {
@@ -241,10 +254,11 @@ function startRssSampler(): { stop(): RssSample[] } {
         const role: RssSample['role'] = daemons.has(r.pid) ? 'daemon' : daemons.has(r.ppid) ? 'runner' : /^\S*node \S*mercury\.mjs\s*$/.test(r.command.trim()) ? 'screen' : 'other'
         samples.push({ at, pid: r.pid, rssBytes: r.rss, role })
       }
-    })
+    } finally {
+      sampling = false
+    }
   }
-  const timer = setInterval(tick, 2000)
-  tick()
+  const timer = setInterval(() => void tick(), 2000)
   return {
     stop: () => {
       clearInterval(timer)
@@ -259,12 +273,14 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
   const outPath = join(dir, 'grid.json')
   writeFileSync(cfgPath, JSON.stringify({ ...cfg, out: outPath }))
   const stderr: string[] = []
-  const sampler = startRssSampler()
+  let captureChild: ReturnType<typeof spawn> | undefined
+  const sampler = startRssSampler(() => captureChild?.pid)
   await new Promise<void>((resolve, reject) => {
     const child = spawn(driver.python, [VSHOT, cfgPath], {
       env: { ...process.env, ...env },
       stdio: ['ignore', 'ignore', 'pipe'],
     })
+    captureChild = child
     const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(budgetMs))
     child.stderr?.on('data', c => stderr.push(String(c)))
     child.on('error', reject)
