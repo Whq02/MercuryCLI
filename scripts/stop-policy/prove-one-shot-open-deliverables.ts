@@ -173,7 +173,7 @@ async function runWorld(label: string, extraEnv: Record<string, string>): Promis
   seedHome(home, cwd)
   const fixture = await startTaskFixture()
   const runner = bootRunner({ cwd, env: { ...childEnv(home, fixture.port), MERCURY_TASKS: '1', ...extraEnv }, extraArgv: ['--allowed-tools', 'TaskCreate,TaskUpdate'] })
-  await runner.door.connection.peer.request('queue/add', { type: 'prompt', content: FILE_ASK, id: '00000000-0000-4000-8000-000000000000' })
+  await runner.door.connection.peer.request('queue/add', { type: 'prompt', content: FILE_ASK, id: '00000000-0000-4000-8000-000000000000' }, { deadlineMs: bound(90_000) })
   const session = await runner.waitFor('the session row', isSession, bound(90_000))
   const outcome = session === null ? null : await runner.waitFor('the turn outcome', isOutcome, bound(180_000))
   await runner.stop(bound(8_000))
