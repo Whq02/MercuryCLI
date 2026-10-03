@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { answeredWith } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'opus-55-display-pure-'))
@@ -100,7 +101,7 @@ if (!existsSync(DIST)) {
 
     let from = fixture.messageRequests().length
     const r1 = await run(['run', 'display probe one', '--model', ROW, '--format', 'rows'], { MERCURY_THINKING_DISPLAY: 'updates' })
-    check('the turn on the row exits 0 and answers', r1.exit === 0 && r1.stdout.includes('OPUS-55-DISPLAY-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
+    check('the turn on the row exits 0 and answers — a completed outcome row carrying the answer', r1.exit === 0 && answeredWith(r1.stdout, 'OPUS-55-DISPLAY-DONE'), `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
     const b1 = mainRequest(from, ROW, 'display probe one')
     check('the request names the row', b1?.model === ROW, j(b1?.model))
     check("thinking rides adaptive with display 'updates' (never disabled, never a budget)", b1?.thinking?.type === 'adaptive' && b1?.thinking?.display === 'updates' && !('budget_tokens' in (b1?.thinking ?? {})), j(b1?.thinking))

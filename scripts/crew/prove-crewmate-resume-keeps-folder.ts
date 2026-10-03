@@ -4,7 +4,8 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import type { Frame } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { closeWorld, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, readJson, record, sleep, toolResultOf, treeOf, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
@@ -23,8 +24,7 @@ const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ .
 const ack = (): ScriptedTurn => ({ kind: 'text', text: 'LEAD-ACK', model: LEAD_MODEL, whenModel: LEAD_GATE }) as ScriptedTurn
 const peer = (turn: Record<string, unknown>, when?: string): ScriptedTurn => ({ ...turn, model: peerModel, whenModel: 'opus-4-6', ...(when !== undefined ? { whenBody: when } : {}) }) as ScriptedTurn
 const tally = makeTally('prove-crewmate-resume-keeps-folder')
-const work = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'crewmate-place-'))
-const place = realpathSync(work)
+const work = realpathSync(mkdtempSync(join(process.env.MERCURY_CONFIG_DIR ?? tmpdir(), 'crewmate-place-')))
 const script: ScriptedTurn[] = [
   lead({ kind: 'tool_use', name: 'Agent', input: { name: worker, crew_name: crew, cwd: work, model: peerModel, subagent_type: 'mercury-crew', description: 'Keep the place', prompt: 'Run pwd and report the folder you work in.' } }, FIRST),
   lead({ kind: 'text', text: 'LEAD-PARKED' }, FIRST),
@@ -43,23 +43,25 @@ const frames: Frame[] = []
 let rowsOut = ''
 let leadErr = ''
 const refusals: string[] = []
-const door = spawnRunnerDoor({
+const host = hostRunner({
   node: NODE,
-  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', '--mode', 'sovereign', '--session-id', sessionId],
+  dist: DIST,
+  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', '--mode', 'sovereign', '--session-id', sessionId],
   cwd: world.project,
-  env: world.env,
-  onLine: line => {
-    rowsOut += `${line}\n`
-    const frame = parseFrame(line)
-    if (frame !== null) frames.push(frame)
+  env: world.env as Record<string, string | undefined>,
+  home: world.env.MERCURY_CONFIG_DIR ?? world.project,
+  raw: text => {
+    rowsOut += text
   },
+  onRow: frame => frames.push(frame),
 })
-door.child.stderr!.on('data', (chunk: Buffer) => {
+host.child.stderr!.on('data', (chunk: Buffer) => {
   leadErr += chunk.toString('utf8')
 })
-const wire = door.connection.peer
+void host.initialize().catch(() => undefined)
+const wire = host.peer
 let leadDone = false
-const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+const leadExited = new Promise<number | null>(resolveExit => host.child.on('close', code => {
   leadDone = true
   resolveExit(code)
 }))
@@ -80,10 +82,10 @@ const session = {
     }
   },
   terminate: async (): Promise<number | null> => {
-    door.child.kill('SIGTERM')
+    host.child.kill('SIGTERM')
     const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
-    if (!leadDone) door.child.kill('SIGKILL')
-    door.connection.close('the proof ended')
+    if (!leadDone) host.child.kill('SIGKILL')
+    host.peer.close('the proof ended')
     return code
   },
 }
@@ -136,8 +138,8 @@ try {
   session.submit(`${FIRST}: start the worker and park.`)
   await session.waitFor('the worker did not name its folder', () => pwdResults().length >= 1 && session.stdout().includes('LEAD-PARKED'), TURN_MS)
   const first = rowsOf()[0]
-  tally.check('the crewmate\'s folder is not the lead\'s', place !== leadPlace, `${place} vs ${leadPlace}`)
-  tally.check('the crewmate names its own folder before the stop, and its record and roster row carry it', first !== undefined && pwdResults()[0] === place && metaOf(first)?.cwd === work && workerMembers()[0]?.cwd === work, JSON.stringify({ pwd: pwdResults(), meta: first === undefined ? null : metaOf(first), members: workerMembers() }))
+  tally.check('the crewmate\'s folder is not the lead\'s', work !== leadPlace, `${work} vs ${leadPlace}`)
+  tally.check('the crewmate names its own folder before the stop, and its record and roster row carry it', first !== undefined && pwdResults()[0] === work && metaOf(first)?.cwd === work && workerMembers()[0]?.cwd === work, JSON.stringify({ pwd: pwdResults(), meta: first === undefined ? null : metaOf(first), members: workerMembers() }))
   if (first === undefined) throw new Error('the fixture has no crewmate task id')
   const stopped = await stopAgent(first)
   tally.check('the crew stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
@@ -152,7 +154,7 @@ try {
   const namedAgain = await until(() => pwdResults().length >= 2, TURN_MS / 2)
   record('pwd-results.json', JSON.stringify(pwdResults(), null, 2))
   tally.check('the resumed crewmate names a folder again', namedAgain, JSON.stringify(pwdResults()))
-  tally.check('…and it is ITS folder, not the lead\'s (RED on the base: the lead\'s folder)', pwdResults()[1] === place && pwdResults()[1] !== leadPlace, JSON.stringify({ pwd: pwdResults(), place, leadPlace }))
+  tally.check('…and it is ITS folder, not the lead\'s (RED on the base: the lead\'s folder)', pwdResults()[1] === work && pwdResults()[1] !== leadPlace, JSON.stringify({ pwd: pwdResults(), work, leadPlace }))
   const meta2 = secondRow === undefined ? null : metaOf(secondRow)
   tally.check('the new row\'s record names the crewmate\'s folder (RED on the base: the lead\'s)', secondRow !== undefined && meta2?.cwd === work, JSON.stringify({ secondRow, meta2 }))
   tally.check('the roster record names the crewmate\'s folder (RED on the base: the lead\'s)', workerMembers().length === 1 && workerMembers()[0]!.cwd === work, JSON.stringify(workerMembers()))
@@ -166,7 +168,7 @@ try {
   record('resume-response.json', JSON.stringify(resumed, null, 2))
   tally.check('r on the stopped row resumes it', resumed.refused === undefined && typeof resumed.agent_id === 'string', JSON.stringify(resumed))
   const namedThrice = await until(() => pwdResults().length >= 3, TURN_MS / 2)
-  tally.check('the crewmate names its folder once more, and it is ITS folder (RED on the base: the lead\'s)', namedThrice && pwdResults()[2] === place, JSON.stringify({ pwd: pwdResults(), place }))
+  tally.check('the crewmate names its folder once more, and it is ITS folder (RED on the base: the lead\'s)', namedThrice && pwdResults()[2] === work, JSON.stringify({ pwd: pwdResults(), work }))
   const thirdRow = rowsOf()[2]
   tally.check('the third row\'s record and the roster record name the crewmate\'s folder', thirdRow !== undefined && metaOf(thirdRow)?.cwd === work && workerMembers().length === 1 && workerMembers()[0]!.cwd === work, JSON.stringify({ thirdRow, meta: thirdRow === undefined ? null : metaOf(thirdRow), members: workerMembers() }))
 } finally {

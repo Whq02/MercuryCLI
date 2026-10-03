@@ -180,7 +180,7 @@ section('N6 · the publish seam carries figure + provenance; version bumps on ch
   check('the window landing (200k fallback → 1,048,576 live) notifies subscribers and re-labels', notified === 1 && live.getLiveContextUsage().windowSource === 'live-current' && live.getLiveContextUsage().usedPct === 5)
   off()
   live.publishContextUsage(6, 1_048_576, 96.9)
-  check('a legacy 3-arg publish still lands (detail null) and no longer notifies the removed subscriber', notified === 1 && live.getLiveContextUsage().usedPct === 6 && live.getLiveContextUsage().usedTokens === null)
+  check('a 3-argument publish lands with a null detail, and an unsubscribed listener hears nothing', notified === 1 && live.getLiveContextUsage().usedPct === 6 && live.getLiveContextUsage().usedTokens === null)
 }
 
 console.log('\n' + (failures === 0 ? 'ALL CHECKS PASSED' : `${failures} CHECK(S) FAILED`))

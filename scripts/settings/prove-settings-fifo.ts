@@ -3,6 +3,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, NODE, childEnv, makeTally, requireDist, scratchWorld, seedScratchHome, sleep, startScriptedFixture, textScript } from '../lib/scratchSeat.ts'
+import { answeredWith, frameLines, lastOutcome, type Frame } from '../lib/rows.ts'
 
 requireDist()
 const tally = makeTally('prove-settings-fifo')
@@ -10,8 +11,8 @@ const DEADLINE_MS = 60_000
 const fixture = await startScriptedFixture(textScript('settings probe answered'))
 const port = Number(new URL(fixture.base).port)
 
-async function bootExits(label: string, runHome: string, cwd: string): Promise<{ exited: boolean; code: number | null; ms: number; stdout: string }> {
-  const proc = spawn(NODE, [DIST, 'run', 'settings probe', '--format', 'json', '--model', 'claude-opus-4-8'], {
+async function bootExits(label: string, runHome: string, cwd: string): Promise<{ exited: boolean; code: number | null; ms: number; stdout: string; outcome: Frame | undefined }> {
+  const proc = spawn(NODE, [DIST, 'run', 'settings probe', '--format', 'rows', '--model', 'claude-opus-4-8'], {
     cwd,
     env: childEnv(runHome, port),
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -29,8 +30,9 @@ async function bootExits(label: string, runHome: string, cwd: string): Promise<{
     console.log(`  [${label}] still running after ${DEADLINE_MS} ms — killed`)
     try { proc.kill('SIGKILL') } catch {}
   }
-  return { exited, code, ms, stdout }
+  return { exited, code, ms, stdout, outcome: lastOutcome(frameLines(stdout)) }
 }
+const answered = (run: { stdout: string }): boolean => answeredWith(run.stdout, 'settings probe answered')
 
 tally.section('control: a regular settings.json boots, answers and exits')
 const control = scratchWorld('settings-fifo-control')
@@ -38,7 +40,7 @@ seedScratchHome(control.runHome, control.cwd)
 writeFileSync(join(control.runHome, 'settings.json'), '{}')
 const c = await bootExits('control', control.runHome, control.cwd)
 tally.check('the control boot exits well inside the deadline', c.exited && c.ms < DEADLINE_MS / 2, `code ${c.code} after ${c.ms} ms`)
-tally.check('and it answered the turn', c.stdout.includes('settings probe answered'))
+tally.check('and it answered the turn: one completed outcome row carrying the answer', answered(c), JSON.stringify(c.outcome ?? null))
 
 const specials: Array<{ name: string; make: (settings: string) => void }> = [
   { name: 'a named pipe (no writer)', make: settings => execFileSync('mkfifo', [settings]) },
@@ -54,7 +56,7 @@ for (const special of specials) {
   special.make(settings)
   const f = await bootExits(special.name, world.runHome, world.cwd)
   tally.check(`the seat exits (refusing ${special.name}) instead of blocking forever on it`, f.exited, f.exited ? `code ${f.code} after ${f.ms} ms` : `hung past ${DEADLINE_MS} ms (the control took ${c.ms} ms)`)
-  tally.check('and it still answered the turn', f.stdout.includes('settings probe answered'), `code ${f.code}; stdout ${f.stdout.slice(0, 160)}`)
+  tally.check('and it still answered the turn: one completed outcome row carrying the answer', answered(f), `code ${f.code}; outcome ${JSON.stringify(f.outcome ?? null)}; stdout ${f.stdout.slice(0, 160)}`)
 }
 await fixture.close()
 tally.finish()

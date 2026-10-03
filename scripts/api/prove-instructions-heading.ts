@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import { answeredWith } from '../lib/rows.ts'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -156,7 +157,7 @@ if (!existsSync(DIST)) {
         resolvePromise({ exit, stdout, stderr })
       })
     })
-    check('the headless turn exits 0 and answers', result.exit === 0 && result.stdout.includes('HEADING-WIRE-DONE'), `exit=${result.exit} stderr=${result.stderr.slice(0, 300)}`)
+    check('the headless turn exits 0 and answers — a completed outcome row carrying the answer', result.exit === 0 && answeredWith(result.stdout, 'HEADING-WIRE-DONE'), `exit=${result.exit} stderr=${result.stderr.slice(0, 300)}`)
     const file = join(dumpDir, `${SID}.jsonl`)
     let rows = existsSync(file) ? reader.readRows(file) : []
     for (let i = 0; i < 40 && rows.length === 0; i++) {
