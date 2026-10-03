@@ -212,7 +212,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/headless/prove-runner-wire-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/headless/prove-structuredio-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/daemon/prove-seat-door-direct.ts', 'control-frames', 'names the words it proves absent from the daemon'],
-  ['src/rows/read.ts', 'control-frames', 'the one line FIX-T3-ROWS 0acc12a82 removes — drop this row at that fold'],
   ['scripts/headless/prove-headless-ask-refusals.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
   ['scripts/headless/prove-headless-ask-unanswered.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
   ['scripts/headless/prove-parked-ask-liveness.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
