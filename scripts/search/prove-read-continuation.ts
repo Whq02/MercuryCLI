@@ -35,9 +35,10 @@ try {
   await fixture.close()
 }
 console.log(JSON.stringify({ dist: DIST, scratch, results, exitCode: turn.exitCode }, null, 2))
-tally.check('the oversized single-line Read actually refuses', results[0]?.isError === true && /exceeds maximum allowed tokens/.test(results[0].text), results[0]?.text)
-tally.check('the throw road names its bounded next window at the requested offset', results[0]?.text.includes('Read(offset: 2, limit: 1)') === true, results[0]?.text)
-tally.check('the single-line limit explains why another Read cannot split it', results[0]?.text.includes('single line') === true && /search/.test(results[0].text), results[0]?.text)
+const wideLine = results[0]?.text.split('\n')[0] ?? ''
+tally.check('the oversized single-line Read is read, not refused: the one requested line comes back numbered', results[0]?.isError === false && wideLine.startsWith('2\twide wide '), results[0]?.text.slice(0, 200))
+tally.check('the line is clipped at the display bound and the mark counts every character it cut', wideLine.length <= 2050 && wideLine.endsWith('… [truncated 158000 characters]'), wideLine.slice(-120))
+tally.check('the clipped read keeps its source anchor for the window', /\(anchor: ra:[0-9a-f]+:L2\+1\)/.test(results[0]?.text ?? ''), results[0]?.text.slice(-400))
 tally.check('the oversized notebook Read actually refuses', results[1]?.isError === true && /exceeds maximum allowed tokens/.test(results[1].text), results[1]?.text)
 tally.check('the notebook refusal claims no offset/limit window and names the cell-slice remedy', results[1] !== undefined && !/Read\(offset/.test(results[1].text) && !/[Uu]se offset and limit/.test(results[1].text) && results[1].text.includes("jq '.cells[:10]'"), results[1]?.text)
 tally.finish()
