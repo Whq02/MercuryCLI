@@ -115,8 +115,8 @@ if (!existsSync(DIST)) {
     t('the parser names the live modes and no other', /Allowed choices are default, dontAsk, implement, sovereign, flow, apollo\./.test(b.stderr), b.stderr.slice(0, 300))
 
     const rows = await run(['hello', '--format', 'rows', '--model', 'claude-opus-4-8'])
-    const init = rows.stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'system' && row.subtype === 'init')
-    t('a run under the old opt-in lists no SetTier tool in its init row', rows.status === 0 && Array.isArray(init?.tools) && !(init!.tools as string[]).includes('SetTier'), `exit=${rows.status} tools=${JSON.stringify(init?.tools).slice(0, 200)}`)
+    const init = rows.stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'session')
+    t('a run under the old opt-in lists no SetTier tool in its session row', rows.status === 0 && Array.isArray(init?.tools) && !(init!.tools as string[]).includes('SetTier'), `exit=${rows.status} tools=${JSON.stringify(init?.tools).slice(0, 200)}`)
 
     const sid = 'a0a0a0a0-0000-4000-8000-00000000a0a0'
     const user = { ...createUserMessage({ content: 'the first question', permissionMode: 'autopilot' as never }), sessionId: sid, cwd, parentUuid: null }
@@ -125,9 +125,9 @@ if (!existsSync(DIST)) {
     mkdirSync(projectDir, { recursive: true })
     writeFileSync(join(projectDir, `${sid}.jsonl`), encodeSeedTranscript([user, assistant], sid))
     const resumed = await run(['the second question', '--resume', sid, '--format', 'rows', '--model', 'claude-opus-4-8'])
-    const resumedInit = resumed.stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'system' && row.subtype === 'init')
+    const resumedInit = resumed.stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'session')
     t('a saved chat whose turns were recorded under autopilot opens and answers', resumed.status === 0 && resumed.stdout.includes('seven'), `exit=${resumed.status} stderr=${resumed.stderr.slice(0, 300)}`)
-    t('…in the default mode', resumedInit?.permission_mode === 'default', String(resumedInit?.permission_mode))
+    t('…in the default mode', resumedInit?.mode === 'default', String(resumedInit?.mode))
     const history = fixture.messageRequests().map(r => JSON.stringify(r.body)).filter(body => body.includes('the second question'))
     t('…with its history intact (the first question rides the request)', history.some(body => body.includes('the first question')), `${history.length} requests carry the second question`)
     const sid2 = 'a0a0a0a0-0000-4000-8000-00000000a0a1'

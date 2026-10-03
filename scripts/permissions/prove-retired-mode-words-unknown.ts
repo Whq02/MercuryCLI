@@ -113,7 +113,7 @@ if (!existsSync(DIST)) {
     }
     const projectDir = getProjectDir(cwd)
     mkdirSync(projectDir, { recursive: true })
-    const init = (stdout: string): Record<string, unknown> | undefined => stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'system' && row.subtype === 'init') ?? undefined
+    const init = (stdout: string): Record<string, unknown> | undefined => stdout.split('\n').map(line => { try { return JSON.parse(line) as Record<string, unknown> } catch { return null } }).find(row => row?.type === 'session') ?? undefined
     for (const [index, word] of WORDS.entries()) {
       const sid = `b1b1b1b1-0000-4000-8000-00000000b1b${index}`
       const user = { ...createUserMessage({ content: `the first question under ${word}`, permissionMode: word as never }), sessionId: sid, cwd, parentUuid: null }
@@ -121,7 +121,7 @@ if (!existsSync(DIST)) {
       writeFileSync(join(projectDir, `${sid}.jsonl`), encodeSeedTranscript([user, assistant], sid))
       const resumed = await run(['the second question', '--resume', sid, '--format', 'rows', '--model', 'claude-opus-4-8'])
       t(`a saved chat recorded under '${word}' opens and answers`, resumed.status === 0 && resumed.stdout.includes('seven'), `exit=${resumed.status} stderr=${resumed.stderr.slice(0, 300)}`)
-      t(`…in the default mode`, init(resumed.stdout)?.permission_mode === 'default', String(init(resumed.stdout)?.permission_mode))
+      t(`…in the default mode`, init(resumed.stdout)?.mode === 'default', String(init(resumed.stdout)?.mode))
       const history = fixture.messageRequests().map(r => JSON.stringify(r.body)).filter(body => body.includes('the second question'))
       t(`…with its history intact`, history.some(body => body.includes(`the first question under ${word}`)), `${history.length} requests carry the second question`)
     }

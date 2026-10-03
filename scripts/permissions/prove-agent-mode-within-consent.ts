@@ -271,9 +271,9 @@ if (!existsSync(BIN)) {
       const parentAck = fixture.hits.find(h => h.route === 'parent-ack')
       const agentToolResult = parentAck?.results[parentAck.results.length - 1] ?? ''
       const commits = commitCount(world.cwd)
-      const resultRows = run.frames.filter(f => f.type === 'result')
+      const resultRows = run.frames.filter(f => f.type === 'outcome')
       console.log(`  evidence · routes ${routes.join(' → ')} · commits ${commits} · exit ${run.exit} · shell ${j(shellResult.replace(/\s+/g, ' ').slice(0, 160))} · agent tool ${j(agentToolResult.replace(/\s+/g, ' ').slice(0, 160))}`)
-      check(`${leg.name}: the run settled with a result row`, resultRows.length === 1 && run.exit === 0, `results=${resultRows.length} exit=${run.exit} stderr=${j(run.stderr.slice(-300))}`)
+      check(`${leg.name}: the run settled with an outcome row`, resultRows.length === 1 && run.exit === 0, `results=${resultRows.length} exit=${run.exit} stderr=${j(run.stderr.slice(-300))}`)
       if (leg.expectAgent) {
         check(`${leg.name}: the probe agent ran (its brief reached the model)`, routes.includes('agent'), routes.join(' → '))
         if (leg.expectRan) {

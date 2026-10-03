@@ -125,8 +125,8 @@ if (!existsSync(BIN)) {
         out += String(d)
         for (const line of out.split('\n')) {
           try {
-            const row = JSON.parse(line) as { type?: string; subtype?: string; permission_mode?: string }
-            if (row.type === 'system' && row.subtype === 'init') finish(row.permission_mode ?? null)
+            const row = JSON.parse(line) as { type?: string; mode?: string }
+            if (row.type === 'session') finish(row.mode ?? null)
           } catch {
             continue
           }
@@ -138,7 +138,7 @@ if (!existsSync(BIN)) {
   const direct: Record<string, string | null> = {}
   for (const word of ['sovereign', 'apollo', 'frobnicate'] as const) {
     direct[word] = await initRowMode(word)
-    check(`run door · saved '${word}' ⇒ init row permission_mode '${EXPECTED[word]}'`, direct[word] === EXPECTED[word], JSON.stringify(direct[word]))
+    check(`run door · saved '${word}' ⇒ the session row's mode '${EXPECTED[word]}'`, direct[word] === EXPECTED[word], JSON.stringify(direct[word]))
   }
 
   section('§3 the seat door on the built product: a daemon-admitted session under each saved word')

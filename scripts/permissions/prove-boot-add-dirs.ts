@@ -54,7 +54,7 @@ try {
   }
   check('the workspace permission tab is absent', !source('src/components/permissions/rules/PermissionRuleList.tsx').includes('id="workspace"'))
   const trust = source('docs/TRUST.md')
-  check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode/.test(trust) && /outside/.test(trust))
+  check('the docs name the starting-folder law', /starting folder/i.test(trust) && /Implement mode\*\* allows ordinary writes and edits inside the starting\s+folder\. Outside it, Mercury asks for permission/.test(trust))
   const dist = join(repo, 'dist/mercury.mjs')
   check('the CLI artifact is available', existsSync(dist))
   if (existsSync(dist)) {
