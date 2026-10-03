@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, NODE, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { answerOf, frameLines, isCompleted } from '../lib/rows.ts'
 
 const tally = makeTally('prove-retired-cli-flags')
 const root = mkdtempSync(join(tmpdir(), 'retired-cli-flags-'))
@@ -23,14 +24,7 @@ function launch(flag: string, format: string | null, inline: boolean) {
     cwd, env, encoding: 'utf8', timeout: 45_000, stdio: ['ignore', 'pipe', 'pipe'],
   })
   let words = (result.stdout ?? '').trim()
-  if (format !== null) {
-    try {
-      const frame = words.split('\n').map(line => JSON.parse(line)).find(frame => frame.type === 'result' && frame.is_error === false)
-      words = typeof frame?.result === 'string' ? frame.result : ''
-    } catch {
-      words = ''
-    }
-  }
+  if (format !== null) words = answerOf(frameLines(words).find(isCompleted))
   const stderr = result.stderr ?? ''
   return { code: result.status, words, stderr, firstLine: stderr.trim().split('\n')[0] ?? '', error: result.error?.message }
 }

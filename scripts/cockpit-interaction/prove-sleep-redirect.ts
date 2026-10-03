@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { frameLines, isMainThread, isToolCall, isToolResult } from '../lib/rows.ts'
 import {
   countTrackedRunningAgents,
   SleepTool,
@@ -335,30 +336,15 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
 
     const sleepResults: string[] = []
     let agentDispatched = false
-    for (const line of out.split('\n')) {
-      if (!line.trim()) continue
-      try {
-        const evt = JSON.parse(line) as { message?: { content?: unknown } }
-        const content = evt?.message?.content
-        if (!Array.isArray(content)) continue
-        for (const block of content as Array<Record<string, unknown>>) {
-          if (block?.type === 'tool_use' && block?.name === 'Agent') agentDispatched = true
-          if (block?.type !== 'tool_result') continue
-          const c = block.content
-          const text =
-            typeof c === 'string'
-              ? c
-              : Array.isArray(c)
-                ? (c as Array<{ text?: string }>).map(x => x?.text ?? '').join(' ')
-                : ''
-          if (/[Ss]lept|tracked work|Sleep interrupted/.test(text)) sleepResults.push(text)
-        }
-      } catch {
-      }
+    for (const row of frameLines(out).filter(isMainThread)) {
+      if (isToolCall(row) && row.tool === 'Agent') agentDispatched = true
+      if (!isToolResult(row)) continue
+      const text = String(row.output ?? '')
+      if (/[Ss]lept|tracked work|Sleep interrupted/.test(text)) sleepResults.push(text)
     }
 
     t.check('the headless run exited cleanly', exit === 0, `exit=${exit} ${err.slice(-200)}`)
-    t.check('the Agent dispatch really happened', agentDispatched, 'no Agent tool_use seen')
+    t.check('the Agent dispatch really happened', agentDispatched, 'no Agent tool_call row seen')
     t.check('both Sleep results captured', sleepResults.length >= 2, JSON.stringify(sleepResults))
     t.check(
       'REDIRECT on a REAL same-block agent: Sleep(45) settled when the tracked work did',

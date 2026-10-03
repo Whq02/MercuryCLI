@@ -3,6 +3,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { frameLines, isCompleted, lastOutcome, outcomeError } from '../lib/rows.ts'
 import {
   CORPUS_COMMIT,
   CORPUS_TAG,
@@ -62,7 +63,7 @@ type ArmRun = {
   arm: 'routed' | 'unrouted'
   wallMs: number
   costUsd?: number
-  numTurns?: number
+  steps?: number
   perTask: Array<{ taskId: string; passed: number; total: number; ok: boolean }>
   checksOk: number
   error?: string
@@ -83,7 +84,7 @@ async function runArm(
   const recon = resolveWorkerReconAllow()
   const t0 = Date.now()
   let costUsd: number | undefined
-  let numTurns: number | undefined
+  let steps: number | undefined
   let error: string | undefined
   try {
     const child = spawn(
@@ -126,13 +127,12 @@ async function runArm(
     clearTimeout(timeboxHandle)
     mkdirSync(join(runDir, 'forensics'), { recursive: true })
     writeFileSync(join(runDir, 'forensics', `wf-${armName}.stderr.log`), errBuf)
-    try {
-      const envl = JSON.parse(out) as { total_cost_usd?: number; num_turns?: number; is_error?: boolean; subtype?: string }
-      costUsd = envl.total_cost_usd
-      numTurns = envl.num_turns
-      if (envl.is_error) error = error ?? `result envelope is_error (${envl.subtype ?? 'unknown'})`
-    } catch {
-      error = error ?? 'no parsable result envelope'
+    const outcome = lastOutcome(frameLines(out))
+    if (outcome === undefined) error = error ?? 'no parsable outcome row'
+    else {
+      costUsd = typeof outcome.cost_usd === 'number' ? outcome.cost_usd : undefined
+      steps = typeof outcome.steps === 'number' ? outcome.steps : undefined
+      if (!isCompleted(outcome)) error = error ?? `outcome ${String(outcome.status ?? 'unknown')}${outcomeError(outcome) ? ` — ${outcomeError(outcome)}` : ''}`
     }
   } catch (e) {
     error = String(e)
@@ -144,7 +144,7 @@ async function runArm(
     const { passed, total } = judgeChecks(t, clone)
     return { taskId: t.id, passed, total, ok: passed === total }
   })
-  return { arm: armName, wallMs, costUsd, numTurns, perTask, checksOk: perTask.filter(p => p.ok).length, error }
+  return { arm: armName, wallMs, costUsd, steps, perTask, checksOk: perTask.filter(p => p.ok).length, error }
 }
 
 async function main(): Promise<void> {

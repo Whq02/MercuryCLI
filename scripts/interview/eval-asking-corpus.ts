@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { frameLines, isMainThread, isOutcome, isStep, isToolCall } from '../lib/rows.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const ROOT = join(HERE, '..', '..')
@@ -183,30 +184,17 @@ for (const sc of SCENARIOS) {
     let costUsd: number | null = null
     let model: string | null = null
     let turns = 0
-    for (const line of (r.stdout ?? '').split('\n')) {
-      if (!line.trim()) continue
-      let obj: Record<string, unknown>
-      try {
-        obj = JSON.parse(line) as Record<string, unknown>
-      } catch {
-        continue
-      }
-      if (obj.type === 'assistant') {
+    for (const row of frameLines(r.stdout ?? '').filter(isMainThread)) {
+      if (isStep(row)) {
         turns++
-        const msg = obj.message as { model?: string; content?: { type: string; name?: string; input?: { questions?: { question: string }[] } }[] } | undefined
-        if (msg?.model) model = msg.model
-        for (const block of msg?.content ?? []) {
-          if (block.type === 'tool_use' && block.name === 'AskUserQuestion') {
-            const qs = (block.input?.questions ?? []).map(q => q.question)
-            asked.push(...qs)
-            roundQuestionSets.push(qs)
-          }
-        }
+        if (typeof row.model === 'string') model = row.model
       }
-      if (obj.type === 'result') {
-        const cost = (obj as { total_cost_usd?: number }).total_cost_usd
-        if (typeof cost === 'number') costUsd = cost
+      if (isToolCall(row) && row.tool === 'AskUserQuestion') {
+        const qs = ((row.input as { questions?: { question: string }[] } | undefined)?.questions ?? []).map(q => q.question)
+        asked.push(...qs)
+        roundQuestionSets.push(qs)
       }
+      if (isOutcome(row) && typeof row.cost_usd === 'number') costUsd = row.cost_usd
     }
     const violations: string[] = []
     for (const q of asked) {

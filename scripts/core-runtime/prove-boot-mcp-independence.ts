@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.js'
 import { seedFirstRun } from '../lib/firstRunSeed.js'
+import { parseFrame } from '../lib/rows.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -145,14 +146,7 @@ async function headlessFirstLine(
 }
 
 type InitLine = { type?: string; mcp_servers?: Array<{ name: string; status: string }> }
-function parseInit(line: string | null): InitLine | null {
-  if (line === null) return null
-  try {
-    return JSON.parse(line) as InitLine
-  } catch {
-    return null
-  }
-}
+const parseInit = (line: string | null): InitLine | null => (line === null ? null : (parseFrame(line) as InitLine | null))
 
 const driver = resolveCaptureDriver()
 

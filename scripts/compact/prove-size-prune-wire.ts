@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startOverflowFixture, type Captured, type ScriptedCall, type Turn } from './overflowFixture.ts'
+import { answerOf, frameLines, isToolResult, lastOutcome } from '../lib/rows.ts'
 import { PROTECT_NEWEST_TOOL_OUTPUT_TOKENS } from '../../src/services/compact/pruneProtections.ts'
 
 const arg = (name: string): string | undefined => {
@@ -160,10 +161,8 @@ clearTimeout(watchdog)
 await fixture.close()
 writeFileSync(join(output, 'stdout.jsonl'), stdout)
 writeFileSync(join(output, 'stderr.txt'), stderr)
-const frames = stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
-  try { return [JSON.parse(line) as Record<string, unknown>] } catch { return [] }
-})
-const notices = frames.filter(frame => frame.type === 'system' && !['init', 'status', 'turn_started'].includes(String(frame.subtype)))
+const frames = frameLines(stdout)
+const notices = frames.filter(frame => frame.type === 'notice')
 const counts = measurements.map(row => row.inputTokens as number)
 const firstRefusal = measurements.find(row => row.refused)
 const accepted = measurements.filter(row => !row.refused)
@@ -209,10 +208,10 @@ const summary = {
 writeFileSync(join(output, 'summary.json'), JSON.stringify(summary, null, 2) + '\n')
 let failures = 0
 const check = (label: string, passed: boolean): void => { if (!passed) failures++; console.log(`[${passed ? 'PASS' : 'FAIL'}] ${label}`) }
-check('the built product completes the scripted file work', exit === 0 && stdout.includes('The file revisions are complete.'))
+check('the built product completes the scripted file work', exit === 0 && answerOf(lastOutcome(frames)) === 'The file revisions are complete.')
 check('the replay makes every scripted Read and Edit', nextCall === calls.length + 1)
 check('every edit landed in the scratch files', paths.every((path, index) => readFileSync(path, 'utf8').startsWith(`revision ${Math.ceil((rounds - index) / paths.length)}\n`)))
-check('no tool result reports an error', !frames.some(frame => frame.type === 'user' && Array.isArray((frame.message as { content?: unknown })?.content) && ((frame.message as { content: Array<{ is_error?: boolean }> }).content).some(block => block.is_error === true)))
+check('no tool result reports an error', frames.some(isToolResult) && !frames.some(frame => isToolResult(frame) && frame.status !== 'ok'))
 check('the provider input-pairing rule refuses nothing', fixture.refusals.length === 0)
 check(`the threshold sits under the refusal limit (${thresholdTokens} < ${limit}) and the two-thirds target sits at least one file read above the floor no prune can clear, the first request plus the newest-output protection (${summary.unprunableFloorTokens} + ${summary.fileReadTokens} < ${targetTokens})`, thresholdTokens < limit && summary.unprunableFloorTokens + summary.fileReadTokens < targetTokens)
 check('the size prune lands before any provider refusal', summary.prunedBeforeRefusal)

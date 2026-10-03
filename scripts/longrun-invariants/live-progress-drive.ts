@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { isOutcome, parseFrame } from '../lib/rows.ts'
 
 if (process.env.RUN_LIVE !== '1') {
   console.log('SKIP — live-progress-drive runs only under RUN_LIVE=1 (the drill precedent)')
@@ -89,26 +90,15 @@ const exit = await new Promise<{ rc: number | null; signal: string | null }>(res
 check('the runner settled cleanly (rc 0, no kill)', exit.rc === 0 && exit.signal === null, `rc=${exit.rc} signal=${exit.signal} stderr tail: ${stderr.slice(-300)}`)
 
 const lines = stdout.split('\n').filter(l => l.trim() !== '')
-type WireFrame = {
-  type?: string
-  tool_use_id?: string
-  parent_tool_use_id?: string
-  progress?: { kind?: string; data_type?: string; seq?: number; latest_line?: string }
-}
-const tailFrames: WireFrame[] = []
-for (const line of lines) {
-  if (!line.includes('"ephemeral_tail"')) continue
-  try {
-    const frame = JSON.parse(line) as WireFrame
-    if (frame.type === 'tool_progress' && frame.progress?.kind === 'ephemeral_tail') tailFrames.push(frame)
-  } catch {
-  }
-}
-check(`the runner emitted ephemeral_tail frames on its real stdout (${tailFrames.length})`, tailFrames.length >= 1, `stdout ${lines.length} lines`)
-check('every frame keys the REAL Bash call', tailFrames.every(f => f.parent_tool_use_id === 'toolu_chatty_bash_1'))
-check('the latest lines are the command\'s own chatty lines', tailFrames.every(f => /^chatty line \d$/.test(f.progress?.latest_line ?? '')), JSON.stringify(tailFrames.map(f => f.progress?.latest_line)))
-check('seq is strictly increasing (source-coalesced, never a backlog)', tailFrames.every((f, i) => i === 0 || (f.progress?.seq ?? 0) > (tailFrames[i - 1]!.progress?.seq ?? 0)))
-check('the turn settled with the scripted text (the full-output-at-settle world is intact)', stdout.includes(ONE_TOOL_SETTLED_TEXT) && stdout.includes(`chatty line ${CHATTY_BASH_LINES}`))
+const frames = lines.map(parseFrame)
+type UpdateRow = { type?: string; call_id?: string; parent_call_id?: string; source?: string; tick?: number; line?: string }
+const tailRows = frames.filter((f): f is UpdateRow => f !== null && f.type === 'tool_update') as UpdateRow[]
+check(`the runner emitted tool_update rows on its real stdout (${tailRows.length})`, tailRows.length >= 1, `stdout ${lines.length} lines`)
+check('every row keys the REAL Bash call on the main thread', tailRows.every(f => f.call_id === 'toolu_chatty_bash_1' && f.parent_call_id === undefined && f.source === 'shell'), JSON.stringify(tailRows[0]))
+check('the latest lines are the command\'s own chatty lines', tailRows.every(f => /^chatty line \d$/.test(f.line ?? '')), JSON.stringify(tailRows.map(f => f.line)))
+check('tick is strictly increasing (source-coalesced, never a backlog)', tailRows.every((f, i) => i === 0 || (f.tick ?? 0) > (tailRows[i - 1]!.tick ?? 0)))
+const outcome = frames.find(isOutcome)
+check('the turn settled with the scripted text (the full-output-at-settle world is intact)', outcome?.status === 'completed' && outcome.answer === ONE_TOOL_SETTLED_TEXT && frames.some(f => f?.type === 'tool_result' && String(f.output).includes(`chatty line ${CHATTY_BASH_LINES}`)), JSON.stringify(outcome).slice(0, 300))
 
 section('§2 the captured frames replayed through the real seat → store → row')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -136,15 +126,8 @@ const connector = daemonSessionConnectorFor({
 })
 await connector.attach()
 
-const resultIndex = lines.findIndex(l => {
-  if (!l.includes('"result"')) return false
-  try {
-    return (JSON.parse(l) as { type?: string }).type === 'result'
-  } catch {
-    return false
-  }
-})
-check('the capture carries the result frame (the settle to replay)', resultIndex > 0)
+const resultIndex = frames.findIndex(isOutcome)
+check('the capture carries the outcome row (the settle to replay)', resultIndex > 0)
 for (const line of lines.slice(0, resultIndex)) seatMod.onSeatLine(SHORT, line, roster as never)
 await sleep(800)
 const filled = getEphemeralProgressFrame('toolu_chatty_bash_1') as { data?: { type?: string; output?: string } } | undefined
@@ -182,7 +165,7 @@ check('THE STORE FILLS from the real wire bytes', filled?.data?.type === 'bash_p
 
 for (const line of lines.slice(resultIndex)) seatMod.onSeatLine(SHORT, line, roster as never)
 await sleep(800)
-check('the captured result frame clears seat → projection → store (clear-on-settle on real bytes)', getEphemeralProgressFrame('toolu_chatty_bash_1') === undefined)
+check('the captured outcome row clears seat → projection → store (clear-on-settle on real bytes)', getEphemeralProgressFrame('toolu_chatty_bash_1') === undefined)
 connector.detach()
 seatMod.onSeatSettled(SHORT)
 
