@@ -107,7 +107,7 @@ function runProduct(fixture: Fixture, prompt: string): Run {
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),
-    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'),
     ANTHROPIC_API_KEY: PROBE_KEY,
     ANTHROPIC_BASE_URL: `${TLS ? 'https' : 'http'}://127.0.0.1:${fixture.port}`,
     MERCURY_CREDENTIAL_STORE: 'file',

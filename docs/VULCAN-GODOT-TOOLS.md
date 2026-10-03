@@ -17,7 +17,7 @@ catalog when a Godot executable is on this machine — on `PATH`, under a
 well-known install root, seen running, or pinned with
 `MERCURY_GODOT_EXECUTABLE` (a pin that names no executable file counts as
 none); without one the tool is withheld and the `Tools withheld` row of
-`mercury doctor` says so. Inside a project — a `project.godot` at or
+`mercury health` says so. Inside a project — a `project.godot` at or
 above the working directory — the ops work; without one every op answers
 with a teaching line.
 
@@ -42,7 +42,7 @@ by hand with a record.
   (the default) > `profile`. A verifier's run starts before a lane's gate
   queued earlier.
 - **N headless workers** — `min(3, max(1, floor(cores / 2)))` by default,
-  `MERCURY_GODOT_WORKERS` (1..16) overrides it, and `mercury doctor`'s
+  `MERCURY_GODOT_WORKERS` (1..16) overrides it, and `mercury health`'s
   Godot control row names the effective count. Explicit display jobs
   run one at a time whatever the count, and never while the
   operator's own editor holds the display unless the job says

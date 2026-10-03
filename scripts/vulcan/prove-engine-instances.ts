@@ -44,7 +44,7 @@ const { projectLeaseHolder, takeProjectLeases, releaseProjectLeases, listProject
 const { compareProofAssertions } = await import('../../src/services/vulcan/engine/proofDrift.js')
 const { GodotTool } = await import('../../src/tools/GodotTool/GodotTool.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 
 const godot = process.env.GODOT_BIN ?? (await resolveGodotExecutable({ census: [] })).resolved
 const request = (suites: string[], tree: unknown = 'HEAD') => ({

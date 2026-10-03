@@ -13,7 +13,7 @@
                       the file keeps working.
 
                       → remove the unknown rows, or re-run
-                      the keybindings doctor
+                      the keybindings check
 
                       f — apply the safe remedy
 

@@ -52,7 +52,7 @@ console.log('\n§3 an unknown name in the environment is nobody\'s business')
 
 console.log('\n§4 the built bundle')
 {
-  const doctorJson = (bin: string, extra: Record<string, string>): { text: string; status: number | null } => {
+  const healthJson = (bin: string, extra: Record<string, string>): { text: string; status: number | null } => {
     const res = spawnSync('node', [bin, 'health', '--json'], {
       encoding: 'utf8',
       timeout: 180_000,
@@ -72,7 +72,7 @@ console.log('\n§4 the built bundle')
   if (!existsSync(BIN)) {
     check('the built bundle is present (bun run build.ts)', false, BIN)
   } else {
-    const set = doctorJson(BIN, Object.fromEntries(UNKNOWN.map(name => [name, 'set-by-the-proof'])))
+    const set = healthJson(BIN, Object.fromEntries(UNKNOWN.map(name => [name, 'set-by-the-proof'])))
     const row = rowOf(set.text)
     check('health --json produces the certificate and its Env overrides row', (set.status === 0 || set.status === 3) && row !== undefined, `status=${String(set.status)}`)
     check('the built row says nothing of an unregistered name set in the environment', row !== undefined && UNKNOWN.every(name => !row.evidence.includes(name) && !(row.detail ?? '').includes(name)) && row.fix === undefined, row?.evidence.slice(-160) ?? '')

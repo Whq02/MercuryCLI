@@ -42,7 +42,7 @@ writeFileSync(
   '[application]\n\nconfig/name="fixture"\n',
 )
 const hasGodot = () => getAllBaseTools().some(t => t.name === 'Godot')
-const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { _resetGodotExecutablePresenceForTesting: resetGodotPresence } = await import('../../src/services/vulcan/portabilityHealth.js')
 const godotBin = path.join(scratch, 'godot')
 writeFileSync(godotBin, '#!/bin/sh\nexit 0\n')
 chmodSync(godotBin, 0o755)
@@ -128,6 +128,8 @@ section('§5 · installer honesty on a fixture project')
 {
   restoreEnv()
   process.env.MERCURY_GODOT_TOOLS = '1'
+  process.env.MERCURY_GODOT_EXECUTABLE = godotBin
+  resetGodotPresence()
   const p2 = path.join(scratch, 'game2')
   mkdirSync(p2, { recursive: true })
   writeFileSync(
@@ -142,12 +144,22 @@ section('§5 · installer honesty on a fixture project')
   const st = installer.vulcanInstallStatus(p2)
   check('install materializes the full bundle', report.includes(`installed ${st.bundledFiles} addon files`) && st.bundledFiles > 0 && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'plugin.cfg')) && existsSync(path.join(p2, 'addons', 'mercury_vulcan', 'core', 'server.gd')))
   check('install enables the plugin and preserves the other entry without a shared token', st.installed && st.digestMatch && st.enabled && installer.readEnabledPlugins(p2).includes('res://addons/other/plugin.cfg') && !existsSync(path.join(p2, '.godot', 'mercury-vulcan-token')))
+  check('a fresh install carries no refresh words', !/already up to date|refreshed/.test(report), report.split('\n')[0])
+  const current = await installer.describeVulcanStatus(p2)
+  check('status: the installed addon is up to date', /^addon: installed, up to date · plugin enabled$/m.test(current), current.split('\n').find(l => l.startsWith('addon:')))
+  check('a reinstall of an up-to-date copy says so', (await installer.applyVulcanInstall(p2)).includes(' — already up to date'))
   writeFileSync(path.join(p2, 'addons', 'mercury_vulcan', 'core', 'server.gd'), '# tampered\n')
   check('tamper flips digestMatch (status stays honest)', (() => {
     const t = installer.vulcanInstallStatus(p2)
     return t.installed && !t.digestMatch
   })())
-  check('reinstall refreshes a drifted tree', (await installer.applyVulcanInstall(p2)).includes('addon files') && installer.vulcanInstallStatus(p2).digestMatch)
+  const stale = await installer.describeVulcanStatus(p2)
+  check('status: an installed copy that differs is out of date, and the one sentence offers the refresh', /^addon: installed, out of date — op:"vulcan_install" refreshes it · plugin enabled$/m.test(stale), stale.split('\n').find(l => l.startsWith('addon:')))
+  check('the next step agrees: the refresh first, then the editor', /^next: the installed addon is out of date — op:"vulcan_install" refreshes it; then open the project in the Godot editor/m.test(stale), stale.split('\n').find(l => l.startsWith('next:'))?.slice(0, 120))
+  check('no drift jargon in the status', !/DRIFT|drifted|bundle/i.test(stale.split('\n').find(l => l.startsWith('addon:')) ?? 'DRIFT'))
+  const refreshed = await installer.applyVulcanInstall(p2)
+  check('reinstall refreshes the out-of-date copy, saying so', refreshed.includes('addon files') && refreshed.includes(' — refreshed an out-of-date copy') && installer.vulcanInstallStatus(p2).digestMatch, refreshed.split('\n')[0])
+  check('status after the refresh: up to date again', /^addon: installed, up to date · plugin enabled$/m.test(await installer.describeVulcanStatus(p2)))
   writeFileSync(
     path.join(p2, 'project.godot'),
     readFileSync(path.join(p2, 'project.godot'), 'utf8') +
@@ -172,7 +184,7 @@ section('§6 · flag registry rows')
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 
-section('§7 · behavioral seams — harness map, doctrine, boot menu, doctor, prompt splice')
+section('§7 · behavioral seams — harness map, doctrine, boot menu, health, prompt splice')
 {
   restoreEnv()
   const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.js')
@@ -198,8 +210,8 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, doctor, p
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
   const repo = path.join(import.meta.dir, '..', '..')
-  const doctorSrc = readFileSync(path.join(repo, 'src/utils/healthReport.ts'), 'utf8')
-  check("doctor: the 'vulcan' check is wired", doctorSrc.includes("id: 'vulcan'") && doctorSrc.includes('vulcanInstallStatus'))
+  const healthSrc = readFileSync(path.join(repo, 'src/utils/healthReport.ts'), 'utf8')
+  check("health: the 'vulcan' check is wired", healthSrc.includes("id: 'vulcan'") && healthSrc.includes('vulcanInstallStatus'))
   const promptsSrc = readFileSync(path.join(repo, 'src/constants/prompts.ts'), 'utf8')
   check('prompt: getVulcanSection spliced into modeSections', promptsSrc.includes('getVulcanSection()'))
   const harnessSrc = readFileSync(path.join(repo, 'src/utils/cockpit/harnessMap.ts'), 'utf8')

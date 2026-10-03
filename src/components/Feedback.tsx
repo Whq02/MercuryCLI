@@ -41,7 +41,7 @@ import {
   ISSUE_FORMS,
   ISSUE_KINDS,
   composeIssueBody,
-  doctorPointer,
+  healthPointer,
   fullIssueTitle,
   issueFormUrl,
   noGhParagraph,
@@ -49,7 +49,7 @@ import {
   type IssueForm,
   type IssueKind,
 } from '../commands/feedback/issueForms.js'
-import { gatherDoctorSection } from '../commands/feedback/doctorSection.js'
+import { gatherHealthSection } from '../commands/feedback/healthSection.js'
 import {
   checkIssueAccess,
   fileIssue,
@@ -459,10 +459,10 @@ export function Feedback({
       : ''
     const slug = slugRef.current
     try {
-      const [gathered, generated, doctor, reach] = await Promise.all([
+      const [gathered, generated, health, reach] = await Promise.all([
         gatherReport(description, messages, backgroundTasks),
         generateTitle(form, description, abortSignal),
-        gatherDoctorSection({ signal: abortSignal }),
+        gatherHealthSection({ signal: abortSignal }),
         checkIssueAccess(slug),
       ])
       const facts = modelFacts()
@@ -473,7 +473,7 @@ export function Feedback({
         install: installLine(),
         family: facts.family,
         model: facts.model,
-        doctor,
+        health,
       }
       const composed = redactSensitiveInfo(composeIssueBody(form, { values, recentErrors: gathered.errors }))
       const fullTitle = fullIssueTitle(form, redactSensitiveInfo(generated))
@@ -508,7 +508,7 @@ export function Feedback({
           slug,
           title: fullTitle,
           values: Object.fromEntries(
-            Object.entries({ ...values, doctor: doctorPointer(bodyWritten ? redactSensitiveInfo(p!.body) : null) }).map(([id, text]) => [id, redactSensitiveInfo(text)]),
+            Object.entries({ ...values, health: healthPointer(bodyWritten ? redactSensitiveInfo(p!.body) : null) }).map(([id, text]) => [id, redactSensitiveInfo(text)]),
           ),
         })
         setFormUrl(url)
@@ -717,7 +717,7 @@ export function Feedback({
           {formUrl !== null ? (
             <Box flexDirection="column">
               <Text>
-                Or open the repository's issue form prefilled from this report; the doctor --json block and the transcript stay in the local draft (paste the doctor block by hand):
+                Or open the repository's issue form prefilled from this report; the health --json block and the transcript stay in the local draft (paste the health block by hand):
               </Text>
               <Text dimColor>{formUrl}</Text>
             </Box>

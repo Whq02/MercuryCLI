@@ -89,7 +89,7 @@ export function _resetHousekeepingCycleForTesting(): void {
 }
 
 export async function runLifecycleVerbOpportunity(
-  verb: 'doctor' | 'update',
+  verb: 'health' | 'update',
   opts?: { budgetMs?: number },
 ): Promise<void> {
   try {

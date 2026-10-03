@@ -69,20 +69,20 @@ section('§3 MCP SERVER SEMANTICS')
   )
 }
 
-section('§4 DOCTOR WIRING')
+section('§4 HEALTH WIRING')
 {
-  const doctorSrc = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
+  const healthSrc = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
   check(
     'the kills row annotates entries matching no builtin',
-    doctorSrc.includes('no such builtin — read as an MCP server name'),
+    healthSrc.includes('no such builtin — read as an MCP server name'),
   )
   check(
     'unmatched entries elevate the row to warn',
-    doctorSrc.includes("unmatched > 0 || capRejects.length > 0 ? 'warn' : 'info'"),
+    healthSrc.includes("unmatched > 0 || capRejects.length > 0 ? 'warn' : 'info'"),
   )
   check(
     'the remedy teaches the unambiguous server spelling',
-    doctorSrc.includes('mcp__<server>'),
+    healthSrc.includes('mcp__<server>'),
   )
 }
 

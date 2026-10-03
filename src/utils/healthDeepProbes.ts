@@ -35,8 +35,8 @@ type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
 function fixtureOwnerKey(mod: typeof import('../services/run/ownerKey.js'), tag: string) {
   return mod.makeOwnerKey({
-    workspace: `/tmp/doctor-probe`,
-    sessionId: `doctor-${tag}-${process.pid}`,
+    workspace: `/tmp/health-probe`,
+    sessionId: `health-${tag}-${process.pid}`,
     lane: 'main',
   })
 }
@@ -71,7 +71,7 @@ export async function probeRunKernel(): Promise<CheckResult> {
       toolUseId: 'p-tu',
       operation: 'edit',
       outcome: 'succeeded',
-      changedPaths: ['/tmp/doctor-probe/x.ts'],
+      changedPaths: ['/tmp/health-probe/x.ts'],
     })
     await sidecar.saveRunSidecar(owner, snap)
     const loaded = await sidecar.loadRunSidecar(owner)
@@ -205,7 +205,7 @@ export async function probeLspEngine(): Promise<CheckResult> {
     sendRequest: async () => undefined,
   } as never
   const before = _publishListenerCountForTesting()
-  const pending = awaitDiagnosticStabilization(fakeManager, '/tmp/doctor-push/probe.py', {
+  const pending = awaitDiagnosticStabilization(fakeManager, '/tmp/health-push/probe.py', {
     deadlineMs: 1_200,
     quietWindowMs: 80,
   })
@@ -213,7 +213,7 @@ export async function probeLspEngine(): Promise<CheckResult> {
     registerPendingLSPDiagnostic({
       serverName: 'probe',
       files: [
-        { uri: 'file:///tmp/doctor-push/probe.py', diagnostics: [{ severity: 'Error', message: 'x' }] } as never,
+        { uri: 'file:///tmp/health-push/probe.py', diagnostics: [{ severity: 'Error', message: 'x' }] } as never,
       ],
     })
   }, 40)
@@ -236,12 +236,12 @@ export async function probeDapEngine(signal?: AbortSignal): Promise<CheckResult>
   const { probeAdapterSpec } = await import('../services/dap/probeAdapter.js')
   const lifecycle = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'dap')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-dap-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-dap-'))
   try {
     const session = await dap.createDapSession({
       owner,
-      id: 'doctor-probe',
-      adapterKey: 'doctor-probe',
+      id: 'health-probe',
+      adapterKey: 'health-probe',
       specOverride: probeAdapterSpec(),
       program: '/tmp/probe.py',
       cwd: dir,
@@ -258,14 +258,14 @@ export async function probeDapEngine(signal?: AbortSignal): Promise<CheckResult>
     session.lastStopped = null
     await session.request('continue', { threadId: 1 })
     const end = await session.waitForStopOutcome(6_000, signal)
-    await dap.removeDapSession(owner, 'doctor-probe')
+    await dap.removeDapSession(owner, 'health-probe')
     if (!verified || topFrame !== 'main' || evald.result !== '42' || end.state !== 'terminated') {
       return {
         status: 'fail',
         evidence: `loop incomplete: verified=${verified} frame=${topFrame} eval=${String(evald.result)} end=${end.state}`,
       }
     }
-    if (dap.getDapSession(owner, 'doctor-probe') !== undefined) {
+    if (dap.getDapSession(owner, 'health-probe') !== undefined) {
       return { status: 'fail', evidence: 'registry entry survived disposal' }
     }
     return {
@@ -293,7 +293,7 @@ export async function probePythonDebugger(signal?: AbortSignal): Promise<CheckRe
   const dap = await import('../services/dap/dapClient.js')
   const lifecycle = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'pydbg')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-pydbg-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-pydbg-'))
   const program = join(dir, 'probe.py')
   try {
     const { writeFileSync } = await import('node:fs')
@@ -303,7 +303,7 @@ export async function probePythonDebugger(signal?: AbortSignal): Promise<CheckRe
     )
     const session = await dap.createDapSession({
       owner,
-      id: 'doctor-pydbg',
+      id: 'health-pydbg',
       adapterKey: 'python',
       program,
       cwd: dir,
@@ -340,7 +340,7 @@ export async function probePythonDebugger(signal?: AbortSignal): Promise<CheckRe
     session.lastStopped = null
     await session.request('continue', { threadId })
     const end = await session.waitForStopOutcome(15_000, signal)
-    await dap.removeDapSession(owner, 'doctor-pydbg')
+    await dap.removeDapSession(owner, 'health-pydbg')
     if (!verified || !topFrame.includes('compute') || !sawLocal || evald.result !== '42' || end.state !== 'terminated') {
       return {
         status: 'fail',
@@ -421,7 +421,7 @@ export async function probeEffectObserver(): Promise<CheckResult> {
   const { observeToolTerminal } = await import('../services/run/effectObserver.js')
   const lifecycle = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'effects')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-effect-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-effect-'))
   try {
     const summarize = () => v.verificationSummary(dir, { skipDigest: true, owner }).mutationsSinceEvidence
     const emit = (outcome: 'succeeded' | 'failed' | 'no-change' | 'indeterminate', paths: string[]) =>
@@ -469,7 +469,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
   )
   const { readFileSync, writeFileSync, existsSync, readdirSync } = await import('node:fs')
   const { spawnSync } = await import('node:child_process')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-txn-probe-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-txn-probe-'))
   const journal = join(dir, 'journal')
   const priorFaultSpec = flagEnv('MERCURY_FAULT_INJECT')
   try {
@@ -477,7 +477,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
     const b = join(dir, 'b.json')
     const outcome = await runJournaledOperation<{ done: boolean }>({
       journalDir: journal,
-      ownerKey: 'doctor-probe',
+      ownerKey: 'health-probe',
       kind: 'probe-op',
       idempotencyKey: 'probe:txn',
       steps: [
@@ -491,7 +491,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
     }
     const replay = await runJournaledOperation<{ done: boolean }>({
       journalDir: journal,
-      ownerKey: 'doctor-probe',
+      ownerKey: 'health-probe',
       kind: 'probe-op',
       idempotencyKey: 'probe:txn',
       steps: [
@@ -511,11 +511,11 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
     const orphan = join(dir, 'orphan.json')
     await durableAtomicPublish(orphan, '{"half":true}')
     writeFileSync(
-      join(journal, 'op-doctor-dead.json'),
+      join(journal, 'op-health-dead.json'),
       JSON.stringify({
         schema: 1,
-        operationId: 'doctor-dead',
-        ownerKey: 'doctor-probe',
+        operationId: 'health-dead',
+        ownerKey: 'health-probe',
         kind: 'probe-dead',
         idempotencyKey: 'probe:dead',
         state: 'applying',
@@ -536,14 +536,14 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
         },
       },
     })
-    const deadOp = (await listJournalOperations(journal)).find(o => o.operationId === 'doctor-dead')
+    const deadOp = (await listJournalOperations(journal)).find(o => o.operationId === 'health-dead')
     if (!compensated || rec.compensated.length !== 1 || deadOp?.state !== 'aborted' || existsSync(orphan)) {
       return {
         status: 'fail',
         evidence: `died-writer recovery broke (compensated=${compensated}, state=${deadOp?.state}, orphanGone=${!existsSync(orphan)})`,
       }
     }
-    setFlagEnv('MERCURY_FAULT_INJECT', 'flush-file@doctor-txn-probe:throw')
+    setFlagEnv('MERCURY_FAULT_INJECT', 'flush-file@health-txn-probe:throw')
     let typedFailure = false
     try {
       await durableAtomicPublish(a, '{"s":"MUST NOT LAND"}')
@@ -615,7 +615,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
   const ownerMod = await import('../services/run/ownerKey.js')
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
   const { writeFileSync } = await import('node:fs')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-vanguard-anchor-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-anchor-'))
   const owner = fixtureOwnerKey(ownerMod, 'anchor')
   try {
     const file = join(dir, 'probe.ts')
@@ -633,7 +633,7 @@ export async function probeChangeTransaction(): Promise<CheckResult> {
     observeToolTerminal({
       owner,
       toolName: 'Edit',
-      toolUseId: 'doctor-anchor',
+      toolUseId: 'health-anchor',
       input: { file_path: file },
       ok: true,
       durationMs: 1,
@@ -670,7 +670,7 @@ export async function probeWorkshopJs(): Promise<CheckResult> {
   const ownerMod = await import('../services/run/ownerKey.js')
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'workshop-js')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-vanguard-ws-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-ws-'))
   const bridge = {
     inspect: async () => 'unused',
     tool: async () => 'unused',
@@ -712,7 +712,7 @@ export async function probeWorkshopPython(): Promise<CheckResult> {
   const ownerMod = await import('../services/run/ownerKey.js')
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'workshop-py')
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-vanguard-py-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-py-'))
   const bridge = {
     inspect: async () => 'bridged',
     tool: async () => 'bridged',
@@ -747,17 +747,17 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
   const { startService, waitForReady, readLogs, stopService } = await import(
     '../services/projectServices/serviceManager.js'
   )
-  const dir = mkdtempSync(join(tmpdir(), 'doctor-vanguard-svc-'))
+  const dir = mkdtempSync(join(tmpdir(), 'health-vanguard-svc-'))
   try {
     const started = await startService({
-      sessionId: 'doctor-probe',
+      sessionId: 'health-probe',
       spec: {
-        name: 'doctor-probe',
+        name: 'health-probe',
         command: process.execPath,
-        args: ['-e', "console.log('doctor service up'); setInterval(() => {}, 1000)"],
+        args: ['-e', "console.log('health service up'); setInterval(() => {}, 1000)"],
         cwd: dir,
         readiness: [
-          { kind: 'log', regex: 'doctor service up' },
+          { kind: 'log', regex: 'health service up' },
           { kind: 'stable', ms: 200 },
         ],
         readinessMode: 'all',
@@ -766,13 +766,13 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
       },
     })
     if ('error' in started) return { status: 'fail', evidence: `start failed: ${started.error}` }
-    const wait = await waitForReady(dir, 'doctor-probe', 10_000)
+    const wait = await waitForReady(dir, 'health-probe', 10_000)
     if (!wait.ready) {
       return { status: 'fail', evidence: `readiness never met: ${wait.statuses.filter(s => !s.met).map(s => s.detail).join('; ')}` }
     }
-    const logs = await readLogs(dir, 'doctor-probe', {})
-    const sawLog = !('error' in logs) && logs.lines.some(l => l.includes('doctor service up'))
-    const stopped = await stopService(dir, 'doctor-probe')
+    const logs = await readLogs(dir, 'health-probe', {})
+    const sawLog = !('error' in logs) && logs.lines.some(l => l.includes('health service up'))
+    const stopped = await stopService(dir, 'health-probe')
     if ('error' in stopped || stopped.record.state !== 'stopped') {
       return { status: 'fail', evidence: 'stop did not settle as stopped' }
     }
@@ -792,9 +792,9 @@ export async function probeLaneJourney(): Promise<CheckResult> {
   const ownerMod = await import('../services/run/ownerKey.js')
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
   const owner = fixtureOwnerKey(ownerMod, 'lane')
-  const childSessionId = `doctor-lane-child-${process.pid}-${Date.now()}`
+  const childSessionId = `health-lane-child-${process.pid}-${Date.now()}`
   const lane = lanesMod.createLane({
-    parentSessionId: `doctor-lane-parent-${process.pid}`,
+    parentSessionId: `health-lane-parent-${process.pid}`,
     childSessionId,
     goal: 'health probe side goal',
   })
@@ -827,23 +827,23 @@ export async function probeCounsel(): Promise<CheckResult> {
     observeToolTerminal({
       owner,
       toolName: 'Edit',
-      toolUseId: 'doctor-counsel',
-      input: { file_path: '/tmp/doctor-counsel.ts' },
+      toolUseId: 'health-counsel',
+      input: { file_path: '/tmp/health-counsel.ts' },
       ok: true,
       durationMs: 1,
       cwd: '/tmp',
       effect: {
         outcome: 'succeeded',
         operation: 'file.edit',
-        changedPaths: ['/tmp/doctor-counsel.ts'],
-        evidence: 'doctor counsel fixture',
+        changedPaths: ['/tmp/health-counsel.ts'],
+        evidence: 'health counsel fixture',
         startedAt: Date.now(),
         completedAt: Date.now(),
       },
     } as never)
     const result = await counselMod.runCounsel(owner, '/tmp', async () => ({
       text: '{"disposition":"approve","findings":[]}',
-      model: 'doctor-fixture',
+      model: 'health-fixture',
     }))
     if (result.disposition !== 'approve' || result.reviewedSeqs.length !== 1) {
       return { status: 'fail', evidence: `deterministic review read ${result.disposition} over ${result.reviewedSeqs.length} receipt(s), wanted approve over 1` }
@@ -862,22 +862,22 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
   const { observeToolTerminal } = await import('../services/run/effectObserver.js')
   const { processOwnerForLane } = await import('../services/run/resolveOwner.js')
   const { disposeOwner } = await import('../services/run/ownerLifecycle.js')
-  const agentId = `doctor-envelope-${process.pid}`
+  const agentId = `health-envelope-${process.pid}`
   const owner = processOwnerForLane(agentId)
   try {
     observeToolTerminal({
       owner,
       toolName: 'Edit',
-      toolUseId: 'doctor-envelope',
-      input: { file_path: '/tmp/doctor-envelope.ts' },
+      toolUseId: 'health-envelope',
+      input: { file_path: '/tmp/health-envelope.ts' },
       ok: true,
       durationMs: 1,
       cwd: '/tmp',
       effect: {
         outcome: 'succeeded',
         operation: 'file.edit',
-        changedPaths: ['/tmp/doctor-envelope.ts'],
-        evidence: 'doctor envelope fixture',
+        changedPaths: ['/tmp/health-envelope.ts'],
+        evidence: 'health envelope fixture',
         startedAt: Date.now(),
         completedAt: Date.now(),
       },
@@ -891,7 +891,7 @@ export async function probeAgentEnvelope(): Promise<CheckResult> {
     const ok =
       envelope.summary === 'probe summary' &&
       envelope.changedPaths.length === 1 &&
-      envelope.changedPaths[0] === '/tmp/doctor-envelope.ts' &&
+      envelope.changedPaths[0] === '/tmp/health-envelope.ts' &&
       envelope.checks.some(c => c.name === 'never-ran' && c.state === 'unknown')
     if (!ok) {
       return { status: 'fail', evidence: `envelope drifted: ${JSON.stringify({ s: envelope.summary, c: envelope.changedPaths, k: envelope.checks })}` }
@@ -925,14 +925,14 @@ export async function probeAxiomPrimitives(): Promise<CheckResult> {
       owner,
       toolName: 'Edit',
       toolUseId: 'axiom-probe',
-      input: { file_path: '/tmp/doctor-axiom.ts' },
+      input: { file_path: '/tmp/health-axiom.ts' },
       ok: true,
       durationMs: 1,
       cwd: '/tmp',
       effect: {
         outcome: 'succeeded',
         operation: 'file.edit',
-        changedPaths: ['/tmp/doctor-axiom.ts'],
+        changedPaths: ['/tmp/health-axiom.ts'],
         evidence: 'health probe',
         startedAt: 1,
         completedAt: 2,
@@ -991,7 +991,7 @@ export async function probeStructureLoop(): Promise<CheckResult> {
   const { resolveStructureTypescript } = await import('../services/structure/tsFacility.js')
 
   const owner = fixtureOwnerKey(ownerMod, 'structure')
-  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'doctor-structure-'))
+  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-structure-'))
   try {
     const resolution = resolveStructureTypescript(root)
     if (resolution.state === 'unavailable') {
@@ -1067,7 +1067,7 @@ export async function probeGitGraph(): Promise<CheckResult> {
   const { transactionById } = await import('../services/primitives/transactionPlane.js')
 
   const owner = fixtureOwnerKey(ownerMod, 'gitgraph')
-  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'doctor-git-'))
+  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-git-'))
   const sh = (args: string[]): string =>
     execFileSync('git', args, {
       windowsHide: true,
@@ -1076,10 +1076,10 @@ export async function probeGitGraph(): Promise<CheckResult> {
       timeout: 15_000,
       env: {
         ...subprocessEnv(),
-        GIT_AUTHOR_NAME: 'doctor',
-        GIT_AUTHOR_EMAIL: 'doctor@local',
-        GIT_COMMITTER_NAME: 'doctor',
-        GIT_COMMITTER_EMAIL: 'doctor@local',
+        GIT_AUTHOR_NAME: 'health',
+        GIT_AUTHOR_EMAIL: 'health@local',
+        GIT_COMMITTER_NAME: 'health',
+        GIT_COMMITTER_EMAIL: 'health@local',
       },
     })
   try {
@@ -1148,35 +1148,35 @@ export async function probeJourneyLoop(): Promise<CheckResult> {
   const { getExecution } = await import('../services/primitives/executionPlane.js')
 
   const owner = fixtureOwnerKey(ownerMod, 'journey')
-  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'doctor-journey-'))
+  const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-journey-'))
   const PORT = 42_733
   fs.writeFileSync(
     pathMod.join(root, 'server.mjs'),
     `import { createServer } from 'node:http'
 createServer((req, res) => { console.log('hit ' + req.url); res.writeHead(200, {'content-type':'application/json'}); res.end(JSON.stringify({ok:true})) })
-  .listen(${PORT}, '127.0.0.1', () => console.log('DOCTOR FIXTURE READY'))
+  .listen(${PORT}, '127.0.0.1', () => console.log('HEALTH FIXTURE READY'))
 `,
   )
   try {
     const good = await runJourney(
       {
-        objective: 'doctor: verify the loopback fixture end to end',
+        objective: 'health: verify the loopback fixture end to end',
         steps: [
           {
             kind: 'service.start',
-            name: 'doctor-journey-fixture',
+            name: 'health-journey-fixture',
             command: process.execPath,
             args: ['server.mjs'],
-            readiness: [{ kind: 'log', regex: 'DOCTOR FIXTURE READY' }],
+            readiness: [{ kind: 'log', regex: 'HEALTH FIXTURE READY' }],
           },
-          { kind: 'service.wait', name: 'doctor-journey-fixture' },
+          { kind: 'service.wait', name: 'health-journey-fixture' },
           {
             kind: 'http.request',
             url: `http://127.0.0.1:${PORT}/health`,
             expect: { status: 200, bodyIncludes: '"ok":true' },
           },
-          { kind: 'log.match', service: 'doctor-journey-fixture', pattern: 'hit /health' },
-          { kind: 'service.stop', name: 'doctor-journey-fixture' },
+          { kind: 'log.match', service: 'health-journey-fixture', pattern: 'hit /health' },
+          { kind: 'service.stop', name: 'health-journey-fixture' },
         ],
       },
       { owner, root },
@@ -1192,7 +1192,7 @@ createServer((req, res) => { console.log('hit ' + req.url); res.writeHead(200, {
     }
     const bad = await runJourney(
       {
-        objective: 'doctor: a wrong expectation fails honestly',
+        objective: 'health: a wrong expectation fails honestly',
         steps: [
           { kind: 'command.run', command: process.execPath, args: ['-e', 'process.exit(3)'] },
           { kind: 'file.inspect', path: 'never-reached.txt', label: 'skipped-step' },

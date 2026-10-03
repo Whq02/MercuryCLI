@@ -56,10 +56,10 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
       policy.includes('export function gatherFrontierFacts') &&
       !/axios|fetch\(/.test(policy),
   )
-  const doctor = src('src/utils/healthReport.ts')
+  const health = src('src/utils/healthReport.ts')
   check(
-    "/doctor's Default model row projects the computed default, the first-party decision as its detail",
-    doctor.includes("id: 'frontier'") && doctor.includes('computedDefault()') && doctor.includes('frontierOperatorDecision()'),
+    "/health's Default model row projects the computed default, the first-party decision as its detail",
+    health.includes("id: 'frontier'") && health.includes('computedDefault()') && health.includes('frontierOperatorDecision()'),
   )
   const policySrc2 = src('src/utils/model/frontierPolicy.ts')
   check(

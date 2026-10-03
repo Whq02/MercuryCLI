@@ -386,14 +386,14 @@ export const HEALTH_STATUS_META: Record<
 }
 
 export function healthCertEnabled(): boolean {
-  return flagEnabled('MERCURY_DOCTOR_CERT')
+  return flagEnabled('MERCURY_HEALTH_CERT')
 }
 
 const MB = 1024 * 1024
 const mb = (bytes: number) => `${(bytes / MB).toFixed(0)}MB`
 
 export function healthStateRoot(): string {
-  return flagEnv('MERCURY_DOCTOR_STATE_DIR') || getProjectRootSafe()
+  return flagEnv('MERCURY_HEALTH_STATE_DIR') || getProjectRootSafe()
 }
 
 function getProjectRootSafe(): string {
@@ -407,7 +407,7 @@ function getProjectRootSafe(): string {
 }
 
 export function lastCertPath(): string {
-  return join(projectHomeStore(healthStateRoot(), 'doctor'), 'last-cert.json')
+  return join(projectHomeStore(healthStateRoot(), 'health'), 'last-cert.json')
 }
 
 export function gateVerdictPath(): string {
@@ -1329,7 +1329,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               problems.push(`crash dir ${crashReportDir()} outside the resolved home — forensics split`)
             }
             if (problems.length > 0) {
-              return { status: 'fail', evidence: problems.join(' · '), fix: 'The config home resolved two ways — report this with `mercury doctor --json`.' }
+              return { status: 'fail', evidence: problems.join(' · '), fix: 'The config home resolved two ways — report this with `mercury health --json`.' }
             }
             const slotNote = authHome !== home ? ` · auth scope slotted → ${authHome}` : ''
             const daemonNote = flagEnv('MERCURY_DAEMON_DIR')
@@ -1601,7 +1601,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'warn',
               evidence,
               detail,
-              fix: `${PROCESS_SWEEP_WORDS.action}: press f here, or run \`${binaryName()} doctor processes --end-stale\``,
+              fix: `${PROCESS_SWEEP_WORDS.action}: press f here, or run \`${binaryName()} health processes --end-stale\``,
               link,
               remedy: {
                 plan: `${PROCESS_SWEEP_WORDS.confirm(reviewed.length)} ${reviewed.map(entry => processSweepLine(entry, census.readAt)).join(' · ')}`,
@@ -4488,7 +4488,7 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
   if (!isReadOnlyDiagnostic()) {
     try {
       const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')
-      await runLifecycleVerbOpportunity('doctor')
+      await runLifecycleVerbOpportunity('health')
     } catch {}
   }
   return cert

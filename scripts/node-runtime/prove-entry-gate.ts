@@ -50,7 +50,7 @@ if (!existsSync(dist)) {
     ['22.21.0', ['--version']],
     ['22.21.0', ['--help']],
     ['22.21.0', ['frobnicate', '--help']],
-    ['22.21.0', ['doctor', '--json']],
+    ['22.21.0', ['health', '--json']],
     ['20.19.0', ['--version']],
     ['24.10.9', ['--version']],
   ] as Array<[string, string[]]>) {
@@ -97,8 +97,8 @@ if (!existsSync(dist)) {
   const kit = run(['join-kit', '--help'])
   const nonsense = run(['frobnicate', '--help'])
   check('a former verb rides the gate as any unknown word does (the same exit and the same answer as nonsense)', kit.status === nonsense.status && kit.out === nonsense.out, `${kit.status} ${kit.out.slice(0, 160)}`)
-  const doc = run(['doctor', '--json'])
-  check('doctor --json exits 0', doc.status === 0, doc.out.slice(0, 200))
+  const doc = run(['health', '--json'])
+  check('health --json exits 0', doc.status === 0, doc.out.slice(0, 200))
   try {
     const jsonStart = doc.out.indexOf('{')
     const cert = JSON.parse(doc.out.slice(jsonStart)) as {
@@ -106,7 +106,7 @@ if (!existsSync(dist)) {
     }
     const realNode = spawnSync('node', ['-p', 'process.versions.node'], { encoding: 'utf8', timeout: 30_000 }).stdout.trim()
     check(
-      'doctor --json projects observed/label/range/verdict from the owner',
+      'health --json projects observed/label/range/verdict from the owner',
       cert.nodeRuntime?.verdict === 'supported' &&
         cert.nodeRuntime.label === NODE_SUPPORT.label &&
         cert.nodeRuntime.range === NODE_SUPPORT.range &&
@@ -114,7 +114,7 @@ if (!existsSync(dist)) {
       JSON.stringify(cert.nodeRuntime),
     )
   } catch (e) {
-    check('doctor --json parses', false, String(e))
+    check('health --json parses', false, String(e))
   }
   rmSync(home, { recursive: true, force: true })
 

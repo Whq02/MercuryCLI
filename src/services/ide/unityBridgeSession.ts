@@ -234,7 +234,7 @@ export function unityBridgeReadinessRecords(): Array<{
       state: 'configured',
       detail:
         `package installed under ${path.join('Packages', 'com.mercury.unity-bridge')}` +
-        `${install.digestMatch ? ' (matches the bundle)' : ' (DRIFTED from the bundle — unity_bridge_install refreshes)'}` +
+        `${install.digestMatch ? ' (up to date)' : ' (out of date — unity_bridge_install refreshes it)'}` +
         `; token ${tokenPresent ? 'present' : 'ABSENT (unity_bridge_install writes it)'}` +
         `; reachability is probed by op:"unity_status", never here`,
     },

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'doctor-fix-home-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'health-fix-home-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import {
@@ -140,11 +140,11 @@ await (async () => {
   const r3 = await runHeadlessFix(cert, { only: 'b', yes: true })
   check('--only narrows to the named id', r3.fixes.length === 1 && r3.fixes[0]!.id === 'b')
 
-  process.env.MERCURY_DOCTOR_FIX = '0'
+  process.env.MERCURY_HEALTH_FIX = '0'
   const r4 = await runHeadlessFix(cert, { yes: true })
-  check('MERCURY_DOCTOR_FIX=0 ⇒ diagnose-only (nothing applied, reason named)', r4.fixes.length === 0 && r4.skipped.some(s => s.reason.includes('diagnose-only')))
+  check('MERCURY_HEALTH_FIX=0 ⇒ diagnose-only (nothing applied, reason named)', r4.fixes.length === 0 && r4.skipped.some(s => s.reason.includes('diagnose-only')))
   check('flag off ⇒ healthFixEnabled false', !healthFixEnabled())
-  delete process.env.MERCURY_DOCTOR_FIX
+  delete process.env.MERCURY_HEALTH_FIX
 })()
 
 section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags')
@@ -161,7 +161,7 @@ section('(4) wiring — remedies attached, async spawns, panel f-flow, CLI flags
   const main = SRC('src/main.tsx')
   check('CLI carries --fix/--only/--yes on the health command', main.includes("option('--fix'") && main.includes("option('--only <id>'") && main.includes("option('--yes'"))
   const registry = SRC('src/substrate/flagRegistry.ts')
-  check('MERCURY_DOCTOR_FIX registered (frozen spelling)', registry.includes("env: 'MERCURY_DOCTOR_FIX'"))
+  check('MERCURY_HEALTH_FIX registered (frozen spelling)', registry.includes("env: 'MERCURY_HEALTH_FIX'"))
 }
 
 console.log('\n============================================================')

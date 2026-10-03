@@ -145,7 +145,7 @@ console.log('============================================================')
   const spine = lastSpine()
   check('B3 the headless run stamped its entry rung as headless and no interactive rung', spine.length === 1 && spine[0]!.milestone === 'runtime-entry' && spine[0]!.boot === 'headless', `${spineWords(spine)} (exit ${p.status})`)
   check('B3 the headless run is a new pid after the interactive spine', spine[0]?.pid !== interactive[0]?.pid)
-  const d = spawnSync('node', [BIN, 'doctor', '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 120_000 })
+  const d = spawnSync('node', [BIN, 'health', '--json'], { cwd, env: { ...process.env, ...env }, encoding: 'utf8', timeout: 120_000 })
   let row: { status?: string; evidence?: string } | undefined
   try {
     const report = JSON.parse(d.stdout) as { sections?: Array<{ checks?: Array<{ id?: string; status?: string; evidence?: string }> }> }
@@ -153,7 +153,7 @@ console.log('============================================================')
   } catch {
     row = undefined
   }
-  check('B3 the doctor judges the last INTERACTIVE boot ok — never the headless run as a truncated boot', row?.status === 'ok' && (row.evidence ?? '').includes('runtime-entry → route-ready → first-frame → input-live'), `${row?.status}: ${row?.evidence ?? d.stderr.slice(0, 200)}`)
+  check('B3 /health judges the last INTERACTIVE boot ok — never the headless run as a truncated boot', row?.status === 'ok' && (row.evidence ?? '').includes('runtime-entry → route-ready → first-frame → input-live'), `${row?.status}: ${row?.evidence ?? d.stderr.slice(0, 200)}`)
 }
 
 rmSync(home, { recursive: true, force: true })

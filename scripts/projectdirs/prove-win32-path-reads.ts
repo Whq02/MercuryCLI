@@ -101,12 +101,12 @@ section("§2 the leftover census names each store in git's spelling on every pla
   const bySegments = new Set(PROJECT_HOME_STORES.map(s => ['.mercury', ...s].join('/')))
   check('every row is the /-joined spelling of its store and carries no win32 separator', rows.every(r => bySegments.has(r) && !r.includes('\\')), JSON.stringify(rows))
   const listed = git('ls-files', '-z', '--', ...rows).split('\0').filter(f => f !== '')
-  check("git answers every row as a pathspec and lists its files under `<row>/` — the doctor's compare holds", rows.every(dir => listed.some(f => f.startsWith(`${dir}/`))), JSON.stringify(listed))
+  check("git answers every row as a pathspec and lists its files under `<row>/` — /health's compare holds", rows.every(dir => listed.some(f => f.startsWith(`${dir}/`))), JSON.stringify(listed))
   const store = source('src', 'utils', 'projectHomeStores.ts')
   check(
     'the census spells its rows with posix.join, never the host join',
     /out\.push\(posix\.join\(MERCURY_PROJECT_DIR, \.\.\.segments\)\)/.test(store) && !/out\.push\(join\(MERCURY_PROJECT_DIR/.test(store),
-    `the host join spells ${win32.join('.mercury', 'evolution')} on win32 — git lists .mercury/evolution/…, the doctor's prefix compare never matches, and the row answers "not tracked by git"`,
+    `the host join spells ${win32.join('.mercury', 'evolution')} on win32 — git lists .mercury/evolution/…, /health's prefix compare never matches, and the row answers "not tracked by git"`,
   )
   rmSync(REPO, { recursive: true, force: true })
 }

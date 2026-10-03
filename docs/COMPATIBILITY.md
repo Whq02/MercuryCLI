@@ -54,7 +54,7 @@ cannot exclude managed instructions.
   newer than the built-in version; at most one registry read goes out per
   config home in ten minutes, and `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC`
   keeps every registry read dark. The registry read carries the product
-  User-Agent and nothing else. The doctor's "Client contract" row shows what
+  User-Agent and nothing else. The health check's "Client contract" row shows what
   is presented and where it came from (the constant, a learned number with
   its day, or the override) and names a failed or unsaved registry read; the
   gate's refusal is reported as what it is — the version required, what

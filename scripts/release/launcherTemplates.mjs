@@ -135,10 +135,10 @@ done
 # The shipped verifier prints ONE stderr line when the payload is unsigned,
 # tampered, or signed by a key outside the trusted roster — and nothing when
 # signed. It always exits 0, and \`|| true\` holds even a crash harmless: a
-# provenance verdict may never cost a boot. Verbs (install, update, doctor),
+# provenance verdict may never cost a boot. Verbs (install, update, health),
 # flags (--version, --help) and piped/scripted boots skip it — ONE line per
 # session, never one per launcher run inside an install — and \`mercury
-# doctor\` carries the full record.
+# health\` carries the full record.
 if [ "$MERCURY_TAKEOVER" = "1" ] && [ -t 0 ] && [ -t 2 ] && [ -f "$dir/verify-artifact.mjs" ]; then
   "$node_bin" "$dir/verify-artifact.mjs" --launcher || true
 fi
@@ -533,7 +533,7 @@ export function readmeFirst(p, version) {
 
 First run walks you through theme + login with your own Anthropic account and
 model choice. \`./mercury/mercury --help\` works without an account, and
-\`./mercury/mercury doctor\` checks the installation's health (add \`--json\`
+\`./mercury/mercury health\` checks the installation's health (add \`--json\`
 for a machine-readable certificate).
 
 ## Make it a real install (optional, recommended)
@@ -590,7 +590,7 @@ channel.
   \`mercury.cmd\`, which needs no policy change.
 - **The enter screen:** an interactive terminal boot opens Mercury's launch
   card first (recent projects, quick actions, the boot menu on \`m\`) and
-  hands over into the session. Verbs (\`doctor\`, \`update\`, …), flags
+  hands over into the session. Verbs (\`health\`, \`update\`, …), flags
   (\`--version\`, \`-p\`, …) and piped/scripted use always boot straight;
   \`MERCURY_NO_BANNER=1\` or \`MERCURY_SPLASH=off\` skips it entirely.
 - **Windows rendering:** the launcher and the runtime set the console to
@@ -619,7 +619,7 @@ channel.
   \`%USERPROFILE%\\.mercury\` on Windows) — OUTSIDE the install. Updating,
   rolling back and uninstalling never touch them.
 - **Report a problem with:** the output of \`mercury --version\` and
-  \`mercury doctor --json\`, plus what you ran.
+  \`mercury health --json\`, plus what you ran.
 - **Advanced controls:** the full cockpit (the Helm) appears in terminals
   ≥100 columns wide; \`/help\` lists every command, \`/model\` switches
   models/providers, \`/appearance\` themes. Portable use straight from the

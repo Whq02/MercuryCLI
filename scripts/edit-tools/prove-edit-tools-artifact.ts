@@ -37,7 +37,7 @@ for (const [label, marker] of MARKERS) {
   check(label, bundle.includes(marker), `marker '${marker}' absent — stale dist? (bun run build.ts)`)
 }
 
-console.log('\nB. doctor probe from a disposable cwd (runner manifest · git · gh shim)')
+console.log('\nB. health probe from a disposable cwd (runner manifest · git · gh shim)')
 const cwd = mkdtempSync(join(tmpdir(), 'anvil-artifact-'))
 const home = mkdtempSync(join(tmpdir(), 'anvil-artifact-home-'))
 writeFileSync(join(cwd, 'package.json'), JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }) + '\n')
@@ -58,8 +58,8 @@ interface Cert {
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
-function runDoctor(extraEnv: Record<string, string> = {}): Cert {
-  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json'], {
+function runHealth(extraEnv: Record<string, string> = {}): Cert {
+  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'health', '--json'], {
     cwd,
     encoding: 'utf8',
     timeout: 300_000,
@@ -73,7 +73,7 @@ function runDoctor(extraEnv: Record<string, string> = {}): Cert {
   })
   if (result.error) throw result.error
   const cert = JSON.parse(result.stdout) as Cert
-  check('doctor exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
+  check('health exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
   return cert
 }
 
@@ -85,14 +85,14 @@ function workbenchCheck(cert: Cert): Check | undefined {
   return undefined
 }
 
-const on = runDoctor()
+const on = runHealth()
 const wb = workbenchCheck(on)
 check('B1 the Utility workbench row exists in the certificate', wb !== undefined)
 check('B2 runner discovery answered (node-test found)', !!wb && wb.evidence.includes('node-test 1/1'), wb?.evidence)
 check('B3 repo-host availability answered (shim gh on PATH)', !!wb && (wb.detail ?? '').includes('gh on PATH'), wb?.detail)
 check('B4 open-transaction state answered', !!wb && (wb.detail ?? '').includes('open coding transaction: —'))
 
-const off = runDoctor({ MERCURY_REPO_HOST: '0' })
+const off = runHealth({ MERCURY_REPO_HOST: '0' })
 const wbOff = workbenchCheck(off)
 check('B5 flag-off honesty inside the artifact (repo host OFF)', !!wbOff && (wbOff.detail ?? '').includes('repo host: OFF'), wbOff?.detail)
 

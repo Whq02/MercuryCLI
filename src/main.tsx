@@ -904,22 +904,22 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
     })
 
   program.command('health [topic]')
-    .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `doctor processes` lists Mercury\'s own processes as JSON')
+    .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `health processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'JSON certificate output')
     .option('--deep', 'Deep inventory')
     .option('--fix', 'Run the guided fix flow')
     .option('--only <id>', 'Limit to one check')
     .option('--yes', 'Assume yes at fix prompts')
-    .option('--end-stale', 'With `doctor processes`: end the stale processes the listing names, through Mercury\'s own roads first')
+    .option('--end-stale', 'With `health processes`: end the stale processes the listing names, through Mercury\'s own roads first')
     .action(async (topic, options) => {
       if (typeof topic === 'string' && topic !== '') {
         if (topic !== 'processes') {
-          process.stderr.write(`unknown doctor topic: ${topic} (the one topic is "processes")\n`)
+          process.stderr.write(`unknown health topic: ${topic} (the one topic is "processes")\n`)
           await gracefulShutdown(2)
           return
         }
-        const { runDoctorProcessesCli } = await import('./cli/doctorProcesses.js')
-        await gracefulShutdown(await runDoctorProcessesCli({ endStale: options.endStale === true }))
+        const { runHealthProcessesCli } = await import('./cli/healthProcesses.js')
+        await gracefulShutdown(await runHealthProcessesCli({ endStale: options.endStale === true }))
         return
       }
       await healthAction({

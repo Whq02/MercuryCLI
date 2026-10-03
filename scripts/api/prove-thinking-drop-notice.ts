@@ -145,7 +145,7 @@ section('§1 the classifier')
   const stillApollo = classifyThinkingDrops('main', [DROP('messages.1.content.0')], mark({ settings: 'mode=apollo;profile=concise' }))
   check('…and a drop right after it with the settings unchanged is a first drop (the lawful one never seeds a run)', stillApollo.kind === 'first', j(stillApollo))
   const words = describeThinkingDrops([DROP('messages.1.content.0')], modeMove) ?? ''
-  check('the words: "after you changed the permission mode (default → apollo) — the system prompt and the tool roster moved with it", expected once', words.includes('after you changed the permission mode (default → apollo)') && words.includes('the system prompt and the tool roster moved with it') && words.includes('expected once') && !words.includes('Mercury') && !words.includes('doctor'), words)
+  check('the words: "after you changed the permission mode (default → apollo) — the system prompt and the tool roster moved with it", expected once', words.includes('after you changed the permission mode (default → apollo)') && words.includes('the system prompt and the tool roster moved with it') && words.includes('expected once') && !words.includes('Mercury') && !words.includes('health'), words)
 
   const { declareLawfulPrefixChange, consumeLawfulPrefixChange, pendingLawfulPrefixChange, resetLawfulPrefixChanges } = await import('../../src/services/providers/lawfulPrefixChange.ts')
   resetLawfulPrefixChanges()
@@ -196,7 +196,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   const pruned = classifyThinkingDrops('pruned', [DROP('messages.17.content.0')], prunedMark)
   check('only the response to the applied clearing receives its cause', pruned.kind === 'lawful' && pruned.lawful === 'context-edited', j(pruned))
   const prunedWords = describeThinkingDrops([DROP('messages.17.content.0')], pruned) ?? ''
-  check('the cause names the prune without accusing an unexplained rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('doctor'), prunedWords)
+  check('the cause names the prune without accusing an unexplained rewrite', prunedWords.includes('pruned superseded tool results') && prunedWords.includes('expected once') && !prunedWords.includes('health'), prunedWords)
   const fresh = assistant([THINK('New reasoning over the cleared request.'), TEXT('Ready.')])
   fresh.timestamp = new Date().toISOString()
   const later = await buildRequestContextPlan({ ...input, messages: [...history, fresh, user('Continue.')] as never }, 'apply')
@@ -219,7 +219,7 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
   const noSwitch = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
   check('a no-switch byte move is a first rewrite (one warning), never a lawful model switch', noSwitch.kind === 'first' && noSwitch.lawful === null && noSwitch.paint === true, j(noSwitch))
   const noSwitch2 = classifyThinkingDrops('noswitch', [DROP('messages.1.content.0')], mark(), { byteMoved: true })
-  check('…and its recurrence writes nothing (the strip ends it; the doctor keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
+  check('…and its recurrence writes nothing (the strip ends it; /health keeps the run)', noSwitch2.kind === 'recurrent' && noSwitch2.paint === false && describeThinkingDrops([DROP('messages.1.content.0')], noSwitch2) === null, j(noSwitch2))
 
   resetThinkingDropStates()
   classifyThinkingDrops('idle', [], mark({ thinkingClearActive: true }))
@@ -234,9 +234,9 @@ section('§1b Mercury\'s own context edits are named, not read as a rewrite')
 
   const now = new Date().toISOString()
   const ctxHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'context-edited', reason: 'prefix_binding_mismatch', path: 'messages.102.content.0', count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
-  check('the doctor row for a context-edit drop is info and names the prune', ctxHealth.status === 'info' && ctxHealth.evidence.includes("Mercury's tool-result prune"), j(ctxHealth))
+  check('the health row for a context-edit drop is info and names the prune', ctxHealth.status === 'info' && ctxHealth.evidence.includes("Mercury's tool-result prune"), j(ctxHealth))
   const idleHealth = preservedThinkingHealth({ last: { at: now, kind: 'lawful', lawful: 'thinking-cleared', reason: 'prefix_binding_mismatch', path: 'messages.50.content.0', count: 2, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
-  check('the doctor row for an idle-clear drop is info and names the idle-hour clear', idleHealth.status === 'info' && idleHealth.evidence.includes("Mercury's idle-hour thinking clear"), j(idleHealth))
+  check('the health row for an idle-clear drop is info and names the idle-hour clear', idleHealth.status === 'info' && idleHealth.evidence.includes("Mercury's idle-hour thinking clear"), j(idleHealth))
 }
 
 section('§1c the count cannot fire the prune early — a session at 88% never prunes')
@@ -259,7 +259,7 @@ section('§2 the words')
   classifyThinkingDrops('w', [], mark())
   const lawful = describeThinkingDrops(list, classifyThinkingDrops('w', list, mark({ firstRow: 'summary-row' }))) ?? ''
   check('a single lawful drop is the one-line receipt naming compaction and a turn, never a wire path', lawful.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction') && lawful.includes('the first turn') && !lawful.includes('messages.1.content.0') && lawful.includes('expected once'), lawful)
-  check('…with no Mercury blame, no doctor pointer', !lawful.includes('Mercury') && !lawful.includes('doctor'), lawful)
+  check('…with no Mercury blame, no health pointer', !lawful.includes('Mercury') && !lawful.includes('health'), lawful)
   const { createThinkingNoteMessage } = await import('../../src/utils/messages/systemMessages.ts')
   const note = createThinkingNoteMessage(lawful)
   check('the lawful receipt is a thinking_note system row at info level, carrying the sentence', note.type === 'system' && note.subtype === 'thinking_note' && note.level === 'info' && note.content === lawful, j(note))
@@ -287,11 +287,11 @@ section('§2 the words')
   const two = [DROP('messages.1.content.0'), DROP('messages.3.content.0')]
   const recurrentOutcome = classifyThinkingDrops('w', two, mark())
   check('consecutive unlawful drops are recurrent (run 2) and write nothing new', recurrentOutcome.kind === 'recurrent' && recurrentOutcome.consecutive === 2 && recurrentOutcome.paint === false && describeThinkingDrops(two, recurrentOutcome) === null, j(recurrentOutcome))
-  check('…the doctor row, not the transcript, names Mercury, the run and the road', (() => { const h = binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 2, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }); return h.status === 'warn' && h.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && (h.fix ?? '').includes('/issues') && (h.detail ?? '').includes('the first exchange changed') })())
+  check('…the health row, not the transcript, names Mercury, the run and the road', (() => { const h = binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 2, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }); return h.status === 'warn' && h.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && (h.fix ?? '').includes('/issues') && (h.detail ?? '').includes('the first exchange changed') })())
 
   classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
   const deepOutcome = classifyThinkingDrops('w-deep', [DROP('messages.7.content.0')], mark())
-  check('a later recurrent drop writes nothing; the doctor row names the earlier turn class for its path', describeThinkingDrops([DROP('messages.7.content.0')], deepOutcome) === null && (binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.7.content.0', count: 1, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }).detail ?? '').includes('a turn before messages.7 changed, or the system prompt or the tools array'), j(deepOutcome))
+  check('a later recurrent drop writes nothing; the health row names the earlier turn class for its path', describeThinkingDrops([DROP('messages.7.content.0')], deepOutcome) === null && (binding.preservedThinkingHealth({ last: { at: 't', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.7.content.0', count: 1, consecutive: 2, model: 'claude-fable-5-1' }, longestRun: 2 }).detail ?? '').includes('a turn before messages.7 changed, or the system prompt or the tools array'), j(deepOutcome))
 
   resetThinkingDropStates()
   classifyThinkingDrops('w', [], mark())
@@ -335,7 +335,7 @@ section('§2b the model-switch receipt — the previous model\'s thinking leaves
   check('no foreign thinking ⇒ no receipt', modelSwitchReceipt('main', [history[0], history[1]] as never, 'claude-opus-4-8') === null)
 }
 
-section('§3 the ledger and the doctor row')
+section('§3 the ledger and the health row')
 {
   const { recordThinkingDropLedger, readThinkingDropLedger, preservedThinkingHealth, thinkingDropLedgerPath } = binding
   check('no ledger ⇒ null', readThinkingDropLedger() === null)
@@ -354,9 +354,9 @@ section('§3 the ledger and the doctor row')
   check('a lawful drop is recorded with its cause and no run', l1?.last.kind === 'lawful' && l1.last.lawful === 'compaction' && l1.last.path === 'messages.1.content.0' && l1.longestRun === 0, j(l1))
   check('…and the session record: one drop in that session, with the receipt sentence the chat no longer shows', l1?.session?.id === SESSION_A && l1.session.drops === 1 && l1.session.notice === lawfulNotice && lawfulNotice.startsWith('Preserved thinking: the API dropped 1 thinking block after the compaction'), j(l1?.session))
   const r1 = preservedThinkingHealth(l1, SESSION_A)
-  check('…and reads as an info row naming the compaction, one drop this session and the cause, all on the evidence line the plain doctor prints', r1.status === 'info' && r1.evidence.includes('after a compaction') && r1.evidence.includes('expected once') && r1.evidence.endsWith(` · 1 drop this session · last cause: ${lawfulNotice}`) && r1.detail === undefined, j(r1))
+  check('…and reads as an info row naming the compaction, one drop this session and the cause, all on the evidence line the plain health prints', r1.status === 'info' && r1.evidence.includes('after a compaction') && r1.evidence.includes('expected once') && r1.evidence.endsWith(` · 1 drop this session · last cause: ${lawfulNotice}`) && r1.detail === undefined, j(r1))
   const r1Elsewhere = preservedThinkingHealth(l1, SESSION_B)
-  check('…read from another process (mercury doctor), the row names the session by its short id', r1Elsewhere.evidence.includes(' · 1 drop in session aaaaaaaa · last cause: Preserved thinking:'), j(r1Elsewhere))
+  check('…read from another process (mercury health), the row names the session by its short id', r1Elsewhere.evidence.includes(' · 1 drop in session aaaaaaaa · last cause: Preserved thinking:'), j(r1Elsewhere))
 
   const first = classifyThinkingDrops('l', [DROP('messages.1.content.0')], mark({ firstRow: 'summary-row' }))
   const firstNotice = describeThinkingDrops([DROP('messages.1.content.0')], first) ?? ''
@@ -370,7 +370,7 @@ section('§3 the ledger and the doctor row')
   const r2 = preservedThinkingHealth(l2, SESSION_A)
   check('…and reads as a warn row naming Mercury and the run', r2.status === 'warn' && r2.evidence.includes('Mercury rewrote sent history on 2 consecutive requests') && r2.evidence.includes('3 blocks') && r2.evidence.includes('prefix_binding_mismatch at messages.1.content.0'), j(r2))
   check('…with the block class and the longest run in the detail, and three drops this session with the last cause on the evidence line', (r2.detail ?? '').includes('the first exchange changed') && (r2.detail ?? '').endsWith('Longest run on this machine: 2.') && r2.evidence.endsWith(` · 3 drops this session · last cause: ${firstNotice}`), j(r2))
-  check('…and a paste-ready fix pointing at the bug-report road', (r2.fix ?? '').includes('https://github.com/example/mercury/issues') && (r2.fix ?? '').includes('mercury doctor --json'), j(r2))
+  check('…and a paste-ready fix pointing at the bug-report road', (r2.fix ?? '').includes('https://github.com/example/mercury/issues') && (r2.fix ?? '').includes('mercury health --json'), j(r2))
   check('…never at switching models', !/switch/i.test(`${r2.evidence} ${r2.detail ?? ''} ${r2.fix ?? ''}`), j(r2))
 
   classifyThinkingDrops('l', [], mark({ firstRow: 'summary-row' }))
@@ -408,7 +408,7 @@ section('§3 the ledger and the doctor row')
   check('a corrupt ledger reads as null (the ok row), never a throw', readThinkingDropLedger() === null)
 }
 
-section('§4 the real doctor — the built artifact carries the row')
+section('§4 the real health — the built artifact carries the row')
 if (!existsSync(DIST)) {
   check('dist/mercury.mjs present (build first; the pooled gate prebuilds it)', false, DIST)
 } else {
@@ -434,7 +434,7 @@ if (!existsSync(DIST)) {
       }
       return null
     }
-    const doctor = (home: string): Record<string, unknown> | null => {
+    const health = (home: string): Record<string, unknown> | null => {
       const configDir = join(home, '.mercury')
       mkdirSync(configDir, { recursive: true })
       const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'preserved-thinking'], {
@@ -455,31 +455,31 @@ if (!existsSync(DIST)) {
       try {
         return findRow(JSON.parse(text))
       } catch {
-        console.log(`    doctor stdout: ${text.slice(0, 300)} stderr: ${out.stderr.slice(0, 300)}`)
+        console.log(`    health stdout: ${text.slice(0, 300)} stderr: ${out.stderr.slice(0, 300)}`)
         return null
       }
     }
-    const cleanHome = mkdtempSync(join(tmpdir(), 'drop-notice-doctor-clean-'))
-    const clean = doctor(cleanHome)
+    const cleanHome = mkdtempSync(join(tmpdir(), 'drop-notice-health-clean-'))
+    const clean = health(cleanHome)
     check('a clean machine: the row is present and ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('no dropped thinking block recorded'), j(clean))
 
-    const stagedHome = mkdtempSync(join(tmpdir(), 'drop-notice-doctor-staged-'))
+    const stagedHome = mkdtempSync(join(tmpdir(), 'drop-notice-health-staged-'))
     mkdirSync(join(stagedHome, '.mercury'), { recursive: true })
     writeFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), j({
       last: { at: '2026-09-02T12:00:00.000Z', kind: 'recurrent', lawful: null, reason: 'prefix_binding_mismatch', path: 'messages.1.content.0', count: 21, consecutive: 4, model: 'claude-fable-5-1' },
       longestRun: 4,
     }))
-    const staged = doctor(stagedHome)
+    const staged = health(stagedHome)
     check('a staged recurrent ledger: the row warns, names Mercury, the run, the count and the path', staged !== null && staged.status === 'warn' && String(staged.evidence).includes('Mercury rewrote sent history on 4 consecutive requests') && String(staged.evidence).includes('21 blocks') && String(staged.evidence).includes('messages.1.content.0'), j(staged))
     check('…with the bug-report road in the fix and the block class in the detail', staged !== null && String(staged.fix ?? '').includes('/issues') && String(staged.detail ?? '').includes('the first exchange changed'), j(staged))
     const label = staged !== null ? String(staged.label) : ''
     check('…under the label a tester can find', label === 'Preserved thinking', label)
     if (staged !== null && existsSync(join(stagedHome, '.mercury', 'preserved-thinking.json'))) {
-      check('the doctor never rewrites the ledger', readFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), 'utf8').includes('"consecutive":4'))
+      check('/health never rewrites the ledger', readFileSync(join(stagedHome, '.mercury', 'preserved-thinking.json'), 'utf8').includes('"consecutive":4'))
     }
     check('…a ledger without a session record reads with the words it had (no count, no cause)', staged !== null && !String(staged.evidence).includes('session') && !String(staged.evidence).includes('last cause'), j(staged))
 
-    const sessionHome = mkdtempSync(join(tmpdir(), 'drop-notice-doctor-session-'))
+    const sessionHome = mkdtempSync(join(tmpdir(), 'drop-notice-health-session-'))
     mkdirSync(join(sessionHome, '.mercury'), { recursive: true })
     const stagedNotice = 'Preserved thinking: the API dropped 1 thinking block — the history before messages.1.content.0 changed since they were written (a client-side edit); the model re-plans without that reasoning this turn.'
     writeFileSync(join(sessionHome, '.mercury', 'preserved-thinking.json'), j({
@@ -487,7 +487,7 @@ if (!existsSync(DIST)) {
       longestRun: 1,
       session: { id: '0badf00d-0000-4000-8000-00000000c0de', drops: 2, notice: stagedNotice },
     }))
-    const withSession = doctor(sessionHome)
+    const withSession = health(sessionHome)
     check('a staged session record: the row carries the drop count for that session and the last cause sentence on its evidence line', withSession !== null && String(withSession.evidence).endsWith(` · 2 drops in session 0badf00d · last cause: ${stagedNotice}`), j(withSession))
   }
 }

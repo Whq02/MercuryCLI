@@ -108,7 +108,7 @@ section('issue form link: under the cap, never mid-percent-escape, the steps kep
     steps: 'PgUp in the viewer',
     expected: 'the pill',
     actual: 'あいうえお%'.repeat(400),
-    doctor: 'paste the doctor block here',
+    health: 'paste the health block here',
   }
   const url = issueFormUrl(bug, { slug: 'example/mercury-issues', title: '[bug] A title', values })
   check('the link stays within the cap', url.length <= ISSUE_FORM_URL_CAP, String(url.length))

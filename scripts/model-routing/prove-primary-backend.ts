@@ -156,7 +156,7 @@ section('3 · readiness honesty')
   check('no local server: unavailable naming the discovery route', noLocal.state === 'unavailable' && noLocal.reason.includes('MERCURY_LOCAL_BASE_URL'))
 }
 
-section('4 · the /doctor rows PROJECT the backend receipts')
+section('4 · the /health rows PROJECT the backend receipts')
 {
   const report = collectReadiness()
   const openaiRow = report.records.find(r => r.id === 'engine:backend:openai-responses')

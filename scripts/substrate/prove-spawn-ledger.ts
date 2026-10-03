@@ -104,7 +104,7 @@ check('spawnMultiAgent launches no pane child (no child cwd to refuse; the in-pr
   !/assertSpawnCwd\(workingDir\)|childCommand\(|sendCommandToPane\(/.test(src('src/tools/shared/spawnMultiAgent.ts')))
 check('BashTool records the autonomous command audit',
   src('src/tools/BashTool/BashTool.tsx').includes('recordBashAudit(input.command'))
-check('doctor carries the crew-rosters dead-cwd check',
+check('health carries the crew-rosters dead-cwd check',
   src('src/utils/healthReport.ts').includes("id: 'crew-rosters'"))
 check('no pane child is left to carry the spawned-by stamp (the daemon-spawned children keep theirs above)',
   !/spawnedByStamp\('crewmate'/.test(src('src/tools/shared/spawnMultiAgent.ts')))

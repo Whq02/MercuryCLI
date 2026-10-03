@@ -336,11 +336,11 @@ async function main(): Promise<void> {
     const before = getHeadlessActivity()
     noteHeadlessActivity('print')
     noteHeadlessActivity('sdk')
-    noteHeadlessActivity('verb:doctor')
+    noteHeadlessActivity('verb:health')
     const after = getHeadlessActivity()
     check(
       'BM-15: print/sdk/verb counters advance with last-activity stamps',
-      after.print === before.print + 1 && after.sdk === before.sdk + 1 && (after.verbs['doctor'] ?? 0) === (before.verbs['doctor'] ?? 0) + 1 && after.lastAt > 0,
+      after.print === before.print + 1 && after.sdk === before.sdk + 1 && (after.verbs['health'] ?? 0) === (before.verbs['health'] ?? 0) + 1 && after.lastAt > 0,
       JSON.stringify(after),
     )
     const printSrc = src('src/cli/print.ts')

@@ -160,7 +160,7 @@ section('§5 WIRING (HL-01/13/16/21/30)')
   )
   check(
     'health is the one word for the health check: the command carries no alias (HL-03/21)',
-    main.includes("program.command('health [topic]')") && !main.includes(".alias('doctor')"),
+    main.includes("program.command('health [topic]')") && !/command\('health \[topic\]'\)[\s\S]{0,400}?\.alias\(/.test(main),
   )
   const healthJson = src('src/cli/healthJson.ts')
   check(
@@ -204,17 +204,13 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
 {
   const { existsSync } = await import('node:fs')
   check(
-    'legacy Doctor.tsx is DELETED (HL-22)',
-    !existsSync(join(import.meta.dir, '../../src/screens/Doctor.tsx')),
-  )
-  check(
     'the orphaned KeybindingWarnings strip died with it',
     !existsSync(join(import.meta.dir, '../../src/components/KeybindingWarnings.tsx')),
   )
   const handler = src('src/cli/handlers/util.tsx')
   check(
     'the CLI rich route mounts the CANONICAL certificate view (HL-10)',
-    handler.includes('MercuryHealthCertificate') && !handler.includes('screens/Doctor'),
+    handler.includes('MercuryHealthCertificate'),
   )
   check(
     'the rich mount starts NO MCP connection manager (HL-23)',
@@ -227,7 +223,7 @@ section('§7 · RICH convergence + LEGACY RETIREMENT (HL-10/19/22/23/25/32/33)')
   const slash = src('src/commands/health/health.tsx')
   check(
     '/health always mounts the certificate — the =0 legacy fallback is gone (HL-33)',
-    slash.includes('MercuryHealthCertificate') && !slash.includes('screens/Doctor'),
+    slash.includes('MercuryHealthCertificate'),
   )
   const certView = src('src/commands/health/HealthCertificate.tsx')
   check(

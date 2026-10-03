@@ -48,10 +48,10 @@ const childEnv = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
 
 const nodeArgs = (args: string[]) => [DIST, ...args]
 
-function runDoctor(deep: boolean): { status: number | null; cert: unknown } {
+function runHealth(deep: boolean): { status: number | null; cert: unknown } {
   const res = spawnSync(
     'node',
-    nodeArgs(['doctor', '--json', ...(deep ? ['--deep'] : [])]),
+    nodeArgs(['health', '--json', ...(deep ? ['--deep'] : [])]),
     {
       cwd: project,
       env: childEnv({ ANTHROPIC_API_KEY: 'fixture-anthropic-key' }),
@@ -156,10 +156,10 @@ async function bootDaemon(opts: {
 
 const terminal = (s: string | null) => s === 'aborted' || s === 'committed'
 
-console.log('— A. doctor --json --deep on the artifact —')
+console.log('— A. health --json --deep on the artifact —')
 {
-  const { status, cert } = runDoctor(true)
-  ok(status === 0 && cert !== null, `deep doctor emitted a certificate with a credential present (exit ${status})`)
+  const { status, cert } = runHealth(true)
+  ok(status === 0 && cert !== null, `deep health emitted a certificate with a credential present (exit ${status})`)
   const durability = checksOf(cert, 'durability')
   const txn = durability.find(c => c.id === 'durable-transaction')
   ok(txn?.status === 'ok', `durable-transaction probe ok in the bundle (${txn?.evidence?.slice(0, 80) ?? 'MISSING'})`)
@@ -171,7 +171,7 @@ console.log('— A. doctor --json --deep on the artifact —')
   ok(kernel?.status === 'ok', `run-kernel deep probe still ok beside the durability section (${kernel?.status})`)
 }
 
-console.log('— B. seeded dead op → diagnose-only doctor —')
+console.log('— B. seeded dead op → diagnose-only health —')
 const undecodablePath = join(journalDir, 'op-zz-undecodable.json')
 const undecodableBytes = JSON.stringify({
   schema: 1,
@@ -188,17 +188,17 @@ const undecodableIntact = () => existsSync(undecodablePath) && readFileSync(unde
 {
   seedDeadOp('af-b', 'af-crew-b')
   writeFileSync(undecodablePath, undecodableBytes, 'utf8')
-  const { cert } = runDoctor(false)
+  const { cert } = runHealth(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
   ok(row?.status === 'warn', `durable-journals warns beside an undecodable journal file (${row?.status})`)
   ok(row?.evidence.includes('1 interrupted awaiting recovery') === true, `evidence counts the op (${row?.evidence})`)
-  ok(opState('af-b') === 'applying', 'doctor did NOT touch the op (diagnose-only)')
-  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'doctor did NOT touch the half-crew')
-  ok(undecodableIntact(), 'doctor did NOT touch the undecodable file')
+  ok(opState('af-b') === 'applying', 'health did NOT touch the op (diagnose-only)')
+  ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'health did NOT touch the half-crew')
+  ok(undecodableIntact(), 'health did NOT touch the undecodable file')
   const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
   ok(
     quarantines?.status === 'warn' && /^1 damaged-store event\(s\) in the last 24h \(1 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place') && !quarantines.evidence.includes('preservation FAILED'),
-    `the same doctor run names the undecodable journal file on the store-quarantines row as one refused event, bytes left in place (the journals check settles first) (${quarantines?.status}: ${quarantines?.evidence})`,
+    `the same health run names the undecodable journal file on the store-quarantines row as one refused event, bytes left in place (the journals check settles first) (${quarantines?.status}: ${quarantines?.evidence})`,
   )
   ok(typeof quarantines?.fix === 'string' && !quarantines.fix.includes('quarantined copy') && quarantines.fix.includes('left its bytes in place'), `the row's fix line claims no quarantined copy for bytes left in place (${quarantines?.fix})`)
 }
@@ -210,13 +210,13 @@ console.log('— C. daemon boot recovery on the artifact —')
   ok(opState('af-b') === 'aborted', 'partial op ABORTED (compensated, not committed)')
   ok(existsSync(join(crews, 'af-crew-b', 'config.json')), 'the half-crew is left in place by the artifact boot (nothing is removed by itself)')
   ok(undecodableIntact(), 'the artifact boot left the undecodable file in place, byte for byte')
-  const { cert } = runDoctor(false)
+  const { cert } = runHealth(false)
   const row = checksOf(cert, 'durability').find(c => c.id === 'durable-journals')
-  ok(row?.status === 'ok', `doctor green after recovery (${row?.evidence})`)
+  ok(row?.status === 'ok', `health green after recovery (${row?.evidence})`)
   const quarantines = checksOf(cert, 'durability').find(c => c.id === 'store-quarantines')
   ok(
     quarantines?.status === 'warn' && /^3 damaged-store event\(s\) in the last 24h \(3 on the ledger\)/.test(quarantines.evidence) && quarantines.evidence.includes('op-zz-undecodable.json') && quarantines.evidence.includes('bytes left in place'),
-    `three processes met the file (B's doctor, the daemon boot, this doctor) and each named it once — the per-process law, three rows, the row counting events (${quarantines?.evidence})`,
+    `three processes met the file (B's health, the daemon boot, this health) and each named it once — the per-process law, three rows, the row counting events (${quarantines?.evidence})`,
   )
   rmSync(undecodablePath)
 }

@@ -343,7 +343,7 @@ section('§7 the preserved-thinking seam — a roster transition is a lawful pre
   const after = tb.classifyThinkingDrops('owner', [DROP], mark1)
   check('a lawful drop never seeds a run: the next drop with the same marks is a first drop', after.kind === 'first' && after.consecutive === 1, j(after))
   const health = tb.preservedThinkingHealth({ last: { at: '2026-01-01T00:00:00.000Z', kind: 'lawful', lawful: 'roster-switch', reason: DROP.reason, path: DROP.path, count: 3, consecutive: 1, model: 'claude-fable-5-1' }, longestRun: 0 })
-  check("the doctor ledger's wording names the spawn-switch toggle", health.status === 'info' && health.evidence.includes("the operator's spawn-switch toggle") && health.evidence.includes('expected once'), health.evidence)
+  check("the health ledger's wording names the spawn-switch toggle", health.status === 'info' && health.evidence.includes("the operator's spawn-switch toggle") && health.evidence.includes('expected once'), health.evidence)
   check("a model switch's wording is untouched", tb.preservedThinkingHealth({ last: { at: 'x', kind: 'lawful', lawful: 'model-switch', reason: DROP.reason, path: DROP.path, count: 1, consecutive: 1, model: 'm' }, longestRun: 0 }).evidence.includes('after a model switch'))
   check('the row is UI-only: the API view never carries a roster transition', !src('src/utils/messages/apiPlan.ts').includes('roster_transition') && src('src/utils/messages/apiPlan.ts').includes("m.type === 'system' && !isSystemLocalCommandMessage(m)"))
 }
@@ -475,7 +475,7 @@ if (!existsSync(DIST)) {
     await fixture.close()
   }
 
-  section('§9 the doctor — the built artifact names both switches with their source')
+  section('§9 /health — the built artifact names both switches with their source')
   {
     const findRow = (value: unknown): Record<string, unknown> | null => {
       if (Array.isArray(value)) {
@@ -495,8 +495,8 @@ if (!existsSync(DIST)) {
       }
       return null
     }
-    const doctor = (extraEnv: Record<string, string>): Record<string, unknown> | null => {
-      const home = mkdtempSync(join(tmpdir(), 'spawn-switch-doctor-'))
+    const health = (extraEnv: Record<string, string>): Record<string, unknown> | null => {
+      const home = mkdtempSync(join(tmpdir(), 'spawn-switch-health-'))
       const configDir = join(home, '.mercury')
       mkdirSync(configDir, { recursive: true })
       const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'spawn-switches'], {
@@ -509,13 +509,13 @@ if (!existsSync(DIST)) {
       try {
         return findRow(JSON.parse(text))
       } catch {
-        console.log(`    doctor stdout: ${text.slice(0, 300)} stderr: ${out.stderr.slice(0, 300)}`)
+        console.log(`    health stdout: ${text.slice(0, 300)} stderr: ${out.stderr.slice(0, 300)}`)
         return null
       }
     }
-    const clean = doctor({})
+    const clean = health({})
     check('a clean process: both on, the defaults, ok', clean !== null && clean.status === 'ok' && String(clean.evidence).includes('sub-agents on (default)') && String(clean.evidence).includes('workflows on (default)') && String(clean.evidence).includes('the next session is born with these'), j(clean))
-    const off = doctor({ [SUB]: '0' })
+    const off = health({ [SUB]: '0' })
     check("sub-agents off in the environment: the row says so with its source, info, and names the commands and the menu", off !== null && off.status === 'info' && String(off.evidence).includes('sub-agents off (environment)') && String(off.evidence).includes('workflows on (default)') && String(off.detail ?? '').includes('/subagents on|off') && String(off.detail ?? '').includes("boot menu's Agents section") && off.label === 'Sub-agents & workflows', j(off))
   }
 }

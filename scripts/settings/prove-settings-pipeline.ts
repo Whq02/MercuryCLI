@@ -299,9 +299,9 @@ console.log('\n============================================================')
   const healthPath = joinHealth(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts')
   const healthSrc = codeOnlyText(healthPath, rfHealth(healthPath, 'utf8'))
   const lockRead = healthSrc.indexOf("getSettingsForSource('policySettings')?.extensions?.exclusive")
-  check('FC-146: doctor reads the lock from the policy source (code, not comment)', lockRead >= 0)
+  check('FC-146: health reads the lock from the policy source (code, not comment)', lockRead >= 0)
   const lockBlock = lockRead >= 0 ? healthSrc.slice(lockRead, healthSrc.indexOf('getSettingsWithAllErrors', lockRead)) : ''
-  check('FC-146: doctor names the armed lock (call-shaped)', /if \(lock === true\) lockLine = ' · managed extension-only lock: ALL surfaces'/.test(lockBlock) && /Array\.isArray\(lock\) && lock\.length > 0\) lockLine = ` · managed extension-only lock: \$\{lock\.join\(', '\)\}`/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(0, 200))
+  check('FC-146: health names the armed lock (call-shaped)', /if \(lock === true\) lockLine = ' · managed extension-only lock: ALL surfaces'/.test(lockBlock) && /Array\.isArray\(lock\) && lock\.length > 0\) lockLine = ` · managed extension-only lock: \$\{lock\.join\(', '\)\}`/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(0, 200))
   check('FC-146: …and the lock line reaches the evidence string', /evidence: `\$\{sourcesLine\}\$\{lockLine\}/.test(lockBlock), lockBlock.replace(/\s+/g, ' ').slice(-160))
   const lookalike = "// managed extension-only lock: ALL surfaces\n/* lockLine = ' · managed extension-only lock: x' */\nlet lockLine = ''\n"
   check('FC-146: a comment-only mention of the lock line does NOT satisfy the code read', !codeOnlyText('lookalike.ts', lookalike).includes('managed extension-only lock') && lookalike.includes('managed extension-only lock'))

@@ -26,7 +26,7 @@ const check = (label: string, value: unknown): void => {
   console.log(`PASS ${label}`)
 }
 
-check('the doctor exposes a Refused models check rather than omitting the observation', typeof health.modelRefusalsCheck === 'function')
+check('/health exposes a Refused models check rather than omitting the observation', typeof health.modelRefusalsCheck === 'function')
 const spec = health.modelRefusalsCheck()
 check('the check has a stable id and the visible label', spec.id === 'model-refusals' && spec.label === 'Refused models')
 const empty = await spec.run()
@@ -52,4 +52,4 @@ const source = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.
 const contractAt = source.indexOf('clientContractCheck(),')
 const nextAt = source.indexOf("id: 'install-provenance'", contractAt)
 check('the report registers this exact composer beside Client contract', contractAt >= 0 && nextAt > contractAt && /^clientContractCheck\(\),\s*modelRefusalsCheck\(\),\s*\{\s*$/.test(source.slice(contractAt, source.lastIndexOf('{', nextAt) + 1)))
-console.log(`Refused models doctor row: ${checks} checks passed`)
+console.log(`Refused models health row: ${checks} checks passed`)

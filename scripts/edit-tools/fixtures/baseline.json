@@ -153,7 +153,7 @@
       "notes": [
         "fallback shell: ls (Read refuses directories; prompt says use Bash ls)",
         "notebook counted at the Read surface (parser exercised by its own suite)",
-        "mercury://doctor/latest \u2192 typed state 'absent' (absent-vs-ok both exact)",
+        "mercury://health/latest \u2192 typed state 'absent' (absent-vs-ok both exact)",
         "surfaces used: Read + Bash + Inspect + WebFetch (4 distinct for 5 targets)"
       ]
     },

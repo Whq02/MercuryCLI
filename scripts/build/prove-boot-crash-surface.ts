@@ -183,8 +183,8 @@ section('§3 — the shipped artifact out of tree: the real boot path, unshimmed
     copyFileSync(dist, join(iso, 'mercury.mjs'))
     const bundle = join(iso, 'mercury.mjs')
 
-    const plain = run([bundle, 'doctor', '--json'], cleanEnv({ CI: 'true' }), 90_000, iso)
-    check('doctor --json out of tree exits 0|3 (init() ran through the bundled transport owners; 3 = the signed-out verdict fault)', plain.status === 0 || plain.status === 3, `status ${plain.status} signal ${plain.signal} ${plain.stderr.slice(0, 300)}`)
+    const plain = run([bundle, 'health', '--json'], cleanEnv({ CI: 'true' }), 90_000, iso)
+    check('health --json out of tree exits 0|3 (init() ran through the bundled transport owners; 3 = the signed-out verdict fault)', plain.status === 0 || plain.status === 3, `status ${plain.status} signal ${plain.signal} ${plain.stderr.slice(0, 300)}`)
     check('…with no module-load failure and no card on stderr', !/Cannot find module|MERCURY COULD NOT START/.test(plain.stderr), plain.stderr.slice(0, 300))
 
     const shim = join(work, 'missing-module.cjs')
@@ -206,7 +206,7 @@ section('§3 — the shipped artifact out of tree: the real boot path, unshimmed
     )
     const pem = join(work, 'extra-ca.pem')
     writeFileSync(pem, '-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----\n')
-    const injected = run(['--require', shim, bundle, 'doctor', '--json'], cleanEnv({ CI: 'true', NODE_EXTRA_CA_CERTS: pem }), 30_000, iso)
+    const injected = run(['--require', shim, bundle, 'health', '--json'], cleanEnv({ CI: 'true', NODE_EXTRA_CA_CERTS: pem }), 30_000, iso)
     check('an injected module-load failure on the real boot path exits 1 (never idles)', injected.status === 1, `status ${injected.status} signal ${injected.signal}`)
     check('…inside the bound', injected.ms < 20_000, `${injected.ms}ms`)
     check('…with the card naming the module and the next action', injected.stderr.includes(CARD) && /Cannot find module 'node:tls'/.test(injected.stderr) && /next:\s+redeploy the runtime/.test(injected.stderr), injected.stderr.slice(0, 400))

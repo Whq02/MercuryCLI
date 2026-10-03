@@ -19,7 +19,7 @@ switch off the Computer tool is not in the catalog at all and no desktop
 driver is touched. On a machine without the desktop driver the tool is
 absent from the catalog as well: the catalog decides when it is built,
 never when the model calls, so the model is never offered a tool that
-cannot work. `mercury doctor` and `/health` carry a `Computer use` row that
+cannot work. `mercury health` and `/health` carry a `Computer use` row that
 names what is missing — the driver, a grant, the kind of session — with
 the fix beside it.
 
@@ -92,7 +92,7 @@ front between the check and the act is not driven, and one session drives
 at a time. The row is saved where the Boot Menu keeps its other choices and
 reaches new sessions; `MERCURY_COMPUTER_ACCESS=asks`, `=permissive` or
 `=full` in the environment sets it for one session. Any other value produces
-a diagnostic note and the default applies. `mercury doctor` and `/health`
+a diagnostic note and the default applies. `mercury health` and `/health`
 name the access beside the switch: `computer use on · access asks`,
 `access permissive`, `access full (by sovereign mode)` or `access full
 (saved)`.
@@ -112,7 +112,7 @@ then. What stays under sovereign mode is what was never a question: a
 `guardrails.deny` rule refuses its application before any act, the
 terminal running Mercury is never typed into, and an application that
 moved in front between the check and the act is not driven. `mercury
-doctor` and `/health` carry a `Sovereign mode` row that names the one
+health` and `/health` carry a `Sovereign mode` row that names the one
 setting and what armed it.
 
 ## The allowlist
@@ -221,7 +221,7 @@ repository's `native/desktop` sources with cargo by
 `bun run scripts/vendor/build-desktop.ts`, which `bun run setup` runs last.
 It is built rather than fetched: a machine without a Rust toolchain builds
 and runs Mercury without it, the build says so, and the Computer tool stays
-out of the catalog until the pack is built — the doctor's row names the
+out of the catalog until the pack is built — the health check's row names the
 build command. Release archives carry the driver for their platform when
 the packaging host could build it. Nothing else is installed on your machine. Every screenshot,
 including the default capture after an act, is kept under `desktop-shots`
@@ -253,9 +253,9 @@ with the retention limit described above.
 Keyboard shortcuts on a non-US layout land on the US key positions on
 macOS in this release; typed text is always layout-correct.
 
-## The doctor
+## The health check
 
-`mercury doctor` and `/health` carry a `Computer use` row in the INTERFACE
+`mercury health` and `/health` carry a `Computer use` row in the INTERFACE
 section. Its line names the pack (its version and platform, and whether it
 was found beside the bundle, in the checkout, or through
 `MERCURY_DESKTOP_PACK_DIR`), the screen and input grants, the kind of
@@ -266,7 +266,7 @@ the displays with their sizes and scales, the frontmost application, the
 permission words for your platform, and which session is driving the
 desktop right now, if any — one session drives at a time. A missing grant
 is information with the fix beside it, never a fault: the rest of Mercury
-does not depend on computer use. The doctor never opens a system dialog;
+does not depend on computer use. The health check never opens a system dialog;
 the first capture or act does.
 
 A held mouse button or key is released when you interrupt, when the turn

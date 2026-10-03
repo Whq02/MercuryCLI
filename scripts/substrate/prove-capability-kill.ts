@@ -204,7 +204,7 @@ section('FC-145 — malformed MERCURY_AGENT_CAP: forgive, clamp, name')
     )
     const healthSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
     check(
-      'the doctor gate row consults the rejects and can WARN (call-shaped)',
+      '/health gate row consults the rejects and can WARN (call-shaped)',
       /getAgentCapParseRejects/.test(healthSrc) && /capRejects\.length > 0/.test(healthSrc),
     )
   }

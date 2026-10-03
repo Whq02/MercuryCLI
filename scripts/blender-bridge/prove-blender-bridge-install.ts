@@ -86,7 +86,7 @@ section('3. drift — detected honestly, healed by reinstall')
   const status = installer.blenderBridgeInstallStatus(home)
   check('a tampered file breaks digestMatch', status.installed && !status.digestMatch)
   const text = await installer.describeBlenderBridgeStatus()
-  check('status text says DRIFTED with the heal op', /DRIFTED/.test(text) && /blender_bridge_install refreshes/.test(text))
+  check('add-on row: installed but out of date, the one sentence offers the refresh', /^add-on: installed, out of date — op:"blender_bridge_install" refreshes it$/m.test(text), text.split('\n').find(l => l.startsWith('add-on:')))
   installer.applyBlenderBridgeInstall()
   check('reinstall heals the drift', installer.blenderBridgeInstallStatus(home).digestMatch)
 }

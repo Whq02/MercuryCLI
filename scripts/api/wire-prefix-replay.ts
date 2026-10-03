@@ -362,7 +362,7 @@ export function debugLogWord(file: string): string[] {
   }
 }
 
-export function doctorLedgerWord(home: string): string | null {
+export function healthLedgerWord(home: string): string | null {
   const path = join(home, 'preserved-thinking.json')
   if (!existsSync(path)) return null
   try {
@@ -554,7 +554,7 @@ async function main(argv: string[]): Promise<void> {
     for (const notice of notices) console.log(`  ${notice.slice(0, 400)}`)
   }
   const home = arg(argv, '--home')
-  if (home) console.log(`\ndoctor ledger (${home}): ${doctorLedgerWord(home) ?? 'none written'}`)
+  if (home) console.log(`\nhealth ledger (${home}): ${healthLedgerWord(home) ?? 'none written'}`)
   const broken = pairs.filter(p => !p.verdict.held && p.lawful === null)
   const lawfulBreaks = pairs.filter(p => !p.verdict.held && p.lawful !== null)
   console.log(`\n${pairs.length} pair(s): ${pairs.filter(p => p.verdict.held).length} held · ${lawfulBreaks.length} moved on a lawful change · ${broken.length} rewrote sent history`)

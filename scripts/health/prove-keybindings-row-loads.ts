@@ -25,7 +25,7 @@ const kbRow = async (): Promise<{ status: string; evidence: string }> => {
 
 const row = await kbRow()
 check(
-  'a broken keybindings.json WARNS on a one-shot doctor run (the cache was never the answer)',
+  'a broken keybindings.json WARNS on a one-shot health run (the cache was never the answer)',
   row.status === 'warn' && !row.evidence.includes('no keybinding-file warnings'),
   `${row.status}: ${row.evidence.slice(0, 120)}`,
 )

@@ -100,7 +100,7 @@ request is refused, Mercury consults a signed-in GitHub CLI (`gh`).
 After an update, Mercury checks whether the command on your PATH points to
 the updated installation. If another installation takes precedence, or the
 updated command is missing from PATH, it explains the problem and the fix.
-`mercury doctor` reports the same issue.
+`mercury health` reports the same issue.
 
 ### Release verification
 
@@ -116,11 +116,11 @@ payload.
 
 From 1.0.0-beta.3, archives are signed during packaging and their signatures
 are verified before publication. A verified installation adds no signature
-notice at startup. `mercury doctor` shows `signed — key 627b54b734ca0e72`.
+notice at startup. `mercury health` shows `signed — key 627b54b734ca0e72`.
 
 The 1.0.0-beta.2 archives are unsigned. These installations show
 `provenance — unsigned` once per install when you start Mercury interactively
-without a command or flag. The doctor continues to show that status. It means
+without a command or flag. The health check continues to show that status. It means
 the archive manifest has no signature; the download is still checked against
 `SHA256SUMS.txt`.
 
@@ -168,7 +168,7 @@ Git for Windows supplies `bash.exe`, which the Bash tool uses when available.
 Release archives also include Mercury's bash-compatible shell engine. It is
 used automatically on Windows when `bash.exe` is missing.
 
-Read the doctor’s `shell` row to see which shell is active and why. It shows
+Read the health check's `shell` row to see which shell is active and why. It shows
 Git Bash when `bash.exe` is available, or the bundled engine when it is
 missing. The bundled engine requires `cmd /c npm …` to run a `.cmd` shim
 such as `npm`; running the shim directly fails. After `cd`, give the engine
@@ -191,7 +191,7 @@ bun run setup                      # once; bun install + the vendored packs
 bun run build.ts                   # writes dist/mercury.mjs + dist/manifest.json
 node dist/mercury.mjs --version
 node dist/mercury.mjs
-node dist/mercury.mjs doctor --json
+node dist/mercury.mjs health --json
 ```
 
 ### Terminal support
@@ -205,7 +205,7 @@ Mercury uses 24-bit colour when the terminal advertises support through
 Windows Terminal or VS Code. Other terminals use 256 colours, including
 Apple's Terminal on macOS 15 and earlier.
 
-The doctor's Terminal color row reports the detected depth and the reason.
+The health check's Terminal color row reports the detected depth and the reason.
 Set `MERCURY_TRUECOLOR=1` for a terminal that supports true colour but does not
 advertise it, or `MERCURY_TRUECOLOR=0` to force 256 colours.
 
@@ -218,7 +218,7 @@ component. Running `bun install` alone produces a build without those packs.
 
 To build voice support, run `setup` with Rust installed. That builds
 `native/voice`. Add cmake to build `native/whisper` as well. If either
-build lacks its tools, setup skips it and the doctor reports the missing
+build lacks its tools, setup skips it and the health check reports the missing
 addon. Both addons are compiled on your machine. The Windows shell engine
 is compiled there too because upstream has no Windows binary.
 
@@ -281,7 +281,7 @@ have session history:
 - **MCPs & Skills** chooses what the next session loads. See
   [docs/KIT.md](docs/KIT.md).
 - **Agents** creates and edits agents.
-- **Doctor / Health Check** checks the installation.
+- **Health Check** checks the installation.
 - **Saturn Scheduler** schedules sessions. See
   [docs/SATURN.md](docs/SATURN.md).
 - **Logins** connects provider accounts.
@@ -496,7 +496,7 @@ with `-32700` and continues; three consecutive malformed lines end it.
 
 Available commands include:
 
-- **`mercury health`** (alias `doctor`): diagnostic report, also called the
+- **`mercury health`**: diagnostic report, also called the
   health certificate. `--json` returns the full report, `--deep` runs the deep
   inventory, and `--fix` runs guided fixes.
 - **`mercury auth login|status|logout|mint`**: sign in, check authentication,
@@ -548,7 +548,7 @@ Available commands include:
 - **Saturn.** Schedule a prompt for an existing session or start a new
   session at a set time. Schedules can run once or recur. See
   [docs/SATURN.md](docs/SATURN.md).
-- **Diagnostics.** The doctor and `/health` produce a report backed by
+- **Diagnostics.** The health check and `/health` produce a report backed by
   diagnostic evidence, with a `certified`, `caution` or `fault` verdict and
   verified fixes. See [docs/HEALTH-CERTIFICATE.md](docs/HEALTH-CERTIFICATE.md).
 - **Trust and permissions.** Workspace trust, permission rules and modes,
@@ -635,8 +635,8 @@ page.
 
 You can also open an issue directly using the bug, provider/model, or feature
 request template. Include your `--version` output, OS, terminal and exact
-steps. Bug and provider reports also need `mercury doctor --json`, or
-`node dist/mercury.mjs doctor --json` for a source build. A transcript of the
+steps. Bug and provider reports also need `mercury health --json`, or
+`node dist/mercury.mjs health --json` for a source build. A transcript of the
 failing screen helps.
 
 Report security problems privately through the repository’s Security tab.

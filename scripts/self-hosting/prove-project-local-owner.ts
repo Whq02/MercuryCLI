@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'plo-home-'))
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 const stateRoot = mkdtempSync(join(tmpdir(), 'plo-state-'))
-process.env.MERCURY_DOCTOR_STATE_DIR = stateRoot
+process.env.MERCURY_HEALTH_STATE_DIR = stateRoot
 
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)
@@ -38,12 +38,12 @@ check(
   'and that is `<root>/.mercury/apollo`',
 )
 check(
-  lastCertPath() === join(projectHomePath(stateRoot, 'doctor'), 'last-cert.json'),
-  "doctor last-cert routes through the HOME store owner at the pinned state root (the config home's project store, never the project folder)",
+  lastCertPath() === join(projectHomePath(stateRoot, 'health'), 'last-cert.json'),
+  "the health last-cert routes through the HOME store owner at the pinned state root (the config home's project store, never the project folder)",
 )
 check(
-  lastPreflightPath().startsWith(join(getMercuryHome(), 'doctor') + sep) && lastPreflightPath().endsWith('last-preflight.json'),
-  "doctor last-preflight lives under the config home's doctor store (a boot writes nothing into the repository)",
+  lastPreflightPath().startsWith(join(getMercuryHome(), 'health') + sep) && lastPreflightPath().endsWith('last-preflight.json'),
+  "the health last-preflight lives under the config home's health store (a boot writes nothing into the repository)",
 )
 check(
   !lastPreflightPath().startsWith(stateRoot + sep) && !lastPreflightPath().startsWith(join(stateRoot, '.mercury')),
@@ -53,7 +53,7 @@ check(
 console.log('resolution is pure — deriving creates nothing')
 owner.projectLocalDir(root)
 owner.projectLocalPath(root, 'apollo')
-owner.adoptiveProjectLocalPath(root, 'doctor')
+owner.adoptiveProjectLocalPath(root, 'health')
 lastCertPath()
 lastPreflightPath()
 check(readdirSync(root).length === 0, 'virgin project root untouched after every derivation')

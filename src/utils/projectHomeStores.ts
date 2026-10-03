@@ -12,7 +12,7 @@ export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.free
   ['router'],
   ['ide-transactions'],
   ['reviews'],
-  ['doctor'],
+  ['health'],
 ])
 
 export function projectHomePath(root: string, ...segments: string[]): string {

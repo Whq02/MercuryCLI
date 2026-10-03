@@ -312,7 +312,7 @@ section('§2 a failing registry — the real refusal in one line, no retry, no l
   check('the surfaced row is the real refusal naming the floor and what Mercury presents', first.refusalText.includes(`needs client version ${NEWER}`) && first.refusalText.includes(`Mercury presents ${CONTRACT} (constant)`), first.refusalText)
   check('the row says the registry read failed, in one sentence', first.refusalText.includes('the registry read failed: HTTP 500 — not retried') && sentences(first.refusalText) === 1, first.refusalText)
   check('no learned number was persisted', readLearnedFile(home)?.learned === undefined, JSON.stringify(readLearnedFile(home)))
-  check('the failure is stamped for the doctor row', readLearnedFile(home)?.lastRead?.answer?.failure?.kind === 'status', JSON.stringify(readLearnedFile(home)?.lastRead ?? null))
+  check('the failure is stamped for the health row', readLearnedFile(home)?.lastRead?.answer?.failure?.kind === 'status', JSON.stringify(readLearnedFile(home)?.lastRead ?? null))
   check('a refusal that was not retried declares no prefix change', lawful.pendingLawfulPrefixChange(OWNER) === null, String(lawful.pendingLawfulPrefixChange(OWNER)))
   const second = await drive(NEWER)
   check('a second refusal within the quiet window reads the registry nothing again', registryReads - readsBefore === 1, `${registryReads - readsBefore} read(s)`)
@@ -512,8 +512,8 @@ check('the peek owner exists', typeof learnedModule?.startClientContractPeek ===
   check('the started peek reads the registry once in the background', outcome?.kind === 'read' && registryReads - readsBefore === 1, JSON.stringify(outcome))
 }
 
-section('§7 the doctor row — the presented number, its source, and a failed or unsaved read in the same line')
-check('the doctor exposes the Client contract check', typeof health.clientContractCheck === 'function')
+section('§7 the health row — the presented number, its source, and a failed or unsaved read in the same line')
+check('/health exposes the Client contract check', typeof health.clientContractCheck === 'function')
 if (typeof health.clientContractCheck === 'function') {
   const rowIn = async (name: string): Promise<{ status: string; evidence: string }> => {
     useHome(name)
@@ -554,7 +554,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   check('no claim, no learned number and no day stamp were saved (at most the empty store the kernel seeds before its lock)', holdsNothing(readLearnedFile(home)), JSON.stringify(readLearnedFile(home)))
   if (typeof health.clientContractCheck === 'function') {
     const row = await health.clientContractCheck().run()
-    check('the doctor row names the refused claim', row.evidence.endsWith(' · the heal could not claim its registry read: the config home refused its record (EACCES)'), row.evidence)
+    check('the health row names the refused claim', row.evidence.endsWith(' · the heal could not claim its registry read: the config home refused its record (EACCES)'), row.evidence)
   }
 }
 {
@@ -576,7 +576,7 @@ section('§8 durable publication — a refused write is said, never claimed as s
   check('this process presents the learned number it could not save', described.presented === NEWER && described.source === 'learned', JSON.stringify(described))
   if (typeof health.clientContractCheck === 'function') {
     const row = await health.clientContractCheck().run()
-    check('the doctor row says the answer was not saved', row.evidence === `subscription door presents cc_version ${NEWER} · learned ${dayOf(Date.now())} from the registry · the last registry answer was not saved to the config home (EACCES)`, row.evidence)
+    check('the health row says the answer was not saved', row.evidence === `subscription door presents cc_version ${NEWER} · learned ${dayOf(Date.now())} from the registry · the last registry answer was not saved to the config home (EACCES)`, row.evidence)
   }
 }
 {

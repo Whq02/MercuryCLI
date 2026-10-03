@@ -225,7 +225,7 @@ section('(6) console UTF-8 + enter-screen chain — structural, all three')
     check(`${name} chains the packaged splash`, text.includes('splash.mjs'))
     check(`${name} hands over via MERCURY_ALT_HELD`, text.includes('MERCURY_ALT_HELD'))
     check(`${name} honors MERCURY_NO_BANNER + MERCURY_SPLASH=off`, text.includes('MERCURY_NO_BANNER') && text.includes('MERCURY_SPLASH'))
-    for (const verb of ['doctor', 'install', 'update', 'acp', 'mcp']) {
+    for (const verb of ['health', 'install', 'update', 'acp', 'mcp']) {
       check(`${name} boots straight for the '${verb}' verb`, text.includes(verb))
     }
     check(`${name} still boots mercury.mjs with forwarded args`, text.includes('mercury.mjs'))
@@ -450,9 +450,9 @@ if (mode === 'handoff') {
     check('pty --version: forwarded', jv !== null && jv.args.length === 1 && jv.args[0] === '--version', ptyProbe.out.slice(0, 120))
 
     resetChain()
-    const rDoctor = runPty(['doctor'], chainEnv())
-    check('pty doctor: splash skipped (verb law)', !splashRan())
-    check('pty doctor: forwarded', (lastJson(rDoctor.out)?.args ?? []).join(',') === 'doctor')
+    const rHealth = runPty(['health'], chainEnv())
+    check('pty health: splash skipped (verb law)', !splashRan())
+    check('pty health: forwarded', (lastJson(rHealth.out)?.args ?? []).join(',') === 'health')
 
     resetChain()
     const rBare = runPty([], chainEnv())
@@ -557,11 +557,11 @@ section('(8) the skip-verb set DERIVES from the product\'s registered verb surfa
     for (const verb of ['health', 'image', 'bridge', 'update', 'install', 'mcp', 'auth', 'extensions', 'roster', 'daemon', 'acp']) {
       check(`the census reads the registered verb '${verb}'`, names.includes(verb))
     }
-    check("the census reads the aliases 'doctor' (of health) and 'upgrade' (of update)", aliases.includes('doctor') && aliases.includes('upgrade') && surface.commands.find(c => c.name === 'health')?.aliases.includes('doctor') === true)
+    check("the census reads the alias 'upgrade' (of update) and no alias on health", aliases.includes('upgrade') && surface.commands.find(c => c.name === 'update')?.aliases.includes('upgrade') === true && (surface.commands.find(c => c.name === 'health')?.aliases.length ?? 0) === 0)
     check("the census reads cli.tsx's fast-path routes (daemon · acp)", ['daemon', 'acp'].every(v => surface.fastPath.includes(v)))
     const derived = skipFrom(surface)
     check('SPLASH_SKIP_VERBS IS the derived set (sorted, unique)', JSON.stringify([...SPLASH_SKIP_VERBS]) === JSON.stringify(derived), `${SPLASH_SKIP_VERBS.join(' ')} ≠ ${derived.join(' ')}`)
-    for (const verb of ['health', 'doctor', 'image', 'bridge', 'update', 'upgrade', 'install', 'daemon', 'acp']) {
+    for (const verb of ['health', 'image', 'bridge', 'update', 'upgrade', 'install', 'daemon', 'acp']) {
       check(`the skip set carries '${verb}'`, SPLASH_SKIP_VERBS.includes(verb))
     }
     check('every registered name and alias is in the skip set (nothing registered can meet the enter screen)', [...names, ...aliases].every(v => SPLASH_SKIP_VERBS.includes(v)))

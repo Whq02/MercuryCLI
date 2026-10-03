@@ -102,10 +102,10 @@ try {
   const version = spawnSync('arch', ['-x86_64', launcher, '--version'], { encoding: 'utf8', env: noNode, cwd: home, timeout: 180_000 })
   check(`arch -x86_64 mercury --version prints ${VERSION} on the vendored runtime alone`, version.status === 0 && version.stdout.includes(VERSION), (version.stdout + version.stderr).trim().slice(0, 200))
 
-  const doctor = x64(launcher, ['doctor', '--json'], 300_000)
+  const health = x64(launcher, ['health', '--json'], 300_000)
   let rows: Array<{ label?: string; status?: string; evidence?: string }> = []
   try {
-    const parsed = JSON.parse(doctor.stdout) as unknown
+    const parsed = JSON.parse(health.stdout) as unknown
     const collect = (node: unknown): void => {
       if (Array.isArray(node)) node.forEach(collect)
       else if (node && typeof node === 'object') {
@@ -118,7 +118,7 @@ try {
   } catch {
     rows = []
   }
-  check('arch -x86_64 mercury doctor --json parses to a certificate with rows', rows.length > 0, (doctor.stdout + doctor.stderr).trim().slice(0, 200))
+  check('arch -x86_64 mercury health --json parses to a certificate with rows', rows.length > 0, (health.stdout + health.stderr).trim().slice(0, 200))
   const runtimeRow = rows.find(r => r.label === 'Node & ripgrep')
   check('the runtime row is green: the vendored node in use, the vendored ripgrep present', runtimeRow?.status === 'ok' && /vendored node/.test(runtimeRow.evidence ?? '') && /ripgrep builtin/.test(runtimeRow.evidence ?? '') && /present/.test(runtimeRow.evidence ?? ''), JSON.stringify(runtimeRow))
   const buildRow = rows.find(r => r.label === 'Mercury build')

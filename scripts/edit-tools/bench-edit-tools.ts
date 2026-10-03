@@ -670,7 +670,7 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
     t.call('Read')
     const { renderResourceTarget } = await import('../../src/tools/FileReadTool/readTarget.ts')
     const res = await runWithCwdOverride(dir, () =>
-      renderResourceTarget('mercury://doctor/latest', { owner, cwd: dir }),
+      renderResourceTarget('mercury://health/latest', { owner, cwd: dir }),
     )
     if (!/state: (ok|absent|unavailable)/.test(res.content)) return t.finish(false)
     t.note(`resource served through the Read front door: ${res.content.split('\n')[0]}`)
@@ -698,12 +698,12 @@ async function m6MixedTargets(mode: Mode): Promise<MissionMetrics> {
   t.note('notebook counted at the Read surface (parser exercised by its own suite)')
   t.call('Inspect')
   surfaces.add('Inspect')
-  const res = await resolveResource('mercury://doctor/latest', { owner, cwd: dir })
+  const res = await resolveResource('mercury://health/latest', { owner, cwd: dir })
   if (res.state === 'unavailable') {
     t.m.invalidOrUnavailableCalls += 1
-    t.note(`doctor ref unavailable: ${'note' in res ? res.note : ''}`)
+    t.note(`health ref unavailable: ${'note' in res ? res.note : ''}`)
   } else {
-    t.note(`mercury://doctor/latest → typed state '${res.state}' (absent-vs-ok both exact)`)
+    t.note(`mercury://health/latest → typed state '${res.state}' (absent-vs-ok both exact)`)
   }
   const http = await import('node:http')
   const server = http.createServer((_req, res2) => {

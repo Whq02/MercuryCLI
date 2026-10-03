@@ -25,6 +25,14 @@ export interface GodotEditorPresence {
 export interface AddonPresenceFacts {
   installed: boolean
   enabled: boolean
+  digestMatch?: boolean
+}
+
+function installStep(addon: AddonPresenceFacts): string | null {
+  if (!addon.installed) return 'op:"vulcan_install" writes the addon and enables it; then '
+  if (!addon.enabled) return 'the addon is on disk but not enabled in project.godot — op:"vulcan_install" enables it; then '
+  if (addon.digestMatch === false) return 'the installed addon is out of date — op:"vulcan_install" refreshes it; then '
+  return null
 }
 
 export const PRESENCE_WORDS: Record<GodotEditorPresenceState, string> = {
@@ -105,22 +113,13 @@ export function presenceNudge(presence: GodotEditorPresence, addon: AddonPresenc
   if (presence.state === 'bridge-up') return ''
   if (presence.ambiguous?.length) return 'name the editor you mean: op:"vulcan_status" lists the instances; pass args.instance with its id'
   if (presence.state === 'no-editor') {
-    const first = !addon.installed
-      ? 'op:"vulcan_install" writes the addon and enables it; then '
-      : !addon.enabled
-        ? 'the addon is on disk but not enabled in project.godot — op:"vulcan_install" enables it; then '
-        : ''
-    return `${first}open the project in the Godot editor (godot --editor --path <project>; --headless works) — enabled plugins load at editor startup`
+    return `${installStep(addon) ?? ''}open the project in the Godot editor (godot --editor --path <project>; --headless works) — enabled plugins load at editor startup`
   }
   const editor = presence.editors[0]!
   const load = editor.headless
     ? `the running editor is headless (pid ${editor.pid}) and never sees a focus event: restart it — ${editor.executable} --editor --headless --path <project>`
     : 'click into the editor window: Godot rescans on focus and offers "Files have been modified outside Godot" — choose "Reload from disk" (never "Ignore external changes", which resaves the editor\'s own copy over the install edit); that reload loads no plugin by itself, so then enable "Mercury VULCAN" under Project > Project Settings > Plugins, or use Project > Reload Current Project (a restart; plugins load at startup)'
-  const first = !addon.installed
-    ? 'op:"vulcan_install" writes the addon and enables it; then '
-    : !addon.enabled
-      ? 'the addon is on disk but not enabled in project.godot — op:"vulcan_install" enables it; then '
-      : 'the plugin is installed and enabled on disk but this editor has not loaded it — '
+  const first = installStep(addon) ?? 'the plugin is installed and enabled on disk but this editor has not loaded it — '
   return `${first}${load}. Mercury cannot reach an unbridged editor (the LSP/DAP ports cannot toggle plugins); once a bridge is up, vulcan_install reloads the plugin over it by itself`
 }
 

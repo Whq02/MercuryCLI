@@ -552,7 +552,7 @@ if (IS_WIN) {
         check('a bare interactive boot runs the provenance verify exactly ONCE, before the boot line', verifyLines.length === 1 && bootLine !== undefined && bare.indexOf(verifyLines[0]!) < bare.indexOf(bootLine), bare.join(' / '))
         check('the boot line inherits the terminal (stdin, stdout and stderr are the PTY)', bootLine?.startsWith('tty|') === true, bootLine)
         check('a prompt argument (a takeover) keeps the line', drive(['fix it'], true).filter(l => l.includes('verify-artifact.mjs')).length === 1)
-        for (const [label, args] of [['a verb (doctor)', ['doctor']], ['a verb (update --check)', ['update', '--check']], ['a dash-first flag (--continue)', ['--continue']], ['--version', ['--version']], ['run', ['run', 'hi']]] as const) {
+        for (const [label, args] of [['a verb (health)', ['health']], ['a verb (update --check)', ['update', '--check']], ['a dash-first flag (--continue)', ['--continue']], ['--version', ['--version']], ['run', ['run', 'hi']]] as const) {
           const lines = drive([...args], true)
           check(`${label} under a PTY runs no provenance verify`, lines.filter(l => l.includes('verify-artifact.mjs')).length === 0 && lines.some(l => l.includes('mercury.mjs')), lines.join(' / '))
         }

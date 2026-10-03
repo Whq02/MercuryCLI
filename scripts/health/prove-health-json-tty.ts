@@ -27,8 +27,8 @@ const nonPass = (cert: Cert): string =>
     .map(r => `${r.id}:${r.status}`)
     .join(' ')
 
-const scratchHome = mkdtempSync(join(tmpdir(), 'doctor-tty-home-'))
-const scratch = mkdtempSync(join(tmpdir(), 'doctor-tty-'))
+const scratchHome = mkdtempSync(join(tmpdir(), 'health-tty-home-'))
+const scratch = mkdtempSync(join(tmpdir(), 'health-tty-'))
 const NO_CREDENTIAL = { ANTHROPIC_API_KEY: undefined, ANTHROPIC_AUTH_TOKEN: undefined, MERCURY_OAUTH_TOKEN: undefined }
 const PTY_DRIVER = 'import os, pty, sys; st = pty.spawn(sys.argv[1:]); sys.exit(os.waitstatus_to_exitcode(st) if hasattr(os, "waitstatus_to_exitcode") else (st >> 8))'
 
@@ -115,11 +115,11 @@ try {
     }
   }
 
-  console.log('\n§2 `doctor --only <id>` under a pty exits unaided with the one row')
+  console.log('\n§2 `health --only <id>` under a pty exits unaided with the one row')
   {
     const dir = join(scratch, 'only-tty')
     mkdirSync(dir, { recursive: true })
-    const r = ptyRun(dir, ['doctor', '--only', 'build-identity'], {})
+    const r = ptyRun(dir, ['health', '--only', 'build-identity'], {})
     const out = r.out.replace(/\r/g, '')
     check('PTY --only exits unaided (no parked interactive view)', !r.threw, `threw; tail: ${JSON.stringify(out.slice(-200))}`)
     check('…printing the one check, not the panel', out.includes('Mercury build'), out.slice(0, 200))

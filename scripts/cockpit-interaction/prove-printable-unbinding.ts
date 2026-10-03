@@ -189,7 +189,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
           ANTHROPIC_API_KEY: FIXTURE_KEY,
           MERCURY_BOOT_PREFLIGHT: '0',
           MERCURY_LIVE_GLYPHS: '0',
-          MERCURY_DOCTOR_STATE_DIR: join(plane, 'doctor'),
+          MERCURY_HEALTH_STATE_DIR: join(plane, 'health'),
           MERCURY_DAEMON_DIR: join(plane, 'daemon'),
         },
         encoding: 'utf8',

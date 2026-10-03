@@ -308,14 +308,14 @@ section('§8 PROVISIONAL SESSION RECONCILE')
 section('§9 WIRING')
 {
   const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', p), 'utf8')
-  const doctor = src('src/utils/healthReport.ts')
+  const health = src('src/utils/healthReport.ts')
   check(
-    '/doctor carries the lifecycle-collection row',
-    doctor.includes("id: 'lifecycle-collection'") && doctor.includes('getLifecycleHealth'),
+    '/health carries the lifecycle-collection row',
+    health.includes("id: 'lifecycle-collection'") && health.includes('getLifecycleHealth'),
   )
   check(
-    'the doctor verb runs the cleanup opportunity',
-    doctor.includes("runLifecycleVerbOpportunity('doctor')"),
+    'the health verb runs the cleanup opportunity',
+    health.includes("runLifecycleVerbOpportunity('health')"),
   )
   check(
     'the update verb runs the cleanup opportunity',

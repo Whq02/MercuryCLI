@@ -74,7 +74,7 @@ function waitForGo() {
 const MSG_PAD = 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do '
 function makeMessage(seq, msgBytes) {
   const base = {
-    from: 'keel-doctor-A',
+    from: 'keel-health-A',
     text: '',
     timestamp: new Date().toISOString(),
     read: false,

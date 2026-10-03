@@ -215,7 +215,7 @@ console.log('\nWI-6 — link fallback when native decode is unavailable:')
     srcOf('src/services/visual/imageDisplay.ts').includes("'cells' | 'link'"),
   )
   check(
-    'the doctor names the consequence (images render as file links)',
+    '/health names the consequence (images render as file links)',
     srcOf('src/utils/healthReport.ts').includes('images render as file links'),
   )
 }

@@ -17,7 +17,7 @@ if (!existsSync(BIN)) {
   process.exit(1)
 }
 if (process.platform === 'win32') {
-  console.log('process sweep doctor drive: POSIX only (the Windows read and ending are proved by scripts/winreg/prove-process-sweep-doctor.ts on a Windows box)')
+  console.log('process sweep health drive: POSIX only (the Windows read and ending are proved by scripts/winreg/prove-process-sweep-health.ts on a Windows box)')
   process.exit(0)
 }
 
@@ -27,7 +27,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'orphan-sweep-doctor-')))
+const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'orphan-sweep-health-')))
 const HOME = join(SCRATCH, 'home')
 const CWD = join(SCRATCH, 'project')
 mkdirSync(HOME, { recursive: true })
@@ -41,7 +41,7 @@ delete process.env.CI
 delete process.env.MERCURY_HOME
 
 const { guardLoginDriverWrite } = await import('../lib/loginDriverGuard.ts')
-guardLoginDriverWrite('the process sweep doctor drive', process.env)
+guardLoginDriverWrite('the process sweep health drive', process.env)
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
 const { getProcessStartTokenAsync } = await import('../../src/daemon/ownerWatch.ts')
@@ -123,8 +123,8 @@ function rowsOf(jsonText: string): Row[] {
   }
   return rows
 }
-function doctorJson(): { text: string; status: number | null } {
-  const res = spawnSync('node', [BIN, 'doctor', '--json'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
+function healthJson(): { text: string; status: number | null } {
+  const res = spawnSync('node', [BIN, 'health', '--json'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] })
   return { text: res.stdout ?? '', status: res.status }
 }
 
@@ -164,9 +164,9 @@ function capture(name: string, cols: number, rows: number, extraSends: Array<Rec
   const captureDir = process.env.MERCURY_HEALTH_CAPTURE_DIR
   if (captureDir) {
     mkdirSync(captureDir, { recursive: true })
-    writeFileSync(join(captureDir, `orphan-sweep-doctor-${name}.txt`), lines.join('\n') + '\n')
+    writeFileSync(join(captureDir, `orphan-sweep-health-${name}.txt`), lines.join('\n') + '\n')
     try {
-      writeFileSync(join(captureDir, `orphan-sweep-doctor-${name}.json`), readFileSync(out))
+      writeFileSync(join(captureDir, `orphan-sweep-health-${name}.json`), readFileSync(out))
     } catch {
       console.log('  … the grid could not be copied beside the frame')
     }
@@ -175,17 +175,17 @@ function capture(name: string, cols: number, rows: number, extraSends: Array<Rec
 }
 
 try {
-  console.log('J doctor --json carries the Mercury processes row with a stale stand-in listed')
+  console.log('J health --json carries the Mercury processes row with a stale stand-in listed')
   const standIn = await standInWindow()
-  const j = doctorJson()
+  const j = healthJson()
   const rows = rowsOf(j.text)
   const row = rows.find(r => r.id === 'mercury-processes')
-  check('doctor --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
+  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
   check('the certificate carries the row "Mercury processes"', row !== undefined && row.label === 'Mercury processes', rows.map(r => r.id).join(',').slice(0, 200))
   check('the row counts running · stale · cannot end · not ours', /^\d+ running · \d+ stale · \d+ cannot end · \d+ not ours/.test(row?.evidence ?? ''), row?.evidence)
   check('the row warns and lists the stand-in as a stale line with pid, terminal and age', row?.status === 'warn' && (row.detail ?? '').includes(`pid ${standIn} · no terminal ·`), (row?.detail ?? '').slice(0, 160))
   if (!(row?.detail ?? '').includes(`pid ${standIn} · no terminal ·`)) {
-    const listing = spawnSync('node', [BIN, 'doctor', 'processes'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? ''
+    const listing = spawnSync('node', [BIN, 'health', 'processes'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? ''
     let entries: Array<{ process?: { pid?: number; exe?: string; user?: string; args?: string[] }; classification?: string; reason?: string; startToken?: string | null }> = []
     try {
       entries = (JSON.parse(listing.slice(Math.max(0, listing.indexOf('{')))) as { entries?: typeof entries }).entries ?? []
@@ -197,7 +197,7 @@ try {
     console.log(`  … the stand-in as the headless listing reads it: ${mine === undefined ? `no entry among ${entries.length}` : `${mine.classification} · ${mine.reason} · exe=${mine.process?.exe} · user=${mine.process?.user} · args=${(mine.process?.args ?? []).join(' ').slice(0, 60)} · token=${mine.startToken}`} · reader uid=${typeof process.getuid === 'function' ? process.getuid() : 'n/a'} · registered token=${token}`)
   }
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'mercury-processes'))
-  check('the stand-in is untouched by the read-only doctor', alive(standIn))
+  check('the stand-in is untouched by the read-only health', alive(standIn))
   process.kill(standIn, 'SIGKILL')
   rmSync(join(HOME, 'processes'), { recursive: true, force: true })
 
@@ -229,7 +229,7 @@ try {
       { afterPrevTicks: 5, data: '\r' },
     ], 200 + rowIndex)
     check(`${size}: the result names what was ended with the approved words`, result.some(l => /Ended 1 stale processes; 0 could not be ended/.test(l)), result.find(l => l.includes('Ended'))?.trim().slice(0, 120))
-    check(`${size}: the reviewed stand-in was ended through the doctor's action`, !alive(target))
+    check(`${size}: the reviewed stand-in was ended through /health's action`, !alive(target))
   }
 } catch (error) {
   failures++
@@ -245,5 +245,5 @@ try {
   if (!process.argv.includes('--keep')) rmSync(SCRATCH, { recursive: true, force: true })
   else console.log(`scratch kept at ${SCRATCH}`)
 }
-console.log(failures === 0 ? '✅ process sweep doctor drive: all legs green' : `❌ process sweep doctor drive: ${failures} leg(s) red`)
+console.log(failures === 0 ? '✅ process sweep health drive: all legs green' : `❌ process sweep health drive: ${failures} leg(s) red`)
 process.exit(failures === 0 ? 0 : 1)

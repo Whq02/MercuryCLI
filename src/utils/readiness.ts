@@ -701,7 +701,7 @@ function dapLaneRecords(): ReadinessRecord[] {
           kind: 'lane',
           label: 'js-debug adapter (JS/TS)',
           state: 'configured',
-          detail: `js-debug DAP server via ${jsDebugSourceLabel(jsDebug.source)}: ${jsDebug.path} — multi-session (resolution only; doctor --deep boots it)`,
+          detail: `js-debug DAP server via ${jsDebugSourceLabel(jsDebug.source)}: ${jsDebug.path} — multi-session (resolution only; health --deep boots it)`,
           source: 'js-debug resolution (MERCURY_JS_DEBUG_DAP > vendored bundle > ~/.js-debug)',
           lastCheckedAt: Date.now(),
         }

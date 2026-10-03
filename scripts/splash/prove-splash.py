@@ -171,7 +171,7 @@ check('head art dropped (no cream head SGR — actions outrank art)', '38;2;240;
 check('the six-row card sheds the strip FIRST (no Model row — actions outrank the readout)', 'Model' not in plain80)
 check('every action row survives the empty-home shed',
       all(s in plain80 for s in ('New Session', 'Boot Menu', 'MCPs & Skills', 'Agents',
-                                 'Doctor / Health Check', 'Saturn Scheduler', 'Logins', 'Sessions · Projects')))
+                                 'Health Check', 'Saturn Scheduler', 'Logins', 'Sessions · Projects')))
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
 check('every visible line fits 80 cols', all(len(l) <= 80 for l in lines), f'max={max(len(l) for l in lines)}')
@@ -182,8 +182,8 @@ raw = run_pty(80, 24, env_extra={'MERCURY_HOME': pop_home, **INLINE})
 lines = vis_lines(raw)
 plain80 = STRIP.sub('', raw)
 check('card grew (Continue Last Session row present)', 'Continue Last Session' in plain80)
-check('every action row survives the squeeze (New/Menu/Doctor/Logins/Sessions · Projects)',
-      all(s in plain80 for s in ('New Session', 'Boot Menu', 'Doctor', 'Logins', 'Sessions · Projects')))
+check('every action row survives the squeeze (New/Menu/Health/Logins/Sessions · Projects)',
+      all(s in plain80 for s in ('New Session', 'Boot Menu', 'Health', 'Logins', 'Sessions · Projects')))
 check('strip shed FIRST (no Model row under pressure)', 'Model' not in plain80)
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
@@ -372,8 +372,8 @@ try:
     env2 = {'MERCURY_HOME': home2, 'MERCURY_REDUCED_MOTION': '1', **INLINE}
     raw = run_pty(120, 50, env2)
     plain = STRIP.sub('', raw)
-    check('card renders at the standard tier (continue · menu · agents · doctor · logins · sessions)',
-          'Continue Last Session' in plain and 'Boot Menu' in plain and 'Doctor / Health Check' in plain
+    check('card renders at the standard tier (continue · menu · agents · health · logins · sessions)',
+          'Continue Last Session' in plain and 'Boot Menu' in plain and 'Health Check' in plain
           and 'Agents' in plain and 'Logins' in plain and 'Sessions · Projects' in plain)
     check('status strip present (Model · Theme · Dir)',
           'Model' in plain and 'Theme' in plain and 'Dir' in plain)
@@ -393,8 +393,8 @@ try:
     if os.path.exists(act_path):
         with open(act_path) as f:
             act = json.load(f)
-    check('↓×5 ↵ activates Doctor: splash-action.json {action: doctor} + launch',
-          'starting' in raw and bool(act) and act.get('version') == 1 and act.get('action') == 'doctor',
+    check('↓×5 ↵ activates Health: splash-action.json {action: health} + launch',
+          'starting' in raw and bool(act) and act.get('version') == 1 and act.get('action') == 'health',
           json.dumps(act) if act else 'no file')
     txt_path = os.path.join(home2, 'splash-action.txt')
     check('NO plain-text twin is written (BM-30 — the txt protocol is retired)',
@@ -1153,20 +1153,20 @@ check("both files present: the external file's facts never render",
 
 print('\n── K1: health chip reads the ADOPTIVE project path (.mercury first)')
 cert_cwd = tempfile.mkdtemp(prefix='splash-proof-certcwd.')
-os.makedirs(os.path.join(cert_cwd, '.mercury', 'doctor'), exist_ok=True)
-with open(os.path.join(cert_cwd, '.mercury', 'doctor', 'last-cert.json'), 'w') as f:
+os.makedirs(os.path.join(cert_cwd, '.mercury', 'health'), exist_ok=True)
+with open(os.path.join(cert_cwd, '.mercury', 'health', 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'certified', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd)
 plain = STRIP.sub('', raw)
-check('health chip renders from <cwd>/.mercury/doctor',
+check('health chip renders from <cwd>/.mercury/health',
       'Health' in plain and 'certified' in plain)
 cert_cwd2 = tempfile.mkdtemp(prefix='splash-proof-certcwd2.')
-os.makedirs(os.path.join(cert_cwd2, '.claude', 'doctor'), exist_ok=True)
-with open(os.path.join(cert_cwd2, '.claude', 'doctor', 'last-cert.json'), 'w') as f:
+os.makedirs(os.path.join(cert_cwd2, '.claude', 'health'), exist_ok=True)
+with open(os.path.join(cert_cwd2, '.claude', 'health', 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'caution', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd2)
 plain = STRIP.sub('', raw)
-check('health chip never reads the external <cwd>/.claude/doctor', 'caution' not in plain)
+check('health chip never reads the external <cwd>/.claude/health', 'caution' not in plain)
 
 print('\n── K2: the launched cwd WINS (two-repo continue/resume dir law)')
 

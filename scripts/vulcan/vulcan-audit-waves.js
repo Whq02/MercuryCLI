@@ -41,7 +41,7 @@ const COMMON = `
 You are auditing VULCAN — the native Godot editor-control surface just built in this repo (Mercury).
 READ-ONLY: do NOT edit any file; REPORT findings only (the integrator fixes by hand).
 Ground yourself first: assets/vulcan/optable.json.
-The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/substrate/startupMenu.ts, src/substrate/flagRegistry.ts, src/utils/doctorReport.ts, assets/splash/mercury-splash.mjs.
+The new surfaces: src/utils/vulcan/*, src/services/vulcan/*, src/tools/GodotTool/*, assets/vulcan/addon/**, scripts/vulcan/*, plus edits in src/tools.ts, src/constants/prompts.ts, src/constants/subagentDoctrine.ts, src/utils/cockpit/harnessMap.ts, src/substrate/startupMenu.ts, src/substrate/flagRegistry.ts, src/utils/healthReport.ts, assets/splash/mercury-splash.mjs.
 Report ONLY defects you can argue concretely (file, line, failure scenario). No style nits unless they mask a bug. Severity honestly.
 `
 
@@ -62,7 +62,7 @@ YOUR LENS — Mercury-side wiring + substrate regressions. Byte-identical-OFF: a
 
 phase('A4 UI/UX + docs honesty')
 const a4 = !want('A4') ? null : await agent(COMMON + `
-YOUR LENS — UI/UX + docs/registry honesty. The boot-menu miscellaneous group (row copy, detail panes, the new wide-menu windowed viewport in assets/splash/mercury-splash.mjs — off-by-one in the window math, marker rows, selection visibility at small heights, the LAYOUT-TIER INVARIANT). /doctor vulcan check copy + status honesty. The Godot tool's prompt/description (op catalog generation, lite advertisement truthfulness). Docs vs code drift: the guide rows and the in-code flag registry — every claim must match source. No emoji in TUI sources, zero new hex outside the theme.`,
+YOUR LENS — UI/UX + docs/registry honesty. The boot-menu miscellaneous group (row copy, detail panes, the new wide-menu windowed viewport in assets/splash/mercury-splash.mjs — off-by-one in the window math, marker rows, selection visibility at small heights, the LAYOUT-TIER INVARIANT). /health vulcan check copy + status honesty. The Godot tool's prompt/description (op catalog generation, lite advertisement truthfulness). Docs vs code drift: the guide rows and the in-code flag registry — every claim must match source. No emoji in TUI sources, zero new hex outside the theme.`,
   { label: 'A4', model: 'fable', phase: 'A4 UI/UX + docs honesty', schema: SCHEMA })
 
 phase('A5 skeptic sweep')

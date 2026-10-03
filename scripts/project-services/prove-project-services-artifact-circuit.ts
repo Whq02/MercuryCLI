@@ -33,8 +33,8 @@ interface Cert {
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
-function runDoctor(args: string[]): Cert {
-  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', ...args], {
+function runHealth(args: string[]): Cert {
+  const result = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'health', '--json', ...args], {
     cwd: outsideCwd,
     encoding: 'utf8',
     timeout: 240_000,
@@ -46,7 +46,7 @@ function runDoctor(args: string[]): Cert {
   })
   if (result.error) throw result.error
   const cert = JSON.parse(result.stdout) as Cert
-  check('doctor exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
+  check('health exit agrees with its certificate verdict', result.signal === null && result.status === (cert.verdict === 'fault' ? 3 : 0), `exit=${result.status}, verdict=${cert.verdict}, ${result.stderr}`)
   return cert
 }
 
@@ -60,7 +60,7 @@ function findCheck(cert: Cert, id: string): Check | undefined {
 
 try {
   console.log('── fast circuit (dist, outside the repo) ──')
-  const fast = runDoctor([])
+  const fast = runHealth([])
   check('fast: a certificate was produced', typeof fast.verdict === 'string')
   for (const id of [
     'change-receipts-fast',
@@ -76,7 +76,7 @@ try {
   }
 
   console.log('\n── deep circuit (the functional probes INSIDE the bundle) ──')
-  const deep = runDoctor(['--deep'])
+  const deep = runHealth(['--deep'])
   check('deep: depth recorded', (deep as { depth?: string }).depth === 'deep' || true)
   const expectations: Array<{ id: string; allow: string[] }> = [
     { id: 'change-transaction', allow: ['ok'] },

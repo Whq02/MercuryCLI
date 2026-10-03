@@ -17,7 +17,7 @@ const argvMod = await import(join(ROOT, 'src/services/vulcan/engine/argv.ts'))
 const spawnMod = await import(join(ROOT, 'src/services/vulcan/engine/spawn.ts'))
 const pathsMod = await import(join(ROOT, 'src/services/vulcan/engine/paths.ts'))
 const opsMod = await import(join(ROOT, 'src/services/vulcan/engine/ops.ts'))
-const doctorMod = await import(join(ROOT, 'src/services/vulcan/portabilityDoctor.ts'))
+const healthMod = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const censusMod = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
 const promptMod = await import(join(ROOT, 'src/tools/GodotTool/prompt.ts'))
 const optable = await import(join(ROOT, 'src/utils/vulcan/optable.generated.ts'))
@@ -113,7 +113,7 @@ section('5. the words: the optable rows and the prompt')
 
 section('6. the live gate on the fixture')
 const godotEnv = process.env.GODOT_BIN
-const receipt = godotEnv ? { resolved: godotEnv } : await doctorMod.resolveGodotExecutable({ census: [] })
+const receipt = godotEnv ? { resolved: godotEnv } : await healthMod.resolveGodotExecutable({ census: [] })
 if (!receipt.resolved) {
   console.log('  SKIP — no godot binary on PATH (set GODOT_BIN=…); the live legs need Godot 4')
 } else {

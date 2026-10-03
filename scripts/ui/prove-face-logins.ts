@@ -850,7 +850,7 @@ t.section('§10 — THE WIRING, DARK (A7: the deep-link · route silence on the 
   handover.armFaceDoorDeepLink('logins')
   t.check('the resolver PEEKS without consuming; the face consumes ONCE', handover.peekFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === 'logins' && handover.consumeFaceDoorDeepLink() === null)
   const handoverSrc = read('src/substrate/splashHandover.ts')
-  t.check("the union carries 'logins'; ACTIONS gained the wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'doctor', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
+  t.check("the union carries 'logins'; ACTIONS gained the wire word at the recut", handoverSrc.includes("export type FaceDoorDeepLink = 'health' | 'resume' | 'saturn' | 'logins' | 'agents'") && handoverSrc.includes("const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])") && handoverSrc.includes("receipt.action === 'logins'"))
   const sourceFiles = (dir: string): string[] =>
     readdirSync(join(REPO, dir), { withFileTypes: true }).flatMap(entry =>
       entry.isDirectory() ? sourceFiles(join(dir, entry.name)) : /\.(ts|tsx)$/.test(entry.name) ? [join(dir, entry.name)] : [],

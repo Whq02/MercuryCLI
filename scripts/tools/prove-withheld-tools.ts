@@ -30,7 +30,7 @@ const { getAllBaseTools } = await import('../../src/tools.ts')
 const { withheldTools, withheldToolsLine } = await import('../../src/utils/withheldTools.ts')
 const { collectReadiness } = await import('../../src/utils/readiness.ts')
 const dap = await import('../../src/services/dap/dapClient.ts')
-const godot = await import('../../src/services/vulcan/portabilityDoctor.ts')
+const godot = await import('../../src/services/vulcan/portabilityHealth.ts')
 dap._resetLldbDapForTesting()
 dap._resetGdbProbeForTesting()
 godot._resetGodotExecutablePresenceForTesting()
@@ -62,7 +62,7 @@ check('Godot — the pin that names no executable', godotRow !== undefined && go
 check('Computer — the missing driver', byTool.has('Computer'), JSON.stringify([...byTool.keys()]))
 check('every withheld tool is absent from the catalog (the census and the catalog read one rule)', withheld.every(w => w.tool.split(' and ').every(n => !names.includes(n))))
 const line = withheldToolsLine(withheld)
-check('the doctor line counts them and names each with its why', line.startsWith(`${withheld.length} withheld from the catalog:`) && line.includes('Debug — ') && line.includes('Godot — '), line)
+check('the health line counts them and names each with its why', line.startsWith(`${withheld.length} withheld from the catalog:`) && line.includes('Debug — ') && line.includes('Godot — '), line)
 
 section('§3 the readiness table carries a row per withheld tool')
 const readiness = collectReadiness({ includeEnv: false }).records
@@ -82,7 +82,7 @@ check('a Godot executable at the pin seats the Godot tool', catalog().includes('
 check('the Computer tool stays withheld while the driver is absent', !catalog().includes('Computer'))
 check('the readiness table drops the rows of the tools now seated', !collectReadiness({ includeEnv: false }).records.some(r => r.id === 'tool:withheld:debug' || r.id === 'tool:withheld:godot'))
 const nothing = withheldToolsLine([])
-check('with nothing withheld the doctor says so and names every dependency it checks', nothing.startsWith('no tool is withheld') && nothing.includes('Debug') && nothing.includes('Godot') && nothing.includes('Computer') && nothing.includes('Grep'))
+check('with nothing withheld /health says so and names every dependency it checks', nothing.startsWith('no tool is withheld') && nothing.includes('Debug') && nothing.includes('Godot') && nothing.includes('Computer') && nothing.includes('Grep'))
 delete process.env.MERCURY_DAP_ADAPTERS
 process.env.MERCURY_DAP = '0'
 check('MERCURY_DAP=0 is off, not withheld: the census does not name the Debug tool', withheldTools().every(w => w.tool !== 'Debug') && !catalog().includes('Debug'))
@@ -97,9 +97,9 @@ check('the Debug gate reads the flag and the reachable adapters', dapSource.incl
 const gatesSource = readFileSync(join(ROOT, 'src/utils/vulcan/vulcanGates.ts'), 'utf8')
 check('the Godot gate reads the flag and the executable presence', gatesSource.includes('return vulcanEnabled() && godotExecutablePresence().present'))
 const healthSource = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-check("the doctor's TOOL CAPABILITY section carries the Tools withheld row", healthSource.includes("id: 'tools-withheld'") && healthSource.includes("label: 'Tools withheld'"))
+check("/health's TOOL CAPABILITY section carries the Tools withheld row", healthSource.includes("id: 'tools-withheld'") && healthSource.includes("label: 'Tools withheld'"))
 check('the census reads the adapter table through the memo, never the live probes', dapSource.includes("const table = builtinAdapters('memo')") && dapSource.includes('if (lldbDapFromMemo() !== null) reachable.push(key)'))
-check("the doctor's row waits for the toolchain probes before it reads the census", healthSource.includes('await settleDapAdapterProbes()'))
+check("/health's row waits for the toolchain probes before it reads the census", healthSource.includes('await settleDapAdapterProbes()'))
 
 section('§6 the toolchain probes answer in the background: the catalog build reads their memo')
 dap._resetLldbDapForTesting()

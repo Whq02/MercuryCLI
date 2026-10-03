@@ -43,7 +43,7 @@ body:
         - /model or /defaultprovider
         - A chat turn
         - A mercury run command
-        - /health or doctor
+        - /health
         - Somewhere else (say where in the steps)
     validations:
       required: true
@@ -78,10 +78,10 @@ body:
     validations:
       required: true
   - type: textarea
-    id: doctor
+    id: health
     attributes:
-      label: doctor --json
-      description: The output of `node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release install). Its provider rows say what the install can see; it carries no credentials.
+      label: health --json
+      description: The output of `node dist/mercury.mjs health --json` (`mercury health --json` for a release install). Its provider rows say what the install can see; it carries no credentials.
       render: json
     validations:
       required: true

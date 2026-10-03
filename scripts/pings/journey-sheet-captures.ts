@@ -106,7 +106,7 @@ function baseEnv(w: World, extra: Record<string, string | undefined> = {}): Node
     MERCURY_CRITTER_SLEEP: '0',
     MERCURY_LIVE_CLOCK: '0',
     MERCURY_LOCAL_PROBE_TARGETS: 'none',
-    MERCURY_DOCTOR_STATE_DIR: join(w.aux, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(w.aux, 'health'),
     MERCURY_DAEMON_DIR: join(w.aux, 'daemon'),
     MERCURY_CREWS_DIR: join(w.aux, 'crews'),
     ...extra,

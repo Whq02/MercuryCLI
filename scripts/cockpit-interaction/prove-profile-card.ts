@@ -59,7 +59,7 @@ function capture(
       ANTHROPIC_API_KEY: FIXTURE_KEY,
       MERCURY_BOOT_PREFLIGHT: '0',
       MERCURY_LIVE_GLYPHS: '0',
-      MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor'),
+      MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
       MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
     },
     encoding: 'utf8',

@@ -282,20 +282,20 @@ if (IS_WIN) {
   check('(d) --json carries the shell\'s command beside the update record', r.code === 0 && record?.state === 'updated' && found?.state === 'other' && found?.resolved === foreignMercury, r.stdout.slice(0, 300))
 }
 
-section('§4 THE DOCTOR — the provenance row names the updating tool; the command-on-path row says whether the shell runs the stable command')
-const doctorRow = (bundle: string, id: string, environment: Record<string, string>): { status?: string; evidence?: string; fix?: string } | null => {
-  const r = spawnSync('node', [bundle, 'doctor', '--only', id, '--json'], { encoding: 'utf8', timeout: 180_000, env: environment })
+section('§4 THE HEALTH — the provenance row names the updating tool; the command-on-path row says whether the shell runs the stable command')
+const healthRow = (bundle: string, id: string, environment: Record<string, string>): { status?: string; evidence?: string; fix?: string } | null => {
+  const r = spawnSync('node', [bundle, 'health', '--only', id, '--json'], { encoding: 'utf8', timeout: 180_000, env: environment })
   const cert = parse(r.stdout ?? '') as { sections?: Array<{ checks: Array<{ id: string; status: string; evidence: string; fix?: string }> }> } | null
   return cert?.sections?.flatMap(s => s.checks).find(c => c.id === id) ?? null
 }
 {
-  const row = doctorRow(kegBundle, 'install-provenance', env(pathOf()))
+  const row = healthRow(kegBundle, 'install-provenance', env(pathOf()))
   check(
     "a Homebrew install's provenance row says homebrew and names `mercury update` as the road that runs the brew command",
     row?.status === 'ok' && (row?.evidence ?? '').startsWith('homebrew ') && (row?.evidence ?? '').includes('update with `mercury update`') && (row?.evidence ?? '').includes(`it runs \`${BREW_COMMAND}\` after asking`),
     JSON.stringify(row),
   )
-  const onPath = doctorRow(kegBundle, 'command-on-path', env(pathOf(otherBin)))
+  const onPath = healthRow(kegBundle, 'command-on-path', env(pathOf(otherBin)))
   check(
     "its command-on-path row is an observation naming the shell's `mercury` and where this Mercury runs from",
     onPath?.status === 'info' && onPath?.evidence === `the \`mercury\` your shell runs is ${foreignMercury}; this Mercury runs from ${libexec}`,
@@ -304,16 +304,16 @@ const doctorRow = (bundle: string, id: string, environment: Record<string, strin
 }
 {
   const bundle = join(versionsDir, V_OLD, 'mercury.mjs')
-  const ok = doctorRow(bundle, 'command-on-path', env(pathOf(binDir)))
+  const ok = healthRow(bundle, 'command-on-path', env(pathOf(binDir)))
   check('a versions-root install whose shell runs the stable command: ok', ok?.status === 'ok' && ok?.evidence === `the \`mercury\` your shell runs is the stable command ${shim}`, JSON.stringify(ok))
-  const warn = doctorRow(bundle, 'command-on-path', env(pathOf(otherBin, binDir)))
+  const warn = healthRow(bundle, 'command-on-path', env(pathOf(otherBin, binDir)))
   check(
     'another `mercury` ahead of the stable command: warn, both paths, the fix',
     warn?.status === 'warn' && warn?.evidence === `the \`mercury\` your shell runs is ${foreignMercury}; the stable command is ${shim}` && warn?.fix === aheadFix,
     JSON.stringify(warn),
   )
   if (!IS_WIN) {
-    const absent = doctorRow(bundle, 'command-on-path', env(pathOf()))
+    const absent = healthRow(bundle, 'command-on-path', env(pathOf()))
     check('no `mercury` on PATH: warn with the fix', absent?.status === 'warn' && absent?.evidence === `no \`mercury\` is on your PATH; the stable command is ${shim}` && absent?.fix === onFix, JSON.stringify(absent))
   }
 }

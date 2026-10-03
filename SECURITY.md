@@ -11,8 +11,8 @@ Include:
 
 - the `--version` line (`node dist/mercury.mjs --version`, or
   `mercury --version` for a release install);
-- the output of `doctor --json` (`node dist/mercury.mjs doctor --json`, or
-  `mercury doctor --json`);
+- the output of `health --json` (`node dist/mercury.mjs health --json`, or
+  `mercury health --json`);
 - the OS and terminal;
 - the exact steps, what you expected, and what happened instead;
 - for a provider problem, the provider family and the model row.

@@ -205,7 +205,7 @@ export function blenderBridgeReadinessRecords(): Array<{
       state: 'configured',
       detail:
         `add-on installed under ${path.join(census.home.path, BLENDER_ADDON_MODULE)}` +
-        `${install.digestMatch ? ' (matches the bundle)' : ' (DRIFTED from the bundle — blender_bridge_install refreshes)'}` +
+        `${install.digestMatch ? ' (up to date)' : ' (out of date — blender_bridge_install refreshes it)'}` +
         `; token ${tokenPresent ? 'present' : 'ABSENT (blender_bridge_install writes it)'}` +
         `; enablement is unknowable from disk (binary userpref.blend) and reachability is probed by op:"blender_status", never here`,
     },

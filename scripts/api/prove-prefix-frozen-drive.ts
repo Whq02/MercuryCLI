@@ -200,7 +200,7 @@ process.stdin.on('end', () => process.exit(0))
     MERCURY_OPERATOR: 'sam',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
-    MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'health-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
   }
@@ -367,7 +367,7 @@ process.stdin.on('end', () => process.exit(0))
   console.log(`  leg 1: the late MCP tool ${landed ? 'joined the tools array mid-session (deferred, unreferenced — outside the bound prefix)' : 'never reached a request'}; first request carried ${firstTools.length} tools`)
   check('leg 1: the slow MCP server\'s tool rode the tools array deferred (outside the bound prefix) and every pair held', landed && verdicts1.every(v => v.held), landed ? 'a pair broke' : 'never landed')
   const notices1 = transcriptNotices()
-  check('leg 1: no receipt written, no ledger line, no doctor row', notices1.length === 0 && !debugText(leg1.debugFile).includes('prefix ledger names') && !existsSync(path.join(RUN_HOME, 'preserved-thinking.json')), notices1.join(' | ').slice(0, 300))
+  check('leg 1: no receipt written, no ledger line, no health row', notices1.length === 0 && !debugText(leg1.debugFile).includes('prefix ledger names') && !existsSync(path.join(RUN_HOME, 'preserved-thinking.json')), notices1.join(' | ').slice(0, 300))
 
   section('2D — leg 2 (the induced edit): the fixture refuses the edited request; the ledger names the part')
   const sends2: Send[] = [

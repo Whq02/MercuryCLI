@@ -251,7 +251,7 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   const status = voiceSession.describeVoiceStatus()
   check('/speak says why', status.includes('on-device transcriber: the on-device transcriber is held back: fixture: nothing reported') && status.includes('could not be read'), status)
   const readiness = voiceSession.describeVoiceReadiness()
-  check('the doctor row says why', readiness.detail.includes('fixture: nothing reported') && readiness.detail.includes('could not be read'), readiness.detail)
+  check('the health row says why', readiness.detail.includes('fixture: nothing reported') && readiness.detail.includes('could not be read'), readiness.detail)
   const door = await speak.call('download', {} as never)
   check('/speak download refuses: nothing to download while the on-device transcriber cannot run here', door.type === 'text' && door.value.includes('could not be read') && door.value.includes('nothing to download while the on-device transcriber cannot run here'), door.type === 'text' ? door.value : door.type)
   pack.resetWhisperAddonForTest()

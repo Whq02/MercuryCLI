@@ -29,7 +29,7 @@ const gone = join(SCRATCH, 'gone')
 mkdirSync(home, { recursive: true })
 mkdirSync(gone, { recursive: true })
 
-const script = `cd ${JSON.stringify(gone)} && rmdir ${JSON.stringify(gone)} && exec ${JSON.stringify(NODE)} ${JSON.stringify(BIN)} doctor --json`
+const script = `cd ${JSON.stringify(gone)} && rmdir ${JSON.stringify(gone)} && exec ${JSON.stringify(NODE)} ${JSON.stringify(BIN)} health --json`
 const r = spawnSync('bash', ['-c', script], {
   env: {
     ...process.env,

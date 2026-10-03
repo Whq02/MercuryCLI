@@ -41,7 +41,7 @@ capture is the composer.
 A take is 16 kHz mono 16-bit audio held in memory. It is never written to
 disk unless the debug directory in the flag registry
 (`src/substrate/flagRegistry.ts`, `MERCURY_VOICE_DEBUG_WAV_DIR`) asks for a
-copy. The backend is chosen in this order; `/speak` and the doctor name the
+copy. The backend is chosen in this order; `/speak` and the health check name the
 one that is live:
 
 1. **The voice pack**: Mercury's own native addon over the platform's audio
@@ -49,7 +49,7 @@ one that is live:
    the repository's `native/voice` sources with cargo by
    `bun run scripts/vendor/build-voice.ts`, which `bun run setup` runs last.
    It is built rather than fetched: a machine without a Rust toolchain
-   builds and runs Mercury without it, and the build and the doctor say so.
+   builds and runs Mercury without it, and the build and the health check say so.
    Release archives carry the pack for their platform when the packaging
    host could build it.
 2. **A recorder already on PATH**: `sox`, `arecord` (Linux) or `ffmpeg`.
@@ -92,7 +92,7 @@ A finished take goes to the first transcriber that can serve, in this order:
    and wherever the operating system reports no instruction set, the pack
    is loaded once in a helper process first, so a CPU below the floor is
    told so instead of crashing; a floor that cannot be read holds the
-   on-device road back, and the doctor says why).
+   on-device road back, and the health check says why).
 2. **A signed-in family with a speech-to-text endpoint**, in the order of
    the sign-in ledger (the same order that picks the default model):
    - **OpenAI**, through an API key: the transcription endpoint, with the
@@ -111,15 +111,15 @@ and `/speak options <name>` (`on-device`, `openai`, `gemini`) makes one
 your default: the choice is saved in the config home and survives a
 restart; `/speak options default` restores the shipped default. A saved
 choice that cannot serve — a family no longer signed in, a pack or model
-gone — is named in `/speak`, in the recording receipt and in the doctor
+gone — is named in `/speak`, in the recording receipt and in the health check
 row, and the shipped default serves; nothing is replaced silently.
 
 `MERCURY_VOICE_TRANSCRIBER` overrides the saved choice for one session:
 `on-device`, `cloud` (the ledger walk), or a family id such as `openai`; a
-pin that cannot serve says so in the receipt, in `/speak` and in the doctor
+pin that cannot serve says so in the receipt, in `/speak` and in the health check
 row, and never falls back silently. With nothing to transcribe with, pressing space
 answers "nothing transcribes yet — <the on-device reason>; or /logins openai
-(API key) or /logins gemini" before any audio is captured. The doctor's
+(API key) or /logins gemini" before any audio is captured. The health check's
 `Voice input` row names the engine, the model and the pack, the families
 signed in but not used, and the cost: about 80 MB more memory while the
 default model is loaded, and every core for a moment per take.
@@ -130,5 +130,5 @@ With the on-device transcriber, audio never leaves the machine: the take is
 decoded here, and nothing is written to disk. With a cloud family, audio
 leaves the machine only to that family, and only after you stop a take.
 Nothing is sent while you speak; a cancelled take is dropped without a
-request. The doctor's INTERFACE section carries a `Voice input` row naming
+request. The health check's INTERFACE section carries a `Voice input` row naming
 the backend, the transcriber and the permission words for this machine.

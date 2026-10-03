@@ -45,7 +45,7 @@ launches already read it; the session's record follows the runner's own word
 that the switch moved, never a clock. A line sent after the flip, while the
 same turn still runs, waits for the turn's end too and runs with the switched
 roster. Plain `/subagents` reads both
-switches with their sources; the doctor's "Sub-agents & workflows" row does
+switches with their sources; the health check's "Sub-agents & workflows" row does
 the same.
 
 ## Starting a crewmate

@@ -87,7 +87,7 @@ check('a malformed claudeAiMcpEverConnected is read as "never connected", never 
 section('§4 the file is left as it was')
 check('the read never rewrites the file', readFileSync(file, 'utf8') === seeded)
 
-section('§5 the doctor names the ignored fields on one row, and a clean file reads ok')
+section('§5 /health names the ignored fields on one row, and a clean file reads ok')
 const report = await import('../../src/utils/healthReport.ts')
 const row = async (): Promise<{ status: string; evidence: string; fix?: string } | null> => {
   const cert = await report.runHealthReport({ depth: 'fast' })

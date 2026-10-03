@@ -263,7 +263,7 @@ section('§3 the reader speaks about itself: a failed poll, a provider-marked un
   const hfRecovered = owner.usageForProvider('huggingface')
   check('huggingface: the next answer clears the note and lands the stated plan (free, no payment method, no period end)', hfRecovered.readerNote === undefined && hfRecovered.figures?.find(f => f.key === 'plan')?.value === 'free' && hfRecovered.figures.find(f => f.key === 'plan')?.resetsAtMs === undefined, JSON.stringify({ note: hfRecovered.readerNote, figures: hfRecovered.figures }))
   const words = owner.usageSummaryWords(hfRecovered, NOW + 1_000)
-  check("huggingface: the doctor's summary carries the tier, the absence, the credits line and the plan (never a fabricated balance)", words.startsWith('API billing · ') && words.includes(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`) && words.includes('whoami-v2') && !/USD/.test(words), words)
+  check("huggingface: /health's summary carries the tier, the absence, the credits line and the plan (never a fabricated balance)", words.startsWith('API billing · ') && words.includes(`credits: ${owner.CREDITS_UNREPORTED_WORDS}`) && words.includes('whoami-v2') && !/USD/.test(words), words)
 }
 
 section('§4 signed out: every family carries its why-not and no figure')
@@ -402,7 +402,7 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
   check('the operator\'s ask made one more request — the figure rides the same GET as the windows (no second poll)', usageRequests.length === 2, String(usageRequests.length))
   check("the enabled answer lands as the reported figure: 'extra usage USD 12.40 of 50.00 this month' · 'extra 12.40/50'", on.credits?.state === 'reported' && on.credits.display === 'extra usage USD 12.40 of 50.00 this month' && on.credits.compact === 'extra 12.40/50' && on.credits.source === 'endpoint' && typeof on.credits.observedAtMs === 'number', JSON.stringify(on.credits))
   check('the figure carries the same stamp as the windows it rode with', on.credits?.observedAtMs === on.windows[0]?.observedAtMs, JSON.stringify({ credits: on.credits?.observedAtMs, window: on.windows[0]?.observedAtMs }))
-  check('the summary words carry it for the doctor', owner.usageSummaryWords(on).includes('credits: extra usage USD 12.40 of 50.00 this month'), owner.usageSummaryWords(on))
+  check('the summary words carry it for /health', owner.usageSummaryWords(on).includes('credits: extra usage USD 12.40 of 50.00 this month'), owner.usageSummaryWords(on))
   limits.resetLimitsForCredentialSwitch()
   check('a credential switch drops the figure with the windows (never remembered for the next account)', owner.usageForProvider('anthropic').credits?.reason === owner.EXTRA_USAGE_NOT_READ_WORDS)
   server.close()

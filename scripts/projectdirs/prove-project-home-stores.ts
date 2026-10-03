@@ -7,7 +7,7 @@ import { join, relative } from 'node:path'
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-home-')))
 const REPO = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-repo-')))
 process.env.MERCURY_CONFIG_DIR = HOME
-process.env.MERCURY_DOCTOR_STATE_DIR = REPO
+process.env.MERCURY_HEALTH_STATE_DIR = REPO
 process.env.MERCURY_EVOLUTION_LEDGER = '1'
 delete process.env.MERCURY_ROUTER_STATE_DIR
 delete process.env.MERCURY_WORKSPACE_EVIDENCE
@@ -91,16 +91,16 @@ section('H2 — a fresh project: the spec in the folder, every local store in th
   check('the workflow runs root is under the config home; the by-name scripts stay in the folder', workflowRunsRoot(REPO).startsWith(HOME) && workflowsDir(REPO) === join(REPO, '.mercury', 'workflows'))
   check('the evolution ledger is under the config home', defaultEvolutionLedgerDir(REPO).startsWith(HOME) && (row as { ok?: boolean }).ok === true, JSON.stringify(row))
   check('the test-run store is under the config home', testRunsDir(REPO).startsWith(HOME) && existsSync(join(testRunsDir(REPO), 'latest.json')))
-  check('the doctor certificate is under the config home', lastCertPath().startsWith(HOME))
+  check('the health certificate is under the config home', lastCertPath().startsWith(HOME))
   check('the route state is under the config home', routerStateDir().startsWith(HOME))
   check('local-scope agent memory is under the config home; project scope stays in the folder', getAgentMemoryDir('scout', 'local').startsWith(HOME) && getAgentMemoryDir('scout', 'project').startsWith(join(REPO, '.mercury')))
   check("the unity results path is the editor's output inside the project (the bridge package's fence), never a home store", unityTestResultsPath(REPO, 'EditMode').startsWith(join(REPO, '.mercury')) && !unityTestResultsPath(REPO, 'EditMode').startsWith(HOME))
-  check('the folder holds no local store', !existsSync(join(REPO, '.mercury', 'workflows')) && !existsSync(join(REPO, '.mercury', 'evolution')) && !existsSync(join(REPO, '.mercury', 'test-runs')) && !existsSync(join(REPO, '.mercury', 'doctor')) && !existsSync(join(REPO, '.mercury', 'router')))
+  check('the folder holds no local store', !existsSync(join(REPO, '.mercury', 'workflows')) && !existsSync(join(REPO, '.mercury', 'evolution')) && !existsSync(join(REPO, '.mercury', 'test-runs')) && !existsSync(join(REPO, '.mercury', 'health')) && !existsSync(join(REPO, '.mercury', 'router')))
   const estate = await projectEstateCheck()
-  check('the doctor\'s Project estate row reads ok', estate.status === 'ok', JSON.stringify(estate))
+  check('/health\'s Project estate row reads ok', estate.status === 'ok', JSON.stringify(estate))
 }
 
-section('H3 — the migration: read once, the folder copy stays, the doctor names it')
+section('H3 — the migration: read once, the folder copy stays, /health names it')
 {
   const REPO2 = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-repo2-')))
   const git2 = (...args: string[]): string => execFileSync('git', args, { cwd: REPO2, encoding: 'utf8' })
@@ -114,9 +114,9 @@ section('H3 — the migration: read once, the folder copy stays, the doctor name
   check('the folder copy stays', existsSync(join(REPO2, '.mercury', 'evolution', 'the-program-abc.jsonl')))
   const leftovers = homeStores.projectHomeLeftovers(REPO2)
   check('the leftover census names the folder copies', JSON.stringify(leftovers.sort()) === JSON.stringify(['.mercury/evolution']), JSON.stringify(leftovers))
-  process.env.MERCURY_DOCTOR_STATE_DIR = REPO2
+  process.env.MERCURY_HEALTH_STATE_DIR = REPO2
   const estate = await projectEstateCheck()
-  check('the doctor\'s Project estate row warns and names them', estate.status === 'warn' && (estate.evidence ?? '').includes('.mercury/evolution'), JSON.stringify(estate))
+  check('/health\'s Project estate row warns and names them', estate.status === 'warn' && (estate.evidence ?? '').includes('.mercury/evolution'), JSON.stringify(estate))
   check('…with the one git line that untracks the tracked ones', /git rm -r --cached ".mercury\/evolution"/.test(estate.fix ?? ''), estate.fix)
   check('…and the words that Mercury deletes nothing', /never deletes/.test(estate.detail ?? ''), estate.detail)
   writeFileSync(join(homeLedger, 'the-program-abc.jsonl'), 'home rows\n')
@@ -124,7 +124,7 @@ section('H3 — the migration: read once, the folder copy stays, the doctor name
   rmSync(join(REPO2, '.mercury', 'evolution'), { recursive: true, force: true })
   const clean = await projectEstateCheck()
   check('the row reads ok once the folder copies are gone', clean.status === 'ok', JSON.stringify(clean))
-  process.env.MERCURY_DOCTOR_STATE_DIR = REPO
+  process.env.MERCURY_HEALTH_STATE_DIR = REPO
   rmSync(REPO2, { recursive: true, force: true })
 }
 
@@ -140,7 +140,7 @@ section('H4 — the shared set stays in the project folder')
 section('H5 — the census')
 {
   const named = homeStores.PROJECT_HOME_STORES.map(s => s.join('/')).sort()
-  check('every store the home road serves is in the census', JSON.stringify(named) === JSON.stringify(['agent-memory-local', 'doctor', 'evolution', 'ide-transactions', 'reviews', 'router', 'test-runs', 'workflows/runs']), JSON.stringify(named))
+  check('every store the home road serves is in the census', JSON.stringify(named) === JSON.stringify(['agent-memory-local', 'evolution', 'health', 'ide-transactions', 'reviews', 'router', 'test-runs', 'workflows/runs']), JSON.stringify(named))
   check('the census is a path list, relative to the folder home', named.every(n => !n.startsWith('/') && !n.includes('..')))
   console.log(`  [record] the config home's project directory: ${relative(HOME, getProjectDir(REPO))}`)
 }

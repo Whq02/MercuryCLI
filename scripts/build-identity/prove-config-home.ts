@@ -58,7 +58,7 @@ check('an explicit foreign-named home is hashed like every other home (no bare s
 check('bare stamp env-less service is Mercury\'s (suffixed, stamp-independence)', svc(false, undefined, undefined) === envlessSvc)
 check('bare stamp + an explicit foreign-named home is hashed too (resolved-home keying)', /-[0-9a-f]{8}$/.test(svc(false, join(home, '.claude'), undefined)))
 
-console.log('\ndoctor coherence keys on the AUTH home (a foreign slot is not a split)')
+console.log('\nhealth coherence keys on the AUTH home (a foreign slot is not a split)')
 {
   probe(true, undefined, undefined)
   envUtils.setAuthScope(join(home, '.claude'))
@@ -74,10 +74,10 @@ console.log('\ndoctor coherence keys on the AUTH home (a foreign slot is not a s
   const restAuthHome = envUtils.getAuthConfigHomeDir()
   check('at rest the auth home is the resolved session home', restAuthHome === envUtils.getMercuryHome())
   check('at rest the env-less service is suffixed (the split test still bites on a bare one)', /-[0-9a-f]{8}$/.test(kc.getMacOsKeychainStorageServiceName()))
-  const doctorSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf-8')
-  check('doctor config-home keys the keychain test on getAuthConfigHomeDir()', doctorSrc.includes('const authHome = getAuthConfigHomeDir()') && doctorSrc.includes('UN-suffixed for the auth home'))
-  check('the doctor carries no foreign-home arm', !doctorSrc.includes(".claude')"))
-  check('a live slot is NAMED in the ok evidence, never flagged', doctorSrc.includes('auth scope slotted →'))
+  const healthSrc = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf-8')
+  check('health config-home keys the keychain test on getAuthConfigHomeDir()', healthSrc.includes('const authHome = getAuthConfigHomeDir()') && healthSrc.includes('UN-suffixed for the auth home'))
+  check('/health carries no foreign-home arm', !healthSrc.includes(".claude')"))
+  check('a live slot is NAMED in the ok evidence, never flagged', healthSrc.includes('auth scope slotted →'))
 }
 
 console.log('\nstore-plane agreement — every inline resolver follows the ONE resolver')

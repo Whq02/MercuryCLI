@@ -130,7 +130,7 @@ section('§3 · results-XML convention')
     insideProject('/r', unityTestResultsPath('/r', 'EditMode')) && insideProject('/r', unityTestResultsPath('/r', 'PlayMode')),
   )
   check(
-    "the editor's output is no Mercury store (the doctor's estate row never names it)",
+    "the editor's output is no Mercury store (/health's estate row never names it)",
     !PROJECT_HOME_STORES.some(segments => segments.join('/') === 'unity-test-results'),
   )
 }

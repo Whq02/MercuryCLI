@@ -173,7 +173,7 @@ judge(r6)
 await cleanup.runCleanupFunctions().catch(() => {})
 check('a body whose request never reached the wire is not flushed at exit: the previous record stands', messagesOnDisk() === r5.rows.length && writerState().held, `${messagesOnDisk()} rows on disk; ${j(writerState())}`)
 
-section('§3 a record a request behind is read back: the verdict carries the lag; the receipt and the doctor row say so and name no part')
+section('§3 a record a request behind is read back: the verdict carries the lag; the receipt and the health row say so and name no part')
 const seed = async (rounds: number): Promise<void> => {
   fresh()
   judge(history(rounds))
@@ -198,9 +198,9 @@ const words = binding.describeThinkingDrops(drops as never, outcome as never) ??
 check('the receipt says the record was a request behind, and never "names the part that moved"', words.includes('1 request behind') && words.includes('previous process ended before its last write') && !words.includes('names the part that moved'), words)
 binding.recordThinkingDropLedger(outcome as never, MODEL, words, sessionId)
 const health = binding.preservedThinkingHealth(binding.readThinkingDropLedger(), sessionId)
-check("the doctor's row says the record was behind and names no part", health.evidence.includes('1 request behind') && !health.evidence.includes('named the part'), health.evidence)
-const doctorRow = readJson(join(HOME, 'preserved-thinking.json')) as { last?: { behind?: unknown; part?: unknown } }
-check('the doctor ledger keeps the lag as a number and no part', doctorRow.last?.behind === 1 && doctorRow.last?.part === undefined, j(doctorRow.last))
+check("/health's row says the record was behind and names no part", health.evidence.includes('1 request behind') && !health.evidence.includes('named the part'), health.evidence)
+const healthRow = readJson(join(HOME, 'preserved-thinking.json')) as { last?: { behind?: unknown; part?: unknown } }
+check('the health ledger keeps the lag as a number and no part', healthRow.last?.behind === 1 && healthRow.last?.part === undefined, j(healthRow.last))
 await seed(2)
 const further = judge(history(5))
 check('three responses landed: two requests behind', further.behind === 2 && further.mismatch === null, j({ behind: further.behind }))

@@ -94,7 +94,7 @@ console.log('— the canonical order (a later boot, distinct pid, appended to th
   check("the entry rung carries the boot's kind — headless for run, interactive otherwise", main.includes("recordLaunchMilestone('runtime-entry', { boot: opts.print ? 'headless' : 'interactive' })"))
 }
 
-console.log('— a headless run after the interactive boot (the doctor\'s own run road) —')
+console.log('— a headless run after the interactive boot (/health\'s own run road) —')
 {
   const storePath = join(HOME, 'launch-milestones.json')
   const store = JSON.parse(readFileSync(storePath, 'utf8')) as { version: 1; rows: Array<Record<string, unknown>> }

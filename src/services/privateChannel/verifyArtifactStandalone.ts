@@ -44,7 +44,7 @@ function cliMain(): void {
     const once = provenanceNoticeIsOnce(state)
     if (state !== 'signed' && (!once || !provenanceNoticeSaid(dir, state))) {
       const onceWords = once && provenanceNoticeMarkerPath(dir) !== null ? 'said once for this install; ' : ''
-      process.stderr.write(`mercury: provenance — ${line} (${onceWords}\`mercury doctor\` shows the full record)\n`)
+      process.stderr.write(`mercury: provenance — ${line} (${onceWords}\`mercury health\` shows the full record)\n`)
       if (once) recordProvenanceNotice(dir, state)
     }
     process.exit(0)

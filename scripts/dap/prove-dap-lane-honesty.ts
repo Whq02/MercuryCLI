@@ -43,7 +43,7 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
   const readiness = readFileSync(path.join(ROOT, 'src', 'utils', 'readiness.ts'), 'utf8')
   check(
     'the fast row speaks resolution, not liveness (the child-road-is-live claim is gone)',
-    readiness.includes('resolution only; doctor --deep boots it') && !readiness.includes('the startDebugging child road is live'),
+    readiness.includes('resolution only; health --deep boots it') && !readiness.includes('the startDebugging child road is live'),
   )
   const report = readFileSync(path.join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check('the deep row is registered (js-debugger)', report.includes("id: 'js-debugger'") && report.includes('probeJsDebugBoot'))

@@ -72,8 +72,8 @@ section('§5 the wiring (structural)')
   check('the app-root boundary hands errorInfo in (the component name derives from it)', appRoot.includes("persistCrashReport(error, errorInfo, 'app-root')"))
   const repl = src('screens/REPL.tsx')
   check('the REPL boot effect speaks once through the channel', repl.includes('unnoticedCrashReports()') && repl.includes('markCrashReportsNoticed()') && repl.includes("key: 'crash-reports'"))
-  const doctor = src('utils/healthReport.ts')
-  check("doctor's RUNTIME section carries the crash-reports row", doctor.includes("id: 'crash-reports'") && doctor.includes('listCrashReports(3)'))
+  const health = src('utils/healthReport.ts')
+  check("health's RUNTIME section carries the crash-reports row", health.includes("id: 'crash-reports'") && health.includes('listCrashReports(3)'))
 }
 
 section('§6 session + project ride the read boundary (FN-013 CRASH-03)')
@@ -123,8 +123,8 @@ section('§7 the re-entry offer and the display latch (structural)')
     'a gone transcript keeps the plain notice and says so (no failing action offered)',
     repl.includes('its transcript is gone, so no re-entry is offered'),
   )
-  const doctor = src('utils/healthReport.ts')
-  check('the /health row locates the crash (session + project)', doctor.includes('newest.sessionId.slice(0, 8)') && doctor.includes('newest.cwd'))
+  const health = src('utils/healthReport.ts')
+  check('the /health row locates the crash (session + project)', health.includes('newest.sessionId.slice(0, 8)') && health.includes('newest.cwd'))
   const dialog = src('components/CrashResumeDialog.tsx')
   check('the dialog offers one-keypress resume and esc dismissal', dialog.includes("value: 'resume'") && dialog.includes("onClose={() => onDone('dismiss')}"))
 }

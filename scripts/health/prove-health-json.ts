@@ -22,8 +22,8 @@ interface RunResult {
   status: number
   json: unknown
 }
-const scratchHome = mkdtempSync(join(tmpdir(), 'doctor-proof-home-'))
-function runHealth(cwd: string, env: Record<string, string | undefined> = {}, verb: 'health' | 'doctor' = 'health', extraArgs: string[] = [], bin: string = BIN): RunResult {
+const scratchHome = mkdtempSync(join(tmpdir(), 'health-proof-home-'))
+function runHealth(cwd: string, env: Record<string, string | undefined> = {}, verb: 'health' = 'health', extraArgs: string[] = [], bin: string = BIN): RunResult {
   let stdout = ''
   let status = 0
   try {
@@ -63,7 +63,7 @@ type Cert = {
 const allChecks = (c: Cert): Check[] => c.sections.flatMap(s => s.checks)
 const byId = (c: Cert, id: string): Check | undefined => allChecks(c).find(x => x.id === id)
 
-const scratch = mkdtempSync(join(tmpdir(), 'doctor-proof-'))
+const scratch = mkdtempSync(join(tmpdir(), 'health-proof-'))
 try {
   {
     const dir = join(scratch, 'bare')
@@ -102,9 +102,9 @@ try {
     const projectsDir = join(scratchHome, '.mercury', 'projects')
     const slugs = existsSync(projectsDir) ? readdirSync(projectsDir) : []
     check('the bare run wrote ONE project store under the config home', slugs.length === 1, JSON.stringify(slugs))
-    const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'doctor', 'last-cert.json')
+    const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'health', 'last-cert.json')
     check('last-cert summary artifact written under the config home\'s project store', existsSync(lastCert), lastCert)
-    check('POISON: nothing was written into the project folder\'s .mercury/doctor', !existsSync(join(dir, '.mercury', 'doctor', 'last-cert.json')))
+    check('POISON: nothing was written into the project folder\'s .mercury/health', !existsSync(join(dir, '.mercury', 'health', 'last-cert.json')))
     const sum = JSON.parse(readFileSync(lastCert, 'utf8')) as { verdict?: string; counts?: unknown }
     check('last-cert summary carries verdict + counts', typeof sum.verdict === 'string' && !!sum.counts)
   }
@@ -120,7 +120,7 @@ try {
     mkdirSync(join(dir, '.mercury', 'gate'), { recursive: true })
     writeFileSync(
       join(dir, '.mercury', 'gate', 'verdict.json'),
-      JSON.stringify({ ok: true, pass: ['ui', 'doctor'], fail: [], ranAt: new Date().toISOString(), headSha: null, dirty: false, durationS: 42 }),
+      JSON.stringify({ ok: true, pass: ['ui', 'health'], fail: [], ranAt: new Date().toISOString(), headSha: null, dirty: false, durationS: 42 }),
     )
     const r = runHealth(dir)
     const gate = byId(r.json as Cert, 'gate')
@@ -164,18 +164,10 @@ try {
   {
     const dir = join(scratch, 'off')
     mkdirSync(dir, { recursive: true })
-    const r = runHealth(dir, { MERCURY_DOCTOR_CERT: '0' })
-    check('MERCURY_DOCTOR_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1)
+    const r = runHealth(dir, { MERCURY_HEALTH_CERT: '0' })
+    check('MERCURY_HEALTH_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1)
     const err = r.json as { code?: string; error?: string }
     check('gated-off error is JSON on stdout with a stable code', err?.code === 'cert-unavailable' && typeof err?.error === 'string')
-  }
-
-  {
-    const dir = join(scratch, 'alias')
-    mkdirSync(dir, { recursive: true })
-    const r = runHealth(dir, {}, 'doctor')
-    const cert = r.json as { verdict?: string } | null
-    check('`doctor` alias still produces the certificate (0/3 by verdict, verdict present)', (r.status === 0 || r.status === 3) && typeof cert?.verdict === 'string', `status=${r.status}`)
   }
 
   {
@@ -191,7 +183,7 @@ try {
   {
     const dir = join(scratch, 'only-json')
     mkdirSync(dir, { recursive: true })
-    const r = runHealth(dir, {}, 'doctor', ['--only', 'build-identity'])
+    const r = runHealth(dir, {}, 'health', ['--only', 'build-identity'])
     check('--only run exits 0', r.status === 0)
     const cert = r.json as Cert
     const checks = cert ? allChecks(cert) : []
@@ -199,7 +191,7 @@ try {
     check('…the named one', checks[0]?.id === 'build-identity', checks[0]?.id)
     check('…with the verdict recomputed over what remains', cert.verdict === 'certified', cert.verdict)
 
-    const bad = runHealth(dir, {}, 'doctor', ['--only', 'no-such-check'])
+    const bad = runHealth(dir, {}, 'health', ['--only', 'no-such-check'])
     check('unknown id ⇒ exit 1', bad.status === 1)
     const err = bad.json as { code?: string; knownIds?: string[] }
     check('…typed refusal', err?.code === 'unknown-check-id', err?.code)
@@ -212,7 +204,7 @@ try {
     let pipedOut = ''
     let pipedStatus = 0
     try {
-      pipedOut = execFileSync('node', [BIN, 'doctor', '--only', 'build-identity'], {
+      pipedOut = execFileSync('node', [BIN, 'health', '--only', 'build-identity'], {
         cwd: dir,
         env: { ...process.env, MERCURY_CONFIG_DIR: join(scratchHome, '.mercury') },
         encoding: 'utf8',
@@ -261,7 +253,7 @@ try {
         env.SANDBOX_PATHS_PLATFORM = 'linux'
         env.NODE_OPTIONS = `--require=${join(REPO, 'scripts', 'ui', 'fixtures', 'sandbox-paths', 'platform.cjs')}`
       }
-      const r = runHealth(dir, env, 'doctor', ['--only', 'sandbox'], bundle)
+      const r = runHealth(dir, env, 'health', ['--only', 'sandbox'], bundle)
       return r.json ? byId(r.json as Cert, 'sandbox') : undefined
     }
 

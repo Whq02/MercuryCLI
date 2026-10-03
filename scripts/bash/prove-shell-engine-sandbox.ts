@@ -70,8 +70,8 @@ if (!ready) {
 } else {
   check('shouldUseSandbox says yes for a plain command', shouldUseSandbox({ command: 'ls' }) === true)
   check('shouldUseSandbox honours the explicit override', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)
-  const doctor = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the doctor names the mechanism (seatbelt / bubblewrap)', /seatbelt\/bubblewrap/.test(doctor))
+  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  check('/health names the mechanism (seatbelt / bubblewrap)', /seatbelt\/bubblewrap/.test(health))
   await SandboxManager.initialize()
 
   interface Outcome {

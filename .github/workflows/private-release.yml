@@ -318,9 +318,9 @@ jobs:
           fi
           PRERELEASE=''
           case "$TAG" in *-*.*) PRERELEASE='--prerelease';; esac
-          PROVENANCE_NOTE='Provenance: every archive manifest is signed with the Mercury release key (`mercury doctor` shows the verdict; docs/TRUST.md says how to check).'
+          PROVENANCE_NOTE='Provenance: every archive manifest is signed with the Mercury release key (`mercury health` shows the verdict; docs/TRUST.md says how to check).'
           for f in assets/*-unsigned.tar.gz assets/*-unsigned.zip; do
-            [ -e "$f" ] && PROVENANCE_NOTE='**UNSIGNED BUILD** — published by decision without the release key: these archives carry no provenance signature (their names end in `-unsigned`, `mercury doctor` reports "unsigned"), and `mercury update` in earlier installs does not pick them up — install from this page.'
+            [ -e "$f" ] && PROVENANCE_NOTE='**UNSIGNED BUILD** — published by decision without the release key: these archives carry no provenance signature (their names end in `-unsigned`, `mercury health` reports "unsigned"), and `mercury update` in earlier installs does not pick them up — install from this page.'
           done
           if node scripts/release/notesFromChangelog.mjs "$TAG" > release-notes.md; then
             { printf '%s\n\n' "$PROVENANCE_NOTE"; cat release-notes.md; } > release-notes-final.md

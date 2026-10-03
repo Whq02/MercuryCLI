@@ -23,7 +23,7 @@ const { parseEngineTreeSpec } = await import('../../src/services/vulcan/engine/f
 const { liveEngines } = await import('../../src/services/vulcan/engine/spawn.js')
 const { godotEngineCli, parseGodotCliArgs } = await import('../../src/cli/godotEngineCli.js')
 const { vulcanOp } = await import('../../src/utils/vulcan/optable.generated.js')
-const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityDoctor.js')
+const { resolveGodotExecutable } = await import('../../src/services/vulcan/portabilityHealth.js')
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {

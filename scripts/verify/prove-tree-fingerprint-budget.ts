@@ -285,7 +285,7 @@ section('§6 a budget that speaks — a timeout and a ceiling read unmeasured, o
   const st = vs.treeScanStatus(slow)
   check('…the status reads unmeasured — timeout', st.state === 'unmeasured' && st.reason === 'timeout', JSON.stringify(st))
   check('…the note names the timeout, the count and the step', /^tree unmeasured — the scan timed out after [\d.]+ s over \d+ files \(git add\)$/.test(vs.treeScanNote(slow) ?? ''), vs.treeScanNote(slow) ?? 'null')
-  check('…and the summary line carries it for the doctor', /tree unmeasured/.test(vs.verificationSummary(slow, { skipDigest: true }).detail))
+  check('…and the summary line carries it for /health', /tree unmeasured/.test(vs.verificationSummary(slow, { skipDigest: true }).detail))
   check('…ONE notice surfaced', notices === 1, String(notices))
   const n0 = mark()
   const idle = await vs.computeWorkingTreeDigestAsync(slow)

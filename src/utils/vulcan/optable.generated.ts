@@ -8,7 +8,7 @@ export interface VulcanOp {
   args: Readonly<Record<string, string>>
 }
 
-export const VULCAN_OPTABLE_DIGEST = '6da71448290688031c70d74d856fa3ed13706987c8117329d6307972b5a758b5'
+export const VULCAN_OPTABLE_DIGEST = '4ce72f23b84b8fd6509a9d2e8b31b18a70013fd2ecb1e501dd003d9e9cfa27ee'
 
 export const VULCAN_STEP_WALL_MS_PER_FRAME = 50
 
@@ -2012,7 +2012,7 @@ export const VULCAN_OPS: readonly VulcanOp[] = [
     "args": {}
   },
   {
-    "name": "editor_doctor",
+    "name": "editor_health",
     "category": "frontier",
     "cls": "read",
     "lite": false,

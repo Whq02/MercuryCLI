@@ -54,7 +54,7 @@ section('§2 THE PROBLEM FACT')
   )
 }
 
-section('§3 THE DOCTOR ROW')
+section('§3 THE HEALTH ROW')
 {
   const counselRow = async (): Promise<{ status: string; evidence: string }> => {
     const report = await import('../../src/utils/healthReport.js')

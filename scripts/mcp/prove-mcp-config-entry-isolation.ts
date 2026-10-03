@@ -43,7 +43,7 @@ console.log('[1] the pure parse: one bad entry never voids its neighbours')
   const zRow = parsed.errors.find(e => e.serverName === 'z')
   check('x is named once as a warning that carries its server name, never a fatal error for the whole file', xRow !== undefined && xRow.severity === 'warning' && parsed.errors.filter(e => e.serverName === 'x').length === 1, JSON.stringify(xRow))
   check('z is named once as a warning too', zRow !== undefined && zRow.severity === 'warning' && parsed.errors.filter(e => e.serverName === 'z').length === 1, JSON.stringify(zRow))
-  check('the warning keeps the document path of the entry (mcpServers.<name>) so the doctor row reads as before', xRow !== undefined && xRow.path === 'mcpServers.x' && zRow?.path === 'mcpServers.z')
+  check('the warning keeps the document path of the entry (mcpServers.<name>) so the health row reads as before', xRow !== undefined && xRow.path === 'mcpServers.x' && zRow?.path === 'mcpServers.z')
   check('no fatal error is reported for a document whose only faults are per entry', parsed.errors.every(e => e.severity !== 'fatal'))
   check('the kept entry carries its scope tag', (parsed.config?.mcpServers.y as { scope?: string } | undefined)?.scope === 'project')
 }
@@ -81,12 +81,12 @@ if (existsSync(DIST)) {
   check('mcp list on the built product names the valid server y', /^y:/m.test(list.stdout), listOut.slice(0, 300))
   check('mcp list on the built product does not read the whole file as empty', !/No MCP servers configured/.test(list.stdout), listOut.slice(0, 300))
   check('mcp list on the built product carries no line for the dropped entry x', !/^x:/m.test(list.stdout))
-  const doctor = spawnSync(node, [DIST, 'doctor', '--json'], { cwd: bundleCwd, env, encoding: 'utf8', timeout: 120_000 })
-  const report = JSON.parse(doctor.stdout || '{}') as { sections?: Array<{ checks?: Array<{ evidence?: string }> }> }
+  const health = spawnSync(node, [DIST, 'health', '--json'], { cwd: bundleCwd, env, encoding: 'utf8', timeout: 120_000 })
+  const report = JSON.parse(health.stdout || '{}') as { sections?: Array<{ checks?: Array<{ evidence?: string }> }> }
   const evidences = (report.sections ?? []).flatMap(section => section.checks ?? []).map(c => c.evidence ?? '')
   const row = evidences.find(e => e.includes('mcpServers.x'))
-  console.log(`  ${DIST} doctor --json rc=${doctor.status} · mcp evidence ${JSON.stringify(row ?? 'none')}`)
-  check('the doctor still names the dropped entry x by its document path', row !== undefined, evidences.filter(e => /validation/.test(e)).join(' | ').slice(0, 300))
+  console.log(`  ${DIST} health --json rc=${health.status} · mcp evidence ${JSON.stringify(row ?? 'none')}`)
+  check('/health still names the dropped entry x by its document path', row !== undefined, evidences.filter(e => /validation/.test(e)).join(' | ').slice(0, 300))
 } else {
   console.log(`  no bundle at ${DIST}; the built-product leg is skipped`)
 }

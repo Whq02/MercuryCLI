@@ -20,7 +20,7 @@ function section(t: string): void {
 }
 
 console.log('============================================================')
-console.log(' IDE status surfaces — readiness rows · doctor fast row')
+console.log(' IDE status surfaces — readiness rows · health fast row')
 console.log('============================================================')
 
 const proj = mkdtempSync(path.join(tmpdir(), 'mercury-status-'))
@@ -78,12 +78,12 @@ try {
     check('plane row reads the latest test record', plane !== undefined && (plane?.detail ?? '').includes(run.state === 'ok' ? run.record.id : 'x'), plane?.detail)
   }
 
-  section('(4) doctor parity — the ide-plane-fast check calls the SAME probes')
+  section('(4) health parity — the ide-plane-fast check calls the SAME probes')
   {
     const src = (await import('node:fs')).readFileSync(path.join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-    check('doctor carries the ide-plane-fast check', src.includes("id: 'ide-plane-fast'"))
+    check('health carries the ide-plane-fast check', src.includes("id: 'ide-plane-fast'"))
     for (const probe of ['selectPythonInterpreter', 'probeBuiltinPyright', 'probeRuff', 'probeBuiltinClangd', 'probeCompileDb', 'latestTransaction', 'latestRun']) {
-      check(`doctor row consumes ${probe} (probe parity)`, src.slice(src.indexOf("id: 'ide-plane-fast'")).slice(0, 3000).includes(probe))
+      check(`health row consumes ${probe} (probe parity)`, src.slice(src.indexOf("id: 'ide-plane-fast'")).slice(0, 3000).includes(probe))
     }
   }
 } finally {

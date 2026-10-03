@@ -444,7 +444,7 @@ t.section('§4 — TWO SKINS, ONE MODEL (the face consumes the machine; no secon
   }
 }
 
-t.section("§5 — THE ROW, BOTH HOSTS (under kit, over doctor — the ruled position; the 'agents' wire word)")
+t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled position; the 'agents' wire word)")
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   const rowsOf = (facts: Record<string, unknown>): Array<{ key: string; icon: string; label: string; ctx: string }> =>
@@ -456,7 +456,7 @@ t.section("§5 — THE ROW, BOTH HOSTS (under kit, over doctor — the ruled pos
   const chat = rowsOf(CHAT).map(r => r.key)
   t.check(
     'the full world carries the agents row directly after the kit row (the ruled under-kit position, operator-vetoable)',
-    full.indexOf('agents') === full.indexOf('kit') + 1 && full.indexOf('doctor') === full.indexOf('agents') + 1,
+    full.indexOf('agents') === full.indexOf('kit') + 1 && full.indexOf('health') === full.indexOf('agents') + 1,
     full.join(' · '),
   )
   t.check('the --chat world carries the SAME row at the SAME place (identical worlds)', chat.indexOf('agents') === chat.indexOf('kit') + 1)

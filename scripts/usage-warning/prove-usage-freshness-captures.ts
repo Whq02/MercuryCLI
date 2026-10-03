@@ -353,7 +353,7 @@ if (LEGS.has('b')) {
   } catch {
   }
   const fam = recorded.families?.anthropic
-  check("B: the doctor's record in the config home names the status and the host, and the recovery", fam?.status === 500 && typeof fam.host === 'string' && fam.host.includes('127.0.0.1') && typeof fam.recoveredAtMs === 'number', existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
+  check("B: /health's record in the config home names the status and the host, and the recovery", fam?.status === 500 && typeof fam.host === 'string' && fam.host.includes('127.0.0.1') && typeof fam.recoveredAtMs === 'number', existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
 }
 
 if (LEGS.has('c')) {
@@ -521,7 +521,7 @@ if (LEGS.has('f')) {
   } catch {
   }
   const fam = recorded.families?.anthropic
-  check("the doctor's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
+  check("/health's record names the 429 and the stated wait (Retry-After 240 s)", fam?.status === 429 && fam.retryAfterMs === RETRY_AFTER_S * 1000, existsSync(record) ? readFileSync(record, 'utf8').slice(0, 300) : 'no record')
 }
 
 console.log(failures === 0 ? '\n✅ prove-usage-freshness-captures — all checks pass' : `\n❌ prove-usage-freshness-captures — ${failures} check(s) failed`)

@@ -80,11 +80,11 @@ guard.unref?.()
 
 type Check = { id: string; status: string; evidence?: unknown; fix?: unknown; link?: unknown }
 type Cert = { verdict?: string; sections?: Array<{ id: string; checks: Check[] }>; checks?: Check[] }
-function runDoctor(env: Record<string, string | undefined>, extraArgs: string[] = []): { status: number; cert: Cert | null } {
+function runHealth(env: Record<string, string | undefined>, extraArgs: string[] = []): { status: number; cert: Cert | null } {
   let stdout = ''
   let status = 0
   try {
-    stdout = execFileSync('node', [BIN, 'doctor', '--json', ...extraArgs], {
+    stdout = execFileSync('node', [BIN, 'health', '--json', ...extraArgs], {
       cwd: work,
       env: { ...process.env, ...env },
       encoding: 'utf8',
@@ -136,7 +136,7 @@ async function stopDaemon(): Promise<void> {
   daemon = null
 }
 
-console.log('doctor: the daemon sign-in view — present · green on agreement · red with both lists on a gap')
+console.log('health: the daemon sign-in view — present · green on agreement · red with both lists on a gap')
 try {
   const saved = auth.saveOAuthTokensIfNeeded({
     accessToken: 'fixture-access-token',
@@ -151,9 +151,9 @@ try {
 
   section('§1 the row is in the full record, and reads OFF without a daemon')
   {
-    const r = runDoctor({})
+    const r = runHealth({})
     const row = rowOf(r.cert)
-    check('the full doctor record carries the daemon-sign-ins row', row !== undefined, `status=${r.status}`)
+    check('the full health record carries the daemon-sign-ins row', row !== undefined, `status=${r.status}`)
     check('with no daemon the row reads off (nothing to compare with)', row?.status === 'off', words(row))
     check('the row links the daemon surface', row?.link === '/daemon', words(row))
   }
@@ -163,7 +163,7 @@ try {
 
   section('§2 agreement is green: the same estate on both sides')
   {
-    const r = runDoctor(DAEMON_ONLY_ENV, ['--only', 'daemon-sign-ins'])
+    const r = runHealth(DAEMON_ONLY_ENV, ['--only', 'daemon-sign-ins'])
     const row = rowOf(r.cert)
     check('the narrowed record carries the row', row !== undefined, `status=${r.status}`)
     check('the row is ok', row?.status === 'ok', words(row))
@@ -174,7 +174,7 @@ try {
 
   section('§3 a real gap (a credential on one estate only) is red with both lists; its fix names sign-in or the estate, not a restart')
   {
-    const r = runDoctor({ OPENAI_API_KEY: undefined, MERCURY_OPENAI_API_BASE: undefined }, ['--only', 'daemon-sign-ins'])
+    const r = runHealth({ OPENAI_API_KEY: undefined, MERCURY_OPENAI_API_BASE: undefined }, ['--only', 'daemon-sign-ins'])
     const row = rowOf(r.cert)
     check('the row is fail', row?.status === 'fail', words(row))
     check('the evidence names the family that differs, with both readings', /openai: client no credential vs daemon signed in/.test(String(row?.evidence)), words(row))
@@ -214,10 +214,10 @@ try {
 
 console.log('\n' + '═'.repeat(76))
 if (failures === 0) {
-  console.log('✅ ALL DAEMON SIGN-IN-VIEW DOCTOR PROOFS PASS')
+  console.log('✅ ALL DAEMON SIGN-IN-VIEW HEALTH PROOFS PASS')
   rmSync(SCRATCH, { recursive: true, force: true })
 } else {
-  console.log(`❌ ${failures} DAEMON SIGN-IN-VIEW DOCTOR PROOF(S) FAILED — scratch kept at ${SCRATCH}`)
+  console.log(`❌ ${failures} DAEMON SIGN-IN-VIEW HEALTH PROOF(S) FAILED — scratch kept at ${SCRATCH}`)
   try {
     console.log(readFileSync(logPath, 'utf8').trim().split('\n').slice(-20).join('\n'))
   } catch {

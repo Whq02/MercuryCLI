@@ -20,7 +20,7 @@ the launcher picks is the runtime the whole session runs on. The same bundle ser
 (background workers); `runner` (a hosted session over JSON-RPC 2.0 on
 stdio); `acp` (the editor protocol, with a runner child per session); and
 the command estate — interactive boot, `run`, `update`, `install`,
-`doctor` (the CLI alias of `/health`), and the rest. A lone
+`health`, and the rest. A lone
 `--update`/`--upgrade` splices into `update`. On interactive boots the
 crash handlers are armed before any route does async work.
 
@@ -120,9 +120,9 @@ manifest records it (version, platform, the archive digest, the shipped
 binary's digest): install and update refuse a payload whose declared runtime
 is missing, every `--version` smoke runs on the payload's own runtime — so
 the runtime a release ships is proven to run on this machine before it is
-activated — and deep verification (`mercury doctor --deep`, the shipped
+activated — and deep verification (`mercury health --deep`, the shipped
 `verify-artifact.mjs --deep`) recomputes the binary's digest. `mercury
-update --status` and `mercury doctor` name the runtime in use: the vendored
+update --status` and `mercury health` name the runtime in use: the vendored
 one, an explicit `MERCURY_NODE`, or a system node.
 
 `mercury install`, run from an extracted archive's own launcher,
@@ -166,8 +166,8 @@ Mercury from there: its first run installs the release archive into the
 managed layout and every later run hands over to the stable command, so an
 npm-made install is a managed install and `mercury update` updates it through
 Mercury's own channel; when the `mercury` the shell runs is npm's wrapper,
-`--check`, `--status` and the doctor say so in one line ("installed through
-npm's wrapper, updated through Mercury's own channel") and the doctor's
+`--check`, `--status` and the health check say so in one line ("installed through
+npm's wrapper, updated through Mercury's own channel") and the health check's
 Command on PATH row does not ask for a PATH change. `--check` reports the
 newest release against the version running on every channel and ends with the
 road that applies (`mercury update` runs Homebrew's upgrade; `run mercury
@@ -177,7 +177,7 @@ archive make a managed install, so the channel road applies there; Homebrew
 does not exist on Windows and the npm road there is untested. After an update
 of a managed install, the lines after the update name the `mercury` the shell
 would run when it is not the stable command — another file ahead of it on
-PATH, or none at all — with the fix; the doctor's Command on PATH row says
+PATH, or none at all — with the fix; the health check's Command on PATH row says
 the same.
 
 The update, and `--rollback`, end with the background daemon. The daemon that
@@ -232,7 +232,7 @@ disables the check, the cache and both lines.
   every interactive handoff into `<config-home>/boot-attempts.json` before
   the runtime starts, and the runtime clears the file at completed
   interactive startup. Residue — attempts with no completed startup after
-  them — at three or more is the bricked-boot signature; `mercury doctor`
+  them — at three or more is the bricked-boot signature; `mercury health`
   and the `update` verb surface it and name the recovery
   (`mercury update --rollback`). Reads are validated and fail-soft: the
   beacon is a lever, never a boot dependency.
@@ -300,11 +300,11 @@ ends.
 Select it with the **Shell engine** row in `/config` (setting `shell.engine`:
 `system` | `brush`) or the `MERCURY_SHELL_ENGINE=brush` env pin, which
 outranks the setting; the system shell stays the default. A `brush` choice
-whose pack is absent degrades to the system shell and the `doctor` row names
+whose pack is absent degrades to the system shell and the `health` row names
 why — never a silent fallback. On a Windows box with no `bash.exe`, `system`
 written as the setting's value or as the env pin turns the engine off and
 the Bash tool leaves the roster; the `/config` row's `system` is the
-default, which lets the engine arm itself. The `doctor` report's **Bash
+default, which lets the engine arm itself. The `health` report's **Bash
 tool shell** row (check id `shell`) says which shell runs and why — a found
 `bash.exe`, the bundled engine because none was found, or the engine by the
 setting or the pin — and its **Shell engine** row (`iface-shell-engine`)
@@ -323,7 +323,7 @@ stays a failure.
 
 ## Diagnostics
 
-`mercury doctor` (the alias of the `/health` surface) renders the report
-card; `doctor --json` and `--deep` are the machine and thorough forms, and
-`doctor --fix` walks the guided remediations. Presentation resolves at
+`mercury health` renders the report
+card; `health --json` and `--deep` are the machine and thorough forms, and
+`health --fix` walks the guided remediations. Presentation resolves at
 ingress, so piped invocations never mount the interactive renderer.

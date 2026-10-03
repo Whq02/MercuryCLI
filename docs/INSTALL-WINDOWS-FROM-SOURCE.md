@@ -103,7 +103,7 @@ Git for Windows also installs `bash.exe`, the shell Mercury's Bash tool runs
 under when it is found. A release archive carries its own bash-compatible
 shell engine as well (brush, built from its published crate), and a box
 with no `bash.exe` runs the Bash tool through it with nothing to set: the
-`doctor` report's **Bash tool shell** row (check id `shell`) then says
+`health` report's **Bash tool shell** row (check id `shell`) then says
 "the bundled shell engine at … — no bash.exe was found on this machine",
 and with Git for Windows present it says "git-bash at … — found on this
 machine". A source build gets the same engine once step 7 builds it. Two
@@ -154,13 +154,13 @@ a version other than 24, install the LTS-24 build from
 <https://nodejs.org/en/download> instead (pick "Windows Installer (.msi)",
 64-bit, version 24).
 
-The `doctor` health report you will meet in step 9 reads this same policy:
+The `health` report you will meet in step 9 reads this same policy:
 its **Node & ripgrep** row (check id `runtime`) shows which Node it runs on
 (the vendored runtime beside the build, an explicit `MERCURY_NODE`, or the
 PATH Node it found) against the supported range, and when its fix line says to install Node
 24.20.0 or newer it means this floor — the nodejs/node#56645 exit abort is
 what it is protecting you from. On a Node below the floor you rarely get
-that far: every `node dist\mercury.mjs` route, `doctor` included, refuses at
+that far: every `node dist\mercury.mjs` route, `health` included, refuses at
 boot with the same sentence and exits non-zero, so an "unsupported Node"
 message anywhere is always this step's fix.
 
@@ -265,7 +265,7 @@ cargo: `winget install Kitware.CMake`) and the shell engine
 binary, so the engine is compiled from its published crate; the first build
 takes several minutes). Without cargo, or without cmake for the transcriber,
 each says so and skips: Mercury runs without voice input, voice takes go to a
-cloud transcriber, and the Bash tool keeps Git for Windows' bash (the doctor
+cloud transcriber, and the Bash tool keeps Git for Windows' bash (the health check
 names each remedy). A release archive always carries the engine; only a
 source build without cargo lacks it.
 
@@ -312,13 +312,13 @@ Health check — this prints a JSON report and is the single most useful thing
 to paste when asking for help:
 
 ```powershell
-node dist\mercury.mjs doctor --json
+node dist\mercury.mjs health --json
 ```
 
-Redirecting the output to a file (`> doctor.json`) is fine: a piped run is
+Redirecting the output to a file (`> health.json`) is fine: a piped run is
 not an interactive terminal, so the terminal-profile row reads as
 environmental and the verdict is unaffected. To run a single check, name it:
-`node dist\mercury.mjs doctor --only <check-id>` (the ids are the `id` fields
+`node dist\mercury.mjs health --only <check-id>` (the ids are the `id` fields
 in the JSON).
 
 On Windows the process sweep reads every process through the system's own
@@ -339,7 +339,7 @@ never a tree and never by a parent relation, forcibly only when the polite
 stop is impossible: Windows lets a polite stop reach only a process with a
 window, so a console-less one is reported as needing the forced stop, and a
 stop whose receipt is lost is reported as unknown. Nothing here ends a process
-on its own; the doctor's action decides, on request.
+on its own; the health check's action decides, on request.
 
 Start Mercury in an interactive terminal; a small window uses the compact layout:
 
@@ -356,12 +356,12 @@ the terminal owns ctrl+v, and an image-only clipboard gives it nothing to
 paste); Mercury also says so when you come back to it with an image on the
 clipboard. Dragging an image file onto the window attaches it too. A big
 screenshot is shrunk to the model provider's limits, never refused for its
-size; `node dist\mercury.mjs doctor --json` names the image processor in
+size; `node dist\mercury.mjs health --json` names the image processor in
 its `iface-image-processor` row.
 
 Where you land: every start with no explicit journey lands on the Boot face
 — the card of New Session · Continue Last Session (once session history
-exists) · Boot Menu · MCPs & Skills · Agents · Doctor / Health Check ·
+exists) · Boot Menu · MCPs & Skills · Agents · Health Check ·
 Saturn Scheduler · Logins · Session Concourse · Sessions · Projects —
 whether Mercury was started as
 `node dist\mercury.mjs` or through the `mercury` launcher of a release
@@ -417,7 +417,7 @@ anything.
 
 Collect these four things and send them:
 
-1. `node dist\mercury.mjs doctor --json` output (or the error it prints),
+1. `node dist\mercury.mjs health --json` output (or the error it prints),
 2. `node --version`, `bun --version`, `git --version`,
 3. the exact command you ran and the full text it printed,
 4. a screenshot if the problem is on the screen.
@@ -431,5 +431,5 @@ Common cases:
 | `dist\manifest.json` lists names under `degraded` | a vendor fetch was skipped or failed — the build itself still succeeds and prints `BUILD OK` | re-run the fetch it names (step 7), then build again |
 | compact controls or clipped detail | the window has little space | enlarge it to show more; the input and exit keys remain available |
 | an immediate exit that names `mercury run` | stdout is not a terminal (piped or redirected), which Mercury reads as a headless run | run from an interactive Windows Terminal window, or pass a prompt for a headless run |
-| a "Bash tool absent" notice, or the `doctor` **Bash tool shell** row warns | neither `bash.exe` nor the shell engine serves: Git for Windows is missing or not where Mercury looks, and this source build has no engine pack (a release archive always carries one) or `MERCURY_SHELL_ENGINE=system` turned the engine off | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe`, or build the engine (step 7), or unset `MERCURY_SHELL_ENGINE` |
+| a "Bash tool absent" notice, or the `health` **Bash tool shell** row warns | neither `bash.exe` nor the shell engine serves: Git for Windows is missing or not where Mercury looks, and this source build has no engine pack (a release archive always carries one) or `MERCURY_SHELL_ENGINE=system` turned the engine off | step 2, or set `MERCURY_GIT_BASH_PATH` to your `bash.exe`, or build the engine (step 7), or unset `MERCURY_SHELL_ENGINE` |
 | Mercury stops at start naming `MERCURY_GIT_BASH_PATH` | that variable points at a file that does not exist | fix or remove the variable |

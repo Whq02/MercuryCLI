@@ -280,7 +280,7 @@ async function main(): Promise<void> {
       const { join } = await import('node:path')
       const healthSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
       check(
-        "doctor carries a wards row that names problems (call-shaped: id 'wards' + loadProjectWardsWithReport)",
+        "health carries a wards row that names problems (call-shaped: id 'wards' + loadProjectWardsWithReport)",
         /id: 'wards'/.test(healthSrc) && /loadProjectWardsWithReport/.test(healthSrc),
       )
       const hookSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'hooks', 'wardsHook.ts'), 'utf8')

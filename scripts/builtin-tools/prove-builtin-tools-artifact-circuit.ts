@@ -30,8 +30,8 @@ interface Cert {
   sections: { id: string; title: string; checks: Check[] }[]
 }
 
-function runDoctor(extraEnv: Record<string, string> = {}): Cert {
-  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'doctor', '--json', '--deep'], {
+function runHealth(extraEnv: Record<string, string> = {}): Cert {
+  const raw = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [dist, 'health', '--json', '--deep'], {
     cwd: outsideCwd,
     encoding: 'utf8',
     timeout: 420_000,
@@ -56,7 +56,7 @@ function findCheck(cert: Cert, id: string): Check | undefined {
 
 try {
   console.log('── ONE integrated deep pass inside the artifact, outside the repo ──')
-  const cert = runDoctor()
+  const cert = runHealth()
 
   const census = findCheck(cert, 'capability-census')
   check('fast: capability census ok in the artifact (no source-only registration)', census?.status === 'ok', `${census?.status}: ${census?.evidence}`)
@@ -81,7 +81,7 @@ try {
   check('every evidence string is bounded (≤600 chars)', oversized.length === 0, oversized.join(', '))
 
   console.log('── authority-toggle honesty (all three, one flags-off pass) ──')
-  const offCert = runDoctor({ MERCURY_STRUCTURE: '0', MERCURY_GIT_GRAPH: '0', MERCURY_JOURNEYS: '0' })
+  const offCert = runHealth({ MERCURY_STRUCTURE: '0', MERCURY_GIT_GRAPH: '0', MERCURY_JOURNEYS: '0' })
   check("MERCURY_STRUCTURE=0 reads 'off'", findCheck(offCert, 'structure-loop')?.status === 'off')
   check("MERCURY_GIT_GRAPH=0 reads 'off'", findCheck(offCert, 'git-graph')?.status === 'off')
   check("MERCURY_JOURNEYS=0 reads 'off'", findCheck(offCert, 'journey-loop')?.status === 'off')

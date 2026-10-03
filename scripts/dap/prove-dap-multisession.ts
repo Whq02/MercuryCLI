@@ -382,7 +382,7 @@ async function main(): Promise<void> {
     )
     check(
       'the js row speaks multi-session + provenance, with liveness left to the deep probe',
-      readiness.includes('multi-session (resolution only; doctor --deep boots it)') &&
+      readiness.includes('multi-session (resolution only; health --deep boots it)') &&
         readiness.includes('MERCURY_JS_DEBUG_DAP > vendored bundle > ~/.js-debug'),
     )
     check(

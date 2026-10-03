@@ -134,13 +134,13 @@ jobs:
       - name: Build dist
         run: bun run build.ts
 
-      - name: Doctor with bash.exe PRESENT
+      - name: Health with bash.exe PRESENT
         run: |
           $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-present"
-          node dist\mercury.mjs doctor --json > "$env:RUNNER_TEMP\doctor-present.json"
+          node dist\mercury.mjs health --json > "$env:RUNNER_TEMP\health-present.json"
           $code = $LASTEXITCODE
-          Write-Host "doctor -> $code"
-          $d = Get-Content "$env:RUNNER_TEMP\doctor-present.json" -Raw | ConvertFrom-Json
+          Write-Host "health -> $code"
+          $d = Get-Content "$env:RUNNER_TEMP\health-present.json" -Raw | ConvertFrom-Json
           Write-Host "verdict: $($d.verdict)"
           $failing = @($d.sections | ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'fail' } | ForEach-Object { $_.id })
           Write-Host "failing checks (this runner's own, not the road's): $($failing -join ', ')"
@@ -150,11 +150,11 @@ jobs:
           $row | Format-List
           if ($shell.status -ne 'ok') { Write-Host 'THE SHELL CHECK IS NOT ok WITH bash.exe PRESENT'; exit 1 }
           if ($row.state -ne 'ready') { Write-Host 'THE READINESS ROW IS NOT ready WITH bash.exe PRESENT'; exit 1 }
-          "DOCTOR_PRESENT_EXIT=$code" >> $env:GITHUB_ENV
-          "DOCTOR_PRESENT_FAILING=$($failing -join ',')" >> $env:GITHUB_ENV
+          "HEALTH_PRESENT_EXIT=$code" >> $env:GITHUB_ENV
+          "HEALTH_PRESENT_FAILING=$($failing -join ',')" >> $env:GITHUB_ENV
           exit 0
 
-      - name: Doctor with bash.exe ABSENT (the real road)
+      - name: Health with bash.exe ABSENT (the real road)
         run: |
           $bash = 'C:\Program Files\Git\bin\bash.exe'
           if (-not (Test-Path $bash)) { throw "no $bash on this runner - the absent leg needs the classic install" }
@@ -166,14 +166,14 @@ jobs:
             node dist\mercury.mjs --version
             $versionCode = $LASTEXITCODE
             Write-Host "version -> $versionCode"
-            Write-Host '== doctor --json'
-            node dist\mercury.mjs doctor --json > "$env:RUNNER_TEMP\doctor-absent.json"
+            Write-Host '== health --json'
+            node dist\mercury.mjs health --json > "$env:RUNNER_TEMP\health-absent.json"
             $code = $LASTEXITCODE
-            Write-Host "doctor -> $code (present run: $env:DOCTOR_PRESENT_EXIT)"
-            $d = Get-Content "$env:RUNNER_TEMP\doctor-absent.json" -Raw | ConvertFrom-Json
+            Write-Host "health -> $code (present run: $env:HEALTH_PRESENT_EXIT)"
+            $d = Get-Content "$env:RUNNER_TEMP\health-absent.json" -Raw | ConvertFrom-Json
             Write-Host "verdict: $($d.verdict)"
             $failing = @($d.sections | ForEach-Object { $_.checks } | Where-Object { $_.status -eq 'fail' } | ForEach-Object { $_.id })
-            Write-Host "failing checks: $($failing -join ', ') (present run: $env:DOCTOR_PRESENT_FAILING)"
+            Write-Host "failing checks: $($failing -join ', ') (present run: $env:HEALTH_PRESENT_FAILING)"
             $shell = $d.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
             $shell | Format-List
             $row = $d.readiness | Where-Object { $_.id -eq 'tool:shell' }
@@ -189,21 +189,21 @@ jobs:
               if ($shell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN'; $verdict = 1 }
               if ($row.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable'; $verdict = 1 }
             }
-            if ("$code" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITHOUT bash.exe'; $verdict = 1 }
-            Write-Host '== doctor --json with the engine forced off (MERCURY_SHELL_ENGINE=system)'
+            if ("$code" -ne "$env:HEALTH_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITHOUT bash.exe'; $verdict = 1 }
+            Write-Host '== health --json with the engine forced off (MERCURY_SHELL_ENGINE=system)'
             $env:MERCURY_SHELL_ENGINE = 'system'
             $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-absent-off"
-            node dist\mercury.mjs doctor --json > "$env:RUNNER_TEMP\doctor-absent-off.json"
+            node dist\mercury.mjs health --json > "$env:RUNNER_TEMP\health-absent-off.json"
             $offCode = $LASTEXITCODE
             Remove-Item Env:MERCURY_SHELL_ENGINE
-            $off = Get-Content "$env:RUNNER_TEMP\doctor-absent-off.json" -Raw | ConvertFrom-Json
+            $off = Get-Content "$env:RUNNER_TEMP\health-absent-off.json" -Raw | ConvertFrom-Json
             $offShell = $off.sections | ForEach-Object { $_.checks } | Where-Object { $_.id -eq 'shell' }
             $offShell | Format-List
             $offRow = $off.readiness | Where-Object { $_.id -eq 'tool:shell' }
             $offRow | Format-List
             if ($offShell.status -ne 'warn') { Write-Host 'THE SHELL CHECK DID NOT WARN WITH THE ENGINE FORCED OFF'; $verdict = 1 }
             if ($offRow.state -ne 'unavailable') { Write-Host 'THE READINESS ROW DID NOT READ unavailable WITH THE ENGINE FORCED OFF'; $verdict = 1 }
-            if ("$offCode" -ne "$env:DOCTOR_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITH THE ENGINE FORCED OFF'; $verdict = 1 }
+            if ("$offCode" -ne "$env:HEALTH_PRESENT_EXIT") { Write-Host 'THE EXIT CODE MOVED WITH THE ENGINE FORCED OFF'; $verdict = 1 }
           } finally {
             Rename-Item -Path "$bash.off" -NewName 'bash.exe'
           }
@@ -213,7 +213,7 @@ jobs:
         run: |
           $env:MERCURY_GIT_BASH_PATH = 'C:\nowhere\bash.exe'
           $env:MERCURY_CONFIG_DIR = "$env:RUNNER_TEMP\home-pin"
-          node dist\mercury.mjs doctor --json 2> "$env:RUNNER_TEMP\pin.err" | Out-Null
+          node dist\mercury.mjs health --json 2> "$env:RUNNER_TEMP\pin.err" | Out-Null
           $code = $LASTEXITCODE
           Get-Content "$env:RUNNER_TEMP\pin.err"
           if ($code -ne 1) { Write-Host "expected exit 1, got $code"; exit 1 }
@@ -263,7 +263,7 @@ jobs:
         with:
           name: shell-windows-probe-${{ inputs.sha }}
           path: |
-            ${{ runner.temp }}/doctor-present.json
-            ${{ runner.temp }}/doctor-absent.json
+            ${{ runner.temp }}/health-present.json
+            ${{ runner.temp }}/health-absent.json
             ${{ runner.temp }}/pin.err
           if-no-files-found: warn

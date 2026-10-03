@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. The version line, the platform and the exact steps let it be reproduced; the doctor certificate says what the install looks like. A security problem goes through the repository's Security tab instead of an issue.
+        Thanks for the report. The version line, the platform and the exact steps let it be reproduced; the health certificate says what the install looks like. A security problem goes through the repository's Security tab instead of an issue.
   - type: input
     id: version
     attributes:
@@ -58,10 +58,10 @@ body:
     validations:
       required: true
   - type: textarea
-    id: doctor
+    id: health
     attributes:
-      label: doctor --json
-      description: The output of `node dist/mercury.mjs doctor --json` (`mercury doctor --json` for a release install). It carries no credentials.
+      label: health --json
+      description: The output of `node dist/mercury.mjs health --json` (`mercury health --json` for a release install). It carries no credentials.
       render: json
     validations:
       required: true

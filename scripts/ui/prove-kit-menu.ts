@@ -39,7 +39,7 @@ t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)'
   t.check('the existing rows stay EXACTLY as they are (their bytes are untouched by the additions)', JSON.stringify(rowsOf(FULL).filter(r => !['kit', 'agents', 'saturn', 'logins', 'sessions'].includes(r.key))) === JSON.stringify([
     { key: 'new', icon: '✶', label: 'New Session in proj', ctx: 'start fresh here' },
     { key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' },
-    { key: 'doctor', icon: '✓', label: 'Doctor / Health Check', ctx: 'system diagnostics' },
+    { key: 'health', icon: '✓', label: 'Health Check', ctx: 'system diagnostics' },
     { key: 'concourse', icon: '⊞', label: 'Session Concourse', ctx: 'the live board' },
   ]))
   t.check('the merged door stays LAST (proof-leg stability — the resume slot)', full[full.length - 1] === 'sessions' && chat[chat.length - 1] === 'sessions')
@@ -195,7 +195,7 @@ t.section('§5 — THE STILLS: the face with the row (both worlds) and the manag
   }
   const fullFace = readStill('face-full-120x40') ?? ''
   const chatFace = readStill('face-chat-120x40') ?? ''
-  t.check('the full-world still carries MCPs & Skills under Boot Menu and above Doctor', fullFace.includes('Boot Menu') && fullFace.indexOf('Boot Menu') < fullFace.indexOf('MCPs & Skills') && fullFace.indexOf('MCPs & Skills') < fullFace.indexOf('Doctor / Health Check'))
+  t.check('the full-world still carries MCPs & Skills under Boot Menu and above Health', fullFace.includes('Boot Menu') && fullFace.indexOf('Boot Menu') < fullFace.indexOf('MCPs & Skills') && fullFace.indexOf('MCPs & Skills') < fullFace.indexOf('Health Check'))
   t.check('the --chat still carries the row too and no Session Concourse', chatFace.includes('MCPs & Skills') && !chatFace.includes('Session Concourse'))
   const manager = readStill('manager-120x40') ?? ''
   t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('NEXT SESSION'))

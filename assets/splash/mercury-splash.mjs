@@ -725,7 +725,7 @@ function computeCertInfo() {
   for (const projDir of ['.mercury']) {
     try {
       const o = JSON.parse(
-        readFileSync(join(process.cwd(), projDir, 'doctor', 'last-cert.json'), 'utf8'),
+        readFileSync(join(process.cwd(), projDir, 'health', 'last-cert.json'), 'utf8'),
       )
       if (o && typeof o.verdict === 'string') {
         const t = Date.parse(o.ranAt)
@@ -835,7 +835,7 @@ function activateCardRow(r2) {
   leaving = true
   if (r2.key === 'continue')
     writeSplashAction('continue', cwdProject ? undefined : recentLast ? recentLast.dir : undefined)
-  else if (r2.key === 'doctor') writeSplashAction('doctor')
+  else if (r2.key === 'health') writeSplashAction('health')
   else if (r2.key === 'concourse') writeSplashAction('concourse')
   else if (r2.key === 'sessions') writeSplashAction('resume')
   else if (r2.key === 'kit') writeSplashAction('kit')

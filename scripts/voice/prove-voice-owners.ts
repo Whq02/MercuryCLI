@@ -474,7 +474,7 @@ section('§5 the session — the refusals before a take, start/stop, the landing
   fx.stop()
 }
 
-section('§6 the doctor row and the commands')
+section('§6 the health row and the commands')
 {
   const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
   const report = await import('../../src/utils/healthReport.js')
@@ -586,7 +586,7 @@ section('§6 the doctor row and the commands')
   out = await speakCall('', ctx)
   check('bare /speak names the saved choice as the default', out.type === 'text' && out.value.includes('default: your saved choice — OpenAI'), out.type === 'text' ? out.value : out.type)
   r = await row()
-  check('the doctor row carries the default line with the saved choice', r.detail.includes('default: your saved choice — OpenAI'), r.detail)
+  check('the health row carries the default line with the saved choice', r.detail.includes('default: your saved choice — OpenAI'), r.detail)
   out = await speakCall('options bogus', ctx)
   check('/speak options with a word outside the vocabulary answers the vocabulary', out.type === 'text' && out.value.startsWith('/speak options takes one of on-device · openai · gemini or default (got "bogus")'), out.type === 'text' ? out.value : out.type)
   out = await speakCall('options default', ctx)

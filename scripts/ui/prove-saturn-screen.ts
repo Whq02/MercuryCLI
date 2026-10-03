@@ -355,7 +355,7 @@ t.section('§6 — THE BOX WRITERS (stamps daemon-shaped · both presences · ca
   t.check('§6 the 51st schedule refuses at the cap', !overCap.ok && overCap.reason.includes('50'))
 }
 
-t.section('§7 — THE ROW AND THE DOOR (after Doctor · the fit fact · the face-door grammar)')
+t.section('§7 — THE ROW AND THE DOOR (after Health · the fit fact · the face-door grammar)')
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   type Row = { key: string; icon: string; label: string; ctx: string }
@@ -369,7 +369,7 @@ t.section('§7 — THE ROW AND THE DOOR (after Doctor · the fit fact · the fac
   const rows = assembleCardRows(FACTS) as Row[]
   const keys = rows.map(r => r.key)
 
-  t.check('§7 the saturn row sits directly after Doctor (the control-plane glance pair)', keys.indexOf('saturn') === keys.indexOf('doctor') + 1)
+  t.check('§7 the saturn row sits directly after Health (the control-plane glance pair)', keys.indexOf('saturn') === keys.indexOf('health') + 1)
   const sat = rows.find(r => r.key === 'saturn')
   t.check("§7 the row's bytes: ◷ · 'Saturn Scheduler' · the standing ctx", sat?.icon === '◷' && sat?.label === 'Saturn Scheduler' && sat?.ctx === 'sessions born on the clock', JSON.stringify(sat))
   t.check('§7 the row rides the SAME fit law as the menu/kit doors (no menu floor ⇒ no scheduler)', !(assembleCardRows({ ...FACTS, menuAvailable: false }) as Row[]).some(r => r.key === 'saturn'))

@@ -48,7 +48,7 @@ name or knowledge cutoff. A new generation never folds onto an older one:
 spelling of a known generation still reads as that generation. A row the
 lists do not carry stands as before — a list can be partial per door, and a
 door whose list the endpoint refuses is that door's own catalogue error,
-never a fault of the picker. The doctor's Model lists row says what the
+never a fault of the picker. The health check's Model lists row says what the
 doors this process read serve and what they lack.
 
 The family words follow each family's newest row — `opus` means Opus 5.5 and
@@ -558,7 +558,7 @@ once carrying it; a session boot also reads it in the background once a
 day. The learned number is kept in the config home and presented only while
 it is newer than the built-in one; at most one registry read goes out per
 config home in ten minutes, and `MERCURY_DISABLE_NONESSENTIAL_TRAFFIC` keeps
-every registry read dark. The doctor's Client contract row shows what is
+every registry read dark. The health check's Client contract row shows what is
 presented and its source, and the gate's refusal names the version
 required, what Mercury presented, what the registry read did, and that
 override.
@@ -569,7 +569,7 @@ door records when a family's credential landed (the sign-in ledger,
 and a fresh, unpinned session starts on that provider's newest model the
 credential can use — a gated row is never chosen, a provider with no usable
 row falls through to the next most recent sign-in. The `/model` readout
-and the doctor's Default model row say which and why.
+and the health check's Default model row say which and why.
 `/defaultprovider` makes a provider the most recent sign-in by the operator's
 word (an entry in the same ledger). Credentials that landed before the ledger
 existed, env-pinned keys included, order after every recorded sign-in — the
@@ -779,7 +779,7 @@ fits, an ellipsis closing the cut, and keeps its `/model to return` tail.
 (1000 or more; the default is two minutes).
 
 Every meter surface — the telemetry rail's USAGE panel, `/deck`, the frame
-band, `/usage` and the doctor's per-family usage rows — reads one owner and
+band, `/usage` and the health check's per-family usage rows — reads one owner and
 paints one grammar: a family's shared windows first, then every per-model
 weekly pool it reports beside them (the first-party subscription's Fable,
 Opus and Sonnet weeks, folded into the same block; a family that reports
@@ -797,8 +797,8 @@ and the freshest observation wins each window — a reply's headers the instant
 they land, the endpoint's next answer a minute later. A read that fails (an
 HTTP status, a timeout, an unreachable host, an expired sign-in token) is on
 screen beside the last figure with the status and the host, backs off four
-minutes, is logged once per episode, and is written once to the doctor's record
-in the config home (`usage-reader.json`) with its recovery — `mercury doctor`
+minutes, is logged once per episode, and is written once to the health check's record
+in the config home (`usage-reader.json`) with its recovery — `mercury health`
 names it from another process. `/usage` and its retry key ask at once regardless.
 An expired sign-in token is renewed by the read itself through the ordinary
 refresh grant — the same road a reply takes — before the endpoint is asked, so
@@ -823,7 +823,7 @@ that says allowed clears it at once. A reply speaks for the moment its request
 began, so a reply that started before the refusal cannot clear it, however late
 it ends; only a reply that began after the refusal does. An expired sign-in is reported as an
 expired sign-in, never as a used-up window: the delegation refusal, the chat's
-notice and the doctor speak the one sign-in line (sign in again with
+notice and the health check speak the one sign-in line (sign in again with
 `/logins anthropic`), and an authentication failure never sets the limit
 verdict.
 
@@ -902,7 +902,7 @@ OpenRouter OAuth-minted keys show the same remaining credit under the key cap as
 
 The ChatGPT sign-in shows OpenAI's credit balance or unlimited credits beside its usage windows, with the last read's age, in `/usage`, the rail, `/deck` and its account row.
 
-A window that reads reached — 100%, or a refused request — says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure ("on extra usage · USD 12.40 of 50.00 this month") or says "extra usage off — nothing carries requests until the reset" with the reason Anthropic gives, a ChatGPT sign-in says "on credits · 62,500 left" or "no credits — nothing carries requests until the reset", a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the doctor's usage row.
+A window that reads reached — 100%, or a refused request — says what carries the requests from there, from the vendor's own statement: a Claude subscription on extra usage names its figure ("on extra usage · USD 12.40 of 50.00 this month") or says "extra usage off — nothing carries requests until the reset" with the reason Anthropic gives, a ChatGPT sign-in says "on credits · 62,500 left" or "no credits — nothing carries requests until the reset", a Kimi sign-in names its Extra Usage balance, and a family that states nothing about it says so in one clause; the words ride the rail's and `/deck`'s reached line, the `/usage` tab's reached sentence, the strip warning at 100%, the account-slot offer, the handoff notice, the refusal rows and blockers, and the health check's usage row.
 
 A GLM Coding Plan key shows its windows the way a Kimi sign-in does: the
 5-hour and weekly credit windows as used-percent bars with their resets, on

@@ -210,7 +210,7 @@ section('FC-141 — a mistyped tightening never widens SILENTLY (forgive + name)
   {
     const health = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'healthReport.ts'), 'utf8')
     check(
-      'the doctor MCP-policy row consults the rejects and can WARN (call-shaped)',
+      '/health MCP-policy row consults the rejects and can WARN (call-shaped)',
       /getMcpPolicyRejects\(\)/.test(health) && /policyRejects\.length > 0 \? 'warn'/.test(health),
     )
   }

@@ -280,7 +280,7 @@ for (const size of [
   const landing = markText(c, 'landing')
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
-  check(`${size.id.toUpperCase()} the landing is the face with New Session · Doctor / Health Check · Sessions · Projects`, isChatWorldFace(landing) && landing.includes('Doctor / Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
+  check(`${size.id.toUpperCase()} the landing is the face with New Session · Health Check · Sessions · Projects`, isChatWorldFace(landing) && landing.includes('Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
   check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))

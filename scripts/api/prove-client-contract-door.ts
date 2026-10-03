@@ -213,7 +213,7 @@ process.env.NODE_ENV = 'test'
   check('a sign-in wall row composes with the config closed (a stored sign-in, no account suffix)', auth.isClaudeAISubscriber() && wallRow !== undefined && wallRow.error === 'authentication_failed' && wallText.includes('Anthropic sign-in expired') && !wallText.includes('· account'), wallThrow || wallText)
 }
 
-section('§5 THE DOCTOR — the identity section carries the row from the one describer')
+section('§5 THE HEALTH — the identity section carries the row from the one describer')
 {
   const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
   check("the identity section carries the 'client-contract' check", health.includes("id: 'client-contract'"))

@@ -44,7 +44,7 @@ const cargo = spawnSync('cargo', ['--version'], { encoding: 'utf8', env: process
 const hasCargo = !cargo.error && cargo.status === 0
 console.log(`cargo: ${hasCargo ? cargo.stdout.trim() : 'absent'} · platform ${PLATFORM} · live: ${LIVE || 'off'}`)
 
-async function doctorRow(): Promise<{ evidence: string; status: string; section: string } | null> {
+async function healthRow(): Promise<{ evidence: string; status: string; section: string } | null> {
   const report = await import('../../src/utils/healthReport.js')
   const cert = await report.runHealthReport({ depth: 'fast' })
   for (const section of cert.sections) {
@@ -64,8 +64,8 @@ if (!hasCargo) {
   check('no cargo ⇒ the build skips LOUDLY: exit 0 and the remedy named', build.status === 0 && /SKIPPED/.test(buildOut) && /rustup/.test(buildOut), buildOut.slice(-400))
   const resolution = pack.resolveDesktopPackDir()
   check('no pack ⇒ the pack owner answers unavailable, naming the platform', resolution.state === 'unavailable' && resolution.note.includes(PLATFORM), JSON.stringify(resolution))
-  const row = await doctorRow()
-  check('…and the doctor row says the pack is absent', row !== null && row.evidence.startsWith('pack: absent') && row.status === 'info', JSON.stringify(row))
+  const row = await healthRow()
+  check('…and the health row says the pack is absent', row !== null && row.evidence.startsWith('pack: absent') && row.status === 'info', JSON.stringify(row))
   finish('no cargo — the loud skip')
 }
 
@@ -120,10 +120,10 @@ if (load.state === 'ok') {
   const resolved = native.resolveNativeDesktopDriver()
   check('the native driver resolves over the addon and describes itself as native', resolved.state === 'ok' && resolved.driver.describe().kind === 'native' && resolved.driver.describe().source === 'workspace', resolved.state === 'ok' ? '' : resolved.note)
   const facts = await native.describeDesktopDriver()
-  check('the doctor facts begin with the pack version and platform', facts.line.startsWith(`pack: ${load.manifest.version} ${PLATFORM}`), facts.line)
-  console.log(`  · doctor: ${facts.line}`)
-  const row = await doctorRow()
-  check('the doctor row sits in the INTERFACE section with the same line', row !== null && row.section === 'INTERFACE' && row.evidence === facts.line, JSON.stringify(row))
+  check('/health facts begin with the pack version and platform', facts.line.startsWith(`pack: ${load.manifest.version} ${PLATFORM}`), facts.line)
+  console.log(`  · health: ${facts.line}`)
+  const row = await healthRow()
+  check('the health row sits in the INTERFACE section with the same line', row !== null && row.section === 'INTERFACE' && row.evidence === facts.line, JSON.stringify(row))
   if (liveReason === '' && (permissions.session !== 'desktop' || !['granted', 'not-required'].includes(permissions.screenCapture) || !['granted', 'not-required'].includes(permissions.input))) {
     liveReason = `session ${permissions.session}, screen ${permissions.screenCapture}, input ${permissions.input}${permissions.reason ? ` — ${permissions.reason}` : ''}`
   }
@@ -145,7 +145,7 @@ if (load.state === 'ok') {
       check('the capture width is the display width in points times the scale', shot.value.width === Math.round(first.width * shot.value.scale) && shot.value.height === Math.round(first.height * shot.value.scale), `${shot.value.width}×${shot.value.height} @ ${shot.value.scale} of ${first.width}×${first.height}`)
       check('the scale is at least one', shot.value.scale >= 1)
       check('the display record declares the scale the capture answers', first.scale === shot.value.scale && shot.value.width === Math.round(first.width * first.scale), `display ${first.width}×${first.height}@${first.scale} · capture ${shot.value.width}×${shot.value.height}@${shot.value.scale}`)
-      check('the doctor names the display with that scale', facts.detail.includes(`${first.width}×${first.height}@${shot.value.scale}`), facts.detail.split('\n')[1] ?? '')
+      check('/health names the display with that scale', facts.detail.includes(`${first.width}×${first.height}@${shot.value.scale}`), facts.detail.split('\n')[1] ?? '')
       check('capturedAt is the driver\'s stamp at the answer', shot.value.capturedAt >= before && shot.value.capturedAt <= Date.now() + 1)
       console.log(`  · capture: ${shot.value.width}×${shot.value.height} px, ${shot.value.png.length} bytes, scale ${shot.value.scale}`)
     }

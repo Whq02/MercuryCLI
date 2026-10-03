@@ -30,7 +30,7 @@ const health = (await import('../../src/commands/health/index.ts')).default as {
 const login = ((await import('../../src/commands/login/index.ts')).default as () => { isEnabled?: () => boolean })()
 const logout = (await import('../../src/commands/logout/index.ts')).default as { isEnabled?: () => boolean }
 
-const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_DOCTOR_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
+const SWITCHES = ['MERCURY_TELEMETRY', 'MERCURY_ERROR_REPORTING', 'MERCURY_BUG_COMMAND', 'MERCURY_FEEDBACK_COMMAND', 'MERCURY_HEALTH_COMMAND', 'MERCURY_LOGIN_COMMAND', 'MERCURY_LOGOUT_COMMAND', 'MERCURY_PROMPT_CACHING', 'MERCURY_PROMPT_CACHING_HAIKU', 'MERCURY_PROMPT_CACHING_SONNET', 'MERCURY_PROMPT_CACHING_OPUS', 'MERCURY_COMPACT', 'MERCURY_AUTO_COMPACT', 'MERCURY_BUILTIN_RIPGREP', 'MERCURY_MCP_LARGE_OUTPUT_FILES']
 for (const name of SWITCHES) unset(name)
 
 section('§1 the registry polarity: unset ⇒ on, =0 ⇒ off, live')
@@ -58,7 +58,7 @@ section('§2 each switch at its owner')
   off('MERCURY_BUG_COMMAND'); check('/bug: =0 ⇒ the command is gone', enabledOf(feedback) === false); unset('MERCURY_BUG_COMMAND')
   off('MERCURY_FEEDBACK_COMMAND'); check('/feedback: =0 ⇒ the command is gone', enabledOf(feedback) === false); unset('MERCURY_FEEDBACK_COMMAND')
   check('/health: unset ⇒ enabled', enabledOf(health) === true)
-  off('MERCURY_DOCTOR_COMMAND'); check('/health: =0 ⇒ gone', enabledOf(health) === false); unset('MERCURY_DOCTOR_COMMAND')
+  off('MERCURY_HEALTH_COMMAND'); check('/health: =0 ⇒ gone', enabledOf(health) === false); unset('MERCURY_HEALTH_COMMAND')
   check('/logins: unset ⇒ enabled', enabledOf(login) === true)
   off('MERCURY_LOGIN_COMMAND'); check('/logins: =0 ⇒ gone', enabledOf(login) === false); unset('MERCURY_LOGIN_COMMAND')
   check('/logout: unset ⇒ enabled', enabledOf(logout) === true)

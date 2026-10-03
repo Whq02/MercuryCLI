@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = process.env.MERCURY_DOCTOR_RO_BIN ?? join(REPO, 'dist', 'mercury.mjs')
+const BIN = process.env.MERCURY_HEALTH_RO_BIN ?? join(REPO, 'dist', 'mercury.mjs')
 const NODE = existsSync(join(REPO, 'dist', 'vendor', 'node', 'bin', 'node'))
   ? join(REPO, 'dist', 'vendor', 'node', 'bin', 'node')
   : 'node'
@@ -17,7 +17,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
 }
 
-const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'doctor-read-only-')))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'health-read-only-')))
 
 function seedRepo(dir: string): void {
   mkdirSync(dir, { recursive: true })
@@ -42,9 +42,9 @@ function homeFiles(home: string): Map<string, number> {
   return out
 }
 
-function runDoctor(home: string, work: string): number {
+function runHealth(home: string, work: string): number {
   try {
-    execFileSync(NODE, [BIN, 'doctor', '--json'], {
+    execFileSync(NODE, [BIN, 'health', '--json'], {
       cwd: work,
       env: {
         ...process.env,
@@ -63,21 +63,21 @@ function runDoctor(home: string, work: string): number {
   return 0
 }
 
-console.log('§1 the built doctor --json leaves the config home unmutated (no config save, no counter, no index)')
+console.log('§1 the built health --json leaves the config home unmutated (no config save, no counter, no index)')
 {
   const home = join(SCRATCH, 'home')
   const work = join(SCRATCH, 'work')
   mkdirSync(home, { recursive: true })
   seedRepo(work)
 
-  runDoctor(home, work)
+  runHealth(home, work)
   const before = homeFiles(home)
   const stamp = Date.now()
   while (Date.now() - stamp < 1100) { void stamp }
-  runDoctor(home, work)
+  runHealth(home, work)
   const after = homeFiles(home)
 
-  const isCert = (rel: string): boolean => rel.includes('/doctor/') && rel.endsWith('last-cert.json')
+  const isCert = (rel: string): boolean => rel.includes('/health/') && rel.endsWith('last-cert.json')
   const changed: string[] = []
   for (const [rel, mt] of after) {
     if (isCert(rel)) continue
@@ -116,5 +116,5 @@ console.log('\n§2 the verification digest routes to a private temp index under 
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
-console.log(failures === 0 ? '\n✅ prove-doctor-read-only: all green' : `\n❌ prove-doctor-read-only: ${failures} FAILURE(S)`)
+console.log(failures === 0 ? '\n✅ prove-health-read-only: all green' : `\n❌ prove-health-read-only: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

@@ -386,7 +386,7 @@ export function BootSplashScreen(): React.ReactNode {
       case 'kit':
         setKitOpen(true);
         return null;
-      case 'doctor':
+      case 'health':
         setHealthOpen(true);
         return null;
       case 'saturn':
@@ -517,7 +517,7 @@ export function BootSplashScreen(): React.ReactNode {
   const composition = useMemo(() => {
     if (isCompact) {
       const selected = composedRows[Math.max(0, selectedIndex)];
-      const verb = selected && ['menu', 'kit', 'agents', 'doctor', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
+      const verb = selected && ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
       const compact = core.composeCompactFace(columns, rows, {
         cardRows: composedRows.map(r => ({ label: r.label, ctx: r.ctx, ...(r.dim ? { dim: true } : {}) })),
         cardSel: selectedIndex,
@@ -553,7 +553,7 @@ export function BootSplashScreen(): React.ReactNode {
           key: '↵ ',
           label:
             composedRows[Math.max(0, selectedIndex)] !== undefined &&
-            ['menu', 'kit', 'agents', 'doctor', 'saturn', 'logins'].includes(
+            ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(
               composedRows[Math.max(0, selectedIndex)]!.key,
             )
               ? 'open'

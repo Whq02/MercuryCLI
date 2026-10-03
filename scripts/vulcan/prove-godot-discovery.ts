@@ -13,7 +13,7 @@ delete process.env.MERCURY_GODOT_TOOLS_LITE
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 const census = await import(join(ROOT, 'src/services/vulcan/godotProcessCensus.ts'))
-const doctor = await import(join(ROOT, 'src/services/vulcan/portabilityDoctor.ts'))
+const portability = await import(join(ROOT, 'src/services/vulcan/portabilityHealth.ts'))
 const presence = await import(join(ROOT, 'src/services/vulcan/editorPresence.ts'))
 const classCache = await import(join(ROOT, 'src/services/vulcan/classCache.ts'))
 const installer = await import(join(ROOT, 'src/services/vulcan/addonInstaller.ts'))
@@ -80,11 +80,11 @@ try {
 
   section('2. the executable receipt — a running editor is never NOT FOUND')
   const winEnv = { LOCALAPPDATA: 'C:\\Users\\sam\\AppData\\Local', ProgramFiles: 'C:\\Program Files', 'ProgramFiles(x86)': 'C:\\Program Files (x86)', USERPROFILE: 'C:\\Users\\sam', ProgramData: 'C:\\ProgramData', PATH: 'C:\\Windows\\System32' }
-  const winRoots: string[] = doctor.godotWellKnownRoots('win32', winEnv)
+  const winRoots: string[] = portability.godotWellKnownRoots('win32', winEnv)
   check('win32 roots: %LOCALAPPDATA%\\Programs\\Godot, Program Files, the Steam library, the winget and scoop shims', ['C:\\Users\\sam\\AppData\\Local\\Programs\\Godot', 'C:\\Program Files\\Godot', 'C:\\Program Files (x86)\\Steam\\steamapps\\common\\Godot Engine', 'C:\\Users\\sam\\AppData\\Local\\Microsoft\\WinGet\\Links', 'C:\\Users\\sam\\scoop\\shims'].every(r => winRoots.includes(r)), winRoots.join(' | '))
-  const macRoots: string[] = doctor.godotWellKnownRoots('darwin', { HOME: '/Users/sam' })
+  const macRoots: string[] = portability.godotWellKnownRoots('darwin', { HOME: '/Users/sam' })
   check('darwin roots: /Applications, ~/Applications, the Steam library', ['/Applications', '/Users/sam/Applications', '/Users/sam/Library/Application Support/Steam/steamapps/common/Godot Engine'].every(r => macRoots.includes(r)))
-  const linuxRoots: string[] = doctor.godotWellKnownRoots('linux', { HOME: '/home/sam' })
+  const linuxRoots: string[] = portability.godotWellKnownRoots('linux', { HOME: '/home/sam' })
   check('linux roots: the PATH bins, flatpak exports, the Steam library', ['/usr/bin', '/var/lib/flatpak/exports/bin', '/home/sam/.local/share/Steam/steamapps/common/Godot Engine'].every(r => linuxRoots.includes(r)))
 
   const tree: Record<string, string[]> = {
@@ -98,17 +98,17 @@ try {
     isDir: (p: string) => dirs.has(p),
     executable: (p: string) => !dirs.has(p) && Object.entries(tree).some(([d, names]) => names.some(n => join(d, n) === p || `${d}\\${n}` === p)),
   }
-  const field = await doctor.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: fakeFs })
+  const field = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: fakeFs })
   check('the field root resolves: %LOCALAPPDATA%\\Programs\\Godot, the console wrapper ranked last', field.source === 'well-known-location' && /Godot_v4\.7\.2-stable_mono_win64\.exe$/.test(field.resolved ?? '') && !/console/.test(field.resolved ?? ''), `${field.source}: ${field.resolved}`)
-  const wingetOnly = await doctor.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { ...fakeFs, list: (d: string) => (d.includes('Programs\\Godot') ? [] : tree[d] ?? []) } })
+  const wingetOnly = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { ...fakeFs, list: (d: string) => (d.includes('Programs\\Godot') ? [] : tree[d] ?? []) } })
   check('the winget package dir is walked one level down', /WinGet\\Packages\\GodotEngine\.GodotEngine[^\\]*\\godot\.exe$/.test(wingetOnly.resolved ?? ''), `${wingetOnly.resolved}`)
-  const running = await doctor.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Projects\\My Game', fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const running = await portability.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Projects\\My Game', fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('a RUNNING editor is never NOT FOUND: its own executable path, source running-editor', running.source === 'running-editor' && running.resolved === WIN_EXE && /pid 18344/.test(running.note), `${running.source}: ${running.note}`)
-  const other = await doctor.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Other', fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const other = await portability.resolveGodotExecutable({ platform: 'win32', env: { ...winEnv, LOCALAPPDATA: 'C:\\nowhere' }, census: win, projectRoot: 'C:\\Users\\sam\\Other', fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('an editor on ANOTHER project still resolves (after PATH and the roots)', other.source === 'running-editor' && other.resolved === WIN_EXE)
-  const none = await doctor.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { list: () => [], isDir: () => false, executable: () => false } })
+  const none = await portability.resolveGodotExecutable({ platform: 'win32', env: winEnv, census: [], fs: { list: () => [], isDir: () => false, executable: () => false } })
   check('not-found names how many roots were walked (never a bare NOT FOUND)', none.source === 'not-found' && none.probed.length >= 8 && /well-known root/.test(none.note), none.note)
-  const mac = await doctor.resolveGodotExecutable({ platform: 'darwin', env: { HOME: '/Users/sam', PATH: '/usr/bin' }, census: [], fs: { list: (d: string) => (d === '/Applications' ? ['Godot.app', 'Godot 2.app', 'Safari.app'] : []), isDir: () => false, executable: (p: string) => p.endsWith('/Contents/MacOS/Godot') } })
+  const mac = await portability.resolveGodotExecutable({ platform: 'darwin', env: { HOME: '/Users/sam', PATH: '/usr/bin' }, census: [], fs: { list: (d: string) => (d === '/Applications' ? ['Godot.app', 'Godot 2.app', 'Safari.app'] : []), isDir: () => false, executable: (p: string) => p.endsWith('/Contents/MacOS/Godot') } })
   check('darwin: Godot*.app bundles resolve to Contents/MacOS/Godot (no godot on PATH)', mac.source === 'well-known-location' && /\/Applications\/Godot[^/]*\.app\/Contents\/MacOS\/Godot$/.test(mac.resolved ?? ''), `${mac.resolved}`)
 
   section('3. three named states — never "closed" for a running editor')
@@ -129,6 +129,9 @@ try {
   check('the nudge says whether Mercury can trigger it: not unbridged, yes over an up bridge', /cannot reach an unbridged editor/.test(nudgeGui) && /vulcan_install reloads the plugin over it/.test(nudgeGui))
   check('not installed ⇒ vulcan_install leads the nudge', presence.presenceNudge(noEditor, { installed: false, enabled: false }).startsWith('op:"vulcan_install"'))
   check('installed but not enabled ⇒ the enabled row is named', /not enabled in project.godot/.test(presence.presenceNudge(unbridged, { installed: true, enabled: false })))
+  const refresh = 'the installed addon is out of date — op:"vulcan_install" refreshes it; then '
+  check('installed and enabled but out of date ⇒ the refresh leads the nudge, then the editor step', presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: false }).startsWith(refresh + 'open the project in the Godot editor') && presence.presenceNudge(guiUnbridged, { installed: true, enabled: true, digestMatch: false }).startsWith(refresh + 'click into the editor window'), presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: false }).slice(0, 120))
+  check('up to date ⇒ no refresh in the nudge', presence.presenceNudge(noEditor, { installed: true, enabled: true, digestMatch: true }).startsWith('open the project in the Godot editor') && !/out of date/.test(nudgeGui))
   check('bridge up ⇒ no nudge', presence.presenceNudge(bridged, { installed: true, enabled: true }) === '')
   check('capsule source words carry the state, never closed', presence.staticCapsuleSource(unbridged).startsWith('static (editor running (pid 41230') && !/closed/.test(presence.staticCapsuleSource(noEditor)) && presence.editorOnlySliceWords(unbridged) === '(editor open but unbridged)' && presence.editorOnlySliceWords(noEditor) === '(no editor running)')
 
@@ -193,9 +196,9 @@ try {
   const single = installer.formatProjectGodotReceipt({ section: 'autoload', key: 'X', previous: 'a', next: 'b', why: 'because' })
   check('receipt shape: file · [section] · key · previous → next · why', single === 'project.godot [autoload] X: a → b — because')
 
-  section('6. the words — doctor row, prompt, plugin guard, optable')
+  section('6. the words — health row, prompt, plugin guard, optable')
   const health = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('the doctor row reads the presence owner and its nudge', health.includes("await import('../services/vulcan/editorPresence.js')") && health.includes('fix: presenceNudge(presence, s)') && !/focus\/restart the editor/.test(health))
+  check('the health row reads the presence owner and its nudge', health.includes("await import('../services/vulcan/editorPresence.js')") && health.includes('fix: presenceNudge(presence, s)') && !/focus\/restart the editor/.test(health))
   const prompt = readFileSync(join(ROOT, 'src/tools/GodotTool/prompt.ts'), 'utf8')
   check('the tool prompt requires an explicit operator instance and names class refresh', prompt.includes('Pass args.instance') && prompt.includes('never choose the operator-editor role unless the call explicitly names it') && prompt.includes('project_refresh_classes') && !/picks it up on focus/.test(prompt))
   const plugin = readFileSync(join(ROOT, 'assets/vulcan/addon/plugin.gd'), 'utf8')
