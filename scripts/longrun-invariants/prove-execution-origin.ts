@@ -106,7 +106,7 @@ try {
       'return r',
     ].join('\n')
     const res = await WorkflowTool.call({ script }, ctx, async () => ({ behavior: 'allow' }))
-    const runDir = (res as any).data.transcriptDir
+    const runDir = (res as any).data.runDir
     setCwdState(process.env.ORIGIN_CWD_B!)
     emit({ ev: 'launched', runId: (res as any).data.runId, runDir })
     for (let i = 0; i < 300; i++) {
@@ -128,7 +128,7 @@ try {
       { scriptPath: process.env.ORIGIN_SCRIPT_PATH, resumeFromRunId: process.env.ORIGIN_RESUME_RUN },
       ctx, async () => ({ behavior: 'allow' }),
     )
-    emit({ ev: 'launched-anyway', data: (res as any).data.status, runDir: (res as any).data.transcriptDir })
+    emit({ ev: 'launched-anyway', data: (res as any).data.status, runDir: (res as any).data.runDir })
     process.exit(0)
   }
 } catch (e) {
