@@ -62,7 +62,7 @@ type ArmRun = {
   arm: 'routed' | 'unrouted'
   wallMs: number
   costUsd?: number
-  numTurns?: number
+  steps?: number
   perTask: Array<{ taskId: string; passed: number; total: number; ok: boolean }>
   checksOk: number
   error?: string
@@ -83,7 +83,7 @@ async function runArm(
   const recon = resolveWorkerReconAllow()
   const t0 = Date.now()
   let costUsd: number | undefined
-  let numTurns: number | undefined
+  let steps: number | undefined
   let error: string | undefined
   try {
     const child = spawn(
@@ -127,12 +127,13 @@ async function runArm(
     mkdirSync(join(runDir, 'forensics'), { recursive: true })
     writeFileSync(join(runDir, 'forensics', `wf-${armName}.stderr.log`), errBuf)
     try {
-      const envl = JSON.parse(out) as { total_cost_usd?: number; num_turns?: number; is_error?: boolean; subtype?: string }
-      costUsd = envl.total_cost_usd
-      numTurns = envl.num_turns
-      if (envl.is_error) error = error ?? `result envelope is_error (${envl.subtype ?? 'unknown'})`
+      const outcome = JSON.parse(out) as { type?: string; status?: string; steps?: number; cost_usd?: number; error?: { message?: string } }
+      if (outcome.type !== 'outcome') throw new Error('not an outcome row')
+      costUsd = outcome.cost_usd
+      steps = outcome.steps
+      if (outcome.status !== 'completed') error = error ?? `outcome ${outcome.status ?? 'unknown'}${outcome.error?.message ? ` — ${outcome.error.message}` : ''}`
     } catch {
-      error = error ?? 'no parsable result envelope'
+      error = error ?? 'no parsable outcome row'
     }
   } catch (e) {
     error = String(e)
@@ -144,7 +145,7 @@ async function runArm(
     const { passed, total } = judgeChecks(t, clone)
     return { taskId: t.id, passed, total, ok: passed === total }
   })
-  return { arm: armName, wallMs, costUsd, numTurns, perTask, checksOk: perTask.filter(p => p.ok).length, error }
+  return { arm: armName, wallMs, costUsd, steps, perTask, checksOk: perTask.filter(p => p.ok).length, error }
 }
 
 async function main(): Promise<void> {
