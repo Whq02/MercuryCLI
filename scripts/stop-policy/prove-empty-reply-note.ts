@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { answerOf, frameLines, isCompleted, isMainThread, isText, lastOutcome } from '../lib/rows.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -172,19 +173,6 @@ export const ROUTES: ReadonlyArray<{ route: string; model: string; dialect: Dial
   { route: 'zai', model: 'glm-5.2', dialect: 'chat' },
 ]
 
-type Frame = Record<string, unknown>
-function assistantTexts(frames: Frame[]): string[] {
-  const out: string[] = []
-  for (const f of frames) {
-    if (f.type !== 'assistant') continue
-    const content = (f.message as { content?: unknown } | undefined)?.content
-    if (!Array.isArray(content)) continue
-    for (const block of content as Array<{ type?: string; text?: string }>) {
-      if (block.type === 'text' && typeof block.text === 'string') out.push(block.text)
-    }
-  }
-  return out
-}
 function inputOf(c: Captured): unknown[] {
   const b = c.body
   if (Array.isArray(b.input)) return b.input as unknown[]
@@ -216,21 +204,19 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
   const exit = await new Promise<number | null>((done, reject) => { proc.once('exit', done); proc.once('error', reject) })
   clearTimeout(watchdog)
   await fixture.close()
-  const frames = stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
-    try { return [JSON.parse(line) as Frame] } catch { return [] }
-  })
-  const result = frames.find(f => f.type === 'result')
-  const resultText = String(result?.result ?? '')
-  const texts = assistantTexts(frames)
+  const frames = frameLines(stdout)
+  const outcome = lastOutcome(frames)
+  const answer = answerOf(outcome)
+  const texts = frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? ''))
   const requests = fixture.captured.filter(c => c.dialect === route.dialect)
   const tail = stderr.split('\n').filter(l => l.trim() !== '').slice(-4).join(' | ')
-  check(`${route.route}: the turn settled with a result`, exit === 0 && result !== undefined, `exit ${String(exit)} ${tail}`)
+  check(`${route.route}: the turn settled with a completed outcome`, exit === 0 && isCompleted(outcome), `exit ${String(exit)} ${String(outcome?.status)} ${tail}`)
   if (route.route === 'zai') {
     check(`${route.route}: the tool round ran and the second request finished with no words`, requests.length === 2 && requests[1] !== undefined, `${requests.length} request(s)`)
     check(`${route.route}: a visible note says the provider finished this response with nothing said`, texts.some(t => t.includes(ZAI_SILENCE_WORDS)), JSON.stringify(texts).slice(0, 300))
     check(`${route.route}: the note is not the old cut wording`, !texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
     check(`${route.route}: silence is not re-issued`, requests.length === 2, `${requests.length} request(s)`)
-    check(`${route.route}: the turn's result is the silence note, the turn's end`, resultText.includes(ZAI_SILENCE_WORDS), `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${route.route}: the outcome's answer is the silence note, the turn's end`, answer.includes(ZAI_SILENCE_WORDS), `answer: ${JSON.stringify(answer.slice(0, 200))}`)
   } else {
     const { EMPTY_REPLY_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
     const needle = JSON.stringify(EMPTY_REPLY_RECOVERY_NUDGE).slice(1, -1)
@@ -241,7 +227,7 @@ async function runRoute(route: { route: string; model: string; dialect: Dialect 
     check(`${route.route}: a visible note says the provider returned an empty reply`, texts.some(t => t.includes(EMPTY_REPLY_NOTE_WORDS)), JSON.stringify(texts).slice(0, 300))
     check(`${route.route}: the request was re-issued once, with the nudge as its last user turn after the tool result`, requests.length === 3 && lastItem?.role === 'user' && JSON.stringify(lastItem).includes(needle) && !JSON.stringify(second).includes(needle), `${requests.length} request(s); last input item: ${JSON.stringify(lastItem).slice(0, 300)}`)
     check(`${route.route}: the re-issue is not byte-identical to the empty-answered request`, requests.length === 3 && JSON.stringify(third) !== JSON.stringify(second), `${requests.length} request(s)`)
-    check(`${route.route}: the turn's result is the model's answer from the re-issue, not silence`, resultText === EMPTY_REPLY_END, `result: ${JSON.stringify(resultText.slice(0, 200))}`)
+    check(`${route.route}: the outcome's answer is the model's answer from the re-issue, not silence`, answer === EMPTY_REPLY_END, `answer: ${JSON.stringify(answer.slice(0, 200))}`)
   }
   if (failures === 0) rmSync(home, { recursive: true, force: true })
   else console.log(`  [forensics] the world stays at ${home}\n${stderr.split('\n').slice(-8).join('\n')}`)
