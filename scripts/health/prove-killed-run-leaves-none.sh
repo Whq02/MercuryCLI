@@ -43,7 +43,7 @@ make_run() {
   printf '{"argv":["%s","%s"],"cwd":"%s","cols":100,"rows":30,"total":%s,"out":"%s","sends":[]}\n' "$node_bin" "$dist/mercury.mjs" "$cwd" "$(awk -v s="$scale" 'BEGIN{printf "%d", 900*s}')" "$work/$tag.grid.json" >"$work/$tag.cfg.json"
   cat >"$work/$tag-suite-run-all.sh" <<EOF
 #!/usr/bin/env bash
-export MERCURY_CONFIG_DIR="$home" MERCURY_DAEMON_DIR="$home/daemon" MERCURY_DOCTOR_STATE_DIR="$home/doctor"
+export MERCURY_CONFIG_DIR="$home" MERCURY_DAEMON_DIR="$home/daemon" MERCURY_HEALTH_STATE_DIR="$home/doctor"
 "$python" "$engine" "$work/$tag.cfg.json" >"$work/$tag.engine.out" 2>&1 &
 engine=\$!
 echo "\$engine" >"$work/$tag.engine.pid"

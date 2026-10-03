@@ -36,7 +36,7 @@ check('real untracked work still reads dirty', (await getIsClean()) === false)
 const report = readFileSync(join(import.meta.dir, '../../src/utils/healthReport.ts'), 'utf8')
 check(
   'the state root rides the PROJECT root, not the bare cwd (call-shaped)',
-  /flagEnv\('MERCURY_DOCTOR_STATE_DIR'\) \|\| getProjectRootSafe\(\)/.test(report),
+  /flagEnv\('MERCURY_HEALTH_STATE_DIR'\) \|\| getProjectRootSafe\(\)/.test(report),
 )
 
 rmSync(HOME, { recursive: true, force: true })

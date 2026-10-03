@@ -9,9 +9,9 @@ process.chdir(REPO)
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'feedback-road-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
-process.env.MERCURY_DOCTOR_STATE_DIR = join(SCRATCH, 'doctor-state')
+process.env.MERCURY_HEALTH_STATE_DIR = join(SCRATCH, 'doctor-state')
 mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
-mkdirSync(process.env.MERCURY_DOCTOR_STATE_DIR, { recursive: true })
+mkdirSync(process.env.MERCURY_HEALTH_STATE_DIR, { recursive: true })
 delete process.env.MERCURY_HOME
 delete process.env.MERCURY_ISSUES_REPO_URL
 delete process.env.MERCURY_GH_CMD
@@ -303,7 +303,7 @@ if (!existsSync(BIN)) {
     const env: Record<string, string | undefined> = {
       ...process.env,
       MERCURY_CONFIG_DIR: home,
-      MERCURY_DOCTOR_STATE_DIR: join(SCRATCH, `doctor-${id}`),
+      MERCURY_HEALTH_STATE_DIR: join(SCRATCH, `doctor-${id}`),
       MERCURY_CRITTER_IDLE: '0',
       MERCURY_CRITTER_GAZE: '0',
       MERCURY_CRITTER_SLEEP: '0',

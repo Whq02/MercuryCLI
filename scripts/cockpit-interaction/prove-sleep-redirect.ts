@@ -318,7 +318,7 @@ t.section('§6 — REAL BINARY, REAL AGENT: the same-block dispatch-then-wait pa
           ANTHROPIC_BASE_URL: fixture.url,
           ANTHROPIC_API_KEY: API_KEY,
           MERCURY_BOOT_PREFLIGHT: '0',
-          MERCURY_DOCTOR_STATE_DIR: join(scratch, 'doctor'),
+          MERCURY_HEALTH_STATE_DIR: join(scratch, 'doctor'),
           MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
           MERCURY_CREWS_DIR: join(scratch, 'crews'),
         },

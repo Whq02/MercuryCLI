@@ -16,7 +16,7 @@ import {
 } from './evolution/evolutionLedger.js'
 
 export function healthFixEnabled(): boolean {
-  return flagEnv('MERCURY_DOCTOR_FIX') !== '0'
+  return flagEnv('MERCURY_HEALTH_FIX') !== '0'
 }
 
 export interface AppliedFix {
@@ -86,7 +86,7 @@ export async function runHeadlessFix(
 ): Promise<HeadlessFixResult> {
   const result: HeadlessFixResult = { fixes: [], skipped: [] }
   if (!healthFixEnabled()) {
-    result.skipped.push({ id: '*', reason: 'MERCURY_DOCTOR_FIX=0 — diagnose-only' })
+    result.skipped.push({ id: '*', reason: 'MERCURY_HEALTH_FIX=0 — diagnose-only' })
     return result
   }
   for (const check of flattenChecks(cert)) {

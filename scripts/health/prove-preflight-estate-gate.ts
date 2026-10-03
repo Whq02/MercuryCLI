@@ -7,7 +7,7 @@ const HOME = mkdtempSync(join(tmpdir(), 'pfgate-home-'))
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 const virginRoot = mkdtempSync(join(tmpdir(), 'pfgate-virgin-'))
-process.env.MERCURY_DOCTOR_STATE_DIR = virginRoot
+process.env.MERCURY_HEALTH_STATE_DIR = virginRoot
 
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)

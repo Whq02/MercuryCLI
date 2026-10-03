@@ -146,7 +146,7 @@ const busyWorld = (): BusyWorld => {
     env: {
       MERCURY_CONFIG_DIR: home,
       MERCURY_DAEMON_DIR: join(home, 'daemon'),
-      MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
+      MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
     },
     home,
   }

@@ -49,7 +49,7 @@ for k in list(env):
 env.update({
     "MERCURY_CONFIG_DIR": home,
     "MERCURY_DAEMON_DIR": os.path.join(home, "daemon"),
-    "MERCURY_DOCTOR_STATE_DIR": os.path.join(home, "doctor"),
+    "MERCURY_HEALTH_STATE_DIR": os.path.join(home, "doctor"),
     "MERCURY_CREDENTIAL_STORE": "file",
     "MERCURY_DAEMON_NO_SELF_WARM": "1",
     "MERCURY_LOCAL_PROBE_TARGETS": "none",

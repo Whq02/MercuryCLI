@@ -41,7 +41,7 @@ for (const road of roads) {
     MERCURY_FULLSCREEN: '1',
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
     MERCURY_CREDENTIAL_STORE: 'file',
   }
   const run = runJobControlHost({

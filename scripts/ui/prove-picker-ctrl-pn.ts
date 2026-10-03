@@ -63,7 +63,7 @@ const res = spawnSync(driver.python, [VSHOT, cfg], {
     ...process.env,
     MERCURY_CONFIG_DIR: home,
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
-    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'doctor'),
     MERCURY_CREDENTIAL_STORE: 'file',
     MERCURY_OPERATOR: 'sam',
     MERCURY_CRITTER_IDLE: '0',

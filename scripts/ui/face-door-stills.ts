@@ -96,7 +96,7 @@ export const FIXED_CERT: HealthCertificate = {
       title: 'ESTATE',
       checks: [
         { id: 'daemon', label: 'Daemon reachability', status: 'unknown', evidence: 'no probe ran at fast depth — d runs it' },
-        { id: 'cert-store', label: 'Certificate store', status: 'off', evidence: 'MERCURY_DOCTOR_CERT=0 gates persistence' },
+        { id: 'cert-store', label: 'Certificate store', status: 'off', evidence: 'MERCURY_HEALTH_CERT=0 gates persistence' },
       ],
     },
   ],

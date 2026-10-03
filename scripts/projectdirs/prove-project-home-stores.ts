@@ -7,7 +7,7 @@ import { join, relative } from 'node:path'
 const HOME = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-home-')))
 const REPO = realpathSync(mkdtempSync(join(tmpdir(), 'project-home-repo-')))
 process.env.MERCURY_CONFIG_DIR = HOME
-process.env.MERCURY_DOCTOR_STATE_DIR = REPO
+process.env.MERCURY_HEALTH_STATE_DIR = REPO
 process.env.MERCURY_EVOLUTION_LEDGER = '1'
 delete process.env.MERCURY_ROUTER_STATE_DIR
 delete process.env.MERCURY_WORKSPACE_EVIDENCE
@@ -114,7 +114,7 @@ section('H3 — the migration: read once, the folder copy stays, the doctor name
   check('the folder copy stays', existsSync(join(REPO2, '.mercury', 'evolution', 'the-program-abc.jsonl')))
   const leftovers = homeStores.projectHomeLeftovers(REPO2)
   check('the leftover census names the folder copies', JSON.stringify(leftovers.sort()) === JSON.stringify(['.mercury/evolution']), JSON.stringify(leftovers))
-  process.env.MERCURY_DOCTOR_STATE_DIR = REPO2
+  process.env.MERCURY_HEALTH_STATE_DIR = REPO2
   const estate = await projectEstateCheck()
   check('the doctor\'s Project estate row warns and names them', estate.status === 'warn' && (estate.evidence ?? '').includes('.mercury/evolution'), JSON.stringify(estate))
   check('…with the one git line that untracks the tracked ones', /git rm -r --cached ".mercury\/evolution"/.test(estate.fix ?? ''), estate.fix)
@@ -124,7 +124,7 @@ section('H3 — the migration: read once, the folder copy stays, the doctor name
   rmSync(join(REPO2, '.mercury', 'evolution'), { recursive: true, force: true })
   const clean = await projectEstateCheck()
   check('the row reads ok once the folder copies are gone', clean.status === 'ok', JSON.stringify(clean))
-  process.env.MERCURY_DOCTOR_STATE_DIR = REPO
+  process.env.MERCURY_HEALTH_STATE_DIR = REPO
   rmSync(REPO2, { recursive: true, force: true })
 }
 

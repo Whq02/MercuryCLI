@@ -65,11 +65,11 @@ export async function runHealthFixCli(opts: { only?: string; yes: boolean }): Pr
     ])
     if (!healthCertEnabled()) {
       disarm()
-      return emitAndExit({ error: 'health --fix requires MERCURY_DOCTOR_CERT enabled', code: 'cert-unavailable' }, 1)
+      return emitAndExit({ error: 'health --fix requires MERCURY_HEALTH_CERT enabled', code: 'cert-unavailable' }, 1)
     }
     if (!fixMod.healthFixEnabled()) {
       disarm()
-      return emitAndExit({ error: 'MERCURY_DOCTOR_FIX=0 — diagnose-only; no remedies applied', code: 'fix-disabled' }, 1)
+      return emitAndExit({ error: 'MERCURY_HEALTH_FIX=0 — diagnose-only; no remedies applied', code: 'fix-disabled' }, 1)
     }
     const onProgress = (ev: { check: { id: string }; done: number; total: number }): void => {
       trace.settled = ev.done
@@ -110,7 +110,7 @@ export async function runHealthJsonCli(opts?: { deep?: boolean; only?: string })
     if (!healthCertEnabled()) {
       disarm()
       return emitAndExit({
-        error: 'the health certificate requires MERCURY_DOCTOR_CERT enabled',
+        error: 'the health certificate requires MERCURY_HEALTH_CERT enabled',
         code: 'cert-unavailable',
       }, 1)
     }

@@ -219,7 +219,7 @@ async function run(): Promise<{
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
-    MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
     BROWSER: '/usr/bin/true',

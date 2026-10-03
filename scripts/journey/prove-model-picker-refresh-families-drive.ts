@@ -150,7 +150,7 @@ for (const legName of LEGS) {
         MERCURY_LOCAL_PROBE_TARGETS: leg.families.includes('local') ? `ollama=${base}/ollama` : 'none',
         MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
         MERCURY_HOME: join(home, 'proof-home'),
-        MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
+        MERCURY_HEALTH_STATE_DIR: join(home, 'doctor-state'),
         MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0',
         MERCURY_CRITTER: 'clam', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
         MERCURY_TURN_RECEIPT: '0', MERCURY_VERIFY_EVIDENCE: '0',

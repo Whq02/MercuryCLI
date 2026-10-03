@@ -164,8 +164,8 @@ try {
   {
     const dir = join(scratch, 'off')
     mkdirSync(dir, { recursive: true })
-    const r = runHealth(dir, { MERCURY_DOCTOR_CERT: '0' })
-    check('MERCURY_DOCTOR_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1)
+    const r = runHealth(dir, { MERCURY_HEALTH_CERT: '0' })
+    check('MERCURY_HEALTH_CERT=0 ⇒ exit 1 (could not produce)', r.status === 1)
     const err = r.json as { code?: string; error?: string }
     check('gated-off error is JSON on stdout with a stable code', err?.code === 'cert-unavailable' && typeof err?.error === 'string')
   }

@@ -74,7 +74,7 @@ function childEnv(home: string, openrouterBase: string): NodeJS.ProcessEnv {
     MERCURY_CRITTER_GAZE: '0',
     MERCURY_CRITTER_IDLE: '0',
     MERCURY_CRITTER_SLEEP: '0',
-    MERCURY_DOCTOR_STATE_DIR: join(home, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: join(home, 'daemon'),
     MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_HOME: join(home, 'proof-home'),

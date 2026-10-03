@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'plo-home-'))
 process.env.MERCURY_EVOLUTION_LEDGER = '0'
 const stateRoot = mkdtempSync(join(tmpdir(), 'plo-state-'))
-process.env.MERCURY_DOCTOR_STATE_DIR = stateRoot
+process.env.MERCURY_HEALTH_STATE_DIR = stateRoot
 
 const repo = join(import.meta.dir, '..', '..')
 const { enableConfigs } = await import(`${repo}/src/utils/config/globalConfig.js`)

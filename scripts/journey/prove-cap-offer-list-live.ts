@@ -182,7 +182,7 @@ function baseEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_OPERATOR: 'sam',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
-    MERCURY_DOCTOR_STATE_DIR: path.join(home, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: path.join(home, 'doctor-state'),
     MERCURY_DAEMON_DIR: path.join(home, 'daemon'),
     MERCURY_CREWS_DIR: path.join(home, 'crews'),
     MERCURY_HOME: path.join(home, 'proof-home'),

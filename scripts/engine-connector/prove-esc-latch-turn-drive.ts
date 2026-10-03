@@ -150,7 +150,7 @@ async function drive(scene: Scene): Promise<void> {
     MERCURY_VERIFY_EVIDENCE: '0',
     MERCURY_TERMINAL_TITLE: '0',
     MERCURY_OPERATOR: 'sam',
-    MERCURY_DOCTOR_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
     MERCURY_DAEMON_DIR: daemonDir,
     MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
     MERCURY_HOME: path.join(RUN_HOME, 'proof-home'),

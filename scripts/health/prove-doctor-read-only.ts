@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
-const BIN = process.env.MERCURY_DOCTOR_RO_BIN ?? join(REPO, 'dist', 'mercury.mjs')
+const BIN = process.env.MERCURY_HEALTH_RO_BIN ?? join(REPO, 'dist', 'mercury.mjs')
 const NODE = existsSync(join(REPO, 'dist', 'vendor', 'node', 'bin', 'node'))
   ? join(REPO, 'dist', 'vendor', 'node', 'bin', 'node')
   : 'node'

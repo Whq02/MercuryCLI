@@ -386,14 +386,14 @@ export const HEALTH_STATUS_META: Record<
 }
 
 export function healthCertEnabled(): boolean {
-  return flagEnabled('MERCURY_DOCTOR_CERT')
+  return flagEnabled('MERCURY_HEALTH_CERT')
 }
 
 const MB = 1024 * 1024
 const mb = (bytes: number) => `${(bytes / MB).toFixed(0)}MB`
 
 export function healthStateRoot(): string {
-  return flagEnv('MERCURY_DOCTOR_STATE_DIR') || getProjectRootSafe()
+  return flagEnv('MERCURY_HEALTH_STATE_DIR') || getProjectRootSafe()
 }
 
 function getProjectRootSafe(): string {
