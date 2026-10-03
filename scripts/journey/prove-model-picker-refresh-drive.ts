@@ -74,7 +74,7 @@ for (const [cols, rows] of SIZES) {
       MERCURY_OPENAI_AUTH_BASE: 'http://127.0.0.1:9',
       MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
       MERCURY_HOME: join(home, 'proof-home'),
-      MERCURY_HEALTH_STATE_DIR: join(home, 'doctor-state'), MERCURY_LOCAL_PROBE_TARGETS: 'none',
+      MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'), MERCURY_LOCAL_PROBE_TARGETS: 'none',
       MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0',
       MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
       MERCURY_TURN_RECEIPT: '0', MERCURY_VERIFY_EVIDENCE: '0',

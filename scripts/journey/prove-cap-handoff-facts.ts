@@ -59,7 +59,7 @@ const env: NodeJS.ProcessEnv = {
   MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_BOOT_PREFLIGHT: '0',
   MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0',
   MERCURY_OPERATOR: 'sam', MERCURY_TURN_RECEIPT: '0', MERCURY_VERIFY_EVIDENCE: '0',
-  MERCURY_HEALTH_STATE_DIR: join(home, 'doctor-state'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
+  MERCURY_HEALTH_STATE_DIR: join(home, 'health-state'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREWS_DIR: join(home, 'crews'),
   MERCURY_HOME: join(home, 'proof-home'), MERCURY_FAILOVER_LINE_MS: String(budgetMs),
   MERCURY_CONNECTOR_TRACE: join(home, 'connector-trace.jsonl'),
   ...(process.env.MERCURY_VSHOT_BUDGET_SCALE ? { MERCURY_VSHOT_BUDGET_SCALE: process.env.MERCURY_VSHOT_BUDGET_SCALE } : {}),

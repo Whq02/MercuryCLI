@@ -13,7 +13,7 @@ import {
   comparePrefix,
   conversationRows,
   debugLogWord,
-  doctorLedgerWord,
+  healthLedgerWord,
   isSummariserRequest,
   keptHeaders,
   printReport,
@@ -531,7 +531,7 @@ async function drive(): Promise<void> {
     MERCURY_OPERATOR: 'sam',
     MERCURY_TURN_RECEIPT: '0',
     MERCURY_VERIFY_EVIDENCE: '0',
-    MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'doctor-state'),
+    MERCURY_HEALTH_STATE_DIR: path.join(RUN_HOME, 'health-state'),
     MERCURY_DAEMON_DIR: path.join(RUN_HOME, 'daemon'),
     MERCURY_CREWS_DIR: path.join(RUN_HOME, 'crews'),
   }
@@ -624,8 +624,8 @@ async function drive(): Promise<void> {
     for (const line of word) console.log(`  debug: ${line.slice(0, 300)}`)
     const notices = sessionFiles().flatMap(transcriptNotices)
     for (const notice of notices) console.log(`  notice: ${notice.slice(0, 300)}`)
-    const ledger = doctorLedgerWord(RUN_HOME)
-    console.log(`  doctor ledger: ${ledger ?? 'none written'}`)
+    const ledger = healthLedgerWord(RUN_HOME)
+    console.log(`  health ledger: ${ledger ?? 'none written'}`)
     return { word, notices, ledger }
   }
 
