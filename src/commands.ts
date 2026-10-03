@@ -121,7 +121,6 @@ import { isFirstPartyAnthropicBaseUrl } from './utils/model/providers.js'
 import { anyProviderCredentialed } from './services/providers/providerUsage.js'
 import { clearExtensionCommandCaches, getExtensionCommands, getExtensionSkills } from './extensions/load/commands.js'
 import { getSourceDisplayName } from './utils/settings/constants.js'
-import { getInitialSettings } from './utils/settings/settings.js'
 
 export type {
   Command,
