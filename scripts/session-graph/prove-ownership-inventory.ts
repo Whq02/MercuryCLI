@@ -185,7 +185,7 @@ t.section('§2 — no NEW crew export ships without an inventory row')
     'readSessionDescriptor',
     'recordCapabilities', 'invalidateCapabilities', 'forgetCapabilities', 'capabilityStateOf',
     'registerActivityClassifier', 'classifyActivity', 'activityIdOf', 'activityClassifierOrder',
-    'foldActivity', 'emptyActivityFeed', 'explodeActivityInputs',
+    'foldActivity', 'emptyActivityFeed',
     'claudeCodeSeatTransport', 'codexSeatTransport', 'acpSeatTransport',
     'claudeCodeDeclaredCapabilities', 'codexDeclaredCapabilities', 'acpDeclaredCapabilities',
     'realNdjsonChild', 'awaitLine', 'mulberry32', 'buildCrewFixture',

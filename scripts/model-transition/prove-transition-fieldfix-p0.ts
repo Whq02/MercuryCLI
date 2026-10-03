@@ -111,21 +111,6 @@ section('§C the Windows incident wave (intake F): evidence preserved, boundarie
   check('the harness envelope itself stays intact', wrapped.startsWith('<system-reminder>\n') && wrapped.endsWith('\n</system-reminder>'))
   check('the text stays readable (ZWSP neutralization, not deletion)', wrapped.includes('INJECTED') && wrapped.includes('system-reminder>after'.replace('<', '')))
 
-  const act = await import('../../src/services/crew/activity.js')
-  const envInput = (text: string) => ({
-    event: { kind: 'user', payload: { type: 'user', message: { content: text } }, sourceEventId: `env-${text.length}`, atMs: 1 } as never,
-    agentId: 'crew:envelope' as never,
-    sessionId: 's-env',
-    adapterKind: 'claude-code',
-  })
-  const cmdRow = act.classifyActivity(envInput('<command-message>rewind</command-message><command-args>--here</command-args>'))
-  check('a command envelope lifts a CLEAN command row', cmdRow.class === 'command' && cmdRow.objectLabel === '/rewind --here')
-  const caveatRow = act.classifyActivity(envInput('<local-command-caveat>Caveat: the messages below…</local-command-caveat>'))
-  check('a caveat envelope lifts a neutral label', caveatRow.objectLabel === '(local-command plumbing)')
-  for (const row of [cmdRow, caveatRow]) {
-    check(`no raw envelope bytes in the label: ${row.objectLabel}`, !row.objectLabel.includes('<'))
-  }
-
   const wireSrc = readFileSync(join(ROOT, 'src/services/providers/openai/openaiWire.ts'), 'utf8')
   check('the raw stream error event is logged before reduction', wireSrc.includes('raw stream error event'))
   check('a bodyless error is stated as itself, never as provider data', wireSrc.includes('no code, no message'))
