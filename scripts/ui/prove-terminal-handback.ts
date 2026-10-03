@@ -204,7 +204,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
   const headless: Record<string, string> = {
     'src/cli/editorBridge.ts': 'a headless verb (mercury bridge …) — the process ends with the child; no renderer returns to the terminal',
     'src/daemon/main.ts': 'the daemon successor spawn — no terminal',
-    'src/daemon/headlessRun.ts': 'the stream-json child inherits stderr only',
+    'src/daemon/headlessRun.ts': 'the rows child inherits stderr only',
     'src/services/acp/childSession.ts': 'the ACP child inherits stderr only',
     'src/utils/worktree.ts': 'the --worktree --multiplex attach: a multiplexer client never takes the foreground group, and it runs before the renderer mounts',
     'src/substrate/directSplash.ts': 'the pre-boot launch splash — it runs before the renderer mounts, its child shares this process group (no tcsetpgrp, so no foreground-group hand-off), and an abnormal splash death is healed by its own ABNORMAL_HEAL (terminal modes), never the reclaim',
