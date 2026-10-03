@@ -100,10 +100,10 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
     const sendUser = (label: string, text: string): void => {
       cur = { label, assistantModels: [], wallMs: 0 }
       turns.push(cur)
-      void peer.request('queue/add', { type: 'prompt', content: text })
+      peer.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: null }).catch((error: unknown) => console.error('[queue/add refused]', error instanceof Error ? error.message : String(error)))
     }
     const sendModel = (model: string): void => {
-      void peer.request('session/set_model', { model })
+      peer.request('session/set_model', { model }, { deadlineMs: null }).catch((error: unknown) => console.error('[session/set_model refused]', error instanceof Error ? error.message : String(error)))
     }
 
     const script: Array<() => void> = [
@@ -145,7 +145,7 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
       resolveP({ turns, exit: code })
     })
     void peer
-      .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'journey-model-policy', version: '0' }, capabilities: { holds_asks: false, elicitation: false, partial_rows: false } })
+      .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'journey-model-policy', version: '0' }, capabilities: { holds_asks: false, elicitation: false, partial_rows: false } }, { deadlineMs: null })
       .then(advance, () => child.kill('SIGKILL'))
   })
 }
