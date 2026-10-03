@@ -390,10 +390,9 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
   check('the coordinator never hears a door as a session; it hears the other projects as their own list', coord.includes('if (row.door !== undefined) continue') && coord.includes('...(elsewhere.length > 0 ? { elsewhere } : {})'))
 }
 
-console.log('§5 — THE CROSS-PROJECT PING, A DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, the engine rings once, ↵ = switch + open')
+console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, ↵ = switch + open')
 {
   const { upsertObligation, openObligations, resolveObligation } = await import('../../src/services/crew/obligations.ts')
-  const { createPingEngine, pingSliceOf } = await import('../../src/services/pings/pingEngine.ts')
   const { obligationFacts } = await import('../../src/services/crew/obligationsBridge.ts')
   const { foldAttention, emptyAttentionState, bucketItems } = await import('../../src/services/attention/contracts.ts')
   const { railTailParts } = await import('../../src/components/concourse/NeedsYouRail.tsx')
@@ -406,13 +405,8 @@ console.log('§5 — THE CROSS-PROJECT PING, A DOOR: an ask in another project r
     liveRecord('concourse-w4', S_B2, P_B, { lastDeliveryAt: NOW - 2000, lastTurnSettledAt: NOW - 1000, ...b2 }),
   ]
   seedWorkers(rosterOf({}))
-  let clock = Date.now() - 1000
-  let rings = 0
-  const engine = createPingEngine({ ringBell: () => (rings += 1), bellEnabled: () => true, nowMs: () => clock })
   const attentionOf = async (): Promise<ReturnType<typeof foldAttention>> =>
     foldAttention(emptyAttentionState(), obligationFacts(await openObligations({ scope: 'switchboard', dir: crewDir }), 'operator', Date.now()))
-  engine.observe(pingSliceOf(await attentionOf()))
-  check('before any need the engine is quiet', rings === 0)
   const ask = await upsertObligation({ ref: 'q:b1', sessionId: S_B1, question: 'shall I merge?', owner: 'operator', scope: 'switchboard', dir: crewDir })
   const local = await upsertObligation({ ref: 'q:a1', sessionId: S_A1, question: 'which branch?', owner: 'operator', scope: 'switchboard', dir: crewDir })
   const snap = await build()
@@ -423,16 +417,8 @@ console.log('§5 — THE CROSS-PROJECT PING, A DOOR: an ask in another project r
   check('the rail counts both (the ⚑ counts a foreign need like any need — counts.needsYou is the whole store)', snap.counts.needsYou === 2 && snap.needsYou.length === 2)
   const state1 = await attentionOf()
   check('the attention fold holds the foreign ask in needs-you (the badge\'s own bucket)', bucketItems(state1, 'needs-you').some(i => i.subjectId === `obligation:${ask.obligationId}`))
-  clock += 2000
-  engine.observe(pingSliceOf(state1))
-  check('PINGS rings ONCE for the two new subjects (coalesced within the window — one tap)', rings === 1, String(rings))
-  clock += 5000
-  engine.observe(pingSliceOf(state1))
-  check('the same needs never re-ring (a store-read replay is silent)', rings === 1)
   await upsertObligation({ ref: 'q:b1', sessionId: S_B1, question: 'shall I merge? (still)', owner: 'operator', scope: 'switchboard', dir: crewDir })
-  clock += 5000
-  engine.observe(pingSliceOf(await attentionOf()))
-  check('a re-raise (revision bump) of the foreign ask never re-rings — never a nag', rings === 1)
+  check('a re-raise (revision bump) of the foreign ask keeps ONE needs-you item for it', bucketItems(await attentionOf(), 'needs-you').filter(i => i.subjectId === `obligation:${ask.obligationId}`).length === 1)
   const tail = railTailParts({ projectLabel: 'proj-beta', agentLabel: 'operator', ageLabel: '01m' }, 200, true)
   check('the rail\'s one affordance on a door row is "switch & open" (no separate open; dismiss stays)', tail.some(p => p.key === 'answer' && p.text.includes('switch & open')) && !tail.some(p => p.key === 'open') && tail.some(p => p.key === 'dismiss'))
   check('an ordinary row keeps "answer & resume" and "open session"', railTailParts({ projectLabel: 'x', agentLabel: 'y', ageLabel: '01m' }, 200).map(p => p.key).join(',') === 'meta,answer,open,dismiss')
@@ -442,8 +428,6 @@ console.log('§5 — THE CROSS-PROJECT PING, A DOOR: an ask in another project r
   const beginAnswerBody = beginAnswerAt === -1 ? '' : screen.slice(beginAnswerAt, screen.indexOf("const ref = o.ref ?? ''", beginAnswerAt))
   check('↵ on a foreign rail row takes the door: switch (the picker\'s own apply, trust-gated) + open; an untrusted folder opens the chat anyway and says where the view stayed', beginAnswerAt !== -1 && beginAnswerBody.indexOf('if (o.foreignProject !== undefined) {') !== -1 && beginAnswerBody.indexOf('if (o.foreignProject !== undefined) {') < beginAnswerBody.indexOf('takeObligationDoor(o)') && beginAnswerBody.indexOf('takeObligationDoor(o)') !== -1 && beginAnswerBody.indexOf('takeObligationDoor(o)') < beginAnswerBody.indexOf('if (reducedStage) {') && screen.includes('if (isPathTrusted(home.dir)) applyGround(home.dir)') && screen.includes("stays untrusted ${keyHintLabel('(⌃g trusts it)')} · opening the chat anyway"))
   check('o and the rail\'s open chip take the same door', screen.includes('if (o) openObligationOrDoor(o.obligationId)') && screen.includes('openObligation: id => openObligationOrDoor(id),'))
-  const engineSrc = read('src/services/pings/pingEngine.ts')
-  check('PINGS\'s engine stays its own (the cross-project door never reaches into it)', engineSrc.includes('export function createPingEngine(') && !engineSrc.includes('cross-project'))
   const frame = read('src/components/MercuryFrame.tsx')
   const { needsYouCount } = await import('../../src/utils/needsYouCount.ts')
   check('the ⚑ badge counts the attention view\'s needs-you bucket — every open need, whatever its project', frame.includes('attentionView.needsYou > 0') && frame.includes('needsYouCount(attentionView.needsYou)') && needsYouCount(1) === '1 needs you' && needsYouCount(2) === '2 need you')
@@ -558,7 +542,7 @@ console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint onc
   check('the stamp has ONE writer: titleMintedAt is assigned in the supervisor verb alone (a failed mint leaves no stamp anywhere)', (read('src/daemon/concourseSupervisor.ts').match(/titleMintedAt = /g) ?? []).length === 1 && !read('src/services/concourse/sessionTitleMint.ts').includes('titleMintedAt ='))
   check('/title is registered and rides the op as the operator\'s word; no words ⇒ the same small call, explicitly asked', read('src/commands.ts').includes("import title from './commands/title/index.js'") && read('src/commands/title/title.ts').includes("action: 'set-title'") && read('src/commands/title/title.ts').includes("titleSource: 'operator'") && read('src/commands/title/title.ts').includes('generateSessionTitle('))
   check('the board\'s rename: the r key and context on the full stage only; the route writes the operator\'s word; the legend prints r exactly with the composer doors', read('src/components/concourse/ConcourseScreen.tsx').includes("kind: 'rename'") && read('src/components/concourse/ConcourseScreen.tsx').includes("input === 'r' && !key.ctrl && !key.meta && !reducedStage") && read('src/components/concourse/ConcourseRoute.tsx').includes("action: 'set-title', sessionId, by: 'operator', title, titleSource: 'operator'") && manifest.regionKeysFor('list', { newSession: false }).every(k => k.keys !== 'r') && manifest.regionKeysFor('list', { newSession: true }).some(k => k.keys === 'r'))
-  check('the mint rides the estate\'s existing small call and mounts beside the ping engine in the visible process, in every world', read('src/services/concourse/sessionTitleMint.ts').includes("import('../../utils/sessionTitle.js')") && read('src/screens/REPL.tsx').includes('useSessionTitleMint();') && !read('src/hooks/useSessionTitleMint.ts').includes('chatOnlyBoot'))
+  check('the mint rides the estate\'s existing small call and mounts in the visible process, in every world', read('src/services/concourse/sessionTitleMint.ts').includes("import('../../utils/sessionTitle.js')") && read('src/screens/REPL.tsx').includes('useSessionTitleMint();') && !read('src/hooks/useSessionTitleMint.ts').includes('chatOnlyBoot'))
 }
 
 await applyHarnessGround(null)

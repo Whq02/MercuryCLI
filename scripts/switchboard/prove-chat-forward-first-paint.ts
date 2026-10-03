@@ -85,7 +85,7 @@ section('§5 the armed message waits for the birth it was armed for')
 {
   const repl = read('src', 'screens', 'REPL.tsx')
   const armedAt = repl.indexOf('const armedMessage = useAppState')
-  const effect = repl.slice(armedAt, repl.indexOf('useConcourseLifecycleSignals(terminal)', armedAt))
+  const effect = repl.slice(armedAt, repl.indexOf('useCoordinatorReceiptFold()', armedAt))
   check('the armed-message effect exists', effect.length > 0 && effect.length < 3000)
   check('it holds while a landing is in flight (the words must not reach a resting slot)', /if \(landing\) return;/.test(effect), 'the effect submits regardless of the landing')
   check('the landing is a dependency, so the effect re-runs when the birth settles', /\}, \[armedMessage, landing, setAppState\]\)/.test(effect))
