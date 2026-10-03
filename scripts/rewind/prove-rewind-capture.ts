@@ -155,11 +155,11 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     })
 
   const init = await peer
-    .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'prove-rewind-capture', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } })
+    .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'prove-rewind-capture', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }, { deadlineMs: 60_000 })
     .catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
   check(`${opts.label}: initialize answered with the pinned session id`, typeof init === 'object' && init.session_id === pinnedSessionId, j(init).slice(0, 200))
 
-  const accepted = await peer.request('queue/add', { type: 'prompt', content: 'overwrite note.txt with ONE' }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+  const accepted = await peer.request('queue/add', { type: 'prompt', content: 'overwrite note.txt with ONE' }, { deadlineMs: 60_000 }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
   check(`${opts.label}: the prompt row was accepted`, typeof accepted === 'object' && accepted.accepted === true, j(accepted))
   const sessionRow = await waitFor(isSessionRow, 'session')
   const sessionId = typeof sessionRow?.session_id === 'string' ? sessionRow.session_id : ''
