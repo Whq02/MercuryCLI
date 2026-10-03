@@ -73,7 +73,7 @@ section('(4) stop sweeps only a dead record; status tells the socket\'s truth')
   check('the sweep is gated on the recorded pid being GONE (ownerWatch.isProcessAlive — ESRCH is the only "gone")', /if \(stale && !isProcessAlive\(stale\.pid\)\) \{\s*await clearDeadSupervisorRecords\(\)/.test(stop))
   check('a live-but-silent pid is never swept (it may be binding)', /else if \(stale\) \{[\s\S]*?alive[\s\S]*?process\.exitCode = 1/.test(stop))
   const status = readFileSync(join(ROOT, 'src', 'daemon', 'status.ts'), 'utf8')
-  check('the headline says "running" only when the socket answers', status.includes('status.controlReachable\n        ? `  supervisor:   running') && status.includes('record present, not answering'))
+  check('the headline says "running" only when the socket answers', status.includes('status.controlReachable\n        ? `  daemon:       running') && status.includes('record present, not answering'))
   check('win32 names its control pipe', status.includes("process.platform === 'win32' ? 'control pipe:' : 'control.sock:'"))
 }
 
@@ -94,7 +94,7 @@ section('(5) identity beyond the pid — the ENOCONN stop sweeps only a RECYCLED
   check('the alive arm consults the ONE identity owner through the LIVE start token', stop.includes('supervisorRecordIdentity(stale, getProcessStartToken(stale.pid))'))
   check('the recycled arm sweeps through clearDeadSupervisorRecords', /not-recorded-process'\)[\s\S]{0,140}clearDeadSupervisorRecords\(\)/.test(stop))
   check('the unknown arm never prescribes a by-hand kill', !/could not be read[^\n]*end that process/.test(stop))
-  check('only the identity-MATCHED arm keeps the by-hand line', (stop.match(/end that process by hand/g) ?? []).length === 1 && /IS the recorded supervisor[^\n]*end that process by hand/.test(stop))
+  check('only the identity-MATCHED arm keeps the by-hand line', (stop.match(/end that process by hand/g) ?? []).length === 1 && /IS the recorded daemon[^\n]*end that process by hand/.test(stop))
 }
 
 section('(5b) THE ONE IDENTITY OWNER — supervisorRecordIdentity unions the two D arms (the convergence ruling)')
@@ -135,7 +135,7 @@ section('(6) the verb road, live in a scratch home: `stop --keep` and `stop --an
   const any = client('stop', '--any')
   check('`stop --any` refuses the same way', any.status === 1 && any.text.includes("mercury daemon stop: unknown flag '--any'"), `exit ${any.status}: ${firstLine(any.text)}`)
   const bare = client('stop')
-  check('a bare `stop` takes the stop road (no supervisor in the scratch home: nothing to stop, exit 0)', bare.status === 0 && bare.text.includes('no running supervisor to stop'), `exit ${bare.status}: ${firstLine(bare.text)}`)
+  check('a bare `stop` takes the stop road (no daemon in the scratch home: nothing to stop, exit 0)', bare.status === 0 && bare.text.includes('no running daemon to stop'), `exit ${bare.status}: ${firstLine(bare.text)}`)
   rmSync(home, { recursive: true, force: true })
 }
 

@@ -182,12 +182,12 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     const s = status.supervisor
     lines.push(
       status.controlReachable
-        ? `  supervisor:   running · pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`
-        : `  supervisor:   record present, not answering · pid ${s.pid} · v${s.version} · recorded up ${s.uptimeSec}s`,
+        ? `  daemon:       running · pid ${s.pid} · v${s.version} · up ${s.uptimeSec}s`
+        : `  daemon:       record present, not answering · pid ${s.pid} · v${s.version} · recorded up ${s.uptimeSec}s`,
     )
     lines.push(`  dir:          ${s.dir}`)
   } else {
-    lines.push('  supervisor:   not running')
+    lines.push('  daemon:       not running')
   }
 
   lines.push(
@@ -229,7 +229,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
     )
   }
   if (status.degraded) {
-    lines.push(`  supervisor:   ${GLYPH.warn} DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
+    lines.push(`  daemon:       ${GLYPH.warn} DEGRADED — ${status.degradedReason ?? 'a long-lived worker exhausted its respawn budget'}`)
   }
   if (status.leaseCount !== null) {
     lines.push(`  leases:       ${status.leaseCount}`)
@@ -243,7 +243,7 @@ export function formatMercuryDaemonStatus(status: MercuryDaemonStatus): string {
 
   if (status.supervisor && !status.controlReachable) {
     lines.push(
-      '  warning:      supervisor record present but control socket unreachable — ' +
+      '  warning:      daemon record present but control socket unreachable — ' +
         'the process may have crashed; run `mercury daemon stop` to clear it',
     )
   }

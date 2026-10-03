@@ -211,16 +211,16 @@ async function daemonStopCmd(): Promise<void> {
     if (stale && !isProcessAlive(stale.pid)) {
       await clearDeadSupervisorRecords()
       // eslint-disable-next-line no-console
-      console.error(`[daemon] no running supervisor to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
+      console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (control socket unreachable, process gone)`)
     } else if (stale) {
       const verdict = supervisorRecordIdentity(stale, getProcessStartToken(stale.pid))
       if (verdict === 'not-recorded-process') {
         await clearDeadSupervisorRecords()
         // eslint-disable-next-line no-console
-        console.error(`[daemon] no running supervisor to stop — swept the stale record of pid ${stale.pid} (the pid was recycled: its live process is not the recorded supervisor)`)
+        console.error(`[daemon] no running daemon to stop — swept the stale record of pid ${stale.pid} (the pid was recycled: its live process is not the recorded daemon)`)
       } else if (verdict === 'same-process') {
         // eslint-disable-next-line no-console
-        console.error(`[daemon] control socket unreachable but pid ${stale.pid} is alive and IS the recorded supervisor — it may still be binding; retry in a moment, or end that process by hand`)
+        console.error(`[daemon] control socket unreachable but pid ${stale.pid} is alive and IS the recorded daemon — it may still be binding; retry in a moment, or end that process by hand`)
         process.exitCode = 1
       } else {
         // eslint-disable-next-line no-console
@@ -234,14 +234,14 @@ async function daemonStopCmd(): Promise<void> {
       if (existsSync(lockPath) && lockHolder === null) {
         await clearDeadSupervisorRecords()
         // eslint-disable-next-line no-console
-        console.error('[daemon] no running supervisor to stop — swept a lock-only leftover (supervisor.lock with no record, its holder gone or not the recorded process)')
+        console.error('[daemon] no running daemon to stop — swept a lock-only leftover (supervisor.lock with no record, its holder gone or not the recorded process)')
       } else if (lockHolder !== null) {
         // eslint-disable-next-line no-console
-        console.error(`[daemon] no running supervisor to stop — but supervisor.lock is held by live pid ${lockHolder.pid} with no record beside it; if that pid is not a Mercury daemon, end it and re-run, or remove ${lockPath} by hand`)
+        console.error(`[daemon] no running daemon to stop — but supervisor.lock is held by live pid ${lockHolder.pid} with no record beside it; if that pid is not a Mercury daemon, end it and re-run, or remove ${lockPath} by hand`)
         process.exitCode = 1
       } else {
         // eslint-disable-next-line no-console
-        console.error('[daemon] no running supervisor to stop (control socket unreachable)')
+        console.error('[daemon] no running daemon to stop (control socket unreachable)')
       }
     }
   } else if (!reply.ok) {
@@ -284,7 +284,7 @@ async function daemonRun(args: string[]): Promise<void> {
 
   const scrubbed = scrubSupervisorRoleEnv()
   if (scrubbed.length > 0) {
-    logForDebugging(`[daemon] scrubbed inherited role env (supervisor runs role-free): ${scrubbed.join(', ')}`)
+    logForDebugging(`[daemon] scrubbed inherited role env (daemon runs role-free): ${scrubbed.join(', ')}`)
   }
   if (isCrewDaemon()) {
     logForDebugging('[daemon] crew-host posture (MERCURY_DAEMON_CREW=1 — spawned by a /crewmates engage)')
@@ -314,7 +314,7 @@ async function daemonRun(args: string[]): Promise<void> {
   }
   // eslint-disable-next-line no-console
   console.error(
-    `[daemon] starting supervisor for ${dir} ` +
+    `[daemon] starting daemon for ${dir} ` +
       `(per-run cap ${Math.round(getRunTimeoutMs() / 60000)}m; ` +
       `circuit-breaker trips at ${breaker.getConsecutiveFailThreshold()} ` +
       `consecutive failures, ${Math.round(breaker.getCooldownMs() / 1000)}s cooldown; ` +
@@ -381,20 +381,20 @@ async function daemonRun(args: string[]): Promise<void> {
         await new Promise(res => setTimeout(res, 100))
         decision = decidePlaneBoot(await planeBootFacts(stamps))
       }
-      if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the supervisor lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
+      if (decision.road === 'wait-lock') decision = { road: 'refuse', why: `the predecessor pid ${decision.for} did not release the daemon lock within ${SUCCESSOR_LOCK_WAIT_MS / 1000}s` }
     }
     if (decision.road === 'serve') {
       supervisorLock = await acquireSupervisorLock()
       if (!supervisorLock) {
         decision = decidePlaneBoot(await planeBootFacts(stamps))
-        if (decision.road !== 'handover') return refuse('the supervisor lock was taken while this daemon booted')
+        if (decision.road !== 'handover') return refuse('the daemon lock was taken while this daemon booted')
       }
     }
     if (decision.road === 'handover') {
       handoverPredecessor = decision.from
       supervisorLock = await acquireSupervisorLock()
       // eslint-disable-next-line no-console
-      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${supervisorLock ? '' : `; the supervisor lock is taken when its holder leaves`}`)
+      console.error(`[daemon] ${stamp}: ${decision.why} — taking the plane${supervisorLock ? '' : `; the daemon lock is taken when its holder leaves`}`)
     } else if (decision.road === 'serve') {
       if (successorOf !== null) {
         // eslint-disable-next-line no-console
@@ -434,7 +434,7 @@ async function daemonRun(args: string[]): Promise<void> {
         },
         onDegraded: (reason, short) => {
           // eslint-disable-next-line no-console
-          console.error(`[daemon] ${GLYPH.warn} SUPERVISOR DEGRADED — ${reason}`)
+          console.error(`[daemon] ${GLYPH.warn} DAEMON DEGRADED — ${reason}`)
           if (short !== undefined && short.startsWith('concourse-w')) {
             try {
               settleConcourseWorker(short)
@@ -1337,7 +1337,7 @@ async function daemonRun(args: string[]): Promise<void> {
               supervisorLock = taken
               stopLockBeat?.()
               // eslint-disable-next-line no-console
-              console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the supervisor lock — this daemon holds it now`)
+              console.error(`[daemon] handover from pid ${handoverPredecessor}: the predecessor released the daemon lock — this daemon holds it now`)
             } finally {
               lockClaimInflight = false
             }

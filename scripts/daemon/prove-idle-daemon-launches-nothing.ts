@@ -255,7 +255,7 @@ try {
   pointAt('dist', 'Y')
   const b = bootDaemon(handover, 'daemon-B', join(runtime, 'current', 'mercury.mjs'), { MERCURY_DAEMON_HANDOVER_FROM: String(a.pid) })
   check('daemon B (build Y) took the plane from A, which keeps its session and holds the supervisor lock', await untilAsync(() => read(b.log).includes('took the plane'), 60_000), read(b.log).slice(-600))
-  check('…and waits for the lock A holds', await untilAsync(() => /supervisor lock/.test(read(b.log)), 10_000), read(b.log).slice(-400))
+  check('…and waits for the lock A holds', await untilAsync(() => /daemon lock/.test(read(b.log)), 10_000), read(b.log).slice(-400))
   const sessionRunner = ((): number => {
     try {
       return Object.values((JSON.parse(read(join(session.daemonDir, 'concourse-workers.json'))) as { workers: Record<string, { pid?: number }> }).workers)[0]?.pid ?? 0
@@ -273,7 +273,7 @@ try {
   for (const [label, w, d] of [
     ['a daemon with no session', plain, p],
     ['a daemon with one idle session', session, s],
-    ["an install's predecessor holding its session and the supervisor lock", handover, a],
+    ["an install's predecessor holding its session and the daemon lock", handover, a],
     ["an install's successor serving the plane while its predecessor holds the lock", handover, b],
   ] as const) {
     const spawns = spawnsOf(w, d.pid, t0, t1)
