@@ -5,7 +5,7 @@ export type IssueFieldSource =
   | 'auto'
   | 'words'
   | 'ask'
-  | 'doctor'
+  | 'health'
 
 export interface IssueField {
   id: string
@@ -29,7 +29,7 @@ export const NOT_STATED = '(not stated)'
 
 const VERSION_FIELD: IssueField = { id: 'version', label: 'Version', source: 'auto' }
 const PLATFORM_FIELD: IssueField = { id: 'platform', label: 'OS and terminal', source: 'auto' }
-const DOCTOR_FIELD: IssueField = { id: 'doctor', label: 'doctor --json', source: 'doctor' }
+const DOCTOR_FIELD: IssueField = { id: 'health', label: 'health --json', source: 'health' }
 
 export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
   bug: {
@@ -71,7 +71,7 @@ export const ISSUE_FORMS: Readonly<Record<IssueKind, IssueForm>> = {
         id: 'where',
         label: 'Where it happened',
         source: 'ask',
-        prompt: 'The first-run walk, /logins or /accounts, /model, a chat turn, a mercury run command, /health or doctor, or somewhere else.',
+        prompt: 'The first-run walk, /logins or /accounts, /model, a chat turn, a mercury run command, /health, or somewhere else.',
       },
       {
         id: 'text',
@@ -163,7 +163,7 @@ function fence(text: string): string {
 function sectionText(field: IssueField, values: IssueBodyInput['values']): string {
   const raw = (values[field.id] ?? '').replace(/\r\n/g, '\n').trim()
   if (raw === '') return NOT_STATED
-  return field.source === 'doctor' ? fence(raw) : raw
+  return field.source === 'health' ? fence(raw) : raw
 }
 
 function recentErrorsBlock(errors: IssueBodyInput['recentErrors']): string {
@@ -232,8 +232,8 @@ export function percentSafeCut(encoded: string, budget: number): string {
 
 export function doctorPointer(bodyPath: string | null): string {
   return bodyPath !== null
-    ? `paste the doctor --json block here from the local draft: ${bodyPath}`
-    : 'paste the output of `mercury doctor --json` here'
+    ? `paste the health --json block here from the local draft: ${bodyPath}`
+    : 'paste the output of `mercury health --json` here'
 }
 
 export interface IssueFormUrlInput {

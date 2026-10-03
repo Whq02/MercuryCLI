@@ -398,7 +398,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     idempotencyKey: 'converging re-runs (sweeps re-derive from state)',
     publication: 'store renames',
     recovery:
-      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (replLauncher, before the REPL projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → crews journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d supervisor\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /crew, and the doctor DURABILITY rows read the same state.',
+      'ONE recovery orchestrator (substrate/recoveryOrchestrator.runBootRecovery) runs at interactive boot (replLauncher, before the REPL projection mounts) AND daemon boot (before any store is read): orphan-temp sweep across the durable homes (pattern-scoped, age-gated, bounded) → crews journal recovery → dead-epoch task GC → stale daemon-record reconcile (a TerminateProcess\'d supervisor\'s supervisor.json/.lock + control.key, conservative, one receipt) → leader-projection rebuild (session scope). Idempotent, memoized per process, typed report — /run, /crew, and /health DURABILITY rows read the same state.',
     interruptionWindows: [
       'W1: exit mid-sweep — next boot converges (per-sweep; the orchestrator itself is idempotent)',
     ],

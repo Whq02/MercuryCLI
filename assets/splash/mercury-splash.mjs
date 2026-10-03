@@ -835,7 +835,7 @@ function activateCardRow(r2) {
   leaving = true
   if (r2.key === 'continue')
     writeSplashAction('continue', cwdProject ? undefined : recentLast ? recentLast.dir : undefined)
-  else if (r2.key === 'doctor') writeSplashAction('doctor')
+  else if (r2.key === 'health') writeSplashAction('health')
   else if (r2.key === 'concourse') writeSplashAction('concourse')
   else if (r2.key === 'sessions') writeSplashAction('resume')
   else if (r2.key === 'kit') writeSplashAction('kit')

@@ -1329,7 +1329,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               problems.push(`crash dir ${crashReportDir()} outside the resolved home — forensics split`)
             }
             if (problems.length > 0) {
-              return { status: 'fail', evidence: problems.join(' · '), fix: 'The config home resolved two ways — report this with `mercury doctor --json`.' }
+              return { status: 'fail', evidence: problems.join(' · '), fix: 'The config home resolved two ways — report this with `mercury health --json`.' }
             }
             const slotNote = authHome !== home ? ` · auth scope slotted → ${authHome}` : ''
             const daemonNote = flagEnv('MERCURY_DAEMON_DIR')
@@ -1601,7 +1601,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               status: 'warn',
               evidence,
               detail,
-              fix: `${PROCESS_SWEEP_WORDS.action}: press f here, or run \`${binaryName()} doctor processes --end-stale\``,
+              fix: `${PROCESS_SWEEP_WORDS.action}: press f here, or run \`${binaryName()} health processes --end-stale\``,
               link,
               remedy: {
                 plan: `${PROCESS_SWEEP_WORDS.confirm(reviewed.length)} ${reviewed.map(entry => processSweepLine(entry, census.readAt)).join(' · ')}`,
@@ -4488,7 +4488,7 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
   if (!isReadOnlyDiagnostic()) {
     try {
       const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')
-      await runLifecycleVerbOpportunity('doctor')
+      await runLifecycleVerbOpportunity('health')
     } catch {}
   }
   return cert

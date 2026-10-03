@@ -360,7 +360,7 @@ function ledgerClause(outcome: DropOutcome): string {
 }
 
 export function describePrefixRewrite(part: string, path: string): string {
-  return `Preserved thinking: Mercury rewrote already-sent history before this request — ${part} (${path}); the API reported no dropped block this turn. This is a Mercury defect, not the model's: run \`mercury doctor\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
+  return `Preserved thinking: Mercury rewrote already-sent history before this request — ${part} (${path}); the API reported no dropped block this turn. This is a Mercury defect, not the model's: run \`mercury health\` and paste its "Preserved thinking" row into a bug report at ${issuesUrl()}.`
 }
 
 function describePathTurn(path: string | null, turn: number | null): string {
@@ -622,7 +622,7 @@ export function recordThinkingDropLedger(
     }
     writeThinkingDropLedger(ledger)
   } catch (error) {
-    logForDebugging(`preserved thinking: the doctor ledger could not be written (${String(error)})`, { level: 'warn' })
+    logForDebugging(`preserved thinking: the health ledger could not be written (${String(error)})`, { level: 'warn' })
   }
 }
 
@@ -641,7 +641,7 @@ export function recordPrefixRewriteLedger(
       session: sessionRecord(previous, sessionId, 0, notice),
     })
   } catch (error) {
-    logForDebugging(`preserved thinking: the doctor ledger could not be written (${String(error)})`, { level: 'warn' })
+    logForDebugging(`preserved thinking: the health ledger could not be written (${String(error)})`, { level: 'warn' })
   }
 }
 
@@ -694,7 +694,7 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
       status: 'warn',
       evidence: `Mercury rewrote sent history at ${last.at} — ${last.part ?? 'an unnamed part'} (${last.path ?? 'unknown path'}, model ${last.model}); the API reported no dropped block on that response${session}`,
       detail: `Longest run on this machine: ${ledger.longestRun}.`,
-      fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
+      fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury health --json).`,
     }
   }
   if (last.kind === 'lawful') {
@@ -722,13 +722,13 @@ export function preservedThinkingHealth(ledger: ThinkingDropLedger | null, sessi
       status: named.length > 0 ? 'warn' : 'info',
       evidence: `last drop ${last.at}: ${blocks} (${where}, model ${last.model}) — ${named.length > 0 ? `a rewrite of sent history.${named}` : `a single drop; a resumed session's first request or a client-side edit${behindClause.length > 0 ? `.${behindClause}` : ''}`}${session}`,
       detail: `Longest run of consecutive drops on this machine: ${ledger.longestRun}.`,
-      ...(named.length > 0 ? { fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).` } : {}),
+      ...(named.length > 0 ? { fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury health --json).` } : {}),
     }
   }
   return {
     status: 'warn',
     evidence: `Mercury rewrote sent history on ${last.consecutive} consecutive requests — last ${last.at}: ${blocks} dropped, ${where}, model ${last.model}${named}${behindClause}${session}`,
     detail: `${describePathClass(last.path)}. Longest run on this machine: ${ledger.longestRun}.`,
-    fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury doctor --json).`,
+    fix: `Paste this row into a bug report at ${issuesUrl()} (the bug template, with the output of mercury health --json).`,
   }
 }

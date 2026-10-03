@@ -101,9 +101,3 @@ export const healthAdapter: ResourceAdapter = {
     }
   },
 }
-
-export const doctorAliasAdapter: ResourceAdapter = {
-  kind: 'doctor',
-  describe: "alias of mercury://health/* (the layer's former name)",
-  resolve: (ref: ParsedRef, ctx: ResourceContext): Promise<ResourceResult> => healthAdapter.resolve(ref, ctx),
-}

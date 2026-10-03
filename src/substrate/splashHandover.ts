@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { deleteFlagEnv, flagEnv } from './flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 
-const ACTIONS = new Set(['continue', 'doctor', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
+const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
 let pendingKitManagerDeepLink = false
 export function armKitManagerDeepLink(): void {
@@ -123,7 +123,7 @@ export function decideSplashReceipt(
       : undefined
   if (receipt.action === 'concourse') pendingBootSurfaceIntent = 'concourse'
   else if (receipt.action === 'continue') pendingBootSurfaceIntent = 'repl'
-  else if (receipt.action === 'doctor') pendingFaceDoorDeepLink = 'health'
+  else if (receipt.action === 'health') pendingFaceDoorDeepLink = 'health'
   else if (receipt.action === 'resume') pendingFaceDoorDeepLink = 'resume'
   else if (receipt.action === 'saturn') pendingFaceDoorDeepLink = 'saturn'
   else if (receipt.action === 'logins') pendingFaceDoorDeepLink = 'logins'

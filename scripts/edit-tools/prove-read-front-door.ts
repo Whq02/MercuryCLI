@@ -83,7 +83,7 @@ for (let i = 0; i < DIRECTORY_ENTRY_CAP + 5; i++) {
 
 section('C. classification is string-only and total')
 {
-  check('C1 mercury:// ⇒ resource', classifyReadTarget('mercury://doctor/latest').kind === 'resource')
+  check('C1 mercury:// ⇒ resource', classifyReadTarget('mercury://health/latest').kind === 'resource')
   check('C2 https ⇒ url', classifyReadTarget('https://example.com/x').kind === 'url')
   check('C3 http mixed case ⇒ url', classifyReadTarget('HTTP://example.com').kind === 'url')
   check('C4 plain path ⇒ file', classifyReadTarget('/tmp/x.txt').kind === 'file')
@@ -101,7 +101,7 @@ section('F. OFF ⇒ byte-identical plain Read')
   check('F3 description has no front-door suffix', !desc.includes('bounded listing'))
   const offDir = await readViaTool(dirTarget, makeContext(new Map()))
   check('F4 directory read still errors OFF', !offDir.ok)
-  const offRes = await readViaTool('mercury://doctor/latest', makeContext(new Map()))
+  const offRes = await readViaTool('mercury://health/latest', makeContext(new Map()))
   check('F5 mercury:// read still errors OFF', !offRes.ok)
 }
 
@@ -134,8 +134,8 @@ section('D. directory targets — deterministic bounded listing')
 
 section('R. resource targets — typed states through the ONE registry')
 {
-  const absent = await readViaTool('mercury://doctor/latest', makeContext(new Map()))
-  check('R1 doctor/latest resolves with explicit state', absent.ok && /state: (ok|absent|unavailable)/.test(absent.text))
+  const absent = await readViaTool('mercury://health/latest', makeContext(new Map()))
+  check('R1 health/latest resolves with explicit state', absent.ok && /state: (ok|absent|unavailable)/.test(absent.text))
   const unknown = await readViaTool('mercury://nokind/x', makeContext(new Map()))
   check('R2 unknown kind names the known kinds', unknown.ok && unknown.text.includes('state: absent') && unknown.text.includes('known kinds:'))
 }

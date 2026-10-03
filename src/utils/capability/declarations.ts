@@ -43,7 +43,7 @@ export const TOOL_CAPABILITY_DECLARATIONS: Record<string, ToolCapability> = {
     resources: ['task'],
     cancellation: 'kill',
     latency: 'long-running',
-    conditions: ['a bash to run under — on Windows git-bash (bash.exe) or the shell engine; with neither the tool leaves the roster and the doctor’s shell row names the fix'],
+    conditions: ['a bash to run under — on Windows git-bash (bash.exe) or the shell engine; with neither the tool leaves the roster and /health’s shell row names the fix'],
   },
   Correct: {
     intents: ['correct a remembered fact', 'supersede or retract project memory'],
