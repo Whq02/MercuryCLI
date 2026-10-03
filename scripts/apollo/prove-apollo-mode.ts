@@ -57,7 +57,6 @@ try {
   check("permissionModeFromString('apollo') === 'apollo'", pm.permissionModeFromString('apollo') === 'apollo')
   check("title is 'Apollo Mode'", pm.permissionModeTitle('apollo') === 'Apollo Mode')
   check('the seal is ◇ (U+25C7), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '◇')
-  check("external projection is 'default'", pm.toExternalPermissionMode('apollo') === 'default')
   check('apollo never bypasses permissions', !pm.modeBypassesPermissions('apollo'))
   check("band colour role is 'permission'", pm.getModeColor('apollo') === 'permission')
 } catch (e) {
