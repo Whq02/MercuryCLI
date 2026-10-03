@@ -103,20 +103,25 @@ function runStreamSession(): Promise<{ turns: TurnObs[]; exit: number | null }> 
       turns.push(cur)
       peer.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: null }).catch((error: unknown) => console.error('[queue/add refused]', error instanceof Error ? error.message : String(error)))
     }
-    const sendModel = (model: string): void => {
-      peer.request('session/set_model', { model }, { deadlineMs: null }).catch((error: unknown) => console.error('[session/set_model refused]', error instanceof Error ? error.message : String(error)))
+    const sendModel = async (model: string): Promise<void> => {
+      try {
+        const applied = await peer.request('session/set_model', { model }, { deadlineMs: null })
+        console.log(`  session/set_model ${model} → ${JSON.stringify(applied)}`)
+      } catch (error) {
+        console.error('[session/set_model refused]', error instanceof Error ? error.message : String(error))
+      }
     }
 
-    const script: Array<() => void> = [
+    const script: Array<() => void | Promise<void>> = [
       () => sendUser('T1-fresh-default', "What does this project's geometry module export, and where would a normalizeAngle helper belong? Answer from the project files, briefly."),
       () => sendUser('T2-post-reads', 'One line: which file owns geometry?'),
-      () => { sendModel('opus'); sendUser('T3-explicit-opus', 'One line, from what you already read — no new tool calls: name the exported functions in src/format.ts.') },
-      () => { sendModel('default'); sendUser('T4-back-to-default', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.') },
+      async () => { await sendModel('opus'); sendUser('T3-explicit-opus', 'One line, from what you already read — no new tool calls: name the exported functions in src/format.ts.') },
+      async () => { await sendModel('default'); sendUser('T4-back-to-default', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.') },
       () => sendUser('T5-unchanged-dedup', 'One line, no tool calls: name the geometry file again, and confirm the earlier questions are still in this conversation.'),
     ]
     let step = 0
     const advance = (): void => {
-      if (step < script.length) script[step++]!()
+      if (step < script.length) void Promise.resolve(script[step++]!()).catch((error: unknown) => console.error('[journey step refused]', error instanceof Error ? error.message : String(error)))
       else { child.stdin!.end() }
     }
 
