@@ -186,7 +186,7 @@ if (!existsSync(distPath)) {
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`
     check(
       'a /say turn answers as any unknown command does: the one unknown-skill sentence, no error envelope',
-      /^Unknown skill: say\b/m.test(out) && !/error_during_execution/.test(out),
+      /^Unknown skill: say\b/m.test(out) && !/"status":"failed"/.test(out),
       `status=${r.status} ${out.slice(0, 160)}`,
     )
     check(

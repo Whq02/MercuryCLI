@@ -214,8 +214,12 @@ class Estate {
     let hit = false
     visit(node, n => {
       if (hit) return
+      if (ts.isPropertyAccessExpression(n) && n.name.text === 'dist') {
+        hit = true
+        return
+      }
       if (ts.isIdentifier(n) && isReference(n)) {
-        if (n.text === 'DIST') {
+        if (n.text === 'DIST' || n.text === 'dist') {
           hit = true
           return
         }
@@ -631,7 +635,7 @@ class DriveFile {
       if (!inside(w.call)) continue
       const settles = w.pred.kinds.some(k => overlap(k, 'outcome'))
       if (settles && (!stream || sameStream(w.stream, stream))) out.push({ pos: w.call.pos, effect: 'settle' })
-      else if (!settles && w.pred.kinds.length > 0 && !w.pred.kinds.every(k => k === 'control_response')) out.push({ pos: w.call.pos, effect: 'active' })
+      else if (!settles && w.pred.kinds.length > 0) out.push({ pos: w.call.pos, effect: 'active' })
     }
     const root = ts.isSourceFile(body) ? body : (body as ts.FunctionLikeDeclaration).body
     if (root) {
@@ -1113,7 +1117,7 @@ const CLEAN = [
   "runner.send(user('the interrupted ask', 'u-5'))",
   "await runner.waitFor('its tool call', f => f.type === 'assistant', bound(TURN_MS))",
   'const pressed = runner.frames.length',
-  "runner.send({ type: 'control_request', request: { subtype: 'interrupt' } })",
+  "runner.request('turn/interrupt', {})",
   "const interrupted = await runner.waitFor('the interrupted turn itself', isOutcome, bound(TURN_MS), pressed)",
   'const fold = runner.frames.length',
   "runner.send(user('/compact', 'u-6'))",

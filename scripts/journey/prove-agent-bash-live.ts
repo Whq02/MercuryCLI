@@ -6,6 +6,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { findOnPath, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { inputLine, parseFrame, promptRow } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -622,23 +624,44 @@ function headlessEnv(world: World, fixtureBase: string): NodeJS.ProcessEnv {
   }
 }
 
-function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string; waitFor?: () => boolean }>): Promise<HeadlessRun> {
+async function runHosted(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string; waitFor?: () => boolean }>): Promise<HeadlessRun> {
+  const asks: Array<Record<string, unknown>> = []
+  const host = hostRunner({ node: nodeBin!, dist: DIST, argv: args, cwd: world.cwd, home: world.cwd, env: headlessEnv(world, fixture.base) })
+  host.onAsk(params => {
+    asks.push(params as unknown as Record<string, unknown>)
+    return { outcome: 'allow' }
+  })
+  const deadline = Date.now() + 120_000
+  let exit: number | null = null
+  try {
+    await host.initialize()
+    for (const turn of turns) {
+      while (turn.waitFor && !turn.waitFor() && Date.now() < deadline) await new Promise(r => setTimeout(r, 200))
+      const before = host.rows.length
+      await host.prompt(turn.prompt)
+      await host.waitFor('the turn settles', row => row.type === 'outcome' && host.rows.indexOf(row) >= before, Math.max(1_000, deadline - Date.now()))
+    }
+  } catch {
+  } finally {
+    exit = await host.stop(5_000)
+  }
+  return { frames: host.rows, controlRequests: asks, stderr: host.stderr(), exit }
+}
+
+function runHostless(world: World, fixture: Fixture, args: string[], turns: Array<{ prompt: string }>): Promise<HeadlessRun> {
   return new Promise(resolvePromise => {
     const child = spawn(nodeBin!, [DIST, ...args], { cwd: world.cwd, env: headlessEnv(world, fixture.base) })
     const frames: Array<Record<string, unknown>> = []
-    const controlRequests: Array<Record<string, unknown>> = []
     let stdout = ''
     let stderr = ''
     let consumed = 0
     let sent = 0
-    let results = 0
     let ended = false
     const finish = (exit: number | null): void => {
       if (ended) return
       ended = true
       clearTimeout(killer)
-      clearInterval(pump)
-      resolvePromise({ frames, controlRequests, stderr, exit })
+      resolvePromise({ frames, controlRequests: [], stderr, exit })
     }
     const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
     const sendNext = (): void => {
@@ -647,40 +670,17 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
         return
       }
       const turn = turns[sent]!
-      if (turn.waitFor && !turn.waitFor()) return
       sent++
-      child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: turn.prompt } }) + '\n')
+      child.stdin.write(inputLine(promptRow(turn.prompt, { id: `ab-${sent}` })))
     }
-    const pump = setInterval(sendNext, 200)
     child.stdout.on('data', d => {
       stdout += String(d)
       const lines = stdout.split('\n')
       for (; consumed < lines.length - 1; consumed++) {
-        const line = lines[consumed]!.trim()
-        if (line === '') continue
-        let frame: Record<string, unknown>
-        try {
-          frame = JSON.parse(line) as Record<string, unknown>
-        } catch {
-          continue
-        }
+        const frame = parseFrame(lines[consumed]!)
+        if (frame === null) continue
         frames.push(frame)
-        if (frame.type === 'control_request') {
-          const request = (frame.request ?? {}) as Record<string, unknown>
-          if (request.subtype === 'can_use_tool') {
-            controlRequests.push(frame)
-            child.stdin.write(
-              JSON.stringify({
-                type: 'control_response',
-                response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } },
-              }) + '\n',
-            )
-          }
-        }
-        if (frame.type === 'result') {
-          results++
-          if (sent >= turns.length) child.stdin.end()
-        }
+        if (frame.type === 'outcome') sendNext()
       }
     })
     child.stderr.on('data', d => (stderr += String(d)))
@@ -690,7 +690,7 @@ function runStreamJson(world: World, fixture: Fixture, args: string[], turns: Ar
   })
 }
 
-const resultTexts = (run: HeadlessRun): string[] => run.frames.filter(f => f.type === 'result').map(f => String((f as { result?: unknown }).result ?? ''))
+const resultTexts = (run: HeadlessRun): string[] => run.frames.filter(f => f.type === 'outcome').map(f => String((f as { answer?: unknown }).answer ?? ''))
 
 async function runHeadlessStdio(): Promise<void> {
   console.log('\n— leg headless-stdio (background agent · the stdio prompt tool) —')
@@ -699,10 +699,10 @@ async function runHeadlessStdio(): Promise<void> {
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {
-    run = await runStreamJson(
+    run = await runHosted(
       world,
       fixture,
-      ['run', '--input', 'rows', '--format', 'rows', '--permission-channel', 'stdio', '--model', 'claude-opus-5'],
+      ['--model', 'claude-opus-5'],
       [
         { prompt: ASK },
         { prompt: FOLLOW_UP, waitFor: () => fixture.hits.some(h => h.route === 'seat-done') },
@@ -712,10 +712,10 @@ async function runHeadlessStdio(): Promise<void> {
     await fixture.close()
   }
   evidence(fixture, world)
-  const asks = run.controlRequests.map(f => (f.request ?? {}) as Record<string, unknown>)
+  const asks = run.controlRequests
   console.log(`  evidence · control requests: ${asks.map(a => `${String(a.tool_name)}${a.agent_id ? ` agent_id=${String(a.agent_id).slice(0, 18)}…` : ' (no agent_id)'} ${JSON.stringify((a.input as { command?: string })?.command ?? '')}`).join(' · ') || 'none'}`)
   checkWire('headless-stdio', fixture, world)
-  check("headless-stdio: the background agent's writing command asked through the stdio channel — one can_use_tool request, Bash, carrying the agent's id", asks.length === 1 && asks[0]?.tool_name === 'Bash' && typeof asks[0]?.agent_id === 'string' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
+  check("headless-stdio: the background agent's writing command asked through the door — one permission/request, Bash, carrying the agent's id", asks.length === 1 && asks[0]?.tool_name === 'Bash' && typeof asks[0]?.agent_id === 'string' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
   const texts = resultTexts(run)
   check('headless-stdio: two turns settled and the second reported the probe commit\'s sha', texts.length === 2 && texts[1]!.includes(`agent-bash: reported sha=${headSha(world.cwd)}`), JSON.stringify(texts))
   if (failures > before || KEEP) console.log(`  stderr tail: ${run.stderr.slice(-600)}`)
@@ -729,7 +729,7 @@ async function runHeadlessPlain(): Promise<void> {
   const world = seedWorld({ permissions: { defaultMode: 'default' } })
   let run: HeadlessRun
   try {
-    run = await runStreamJson(world, fixture, ['run', '--input', 'rows', '--format', 'rows', '--model', 'claude-opus-5'], [{ prompt: ASK }])
+    run = await runHostless(world, fixture, ['run', '--input', 'rows', '--format', 'rows', '--model', 'claude-opus-5'], [{ prompt: ASK }])
   } finally {
     await fixture.close()
   }
@@ -740,7 +740,7 @@ async function runHeadlessPlain(): Promise<void> {
   check("headless-plain: the seat's request offers Bash", seat1 !== undefined && seat1.tools.includes('Bash'))
   check('headless-plain: the read-only command ran — its result is the sha', seat2 !== undefined && firstLine(seat2.results[0]) === world.sha, seat2 ? JSON.stringify(seat2.results[0]) : 'no second seat request')
   check('headless-plain: the writing command was auto-denied with the headless note (the prompt-less posture, the same as the main thread)', seatDone !== undefined && (seatDone.results[1] ?? '').includes('auto-denied'), seatDone ? JSON.stringify((seatDone.results[1] ?? '').slice(0, 200)) : 'no seat-done request')
-  check('headless-plain: no control request left the process (no prompt tool)', run.controlRequests.length === 0)
+  check('headless-plain: no ask left the process (no host)', run.controlRequests.length === 0)
   const texts = resultTexts(run)
   check('headless-plain: the turn settled with the seat\'s honest report', texts.length === 1 && texts[0]!.includes('agent-bash: reported not-a-sha'), JSON.stringify(texts))
   if (failures > before || KEEP) console.log(`  stderr tail: ${run.stderr.slice(-600)}`)
