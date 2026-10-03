@@ -3,7 +3,7 @@ import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
-import type { ModelUsage } from '../bootstrap/runtime/usage-ledger.js'
+import type { ModelUsage } from '../bootstrap/state.js'
 import {
   ROWS_SCHEMA,
   stopWordOf,
