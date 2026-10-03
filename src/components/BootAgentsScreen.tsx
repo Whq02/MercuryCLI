@@ -52,7 +52,8 @@ import {
   getAgentModelPickerRows,
   type AgentModelPickerRow,
 } from '../utils/model/agentModelPicker.js';
-import { PERMISSION_MODES } from '../utils/permissions/PermissionMode.js';
+import { bootBirthFacts } from '../services/switchboard/bootBirthFacts.js';
+import { offeredDefinitionModes } from '../tools/AgentTool/agentPermissionPosture.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
@@ -668,7 +669,7 @@ export function BootAgentsScreen({
                   return (stops.length > 0 ? stops : EFFORT_LEVELS).map(String);
                 })()
               : field === 'permissionMode'
-                ? [...PERMISSION_MODES]
+                ? offeredDefinitionModes(bootBirthFacts().bypassConsent)
                 : field === 'memory'
                   ? ['user', 'project', 'local']
                   : field === 'instructionProfile'

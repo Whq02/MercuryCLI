@@ -24,7 +24,7 @@ import type { WorkRowV1 } from '../services/engine-connector/types.js'
 import type { StreamJsonChildSpec } from './headlessRun.js'
 import { HEADLESS_PERMISSION_MODES, getHeadlessPermissionMode, type HeadlessPermissionMode, type SeatPermissionMode } from './headlessRun.js'
 import type { PermissionMode } from '../types/permissions.js'
-import { getInitialSettings } from '../utils/settings/settings.js'
+import { resolveSavedPermissionMode } from '../utils/permissions/permissionSetup.js'
 import { EFFORT_LEVELS, normalizeEffortLevelString } from '../utils/effort.js'
 import { getProjectDir } from '../utils/sessionStorage/paths.js'
 import { scanTranscriptLinesBackward } from '../utils/sessionStorage/transcriptReader.js'
@@ -509,8 +509,11 @@ export function seatInitialPermissionMode(override?: PermissionMode): SeatPermis
   const carried = asHeadless(override)
   if (carried !== undefined) return carried
   try {
-    const saved = asHeadless(getInitialSettings().guardrails?.mode)
-    if (saved !== undefined) return saved
+    const saved = resolveSavedPermissionMode()
+    if (saved !== undefined) {
+      if (saved.notification !== undefined) logForDebugging(`[daemon] ${saved.notification}`)
+      return saved.mode === 'apollo' ? 'apollo' : (asHeadless(saved.mode) ?? 'default')
+    }
   } catch {
   }
   return 'flow'

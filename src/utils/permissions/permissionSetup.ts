@@ -15,6 +15,7 @@ import { getMainLoopModel } from '../model/model.js'
 import { modelSupportsAutoMode } from '../betas.js'
 import {
   getSettings_DEPRECATED,
+  getSettingsWithErrors,
   hasAutoModeOptIn,
 } from '../settings/settings.js'
 import { DANGEROUS_BASH_PATTERNS, CROSS_PLATFORM_CODE_EXEC } from './dangerousPatterns.js'
@@ -492,9 +493,23 @@ export function initialPermissionModeFromCLI({
     candidates.push('sovereign')
   }
   if (requested) candidates.push(requested)
-  const settingsMode = settingsDefaultMode()
+  const settingsMode = savedPermissionModeCandidate()
   if (settingsMode) candidates.push(settingsMode)
 
+  const result = resolvePermissionModeCandidates(candidates, { dangerouslySkipPermissions })
+
+  if (
+    result.mode === 'flow'
+  ) {
+    autoModeStateModule?.setAutoModeActive(true)
+  }
+  return result
+}
+
+export function resolvePermissionModeCandidates(
+  candidates: readonly PermissionMode[],
+  { dangerouslySkipPermissions }: { dangerouslySkipPermissions: boolean },
+): { mode: PermissionMode; notification?: string } {
   const sovereignDisabled = isBypassDisabledBySettingsOrPolicy()
   const settingsNotice = 'Sovereign Mode has been disabled by your settings.'
 
@@ -516,23 +531,21 @@ export function initialPermissionModeFromCLI({
     break
   }
 
-  const result: { mode: PermissionMode; notification?: string } = notification
-    ? { mode: resolvedMode, notification }
-    : { mode: resolvedMode }
-
-  if (
-    result.mode === 'flow'
-  ) {
-    autoModeStateModule?.setAutoModeActive(true)
-  }
-  return result
+  return notification ? { mode: resolvedMode, notification } : { mode: resolvedMode }
 }
 
-function settingsDefaultMode(): PermissionMode | undefined {
-  const raw = getSettings_DEPRECATED().guardrails?.mode
-  if (!raw) return undefined
+export function savedPermissionModeCandidate(): PermissionMode | undefined {
+  const { settings, errors } = getSettingsWithErrors()
+  const raw = settings.guardrails?.mode
+  if (!raw) return errors.some(error => error.path === 'guardrails.mode') ? 'default' : undefined
   const mode = permissionModeFromString(raw)
   return mode
+}
+
+export function resolveSavedPermissionMode(): { mode: PermissionMode; notification?: string } | undefined {
+  const saved = savedPermissionModeCandidate()
+  if (saved === undefined) return undefined
+  return resolvePermissionModeCandidates([saved], { dangerouslySkipPermissions: false })
 }
 
 export async function initializeToolPermissionContext(args: {

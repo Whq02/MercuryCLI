@@ -11,7 +11,7 @@ import type { AgentDefinition } from '../../../tools/AgentTool/loadAgentsDir.js'
 import { SCOUT_TOOLS_DESCRIPTION } from '../../../tools/AgentTool/scoutPolicy.js'
 import { type EffortValue, resolveEffortTruth } from '../../../utils/effort.js'
 import type { ModelName } from '../../../utils/model/model.js'
-import { PERMISSION_MODES } from '../../../utils/permissions/PermissionMode.js'
+import { offeredDefinitionModes } from '../../../tools/AgentTool/agentPermissionPosture.js'
 import { editPromptInEditor } from '../../../utils/promptEditor.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../mercuryPalette.js'
 import { Select } from '../../CustomSelect/select.js'
@@ -51,6 +51,7 @@ type Props = {
   existingAgents: AgentDefinition[]
   parentModel: ModelName
   sessionEffort: EffortValue | undefined
+  sovereignConsent: boolean
   onSaved: (message: string) => void
   onCancel: () => void
 }
@@ -63,6 +64,7 @@ export function StudioEditor({
   existingAgents,
   parentModel,
   sessionEffort,
+  sovereignConsent,
   onSaved,
   onCancel,
 }: Props): React.ReactNode {
@@ -393,6 +395,7 @@ export function StudioEditor({
           doc={doc}
           tools={tools}
           parentModel={parentModel}
+          sovereignConsent={sovereignConsent}
           textBuffer={textBuffer}
           textCursor={textCursor}
           setTextBuffer={v => machine.setTextBuffer(v)}
@@ -569,6 +572,7 @@ function FieldEditor(props: {
   doc: AgentDocument
   tools: Tools
   parentModel: string
+  sovereignConsent: boolean
   textBuffer: string
   textCursor: number
   setTextBuffer: (v: string) => void
@@ -665,7 +669,7 @@ function FieldEditor(props: {
     }
     case 'permissionMode':
       return selectFor(
-        PERMISSION_MODES.map(m => ({ label: m, value: m })),
+        offeredDefinitionModes(props.sovereignConsent).map(m => ({ label: m, value: m })),
         v => props.onCommit({ set: { permissionMode: v as never } }),
       )
     case 'memory':
