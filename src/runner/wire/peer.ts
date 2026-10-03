@@ -249,7 +249,7 @@ export class Peer {
   private badLines = 0
   private closedReason: string | null = null
   private initState: 'none' | 'pending' | 'done'
-  private initWaiters: Array<{ run: () => void; fail: () => void }> = []
+  private initWaiters: Array<{ id: RpcId; run: () => void; fail: () => void }> = []
   private readonly pending = new Map<RpcId, Pending>()
   private readonly inFlight = new Map<RpcId, InFlight>()
   private readonly requestHandlers = new Map<string, (params: unknown, ctx: HandlerContext) => unknown>()
@@ -498,6 +498,12 @@ export class Peer {
     if (method === '$/cancel_request') {
       const check = checkParams('$/cancel_request', params)
       if (!check.ok) return
+      const waiting = this.initWaiters.findIndex(entry => entry.id === check.value.request_id)
+      if (waiting >= 0) {
+        this.initWaiters.splice(waiting, 1)
+        this.writer.write({ jsonrpc: '2.0', id: check.value.request_id, error: cancelled(check.value.reason).toJSON() }, true)
+        return
+      }
       const entry = this.inFlight.get(check.value.request_id)
       if (entry === undefined || entry.answered) {
         this.log(`runner wire: $/cancel_request for ${check.value.request_id}, which is not in flight`)
@@ -506,7 +512,7 @@ export class Peer {
       entry.answered = true
       entry.controller.abort()
       this.inFlight.delete(check.value.request_id)
-      this.writer.write({ jsonrpc: '2.0', id: check.value.request_id, error: cancelled(check.value.reason).toJSON() }, true)
+      this.answer(check.value.request_id, entry.method, { error: cancelled(check.value.reason).toJSON() })
       return
     }
     const spec = isMethodName(method) ? (METHODS[method] as MethodSpec) : undefined
@@ -527,7 +533,7 @@ export class Peer {
   }
 
   private onRequestLine(id: RpcId, method: string, params: unknown): void {
-    if (this.inFlight.has(id)) {
+    if (this.inFlight.has(id) || this.initWaiters.some(entry => entry.id === id)) {
       this.writer.write({ jsonrpc: '2.0', id, error: { code: RPC_INVALID_REQUEST, message: `id ${id} is already in flight` } }, true)
       return
     }
@@ -546,6 +552,7 @@ export class Peer {
     }
     if (this.initState === 'pending') {
       this.initWaiters.push({
+        id,
         run: () => this.dispatch(id, method, params),
         fail: () => this.writer.write({ jsonrpc: '2.0', id, error: notInitialized(method).toJSON() }, true),
       })

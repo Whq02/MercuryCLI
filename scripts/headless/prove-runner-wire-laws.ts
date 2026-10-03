@@ -540,6 +540,41 @@ section('W16 incompatible versions refuse explicitly and settle the connection')
   check('both initialize schemas demand the served protocol', !methods.checkParams('initialize', { protocol: 2, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }).ok && !methods.checkResult('initialize', { protocol: 2, runner: { version: 'proof', pid: 1 }, session_id: null }).ok)
 }
 
+section('W17 cancellation crosses the initialize barrier')
+{
+  const params = { protocol: 1, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }
+  const w = world()
+  let release!: () => void
+  let applied = 0
+  w.runner.onRequest('initialize', () => new Promise(resolve => { release = () => resolve({ protocol: 1, runner: { version: 'proof', pid: 1 }, session_id: null }) }))
+  w.runner.onRequest('session/set_mode', () => { applied++; return { mode: 'default' } })
+  w.raw([
+    { jsonrpc: '2.0', id: 71, method: 'initialize', params },
+    { jsonrpc: '2.0', id: 72, method: 'session/set_mode', params: { mode: 'default' } },
+    { jsonrpc: '2.0', method: '$/cancel_request', params: { request_id: 72 } },
+  ].map(j).join('\n') + '\n')
+  release()
+  await settle(20)
+  check('a request cancelled in the initialize chunk never runs', applied === 0 && w.hostSaw.some(frame => frame.id === 72 && (frame.error as Frame)?.code === errors.RPC_CANCELLED), j(w.hostSaw))
+  w.host.end()
+  const retry = world()
+  let late!: () => void
+  retry.runner.onRequest('initialize', () => new Promise(resolve => { late = () => resolve({ protocol: 1, runner: { version: 'late', pid: 1 }, session_id: null }) }))
+  retry.raw([
+    { jsonrpc: '2.0', id: 81, method: 'initialize', params },
+    { jsonrpc: '2.0', id: 82, method: 'session/facts', params: {} },
+    { jsonrpc: '2.0', method: '$/cancel_request', params: { request_id: 81 } },
+  ].map(j).join('\n') + '\n')
+  retry.runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: 'retry', pid: 1 }, session_id: null }))
+  const initialized = await rejection(retry.initialize())
+  const facts = await rejection(retry.host.request('session/facts', {}, { deadlineMs: 1000 }))
+  late()
+  await settle(20)
+  check('cancelled initialize permits a fresh handshake and facts request', initialized === undefined && facts === undefined && retry.runner.initialized, j({ initialized, facts }))
+  check('cancelled initialize settles queued waiters and never answers twice', retry.hostSaw.filter(frame => frame.id === 81).length === 1 && retry.hostSaw.some(frame => frame.id === 81 && (frame.error as Frame)?.code === errors.RPC_CANCELLED) && retry.hostSaw.some(frame => frame.id === 82 && (frame.error as Frame)?.code === errors.RPC_NOT_INITIALIZED), j(retry.hostSaw))
+  retry.host.end()
+}
+
 section('M the method table is the one source')
 {
   const names = methods.METHOD_NAMES
