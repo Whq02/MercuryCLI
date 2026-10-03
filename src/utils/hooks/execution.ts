@@ -74,7 +74,7 @@ export function executeInBackground({
   hookEvent,
   hookName,
   command,
-  asyncRewake,
+  wake,
   extensionId,
 }: {
   processId: string
@@ -84,10 +84,10 @@ export function executeInBackground({
   hookEvent: HookEvent | 'FileSuggestion'
   hookName: string
   command: string
-  asyncRewake?: boolean
+  wake?: boolean
   extensionId?: string
 }): boolean {
-  if (asyncRewake) {
+  if (wake) {
     void shellCommand.result.then(async result => {
       await new Promise(resolve => setImmediate(resolve))
       const stdout = await shellCommand.taskOutput.getStdout()
@@ -327,7 +327,7 @@ export async function execCommandHook(
   let shellCommandTransferred = false
   let stdinWritten = false
 
-  if ((hook.async || hook.asyncRewake) && !forceSyncExecution) {
+  if ((hook.async || hook.wake) && !forceSyncExecution) {
     const processId = `async_hook_${child.pid}`
     logForDebugging(
       `Hooks: Config-based async hook, backgrounding process ${processId}`,
@@ -345,7 +345,7 @@ export async function execCommandHook(
       hookEvent,
       hookName,
       command: hook.command,
-      asyncRewake: hook.asyncRewake,
+      wake: hook.wake,
       extensionId,
     })
     if (backgrounded) {
