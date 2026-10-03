@@ -246,7 +246,7 @@ section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usag
   check('the outcome row keeps its per-model rows through the schema (the workload buckets stay on the ledger — no row carries them)', outcome.success && j((outcome.data as Raw).models) === j(modelRows), outcome.success ? '' : j(outcome.error.issues))
   const engine = src('src/rows/turn.ts')
   check('the turn captures the model-usage baseline before the run', engine.includes("const modelUsageAtStart = Object.fromEntries(Object.entries(getModelUsage()).map(([model, row]) => [model, { ...row }]))"))
-  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /cost and the rail (no row reader)", engine.includes('models: modelUsageRows(usageSince(getModelUsage(), modelUsageAtStart)') && !engine.includes('workload'))
+  check("the turn's outcome carries the per-model rows of the run window; the workload buckets stay on the ledger for /cost and the rail (no row reader)", engine.includes('const billed = usageSince(getModelUsage(), modelUsageAtStart)') && engine.includes('models: modelUsageRows(billed,') && !engine.includes('workload'))
 }
 
 async function mountPopup(columns: number, rowCount: number, width: number, rowBudget: number, openToken: number): Promise<{ frame: () => string; close: () => void }> {

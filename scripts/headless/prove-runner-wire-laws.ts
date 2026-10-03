@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { hostRunner, scratchHome } from '../lib/runnerHost.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -416,6 +417,162 @@ section('W13 close settles every pending request; a closed peer refuses new requ
   await w2.runner.done
   const askClosed = (await rejection(ask)) as Error
   check("closing the runner's stdin settles the runner's pending ask as PeerClosed and resolves done", askClosed?.name === 'PeerClosed' && w2.runner.closed)
+}
+
+section('W14 BOM and split UTF-8 reach the actual peer intact')
+{
+  const w = world()
+  const bytes = Buffer.from('\ufeff' + j({ jsonrpc: '2.0', id: 81, method: 'initialize', params: { protocol: 1, host: { name: '界', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } } }) + '\r\n')
+  const split = bytes.indexOf(Buffer.from('界')) + 1
+  w.toRunner.write(bytes.subarray(0, split))
+  w.toRunner.write(bytes.subarray(split))
+  await settle(20)
+  check('BOM initialize with CRLF and a split UTF-8 character is accepted', w.hostSaw.some(frame => frame.id === 81 && (frame.result as Frame)?.protocol === 1), j(w.hostSaw))
+  w.host.end()
+  const scratch = scratchHome('wire-framing-')
+  const frames: Frame[] = []
+  const splitter = new LineSplitter()
+  let reply!: (frame: Frame) => void
+  const answered = new Promise<Frame>(resolve => { reply = resolve })
+  const distAt = process.argv.indexOf('--dist')
+  const host = hostRunner({ dist: distAt < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[distAt + 1]!, node: Bun.which('node')!, cwd: scratch.cwd, home: scratch.home, env: { ...scratch.env, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' }, raw: chunk => {
+    for (const line of splitter.feed(chunk)) {
+      if (line.kind !== 'line') continue
+      const frame = JSON.parse(line.text) as Frame
+      frames.push(frame)
+      if (frame.id === 81 || frame.error !== undefined) reply(frame)
+    }
+  } })
+  try {
+    host.child.stdin!.write(bytes.subarray(0, split))
+    host.child.stdin!.write(bytes.subarray(split))
+    const response = await answered
+    check('the built runner accepts BOM, CRLF and split UTF-8 initialize', response.id === 81 && (response.result as Frame)?.protocol === 1, j(frames))
+    if (response.result !== undefined) {
+      host.child.stdin!.write('not json\n')
+      const facts = await host.request('session/facts', {})
+      check('a real malformed line still refuses and the next request succeeds', frames.some(frame => (frame.error as Frame)?.code === errors.RPC_PARSE_ERROR) && typeof facts.model === 'object')
+    }
+  } finally {
+    await host.stop()
+    rmSync(scratch.home, { recursive: true, force: true })
+    rmSync(scratch.cwd, { recursive: true, force: true })
+  }
+}
+
+section('W15 cancellation before send and before dispatch cannot apply a request')
+{
+  const w = world()
+  await w.initialize()
+  let applied = 0
+  w.runner.onRequest('session/set_mode', () => { applied++; return { mode: 'default' } })
+  const ac = new AbortController()
+  ac.abort()
+  const mark = w.runnerSaw.length
+  const error = await rejection(w.host.request('session/set_mode', { mode: 'default' }, { signal: ac.signal })) as InstanceType<typeof errors.RpcError>
+  await settle(10)
+  check('a pre-aborted request rejects cancellation without any wire writes', error?.code === errors.RPC_CANCELLED && w.runnerSaw.length === mark, j(w.runnerSaw.slice(mark)))
+  check('a pre-aborted request has no receiver effect', applied === 0)
+  applied = 0
+  const release = w.runner.holdScope('session')
+  const queued = new AbortController()
+  const pending = rejection(w.host.request('session/set_mode', { mode: 'default' }, { signal: queued.signal }))
+  queued.abort()
+  release()
+  const queuedError = await pending as InstanceType<typeof errors.RpcError>
+  await settle(10)
+  check('cancellation while waiting for a scope prevents dispatch', queuedError?.code === errors.RPC_CANCELLED && applied === 0 && w.runner.inFlightCount === 0)
+  w.host.end()
+  const held = world()
+  let asks = 0
+  held.host.onRequest('permission/request', () => { asks++; return { outcome: 'allow' } })
+  const signal = new AbortController()
+  const answer = rejection(held.runner.request('permission/request', { kind: 'network', host: 'proof.test' }, { signal: signal.signal }))
+  signal.abort()
+  await answer
+  await held.initialize()
+  await settle(10)
+  check('a cancelled request held by the handshake never reaches its handler', asks === 0 && !held.hostSaw.some(frame => frame.method === 'permission/request'), j(held.hostSaw))
+  held.host.end()
+}
+
+section('W16 incompatible versions refuse explicitly and settle the connection')
+{
+  const read = await import('../../src/rows/read.ts')
+  for (const type of ['session', 'outcome']) {
+    for (const schema of [2, undefined]) {
+      let caught: unknown
+      try { read.parseRow(j({ type, schema, session_id: 's' })) } catch (error) { caught = error }
+      check(`${type} schema ${schema}: the reader throws a named schema error`, caught instanceof Error && caught.name === 'RowSchemaMismatch', String(caught))
+    }
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const problems: Array<InstanceType<typeof errors.RpcError>> = []
+    const host = new Peer({ input, output, side: 'host', onProtocolError: error => problems.push(error) })
+    let delivered = 0
+    let aborted = false
+    host.onNotification('row', () => { delivered++ })
+    host.onRequest('permission/request', (_params, ctx) => { ctx.signal.addEventListener('abort', () => { aborted = true }); return new Promise(() => {}) })
+    input.write(j({ jsonrpc: '2.0', id: 99, method: 'permission/request', params: { kind: 'network', host: 'proof.test' } }) + '\n')
+    const pending = rejection(host.request('session/facts', {}, { deadlineMs: 1000 }))
+    input.write(j({ jsonrpc: '2.0', method: 'row', params: { type, schema: 2, session_id: 's' } }) + '\n')
+    const error = await pending as InstanceType<typeof errors.RpcError>
+    check(`${type} schema 2: pending work receives typed protocol refusal, never a timeout`, error?.code === errors.RPC_REFUSED && (error.data as Frame)?.kind === 'protocol', String(error))
+    check(`${type} schema 2: the host is told once, no row delivered, asks aborted`, problems.length === 1 && host.closed && delivered === 0 && aborted && host.pendingCount === 0 && host.inFlightCount === 0, j({ problems: problems.length, closed: host.closed, delivered, aborted }))
+    host.end()
+  }
+  const input = new PassThrough()
+  const output = new PassThrough()
+  const problems: unknown[] = []
+  const host = new Peer({ input, output, side: 'host', onProtocolError: error => problems.push(error) })
+  const initialize = host.send('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } })
+  const initError = rejection(initialize.answer)
+  const facts = rejection(host.request('session/facts', {}, { deadlineMs: 1000 }))
+  input.write(j({ jsonrpc: '2.0', id: initialize.id, result: { protocol: 2, runner: { version: 'proof', pid: 1 }, session_id: 's' } }) + '\n')
+  const replies = await Promise.all([initError, facts]) as Array<InstanceType<typeof errors.RpcError>>
+  check('protocol 2 initialize settles both itself and concurrent work with typed protocol refusal', replies.every(error => error?.code === errors.RPC_REFUSED && (error.data as Frame)?.kind === 'protocol'), j(replies))
+  check('protocol 2 closes once and notifies its host', host.closed && problems.length === 1 && host.pendingCount === 0)
+  host.end()
+  const w = world()
+  const bad = await rejection(w.host.request('initialize', { protocol: 2, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } } as never)) as InstanceType<typeof errors.RpcError>
+  check('the shared dispatcher refuses a protocol 2 request before its handler', bad?.code === errors.RPC_REFUSED && (bad.data as Frame)?.kind === 'protocol' && !w.runner.initialized, j(bad))
+  w.host.end()
+  check('both initialize schemas demand the served protocol', !methods.checkParams('initialize', { protocol: 2, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }).ok && !methods.checkResult('initialize', { protocol: 2, runner: { version: 'proof', pid: 1 }, session_id: null }).ok)
+}
+
+section('W17 cancellation crosses the initialize barrier')
+{
+  const params = { protocol: 1, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }
+  const w = world()
+  let release!: () => void
+  let applied = 0
+  w.runner.onRequest('initialize', () => new Promise(resolve => { release = () => resolve({ protocol: 1, runner: { version: 'proof', pid: 1 }, session_id: null }) }))
+  w.runner.onRequest('session/set_mode', () => { applied++; return { mode: 'default' } })
+  w.raw([
+    { jsonrpc: '2.0', id: 71, method: 'initialize', params },
+    { jsonrpc: '2.0', id: 72, method: 'session/set_mode', params: { mode: 'default' } },
+    { jsonrpc: '2.0', method: '$/cancel_request', params: { request_id: 72 } },
+  ].map(j).join('\n') + '\n')
+  release()
+  await settle(20)
+  check('a request cancelled in the initialize chunk never runs', applied === 0 && w.hostSaw.some(frame => frame.id === 72 && (frame.error as Frame)?.code === errors.RPC_CANCELLED), j(w.hostSaw))
+  w.host.end()
+  const retry = world()
+  let late!: () => void
+  retry.runner.onRequest('initialize', () => new Promise(resolve => { late = () => resolve({ protocol: 1, runner: { version: 'late', pid: 1 }, session_id: null }) }))
+  retry.raw([
+    { jsonrpc: '2.0', id: 81, method: 'initialize', params },
+    { jsonrpc: '2.0', id: 82, method: 'session/facts', params: {} },
+    { jsonrpc: '2.0', method: '$/cancel_request', params: { request_id: 81 } },
+  ].map(j).join('\n') + '\n')
+  retry.runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: 'retry', pid: 1 }, session_id: null }))
+  const initialized = await rejection(retry.initialize())
+  const facts = await rejection(retry.host.request('session/facts', {}, { deadlineMs: 1000 }))
+  late()
+  await settle(20)
+  check('cancelled initialize permits a fresh handshake and facts request', initialized === undefined && facts === undefined && retry.runner.initialized, j({ initialized, facts }))
+  check('cancelled initialize settles queued waiters and never answers twice', retry.hostSaw.filter(frame => frame.id === 81).length === 1 && retry.hostSaw.some(frame => frame.id === 81 && (frame.error as Frame)?.code === errors.RPC_CANCELLED) && retry.hostSaw.some(frame => frame.id === 82 && (frame.error as Frame)?.code === errors.RPC_NOT_INITIALIZED), j(retry.hostSaw))
+  retry.host.end()
 }
 
 section('M the method table is the one source')

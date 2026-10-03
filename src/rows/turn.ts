@@ -39,7 +39,7 @@ import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { turnCutOf } from '../utils/messages/turnCut.js'
 import { getMainLoopModel } from '../utils/model/model.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
-import type { ModelUsage } from '../bootstrap/runtime/usage-ledger.js'
+import type { ModelUsage } from '../bootstrap/state.js'
 import { notePrintPhase } from '../utils/printPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
@@ -60,6 +60,7 @@ import { getCwd } from '../utils/cwd.js'
 import {
   commandOutputRow,
   commandOutputTextOf,
+  shellOutputTextOf,
   compactionEndedRow,
   itemRowsOf,
   modelUsageRows,
@@ -78,6 +79,7 @@ import {
   type SessionFacts,
 } from './project.js'
 import { errorClassOf, statusOfTerminal, OUTCOME_SENTENCES, type Denial, type ErrorClass, type OutcomeStatus } from './vocabulary.js'
+import { childRowsOf } from './child.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
@@ -337,6 +339,7 @@ export class Conversation {
     const notices: Array<{ level: 'warning' | 'error'; text: string }> = []
     const steps = new StepLedger(scope)
     const toolOutcomes = new Map<string, 'ok' | 'error' | 'aborted'>()
+    const callScopes = new Map<string, RowScope>()
     const denialsBefore = this.denials.length
 
     const wrappedCanUseTool: CanUseTool = (async (
@@ -448,6 +451,14 @@ export class Conversation {
     const rowsOfMessage = (message: Message, parentCallId: string | undefined): RowDraft[] => {
       const rows: RowDraft[] = []
       const rowScope = scopeFor(parentCallId)
+      if (parentCallId !== undefined && (message.type === 'assistant' || message.type === 'user')) {
+        const child = childRowsOf({ ...scope, parent_call_id: parentCallId }, message)
+        for (const row of child) {
+          const call = row as RowDraft & { call_id?: string }
+          if (call.type === 'tool_call' && call.call_id !== undefined) callScopes.set(call.call_id, rowScope)
+        }
+        return child
+      }
       if (message.type === 'assistant') {
         const assistant = message as AssistantMessage & { isApiErrorMessage?: boolean }
         if (assistant.isApiErrorMessage === true || !isNotEmptyMessage(message)) return rows
@@ -459,7 +470,9 @@ export class Conversation {
         let block = base
         for (const normalized of normalizeMessages([message])) {
           const pieces = (normalized as AssistantMessage).message.content
-          rows.push(...itemRowsOf(rowScope, messageId, pieces, block))
+          const items = itemRowsOf(rowScope, messageId, pieces, block)
+          for (const item of items) if (item.type === 'tool_call') callScopes.set(item.call_id, rowScope)
+          rows.push(...items)
           block += Array.isArray(pieces) ? pieces.length : 1
         }
         return rows
@@ -476,7 +489,9 @@ export class Conversation {
           return rowsOfMessage(inner, progress.parentToolUseID)
         }
         if (isEphemeralToolProgress(data.type)) {
-          const key = progress.parentToolUseID
+          const callId = callScopes.has(progress.toolUseID) ? progress.toolUseID : progress.parentToolUseID
+          const updateScope = callScopes.get(callId) ?? rowScope
+          const key = JSON.stringify([scope.session_id, callId])
           const now = Date.now()
           const state = toolUpdateState.get(key)
           if (state !== undefined && now - state.lastEmitMs < TOOL_UPDATE_BEAT_MS) return rows
@@ -490,10 +505,9 @@ export class Conversation {
           const shell = data as Partial<ShellProgress>
           const mcp = data as Partial<MCPProgress>
           const isMcp = data.type === 'mcp_progress'
-          const parent = progress.parentToolUseID !== progress.toolUseID ? progress.parentToolUseID : undefined
           rows.push(
-            toolUpdateRow(scopeFor(parent), {
-              callId: progress.toolUseID,
+            toolUpdateRow(updateScope, {
+              callId,
               tick,
               source: isMcp ? 'mcp' : data.type === 'powershell_progress' ? 'powershell' : 'shell',
               line: isMcp ? latestLineOf(mcp.progressMessage) : latestLineOf(shell.output),
@@ -589,6 +603,14 @@ export class Conversation {
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
+      const billed = usageSince(getModelUsage(), modelUsageAtStart)
+      const usage = Object.values(billed).reduce((sum, row) => ({
+        ...sum,
+        input_tokens: sum.input_tokens + row.inputTokens,
+        output_tokens: sum.output_tokens + row.outputTokens,
+        cache_read_input_tokens: sum.cache_read_input_tokens + row.cacheReadInputTokens,
+        cache_creation_input_tokens: sum.cache_creation_input_tokens + row.cacheCreationInputTokens,
+      }), { ...EMPTY_USAGE, output_tokens_details: this.accumulatedUsage.output_tokens_details })
       return {
         turnId,
         status,
@@ -597,8 +619,8 @@ export class Conversation {
         wallMs: Date.now() - turnStartedAt,
         ...(apiMs > 0 ? { apiMs } : {}),
         ...(unpricedModels.size === 0 ? { costUsd: Math.max(0, getTotalCostUSD() - costAtStart) } : {}),
-        usage: this.accumulatedUsage,
-        models: modelUsageRows(usageSince(getModelUsage(), modelUsageAtStart), model => unpricedModels.has(model)),
+        usage,
+        models: modelUsageRows(billed, model => unpricedModels.has(model)),
         denials: this.denials.slice(denialsBefore),
         ...(notices.length > 0 ? { notices: [...notices] } : {}),
         ...extra,
@@ -610,11 +632,16 @@ export class Conversation {
     notePrintPhase('assembly')
 
     if (!inputResult.shouldQuery) {
+      let commandAnswer = ''
       for (const message of inputResult.messages) {
         if (message.type === 'user') {
           const text = messageTextContent(message)
           const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true
-          if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
+          const shellOutput = text !== null && options?.mode === 'bash' ? shellOutputTextOf(text) : null
+          if (shellOutput !== null) {
+            commandAnswer = shellOutput
+            yield commandOutputRow(scope, shellOutput, typeof prompt === 'string' ? prompt : undefined)
+          } else if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
             yield commandOutputRow(scope, commandOutputTextOf(text), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
           }
         } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'local_command') {
@@ -631,11 +658,17 @@ export class Conversation {
         await this.recordDelta(turnMessages)
         if (eagerFlush) await flushSessionStorage()
       }
+      if (options?.mode === 'bash' && this.abortController.signal.aborted) {
+        const cut = turnCutOf(this.abortController.signal.reason)
+        const ended = statusOfTerminal({ reason: 'aborted_tools' }, cut.kind)
+        yield closeTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
+        return
+      }
       const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true
       yield closeTurn(refused ? 'refused' : 'completed', {
         ...(refused
           ? { error: { message: inputResult.resultText ?? 'The request was refused', class: inputResult.hookBlocked === true ? 'hook' : 'command' } }
-          : { answer: inputResult.resultText ?? '' }),
+          : { answer: inputResult.resultText ?? commandAnswer }),
       })
       return
     }

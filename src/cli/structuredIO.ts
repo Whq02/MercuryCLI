@@ -79,27 +79,34 @@ export class StructuredIO {
 
   async *#createInputStream(input: AsyncIterable<string>): AsyncGenerator<InputRow, void, unknown> {
     let buffer = ''
+    let bytes = 0
     let skipping = false
     yield* this.#takePrepended()
     for await (const chunk of input) {
-      buffer += chunk
-      let newlineIndex = buffer.indexOf('\n')
-      while (newlineIndex >= 0) {
-        const line = stripBOM(buffer.slice(0, newlineIndex))
-        buffer = buffer.slice(newlineIndex + 1)
-        if (skipping) {
-          skipping = false
-        } else if (line.trim().length > 0) {
-          const row = this.#classifyLine(line, true)
+      let start = 0
+      for (;;) {
+        const newlineIndex = chunk.indexOf('\n', start)
+        if (!skipping) {
+          const part = chunk.slice(start, newlineIndex < 0 ? undefined : newlineIndex)
+          bytes += Buffer.byteLength(part, 'utf8')
+          if (bytes > MAX_LINE_BYTES) {
+            this.#refuse(`input refused: a line longer than ${MAX_LINE_BYTES} bytes was skipped`)
+            buffer = ''
+            skipping = true
+          } else {
+            buffer += part
+          }
+        }
+        if (newlineIndex < 0) break
+        if (!skipping && buffer.trim().length > 0) {
+          const row = this.#classifyLine(stripBOM(buffer), true)
           yield* this.#takePrepended()
           if (row !== undefined) yield row
         }
-        newlineIndex = buffer.indexOf('\n')
-      }
-      if (!skipping && buffer.length > MAX_LINE_BYTES) {
-        this.#refuse(`input refused: a line longer than ${MAX_LINE_BYTES} bytes was skipped`)
         buffer = ''
-        skipping = true
+        bytes = 0
+        skipping = false
+        start = newlineIndex + 1
       }
       yield* this.#takePrepended()
     }

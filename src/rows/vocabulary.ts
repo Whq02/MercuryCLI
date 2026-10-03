@@ -453,12 +453,6 @@ export function usageOf(usage: Pick<NonNullableUsage, 'input_tokens' | 'cache_re
   }
 }
 
-export function occupancyOf(usage: Usage): number {
-  return usage.input_tokens + usage.output_tokens
-}
-
-export const COMPLETED_TERMINALS: ReadonlySet<Terminal['reason']> = new Set(['completed', 'stop_hook_prevented', 'hook_stopped'])
-
 export function statusOfTerminal(terminal: Terminal, cut: TurnCutKind | null): { status: OutcomeStatus; errorClass?: ErrorClass } {
   switch (terminal.reason) {
     case 'completed':

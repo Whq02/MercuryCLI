@@ -48,8 +48,6 @@ import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/ag
 import {
   extractTextContent,
   isSyntheticMessage,
-  isToolUseRequestMessage,
-  isToolUseResultMessage,
   normalizeMessages,
 } from '../../utils/messages.js'
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
@@ -571,7 +569,7 @@ export async function runForegroundAgentExecution(
           data.type === 'bash_progress' ||
           data.type === 'powershell_progress'
         ) {
-          onProgress?.({ toolUseID: message.toolUseID, data })
+          onProgress?.({ toolUseID: message.parentToolUseID, data })
         }
         continue
       }
@@ -583,21 +581,17 @@ export async function runForegroundAgentExecution(
         )
       }
 
-      for (const normalized of normalizeMessages([message])) {
-        if (
-          isToolUseRequestMessage(normalized) ||
-          isToolUseResultMessage(normalized)
-        ) {
-          onProgress?.({
-            toolUseID: progressToolUseId,
-            data: {
-              type: 'agent_progress',
-              message: normalized,
-              prompt: '',
-              agentId: syncAgentId,
-            },
-          })
-        }
+      const forwarded = message.type === 'assistant' ? [message] : normalizeMessages([message])
+      for (const normalized of forwarded) {
+        onProgress?.({
+          toolUseID: progressToolUseId,
+          data: {
+            type: 'agent_progress',
+            message: normalized,
+            prompt: '',
+            agentId: syncAgentId,
+          },
+        })
       }
     }
   } catch (error) {

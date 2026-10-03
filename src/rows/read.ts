@@ -1,8 +1,13 @@
-import { INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_TYPES, type OutcomeRow, type Row, type RowType, type StepRow, type TurnRow } from './vocabulary.js'
+import { INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_TYPES, ROWS_SCHEMA, type OutcomeRow, type Row, type RowType, type StepRow, type TurnRow } from './vocabulary.js'
 
 export type LooseRow = { type: string; seq?: number; session_id?: string; turn?: number; parent_call_id?: string; [key: string]: unknown }
 
-const CONTROL_TYPES = new Set(['control_request', 'control_response', 'control_cancel_request'])
+export class RowSchemaMismatch extends Error {
+  constructor(readonly rowType: string, readonly schema: unknown) {
+    super(`${rowType} row schema ${String(schema)} is not supported; expected ${ROWS_SCHEMA}`)
+    this.name = 'RowSchemaMismatch'
+  }
+}
 const ROW_TYPE_SET: ReadonlySet<string> = new Set([...ROW_TYPES, ...PARTIAL_ROW_TYPES])
 const INPUT_TYPE_SET: ReadonlySet<string> = new Set(INPUT_ROW_TYPES)
 
@@ -25,7 +30,9 @@ export function rowOf(value: unknown): LooseRow | null {
     if (record.method !== 'row') return null
     return rowOf(record.params)
   }
-  if (typeof record.type !== 'string' || CONTROL_TYPES.has(record.type)) return null
+  if (typeof record.type !== 'string') return null
+  if ((record.type === 'session' || record.type === 'outcome') && record.schema !== ROWS_SCHEMA) throw new RowSchemaMismatch(record.type, record.schema)
+  if (!ROW_TYPE_SET.has(record.type)) return null
   return record as LooseRow
 }
 
@@ -36,7 +43,6 @@ export const isOutcome = (row: LooseRow | null | undefined): row is OutcomeRow &
 export const isSessionRow = (row: LooseRow | null | undefined): boolean => row?.type === 'session'
 export const turnOpened = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'started'
 export const turnWaiting = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'waiting'
-export const mainThread = (row: LooseRow | null | undefined): boolean => row !== null && row !== undefined && row.parent_call_id === undefined
 export const mainThreadStep = (row: LooseRow | null | undefined): row is StepRow & LooseRow => row?.type === 'step' && row.parent_call_id === undefined
 
 export function outcomeErrorText(row: OutcomeRow | LooseRow): string | undefined {
@@ -47,10 +53,6 @@ export function outcomeErrorText(row: OutcomeRow | LooseRow): string | undefined
 
 export function outcomeFailed(row: OutcomeRow | LooseRow): boolean {
   return (row as { status?: unknown }).status !== 'completed'
-}
-
-export function rowSchemaOf(row: LooseRow): number | undefined {
-  return typeof row.schema === 'number' ? row.schema : undefined
 }
 
 export { ROWS_SCHEMA } from './vocabulary.js'

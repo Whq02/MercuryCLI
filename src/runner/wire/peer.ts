@@ -15,7 +15,8 @@ import {
   rpcErrorOf,
   type RpcErrorShape,
 } from './errors.js'
-import { METHODS, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { rowOf, RowSchemaMismatch } from '../../rows/read.js'
 
 export type RpcId = number
 export type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
@@ -54,6 +55,7 @@ export interface PeerOptions {
   maxLineBytes?: number
   badLineLimit?: number
   onDesync?: (badLines: number) => void
+  onProtocolError?: (error: RpcError) => void
   onWriteError?: (error: Error) => void
   serialize?: (message: RpcMessage) => string
   log?: (line: string) => void
@@ -159,7 +161,7 @@ export class LineSplitter {
 }
 
 class OrderedWriter {
-  private held: string[] | null
+  private held: Array<{ line: string; requestId?: RpcId }> | null
   private ended = false
   private readonly onWriteError: (error: Error) => void
   private readonly serialize: (message: RpcMessage) => string
@@ -177,7 +179,7 @@ class OrderedWriter {
     if (this.ended) return
     const line = this.serialize(message) + '\n'
     if (this.held !== null && !bypassHold) {
-      this.held.push(line)
+      this.held.push({ line, ...('method' in message && 'id' in message ? { requestId: message.id } : {}) })
       return
     }
     this.put(line)
@@ -194,7 +196,15 @@ class OrderedWriter {
     const lines = this.held
     this.held = null
     if (this.ended) return
-    for (const line of lines) this.put(line)
+    for (const entry of lines) this.put(entry.line)
+  }
+
+  withdraw(id: RpcId): boolean {
+    if (this.held === null) return false
+    const at = this.held.findIndex(entry => entry.requestId === id)
+    if (at < 0) return false
+    this.held.splice(at, 1)
+    return true
   }
 
   flush(): Promise<void> {
@@ -232,13 +242,14 @@ export class Peer {
   private readonly splitter: LineSplitter
   private readonly badLineLimit: number
   private readonly onDesync: (badLines: number) => void
+  private readonly onProtocolError: (error: RpcError) => void
   private readonly log: (line: string) => void
   private settleDone!: () => void
   private nextId = 0
   private badLines = 0
   private closedReason: string | null = null
   private initState: 'none' | 'pending' | 'done'
-  private initWaiters: Array<{ run: () => void; fail: () => void }> = []
+  private initWaiters: Array<{ id: RpcId; run: () => void; fail: () => void }> = []
   private readonly pending = new Map<RpcId, Pending>()
   private readonly inFlight = new Map<RpcId, InFlight>()
   private readonly requestHandlers = new Map<string, (params: unknown, ctx: HandlerContext) => unknown>()
@@ -257,6 +268,7 @@ export class Peer {
     this.badLineLimit = opts.badLineLimit ?? BAD_LINE_LIMIT
     this.onDesync = opts.onDesync ?? (() => {})
     this.log = opts.log ?? (() => {})
+    this.onProtocolError = opts.onProtocolError ?? (error => this.log(error.message))
     this.initState = opts.side === 'runner' ? 'none' : 'done'
     this.done = new Promise<void>(resolve => {
       this.settleDone = resolve
@@ -315,6 +327,7 @@ export class Peer {
 
   send<M extends MethodName>(method: M, params: ParamsOf<M>, opts: RequestOptions = {}): { id: RpcId; answer: Promise<ResultOf<M>> } {
     if (this.closedReason !== null) return { id: 0, answer: Promise.reject(new PeerClosed(method, this.closedReason)) }
+    if (opts.signal?.aborted) return { id: 0, answer: Promise.reject(cancelled('aborted')) }
     const id = ++this.nextId
     const deadlineMs = opts.deadlineMs === undefined ? deadlineOf(method) : opts.deadlineMs
     const answer = new Promise<ResultOf<M>>((resolve, reject) => {
@@ -322,7 +335,7 @@ export class Peer {
         deadlineMs !== null
           ? setTimeout(() => {
               if (!this.pending.delete(id)) return
-              this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
+              if (!this.writer.withdraw(id)) this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
               reject(new PeerDeadline(method, id, deadlineMs))
             }, deadlineMs)
           : null
@@ -348,7 +361,7 @@ export class Peer {
     if (entry === undefined) return false
     this.pending.delete(id)
     if (entry.timer !== null) clearTimeout(entry.timer)
-    this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
+    if (!this.writer.withdraw(id)) this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
     entry.reject(cancelled(reason))
     return true
   }
@@ -402,7 +415,19 @@ export class Peer {
     this.writer.end()
   }
 
+  private failProtocol(error: RpcError): void {
+    if (this.closed) return
+    for (const [id, entry] of this.pending) {
+      if (entry.timer !== null) clearTimeout(entry.timer)
+      this.pending.delete(id)
+      entry.reject(error)
+    }
+    this.end(error.message)
+    this.onProtocolError(error)
+  }
+
   private onLine(line: Line): void {
+    if (this.closed) return
     if (line.kind === 'overlong') {
       this.log(`runner wire: a line of ${line.bytes} bytes passed the ${MAX_LINE_BYTES}-byte bound and was dropped`)
       this.badLine()
@@ -412,7 +437,7 @@ export class Peer {
     if (line.text.trim() === '') return
     let value: unknown
     try {
-      value = JSON.parse(line.text)
+      value = JSON.parse(line.text.charCodeAt(0) === 0xfeff ? line.text.slice(1) : line.text)
     } catch (error) {
       this.badLine()
       this.writer.write({ jsonrpc: '2.0', id: null, error: { code: RPC_PARSE_ERROR, message: `parse error: ${error instanceof Error ? error.message : String(error)}` } }, true)
@@ -461,9 +486,24 @@ export class Peer {
   }
 
   private onNotificationLine(method: string, params: unknown): void {
+    if (method === 'row') {
+      try {
+        rowOf(params)
+      } catch (error) {
+        if (!(error instanceof RowSchemaMismatch)) throw error
+        this.failProtocol(refused(error.message, 'protocol', { row: error.rowType, schema: error.schema }))
+        return
+      }
+    }
     if (method === '$/cancel_request') {
       const check = checkParams('$/cancel_request', params)
       if (!check.ok) return
+      const waiting = this.initWaiters.findIndex(entry => entry.id === check.value.request_id)
+      if (waiting >= 0) {
+        this.initWaiters.splice(waiting, 1)
+        this.writer.write({ jsonrpc: '2.0', id: check.value.request_id, error: cancelled(check.value.reason).toJSON() }, true)
+        return
+      }
       const entry = this.inFlight.get(check.value.request_id)
       if (entry === undefined || entry.answered) {
         this.log(`runner wire: $/cancel_request for ${check.value.request_id}, which is not in flight`)
@@ -472,7 +512,7 @@ export class Peer {
       entry.answered = true
       entry.controller.abort()
       this.inFlight.delete(check.value.request_id)
-      this.writer.write({ jsonrpc: '2.0', id: check.value.request_id, error: cancelled(check.value.reason).toJSON() }, true)
+      this.answer(check.value.request_id, entry.method, { error: cancelled(check.value.reason).toJSON() })
       return
     }
     const spec = isMethodName(method) ? (METHODS[method] as MethodSpec) : undefined
@@ -493,7 +533,7 @@ export class Peer {
   }
 
   private onRequestLine(id: RpcId, method: string, params: unknown): void {
-    if (this.inFlight.has(id)) {
+    if (this.inFlight.has(id) || this.initWaiters.some(entry => entry.id === id)) {
       this.writer.write({ jsonrpc: '2.0', id, error: { code: RPC_INVALID_REQUEST, message: `id ${id} is already in flight` } }, true)
       return
     }
@@ -512,6 +552,7 @@ export class Peer {
     }
     if (this.initState === 'pending') {
       this.initWaiters.push({
+        id,
         run: () => this.dispatch(id, method, params),
         fail: () => this.writer.write({ jsonrpc: '2.0', id, error: notInitialized(method).toJSON() }, true),
       })
@@ -525,6 +566,10 @@ export class Peer {
     const handler = this.requestHandlers.get(method)
     if (spec === undefined || spec.kind !== 'request' || !this.serves(spec) || handler === undefined) {
       this.answer(id, method, { error: methodNotFound(method).toJSON() })
+      return
+    }
+    if (method === 'initialize' && isRecord(params) && typeof params.protocol === 'number' && params.protocol !== RUNNER_PROTOCOL) {
+      this.answer(id, method, { error: refused(`runner protocol ${String(params.protocol)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }).toJSON() })
       return
     }
     const check = checkParams(method as MethodName, params)
@@ -591,6 +636,11 @@ export class Peer {
     const entry = this.pending.get(id)
     if (entry === undefined) {
       this.log(`runner wire: a response for ${id}, which is not pending, was ignored`)
+      return
+    }
+    if (entry.method === 'initialize' && !isRecord(value.error) && (!isRecord(value.result) || value.result.protocol !== RUNNER_PROTOCOL)) {
+      const received = isRecord(value.result) ? value.result.protocol : undefined
+      this.failProtocol(refused(`runner protocol ${String(received)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }))
       return
     }
     this.pending.delete(id)

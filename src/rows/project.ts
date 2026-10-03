@@ -1,9 +1,10 @@
 import stripAnsi from 'strip-ansi'
-import { LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
+import { BASH_STDERR_TAG, BASH_STDOUT_TAG, LOCAL_COMMAND_STDERR_TAG, LOCAL_COMMAND_STDOUT_TAG } from '../constants/xml.js'
+import { unescapeXml } from '../utils/xml.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import type { NonNullableUsage } from '../services/api/emptyUsage.js'
-import type { ModelUsage } from '../bootstrap/runtime/usage-ledger.js'
+import type { ModelUsage } from '../bootstrap/state.js'
 import {
   ROWS_SCHEMA,
   stopWordOf,
@@ -37,7 +38,6 @@ import {
   type ToolResultRow,
   type ToolUpdateRow,
   type TurnRow,
-  type Usage,
   type WaitRow,
 } from './vocabulary.js'
 
@@ -426,6 +426,13 @@ export function commandOutputTextOf(text: string): string {
     .trim()
 }
 
+export function shellOutputTextOf(text: string): string | null {
+  const stdout = new RegExp(`<${BASH_STDOUT_TAG}>([\\s\\S]*)</${BASH_STDOUT_TAG}>`).exec(text)?.[1]
+  const stderr = new RegExp(`<${BASH_STDERR_TAG}>([\\s\\S]*?)</${BASH_STDERR_TAG}>`).exec(text)?.[1]
+  if (stdout === undefined && stderr === undefined) return null
+  return stripAnsi([stdout ?? '', unescapeXml(stderr ?? '')].filter(part => part !== '').join('\n')).trim()
+}
+
 export function commandOutputRow(scope: RowScope, text: string, command?: string): Unstamped<CommandOutputRow> {
   return scoped(scope, { type: 'command_output' as const, ...(command !== undefined ? { command } : {}), text })
 }
@@ -497,8 +504,4 @@ export function partialRowsOf(scope: RowScope, messageId: string, event: StreamE
 
 export function retractedRow(scope: RowScope, messageId: string): Unstamped<RetractedRow> {
   return scoped(scope, { type: 'retracted' as const, message_id: messageId })
-}
-
-export function emptyUsageRow(): Usage {
-  return { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }
 }

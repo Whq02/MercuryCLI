@@ -50,6 +50,23 @@ let lastEngineParams: Record<string, unknown> | null = null
 let scriptRanToEnd = false
 let scriptFinallyRan = false
 
+type ScriptedCallUsage = { input_tokens: number; cache_read_input_tokens: number; cache_creation_input_tokens: number }
+let scriptedCall: ScriptedCallUsage | null = null
+let foldScriptedUsage: (usage: ScriptedCallUsage & { output_tokens: number }, params: Record<string, unknown>) => void = () => {}
+function priceScriptedEvent(value: unknown, params: Record<string, unknown>): void {
+  const m = value as { type?: string; event?: { type?: string; message?: { usage?: Record<string, number> }; usage?: Record<string, number> } }
+  if (m?.type !== 'stream_event' || m.event === undefined) return
+  if (m.event.type === 'message_start') {
+    const u = m.event.message?.usage ?? {}
+    scriptedCall = { input_tokens: u.input_tokens ?? 0, cache_read_input_tokens: u.cache_read_input_tokens ?? 0, cache_creation_input_tokens: u.cache_creation_input_tokens ?? 0 }
+    return
+  }
+  if (m.event.type === 'message_delta' && m.event.usage !== undefined && scriptedCall !== null) {
+    foldScriptedUsage({ ...scriptedCall, output_tokens: m.event.usage.output_tokens ?? 0 }, params)
+    scriptedCall = null
+  }
+}
+
 async function* dispatchQuery(
   params: Record<string, unknown>,
 ): AsyncGenerator<unknown, unknown> {
@@ -71,8 +88,10 @@ async function* dispatchQuery(
   scriptFinallyRan = false
   try {
     for (const s of activeEngineScript) {
-      if (s.kind === 'yield') yield s.value
-      else await s.fn(params)
+      if (s.kind === 'yield') {
+        priceScriptedEvent(s.value, params)
+        yield s.value
+      } else await s.fn(params)
     }
     scriptRanToEnd = true
   } finally {
@@ -110,6 +129,7 @@ async function* dispatchQueryEvents(
           terminal = v.terminal
           continue
         }
+        priceScriptedEvent(s.value, params)
         if (typeof v?.kind === 'string') yield { ...(s.value as object), seq: ++seq }
         else yield { kind: 'notice', seq: ++seq, message: s.value }
       } else await s.fn(params)
@@ -159,6 +179,15 @@ const qm = await import('../../src/utils/messageQueueManager.ts')
 
 const MODEL = 'claude-opus-4-8'
 const MODEL2 = 'claude-sonnet-5'
+const { addToTotalSessionCost } = await import('../../src/cost-tracker.ts')
+const { calculateUSDCost } = await import('../../src/utils/modelCost.ts')
+const { EMPTY_USAGE } = await import('../../src/services/api/emptyUsage.ts')
+foldScriptedUsage = (usage, params) => {
+  const options = (params.toolUseContext as Record<string, unknown> | undefined)?.options as Record<string, unknown> | undefined
+  const model = typeof options?.mainLoopModel === 'string' ? options.mainLoopModel : MODEL
+  const settled = { ...EMPTY_USAGE, ...usage }
+  addToTotalSessionCost(calculateUSDCost(model, settled), settled, model)
+}
 
 let failures = 0
 let checks = 0
