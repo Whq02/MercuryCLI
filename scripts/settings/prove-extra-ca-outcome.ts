@@ -58,7 +58,7 @@ console.log('L4 the surfaces (source pins)')
   const status = readFileSync(join(SRC, 'utils/status.tsx'), 'utf8')
   check('/status paints the outcome sentence', status.includes('extraCaCertsStatusLine()'))
   const health = readFileSync(join(SRC, 'utils/healthReport.ts'), 'utf8')
-  check('the doctor carries the row', health.includes("id: 'extra-ca-certs'") && health.includes('extraCaCertsCheck()'))
+  check('/health carries the row', health.includes("id: 'extra-ca-certs'") && health.includes('extraCaCertsCheck()'))
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })
