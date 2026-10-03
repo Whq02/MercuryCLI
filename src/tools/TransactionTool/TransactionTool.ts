@@ -154,21 +154,41 @@ async function runBegin(input: Input, owner: OwnerKey, from: string): Promise<Op
   }
 }
 
-async function runStep(
+const stepLanes = new Map<string, Promise<unknown>>()
+
+function inStepLane<T>(from: string, work: () => Promise<T>): Promise<T> {
+  const previous = stepLanes.get(from) ?? Promise.resolve()
+  const turn = previous.then(work, work)
+  stepLanes.set(from, turn)
+  void turn.finally(() => {
+    if (stepLanes.get(from) === turn) stepLanes.delete(from)
+  })
+  return turn
+}
+
+function intentOfStep(input: Input): string {
+  const words = `${input.kind}: ${input.summary}`.replace(/\s+/g, ' ').trim()
+  return words.length > 120 ? `${words.slice(0, 117)}…` : words
+}
+
+function runStep(
   input: Input,
   owner: OwnerKey,
   from: string,
   getAppState: ToolUseContext['getAppState'] | undefined,
 ): Promise<OpResult> {
-  const id = resolveTargetId(input.id, from)
-  if (id === null) {
-    return {
-      op: 'step',
-      result:
-        'No transaction to note against — begin first with { op: "begin", intent: "…" }.',
-      outcome: 'failed',
-    }
-  }
+  return inStepLane(from, () => noteStepInLane(input, owner, from, getAppState))
+}
+
+async function noteStepInLane(
+  input: Input,
+  owner: OwnerKey,
+  from: string,
+  getAppState: ToolUseContext['getAppState'] | undefined,
+): Promise<OpResult> {
+  const open = input.id ?? openTransactionIdFor(from)
+  const began = open == null
+  const id = open ?? (await openTransaction({ owner, intent: intentOfStep(input), from })).id
   const noted = await noteStep({
     id,
     owner,
@@ -185,6 +205,7 @@ async function runStep(
   return {
     op: 'step',
     result:
+      `${began ? `Began ${id} from this step — ${noted.record.intent}.\n` : ''}` +
       `Noted [${input.outcome ?? 'ok'}] ${input.kind} on ${id} (${noted.record.steps.length} step(s)).\n` +
       refLine(id),
     outcome: 'succeeded',
@@ -206,12 +227,12 @@ function runStatus(input: Input, from: string): OpResult {
 }
 
 async function runFinish(input: Input, owner: OwnerKey, from: string): Promise<OpResult> {
-  const id = resolveTargetId(input.id, from)
-  if (id === null) {
+  const id = input.id ?? openTransactionIdFor(from)
+  if (id == null) {
     return {
       op: 'finish',
-      result: 'No transaction to finish — begin first with { op: "begin", intent: "…" }.',
-      outcome: 'failed',
+      result: 'Nothing to finish — no transaction is open at this root.',
+      outcome: 'no-change',
     }
   }
   const finished = await finishTransaction({
@@ -289,13 +310,13 @@ export const TransactionTool = buildTool({
 
 Operations:
 1. { op: "begin", intent } — open a durable record at the resolved project root.
-2. { op: "step", kind, summary, refs?, outcome? } — note one loop step. kind is one of: profile · diagnose · select · context · propose · preview · apply · stabilize · format · test · build · debug · verify. outcome is one of: ok (default) · failed · indeterminate · info. Every mercury:// ref is resolved AT NOTE TIME — an unresolvable or stale ref refuses the whole note, so fabricated evidence can never enter the record. While a transaction is open, ordinary apply/test/build/debug/verify tool effects auto-note themselves (default-on auto-capture, exactly-once); note manually what the observers cannot see.
+2. { op: "step", kind, summary, refs?, outcome? } — note one loop step; with no open transaction at this root the step opens one itself (its intent from the step's own words) and lands on it, so a loop may start at its first step. kind is one of: profile · diagnose · select · context · propose · preview · apply · stabilize · format · test · build · debug · verify. outcome is one of: ok (default) · failed · indeterminate · info. Every mercury:// ref is resolved AT NOTE TIME — an unresolvable or stale ref refuses the whole note, so fabricated evidence can never enter the record. While a transaction is open, ordinary apply/test/build/debug/verify tool effects auto-note themselves (default-on auto-capture, exactly-once); note manually what the observers cannot see.
 3. { op: "status", id? } — describe the record; an open record lists its outstanding completion gaps.
-4. { op: "finish", verdict, unresolved? } — verdict "completed" is MECHANICALLY gated: an ok apply step carrying a mercury://receipt ref · a stabilize step after it · an ok test/build/verify step after it · no failed step after it. A refusal names every missing leg. "failed"/"abandoned" always land. Name real remaining uncertainty in unresolved — it is preserved verbatim, never dropped.
+4. { op: "finish", verdict, unresolved? } — closes the open transaction (nothing open: it says so and nothing changes). verdict "completed" is MECHANICALLY gated: an ok apply step carrying a mercury://receipt ref · a stabilize step after it · an ok test/build/verify step after it · no failed step after it. A refusal names every missing leg. "failed"/"abandoned" always land. Name real remaining uncertainty in unresolved — it is preserved verbatim, never dropped.
 5. { op: "resume", id? } — after a restart: re-reads the durable record and reports per-apply-ref liveness (live/stale). NOTHING is replayed; a stale receipt ref means re-verify against current files.
 6. { op: "list" } — bounded id/verdict/intent rows for this root, newest first.
 
-id defaults to the open transaction at the current root, else the latest record. Steps cap at 100 per record — finish and begin a new loop rather than growing one forever. Not concurrency-safe: one record mutation at a time.`
+id defaults to the open transaction at the current root, else the latest record. Steps cap at 100 per record — finish and begin a new loop rather than growing one forever. Steps noted in one parallel batch land one after another on the same record.`
   },
   userFacingName,
   get inputSchema(): SchemaType {

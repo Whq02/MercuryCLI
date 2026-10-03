@@ -208,6 +208,25 @@ try {
       check('F7 a reader-less resume reports the same ref stale (reported, never repaired)', readerless !== null && readerless.applyRefChecks.some(c => c.ref === AGENT_REF && c.resolves === false), JSON.stringify(readerless?.applyRefChecks).slice(0, 200))
       const closed = await call({ op: 'finish', verdict: 'abandoned' })
       check('F8 the tool closes its transaction', closed.data.outcome === 'no-change' || closed.data.outcome === 'succeeded', closed.data.result.slice(0, 120))
+
+      section('(G) a loop may start at its first step: a step with nothing open begins the record itself, a batch of steps shares it, a finish with nothing open says so')
+      const idle = await call({ op: 'finish', verdict: 'abandoned' })
+      check('G1 a finish with no open transaction says plainly that nothing was there to finish, and nothing changes', idle.data.outcome === 'no-change' && idle.data.result === 'Nothing to finish — no transaction is open at this root.' && !/begin/.test(idle.data.result), idle.data.result)
+      const before = tx.latestTransaction(root)?.id ?? ''
+      const first = await call({ op: 'step', kind: 'diagnose', summary: 'the median of an even-length list is off by one' })
+      const opened = tx.openTransactionIdFor(root) ?? ''
+      check('G2 a step with no open transaction opens one and lands on it — the record\'s intent is the step\'s own words', first.data.outcome === 'succeeded' && opened !== '' && opened !== before && first.data.result.startsWith(`Began ${opened} from this step — diagnose: the median of an even-length list is off by one.`) && first.data.result.includes(`Noted [ok] diagnose on ${opened} (1 step(s))`), first.data.result)
+      check('G3 no line tells the model to begin first', !/begin first|No transaction to note/.test(first.data.result), first.data.result)
+      const batch = await Promise.all([
+        call({ op: 'step', kind: 'select', summary: 'the median helper' }),
+        call({ op: 'step', kind: 'propose', summary: 'average the two middle values' }),
+        call({ op: 'step', kind: 'context', summary: 'the node:test suite names the case' }),
+        call({ op: 'step', kind: 'preview', summary: 'the one-line change' }),
+      ])
+      const shared = tx.getTransaction(opened, root)
+      check('G4 a parallel batch of four steps lands on the one open record, every step kept', batch.every(r => r.data.outcome === 'succeeded' && r.data.result.includes(`on ${opened} `) && !r.data.result.startsWith('Began')) && shared !== null && shared.steps.length === 5 && tx.openTransactionIdFor(root) === opened, `${shared?.steps.length ?? 'no record'} step(s); ${batch.map(r => r.data.result.split('\n')[0]).join(' | ')}`)
+      const closedAgain = await call({ op: 'finish', verdict: 'abandoned' })
+      check('G5 the finish closes the record the steps opened', closedAgain.data.outcome === 'no-change' && tx.openTransactionIdFor(root) === null && closedAgain.data.result.includes(opened), closedAgain.data.result.slice(0, 160))
     }
   }
 } finally {
