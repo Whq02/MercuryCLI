@@ -21,8 +21,8 @@ import { ModeOneShotOwner } from './runtime/mode-one-shots.js'
 import { ModelConfigOwner } from './runtime/model-config.js'
 import { PostureOwner } from './runtime/posture.js'
 import { ScrollGateOwner } from './runtime/scroll-gate.js'
-import { SdkInitOwner } from './runtime/sdk-init.js'
-import type { RegisteredHookMatcher } from './runtime/sdk-init.js'
+import { HookRegistryOwner } from './runtime/hook-registry.js'
+import type { RegisteredHookMatcher } from './runtime/hook-registry.js'
 import { SessionIdentityOwner } from './runtime/session-identity.js'
 import { StatsHandleOwner } from './runtime/stats-handle.js'
 import { TurnAccountingOwner } from './runtime/turn-accounting.js'
@@ -43,7 +43,7 @@ let apiCapture = new ApiCaptureOwner()
 let modeOneShots = new ModeOneShotOwner()
 let cacheLatches = new CacheLatchOwner()
 let collections = new CollectionsOwner()
-let sdkInit = new SdkInitOwner()
+let hookRegistry = new HookRegistryOwner()
 let statsHandle = new StatsHandleOwner()
 const scrollGate = new ScrollGateOwner()
 
@@ -797,38 +797,24 @@ export function clearInvokedSkillsForAgent(agentId: string): void {
 }
 
 
-export function setInitJsonSchema(
-  schema: Record<string, unknown> | null,
-): void {
-  sdkInit.initJsonSchema = schema
-}
-
-export function getInitJsonSchema(): Record<string, unknown> | null {
-  return sdkInit.initJsonSchema
-}
-
 export function registerHookCallbacks(
   hooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>>,
 ): void {
-  sdkInit.registerHookCallbacks(hooks)
+  hookRegistry.registerHookCallbacks(hooks)
 }
 
 export function getRegisteredHooks(): Partial<
   Record<HookEvent, RegisteredHookMatcher[]>
 > | null {
-  return sdkInit.registeredHooks
+  return hookRegistry.registeredHooks
 }
 
 export function clearRegisteredHooks(): void {
-  sdkInit.registeredHooks = null
+  hookRegistry.registeredHooks = null
 }
 
 export function clearRegisteredExtensionHooks(): void {
-  sdkInit.clearRegisteredExtensionHooks()
-}
-
-export function resetSdkInitState(): void {
-  sdkInit.resetSdkInitState()
+  hookRegistry.clearRegisteredExtensionHooks()
 }
 
 
@@ -859,6 +845,6 @@ export function resetStateForTests(): void {
   modeOneShots = new ModeOneShotOwner()
   cacheLatches = new CacheLatchOwner()
   collections = new CollectionsOwner()
-  sdkInit = new SdkInitOwner()
+  hookRegistry = new HookRegistryOwner()
   statsHandle = new StatsHandleOwner()
 }

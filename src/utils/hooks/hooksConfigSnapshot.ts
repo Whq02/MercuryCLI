@@ -1,4 +1,4 @@
-import { resetSdkInitState } from '../../bootstrap/state.js'
+import { clearRegisteredHooks } from '../../bootstrap/state.js'
 import { untrustedWorkspaceHeadless } from '../config.js'
 import { logForDebugging } from '../debug.js'
 import { getHooksFromOutsideCheckoutSources, getSettingsForSource, getSettings_DEPRECATED } from '../settings/settings.js'
@@ -51,5 +51,5 @@ export function getHooksConfigFromSnapshot(): HooksSettings | null {
 
 export function resetHooksConfigSnapshot(): void {
   snapshot = undefined
-  resetSdkInitState()
+  clearRegisteredHooks()
 }

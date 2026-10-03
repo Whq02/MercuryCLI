@@ -7,7 +7,6 @@ import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/session
 import {
   getMainLoopModelOverride,
   getSessionId,
-  setInitJsonSchema,
   setMainLoopModelOverride,
   setMainThreadAgentType,
   getMainThreadAgentType,
