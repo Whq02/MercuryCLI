@@ -8,7 +8,6 @@ import Link from '../../ink/components/Link.js'
 import useInput from '../../ink/hooks/use-input.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
 import type { ElicitationRequestEvent } from '../../services/mcp/elicitationHandler.js'
-import { useNotifyAfterTimeout } from '../../hooks/useNotifyAfterTimeout.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import {
   getEnumLabel,
@@ -309,11 +308,6 @@ function FormElicitationDialog({
   const resolveAbortsRef = useRef(new Map<string, AbortController>())
   const typedSinceResolveRef = useRef(new Set<string>())
   const unmountedRef = useRef(false)
-
-  useNotifyAfterTimeout(
-    `${event.serverName} needs your input`,
-    'elicitation_dialog',
-  )
 
   useEffect(
     () => () => {
@@ -849,18 +843,10 @@ export function ElicitationDialog(props: ElicitationDialogProps): React.ReactNod
   const mode = props.event.params.mode
   const isUrl = mode === 'url'
   return isUrl ? (
-    <UrlNotifyWrapper {...props} />
+    <UrlElicitationDialog {...props} />
   ) : (
     <FormElicitationDialog {...props} />
   )
-}
-
-function UrlNotifyWrapper(props: ElicitationDialogProps): React.ReactNode {
-  useNotifyAfterTimeout(
-    `${props.event.serverName} needs your input`,
-    'elicitation_url_dialog',
-  )
-  return <UrlElicitationDialog {...props} />
 }
 
 export default ElicitationDialog

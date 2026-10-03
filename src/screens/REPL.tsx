@@ -83,12 +83,11 @@ import { CommandKeybindingHandlers } from '../hooks/useCommandKeybindings.js';
 import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
-import { useConcourseLifecycleSignals } from '../hooks/useConcourseLifecycleSignals.js';
+import { useCoordinatorReceiptFold } from '../hooks/useCoordinatorReceiptFold.js';
 import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
-import { useObligationSignals } from '../hooks/useObligationSignals.js';
-import { usePingEngine } from '../hooks/usePingEngine.js';
+import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
 import { useFinishMarks } from '../hooks/useFinishMarks.js';
 import { useSessionTitleMint } from '../hooks/useSessionTitleMint.js';
 import { useSearchInput } from '../hooks/useSearchInput.js';
@@ -113,7 +112,6 @@ import { useTerminalFocus } from '../ink/hooks/use-terminal-focus.js';
 import { useTerminalTitle } from '../ink/hooks/use-terminal-title.js';
 import { streamingRevealSuppressed } from '../ink/session/capabilities.js';
 import { setClipboardWithReceipt } from '../ink/termio/osc.js';
-import { useTerminalNotification } from '../ink/useTerminalNotification.js';
 import * as pendingInput from '../input-core/pending-input.js';
 import { rekeyCommandQueueToSession } from '../input-core/command-queue.js';
 import { HELD_FOR_COMPACTION_LINE } from '../components/messages/TranscriptNameplate.js';
@@ -182,7 +180,6 @@ import { mercuryBootPreflightEnabled, runAndRecordPreflight } from '../utils/hea
 import { windowsShellRoadNotice } from '../utils/shell/windowsShellRoad.js';
 import { createCommandInputMessage, createUserMessage, extractTag, getUserMessageText, textForResubmit } from '../utils/messages.js';
 import { getTipToShowOnSpinner, recordShownTip } from '../services/tips/tipScheduler.js';
-import { sendNotification } from '../services/notifier.js';
 import { startPreventSleep, stopPreventSleep } from '../services/preventSleep.js';
 import { getCurrentSessionTitle } from '../utils/sessionStorage/logs.js';
 import { getCurrentWorktreeSession } from '../utils/worktree.js';
@@ -601,7 +598,6 @@ export function REPL({
   const { columns, rows } = useTerminalSize();
   const { isCompact } = useLayoutChrome();
   const { controls: compactWork, focus: compactFocus } = useCompactWorkControls();
-  const terminal = useTerminalNotification();
   const tokens = useMercuryTokens();
   const [themeName] = useTheme();
   const mainLoopModel = useMainLoopModel();
@@ -887,8 +883,6 @@ export function REPL({
     showCostThreshold,
     showCrashResume: crashResumeStaged !== null,
   });
-  const focusedInputDialogRef = useRef(focusedInputDialog);
-  focusedInputDialogRef.current = focusedInputDialog;
   const dialogsHiddenWhileTyping =
     isPromptInputActive && !isExiting && !showMessageSelector && (toolUseConfirmQueue.length > 0 || showCostThreshold);
 
@@ -980,7 +974,7 @@ export function REPL({
       };
       return context;
     },
-    [store, debug, mergedTools, themeName, getReadFileState, setAppState, setToolJSX, addNotification, paintScreenRow, terminal, apiKeyVerification],
+    [store, debug, mergedTools, themeName, getReadFileState, setAppState, setToolJSX, addNotification, paintScreenRow, apiKeyVerification],
   );
 
   const tipPickedThisTurnRef = useRef(false);
@@ -1350,9 +1344,7 @@ export function REPL({
     })();
   }, [armedMessage, landing, setAppState]);
 
-  useConcourseLifecycleSignals(terminal);
-  useObligationSignals(terminal);
-  usePingEngine();
+  useCoordinatorReceiptFold();
   useFinishMarks();
   useSessionTitleMint();
   useSettingsChange(() => {});
@@ -1637,22 +1629,7 @@ export function REPL({
     publishCockpitActivity(cockpitActivity);
   }, [cockpitActivity]);
 
-  const editGenerationAtCompleteRef = useRef(0);
-  useEffect(() => {
-    if (submitCount === 0 || lastCompletedAt === null) return;
-    const threshold = getGlobalConfig().messageIdleNotifThresholdMs;
-    if (!threshold || threshold <= 0) return;
-    const timer = setTimeout(() => {
-      const interacted = pendingInput.editGeneration() !== editGenerationAtCompleteRef.current;
-      if (interacted || isLoadingRef.current || toolJSX !== null || focusedInputDialogRef.current !== undefined) return;
-      if (Date.now() - lastCompletedAt < threshold) return;
-      void sendNotification({ message: 'Mercury is waiting for your input', notificationType: 'idle_prompt' }, terminal).catch(() => {});
-    }, threshold);
-    return () => clearTimeout(timer);
-  }, [isLoading, toolJSX, submitCount, lastCompletedAt, terminal]);
-  useEffect(() => {
-    if (lastCompletedAt !== null) editGenerationAtCompleteRef.current = pendingInput.editGeneration();
-  }, [lastCompletedAt]);
+  useTurnEndPing({ lastCompletedAt, busy: isLoading });
 
   const costThresholdShownRef = useRef<boolean>(getGlobalConfig().hasAcknowledgedCostThreshold === true);
   useEffect(() => {
@@ -2643,7 +2620,6 @@ export function REPL({
     dumpMode,
     addNotification,
     removeNotification,
-    terminal,
   }));
   if (!fullscreen) return tree;
   return <AlternateScreen mouseTracking={isMouseTrackingEnabled()}>{tree}</AlternateScreen>;

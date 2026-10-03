@@ -116,7 +116,7 @@ import {
   HIDE_CURSOR,
 } from './termio/dec.js'
 import { setClipboard, supportsTabStatus } from './termio/osc.js'
-import { TerminalWriteProvider } from './useTerminalNotification.js'
+import { TerminalWriteProvider } from './terminalWrite.js'
 
 export const RENDER_FAULT_RETRY_BUDGET = 3
 

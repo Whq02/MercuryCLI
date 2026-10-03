@@ -47,8 +47,4 @@ check('resolve advances the sequence in the same handler as the settle (the conn
 check('sequence resets when the queue drains',
   repl.includes('if (toolUseConfirmQueue.length === 0) setResolvedConsentCount(0);'));
 
-const permReq = readFileSync('src/components/permissions/PermissionRequest.tsx', 'utf8');
-check('notification names Mercury',
-  permReq.includes('Mercury needs your permission to use'));
-
 process.exit(fail);

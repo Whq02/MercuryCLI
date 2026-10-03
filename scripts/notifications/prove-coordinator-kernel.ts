@@ -15,7 +15,7 @@ import {
   ensureCoordinatorIdentity,
   _resetCoordinatorIdentityForTesting,
 } from '../../src/services/concourse/coordinatorIdentity.ts'
-import { upsertObligation, openObligations, obligationOf } from '../../src/services/crew/obligations.ts'
+import { openObligations, obligationOf } from '../../src/services/crew/obligations.ts'
 
 let failures = 0
 function check(label: string, ok: boolean, detail?: string): void {
@@ -28,9 +28,8 @@ function check(label: string, ok: boolean, detail?: string): void {
 
 const scratch = mkdtempSync(join(tmpdir(), 'sg5-kernel-'))
 const crewDir = join(scratch, 'crew')
-const configDir = join(scratch, 'config')
 const identityDir = join(scratch, 'identity')
-for (const d of [crewDir, configDir, identityDir]) mkdirSync(d, { recursive: true })
+for (const d of [crewDir, identityDir]) mkdirSync(d, { recursive: true })
 
 console.log('§1 mode resolution (ONE owner)')
 {
@@ -85,11 +84,6 @@ console.log('§2 pure evaluation (byte-identical, no I/O)')
   const idB = retainedOf('sess-B').find(d => d.verb === 'session.redirect')?.clientMessageId
   check('SB-C7: two settles on ONE recycled short mint DISTINCT merge ids', idA !== undefined && idA !== idB, `${idA} vs ${idB}`)
   check('SB-C7: the merge id carries the session identity', idA === 'merge-back:sess-A', String(idA))
-
-  const emit = evaluateKernel({ openObligations: rows }, { kind: 'obligation-open', obligationId: 'o3' })
-  check('R3: emits the row’s CURRENT revision', emit.length === 1 && emit[0]?.verb === 'signal.emit' && emit[0].revision === 5)
-  const gone = evaluateKernel({ openObligations: rows }, { kind: 'obligation-open', obligationId: 'o-settled-meanwhile' })
-  check('R3: a row settled between trigger and fold emits NOTHING', gone.length === 0)
 }
 
 console.log('§3 idempotent execution (the owners’ own laws)')
@@ -116,50 +110,6 @@ console.log('§3 idempotent execution (the owners’ own laws)')
   const row = await obligationOf(open[0]!.obligationId, { dir: crewDir, scope: 'switchboard' })
   check('the row settled superseded', row?.status === 'superseded', row?.status)
 
-  const { enableConfigs } = await import('../../src/utils/config.ts')
-  enableConfigs()
-  await upsertObligation({ ref: 'q-emit', sessionId: 's-e', question: 'emit me', owner: 'worker', dir: crewDir, scope: 'switchboard' })
-  const fresh = await openObligations({ dir: crewDir, scope: 'switchboard' })
-  const target = fresh.find(o => o.ref === 'q-emit')!
-  const sent: string[] = []
-  const emit = evaluateKernel({ openObligations: fresh }, { kind: 'obligation-open', obligationId: target.obligationId })[0]!
-  const e1 = await executeKernelDecision(emit, {
-    crewDir,
-    configDir,
-    send: async a => {
-      sent.push(a.title)
-      return 'id'
-    },
-  })
-  const e2 = await executeKernelDecision(emit, {
-    crewDir,
-    configDir,
-    send: async a => {
-      sent.push(a.title)
-      return 'id'
-    },
-  })
-  check('emit applies once for a revision', e1.outcome === 'applied', e1.detail)
-  check('re-emit of the SAME revision is a no-op (dedupe)', e2.outcome === 'noop', e2.detail)
-  check('exactly one host send happened', sent.length === 1, String(sent.length))
-
-  await upsertObligation({ ref: 'q-nosender', sessionId: 's-n', question: 'who tells the operator?', owner: 'worker', dir: crewDir, scope: 'switchboard' })
-  const fresh2 = await openObligations({ dir: crewDir, scope: 'switchboard' })
-  const target2 = fresh2.find(o => o.ref === 'q-nosender')!
-  const emit2 = evaluateKernel({ openObligations: fresh2 }, { kind: 'obligation-open', obligationId: target2.obligationId })[0]!
-  const noSender = await executeKernelDecision(emit2, { crewDir, configDir })
-  check('an emission with NO sender is refused (the base recorded an applied claim through a stub)', noSender.outcome === 'refused' && /no-sender/.test(noSender.detail ?? ''), JSON.stringify(noSender))
-  const sent2: string[] = []
-  const realSend = await executeKernelDecision(emit2, {
-    crewDir,
-    configDir,
-    send: async a => {
-      sent2.push(a.title)
-      return 'id'
-    },
-  })
-  check('…and the revision was NOT burned: the owner with a real sender still emits it', realSend.outcome === 'applied' && sent2.length === 1, JSON.stringify(realSend))
-
   const { readFileSync } = await import('node:fs')
   const kernelSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/services/concourse/coordinatorKernel.ts'), 'utf8')
   check("the receipt outcome union carries 'queued'", /outcome: 'applied' \| 'noop' \| 'refused' \| 'failed' \| 'queued'/.test(kernelSrc))
@@ -167,7 +117,7 @@ console.log('§3 idempotent execution (the owners’ own laws)')
   const supervisorSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/daemon/concourseSupervisor.ts'), 'utf8')
   check('the supervisor consumes the collision evidence for a queued merge-back too', /\(r\.outcome === 'applied' \|\| r\.outcome === 'queued'\)/.test(supervisorSrc))
   const routeSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/components/concourse/ConcourseRoute.tsx'), 'utf8')
-  check('the board runs no obligation-open ride (R3 has one owner)', !/kind: 'obligation-open'/.test(routeSrc) && !/assistedSweep/.test(routeSrc))
+  check('the board runs no ride of its own through the kernel', !/assistedSweep/.test(routeSrc))
 
   const offReceipts = await runCoordinatorKernel(
     { kind: 'worker-settled', sessionId: 's-any', runnerId: 'w' },
@@ -223,8 +173,6 @@ console.log('§6 production wires at the owners')
   check('R1 wired at the dispatch owner (refusal → kernel event)', dispatch.includes("kind: 'dispatch-refused'") && dispatch.includes('runCoordinatorKernel'))
   const supervisor = readFileSync('src/daemon/concourseSupervisor.ts', 'utf8')
   check('R2 wired at the settle owner (first settle → kernel event)', supervisor.includes("kind: 'worker-settled'") && supervisor.includes('runCoordinatorKernel'))
-  const hook = readFileSync('src/hooks/useObligationSignals.ts', 'utf8')
-  check("R3's ONE live source is the hook (adjudication holds)", hook.includes('emitConcourseSignal'))
 }
 
 rmSync(scratch, { recursive: true, force: true })

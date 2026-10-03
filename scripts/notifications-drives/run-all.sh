@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/notifications/**
 # gate-watch: scripts/notifications/**
-# gate-watch: src/services/crew/** src/services/notifier.ts
+# gate-watch: src/services/crew/**
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/components/concourse/ConcourseScreen.tsx
 # gate-watch: src/components/concourse/NeedsYouRail.tsx src/components/mercury-ui/*

@@ -74,7 +74,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
       'config', 'jev', 'jevor', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
       'policy', 'authority', 'sovereign', 'sandbox',
       'terminal-setup', 'keybindings', 'keys',
-      'vim', 'mouse', 'pings', 'browser',
+      'vim', 'mouse', 'browser',
       'init',
       'speak', 'voice',
     ],

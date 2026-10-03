@@ -21,12 +21,10 @@ import { useAppState, useSetAppState, type AppState } from '../../state/AppState
 import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../utils/config/globalConfig.js'
 import {
   EDITOR_MODES,
-  NOTIFICATION_CHANNELS,
   getGlobalConfig,
   saveGlobalConfig,
   getCustomApiKeyStatus,
   type GlobalConfig,
-  type NotificationChannel,
 } from '../../utils/config.js'
 import {
   getSettingsForSource,
@@ -165,16 +163,6 @@ type SettingsItem = {
   open?: SubMenu
   warning?: string
   setByYou?: boolean
-}
-
-const CHANNEL_LABELS: Record<NotificationChannel, string> = {
-  auto: 'auto (pick per terminal)',
-  iterm2: 'iTerm2 (OSC 9)',
-  iterm2_with_bell: 'iTerm2 (OSC 9) + bell (BEL)',
-  terminal_bell: 'terminal bell (BEL)',
-  kitty: 'kitty (OSC 99)',
-  ghostty: 'Ghostty (OSC 777)',
-  notifications_disabled: 'disabled',
 }
 
 const THEME_LABELS: Record<string, string> = {
@@ -363,7 +351,7 @@ export function Config({
       global: JSON.parse(JSON.stringify(getGlobalConfig())) as GlobalConfig,
       theme: themeSetting,
       local: { activity: { tips: { enabled: local.activity?.tips?.enabled } }, view: { reducedMotion: local.view?.reducedMotion }, briefs: { profile: local.briefs?.profile }, shell: { engine: local.shell?.engine, sessions: local.shell?.sessions } },
-      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
+      user: { engine: { reasoning: user.engine?.reasoning }, input: { suggestions: user.input?.suggestions }, voice: { language: user.voice?.language }, view: { syntaxOff: user.view?.syntaxOff, ping: user.view?.ping }, guardrails: user.guardrails, files: { honourGitignore: user.files?.honourGitignore }, memory: { pinnedLimit: user.memory?.pinnedLimit }, patience: user.patience, routing: { openrouter: user.routing?.openrouter }, local: { server: localServerSettingsOf(user) } },
       appVerbose: appState.verbose === true,
       dirty: false,
     }
@@ -540,6 +528,22 @@ export function Config({
       if (writeSource('localSettings', { view: { reducedMotion: next ? true : undefined } })) {
         snapshots.dirty = true
         recordToggle('reducedMotion', `set reduced motion to ${next ? 'on' : 'off'}`)
+        bump()
+      }
+    },
+  })
+  items.push({
+    id: 'ping',
+    label: 'Ping',
+    searchText: 'ping terminal bell iterm2 notification turn finished away',
+    kind: 'boolean',
+    value: boolValue(merged.view?.ping !== false),
+    warning: 'one ping when a chat finishes its turn while you are away — an iTerm2 notification there, the terminal bell elsewhere · view.ping in settings',
+    change: () => {
+      const next = merged.view?.ping === false
+      if (writeSource('userSettings', { view: { ping: next ? undefined : false } })) {
+        snapshots.dirty = true
+        recordToggle('ping', `set the ping to ${next ? 'on' : 'off'}`)
         bump()
       }
     },
@@ -839,35 +843,6 @@ export function Config({
     kind: 'managed-enum',
     value: <Text>{THEME_LABELS[themeSetting] ?? themeSetting}</Text>,
     open: 'theme',
-  })
-  items.push({
-    id: 'notifChannel',
-    label: 'Notifications channel',
-    kind: 'enum',
-    value: (
-      <Text>
-        {CHANNEL_LABELS[
-          validated([...NOTIFICATION_CHANNELS], config.preferredNotifChannel, 'auto')
-        ]}
-      </Text>
-    ),
-    change: direction => {
-      const current = validated([...NOTIFICATION_CHANNELS], config.preferredNotifChannel, 'auto')
-      const next = cycleIn({ options: [...NOTIFICATION_CHANNELS] }.options, current, direction)
-      writeGlobal(c => ({ ...c, preferredNotifChannel: next }))
-      recordSet('notifChannel', `set notifications channel to ${next}`)
-    },
-  })
-  items.push({
-    id: 'pingsBell',
-    label: 'Pings bell',
-    kind: 'boolean',
-    value: boolValue(config.pingsBell !== false),
-    change: () => {
-      const next = config.pingsBell === false
-      writeGlobal(c => ({ ...c, pingsBell: next }))
-      recordToggle('pingsBell', `set pings bell to ${next ? 'on' : 'off'}`)
-    },
   })
   items.push({
     id: 'language',
@@ -1227,7 +1202,7 @@ export function Config({
       if (motionTouched) noteMotionSettingChanged()
     }
     writeSource('localSettings', { activity: { tips: { enabled: snapshots.local.activity?.tips?.enabled } }, view: { reducedMotion: snapshots.local.view?.reducedMotion }, briefs: { profile: snapshots.local.briefs?.profile }, shell: { engine: snapshots.local.shell?.engine, sessions: snapshots.local.shell?.sessions } })
-    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
+    writeSource('userSettings', { engine: { reasoning: snapshots.user.engine?.reasoning }, input: { suggestions: snapshots.user.input?.suggestions }, voice: { language: snapshots.user.voice?.language }, view: { syntaxOff: snapshots.user.view?.syntaxOff, ping: snapshots.user.view?.ping }, patience: snapshots.user.patience, routing: { openrouter: snapshots.user.routing?.openrouter === undefined ? undefined : {
         dataCollection: undefined,
         requireParameters: undefined,
         allowFallbacks: undefined,

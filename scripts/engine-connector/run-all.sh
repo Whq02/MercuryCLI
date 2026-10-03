@@ -14,7 +14,7 @@
 # gate-watch: src/components/messages/** src/components/tasks/* src/cost-tracker.ts src/daemon/*
 # gate-watch: src/entrypoints/sdk/controlSchemas.ts src/entrypoints/sdk/coreSchemas.ts
 # gate-watch: src/hooks/useArrowKeyHistory.tsx src/ink/session/capabilities.ts src/ink/stringWidth.ts
-# gate-watch: src/ink/useTerminalNotification.ts src/input-core/interruptArity.ts
+# gate-watch: src/ink/terminalWrite.ts src/input-core/interruptArity.ts
 # gate-watch: src/keybindings/actionGraph.ts src/keybindings/defaultBindings.ts src/services/*
 # gate-watch: src/services/concourse/sessionNaming.ts src/services/providers/catalogueEpoch.ts
 # gate-watch: src/services/providers/openai/openaiCallModel.ts

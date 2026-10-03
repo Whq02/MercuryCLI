@@ -3,7 +3,7 @@ import { InkInstanceContext } from './InkInstanceContext.js';
 import { consumeLauncherAltHold } from '../launcherAltHold.js';
 import { DISABLE_ALTERNATE_SCROLL, DISABLE_MOUSE_TRACKING, ENABLE_ALTERNATE_SCROLL, ENABLE_MOUSE_TRACKING, ENTER_ALT_SCREEN, EXIT_ALT_SCREEN } from '../termio/dec.js';
 import { noteModeAcquired, noteModeReleased } from '../root/terminalModeLedger.js';
-import { TerminalWriteContext } from '../useTerminalNotification.js';
+import { TerminalWriteContext } from '../terminalWrite.js';
 import { RESET_SCROLL_REGION } from '../termio/csi.js';
 import Box from './Box.js';
 import { TerminalSizeContext } from './TerminalSizeContext.js';

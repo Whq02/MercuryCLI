@@ -48,7 +48,6 @@ function inputOf(payload: CoordinatorFeedPayload, actorAgentId: string, atMs: nu
 const ACTION_VERB: Record<KernelReceiptV1['verb'], string> = {
   'attention.raise': 'raised attention',
   'attention.supersede': 'superseded attention',
-  'signal.emit': 'signaled',
   'session.pause': 'paused session',
   'session.resume': 'resumed session',
   'session.redirect': 'redirected session',
@@ -148,6 +147,10 @@ const receiptJournal = defineStore<ReceiptJournalFileV1, [dir?: string]>({
   empty: () => ({ rows: [], nextSeq: 1, consumedSeq: 0 }),
   onReadFailure: 'empty',
 })
+
+export function subscribeCoordinatorReceiptJournal(cb: () => void, crewDir?: string): () => void {
+  return receiptJournal(crewDir).subscribe(() => cb(), { immediate: false })
+}
 
 function journalPayload(payload: CoordinatorFeedPayload, actorAgentId: string, atMs: number, crewDir?: string): void {
   void receiptJournal(crewDir)

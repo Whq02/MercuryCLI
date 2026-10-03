@@ -183,8 +183,8 @@ const connectorStats = [...top]
   .reduce((n, [, v]) => n + v, 0)
 const attached = new Set([...top].filter(([k]) => k.startsWith('tui: statSync') && k.includes('/projects/') && k.endsWith('.jsonl')).map(([k]) => k)).size || 1
 check(`§3 the connector stats ≤ ${CONNECTOR_STATS_PER_MIN} a minute per attached connector at idle`, perMin(connectorStats) <= CONNECTOR_STATS_PER_MIN * 2 * attached, `${perMin(connectorStats)}/min over ${attached} transcript(s)`)
-const storeReads = [...top].filter(([k]) => /tui: readFile\((p|cb)\) .*(notification-journal|obligations-)/.test(k)).reduce((n, [, v]) => n + v, 0)
-check('§4 the notification journal and the crew obligations are never read by the floor at rest (stats only)', perMin(storeReads) <= 6, `${perMin(storeReads)}/min`)
+const storeReads = [...top].filter(([k]) => /tui: readFile\((p|cb)\) .*(coordinator-receipt-journal|obligations-)/.test(k)).reduce((n, [, v]) => n + v, 0)
+check('§4 the receipt journal and the crew obligations are never read by the floor at rest (stats only)', perMin(storeReads) <= 6, `${perMin(storeReads)}/min`)
 const homeSweep = [...top].filter(([k]) => k.startsWith('tui: lstat') && k.includes(CFG)).reduce((n, [, v]) => n + v, 0)
 check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`)
 const presenceRenames = [...top].filter(([k]) => k.startsWith('tui: renameSync') && k.includes('/presence/')).reduce((n, [, v]) => n + v, 0)

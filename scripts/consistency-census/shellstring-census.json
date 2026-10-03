@@ -1186,6 +1186,20 @@
       "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
     },
     {
+      "file": "scripts/pings/prove-turn-end-ping.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const PYTHON_USER_SITE = spawnSync('/usr/bin/python3', ['-c', 'import site; print(site.getusersitepackages())'], {",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
+      "file": "scripts/pings/prove-turn-end-ping.ts",
+      "mechanism": "hardcoded-interpreter",
+      "excerpt": "const child = spawn('/usr/bin/python3', [VSHOT, cfgPath], { cwd: w.cwd, env, stdio: ['ignore', 'pipe', 'pipe'] })",
+      "cls": "platform-owner",
+      "why": "POSIX-only proof invoking the POSIX capture engine (vshot/screengrab). Interactive entrypoints resolve their capture engine for the current platform."
+    },
+    {
       "file": "scripts/primitives-kernel/render-primitives-kernel-cards.tsx",
       "mechanism": "hardcoded-interpreter",
       "excerpt": "return execFileSync('/usr/bin/python3', [VSHOT, cfg], {",

@@ -409,10 +409,8 @@ changes the folder new sessions launch in, the whole harness follows, and
 the board follows with it — it renders the same list of projects the Boot
 face's Projects rows do.
 `/halt` is the screen's brake — it fires interrupt-first, acting while a
-turn runs, and never rides into a session runner. Attention rides one bell: a session taps the
-terminal bell once when it needs you or finishes a run, the status strip's ⚑
-badge counts what needs you, and `/pings` quiets the tap for you — the rows
-and the badge stay. A session that finishes a run while you are elsewhere
+turn runs, and never rides into a session runner. The status strip's ⚑
+badge counts what needs you. A session that finishes a run while you are elsewhere
 is not a question: its row wears its state glyph and word in amber until
 you open the chat again, and a run you watched to its end in the chat
 leaves no mark. A question from another project stays a door — ↵ switches

@@ -1,7 +1,6 @@
 import * as React from 'react'
 import { useEffect } from 'react'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { useNotifyAfterTimeout } from '../../hooks/useNotifyAfterTimeout.js'
 import { armComposerSeed } from '../../utils/cockpit/composerSeed.js'
 import { armPermissionFocus } from '../../utils/permissions/permissionFocus.js'
 import type { Tool } from '../../Tool.js'
@@ -91,14 +90,6 @@ try {
   ResolvedWorkflowCard = null
 }
 
-function notificationTextFor(toolUseConfirm: ToolUseConfirm): string {
-  const tool = toolUseConfirm.tool
-  if (tool === ApolloReviewTool) return 'Mercury needs your review of the Apollo spec'
-  const name = tool.userFacingName(toolUseConfirm.input as never)
-  if (!name || name.trim() === '') return 'Mercury needs your attention'
-  return `Mercury needs your permission to use ${name}`
-}
-
 export function PermissionRequest(props: PermissionRequestProps): React.ReactNode {
   const { toolUseConfirm, onDone, onReject } = props
 
@@ -119,8 +110,6 @@ export function PermissionRequest(props: PermissionRequestProps): React.ReactNod
     if (isQuestionCard) return undefined
     return armComposerSeed()
   }, [isQuestionCard])
-
-  useNotifyAfterTimeout(notificationTextFor(toolUseConfirm), 'permission_prompt')
 
   const tool = toolUseConfirm.tool
   const key = toolUseConfirm.toolUseID

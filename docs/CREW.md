@@ -257,7 +257,7 @@ the saved settings of an earlier build still read.
 
 The Session Concourse — the board of the project you are in (its running
 sessions and its parked chats), the hop into a row, the live tiles, NEEDS
-YOU, the pings bell, the strip that walks only the screens that exist, and
+YOU, the strip that walks only the screens that exist, and
 how chats are born, focused, closed and brought back — is
 [SESSIONS.md](SESSIONS.md)'s page. This section is the coordinator behind
 the board.

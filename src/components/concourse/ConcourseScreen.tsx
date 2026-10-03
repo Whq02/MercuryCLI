@@ -87,7 +87,6 @@ import { COMPACT_DOOR_NOTE, COMPACT_DOOR_NOTE_MS, COMPACT_DOOR_REST_HINT, compac
 import { CREW_ASK_WAIT_WORDS } from '../../services/engine-connector/crewFacts.js';
 import { hasFocusedSession, landingInFlight } from '../../services/engine-connector/focusedConnector.js';
 import { isPathTrusted, setPathTrusted } from '../../utils/config.js';
-import { clearPendingActivation, readPendingActivation } from '../../services/concourse/pendingActivation.js';
 import { getCwd } from '../../utils/cwd.js';
 import { EFFORT_LEVELS } from '../../utils/effort.js';
 import { basename } from 'node:path';
@@ -250,17 +249,9 @@ export function ConcourseScreen({
   const groundPickerOpenRef = useRef(false)
   groundPickerOpenRef.current = groundPickerOpen
 
-  const [railSel, setRailSel] = useState<string | null>(() => {
-    const pending = readPendingActivation()
-    if (
-      pending?.obligationId !== undefined &&
-      snapshot.needsYou.some(o => o.obligationId === pending.obligationId)
-    ) {
-      clearPendingActivation()
-      return pending.obligationId
-    }
-    return presentationCapsule?.railSel ?? snapshot.needsYou[0]?.obligationId ?? null
-  })
+  const [railSel, setRailSel] = useState<string | null>(
+    () => presentationCapsule?.railSel ?? snapshot.needsYou[0]?.obligationId ?? null,
+  )
   const railSelRef = useRef<string | null>(railSel)
   railSelRef.current = railSel
   const railLastIdxRef = useRef(0)

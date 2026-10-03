@@ -75,9 +75,10 @@ console.log('§1 D3 — the receipt journal folds foreign rows exactly once')
   check('…and over its own-pid rows (a deliberate skip is a landed row)', /if \(row\.pid === process\.pid\) \{\s*\n\s*advanceTo = row\.seq\s*\n\s*continue/.test(foldFn))
   check('a row whose ingest throws stops the cursor (retried next fold) and is skipped only after its bounded retry', /if \(failures < FOLD_RETRY_LIMIT\) \{[\s\S]*?break[\s\S]*?\}[\s\S]*?advanceTo = row\.seq/.test(foldFn) && /const FOLD_RETRY_LIMIT = 2/.test(fold))
   check('the cursor write is the landed seq, never the journal\'s max seq', /consumedSeq: advanceTo/.test(foldFn) && !/Math\.max\(m, r\.seq\)/.test(foldFn))
-  const hook = src('src/hooks/useConcourseLifecycleSignals.ts')
-  const replayBody = hook.slice(hook.indexOf('const replay = (): void => {'), hook.indexOf('replay()\n'))
-  check('the receipt-journal fold runs INSIDE the re-entrancy guard (the guard clears after it, not before)', replayBody.indexOf('foldJournaledCoordinatorReceipts()') > 0 && replayBody.indexOf('foldJournaledCoordinatorReceipts()') < replayBody.lastIndexOf('replaying = false'), `fold@${replayBody.indexOf('foldJournaledCoordinatorReceipts()')} clear@${replayBody.lastIndexOf('replaying = false')}`)
+  const hook = src('src/hooks/useCoordinatorReceiptFold.ts')
+  const foldBody = hook.slice(hook.indexOf('const fold = (): void => {'), hook.indexOf('fold()\n'))
+  check('the receipt-journal fold runs INSIDE the re-entrancy guard (the guard clears after it, not before)', foldBody.indexOf('foldJournaledCoordinatorReceipts()') > 0 && foldBody.indexOf('foldJournaledCoordinatorReceipts()') < foldBody.lastIndexOf('folding = false'), `fold@${foldBody.indexOf('foldJournaledCoordinatorReceipts()')} clear@${foldBody.lastIndexOf('folding = false')}`)
+  check('the fold wakes on the receipt journal itself and on the bounded poll', hook.includes('subscribeCoordinatorReceiptJournal(fold)') && hook.includes('setInterval(fold, POLL_MS)'))
 
   activity._resetActivityFeedForTesting()
   receipts.ingestCoordinatorReceipts(

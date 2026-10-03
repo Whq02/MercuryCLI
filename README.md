@@ -353,8 +353,7 @@ chats that are not running, newest first.
 Each running session has a NOW cell showing its current activity. Select a
 row and press `Enter` to return to the chat while the other sessions keep
 running. A crashed session stays on the session list as NEEDS YOU, with the
-reason, until you release it. The terminal bell sounds once when a session
-needs attention or finishes a run.
+reason, until you release it.
 
 [docs/SESSIONS.md](docs/SESSIONS.md) covers the session lifecycle.
 
@@ -531,7 +530,7 @@ the live list can also include skills and extension commands.
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
 | git & review | `/branch` `/review` `/security-review` `/pr-comments` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
-| config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/pings` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
+| config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/terminal-setup` `/bootmenu` `/speak` `/voice` |
 | appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/view` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 

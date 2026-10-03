@@ -44,7 +44,7 @@ check(
   frame.includes('attentionView.needsYou > 0 ?'),
 )
 check(
-  'the count is the ONE attention view-model (the same facts the board and the ping engine read)',
+  'the count is the ONE attention view-model (the same facts the board reads)',
   frame.includes('cachedAttentionView') && frame.includes('subscribeAttentionView'),
 )
 

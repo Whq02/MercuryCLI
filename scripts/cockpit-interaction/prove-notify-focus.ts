@@ -32,9 +32,9 @@ t.section('the focus store speaks DECSET 1004 truth')
   resetTerminalFocusState()
 }
 
-t.section('the notify hook prefers focus truth over the interaction window')
+t.section('the ping prefers focus truth over the interaction window')
 {
-  const src = readFileSync('src/hooks/useNotifyAfterTimeout.ts', 'utf8')
+  const src = readFileSync('src/hooks/useTurnEndPing.ts', 'utf8')
   t.check(
     'focus is consulted FIRST and trusted when known',
     src.includes("if (focus !== 'unknown') return focus === 'focused'"),
@@ -44,8 +44,8 @@ t.section('the notify hook prefers focus truth over the interaction window')
     src.indexOf("if (focus !== 'unknown')") !== -1 && src.indexOf("if (focus !== 'unknown')") < src.indexOf('hasRecentInteraction(threshold)'),
   )
   t.check(
-    'a focused terminal suppresses (notify = NOT active)',
-    src.includes('!isUserActiveForNotifications(threshold)'),
+    'a terminal at the screen holds the ping (at screen = no ping)',
+    src.includes('isUserAtScreen(threshold) ||'),
   )
   t.check(
     'the signal is the one process-wide focus store, not a private copy',

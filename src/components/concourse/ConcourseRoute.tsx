@@ -1078,21 +1078,6 @@ function LiveConcourse(): React.ReactNode {
     }),
     [setPeek, noteResident, refresh, noteControl, attachAndEnter],
   )
-  useEffect(() => {
-    let handle: { dispose(): void } | null = null
-    let alive = true
-    void import('../../services/switchboard/askPing.js')
-      .then(m => {
-        if (!alive) return
-        handle = m.startAskPing()
-      })
-      .catch(() => {
-      })
-    return () => {
-      alive = false
-      handle?.dispose()
-    }
-  }, [])
   const submitInFlight = useRef(false)
   const seedWriteChain = useRef<Promise<unknown>>(Promise.resolve())
   const birthInFlightRef = useRef(false)
