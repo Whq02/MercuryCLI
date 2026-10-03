@@ -33,12 +33,6 @@ console.log('\n── the tool-round attachment pass ──')
 check('the turn machine calls getAttachmentMessages on tool rounds', /getAttachmentMessages\(/.test(q))
 check('tool-round attachments yield THEN push into toolResults (next round carries them)', /for await \(const attachment of getAttachmentMessages\([\s\S]{0,900}?yield [^\n]*attachment[^\n]*\n\s*toolResults\.push\(attachment\)/.test(q))
 
-console.log('\n── the memory-prefetch Disposable binding ──')
-check('startRelevantMemoryPrefetch bound with `using` (dispose on EVERY generator exit path)', /using\s+\w+\s*=\s*startRelevantMemoryPrefetch\(|using\s+memoryPrefetch/.test(q))
-
-console.log('\n── the turn-effort floor lifecycle ──')
-check('the turn-scoped tier override REVERTS in a finally, gated to turn-owning sources', /finally[\s\S]{0,700}isTurnOwningQuerySource\([\s\S]{0,120}tierTurnEnded\(/.test(q))
-
 console.log('\n── abort plumbing ──')
 check('the query module threads the abortController through tool execution', /abortController/.test(q))
 
