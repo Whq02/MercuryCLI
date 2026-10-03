@@ -328,7 +328,7 @@ section('F4 — the effort words on the wire are the one ladder')
   const ladder = [...ladderModule.EFFORT_LEVELS]
   const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
   check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", printSrc.includes("'session/set_effort': (params, ref) => {") && printSrc.includes("if (!isEffortLevel(requestedEffort)) throw refused("))
-  check('the ladder has its words', ladder.length >= 3 && ladder.every(word => typeof word === 'string'), j(ladder))
+  check('the ladder ends at max', ladder.length >= 3 && ladder.every(word => typeof word === 'string') && ladder.at(-1) === 'max', j(ladder))
 }
 
 section('F5 — the wait, fold, usage and context projections spell snake_case')
