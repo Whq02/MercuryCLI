@@ -70,6 +70,9 @@ check('the engine job service rides the frontier: engine_run/engine_check exec, 
 check('capture and profile execute on Mercury; frame images mutate only Mercury files',
   vulcanOp('engine_capture')?.cls === 'exec' && vulcanOp('engine_profile')?.cls === 'exec' && vulcanOp('engine_frames')?.cls === 'mutate' &&
     ['engine_capture', 'engine_profile', 'engine_frames'].every(n => vulcanOp(n)?.side === 'mercury' && vulcanOp(n)?.category === 'frontier' && vulcanOp(n)?.lite === false))
+check('the editor health snapshot is the frontier read op editor_health, answered on the editor side',
+  vulcanOp('editor_health')?.cls === 'read' && vulcanOp('editor_health')?.side === 'editor' && vulcanOp('editor_health')?.category === 'frontier' && vulcanOp('editor_health')?.lite === false && /^Editor health snapshot/.test(vulcanOp('editor_health')?.summary ?? ''),
+  JSON.stringify(vulcanOp('editor_health') ?? null))
 
 section('2. the lite subset')
 const lite = VULCAN_OPS.filter(o => o.lite)

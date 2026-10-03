@@ -3,13 +3,13 @@ class_name MercuryVulcanFrontier
 
 
 static func ops() -> Array:
-	return ["editor_doctor", "project_capsule", "scene_diff", "batch_transaction", "broken_refs", "import_get", "import_set", "refactor_rename_signal", "refactor_rename_export", "runtime_frames", "playtest_run", "runtime_wait_signal"]
+	return ["editor_health", "project_capsule", "scene_diff", "batch_transaction", "broken_refs", "import_get", "import_set", "refactor_rename_signal", "refactor_rename_export", "runtime_frames", "playtest_run", "runtime_wait_signal"]
 
 
 static func handle(op: String, args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary:
 	match op:
-		"editor_doctor":
-			return _editor_doctor(args, ctx)
+		"editor_health":
+			return _editor_health(args, ctx)
 		"project_capsule":
 			return _project_capsule(args, ctx)
 		"broken_refs":
@@ -35,7 +35,7 @@ static func handle(op: String, args: Dictionary, ctx: MercuryVulcanContext) -> D
 	return ctx.err("UNKNOWN_OP", "frontier does not handle '%s'" % op, "one of: %s" % ", ".join(ops()))
 
 
-static func _editor_doctor(_args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary:
+static func _editor_health(_args: Dictionary, ctx: MercuryVulcanContext) -> Dictionary:
 	var info := Engine.get_version_info()
 	var root: Node = ctx.editor.get_edited_scene_root()
 	var open_scenes: Array = []
