@@ -1,12 +1,23 @@
 # Compatibility
 
-Mercury's configuration is native and singular: `MERCURY_*` environment
-flags registered in the in-code registry (`src/substrate/flagRegistry.ts`;
-rendered on demand to an untracked path), `MERCURY.md` instruction files, and
-the `.mercury` config homes. Every runtime env read is a registered
-`MERCURY_*` name (the registry proof re-extracts the reads from source and
-fails on any unregistered spelling). The interop surfaces are wire
-identifiers external services require, enumerated below with their owners.
+Mercury keeps configuration in its `.mercury` homes. Product switches use
+registered `MERCURY_*` environment names; providers and platforms also have
+their own variables, such as `ANTHROPIC_API_KEY` and `PATH`. The registry is
+`src/substrate/flagRegistry.ts`. [SETTINGS.md](SETTINGS.md) covers the settings
+files and their grouped keys. External services require the wire identifiers
+listed below.
+
+## Project instructions
+
+With `briefs.profile` set to `auto` (the default), Mercury loads `MERCURY.md`
+from the project's instruction chain. When that chain contains no
+`MERCURY.md`, it loads the project's `AGENTS.md`. With both guides present,
+`MERCURY.md` decides; it can import `AGENTS.md` explicitly with `@AGENTS.md`.
+A `MERCURY.local.md` is a personal layer, loaded after the guide, so it does
+not prevent `AGENTS.md` from loading. Nested guides attach when their files
+are touched under the same guide choice. The `native` profile uses Mercury
+instruction files only. `briefs.exclude` skips named paths or patterns, but
+cannot exclude managed instructions.
 
 ## Wire identifiers (a server or an external artifact requires them)
 

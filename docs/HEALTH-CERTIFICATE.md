@@ -113,13 +113,8 @@ names the Debug tool as withheld for a probe still in flight.
 
 SETTINGS & FLAGS carries the `Env overrides` check: the registered flags
 set in the environment, with Mercury's own stamps and the boot's saved
-defaults named apart from the operator's overrides. A retired setting
-still set (`MERCURY_GODOT_TOOLS_PORT` or `MERCURY_GODOT_TOOLS_TOKEN`,
-which nothing reads since every Godot instance carries its own port and
-token in its descriptor) turns the row to `warn`, names the setting and
-what replaced it or that nothing did, and the fix says to unset it. The
-flag registry's retired table is the one list of such settings; a
-retired name is never a registered flag.
+defaults named apart from the operator's overrides. Each override names the
+registered switch, its value and its kind; unset switches use their defaults.
 
 AUTH carries the `Model lists` row: for every provider family Mercury
 carries typed model ids for (Anthropic, OpenAI, Z.AI, Moonshot, DeepSeek,
@@ -135,8 +130,9 @@ its line names the credential door, the served and not-served counts, and
 /model or a chat naming the family reads it · <n> typed ids not judged`.
 A failed read instead names the failed door, the endpoint's reason and the
 age; an absent credential reads `Anthropic · no credential · <n> typed ids
-not judged`. The evidence line is `served <n> · not served <m> · lists read
-<k> of 6`; Anthropic is counted among the six readable families, Z.AI is not.
+not judged`. The evidence line counts served and unserved ids, then lists read against
+the number of families with a readable catalogue; Z.AI has no live list and
+is not part of that denominator.
 The detail names one line per family and, beneath a family whose list lacks a typed id,
 the ids it lacks. The row reads `ok` when every typed id a read list can
 judge is served, `warn` when a read list lacks one, `info` when no list has
@@ -231,8 +227,10 @@ the verdict. The document carries:
 
 ## Artifacts
 
-The doctor state root is the project (`<project>/.mercury/`;
-`MERCURY_DOCTOR_STATE_DIR` overrides it as the hermetic-isolation seam):
+Certificate files live beside the project's transcripts under
+`<config home>/projects/<project>/`, in the `doctor` store.
+`MERCURY_DOCTOR_STATE_DIR` selects the project root used to resolve the
+store; it is not a direct certificate-directory override:
 
 - `doctor/last-cert.json` — an atomic, best-effort summary written after each
   certificate; the certificate chip in the session chrome folds it in (a
