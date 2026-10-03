@@ -42,6 +42,7 @@ const world = await makeWorld('crewmate-resume-keeps-folder', script)
 const frames: Frame[] = []
 let rowsOut = ''
 let leadErr = ''
+const refusals: string[] = []
 const door = spawnRunnerDoor({
   node: NODE,
   argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', '--mode', 'sovereign', '--session-id', sessionId],
@@ -67,12 +68,14 @@ const session = {
   stdout: (): string => rowsOut,
   stderr: (): string => leadErr,
   submit: (text: string): void => {
-    void wire.request('queue/add', { type: 'prompt', content: text })
+    wire.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: TURN_MS }).catch((error: unknown) => {
+      refusals.push(`queue/add: ${error instanceof Error ? error.message : String(error)}`)
+    })
   },
   waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
     const deadline = Date.now() + timeoutMs
     while (!test()) {
-      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}`)
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}\n--- queue ---\n${refusals.join('\n')}`)
       await sleep(25)
     }
   },
@@ -85,8 +88,8 @@ const session = {
   },
 }
 const answerOf = (request: Promise<unknown>): Promise<Frame> => request.then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
-const stopAgent = (agentId: string): Promise<Frame> => answerOf(wire.request('agent/stop', { agent_id: agentId }))
-const resumeAgent = (agentId: string, note: string): Promise<Frame> => answerOf(wire.request('agent/resume', { agent_id: agentId, note }))
+const stopAgent = (agentId: string): Promise<Frame> => answerOf(wire.request('agent/stop', { agent_id: agentId }, { deadlineMs: TURN_MS }))
+const resumeAgent = (agentId: string, note: string): Promise<Frame> => answerOf(wire.request('agent/resume', { agent_id: agentId, note }, { deadlineMs: TURN_MS }))
 const rosterPath = join(world.crews, crew, 'config.json')
 const leadPlace = realpathSync(world.project)
 type Block = { type?: string; text?: string; content?: unknown; tool_use_id?: string }

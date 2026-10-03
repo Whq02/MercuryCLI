@@ -45,6 +45,7 @@ const world = await makeWorld('crewmate-stop-keeps-roster', script)
 const frames: Frame[] = []
 let rowsOut = ''
 let leadErr = ''
+const refusals: string[] = []
 const door = spawnRunnerDoor({
   node: NODE,
   argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', 'LiveComms', '--mode', 'sovereign', '--session-id', sessionId],
@@ -70,12 +71,14 @@ const session = {
   stdout: (): string => rowsOut,
   stderr: (): string => leadErr,
   submit: (text: string): void => {
-    void wire.request('queue/add', { type: 'prompt', content: text })
+    wire.request('queue/add', { type: 'prompt', content: text }, { deadlineMs: TURN_MS }).catch((error: unknown) => {
+      refusals.push(`queue/add: ${error instanceof Error ? error.message : String(error)}`)
+    })
   },
   waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
     const deadline = Date.now() + timeoutMs
     while (!test()) {
-      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}`)
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}\n--- queue ---\n${refusals.join('\n')}`)
       await sleep(25)
     }
   },
@@ -87,7 +90,7 @@ const session = {
     return code
   },
 }
-const stopAgent = (agentId: string): Promise<Frame> => wire.request('agent/stop', { agent_id: agentId }).then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
+const stopAgent = (agentId: string): Promise<Frame> => wire.request('agent/stop', { agent_id: agentId }, { deadlineMs: TURN_MS }).then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
 const rosterPath = join(world.crews, crew, 'config.json')
 type Member = { name: string; agentId: string; cwd?: string; isActive?: boolean; stoppedAt?: number; backendType?: string }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
