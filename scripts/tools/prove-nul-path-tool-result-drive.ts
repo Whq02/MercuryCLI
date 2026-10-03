@@ -47,7 +47,7 @@ for (const [index, call] of calls.entries()) {
   check(`${(call as { name: string }).name} with a NUL in its path answers one error-marked tool result`, result !== undefined && result.isError, result === undefined ? 'no result' : result.text.slice(0, 120))
   check(`${(call as { name: string }).name}'s result says the path holds a NUL byte`, result !== undefined && /NUL|null byte/i.test(result.text), result?.text.slice(0, 120) ?? 'no result')
 }
-check('the turn runs to its end (the model answers after every tool)', fixture.requests.length === calls.length + 1 && subtype !== 'error_during_execution', `${fixture.requests.length} requests · ${subtype}`)
+check('the turn runs to its end (the model answers after every tool)', fixture.requests.length === calls.length + 1 && status === 'completed', `${fixture.requests.length} requests · ${status}`)
 
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
