@@ -119,16 +119,16 @@ t.section('§2 planEntriesOf — deterministic, status-verbatim')
 t.section('§3 usageWireOf — LAST-round-trip occupancy, model-true window')
 {
   const wire = usageWireOf(
-    { input_tokens: 100, cache_read_input_tokens: 50, cache_creation_input_tokens: 25, output_tokens: 10 },
+    { input_tokens: 175, cached_input_tokens: 50, cache_write_input_tokens: 25, output_tokens: 10 },
     'definitely-unknown-model-id',
   )
-  t.check('used sums the last round-trip\'s four token classes', wire.used === 185, String(wire.used))
+  t.check('used counts the last step\'s whole input and output once', wire.used === 185, String(wire.used))
   t.check('an unknown model resolves the conservative default window', wire.size === 200_000, String(wire.size))
   t.check(
     'occupancy stays inside the window for a realistic multi-tool turn (the >100% class is dead)',
     (() => {
       const last = usageWireOf(
-        { input_tokens: 210, cache_read_input_tokens: 59_000, cache_creation_input_tokens: 800, output_tokens: 1_550 },
+        { input_tokens: 60_010, cached_input_tokens: 59_000, cache_write_input_tokens: 800, output_tokens: 1_550 },
         'definitely-unknown-model-id',
       )
       return last.used === 61_560 && last.used <= last.size
