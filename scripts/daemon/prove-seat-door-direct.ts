@@ -243,6 +243,57 @@ section('§5 the warm claim rides session/claim')
   stand.close()
 }
 
+section('§6 the roster: a turn that settles inside the delivery\'s answer leaves the seat idle')
+{
+  const { PassThrough } = await import('node:stream')
+  const { EventEmitter } = await import('node:events')
+  const { createPeer } = await import('../../src/runner/wire/peer.ts')
+  const { mock } = await import('bun:test')
+  const child = Object.assign(new EventEmitter(), { pid: process.pid, stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), kill: () => true })
+  const childModule = await import('../../src/daemon/headlessRun.ts')
+  mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnStreamJsonChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+  const { TaskRoster } = await import('../../src/daemon/roster.ts')
+  const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
+  enableConfigs()
+  saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 3 } }))
+  const runner = createPeer({ input: child.stdin, output: child.stdout, side: 'runner', log: () => {} })
+  runner.onRequest('initialize', () => ({ protocol: 1, runner: { version: '0', pid: process.pid }, session_id: 'session-6' }))
+  runner.onRequest('schedule/roster', () => ({}))
+  const stamp = { timestamp: '2026-10-03T09:00:00.000Z', session_id: 'session-6' }
+  let seq = 0
+  let slash = true
+  runner.onRequest('queue/add', () => {
+    if (slash) {
+      runner.notify('row', { type: 'turn', seq: ++seq, ...stamp, turn: 1, state: 'started', turn_id: 't-6', message_ids: ['m-6'] } as never)
+      runner.notify('row', { type: 'outcome', seq: ++seq, ...stamp, schema: 1, turn: 1, turn_id: 't-6', status: 'completed', steps: 0, wall_ms: 1, usage: { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }, models: {}, denials: [] } as never)
+    }
+    return { accepted: true }
+  })
+  const roster = new TaskRoster({ dir: home, breaker: { shouldSuppressFire: () => false, recordResult: () => {}, recordTimeout: () => {} } as never, maxInflight: 3 })
+  roster.registerLongLived('concourse-w6', { cwd: home, model: 'm', effort: 'high', role: 'MERCURY_CONCOURSE_WORKER', agentId: 'w6' } as never)
+  const sup = await import('../../src/daemon/concourseSupervisor.ts')
+  sup.updateConcourseWorkers(ws => {
+    ws['concourse-w6'] = { schema: 1, runnerId: 'concourse-w6', sessionId: 'session-6', workspaceId: home, isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: Date.now() }
+  }, daemonDir)
+  const delivered = await roster.reply('concourse-w6', { type: 'prompt', content: '/counsel', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a96' })
+  await tick()
+  await tick()
+  const row = roster.list().find(e => e.short === 'concourse-w6')
+  check('the delivery is accepted', delivered)
+  check("red on the base: a slash turn that opened and settled before the delivery's answer was read leaves the seat IDLE, never busy for good", row?.busy === false && row.turnActive === false, j({ busy: row?.busy, turnActive: row?.turnActive }))
+  const record = sup.readSessionWorkers(daemonDir)['concourse-w6']
+  check("red on the base: the record's turn is settled too — the delivery stamp lands before the answer, the settle stamp after it (a /clear on this seat parks it instead of draining for good)", record !== undefined && record.lastDeliveryAt !== undefined && !sup.turnInFlightOf(record), j({ delivery: record?.lastDeliveryAt, settled: record?.lastTurnSettledAt }))
+  slash = false
+  const long = await roster.reply('concourse-w6', { type: 'prompt', content: 'a long turn', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a97' })
+  const open = roster.list().find(e => e.short === 'concourse-w6')
+  check('a delivery whose turn is still to come opens the turn at the delivery (busy from the first byte)', long && open?.busy === true && open.turnActive === true, j({ busy: open?.busy, turnActive: open?.turnActive }))
+  runner.notify('row', { type: 'outcome', seq: ++seq, ...stamp, schema: 1, turn: 2, turn_id: 't-7', status: 'completed', steps: 0, wall_ms: 1, usage: { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }, models: {}, denials: [] } as never)
+  await tick()
+  check("the runner's outcome row closes it", roster.list().find(e => e.short === 'concourse-w6')?.busy === false)
+  roster.kill('concourse-w6')
+  runner.close('done')
+}
+
 rmSync(home, { recursive: true, force: true })
 console.log(`\n${checks} checks, ${failures} failures`)
 console.log(failures === 0 ? 'prove-seat-door-direct: ALL LAWS HOLD' : `prove-seat-door-direct: ${failures} FAILURE(S)`)

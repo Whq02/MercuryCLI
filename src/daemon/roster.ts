@@ -88,6 +88,7 @@ interface LongLivedSeat {
   contextPct?: number
   turnActive?: boolean
   turnStartedAt?: number
+  turnEdges: number
   seenDispatchIds?: Set<string>
   clearInFlight?: boolean
   spawnGeneration: number
@@ -230,13 +231,26 @@ export class TaskRoster {
     const door = h.longLived?.connection
     if (h.longLived === undefined || door === undefined || door.closed) return false
     const ll = h.longLived
-    if (!(await door.deliver(row))) return false
+    const edgesBefore = ll.turnEdges
     ll.turnActive = true
     ll.turnStartedAt = Date.now()
-    if (short.startsWith('concourse-w')) {
+    const worker = short.startsWith('concourse-w')
+    if (worker) {
       void import('./concourseSupervisor.js')
         .then(sup => sup.markConcourseWorkerDelivery(short))
         .catch(() => {})
+    }
+    if (!(await door.deliver(row))) {
+      if (ll.turnEdges === edgesBefore) {
+        ll.turnActive = false
+        ll.turnStartedAt = undefined
+        if (worker) {
+          void import('./concourseSupervisor.js')
+            .then(sup => sup.markConcourseWorkerTurnSettled(short))
+            .catch(() => {})
+        }
+      }
+      return false
     }
     return true
   }
@@ -301,6 +315,7 @@ export class TaskRoster {
       lastSpawnAt: 0,
       intentionalStop: false,
       spawnGeneration: 0,
+      turnEdges: 0,
     }
     const entry: RosterEntry = {
       short,
@@ -640,12 +655,14 @@ export class TaskRoster {
       if (pct !== null) ll.contextPct = pct
     }
     if (isTurnOpenRow(frame)) {
+      ll.turnEdges += 1
       if (!ll.turnActive) {
         ll.turnActive = true
         ll.turnStartedAt = Date.now()
       }
     }
     if (isOutcomeRow(frame)) {
+      ll.turnEdges += 1
       ll.lastErrorText = errorTextOfOutcome(frame)
       ll.turnActive = false
       ll.turnStartedAt = undefined
