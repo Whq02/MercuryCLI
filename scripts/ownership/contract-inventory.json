@@ -40,8 +40,7 @@
     "isBrokenPipeError",
     "isRowLine",
     "type:OutboundLine",
-    "type:TransitionalLine",
-    "type:WireLine"
+    "type:OutboundNotification"
    ]
   },
   "settings": {
