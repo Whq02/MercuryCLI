@@ -41,6 +41,7 @@ const script: ScriptedTurn[] = [
 const world = await makeWorld('crewmate-resume-keeps-folder', script)
 const frames: Frame[] = []
 let rowsOut = ''
+let leadErr = ''
 const door = spawnRunnerDoor({
   node: NODE,
   argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', '--mode', 'sovereign', '--session-id', sessionId],
@@ -52,6 +53,9 @@ const door = spawnRunnerDoor({
     if (frame !== null) frames.push(frame)
   },
 })
+door.child.stderr!.on('data', (chunk: Buffer) => {
+  leadErr += chunk.toString('utf8')
+})
 const wire = door.connection.peer
 let leadDone = false
 const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
@@ -61,13 +65,14 @@ const leadExited = new Promise<number | null>(resolveExit => door.child.on('clos
 const session = {
   frames,
   stdout: (): string => rowsOut,
+  stderr: (): string => leadErr,
   submit: (text: string): void => {
     void wire.request('queue/add', { type: 'prompt', content: text })
   },
   waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
     const deadline = Date.now() + timeoutMs
     while (!test()) {
-      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}`)
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}`)
       await sleep(25)
     }
   },
