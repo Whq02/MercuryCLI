@@ -496,6 +496,50 @@ section('W15 cancellation before send and before dispatch cannot apply a request
   held.host.end()
 }
 
+section('W16 incompatible versions refuse explicitly and settle the connection')
+{
+  const read = await import('../../src/rows/read.ts')
+  for (const type of ['session', 'outcome']) {
+    for (const schema of [2, undefined]) {
+      let caught: unknown
+      try { read.parseRow(j({ type, schema, session_id: 's' })) } catch (error) { caught = error }
+      check(`${type} schema ${schema}: the reader throws a named schema error`, caught instanceof Error && caught.name === 'RowSchemaMismatch', String(caught))
+    }
+    const input = new PassThrough()
+    const output = new PassThrough()
+    const problems: Array<InstanceType<typeof errors.RpcError>> = []
+    const host = new Peer({ input, output, side: 'host', onProtocolError: error => problems.push(error) })
+    let delivered = 0
+    let aborted = false
+    host.onNotification('row', () => { delivered++ })
+    host.onRequest('permission/request', (_params, ctx) => { ctx.signal.addEventListener('abort', () => { aborted = true }); return new Promise(() => {}) })
+    input.write(j({ jsonrpc: '2.0', id: 99, method: 'permission/request', params: { kind: 'network', host: 'proof.test' } }) + '\n')
+    const pending = rejection(host.request('session/facts', {}, { deadlineMs: 1000 }))
+    input.write(j({ jsonrpc: '2.0', method: 'row', params: { type, schema: 2, session_id: 's' } }) + '\n')
+    const error = await pending as InstanceType<typeof errors.RpcError>
+    check(`${type} schema 2: pending work receives typed protocol refusal, never a timeout`, error?.code === errors.RPC_REFUSED && (error.data as Frame)?.kind === 'protocol', String(error))
+    check(`${type} schema 2: the host is told once, no row delivered, asks aborted`, problems.length === 1 && host.closed && delivered === 0 && aborted && host.pendingCount === 0 && host.inFlightCount === 0, j({ problems: problems.length, closed: host.closed, delivered, aborted }))
+    host.end()
+  }
+  const input = new PassThrough()
+  const output = new PassThrough()
+  const problems: unknown[] = []
+  const host = new Peer({ input, output, side: 'host', onProtocolError: error => problems.push(error) })
+  const initialize = host.send('initialize', { protocol: 1, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } })
+  const initError = rejection(initialize.answer)
+  const facts = rejection(host.request('session/facts', {}, { deadlineMs: 1000 }))
+  input.write(j({ jsonrpc: '2.0', id: initialize.id, result: { protocol: 2, runner: { version: 'proof', pid: 1 }, session_id: 's' } }) + '\n')
+  const replies = await Promise.all([initError, facts]) as Array<InstanceType<typeof errors.RpcError>>
+  check('protocol 2 initialize settles both itself and concurrent work with typed protocol refusal', replies.every(error => error?.code === errors.RPC_REFUSED && (error.data as Frame)?.kind === 'protocol'), j(replies))
+  check('protocol 2 closes once and notifies its host', host.closed && problems.length === 1 && host.pendingCount === 0)
+  host.end()
+  const w = world()
+  const bad = await rejection(w.host.request('initialize', { protocol: 2, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } } as never)) as InstanceType<typeof errors.RpcError>
+  check('the shared dispatcher refuses a protocol 2 request before its handler', bad?.code === errors.RPC_REFUSED && (bad.data as Frame)?.kind === 'protocol' && !w.runner.initialized, j(bad))
+  w.host.end()
+  check('both initialize schemas demand the served protocol', !methods.checkParams('initialize', { protocol: 2, host: { name: 'proof', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }).ok && !methods.checkResult('initialize', { protocol: 2, runner: { version: 'proof', pid: 1 }, session_id: null }).ok)
+}
+
 section('M the method table is the one source')
 {
   const names = methods.METHOD_NAMES

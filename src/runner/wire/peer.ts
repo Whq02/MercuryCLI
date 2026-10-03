@@ -15,7 +15,8 @@ import {
   rpcErrorOf,
   type RpcErrorShape,
 } from './errors.js'
-import { METHODS, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { rowOf, RowSchemaMismatch } from '../../rows/read.js'
 
 export type RpcId = number
 export type RpcRequest = { jsonrpc: '2.0'; id: RpcId; method: string; params?: unknown }
@@ -54,6 +55,7 @@ export interface PeerOptions {
   maxLineBytes?: number
   badLineLimit?: number
   onDesync?: (badLines: number) => void
+  onProtocolError?: (error: RpcError) => void
   onWriteError?: (error: Error) => void
   serialize?: (message: RpcMessage) => string
   log?: (line: string) => void
@@ -240,6 +242,7 @@ export class Peer {
   private readonly splitter: LineSplitter
   private readonly badLineLimit: number
   private readonly onDesync: (badLines: number) => void
+  private readonly onProtocolError: (error: RpcError) => void
   private readonly log: (line: string) => void
   private settleDone!: () => void
   private nextId = 0
@@ -265,6 +268,7 @@ export class Peer {
     this.badLineLimit = opts.badLineLimit ?? BAD_LINE_LIMIT
     this.onDesync = opts.onDesync ?? (() => {})
     this.log = opts.log ?? (() => {})
+    this.onProtocolError = opts.onProtocolError ?? (error => this.log(error.message))
     this.initState = opts.side === 'runner' ? 'none' : 'done'
     this.done = new Promise<void>(resolve => {
       this.settleDone = resolve
@@ -411,7 +415,19 @@ export class Peer {
     this.writer.end()
   }
 
+  private failProtocol(error: RpcError): void {
+    if (this.closed) return
+    for (const [id, entry] of this.pending) {
+      if (entry.timer !== null) clearTimeout(entry.timer)
+      this.pending.delete(id)
+      entry.reject(error)
+    }
+    this.end(error.message)
+    this.onProtocolError(error)
+  }
+
   private onLine(line: Line): void {
+    if (this.closed) return
     if (line.kind === 'overlong') {
       this.log(`runner wire: a line of ${line.bytes} bytes passed the ${MAX_LINE_BYTES}-byte bound and was dropped`)
       this.badLine()
@@ -470,6 +486,15 @@ export class Peer {
   }
 
   private onNotificationLine(method: string, params: unknown): void {
+    if (method === 'row') {
+      try {
+        rowOf(params)
+      } catch (error) {
+        if (!(error instanceof RowSchemaMismatch)) throw error
+        this.failProtocol(refused(error.message, 'protocol', { row: error.rowType, schema: error.schema }))
+        return
+      }
+    }
     if (method === '$/cancel_request') {
       const check = checkParams('$/cancel_request', params)
       if (!check.ok) return
@@ -536,6 +561,10 @@ export class Peer {
       this.answer(id, method, { error: methodNotFound(method).toJSON() })
       return
     }
+    if (method === 'initialize' && isRecord(params) && typeof params.protocol === 'number' && params.protocol !== RUNNER_PROTOCOL) {
+      this.answer(id, method, { error: refused(`runner protocol ${String(params.protocol)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol').toJSON() })
+      return
+    }
     const check = checkParams(method as MethodName, params)
     if (!check.ok) {
       this.answer(id, method, { error: invalidParams(method, check.issues).toJSON() })
@@ -600,6 +629,11 @@ export class Peer {
     const entry = this.pending.get(id)
     if (entry === undefined) {
       this.log(`runner wire: a response for ${id}, which is not pending, was ignored`)
+      return
+    }
+    if (entry.method === 'initialize' && !isRecord(value.error) && (!isRecord(value.result) || value.result.protocol !== RUNNER_PROTOCOL)) {
+      const received = isRecord(value.result) ? value.result.protocol : undefined
+      this.failProtocol(refused(`runner protocol ${String(received)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol'))
       return
     }
     this.pending.delete(id)

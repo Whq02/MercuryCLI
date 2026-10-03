@@ -45,7 +45,7 @@ export type Capabilities = z.infer<ReturnType<typeof CapabilitiesSchema>>
 
 export const InitializeParamsSchema = lazySchema(() =>
   z.object({
-    protocol: z.number().int(),
+    protocol: z.literal(RUNNER_PROTOCOL),
     host: z.object({ name: z.string(), version: z.string() }),
     capabilities: CapabilitiesSchema(),
   }),
@@ -54,7 +54,7 @@ export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>
 
 export const InitializeResultSchema = lazySchema(() =>
   z.object({
-    protocol: z.number().int(),
+    protocol: z.literal(RUNNER_PROTOCOL),
     runner: z.object({ version: z.string(), pid: z.number().int() }),
     session_id: z.string().nullable(),
   }),
