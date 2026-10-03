@@ -171,7 +171,7 @@ try {
   const personal = project({ 'MERCURY.local.md': 'local-layer-needle\n', 'AGENTS.md': 'shared-guide-needle\n', 'src/a.ts': '\n' })
   const s9 = drive(personal)
   check('the chain chose the fallback: a local file alone is not the guide', s9.fallbackComposed === true)
-  check("the team's AGENTS.md composes as the guide", count(s9.composed, 'shared-guide-needle') === 1, s9.paths.join(', '))
+  check("the project's AGENTS.md composes as the guide", count(s9.composed, 'shared-guide-needle') === 1, s9.paths.join(', '))
   check('the local file composes beside it', count(s9.composed, 'local-layer-needle') === 1, s9.paths.join(', '))
   const guideAt = s9.paths.indexOf(join(personal, 'AGENTS.md'))
   check('the guide composes before the personal layer', guideAt >= 0 && guideAt < s9.paths.indexOf(join(personal, 'MERCURY.local.md')), s9.paths.join(', '))
@@ -197,7 +197,7 @@ try {
 
   const personalHome = project({ '.mercury/MERCURY.local.md': 'local-layer-needle\n', 'AGENTS.md': 'shared-guide-needle\n' })
   const s9d = drive(personalHome)
-  check("a .mercury/MERCURY.local.md composes beside the team's AGENTS.md too", count(s9d.composed, 'shared-guide-needle') === 1 && count(s9d.composed, 'local-layer-needle') === 1, s9d.paths.join(', '))
+  check("a .mercury/MERCURY.local.md composes beside the project's AGENTS.md too", count(s9d.composed, 'shared-guide-needle') === 1 && count(s9d.composed, 'local-layer-needle') === 1, s9d.paths.join(', '))
   check('the guide step and the surface-map gate read the home local file the same way', s9d.guideStepComplete === true && s9d.oriented === true)
 
   const personalNested = project({ 'AGENTS.md': 'root-shared-needle\n', 'sub/MERCURY.local.md': 'nested-local-needle\n', 'sub/AGENTS.md': 'nested-shared-needle\n', 'sub/file.ts': '\n' })

@@ -120,7 +120,7 @@ try {
   check('nothing composed from the project', s4.composed.every(p => !p.startsWith(shared)), s4.composed.join(', '))
   check('both AGENTS.md reads are restored', has(s4.restored, shared, 'AGENTS.md') && has(s4.restored, shared, 'sub/AGENTS.md'), s4.restored.join(', '))
 
-  console.log("§5 a MERCURY.local.md beside the team's AGENTS.md: both compose, and both reads are left to the prompt")
+  console.log("§5 a MERCURY.local.md beside the project's AGENTS.md: both compose, and both reads are left to the prompt")
   const personal = project({ 'MERCURY.local.md': 'local-layer\n', 'AGENTS.md': 'shared-guide\n', 'notes.md': 'notes\n', 'sub/MERCURY.local.md': 'nested-local\n', 'sub/AGENTS.md': 'nested-shared\n' })
   const s5 = drive(personal, ['MERCURY.local.md', 'AGENTS.md', 'notes.md', 'sub/AGENTS.md', 'sub/MERCURY.local.md'])
   check('AGENTS.md and the local file both composed', has(s5.composed, personal, 'AGENTS.md') && has(s5.composed, personal, 'MERCURY.local.md'), s5.composed.join(', '))

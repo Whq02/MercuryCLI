@@ -128,7 +128,7 @@ try {
   mkdirSync(personalGuided, { recursive: true })
   writeFileSync(join(personalGuided, 'MERCURY.local.md'), '# mine\n')
   writeFileSync(join(personalGuided, 'AGENTS.md'), '# guide\n')
-  check("hasOrientationDoc: true on a root where the team's AGENTS.md stands beside a MERCURY.local.md", hasOrientationDoc(personalGuided))
+  check("hasOrientationDoc: true on a root where the project's AGENTS.md stands beside a MERCURY.local.md", hasOrientationDoc(personalGuided))
   writeFileSync(join(node, 'MERCURY.md'), '# rules\n')
   check('hasOrientationDoc: memo grain holds — a doc landing after the first probe never flips the mapped root', !hasOrientationDoc(node))
   rmSync(join(node, 'MERCURY.md'))
