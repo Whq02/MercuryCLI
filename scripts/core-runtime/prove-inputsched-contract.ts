@@ -459,6 +459,18 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const localMainSession = readFileSync(join(repoRoot, 'src/tasks/LocalMainSessionTask.ts'), 'utf8')
   const localAgent = readFileSync(join(repoRoot, 'src/tasks/LocalAgentTask/LocalAgentTask.tsx'), 'utf8')
   const runner = readFileSync(join(repoRoot, 'src/cli/print.ts'), 'utf8')
+  const modesHome = readFileSync(join(repoRoot, 'src/types/textInputTypes.ts'), 'utf8')
+  const headlessDriver = readFileSync(join(repoRoot, 'src/cli/headless/turnDriver.ts'), 'utf8')
+  const LIVE_MODES = ['bash', 'prompt', 'task-notification']
+  const unionMembers = (/export type PromptInputMode =\n((?:\s*\|\s*'[^']+'\n)+)/.exec(modesHome)?.[1] ?? '').match(/'[^']+'/g)?.map(m => m.slice(1, -1)) ?? []
+  const gate = /while \(\(command = nextDue\(\)\)\) \{[\s\S]*?if \(\n((?:\s*command\.mode !== '[^']+'(?: &&)?\n)+)\s*\) \{/.exec(headlessDriver)?.[1] ?? ''
+  const gateMembers = (gate.match(/'[^']+'/g) ?? []).map(m => m.slice(1, -1))
+  check('lock: the queued-command modes are exactly bash, prompt and task-notification — the type home declares no other',
+    unionMembers.length === LIVE_MODES.length && LIVE_MODES.every(m => unionMembers.includes(m)), JSON.stringify(unionMembers))
+  check("lock: the headless driver's dequeue gate admits exactly those modes — no mode nothing mints",
+    gateMembers.length === LIVE_MODES.length && LIVE_MODES.every(m => gateMembers.includes(m)), JSON.stringify(gateMembers))
+  check('lock: a queued command carries no answer body beside its mode (the queue is transport for the input, nothing else rides it)',
+    !/^\s+\w*[Pp]ermission\w*\??: /m.test(modesHome.slice(modesHome.indexOf('export type QueuedCommand'), modesHome.indexOf('}', modesHome.indexOf('export type QueuedCommand')))))
   check("lock: a background shell command's completion notice rides the 'next' band, so it drains at the next tool boundary (no Sleep, no turn end)",
     localShell.includes("mode: 'task-notification',\n    priority: 'next',") && !localShell.includes("priority: agentId !== undefined ? 'next' : 'later'"))
   check("lock: a background session's completion notice rides the 'next' band too",

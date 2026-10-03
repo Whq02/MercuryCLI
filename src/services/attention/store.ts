@@ -1,11 +1,4 @@
 
-import {
-  getCommandQueueSnapshot,
-  subscribeQueueConsumption,
-  subscribeToCommandQueue,
-  type QueueConsumptionEvent,
-} from '../../input-core/command-queue.js'
-import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   emptyAttentionState,
@@ -56,83 +49,16 @@ export function registerAttentionGatherer(
 }
 
 
-const permIds = new WeakMap<QueuedCommand, string>()
-let permSeq = 0
-const permFirstSeen = new WeakMap<QueuedCommand, number>()
-
-function permSubjectId(cmd: QueuedCommand): string {
-  let id = permIds.get(cmd)
-  if (!id) {
-    id = `perm:${cmd.uuid ?? `q${++permSeq}`}`
-    permIds.set(cmd, id)
-  }
-  return id
-}
-
-function queueFacts(nowMs: number): AttentionFact[] {
-  const facts: AttentionFact[] = []
-  for (const cmd of getCommandQueueSnapshot()) {
-    if (cmd.mode !== 'orphaned-permission') continue
-    if (!permFirstSeen.has(cmd)) permFirstSeen.set(cmd, nowMs)
-    const since = permFirstSeen.get(cmd)!
-    facts.push({
-      subjectId: permSubjectId(cmd),
-      owner: 'command-queue',
-      sourceEventId: `queue:${permSubjectId(cmd)}`,
-      bucket: 'needs-you',
-      reasonCode: 'permission-orphaned',
-      reasonLabel: 'a permission request is waiting in the queue',
-      sinceMs: since,
-      atMs: nowMs,
-      urgency: 0,
-      title: typeof cmd.value === 'string' ? cmd.value : undefined,
-    })
-  }
-  return facts
-}
-
-function consumptionFacts(ev: QueueConsumptionEvent, nowMs: number): AttentionFact[] {
-  const facts: AttentionFact[] = []
-  for (const cmd of ev.commands) {
-    if (cmd.mode !== 'orphaned-permission') continue
-    const id = permIds.get(cmd)
-    if (!id) continue
-    facts.push({
-      subjectId: id,
-      owner: 'command-queue',
-      sourceEventId: `queue-${ev.kind}:${id}`,
-      bucket: 'completed',
-      reasonCode: 'settled',
-      reasonLabel:
-        ev.kind === 'dequeued' || ev.kind === 'removed'
-          ? 'the queued permission was consumed'
-          : 'the queued permission was discarded',
-      sinceMs: permFirstSeen.get(cmd) ?? nowMs,
-      atMs: nowMs,
-      urgency: 2,
-    })
-  }
-  return facts
-}
-
-
 let attention: AttentionState = emptyAttentionState()
 let relations: RelationState = emptyRelationState()
 let snapshot: AttentionStoreSnapshot = { attention, relations }
 
 let armed = false
-let queueUnsub: (() => void) | null = null
-let consumptionUnsub: (() => void) | null = null
 const listeners = new Set<() => void>()
 
-function recompute(extraFacts?: readonly AttentionFact[]): void {
-  const nowMs = Date.now()
+function recompute(): void {
   let nextAttention = attention
   let nextRelations = relations
-  if (extraFacts && extraFacts.length > 0) {
-    nextAttention = foldAttention(nextAttention, extraFacts)
-  }
-  nextAttention = foldAttention(nextAttention, queueFacts(nowMs))
   for (const entry of gatherers) {
     try {
       const out = entry.gather()
@@ -158,10 +84,6 @@ function recompute(extraFacts?: readonly AttentionFact[]): void {
 function arm(): void {
   if (armed) return
   armed = true
-  queueUnsub = subscribeToCommandQueue(() => recompute())
-  consumptionUnsub = subscribeQueueConsumption(ev =>
-    recompute(consumptionFacts(ev, Date.now())),
-  )
   for (const entry of gatherers) {
     entry.activeUnsub = entry.subscribe?.(() => recompute()) ?? null
   }
@@ -170,10 +92,6 @@ function arm(): void {
 
 function disarm(): void {
   armed = false
-  queueUnsub?.()
-  queueUnsub = null
-  consumptionUnsub?.()
-  consumptionUnsub = null
   for (const entry of gatherers) {
     entry.activeUnsub?.()
     entry.activeUnsub = null

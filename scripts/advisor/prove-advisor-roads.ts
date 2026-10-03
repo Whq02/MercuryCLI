@@ -523,7 +523,7 @@ section('§2 OFF: with advisor.enabled false nothing of it happens — no reques
     if (turn === 12) check('the road answers off without opening anything', verdict === 'off')
   }
   check('twelve turns two hours apart: no advisor request left the box, no advisor row, no advisor bucket', wire.every(w => w.kind === 'agent') && messages.every(m => !rows.isAdvisorOrigin(m.origin) && !isNoteRow(m)) && (state.getWorkloadUsage() as Raw).advisor === undefined, j(Object.keys(state.getWorkloadUsage() as Raw)))
-  check('a bash line or a permission answer is not a boundary the advisor composes at; a prompt and a task notification are', advisor.advisorMainTurnIsBoundary({ mode: 'prompt' }) && advisor.advisorMainTurnIsBoundary({ mode: 'task-notification' }) && !advisor.advisorMainTurnIsBoundary({ mode: 'bash' }) && !advisor.advisorMainTurnIsBoundary({ mode: 'orphaned-permission' }) && (await advisor.advisorMainTurnSettled(SESSION, { mode: 'bash' } as never, messages as never)) === 'skipped')
+  check('a bash line is not a boundary the advisor composes at; a prompt and a task notification are', advisor.advisorMainTurnIsBoundary({ mode: 'prompt' }) && advisor.advisorMainTurnIsBoundary({ mode: 'task-notification' }) && !advisor.advisorMainTurnIsBoundary({ mode: 'bash' }) && (await advisor.advisorMainTurnSettled(SESSION, { mode: 'bash' } as never, messages as never)) === 'skipped')
   const { getAllBaseTools } = await import(join(ROOT, 'src/tools.ts'))
   check('AskAdvisor is out of the catalogue and disabled', !getAllBaseTools().some((t: { name: string }) => t.name === ASK_ADVISOR_TOOL_NAME) && !AskAdvisorTool.isEnabled())
   const refused = await AskAdvisorTool.call({ question: 'anyone there?' }, makeCtx() as never)

@@ -1184,9 +1184,6 @@ export async function runHeadless(
               params.elicitationId,
             ),
           agents: activeAgents,
-          ...(command.orphanedPermission
-            ? { orphanedPermission: command.orphanedPermission }
-            : {}),
           setSDKStatus: (status: unknown) => {
             const row = statusRowOf(status)
             if (row !== null) enqueueRow(row)

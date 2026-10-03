@@ -27,60 +27,6 @@ t(
   safeUserFacingName({ name: 'x' }, {}) === 'x',
 )
 
-const { setSessionPersistenceDisabled } = await import('../../src/bootstrap/state.ts')
-setSessionPersistenceDisabled(true)
-const { handleOrphanedPermission } = await import('../../src/utils/queryHelpers.ts')
-const { z } = await import('zod')
-
-let toolBodyRan = false
-const fakeTool = {
-  name: 'ParityProbe',
-  inputSchema: z.object({ target: z.string() }),
-  async *call(): AsyncGenerator<unknown> {
-    toolBodyRan = true
-  },
-}
-const assistantMessage = {
-  type: 'assistant',
-  uuid: '00000000-0000-4000-8000-00000000fee1',
-  message: {
-    role: 'assistant',
-    content: [
-      {
-        type: 'tool_use',
-        id: 'toolu_parity_1',
-        name: 'ParityProbe',
-        input: { target: 42 },
-      },
-    ],
-  },
-}
-const projections: unknown[] = []
-const mutableMessages: unknown[] = []
-for await (const projection of handleOrphanedPermission(
-  {
-    permissionResult: { behavior: 'allow', tool_use_id: 'toolu_parity_1' },
-    assistantMessage,
-  } as never,
-  [fakeTool] as never,
-  mutableMessages as never,
-  {} as never,
-)) {
-  projections.push(projection)
-}
-t('malformed replay input never reaches the tool body', !toolBodyRan)
-const settled = mutableMessages.find(message => {
-  const m = message as { type?: string; message?: { content?: unknown } }
-  if (m.type !== 'user' || !Array.isArray(m.message?.content)) return false
-  return (m.message.content as Array<Record<string, unknown>>).some(
-    block =>
-      block.type === 'tool_result' &&
-      block.tool_use_id === 'toolu_parity_1' &&
-      block.is_error === true,
-  )
-})
-t('the dangling tool_use settles as an error tool_result', settled !== undefined)
-
 const { ProgressBar } = await import('../../src/components/design-system/ProgressBar.tsx')
 for (const width of [-3, -1, 0, Number.NaN]) {
   let barThrew = false
