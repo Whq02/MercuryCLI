@@ -374,11 +374,11 @@ function unsupportedTerminalMessage(terminal: string | null): string {
   const name = terminal ?? 'your current terminal'
   const platformLine = process.platform === 'darwin' ? ' - Apple Terminal\n' : ''
   return [
-    `/terminal-setup cannot run from ${name}. It installs a Shift+Enter newline binding into your terminal's configuration.`,
+    `/keysetup cannot run from ${name}. It installs a Shift+Enter newline binding into your terminal's configuration.`,
     chalk.dim('Backslash-then-return (\\ then Enter) already inserts a newline today.'),
     'Using tmux or screen?',
     ' 1. Leave the multiplexer.',
-    ' 2. Run /terminal-setup directly in a supported terminal.',
+    ' 2. Run /keysetup directly in a supported terminal.',
     ' 3. Return — the settings persist.',
     'Supported terminals:',
     platformLine +

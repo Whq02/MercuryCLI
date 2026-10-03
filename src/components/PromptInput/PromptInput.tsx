@@ -246,7 +246,7 @@ import { familyDisplayName } from '../../services/providers/accountSlots.js'
 
 const MANAGER_COMMAND = '/manager'
 const SESSION_TAB_COMMAND = '/sessiontab'
-const TERMINAL_SETUP_COMMAND = '/terminal-setup'
+const KEYSETUP_COMMAND = '/keysetup'
 const DOUBLED_SLASH = '//'
 const INPUT_TRUNCATION_THRESHOLD = 10_000
 const UNDO_BUFFER_SIZE = 50
@@ -2155,7 +2155,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       if (getPlatform() === 'macos' && rawInput.length === 1 && 'åß∂ƒ©˙∆˚¬…æ∑'.includes(rawInput)) {
         addNotification({
           key: 'option-meta-hint',
-          text: `option produced “${rawInput}” — run ${TERMINAL_SETUP_COMMAND} to make option send meta`,
+          text: `option produced “${rawInput}” — run ${KEYSETUP_COMMAND} to make option send meta`,
           priority: 'low',
           timeoutMs: 5000,
         })

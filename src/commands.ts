@@ -66,8 +66,8 @@ import status from './commands/status/index.js'
 import feedback from './commands/feedback/index.js'
 import review from './commands/review.js'
 import rewind from './commands/rewind/index.js'
-import securityReview from './commands/security-review.js'
-import terminalSetup from './commands/terminalSetup/index.js'
+import audit from './commands/audit/index.js'
+import keysetup from './commands/keysetup/index.js'
 import mockLimits from './commands/mock-limits/index.js'
 import usage from './commands/usage/index.js'
 import jev from './commands/jev/index.js'
@@ -233,8 +233,8 @@ const COMMANDS = memoize((): Command[] => [
   feedback,
   review,
   rewind,
-  securityReview,
-  terminalSetup,
+  audit,
+  keysetup,
   mockLimits,
   usage,
   jev,

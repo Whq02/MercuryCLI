@@ -199,7 +199,7 @@ if (process.env.ONBOARDING_RENDER_CHILD) {
   const terminal = capture('terminal', 100, [...toLaterRow, { requireAwait: true, awaitText: 'Guardrails', awaitSettleTicks: 2, data: '\r' }], ['Terminal keys'])
   check('the terminal station paints', terminal.includes('Terminal keys') && terminal.includes('terminal · 4/5'))
   check('the tweak line names the real chord', terminal.includes('Set up Shift+Enter to add a new line in your terminal.'))
-  check('the deferral row names /terminal-setup', terminal.includes('not now; use /terminal-setup later'))
+  check('the deferral row names /keysetup', terminal.includes('not now; use /keysetup later'))
 
   console.log(failures === 0 ? '\nONBOARDING RENDER: ALL GREEN' : `\nONBOARDING RENDER: ${failures} FAILURE(S)`)
   process.exit(failures === 0 ? 0 : 1)

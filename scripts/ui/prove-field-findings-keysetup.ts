@@ -21,7 +21,7 @@ console.log('§1 CI-03 — the instruction teaches the gesture that works')
   const one = 'hello \\'
   const two = 'hello \\\\'
   check('the mechanism: one trailing backslash continues, two read as a UNC prefix and submit', isBackslashContinuation(one, one.length) === true && isBackslashContinuation(two, two.length) === false)
-  const setup = read('src/commands/terminalSetup/terminalSetup.tsx')
+  const setup = read('src/commands/keysetup/keysetup.tsx')
   check('the line renders ONE backslash', setup.includes("chalk.dim('Backslash-then-return (\\\\ then Enter) already inserts a newline today.')"))
   check('POISON: the doubled artefact (and its keep-it comment) is gone', !setup.includes('(\\\\\\\\ then Enter)') && !setup.includes('artefact is reproduced'))
   check('the win32 supported-terminals row stays closed (the first half)', setup.includes("process.platform === 'darwin' ? ' - Apple Terminal\\n' : ''"))

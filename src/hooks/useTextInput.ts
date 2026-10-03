@@ -4,7 +4,7 @@ import stripAnsi from 'strip-ansi'
 import { useNotifications } from '../context/notifications.js'
 import type { Key } from '../ink.js'
 import { addToHistory } from '../history.js'
-import { markBackslashReturnUsed } from '../commands/terminalSetup/terminalSetup.js'
+import { markBackslashReturnUsed } from '../commands/keysetup/keysetup.js'
 import { isBackslashContinuation } from '../input-core/backslashContinuation.js'
 import { isInputModeCharacter } from '../components/PromptInput/inputModes.js'
 import type {

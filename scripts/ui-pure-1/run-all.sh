@@ -17,7 +17,7 @@
 # gate-watch: scripts/release/launcherTemplates.mjs scripts/search/lib/bundle-for-node.ts
 # gate-watch: src/commands/config/config.tsx src/commands/context/context.tsx src/commands/export/export.tsx
 # gate-watch: src/commands/feedback/index.ts src/commands/login/login.tsx
-# gate-watch: src/commands/sessiontab/sessiontab.tsx src/commands/terminalSetup/terminalSetup.tsx
+# gate-watch: src/commands/sessiontab/sessiontab.tsx src/commands/keysetup/keysetup.tsx
 # gate-watch: src/context/* src/hooks/* src/ink.ts src/input-core/* src/interactiveHelpers.tsx
 # gate-watch: src/keybindings/* src/native-ts/color-diff/index.ts src/screens/REPL.tsx
 # gate-watch: src/screens/ResumeConversation.tsx src/services/api/*

@@ -1,15 +1,15 @@
-import { createBuiltinPromptCommand } from './createBuiltinPromptCommand.js'
-import type { ToolUseContext } from '../Tool.js'
-import type { ContentBlockParam } from '../types/wire.js'
-import { parseSlashCommandToolsFromFrontmatter } from '../utils/markdownConfigLoader.js'
-import { parseFrontmatter } from '../utils/frontmatterParser.js'
-import { applyPermissionUpdate } from '../utils/permissions/PermissionUpdate.js'
-import { permissionRuleValueFromString } from '../utils/permissions/permissionRuleParser.js'
-import { executeShellCommandsInPrompt } from '../utils/promptShellExecution.js'
+import { createBuiltinPromptCommand } from '../createBuiltinPromptCommand.js'
+import type { ToolUseContext } from '../../Tool.js'
+import type { ContentBlockParam } from '../../types/wire.js'
+import { parseSlashCommandToolsFromFrontmatter } from '../../utils/markdownConfigLoader.js'
+import { parseFrontmatter } from '../../utils/frontmatterParser.js'
+import { applyPermissionUpdate } from '../../utils/permissions/PermissionUpdate.js'
+import { permissionRuleValueFromString } from '../../utils/permissions/permissionRuleParser.js'
+import { executeShellCommandsInPrompt } from '../../utils/promptShellExecution.js'
 
 const DESCRIPTION = 'Analyze the changes on this branch for security risks'
 
-const SECURITY_REVIEW_DOCUMENT = `---
+const AUDIT_DOCUMENT = `---
 description: ${DESCRIPTION}
 allowed-tools:
   - "Bash(git diff *)"
@@ -142,11 +142,11 @@ it 1–10 for confidence that it is real and worth an engineer's time.
 
 Your reply must contain only the final markdown report.`
 
-async function buildSecurityReviewPrompt(
+async function buildAuditPrompt(
   _args: string,
   context: ToolUseContext,
 ): Promise<ContentBlockParam[]> {
-  const { frontmatter, content } = parseFrontmatter(SECURITY_REVIEW_DOCUMENT)
+  const { frontmatter, content } = parseFrontmatter(AUDIT_DOCUMENT)
   const allowedTools = parseSlashCommandToolsFromFrontmatter(
     (frontmatter as { 'allowed-tools'?: unknown })['allowed-tools'],
   )
@@ -161,15 +161,15 @@ async function buildSecurityReviewPrompt(
     ...context,
     getAppState: () => ({ ...baseState, toolPermissionContext: overlaidPermissions }),
   }
-  const text = await executeShellCommandsInPrompt(content, overlaidContext, 'security-review')
+  const text = await executeShellCommandsInPrompt(content, overlaidContext, 'audit')
   return [{ type: 'text', text }]
 }
 
-const securityReview = createBuiltinPromptCommand({
-  name: 'security-review',
+const audit = createBuiltinPromptCommand({
+  name: 'audit',
   description: DESCRIPTION,
   progressMessage: 'analyzing changes for security risks',
-  buildPrompt: buildSecurityReviewPrompt,
+  buildPrompt: buildAuditPrompt,
 })
 
-export default securityReview
+export default audit

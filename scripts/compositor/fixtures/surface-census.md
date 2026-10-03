@@ -70,6 +70,7 @@ the interaction primitives the view actually mounts (1-hop join).
 | /home | irow | `src/commands/home` |
 | /hooks | — | `src/commands/hooks` |
 | /keys | irow | `src/commands/keys` |
+| /keysetup | — | `src/commands/keysetup` |
 | /ledger | panes | `src/commands/ledger` |
 | /live | — | `src/commands/live` |
 | /logins | ilist irow | `src/commands/login` |
@@ -100,7 +101,6 @@ the interaction primitives the view actually mounts (1-hop join).
 | /submodels | ilist irow | `src/commands/submodels` |
 | /substrate | — | `src/commands/substrate` |
 | /surfaces | ilist irow | `src/commands/manager` |
-| /terminal-setup | — | `src/commands/terminalSetup` |
 | /title | — | `src/commands/title` |
 | /trace | — | `src/commands/trace` |
 | /workbench | panes | `src/commands/workbench` |
@@ -116,4 +116,4 @@ the interaction primitives the view actually mounts (1-hop join).
 
 ## Other route types (3)
 
-`/crew` (text) · `/pr-comments` (text) · `/security-review` (addRules)
+`/audit` (addRules) · `/crew` (text) · `/pr-comments` (text)

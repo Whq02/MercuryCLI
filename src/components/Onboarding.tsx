@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { exitChordNoticeText } from './PromptInput/ExitChordNotice.js'
-import { setupTerminal, shouldOfferTerminalSetup } from '../commands/terminalSetup/terminalSetup.js'
+import { setupTerminal, shouldOfferTerminalSetup } from '../commands/keysetup/keysetup.js'
 import { useExitOnCtrlCDWithKeybindings } from '../hooks/useExitOnCtrlCDWithKeybindings.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { Box, Text, usePreviewTheme, useTheme, useThemeSetting } from '../ink.js'
@@ -54,7 +54,7 @@ const TERMINAL_WORDS = {
   appleTweak: "Mercury can make Option+Enter add a new line and silence Terminal's bell.",
   tweak: 'Mercury can bind Shift+Enter in this terminal so the key adds a new line.',
   install: 'yes, set it up',
-  later: 'not now; use /terminal-setup later',
+  later: 'not now; use /keysetup later',
 }
 
 export const SIGN_IN_WORDS = {

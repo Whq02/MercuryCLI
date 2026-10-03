@@ -55,7 +55,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'git & review',
     names: [
       'branch', 'review',
-      'security-review', 'pr-comments',
+      'audit', 'pr-comments',
     ],
   },
   {
@@ -73,7 +73,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'config', 'jev', 'jevor', 'localsetup', 'bootmenu', 'permissions', 'hooks', 'mcp', 'extensions', 'skills',
       'policy', 'authority', 'sovereign', 'sandbox',
-      'terminal-setup', 'keybindings', 'keys',
+      'keysetup', 'keybindings', 'keys',
       'vim', 'mouse', 'browser',
       'init',
       'speak', 'voice',
