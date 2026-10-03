@@ -83,7 +83,7 @@ model reads and arrives for real only in hook and server environments.
 | `homepage` | string | no | A URL, shown in the detail pane. |
 | `license` | string | no | The licence identifier, shown in the detail pane. |
 | `mercury` | string | no | A version floor (`>=x.y.z`). Unmet ⇒ broken with the reason "needs Mercury ≥ x.y.z". |
-| `contributes` | object | no | What the extension adds to Mercury. Every kind mirrors what the operator can place by hand in the project config estate. |
+| `contributes` | object | no | What the extension adds to Mercury. Skills, agents, hooks and servers keep the shape the operator places by hand in the project config estate; commands are the extension's own. |
 | `contributes.skills` | list of string | no | Directories whose child directories each hold a SKILL.md — one skill each, registered as /<name>:<skill>. |
 | `contributes.commands` | list of string | no | Directories of <cmd>.md prompt files (one level deep; a subdirectory namespaces /<name>:<dir>:<cmd>), registered as /<name>:<cmd>. |
 | `contributes.agents` | list of string | no | Directories of <agent>.md definitions, registered as agent type <name>:<agent>. Privilege-raising frontmatter (permission mode, hooks, servers) is ignored with a health note. |

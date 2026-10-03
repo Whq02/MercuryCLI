@@ -46,6 +46,11 @@ check('the skill carries a non-empty description', description.trim().length > 2
 const J = (...parts: string[]): string => parts.join('')
 const body = skillSource + readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
 check('neither the doc nor the skill speaks a retired word', !new RegExp(J('plug', 'in'), 'i').test(body) && !new RegExp(J('market', 'place'), 'i').test(body))
+{
+  const contract = readFileSync(join(ROOT, 'docs', 'EXTENSIONS.md'), 'utf8')
+  const contributesRow = contract.split('\n').find(line => line.startsWith('| `contributes` |')) ?? ''
+  check('the contributes row says which kinds keep the operator\'s own shape and that commands are the extension\'s own, as the page\'s paragraph does', /Skills, agents, hooks and servers keep the shape the operator places by hand/.test(contributesRow) && /commands are the extension's own/.test(contributesRow) && !/Every kind mirrors/.test(contributesRow), contributesRow.slice(0, 200))
+}
 check('the skill states the two operator-act rules', /never add a source/i.test(skillSource) && /never approve/i.test(skillSource))
 
 {
