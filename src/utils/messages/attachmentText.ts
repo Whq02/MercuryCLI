@@ -1,6 +1,5 @@
 
 import { boundHookContext, boundSeamContext } from '../hooks/contextBound.js'
-import { sliceHeadAtGrapheme } from '../intl.js'
 import type { ContentBlockParam, TextBlockParam } from '../../types/wire.js'
 
 import { BashTool } from 'src/tools/BashTool/BashTool.js'
@@ -207,37 +206,6 @@ The crew config lists your crewmates' names. Check the task list periodically; c
             `PDF: ${attachment.filename} (${attachment.pageCount} pages, ${formatFileSize(attachment.fileSize)}) — too large to read in one pass. ` +
             `Read it through ${FILE_READ_TOOL_NAME} with the pages parameter, in ranges (e.g. pages: "1-5"); a call WITHOUT pages will fail on this file. ` +
             `Start with the first few pages to learn the structure, then pull more as needed — at most 20 pages per request.`,
-          isMeta: true,
-        }),
-      ])
-    }
-    case 'selected_lines_in_ide': {
-      const maxSelectionLength = 2000
-      const content =
-        attachment.content.length > maxSelectionLength
-          ? sliceHeadAtGrapheme(attachment.content, maxSelectionLength) +
-            '\n... (truncated)'
-          : attachment.content
-
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `In the IDE, the user has lines ${attachment.lineStart}–${attachment.lineEnd} of ${attachment.filename} selected:\n${content}\n\nThe selection may or may not bear on the current task.`,
-          isMeta: true,
-        }),
-      ])
-    }
-    case 'opened_file_in_ide': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `The user has ${attachment.filename} open in the IDE. It may or may not bear on the current task.`,
-          isMeta: true,
-        }),
-      ])
-    }
-    case 'open_files_in_ide': {
-      return wrapMessagesInSystemReminder([
-        createUserMessage({
-          content: `The user has these files open in the IDE:\n${attachment.filenames.join('\n')}\n\nThey may or may not bear on the current task.`,
           isMeta: true,
         }),
       ])

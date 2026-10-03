@@ -2,6 +2,7 @@
 # gate-class: pty
 # gate-watch: src/utils/model/defaultProviderRung* src/commands/defaultprovider/**
 # gate-watch: src/utils/model/model* src/components/ConsoleOAuthFlow* src/utils/config/schema*
+# gate-watch: scripts/lib/captureDriver.ts scripts/ui/vshot.py src/services/providers/routeLaw.ts src/utils/accounts/signInLedger.ts src/utils/config.ts src/utils/model/computedDefault.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

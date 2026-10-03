@@ -34,28 +34,26 @@ const fresh = { type: NEW_KIND, messages }
 const old = { type: OLD_KIND, messages }
 
 console.log('============================================================')
-console.log(' the crew messages row kind: written as crew_messages, the old kind still read')
+console.log(' the crew messages row kind: written as crew_messages; an old kind is an unknown kind')
 console.log('============================================================')
 
-section('§1 the kind the product writes is the crew\'s, owned by the attachment types')
-check('CREW_MESSAGES_KIND is exported and reads crew_messages (RED on the base: no such export)', types.CREW_MESSAGES_KIND === NEW_KIND, String(types.CREW_MESSAGES_KIND))
-const aliases = (types.OLD_ATTACHMENT_KINDS ?? {}) as Record<string, string>
-check('the read-side alias table maps the old kind to the crew kind (RED on the base: no table)', aliases[OLD_KIND] === NEW_KIND, JSON.stringify(aliases))
-const currentKind = types.currentAttachmentKind as ((type: string) => string) | undefined
-check('currentAttachmentKind resolves the old kind to the crew kind and leaves every other kind alone', currentKind !== undefined && currentKind(OLD_KIND) === NEW_KIND && currentKind(NEW_KIND) === NEW_KIND && currentKind('queued_command') === 'queued_command')
+section('§1 the kind the product writes is the crew\'s, owned by the attachment types; no alias table stands beside it')
+check('CREW_MESSAGES_KIND is exported and reads crew_messages', types.CREW_MESSAGES_KIND === NEW_KIND, String(types.CREW_MESSAGES_KIND))
+check('the attachment types carry no alias table and no kind translator (RED on the base: OLD_ATTACHMENT_KINDS and currentAttachmentKind)', !('OLD_ATTACHMENT_KINDS' in types) && !('currentAttachmentKind' in types))
+check('the crew-messages predicate reads the one kind alone', types.isCrewMessagesAttachment(fresh as never) && !types.isCrewMessagesAttachment(old as never))
 
-section('§2 the composer speaks the same words for the crew kind and the old kind')
+section('§2 the composer speaks the crew kind; an unknown kind composes nothing')
 const freshText = attachmentText.normalizeAttachmentForAPI(fresh as never)
 const oldText = attachmentText.normalizeAttachmentForAPI(old as never)
 const wordsOf = (rows: unknown[]): string => JSON.stringify(rows.map(r => (r as { message?: { content?: unknown } }).message?.content ?? null))
-check('a crew_messages row composes the crewmate-message envelope for the model (RED on the base: nothing)', freshText.length === 1 && wordsOf(freshText).includes('the manifest edit is in') && wordsOf(freshText).includes('summary=\\"manifest edit landed\\"'), wordsOf(freshText).slice(0, 200))
-check('an old teammate_mailbox row still composes the same words', oldText.length === 1 && wordsOf(oldText) === wordsOf(freshText), wordsOf(oldText).slice(0, 200))
+check('a crew_messages row composes the crewmate-message envelope for the model', freshText.length === 1 && wordsOf(freshText).includes('the manifest edit is in') && wordsOf(freshText).includes('summary=\\"manifest edit landed\\"'), wordsOf(freshText).slice(0, 200))
+check('a row under the old kind composes nothing for the model (an unknown kind, as any unknown word)', oldText.length === 0, wordsOf(oldText).slice(0, 200))
 
-section('§3 the record validator knows both kinds, the old through the alias table')
-check('crew_messages is a registered attachment kind (RED on the base: unknown)', validate.BODY_SHAPE_KINDS.attachment.includes(NEW_KIND), validate.BODY_SHAPE_KINDS.attachment.filter(k => /message|mailbox/.test(k)).join(','))
-check('teammate_mailbox is still a registered attachment kind (old transcripts parse)', validate.BODY_SHAPE_KINDS.attachment.includes(OLD_KIND))
+section('§3 the record validator knows the crew kind and no old spelling')
+check('crew_messages is a registered attachment kind', validate.BODY_SHAPE_KINDS.attachment.includes(NEW_KIND), validate.BODY_SHAPE_KINDS.attachment.filter(k => /message|mailbox/.test(k)).join(','))
+check('teammate_mailbox is not a registered attachment kind (RED on the base: a row kept for it)', !validate.BODY_SHAPE_KINDS.attachment.includes(OLD_KIND))
 
-section('§4 the painter paints both rows with the sender and the summary')
+section('§4 the painter paints the crew row with the sender and the summary; the old kind paints nothing')
 async function paint(attachment: unknown): Promise<string> {
   let written = ''
   const stdout = Object.assign(
@@ -75,10 +73,10 @@ async function paint(attachment: unknown): Promise<string> {
 }
 const freshFrame = await paint(fresh)
 const oldFrame = await paint(old)
-check('a crew_messages row paints its sender and summary (RED on the base: nothing painted)', /beacon/.test(freshFrame) && /manifest edit landed/.test(freshFrame), freshFrame.slice(0, 200))
-check('an old teammate_mailbox row paints the same', /beacon/.test(oldFrame) && /manifest edit landed/.test(oldFrame), oldFrame.slice(0, 200))
+check('a crew_messages row paints its sender and summary', /beacon/.test(freshFrame) && /manifest edit landed/.test(freshFrame), freshFrame.slice(0, 200))
+check('a row under the old kind paints nothing (RED on the base: it painted as the crew row)', !/beacon/.test(oldFrame) && !/manifest edit landed/.test(oldFrame), oldFrame.slice(0, 200))
 
-section('§5 no product file writes the old kind; its literal lives on the read side alone: the alias table and the old-row type, the validator\'s row')
+section('§5 no product file names the old kind at all')
 function walk(dir: string): string[] {
   const out: string[] = []
   for (const name of readdirSync(dir)) {
@@ -88,16 +86,8 @@ function walk(dir: string): string[] {
   }
   return out
 }
-const READ_SIDE = [join('utils', 'attachments', 'types.ts'), join('fabric', 'validate.ts')]
-const writers = walk(join(ROOT, 'src')).filter(path => {
-  const source = readFileSync(path, 'utf8')
-  return /['"]teammate_mailbox['"]/.test(source) && !READ_SIDE.some(suffix => path.endsWith(suffix))
-}).map(path => path.slice(ROOT.length + 1))
-check('no product file outside the read side names the old kind (RED on the base: the writer, the orchestrator, the composer, the painter)', writers.length === 0, writers.join(', '))
-const typesSource = readFileSync(join(ROOT, 'src/utils/attachments/types.ts'), 'utf8')
-check('the attachment types name the old kind exactly twice: the alias table and the old-row type', (typesSource.match(/teammate_mailbox/g) ?? []).length === 2, String((typesSource.match(/teammate_mailbox/g) ?? []).length))
-const validateSource = readFileSync(join(ROOT, 'src/fabric/validate.ts'), 'utf8')
-check('the validator names the old kind exactly once: its row', (validateSource.match(/teammate_mailbox/g) ?? []).length === 1, String((validateSource.match(/teammate_mailbox/g) ?? []).length))
+const writers = walk(join(ROOT, 'src')).filter(path => /teammate_mailbox/.test(readFileSync(path, 'utf8'))).map(path => path.slice(ROOT.length + 1))
+check('no product file names the old kind (RED on the base: the alias table, the old-row type, the validator\'s row)', writers.length === 0, writers.join(', '))
 const writerSource = readFileSync(join(ROOT, 'src/utils/attachments/crewmates.ts'), 'utf8')
 check('the one writer of the row writes the crew kind (RED on the base: the old kind)', /type: 'crew_messages'/.test(writerSource) && !/teammate_mailbox/.test(writerSource))
 

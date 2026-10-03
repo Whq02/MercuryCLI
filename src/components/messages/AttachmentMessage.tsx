@@ -198,21 +198,6 @@ export function AttachmentMessage({
         </AttachmentLine>
       )
 
-    case 'selected_lines_in_ide': {
-      const lines =
-        (attachment as { lineEnd?: number; lineStart: number }).lineEnd !==
-        undefined
-          ? ((attachment as { lineEnd?: number }).lineEnd ?? 0) -
-            attachment.lineStart +
-            1
-          : 1
-      return (
-        <AttachmentLine>
-          {lines} {plural(lines, 'line')} selected in {attachment.ideName}
-        </AttachmentLine>
-      )
-    }
-
     case 'nested_memory':
       return (
         <AttachmentLine>

@@ -162,16 +162,3 @@ export function getWin32ProcessMetaAsync(pid: number, opts?: { maxAgeMs?: number
   inFlightMeta.set(pid, pending)
   return pending
 }
-
-export function getProcessCommand(pid: number): string | null {
-  try {
-    if (process.platform === 'win32') {
-      if (!Number.isInteger(pid) || pid <= 0) return null
-      return getWin32ProcessMeta(pid)?.commandLine ?? null
-    }
-    const output = execSyncWithDefaults_DEPRECATED(`ps -o command= -p ${pid}`, { timeout: 1000 })
-    return output ? output.trim() : null
-  } catch {
-    return null
-  }
-}

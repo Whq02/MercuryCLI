@@ -78,9 +78,7 @@ add('getContextEfficiencyAttachment', 'fold-dead', () =>
 )
 
 add('CREW_MESSAGES_KIND', 'value', () => A.CREW_MESSAGES_KIND)
-add('OLD_ATTACHMENT_KINDS', 'value', () => A.OLD_ATTACHMENT_KINDS)
-const KIND_SAMPLES = [...Object.keys(A.OLD_ATTACHMENT_KINDS), A.CREW_MESSAGES_KIND, 'crew_context', 'queued_command']
-add('currentAttachmentKind', 'samples', () => KIND_SAMPLES.map(kind => A.currentAttachmentKind(kind)))
+const KIND_SAMPLES = [A.CREW_MESSAGES_KIND, 'crew_context', 'queued_command', 'teammate_mailbox']
 add('isCrewMessagesAttachment', 'samples', () => KIND_SAMPLES.map(type => A.isCrewMessagesAttachment({ type })))
 
 const SKIPPED: Record<string, string> = {

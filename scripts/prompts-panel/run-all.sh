@@ -4,6 +4,8 @@
 # gate-watch: src/components/prompts-panel/** src/commands/workbench/**
 # gate-watch: src/utils/savedPrompts/**
 # gate-watch: src/components/mercury-ui/NavigablePanes.tsx src/hooks/useSessionConnector.ts
+# gate-watch: scripts/lib/captureDriver.ts scripts/lib/firstRunSeed.ts scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/ui/gridToPng.ts src/constants/xml.ts
+# gate-watch: src/daemon/concourseSupervisor.ts src/daemon/controlSocket.ts src/daemon/warmRunner.ts src/utils/sessionStorage/paths.ts src/utils/sessionStoragePortable.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 prover_mark() { local p="$1"; case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac; printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - $2 ))" "${3:?proof exit code required}"; }

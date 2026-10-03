@@ -30,11 +30,13 @@ export const WHOLE_TREE: Record<string, string> = {
   mcp: 'prove-disable-disconnects and prove-sdk-doorway walk src (MCP client seams)',
   memory: 'prove-memory-one-store walks src (one memory store, one vocabulary)',
   'model-policy': 'prove-model-pin-census and prove-neutral-model-doors walk src (model pins and doors)',
+  'node-runtime': 'prove-spawn-window-discipline walks src (every child-process spawn carries windowsHide)',
   orphans: 'prove-reachability-manifest walks src and scripts (the reachability graph)',
   projectdirs: 'prove-no-literal-homes walks src (literal home paths)',
   provauth: 'prove-signin-roads-pinned walks scripts (sign-in road pins)',
   'run-recovery': 'prove-worktree-resume-keeps-record walks src and scripts (the retired resume road names nothing)',
   'provider-compat': 'prove-route-law and prove-transport-reached-via-router walk src (provider routes)',
+  'stop-policy': 'prove-surface-sweep walks src (the Stop-hook family census)',
   substrate: 'prove-live-e2e-hermetic walks scripts (hermetic-fixture hygiene)',
   swarm: 'prove-livecomms-verbs walks src (no mailbox-named verb, no file poller)',
   switchboard: 'prove-seat-lifecycle walks src (seat ghosts)',
@@ -366,15 +368,25 @@ function pythonReads(root: string, file: string): FileReads {
   return out
 }
 
+const SUITE_STEM = /(?<![A-Za-z0-9_@./-])(?:prove|drive|journey|bench)-[A-Za-z0-9_-]+(?:\.(?:ts|tsx|sh|py|mjs))?(?![A-Za-z0-9_@./-])/g
+const STEM_EXTENSIONS = ['', '.ts', '.tsx', '.sh', '.py', '.mjs']
+
 function runnerTargets(root: string, tree: Tree, suite: string): Set<string> {
   const dir = `scripts/${suite}`
   const out = new Set<string>()
   for (const line of shellCode(readFileSync(join(root, dir, 'run-all.sh'), 'utf8'))) {
-    for (const tok of substitute(line, dir).match(RUNNER_TOKEN) ?? []) {
+    const substituted = substitute(line, dir)
+    for (const tok of substituted.match(RUNNER_TOKEN) ?? []) {
       const rel = tok.startsWith('/') ? insideRoot(root, tok) : posix.normalize(tok)
       if (rel === null || !rel.startsWith('scripts/') || rel.startsWith('scripts/lib/') || rel === `${dir}/run-all.sh`) continue
       if (rel.includes('*')) for (const t of tree.list) if (globOf(rel).match(t)) out.add(t)
       if (tree.files.has(rel)) out.add(rel)
+    }
+    for (const stem of substituted.match(SUITE_STEM) ?? []) {
+      for (const ext of STEM_EXTENSIONS) {
+        const rel = `${dir}/${stem}${ext}`
+        if (tree.files.has(rel)) out.add(rel)
+      }
     }
   }
   return out

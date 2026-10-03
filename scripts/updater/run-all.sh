@@ -6,6 +6,11 @@
 # gate-watch: assets/splash/mercury-splash.mjs src/utils/windowsPaths.ts
 # gate-watch: scripts/lib/settingsPopupHarness.ts src/components/App.tsx src/components/BootSplashScreen.tsx src/components/SurfaceRouter.tsx src/screens/REPL.tsx src/state/AppState.tsx src/state/AppStateStore.ts
 # gate-watch: src/keybindings/KeybindingProviderSetup.tsx src/context/surfaceRoute.ts src/hooks/useLayoutTier.ts src/utils/config.ts src/input-core/pending-input.ts src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/daemonStanddown.ts
+# gate-watch: assets/splash/splash-core.mjs docs/COMPATIBILITY.md docs/INSTALL-WINDOWS-FROM-SOURCE.md docs/TERMINAL-RUNTIME.md docs/releases/1.0.0-beta.3.md scripts/distribution/generate-third-party-notices.ts
+# gate-watch: scripts/gate/gate-ledger.jsonl scripts/lib/proofHomePreload.ts scripts/ops/launcher-mercury.sh scripts/splash/run-all.sh scripts/vendor/build-desktop.ts scripts/vendor/build-voice.ts
+# gate-watch: scripts/vendor/build-whisper.ts scripts/vendor/fetch-node.ts scripts/vendor/fetch-platform-packages.ts scripts/vendor/platformPackages.ts scripts/vscode/build-vsix.sh src/services/voice/voicePack.ts
+# gate-watch: src/substrate/flagRegistry.ts src/tools/FileReadTool/imagePackArm.ts src/utils/auth.ts src/utils/envUtils.ts src/utils/healthReport.ts src/utils/runtime/nodePolicy.ts
+# gate-watch: src/utils/shell/brushPack.ts vendor/brush.lock.json vendor/node.lock.json
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/proof-runner.sh"

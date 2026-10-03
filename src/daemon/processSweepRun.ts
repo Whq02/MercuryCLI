@@ -504,7 +504,3 @@ export function processSweepOutcomeLine(census: ProcessSweepCensus): string {
   const running = census.entries.filter(entry => entry.classification === 'running').length
   return PROCESS_SWEEP_WORDS.result(ended, survived, running)
 }
-
-export function processSweepEntryKey(entry: ProcessSweepEntry): string {
-  return processSweepIdentityKey(entry)
-}

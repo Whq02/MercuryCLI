@@ -20,9 +20,6 @@ import { recordTranscript, flushSessionStorage } from './sessionStorage.js'
 import type { ProcessUserInputContext } from './processUserInput/processUserInput.js'
 
 
-export type PermissionPromptTool = ToolType
-
-
 export async function* handleOrphanedPermission(
   orphanedPermission: OrphanedPermission,
   tools: Tools,
@@ -228,25 +225,3 @@ export function extractReadFilesFromMessages(
 
 const PREFIX_COMMANDS = new Set(['sudo'])
 const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/
-
-export function extractBashToolsFromMessages(messages: Message[]): Set<string> {
-  const names = new Set<string>()
-  for (const message of messages) {
-    if (message.type !== 'assistant') continue
-    const content = message.message.content
-    if (!Array.isArray(content)) continue
-    for (const block of content) {
-      const toolUse = block as { type?: string; name?: string; input?: { command?: unknown } }
-      if (toolUse.type !== 'tool_use' || toolUse.name !== BASH_TOOL_NAME) continue
-      const command = toolUse.input?.command
-      if (typeof command !== 'string' || command.trim() === '') continue
-      const tokens = command.trim().split(/\s+/)
-      let index = 0
-      while (index < tokens.length && ENV_ASSIGNMENT.test(tokens[index] as string)) index++
-      while (index < tokens.length && PREFIX_COMMANDS.has(tokens[index] as string)) index++
-      const name = tokens[index]
-      if (name) names.add(name)
-    }
-  }
-  return names
-}

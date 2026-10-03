@@ -26,10 +26,6 @@ export function noteClientPresence(pid: number, kind: ClientPresenceKind, now: n
   everNoted = true
 }
 
-export function forgetClientPresence(pid: number): void {
-  rows.delete(pid)
-}
-
 export function liveClients(now: number = Date.now(), alive: (pid: number) => boolean = isProcessAlive): ClientPresenceRow[] {
   const live: ClientPresenceRow[] = []
   for (const row of [...rows.values()]) {

@@ -85,7 +85,6 @@ export interface HeldFireV1 {
 
 
 export const SATURN_ID_PATTERN = /^[0-9a-f]{8}$/
-export const SATURN_FAMILY_PATTERN = /^[a-z][a-z0-9-]{0,63}$/
 export const SATURN_SCHEDULE_CAP = 50
 export const SATURN_PROMPT_CAP = 20_000
 export const SATURN_SPELLING_CAP = 200
