@@ -725,7 +725,7 @@ function computeCertInfo() {
   for (const projDir of ['.mercury']) {
     try {
       const o = JSON.parse(
-        readFileSync(join(process.cwd(), projDir, 'doctor', 'last-cert.json'), 'utf8'),
+        readFileSync(join(process.cwd(), projDir, 'health', 'last-cert.json'), 'utf8'),
       )
       if (o && typeof o.verdict === 'string') {
         const t = Date.parse(o.ranAt)

@@ -1153,20 +1153,20 @@ check("both files present: the external file's facts never render",
 
 print('\n── K1: health chip reads the ADOPTIVE project path (.mercury first)')
 cert_cwd = tempfile.mkdtemp(prefix='splash-proof-certcwd.')
-os.makedirs(os.path.join(cert_cwd, '.mercury', 'doctor'), exist_ok=True)
-with open(os.path.join(cert_cwd, '.mercury', 'doctor', 'last-cert.json'), 'w') as f:
+os.makedirs(os.path.join(cert_cwd, '.mercury', 'health'), exist_ok=True)
+with open(os.path.join(cert_cwd, '.mercury', 'health', 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'certified', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd)
 plain = STRIP.sub('', raw)
-check('health chip renders from <cwd>/.mercury/doctor',
+check('health chip renders from <cwd>/.mercury/health',
       'Health' in plain and 'certified' in plain)
 cert_cwd2 = tempfile.mkdtemp(prefix='splash-proof-certcwd2.')
-os.makedirs(os.path.join(cert_cwd2, '.claude', 'doctor'), exist_ok=True)
-with open(os.path.join(cert_cwd2, '.claude', 'doctor', 'last-cert.json'), 'w') as f:
+os.makedirs(os.path.join(cert_cwd2, '.claude', 'health'), exist_ok=True)
+with open(os.path.join(cert_cwd2, '.claude', 'health', 'last-cert.json'), 'w') as f:
     json.dump({'verdict': 'caution', 'ranAt': '2026-08-07T12:00:00Z'}, f)
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd2)
 plain = STRIP.sub('', raw)
-check('health chip never reads the external <cwd>/.claude/doctor', 'caution' not in plain)
+check('health chip never reads the external <cwd>/.claude/health', 'caution' not in plain)
 
 print('\n── K2: the launched cwd WINS (two-repo continue/resume dir law)')
 

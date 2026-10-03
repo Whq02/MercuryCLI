@@ -23,7 +23,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
     console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''}`)
   }
 }
-const artifact = join(HOME, 'doctor', sanitizePath(virginRoot), 'last-preflight.json')
+const artifact = join(HOME, 'health', sanitizePath(virginRoot), 'last-preflight.json')
 
 console.log('virgin project — the bare boot creates nothing in it')
 const summary1 = await runAndRecordPreflight()
@@ -38,7 +38,7 @@ check(
   readdirSync(virginRoot).join(','),
 )
 check(readdirSync(virginRoot).length === 0, 'the virgin state root is byte-untouched')
-check(lastPreflightPath() === artifact, 'the artifact path is the config home doctor store keyed by the state root', lastPreflightPath())
+check(lastPreflightPath() === artifact, 'the artifact path is the config home health store keyed by the state root', lastPreflightPath())
 check(existsSync(artifact), 'the summary landed under the config home', artifact)
 
 console.log('once per boot — a second ask in the same boot is the same preflight, and writes nothing')
@@ -46,7 +46,7 @@ mkdirSync(join(virginRoot, '.mercury'))
 const summaryAgain = await runAndRecordPreflight()
 check(summaryAgain === summary1, 'the boot runs ONE preflight (the second ask answers the same summary)')
 check(
-  !existsSync(join(virginRoot, '.mercury', 'doctor')),
+  !existsSync(join(virginRoot, '.mercury', 'health')),
   'the estate born after the preflight gets no late artifact from it',
 )
 console.log('established estate — the next boot still writes nothing into it')
@@ -54,8 +54,8 @@ _resetBootPreflightForTesting()
 const summary2 = await runAndRecordPreflight()
 check(typeof summary2.verdict === 'string', 'the next boot returns a summary')
 check(
-  !existsSync(join(virginRoot, '.mercury', 'doctor')) && readdirSync(join(virginRoot, '.mercury')).length === 0,
-  'the established estate stays byte-untouched (no doctor/ inside it)',
+  !existsSync(join(virginRoot, '.mercury', 'health')) && readdirSync(join(virginRoot, '.mercury')).length === 0,
+  'the established estate stays byte-untouched (no health/ inside it)',
   readdirSync(join(virginRoot, '.mercury')).join(','),
 )
 check(existsSync(artifact), 'the artifact still lives under the config home')

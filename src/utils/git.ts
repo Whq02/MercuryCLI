@@ -282,7 +282,7 @@ async function probeClean(mode: UntrackedMode): Promise<{ value: boolean | null;
     .filter(line => line !== '')
     .filter(line => {
       const path = line.replace(/^..\s+/, '').replace(/^"|"$/g, '')
-      if (path.startsWith(`${MERCURY_PROJECT_DIR}/doctor/`)) return false
+      if (path.startsWith(`${MERCURY_PROJECT_DIR}/health/`)) return false
       return !(mode === 'normal' && path === `${MERCURY_PROJECT_DIR}/`)
     })
   return { value: meaningful.length === 0, fault: null }

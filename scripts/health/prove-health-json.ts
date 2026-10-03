@@ -102,9 +102,9 @@ try {
     const projectsDir = join(scratchHome, '.mercury', 'projects')
     const slugs = existsSync(projectsDir) ? readdirSync(projectsDir) : []
     check('the bare run wrote ONE project store under the config home', slugs.length === 1, JSON.stringify(slugs))
-    const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'doctor', 'last-cert.json')
+    const lastCert = join(projectsDir, slugs[0] ?? '(none)', 'health', 'last-cert.json')
     check('last-cert summary artifact written under the config home\'s project store', existsSync(lastCert), lastCert)
-    check('POISON: nothing was written into the project folder\'s .mercury/doctor', !existsSync(join(dir, '.mercury', 'doctor', 'last-cert.json')))
+    check('POISON: nothing was written into the project folder\'s .mercury/health', !existsSync(join(dir, '.mercury', 'health', 'last-cert.json')))
     const sum = JSON.parse(readFileSync(lastCert, 'utf8')) as { verdict?: string; counts?: unknown }
     check('last-cert summary carries verdict + counts', typeof sum.verdict === 'string' && !!sum.counts)
   }

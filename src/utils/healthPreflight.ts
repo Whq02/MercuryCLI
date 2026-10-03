@@ -23,7 +23,7 @@ import { getRipgrepStatus } from './ripgrep.js'
 import { gitSnapshot } from './cockpit/gitSnapshot.js'
 
 export function lastPreflightPath(): string {
-  return join(getMercuryHome(), 'doctor', sanitizePath(healthStateRoot()), 'last-preflight.json')
+  return join(getMercuryHome(), 'health', sanitizePath(healthStateRoot()), 'last-preflight.json')
 }
 
 export function mercuryBootPreflightEnabled(): boolean {

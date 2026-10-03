@@ -407,7 +407,7 @@ function getProjectRootSafe(): string {
 }
 
 export function lastCertPath(): string {
-  return join(projectHomeStore(healthStateRoot(), 'doctor'), 'last-cert.json')
+  return join(projectHomeStore(healthStateRoot(), 'health'), 'last-cert.json')
 }
 
 export function gateVerdictPath(): string {

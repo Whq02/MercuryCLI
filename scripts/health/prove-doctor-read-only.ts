@@ -77,7 +77,7 @@ console.log('§1 the built doctor --json leaves the config home unmutated (no co
   runDoctor(home, work)
   const after = homeFiles(home)
 
-  const isCert = (rel: string): boolean => rel.includes('/doctor/') && rel.endsWith('last-cert.json')
+  const isCert = (rel: string): boolean => rel.includes('/health/') && rel.endsWith('last-cert.json')
   const changed: string[] = []
   for (const [rel, mt] of after) {
     if (isCert(rel)) continue
