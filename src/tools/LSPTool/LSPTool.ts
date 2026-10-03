@@ -1,6 +1,7 @@
 import type { UUID } from 'node:crypto'
 import { stat } from 'node:fs/promises'
 import { open } from 'node:fs/promises'
+import { resolve as resolvePath } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { isDeepStrictEqual } from 'node:util'
 
@@ -17,6 +18,17 @@ import {
   mercuryLspEnabled,
   mercuryLspWriteOpsEnabled,
 } from '../../services/lsp/mercuryLsp.js'
+import {
+  clearLspCall,
+  LSP_TRIES_BEFORE_REFUSAL,
+  lspCallKey,
+  lspCallRefusal,
+  lspServerRefusal,
+  recordLspCallFailure,
+  recordLspServerFailure,
+} from '../../services/lsp/failureLedger.js'
+import { remedyForLanguageServer, serverTitle, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { isLspStartFailure } from '../../services/lsp/LSPServerInstance.js'
 import { runWithLspAbortSignal } from '../../services/lsp/lspAbort.js'
 import { getCwd } from '../../utils/cwd.js'
 import { isENOENT } from '../../utils/errors.js'
@@ -241,6 +253,8 @@ const flatSchema = lazySchema(() => {
     plan: z.string().optional().describe('apply: the plan token the dry run printed (lsp-…)'),
     kind: z.string().optional().describe('codeActions: a code-action kind to filter by (quickfix, refactor, source.organizeImports, source.addMissingImports, source.removeUnusedImports, source.removeUnused)'),
     targetPath: z.string().optional().describe('moveSymbol: the file the declaration moves to'),
+    method: z.string().optional().describe('rawRequest: the LSP request method (e.g. textDocument/documentHighlight)'),
+    params: z.string().optional().describe('rawRequest: the request params as JSON text'),
   })
 })
 
@@ -382,14 +396,148 @@ function documentSymbolCounts(result: unknown[]): { resultCount: number; fileCou
 }
 
 
-async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>) {
+type ZodIssueLike = { code?: string; path?: Array<string | number>; message?: string; expected?: string; keys?: string[] }
+
+const ARGUMENT_EXAMPLES: Record<string, string> = {
+  filePath: '"/absolute/path/to/file"',
+  line: '<1-based line>',
+  character: '<1-based character>',
+  endLine: '<1-based end line>',
+  endCharacter: '<1-based end character>',
+  query: '"<symbol name>"',
+  limit: '<1-200>',
+  newName: '"<new name>"',
+  newPath: '"/absolute/new/path"',
+  targetPath: '"/absolute/target/file"',
+  paths: '["<file or directory>", …]',
+  method: '"textDocument/<method>"',
+  params: '"<JSON text>"',
+  apply: 'true',
+  plan: '"<plan token>"',
+  kind: '"<code-action kind>"',
+  actionId: '"<action id>"',
+  actionIndex: '<index>',
+}
+
+function validShapeOf(operation: string): string {
+  const union = lspToolInputSchema() as unknown as { options?: Array<{ shape?: Record<string, { safeParse: (v: unknown) => { success: boolean } }> }> }
+  const member = (union.options ?? []).find(option => {
+    const literal = option.shape?.operation as { value?: string; values?: Set<string> } | undefined
+    return literal?.value === operation || literal?.values?.has(operation) === true
+  })
+  if (member?.shape === undefined) return ''
+  const required: string[] = []
+  const optional: string[] = []
+  for (const [key, schema] of Object.entries(member.shape)) {
+    if (key === 'operation') continue
+    if (schema.safeParse(undefined).success) optional.push(key)
+    else required.push(key)
+  }
+  const example = `{"operation":"${operation}"${required.map(key => `,"${key}":${ARGUMENT_EXAMPLES[key] ?? '…'}`).join('')}}`
+  return `The valid shape is ${example}${optional.length > 0 ? ` (optional: ${optional.join(', ')})` : ''}.`
+}
+
+function invalidArgumentsMessage(operation: string, issues: ZodIssueLike[]): string {
+  const problems = issues.map(issue => {
+    const key = (issue.path ?? []).join('.')
+    if (issue.code === 'invalid_type' && /received undefined/.test(issue.message ?? '')) {
+      return `${key} is required (expected ${issue.expected ?? 'a value'})`
+    }
+    if (issue.code === 'unrecognized_keys') return `unknown keys: ${(issue.keys ?? []).join(', ')}`
+    return key ? `${key}: ${issue.message ?? 'invalid'}` : issue.message ?? 'invalid'
+  })
+  return `Invalid arguments for ${operation || 'the LSP tool'}: ${problems.join('; ')}. ${validShapeOf(operation)} The same arguments will fail the same way; nothing was asked of a language server.`
+}
+
+
+type ServerFailure = { server: string; cause: string }
+type Settled = { data: Output; effect: ToolEffect }
+
+function callTargets(input: Input, cwd: string): string[] {
+  const targets: string[] = []
+  const filePath = 'filePath' in input ? (input as { filePath?: string }).filePath : undefined
+  if (filePath) targets.push(expandPath(filePath))
+  const paths = 'paths' in input ? (input as { paths?: string[] }).paths : undefined
+  for (const raw of paths ?? []) targets.push(resolvePath(cwd, raw))
+  return targets
+}
+
+function serverFailuresOf(effect: ToolEffect): ServerFailure[] {
+  const raw = effect.details?.serverFailures
+  return Array.isArray(raw) ? (raw as ServerFailure[]) : []
+}
+
+async function runLspToolCall(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>): Promise<Settled> {
+  const startedAt = Date.now()
+  const operation = input.operation
+  const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
+  const cwd = getCwd()
+  const callKey = lspCallKey(operation, input)
+  const fail = (result: string, overrides: Partial<ToolEffect> = {}): Settled => ({
+    data: { operation, result, filePath, outcome: 'failed' as const } satisfies Output,
+    effect: makeEffect(operation, 'failed', result, startedAt, overrides),
+  })
+
+  const refusedCall = lspCallRefusal(callKey)
+  if (refusedCall !== undefined) {
+    return fail(
+      `Not tried: the same ${operation} call has failed ${refusedCall.count} times this session (${refusedCall.summary}); it will not be tried again this session.`,
+      { details: { refused: true } },
+    )
+  }
+  if (getInitializationStatus().status === 'pending') {
+    await waitForInitialization()
+  }
+  const manager = getLspServerManager()
+  if (manager) {
+    for (const target of callTargets(input, cwd)) {
+      for (const server of manager.getServersForFile(target)) {
+        const latched = lspServerRefusal(server.name)
+        if (latched === undefined) continue
+        const remedy = remedyForLanguageServer(server, target, latched.cause, cwd)
+        return fail(
+          `Not tried: ${serverTitle(server, target)} did not start ${latched.count} times this session (${latched.cause}); calls that need it will not be tried again this session.${remedy ? ` What helps: ${remedy}.` : ''}`,
+          { details: { refused: true, serverFailures: [{ server: server.name, cause: latched.cause }] } },
+        )
+      }
+    }
+  }
+
+  const settled = await runLspOperation(input, context, messageId, requestWritePermission)
+  if (context.abortController.signal.aborted) return settled
+  if (settled.effect.outcome !== 'failed') {
+    clearLspCall(callKey)
+    return settled
+  }
+  const serverFailures = serverFailuresOf(settled.effect)
+  const summary = settled.effect.evidence || (settled.data.result.split('\n')[0] ?? '')
+  const count = recordLspCallFailure(callKey, summary, serverFailures.map(f => f.server))
+  const notes: string[] = []
+  if (count >= LSP_TRIES_BEFORE_REFUSAL) notes.push(`This call has failed ${count} times this session; it will not be tried again.`)
+  else if (count > 1) notes.push(`This call has failed the same way ${count} times this session.`)
+  for (const failure of serverFailures) {
+    const serverCount = recordLspServerFailure(failure.server, failure.cause)
+    if (serverCount >= LSP_TRIES_BEFORE_REFUSAL) {
+      const server = manager ? [...manager.getAllServers().values()].find(s => s.name === failure.server) : undefined
+      const title = server ? serverTitle(server, callTargets(input, cwd)[0] ?? '') : `the language server ${failure.server}`
+      notes.push(`${title[0]!.toUpperCase()}${title.slice(1)} did not start ${serverCount} times this session; calls that need it will not be tried again.`)
+    }
+  }
+  if (notes.length === 0) return settled
+  return {
+    data: { ...settled.data, result: `${settled.data.result}\n${notes.join(' ')}` },
+    effect: { ...settled.effect, details: { ...(settled.effect.details ?? {}), tries: count } },
+  }
+}
+
+async function runLspOperation(input: Input, context: ToolUseContext, messageId: UUID | undefined, requestWritePermission?: (path: string) => Promise<boolean>): Promise<Settled> {
   const startedAt = Date.now()
   const operation = input.operation
   const filePath = 'filePath' in input ? (input.filePath ?? '') : ''
   const cwd = getCwd()
 
-  const fail = (result: string, overrides: Partial<ToolEffect> = {}) => ({
-    data: { operation, result, filePath } satisfies Output,
+  const fail = (result: string, overrides: Partial<ToolEffect> = {}): Settled => ({
+    data: { operation, result, filePath, outcome: 'failed' as const } satisfies Output,
     effect: makeEffect(operation, 'failed', result, startedAt, overrides),
   })
 
@@ -402,6 +550,20 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
       'The language-server manager is not initialised. This may indicate a startup issue; language features are unavailable.'
     logError(new Error('LSPTool invoked with no language-server manager'))
     return fail(message)
+  }
+
+  const failureWords = (err: unknown, path: string): { result: string; serverFailures: Array<{ server: string; cause: string }> } => {
+    const primary = path ? manager.getServerForFile(expandPath(path)) : undefined
+    if (isLspStartFailure(err)) {
+      const server = primary && primary.name === err.server ? primary : [...manager.getAllServers().values()].find(s => s.name === err.server)
+      const title = server ? serverTitle(server, path) : `the language server ${err.server}`
+      const remedy = server ? remedyForLanguageServer(server, path, err.lspCause, cwd) : ''
+      return {
+        result: `The ${operation} operation was not run: ${title} did not start — ${err.lspCause}.${remedy ? ` What helps: ${remedy}.` : ''}`,
+        serverFailures: [{ server: err.server, cause: err.lspCause }],
+      }
+    }
+    return { result: `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`, serverFailures: [] }
   }
 
   if (MERCURY_BRIDGE_OPERATIONS.has(input.operation)) {
@@ -446,8 +608,8 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
       }
     } catch (err) {
       logError(err)
-      const message = `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`
-      return fail(message)
+      const words = failureWords(err, filePath)
+      return fail(words.result, words.serverFailures.length > 0 ? { details: { serverFailures: words.serverFailures } } : {})
     }
   }
 
@@ -538,8 +700,9 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     const { method, params } = getMethodAndParams(input, documentPath)
     const response = await manager.sendRequest<unknown>(documentPath, method, params)
     if (response === undefined) {
-      const extension = documentPath.split('.').pop() ?? ''
-      const message = `No language server is available for .${extension} files.`
+      const extension = `.${documentPath.split('.').pop() ?? ''}`
+      const why = unclaimedCause(extension, cwd)
+      const message = `The ${operation} operation was not run: no language server claims '${extension}' files in this session — ${why.cause}.${why.remedy ? ` What helps: ${why.remedy}.` : ''}`
       logError(new Error(`LSP ${operation}: no server response for ${documentPath}`))
       return fail(message)
     }
@@ -672,8 +835,8 @@ async function runLspToolCall(input: Input, context: ToolUseContext, messageId: 
     }
   } catch (err) {
     logError(err)
-    const message = `The ${operation} operation failed: ${err instanceof Error ? err.message : String(err)}`
-    return fail(message)
+    const words = failureWords(err, filePath)
+    return fail(words.result, words.serverFailures.length > 0 ? { details: { serverFailures: words.serverFailures } } : {})
   }
 }
 
@@ -742,13 +905,29 @@ export const LSPTool = buildTool({
     return checkReadPermissionForTool(lspPermissionShim, input, permissionContext)
   },
   async validateInput(input: LooseInput) {
-    const parsed = lspToolInputSchema().safeParse(input)
-    if (!parsed.success) {
+    const operation = input.operation ?? ''
+    const key = lspCallKey(operation, input)
+    const refused = lspCallRefusal(key)
+    if (refused !== undefined) {
       return {
         result: false as const,
-        message: parsed.error.message,
+        message: `Not tried: the same ${operation} call has failed ${refused.count} times this session (${refused.summary}); it will not be tried again this session.`,
         errorCode: 3,
       }
+    }
+    const refuse = (message: string, errorCode: number) => {
+      const count = recordLspCallFailure(key, message.split('. ')[0] ?? message)
+      const note =
+        count >= LSP_TRIES_BEFORE_REFUSAL
+          ? ` This call has failed ${count} times this session; it will not be tried again.`
+          : count > 1
+            ? ` This call has failed the same way ${count} times this session.`
+            : ''
+      return { result: false as const, message: `${message}${note}`, errorCode }
+    }
+    const parsed = lspToolInputSchema().safeParse(input)
+    if (!parsed.success) {
+      return refuse(invalidArgumentsMessage(operation, parsed.error.issues as ZodIssueLike[]), 3)
     }
     const filePath = (parsed.data as { filePath?: string }).filePath
     if (filePath === undefined) {
@@ -763,38 +942,28 @@ export const LSPTool = buildTool({
       stats = await stat(expanded)
     } catch (err) {
       if (isENOENT(err)) {
-        return {
-          result: false as const,
-          message: `File does not exist: ${filePath}`,
-          errorCode: 1,
-        }
+        return refuse(`File does not exist: ${filePath}. The same arguments will fail the same way; nothing was asked of a language server.`, 1)
       }
       logError(err)
-      return {
-        result: false as const,
-        message: `Cannot access ${filePath}: ${err instanceof Error ? err.message : String(err)}`,
-        errorCode: 4,
-      }
+      return refuse(`Cannot access ${filePath}: ${err instanceof Error ? err.message : String(err)}`, 4)
     }
     if (!stats.isFile()) {
-      return {
-        result: false as const,
-        message: `Path is not a file: ${filePath}`,
-        errorCode: 2,
-      }
+      return refuse(`Path is not a file: ${filePath}. The same arguments will fail the same way; nothing was asked of a language server.`, 2)
     }
     return { result: true as const }
   },
   async call(input: Input, context: ToolUseContext, canUseTool, parentMessage) {
     const messageId = parentMessage?.uuid as UUID | undefined
+    const own = lspToolInputSchema().safeParse(input)
+    const scoped = (own.success ? own.data : input) as Input
     const requestWritePermission = typeof canUseTool === 'function' && parentMessage
       ? async (path: string): Promise<boolean> => {
-          const requested = { ...input, filePath: path }
+          const requested = { ...scoped, filePath: path }
           const decision = await canUseTool(LSPTool, requested, context, parentMessage, context.toolUseId ?? 'lsp-write')
           return decision.behavior === 'allow' && isDeepStrictEqual(decision.updatedInput ?? requested, requested)
         }
       : undefined
-    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(input, context, messageId, requestWritePermission))
+    return runWithLspAbortSignal(context.abortController.signal, () => runLspToolCall(scoped, context, messageId, requestWritePermission))
   },
   mapToolResultToToolResultBlockParam(data: Output, toolUseID: string) {
     return { tool_use_id: toolUseID, type: 'tool_result' as const, content: data.result }

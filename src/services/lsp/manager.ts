@@ -1,6 +1,7 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { isBareMode } from '../../utils/envUtils.js'
 import { logError } from '../../utils/log.js'
+import { resetLspFailureLedger } from './failureLedger.js'
 import { createLSPServerManager, type LSPServerManager } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
 
@@ -92,6 +93,7 @@ export function reinitializeLspServerManager(): void {
   instance = undefined
   initState = 'not-started'
   initError = undefined
+  resetLspFailureLedger()
   initializeLspServerManager()
 }
 
@@ -110,6 +112,7 @@ export async function shutdownLspServerManager(): Promise<void> {
   initError = undefined
   initPromise = undefined
   initGeneration++
+  resetLspFailureLedger()
 }
 
 export async function releaseLspDocumentsForContext(reason: string): Promise<number> {

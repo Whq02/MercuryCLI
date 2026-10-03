@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getAllLspServers } from './config.js'
-import { createLSPServerInstance, type LSPServerInstance } from './LSPServerInstance.js'
+import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
 
 
@@ -174,6 +174,10 @@ export function createLSPServerManager(): LSPServerManager {
       const wrapped = new Error(
         `LSP ${operation} failed for ${path}: ${err instanceof Error ? err.message : String(err)}`,
       )
+      if (isLspStartFailure(err)) {
+        Object.assign(wrapped, { server: err.server, attempts: err.attempts, lspCause: err.lspCause, ...(err.refused === true ? { refused: true } : {}) })
+        wrapped.name = err.name
+      }
       logError(wrapped)
       throw wrapped
     }
