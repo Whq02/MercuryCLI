@@ -164,6 +164,37 @@ section('S4 — a line longer than the reader\'s bound is refused and the reader
   h.end()
 }
 
+section('S5 — every complete, split and UTF-8 line obeys the byte bound before parsing')
+{
+  const { MAX_LINE_BYTES } = await import('../../src/runner/wire/errors.ts')
+  const prefix = '{"type":"prompt","content":"'
+  const suffix = '"}'
+  const overhead = Buffer.byteLength(prefix + suffix)
+  const exact = prefix + 'x'.repeat(MAX_LINE_BYTES - overhead) + suffix
+  const over = prefix + 'x'.repeat(MAX_LINE_BYTES - overhead + 1) + suffix
+  const unicode = prefix + '界'.repeat(Math.ceil((MAX_LINE_BYTES - overhead + 1) / 3)) + suffix
+  const next = '\ufeff' + j({ type: 'prompt', content: 'NEXT' }) + '\r\n'
+  const cases: Array<[string, string[], boolean]> = [
+    ['exact ASCII bound', [exact + '\n'], true],
+    ['complete ASCII over bound', [over + '\n'], false],
+    ['final chunk crosses bound', [over.slice(0, -3), over.slice(-3) + '\n'], false],
+    ['complete multibyte over bound', [unicode + '\n'], false],
+    ['split multibyte over bound', [unicode.slice(0, -3), unicode.slice(-3) + '\n'], false],
+    ['skipped chunks resync once', [over, 'extra', 'more', '\n'], false],
+    ['unterminated ASCII over bound', [over], false],
+    ['unterminated multibyte over bound', [unicode], false],
+  ]
+  for (const [name, parts, accepted] of cases) {
+    const refused: string[] = []
+    const received: string[] = []
+    const hasNext = name.startsWith('unterminated') === false
+    const io = new StructuredIO((async function* () { yield* parts; if (hasNext) yield next })(), text => refused.push(text))
+    for await (const row of io.structuredInput) received.push(row.type === 'prompt' ? String(row.content).slice(0, 8) : row.type)
+    check(`${name}: ${accepted ? 'accepted at the bound' : 'one byte-bound refusal'}`, accepted ? refused.length === 0 : refused.length === 1 && refused[0]!.includes(`${MAX_LINE_BYTES} bytes`), j(refused))
+    check(`${name}: no oversized prompt reaches the consumer; next row survives`, j(received) === j([...(accepted ? ['xxxxxxxx'] : []), ...(hasNext ? ['NEXT'] : [])]), j(received))
+  }
+}
+
 console.log('\n============================================================')
 if (failures === 0) {
   console.log(' ✅ STRUCTUREDIO LAWS GREEN')
