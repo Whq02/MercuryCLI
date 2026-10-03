@@ -59,7 +59,7 @@ const WINDOWS_INPUT = {
 }
 const TILDE_INPUT = { file_path: '~\\Documents\\notes.txt' }
 
-section("§1 the ledger's words — two sends of a Windows-shaped tool row name nothing; a moved byte inside it is named as the doctor spells it")
+section("§1 the ledger's words — two sends of a Windows-shaped tool row name nothing; a moved byte inside it is named as /health spells it")
 {
   const { judgeAndRecordPrefix, resetPrefixLedger } = await import('../../src/services/providers/anthropic/prefixLedger.ts')
   const system = [{ type: 'text', text: 'You are Mercury.' }]
@@ -97,7 +97,7 @@ section("§1 the ledger's words — two sends of a Windows-shaped tool row name 
     { role: 'user', content: [{ type: 'text', text: 'no' }] },
   ])
   const v3 = judgeAndRecordPrefix(owner, key, { system, tools, messages: moved }, ids(moved))
-  check('§1 a byte moved inside the settled tool_use is named the way the doctor row spells it', v3.mismatch?.part === "turn 1's assistant row: tool_use block 0" && v3.mismatch.path === 'messages[1].content[1]', j(v3.mismatch))
+  check('§1 a byte moved inside the settled tool_use is named the way the health row spells it', v3.mismatch?.part === "turn 1's assistant row: tool_use block 0" && v3.mismatch.path === 'messages[1].content[1]', j(v3.mismatch))
   resetPrefixLedger()
 }
 
@@ -274,7 +274,7 @@ if (!existsSync(DIST)) {
       const notices = transcriptLines(arena, SID, 'Preserved thinking')
       check("§3 the one receipt names the edit and the ledger's part (the first drop's warning-level receipt, written once, never painted)", notices.length === 1 && notices[0]!.includes("turn 0's user row"), `${notices.length} ${(notices[0] ?? '').slice(0, 200)}`)
       const ledger = readLedger(arena)
-      check('§3 the doctor records ONE first drop (consecutive 1), never a run of consecutive rewrites', ledger?.last?.kind === 'first' && ledger.last.consecutive === 1 && ledger.longestRun === 1 && ledger.last.count === 1, j(ledger))
+      check('§3 the health records ONE first drop (consecutive 1), never a run of consecutive rewrites', ledger?.last?.kind === 'first' && ledger.last.consecutive === 1 && ledger.longestRun === 1 && ledger.last.count === 1, j(ledger))
       const named = debugLines(debugFile, 'the prefix ledger names a rewrite of sent history')
       check('§3 the ledger named the moved part once, on the request the edit first rode', named.length === 1, String(named.length))
       await fixture.close()

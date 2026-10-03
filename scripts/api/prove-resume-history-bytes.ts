@@ -415,9 +415,9 @@ if (!existsSync(DIST)) {
     check("[wire] the receipt after the revive names the part instead of the bare 'client-side edit' sentence", notices.length >= 1 && notices.some(n => n.includes("Mercury's prefix ledger names the part that moved: the system prompt")), j(notices))
     const debug = debugText(revivedDebug)
     check("[wire] the revived process's debug log carries the ledger's line naming the part before the request went out", debug.includes('the prefix ledger names a rewrite of sent history before the request went out — the system prompt'), debug.split('\n').filter(l => l.includes('prefix ledger')).join(' | ').slice(0, 300))
-    const doctorFile = join(arena.home, '.mercury', 'preserved-thinking.json')
-    const row = existsSync(doctorFile) ? (JSON.parse(readFileSync(doctorFile, 'utf8')) as { last?: { part?: string; kind?: string } }) : null
-    check("[wire] the doctor's row carries the named part after the revive", typeof row?.last?.part === 'string' && row.last.part.startsWith('the system prompt') && row.last.kind === 'first', j(row))
+    const healthFile = join(arena.home, '.mercury', 'preserved-thinking.json')
+    const row = existsSync(healthFile) ? (JSON.parse(readFileSync(healthFile, 'utf8')) as { last?: { part?: string; kind?: string } }) : null
+    check("[wire] /health's row carries the named part after the revive", typeof row?.last?.part === 'string' && row.last.part.startsWith('the system prompt') && row.last.kind === 'first', j(row))
     await fixture.close()
   }
 }

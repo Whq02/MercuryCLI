@@ -742,9 +742,9 @@ if (!existsSync(DIST)) {
       check('the scripted drop writes exactly one receipt (kept in the transcript, never painted)', notices.length === 1, `${notices.length} ${notices[0]?.slice(0, 200) ?? ''}`)
       const notice = notices[0] ?? ''
       check('…the receipt names compaction as the lawful cause', notice.includes('compaction'), notice.slice(0, 300))
-      check('…and never the recurrence wording (nothing unlawful happened)', !notice.includes('rewriting') && !notice.includes('doctor'), notice.slice(0, 300))
+      check('…and never the recurrence wording (nothing unlawful happened)', !notice.includes('rewriting') && !notice.includes('health'), notice.slice(0, 300))
       const ledger = join(arena.home, '.mercury', 'preserved-thinking.json')
-      check('the doctor ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
+      check('the health ledger records the drop with its lawful cause', existsSync(ledger) && readFileSync(ledger, 'utf8').includes('"compaction"') && readFileSync(ledger, 'utf8').includes('messages.1.content.0'), existsSync(ledger) ? readFileSync(ledger, 'utf8').slice(0, 300) : 'absent')
       await fixture.close()
     }
 

@@ -220,7 +220,7 @@ if (process.argv[2] === '--serve') {
       MERCURY_DAEMON_DIR: join(HOME, 'daemon'),
       MERCURY_CREWS_DIR: join(HOME, 'crews'),
       MERCURY_HOME: join(HOME, 'proof-home'),
-      MERCURY_HEALTH_STATE_DIR: join(HOME, 'doctor-state'),
+      MERCURY_HEALTH_STATE_DIR: join(HOME, 'health-state'),
       ANTHROPIC_API_KEY: PROBE_KEY,
       ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}/anthropic`,
       MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${port}/openai/v1`,
