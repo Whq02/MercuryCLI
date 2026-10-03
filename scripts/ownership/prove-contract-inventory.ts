@@ -101,7 +101,7 @@ const MODULES: Record<string, string[]> = {
     'src/run-core/budget-guard.ts',
     'src/run-core/attachment-drain.ts',
   ],
-  headless: ['src/cli/print.ts'],
+  headless: ['src/cli/run.ts'],
   bootUi: [
     'src/main.tsx',
     'src/screens/REPL.tsx',
@@ -123,7 +123,7 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
   },
   {
     label: 'headless output modes + the row stream',
-    files: ['src/cli/print.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
+    files: ['src/cli/run.ts', 'src/cli/structuredIO.ts', 'src/cli/headless'],
     patterns: [
       'outputFormat',
       'outcomeRow\\(',

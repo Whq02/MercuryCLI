@@ -458,7 +458,7 @@ console.log('native-core T13/T14 — input-scheduling contract')
   const localShell = readFileSync(join(repoRoot, 'src/tasks/LocalShellTask/LocalShellTask.tsx'), 'utf8')
   const localMainSession = readFileSync(join(repoRoot, 'src/tasks/LocalMainSessionTask.ts'), 'utf8')
   const localAgent = readFileSync(join(repoRoot, 'src/tasks/LocalAgentTask/LocalAgentTask.tsx'), 'utf8')
-  const runner = readFileSync(join(repoRoot, 'src/cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(repoRoot, 'src/cli/run.ts'), 'utf8')
   const modesHome = readFileSync(join(repoRoot, 'src/types/textInputTypes.ts'), 'utf8')
   const headlessDriver = readFileSync(join(repoRoot, 'src/cli/headless/turnDriver.ts'), 'utf8')
   const LIVE_MODES = ['bash', 'prompt', 'task-notification']

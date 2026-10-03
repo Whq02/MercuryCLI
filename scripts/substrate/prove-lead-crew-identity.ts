@@ -68,7 +68,7 @@ check(
 const birthSrc = readFileSync(join(REPO, 'src/utils/crew/crewBirth.ts'), 'utf8')
 check('the crew birth registers the lead crew from the first turn (every session has a crew from the moment it starts)', birthSrc.includes('setLeadCrewFallback(sessionCrewName(sessionId))'))
 check('the birth never overrides a led crew the resume projection registered', birthSrc.includes('if (getLeadCrewFallback() === null) setLeadCrewFallback('))
-const runnerSrc = readFileSync(join(REPO, 'src/cli/print.ts'), 'utf8')
+const runnerSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
 const launcherSrc = readFileSync(join(REPO, 'src/replLauncher.tsx'), 'utf8')
 check('the headless runner and the REPL launcher both birth the crew once the session id is final', (runnerSrc.match(/birthSessionCrew\(/g) ?? []).length === 2 && launcherSrc.includes('birthSessionCrew(String(getSessionId()), update => {'))
 

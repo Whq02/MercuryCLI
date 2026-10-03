@@ -105,7 +105,7 @@ check('src/hooks/useInboxPoller.ts no longer exists (RED on the base: it does)',
 const pollerNamers = walk(join(ROOT, 'src')).filter(path => /useInboxPoller/.test(readFileSync(path, 'utf8'))).map(path => path.slice(ROOT.length + 1))
 check('no product file names the poller', pollerNamers.length === 0, pollerNamers.join(', '))
 const subscribers = walk(join(ROOT, 'src')).filter(path => /subscribeLiveMessagesFor\(/.test(readFileSync(path, 'utf8')) && !path.endsWith(join('crew', 'liveComms.ts'))).map(path => path.slice(ROOT.length + 1)).sort()
-check('the lead wake, the seat drain, the in-process runner and the crew board subscribe to the store (RED on the base: no such verb)', ['src/cli/print.ts', 'src/daemon/dispatchDrain.ts', 'src/utils/crew/crewClient.ts', 'src/utils/swarm/inProcessRunner.ts'].every(path => subscribers.includes(path)), subscribers.join(', '))
+check('the lead wake, the seat drain, the in-process runner and the crew board subscribe to the store (RED on the base: no such verb)', ['src/cli/run.ts', 'src/daemon/dispatchDrain.ts', 'src/utils/crew/crewClient.ts', 'src/utils/swarm/inProcessRunner.ts'].every(path => subscribers.includes(path)), subscribers.join(', '))
 
 section('§4 nothing wrote an inbox file')
 const crews = join(TMP, 'crews')

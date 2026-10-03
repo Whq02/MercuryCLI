@@ -38,14 +38,14 @@ const sigintIdx = mainBody.indexOf("process.on('SIGINT'")
 const sigintBand = mainBody.slice(Math.max(0, sigintIdx - 240), sigintIdx)
 check(
   'the SIGINT handler carves out run (print.ts owns SIGINT there)',
-  sigintBand.includes('if (!isPrintModeArgv()) {'),
+  sigintBand.includes('if (!isRunArgv()) {'),
   sigintBand.slice(-160),
 )
 
 const runIdx = mainBody.indexOf('run(')
 check('B6 the opening band precedes the commander run()/parse', runIdx > prev, `run@${runIdx} vs last landmark@${prev}`)
 
-const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf-8')
+const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf-8')
 const rh = print.slice(print.indexOf('export async function runHeadless('))
 const stampIdx = rh.indexOf('markSessionNonInteractive(')
 const promptIdx = Math.min(

@@ -104,8 +104,8 @@ if (!ready) {
   check("the tool's description carries no sandbox section", !getSimplePrompt().includes('# Command sandbox'))
   const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
   check('the health row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(health))
-  const printMode = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
-  check('print mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(printMode) && /isSandboxRequired\(\)/.test(printMode))
+  const runMode = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
+  check('print mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(runMode) && /isSandboxRequired\(\)/.test(runMode))
   const degraded = await run('echo degraded-ok', shouldUseSandbox({ command: 'echo degraded-ok' }))
   check('a command runs unconfined with its own status (never a missing-binary failure graded as a sandbox)', degraded.code === 0 && /degraded-ok/.test(degraded.out), `code ${degraded.code} ${JSON.stringify(degraded.out.slice(0, 120))}`)
 } else {

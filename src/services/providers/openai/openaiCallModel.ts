@@ -54,7 +54,7 @@ import { estimateFaultedRequestUsage } from '../faultUsageEstimate.js'
 import type { SystemPrompt } from '../../../utils/systemPromptType.js'
 import type { ThinkingConfig } from '../../../utils/thinking.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import { notePrintPhase } from '../../../utils/printPhases.js'
+import { noteRunPhase } from '../../../utils/runPhases.js'
 import type { ApiShapedTool } from '../zai/zaiCodec.js'
 import { emptyReplyNote, markEmptyReply, type EmptyReplyKind } from '../emptyReply.js'
 import {
@@ -670,7 +670,7 @@ export async function* openaiCallModel(
       : line
   for (let attempt = 1; attempt <= OPENAI_MAX_ATTEMPTS || busy !== undefined; attempt++) {
     attemptStartedAtMs = Date.now()
-    notePrintPhase('dispatch')
+    noteRunPhase('dispatch')
     const outcome = yield* streamOneOpenaiAttempt({
       request,
       auth,
@@ -1126,7 +1126,7 @@ export async function* streamOneOpenaiAttempt(ctx: {
   for await (const event of events) {
     if (!firstEventSeen) {
       firstEventSeen = true
-      notePrintPhase('first_byte')
+      noteRunPhase('first_byte')
     }
     switch (event.type) {
       case 'response-id':

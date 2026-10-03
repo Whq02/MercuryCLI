@@ -12,7 +12,7 @@
 # gate-watch: src/tools/ScheduleCronTool/prompt* src/tools/ToolSearchTool/prompt*
 # gate-watch: src/tools/WorkflowTool/** src/tools/shared/spawnMultiAgent* src/utils/**
 # gate-watch: assets/splash/mercury-splash.mjs assets/splash/splash-core.mjs package.json src/* src/*.ts
-# gate-watch: src/bootstrap/runtime/posture.ts src/cli/print.ts src/cli/update.ts src/commands/daemon/index.ts
+# gate-watch: src/bootstrap/runtime/posture.ts src/cli/run.ts src/cli/update.ts src/commands/daemon/index.ts
 # gate-watch: src/commands/effectiveCatalogue.ts src/commands/feedback/index.ts src/commands/health/index.ts
 # gate-watch: src/commands/login/index.ts src/commands/logout/index.ts src/components/*
 # gate-watch: src/components/mercury-ui/components.tsx

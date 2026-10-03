@@ -206,7 +206,7 @@ section('§3 the wire: both rows cross in snake_case and decode back; absent sta
 
 section("§4 the roads on the code: the runner answers both rows, the seat publishes the answer whole, the connector folds both")
 {
-  const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const printSrc = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const armAt = printSrc.indexOf("'session/facts': async () => {")
   check('the session_facts arm is found', armAt >= 0)
   const factsArm = printSrc.slice(Math.max(0, armAt))

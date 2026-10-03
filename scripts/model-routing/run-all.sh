@@ -6,7 +6,7 @@
 # gate-watch: src/types/message.ts
 # gate-watch: src/prompt/** src/utils/messages/pairing.ts
 # gate-watch: scripts/provider-compat/fixtures/huggingface-models-2026-08-22.json src/Tool.ts
-# gate-watch: src/bootstrap/state.ts src/cli/print.ts src/commands/context/context-noninteractive.ts
+# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/context/context-noninteractive.ts
 # gate-watch: src/commands/effort/* src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Config.tsx
 # gate-watch: src/components/agents/studio/StudioEditor.tsx

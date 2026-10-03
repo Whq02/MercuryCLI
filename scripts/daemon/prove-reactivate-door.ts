@@ -251,7 +251,7 @@ console.log('\n── R5: never two records for one session ──')
 
 console.log('\n── R6: the warm claim loads the transcript before it acks (source) ──')
 {
-  const print = read('src/cli/print.ts')
+  const print = read('src/cli/run.ts')
   const claimAt = print.indexOf("'session/claim': async params => {")
   const claimBody = print.slice(claimAt, print.indexOf("'session/set_effort': (params, ref) => {", claimAt))
   const loadAt = claimBody.indexOf('await loadConversationForResume(sid,')

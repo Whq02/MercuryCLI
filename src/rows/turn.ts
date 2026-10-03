@@ -40,7 +40,7 @@ import { turnCutOf } from '../utils/messages/turnCut.js'
 import { getMainLoopModel } from '../utils/model/model.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
 import type { ModelUsage } from '../bootstrap/state.js'
-import { notePrintPhase } from '../utils/printPhases.js'
+import { noteRunPhase } from '../utils/runPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
@@ -583,7 +583,7 @@ export class Conversation {
         if (usage.input_tokens === 0 && usage.output_tokens === 0) continue
         this.accumulatedUsage = accumulateUsage(this.accumulatedUsage, usage)
       }
-      notePrintPhase('settlement')
+      noteRunPhase('settlement')
       const unpricedNow = getUnpricedTurns()
       const unpricedModels = new Set(Object.keys(unpricedNow).filter(model => (unpricedNow[model] ?? 0) > (unpricedAtStart[model] ?? 0)))
       const apiMs = Math.max(0, getTotalAPIDuration() - apiDurationAtStart)
@@ -613,7 +613,7 @@ export class Conversation {
     const closeTurn = (status: OutcomeStatus, extra: Partial<OutcomeFacts> = {}): RowDraft => outcomeRow({ ...scope, turn: turnOrdinal }, outcomeFactsOf(status, extra))
 
     headlessProfilerCheckpoint('turn_row_yielded')
-    notePrintPhase('assembly')
+    noteRunPhase('assembly')
 
     if (!inputResult.shouldQuery) {
       let commandAnswer = ''
@@ -695,7 +695,7 @@ export class Conversation {
     }
 
     for await (const event of queryEvents(queryParams) as AsyncGenerator<RunEvent, unknown, unknown>) {
-      notePrintPhase('first_canonical_event')
+      noteRunPhase('first_canonical_event')
       config.onLiveness?.()
       if (event.kind === 'run_terminal') {
         terminal = event.terminal
@@ -900,7 +900,7 @@ export class Conversation {
       }
     }
 
-    notePrintPhase('terminal')
+    noteRunPhase('terminal')
     if (eagerFlush) await flushSessionStorage()
     const open = steps.flush()
     if (open !== null) yield open

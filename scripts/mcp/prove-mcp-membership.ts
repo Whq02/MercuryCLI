@@ -207,7 +207,7 @@ section('§5 the config key answers the BOOT project for the process lifetime')
 
 section('§6 the control-wire reconnect refuses a disabled server (source-shape)')
 {
-  const source = readFileSync(join(REPO, 'src', 'cli', 'print.ts'), 'utf8')
+  const source = readFileSync(join(REPO, 'src', 'cli', 'run.ts'), 'utf8')
   const start = source.indexOf("case 'mcp_reconnect': {")
   const end = source.indexOf("case 'mcp_toggle': {")
   const body = start >= 0 && end > start ? source.slice(start, end) : ''

@@ -102,7 +102,7 @@ check(
 
 {
   console.log('\n§4 the run road takes the fold too (FC-073)')
-  const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
+  const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
   check(
     'the entry seed folds (call-shaped)',
     /activeModel: string \| undefined =\s*\n\s*options\.userSpecifiedModel === undefined\s*\n\s*\? undefined\s*\n\s*: parseUserSpecifiedModel\(options\.userSpecifiedModel\)/.test(printSrc),

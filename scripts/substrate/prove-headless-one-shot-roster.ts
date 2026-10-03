@@ -93,7 +93,7 @@ section('§5 source pins — the stamp precedes the pool; the scheduler start is
   const poolAt = main.indexOf('let tools = [...getTools(args.toolPermissionContext)]')
   check('main.tsx stamps the one-shot posture from the input format', stampAt >= 0)
   check('…BEFORE the headless tool pool is assembled', stampAt >= 0 && poolAt > stampAt, `stamp@${stampAt} pool@${poolAt}`)
-  const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
+  const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   const sinkBlockStart = print.indexOf('if (streamingInput) {')
   const sinkBlockEnd = closingBraceAfter(print, print.indexOf('{', sinkBlockStart))
   const sinkBlock = sinkBlockStart >= 0 && sinkBlockEnd > sinkBlockStart ? print.slice(sinkBlockStart, sinkBlockEnd) : ''

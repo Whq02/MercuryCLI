@@ -236,7 +236,7 @@ section('§5 the coordinator fold: the runner fact wins; null/absent fall throug
       preferSessionLimitWarning(undefined, local) === local &&
       preferSessionLimitWarning(null, null) === null,
   )
-  const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/cli/print.ts'), 'utf8')
+  const printSrc = readFileSync(join(import.meta.dir, '..', '..', 'src/cli/run.ts'), 'utf8')
   check(
     'the session-facts producer rides providerLimitWarning (one owner, pinned at the source)',
     printSrc.includes('limitWarning: providerLimitWarning({ model:'),

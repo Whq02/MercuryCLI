@@ -2,7 +2,7 @@
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
 import { getPerformance } from './profilerBase.js'
 
-export const PRINT_PHASES = [
+export const RUN_PHASES = [
   'process_start',
   'graph_load',
   'cli_parse',
@@ -17,11 +17,11 @@ export const PRINT_PHASES = [
   'flush_exit',
 ] as const
 
-export type PrintPhase = (typeof PRINT_PHASES)[number]
+export type RunPhase = (typeof RUN_PHASES)[number]
 
-const stamps = new Map<PrintPhase, number>()
+const stamps = new Map<RunPhase, number>()
 
-export function notePrintPhase(phase: PrintPhase, atMs?: number): void {
+export function noteRunPhase(phase: RunPhase, atMs?: number): void {
   if (!getIsNonInteractiveSession()) return
   if (stamps.size === 0 && phase !== 'process_start') {
     stamps.set('process_start', 0)
@@ -31,17 +31,17 @@ export function notePrintPhase(phase: PrintPhase, atMs?: number): void {
   stamps.set(phase, at)
 }
 
-export interface PrintPhaseReport {
-  phases: Array<{ phase: PrintPhase; atMs: number }>
+export interface RunPhaseReport {
+  phases: Array<{ phase: RunPhase; atMs: number }>
   monotonic: boolean
   wallMs: number
   providerApiMs: number
   localOverheadMs: number
 }
 
-export function printPhaseReport(providerApiMs: number): PrintPhaseReport {
-  const phases: Array<{ phase: PrintPhase; atMs: number }> = []
-  for (const phase of PRINT_PHASES) {
+export function runPhaseReport(providerApiMs: number): RunPhaseReport {
+  const phases: Array<{ phase: RunPhase; atMs: number }> = []
+  for (const phase of RUN_PHASES) {
     const at = stamps.get(phase)
     if (at !== undefined) phases.push({ phase, atMs: Math.round(at * 1000) / 1000 })
   }
@@ -60,6 +60,6 @@ export function printPhaseReport(providerApiMs: number): PrintPhaseReport {
   }
 }
 
-export function _resetPrintPhasesForTesting(): void {
+export function _resetRunPhasesForTesting(): void {
   stamps.clear()
 }

@@ -159,7 +159,7 @@ import { saveCacheSafeParams, getLastCacheSafeParams } from '../utils/forkedAgen
 import { SandboxManager } from '../utils/sandbox/sandbox-adapter.js'
 import { GLYPH } from '../components/mercury-ui/glyphs.js'
 import { isBuiltInAgent } from '../tools/AgentTool/loadAgentsDir.js'
-import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markPrintModeSignalsOwned } from '../utils/gracefulShutdown.js'
+import { gracefulShutdown, gracefulShutdownSync, isShuttingDown, markRunModeSignalsOwned } from '../utils/gracefulShutdown.js'
 import { saveCurrentSessionCosts } from '../cost-tracker.js'
 import {
   headlessProfilerCheckpoint,
@@ -217,7 +217,7 @@ import {
 } from '../utils/model/capabilities.js'
 import { isEffortLevel, resolveEffortTruth } from '../utils/effort.js'
 import { registerProcessOutputErrorHandlers } from '../utils/process.js'
-import { notePrintPhase, printPhaseReport } from '../utils/printPhases.js'
+import { noteRunPhase, runPhaseReport } from '../utils/runPhases.js'
 import { getPerformance } from '../utils/profilerBase.js'
 import { runSideQuestion } from '../utils/sideQuestion.js'
 import { buildSideQuestionFallbackParams } from '../utils/queryContext.js'
@@ -403,8 +403,8 @@ export async function runHeadless(
     setInterval(() => bunGc?.gc?.(true), 1000).unref?.()
   }
   headlessProfilerStartTurn()
-  notePrintPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)
-  notePrintPhase('cli_parse')
+  noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)
+  noteRunPhase('cli_parse')
 
   if (options.resumeSessionAt !== undefined && !options.resume) {
     process.stderr.write('--replay-to requires --resume\n')
@@ -531,7 +531,7 @@ export async function runHeadless(
   if (options.outputFormat === 'rows') {
     installWireStdoutGuard()
   }
-  notePrintPhase('invocation_resolution')
+  noteRunPhase('invocation_resolution')
 
   {
     const unavailableReason = SandboxManager.getSandboxUnavailableReason()
@@ -802,7 +802,7 @@ export async function runHeadless(
   const sessionTools: Tool[] = [...tools, ...startingMcpTools]
   const canUseTool = asks.createCanUseTool(() => notifySessionStateChanged('requires_action'))
   registerProcessOutputErrorHandlers()
-  notePrintPhase('config_auth')
+  noteRunPhase('config_auth')
 
   const streamingOptions = options
   let sessionInitialized = false
@@ -1594,8 +1594,8 @@ export async function runHeadless(
       stopDrainedNotificationFrames()
       stopIdleSdkDrain()
       statusListeners.delete(rateLimitListener)
-      notePrintPhase('flush_exit')
-      logForDebugging(`[print-phases] ${jsonStringify(printPhaseReport(getTotalAPIDuration()))}`)
+      noteRunPhase('flush_exit')
+      logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
       io.outbound.done()
     },
     notifySessionState: state => notifySessionStateChanged(state),
@@ -1699,7 +1699,7 @@ export async function runHeadless(
     logForDiagnosticsNoPII('info', 'headless_shutdown_signal', { signal: 'SIGTERM' })
     void settleOnSignal(143)
   })
-  markPrintModeSignalsOwned()
+  markRunModeSignalsOwned()
   process.on('exit', () => saveCurrentSessionCosts())
   const { registerCleanup } = await import('../utils/cleanupRegistry.js')
   registerCleanup(async () => {
@@ -2377,7 +2377,7 @@ export async function runHeadless(
   }
 
   logHeadlessProfilerTurn()
-  notePrintPhase('flush_exit')
-  logForDebugging(`[print-phases] ${jsonStringify(printPhaseReport(getTotalAPIDuration()))}`)
+  noteRunPhase('flush_exit')
+  logForDebugging(`[run-phases] ${jsonStringify(runPhaseReport(getTotalAPIDuration()))}`)
   gracefulShutdownSync(io.stdoutPipeBroken ? 1 : (signalCode ?? exitCodeOf(last.status)))
 }

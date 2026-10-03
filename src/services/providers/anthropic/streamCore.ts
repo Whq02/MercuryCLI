@@ -48,7 +48,7 @@ import { headlessProfilerCheckpoint } from 'src/utils/headlessProfiler.js'
 import { calculateUSDCost } from 'src/utils/modelCost.js'
 import { roughTokenCountEstimation } from 'src/services/tokenEstimation.js'
 import { isFirstPartyAnthropicBaseUrl } from 'src/utils/model/providers.js'
-import { notePrintPhase } from 'src/utils/printPhases.js'
+import { noteRunPhase } from 'src/utils/runPhases.js'
 import { resetApiConnectionPool } from 'src/utils/proxy.js'
 import {
   modelSupportsAdaptiveThinking,
@@ -1016,7 +1016,7 @@ async function* queryModel(
 
         if (!options.agentId) {
           headlessProfilerCheckpoint('api_request_sent')
-          notePrintPhase('dispatch')
+          noteRunPhase('dispatch')
         }
 
         clientRequestId = isFirstPartyAnthropicBaseUrl() ? randomUUID() : undefined
@@ -1215,7 +1215,7 @@ async function* queryModel(
           logForDebugging('stream live — first chunk received')
           if (!options.agentId) {
             headlessProfilerCheckpoint('first_chunk')
-            notePrintPhase('first_byte')
+            noteRunPhase('first_byte')
           }
           isFirstChunk = false
         }

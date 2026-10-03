@@ -214,7 +214,7 @@ section('Q7 — the seat’s memory: ONE shared array across ask() calls carries
   const { readFileSync } = await import('node:fs')
   check(
     'the daemon-hosted seat IS a write-back caller (print.ts hands its one session array into ask as mutableMessages)',
-    readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8').includes('mutableMessages: messages,'),
+    readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8').includes('mutableMessages: messages,'),
   )
 }
 

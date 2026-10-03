@@ -270,7 +270,7 @@ section('§4 the words on disk — the flow policy names a push; the docs say ho
   check('docs/TRUST.md, Non-interactive sessions: says a push on a headless seat waits on a present operator unless a rule pre-authorises it', /git push/.test(sectionText) && /present/.test(sectionText), sectionText.slice(0, 400))
   check('…names the rule shape `Bash(git push *)` and guardrails.allow', /Bash\(git push \*\)/.test(sectionText) && /guardrails\.allow/.test(sectionText), sectionText.slice(0, 400))
   check('…says no push is ever allowed by default', /no push is ever allowed by default/i.test(sectionText), sectionText.slice(0, 400))
-  const print = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
+  const print = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   check('the headless entry stamps the boot rules beside the interactivity mark (the seat\'s own context, never a guess)', /markSessionNonInteractive\(getAppState\(\)\.toolPermissionContext\?\.mode\)\n\s*markSessionBootRules\(getAppState\(\)\.toolPermissionContext\)/.test(print), 'print.ts carries no markSessionBootRules(getAppState().toolPermissionContext) after the interactivity mark')
 }
 

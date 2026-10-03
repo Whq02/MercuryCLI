@@ -292,11 +292,11 @@ section('0 · the world: a fixture Ollama that records requests, models the prom
 
 section('1 · the seams: the module, the runner registration line and the turn seam')
 {
-  const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const print = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const callModel = readFileSync(join(ROOT, 'src/services/providers/local/localCallModel.ts'), 'utf8')
   check('src/services/providers/local/localWarm.ts exists and exports armLocalWarm / noteLocalTurn / localWarmFacts', warmModule !== null && typeof warmModule.armLocalWarm === 'function' && typeof warmModule.noteLocalTurn === 'function' && typeof warmModule.localWarmFacts === 'function', 'the module is absent')
   const armLine = print.split('\n').find(line => line.includes('armLocalWarm('))
-  check('src/cli/print.ts arms the warm ONCE with the side-question fallback bundle (the same prompt/tool assembly a turn uses) and the seat liveness', armLine !== undefined && armLine.includes('buildSideQuestionFallbackParams(') && armLine.includes('awaitingSessionClaim') && armLine.includes('inFlightAbort') && print.split('armLocalWarm(').length === 2, armLine ?? 'no armLocalWarm( line')
+  check('src/cli/run.ts arms the warm ONCE with the side-question fallback bundle (the same prompt/tool assembly a turn uses) and the seat liveness', armLine !== undefined && armLine.includes('buildSideQuestionFallbackParams(') && armLine.includes('awaitingSessionClaim') && armLine.includes('inFlightAbort') && print.split('armLocalWarm(').length === 2, armLine ?? 'no armLocalWarm( line')
   check('src/services/providers/local/localCallModel.ts notes the real turn before dispatch (the warm yields the server; the touch learns the knobs)', callModel.includes('noteLocalTurn(record)') && callModel.indexOf('noteLocalTurn(record)') < callModel.indexOf('yield* compatChatCallModel('), 'no noteLocalTurn(record) before the dispatch')
 }
 

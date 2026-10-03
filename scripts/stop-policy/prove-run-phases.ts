@@ -21,45 +21,45 @@ const src = (p: string): string => readFileSync(join(import.meta.dir, '../../', 
 
 async function main(): Promise<void> {
   const state = await import('../../src/bootstrap/state.js')
-  const phases = await import('../../src/utils/printPhases.js')
+  const phases = await import('../../src/utils/runPhases.js')
 
   state.setIsInteractive(false)
 
   section('F01 — twelve-phase record: first-stamp-wins, monotonic, honest about gaps')
   {
-    phases._resetPrintPhasesForTesting()
-    phases.notePrintPhase('graph_load', 12)
-    phases.notePrintPhase('cli_parse', 15)
-    phases.notePrintPhase('invocation_resolution', 20)
-    phases.notePrintPhase('config_auth', 40)
-    phases.notePrintPhase('assembly', 90)
-    phases.notePrintPhase('dispatch', 120)
-    phases.notePrintPhase('first_byte', 400)
-    phases.notePrintPhase('first_canonical_event', 410)
-    phases.notePrintPhase('terminal', 900)
-    phases.notePrintPhase('settlement', 910)
-    phases.notePrintPhase('flush_exit', 950)
-    const r = phases.printPhaseReport(700)
+    phases._resetRunPhasesForTesting()
+    phases.noteRunPhase('graph_load', 12)
+    phases.noteRunPhase('cli_parse', 15)
+    phases.noteRunPhase('invocation_resolution', 20)
+    phases.noteRunPhase('config_auth', 40)
+    phases.noteRunPhase('assembly', 90)
+    phases.noteRunPhase('dispatch', 120)
+    phases.noteRunPhase('first_byte', 400)
+    phases.noteRunPhase('first_canonical_event', 410)
+    phases.noteRunPhase('terminal', 900)
+    phases.noteRunPhase('settlement', 910)
+    phases.noteRunPhase('flush_exit', 950)
+    const r = phases.runPhaseReport(700)
     check(
       'F01: all twelve phases report in declared order with process_start auto-seeded at the clock origin',
       r.phases.length === 12 &&
         r.phases[0]!.phase === 'process_start' &&
         r.phases[0]!.atMs === 0 &&
-        JSON.stringify(r.phases.map(p => p.phase)) === JSON.stringify([...phases.PRINT_PHASES]),
+        JSON.stringify(r.phases.map(p => p.phase)) === JSON.stringify([...phases.RUN_PHASES]),
       `phases=${r.phases.length}`,
     )
     check('F01: the record is monotonic and wall = the latest boundary', r.monotonic && r.wallMs === 950)
-    phases.notePrintPhase('dispatch', 5)
+    phases.noteRunPhase('dispatch', 5)
     check(
       'F01: first stamp WINS — a later re-stamp never rewrites history',
-      phases.printPhaseReport(0).phases.find(p => p.phase === 'dispatch')?.atMs === 120,
+      phases.runPhaseReport(0).phases.find(p => p.phase === 'dispatch')?.atMs === 120,
     )
   }
   {
-    phases._resetPrintPhasesForTesting()
-    phases.notePrintPhase('assembly', 300)
-    phases.notePrintPhase('dispatch', 100)
-    const r = phases.printPhaseReport(0)
+    phases._resetRunPhasesForTesting()
+    phases.noteRunPhase('assembly', 300)
+    phases.noteRunPhase('dispatch', 100)
+    const r = phases.runPhaseReport(0)
     check(
       'F01: out-of-order stamps are REPORTED non-monotonic, never silently reordered; unstamped phases stay absent (no invented boundaries)',
       r.monotonic === false && r.phases.length === 3 && !r.phases.some(p => p.phase === 'terminal'),
@@ -67,20 +67,20 @@ async function main(): Promise<void> {
     )
   }
   {
-    phases._resetPrintPhasesForTesting()
+    phases._resetRunPhasesForTesting()
     state.setIsInteractive(true)
-    phases.notePrintPhase('dispatch', 10)
-    const interactive = phases.printPhaseReport(0).phases.length
+    phases.noteRunPhase('dispatch', 10)
+    const interactive = phases.runPhaseReport(0).phases.length
     state.setIsInteractive(false)
-    check('F01: interactive sessions record NOTHING (print-only instrument)', interactive === 0)
+    check('F01: interactive sessions record NOTHING (headless instrument)', interactive === 0)
   }
 
   section('F02 — provider latency reports separately from local overhead')
   {
-    phases._resetPrintPhasesForTesting()
-    phases.notePrintPhase('dispatch', 100)
-    phases.notePrintPhase('flush_exit', 1000)
-    const r = phases.printPhaseReport(750)
+    phases._resetRunPhasesForTesting()
+    phases.noteRunPhase('dispatch', 100)
+    phases.noteRunPhase('flush_exit', 1000)
+    const r = phases.runPhaseReport(750)
     check(
       'F02: localOverheadMs = wall − provider (floored at 0), both reported',
       r.providerApiMs === 750 && r.localOverheadMs === 250 && r.wallMs === 1000,
@@ -88,48 +88,48 @@ async function main(): Promise<void> {
     )
     check(
       'F02: a provider figure exceeding wall floors local overhead at 0 (never negative)',
-      phases.printPhaseReport(5000).localOverheadMs === 0,
+      phases.runPhaseReport(5000).localOverheadMs === 0,
     )
   }
 
   section('F01 wiring — the twelve stamps live at their owners (both provider lanes)')
   {
-    const print = src('src/cli/print.ts')
+    const print = src('src/cli/run.ts')
     const engine = src('src/rows/turn.ts')
     const anthropic = src('src/services/providers/anthropic/streamCore.ts')
     const openai = src('src/services/providers/openai/openaiCallModel.ts')
     check(
-      'print.ts stamps graph_load (backdated to cli_entry) · cli_parse · invocation_resolution · config_auth · flush_exit',
-      print.includes("notePrintPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)") &&
-        print.includes("notePrintPhase('cli_parse')") &&
-        print.includes("notePrintPhase('invocation_resolution')") &&
-        print.includes("notePrintPhase('config_auth')") &&
-        print.includes("notePrintPhase('flush_exit')"),
+      'run.ts stamps graph_load (backdated to cli_entry) · cli_parse · invocation_resolution · config_auth · flush_exit',
+      print.includes("noteRunPhase('graph_load', getPerformance().getEntriesByName('cli_entry')[0]?.startTime)") &&
+        print.includes("noteRunPhase('cli_parse')") &&
+        print.includes("noteRunPhase('invocation_resolution')") &&
+        print.includes("noteRunPhase('config_auth')") &&
+        print.includes("noteRunPhase('flush_exit')"),
     )
     check(
       'the turn stamps assembly · first_canonical_event · terminal · settlement (settlement inside the outcome facts — every outcome passes it)',
-      engine.includes("notePrintPhase('assembly')") &&
-        engine.includes("notePrintPhase('first_canonical_event')") &&
-        engine.includes("notePrintPhase('terminal')") &&
-        engine.includes("notePrintPhase('settlement')"),
+      engine.includes("noteRunPhase('assembly')") &&
+        engine.includes("noteRunPhase('first_canonical_event')") &&
+        engine.includes("noteRunPhase('terminal')") &&
+        engine.includes("noteRunPhase('settlement')"),
     )
     check(
       'BOTH provider lanes stamp dispatch + first_byte (anthropic streamCore · openai callModel)',
-      anthropic.includes("notePrintPhase('dispatch')") &&
-        anthropic.includes("notePrintPhase('first_byte')") &&
-        openai.includes("notePrintPhase('dispatch')") &&
-        openai.includes("notePrintPhase('first_byte')"),
+      anthropic.includes("noteRunPhase('dispatch')") &&
+        anthropic.includes("noteRunPhase('first_byte')") &&
+        openai.includes("noteRunPhase('dispatch')") &&
+        openai.includes("noteRunPhase('first_byte')"),
     )
     check(
       'F02 wiring: the report ships at BOTH flush boundaries with the api-duration ledger figure',
-      (print.match(/\[print-phases\]/g) ?? []).length >= 2 &&
-        print.includes('printPhaseReport(getTotalAPIDuration())'),
+      (print.match(/\[run-phases\]/g) ?? []).length >= 2 &&
+        print.includes('runPhaseReport(getTotalAPIDuration())'),
     )
   }
 
   section('F04/F05 — print mounts no UI/splash and starts no daemon/multiplayer')
   {
-    const print = src('src/cli/print.ts')
+    const print = src('src/cli/run.ts')
     check(
       "F04: the print owner never mounts Ink (no ink import, no render()) and never touches the splash",
       !print.includes("from 'ink'") && !/\brender\(/.test(print) && !/splash/i.test(print),
@@ -162,10 +162,10 @@ async function main(): Promise<void> {
       'F09: forwarding budget owned by prove-tool-delta-grammar (C07 p95 probe)',
       src('scripts/stop-policy/prove-tool-delta-grammar.ts').includes('p95 fold latency'),
     )
-    const print = src('src/cli/print.ts')
+    const print = src('src/cli/run.ts')
     check(
       'F10: exit durability unchanged — the flush stamp precedes gracefulShutdownSync; the K7 trace-flush + drain-aware exit owners keep their laws',
-      print.includes("notePrintPhase('flush_exit')") && print.includes('gracefulShutdownSync('),
+      print.includes("noteRunPhase('flush_exit')") && print.includes('gracefulShutdownSync('),
     )
     check(
       'F11: cold/warm parity rides the compile-cache law (byte-stable reuse prover) — the cache changes parse cost, never behavior',

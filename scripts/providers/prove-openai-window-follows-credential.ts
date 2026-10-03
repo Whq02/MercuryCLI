@@ -121,7 +121,7 @@ section('§C the catalogue memo follows the credential')
 section('§D the roads: the runner reads the account again on the word, and the gate reads the catalogue before it decides')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   const runnerCase = print.indexOf("'credentials/changed': () => {")
   const runnerArm = runnerCase === -1 ? '' : print.slice(runnerCase, runnerCase + 900)
   check("the runner's credential_change arm reads the OpenAI account again beside the Anthropic reset", runnerArm.includes('resetLimitsForCredentialSwitch()') && runnerArm.includes('readOpenaiAccountAgain()'), runnerArm.slice(0, 300))

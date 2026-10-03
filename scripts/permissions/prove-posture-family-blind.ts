@@ -51,7 +51,7 @@ async function main(): Promise<void> {
     const armLine = mainSrc.slice(mainSrc.lastIndexOf('\n', armIdx) + 1, mainSrc.indexOf('\n', armIdx))
     check(
       'the arming expression couples ONLY to the print-mode check',
-      /isEnvTruthy\(flagEnv\('MERCURY_SKIP_PERMISSIONS'\)\)\s*&&\s*!isPrintModeArgv\(\)/.test(armLine),
+      /isEnvTruthy\(flagEnv\('MERCURY_SKIP_PERMISSIONS'\)\)\s*&&\s*!isRunArgv\(\)/.test(armLine),
       armLine.trim(),
     )
     check(

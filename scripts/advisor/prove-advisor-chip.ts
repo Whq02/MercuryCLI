@@ -115,7 +115,7 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
   storage.saveAdvisorSwitch(false)
   advisor.setAdvisorMinutes(10)
   saveGlobalConfig(c => { const next = { ...c.subModels }; delete next.advisor; return { ...c, subModels: Object.keys(next).length > 0 ? next : undefined } })
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   check("the session facts answer carries `advisor: advisorFacts()` beside the pause gate, so the screen reads THIS chat's state through its connector", runner.includes('advisor: advisorFacts(),') && runner.includes("import { advisorFacts, advisorMainRound"))
   const projection = src('src/services/engine-connector/seatProjections.ts')
   const types = src('src/services/engine-connector/types.ts')

@@ -69,7 +69,7 @@ try {
   check('stopping the service clears the hold', await until(() => !census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 }).some(h => h.kind === 'service'), 10_000), JSON.stringify(census.runnerCapabilityHolds({ pendingControlRequestCount: () => 0 })))
 
   console.log('C5 the runner refuses a park on the census, after its own turn and task checks')
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const at = runner.indexOf('const quiescence = new RunnerQuiescence({')
   const arm = runner.slice(at, runner.indexOf('flush: () => flushSessionStorage()', at))
   check("the quiesce refusal ends on the census (turn, queued prompt, background tasks first; the census closes it)", at > 0 && arm.includes("return 'a turn is running'") && arm.includes("return 'a prompt is queued'") && arm.includes('return capabilityHoldWords(runnerCapabilityHolds(asks))'), arm.slice(0, 400))

@@ -62,7 +62,7 @@ const ALLOW: Row[] = [
   { path: 'src/services/coordination/coordinationService.ts', fragment: null, why: 'the same coordination road' },
   { path: 'src/services/resources/adapters/team.ts', fragment: null, why: 'the mercury://team/ adapter renders for the Inspect tool, and its kind is the ref' },
   { path: 'src/utils/hooks/contract.ts', fragment: null, why: 'the hooks contract keeps its field names and the words that describe them' },
-  { path: 'src/cli/print.ts', fragment: null, why: "system reminders to a headless session are the model's" },
+  { path: 'src/cli/run.ts', fragment: null, why: "system reminders to a headless session are the model's" },
   { path: 'src/daemon/crewSpawn.ts', fragment: null, why: "the seat's system prompt and its roster record on disk" },
   { path: 'src/skills/bundled/', fragment: null, why: 'skill prompts are the model\'s' },
   { path: 'src/main.tsx', fragment: null, why: "the hidden spawn-identity options an older build's spawner passes; --help never shows them" },

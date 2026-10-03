@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
-# gate-watch: src/bootstrap/state.ts src/cli/headless/turnDriver.ts src/cli/print.ts
+# gate-watch: src/bootstrap/state.ts src/cli/headless/turnDriver.ts src/cli/run.ts
 # gate-watch: src/components/MessageRow.tsx src/components/mercury-ui/screens/CrewView.tsx
 # gate-watch: src/components/mercury-ui/screens/crewStopChord.ts src/components/mercury-ui/theme.ts
 # gate-watch: src/components/messages/* src/components/tasks/* src/daemon/*

@@ -712,7 +712,7 @@
    ]
   },
   "headless": {
-   "src/cli/print.ts": [
+   "src/cli/run.ts": [
     "canBatchWith",
     "joinPromptValues",
     "removeInterruptedMessage",

@@ -129,7 +129,7 @@ section('§2 buildEffectiveSystemPrompt — floor FIRST on every replacing path'
   })
   check('an EMPTY override falls through to the floored custom path', emptyOverride[0] === FLOOR && emptyOverride[1] === 'CUSTOM')
 
-  const callers = ['src/rows/turn.ts', 'src/cli/print.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
+  const callers = ['src/rows/turn.ts', 'src/cli/run.ts', 'src/commands/compact/compact.ts', 'src/utils/analyzeContext.ts', 'src/tools/AgentTool/AgentTool.tsx']
   check(
     'no production caller supplies overrideSystemPrompt today',
     callers.every(f => !SRC(f).includes('overrideSystemPrompt')),

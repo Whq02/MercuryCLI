@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/utils/exitCliffDrain.ts src/utils/gracefulShutdown.ts
-# gate-watch: src/utils/sessionStorage/writer.ts src/cli/print.ts
+# gate-watch: src/utils/sessionStorage/writer.ts src/cli/run.ts
 # gate-watch: src/query/scriptedStream.ts
 # gate-watch: scripts/lib/firstRunSeed.ts src/main.tsx src/substrate/flagRegistry.ts src/utils/proxy.ts
 # gate-watch: src/utils/ripgrep.ts

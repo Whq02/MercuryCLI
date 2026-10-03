@@ -74,7 +74,7 @@ console.log('L4 the two de-apply roads prune (source pins)')
 {
   const rescan = readFileSync(join(SRC, 'hooks/useSkillsChange.ts'), 'utf8')
   check('the skills-change rescan (a file removal) prunes against the fresh table', rescan.includes('pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(commands))'))
-  const runner = readFileSync(join(SRC, 'cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(SRC, 'cli/run.ts'), 'utf8')
   check('the kit dial (a skill turned off) prunes against the post-dial table', runner.includes('pruneSkillSessionHooks(setAppState, getSessionId(), liveSkillRootsOf(activeCommands))'))
 }
 

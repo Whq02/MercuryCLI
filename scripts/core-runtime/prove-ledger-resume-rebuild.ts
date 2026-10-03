@@ -316,7 +316,7 @@ section('§7 the shape: the restore road reads the raw records through the reade
   check('the rollup reads the raw record stream through the one reader, never the file', rollup.includes('scanTranscriptEntriesForward(') && !/from ['"]node:fs['"]/.test(rollup) && !rollup.includes('readFileSync('))
   check('the rollup prices every response through the one price owner', rollup.includes('calculateUSDCost(') && rollup.includes('modelPricingBasis('))
   check('the reader exposes the raw forward walk (no fold, no relink, no prune)', reader.includes('export function scanTranscriptEntriesForward('))
-  const callers = ['cli/print.ts', 'cli/headless/resume.ts'].map(rel => src(rel))
+  const callers = ['cli/run.ts', 'cli/headless/resume.ts'].map(rel => src(rel))
   check('the one restore road awaits the rebuild and hands it the transcript path it knows', restore.includes('export async function restoreSessionStateFromLog(') && restore.includes('await restoreCostStateForSession(adopted, result.fullPath)') && (restore.match(/restoreCostStateForSession\(/g) ?? []).length === 1)
   check('every road that restores a session awaits the restore, so the ledger is rebuilt before the first turn', callers.every(text => text.includes('await restoreSessionStateFromLog(') && !/(?<!await )restoreSessionStateFromLog\(/.test(text)))
 }

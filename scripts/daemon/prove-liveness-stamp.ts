@@ -174,7 +174,7 @@ console.log('\nL6 structural — no surface reads transcript growth as liveness'
   check("the stream core relays the transport's liveness beside the watchdog's note (a quiet chunk) and marks every parsed event", watchdog.includes('activityRelay.noteChunk()') && watchdog.includes('activityRelay.noteEvent()'))
   const machine = read('src/run-core/turn-machine.ts')
   check("the turn machine relays the stream's activity on the runner's status frame", machine.includes('onStreamActivity: atMs => toolUseContext.setSDKStatus?.({ streamActivity: atMs })'))
-  const facts = read('src/cli/print.ts')
+  const facts = read('src/cli/run.ts')
   check('the runner reports its own budget in the facts answer', facts.includes('streamIdleTimeoutMs: streamIdleTimeoutMsForRoute('))
 }
 

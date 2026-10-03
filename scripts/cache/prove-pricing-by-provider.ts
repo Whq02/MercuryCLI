@@ -272,7 +272,7 @@ section('§5 the shape')
   check('the ledger persists and restores the count with the cost row', tracker.includes('lastUnpricedTurns: { ...getUnpricedTurns() }') && tracker.includes('unpricedTurns: config.lastUnpricedTurns'))
   check('the compat lane names its wire-stated cost as a price', compat.includes("usageSeen.statedCostUSD !== undefined ? { basis: 'wire-stated' } : undefined"))
   const facts = readFileSync(join(ROOT, 'src/services/engine-connector/types.ts'), 'utf8')
-  const runner = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   check("the session's usage facts carry the count (additive) and the runner fills it", facts.includes('unpricedTurns?: number') && runner.includes('unpricedTurns: getTotalUnpricedTurns(),'))
   for (const [file, needle] of [
     ['src/components/HelmTelemetryRail.tsx', 'formatLaneSpend(usage.spend)'],

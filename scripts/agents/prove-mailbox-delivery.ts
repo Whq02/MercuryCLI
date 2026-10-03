@@ -117,7 +117,7 @@ try {
   check('the human row restores the body bytes the wire escaped, ampersand last', xml.unescapeXml(xml.escapeXml('a &lt; b & c')) === 'a &lt; b & c')
   const painter = readFileSync(join(import.meta.dir, '..', '..', 'src', 'components', 'messages', 'UserCrewmateMessage.tsx'), 'utf8')
   check('the painter unescapes the summary attribute and the transcript body for display', painter.includes('{unescapeXmlAttr(message.summary)}') && painter.includes('<Ansi>{unescapeXml(message.content)}</Ansi>'))
-  const poll = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'print.ts'), 'utf8')
+  const poll = readFileSync(join(import.meta.dir, '..', '..', 'src', 'cli', 'run.ts'), 'utf8')
   check('a run of refused acknowledgements is reported once through the error log, and a success resets the count', poll.includes('if (refusedAcknowledgements === MAILBOX_REFUSAL_NOTICE_AFTER) {') && poll.includes('consecutive acknowledgements refused') && poll.includes('await acknowledgeLiveDelivery(crewName, CREW_LEAD_NAME, delivery.id)\n          refusedAcknowledgements = 0'))
   writeFileSync(liveCommsPath(crew), JSON.stringify({ schema: 1, crew: crew, seq: 1, messages: [{ id: 'kept-1', seq: 1, to: recipient, from: 'peer', text: 'keep content', timestamp: 't', delivery: { id: '../not-an-id', sessionId: '../../not-a-session' } }], tasks: {}, busy: {} }))
   const repaired = await prepareLiveDelivery(crew, recipient, randomUUID())

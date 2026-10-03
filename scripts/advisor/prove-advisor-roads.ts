@@ -274,7 +274,7 @@ const toolResultsOf = (yields: AnyMsg[]): Array<{ id: string; text: string }> =>
 
 section('§0 the wiring: one road per seat into one drain, the framing, the tool gate and its enrolment (red on the base: the main chat queued the note as a prompt)')
 {
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const settled = between(runner, 'onTurnSettled: command => {', 'hasWaitableBackgroundTasks')
   check("the main chat's turn end: the driver's onTurnSettled takes the advisor's main road with the session's own message list — no queued prompt, no kick of the driver (red on the base: enqueue + driver.kick)", settled.includes('advisorMainTurnSettled(String(getSessionId()), command, messages, advisorRoad)') && !settled.includes('enqueue(') && !settled.includes('driver.kick()') && !runner.includes('advisorNoteQueueCommand'), settled.slice(0, 400))
   const road = between(runner, 'const advisorRoad: AdvisorRoad = {', '\n  }')
@@ -601,7 +601,7 @@ section("§2c THE SWITCH ON THE SESSION'S OWN RECORD: /advise on writes an advis
   check('…and a record reading off seeds off', storage.advisorSwitchOfSession() === false)
   storage.restoreSessionMetadata({})
   check('a record with no switch leaves the cache as it stands', storage.advisorSwitchOfSession() === false)
-  const resumeRoads = [src('src/cli/headless/resume.ts'), src('src/cli/print.ts')]
+  const resumeRoads = [src('src/cli/headless/resume.ts'), src('src/cli/run.ts')]
   check('every headless resume road hands the loaded facts to restoreSessionMetadata — --continue, --resume and the warm claim', resumeRoads[0]!.split('restoreSessionMetadata(').length === 3 && resumeRoads[1]!.includes('restoreSessionMetadata(resumed)'))
   check('the resume snapshot schema moved past the one older builds wrote, so a snapshot without the switch map is never trusted', SNAPSHOT_SCHEMA === 3)
   const reader = src('src/utils/sessionStorage/transcriptReader.ts')

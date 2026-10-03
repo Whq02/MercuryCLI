@@ -420,7 +420,7 @@ section('§6 honest absence: every no-dial id labels itself with the one word')
 
 section('§7 the surfaces read the owner')
 {
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   check('print: the initialize catalogue lists the owner\'s stops per model', print.includes('resolveEffortTruth(resolved, undefined).selectable'))
   check('print: get_settings reports the applied tier beside the raw request', print.includes('effort: effortTruth.supportsEffort ? (effortTruth.wire ?? null) : undefined') && print.includes('effort_requested:'))
   const picker = src('src/components/concourse/CoordinatorModelPicker.tsx')

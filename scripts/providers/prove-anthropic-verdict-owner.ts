@@ -125,7 +125,7 @@ section('§5 the credential-switch reset clears the verdict and its stamp; the n
 section('§6 the road: the sign-in reaches the runners, and the live reads ride the guarded verdict')
 {
   const src = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   const runnerCase = print.indexOf("'credentials/changed': () => {")
   const runnerArm = runnerCase === -1 ? '' : print.slice(runnerCase, runnerCase + 900)
   check("the runner's control loop takes a credentials/changed notification", runnerCase !== -1)

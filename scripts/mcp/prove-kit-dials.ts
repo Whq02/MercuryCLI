@@ -141,7 +141,7 @@ section('§E the delta (a dial is a delta, never a heal)')
 
 section('§H the write re-point')
 {
-  const src = read('src/cli/print.ts')
+  const src = read('src/cli/run.ts')
   t('H1 print.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
   t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
   t('H1c the toggle road dials the PROCESS KIT through the one edit road (the registry port, no child arm of its own)', /setEnabledOnDisk: \(name, enabled\) => \{\s*applyProcessSessionKitEdit\(/.test(read('src/services/mcp/registry/livePorts.ts')) && !src.includes('mcp_toggle'))
@@ -158,7 +158,7 @@ section('§H the write re-point')
 {
   const pinSrc = read('src/services/mcp/sessionKitPin.ts')
   const assignments = (pinSrc.match(/latched = /g) ?? []).length
-  t('H3 every latch assignment lives in sessionKitPin.ts (the one home)', assignments >= 5 && !read('src/cli/print.ts').includes('latched ='))
+  t('H3 every latch assignment lives in sessionKitPin.ts (the one home)', assignments >= 5 && !read('src/cli/run.ts').includes('latched ='))
 }
 
 section('§C the seat dial: idle forwards whole, busy parks honest, the beat drains')
@@ -350,7 +350,7 @@ section('§S the skills dial: session rows, off rows listed, tri-state words')
   t('S4a the dial rides the one connector verb and paints the honest receipt arms', dialSrc.includes(".setKit({ skills: [{ name: row.name, state: next }] })") && dialSrc.includes('kitDialLine'))
   t('S4b the words say SESSION and point at the boot menu (empty line included)', dialSrc.includes("this session's skills — the boot menu sets the next session's") && dialSrc.includes("No skills in this session. The boot menu's MCPs & Skills sets the next session's."))
   t('S4c no optimistic paint: the roster reads the session facts, never a local mutation', !dialSrc.includes('useState<SkillsRosterEntryV1') && dialSrc.includes('useSyncExternalStore'))
-  const printSrc = read('src/cli/print.ts')
+  const printSrc = read('src/cli/run.ts')
   t('S5 the child projects off rows beside the table roster', printSrc.includes('skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf()'))
   govern._resetKitGovernanceForTesting()
 }

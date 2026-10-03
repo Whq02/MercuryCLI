@@ -343,7 +343,7 @@ async function main(): Promise<void> {
       after.print === before.print + 1 && after.sdk === before.sdk + 1 && (after.verbs['health'] ?? 0) === (before.verbs['health'] ?? 0) + 1 && after.lastAt > 0,
       JSON.stringify(after),
     )
-    const printSrc = src('src/cli/print.ts')
+    const printSrc = src('src/cli/run.ts')
     check('BM-15: runHeadless notes its activity at entry (one deferred merge, no hot-path write)', printSrc.includes('noteHeadlessActivity('))
     const mainSrc = src('src/main.tsx')
     check(

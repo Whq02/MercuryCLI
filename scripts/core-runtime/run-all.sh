@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/rows/turn.ts src/boot/launchGraph* src/bootstrap/state* src/cli/headless/**
-# gate-watch: src/cli/print* src/components/App* src/constants/betas* src/constants/oauth*
+# gate-watch: src/cli/run* src/components/App* src/constants/betas* src/constants/oauth*
 # gate-watch: src/ink/** src/input-core/command-queue*
 # gate-watch: src/input-core/pending-input* src/query/** src/replLauncher* src/screens/REPL*
 # gate-watch: src/services/providers/anthropic/** src/services/api/errors* src/services/api/withRetry*

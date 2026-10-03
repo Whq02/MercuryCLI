@@ -144,7 +144,7 @@ const U4 = 'a5b6c7d8-0000-4000-8000-000000000013'
 const U5 = 'a5b6c7d8-0000-4000-8000-000000000014'
 const U6 = 'a5b6c7d8-0000-4000-8000-000000000015'
 const SLASH_WORDS = '/no-such-words-here stand as words'
-const RUNNER = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+const RUNNER = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
 
 function sinkFlagsOfRunner(): Raw {
   const sinkAt = RUNNER.indexOf('const deliverLocalWake = ')
@@ -383,7 +383,7 @@ section("§3 THE BATCHED WAKE (red on the base): a fire taken into the operator'
     const operatorRows = frame.filter(l => l.includes(`${HANDLE} ${CARET}`))
     check(`${columns} columns: the operator's line paints once with the handle, and the wake beneath it paints the Saturn row (red on the base: "${HANDLE} ${CARET} [self-paced wake — …]")`, operatorRows.length === 1 && operatorRows[0]!.includes(OPERATOR_LINE) && frame.some(l => l.includes(`${SATURN} · self-paced wake · fifteen-minute cadence`)) && !frame.some(l => l.includes('[self-paced wake — why you woke')), frame.join('\n'))
   }
-  const runner = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const at = runner.indexOf('const batchTail: BatchedPrompt[] =')
   const block = at >= 0 ? runner.slice(at, runner.indexOf(': []', at)) : ''
   check("the runner's batch tail carries each member's origin beside its words and identity (red on the base: value and uuid alone)", block.includes('member.origin') && block.includes('member.uuid') && block.includes('member.value'), block)

@@ -92,7 +92,7 @@ console.log('§2 the latch, driven')
 
 console.log('§3 the print road rides it (call-shaped)')
 {
-  const printSrc = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
+  const printSrc = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   check('flushWrite folds broken pipes into the latch',
     /isBrokenPipeError\(error\)/.test(printSrc) && /markStdoutPipeBroken\(\)/.test(printSrc))
   check('the settle honors the latch over a clean turn',

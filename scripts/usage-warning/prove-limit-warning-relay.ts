@@ -135,7 +135,7 @@ section('§3 — the precedence law (pure, the owner’s)')
 
 section('§4 — the two seams: the child answers from the one owner; the hook reads the session first')
 {
-  const printSrc = readFileSync(join(REPO, 'src/cli/print.ts'), 'utf8')
+  const printSrc = readFileSync(join(REPO, 'src/cli/run.ts'), 'utf8')
   const caseStart = printSrc.indexOf("'session/facts': async () => {")
   const caseEnd = printSrc.indexOf("'schedule/roster': params => {", caseStart + 1)
   const answerer = printSrc.slice(caseStart, caseEnd)

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/hooks/**
-# gate-watch: scripts/lib/goldenReplay.ts src/bootstrap/state.ts src/cli/print.ts
+# gate-watch: scripts/lib/goldenReplay.ts src/bootstrap/state.ts src/cli/run.ts
 # gate-watch: src/components/hooks/ViewHookMode.tsx src/components/messages/AttachmentMessage.tsx
 # gate-watch: src/fabric/entryCodec.ts src/hooks/useSkillsChange.ts src/utils/*
 # gate-watch: src/utils/config/globalConfig.ts src/utils/sessionStorage/chain.ts

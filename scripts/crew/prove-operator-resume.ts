@@ -175,7 +175,7 @@ section('the unwind itself: a running crewmate row is removed and bookended fail
 
 section('the doors in source: the runner\'s resume routes a crewmate row, or an evicted row whose record is a crewmate\'s, to the transcript continuation before the agent resume and tells the main agent of an agent resume; the spawn road unwinds in the membership\'s catch')
 {
-  const runner = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
+  const runner = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("'agent/resume': async params => {"), runner.indexOf("const legacyAt = (at: 'now' | 'turn_end')"))
   check('the resume arm continues a crewmate row through the operator resume owner with the operator\'s note and answers its receipt', arm.includes('isInProcessCrewmateTask(target)') && arm.includes('readAgentMetadata(asAgentId(params.agent_id)))?.crewmate !== undefined') && arm.includes('respawnCrewmateByOperator(params.agent_id, { getAppState, toolUseContext: lastParams.toolUseContext, prompt: params.note })') && arm.includes('respawnCrewmateByOperator(') && arm.includes('resumeAgentBackground({') && arm.indexOf('respawnCrewmateByOperator(') < arm.indexOf('resumeAgentBackground({'))
   check('the resume arm tells the main agent of an agent resumed from the board with its continuation note', arm.includes("enqueueAgentReceiptRow({ taskId: resumed.agentId, description: resumed.description, summary: operatorResumeWords(resumed.description) + (resumed.note ?? '') })"))

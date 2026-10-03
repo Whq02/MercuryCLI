@@ -336,7 +336,7 @@ if (ledger === null) {
 
 section('N6 — the wiring: the runner starts the nudge and publishes the ledger; the queue and the agent task record')
 {
-  const print = src('src/cli/print.ts')
+  const print = src('src/cli/run.ts')
   check('N6 the session runner starts the idle nudge with the main thread and its agents as recipients', print.includes('startIdleNudge({') && print.includes('agentRecipientState(getAppState().tasks, agentId)') && print.includes("why: 'the session is shutting down'"), 'print.ts')
   check('N6 the runner wakes the main thread through its own queue, behind the notices', print.includes("enqueue({ value: nudgeWords(notices, waitedMs), mode: 'prompt', priority: 'later', isMeta: true"), 'print.ts')
   check('N6 the runner wakes a named agent through its pending line, with the carriers\' text, and the copies leave through the runner\'s own retire door, which speaks no completion frame', print.includes('injectUserMessageToCrewmate(task.id, nudgeWords(notices, waitedMs, bodies), setAppState)') && print.includes('if (carriers.length > 0) retireQueuedCommands(carriers)') && print.includes('retiringQueuedCommands = true') && !print.includes('removeQueuedCommands(carriers)'), 'print.ts')

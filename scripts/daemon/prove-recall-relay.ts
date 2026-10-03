@@ -119,7 +119,7 @@ section('§5 the wire: the reply keys, the router, the age, the runner\'s switch
   check('the age table names the verb\'s birth at proto 9, never re-aged by a later verb', protocol.verbBornAt('sessionControl', 'withdraw-send') === 9 && protocol.MERCURY_DAEMON_PROTO >= 9, `${protocol.verbBornAt('sessionControl', 'withdraw-send')} vs ${protocol.MERCURY_DAEMON_PROTO}`)
   const main = readFileSync(join(ROOT, 'src', 'daemon', 'main.ts'), 'utf8')
   check("the daemon's action arm relays through the seat's one relay and requires the identity", main.includes("if (action === 'withdraw-send')") && main.includes('withdrawSessionSend(sessionId, clientMessageId, roster)') && main.includes("'withdraw-send requires clientMessageId'"))
-  const runner = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
+  const runner = readFileSync(join(ROOT, 'src', 'cli', 'run.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("'queue/withdraw': params => {"), runner.indexOf("'session/set_mode': params => {"))
   check("the runner's arm owns the method: the queue's one pop by identity, a typed answer either way", arm.includes('popById(params.id)') && arm.includes('{ withdrawn: true, text: popped.text }') && arm.includes('{ withdrawn: false, reason: popped.reason }'))
   const methods = readFileSync(join(ROOT, 'src', 'runner', 'wire', 'methods.ts'), 'utf8')

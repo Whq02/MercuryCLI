@@ -124,7 +124,7 @@ const SIZES: Array<[number, number, number, number]> = [
 section('§0 the census (a guard, green on both trees): the one workload, its readers, and the batch law')
 {
   check("the workload vocabulary is the one word 'cron'", workload.WORKLOAD_CRON === 'cron')
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const reader = between(runner, 'const workload = command.workload ?? options.workload', 'await runWithWorkload(workload, async () => {')
   check("the run-time reader takes the queued command's workload first and enters the turn under it", reader.includes('command.workload ?? options.workload') && reader.includes('runWithWorkload(workload'), reader.slice(0, 200))
   const operator = { value: OPERATOR_LINE, mode: 'prompt' } as never
@@ -145,7 +145,7 @@ section("§1 THE STAMP (red on the base): every road that queues a Saturn fire s
   } catch (error) {
     check("the stamp helper stands at the origin's home (noticeRows.saturnQueueStamp)", false, String(error))
   }
-  const runner = src('src/cli/print.ts')
+  const runner = src('src/cli/run.ts')
   const seatless = between(runner, 'const deliverLocalWake = (', 'driver.kick()')
   check('the seatless wake road spreads the one stamp (red on the base: a literal of its own)', seatless.includes('...saturnQueueStamp(next.origin)') && !seatless.includes("workload: 'cron'"), seatless.slice(seatless.indexOf('enqueue({'), seatless.indexOf('enqueue({') + 220))
   const stdinRoad = between(runner, 'const sentAt = typeof input.sentAt', 'driver.kick()')

@@ -53,7 +53,7 @@ section('§0 the boot owner — both session roads start the peek from the defer
   check('the constant parses', /^\d+\.\d+\.\d+$/.test(CONTRACT), CONTRACT)
   check('the deferred-prefetch owner starts the peek (after init, bare mode excluded)', owner.includes('if (isBareMode()) return') && owner.includes('startClientContractPeek()'), owner.slice(0, 300))
   const headless = /\n {2}if \(!isBareMode\(\)\) \{\n {4}startDeferredPrefetches\(\)\n {4}startBackgroundHousekeeping\(\)\n {2}\}\n/.exec(main)
-  const runner = main.indexOf("const { runHeadless } = await import('./cli/print.js')")
+  const runner = main.indexOf("const { runHeadless } = await import('./cli/run.js')")
   check('the interactive road runs that owner as a background node and the headless road calls it before the run', main.includes("registerBackgroundNode('deferred-prefetches', () => {\n    startDeferredPrefetches()") && headless !== null && runner > headless.index, `headless=${headless?.index ?? 'none'} runner=${runner}`)
 }
 

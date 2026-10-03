@@ -3,7 +3,7 @@
 # gate-watch: src/services/jev/** src/tools/JevEvalTool/** src/commands/jev/** src/commands/jevor/** src/utils/config/schema.ts package.json
 # gate-watch: src/utils/router/providerSecrets.ts src/bootstrap/state.ts src/services/providers/openrouter/openrouterUsageState.ts
 # gate-watch: src/components/Settings/Jev.tsx src/components/Settings/Usage.tsx src/components/Settings/Config.tsx src/services/engine-connector/seatWire.ts src/services/engine-connector/types.ts
-# gate-watch: scripts/lib/settingsPopupHarness.ts scripts/settings/prove-usage-popup.ts src/* src/cli/print.ts
+# gate-watch: scripts/lib/settingsPopupHarness.ts scripts/settings/prove-usage-popup.ts src/* src/cli/run.ts
 # gate-watch: src/commands/config/config.tsx src/commands/usage/usage.tsx src/components/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx src/components/Settings/Settings.tsx
 # gate-watch: src/components/design-system/ThemeProvider.tsx src/components/tasks/CompactWorkSummary.tsx

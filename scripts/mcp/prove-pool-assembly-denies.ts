@@ -40,7 +40,7 @@ section('§1 THE LAW')
 
 section('§2 THE RUN ASSEMBLY')
 {
-  const print = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  const print = readFileSync(join(ROOT, 'src/cli/run.ts'), 'utf8')
   const seamAt = print.indexOf('const assembleTools')
   const seam = print.slice(seamAt, seamAt + 1400)
   check('the run per-turn assembly exists', seamAt !== -1)

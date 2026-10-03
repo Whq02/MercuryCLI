@@ -287,7 +287,7 @@ try {
 
 section('§7 the kernel, the ask and the turn are the refusals the runner speaks; the daemon side records the last one')
 {
-  const print = await Bun.file(join(ROOT, 'src', 'cli', 'print.ts')).text()
+  const print = await Bun.file(join(ROOT, 'src', 'cli', 'run.ts')).text()
   check('the runner names the turn before the queue, the tasks and the census', /refusal: \(\) => \{\s*if \(driver\.isRunning\(\)\) return 'a turn is running'\s*if \(getCommandQueue\(\)\.some\(isMainThreadCommand\)\) return 'a prompt is queued'/.test(print))
   const supervisor = await Bun.file(join(ROOT, 'src', 'daemon', 'concourseSupervisor.ts')).text()
   check('a refused retirement lands parkRefused on the record with the reason and who asked', /w\.parkRefused = \{ reason: result\.reason, at: Date\.now\(\), by \}/.test(supervisor))

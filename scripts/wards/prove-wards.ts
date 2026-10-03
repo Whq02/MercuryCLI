@@ -343,7 +343,7 @@ async function main(): Promise<void> {
     const src = (...p: string[]) =>
       readFileSync(join(import.meta.dir, '..', '..', 'src', ...p), 'utf-8')
     const engine = src('rows', 'turn.ts')
-    const print = src('cli', 'print.ts')
+    const print = src('cli', 'run.ts')
     check('the turn registers for EVERY session kind (the one chokepoint)', engine.includes('registerWardsHook(config.setAppState, sessionId)'))
     check('print path registers too (wards.registerWardsHook)', print.includes('wards.registerWardsHook('))
     check('flag registry carries the MERCURY_WARDS row', src('substrate', 'flagRegistry.ts').includes("env: 'MERCURY_WARDS'"))

@@ -170,7 +170,7 @@ const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
 )
 const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
 const { logError } = await import('../../src/utils/log.ts')
-const printMod = await import('../../src/cli/print.ts')
+const printMod = await import('../../src/cli/run.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
 const controlMod = await import('../../src/cli/headless/controlHandlers.ts')
 const runnerAsksMod = await import('../../src/cli/headless/runnerAsks.ts')

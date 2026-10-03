@@ -4,7 +4,7 @@
 # gate-watch: src/utils/router/providerSecrets* src/utils/router/providerDiscovery* src/utils/router/providers/**
 # gate-watch: src/services/wallet/** src/services/providers/accountSlots* src/services/providers/providerUsage*
 # gate-watch: src/services/claudeAiLimits* src/services/api/usage* src/services/providers/providerUsability*
-# gate-watch: src/bootstrap/state.ts src/cli/print.ts src/commands/effectiveCatalogue.ts
+# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/effectiveCatalogue.ts
 # gate-watch: src/commands/logout/logout.tsx src/commands/router/router.tsx src/components/*
 # gate-watch: src/components/Settings/Config.tsx src/components/Settings/Usage.tsx src/daemon/saturnAccount.ts
 # gate-watch: src/daemon/saturnTicker.ts src/extensions/sources.ts src/ink.ts src/services/api/*

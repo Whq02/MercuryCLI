@@ -7,7 +7,7 @@ import { createTurnDriver } from '../../src/cli/headless/turnDriver.ts'
 import { outcomeRow, turnStartedRow } from '../../src/rows/project.ts'
 import { EMPTY_USAGE } from '../../src/services/api/emptyUsage.ts'
 
-const source = readFileSync(join(import.meta.dir, '../../src/cli/print.ts'), 'utf8')
+const source = readFileSync(join(import.meta.dir, '../../src/cli/run.ts'), 'utf8')
 const ast = ts.createSourceFile('print.ts', source, ts.ScriptTarget.Latest, true)
 let callback: ts.Expression | undefined
 function visit(node: ts.Node): void {
