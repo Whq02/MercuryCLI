@@ -15,6 +15,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 type Hit = { file: string; line: number; text: string }
+const OBSERVED_WALK_KEYS = ['text', 'awaitAbsent', 'arrivedText', 'arrivedAbsent', 'targetHeader', 'afterPrevMs']
 export function blindAwaitSends(src: string, file: string): Hit[] {
   const hits: Hit[] = []
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, file.endsWith('x') ? ts.ScriptKind.TSX : ts.ScriptKind.TS)
@@ -26,7 +27,8 @@ export function blindAwaitSends(src: string, file: string): Hit[] {
         if (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) names.add(p.name.getText(sf).replace(/^['"]|['"]$/g, ''))
         else if (ts.isSpreadAssignment(p)) spread = true
       }
-      if ((names.has('awaitText') || names.has('awaitRaw')) && !names.has('requireAwait') && !names.has('atTick') && !names.has('afterPrevTicks') && !spread) {
+      const observedWalk = !names.has('data') && OBSERVED_WALK_KEYS.some(k => names.has(k))
+      if ((names.has('awaitText') || names.has('awaitRaw')) && !names.has('requireAwait') && !names.has('atTick') && !names.has('afterPrevTicks') && !spread && !observedWalk) {
         hits.push({ file, line: sf.getLineAndCharacterOfPosition(n.getStart(sf)).line + 1, text: n.getText(sf).replace(/\s+/g, ' ').slice(0, 120) })
       }
     }
@@ -60,6 +62,9 @@ console.log('§2 the poison: a bare awaitText literal is flagged')
 const poison = `const sends = [\n  { data: '\\t', awaitText: 'SESSIONS', awaitSettleTicks: 2 },\n  { data: 's', afterPrevTicks: 2, mark: 'x' },\n  { data: '', awaitText: 'FOCUSED CHAT', requireAwait: true, mark: 'y' },\n  { atTick: 40, awaitText: 'gate', data: '\\r' },\n]\n`
 const flagged = blindAwaitSends(poison, 'poison.ts')
 check('exactly the bare literal is flagged (requireAwait and an atTick deadline both pass)', flagged.length === 1 && flagged[0]!.line === 2, JSON.stringify(flagged))
+const walkSteps = `const sends = [\n  { awaitText: 'SESSION CONCOURSE', targetHeader: 'STATUS & TITLE', targetText: 'CMA Alpha' },\n  { awaitText: ['alpha-live body', 'Type a prompt'], awaitAbsent: 'SESSION CONCOURSE', text: '\\x1b[1;2D' },\n  { awaitText: 'Boot Settings opened', text: '' },\n  { awaitText: 'Type a prompt', data: '', text: '' },\n]\n`
+const walkFlagged = blindAwaitSends(walkSteps, 'walk.ts')
+check("an observed-walk step (a text payload, the walk's own gate keys, no data) is not a vshot send; a literal carrying data is read as one", walkFlagged.length === 1 && walkFlagged[0]!.line === 5, JSON.stringify(walkFlagged))
 
 console.log('§3 the live-seat rule: a board with a live seat refuses whole-grid stability gates by name')
 {
