@@ -50,11 +50,11 @@ const ESTATE = ['src/components/concourse', 'src/services/concourse'].flatMap(di
 }
 
 {
-  const upper = ['MAIN', 'Chat'].join(' ')
+  const upper = ['MAIN', ['RE', 'PL'].join('')].join(' ')
   const hyphenProse = ['main-RE', 'PL'].join('')
   const spacedLower = ['main', 'repl'].join(' ')
   check('V5 poison: the uppercase crumb form trips the needle', retired.test(`<Text>${upper}</Text>`) || retiredSpaced.test(upper))
-  check('V5 poison: the hyphen prose form (main-Chat) trips it', retired.test(`the managed ${hyphenProse} row`))
+  check('V5 poison: the hyphen prose form trips it', retired.test(`the managed ${hyphenProse} row`))
   check('V5 poison: the spaced lowercase prose form trips it', retiredSpaced.test(`esc ${spacedLower}`))
   const id = "id: 'concourse:crumb:" + ['main-re', 'pl'].join('') + "'"
   check("V5 the contract id stays legal (no false fire on the lowercase hyphen id)", !retired.test(id) && !retiredSpaced.test(id))
