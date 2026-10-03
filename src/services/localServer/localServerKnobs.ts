@@ -257,10 +257,10 @@ export function knobDetailWords(id: LocalServerKnobId, facts: MemoryFacts, chose
     return `how many models stay loaded before one is evicted; the box has ${machine}: ${loads.length ? loads.map(load => load.words).join(', ') : 'no model sizes read'}${together} · one loaded copy serves many sessions: seven sub-agents on one model need one copy and seven slots, not seven copies · ←/→ move it`
   }
   if (id === 'parallelSlots') {
-    if (!largest) return `how many requests one loaded model answers at once; each slot holds its own window of cache · one slot for a single session; 2–4 slots with a 32k window for a swarm · ←/→ move it`
+    if (!largest) return `how many requests one loaded model answers at once; each slot holds its own window of cache · one slot for a single session; 2–4 slots with a 32k window for a crew · ←/→ move it`
     const at = (window: number): string => gibWords(kvCacheBytes(largest.geometry, window, 1, facts.cacheType))
     const fleet = projectLoad(largest, 32768, chosen.slots, facts.cacheType)
-    return `how many requests one loaded model answers at once; each slot holds a full window of cache (${largest.name}: ${at(chosen.window)} per slot at ${tokensWords(chosen.window)}, ${at(32768)} at 32k) · one slot for a single session; 2–4 slots with a 32k window for a swarm — ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'} at 32k load ${largest.name} as ${gibWords(fleet.totalBytes)} of ${usable} usable · ←/→ move it`
+    return `how many requests one loaded model answers at once; each slot holds a full window of cache (${largest.name}: ${at(chosen.window)} per slot at ${tokensWords(chosen.window)}, ${at(32768)} at 32k) · one slot for a single session; 2–4 slots with a 32k window for a crew — ${chosen.slots} slot${chosen.slots === 1 ? '' : 's'} at 32k load ${largest.name} as ${gibWords(fleet.totalBytes)} of ${usable} usable · ←/→ move it`
   }
   if (id === 'keepAlive') {
     return `how long an idle model stays loaded before it unloads; a reload ingests the session's prompt again from scratch · -1 keeps it loaded, 0 unloads after every reply, a request's own keep_alive outranks it · ←/→ move it`
