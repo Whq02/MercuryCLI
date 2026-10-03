@@ -173,11 +173,11 @@ t.section('§3 — the admission handler over a fake roster port')
     JSON.stringify(argv),
   )
   t.check(
-    'the respawn argv RESUMES the same durable session (--resume, never a second --session-id) and keeps the live tail',
+    'the respawn argv RESUMES the same durable session (--resume, never a second --session-id) and the spec asks the live tail at initialize',
     first.ok &&
-      (spec.respawnExtraArgv ?? []).join(' ') ===
-        `--resume ${first.sessionId} --partial`,
-    JSON.stringify(spec.respawnExtraArgv),
+      (spec.respawnExtraArgv ?? []).join(' ') === `--resume ${first.sessionId}` &&
+      spec.partialRows === true,
+    JSON.stringify({ argv: spec.respawnExtraArgv, partialRows: spec.partialRows }),
   )
   const strip = new Set(spec.stripEnv ?? [])
   t.check(
