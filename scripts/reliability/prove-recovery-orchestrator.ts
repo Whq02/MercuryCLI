@@ -255,7 +255,7 @@ console.log('— boot 4: bounded epoch GC stays quiet —')
   ok(line === null || line.tone !== 'warn', 'no amber paint over coverage bookkeeping')
 }
 
-console.log('— doctor deep probe: disposable transaction —')
+console.log('— health deep probe: disposable transaction —')
 {
   const probes = await import('../../src/utils/healthDeepProbes.ts')
   const res = await probes.probeDurableTransaction()
