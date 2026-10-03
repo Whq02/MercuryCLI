@@ -6,11 +6,11 @@
     "backend": "openai-responses",
     "dialect": "responses",
     "mechanical": true,
-    "tree": "999cf770a",
+    "tree": "48261144e",
     "fold": "unlabelled",
-    "when": "2026-10-02T22:37:54.630Z",
-    "promptChars": 22555,
-    "promptTokensEst": 5639,
+    "when": "2026-10-03T00:28:50.860Z",
+    "promptChars": 23062,
+    "promptTokensEst": 5766,
     "toolCount": 21,
     "toolNames": [
       "Agent",
@@ -73,7 +73,7 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2894,
+      "toolResultChars": 2895,
       "toolResultTokensEst": 724,
       "imageChars": 0,
       "injectedTokensEst": 0,
@@ -83,12 +83,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.375041ms)\n✔ median of an odd-length list (0.08225ms)\n✖ median of an even-length list averages the middle pair (0.436042ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 60.517791\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.436042ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-lUnxsx/openai/tasks/fix",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.342375ms)\n✔ median of an odd-length list (0.066208ms)\n✖ median of an even-length list averages the middle pair (0.388834ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 52.032833\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.388834ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-2eiB2p/openai/tasks/fi",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2180,
+      "wallMs": 1963,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -153,7 +153,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 2018,
+      "wallMs": 1483,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -220,12 +220,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-lUnxsx/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-2eiB2p/openai/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1383,
+      "wallMs": 1087,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -286,7 +286,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1271,
+      "wallMs": 1041,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -341,7 +341,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1120,
+      "wallMs": 975,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -401,7 +401,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1003,
+      "wallMs": 944,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -507,7 +507,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1286,
+      "wallMs": 1209,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -592,7 +592,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 828,
+      "wallMs": 1192,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -645,7 +645,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1055,
+      "wallMs": 1139,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -707,7 +707,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1740,
+      "wallMs": 1871,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -755,7 +755,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 965,
+      "wallMs": 1102,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -803,7 +803,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 960,
+      "wallMs": 900,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",

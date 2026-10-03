@@ -6,11 +6,11 @@
     "backend": "zai-glm",
     "dialect": "chat",
     "mechanical": true,
-    "tree": "999cf770a",
+    "tree": "48261144e",
     "fold": "unlabelled",
-    "when": "2026-10-02T22:37:54.630Z",
-    "promptChars": 22545,
-    "promptTokensEst": 5636,
+    "when": "2026-10-03T00:28:50.860Z",
+    "promptChars": 23052,
+    "promptTokensEst": 5763,
     "toolCount": 54,
     "toolNames": [
       "Agent",
@@ -68,7 +68,7 @@
       "mcp__mercury__coord_say",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 195437,
+    "toolSchemaChars": 196132,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -106,8 +106,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2888,
-      "toolResultTokensEst": 722,
+      "toolResultChars": 2890,
+      "toolResultTokensEst": 723,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -116,12 +116,12 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.399291ms)\n✔ median of an odd-length list (0.090125ms)\n✖ median of an even-length list averages the middle pair (0.439041ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 61.40225\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.439041ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-lUnxsx/chat/tasks/fix-b",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.343792ms)\n✔ median of an odd-length list (0.069375ms)\n✖ median of an even-length list averages the middle pair (0.486333ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.801625\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.486333ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-2eiB2p/chat/tasks/fix-",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 2400,
+      "wallMs": 2073,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -186,7 +186,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 2020,
+      "wallMs": 1621,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -253,12 +253,12 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-lUnxsx/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-2eiB2p/chat/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1339,
+      "wallMs": 944,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -319,7 +319,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1103,
+      "wallMs": 996,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -374,7 +374,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1096,
+      "wallMs": 1051,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -434,7 +434,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1009,
+      "wallMs": 1057,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -487,7 +487,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1018,
+      "wallMs": 1090,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -540,7 +540,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1400,
+      "wallMs": 1198,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -625,7 +625,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 850,
+      "wallMs": 903,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -678,7 +678,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 956,
+      "wallMs": 1089,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -740,7 +740,7 @@
           "probe": true
         }
       ],
-      "wallMs": 1906,
+      "wallMs": 1957,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -788,7 +788,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 942,
+      "wallMs": 873,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
@@ -836,7 +836,7 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 954,
+      "wallMs": 897,
       "exitCode": 0,
       "timedOut": false,
       "resultSubtype": "success",
