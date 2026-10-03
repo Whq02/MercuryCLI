@@ -28,7 +28,7 @@ check('a clean repo reads clean', await getIsClean(), 'baseline')
 
 mkdirSync(join(REPO, '.mercury', 'health'), { recursive: true })
 writeFileSync(join(REPO, '.mercury', 'health', 'last-cert.json'), '{}')
-check('the doctor exhaust alone still reads CLEAN (FC-070)', await getIsClean())
+check('/health exhaust alone still reads CLEAN (FC-070)', await getIsClean())
 
 writeFileSync(join(REPO, 'real-work.txt'), 'untracked work\n')
 check('real untracked work still reads dirty', (await getIsClean()) === false)

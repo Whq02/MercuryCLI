@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'doctor-fix-home-'))
+process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'health-fix-home-'))
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import {

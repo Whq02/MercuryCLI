@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
-const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'model-lists-doctor-')))
+const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'model-lists-health-')))
 const HOME = join(SCRATCH, 'home')
 const CWD = join(SCRATCH, 'project')
 mkdirSync(HOME, { recursive: true })
@@ -37,7 +37,7 @@ delete process.env.CI
 delete process.env.MERCURY_HOME
 
 const { guardLoginDriverWrite } = await import('../lib/loginDriverGuard.ts')
-guardLoginDriverWrite('the model lists doctor drive', process.env)
+guardLoginDriverWrite('the model lists health drive', process.env)
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const scenarios = await import('../ui/renderScenarios.ts')
 const { GPT_DISPLAY_PINS } = await import('../../src/services/providers/openai/gptPins.ts')
@@ -134,8 +134,8 @@ function runChild(command: string, args: string[], opts: { cwd?: string; timeout
     })
   })
 }
-async function doctorJson(): Promise<{ text: string; status: number | null }> {
-  const res = await runChild('node', [BIN, 'doctor', '--json'], { cwd: CWD, timeoutMs: vshotBudgetMs(120_000) })
+async function healthJson(): Promise<{ text: string; status: number | null }> {
+  const res = await runChild('node', [BIN, 'health', '--json'], { cwd: CWD, timeoutMs: vshotBudgetMs(120_000) })
   return { text: res.stdout, status: res.status }
 }
 
@@ -167,10 +167,10 @@ async function capture(name: string, cols: number, rows: number, sends: Array<Re
     mkdirSync(captureDir, { recursive: true })
     for (const frame of frames) {
       const suffix = frame.label === 'final' ? '' : `-${frame.label}`
-      writeFileSync(join(captureDir, `model-lists-doctor-${name}${suffix}.txt`), frame.lines.join('\n') + '\n')
+      writeFileSync(join(captureDir, `model-lists-health-${name}${suffix}.txt`), frame.lines.join('\n') + '\n')
     }
     try {
-      writeFileSync(join(captureDir, `model-lists-doctor-${name}.json`), readFileSync(out))
+      writeFileSync(join(captureDir, `model-lists-health-${name}.json`), readFileSync(out))
     } catch {
       console.log('  … the grid could not be copied beside the frame')
     }
@@ -180,11 +180,11 @@ async function capture(name: string, cols: number, rows: number, sends: Array<Re
 
 const ESC = '\x1b'
 try {
-  console.log('J doctor --json (a fresh process holds no list): the row is present, info, and names every family')
-  const j = await doctorJson()
+  console.log('J health --json (a fresh process holds no list): the row is present, info, and names every family')
+  const j = await healthJson()
   const rows = rowsOf(j.text)
   const row = rows.find(r => r.id === 'model-lists')
-  check('doctor --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
+  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
   check('the certificate carries the row "Model lists" in the AUTH section, after the usage rows', row !== undefined && row.label === 'Model lists' && rows.findIndex(r => r.id === 'model-lists') > rows.findIndex(r => r.id === 'usage-openai') && rows.findIndex(r => r.id === 'usage-openai') >= 0, rows.map(r => r.id).join(',').slice(0, 300))
   check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of 8', `${row?.status} · ${row?.evidence}`)
   const detail = row?.detail ?? ''
@@ -193,7 +193,7 @@ try {
   check('Anthropic with the fixture key reads no list read in this process, like every keyed family', /Anthropic · Anthropic API key · no list read in this process — \/model or a chat naming the family reads it · \d+ typed ids not judged/.test(detail), detail)
   check('the families without a credential read not judged, Moonshot among them', /DeepSeek · no credential · \d+ typed ids not judged/.test(detail) && /Gemini · no credential · \d+ typed ids not judged/.test(detail) && /Hugging Face · no credential · \d+ typed ids not judged/.test(detail) && /Moonshot · no credential · \d+ typed ids not judged/.test(detail) && !/Moonshot · [^\n]*typed table dated/.test(detail), detail)
   check('no fix rides an info row', row !== undefined && row.fix === undefined)
-  check('the headless doctor fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '))
+  check('the headless health fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '))
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'model-lists'))
 
   for (const [cols, termRows] of [[120, 40], [80, 21]] as const) {
@@ -240,5 +240,5 @@ try {
   if (!process.argv.includes('--keep')) rmSync(SCRATCH, { recursive: true, force: true })
   else console.log(`scratch kept at ${SCRATCH}`)
 }
-console.log(failures === 0 ? '✅ model lists doctor drive: all legs green' : `❌ model lists doctor drive: ${failures} leg(s) red`)
+console.log(failures === 0 ? '✅ model lists health drive: all legs green' : `❌ model lists health drive: ${failures} leg(s) red`)
 process.exit(failures === 0 ? 0 : 1)

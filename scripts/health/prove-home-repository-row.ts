@@ -157,7 +157,7 @@ console.log('\n§4 a normal home reads green')
   check('no fix words on a green row', r.fix === undefined)
 }
 
-console.log('\n§5 `mercury doctor --json` on the built bundle carries the row')
+console.log('\n§5 `mercury health --json` on the built bundle carries the row')
 {
   if (!existsSync(BIN)) {
     check('dist/mercury.mjs present (run `bun run build.ts` first)', false, BIN)
@@ -166,7 +166,7 @@ console.log('\n§5 `mercury doctor --json` on the built bundle carries the row')
     let stdout = ''
     let status = 0
     try {
-      stdout = execFileSync('node', [BIN, 'doctor', '--json'], {
+      stdout = execFileSync('node', [BIN, 'health', '--json'], {
         cwd: PROJECT,
         env: {
           ...process.env,
@@ -185,7 +185,7 @@ console.log('\n§5 `mercury doctor --json` on the built bundle carries the row')
       status = err.status ?? -1
       stdout = err.stdout ?? ''
     }
-    check('the doctor produced a certificate (exit 0 or 3)', status === 0 || status === 3, `status=${status}`)
+    check('/health produced a certificate (exit 0 or 3)', status === 0 || status === 3, `status=${status}`)
     let cert: { sections?: Array<{ id: string; checks: Array<{ id: string; status: string; evidence?: string; fix?: string }> }> } | null = null
     try {
       cert = JSON.parse(stdout)

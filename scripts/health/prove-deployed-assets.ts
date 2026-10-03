@@ -20,8 +20,8 @@ function check(name: string, cond: boolean, detail?: string): void {
 
 const repoRoot = join(import.meta.dir, '..', '..')
 
-const fxRepo = mkdtempSync(join(tmpdir(), 'doctor-assets-repo-'))
-const fxHome = mkdtempSync(join(tmpdir(), 'doctor-assets-home-'))
+const fxRepo = mkdtempSync(join(tmpdir(), 'health-assets-repo-'))
+const fxHome = mkdtempSync(join(tmpdir(), 'health-assets-home-'))
 process.on('exit', () => {
   rmSync(fxRepo, { recursive: true, force: true })
   rmSync(fxHome, { recursive: true, force: true })
@@ -148,7 +148,7 @@ console.log('\n── R-4: the splash-action block survives in the real launcher
 
 console.log('\n── empty home ⇒ info (direct-run setup, never a fault) ─────────')
 {
-  const bare = mkdtempSync(join(tmpdir(), 'doctor-assets-bare-'))
+  const bare = mkdtempSync(join(tmpdir(), 'health-assets-bare-'))
   const a = assessDeployedAssets(fxRepo, bare)
   check('nothing deployed ⇒ info', a.status === 'info', a.status)
   check('evidence says drift n/a', a.evidence.includes('n/a'))

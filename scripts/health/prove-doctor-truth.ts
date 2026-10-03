@@ -27,5 +27,5 @@ t('win32 names its unreadable load', health.includes('load n/a (win32 has no loa
 t('the mcp gauge reads the checked-in project file', gauge.includes('getProjectMcpConfigsFromCwd()'))
 t('an unreadable settings file is a NAMED error', settings.includes('settings file unreadable:'))
 
-console.log(failures === 0 ? 'DOCTOR TRUTH: ALL PASS' : 'DOCTOR TRUTH: RED')
+console.log(failures === 0 ? 'HEALTH TRUTH: ALL PASS' : 'HEALTH TRUTH: RED')
 process.exit(failures)

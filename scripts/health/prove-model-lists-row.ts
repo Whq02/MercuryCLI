@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'doctor-model-lists-row-')))
+const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'health-model-lists-row-')))
 const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
@@ -36,7 +36,7 @@ const NOW = Date.parse('2026-09-20T12:00:00Z')
 const fact = (partial: Partial<Fact> & Pick<Fact, 'family' | 'name' | 'typed' | 'list'>): Fact => partial
 
 console.log('============================================================')
-console.log(' the doctor\'s Model lists row over recorded lists')
+console.log(' /health\'s Model lists row over recorded lists')
 console.log('============================================================')
 
 section('§1 the one comparison: a typed id is served when the list carries it, whatever the case or spacing')

@@ -63,8 +63,8 @@ function mcpRowOf(jsonText: string): Row | undefined {
   }
   return found
 }
-function doctorJson(bin: string): { text: string; status: number | null } {
-  const res = spawnSync('node', [bin, 'doctor', '--json'], {
+function healthJson(bin: string): { text: string; status: number | null } {
+  const res = spawnSync('node', [bin, 'health', '--json'], {
     cwd: CWD,
     encoding: 'utf8',
     timeout: vshotBudgetMs(120_000),
@@ -75,10 +75,10 @@ function doctorJson(bin: string): { text: string; status: number | null } {
 }
 
 try {
-  console.log('J doctor --json names the fixture server on the mcp row')
-  const j = doctorJson(BIN)
+  console.log('J health --json names the fixture server on the mcp row')
+  const j = healthJson(BIN)
   const row = mcpRowOf(j.text)
-  check('doctor --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`)
+  check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`)
   check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '')
   check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'))
 
@@ -131,7 +131,7 @@ try {
   console.log('P poison: a pre-fix bundle prints [object Object] on the same row (MERCURY_BASE_DIST)')
   const baseDist = process.env.MERCURY_BASE_DIST
   if (baseDist && existsSync(join(baseDist, 'mercury.mjs'))) {
-    const b = doctorJson(join(baseDist, 'mercury.mjs'))
+    const b = healthJson(join(baseDist, 'mercury.mjs'))
     const brow = mcpRowOf(b.text)
     check('the pre-fix row reads [object Object]', brow?.evidence?.includes('[object Object]') === true, brow?.evidence?.slice(0, 80) ?? '')
   } else {
