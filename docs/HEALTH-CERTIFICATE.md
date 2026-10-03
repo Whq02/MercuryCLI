@@ -98,8 +98,8 @@ beside the bundle (the Linux archive ships it under `vendor/seccomp/<arch>/`):
 with the helper found; `ON — Bash filesystem + network confined (bubblewrap;
 unix sockets open — no seccomp helper)` without it; and `ON — Bash filesystem
 + network confined (bubblewrap; unix sockets open —
-sandbox.network.allowAllUnixSockets)` when that setting tells the sandbox to
-skip the filter. The `/sandbox` dependencies tab shows the same helper as its
+guardrails.sandbox.network.allowAllUnixSockets)` when that setting tells the
+sandbox to skip the filter. The `/sandbox` dependencies tab shows the same helper as its
 `seccomp filter` row.
 
 TOOL CAPABILITY carries the `Tools withheld` check: every built-in tool kept

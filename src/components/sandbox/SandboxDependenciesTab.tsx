@@ -95,9 +95,9 @@ export function SandboxDependenciesTab({
                 </Text>
                 <Text dimColor>
                   Either install a libseccomp-enabled build, or set
-                  sandbox.network.allowUnixSockets /
-                  sandbox.network.allowAllUnixSockets in your settings file to
-                  acknowledge the gap.
+                  guardrails.sandbox.network.allowUnixSockets /
+                  guardrails.sandbox.network.allowAllUnixSockets in your
+                  settings file to acknowledge the gap.
                 </Text>
               </Box>
             ) : null}
