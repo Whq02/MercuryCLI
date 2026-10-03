@@ -54,7 +54,7 @@ try {
 const paths = (result: SeenResult | undefined): string[] => (result?.text ?? '').split('\n').filter(line => line.endsWith('target.txt'))
 console.log(JSON.stringify({ dist: DIST, scratch, files, depth: 13, walls, results, exitCode: turn.exitCode }, null, 2))
 tally.check('the fixture contains more than twenty thousand files at depth thirteen', files > 20_000)
-tally.check('the built product completed all five searches', results.length === 5 && turn.result?.is_error === false, turn.stderr)
+tally.check('the built product completed all five searches', results.length === 5 && turn.result?.status === 'completed', `${String(turn.result?.status)} ${turn.stderr}`)
 tally.check('Glob: a bare filename returns only the root file', paths(results[0]).length === 1 && !paths(results[0])[0]?.includes('branch-'), results[0]?.text.slice(0, 1000))
 tally.check('Glob: the shallow search completed without a cut-off', results[0]?.isError === false && !/INCOMPLETE SEARCH|truncated/.test(results[0]?.text ?? ''))
 tally.check('Grep: a root-anchored glob returns only the root file', paths(results[1]).length === 1 && !paths(results[1])[0]?.includes('branch-'), results[1]?.text.slice(0, 1000))
