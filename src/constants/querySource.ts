@@ -16,7 +16,6 @@ type CompactionSource =
   | 'extract_memories'
   | 'memdir_relevance'
   | 'away_summary'
-  | 'auto_dream'
   | 'concourse_coordinator_compact'
 
 type HookSource = 'hook_agent' | 'hook_prompt'

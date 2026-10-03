@@ -2,8 +2,7 @@
 import { errorMessage } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
-import { type RewindFilesResult } from 'src/entrypoints/agentSdkTypes.js'
-import { type SDKControlRewindSessionRequest } from 'src/entrypoints/sdk/controlTypes.js'
+import type { ParamsOf } from 'src/runner/wire/methods.js'
 import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/protocol.js'
 import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpointRewind.js'
 import { type Message } from 'src/types/message.js'
@@ -15,6 +14,17 @@ import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 
 import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
 import { isBypassPermissionsModeDisabled, transitionPermissionMode } from 'src/utils/permissions/permissionSetup.js'
+
+export type RewindFilesResult = {
+  can_rewind?: boolean
+  files_changed?: string[]
+  insertions?: number
+  deletions?: number
+  restored_files?: number
+  deleted_files?: number
+  dry_run?: boolean
+  error?: string
+}
 
 export async function handleRewindFiles(
   userMessageId: UUID,
@@ -72,7 +82,7 @@ function isOperatorTurn(message: Message, uuid: string): boolean {
 }
 
 export async function handleRewindSession(
-  request: SDKControlRewindSessionRequest,
+  request: ParamsOf<'session/rewind'>,
   ctx: RewindSessionContext,
 ): Promise<SessionRewindOutcomeV1> {
   const { mode } = request

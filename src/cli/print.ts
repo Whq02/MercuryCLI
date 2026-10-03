@@ -183,10 +183,8 @@ const SIGNAL_SETTLE_MS = 5_000
 import { getInMemoryErrors, logError } from '../utils/log.js'
 import { processMainOwner } from '../services/run/resolveOwner.js'
 import { getRunSnapshot, reconcileOnResume } from '../services/run/runCoordinator.js'
-import { toSDKContextUsage } from '../utils/messages/mappers.js'
 import type { Message } from '../types/message.js'
 import type { ContentBlockParam } from '../types/wire.js'
-import type { ModelInfo } from '../entrypoints/agentSdkTypes.js'
 import type { JSONRPCMessage } from '../services/mcp/sdk.js'
 import {
   dequeue,
@@ -2135,7 +2133,7 @@ export async function runHeadless(
       return {}
     },
     'session/rewind': async params => {
-      const outcome = await handleRewindSession({ subtype: 'rewind_session', ...params }, {
+      const outcome = await handleRewindSession(params, {
         messages,
         getAppState,
         drift: getReadFileCache(),

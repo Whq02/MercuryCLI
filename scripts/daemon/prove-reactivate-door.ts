@@ -257,7 +257,7 @@ console.log('\n── R6: the warm claim loads the transcript before it acks (so
   const homePinAt = claimBody.indexOf('const claimedHome = consumeSessionHomePin()')
   check('R6 RED WHERE THE CLAIM CLEARS NO SECTION: the claim is the runner\'s conversation boundary — it clears the section cache on BOTH arms, after the validations and BEFORE the loader seeds a record, so a section a pre-claim road computed never stands in the claimed conversation\'s prefix and a recorded prefix is never wiped after it lands', clearAt !== -1 && homePinAt !== -1 && loadAt !== -1 && clearAt > homePinAt && clearAt < claimBody.indexOf('if (params.resume === true) {') && clearAt < loadAt && print.includes("import { clearSystemPromptSections } from '../constants/systemPromptSections.js'"), `clear at ${clearAt}, home pin at ${homePinAt}, load at ${loadAt}`)
   check('R6 the boot\'s own resume road rides the same hydration closure', print.includes('if (options.continue || options.resume) await hydrateResumedRun()'))
-  check('R6 the wire names the field; the pool sends it', read('src/entrypoints/sdk/controlTypes.ts').includes('resume?: boolean') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
+  check('R6 the wire names the field; the pool sends it', read('src/runner/wire/methods.ts').includes('resume: z.boolean().optional()') && read('src/daemon/warmRunner.ts').includes("...(args.resume === true ? { resume: true } : {})"))
 }
 
 console.log('\n── R7: the screen door reads the record and re-says the seat (source) ──')

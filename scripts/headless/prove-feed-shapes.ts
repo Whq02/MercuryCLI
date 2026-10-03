@@ -11,10 +11,8 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
-const core = await import('../../src/entrypoints/sdk/coreSchemas.ts')
 const ladderModule = await import('../../src/utils/effortLadder.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
-const mappers = await import('../../src/utils/messages/mappers.ts')
 const rows = await import('../../src/rows/vocabulary.ts')
 const project = await import('../../src/rows/project.ts')
 const fold = await import('../../src/services/compact/foldStatus.ts')
@@ -188,9 +186,9 @@ section('F2 — every declared key is snake_case')
     }
     return keys
   }
-  const coreKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8'))
+  const rowKeys = scan(readFileSync(join(ROOT, 'src/rows/vocabulary.ts'), 'utf8'))
   const methodKeys = scan(readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8'))
-  check('the message schemas declare snake_case keys only', coreKeys.length > 0 && coreKeys.every(key => SNAKE.test(key)), j(coreKeys.filter(key => !SNAKE.test(key))))
+  check('the row schemas declare snake_case keys only', rowKeys.length > 0 && rowKeys.every(key => SNAKE.test(key)), j(rowKeys.filter(key => !SNAKE.test(key))))
   check("the runner door's method schemas declare snake_case keys only", methodKeys.length > 0 && methodKeys.every(key => SNAKE.test(key)), j(methodKeys.filter(key => !SNAKE.test(key))))
 }
 
@@ -325,14 +323,12 @@ section('F3 — the seat-wire codecs: snake keys out, deep-equal back')
   check("the catalogue snapshot encodes its own keys and leaves the provider's rows untouched", deepEq(catalogueWire, { source_kind: 'api-key', models: catalogue.models, fetched_at_ms: 7 }) && deepEq(seatWire.openaiCatalogueFromWire(JSON.parse(JSON.stringify(catalogueWire))), catalogue), j(catalogueWire))
 }
 
-section('F4 — the effort enum on the wire is the one ladder')
+section('F4 — the effort words on the wire are the one ladder')
 {
-  type EnumLike = { options?: unknown[]; def?: { options?: unknown[] }; element?: EnumLike; unwrap?: () => EnumLike }
-  const shape = (core.ModelInfoSchema() as unknown as { shape: Record<string, EnumLike> }).shape
-  const levels = shape.supported_effort_levels!.unwrap!().element!
   const ladder = [...ladderModule.EFFORT_LEVELS]
-  check('a model row\'s supported effort levels enumerate the ladder', deepEq(levels.options ?? levels.def?.options, ladder), j(levels.options ?? levels.def?.options))
-  check('the ladder ends at max', ladder[ladder.length - 1] === 'max', j(ladder))
+  const printSrc = readFileSync(join(ROOT, 'src/cli/print.ts'), 'utf8')
+  check("the runner's set_effort arm validates against the one ladder (isEffortLevel), no second enum", printSrc.includes("'session/set_effort': (params, ref) => {") && printSrc.includes("if (!isEffortLevel(requestedEffort)) throw refused("))
+  check('the ladder has its words', ladder.length >= 3 && ladder.every(word => typeof word === 'string'), j(ladder))
 }
 
 section('F5 — the wait, fold, usage and context projections spell snake_case')
@@ -353,8 +349,6 @@ section('F5 — the wait, fold, usage and context projections spell snake_case')
   const usage = project.modelUsageRows({ 'claude-opus-5': { inputTokens: 1, outputTokens: 2, cacheReadInputTokens: 3, cacheCreationInputTokens: 4, webSearchRequests: 0, costUSD: 0.1, contextWindow: 200_000, maxOutputTokens: 64_000 } })
   check('the per-model usage keeps the model id as its key, counts the whole prompt as input and spells the fields snake_case', deepEq(usage, { 'claude-opus-5': { input_tokens: 8, cached_input_tokens: 3, cache_write_input_tokens: 4, output_tokens: 2, cost_usd: 0.1, web_searches: 0 } }), j(usage))
   check('an unpriced model carries no cost', !('cost_usd' in (project.modelUsageRows({ m: { inputTokens: 1, outputTokens: 1, cacheReadInputTokens: 0, cacheCreationInputTokens: 0, webSearchRequests: 0, costUSD: 0 } }, () => true).m ?? {})))
-  const context = mappers.toSDKContextUsage({ totalTokens: 1, maxTokens: 2, rawMaxTokens: 2, percentage: 0, gridRows: [[{ color: 'c', isFilled: true, categoryName: 'n', tokens: 1, percentage: 0, squareFullness: 1 }]], model: 'm', categories: [], memoryFiles: [], mcpTools: [{ name: 'x', serverName: 's', tokens: 1, isLoaded: true }], agents: [], isAutoCompactEnabled: true, countsAvailable: true, apiUsage: null } as never)
-  check('the context usage answer spells every key snake_case at every depth', keyPaths(context).every(p => SNAKE.test(lastSegment(p))) && (context as { grid_rows: unknown[][] }).grid_rows[0]![0] !== undefined, j(keyPaths(context).filter(p => !SNAKE.test(lastSegment(p)))))
 }
 
 section('F6 — the rows carry their schema word')

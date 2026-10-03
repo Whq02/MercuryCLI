@@ -7,7 +7,7 @@
 # gate-watch: scripts/daemon/prove-protocol-shape.ts scripts/engine-connector/prove-connector-contract.ts
 # gate-watch: scripts/lib/fixtureApi.ts src/bootstrap/state.ts src/commands/rewind/index.ts
 # gate-watch: src/components/Settings/Config.tsx src/daemon/concourseSupervisor.ts src/daemon/main.ts
-# gate-watch: src/entrypoints/sdk/controlSchemas.ts src/entrypoints/sdk/controlTypes.ts src/screens/REPL.tsx
+# gate-watch: src/screens/REPL.tsx
 # gate-watch: src/state/AppStateStore.ts src/utils/config/globalConfig.ts src/utils/messages.ts
 # gate-watch: src/utils/messages/factories.ts src/utils/messages/systemMessages.ts src/utils/sessionStorage.ts
 # gate-watch: src/utils/sessionStorage/paths.ts

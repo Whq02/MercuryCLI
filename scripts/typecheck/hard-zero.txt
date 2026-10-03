@@ -22,7 +22,6 @@ src/utils/messages/attachmentText.ts
 src/utils/messages/factories.ts
 src/utils/messages/identity.ts
 src/utils/messages/lookups.ts
-src/utils/messages/mappers.ts
 src/utils/messages/merge.ts
 src/utils/messages/normalize.ts
 src/utils/messages/pairing.ts

@@ -368,8 +368,8 @@ console.log('\n── W13: source pins ──')
   check('W13 WireStatus carries warmRunners (optional-additive)', /warmRunners\?: number/.test(proto))
   const sock = read('src/daemon/controlSocket.ts')
   check('W13 the client stamps auth on concourseWarm (the keyed tier)', /'concourseWarm',\s*\]\)/.test(sock) || /AUTH_STAMPED_OPS[\s\S]{0,4000}'concourseWarm'/.test(sock))
-  const types = read('src/entrypoints/sdk/controlTypes.ts')
-  check('W13 claim_session and set_effort ride the control-request union', types.includes("subtype: 'claim_session'") && types.includes("subtype: 'set_effort'") && types.includes('SDKControlClaimSessionRequest') && types.includes('SDKControlSetEffortRequest'))
+  const door = read('src/daemon/runnerConnection.ts')
+  check("W13 the daemon's door maps claim_session and set_effort to the runner's verbs", door.includes("claim_session: 'session/claim'") && door.includes("set_effort: 'session/set_effort'"))
 }
 
 console.log('\n── W14: overlapping ensures, one child ──')
