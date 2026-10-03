@@ -240,8 +240,8 @@ section("§3 THE SURFACES (red on the base): /cost, the usage popup and the usag
   const project = await import('../../src/rows/project.ts')
   const { OutcomeRowSchema } = await import('../../src/rows/vocabulary.ts')
   const modelRows = project.modelUsageRows((ledger.getModelUsage as () => Record<string, never>)())
-  const modelRow = Object.values(modelRows)[0]
-  check("the outcome row's per-model shape: the ledger's model row maps to input/cached/cache-write/output tokens, cost and web searches (red on the base: no row projection)", modelRow !== undefined && modelRow.input_tokens === 1_800 && modelRow.cached_input_tokens === 400 && modelRow.cache_write_input_tokens === 100 && modelRow.output_tokens === 80 && typeof modelRow.cost_usd === 'number' && modelRow.web_searches === 0, j(modelRows))
+  const modelRow = modelRows[MODEL]
+  check("the outcome row's per-model shape: the ledger's model row maps to input/cached/cache-write/output tokens, cost and web searches and the row's cost is the scheduled turn's plus the session's own (red on the base: no row projection)", modelRow !== undefined && modelRow.input_tokens === 1_800 && modelRow.cached_input_tokens === 400 && modelRow.cache_write_input_tokens === 100 && modelRow.output_tokens === 80 && typeof modelRow.cost_usd === 'number' && Math.abs(modelRow.cost_usd - (scheduledCost + ownCost)) < 1e-9 && modelRow.web_searches === 0, j(modelRows))
   const outcome = OutcomeRowSchema().safeParse({ type: 'outcome', seq: 1, timestamp: '2026-10-02T00:00:00.000Z', session_id: 's', turn: 1, turn_id: 't', schema: 1, status: 'completed', answer: 'done', steps: 1, wall_ms: 1, api_ms: 1, cost_usd: 0.1, usage: { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }, models: modelRows, denials: [] })
   check('the outcome row keeps its per-model rows through the schema (the workload buckets stay on the ledger — no row carries them)', outcome.success && j((outcome.data as Raw).models) === j(modelRows), outcome.success ? '' : j(outcome.error.issues))
   const engine = src('src/rows/turn.ts')
