@@ -38,7 +38,6 @@ import {
   type ToolResultRow,
   type ToolUpdateRow,
   type TurnRow,
-  type Usage,
   type WaitRow,
 } from './vocabulary.js'
 
@@ -505,8 +504,4 @@ export function partialRowsOf(scope: RowScope, messageId: string, event: StreamE
 
 export function retractedRow(scope: RowScope, messageId: string): Unstamped<RetractedRow> {
   return scoped(scope, { type: 'retracted' as const, message_id: messageId })
-}
-
-export function emptyUsageRow(): Usage {
-  return { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }
 }

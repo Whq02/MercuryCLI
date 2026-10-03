@@ -43,7 +43,6 @@ export const isOutcome = (row: LooseRow | null | undefined): row is OutcomeRow &
 export const isSessionRow = (row: LooseRow | null | undefined): boolean => row?.type === 'session'
 export const turnOpened = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'started'
 export const turnWaiting = (row: LooseRow | null | undefined): row is TurnRow & LooseRow => row?.type === 'turn' && row.state === 'waiting'
-export const mainThread = (row: LooseRow | null | undefined): boolean => row !== null && row !== undefined && row.parent_call_id === undefined
 export const mainThreadStep = (row: LooseRow | null | undefined): row is StepRow & LooseRow => row?.type === 'step' && row.parent_call_id === undefined
 
 export function outcomeErrorText(row: OutcomeRow | LooseRow): string | undefined {
@@ -54,10 +53,6 @@ export function outcomeErrorText(row: OutcomeRow | LooseRow): string | undefined
 
 export function outcomeFailed(row: OutcomeRow | LooseRow): boolean {
   return (row as { status?: unknown }).status !== 'completed'
-}
-
-export function rowSchemaOf(row: LooseRow): number | undefined {
-  return typeof row.schema === 'number' ? row.schema : undefined
 }
 
 export { ROWS_SCHEMA } from './vocabulary.js'
