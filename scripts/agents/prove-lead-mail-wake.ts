@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { seedFirstRun, FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
+import { isTurnOpen, isTurnWaiting, parseFrame } from '../lib/rows.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => {
@@ -72,13 +73,12 @@ child.stdout.on('data', data => {
   const lines = pendingFrames.split('\n')
   pendingFrames = lines.pop() ?? ''
   for (const line of lines) {
-    if (!line.trim()) continue
-    const frame = JSON.parse(line)
-    if (frame.type !== 'system') continue
-    if (frame.subtype === 'turn_started') waitingOnAgents = false
-    if (frame.subtype === 'status') {
-      waitingOnAgents = Number(frame.status?.waiting_on_agents ?? 0) > 0
-      trace('lead status', frame.status)
+    const frame = parseFrame(line)
+    if (frame === null) continue
+    if (isTurnOpen(frame)) waitingOnAgents = false
+    if (isTurnWaiting(frame)) {
+      waitingOnAgents = Number(frame.agents ?? 0) > 0
+      trace('lead turn wait', { agents: frame.agents })
     }
   }
 })
@@ -95,7 +95,7 @@ async function waitFor(predicate: () => boolean, label: string, limitMs = 60_000
     await new Promise(resolveTick => setTimeout(resolveTick, 20))
   }
 }
-const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: text } }) + '\n')
+const submit = (text: string) => child.stdin.write(JSON.stringify({ type: 'prompt', content: text }) + '\n')
 const inboxPath = join(config, 'crew', 'livecomms', `${crew}.json`)
 type Row = { to?: string; text: string; read?: boolean; from: string; timestamp: string; delivery?: { id: string } }
 const readInbox = (): Row[] | null => {
