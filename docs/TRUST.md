@@ -78,8 +78,9 @@ starting folder.
 
 Sensitive files, such as credentials and Mercury configuration, retain their
 own permission checks. The sandbox is a separate feature and keeps its own
-filesystem restrictions. A headless permission ask goes to its permission
-channel; without an answer, it is not approval.
+filesystem restrictions. A hosted runner puts a permission ask to its host;
+without an answer, it is not approval. A hostless `mercury run` denies a
+call that still needs approval after its rules and mode are applied.
 
 ## Commands that never reach the model
 
@@ -125,21 +126,22 @@ servers. Project-scope API-key helpers do not execute there either. A trust
 grant on the folder or an ancestor enables those project sources. The user's
 own configuration and managed policy still apply.
 
-A hosted session — a switchboard seat, an editor session, any `mercury
-runner` whose host holds its asks — puts every ask to the connected host
-and waits for the answer: a question to the
-operator, an Apollo review, and under flow any call the flow check blocks,
-`git push` among them (anything visible outside this machine). A push in a
-session nobody is watching therefore waits on a present operator unless a
-permission rule pre-authorises it: `Bash(git push *)` in the
-`guardrails.allow` list of the user, project or local settings (a
-switchboard seat carries the rules of the settings it boots with; a `run` command
-also takes `--allowed-tools "Bash(git push *)"`) decides the push in the
-engine, so it runs without the channel; a deny rule refuses it outright; an
-ask rule pins it to the operator.
-No push is ever allowed by default — the posture stays the operator's. The
-seat's boot posture tells the model up front which calls need a present
-operator and whether the rules it carries pre-authorise a push.
+A hosted session — a switchboard seat, an editor session or another
+`mercury runner` — puts a call that needs approval to its host as
+`permission/request`. The host answers allow or deny. A host declaring
+`holds_asks` owns the ask's clock; otherwise the runner's no-progress limit
+applies. A withdrawn ask sends `$/cancel_request`. The daemon declines an
+ask when no operator is connected; the absence of an operator never grants
+permission.
+
+No push is ever allowed by default under flow. A call the flow check blocks
+goes to that host, `git push` among them. It needs a present operator unless a permission rule
+pre-authorises it: `Bash(git push *)` in `guardrails.allow`, or
+`--allowed-tools "Bash(git push *)"` on a run, decides the push before any
+ask. A deny rule refuses it outright; an ask rule requires approval under
+that posture. A hostless `mercury run` has no one to answer, so an
+unapproved ask is denied. The seat's boot posture tells the model which
+calls need an operator and whether its rules pre-authorise a push.
 
 ## What managed policy changes
 
