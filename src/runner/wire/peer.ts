@@ -159,7 +159,7 @@ export class LineSplitter {
 }
 
 class OrderedWriter {
-  private held: string[] | null
+  private held: Array<{ line: string; requestId?: RpcId }> | null
   private ended = false
   private readonly onWriteError: (error: Error) => void
   private readonly serialize: (message: RpcMessage) => string
@@ -177,7 +177,7 @@ class OrderedWriter {
     if (this.ended) return
     const line = this.serialize(message) + '\n'
     if (this.held !== null && !bypassHold) {
-      this.held.push(line)
+      this.held.push({ line, ...('method' in message && 'id' in message ? { requestId: message.id } : {}) })
       return
     }
     this.put(line)
@@ -194,7 +194,15 @@ class OrderedWriter {
     const lines = this.held
     this.held = null
     if (this.ended) return
-    for (const line of lines) this.put(line)
+    for (const entry of lines) this.put(entry.line)
+  }
+
+  withdraw(id: RpcId): boolean {
+    if (this.held === null) return false
+    const at = this.held.findIndex(entry => entry.requestId === id)
+    if (at < 0) return false
+    this.held.splice(at, 1)
+    return true
   }
 
   flush(): Promise<void> {
@@ -315,6 +323,7 @@ export class Peer {
 
   send<M extends MethodName>(method: M, params: ParamsOf<M>, opts: RequestOptions = {}): { id: RpcId; answer: Promise<ResultOf<M>> } {
     if (this.closedReason !== null) return { id: 0, answer: Promise.reject(new PeerClosed(method, this.closedReason)) }
+    if (opts.signal?.aborted) return { id: 0, answer: Promise.reject(cancelled('aborted')) }
     const id = ++this.nextId
     const deadlineMs = opts.deadlineMs === undefined ? deadlineOf(method) : opts.deadlineMs
     const answer = new Promise<ResultOf<M>>((resolve, reject) => {
@@ -322,7 +331,7 @@ export class Peer {
         deadlineMs !== null
           ? setTimeout(() => {
               if (!this.pending.delete(id)) return
-              this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
+              if (!this.writer.withdraw(id)) this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
               reject(new PeerDeadline(method, id, deadlineMs))
             }, deadlineMs)
           : null
@@ -348,7 +357,7 @@ export class Peer {
     if (entry === undefined) return false
     this.pending.delete(id)
     if (entry.timer !== null) clearTimeout(entry.timer)
-    this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
+    if (!this.writer.withdraw(id)) this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
     entry.reject(cancelled(reason))
     return true
   }
@@ -412,7 +421,7 @@ export class Peer {
     if (line.text.trim() === '') return
     let value: unknown
     try {
-      value = JSON.parse(line.text)
+      value = JSON.parse(line.text.charCodeAt(0) === 0xfeff ? line.text.slice(1) : line.text)
     } catch (error) {
       this.badLine()
       this.writer.write({ jsonrpc: '2.0', id: null, error: { code: RPC_PARSE_ERROR, message: `parse error: ${error instanceof Error ? error.message : String(error)}` } }, true)

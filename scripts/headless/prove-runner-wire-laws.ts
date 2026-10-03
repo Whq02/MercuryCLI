@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdtempSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { hostRunner, scratchHome } from '../lib/runnerHost.ts'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
@@ -416,6 +417,83 @@ section('W13 close settles every pending request; a closed peer refuses new requ
   await w2.runner.done
   const askClosed = (await rejection(ask)) as Error
   check("closing the runner's stdin settles the runner's pending ask as PeerClosed and resolves done", askClosed?.name === 'PeerClosed' && w2.runner.closed)
+}
+
+section('W14 BOM and split UTF-8 reach the actual peer intact')
+{
+  const w = world()
+  const bytes = Buffer.from('\ufeff' + j({ jsonrpc: '2.0', id: 81, method: 'initialize', params: { protocol: 1, host: { name: '界', version: '1' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } } }) + '\r\n')
+  const split = bytes.indexOf(Buffer.from('界')) + 1
+  w.toRunner.write(bytes.subarray(0, split))
+  w.toRunner.write(bytes.subarray(split))
+  await settle(20)
+  check('BOM initialize with CRLF and a split UTF-8 character is accepted', w.hostSaw.some(frame => frame.id === 81 && (frame.result as Frame)?.protocol === 1), j(w.hostSaw))
+  w.host.end()
+  const scratch = scratchHome('wire-framing-')
+  const frames: Frame[] = []
+  const splitter = new LineSplitter()
+  let reply!: (frame: Frame) => void
+  const answered = new Promise<Frame>(resolve => { reply = resolve })
+  const distAt = process.argv.indexOf('--dist')
+  const host = hostRunner({ dist: distAt < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[distAt + 1]!, node: Bun.which('node')!, cwd: scratch.cwd, home: scratch.home, env: { ...scratch.env, ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key', ANTHROPIC_BASE_URL: 'http://127.0.0.1:1' }, raw: chunk => {
+    for (const line of splitter.feed(chunk)) {
+      if (line.kind !== 'line') continue
+      const frame = JSON.parse(line.text) as Frame
+      frames.push(frame)
+      if (frame.id === 81 || frame.error !== undefined) reply(frame)
+    }
+  } })
+  try {
+    host.child.stdin!.write(bytes.subarray(0, split))
+    host.child.stdin!.write(bytes.subarray(split))
+    const response = await answered
+    check('the built runner accepts BOM, CRLF and split UTF-8 initialize', response.id === 81 && (response.result as Frame)?.protocol === 1, j(frames))
+    if (response.result !== undefined) {
+      host.child.stdin!.write('not json\n')
+      const facts = await host.request('session/facts', {})
+      check('a real malformed line still refuses and the next request succeeds', frames.some(frame => (frame.error as Frame)?.code === errors.RPC_PARSE_ERROR) && typeof facts.model === 'object')
+    }
+  } finally {
+    await host.stop()
+    rmSync(scratch.home, { recursive: true, force: true })
+    rmSync(scratch.cwd, { recursive: true, force: true })
+  }
+}
+
+section('W15 cancellation before send and before dispatch cannot apply a request')
+{
+  const w = world()
+  await w.initialize()
+  let applied = 0
+  w.runner.onRequest('session/set_mode', () => { applied++; return { mode: 'default' } })
+  const ac = new AbortController()
+  ac.abort()
+  const mark = w.runnerSaw.length
+  const error = await rejection(w.host.request('session/set_mode', { mode: 'default' }, { signal: ac.signal })) as InstanceType<typeof errors.RpcError>
+  await settle(10)
+  check('a pre-aborted request rejects cancellation without any wire writes', error?.code === errors.RPC_CANCELLED && w.runnerSaw.length === mark, j(w.runnerSaw.slice(mark)))
+  check('a pre-aborted request has no receiver effect', applied === 0)
+  applied = 0
+  const release = w.runner.holdScope('session')
+  const queued = new AbortController()
+  const pending = rejection(w.host.request('session/set_mode', { mode: 'default' }, { signal: queued.signal }))
+  queued.abort()
+  release()
+  const queuedError = await pending as InstanceType<typeof errors.RpcError>
+  await settle(10)
+  check('cancellation while waiting for a scope prevents dispatch', queuedError?.code === errors.RPC_CANCELLED && applied === 0 && w.runner.inFlightCount === 0)
+  w.host.end()
+  const held = world()
+  let asks = 0
+  held.host.onRequest('permission/request', () => { asks++; return { outcome: 'allow' } })
+  const signal = new AbortController()
+  const answer = rejection(held.runner.request('permission/request', { kind: 'network', host: 'proof.test' }, { signal: signal.signal }))
+  signal.abort()
+  await answer
+  await held.initialize()
+  await settle(10)
+  check('a cancelled request held by the handshake never reaches its handler', asks === 0 && !held.hostSaw.some(frame => frame.method === 'permission/request'), j(held.hostSaw))
+  held.host.end()
 }
 
 section('M the method table is the one source')
