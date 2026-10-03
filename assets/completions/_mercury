@@ -46,10 +46,10 @@ _mercury() {
       compadd -- '--config-layers' '--help'
       ;;
     run)
-      compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--partial' '--pr' '--project' '--provider-preview' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
+      compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--format' '--help' '--input' '--lean' '--log-file' '--mcp' '--mode' '--model' '--no-commands' '--only-mcp' '--partial' '--project' '--provider-preview' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
       ;;
     runner)
-      compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--chat' '--concourse-off' '--concourse-on' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--help' '--lean' '--log-file' '--mcp' '--mode' '--model' '--multiplex' '--no-commands' '--only-mcp' '--pr' '--project' '--provider-preview' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
+      compadd -- '--advise' '--agent' '--agent-defs' '--allow-sovereign' '--allowed-tools' '--backup-model' '--block-tools' '--brief' '--brief-add' '--budget' '--config' '--config-layers' '--continue' '--debug' '--effort' '--ephemeral' '--extension' '--fork' '--help' '--lean' '--log-file' '--mcp' '--mode' '--model' '--no-commands' '--only-mcp' '--project' '--provider-preview' '--resume' '--schema' '--session-id' '--sovereign' '--title' '--toolset' '--version' '--worktree'
       ;;
     update)
       compadd -- '--allow-unsigned' '--check' '--help' '--json' '--rollback' '--status' '--yes'

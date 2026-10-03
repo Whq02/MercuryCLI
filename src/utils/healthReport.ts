@@ -2915,7 +2915,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
                 : {
                     blocked: 'bubblewrap; unix sockets blocked',
                     'open-no-helper': 'bubblewrap; unix sockets open — no seccomp helper',
-                    'open-by-setting': 'bubblewrap; unix sockets open — sandbox.network.allowAllUnixSockets',
+                    'open-by-setting': 'bubblewrap; unix sockets open — guardrails.sandbox.network.allowAllUnixSockets',
                   }[filter]
               return {
                 status: 'ok',

@@ -246,7 +246,7 @@ const flatSchema = lazySchema(() => {
     newPath: z.string().optional().describe('pathRename: the destination path'),
     apply: z.boolean().optional().describe('Write the change (default: preview)'),
     actionId: z.string().optional().describe('codeActions/fixDiagnostic: stable action id'),
-    actionIndex: z.number().int().min(0).optional().describe('codeActions: legacy positional selector'),
+    actionIndex: z.number().int().min(0).optional().describe('codeActions: the positional selector from a prior listing (actionId is preferred)'),
     endLine: z.number().int().positive().optional().describe('Range end line'),
     endCharacter: z.number().int().positive().optional().describe('Range end character'),
     paths: z.array(z.string()).optional().describe('workspaceDiagnostics: files/directories (max 50)'),

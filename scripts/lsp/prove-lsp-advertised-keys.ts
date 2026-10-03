@@ -69,6 +69,14 @@ check(`the schema advertises ${advertisedKeys.length} optional keys beside opera
 check('every advertised key has a sample in this proof', advertisedKeys.every(k => k in samples), advertisedKeys.filter(k => !(k in samples)).join(','))
 const operations = ((advertised.properties?.operation as { enum?: string[] } | undefined)?.enum ?? [])
 check('the operation enum lists all 24 operations', operations.length === 24, `${operations.length}: ${operations.join(',')}`)
+const descriptions = Object.entries(advertised.properties ?? {}).map(([key, prop]) => [key, String((prop as { description?: string }).description ?? '')] as const)
+check('no advertised description calls a key legacy', descriptions.every(([, text]) => !/legacy/i.test(text)), descriptions.filter(([, text]) => /legacy/i.test(text)).map(([key]) => key).join(','))
+check('actionIndex is described as the positional selector from a prior listing, with actionId preferred', /positional selector from a prior listing/.test(descriptions.find(([key]) => key === 'actionIndex')?.[1] ?? '') && /actionId is preferred/.test(descriptions.find(([key]) => key === 'actionIndex')?.[1] ?? ''), descriptions.find(([key]) => key === 'actionIndex')?.[1])
+const { getLspToolDescription } = await import(path.join(import.meta.dir, '../../src/tools/LSPTool/prompt.ts'))
+const promptText = String(getLspToolDescription(true))
+check('the tool prompt the model reads names no legacy selector', !/legacy/i.test(promptText), promptText.match(/.{0,60}legacy.{0,60}/i)?.[0])
+const opsSource = await Bun.file(path.join(import.meta.dir, '../../src/tools/LSPTool/mercuryOps.ts')).text()
+check('the codeActions re-run hint calls actionIndex the positional selector from this listing', /actionIndex is the positional selector from this listing/.test(opsSource) && !/legacy positional/.test(opsSource))
 
 section('§2 every operation accepts every advertised key (the keys it does not read are dropped)')
 for (const operation of operations) {

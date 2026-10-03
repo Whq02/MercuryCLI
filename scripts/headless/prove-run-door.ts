@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
-import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
@@ -67,6 +67,22 @@ try {
   check('permission refusals make no model requests', api.messageRequests().length === beforeRefusals)
   const help = await run(['run', '--help'])
   check('run help names its prompt and formats', help.code === 0 && /run.*\[prompt\]/.test(help.out) && help.out.includes('--format') && help.out.includes('rows') && !flags.some(flag => flag.startsWith('--') && help.out.includes(flag)), JSON.stringify(help))
+  const bootSwitches = ['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr']
+  const listsFlag = (text: string, flag: string): boolean => new RegExp(`(^|\\s)${flag}(\\s|$|,)`, 'm').test(text)
+  check('run help lists none of the interactive boot\'s switches', help.code === 0 && bootSwitches.every(flag => !listsFlag(help.out, flag)), bootSwitches.filter(flag => listsFlag(help.out, flag)).join(','))
+  check('run help says system brief for --brief and --brief-add alike, and names no chat screen for --advise', /--brief <prompt>[^\n]*system brief/.test(help.out) && /--brief-add <prompt>[^\n]*system brief/.test(help.out) && !/\/config/.test(help.out), help.out.split('\n').filter(l => /--brief|--advise/.test(l)).join(' | '))
+  const runnerHelp = await run(['runner', '--help'])
+  check('runner help lists none of the interactive boot\'s switches nor the run output options', runnerHelp.code === 0 && [...bootSwitches, '--format', '--input', '--partial'].every(flag => !listsFlag(runnerHelp.out, flag)), [...bootSwitches, '--format', '--input', '--partial'].filter(flag => listsFlag(runnerHelp.out, flag)).join(','))
+  for (const verb of ['run', 'runner']) {
+    const tail = verb === 'run' ? ['hello'] : []
+    const control = await run([verb, '--frobnicate', ...tail])
+    for (const flag of bootSwitches) {
+      const result = await run([verb, flag, ...tail])
+      check(`${verb} ${flag} follows the ordinary unknown-option path`, result.code === control.code && result.out === '' && result.err === control.err.replaceAll('--frobnicate', flag), JSON.stringify(result))
+    }
+  }
+  const configAfter = existsSync(join(root, '.config.json')) ? JSON.parse(readFileSync(join(root, '.config.json'), 'utf8')) as Record<string, unknown> : {}
+  check('a headless run persisted no concourse preference', !('concourseEnabled' in configAfter), JSON.stringify(configAfter.concourseEnabled))
   const empty = await run(['run'])
   check('run with empty input exits 2 without an answer', empty.code === 2 && empty.out === '' && /mercury run/.test(empty.err), JSON.stringify(empty))
   for (const format of ['text', 'json', 'rows']) {

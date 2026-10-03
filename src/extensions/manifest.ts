@@ -169,7 +169,7 @@ export const ExtensionManifestSchema = lazySchema(() =>
       .regex(/^>=\d+\.\d+\.\d+/, 'mercury: a version floor of the form >=x.y.z')
       .optional()
       .describe('A version floor (`>=x.y.z`). Unmet ⇒ broken with the reason "needs Mercury ≥ x.y.z".'),
-    contributes: ContributesSchema().optional().describe('What the extension adds to Mercury. Every kind mirrors what the operator can place by hand in the project config estate.'),
+    contributes: ContributesSchema().optional().describe('What the extension adds to Mercury. Skills, agents, hooks and servers keep the shape the operator places by hand in the project config estate; commands are the extension\'s own.'),
     needs: NeedsSchema().optional().describe('What the extension requires from the machine and the operator.'),
     module: z.unknown().optional().describe(`Reserved for the in-process code tier. ${RESERVED_MODULE_REASON}.`),
   }),

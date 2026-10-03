@@ -62,6 +62,17 @@ console.log('§2 --extension with a missing path refuses, naming it')
   check('exit 2 (a usage error), the path named', r.code === 2 && r.out.includes('--extension path') && r.out.includes(missing), `${r.code} · ${r.out.trim().slice(0, 120)}`)
 }
 
+console.log('§3 run --resume with a target that is neither an id nor a .jsonl path refuses as a usage error, in the run verb\'s words')
+{
+  const text = await run(['run', '--resume', 'notauuid', '--format', 'text', 'hi'])
+  check('exit 2 (a usage error), like the other usage refusals', text.code === 2, `${text.code} · ${text.out.trim().slice(0, 160)}`)
+  check('the sentence names the run verb and what it needs', /mercury run --resume needs a session id \(a UUID\) or a \.jsonl transcript path: "notauuid" is neither/.test(text.out), text.out.trim().slice(0, 160))
+  check('no mode word on the line', !/print mode/.test(text.out), text.out.trim().slice(0, 160))
+  const rows = await run(['run', '--resume', 'notauuid', '--format', 'rows', 'hi'])
+  const outcome = rows.out.split('\n').map(l => { try { return JSON.parse(l) as { type?: string; status?: string; error?: { message?: string; class?: string } } } catch { return null } }).find(r => r?.type === 'outcome')
+  check('--format rows: a refused outcome row carries the same sentence, class load, exit 2', rows.code === 2 && outcome?.status === 'refused' && outcome.error?.class === 'load' && /mercury run --resume needs a session id/.test(outcome.error?.message ?? '') && !/print mode/.test(outcome.error?.message ?? ''), `${rows.code} · ${rows.out.trim().slice(0, 200)}`)
+}
+
 rmSync(home, { recursive: true, force: true })
 rmSync(cwd, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-flag-contradictions: ALL LAWS HOLD' : `\nprove-flag-contradictions: ${failures} FAILURE(S)`)

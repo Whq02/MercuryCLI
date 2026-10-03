@@ -1563,7 +1563,7 @@ function formatActionRows(actions: WireCodeAction[]): string {
 }
 
 const CODE_ACTION_RERUN_HINT =
-  'Re-run with apply: true and actionId to apply one (actionIndex is the legacy positional selector).'
+  'Re-run with apply: true and actionId to apply one (actionIndex is the positional selector from this listing).'
 
 async function opCodeActions(env: OpEnv): Promise<MercuryLspOpOutput> {
   const input = env.input

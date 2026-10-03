@@ -109,7 +109,7 @@ filesystem root, the home directory or a system directory. Reads stay clear
 (`git config --get`, `fdisk -l`, `diskutil list`), so does a recursive delete
 inside the project or a scratch directory, and so does a script that only
 mentions one of these words inside a quoted string or a heredoc. The same
-list rides interactive, headless, crew and print sessions alike, and it never
+list rides interactive, headless `run`, crew and runner sessions alike, and it never
 stands down within a session. `MERCURY_WARDS=warn` lets a refuse-list hit
 proceed and leaves one warning row on the transcript naming the ward, the
 tool call and the match — painted in the session, recorded on a headless

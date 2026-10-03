@@ -394,6 +394,8 @@ one at a time. Nothing deletes a transcript — no row or key unlinks a
 chat, and the retention sweep (`records.retentionDays`, default 30
 days) ages only recordings and tool results, never
 a session transcript: a chat is yours until your own act removes it.
+Setting `records.retentionDays` to `0` turns transcript writing off for
+new chats; the transcripts already on disk stay.
 
 Every live row is a tile: the NOW cell streams what the session is doing
 right now — the reply's last line, or the tool it is running — and `→`
@@ -444,7 +446,7 @@ workflow scripts — the way a crew commits its shared config; everything a
 machine or a session writes for itself (run manifests, ledgers, evidence,
 test-run records, local memory, the health check's certificate)
 lives in the config home beside that folder's transcripts. A local store
-found in the project folder from before is read once and migrated on its
+found in the project folder from before is read once and moved on its
 first touch; the folder keeps its copy, and the health check's Project estate row
 names it with the one `git rm --cached` line that untracks it.
 

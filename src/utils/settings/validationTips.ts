@@ -39,7 +39,7 @@ function matchTip(context: TipContext): ValidationTip | null {
   if (context.path === 'records.retentionDays' && context.code === 'too_small' && context.expected === '0') {
     return {
       suggestion:
-        'records.retentionDays must be 0 or greater. A positive number is the transcript retention period in days (default 30); 0 disables session persistence entirely — no transcripts are written and existing transcripts are deleted at startup',
+        'records.retentionDays must be 0 or greater. A positive number is the retention window for recordings and tool results in days (default 30); session transcripts are never aged out. 0 turns transcript writing off: no new transcript is written, and the ones already on disk stay',
     }
   }
   if (context.path.startsWith('environment.values.') && context.code === 'invalid_type') {

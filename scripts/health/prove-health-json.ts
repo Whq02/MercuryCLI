@@ -228,7 +228,20 @@ try {
     const ON_MAC = 'ON — Bash filesystem + network confined (seatbelt/bubblewrap)'
     const ON_LINUX_BLOCKED = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets blocked)'
     const ON_LINUX_NO_HELPER = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets open — no seccomp helper)'
-    const ON_LINUX_BY_SETTING = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets open — sandbox.network.allowAllUnixSockets)'
+    const ON_LINUX_BY_SETTING = 'ON — Bash filesystem + network confined (bubblewrap; unix sockets open — guardrails.sandbox.network.allowAllUnixSockets)'
+    const schema = JSON.parse(readFileSync(join(REPO, 'scripts', 'settings', 'settings-schema.json'), 'utf8')) as { properties?: Record<string, unknown> }
+    const schemaDeclares = (dotted: string): boolean => {
+      let node: unknown = schema
+      for (const part of dotted.split('.')) {
+        const props = (node as { properties?: Record<string, unknown> } | undefined)?.properties
+        if (!props || !(part in props)) return false
+        node = props[part]
+      }
+      return true
+    }
+    const tab = readFileSync(join(REPO, 'src', 'components', 'sandbox', 'SandboxDependenciesTab.tsx'), 'utf8')
+    const keysNamedByTab = [...tab.matchAll(/\b((?:\w+\.)+allow(?:All)?UnixSockets)\b/g)].map(m => m[1])
+    check('the /sandbox tab names its two socket keys with their guardrails group, both declared', keysNamedByTab.length === 2 && keysNamedByTab.every(k => k.startsWith('guardrails.') && schemaDeclares(k)), keysNamedByTab.join(' '))
     const dir = join(scratch, 'sandbox-row', 'cwd')
     const home = join(scratch, 'sandbox-row', 'home')
     const settings = join(home, 'settings.json')
@@ -274,6 +287,8 @@ try {
     check('Linux ON, apply-seccomp beside the bundle: the row says unix sockets are blocked', blocked?.status === 'ok' && blocked.evidence === ON_LINUX_BLOCKED, JSON.stringify(blocked))
     const bySetting = sandboxRow({ enabled: true, network: { allowAllUnixSockets: true } }, true, join(bundleDir, 'mercury.mjs'))
     check('Linux ON, the helper present but allowAllUnixSockets set: the row says the sockets are open by that setting', bySetting?.status === 'ok' && bySetting.evidence === ON_LINUX_BY_SETTING, JSON.stringify(bySetting))
+    const keyNamedByRow = String(bySetting?.evidence ?? '').match(/open — ([\w.]+)\)$/)?.[1] ?? ''
+    check('the settings key that row names is one the settings schema declares', keyNamedByRow !== '' && schemaDeclares(keyNamedByRow), keyNamedByRow)
   }
 
   console.log('\n§slow-reader: a consumer slower than the writer still reads exactly one record')

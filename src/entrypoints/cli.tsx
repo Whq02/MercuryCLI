@@ -181,6 +181,7 @@ async function main(): Promise<void> {
   }
 
   if (
+    !runArgs.runner &&
     readSessionOption(args, '--multiplex').present &&
     (readSessionOption(args, '-w').present || readSessionOption(args, '--worktree').present)
   ) {

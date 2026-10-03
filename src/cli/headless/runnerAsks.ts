@@ -108,7 +108,7 @@ export function decisionOfAnswer(
   if (answer.stop === true) toolUseContext.abortController.abort()
   return {
     behavior: 'deny',
-    message: answer.message ?? 'Permission denied by the SDK host',
+    message: answer.message ?? 'Permission denied by the host',
     decisionReason: { type: 'permissionPromptTool', permissionPromptToolName: tool.name, toolResult: answer },
   }
 }
