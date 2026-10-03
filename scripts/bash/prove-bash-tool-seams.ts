@@ -102,8 +102,8 @@ if (!ready) {
   check('the tool never claims a sandbox for a command', shouldUseSandbox({ command: 'ls' }) === false)
   const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
   check("the tool's description carries no sandbox section", !getSimplePrompt().includes('# Command sandbox'))
-  const doctor = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the doctor row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(doctor))
+  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  check('the health row warns with the reason', /getSandboxUnavailableReason\(\)[\s\S]{0,300}status: 'warn'/.test(health))
   const printMode = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   check('print mode says the sandbox is OFF for the session, or refuses under failIfUnavailable', /sandboxing is OFF for this session/.test(printMode) && /isSandboxRequired\(\)/.test(printMode))
   const degraded = await run('echo degraded-ok', shouldUseSandbox({ command: 'echo degraded-ok' }))
@@ -111,8 +111,8 @@ if (!ready) {
 } else {
   check('shouldUseSandbox says yes for a plain command', shouldUseSandbox({ command: 'ls' }) === true)
   check('shouldUseSandbox honours the explicit override', shouldUseSandbox({ command: 'ls', dangerouslyDisableSandbox: true }) === false)
-  const doctor = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
-  check('the doctor names the mechanism (seatbelt / bubblewrap)', /seatbelt\/bubblewrap/.test(doctor))
+  const health = readFileSync(join(ROOT, 'src', 'utils', 'healthReport.ts'), 'utf8')
+  check('/health names the mechanism (seatbelt / bubblewrap)', /seatbelt\/bubblewrap/.test(health))
   await SandboxManager.initialize()
   const writeSet = SandboxManager.getFsWriteConfig() as { allowWrite?: string[] }
   note(`allow-write set: ${JSON.stringify(writeSet.allowWrite ?? writeSet)}`)

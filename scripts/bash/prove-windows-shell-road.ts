@@ -116,12 +116,12 @@ console.log('── §3 the roster follows the road ──')
     check('on the road without bash, with the pack: the bundled engine arms itself — kind engine', nb?.active === true && nb.kind === 'engine', JSON.stringify(nb))
     check('…the Bash tool stands with no Git at all', nb?.bash === true)
     check('…PowerShell keeps its opt-in, and there is no notice', nb?.ps === false && nb?.notice === null)
-    check("…and the doctor's line names the bundled engine and why", /bundled shell engine at .*brush/.test(nb?.line ?? '') && /no bash\.exe was found/.test(nb?.line ?? ''), nb?.line)
+    check("…and /health's line names the bundled engine and why", /bundled shell engine at .*brush/.test(nb?.line ?? '') && /no bash\.exe was found/.test(nb?.line ?? ''), nb?.line)
   } else {
     check('on the road without bash, with no pack: the Bash tool is OFF the roster', nb?.active === true && nb.kind === 'absent' && nb.bash === false, JSON.stringify(nb))
     check('…and the PowerShell tool is ON it without the opt-in', nb?.ps === true)
     check('…and the boot notice is the one line', nb?.notice === WINDOWS_BASH_NOTICE)
-    check("…and the doctor's line says the engine is unavailable, its fix naming the pack", /shell engine is unavailable/.test(nb?.line ?? '') && nb?.fix === WINDOWS_BASH_NOTICE_NO_PACK, nb?.line)
+    check("…and /health's line says the engine is unavailable, its fix naming the pack", /shell engine is unavailable/.test(nb?.line ?? '') && nb?.fix === WINDOWS_BASH_NOTICE_NO_PACK, nb?.line)
   }
 
   const forcedOff = roster({ [SEAM]: 'no-bash', [ENGINE_PIN]: 'system' })
@@ -129,12 +129,12 @@ console.log('── §3 the roster follows the road ──')
   check('forced off (MERCURY_SHELL_ENGINE=system) on the road without bash: the Bash tool is OFF the roster', fo?.active === true && fo.kind === 'absent' && fo.bash === false, JSON.stringify(fo) || forcedOff.err)
   check('…the PowerShell tool is ON it without the opt-in', fo?.ps === true)
   check('…the boot notice is the one line, and the fix is the notice', fo?.notice === WINDOWS_BASH_NOTICE && fo?.fix === WINDOWS_BASH_NOTICE)
-  check("…and the doctor's line says the engine is turned off by the pin", /turned off/.test(fo?.line ?? '') && (fo?.line ?? '').includes(ENGINE_PIN) && /Bash tool is absent/.test(fo?.line ?? '') && /PowerShell tool is present/.test(fo?.line ?? ''), fo?.line)
+  check("…and /health's line says the engine is turned off by the pin", /turned off/.test(fo?.line ?? '') && (fo?.line ?? '').includes(ENGINE_PIN) && /Bash tool is absent/.test(fo?.line ?? '') && /PowerShell tool is present/.test(fo?.line ?? ''), fo?.line)
 
   const withBash = roster({ [SEAM]: 'locate', [PIN]: import.meta.path })
   const wb = withBash.r
   check('on the road WITH a bash: git-bash is the road whatever the pack — the Bash tool stands, PowerShell keeps its opt-in, no notice', wb?.active === true && wb.kind === 'git-bash' && wb.bash === true && wb.ps === false && wb.notice === null, JSON.stringify(wb) || withBash.err)
-  check("…and the doctor's line names the found bash", /git-bash at .*found on this machine/.test(wb?.line ?? ''), wb?.line)
+  check("…and /health's line names the found bash", /git-bash at .*found on this machine/.test(wb?.line ?? ''), wb?.line)
   const withBashOptIn = roster({ [SEAM]: 'locate', [PIN]: import.meta.path, MERCURY_USE_POWERSHELL_TOOL: '1' })
   check('…and the opt-in still turns PowerShell on beside Bash', withBashOptIn.r?.bash === true && withBashOptIn.r?.ps === true)
 
@@ -147,7 +147,7 @@ console.log('── §3 the roster follows the road ──')
   } else {
     check('the brush pin arms the engine over a found bash: kind engine, arm pin', pn?.kind === 'engine' && pn?.arm === 'pin', JSON.stringify(pn))
     check('…the Bash tool stands, PowerShell keeps its opt-in, no notice', pn?.bash === true && pn?.ps === false && pn?.notice === null)
-    check("…and the doctor's line names the engine and the pin", /shell engine at .*brush/.test(pn?.line ?? '') && (pn?.line ?? '').includes(ENGINE_PIN), pn?.line)
+    check("…and /health's line names the engine and the pin", /shell engine at .*brush/.test(pn?.line ?? '') && (pn?.line ?? '').includes(ENGINE_PIN), pn?.line)
   }
 
   const offRoad = roster({})
@@ -194,8 +194,8 @@ console.log('── §5 the built bundle boots headless through the seam ──'
       [ENGINE_PIN]: undefined,
       MERCURY_USE_POWERSHELL_TOOL: undefined,
     }
-    const doctor = (extra: Record<string, string>) =>
-      spawnSync('node', [bundle, 'doctor', '--json'], { encoding: 'utf8', env: { ...hermetic, ...extra }, timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
+    const health = (extra: Record<string, string>) =>
+      spawnSync('node', [bundle, 'health', '--json'], { encoding: 'utf8', env: { ...hermetic, ...extra }, timeout: 180_000, maxBuffer: 64 * 1024 * 1024 })
     type Check = { id: string; status: string; evidence: string; fix?: string }
     type Row = { id: string; state: string; detail: string; remedy?: string }
     type Cert = { verdict?: string; sections?: Array<{ checks: Check[] }>; readiness?: Row[] }
@@ -212,14 +212,14 @@ console.log('── §5 the built bundle boots headless through the seam ──'
 
     const faults = (c: Cert | null): string[] => c?.sections?.flatMap(s => s.checks).filter(x => x.status === 'fail').map(x => x.id) ?? []
 
-    const control = doctor({})
+    const control = health({})
     const controlCert = parse(control.stdout)
-    check('control: doctor --json produced a certificate', controlCert !== null && typeof controlCert.verdict === 'string', `status ${control.status}; ${control.stderr.slice(0, 200)}`)
+    check('control: health --json produced a certificate', controlCert !== null && typeof controlCert.verdict === 'string', `status ${control.status}; ${control.stderr.slice(0, 200)}`)
     console.log(`  (control: verdict ${controlCert?.verdict ?? '?'}, exit ${control.status}; failing checks on this host: ${faults(controlCert).join(', ') || 'none'} — the seam runs must match them exactly)`)
     const controlShell = shellCheck(controlCert)
     check('control: the shell check is ok on this host', controlShell?.status === 'ok', JSON.stringify(controlShell)?.slice(0, 200))
 
-    const seamRun = doctor({ [SEAM]: 'no-bash' })
+    const seamRun = health({ [SEAM]: 'no-bash' })
     const seamCert = parse(seamRun.stdout)
     check('seam: the bundle BOOTS and produces a certificate with bash.exe absent', seamCert !== null && typeof seamCert.verdict === 'string', `status ${seamRun.status}; ${seamRun.stderr.slice(0, 200)}`)
     check('seam: the exit code equals the control run\'s (the road never worsens the verdict)', seamRun.status === control.status, `seam ${seamRun.status} vs control ${control.status}`)
@@ -239,7 +239,7 @@ console.log('── §5 the built bundle boots headless through the seam ──'
       check('seam: the tool:shell readiness row reads unavailable with the remedy', seamRow?.state === 'unavailable' && seamRow.remedy === WINDOWS_BASH_NOTICE_NO_PACK, JSON.stringify(seamRow)?.slice(0, 240))
     }
 
-    const forcedRun = doctor({ [SEAM]: 'no-bash', [ENGINE_PIN]: 'system' })
+    const forcedRun = health({ [SEAM]: 'no-bash', [ENGINE_PIN]: 'system' })
     const forcedCert = parse(forcedRun.stdout)
     check('forced off: the bundle BOOTS with bash.exe absent and the engine turned off', forcedCert !== null && typeof forcedCert.verdict === 'string', `status ${forcedRun.status}; ${forcedRun.stderr.slice(0, 200)}`)
     check('forced off: the exit code equals the control run\'s', forcedRun.status === control.status, `forced ${forcedRun.status} vs control ${control.status}`)
@@ -255,8 +255,8 @@ console.log('── §5 the built bundle boots headless through the seam ──'
     check('control: the tool:shell row is a probed or configured shell', controlRow !== undefined && (controlRow.state === 'ready' || controlRow.state === 'configured'), JSON.stringify(controlRow)?.slice(0, 200))
 
     const nowhere = join(home, 'nowhere', 'bash.exe')
-    const pin = doctor({ [SEAM]: 'locate', [PIN]: nowhere })
-    check('the pin-that-points-nowhere arm exits 1 on the doctor route (the boot step runs for every verb)', pin.status === 1, `status ${pin.status}`)
+    const pin = health({ [SEAM]: 'locate', [PIN]: nowhere })
+    check('the pin-that-points-nowhere arm exits 1 on /health route (the boot step runs for every verb)', pin.status === 1, `status ${pin.status}`)
     check('…with its message on stderr', pin.stderr.includes(`unable to find ${PIN} at ${nowhere}`), pin.stderr.slice(0, 200))
     rmSync(home, { recursive: true, force: true })
   }

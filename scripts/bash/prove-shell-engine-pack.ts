@@ -145,7 +145,7 @@ section('§3 the flag registry row and the settings key')
   else process.env.MERCURY_SHELL_ENGINE_SESSIONS = savedPin
 }
 
-section('§4 the built bundle: manifest record, doctor row, prompt sentence')
+section('§4 the built bundle: manifest record, health row, prompt sentence')
 {
   const dist = join(ROOT, 'dist', 'mercury.mjs')
   const manifestPath = join(ROOT, 'dist', 'manifest.json')
@@ -157,12 +157,12 @@ section('§4 the built bundle: manifest record, doctor row, prompt sentence')
     check('with a pack present, the manifest is not degraded on shell-engine',
       manifest.shellEngine?.vendored !== true || !(manifest.degraded ?? []).includes('shell-engine'))
     const bundle = readFileSync(dist, 'utf8')
-    check('the bundle carries the shell-engine doctor row', bundle.includes('iface-shell-engine'))
+    check('the bundle carries the shell-engine health row', bundle.includes('iface-shell-engine'))
     check('the bundle carries the engine-aware Bash prompt sentence', bundle.includes('One shell session serves the whole conversation'))
     check('the bundle carries the per-agent sentence (a sub-agent has a shell session of its own)', bundle.includes('Each sub-agent has a shell session of its own'))
-    check("the bundle carries the doctor row's per-owner words", bundle.includes('one persistent process per conversation and one per sub-agent'))
+    check("the bundle carries the health row's per-owner words", bundle.includes('one persistent process per conversation and one per sub-agent'))
     check("the bundle tells the model an operator's stop ends the command and resets the session under the engine", bundle.includes('A stop from the operator while a command runs ends that command and resets the session'))
-    check("the bundle carries the doctor row's word on the stop", bundle.includes('a stop while a command runs resets the session'))
+    check("the bundle carries the health row's word on the stop", bundle.includes('a stop while a command runs resets the session'))
     check('the bundle tells the model the ceiling on engine sessions by its setting', bundle.includes('the shell.sessions setting'))
     check('the bundle carries the system-shell reset sentence too', bundle.includes('every other piece of shell state (variables, functions, options) resets between calls'))
     check('the bundle carries the Windows arm of the engine sentence — the two known holes at this version', bundle.includes('os error 193') && bundle.includes('relative program path after a `cd`'))

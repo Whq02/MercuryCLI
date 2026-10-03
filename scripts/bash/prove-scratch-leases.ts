@@ -64,8 +64,8 @@ try {
     /delete what your run created/i.test(doctrine))
   const worktreeSrc = readFileSync(join(ROOT, 'src/utils/worktree.ts'), 'utf8')
   check('a session worktree registers its lease (the one production registrar)', worktreeSrc.includes("registerScratchLease({ kind: 'session'"))
-  const doctorSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
-  check('the doctor lists leftovers lease-exact', doctorSrc.includes("id: 'scratch-leases'") && doctorSrc.includes('never a broad /tmp sweep'))
+  const healthSrc = readFileSync(join(ROOT, 'src/utils/healthReport.ts'), 'utf8')
+  check('/health lists leftovers lease-exact', healthSrc.includes("id: 'scratch-leases'") && healthSrc.includes('never a broad /tmp sweep'))
 } finally {
   rmSync(TMP_SCRATCH, { recursive: true, force: true })
 }
