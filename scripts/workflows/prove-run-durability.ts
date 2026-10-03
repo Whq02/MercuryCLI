@@ -136,7 +136,7 @@ try {
     : { script, args: { fixture: true, n: 7 } }
   const res = await WorkflowTool.call(input, ctx, async () => ({ behavior: 'allow' }))
   const d = res.data
-  const runDir = d.transcriptDir
+  const runDir = d.runDir
   emit({
     ev: 'launched', runId: d.runId, runDir, scriptPath: d.scriptPath,
     wfOnDisk: existsSync(join(runDir, 'workflow.js')),

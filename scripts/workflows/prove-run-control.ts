@@ -275,13 +275,13 @@ const ctx: any = {
 const script = "export const meta = { name: 'control-fixture', description: 'two agents that run until told', phases: [{ title: 'Work' }] }\nphase('Work')\nconst [a, b] = await parallel([() => agent('alpha: keep sleeping one second at a time until stopped', { label: 'alpha' }), () => agent('beta: keep sleeping one second at a time until stopped', { label: 'beta' })])\nreturn { a, b }"
 const res = await WorkflowTool.call({ script }, ctx, async () => ({ behavior: 'allow' }))
 const d = res.data
-emit({ ev: 'launched', runId: d.runId, runDir: d.transcriptDir, taskId: d.taskId, error: d.error ?? null })
+emit({ ev: 'launched', runId: d.runId, runDir: d.runDir, taskId: d.taskId, error: d.error ?? null })
 for (let i = 0; i < 1800; i++) {
   const t: any = state.tasks[d.taskId]
   if (t && t.status !== 'running') {
     let manifest: any = null
     for (let j = 0; j < 100; j++) {
-      manifest = JSON.parse(readFileSync(join(d.transcriptDir, 'run.json'), 'utf8'))
+      manifest = JSON.parse(readFileSync(join(d.runDir, 'run.json'), 'utf8'))
       if (manifest.status !== 'running') break
       await new Promise(r => setTimeout(r, 100))
     }

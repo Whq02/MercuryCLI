@@ -829,6 +829,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       : prompt
 
     const carryover: CallFrameStatics['carryover'] = { tokens: 0, toolCalls: 0, durationMs: 0, usage: EMPTY_WORKFLOW_USAGE }
+    const seenToolCalls = new Set<string>()
     const recovery: RecoveryBudget = makeRecoveryBudget()
     const statics: CallFrameStatics = {
       index,
@@ -919,6 +920,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             lastProgressAt: Date.now(),
             tokens: workflowUsageSpend(usage),
             usage,
+            toolCalls: statics.carryover.toolCalls + toolCalls,
             ...extra,
           },
         })
@@ -1251,12 +1253,14 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
             toolUsesHere++
             lastToolName = block.name
             lastToolSummary = toolInputGlance(block.input)
+            if (typeof block.id !== 'string' || seenToolCalls.has(block.id)) continue
+            seenToolCalls.add(block.id)
+            toolCalls++
             if (block.name === STRUCTURED_OUTPUT_TOOL_NAME) {
               schemaCallCount++
               lastSchemaCallInput = block.input
             }
           }
-          toolCalls += toolUsesHere
           if (toolUsesHere > 0) {
             clearStallTimer()
             parked = true

@@ -63,7 +63,7 @@ import { getMcpServerHeaders } from './headersHelper.js'
 import { buildMcpToolName, wireSafeMcpToolName } from './mcpStringUtils.js'
 import { normalizeNameForMCP } from './normalization.js'
 import { SdkControlClientTransport, type SendMcpMessageCallback } from './SdkControlTransport.js'
-import { isCoordinationServerEnabled, isCoordinationServer } from './coordinationServer.js'
+import { isCoordinationServerEnabled, isCoordinationServer, withCoordinationLeaseHolder } from './coordinationServer.js'
 import { withMcpToolCardHeader } from './toolCard.js'
 import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
 import type {
@@ -924,7 +924,7 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
       parentMessage: AssistantMessage,
       onProgress?: (progress: unknown) => void,
     ) => {
-      const result = await callMCPToolWithUrlElicitationRetry({
+      const invoke = () => callMCPToolWithUrlElicitationRetry({
         client,
         tool: toolName,
         args,
@@ -940,6 +940,9 @@ function buildMcpTool(client: ConnectedMCPServer, sdkTool: McpSdkTool): Tool {
                 ?.action as 'accept' | 'decline' | 'cancel'
           : undefined,
       })
+      const result = await (isCoordinationServer(client.name)
+        ? withCoordinationLeaseHolder(context.agentId, invoke)
+        : invoke())
       return { data: result.content }
     },
     userFacingName: () => displayName,

@@ -259,13 +259,13 @@ try {
   process.exit(0)
 }
 const d = res.data
-emit({ ev: 'launched', runId: d.runId, runDir: d.transcriptDir, taskId: d.taskId, scriptPath: d.scriptPath, error: d.error ?? null })
+emit({ ev: 'launched', runId: d.runId, runDir: d.runDir, taskId: d.taskId, scriptPath: d.scriptPath, error: d.error ?? null })
 for (let i = 0; i < 1800; i++) {
   const t: any = state.tasks[d.taskId]
   if (t && t.status !== 'running') {
     let manifest: any = null
     for (let j = 0; j < 100; j++) {
-      manifest = JSON.parse(readFileSync(join(d.transcriptDir, 'run.json'), 'utf8'))
+      manifest = JSON.parse(readFileSync(join(d.runDir, 'run.json'), 'utf8'))
       if (manifest.status !== 'running' && manifest.status !== 'paused') break
       await new Promise(r => setTimeout(r, 100))
     }

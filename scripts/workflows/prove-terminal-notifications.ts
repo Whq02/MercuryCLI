@@ -111,7 +111,7 @@ const manifestStatus = (runDir: string): string => {
   const d = await launch("export const meta = { name: 'n-ok', description: 'completes' }\nlog('ok')\nreturn 'done-ok'")
   const t = await settleOf(d.runId)
   const notes = await waitNotification(d.taskId)
-  emit({ ev: 'leg', leg: 'completed', task: t?.status, manifest: manifestStatus(d.transcriptDir), notes, notified: t?.notified })
+  emit({ ev: 'leg', leg: 'completed', task: t?.status, manifest: manifestStatus(d.runDir), notes, notified: t?.notified })
 }
 // ── leg 2: failed ────────────────────────────────────────────────────────────
 {
@@ -119,7 +119,7 @@ const manifestStatus = (runDir: string): string => {
   const d = await launch("export const meta = { name: 'n-fail', description: 'fails' }\nthrow new Error('leg-failure')")
   const t = await settleOf(d.runId)
   const notes = await waitNotification(d.taskId)
-  emit({ ev: 'leg', leg: 'failed', task: t?.status, manifest: manifestStatus(d.transcriptDir), notes })
+  emit({ ev: 'leg', leg: 'failed', task: t?.status, manifest: manifestStatus(d.runDir), notes })
 }
 // ── leg 3: killed by the operator ────────────────────────────────────────────
 {
@@ -129,7 +129,7 @@ const manifestStatus = (runDir: string): string => {
   const receipt = killWorkflowTask(d.taskId, setAppState)
   const t = await settleOf(d.runId)
   const notes = await waitNotification(d.taskId)
-  emit({ ev: 'leg', leg: 'killed', receipt, task: t?.status, manifest: manifestStatus(d.transcriptDir), notes })
+  emit({ ev: 'leg', leg: 'killed', receipt, task: t?.status, manifest: manifestStatus(d.runDir), notes })
 }
 // ── leg 4: paused stays silent (not terminal) ────────────────────────────────
 {
@@ -141,7 +141,7 @@ const manifestStatus = (runDir: string): string => {
   // Give a wrong implementation a beat to (incorrectly) notify.
   await new Promise(r => setTimeout(r, 1200))
   const notes = notificationsFor(d.taskId)
-  emit({ ev: 'leg', leg: 'paused', receipt, task: t?.status, manifest: manifestStatus(d.transcriptDir), notes })
+  emit({ ev: 'leg', leg: 'paused', receipt, task: t?.status, manifest: manifestStatus(d.runDir), notes })
 }
 process.exit(0)
 `

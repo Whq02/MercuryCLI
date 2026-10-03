@@ -122,21 +122,21 @@ const watch = async (taskId: string, runDir: string, timeoutMs = 20000): Promise
 const launch = async (script: string) => {
   const res = await WorkflowTool.call({ script }, ctx, async () => ({ behavior: 'allow' }))
   const d = (res as any).data
-  runDirByTask.set(d.taskId, d.transcriptDir)
+  runDirByTask.set(d.taskId, d.runDir)
   return d
 }
 
 {
   resetCommandQueue()
   const d = await launch("export const meta = { name: 'b-ok', description: 'completes' }\nlog('ok')\nreturn 'done-ok'")
-  const s = await watch(d.taskId, d.transcriptDir)
-  emit({ ev: 'leg', leg: 'completed', ...s, manifestFinal: manifestStatus(d.transcriptDir) })
+  const s = await watch(d.taskId, d.runDir)
+  emit({ ev: 'leg', leg: 'completed', ...s, manifestFinal: manifestStatus(d.runDir) })
 }
 {
   resetCommandQueue()
   const d = await launch("export const meta = { name: 'b-fail', description: 'fails' }\nthrow new Error('leg-failure')")
-  const s = await watch(d.taskId, d.transcriptDir)
-  emit({ ev: 'leg', leg: 'failed', ...s, manifestFinal: manifestStatus(d.transcriptDir) })
+  const s = await watch(d.taskId, d.runDir)
+  emit({ ev: 'leg', leg: 'failed', ...s, manifestFinal: manifestStatus(d.runDir) })
 }
 process.exit(0)
 `

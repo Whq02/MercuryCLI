@@ -91,8 +91,8 @@ const script = [
 try {
   const res = await WorkflowTool.call({ script }, ctx, async () => ({ behavior: 'allow' }))
   const d: any = (res as any).data
-  emit({ ev: 'launched', runId: d.runId, runDir: d.transcriptDir, error: d.error })
-  const runDir = d.transcriptDir
+  emit({ ev: 'launched', runId: d.runId, runDir: d.runDir, error: d.error })
+  const runDir = d.runDir
   const deadline = Date.now() + 90_000
   let task: any
   for (;;) {

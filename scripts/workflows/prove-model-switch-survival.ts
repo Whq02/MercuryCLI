@@ -119,7 +119,7 @@ const noteDeadline = Date.now() + 10_000
 while (Date.now() < noteDeadline && !getCommandQueueSnapshot().some((c: any) => c.mode === 'task-notification' && String(c.value ?? '').includes(d.taskId))) {
   await new Promise(r => setTimeout(r, 50))
 }
-const manifest = JSON.parse(readFileSync(join(d.transcriptDir, 'run.json'), 'utf8'))
+const manifest = JSON.parse(readFileSync(join(d.runDir, 'run.json'), 'utf8'))
 const agentFrames = (task.workflowProgress ?? []).filter((e: any) => e.type === 'workflow_agent')
 // Task notifications are 'task-notification' rows in the ONE command queue
 // (the steer-removal ruling retired the pen-facing snapshot alias).
