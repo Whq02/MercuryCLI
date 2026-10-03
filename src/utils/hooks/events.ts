@@ -889,7 +889,7 @@ export function hasInstructionsLoadedHook(): boolean {
 
 export async function executeInstructionsLoadedHooks(
   filePath: string,
-  memoryType: InstructionsMemoryType,
+  instructionScope: InstructionsMemoryType,
   loadReason: InstructionsLoadReason,
   options?: {
     globs?: string[]
@@ -909,7 +909,7 @@ export async function executeInstructionsLoadedHooks(
     ...createBaseHookInput(undefined),
     hook_event_name: 'InstructionsLoaded',
     file_path: filePath,
-    memory_type: memoryType,
+    instruction_scope: instructionScope,
     load_reason: loadReason,
     globs,
     trigger_file_path: triggerFilePath,

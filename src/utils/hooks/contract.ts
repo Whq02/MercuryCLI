@@ -279,7 +279,7 @@ export const InstructionsLoadedHookInputSchema = lazySchema(() =>
     ...baseHookFields,
     hook_event_name: z.literal('InstructionsLoaded'),
     file_path: z.string().describe('The instruction file that loaded'),
-    memory_type: z.enum(['User', 'Project', 'Local', 'Managed']),
+    instruction_scope: z.enum(['User', 'Project', 'Local', 'Managed']),
     load_reason: z.enum([
       'session_start',
       'nested_traversal',
