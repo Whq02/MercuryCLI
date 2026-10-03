@@ -218,26 +218,18 @@ console.log('C6 — the plain world: the concourse-only commands, one predicate,
   check('C6 the dispatcher re-reads enablement at dispatch (a mid-session switch flip answers the line, never runs from the stale roster)', reReadIdx !== -1 && dispatcher.indexOf('if (!command) {', reReadIdx) !== -1)
 }
 
-console.log('C7 — the retired doors: registered, never enabled, never listed, one sentence')
+console.log('C7 — the former doors are unknown commands')
 {
-  const route = await import('../../src/context/surfaceRoute.ts')
-  const { builtinCommands, commandRetired, isCommandEnabled } = await import('../../src/commands.ts')
-  const { unavailableCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
-  const { RETIRED_MULTIPLAYER_COMMANDS, RETIRED_MULTIPLAYER_REASON } = await import('../../src/commands/retired.ts')
+  const { builtinCommands } = await import('../../src/commands.ts')
+  const { unknownCommandLine } = await import('../../src/utils/processUserInput/processSlashCommand.tsx')
   const registry = [...builtinCommands()]
-  const retiredNames = RETIRED_MULTIPLAYER_COMMANDS.map(c => c.name)
-  check('C7 the ten retired names are declared: party · multiplayer · share · invite · handoff · delegate · prompt · request · tickets · say', JSON.stringify([...retiredNames].sort()) === JSON.stringify(['delegate', 'handoff', 'invite', 'multiplayer', 'party', 'prompt', 'request', 'say', 'share', 'tickets']), retiredNames.join(' '))
+  const formerNames = ['party', 'multiplayer', 'share', 'invite', 'handoff', 'delegate', 'prompt', 'request', 'tickets', 'say', 'rooms']
   const owners = (name: string) => registry.filter(c => c.name === name || c.aliases?.includes(name) === true)
-  check('C7 every retired name (and the rooms alias) has exactly ONE registration and it is the retired one', [...retiredNames, 'rooms'].every(n => owners(n).length === 1 && commandRetired(owners(n)[0]!) === RETIRED_MULTIPLAYER_REASON), [...retiredNames, 'rooms'].map(n => `${n}:${owners(n).length}`).join(' '))
-  const retired = registry.filter(c => commandRetired(c) !== undefined)
-  check('C7 no retired door is enabled in the fleet world, and none is listed (hidden)', retired.every(c => !isCommandEnabled(c) && c.isHidden === true))
-  route._resetSurfaceRouteForTesting()
-  route.markChatBoot()
-  check('C7 …nor in the plain world', retired.every(c => !isCommandEnabled(c)))
-  route._resetSurfaceRouteForTesting()
-  check('C7 typed, each answers its own sentence — "retired — a new multiplayer is being built on the channel; nothing to run here" — never the generic line, never "Unknown skill"', retired.every(c => { const l = unavailableCommandLine(c); return l === `The /${c.name} command is retired — ${RETIRED_MULTIPLAYER_REASON}.` && !l.includes('exists but is not enabled') && !l.includes('Unknown skill') }), retired.map(c => unavailableCommandLine(c)).join(' | '))
-  check('C7 the dispatcher reads the retired reason FIRST (before the plain-world sentence) and the one enablement read folds it in', read('src/utils/processUserInput/processSlashCommand.tsx').indexOf('const retired = commandRetired(real)') < read('src/utils/processUserInput/processSlashCommand.tsx').indexOf('if (commandOffInPlainWorld(real)) {') && read('src/commands/enablement.ts').includes('commandRetired(command) === undefined'))
-  check('C7 the screen seat paints a retired door display-only (the gated resolver reads retirement beside the plain-world gate)', read('src/screens/REPL.tsx').includes('(commandOffInPlainWorld(real) || commandRetired(real) !== undefined)'))
+  check('C7 none of the former names (nor the rooms alias) has a registration', formerNames.every(n => owners(n).length === 0), formerNames.map(n => `${n}:${owners(n).length}`).join(' '))
+  const shape = (line: string): string => line.replace(/^Unknown command: \/[a-z]+/, 'Unknown command: /<name>').replace(/ — closest: \/[a-z-]+/, '')
+  const control = shape(unknownCommandLine('frobnicate', registry))
+  check('C7 typed, each former name answers exactly as a never-existing name does — the unknown-command sentence, no retired word', formerNames.every(n => { const l = unknownCommandLine(n, registry); return shape(l) === control && !/retired/i.test(l) }), formerNames.map(n => unknownCommandLine(n, registry)).join(' | '))
+  check('C7 the dispatcher carries no retirement read', !read('src/utils/processUserInput/processSlashCommand.tsx').includes('commandRetired') && !read('src/commands/enablement.ts').includes('commandRetired') && !read('src/screens/REPL.tsx').includes('commandRetired'))
 }
 
 await api.close()
