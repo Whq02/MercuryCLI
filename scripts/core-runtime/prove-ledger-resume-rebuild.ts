@@ -161,7 +161,7 @@ const SID1 = '00000000-aaaa-4000-8000-000000000001'
   const headline = `Total cost:            ${tracker.formatSessionCost(expected.total, 0)}`
   const fableRow = new RegExp(`claude-fable-5-1:.*\\(${tracker.formatSessionCost(expected.byModel[FABLE]!.costUSD, 0).replace('$', '\\$')}\\)`)
   const sonnetRow = new RegExp(`claude-sonnet-5:.*\\(${tracker.formatSessionCost(expected.byModel[SONNET]!.costUSD, 0).replace('$', '\\$')}\\)`)
-  check('/cost reads the rebuilt ledger: the headline and one row per model, each at its rebuilt figure', cost.includes(headline) && fableRow.test(cost) && sonnetRow.test(cost), cost)
+  check('the cost summary reads the rebuilt ledger: the headline and one row per model, each at its rebuilt figure', cost.includes(headline) && fableRow.test(cost) && sonnetRow.test(cost), cost)
   check('the slot is untouched by a restore (the save side is not this road)', getCurrentProjectConfig().lastSessionId === OTHER && getCurrentProjectConfig().lastCost === 9.99)
 }
 

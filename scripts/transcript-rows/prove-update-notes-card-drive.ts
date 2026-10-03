@@ -142,9 +142,6 @@ console.log('── /update-notes: the running release on the chat, the earlier 
       { data: '', awaitText: oldestTail, requireAwait: true, minTick: 2, atTick: 700, awaitSettleTicks: 8, mark: 'pager' },
       { data: '\x0f', afterPrevTicks: 3 },
       { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, atTick: 800, awaitSettleTicks: 6, mark: 'back' },
-      { data: '/release-notes', afterPrevTicks: 3 },
-      { data: '\r', awaitText: 'former name of /update-notes', requireAwait: true, minTick: 2, atTick: 900, awaitSettleTicks: 5 },
-      { data: '', awaitText: '❯ /release-notes', requireAwait: true, minTick: 2, atTick: 1000, awaitSettleTicks: 14, mark: 'alias' },
     ],
     total: 1100,
   }
@@ -160,7 +157,7 @@ console.log('── /update-notes: the running release on the chat, the earlier 
   const captured = existsSync(cfg.out) ? JSON.parse(readFileSync(cfg.out, 'utf8')) as { marks?: Mark[] } : {}
   const marks = new Map((captured.marks ?? []).map(mark => [mark.label, mark]))
   for (const mark of marks.values()) writeFileSync(join(output, `chat-${mark.label}.txt`), textOf(mark.grid) + '\n')
-  check('the chat journey ran to its marks', exit === 0 && marks.has('alias'), `exit ${exit} marks ${[...marks.keys()].join(',')} ${stderr.slice(-240)}`)
+  check('the chat journey ran to its marks', exit === 0 && marks.has('back'), `exit ${exit} marks ${[...marks.keys()].join(',')} ${stderr.slice(-240)}`)
   const card = marks.get('card') ? flat(marks.get('card')!.grid) : ''
   const cardUp = marks.get('card-up') ? flat(marks.get('card-up')!.grid) : ''
   const cardHead = marks.get('card-head') ? flat(marks.get('card-head')!.grid) : ''
@@ -171,8 +168,6 @@ console.log('── /update-notes: the running release on the chat, the earlier 
   const pager = marks.get('pager') ? flat(marks.get('pager')!.grid) : ''
   check('the transcript key shows the earlier releases (the oldest section reaches its last line)', pager.includes(oldestTail.replace(/\s+/g, ' ')))
   check('the pager carries no fold line of its own', !pager.includes(foldLine))
-  const alias = marks.get('alias') ? flat(marks.get('alias')!.grid) : ''
-  check('/release-notes answers the same card', alias.includes(foldLine) && alias.includes(foldTail) && !/Unknown skill|is retired|not enabled/.test(alias))
 }
 
 console.log('── the headless road prints every release ──')
@@ -186,8 +181,6 @@ console.log('── the headless road prints every release ──')
   check('the headless run prints every release', newestFirst.every(([v]) => printed.includes(head(v))), `${(printed.match(/^Version /gm) ?? []).length} of ${newestFirst.length} heads`)
   const keyLines = printed.split('\n').filter(line => earlierReleasesCount(line.trim()) !== null)
   check('the headless run carries no key line', keyLines.length === 0, keyLines.join(' | '))
-  const aliasPrinted = runHeadless('/release-notes')
-  check('the headless /release-notes prints the same text', aliasPrinted === printed && printed.length > 0)
 }
 
 console.log(JSON.stringify({ output }))

@@ -193,6 +193,7 @@ import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openro
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
+import { openFilesMenu } from '../../utils/cockpit/filesMenu.js'
 import { popupOwnsKeys, subscribePopupOwnsKeys } from '../../utils/cockpit/popupOwnsKeys.js'
 import { renderModelName } from '../../utils/model/model.js'
 import {
@@ -1638,6 +1639,10 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         case 'command':
           setHelmFocus('prompt')
           void submitRef.current(activation.command, { fromKeybinding: true })
+          break
+        case 'files':
+          setHelmFocus('prompt')
+          openFilesMenu()
           break
         case 'console':
           setHelmFocus('telemetry')

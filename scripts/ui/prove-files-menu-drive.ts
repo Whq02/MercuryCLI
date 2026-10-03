@@ -276,9 +276,7 @@ if (worlds.has('plain') || worlds.has('off')) {
     gated('\r', '❯ Alpha.tsx', { awaitSettleTicks: 2, mark: 'on-file' }),
     gated('\x1b', '@src/components/Alpha.tsx', { awaitSettleTicks: 4, mark: 'picked' }),
     after('\x1b', 2),
-    gated('/files', 'Type a prompt', { mark: 'draft-cleared' }),
-    after('', 4, { mark: 'typed' }),
-    after('\r', 2),
+    gated(CLICK, 'Type a prompt', { mark: 'draft-cleared', targetText: 'FILES · fixture-cwd' }),
     gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'command' }),
     after('', 6, { mark: 'esc-closed' }),
     after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
@@ -294,7 +292,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   ]), driveEnv(home))
   frames.plain = cap
   const m = cap.marks
-  tally.section('plain · 178x51 · the FILES box, the menu, the keys, the command, the clicks')
+  tally.section('plain · 178x51 · the FILES box, the menu, the keys and the clicks')
   tally.check('P1 every send became due', cap.receipts === cap.sends && cap.status === 0, `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`)
   const land = railRows(m.land)
   const boxAt = land.findIndex(r => r === FILES_BOX[1])
@@ -329,8 +327,7 @@ if (worlds.has('plain') || worlds.has('off')) {
   const onFile = menuRegion(m['on-file'])
   tally.check('P9 the cursor reaches a file two folders deep', onFile !== null && onFile.rows.some(r => r.startsWith('│     ❯ Alpha.tsx')), onFile === null ? 'no menu' : onFile.rows.join('\n'))
   tally.check('P10 ↵ on the file puts @path in the composer and closes the menu', !(m.picked ?? '').includes(TITLE) && rowsOf(m.picked).some(r => r.includes('│❯ @src/components/Alpha.tsx')), rowWith(m.picked, '@src') ?? '(no composer row)')
-  tally.check('P11 /files opens the same menu from the composer', menuRegion(m.command) !== null && (menuRegion(m.command)?.top ?? -1) === 5)
-  tally.check('P11b the typed /files offers its row with the word browse and no other words', rowsOf(m.typed).some(r => /\/files\s+browse\s*$/.test(r.trimEnd())) && rowsOf(m.typed).filter(r => r.includes('/files')).every(r => r.includes('❯ /files') || /\/files\s+browse\s*$/.test(r.trimEnd())), rowsOf(m.typed).filter(r => r.includes('/files')).join(' | '))
+  tally.check('P11 the FILES header reopens the same menu', menuRegion(m.command) !== null && (menuRegion(m.command)?.top ?? -1) === 5)
   tally.check('P12 esc closes the menu', !(m['esc-closed'] ?? '').includes(TITLE))
   tally.check('P13 a click on the FILES box opens the menu', menuRegion(m['click-open']) !== null)
   tally.check('P14 a click on the chat outside the menu closes it and nothing else moves', !(m['click-closed'] ?? '').includes(TITLE) && m['click-closed'] === m['esc-closed'], m['click-closed'] === m['esc-closed'] ? '' : 'the frame after the click differs from the frame after esc')
@@ -369,9 +366,6 @@ if (worlds.has('off')) {
   const { home, cwd } = seedWorld('off', { filesBox: false })
   const cap = await capture('off-178x51', cfgFor(178, 51, cwd, [
     ...boot(),
-    after('/files', 2),
-    after('\r', 3),
-    after('', 8, { mark: 'typed' }),
   ]), driveEnv(home))
   frames.off = cap
   const m = cap.marks
@@ -399,7 +393,6 @@ if (worlds.has('off')) {
     }
   }
   tally.check('O3b every cell outside the four FILES rows keeps its glyph and colours with the setting off, and those rows are blank', plainGrid !== undefined && offGrid !== undefined && outsideDiffers === 0 && insideNotBlank === 0, `${outsideDiffers} cells differ outside the box, ${insideNotBlank} cells inside it are not blank`)
-  tally.check('O4 /files typed opens no menu with the setting off', !(m.typed ?? '').includes(TITLE))
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }
 
@@ -409,8 +402,7 @@ if (worlds.has('small')) {
     const { home, cwd } = seedWorld(`small-${label}`, {})
     const cap = await capture(`plain-${label}`, cfgFor(cols, rows, cwd, [
       ...boot(),
-      after('/files', 2),
-      after('\r', 3),
+      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
       gated('\x1b', TITLE, { awaitSettleTicks: 4, mark: 'menu' }),
       after('', 4, { mark: 'closed' }),
     ]), driveEnv(home))
@@ -442,8 +434,7 @@ if (worlds.has('hop')) {
       after('\r', 4),
       after('\r', 4),
       gated('', '← back', { awaitSettleTicks: 6, mark: 'hopped' }),
-      after('/files', 2),
-      after('\r', 3),
+      after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
       gated('', TITLE, { awaitSettleTicks: 4, mark: 'hop-menu' }),
       after(DOWN, 2),
       after(DOWN, 2),

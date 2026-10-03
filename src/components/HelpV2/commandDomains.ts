@@ -27,9 +27,9 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'clear', 'compact', 'context', 'auto-compact-window', 'resume',
       'rewind', 'sessions', 'sessiontab', 'concourse', 'branches',
-      'export', 'cost', 'usage',
+      'export', 'usage',
       'debrief', 'rename', 'title', 'contract',
-      'copy', 'files',
+      'copy',
       'realms',
     ],
   },
@@ -55,7 +55,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'git & review',
     names: [
       'branch', 'review',
-      'audit', 'pr-comments',
+      'audit',
     ],
   },
   {
@@ -64,7 +64,6 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     names: [
       'health', 'verify', 'ledger', 'trace', 'substrate', 'status',
       'capabilities', 'capabilities-detail', 'provenance',
-      'heapdump',
     ],
   },
   {
@@ -84,7 +83,7 @@ export const COMMAND_DOMAINS: readonly CommandDomain[] = [
     label: 'appearance & cockpit',
     names: [
       'cockpit', 'home', 'palette', 'critter', 'view', 'showcase',
-      'color', 'accent', 'fullscreen',
+      'accent', 'fullscreen',
       'appearance',
     ],
   },

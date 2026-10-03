@@ -38,6 +38,7 @@ import { isCrewSession } from '../utils/sessionClass.js'
 import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js'
 import { getSessionIdFromLog, loadAllProjectsMessageLogs } from '../utils/sessionStorage.js'
 import { getHelmCursor, getHelmFocus, getHelmLanesVersion, getHelmRows, helmRowSig, publishHelmRows, requestCommandDispatch, requestHelmRowActivation, requestHelmRowActivationBySig, setHelmCursor, setHelmCursorBySig, subscribeHelmFocus, type HelmRow } from '../utils/cockpit/helmFocus.js'
+import { openFilesMenu } from '../utils/cockpit/filesMenu.js'
 import { formatCountdown } from '../utils/cockpit/quota.js'
 import { activeSourceUsage } from '../services/providers/providerUsage.js'
 import { usageAgeTail } from '../services/providers/usageFreshness.js'
@@ -915,7 +916,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         glyphColor={tok.textMuted}
         name="or click · browse"
         nameColor={tok.textMuted}
-        {...railRowProps(isOn, sel, { kind: 'command', command: '/files', label: 'files:browse' })}
+        {...railRowProps(isOn, sel, { kind: 'files', label: 'files:browse' })}
       />,
     )
   }
@@ -1017,7 +1018,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
     label: string,
     count: string | undefined,
     body: React.ReactNode,
-    opts?: { open?: string },
+    opts?: { open?: string | (() => void) },
   ): React.ReactNode => {
     const open = opts?.open
     const first = painted++ === 0
@@ -1028,7 +1029,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
         label={label}
         count={count}
         width={width}
-        headerAction={open ? { id: `helm:lane:${key}`, run: () => requestCommandDispatch(open) } : undefined}
+        headerAction={open ? { id: `helm:lane:${key}`, run: typeof open === 'function' ? open : () => requestCommandDispatch(open) } : undefined}
       >
         {body}
       </RailPanel>
@@ -1092,7 +1093,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
           {}
           {hintNodes.length > 0 ? section('next', GLYPH.cursor, 'NEXT', undefined, hintNodes, { open: '/help' }) : null}
 
-          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: '/files' }) : null}
+          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: openFilesMenu }) : null}
         </>
       ) : (
         <>
@@ -1129,7 +1130,7 @@ function HelmLanesRailImpl({ width, mergedTelemetry = false, availRows }: { widt
             ? section('workbench', GLYPH.prompt, 'WORKBENCH', undefined, workbenchNodes, { open: '/workbench' })
             : null}
 
-          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: '/files' }) : null}
+          {filesNodes.length > 0 ? section('files', '▤', 'FILES', filesFolder, filesNodes, { open: openFilesMenu }) : null}
         </>
       )}
 

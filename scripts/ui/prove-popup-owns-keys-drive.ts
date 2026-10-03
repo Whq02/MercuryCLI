@@ -14,6 +14,7 @@ const KEEP = process.argv.includes('--keep')
 const LEGS = new Set((argAfter('--legs') ?? 'jev,config,files,jev-compact').split(','))
 const DEAD = 'http://127.0.0.1:9'
 const ESC = '\x1b'
+const CLICK = '\x1b[<0;{X};{Y}M\x1b[<0;{X};{Y}m'
 const LEFT = '\x1b[D'
 const RIGHT = '\x1b[C'
 const DOWN = '\x1b[B'
@@ -294,8 +295,7 @@ async function filesLeg(): Promise<void> {
   const { home, cwd } = seedWorld('files')
   const cap = await capture('files-178x51', cfgFor(178, 51, cwd, [
     ...boot(),
-    after('/files', 2),
-    after('\r', 3),
+    after(CLICK, 2, { targetText: 'FILES · fixture-cwd' }),
     gated('', FILES_TITLE, { awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'open' }),
     after(LEFT, 1),
     after('', 6, { mark: 'after-left' }),

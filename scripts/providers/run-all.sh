@@ -10,7 +10,7 @@
 # gate-watch: src/services/providers/accountSlots* src/components/ConsoleOAuthFlow*
 # gate-watch: src/services/providers/sseDecoder*
 # gate-watch: docs/ENGINES.md scripts/lib/fixtureApi.ts scripts/staleness/prove-stale-registry.ts src/*
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/cost/cost.ts src/commands/feedback/index.ts
+# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/feedback/index.ts
 # gate-watch: src/commands/login/login.tsx src/commands/mock-limits/index.ts
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx src/commands/router/router.tsx
 # gate-watch: src/components/* src/components/PromptInput/PromptInput.tsx src/components/Settings/Usage.tsx

@@ -399,8 +399,7 @@ try {
         { data: 'ring-drive: alpha\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: 'ring-drive: scout\r', awaitText: ALPHA_DONE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'alpha' },
         { data: '', awaitText: SEAT_TWO_FILE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-live' },
-        { data: '/cost\r', awaitText: SCOUT_BACK, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-done' },
-        { data: 'ring-drive: shell\r', awaitText: 'Total cost', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'cost' },
+        { data: 'ring-drive: shell\r', awaitText: SCOUT_BACK, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-done' },
         { data: '\x1b', awaitText: PROCEED, requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'shell-card' },
         { data: 'ring-drive: sleep\r', awaitText: SHELL_REFUSED, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'shell-refused' },
         { data: '\x1b', afterPrevTicks: 20, mark: 'sleep-running' },
@@ -421,7 +420,7 @@ if (cap !== null) {
   console.log(`  routes: ${fixture.hits.map(h => h.route).join(' → ')}`)
   console.log(`  send ticks: ${cap.receipts.join(',')} · marks: ${Object.entries(cap.markTicks).map(([k, v]) => `${k}@${v}`).join(' ')} · end: ${cap.endReason}`)
   const m = cap.marks
-  for (const label of ['alpha', 'scout-live', 'scout-done', 'cost', 'shell-refused', 'sleep-running', 'after-interrupt']) dump(label, m[label])
+  for (const label of ['alpha', 'scout-live', 'scout-done', 'shell-refused', 'sleep-running', 'after-interrupt']) dump(label, m[label])
 
   console.log('\n— D1 the chat gauge —')
   const WINDOW = 1_000_000
@@ -479,10 +478,6 @@ if (cap !== null) {
     gaugeAfter.some(r => r.includes(`ctx ${backPct}`) || r.includes(`context ${backPct}`)),
     gaugeAfter.map(flat).join(' | ').slice(0, 300),
   )
-
-  console.log('\n— D4 /cost —')
-  const costRows = rowsWith(m['cost'], /spent|Usage by model|Total cost/)
-  check('D4 the /cost rows say they are spend', costRows.some(r => r.includes('spent')), costRows.map(flat).join(' | ').slice(0, 300))
 
   console.log('\n— the ring —')
   const events = ringEvents(tee)

@@ -930,8 +930,8 @@ a local server. A turn on a model with no rate on file lands in the ledger
 with its tokens counted and its cost unrecorded: it is counted as an unpriced
 turn, never priced at zero, and every cost readout says so — a lane that
 priced nothing reads "unpriced", and a figure that includes such turns says
-"+ N unpriced turns" beside itself, on the `/usage` spend lines, the `/cost`
-headline and rows, and the deck and frame vitals alike. No family is ever
+"+ N unpriced turns" beside itself, on the `/usage` spend lines, the cost
+summary at exit, and the deck and frame vitals alike. No family is ever
 priced at another family's rates.
 
 ### JEV

@@ -67,7 +67,7 @@ function walk(root: string): string[] {
   check('P3 no session — the empty id', resting.sessionId() === '')
   const send = await resting.sendWords('hello')
   check('P3 a send is refused with the door a chat starts through (poison: a send that creates a session)', send.state === 'refused' && send.detail === NO_CHAT_OPEN && /New Session/.test(NO_CHAT_OPEN))
-  const slash = await resting.dispatchSlash('/cost')
+  const slash = await resting.dispatchSlash('/context')
   check('P3 a slash line is refused the same way (no surprise birth from a command line)', slash.state === 'refused' && slash.detail === NO_CHAT_OPEN)
   check('P3 a model switch is refused (nothing to switch)', (await resting.setModel('claude-sonnet-5')).state === 'refused')
   const ask = await resting.answerAsk()

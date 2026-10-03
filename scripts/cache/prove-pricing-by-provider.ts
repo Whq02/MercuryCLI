@@ -193,23 +193,9 @@ section('§3 the ledger counts the turns it could not price, and every spend vie
   check('formatSessionCost: unpriced turns beside a figure', formatSessionCost(1.5, 3) === '$1.50 + 3 unpriced turns')
   check('formatSessionCost: nothing priced ⇒ "unpriced", never a zero', formatSessionCost(0, 1) === 'unpriced (1 unpriced turn — no rate on file, tokens counted)')
   const total = formatTotalCost().replace(new RegExp(String.fromCharCode(27) + '\\[[0-9;]*m', 'g'), '')
-  check('/cost headline: the total says "+ 3 unpriced turns" beside its figure', /Total cost:\s+\$[\d.]+ \+ 3 unpriced turns/.test(total), total.split('\n')[0])
-  check('/cost rows: the unpriced model row reads unpriced', total.includes('(unpriced (2 unpriced turns — no rate on file, tokens counted))'), total)
-  check('/cost rows: no $0.0000 row for the unpriced model', !/compat[^\n]*\$0\.0000/.test(total), total)
-  const { nonAnthropicLaneLines } = await import('../../src/commands/cost/cost.ts')
-  const { getModelUsage } = await import('../../src/bootstrap/state.ts')
-  const lines = nonAnthropicLaneLines({
-    usage: () => getModelUsage(),
-    unpricedTurns: () => getUnpricedTurns(),
-    openaiView: () => ({ provider: 'openai', entries: [], sessionSpend: { inputTokens: 0, outputTokens: 0, costUSD: 0, models: 0 }, limits: { kind: 'openai-observed', window: { state: 'clear' } } }),
-  })
-  const compatLine = lines.find(l => l.startsWith('Custom endpoint'))
-  const hfLine = lines.find(l => l.startsWith('Hugging Face'))
-  const orLine = lines.find(l => l.startsWith('OpenRouter'))
-  check('/cost lane row: the custom-endpoint lane reads unpriced', compatLine !== undefined && compatLine.endsWith('— unpriced (2 unpriced turns — no rate on file, tokens counted)'), JSON.stringify(lines))
-  check('/cost lane row: the Hugging Face lane carries the estimate mark beside its figure', hfLine !== undefined && /— \$[\d.]+ \(one model at an estimated rate\)$/.test(hfLine), hfLine)
-  check('/cost lane row: the mixed OpenRouter lane says "+ 1 unpriced turn"', orLine !== undefined && orLine.endsWith('— $0.0100 + 1 unpriced turn'), orLine)
-  check('/cost lane row: the GLM lane is a plain figure', lines.some(l => l.startsWith('Z.AI') && /— \$[\d.]+$/.test(l)), JSON.stringify(lines))
+  check('the cost summary: the total says "+ 3 unpriced turns" beside its figure', /Total cost:\s+\$[\d.]+ \+ 3 unpriced turns/.test(total), total.split('\n')[0])
+  check('the cost summary rows: the unpriced model row reads unpriced', total.includes('(unpriced (2 unpriced turns — no rate on file, tokens counted))'), total)
+  check('the cost summary rows: no $0.0000 row for the unpriced model', !/compat[^\n]*\$0\.0000/.test(total), total)
   const { getSessionId } = await import('../../src/bootstrap/state.ts')
   let persisted = false
   try {
@@ -280,7 +266,6 @@ section('§5 the shape')
     ['src/components/DeckPane.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/components/MercuryFrame.tsx', 'formatSessionCost(cost, unpricedTurns)'],
     ['src/components/HelmLanesRail.tsx', 'formatSessionCost(focusedSpendUSD, focusedUnpriced)'],
-    ['src/commands/cost/cost.ts', 'formatLaneSpend(spend)'],
   ] as const) {
     check(`${file} spells its figure through the one law`, readFileSync(join(ROOT, file), 'utf8').includes(needle))
   }

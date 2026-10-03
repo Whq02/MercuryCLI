@@ -657,13 +657,13 @@ the live list can also include skills and extension commands.
 | --- | --- |
 | current work | `/run` `/runs` `/workbench` `/diff` `/mission` `/supervisor` |
 | crew & delegation | `/agents` `/subagents` `/crewmates` `/crew` `/workflows` `/fleet` `/monitor` `/router` `/daemon` `/saturn` `/seats` `/live` `/halt` `/kill` `/unkill` `/surfaces` |
-| session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/cost` `/usage` `/debrief` `/realms` |
+| session & context | `/clear` `/compact` `/context` `/auto-compact-window` `/resume` `/rewind` `/sessions` `/concourse` `/branches` `/rename` `/title` `/contract` `/export` `/copy` `/usage` `/debrief` `/realms` |
 | memory & goals | `/memory` `/console` `/orient` |
 | model & effort | `/model` `/effort` `/submodels` `/advise` `/counsel` `/harness` `/caching` |
-| git & review | `/branch` `/review` `/audit` `/pr-comments` |
+| git & review | `/branch` `/review` `/audit` |
 | health & introspection | `/health` `/verify` `/status` `/trace` `/substrate` `/capabilities` `/capabilities-detail` `/ledger` `/provenance` |
 | config & setup | `/config` `/jev` `/jevor` `/localsetup` `/permissions` `/hooks` `/mcp` `/extensions` `/skills` `/policy` `/authority` `/sovereign` `/sandbox` `/browser` `/init` `/keybindings` `/keys` `/vim` `/mouse` `/keysetup` `/bootmenu` `/speak` `/voice` |
-| appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/color` `/critter` `/view` `/palette` `/fullscreen` |
+| appearance & cockpit | `/cockpit` `/home` `/appearance` `/accent` `/critter` `/view` `/palette` `/fullscreen` |
 | account & app | `/logins` `/logout` `/accounts` `/defaultprovider` `/update-notes` `/feedback` `/help` `/exit` |
 
 `/mouse off` returns the pointer to the terminal for native text selection

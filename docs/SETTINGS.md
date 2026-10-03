@@ -178,7 +178,7 @@ the server definitions themselves.
 | `activity.tips.words` | Custom tips: `tips` is a string list and `excludeDefault` chooses whether the built-in tips also appear. |
 | `activity.verbs` | Custom activity verbs: `verbs` is a string list and `mode` is `append` or `replace`. |
 | `activity.progress` | Terminal progress reporting. |
-| `view.files` | Shows the files menu and its command. |
+| `view.files` | Shows the FILES box in the sidebar. |
 | `view.modelPicker.centred` | Centres the model picker; `false` places it at the left edge. |
 | `view.syntaxOff` | Disables syntax colouring. |
 | `view.reducedMotion` | Suppresses authored animation. |

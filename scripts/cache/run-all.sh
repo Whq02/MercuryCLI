@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/utils/cache/cacheClock* src/utils/cache/cacheClockCore* src/utils/modelCost*
-# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/commands/cost/cost.ts src/components/*
+# gate-watch: src/bootstrap/state.ts src/cli/run.ts src/components/*
 # gate-watch: src/components/Settings/Usage.tsx src/cost-tracker.ts src/services/engine-connector/types.ts
 # gate-watch: src/services/providers/anthropic/** src/services/providers/deepseek/deepseekPins.ts
 # gate-watch: src/services/providers/gemini/geminiPins.ts

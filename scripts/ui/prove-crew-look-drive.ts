@@ -130,7 +130,7 @@ const see = (needle: string, mark: string, settle = 4, extra: Send = {}): Send =
 const clickOn = (needle: string, extra: Send = {}): Send => ({ data: CLICK, targetText: needle, atTick: 1500, awaitText: needle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, ...extra })
 const type = (data: string, ticks = 2, extra: Send = {}): Send => ({ data, afterPrevTicks: ticks, ...extra })
 const later = (ticks: number, mark: string): Send => ({ data: '', afterPrevTicks: ticks, mark })
-const popupTitles = { '/usage': USAGE_TITLE, '/config': CONFIG_TITLE, '/model': MODEL_TITLE, '/files': FILES_TITLE, '/crewmates': CREW_TITLE }
+const popupTitles = { '/usage': USAGE_TITLE, '/config': CONFIG_TITLE, '/model': MODEL_TITLE, '/crewmates': CREW_TITLE }
 const regexLiteral = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const seePopup = (title: string, needle: string, mark: string): Send => see(needle, mark, 6, {
   awaitPattern: String.raw`\A[^\n]*╭─+╮(?=[\s\S]*${regexLiteral(title)})(?=[\s\S]*${regexLiteral(needle)})(?=[\s\S]*\n│[❯›][^\n]*│(?: *\n| *\Z))`,
@@ -324,7 +324,10 @@ async function leg(cols: number, rows: number): Promise<void> {
     ...popup('/usage', USAGE_HINT, 'usage'),
     ...popup('/config', CONFIG_HINT, 'config'),
     ...popup('/model', '↑↓ select · ↵ switch', 'model'),
-    ...popup('/files', '↑↓ move · ↵ open', 'files'),
+    clickOn('FILES ·'),
+    seePopup(FILES_TITLE, '↑↓ move · ↵ open', 'files-open'),
+    type(ESC, 3),
+    later(8, 'files-closed'),
     ...popup('/crewmates', CREW_TITLE, 'crew'),
     type(PAGE_UP, 3),
     type(PAGE_UP, 3),
@@ -413,9 +416,9 @@ async function leg(cols: number, rows: number): Promise<void> {
     console.log(`  the wide Bash result in atlas's transcript: ${wide === undefined ? 'not painted (the runner\'s record carries no toolUseResult)' : `${wideRows(centreOf(wide.rows, cockpit)).length} rows`}`)
     if (wide !== undefined) check(`${tag}: the wide Bash result stays inside the view`, pastCentre(wide.rows, cockpit, 'c0').length === 0 && integrity(wide.rows).length === 0, integrity(wide.rows).slice(0, 3).join(' · '))
     const atlasNeedles = ['never breaks on its own', 'ledger row', '[you → atlas]']
-    for (const [tagName, title] of [['usage', USAGE_TITLE], ['config', CONFIG_TITLE], ['model', MODEL_TITLE], ['files', FILES_TITLE], ['crew', CREW_TITLE]] as const) {
-      popupPins(`${tag}: /${tagName} over atlas`, marks[`${tagName}-open`], title, cockpit, atlasNeedles, atlas)
-      returnPins(`${tag}: /${tagName} closed`, atlas, marks[`${tagName}-closed`], cockpit, 'atlas')
+    for (const [tagName, title, door] of [['usage', USAGE_TITLE, '/usage'], ['config', CONFIG_TITLE, '/config'], ['model', MODEL_TITLE, '/model'], ['files', FILES_TITLE, 'the files menu'], ['crew', CREW_TITLE, '/crew']] as const) {
+      popupPins(`${tag}: ${door} over atlas`, marks[`${tagName}-open`], title, cockpit, atlasNeedles, atlas)
+      returnPins(`${tag}: ${door} closed`, atlas, marks[`${tagName}-closed`], cockpit, 'atlas')
     }
     const scrolled = marks['atlas-scrolled']
     check(`${tag}: PgUp scrolls atlas's transcript (the rows moved, the pill stands)`, scrolled !== undefined && atlas !== undefined && transcriptRows(scrolled.rows, cockpit).join('\n') !== transcriptRows(atlas.rows, cockpit).join('\n') && scrolled.rows.some(line => line.includes(PILL)), scrolled === undefined ? 'no frame' : transcriptRows(scrolled.rows, cockpit).slice(0, 3).map(flat).join(' | '))
