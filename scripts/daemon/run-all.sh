@@ -4,7 +4,7 @@
 # gate-watch: src/utils/boxLock* src/services/resources/adapters/health*
 # gate-watch: src/services/engine-connector/seatProjections* src/utils/spawnLedger* docs/DURABILITY.md
 # gate-watch: src/tools/MonitorTool/**
-# gate-watch: src/cli/headless/turnDriver* src/cli/print* src/services/saturn/** src/tools/ScheduleWakeupTool/**
+# gate-watch: src/cli/headless/turnDriver* src/cli/headless/runnerAsks.ts src/cli/print* src/services/saturn/** src/tools/ScheduleWakeupTool/**
 # gate-watch: docs/SESSIONS.md scripts/dap/mock-dap-adapter.mjs scripts/journey/switch-fixture-server.ts
 # gate-watch: scripts/lib/* scripts/staleness/prove-stale-registry.ts
 # gate-watch: scripts/streaming/turn-end-fixture-server.ts

@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { POLL_INTERVAL_MS } from '../../src/utils/task/framework.ts'
@@ -30,24 +30,19 @@ type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void;
 type World = 'sub-to-main-midturn' | 'sub-to-main-idle' | 'main-to-sub-midturn' | 'main-to-sub-ended'
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'sovereign', '--sovereign']
-  const proc = spawn(NODE, argv, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Frame[] = []
-  let buffer = ''
   let stderr = ''
-  proc.stdout!.on('data', (chunk: Buffer) => {
-    buffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl)
-      buffer = buffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        frames.push({ ...(JSON.parse(line) as Record<string, unknown>), atMs: Date.now() })
-      } catch {
-      }
-    }
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', '--sovereign'],
+    cwd,
+    env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame !== null) frames.push({ ...frame, atMs: Date.now() })
+    },
   })
+  const proc = door.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderr += chunk.toString('utf8')
   })
@@ -55,7 +50,9 @@ function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   return {
     frames,
     stderr: () => stderr,
-    send: frame => proc.stdin!.write(`${JSON.stringify(frame)}\n`),
+    send: frame => {
+      door.send(frame)
+    },
     stop: async graceMs => {
       try {
         proc.stdin!.end()

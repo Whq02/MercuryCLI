@@ -153,7 +153,7 @@ const { logError } = await import('../../src/utils/log.ts')
 const printMod = await import('../../src/cli/print.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
 const controlMod = await import('../../src/cli/headless/controlHandlers.ts')
-const permChanMod = await import('../../src/cli/headless/permissionChannel.ts')
+const runnerAsksMod = await import('../../src/cli/headless/runnerAsks.ts')
 const streamingMod = await import('../../src/utils/messages/streaming.ts')
 const qm = await import('../../src/utils/messageQueueManager.ts')
 
@@ -1014,21 +1014,13 @@ section('P4 resolvePermissionModeTransition — apollo refused outside the termi
   )
 }
 
-section('P5 getCanUseToolFn — stdio routes to StructuredIO; forceDecision passthrough')
+section('P5 createRuleOnlyAsks — a run with no host answers by the rules; forceDecision passthrough')
 {
-  const { getCanUseToolFn } = permChanMod
-  const marker = async (): Promise<PermissionDecision> => ({ behavior: 'allow' })
-  let createCalls = 0
-  const fakeIO = {
-    createCanUseTool: () => {
-      createCalls++
-      return marker
-    },
-  }
-  const viaStdio = getCanUseToolFn('stdio', undefined, fakeIO as never, () => [])
-  check("'stdio' routes to structuredIO.createCanUseTool", viaStdio === (marker as never) && createCalls === 1)
+  const { createRuleOnlyAsks } = runnerAsksMod
+  const host = createRuleOnlyAsks()
+  check('a hostless run parks no asks and holds none', host.parkedAsks() === 0 && host.pendingControlRequestCount() === 0)
 
-  const noPrompt = getCanUseToolFn(undefined, undefined, fakeIO as never, () => [])
+  const noPrompt = host.createCanUseTool()
   const forced = {
     behavior: 'deny',
     message: 'forced',
@@ -1043,10 +1035,9 @@ section('P5 getCanUseToolFn — stdio routes to StructuredIO; forceDecision pass
     forced as never,
   )
   check(
-    'the no-prompt channel returns forceDecision verbatim (no permission engine call)',
+    'the hostless road returns forceDecision verbatim (no permission engine call)',
     out === (forced as never),
   )
-  check('no StructuredIO channel was built for the no-prompt path', createCalls === 1)
 }
 
 const { handleMessageFromStream, isDroppedLateStreamFrame } = streamingMod

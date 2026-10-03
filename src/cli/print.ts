@@ -2,7 +2,6 @@ import { requestShellBackground } from '../tools/BashTool/backgroundRequest.js'
 import { randomUUID, type UUID } from 'node:crypto'
 import { keepTurnLiveWhileHostAnswers, type HostAskLiveness } from './headless/hostAskLiveness.js'
 import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
-import type { PermissionChannel } from '../Tool.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
@@ -45,7 +44,7 @@ import type { PermissionMode as WirePermissionMode } from '../types/permissions.
 import { consumeSessionHomePin } from '../utils/sessionStorage/sessionHomePin.js'
 import { SPAWN_SWITCH_LABEL, setSpawnSwitch, spawnSwitchFacts, spawnSwitchTransitionLine } from '../services/switchboard/spawnSwitches.js'
 import { boxReading, refreshBoxReading } from '../utils/boxLock.js'
-import { declareLawfulPrefixChangeForEveryOwner, requestDeliberateToolChange } from '../services/providers/lawfulPrefixChange.js'
+import { declareLawfulPrefixChangeForEveryOwner } from '../services/providers/lawfulPrefixChange.js'
 import { createRosterTransitionMessage } from '../utils/messages/systemMessages.js'
 import { dropCredentialMemos, is1PApiCustomer } from '../utils/auth.js'
 import { noteCrewAccountChange } from '../utils/crew/crewAccountChange.js'
@@ -70,25 +69,18 @@ import { jevStatus } from '../services/jev/jevStatus.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { asAgentId } from '../types/ids.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
-import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope } from '../rows/project.js'
-import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type OutcomeRow } from '../rows/vocabulary.js'
+import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope } from '../rows/project.js'
+import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
 import { getCommands, findCommand, clearCommandMemoizationCaches, formatDescriptionWithSource } from '../commands.js'
 import { collectContextData } from '../commands/context/context-noninteractive.js'
 import {
-  handleInitializeRequest,
-  handleMcpSetServers,
-  handleOrphanedPermissionResponse,
   handleRewindFiles,
   handleRewindSession,
-  reconcileMcpServers,
   resolvePermissionModeTransition,
-  type DynamicMcpState,
-  type SdkMcpState,
 } from './headless/controlHandlers.js'
-import { getCanUseToolFn } from './headless/permissionChannel.js'
 import {
   emitLoadError,
   loadInitialMessages,
@@ -101,18 +93,13 @@ import {
   type PromptValue,
   type TurnDriver,
 } from './headless/turnDriver.js'
-import { isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine, type WireLine } from './structuredIO.js'
-import { createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
+import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine, type WireLine } from './structuredIO.js'
+import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RequestRef, type RunnerArms } from './headless/runnerMethods.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
-import { isRpcError, refused } from '../runner/wire/errors.js'
+import { invalidParams, isRpcError, refused } from '../runner/wire/errors.js'
 import type { Capabilities, ParamsOf } from '../runner/wire/methods.js'
 import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
-import type {
-  SDKControlRequest,
-  SDKControlResponse,
-  StdinMessage,
-} from '../entrypoints/sdk/controlTypes.js'
 import { anthropicWindowFact, resetLimitsForCredentialSwitch, statusListeners, type ClaudeAILimits } from '../services/claudeAiLimits.js'
 import { sessionLaneWall } from '../tools/MonitorTool/laneWall.js'
 import { providerLimitWarning } from '../services/providers/limitWarning.js'
@@ -122,7 +109,6 @@ import {
   fetchCommandsForClient,
   fetchResourcesForClient,
   fetchToolsForClient,
-  setupSdkMcpClients,
 } from '../services/mcp/client.js'
 import { withElicitationEntered } from '../services/mcp/elicitationHandler.js'
 import { getMcpPrefix } from '../services/mcp/mcpStringUtils.js'
@@ -151,7 +137,6 @@ import { revokeServerTokens } from '../services/mcp/auth.js'
 import type {
   ConnectedMCPServer,
   MCPServerConnection,
-  McpSdkServerConfig,
   McpServerConfig,
   ScopedMcpServerConfig,
 } from '../services/mcp/types.js'
@@ -298,13 +283,6 @@ import { runWithWorkload } from '../utils/workloadContext.js'
 
 export { joinPromptValues, canBatchWith }
 export { removeInterruptedMessage }
-export {
-  handleOrphanedPermissionResponse,
-  handleMcpSetServers,
-  reconcileMcpServers,
-}
-export type { DynamicMcpState, SdkMcpState }
-export type { McpSetServersResult } from './headless/controlHandlers.js'
 
 const MAILBOX_REFUSAL_NOTICE_AFTER = 20
 const CONCOURSE_INTERRUPT_PREFIX = 'concourse-interrupt-'
@@ -318,8 +296,6 @@ type HeadlessOptions = {
   outputFormat?: string
   syntaxInput?: string
   jsonSchema?: Record<string, unknown>
-  permissionPromptToolName?: string
-  permissionChannel?: PermissionChannel
   allowedTools?: string[]
   thinkingConfig?: ThinkingConfig
   maxTurns?: number
@@ -400,12 +376,7 @@ function normalizeInputPrompt(
   return {
     async *[Symbol.asyncIterator]() {
       if (raw.trim().length === 0) return
-      yield `${jsonStringify({
-        type: 'user',
-        message: { role: 'user', content: raw },
-        parent_tool_use_id: null,
-        session_id: '',
-      })}\n`
+      yield `${jsonStringify({ type: 'prompt', content: raw })}\n`
     },
   }
 }
@@ -417,11 +388,10 @@ export async function runHeadless(
   setAppState: SetAppState,
   commands: import('../commands.js').Command[],
   tools: Tool[],
-  sdkMcpConfigs: Record<string, McpSdkServerConfig>,
   agents: AgentDefinition[],
   options: HeadlessOptions,
 ): Promise<void> {
-  setAskChannel(options.permissionChannel !== undefined || options.permissionPromptToolName !== undefined ? 'sdk' : 'none')
+  setAskChannel(options.door === 'wire' ? 'sdk' : 'none')
   markSessionNonInteractive(getAppState().toolPermissionContext?.mode)
   markSessionBootRules(getAppState().toolPermissionContext)
   const shellRoadNotice = windowsShellRoadNotice()
@@ -461,7 +431,7 @@ export async function runHeadless(
     return
   }
 
-  const io = new StructuredIO(normalizeInputPrompt(inputPrompt))
+  const io = new StructuredIO(normalizeInputPrompt(inputPrompt), text => enqueueRow(noticeRow(liveScope(), 'error', text, INPUT_REFUSED_CODE)))
   const wire = options.door === 'wire'
   let capabilities: Capabilities = { ...DEFAULT_CAPABILITIES }
   let bootSettled: () => void = () => {}
@@ -485,7 +455,7 @@ export async function runHeadless(
         log: logForDebugging,
       })
     : null
-  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : io
+  const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
     peer.onRequest('initialize', async params => {
       checkProtocol(params)
@@ -697,13 +667,7 @@ export async function runHeadless(
           messages,
           getAppState,
           setAppState,
-          canUseTool: getCanUseToolFn(
-            options.permissionChannel,
-            options.permissionPromptToolName,
-            io,
-            () => getAppState().mcp.tools as Tool[],
-            () => notifySessionStateChanged('requires_action'),
-          ),
+          canUseTool: asks.createCanUseTool(() => notifySessionStateChanged('requires_action')),
           relaunchContext: async () => {
             const { toolUseContext } = await buildSideQuestionFallbackParams({
               tools,
@@ -721,7 +685,7 @@ export async function runHeadless(
               ...toolUseContext,
               options: {
                 ...toolUseContext.options,
-                ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
+                ...(peer !== null ? { hostHoldsAsks: true } : {}),
               },
             }
           },
@@ -828,19 +792,8 @@ export async function runHeadless(
     const rules = Object.values(denyRules ?? {}).flat()
     return !rules.some(rule => rule === tool.name)
   })
-  let sessionTools: Tool[] = [...tools, ...startingMcpTools]
-  const canUseTool = getCanUseToolFn(
-    options.permissionChannel,
-    options.permissionPromptToolName,
-    asks,
-    () => getAppState().mcp.tools as Tool[],
-    () => notifySessionStateChanged('requires_action'),
-  )
-  if (options.permissionPromptToolName) {
-    sessionTools = sessionTools.filter(
-      tool => tool.name !== options.permissionPromptToolName,
-    )
-  }
+  const sessionTools: Tool[] = [...tools, ...startingMcpTools]
+  const canUseTool = asks.createCanUseTool(() => notifySessionStateChanged('requires_action'))
   registerProcessOutputErrorHandlers()
   notePrintPhase('config_auth')
 
@@ -887,16 +840,6 @@ export async function runHeadless(
     declareLawfulPrefixChangeForEveryOwner(`the operator toggled ${SPAWN_SWITCH_LABEL[kind]} ${on ? 'on' : 'off'}`)
   }
 
-  const dynamicMcp: DynamicMcpState = {
-    configs: {},
-    clients: [],
-    tools: [],
-  }
-  const sdkMcp: SdkMcpState = {
-    configs: Object.assign(Object.create(null), sdkMcpConfigs) as Record<string, McpSdkServerConfig>,
-    clients: [],
-    tools: [],
-  }
   let mcpChangeChain: Promise<unknown> = Promise.resolve()
   const serializeMcpChange = <T,>(operation: () => Promise<T>): Promise<T> => {
     const next = mcpChangeChain.then(operation, operation)
@@ -940,7 +883,6 @@ export async function runHeadless(
     for (const client of clients) {
       if (client.type !== 'connected') continue
       if (elicitationRegistered.has(client.name)) continue
-      if (client.config.type === 'host') continue
       try {
         void registerElicitationHandlersForClient(client, client.name)
         elicitationRegistered.add(client.name)
@@ -1019,7 +961,7 @@ export async function runHeadless(
   const baseToolNames = new Set(getAllBaseTools().map(tool => tool.name))
   const assembleTools = (state: AppState): Tool[] => {
     const mcpPartition = filterToolsByDenyRules(
-      [...(state.mcp.tools as Tool[]), ...sdkMcp.tools, ...dynamicMcp.tools],
+      state.mcp.tools as Tool[],
       state.toolPermissionContext,
     ).filter(tool => tool.mcpInfo?.effectiveMaxPermission !== 'blocked')
     const pool: Tool[] = [
@@ -1031,7 +973,6 @@ export async function runHeadless(
     const deduped: Tool[] = []
     for (const tool of pool) {
       if (seen.has(tool.name)) continue
-      if (options.permissionPromptToolName && tool.name === options.permissionPromptToolName) continue
       seen.add(tool.name)
       deduped.push(tool)
     }
@@ -1072,54 +1013,13 @@ export async function runHeadless(
     setFlagEnv('MERCURY_EFFORT_LEVEL', effort)
     setAppState(previous => ({ ...previous, effortValue: effort }))
   }
-  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: [...getAppState().mcp.clients, ...sdkMcp.clients, ...dynamicMcp.clients], messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
+  armLocalWarm(() => buildSideQuestionFallbackParams({ tools: assembleTools(getAppState()), commands: activeCommands, mcpClients: getAppState().mcp.clients, messages, readFileState: getReadFileCache(), getAppState, setAppState, customSystemPrompt: options.systemPrompt, appendSystemPrompt: options.appendSystemPrompt, thinkingConfig, agents: activeAgents }), { live: () => !awaitingSessionClaim && inFlightAbort === null })
 
   const SDK_MODES = new Set(['default', 'implement', 'sovereign', 'flow', 'dontAsk'])
   setPermissionModeChangedListener(mode => {
     if (!SDK_MODES.has(mode)) return
     enqueueRow(modeRow(liveScope(), mode))
   })
-
-  const updateSdkMcp = async (): Promise<void> => {
-    await serializeMcpChange(async () => {
-      const configuredNames = new Set(Object.keys(sdkMcp.configs))
-      const clients = sdkMcp.clients
-      const connectedNames = new Set(clients.map(client => client.name))
-      const needsRefresh =
-        [...configuredNames].some(name => !connectedNames.has(name)) ||
-        [...connectedNames].some(name => !configuredNames.has(name)) ||
-        clients.some(client => client.type === 'pending' || client.type === 'failed')
-      if (!needsRefresh) return
-      const oldNames = [...connectedNames]
-      for (const client of clients) {
-        if (!configuredNames.has(client.name) && client.type === 'connected') {
-          await client.cleanup().catch(() => {})
-        }
-      }
-      const { clients: freshClients, tools: freshTools } = await setupSdkMcpClients(
-        sdkMcp.configs,
-        io.sendMcpMessage.bind(io),
-      )
-      sdkMcp.clients = freshClients
-      sdkMcp.tools = freshTools
-      const staleNames = new Set([...oldNames, ...configuredNames])
-      setAppState(previous => ({
-        ...previous,
-        mcp: {
-          ...previous.mcp,
-          tools: [
-            ...previous.mcp.tools.filter(
-              tool =>
-                ![...staleNames].some(name => tool.name.startsWith(getMcpPrefix(name))),
-            ),
-            ...freshTools,
-          ],
-        },
-      }))
-      registerPerTurnHandlers(freshClients)
-    }).catch((error: unknown) => logForDebugging(`sdk mcp refresh failed: ${errorMessage(error)}`))
-  }
-  void updateSdkMcp()
 
   const refreshExtensionState = async (): Promise<{ errorCount: number; extensions: Array<{ name: string; path: string; source: string }> }> => {
     const { reloadExtensions, noteReloaded } = await import('../extensions/boot.js')
@@ -1220,8 +1120,6 @@ export async function runHeadless(
         const state = getAppState()
         const turnClients: MCPServerConnection[] = [
           ...state.mcp.clients,
-          ...sdkMcp.clients,
-          ...dynamicMcp.clients,
         ]
         registerPerTurnHandlers(turnClients)
         const assembledTools = assembleTools(state)
@@ -1260,7 +1158,7 @@ export async function runHeadless(
           maxTurns: options.maxTurns,
           maxBudgetUsd: options.maxBudgetUsd,
           canUseTool,
-          ...(options.permissionChannel === undefined ? {} : { permissionChannel: options.permissionChannel }),
+          ...(peer !== null ? { hostHoldsAsks: true } : {}),
           userSpecifiedModel: activeModel,
           fallbackModel: options.fallbackModel,
           jsonSchema: initializeJsonSchema ?? options.jsonSchema,
@@ -1672,9 +1570,7 @@ export async function runHeadless(
       await writeLine(message)
     },
     drainRows: () => drainRows().map(row => ({ ...row, ...(currentTurn !== null ? { turn: currentTurn } : {}) }) as RowDraft),
-    beforeCycle: async () => {
-      await updateSdkMcp()
-    },
+    beforeCycle: () => bootReady,
     onTurnStart: () => {
       currentTurnId = null
     },
@@ -1863,69 +1759,23 @@ export async function runHeadless(
   }
 
 
-  const handledOrphans = new Set<string>()
-  io.setUnexpectedResponseCallback(async response => {
-    const enqueued = await handleOrphanedPermissionResponse({
-      message: { type: 'control_response', response },
-      setAppState,
-      handledToolUseIds: handledOrphans,
-    })
-    if (enqueued) driver.kick()
-  })
-
   const modelInfos = buildModelCatalogue()
-  const activeOAuth: {
-    service: InstanceType<typeof OAuthService> | null
-    flow: Promise<unknown> | null
-  } = { service: null, flow: null }
-  const mcpOAuth = new Map<
-    string,
-    { controller: AbortController; promise: Promise<unknown>; manualUsed: boolean; submitter: ((url: string) => void) | null }
-  >()
-
-  const respondSuccess = (requestId: string, payload?: Record<string, unknown>): void => {
-    io.outbound.enqueue({
-      type: 'control_response',
-      response: {
-        subtype: 'success',
-        request_id: requestId,
-        ...(payload !== undefined ? { response: payload } : {}),
-      },
-    })
-  }
-  const respondError = (requestId: string, error: string): void => {
-    io.outbound.enqueue({
-      type: 'control_response',
-      response: { subtype: 'error', request_id: requestId, error },
-    })
-  }
 
   const resolveServerConfigFromAllSources = (
     serverName: string,
   ): ScopedMcpServerConfig | null => {
     const configured = getMcpConfigByName(serverName)
     if (configured) return configured
-    const fromClients = [
-      ...getAppState().mcp.clients,
-      ...sdkMcp.clients,
-      ...dynamicMcp.clients,
-    ].find(client => client.name === serverName)
+    const fromClients = getAppState().mcp.clients.find(client => client.name === serverName)
     return fromClients?.config ?? null
   }
 
-  const applyReconnectedClient = async (
-    serverName: string,
-    client: MCPServerConnection,
-    refreshDefinitions = false,
-  ): Promise<void> => {
+  const applyReconnectedClient = async (serverName: string, client: MCPServerConnection): Promise<void> => {
     const [tools, commandsForServer, resources] = await Promise.all([
       fetchToolsForClient(client),
       fetchCommandsForClient(client),
       fetchResourcesForClient(client),
     ])
-    if (refreshDefinitions && client.type === 'connected') {
-      requestDeliberateToolChange(String(processMainOwner()), tools, `the MCP server ${serverName} was manually reconnected`)
-    }
     const prefix = getMcpPrefix(serverName)
     setAppState(previous => ({
       ...previous,
@@ -1952,16 +1802,6 @@ export async function runHeadless(
         },
       },
     }))
-    const dynamicIndex = dynamicMcp.clients.findIndex(
-      existing => existing.name === serverName,
-    )
-    if (dynamicIndex >= 0) {
-      dynamicMcp.clients[dynamicIndex] = client
-      dynamicMcp.tools = [
-        ...dynamicMcp.tools.filter(tool => !tool.name.startsWith(prefix)),
-        ...tools,
-      ]
-    }
   }
 
   const SEAT_VERB_AT = (held: boolean): 'now' | 'turn_end' => (held ? 'turn_end' : 'now')
@@ -2020,6 +1860,20 @@ export async function runHeadless(
     )
   }
 
+  const acceptInputRow = async (row: InputRow): Promise<{ accepted: true } | { accepted: false; reason: 'duplicate' }> => {
+    const empty = emptyInputRow(row)
+    if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
+    if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
+    const stamp = {
+      ...(row.id !== undefined ? { id: row.id } : {}),
+      ...(row.priority !== undefined ? { priority: row.priority } : {}),
+      ...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {}),
+      ...(row.origin !== undefined ? { origin: row.origin } : {}),
+    }
+    if (row.type === 'shell') return acceptInput({ kind: 'shell', command: row.command, ...stamp })
+    return acceptInput({ kind: 'prompt', content: promptContentOf(row.content), ...stamp })
+  }
+
   const arms: RunnerArms = {
     'turn/interrupt': params => {
       if (params.op_id !== undefined) {
@@ -2039,17 +1893,7 @@ export async function runHeadless(
       }
       return { interrupted }
     },
-    'queue/add': async params => {
-      if (params.type === 'note') return acceptInput({ kind: 'note', to: params.to, content: params.content, ...(params.id !== undefined ? { id: params.id } : {}) })
-      const stamp = {
-        ...(params.id !== undefined ? { id: params.id } : {}),
-        ...(params.priority !== undefined ? { priority: params.priority } : {}),
-        ...(params.sent_at !== undefined ? { sentAt: params.sent_at } : {}),
-        ...(params.origin !== undefined ? { origin: params.origin } : {}),
-      }
-      if (params.type === 'shell') return acceptInput({ kind: 'shell', command: params.command, ...stamp })
-      return acceptInput({ kind: 'prompt', content: promptContentOf(params.content), ...stamp })
-    },
+    'queue/add': params => acceptInputRow(params),
     'queue/withdraw': params => {
       const popped = popById(params.id)
       return popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason }
@@ -2211,7 +2055,7 @@ export async function runHeadless(
           accountEmail: anthropicSignInEmail() ?? null,
         },
         skills: skillsRosterOf(activeCommands, offSkillNamesOf(sessionKitOf(), activeCommands.map(c => c.name))),
-        mcp: mcpRosterEntriesOf(state.mcp.clients, [...sdkMcp.clients, ...dynamicMcp.clients]),
+        mcp: mcpRosterEntriesOf(state.mcp.clients, []),
         permissionMode: state.toolPermissionContext.mode,
         ...((): { effortSent?: string | null } => {
           const sent = effortSentOf(resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue))
@@ -2332,18 +2176,7 @@ export async function runHeadless(
         const connected: string[] = []
         const disconnected: string[] = []
         const errors: Record<string, string> = Object.create(null) as Record<string, string>
-        const foreignPlane = (name: string): string | null =>
-          name in sdkMcp.configs
-            ? 'the SDK hosts this server — its owner manages it'
-            : name in dynamicMcp.configs
-              ? 'a dynamic server rides its own wire (mcp_set_servers)'
-              : null
         for (const name of delta.disconnect) {
-          const foreign = foreignPlane(name)
-          if (foreign !== null) {
-            errors[name] = foreign
-            continue
-          }
           const config =
             rows.find(row => row.name === name)?.config ?? resolveServerConfigFromAllSources(name)
           if (!config) continue
@@ -2356,11 +2189,6 @@ export async function runHeadless(
           disconnected.push(name)
         }
         for (const name of delta.connect) {
-          const foreign = foreignPlane(name)
-          if (foreign !== null) {
-            errors[name] = foreign
-            continue
-          }
           const config = resolveServerConfigFromAllSources(name)
           if (!config) {
             errors[name] = 'no configuration found for this server'
@@ -2389,10 +2217,7 @@ export async function runHeadless(
           const { getActiveSet } = await import('../extensions/active.js')
           completeProcessSessionKit(
             completeSessionKitFromRoster(sessionKitOf()!, {
-              mcpNames: [
-                ...getAppState().mcp.clients.map(row => row.name),
-                ...Object.keys(sdkMcp.configs),
-              ],
+              mcpNames: getAppState().mcp.clients.map(row => row.name),
               commands: activeCommands,
               extensions: getActiveSet().active.map(ext => ext.manifest.name),
             }),
@@ -2470,722 +2295,17 @@ export async function runHeadless(
     },
   }
 
-  const legacyAt = (at: 'now' | 'turn_end'): 'now' | 'turn-boundary' => (at === 'turn_end' ? 'turn-boundary' : 'now')
-  const answerLegacy = async <T,>(requestId: string, arm: () => Promise<T> | T, payloadOf: (result: T) => Record<string, unknown> | undefined = result => result as Record<string, unknown>): Promise<void> => {
-    try {
-      const result = await arm()
-      respondSuccess(requestId, payloadOf(result))
-    } catch (error) {
-      if (isRpcError(error)) {
-        respondError(requestId, error.message)
-        return
-      }
-      throw error
-    }
-  }
-  const legacyRef = (requestId: string): RequestRef => ({ id: requestId })
-
-  const handleControlRequest = async (message: SDKControlRequest & { uuid?: string }): Promise<void> => {
-    const requestId = message.request_id
-    const request = message.request
-    try {
-      switch (request.subtype) {
-        case 'initialize': {
-          for (const name of request.host_mcp_servers ?? []) {
-            sdkMcp.configs[name] = { type: 'host', name }
-          }
-          await handleInitializeRequest(
-            request,
-            requestId,
-            sessionInitialized,
-            io.outbound,
-            commands,
-            modelInfos as ModelInfo[],
-            io,
-            {
-              systemPrompt: options.systemPrompt,
-              appendSystemPrompt: options.appendSystemPrompt,
-              agent: options.agent,
-              userSpecifiedModel: options.userSpecifiedModel,
-              ...streamingOptions,
-            },
-            agents,
-            getAppState,
-          )
-          const wantsSummaries = Boolean(
-            request.agent_progress_summaries,
-          )
-          if (wantsSummaries) {
-            setSdkAgentProgressSummariesEnabled(true)
-          }
-          const initSchema = request.json_schema
-          if (initSchema) {
-            initializeJsonSchema = initSchema
-            setInitJsonSchema(initSchema)
-          }
-          sessionInitialized = true
-          if (getCommandQueue().length > 0) driver.kick()
-          return
-        }
-        case 'interrupt': {
-          const opId = requestId.startsWith(CONCOURSE_INTERRUPT_PREFIX) ? requestId : undefined
-          await answerLegacy(requestId, () => arms['turn/interrupt']({ ...(opId !== undefined ? { op_id: opId } : {}), ...((request as { hard?: boolean }).hard === true ? { hard: true } : {}) }, legacyRef(requestId), new AbortController().signal), () => undefined)
-          return
-        }
-        case 'withdraw_send': {
-          await answerLegacy(requestId, () => arms['queue/withdraw']({ id: String(request.client_message_id ?? '') }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'end_session': {
-          logForDebugging(
-            `end_session: ${String(request.reason ?? 'unspecified')}`,
-          )
-          inFlightAbort?.abort()
-          respondSuccess(requestId)
-          throw new EndSessionSignal()
-        }
-        case 'set_permission_mode': {
-          await answerLegacy(requestId, () => arms['session/set_mode']({ mode: String(request.mode) }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'set_model': {
-          await answerLegacy(requestId, () => arms['session/set_model']({ ...(request.model !== undefined ? { model: request.model } : {}) }, legacyRef(requestId), new AbortController().signal), result => ({ model: result.model, at: legacyAt(result.at) }))
-          return
-        }
-        case 'claim_session': {
-          await answerLegacy(requestId, () =>
-            arms['session/claim'](
-              {
-                session_id: String(request.session_id ?? ''),
-                ...(typeof request.model === 'string' ? { model: request.model } : {}),
-                ...(typeof request.permission_mode === 'string' ? { mode: request.permission_mode } : {}),
-                ...(typeof request.effort === 'string' ? { effort: request.effort } : {}),
-                ...(request.resume === true ? { resume: true } : {}),
-                ...(typeof request.restart_reason === 'string' ? { restart_reason: request.restart_reason } : {}),
-                ...(request.openai_catalogue !== undefined ? { openai_catalogue: request.openai_catalogue } : {}),
-              },
-              legacyRef(requestId),
-              new AbortController().signal,
-            ),
-          )
-          return
-        }
-        case 'set_effort': {
-          await answerLegacy(requestId, () => arms['session/set_effort']({ effort: String(request.effort ?? '') }, legacyRef(requestId), new AbortController().signal), result => ({ effort: result.effort, at: legacyAt(result.at) }))
-          return
-        }
-        case 'session_facts': {
-          await answerLegacy(requestId, () => arms['session/facts']({}, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'schedule_roster': {
-          await answerLegacy(requestId, () => arms['schedule/roster']({ schedules: request.schedules }, legacyRef(requestId), new AbortController().signal), () => undefined)
-          return
-        }
-        case 'set_max_thinking_tokens': {
-          const tokens = request.max_thinking_tokens
-          if (tokens === null || tokens === undefined) thinkingConfig = undefined
-          else if (tokens === 0) thinkingConfig = { type: 'disabled' }
-          else thinkingConfig = { type: 'enabled', budgetTokens: tokens }
-          respondSuccess(requestId)
-          return
-        }
-        case 'mcp_status': {
-          respondSuccess(requestId, { mcp_servers: await buildServerStatusList() })
-          return
-        }
-        case 'get_context_usage': {
-          try {
-            const data = await collectContextData({
-              messages,
-              getAppState,
-              options: {
-                mainLoopModel: activeModel ?? getMainLoopModel(),
-                tools: assembleTools(getAppState()),
-                agentDefinitions: { activeAgents, allAgents: activeAgents },
-                customSystemPrompt: options.systemPrompt,
-                appendSystemPrompt: options.appendSystemPrompt,
-              },
-            })
-            respondSuccess(requestId, toSDKContextUsage(data))
-          } catch (error) {
-            respondError(requestId, errorMessage(error))
-          }
-          return
-        }
-        case 'mcp_message': {
-          const serverName = request.server_name
-          const client = sdkMcp.clients.find(candidate => candidate.name === serverName)
-          if (client && client.type === 'connected' && client.client.transport?.onmessage) {
-            client.client.transport.onmessage(request.message as JSONRPCMessage)
-          }
-          respondSuccess(requestId)
-          return
-        }
-        case 'rewind_files': {
-          const rewind = await handleRewindFiles(
-            request.user_message_id as UUID,
-            getAppState(),
-            setAppState,
-            request.dry_run ?? false,
-            getReadFileCache(),
-          )
-          if (rewind.can_rewind || request.dry_run) {
-            respondSuccess(requestId, { ...rewind })
-          } else {
-            respondError(requestId, rewind.error ?? 'rewind is not possible')
-          }
-          return
-        }
-        case 'rewind_session': {
-          await answerLegacy(requestId, () => arms['session/rewind']({ user_message_id: request.user_message_id, mode: request.mode, ...(request.dry_run !== undefined ? { dry_run: request.dry_run } : {}) }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'cancel_async_message': {
-          const uuid = request.message_uuid
-          const matching = getCommandQueue().filter(command => command.uuid === uuid)
-          if (matching.length > 0) retireQueuedCommands(matching)
-          const removed = matching.length > 0
-          respondSuccess(requestId, { cancelled: Boolean(removed) })
-          return
-        }
-        case 'seed_read_state': {
-          const rawPath = String(request.path ?? '')
-          const observedMtime = Number(request.mtime ?? 0)
-          try {
-            const normalized = expandPath(rawPath)
-            const stats = await stat(normalized)
-            const diskMtime = Math.floor(stats.mtimeMs)
-            if (diskMtime <= observedMtime) {
-              let content = await readFile(normalized, 'utf8')
-              if (content.charCodeAt(0) === 0xfeff) content = content.slice(1)
-              content = content.replace(/\r\n/g, '\n')
-              pendingSeeds.set(normalized, {
-                content,
-                timestamp: observedMtime,
-                offset: undefined,
-                limit: undefined,
-              })
-            }
-          } catch {
-          }
-          respondSuccess(requestId)
-          return
-        }
-        case 'mcp_set_servers': {
-          await serializeMcpChange(async () => {
-            const result = await handleMcpSetServers(
-              (request.servers ?? {}) as Record<string, McpServerConfig>,
-              sdkMcp,
-              dynamicMcp,
-              setAppState,
-            )
-            respondSuccess(requestId, { ...result })
-            await updateSdkMcp()
-          })
-          return
-        }
-        case 'reload_extensions': {
-          try {
-            const { errorCount, extensions } = await refreshExtensionState()
-            respondSuccess(requestId, {
-              commands: activeCommands
-                .filter(command => command.userInvocable !== false)
-                .map(command => ({
-                  name: command.name,
-                  description: formatDescriptionWithSource(command),
-                  argument_hint: command.argumentHint ?? '',
-                })),
-              agents: activeAgents.map(agent => ({
-                name: agent.agentType,
-                description: agent.whenToUse,
-                model: agent.model === 'inherit' ? undefined : agent.model,
-              })),
-              extensions,
-              mcp_servers: await buildServerStatusList(),
-              error_count: errorCount,
-            })
-          } catch (error) {
-            respondError(requestId, errorMessage(error))
-          }
-          return
-        }
-        case 'mcp_reconnect': {
-          const serverName = request.server_name
-          const config = resolveServerConfigFromAllSources(serverName)
-          if (!config) {
-            respondError(requestId, `MCP server ${serverName} not found`)
-            return
-          }
-          if (!isMcpCatalogueMember(serverName)) {
-            respondError(
-              requestId,
-              `MCP server ${serverName} is disabled — enable it before reconnecting`,
-            )
-            return
-          }
-          elicitationRegistered.delete(serverName)
-          await clearServerCache(serverName, config).catch(() => {})
-          const client = await connectToServer(serverName, config)
-          await applyReconnectedClient(serverName, client, true)
-          if (client.type === 'connected') {
-            registerPerTurnHandlers([client])
-            respondSuccess(requestId)
-          } else if (client.type === 'failed') {
-            respondError(requestId, client.error ?? `failed to reconnect ${serverName}`)
-          } else {
-            respondError(requestId, `server ${serverName} is ${client.type}`)
-          }
-          return
-        }
-        case 'mcp_toggle': {
-          const serverName = request.server_name
-          const enabled = Boolean(request.enabled)
-          const config = resolveServerConfigFromAllSources(serverName)
-          if (!config) {
-            respondError(requestId, `MCP server ${serverName} not found`)
-            return
-          }
-          const dial = applyProcessSessionKitEdit(
-            { mcp: [{ name: serverName, on: enabled }] },
-            disabledMcpServerNamesIn(getCurrentProjectConfig()),
-          )
-          if (dial.outcome === 'refused') {
-            respondError(requestId, dial.detail ?? 'kit refused')
-            return
-          }
-          if (!enabled) {
-            const existing = getAppState().mcp.clients.find(
-              candidate => candidate.name === serverName,
-            )
-            if (existing?.type === 'connected') {
-              await clearServerCache(serverName, config).catch(() => {})
-            }
-            setAppState(previous => dropMcpServerFromAppState(previous, serverName, config))
-            clearCommandMemoizationCaches()
-            activeCommands = await getCommands(getCwd())
-            respondSuccess(requestId)
-          } else {
-            const client = await connectToServer(serverName, config)
-            await applyReconnectedClient(serverName, client)
-            clearCommandMemoizationCaches()
-            activeCommands = await getCommands(getCwd())
-            if (client.type === 'connected') {
-              registerPerTurnHandlers([client])
-              respondSuccess(requestId)
-            } else {
-              respondError(requestId, `failed to enable ${serverName}`)
-            }
-          }
-          return
-        }
-        case 'spawn_switch': {
-          await answerLegacy(requestId, () => arms['session/set_spawn_switch']({ switch: request.switch, on: request.on }, legacyRef(requestId), new AbortController().signal), result => ({ switch: result.switch, on: result.on, at: legacyAt(result.at) }))
-          return
-        }
-        case 'credential_change': {
-          await arms['credentials/changed']({})
-          respondSuccess(requestId)
-          return
-        }
-        case 'kit_edit': {
-          await answerLegacy(requestId, () => arms['session/set_kit']({ kit: request.kit }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'mcp_authenticate': {
-          const serverName = request.server_name
-          const config = resolveServerConfigFromAllSources(serverName)
-          if (!config) {
-            respondError(requestId, `MCP server ${serverName} not found`)
-            return
-          }
-          const transport = config.type
-          if (transport !== 'sse' && transport !== 'http') {
-            respondError(requestId, `transport type ${String(transport)} does not support OAuth`)
-            return
-          }
-          mcpOAuth.get(serverName)?.controller.abort()
-          const controller = new AbortController()
-          const { performMCPOAuthFlow } = await import('../services/mcp/auth.js')
-          let captureResolve: ((url: string) => void) | null = null
-          const urlPromise = new Promise<string>(resolve => {
-            captureResolve = resolve
-          })
-          const entry: {
-            controller: AbortController
-            promise: Promise<unknown>
-            manualUsed: boolean
-            submitter: ((url: string) => void) | null
-          } = { controller, promise: Promise.resolve(), manualUsed: false, submitter: null }
-          const flowPromise = performMCPOAuthFlow(
-            serverName,
-            config,
-            url => captureResolve?.(url),
-            controller.signal,
-            {
-              skipBrowserOpen: true,
-              onWaitingForCallback: submit => {
-                entry.submitter = submit
-              },
-            },
-          )
-          entry.promise = flowPromise
-          mcpOAuth.set(serverName, entry)
-          const raced = await Promise.race([
-            urlPromise.then(url => ({ kind: 'url' as const, url })),
-            flowPromise.then(() => ({ kind: 'done' as const })),
-          ])
-          if (raced.kind === 'url') {
-            respondSuccess(requestId, { auth_url: raced.url, requires_user_action: true })
-          } else {
-            respondSuccess(requestId, { requires_user_action: false })
-          }
-          void flowPromise
-            .then(async () => {
-              if (!entry.manualUsed) {
-                const client = await connectToServer(serverName, config)
-                await applyReconnectedClient(serverName, client)
-              }
-            })
-            .catch((error: unknown) => logForDebugging(`mcp oauth for ${serverName}: ${errorMessage(error)}`))
-            .finally(() => {
-              if (mcpOAuth.get(serverName)?.controller === controller) {
-                mcpOAuth.delete(serverName)
-              }
-            })
-          return
-        }
-        case 'mcp_oauth_callback_url': {
-          const serverName = request.server_name
-          const entry = mcpOAuth.get(serverName)
-          if (!entry?.submitter) {
-            respondError(requestId, `no OAuth flow is active for ${serverName}`)
-            return
-          }
-          const url = String(request.callback_url ?? '')
-          let parsedUrl: URL | null = null
-          try {
-            parsedUrl = new URL(url)
-          } catch {
-            parsedUrl = null
-          }
-          if (
-            !parsedUrl ||
-            (!parsedUrl.searchParams.has('code') && !parsedUrl.searchParams.has('error'))
-          ) {
-            respondError(
-              requestId,
-              'The redirect URL is missing its authorization code — paste the complete redirect URL including the code parameter',
-            )
-            return
-          }
-          entry.manualUsed = true
-          entry.submitter(url)
-          try {
-            await entry.promise
-            respondSuccess(requestId)
-          } catch (error) {
-            respondError(requestId, errorMessage(error))
-          }
-          return
-        }
-        case 'mcp_clear_auth': {
-          const serverName = request.server_name
-          const config = resolveServerConfigFromAllSources(serverName)
-          if (!config) {
-            respondError(requestId, `MCP server ${serverName} not found`)
-            return
-          }
-          const transport = config.type
-          if (transport !== 'sse' && transport !== 'http') {
-            respondError(requestId, `auth cannot be cleared for transport type ${String(transport)}`)
-            return
-          }
-          await revokeServerTokens(serverName, config)
-          const client = await connectToServer(serverName, config)
-          await applyReconnectedClient(serverName, client)
-          respondSuccess(requestId, {})
-          return
-        }
-        case 'provider_sign_in': {
-          if (request.provider !== 'anthropic') {
-            respondError(requestId, `no control-channel sign-in for the ${request.provider} family — sign in from the terminal (auth login) or /logins`)
-            return
-          }
-          activeOAuth.service?.cleanup()
-          const service = new OAuthService()
-          activeOAuth.service = service
-          let manualUrl: string | null = null
-          let autoUrl: string | null = null
-          let urlResolve: (() => void) | null = null
-          const urlReady = new Promise<void>(resolve => {
-            urlResolve = resolve
-          })
-          const flow = service
-            .startOAuthFlow(
-              async (auto, manual) => {
-                autoUrl = auto
-                manualUrl = manual ?? auto
-                urlResolve?.()
-              },
-              {
-                skipBrowserOpen: true,
-                loginWithClaudeAi: request.method !== 'console',
-              },
-            )
-            .then(async tokens => {
-              await installOAuthTokens(tokens)
-              return tokens
-            })
-          flow.catch(() => {})
-          activeOAuth.flow = flow
-          const raced = await Promise.race([
-            urlReady.then(() => 'url' as const),
-            flow.then(
-              () => 'done' as const,
-              () => 'failed' as const,
-            ),
-          ])
-          if (raced === 'failed') {
-            respondError(requestId, 'authentication failed to start')
-            return
-          }
-          respondSuccess(requestId, {
-            auth_url: autoUrl,
-            manual_auth_url: manualUrl,
-          })
-          return
-        }
-        case 'provider_sign_in_callback':
-        case 'provider_sign_in_wait': {
-          const service = activeOAuth.service
-          const flow = activeOAuth.flow
-          if (!service || !flow) {
-            respondError(requestId, 'no sign-in flow is active')
-            return
-          }
-          if (request.subtype === 'provider_sign_in_callback') {
-            service.handleManualAuthCodeInput({
-              authorizationCode: request.authorization_code,
-              state: request.state,
-            })
-          }
-          void flow
-            .then(() => {
-              const account = getAccountInformation()
-              respondSuccess(requestId, {
-                account: {
-                  email: account?.email,
-                  organization: account?.organization,
-                  subscription_type: account?.subscription,
-                  token_source: account?.tokenSource,
-                  api_key_source: account?.apiKeySource,
-                },
-              })
-            })
-            .catch((error: unknown) => respondError(requestId, errorMessage(error)))
-          return
-        }
-        case 'apply_flag_settings': {
-          const incoming = (request.settings ?? {}) as Record<
-            string,
-            unknown
-          >
-          const previousModel = activeModel ?? getMainLoopModel()
-          const merged: Record<string, unknown> = {
-            ...(getFlagSettingsInline() ?? {}),
-            ...incoming,
-          }
-          for (const [key, value] of Object.entries(merged)) {
-            if (value === null) delete merged[key]
-          }
-          setFlagSettingsInline(merged)
-          settingsChangeDetector.notifyChange('flagSettings')
-          if ('model' in incoming) {
-            const model = incoming.model
-            setMainLoopModelOverride(typeof model === 'string' ? model : null)
-          }
-          const resolvedNow = getMainLoopModel()
-          if (resolvedNow !== previousModel) {
-            activeModel = resolvedNow
-            notifySessionStateChanged('idle')
-            if (inFlightAbort !== null) deferredModelBreadcrumb = resolvedNow
-            else await injectModelSwitchBreadcrumbs(resolvedNow)
-          }
-          respondSuccess(requestId)
-          return
-        }
-        case 'get_settings': {
-          const withSources = getSettingsWithSources()
-          const snapshot = getSettingsSnapshot()
-          const model = getMainLoopModel()
-          const effortValue = getAppState().effortValue
-          const effortTruth = resolveEffortTruth(model, effortValue)
-          respondSuccess(requestId, {
-            ...withSources,
-            revision: settingsRevision(),
-            provenance: snapshot.provenance,
-            applied: {
-              model,
-              effort: effortTruth.supportsEffort ? (effortTruth.wire ?? null) : undefined,
-              effort_requested: effortTruth.requested === undefined ? null : String(effortTruth.requested),
-            },
-          })
-          return
-        }
-        case 'pause_gate': {
-          await answerLegacy(requestId, () => arms['session/pause_gate']({ paused: Boolean(request.paused) }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'background_shell': {
-          await answerLegacy(requestId, () => arms['shell/background']({}, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'stop_task': {
-          await answerLegacy(requestId, () => arms['agent/stop']({ agent_id: request.task_id, ...(request.note !== undefined ? { note: request.note } : {}) }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'quiesce': {
-          await answerLegacy(requestId, () => arms['session/quiesce']({ action: request.action, token: request.token }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'resume_task': {
-          await answerLegacy(requestId, () => arms['agent/resume']({ agent_id: request.task_id, ...(request.note !== undefined ? { note: request.note } : {}) }, legacyRef(requestId), new AbortController().signal))
-          return
-        }
-        case 'generate_session_title': {
-          const description = String(request.description ?? '')
-          const persist = Boolean(request.persist)
-          const signal =
-            inFlightAbort && !inFlightAbort.signal.aborted
-              ? inFlightAbort.signal
-              : new AbortController().signal
-          void (async () => {
-            try {
-              const title = await generateSessionTitle(description, signal)
-              if (title && persist) {
-                try {
-                  cacheSessionTitle(title)
-                } catch (error) {
-                  logError(error)
-                }
-              }
-              respondSuccess(requestId, { title })
-            } catch (error) {
-              respondError(requestId, errorMessage(error))
-            }
-          })()
-          return
-        }
-        case 'side_question': {
-          const question = String(request.question ?? '')
-          void (async () => {
-            try {
-              let params = getLastCacheSafeParams()
-              if (params) {
-                params = {
-                  ...params,
-                  toolUseContext: { ...params.toolUseContext, abortController: new AbortController() },
-                }
-              } else {
-                params = await buildSideQuestionFallbackParams({
-                  tools: assembleTools(getAppState()),
-                  commands: activeCommands,
-                  mcpClients: [
-                    ...getAppState().mcp.clients,
-                    ...sdkMcp.clients,
-                    ...dynamicMcp.clients,
-                  ],
-                  messages,
-                  readFileState: getReadFileCache(),
-                  getAppState,
-                  setAppState,
-                  customSystemPrompt: options.systemPrompt,
-                  appendSystemPrompt: options.appendSystemPrompt,
-                  thinkingConfig,
-                  agents: activeAgents,
-                })
-              }
-              const result = await runSideQuestion({
-                question,
-                cacheSafeParams: params,
-              })
-              respondSuccess(requestId, { response: result.response })
-            } catch (error) {
-              respondError(requestId, errorMessage(error))
-            }
-          })()
-          return
-        }
-        default:
-          respondError(requestId, `unsupported control request subtype: ${request.subtype}`)
-      }
-    } catch (error) {
-      if (error instanceof EndSessionSignal) throw error
-      respondError(requestId, errorMessage(error))
-    }
-  }
-
-  const buildServerStatusList = async (): Promise<Record<string, unknown>[]> => {
-    const seen = new Set<string>()
-    const rows: Record<string, unknown>[] = []
-    const pushClient = async (client: MCPServerConnection): Promise<void> => {
-      const name = client.name
-      if (seen.has(name)) return
-      seen.add(name)
-      const config = client.config
-      const projectedConfig =
-        config.type === 'sse' || config.type === 'http'
-          ? { type: config.type, url: config.url, headers: config.headers, oauth: config.oauth }
-          : config.type === 'claudeai-proxy'
-            ? { type: config.type, url: config.url, id: config.id }
-            : config.type === 'host'
-              ? { type: 'host', name: config.name }
-              : {
-                type: 'stdio',
-                command: 'command' in config ? config.command : undefined,
-                args: 'args' in config ? config.args : undefined,
-              }
-      const row: Record<string, unknown> = {
-        name,
-        status: client.type,
-        scope: config.scope,
-        config: projectedConfig,
-      }
-      if (client.type === 'connected') {
-        row.server_info = client.serverInfo
-        const tools = await fetchToolsForClient(client)
-        const prefix = getMcpPrefix(name)
-        row.tools = tools.map(tool => ({
-          name: tool.name.startsWith(prefix) ? tool.name.slice(prefix.length) : tool.name,
-          ...(tool.isReadOnly?.(undefined) ? { read_only: true } : {}),
-          ...(tool.isDestructive?.(undefined) ? { destructive: true } : {}),
-          ...(tool.isOpenWorld?.(undefined) ? { open_world: true } : {}),
-        }))
-      } else if (client.type === 'failed') {
-        row.error = client.error ?? ''
-      }
-      rows.push(row)
-    }
-    for (const client of getAppState().mcp.clients) await pushClient(client)
-    for (const client of sdkMcp.clients) await pushClient(client)
-    for (const client of dynamicMcp.clients) await pushClient(client)
-    return rows
-  }
-
-  class EndSessionSignal extends Error {}
-
   async function* claimGatedInput(
-    source: AsyncGenerator<StdinMessage, void, unknown>,
-  ): AsyncGenerator<StdinMessage, void, unknown> {
-    const parked: StdinMessage[] = []
-    for await (const frame of source) {
-      if (awaitingSessionClaim && frame.type === 'user') {
-        logForDebugging('[session-runner] a user frame arrived before the claim — parked until the session identity lands')
-        parked.push(frame)
+    source: AsyncGenerator<InputRow, void, unknown>,
+  ): AsyncGenerator<InputRow, void, unknown> {
+    const parked: InputRow[] = []
+    for await (const row of source) {
+      if (awaitingSessionClaim) {
+        logForDebugging('[session-runner] an input row arrived before the claim — parked until the session identity lands')
+        parked.push(row)
         continue
       }
-      yield frame
+      yield row
       while (!awaitingSessionClaim && parked.length > 0) {
         yield parked.shift()!
       }
@@ -3211,49 +2331,8 @@ export async function runHeadless(
         await peer.done
         return
       }
-      for await (const typed of claimGatedInput(io.structuredInput)) {
-        if (
-          'uuid' in typed &&
-          typed.uuid &&
-          typed.type !== 'user' &&
-          typed.type !== 'control_response'
-        ) {
-          notifyCommandLifecycle(typed.uuid, 'completed')
-        }
-        if (typed.type === 'control_request') {
-          try {
-            await handleControlRequest(typed)
-          } catch (error) {
-            if (error instanceof EndSessionSignal) break
-            throw error
-          }
-          continue
-        }
-        if (typed.type === 'control_response') {
-          continue
-        }
-        if (typed.type === 'assistant' || typed.type === 'system') {
-          const { toInternalMessages } = await import('../utils/messages/mappers.js')
-          messages.push(...toInternalMessages([typed] as Parameters<typeof toInternalMessages>[0]))
-          continue
-        }
-        if (typed.type === 'user') {
-          const content = (typed.message.content ?? '') as string | ContentBlockParam[]
-          const id = typeof typed.uuid === 'string' && typed.uuid !== '' ? { id: typed.uuid } : {}
-          if (typed.mode === 'task-notification' && typeof typed.agent_id === 'string' && typed.agent_id !== '') {
-            await acceptInput({ kind: 'note', to: typed.agent_id, content: content as string, ...id })
-            continue
-          }
-          await acceptInput({
-            kind: typed.mode === 'bash' ? 'shell' : 'prompt',
-            content,
-            command: content as string,
-            ...id,
-            ...(typed.priority !== undefined ? { priority: typed.priority } : {}),
-            ...(typeof typed.timestamp === 'string' ? { sentAt: typed.timestamp } : {}),
-            ...(typed.origin !== undefined ? { origin: typed.origin } : {}),
-          } as Parameters<typeof acceptInput>[0])
-        }
+      for await (const row of claimGatedInput(io.structuredInput)) {
+        await acceptInputRow(row)
       }
     } finally {
       inputClosed = true

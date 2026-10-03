@@ -146,7 +146,7 @@ function boot(a: Arena, sid: string): Run {
     }),
   )
   return {
-    send: prompt => child.stdin.write(`${JSON.stringify({ type: 'user', message: { role: 'user', content: prompt } })}\n`),
+    send: prompt => child.stdin.write(`${JSON.stringify({ type: 'prompt', content: prompt })}\n`),
     end: () => child.stdin.end(),
     results: () => outcomeCount(stdout),
     stdout: () => stdout,

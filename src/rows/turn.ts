@@ -13,7 +13,7 @@ import type { QueryParams } from '../run-core/turn-machine.js'
 import { categorizeRetryableAPIError } from '../services/api/errors.js'
 import { EMPTY_USAGE, type NonNullableUsage } from '../services/api/emptyUsage.js'
 import { accumulateUsage, updateUsage } from '../services/providers/anthropic/cacheAndUsage.js'
-import type { PermissionChannel, Tools, ToolUseContext } from '../Tool.js'
+import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
 import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
@@ -94,7 +94,7 @@ export type ConversationConfig = {
   mcpClients: McpClients
   agents: AgentDefinitions
   canUseTool: CanUseTool
-  permissionChannel?: PermissionChannel
+  hostHoldsAsks?: boolean
   getAppState: GetAppState
   setAppState: SetAppState
   readFileState: FileStateCache
@@ -406,7 +406,7 @@ export class Conversation {
         mcpClients: config.mcpClients,
         mcpResources: {},
         isNonInteractiveSession: true,
-        ...(config.permissionChannel !== undefined ? { permissionChannel: config.permissionChannel } : {}),
+        ...(config.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
         customSystemPrompt: config.customSystemPrompt,
         appendSystemPrompt: config.appendSystemPrompt,
         agentDefinitions: { activeAgents: config.agents ?? [], allAgents: [] },

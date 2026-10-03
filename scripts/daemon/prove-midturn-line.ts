@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const SRC = join(REPO, 'src')
@@ -80,7 +81,7 @@ section("D the daemon road's clock — the frame and the wiring")
   const dispatchSrc = read('daemon/concourseDispatch.ts')
   check('the prompt extras carry sentAt on both delivery legs (the admit leg and the redirect leg read promptExtrasOf)', dispatchSrc.includes("...(req.sentAt !== undefined ? { sentAt: req.sentAt } : {}),") && dispatchSrc.includes("...(extras?.sentAt !== undefined ? { timestamp: extras.sentAt } : {}),"))
   const printSrc = read('cli/print.ts')
-  check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(typeof typed.timestamp === 'string' ? { sentAt: typed.timestamp } : {})"))
+  check("the runner stamps the queued command from the frame's timestamp, or the arrival", printSrc.includes("const sentAt = typeof input.sentAt === 'string' && Number.isFinite(Date.parse(input.sentAt)) ? input.sentAt : new Date().toISOString()") && printSrc.includes("...(row.sent_at !== undefined ? { sentAt: row.sent_at } : {})"))
   const attachments = read('utils/attachments/queuedCommands.ts')
   check('the queued_command attachment carries the clock', attachments.includes("...(_.sentAt !== undefined ? { sentAt: _.sentAt } : {}),"))
   const orchestrator = read('utils/attachments/orchestrator.ts')
@@ -145,29 +146,25 @@ if (!existsSync(DIST)) {
   }
   delete env.NODE_ENV
   delete env.ANTHROPIC_AUTH_TOKEN
-  const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--model', 'claude-opus-4-8', '--mode', 'sovereign'], { cwd: CWD, env, stdio: ['pipe', 'pipe', 'pipe'] })
   const lines: Array<Record<string, unknown>> = []
   const waiters: Array<{ test: (f: Record<string, unknown>) => boolean; resolve: (f: Record<string, unknown>) => void }> = []
-  let stdoutBuffer = ''
   let stderrText = ''
-  runner.stdout.on('data', (chunk: Buffer) => {
-    stdoutBuffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = stdoutBuffer.indexOf('\n')) >= 0) {
-      const line = stdoutBuffer.slice(0, nl)
-      stdoutBuffer = stdoutBuffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        const frame = JSON.parse(line) as Record<string, unknown>
-        lines.push(frame)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-        }
-      } catch {
+  const door = spawnRunnerDoor({
+    node: 'node',
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8', '--mode', 'sovereign'],
+    cwd: CWD,
+    env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame === null) return
+      lines.push(frame)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
       }
-    }
+    },
   })
-  runner.stderr.on('data', (chunk: Buffer) => {
+  const runner = door.child
+  runner.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
   const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
@@ -204,9 +201,7 @@ if (!existsSync(DIST)) {
     console.log(`  [wait] ${label}: nothing on the wire within ${timeoutMs} ms`)
     return null
   }
-  const send = (frame: Record<string, unknown>): void => {
-    runner.stdin.write(`${JSON.stringify(frame)}\n`)
-  }
+  const send = (frame: Record<string, unknown>): Promise<boolean> => door.send(frame)
   const user = (text: string, uuid: string, timestamp?: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '', ...(timestamp !== undefined ? { timestamp } : {}) })
   const control = (requestId: string, request: Record<string, unknown>): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request })
   const responseOf = (f: Record<string, unknown> | null): Record<string, unknown> => {
@@ -225,7 +220,7 @@ if (!existsSync(DIST)) {
   }
   const reap = async (): Promise<void> => {
     try {
-      runner.stdin.end()
+      runner.stdin!.end()
     } catch {
     }
     await Promise.race([exited, sleep(8_000)])
@@ -287,7 +282,7 @@ if (!existsSync(DIST)) {
   const r2 = await waitWire('round two', w => w.kind === 'request' && w.arm === 'three' && w.step === 1 && w.n > (r1?.n ?? 0), TURN_MS * 3 / 4)
   check("round two's request went out after the boundary", r2 !== null)
   const sentAt3 = Date.now()
-  send(user(LINE3, U3))
+  await send(user(LINE3, U3))
   const afterBoundaryOne = await queueOf('facts-after-boundary-one')
   check('past the boundary the queue holds the slash command (waiting for the turn to end) and the third line, and the two lines are gone', j(afterBoundaryOne.map(q => q.uuid)) === j([UC, U3]), j(afterBoundaryOne))
   const r3 = await waitWire('round three', w => w.kind === 'request' && w.arm === 'three' && w.step === 2 && w.n > (r2?.n ?? 0), TURN_MS * 3 / 4)

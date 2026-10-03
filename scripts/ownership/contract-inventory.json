@@ -33,17 +33,15 @@
    ],
    "src/cli/structuredIO.ts": [
     "BROKEN_STDOUT_LINE",
-    "PERMISSION_CHANNEL_CLOSED_CAUSE",
-    "SANDBOX_NETWORK_ACCESS_TOOL_NAME",
+    "INPUT_REFUSED_CODE",
     "StructuredIO",
+    "emptyInputRow",
+    "inputRefusal",
     "isBrokenPipeError",
-    "isControlLine",
     "isRowLine",
-    "type:ControlLine",
     "type:OutboundLine",
     "type:TransitionalLine",
-    "type:WireLine",
-    "unansweredAskCause"
+    "type:WireLine"
    ]
   },
   "settings": {
@@ -446,7 +444,6 @@
     "prefetchAllMcpResources",
     "processMCPResult",
     "reconnectMcpServerImpl",
-    "setupSdkMcpClients",
     "transformMCPResult",
     "transformResultContent",
     "type:MCPResultType",
@@ -461,7 +458,6 @@
     "McpHTTPServerConfigSchema",
     "McpJsonConfigSchema",
     "McpSSEServerConfigSchema",
-    "McpSdkServerConfigSchema",
     "McpServerConfigSchema",
     "McpStdioServerConfigSchema",
     "McpWebSocketServerConfigSchema",
@@ -476,7 +472,6 @@
     "type:McpHTTPServerConfig",
     "type:McpJsonConfig",
     "type:McpSSEServerConfig",
-    "type:McpSdkServerConfig",
     "type:McpServerConfig",
     "type:McpStdioServerConfig",
     "type:McpWebSocketServerConfig",
@@ -748,15 +743,9 @@
   "headless": {
    "src/cli/print.ts": [
     "canBatchWith",
-    "handleMcpSetServers",
-    "handleOrphanedPermissionResponse",
     "joinPromptValues",
-    "reconcileMcpServers",
     "removeInterruptedMessage",
-    "runHeadless",
-    "type:DynamicMcpState",
-    "type:McpSetServersResult",
-    "type:SdkMcpState"
+    "runHeadless"
    ]
   },
   "bootUi": {

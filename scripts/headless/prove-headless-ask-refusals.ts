@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -109,34 +110,32 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
   const fixture = await startFixtureApi(turns)
   const world = makeWorld(tag, fixture.url)
   const asks: Array<Record<string, unknown>> = []
-  const child = spawn(NODE, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--permission-channel', 'stdio', '--model', MODEL], { cwd: world.cwd, env: world.env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  let buffer = ''
   let sawResult = false
-  child.stdout.on('data', chunk => {
-    buffer += chunk
-    let at: number
-    while ((at = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, at)
-      buffer = buffer.slice(at + 1)
-      if (!line.trim()) continue
-      let frame: Record<string, unknown>
-      try { frame = JSON.parse(line) as Record<string, unknown> } catch { continue }
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--model', MODEL],
+    cwd: world.cwd,
+    env: world.env,
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame === null) return
       if (frame.type === 'control_request') {
         const request = frame.request as Record<string, unknown>
         if (request.subtype === 'can_use_tool') {
           asks.push(request)
-          child.stdin.write(JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } }) + '\n')
+          door.send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } })
         }
       }
       if (frame.type === 'outcome' && !sawResult) {
         sawResult = true
-        child.stdin.end()
+        child.stdin!.end()
       }
-    }
+    },
   })
-  child.stderr.on('data', () => {})
-  child.stdin.write(JSON.stringify({ type: 'user', message: { role: 'user', content: `probe ${tag}` } }) + '\n')
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
+  child.stderr!.on('data', () => {})
+  door.send({ type: 'user', message: { role: 'user', content: `probe ${tag}` } })
   const code = await new Promise<number | null>(resolveRun => child.on('close', value => { clearTimeout(killer); resolveRun(value) }))
   const captured = capture(fixture.messageRequests())
   await fixture.close()

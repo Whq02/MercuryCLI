@@ -315,7 +315,7 @@ section("§6 the seat verb — idle applies, busy parks and forwards, the runner
   check("the daemon's control dispatcher routes 'set-spawn-switch' to the seat verb", daemonMain.includes("if (action === 'set-spawn-switch')") && daemonMain.includes('setSessionSpawnSwitch(sessionId, spawnSwitch, by, roster)'))
   check('the control server admits the action and narrows the payload', src('src/daemon/controlServer.ts').includes("raw.action === 'set-spawn-switch'") && src('src/daemon/controlServer.ts').includes("spawnSwitch refused — { kind: subagents|workflows, on: boolean }"))
   const printSrc = src('src/cli/print.ts')
-  check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with an applied frame", printSrc.includes("'session/set_spawn_switch': (params, ref) => {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]') && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }") && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }") && printSrc.includes("case 'spawn_switch': {") && printSrc.includes("result => ({ switch: result.switch, on: result.on, at: legacyAt(result.at) })") && printSrc.includes("seatVerbAppliedFrame(getSessionId(), String(toggle.requestId), { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID())"))
+  check("the runner answers a 'spawn_switch' with where it lands — now when idle, the turn boundary otherwise — and lands a deferred one at the turn's end with an applied frame", printSrc.includes("'session/set_spawn_switch': (params, ref) => {") && printSrc.includes('deferredSpawnSwitches = [...deferredSpawnSwitches.filter(d => d.kind !== toggle.kind), { ...toggle, requestId: ref.id }]') && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(true) }") && printSrc.includes("return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }") && printSrc.includes("seatVerbAppliedFrame(getSessionId(), String(toggle.requestId), { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID())"))
   check('…the landing moves the switch and marks the transition row', printSrc.includes('const landed = setSpawnSwitch(kind, on)') && printSrc.includes('messages.push(createRosterTransitionMessage(kind, on, spawnSwitchTransitionLine(kind, on)))'))
   check("the runner's facts carry its switches", printSrc.includes('spawnSwitches: spawnSwitchFacts(),'))
 }
@@ -499,7 +499,7 @@ if (!existsSync(DIST)) {
       const home = mkdtempSync(join(tmpdir(), 'spawn-switch-doctor-'))
       const configDir = join(home, '.mercury')
       mkdirSync(configDir, { recursive: true })
-      const out = spawnSync(nodeBin, [DIST, 'doctor', '--json', '--only', 'spawn-switches'], {
+      const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'spawn-switches'], {
         cwd: home,
         env: { HOME: home, PATH: `/usr/bin:/bin:${dirname(nodeBin)}`, TERM: 'dumb', MERCURY_CONFIG_DIR: configDir, MERCURY_CREDENTIAL_STORE: 'file', ANTHROPIC_API_KEY: 'fixture-key-000', ...extraEnv },
         encoding: 'utf8',

@@ -3,7 +3,8 @@ import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
-import { LineReader, userRow, type Frame } from '../lib/rows.ts'
+import { parseFrame, spawnRunnerDoor, userRow, type Frame, type RunnerDoor } from '../lib/rows.ts'
+import type { RunnerDoorCapabilities } from '../../src/daemon/headlessRun.ts'
 
 export const REPO = join(import.meta.dir, '..', '..')
 export const argAfter = (flag: string): string | undefined => {
@@ -301,6 +302,7 @@ export type { Frame } from '../lib/rows.ts'
 export { isSession, isOutcome } from '../lib/rows.ts'
 export type Runner = {
   proc: ChildProcess
+  door: RunnerDoor
   frames: Frame[]
   stderr: () => string
   waitFor: (label: string, test: (f: Frame) => boolean, timeoutMs: number, after?: number) => Promise<Frame | null>
@@ -309,19 +311,24 @@ export type Runner = {
   stop: (graceMs: number) => Promise<void>
   kill: () => void
 }
-export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[] }): Runner {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--model', MODEL, '--mode', 'sovereign', ...(args.extraArgv ?? [])]
-  const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
+export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArgv?: string[]; capabilities?: Partial<RunnerDoorCapabilities> }): Runner {
   const frames: Frame[] = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void; reject: (error: Error) => void }> = []
-  const reader = new LineReader()
   let stderrText = ''
-  proc.stdout!.on('data', (chunk: Buffer) => {
-    for (const frame of reader.feed(chunk)) {
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', ...(args.extraArgv ?? [])],
+    cwd: args.cwd,
+    env: args.env,
+    ...(args.capabilities !== undefined ? { capabilities: args.capabilities } : {}),
+    onLine: line => {
+      const frame = parseFrame(line)
+      if (frame === null) return
       frames.push(frame)
       for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-    }
+    },
   })
+  const proc = door.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
@@ -329,9 +336,9 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
   const exited = new Promise<number | null>(resolve => proc.on('close', (code, signal) => {
     closedError = new Error(`runner exited ${code ?? signal ?? 'without a code'}: ${stderrText.trim()}`)
     for (const waiter of waiters.splice(0)) waiter.reject(closedError)
+    door.connection.close('the runner exited')
     resolve(code)
   }))
-  proc.stdin!.on('error', () => {})
   const waitFor = (label: string, test: (f: Frame) => boolean, timeoutMs: number, after = 0): Promise<Frame | null> => {
     const seen = frames.slice(after).find(test)
     if (seen !== undefined) return Promise.resolve(seen)
@@ -358,11 +365,12 @@ export function bootRunner(args: { cwd: string; env: NodeJS.ProcessEnv; extraArg
   }
   return {
     proc,
+    door,
     frames,
     stderr: () => stderrText,
     waitFor,
     send: frame => {
-      proc.stdin!.write(`${JSON.stringify(frame)}\n`)
+      void door.send(frame)
     },
     exited,
     stop: async graceMs => {

@@ -4,21 +4,20 @@ import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, user, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-turn-error-keeps-seat')
 type Frame = Record<string, unknown>
 const THROWN = 'the turn threw before its first request'
 const labelOf = (f: Frame | undefined): string => (f === undefined ? 'none' : `${String(f.type)}${typeof f.state === 'string' ? `:${f.state}` : typeof f.status === 'string' ? `:${f.status}` : ''}`)
-const errorsOf = (f: Frame | null): string[] => { const error = f?.error as { message?: string; detail?: unknown } | undefined; return [...(typeof error?.message === 'string' ? [error.message] : []), ...(Array.isArray(error?.detail) ? (error.detail as unknown[]).map(String) : [])] }
 const tick = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0))
 const settleTicks = async (n: number): Promise<void> => {
   for (let i = 0; i < n; i++) await tick()
 }
 const queued = (value: string, mode: 'prompt' | 'bash'): QueuedCommand => ({ value, mode, uuid: randomUUID() }) as QueuedCommand
 
-console.log(' red on the base: §1 (the cycle catch wrote the envelope directly and shut the seat down with 1) and §5 (the seat exited on the failed turn)')
+console.log(' red on the base: §1 (the cycle catch wrote the envelope directly and shut the seat down with 1) and §5 (the seat ran an empty shell row as a turn that threw)')
 
 type Rig = {
   queue: QueuedCommand[]
@@ -160,7 +159,7 @@ tally.section('§4 the driver: an ordinary turn keeps its frames, their order an
   tally.check('its message starts and completes', rig.lifecycle.join(',') === `${String(ordinary.uuid)}:started,${String(ordinary.uuid)}:completed`, rig.lifecycle.join(','))
 }
 
-tally.section('§5 the seat, on the built product: a turn that throws answers with an error result, the seat answers the next message, and stdin close still ends it with 0')
+tally.section('§5 the seat, on the built product: a row with nothing in it is refused at the door, the seat answers the next message, and stdin close still ends it with 0')
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first or pass --dist; §1-§4 above still ran`)
 } else {
@@ -176,12 +175,9 @@ if (!existsSync(DIST)) {
   const runner = bootRunner({ cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) })
   runner.proc.stdin?.on('error', () => {})
 
-  runner.send({ type: 'user', mode: 'bash', message: { role: 'user', content: [] }, uuid: randomUUID(), session_id: '' })
-  const failed = await runner.waitFor("the failed turn's outcome", isOutcome, bound(60_000))
-  const errors = errorsOf(failed)
-  tally.check('a bash-mode frame with no text throws inside its turn, and the seat writes an outcome', failed !== null, runner.frames.map(labelOf).join(' · '))
-  tally.check('that outcome is failed', failed?.status === 'failed', JSON.stringify(failed).slice(0, 240))
-  tally.check('it names the thrown words', errors.some(e => e.includes('requires string input')), errors.join(' | ').slice(0, 240))
+  const refused = await runner.door.send({ type: 'user', mode: 'bash', message: { role: 'user', content: [] }, uuid: randomUUID(), session_id: '' })
+  await sleep(300)
+  tally.check('a shell row with no command is refused at the door (queue/add answers invalid params), and no turn opens', refused === false && !runner.frames.some(isOutcome), runner.frames.map(labelOf).join(' · '))
 
   const before = runner.frames.length
   runner.send(user(NEXT_ASK, randomUUID()))

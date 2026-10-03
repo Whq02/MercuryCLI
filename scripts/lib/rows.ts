@@ -1,6 +1,34 @@
-import { spawn } from 'node:child_process'
+import { spawn, type ChildProcess } from 'node:child_process'
+import { RunnerConnection } from '../../src/daemon/runnerConnection.ts'
+import { runnerDoorArgv, type RunnerDoorCapabilities } from '../../src/daemon/headlessRun.ts'
 
 export type Frame = Record<string, unknown>
+
+export type RunnerDoor = { send: (frame: Frame) => Promise<boolean>; connection: RunnerConnection; argv: string[] }
+
+export function attachRunnerDoor(child: ChildProcess, onLine: (line: string) => void, capabilities: RunnerDoorCapabilities, argv: string[] = []): RunnerDoor {
+  const connection = new RunnerConnection(child, capabilities, { onLine, onRow: () => {}, onAsk: () => {}, log: () => {} })
+  return {
+    connection,
+    argv,
+    send: frame => (frame.type === 'user' ? connection.deliver(frame) : Promise.resolve(connection.control(frame))),
+  }
+}
+
+export function spawnRunnerDoor(opts: {
+  node: string
+  argv: string[]
+  cwd: string
+  env: NodeJS.ProcessEnv
+  onLine: (line: string) => void
+  capabilities?: Partial<RunnerDoorCapabilities>
+}): RunnerDoor & { child: ChildProcess } {
+  const translated = runnerDoorArgv(opts.argv)
+  const child = spawn(opts.node, translated.argv, { cwd: opts.cwd, env: opts.env, stdio: ['pipe', 'pipe', 'pipe'] })
+  child.stdin!.on('error', () => {})
+  const door = attachRunnerDoor(child, opts.onLine, { ...translated.capabilities, ...(opts.capabilities ?? {}) }, translated.argv)
+  return { ...door, child }
+}
 
 export function parseFrame(line: string): Frame | null {
   const trimmed = line.trim()
@@ -109,16 +137,32 @@ export function runTurns(opts: {
   settleMs?: number
 }): Promise<TurnsRun> {
   return new Promise(resolvePromise => {
-    const child = spawn(opts.node, [opts.dist, ...opts.args], { cwd: opts.cwd, env: opts.env })
-    const reader = new LineReader()
     const frames: Frame[] = []
     let stdout = ''
     let stderr = ''
     let sent = 0
     let resultsSeen = 0
+    const door = spawnRunnerDoor({
+      node: opts.node,
+      argv: [opts.dist, ...opts.args],
+      cwd: opts.cwd,
+      env: opts.env,
+      onLine: line => {
+        stdout += `${line}\n`
+        const frame = parseFrame(line)
+        if (frame !== null) frames.push(frame)
+        const results = frames.filter(isOutcome).length
+        while (resultsSeen < results) {
+          resultsSeen++
+          if (opts.settleMs !== undefined) setTimeout(sendNext, opts.settleMs)
+          else sendNext()
+        }
+      },
+    })
+    const child = door.child
     const sendNext = (): void => {
       if (sent >= opts.turns.length) {
-        child.stdin.end()
+        child.stdin!.end()
         return
       }
       const raw = opts.turns[sent]!
@@ -126,25 +170,15 @@ export function runTurns(opts: {
       sent++
       turn.before?.()
       for (const [index, control] of (turn.controls ?? []).entries()) {
-        child.stdin.write(JSON.stringify(controlRequestFrame(control.requestId ?? `ctl-${sent}-${index}`, control.request)) + '\n')
+        void door.send(controlRequestFrame(control.requestId ?? `ctl-${sent}-${index}`, control.request))
       }
-      child.stdin.write(JSON.stringify(userRow(turn.prompt)) + '\n')
+      void door.send(userRow(turn.prompt))
     }
-    child.stdout.on('data', d => {
-      stdout += String(d)
-      frames.push(...reader.feed(String(d)))
-      const results = frames.filter(isOutcome).length
-      while (resultsSeen < results) {
-        resultsSeen++
-        if (opts.settleMs !== undefined) setTimeout(sendNext, opts.settleMs)
-        else sendNext()
-      }
-    })
-    child.stderr.on('data', d => (stderr += String(d)))
+    child.stderr!.on('data', d => (stderr += String(d)))
     const killer = setTimeout(() => child.kill('SIGKILL'), opts.timeoutMs ?? 90_000)
     child.on('close', exit => {
       clearTimeout(killer)
-      frames.push(...reader.flush())
+      door.connection.close('the turns ended')
       resolvePromise({ exit, stdout, stderr, frames })
     })
     child.on('spawn', () => sendNext())

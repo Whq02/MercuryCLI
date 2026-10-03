@@ -285,7 +285,7 @@ function entryOf(entries: readonly ProcessSweepEntry[], pid: number): ProcessSwe
 
 function cliProcesses(endStale: boolean): { code: number; report: Record<string, unknown> | null } {
   try {
-    const out = execFileSync(NODE, [DIST, 'doctor', 'processes', ...(endStale ? ['--end-stale'] : [])], { cwd: work.stale, env: baseEnv(dirs.stale), encoding: 'utf8', stdio: ['ignore', 'pipe', logFd], timeout: 60000 })
+    const out = execFileSync(NODE, [DIST, 'health', 'processes', ...(endStale ? ['--end-stale'] : [])], { cwd: work.stale, env: baseEnv(dirs.stale), encoding: 'utf8', stdio: ['ignore', 'pipe', logFd], timeout: 60000 })
     const at = out.indexOf('{')
     return { code: 0, report: at >= 0 ? (JSON.parse(out.slice(at)) as Record<string, unknown>) : null }
   } catch (error) {

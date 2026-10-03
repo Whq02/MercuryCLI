@@ -250,12 +250,6 @@ export async function connectAgentMcpServers(
           )
           continue
         }
-        if (row.config.type === 'host') {
-          logForDebugging(
-            `runAgent: MCP server '${spec}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
-          )
-          continue
-        }
         const client = await connectToServer(spec, row.config)
         connected.push(client)
         tools.push(...(await fetchToolsForClient(client)))
@@ -270,12 +264,6 @@ export async function connectAgentMcpServers(
       }
       const name = keys[0]!
       const inlineConfig = spec[name] as Record<string, unknown>
-      if ((inlineConfig as { type?: string }).type === 'host') {
-        logForDebugging(
-          `runAgent: inline MCP server '${name}' refused — sdk-typed servers connect only over the SDK control transport, which agent dispatch does not hold`,
-        )
-        continue
-      }
       if (!(name in filterMcpServersByPolicy({ [name]: inlineConfig }).allowed)) {
         logForDebugging(
           `runAgent: inline MCP server '${name}' refused — blocked by managed policy (kit.permit/kit.deny)`,
@@ -804,7 +792,7 @@ export async function* runAgent(
         parentGetAppState?.()?.toolPermissionContext
           .shouldAvoidPermissionPrompts === true,
       parentNonInteractive: toolUseContext.options.isNonInteractiveSession,
-      parentChannel: toolUseContext.options.permissionChannel,
+      parentHostHoldsAsks: toolUseContext.options.hostHoldsAsks,
     })
     const avoidPrompts = posture.avoidPrompts
     const agentGetAppState: typeof parentGetAppState = () => {
@@ -939,7 +927,7 @@ export async function* runAgent(
       shareSetResponseLength: true,
       options: {
         isNonInteractiveSession,
-        ...(posture.permissionChannel !== undefined ? { permissionChannel: posture.permissionChannel } : {}),
+        ...(posture.hostHoldsAsks === true ? { hostHoldsAsks: true } : {}),
         appendSystemPrompt: parentOptions.appendSystemPrompt,
         tools,
         commands: [],

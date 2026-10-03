@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { createServer as createNetServer, type Server as NetServer, type Socket } from 'node:net'
 import { createServer as createHttpServer, type Server as HttpServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -128,52 +128,42 @@ async function runDistTurns(
 ): Promise<DistRun> {
   const cwd = mkdtempSync(join(tmpdir(), 'hd-cwd-'))
   const startedAt = Date.now()
-  const child = spawn(
-    nodeBin!,
-    [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'],
-    { cwd, env },
-  )
-  const killer = setTimeout(() => child.kill('SIGKILL'), opts?.killAfterMs ?? 120_000)
-
   const lines: string[] = []
   const envelopes: Envelope[] = []
   let unparseable = 0
-  let buf = ''
   let resultsSeen = 0
   let promptIndex = 0
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    cwd,
+    env,
+    onLine: line => {
+      lines.push(line)
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) {
+        unparseable++
+        return
+      }
+      envelopes.push(e)
+      if (e.type === 'outcome') {
+        resultsSeen++
+        if (resultsSeen === promptIndex) sendNextPrompt()
+      }
+    },
+  })
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), opts?.killAfterMs ?? 120_000)
   const sendNextPrompt = (): void => {
     if (promptIndex >= prompts.length) {
-      child.stdin.end()
+      child.stdin!.end()
       return
     }
     const value = prompts[promptIndex++]!
-    child.stdin.write(
-      JSON.stringify({ type: 'user', message: { role: 'user', content: value }, parent_tool_use_id: null }) + '\n',
-    )
+    door.send({ type: 'user', message: { role: 'user', content: value } })
   }
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
-      lines.push(line)
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        if (e.type === 'outcome') {
-          resultsSeen++
-          if (resultsSeen === promptIndex) sendNextPrompt()
-        }
-      } catch {
-        unparseable++
-      }
-    }
-  })
   let stderr = ''
-  child.stderr.on('data', d => (stderr += d))
+  child.stderr!.on('data', d => (stderr += d))
   sendNextPrompt()
   const exit = await new Promise<number | null>(res =>
     child.on('close', code => {

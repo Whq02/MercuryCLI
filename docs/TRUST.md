@@ -125,9 +125,9 @@ servers. Project-scope API-key helpers do not execute there either. A trust
 grant on the folder or an ancestor enables those project sources. The user's
 own configuration and managed policy still apply.
 
-A headless session with a permission channel — a switchboard seat, a
-`run --permission-channel stdio` run, a run with a prompt tool — puts every
-ask to the connected client and waits for the answer: a question to the
+A hosted session — a switchboard seat, an editor session, any `mercury
+runner` whose host holds its asks — puts every ask to the connected host
+and waits for the answer: a question to the
 operator, an Apollo review, and under flow any call the flow check blocks,
 `git push` among them (anything visible outside this machine). A push in a
 session nobody is watching therefore waits on a present operator unless a

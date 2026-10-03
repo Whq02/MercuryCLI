@@ -129,7 +129,7 @@ const NEEDLES: Array<{ label: string; files: string[]; patterns: string[] }> = [
       'outcomeRow\\(',
       'isOutcome\\(',
       'exitCodeOf\\(',
-      "type:\\s*['\"]user['\"]",
+      "type:\\s*['\"]prompt['\"]",
     ],
   },
   {

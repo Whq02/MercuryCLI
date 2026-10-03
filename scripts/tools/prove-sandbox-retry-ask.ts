@@ -40,7 +40,7 @@ const { BashTool } = bashModule
 const retryableSandboxViolation = bashModule.retryableSandboxViolation ?? ((): boolean => false)
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
-const { getCanUseToolFn } = await import('../../src/cli/headless/permissionChannel.ts')
+const { createRuleOnlyAsks } = await import('../../src/cli/headless/runnerAsks.ts')
 
 type Decision = { behavior: 'allow'; updatedInput: Record<string, unknown> } | { behavior: 'deny'; message: string }
 type AskRecord = { input: Record<string, unknown>; toolUseId: string }
@@ -65,7 +65,7 @@ type Outcome = { threw: boolean; text: string; data?: Record<string, unknown> }
 type Driven = { outcome: Outcome; asks: AskRecord[]; recorded: string[] }
 async function drive(command: string, toolUseId: string, verdict: Decision | 'headless'): Promise<Driven> {
   const asks: AskRecord[] = []
-  const headlessRoad = getCanUseToolFn(undefined, undefined, null as never, () => [])
+  const headlessRoad = createRuleOnlyAsks().createCanUseTool()
   const canUseTool = async (tool: unknown, input: Record<string, unknown>, ctx: never, message: never, id: string, force?: never) => {
     asks.push({ input, toolUseId: id })
     if (verdict === 'headless') return headlessRoad(tool as never, input, ctx, message, id, force)

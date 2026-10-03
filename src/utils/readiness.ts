@@ -259,9 +259,7 @@ function computerToolRecord(): ReadinessRecord {
 }
 
 
-function injectionNote(connection: MCPServerConnection): string {
-  const type = connection.config?.type
-  if (type === 'host') return ' (host-served)'
+function injectionNote(): string {
   return ' (runtime-injected)'
 }
 
@@ -276,7 +274,7 @@ function mcpRow(
     ? 'this process connection store (no config row)'
     : 'config.mcpServers + this process connection store'
   const base = { id, kind: 'mcp' as const, label: name, source, lastCheckedAt: Date.now() }
-  const injected = connection !== undefined && runtimeInjected ? injectionNote(connection) : ''
+  const injected = connection !== undefined && runtimeInjected ? injectionNote() : ''
 
   if (connection === undefined) {
     if (isMcpServerDisabled(name)) {

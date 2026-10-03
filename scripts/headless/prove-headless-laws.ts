@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -103,43 +103,35 @@ async function driveProtocol(): Promise<void> {
     MERCURY_CREWS_DIR: join(home, 'crews'),
   }
 
-  const child = spawn(
-    nodeBin!,
-    [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'],
-    { cwd, env },
-  )
-  const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
-
   const lines: string[] = []
   const envelopes: Envelope[] = []
   let unparseable = 0
-  let buf = ''
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    cwd,
+    env,
+    onLine: line => {
       lines.push(line)
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.pred(e)) {
-            const w = waiters.splice(i, 1)[0]!
-            w.res(e)
-          }
-        }
-      } catch {
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) {
         unparseable++
+        return
       }
-    }
+      envelopes.push(e)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.pred(e)) {
+          const w = waiters.splice(i, 1)[0]!
+          w.res(e)
+        }
+      }
+    },
   })
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   let stderr = ''
-  child.stderr.on('data', d => (stderr += d))
+  child.stderr!.on('data', d => (stderr += d))
   const exited = new Promise<{ exit: number | null }>(res =>
     child.on('close', exit => {
       clearTimeout(killer)
@@ -164,18 +156,13 @@ async function driveProtocol(): Promise<void> {
       })
     })
   const send = (o: unknown): void => {
-    child.stdin.write(JSON.stringify(o) + '\n')
+    door.send(o as Record<string, unknown>)
   }
 
-  send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-  const initResp = (await waitFor(
-    e => e.type === 'control_response' && j(e).includes('req_init'),
-    'initialize control_response',
-  )) as (Envelope & { response?: { subtype?: string; request_id?: string; response?: Record<string, unknown> } }) | undefined
-  check('initialize is acknowledged with a control_response', !!initResp, j(envelopes.map(e => e.type)))
-  const initPayload = j(initResp ?? {})
-  check('the initialize ack reports success', initPayload.includes('"success"'), initPayload.slice(0, 200))
-  check('the initialize ack carries the command roster', initPayload.includes('commands'), initPayload.slice(0, 200))
+  const initResp = await door.connection.initialized
+  check('initialize is answered', initResp !== null, j(envelopes.map(e => e.type)))
+  check('the initialize answer names the session', typeof initResp?.session_id === 'string' && initResp.session_id.length > 0, j(initResp ?? {}).slice(0, 200))
+  check('the initialize answer names the runner (version and pid)', typeof initResp?.runner?.version === 'string' && initResp.runner.pid === child.pid, j(initResp ?? {}).slice(0, 200))
 
   send({ type: 'user', message: { role: 'user', content: 'headless probe one' }, parent_tool_use_id: null })
   const sessionRow = await waitFor(e => e.type === 'session', 'session row')
@@ -233,7 +220,7 @@ async function driveProtocol(): Promise<void> {
   )) as (Envelope & { status?: string }) | undefined
   check('the second interrupted turn settles interrupted too', result4?.status === 'interrupted', j({ s: result4?.status }))
 
-  child.stdin.end()
+  child.stdin!.end()
   const { exit } = await exited
   check("stdin end → the exit code carries the last turn's status (interrupted ⇒ 1 here)", exit === 1, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
   check('every stdout line is individually JSON-parseable', unparseable === 0, `${unparseable} unparseable of ${lines.length}`)

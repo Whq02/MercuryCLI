@@ -159,8 +159,8 @@ section('§5 WIRING (HL-01/13/16/21/30)')
       healthAction.includes("writeOutAndExit(renderPlainCertificate(cert), cert.verdict === 'fault' ? 3 : 0)"),
   )
   check(
-    'health and doctor share ONE command (alias) and one flag schema (HL-03/21)',
-    main.includes("program.command('health [topic]').alias('doctor')"),
+    'health is the one word for the health check: the command carries no alias (HL-03/21)',
+    main.includes("program.command('health [topic]')") && !main.includes(".alias('doctor')"),
   )
   const healthJson = src('src/cli/healthJson.ts')
   check(

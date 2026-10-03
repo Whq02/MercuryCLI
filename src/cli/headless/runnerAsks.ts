@@ -320,3 +320,19 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
     },
   }
 }
+
+export function createRuleOnlyAsks(): AskHost {
+  const canUseTool: CanUseToolFn = async (tool, input, toolUseContext, assistantMessage, toolUseId, forceDecision) =>
+    forceDecision ?? (await hasPermissionsToUseTool(tool, input, toolUseContext, assistantMessage, toolUseId))
+  return {
+    askPermission: params => Promise.resolve({ outcome: 'deny', message: UNANSWERED_ASK_REJECT_MESSAGE(params.kind === 'tool' ? params.tool_name : SANDBOX_NETWORK_ACCESS_TOOL_NAME, 'this run has no host to answer it') }),
+    parkedAsks: () => 0,
+    createCanUseTool: () => canUseTool,
+    handleElicitation: () => Promise.resolve({ action: 'cancel' } as ElicitResult),
+    createSandboxAskCallback: () => () => Promise.resolve(false),
+    denyPendingPermissionRequests: () => 0,
+    pendingControlRequestCount: () => 0,
+    setOnControlRequestSent: () => {},
+    setOnControlRequestResolved: () => {},
+  }
+}

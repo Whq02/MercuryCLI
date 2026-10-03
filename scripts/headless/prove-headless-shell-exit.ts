@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user, type Frame } from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, isSession, isOutcome, makeTally, SCRATCH_ROOT, sleep, user } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-shell-exit')
@@ -28,14 +28,10 @@ const readPid = (pidFile: string): number | null => {
   const n = Number(readFileSync(pidFile, 'utf8').trim())
   return Number.isFinite(n) && n > 0 ? n : null
 }
-const isControlResponse = (requestId: string) => (f: Frame): boolean =>
-  f.type === 'control_response' && (f.response as { request_id?: unknown } | undefined)?.request_id === requestId
-
-type Close = 'eof-after-result' | 'eof-at-once' | 'end_session'
+type Close = 'eof-after-result' | 'eof-at-once'
 const legs: Array<{ key: string; close: Close; title: string }> = [
   { key: 's1', close: 'eof-after-result', title: 'S1 — the input closes after the turn (an open input first keeps the shell)' },
   { key: 's2', close: 'eof-at-once', title: 'S2 — the one-shot shape: the input closes as soon as the prompt is sent' },
-  { key: 's3', close: 'end_session', title: 'S3 — end_session with the input still open' },
 ]
 
 for (const leg of legs) {
@@ -84,11 +80,6 @@ for (const leg of legs) {
     tally.check("with the input open the background shell's process is still running", pid !== null && alive(pid), `pid ${pid ?? 'unknown'}`)
     closedAt = Date.now()
     runner.proc.stdin!.end()
-  } else if (leg.close === 'end_session') {
-    closedAt = Date.now()
-    runner.send({ type: 'control_request', request_id: `end-${leg.key}`, request: { subtype: 'end_session', reason: 'the proof ends the session' } })
-    const response = await runner.waitFor('the end_session control response', isControlResponse(`end-${leg.key}`), bound(10_000))
-    tally.check('end_session answered with a success control response', response !== null && (response.response as { subtype?: unknown } | undefined)?.subtype === 'success', JSON.stringify(response).slice(0, 300))
   }
   const exitCode = await Promise.race([runner.exited, sleep(bound(EXIT_BOUND_MS)).then(() => 'still running' as const)])
   const exitedInMs = Date.now() - closedAt

@@ -12,7 +12,6 @@ import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 const core = await import('../../src/entrypoints/sdk/coreSchemas.ts')
-const control = await import('../../src/entrypoints/sdk/controlSchemas.ts')
 const ladderModule = await import('../../src/utils/effortLadder.ts')
 const seatWire = await import('../../src/services/engine-connector/seatWire.ts')
 const mappers = await import('../../src/utils/messages/mappers.ts')
@@ -105,11 +104,6 @@ section('F1 — the row vocabulary declares the rows the product writes (a run o
     check('one step per model call, and the outcome counts them', steps.length === 2 && outcome?.steps === 2, j({ steps: steps.length, counted: outcome?.steps }))
     check('every in-turn row carries turn 1 and the session id; the session row carries no turn', parsed.slice(1).every(row => row.turn === 1 && row.session_id === parsed[0]?.session_id) && parsed[0]?.turn === undefined)
     check('no row carries a uuid or a parent_tool_use_id', parsed.every(row => !('uuid' in row) && !('parent_tool_use_id' in row)))
-    const controlSrc = readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8')
-    const controlNames = ['provider_sign_in', 'provider_sign_in_callback', 'provider_sign_in_wait', 'host_mcp_servers']
-    check('the sign-in verbs and the host MCP list are declared under their names', controlNames.every(word => controlSrc.includes(`'${word}'`) || controlSrc.includes(`${word}:`)), j(controlNames.filter(w => !controlSrc.includes(w))))
-    const mcpTypesSrc = readFileSync(join(ROOT, 'src/services/mcp/types.ts'), 'utf8')
-    check("the MCP kind word for a host-served server is 'host'", mcpTypesSrc.includes("z.literal('host')"))
     rmSync(root, { recursive: true, force: true })
   }
 }
@@ -195,9 +189,9 @@ section('F2 — every declared key is snake_case')
     return keys
   }
   const coreKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/coreSchemas.ts'), 'utf8'))
-  const controlKeys = scan(readFileSync(join(ROOT, 'src/entrypoints/sdk/controlSchemas.ts'), 'utf8'))
+  const methodKeys = scan(readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8'))
   check('the message schemas declare snake_case keys only', coreKeys.length > 0 && coreKeys.every(key => SNAKE.test(key)), j(coreKeys.filter(key => !SNAKE.test(key))))
-  check('the control schemas declare snake_case keys only', controlKeys.length > 0 && controlKeys.every(key => SNAKE.test(key)), j(controlKeys.filter(key => !SNAKE.test(key))))
+  check("the runner door's method schemas declare snake_case keys only", methodKeys.length > 0 && methodKeys.every(key => SNAKE.test(key)), j(methodKeys.filter(key => !SNAKE.test(key))))
 }
 
 section('F3 — the seat-wire codecs: snake keys out, deep-equal back')

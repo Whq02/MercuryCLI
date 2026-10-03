@@ -134,7 +134,7 @@ section('§5 the wire: the reply keys, the router, the age, the runner\'s switch
   check("the daemon's action arm relays through the seat's one relay and requires the identity", main.includes("if (action === 'withdraw-send')") && main.includes('withdrawSessionSend(sessionId, clientMessageId, roster)') && main.includes("'withdraw-send requires clientMessageId'"))
   const runner = readFileSync(join(ROOT, 'src', 'cli', 'print.ts'), 'utf8')
   const arm = runner.slice(runner.indexOf("'queue/withdraw': params => {"), runner.indexOf("'session/set_mode': params => {"))
-  check("the runner's switch owns the subtype: the queue's one pop by identity, a typed answer either way", arm.includes('popById(params.id)') && runner.includes("arms['queue/withdraw']({ id: String(request.client_message_id ?? '') }") && arm.includes('{ withdrawn: true, text: popped.text }') && arm.includes('{ withdrawn: false, reason: popped.reason }'))
+  check("the runner's switch owns the subtype: the queue's one pop by identity, a typed answer either way", arm.includes('popById(params.id)') && readFileSync(join(ROOT, 'src', 'daemon', 'runnerConnection.ts'), 'utf8').includes("return { method, params: { id: String(request.client_message_id ?? '') } }") && arm.includes('{ withdrawn: true, text: popped.text }') && arm.includes('{ withdrawn: false, reason: popped.reason }'))
   const types = readFileSync(join(ROOT, 'src', 'entrypoints', 'sdk', 'controlTypes.ts'), 'utf8')
   check('the control request union carries the subtype', types.includes("subtype: 'withdraw_send'") && types.includes('| SDKControlWithdrawSendRequest'))
 }

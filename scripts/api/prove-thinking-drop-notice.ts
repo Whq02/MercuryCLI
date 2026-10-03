@@ -437,7 +437,7 @@ if (!existsSync(DIST)) {
     const doctor = (home: string): Record<string, unknown> | null => {
       const configDir = join(home, '.mercury')
       mkdirSync(configDir, { recursive: true })
-      const out = spawnSync(nodeBin, [DIST, 'doctor', '--json', '--only', 'preserved-thinking'], {
+      const out = spawnSync(nodeBin, [DIST, 'health', '--json', '--only', 'preserved-thinking'], {
         cwd: home,
         env: {
           HOME: home,

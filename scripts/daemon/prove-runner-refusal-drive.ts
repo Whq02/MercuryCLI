@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -69,30 +70,26 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
     MERCURY_CREWS_DIR: join(home, 'crews'),
     MERCURY_DAP_ADAPTERS_FILE: join(home, 'dap-adapters.json'),
   }
-  const child = spawn(nodeBin!, [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', MODEL, ...extraArgs], { cwd, env })
-  const killer = setTimeout(() => child.kill('SIGKILL'), 150_000)
   const envelopes: Envelope[] = []
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  let buf = ''
   let stderr = ''
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.pred(e)) waiters.splice(i, 1)[0]!.res(e)
-        }
-      } catch {}
-    }
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', MODEL, ...extraArgs],
+    cwd,
+    env,
+    onLine: line => {
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) return
+      envelopes.push(e)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.pred(e)) waiters.splice(i, 1)[0]!.res(e)
+      }
+    },
   })
-  child.stderr.on('data', d => (stderr += String(d)))
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 150_000)
+  child.stderr!.on('data', d => (stderr += String(d)))
   const exited = new Promise<number | null>(res => child.on('close', code => { clearTimeout(killer); res(code) }))
   let done = false
   void exited.then(() => { done = true })
@@ -107,7 +104,7 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
       waiters.push({ pred, res: e => { clearTimeout(t); res(e) } })
     })
   const send = (o: unknown): void => {
-    if (!done) child.stdin.write(JSON.stringify(o) + '\n')
+    if (!done) door.send(o as Record<string, unknown>)
   }
   let seq = 0
   const quiesce = async (action: 'prepare' | 'commit' | 'cancel', token: string): Promise<{ ok: boolean; phase?: string; reason?: string }> => {
@@ -120,7 +117,7 @@ async function startRunner(fixture: FixtureApi, home: string, cwd: string, extra
     const inner = reply.response
     return inner?.subtype === 'success' ? { ok: true, phase: inner.response?.phase } : { ok: false, reason: inner?.error }
   }
-  return { pid: child.pid!, send, waitFor, quiesce, exited, alive: () => !done && alivePid(child.pid!), envelopes, stderr: () => stderr }
+  return { pid: child.pid!, door, send, waitFor, quiesce, exited, alive: () => !done && alivePid(child.pid!), envelopes, stderr: () => stderr }
 }
 
 const TOKEN = 'retire-drive-token-0001'
@@ -160,9 +157,8 @@ const runner = await startRunner(fixture, home, cwd, ['--permission-channel', 's
 
 try {
   section('§1 the runner is up and idle: a quiesce prepare with a bad token is refused before any state is read')
-  runner.send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-  const init = await runner.waitFor(e => e.type === 'control_response' && j(e).includes('req_init'), 'initialize ack')
-  check('initialize is acknowledged', init !== undefined && j(init).includes('"success"'), j(init ?? {}).slice(0, 200))
+  const init = await runner.door.connection.initialized
+  check('initialize is answered with the session id', init !== null && typeof init.session_id === 'string', j(init ?? {}).slice(0, 200))
   const badToken = await runner.quiesce('prepare', 'short')
   check('a malformed token is refused as invalid', !badToken.ok && /invalid preparation token/.test(badToken.reason ?? ''), j(badToken))
 

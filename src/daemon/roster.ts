@@ -226,7 +226,7 @@ export class TaskRoster {
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
-        if (!this.writeFrame(h.longLived, h.child, text)) return false
+        if (!(await this.writeFrame(h.longLived, h.child, text))) return false
         h.longLived.turnActive = true
         h.longLived.turnStartedAt = Date.now()
         if (short.startsWith('concourse-w')) {
@@ -248,7 +248,8 @@ export class TaskRoster {
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     if (h.longLived && h.child?.stdin?.writable) {
       try {
-        return this.writeFrame(h.longLived, h.child, frame)
+        const written = this.writeFrame(h.longLived, h.child, frame)
+        return typeof written === 'boolean' ? written : true
       } catch (e) {
         logForDebugging(`[daemon] control(${short}) stdin write failed: ${e}`)
         return false
@@ -257,7 +258,7 @@ export class TaskRoster {
     return false
   }
 
-  private writeFrame(ll: LongLivedSeat, child: ChildProcess, frame: string): boolean {
+  private writeFrame(ll: LongLivedSeat, child: ChildProcess, frame: string): boolean | Promise<boolean> {
     const line = normalizeStreamJsonFrame(frame)
     if (ll.connection === undefined) {
       child.stdin!.write(line)

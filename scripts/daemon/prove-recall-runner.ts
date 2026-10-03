@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const DIST = join(REPO, 'dist', 'mercury.mjs')
@@ -88,33 +89,25 @@ const env: NodeJS.ProcessEnv = {
 delete env.NODE_ENV
 delete env.ANTHROPIC_AUTH_TOKEN
 
-const runner = spawn('node', [DIST, 'run', '--input=rows', '--format=rows', '--model', 'claude-opus-4-8'], {
-  cwd: CWD,
-  env,
-  stdio: ['pipe', 'pipe', 'pipe'],
-})
 const lines: Array<Record<string, unknown>> = []
 const waiters: Array<{ test: (frame: Record<string, unknown>) => boolean; resolve: (frame: Record<string, unknown>) => void }> = []
-let stdoutBuffer = ''
 let stderrText = ''
-runner.stdout.on('data', (chunk: Buffer) => {
-  stdoutBuffer += chunk.toString('utf8')
-  let nl: number
-  while ((nl = stdoutBuffer.indexOf('\n')) >= 0) {
-    const line = stdoutBuffer.slice(0, nl)
-    stdoutBuffer = stdoutBuffer.slice(nl + 1)
-    if (line.trim() === '') continue
-    try {
-      const frame = JSON.parse(line) as Record<string, unknown>
-      lines.push(frame)
-      for (let i = waiters.length - 1; i >= 0; i--) {
-        if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-      }
-    } catch {
+const door = spawnRunnerDoor({
+  node: 'node',
+  argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+  cwd: CWD,
+  env,
+  onLine: line => {
+    const frame = parseFrame(line)
+    if (frame === null) return
+    lines.push(frame)
+    for (let i = waiters.length - 1; i >= 0; i--) {
+      if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
     }
-  }
+  },
 })
-runner.stderr.on('data', (chunk: Buffer) => {
+const runner = door.child
+runner.stderr!.on('data', (chunk: Buffer) => {
   stderrText += chunk.toString('utf8')
 })
 const exited = new Promise<number | null>(resolve => runner.on('exit', code => resolve(code)))
@@ -136,7 +129,7 @@ function waitFor(label: string, test: (frame: Record<string, unknown>) => boolea
   })
 }
 const send = (frame: Record<string, unknown>): void => {
-  runner.stdin.write(`${JSON.stringify(frame)}\n`)
+  door.send(frame)
 }
 const user = (text: string, uuid: string): Record<string, unknown> => ({ type: 'user', message: { role: 'user', content: text }, uuid, session_id: '' })
 const control = (requestId: string, clientMessageId: string): Record<string, unknown> => ({ type: 'control_request', request_id: requestId, request: { subtype: 'withdraw_send', client_message_id: clientMessageId } })
@@ -150,7 +143,7 @@ const isStreaming = (f: Record<string, unknown>): boolean => f.type === 'text_de
 
 const reap = async (): Promise<void> => {
   try {
-    runner.stdin.end()
+    runner.stdin!.end()
   } catch {
   }
   await Promise.race([exited, new Promise(r => setTimeout(r, 8_000))])

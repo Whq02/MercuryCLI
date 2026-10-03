@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, sleep, user, type Frame } from '../daemon/dupline-world.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-parked-ask-liveness')
@@ -26,7 +26,7 @@ const DONE = 'the model carried on after the ask settled'
 const AGAIN = 'are you still there'
 const STILL = 'still here'
 const HOST_DENY = 'the operator declined at the switchboard'
-const ABORT_TEXT = 'Tool permission request failed: Tool permission request was aborted'
+const ABORT_TEXT = 'Tool permission request failed: aborted'
 const STREAM_CLOSED_TEXT = 'Tool permission request failed: Permission stream closed before response was received for request '
 const DENIED_LEAD = 'Permission to use AskUserQuestion has been denied: '
 const CLIENT_AWAY_WORDS = "the operator's client was not there to answer"
@@ -46,30 +46,25 @@ type Seat = {
 }
 
 function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
-  const argv = [DIST, 'run', '--input=rows', '--format=rows', '--permission-channel', 'stdio', '--mode', 'default', '--model', MODEL]
-  const proc = spawn(NODE, argv, { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
   const frames: Array<{ frame: Frame; at: number }> = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void }> = []
-  let buffer = ''
   let stderrText = ''
   let alive = true
   let exitCode: number | null = null
-  proc.stdin!.on('error', () => {})
-  proc.stdout!.on('data', (chunk: Buffer) => {
-    buffer += chunk.toString('utf8')
-    let nl: number
-    while ((nl = buffer.indexOf('\n')) >= 0) {
-      const line = buffer.slice(0, nl)
-      buffer = buffer.slice(nl + 1)
-      if (line.trim() === '') continue
-      try {
-        const frame = JSON.parse(line) as Frame
-        frames.push({ frame, at: Date.now() })
-        for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-      } catch {
-      }
-    }
+  const door = spawnRunnerDoor({
+    node: NODE,
+    argv: [DIST, 'runner', '--mode', 'default', '--model', MODEL],
+    cwd: args.cwd,
+    env: args.env,
+    capabilities: { holds_asks: false },
+    onLine: line => {
+      const frame = parseFrame(line) as Frame | null
+      if (frame === null) return
+      frames.push({ frame, at: Date.now() })
+      for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
+    },
   })
+  const proc = door.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderrText += chunk.toString('utf8')
   })
@@ -108,7 +103,7 @@ function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
     frames,
     send: frame => {
       if (!alive) return
-      proc.stdin!.write(`${j(frame)}\n`)
+      door.send(frame)
     },
     endInput: () => {
       try {

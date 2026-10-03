@@ -129,7 +129,7 @@ import type { AppState } from './state/AppStateStore.js'
 import type { Props as REPLProps } from './screens/REPL.js'
 import type { UUID } from 'node:crypto'
 import { update as updateCli } from './cli/update.js'
-import type { McpSdkServerConfig, ScopedMcpServerConfig } from './services/mcp/types.js'
+import type { ScopedMcpServerConfig } from './services/mcp/types.js'
 import { writeShimSet, resolveLayoutRoots } from './services/privateChannel/installLayout.js'
 import { migrateAutoUpdatesToSettings } from './migrations/migrateAutoUpdatesToSettings.js'
 import { migrateReplBridgeEnabledToRemoteControlAtStartup } from './migrations/migrateReplBridgeEnabledToRemoteControlAtStartup.js'
@@ -236,12 +236,6 @@ const USAGE_ERROR_CODES = new Set([
 ])
 function exitForCommanderError(error: { code?: string; exitCode?: number }): void {
   if (error.code !== undefined && USAGE_ERROR_CODES.has(error.code)) process.exit(2)
-}
-
-function permissionChannelOf(opts: { permissionChannel?: unknown; permissionPromptTool?: unknown }): 'stdio' | 'prompt-tool' | undefined {
-  const channel = typedString(opts.permissionChannel)
-  if (channel === 'stdio' || channel === 'prompt-tool') return channel
-  return typedString(opts.permissionPromptTool) !== undefined ? 'prompt-tool' : undefined
 }
 
 function failCli(message: string, code: 1 | 2 = 2): never {
@@ -488,18 +482,11 @@ async function run(): Promise<void> {
       }
       return parsed
     })
-    .option('--replay-user-messages', 'Replay user messages on the stream-json output')
     .option('--allowed-tools <tools...>', 'Allowed tool rules')
     .option('--toolset <tools...>', 'Base tool set')
     .option('--block-tools <tools...>', 'Denied tool rules')
     .option('--mcp <configs...>', 'MCP server configs (JSON or file paths)')
     .option('--only-mcp', 'Only use MCP servers from --mcp')
-    .addOption(new Option('--permission-prompt-tool <tool>', 'MCP tool for permission prompts').hideHelp())
-    .addOption(
-      new Option('--permission-channel <channel>', 'The road a permission ask takes: stdio (the control protocol on stdin) or prompt-tool (the MCP tool named by --permission-prompt-tool)')
-        .choices(['stdio', 'prompt-tool'])
-        .hideHelp(),
-    )
     .option('--brief <prompt>', 'Set the session system brief')
     .addOption(new Option('--brief-file <file>', 'Read the session system brief from a file').hideHelp())
     .option('--brief-add <prompt>', 'Append to the system prompt')
@@ -916,7 +903,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
       process.exit(0)
     })
 
-  program.command('health [topic]').alias('doctor')
+  program.command('health [topic]')
     .description('Check the installation health: configured MCP servers are validated WITHOUT starting them; `doctor processes` lists Mercury\'s own processes as JSON')
     .option('--json', 'JSON certificate output')
     .option('--deep', 'Deep inventory')
@@ -1128,7 +1115,7 @@ async function showAction(
 
 type RootOptions = Record<string, unknown>
 
-const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial', '--replay-user-messages', '--permission-channel', '--permission-prompt-tool'])
+const RUN_OUTPUT_OPTIONS: ReadonlySet<string> = new Set(['--format', '--input', '--partial'])
 
 async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
@@ -1143,7 +1130,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const isNonInteractiveSession = !getIsInteractive()
   const printMode = Boolean(opts.print)
   const runnerDoor = opts.runner === true
-  const askChannel = runnerDoor ? 'stdio' : permissionChannelOf(opts)
 
   const worktreeOpt = opts.worktree as string | boolean | undefined
   const tmuxEnabled = Boolean(opts.multiplex)
@@ -1187,8 +1173,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     if (!UUID_SHAPE.test(sessionIdOpt)) failCli(`--session-id must be a valid UUID: ${sessionIdOpt}`)
     if (await sessionIdExists(sessionIdOpt)) failCli(`Session id already exists: ${sessionIdOpt}`, 1)
   }
-  if (printMode && opts.mode === 'apollo' && askChannel === undefined) {
-    failCli('mercury run: apollo needs a permission channel')
+  if (printMode && opts.mode === 'apollo' && !runnerDoor) {
+    failCli('mercury run: apollo needs a host that answers its asks (mercury runner)')
   }
   if (opts.backupModel && opts.backupModel === opts.model) {
     failCli('--backup-model cannot equal --model')
@@ -1221,15 +1207,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   if (!printMode && (opts.input || opts.format || opts.partial)) failCli('Use mercury run for --input, --format and --partial')
   if (inputFormat === 'stream-json' && outputFormat !== 'stream-json') {
     failCli('--input rows requires run --format rows')
-  }
-  if (opts.replayUserMessages && outputFormat !== 'stream-json') {
-    failCli('--replay-user-messages requires run --format rows')
-  }
-  if (typedString(opts.permissionPromptTool) === 'stdio') {
-    failCli('stdio is not an MCP tool name: ask over the control protocol with --permission-channel stdio')
-  }
-  if (typedString(opts.permissionChannel) === 'prompt-tool' && typedString(opts.permissionPromptTool) === undefined) {
-    failCli('--permission-channel prompt-tool needs --permission-prompt-tool <tool>')
   }
   const includePartialMessages = Boolean(opts.partial)
   if (opts.partial && (!printMode || outputFormat !== 'stream-json')) {
@@ -1470,7 +1447,7 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
 
   if (isCoordinationServerEnabled()) {
     const reserved = Object.entries(dynamicMcpConfig).find(
-      ([name, config]) => name === COORDINATION_SERVER_NAME && (config as { type?: string }).type !== 'host',
+      ([name]) => name === COORDINATION_SERVER_NAME,
     )
     if (reserved) {
       writeErr(
@@ -1521,19 +1498,11 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     ? Promise.resolve({})
     : getMercuryMcpConfigs(dynamicMcpConfig).then(resolved => resolved.servers)
   const mcpConfigPromise = discoveredMcpPromise.then(discovered => {
-    const merged = { ...discovered, ...dynamicMcpConfig }
-    const sdk: Record<string, McpSdkServerConfig> = Object.create(null) as Record<string, McpSdkServerConfig>
-    const regular: Record<string, ScopedMcpServerConfig> = Object.create(null) as Record<string, ScopedMcpServerConfig>
-    for (const [name, config] of Object.entries(merged)) {
-      if (config.type === 'host') sdk[name] = config
-      else regular[name] = config
-    }
+    const regular: Record<string, ScopedMcpServerConfig> = Object.assign(Object.create(null), discovered, dynamicMcpConfig) as Record<string, ScopedMcpServerConfig>
     logForDebugging(`MCP config resolution took ${Date.now() - mcpResolutionStartedAt}ms`)
-    return { sdk, regular }
+    return regular
   })
-  const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = Object.fromEntries(
-    Object.entries(dynamicMcpConfig).filter(([, config]) => config.type !== 'host'),
-  )
+  const regularDynamicMcpConfig: Record<string, ScopedMcpServerConfig> = dynamicMcpConfig
 
   if (process.env.MERCURY_ENTRYPOINT !== 'local-agent') {
     initBundledSkills()
@@ -1638,7 +1607,6 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
     includePartialMessages,
     setupTrigger,
     door: runnerDoor ? 'wire' : 'rows',
-    askChannel,
   })
 }
 
@@ -2109,7 +2077,7 @@ async function printLaunch(args: {
   permissionMode: PermissionMode
   toolPermissionContext: AppState['toolPermissionContext']
   allowDangerousSkip: boolean
-  mcpConfigPromise: Promise<{ sdk: Record<string, McpSdkServerConfig>; regular: Record<string, ScopedMcpServerConfig> }>
+  mcpConfigPromise: Promise<Record<string, ScopedMcpServerConfig>>
   thinkingConfig: import('./utils/thinking.js').ThinkingConfig
   userSpecifiedModel: string | undefined
   fallbackModel: string | undefined
@@ -2123,7 +2091,6 @@ async function printLaunch(args: {
   includePartialMessages: boolean
   setupTrigger: 'init' | 'maintenance' | undefined
   door: 'rows' | 'wire'
-  askChannel: 'stdio' | 'prompt-tool' | undefined
 }): Promise<void> {
   const { opts } = args
 
@@ -2223,7 +2190,7 @@ async function printLaunch(args: {
   }
 
   profileCheckpoint('action_before_mcp_configs_await')
-  const { sdk: sdkMcpConfigs, regular: regularMcpConfigs } = await args.mcpConfigPromise
+  const regularMcpConfigs = await args.mcpConfigPromise
   profileCheckpoint('action_mcp_configs_loaded')
   {
     if (consumeSessionKitPin().outcome === 'refused') {
@@ -2236,7 +2203,7 @@ async function printLaunch(args: {
       const { getActiveSet } = await import('./extensions/active.js')
       completeProcessSessionKit(
         completeSessionKitFromRoster(unresolved, {
-          mcpNames: [...Object.keys(regularMcpConfigs), ...Object.keys(sdkMcpConfigs)],
+          mcpNames: Object.keys(regularMcpConfigs),
           commands: args.commands,
           extensions: getActiveSet().active.map(ext => ext.manifest.name),
         }),
@@ -2264,7 +2231,6 @@ async function printLaunch(args: {
       store.setState,
       headlessCommands,
       tools,
-      sdkMcpConfigs,
       args.activeAgents,
       {
         continue: Boolean(opts.continue),
@@ -2272,8 +2238,6 @@ async function printLaunch(args: {
         outputFormat: args.outputFormat,
         syntaxInput: args.syntaxInput,
         jsonSchema: parsedJsonSchema,
-        permissionPromptToolName: typedString(opts.permissionPromptTool),
-        permissionChannel: args.askChannel,
         allowedTools: (opts.allowedTools as string[] | undefined) ?? [],
         thinkingConfig: args.thinkingConfig,
         maxTurns: opts.maxTurns as number | undefined,

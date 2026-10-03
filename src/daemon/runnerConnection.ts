@@ -235,13 +235,16 @@ export class RunnerConnection {
     return this.peer.closed
   }
 
-  deliver(frame: Record<string, unknown>): boolean {
+  deliver(frame: Record<string, unknown>): Promise<boolean> {
     const row = inputRowOfFrame(frame)
-    if (row === null || this.peer.closed) return false
-    this.peer.request('queue/add', row, { deadlineMs: null }).catch((error: unknown) => {
-      this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
-    })
-    return true
+    if (row === null || this.peer.closed) return Promise.resolve(false)
+    return this.peer.request('queue/add', row, { deadlineMs: null }).then(
+      () => true,
+      (error: unknown) => {
+        this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
+        return false
+      },
+    )
   }
 
   control(frame: Record<string, unknown>): boolean {

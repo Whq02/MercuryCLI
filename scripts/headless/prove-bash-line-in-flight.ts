@@ -1,12 +1,12 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
+import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
 import { INTERRUPT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -151,43 +151,35 @@ async function drive(): Promise<void> {
     MERCURY_CREWS_DIR: join(home, 'crews'),
   }
 
-  const child = spawn(
-    nodeBin!,
-    [DIST, 'run', '--format', 'rows', '--input', 'rows', '--model', 'claude-opus-4-8'],
-    { cwd, env },
-  )
-  const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
-
   const lines: string[] = []
   const envelopes: Envelope[] = []
   let unparseable = 0
-  let buf = ''
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  child.stdout.on('data', d => {
-    buf += String(d)
-    for (;;) {
-      const nl = buf.indexOf('\n')
-      if (nl === -1) break
-      const line = buf.slice(0, nl)
-      buf = buf.slice(nl + 1)
-      if (!line.trim()) continue
+  const door = spawnRunnerDoor({
+    node: nodeBin!,
+    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    cwd,
+    env,
+    onLine: line => {
       lines.push(line)
-      try {
-        const e = JSON.parse(line) as Envelope
-        envelopes.push(e)
-        for (let i = waiters.length - 1; i >= 0; i--) {
-          if (waiters[i]!.pred(e)) {
-            const w = waiters.splice(i, 1)[0]!
-            w.res(e)
-          }
-        }
-      } catch {
+      const e = parseFrame(line) as Envelope | null
+      if (e === null) {
         unparseable++
+        return
       }
-    }
+      envelopes.push(e)
+      for (let i = waiters.length - 1; i >= 0; i--) {
+        if (waiters[i]!.pred(e)) {
+          const w = waiters.splice(i, 1)[0]!
+          w.res(e)
+        }
+      }
+    },
   })
+  const child = door.child
+  const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   let stderr = ''
-  child.stderr.on('data', d => (stderr += d))
+  child.stderr!.on('data', d => (stderr += d))
   let exitedEarly = false
   const exited = new Promise<{ exit: number | null }>(res =>
     child.on('close', exit => {
@@ -214,14 +206,13 @@ async function drive(): Promise<void> {
       })
     })
   const send = (o: unknown): void => {
-    child.stdin.write(JSON.stringify(o) + '\n')
+    door.send(o as Record<string, unknown>)
   }
   const resultCount = (): number => envelopes.filter(e => e.type === 'outcome').length
 
   section('§1 — initialize')
-  send({ type: 'control_request', request_id: 'req_init', request: { subtype: 'initialize' } })
-  const initResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_init'), 'initialize ack')
-  check('initialize is acknowledged with success', !!initResp && j(initResp).includes('"success"'), j(initResp ?? {}).slice(0, 200))
+  const initResp = await door.connection.initialized
+  check('initialize is answered with the session id', initResp !== null && typeof initResp.session_id === 'string', j(initResp ?? {}).slice(0, 200))
 
   section('§2 — a bash-mode line runs as a shell in the session process; the runner lives on')
   const nonce = `bash-line-${randomUUID().slice(0, 8)}`
@@ -321,7 +312,7 @@ async function drive(): Promise<void> {
     'no failed outcome anywhere',
     !envelopes.some(e => e.type === 'outcome' && e.status === 'failed'),
   )
-  child.stdin.end()
+  child.stdin!.end()
   const { exit } = await exited
   check('stdin end → exit 0 (the last turn succeeded)', exit === 0, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
   check('every stdout line is individually JSON-parseable', unparseable === 0, `${unparseable} unparseable of ${lines.length}`)
