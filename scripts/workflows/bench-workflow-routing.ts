@@ -3,6 +3,7 @@ import { spawn, execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { frameLines, isCompleted, lastOutcome, outcomeError } from '../lib/rows.ts'
 import {
   CORPUS_COMMIT,
   CORPUS_TAG,
@@ -126,14 +127,12 @@ async function runArm(
     clearTimeout(timeboxHandle)
     mkdirSync(join(runDir, 'forensics'), { recursive: true })
     writeFileSync(join(runDir, 'forensics', `wf-${armName}.stderr.log`), errBuf)
-    try {
-      const outcome = JSON.parse(out) as { type?: string; status?: string; steps?: number; cost_usd?: number; error?: { message?: string } }
-      if (outcome.type !== 'outcome') throw new Error('not an outcome row')
-      costUsd = outcome.cost_usd
-      steps = outcome.steps
-      if (outcome.status !== 'completed') error = error ?? `outcome ${outcome.status ?? 'unknown'}${outcome.error?.message ? ` — ${outcome.error.message}` : ''}`
-    } catch {
-      error = error ?? 'no parsable outcome row'
+    const outcome = lastOutcome(frameLines(out))
+    if (outcome === undefined) error = error ?? 'no parsable outcome row'
+    else {
+      costUsd = typeof outcome.cost_usd === 'number' ? outcome.cost_usd : undefined
+      steps = typeof outcome.steps === 'number' ? outcome.steps : undefined
+      if (!isCompleted(outcome)) error = error ?? `outcome ${String(outcome.status ?? 'unknown')}${outcomeError(outcome) ? ` — ${outcomeError(outcome)}` : ''}`
     }
   } catch (e) {
     error = String(e)
