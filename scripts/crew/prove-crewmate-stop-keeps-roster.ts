@@ -4,7 +4,8 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, TURN_MS, type Frame } from './crew-world.ts'
+import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import { closeWorld, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, readJson, record, sleep, toolResultOf, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const sessionId = randomUUID()
@@ -41,18 +42,52 @@ const script: ScriptedTurn[] = [
   peer({ kind: 'text', text: 'CONTINUED-1' }, MESSAGE_1),
 ]
 const world = await makeWorld('crewmate-stop-keeps-roster', script)
-const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'LiveComms'])
-const rosterPath = join(world.crews, crew, 'config.json')
-const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
-const control = async (id: string, request: Frame): Promise<Frame> => {
-  session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined)
-  return response(id)!.response as Frame
+const frames: Frame[] = []
+let rowsOut = ''
+const door = spawnRunnerDoor({
+  node: NODE,
+  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', 'LiveComms', '--mode', 'sovereign', '--session-id', sessionId],
+  cwd: world.project,
+  env: world.env,
+  onLine: line => {
+    rowsOut += `${line}\n`
+    const frame = parseFrame(line)
+    if (frame !== null) frames.push(frame)
+  },
+})
+const wire = door.connection.peer
+let leadDone = false
+const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+  leadDone = true
+  resolveExit(code)
+}))
+const session = {
+  frames,
+  stdout: (): string => rowsOut,
+  submit: (text: string): void => {
+    void wire.request('queue/add', { type: 'prompt', content: text })
+  },
+  waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
+    const deadline = Date.now() + timeoutMs
+    while (!test()) {
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}`)
+      await sleep(25)
+    }
+  },
+  terminate: async (): Promise<number | null> => {
+    door.child.kill('SIGTERM')
+    const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
+    if (!leadDone) door.child.kill('SIGKILL')
+    door.connection.close('the proof ended')
+    return code
+  },
 }
+const stopAgent = (agentId: string): Promise<Frame> => wire.request('agent/stop', { agent_id: agentId }).then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
+const rosterPath = join(world.crews, crew, 'config.json')
 type Member = { name: string; agentId: string; cwd?: string; isActive?: boolean; stoppedAt?: number; backendType?: string }
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
-const rowsOf = (): string[] => session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').map(frame => String(frame.task_id))
+const rowsOf = (): string[] => session.frames.filter(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate').map(frame => String(frame.task_id))
 const members = (): Member[] => readJson<{ members: Member[] }>(rosterPath)?.members ?? []
 const workerMembers = (): Member[] => members().filter(member => member.agentId === workerAgentId)
 const until = async (test: () => boolean, ms: number): Promise<boolean> => {
@@ -79,8 +114,8 @@ try {
   if (first === undefined) throw new Error('the fixture has no crewmate task id')
   const born = workerMembers()[0]
   tally.check('the roster record carries the crewmate under its name, working, in its own folder', born !== undefined && born.cwd === work && born.stoppedAt === undefined, JSON.stringify(members()))
-  const stopped = await control('stop-worker', { subtype: 'stop_task', task_id: first })
-  tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
+  const stopped = await stopAgent(first)
+  tally.check('the crew stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
 
   tally.section('THE PIN: the roster record stays after the stop, marked stopped, its folder kept — never removed at the kill')
   const marked = await until(() => workerMembers()[0]?.stoppedAt !== undefined, TURN_MS / 3)

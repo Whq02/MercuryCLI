@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { apiRefusalOf, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, crewMessagesTo, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, readJson, record, sleep, toolResultOf, treeOf, TURN_MS, type Frame } from './crew-world.ts'
+import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import { closeWorld, crewMessagesTo, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, readJson, record, sleep, toolResultOf, treeOf, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
 const sessionId = randomUUID()
@@ -83,21 +84,55 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-crewmate-message-resume')
 const world = await makeWorld('crewmate-message-resume', script)
-const session = bootLead(world, ['--mode', 'sovereign', '--session-id', sessionId], ['Agent', 'Bash', 'SendMessage', 'TaskStop'])
-const rosterPath = join(world.crews, crew, 'config.json')
-const response = (id: string): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)
-const control = async (id: string, request: Frame): Promise<Frame> => {
-  session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  await session.waitFor(`no control response for ${id}`, () => response(id) !== undefined)
-  return response(id)!.response as Frame
+const frames: Frame[] = []
+let rowsOut = ''
+const door = spawnRunnerDoor({
+  node: NODE,
+  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', 'TaskStop', '--mode', 'sovereign', '--session-id', sessionId],
+  cwd: world.project,
+  env: world.env,
+  onLine: line => {
+    rowsOut += `${line}\n`
+    const frame = parseFrame(line)
+    if (frame !== null) frames.push(frame)
+  },
+})
+const wire = door.connection.peer
+let leadDone = false
+const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+  leadDone = true
+  resolveExit(code)
+}))
+const session = {
+  frames,
+  stdout: (): string => rowsOut,
+  submit: (text: string): void => {
+    void wire.request('queue/add', { type: 'prompt', content: text })
+  },
+  waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
+    const deadline = Date.now() + timeoutMs
+    while (!test()) {
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}`)
+      await sleep(25)
+    }
+  },
+  terminate: async (): Promise<number | null> => {
+    door.child.kill('SIGTERM')
+    const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
+    if (!leadDone) door.child.kill('SIGKILL')
+    door.connection.close('the proof ended')
+    return code
+  },
 }
+const rosterPath = join(world.crews, crew, 'config.json')
+const stopAgent = (agentId: string): Promise<Frame> => wire.request('agent/stop', { agent_id: agentId }).then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
 type Request = { body: { model?: string; messages?: Array<{ role: string; content: unknown }> } }
 type Roster = { members: Array<{ name: string; agentId: string; stoppedAt?: number }> }
 const requests = (): Request[] => (world.fixture.messageRequests() as Request[]).filter(request => request.body.model === peerModel)
 const projects = join(world.config, 'projects')
 const transcripts = (): string[] => treeOf(projects).filter(path => /subagents\/agent-a[0-9a-z]{8}\.jsonl$/.test(path))
 const rowsOf = (): Array<{ id: string; description: string }> =>
-  session.frames.filter(frame => frame.subtype === 'task_started' && frame.task_type === 'in_process_crewmate').map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
+  session.frames.filter(frame => frame.type === 'task' && frame.state === 'started' && frame.task_type === 'in_process_crewmate').map(frame => ({ id: String(frame.task_id), description: String(frame.description) }))
 const workerRows = (): Roster['members'] => (readJson<Roster>(rosterPath)?.members ?? []).filter(member => member.name.toLowerCase().startsWith(worker))
 const sameRow = (): boolean => workerRows().length === 1 && workerRows()[0]!.name === worker && workerRows()[0]!.agentId === workerAgentId
 const availableNotices = (): number => crewMessagesTo(world, crew, 'crew-lead').filter(row => row.from === worker && row.text.includes('idle_notification') && row.text.includes('"available"')).length
@@ -124,8 +159,8 @@ try {
   tally.check('a real in-process crewmate runs with a history-bearing tool result', first !== undefined && JSON.stringify(requests()[1]?.body.messages).includes('HISTORY-WITNESS'))
   if (first === undefined) throw new Error('the fixture has no crewmate task id')
   const requestsBeforeStop = requests().length
-  const stopped = await control('stop-worker', { subtype: 'stop_task', task_id: first.id })
-  tally.check('the crew stop road stops the working crewmate', stopped.subtype === 'success', JSON.stringify(stopped))
+  const stopped = await stopAgent(first.id)
+  tally.check('the crew stop road stops the working crewmate', stopped.receipt === 'applied', JSON.stringify(stopped))
 
   tally.section('THE PIN: the stop notice wakes the lead, whose two messages to the stopped worker both land — one resumes it with the message as its next turn, the other is its turn after — same name, same row, and each reply comes back')
   const answered1 = await until(() => session.stdout().includes('LEAD-SENT-1'), TURN_MS * 2 / 3)
@@ -188,8 +223,8 @@ try {
   tally.check('the idle worker takes the message from its inbox and starts the long command', longStarted, String(requests().length))
   await sleep(1500)
   const running = rowsOf().at(-1)
-  const stoppedAgain = running === undefined ? { subtype: 'skipped' } : await control('stop-worker-again', { subtype: 'stop_task', task_id: running.id })
-  tally.check('the resumed worker is stopped again on its new row, while its tool runs', stoppedAgain.subtype === 'success', JSON.stringify(stoppedAgain))
+  const stoppedAgain = running === undefined ? { refused: 'no running row' } : await stopAgent(running.id)
+  tally.check('the resumed worker is stopped again on its new row, while its tool runs', stoppedAgain.receipt === 'applied', JSON.stringify(stoppedAgain))
   await sleep(3500)
   const before = transcripts()
   tally.check('after the eviction the roster still holds the worker\'s record, marked stopped, and its one transcript stands on disk', workerRows().length === 1 && workerRows()[0]!.stoppedAt !== undefined && before.length === 1, JSON.stringify({ members: workerRows(), before }))

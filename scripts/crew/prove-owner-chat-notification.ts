@@ -2,7 +2,8 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { ScriptedTurn } from '../lib/fixtureApi.ts'
-import { bootLead, closeWorld, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, record, toolResultOf, treeOf, TURN_MS, type Frame } from './crew-world.ts'
+import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import { closeWorld, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, record, sleep, toolResultOf, treeOf, TURN_MS } from './crew-world.ts'
 
 const PEER_MODEL = 'claude-opus-4-6'
 const OWNER_ANSWER = 'OWNER-CHAT-ANSWER-STAYS-HERE'
@@ -22,14 +23,53 @@ const script: ScriptedTurn[] = [
 ]
 const tally = makeTally('prove-owner-chat-notification')
 const world = await makeWorld('owner-chat-notification', script)
-const session = bootLead(world, ['--mode', 'sovereign'], ['Agent', 'SendMessage'])
-const control = async (id: string, request: Frame): Promise<Frame> => {
-  session.child.stdin!.write(JSON.stringify({ type: 'control_request', request_id: id, request }) + '\n')
-  const response = (): Frame | undefined => session.frames.find(frame => frame.type === 'control_response' && (frame.response as Frame | undefined)?.request_id === id)?.response as Frame | undefined
-  await session.waitFor(`no response to ${id}`, () => response() !== undefined)
-  return response()!
+const frames: Frame[] = []
+let rowsOut = ''
+let leadErr = ''
+const door = spawnRunnerDoor({
+  node: NODE,
+  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'SendMessage', '--mode', 'sovereign'],
+  cwd: world.project,
+  env: world.env,
+  onLine: line => {
+    rowsOut += `${line}\n`
+    const frame = parseFrame(line)
+    if (frame !== null) frames.push(frame)
+  },
+})
+door.child.stderr!.on('data', (chunk: Buffer) => {
+  leadErr += chunk.toString('utf8')
+})
+const wire = door.connection.peer
+let leadDone = false
+const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+  leadDone = true
+  resolveExit(code)
+}))
+const session = {
+  frames,
+  stdout: (): string => rowsOut,
+  stderr: (): string => leadErr,
+  submit: (text: string): void => {
+    void wire.request('queue/add', { type: 'prompt', content: text })
+  },
+  waitFor: async (label: string, test: () => boolean, timeoutMs = TURN_MS): Promise<void> => {
+    const deadline = Date.now() + timeoutMs
+    while (!test()) {
+      if (leadDone || Date.now() >= deadline) throw new Error(`${label}\n--- rows tail ---\n${rowsOut.slice(-1500)}\n--- stderr tail ---\n${leadErr.slice(-1500)}`)
+      await sleep(25)
+    }
+  },
+  terminate: async (): Promise<number | null> => {
+    door.child.kill('SIGTERM')
+    const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
+    if (!leadDone) door.child.kill('SIGKILL')
+    door.connection.close('the proof ended')
+    return code
+  },
 }
-const notificationFrames = (from: number, id: string): Frame[] => session.frames.slice(from).filter(frame => frame.subtype === 'task_notification' && frame.task_id === id && frame.status === 'completed')
+const resumeAgent = (agentId: string, note: string): Promise<Frame> => wire.request('agent/resume', { agent_id: agentId, note }).then(receipt => receipt as Frame, (error: unknown) => ({ refused: error instanceof Error ? error.message : String(error) }))
+const notificationFrames = (from: number, id: string): Frame[] => session.frames.slice(from).filter(frame => frame.type === 'task' && frame.state === 'ended' && frame.task_id === id && frame.status === 'completed')
 const leadPrompts = (): string[] => world.fixture.messageRequests().filter(request => (request.body as { model?: string }).model === LEAD_MODEL).map(request => JSON.stringify((request.body as { messages?: unknown }).messages))
 const recordText = (): string => treeOf(join(world.config, 'projects')).filter(path => /subagents\/agent-.*\.jsonl$/.test(path)).map(path => readFileSync(join(world.config, 'projects', path), 'utf8')).join('\n')
 try {
@@ -40,8 +80,8 @@ try {
   tally.check('the fixture launched a real sub-agent with a resumable transcript', agentId !== undefined && recordText().includes('INITIAL-REPORT'), receipt?.text)
   if (agentId === undefined) throw new Error('missing agent id')
   const beforeOwner = session.frames.length
-  const resumed = await control('owner-chat', { subtype: 'resume_task', task_id: agentId, note: 'OWNER-FOLLOW-UP: answer me in your crew chat.' })
-  tally.check('the crew-view chat road accepts the owner message', resumed.subtype === 'success', JSON.stringify(resumed))
+  const resumed = await resumeAgent(agentId, 'OWNER-FOLLOW-UP: answer me in your crew chat.')
+  tally.check('the crew-view chat road accepts the owner message', resumed.refused === undefined && typeof resumed.agent_id === 'string', JSON.stringify(resumed))
   await session.waitFor('the owner chat turn did not complete', () => notificationFrames(beforeOwner, agentId).length > 0, TURN_MS)
   session.submit('OWNER-BARRIER: confirm the lead is ready for the next task.')
   await session.waitFor('the owner barrier never completed', () => session.stdout().includes('OWNER-BARRIER-DONE'), TURN_MS)
