@@ -362,7 +362,7 @@ for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {
     const ctx: Record<string, unknown> = {
       abortController: new AbortController(),
       options: {
-        commands: [], tools: [FileReadTool], mainLoopModel: MODEL_A, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {},
+        commands: [], tools: [FileReadTool], engineModel: MODEL_A, thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {},
         isNonInteractiveSession: false, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] },
       },
       getAppState: () => appState,

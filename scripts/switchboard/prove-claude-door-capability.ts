@@ -59,7 +59,7 @@ enableConfigs()
 const wm = await import('../../src/services/concourse/workerModels.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
-const { getMainLoopModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { refreshSignInReads } = await import('../../src/daemon/signInView.ts')
 
 section(`§1 the session and crew doors: '${UNKNOWN_CLAUDE_ID}' (no catalogue knows it) dispatches on capability`)
@@ -112,9 +112,9 @@ section('§2 the honest refusals stay: a family-less stranger, and a keyless fam
 
 section(`§3 the real case: '${REAL_ID}' saved after the daemon booted, judged by a bundle whose catalogue predates the row`)
 {
-  const primed = getMainLoopModel()
+  const primed = getEngineModel()
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { model: REAL_ID } }, null, 2))
-  check("the saved setting names the row while this process's settings read still holds its boot-time value (the daemon's read)", getMainLoopModel() === primed && primed !== REAL_ID, `${primed} → ${getMainLoopModel()}`)
+  check("the saved setting names the row while this process's settings read still holds its boot-time value (the daemon's read)", getEngineModel() === primed && primed !== REAL_ID, `${primed} → ${getEngineModel()}`)
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const canonical = (value: string): string => parseUserSpecifiedModel(value).replace(/\[1m]$/, '')
   const preRow = () => getModelOptions().filter(o => canonical(o.value) !== REAL_ID)

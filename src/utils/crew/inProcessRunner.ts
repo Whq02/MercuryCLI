@@ -614,7 +614,7 @@ export async function runInProcessCrewmate(
       const role = config.role
       const base = await getSystemPrompt(
         options.tools,
-        options.mainLoopModel,
+        options.engineModel,
         options.mcpClients,
       )
       const parts: string[] = [base.join('\n'), buildCrewmateAddendum()]
@@ -646,7 +646,7 @@ export async function runInProcessCrewmate(
       systemPrompt: composedSystemPrompt,
     })
 
-    const effectiveModel = getAgentModel(derivedDefinition.model, options.mainLoopModel, config.model)
+    const effectiveModel = getAgentModel(derivedDefinition.model, options.engineModel, config.model)
     const compactThreshold = getAutoCompactThreshold(effectiveModel)
 
     updateCrewmateTask(taskId, setAppState, task => ({

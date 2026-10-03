@@ -81,7 +81,7 @@ function harness(): { agent: (p: string, o?: Record<string, unknown>) => Promise
     toolUseContext: {
       abortController: new AbortController(),
       getAppState: () => ({ toolPermissionContext: permissionContext, mcp: { tools: fixtureMcp } }),
-      options: { agentDefinitions: { activeAgents: [readerDef] }, mainLoopModel: 'fixture-model', mcpClients: [] },
+      options: { agentDefinitions: { activeAgents: [readerDef] }, engineModel: 'fixture-model', mcpClients: [] },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: () => {},

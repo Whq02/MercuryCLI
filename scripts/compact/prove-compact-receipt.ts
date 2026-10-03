@@ -89,7 +89,7 @@ function makeCommandContext(model: string): Record<string, unknown> {
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'high',
     verbose: false,
-    mainLoopModel: model,
+    engineModel: model,
   }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   return {
@@ -104,7 +104,7 @@ function makeCommandContext(model: string): Record<string, unknown> {
       tools: [],
       mcpClients: [],
       commands: [],
-      mainLoopModel: model,
+      engineModel: model,
       maxThinkingTokens: 0,
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,

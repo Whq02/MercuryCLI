@@ -33,7 +33,7 @@ export function toolContext(options: ContextOptions = {}): ToolUseContext {
   }
   const context = {
     options: {
-      mainLoopModel: options.model ?? PROOF_MODEL,
+      engineModel: options.model ?? PROOF_MODEL,
       tools: [],
       commands: [],
       verbose: false,

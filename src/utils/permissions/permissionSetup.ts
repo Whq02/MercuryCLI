@@ -11,7 +11,7 @@ import {
 import { setNeedsAutoModeExitAttachment } from '../../bootstrap/state.js'
 import { logForDebugging } from '../debug.js'
 import { holdModeTransition, recordModeTransition, type ModeTransitionRoad } from './modeTransitions.js'
-import { getMainLoopModel } from '../model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { modelSupportsAutoMode } from '../betas.js'
 import {
   getSettings_DEPRECATED,
@@ -339,7 +339,7 @@ export async function verifyAutoModeGateAccess(
   const circuitBroken = disabledBySettings
   autoModeStateModule?.setAutoModeCircuitBroken(circuitBroken)
 
-  const modelSupported = modelSupportsAutoMode(getMainLoopModel())
+  const modelSupported = modelSupportsAutoMode(getEngineModel())
   const optedIn = hasAutoModeOptInAnySource()
   const carouselAvailable =
     !disabledBySettings && modelSupported && optedIn

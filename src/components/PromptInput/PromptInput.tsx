@@ -391,9 +391,9 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const setAppState = useSetAppState()
   const appStateStore = useAppStateStore()
   const messages = useFocusedTranscript() as Message[]
-  const mainLoopModel = useAppState((s: AppState) => s.mainLoopModel)
-  const mainLoopModelForSession = useAppState(
-    (s: AppState) => s.mainLoopModelForSession,
+  const engineModel = useAppState((s: AppState) => s.engineModel)
+  const engineModelForSession = useAppState(
+    (s: AppState) => s.engineModelForSession,
   )
   const effortValue = useAppState((s: AppState) => s.effortValue)
   const viewedTask = useAppState((s: AppState) =>
@@ -453,8 +453,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     themeName,
     columns,
     rows,
-    mainLoopModel,
-    mainLoopModelForSession,
+    engineModel,
+    engineModelForSession,
     effortValue,
     viewedTask,
     footerSelection,
@@ -721,7 +721,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
       addNotification({ key: 'model-switched', text: `Already on ${label} — queued switch cancelled`, priority: 'high', timeoutMs: 3000 })
       return
     }
-    const effectiveFrom = stateNow.mainLoopModelForSession ?? stateNow.mainLoopModel
+    const effectiveFrom = stateNow.engineModelForSession ?? stateNow.engineModel
     const lossNote = transitionPlanSummary(previewForSelection(messages, effectiveFrom, value))
     if (settled.kind === 'queued') {
       setAppState(prev => ({ ...prev, ...settled.patch }))
@@ -784,7 +784,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     if (probe.kind === 'queued' || probe.kind === 'applied') {
       const gatePlan = previewForSelection(
         messages,
-        probeState.mainLoopModelForSession ?? probeState.mainLoopModel,
+        probeState.engineModelForSession ?? probeState.engineModel,
         value,
       )
       if (gatePlan.needsChoice) {
@@ -1957,7 +1957,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
                 messages,
                 [],
                 new AbortController(),
-                mainLoopModel ?? '',
+                engineModel ?? '',
               )
               consoleSubmitBuffer((question, controller) =>
                 runConsoleAsk({
@@ -2209,7 +2209,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         setHelpOpen(false)
       }
     },
-    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, mainLoopModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
+    [modalOverlayUp, input, cursorOffset, mode, footerSelection, helpOpen, isSearchingHistory, messages, isLoading, speculationActive, appStateStore, engineModel, cockpitActive, getToolUseContext, insertAtCursor, setMode, setHelpOpen, setCursorOffset, setAppState, addNotification, escapeDoublePress, voice.phase],
   )
   useInput((rawInput, key, event) => {
     handleRawKey(rawInput, key, event)
@@ -2272,7 +2272,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
 
   const effortText = getEffortNotificationText(
     effortValue,
-    mainLoopModel ?? focusedMainModel,
+    engineModel ?? focusedMainModel,
   )
   const effortBaselineRef = useRef<{ armed: boolean; text: string | undefined }>({
     armed: false,
@@ -2469,7 +2469,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     })
     return () => setHoldToTalkEditor(null)
   }, [setCursorOffset])
-  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel)
+  const capEffectiveModel = focusedEffectiveModel !== '' ? focusedEffectiveModel : (engineModelForSession ?? engineModel ?? focusedMainModel)
   const capLane = capFailoverLaneOf(declaredRouteOf(capEffectiveModel))
   const capNote = capHandoffState()
   const capHomeWindow = capLane !== null && capNote !== null ? observedFamilyWindow(capNote.homeFamily) : null
@@ -2511,7 +2511,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     return (
       <BackgroundTasksDialog
         onDone={() => setOverlay(null)}
-        toolUseContext={getToolUseContext(messages, [], new AbortController(), mainLoopModel ?? '')}
+        toolUseContext={getToolUseContext(messages, [], new AbortController(), engineModel ?? '')}
       />
     )
   }
@@ -2581,7 +2581,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   }
   if (overlay === 'model-transition-preview' && transitionConfirm !== null) {
     const held = transitionConfirm
-    const effectiveNow = mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel
+    const effectiveNow = engineModelForSession ?? engineModel ?? focusedMainModel
     return (
       <TransitionPreviewCard
         plan={held.plan}
@@ -2623,8 +2623,8 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   if (overlay === 'model-picker') {
     return (
       <ModelPicker
-        initial={mainLoopModelForSession ?? mainLoopModel ?? focusedMainModel}
-        sessionModel={mainLoopModelForSession}
+        initial={engineModelForSession ?? engineModel ?? focusedMainModel}
+        sessionModel={engineModelForSession}
         onSelect={value => handleModelSelect(value)}
         onCancel={() => setOverlay(null)}
       />

@@ -37,7 +37,7 @@ import { normalizeMessages } from '../utils/messages.js'
 import { isNotEmptyMessage } from '../utils/messages/text.js'
 import { NO_CONTENT_MESSAGE } from '../constants/messages.js'
 import { turnCutOf } from '../utils/messages/turnCut.js'
-import { getMainLoopModel } from '../utils/model/model.js'
+import { getEngineModel } from '../utils/model/model.js'
 import { getModelUsage, getTotalAPIDuration, getTotalCostUSD, getUnpricedTurns } from '../bootstrap/state.js'
 import type { ModelUsage } from '../bootstrap/state.js'
 import { noteRunPhase } from '../utils/runPhases.js'
@@ -353,14 +353,14 @@ export class Conversation {
     }) as CanUseTool
 
     const appStateSnapshot = config.getAppState()
-    const resolvedModel = this.userSpecifiedModel ?? getMainLoopModel()
+    const resolvedModel = this.userSpecifiedModel ?? getEngineModel()
     const thinkingConfig: ThinkingConfig =
       config.thinkingConfig ?? (shouldEnableThinkingByDefault() ? ({ type: 'adaptive' } as ThinkingConfig) : ({ type: 'disabled' } as ThinkingConfig))
 
     headlessProfilerCheckpoint('before_getSystemPrompt')
     const promptParts = await fetchSystemPromptParts({
       tools: config.tools,
-      mainLoopModel: resolvedModel,
+      engineModel: resolvedModel,
       mcpClients: config.mcpClients,
       customSystemPrompt: config.customSystemPrompt,
       permissionMode: appStateSnapshot.toolPermissionContext.mode,
@@ -394,7 +394,7 @@ export class Conversation {
         commands: config.commands,
         debug: false,
         verbose: false,
-        mainLoopModel: model,
+        engineModel: model,
         thinkingConfig,
         tools: config.tools,
         mcpClients: config.mcpClients,

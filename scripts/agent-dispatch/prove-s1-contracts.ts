@@ -70,7 +70,7 @@ section('2 · buildAgentLaunchPlan — decision laws')
     forkGateOn: false,
     forkAgent,
     defaultAgentType: 'orbit-probe',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
     ...over,

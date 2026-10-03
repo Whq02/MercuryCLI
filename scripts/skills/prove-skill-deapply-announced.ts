@@ -51,7 +51,7 @@ const governance = await import('../../src/skills/kitGovernance.ts')
 type ListingAttachment = { type: string; content: string; skillCount: number; isInitial: boolean; removedNames?: string[] }
 const context = {
   agentId: undefined,
-  options: { tools: [{ name: SKILL_TOOL_NAME }], mainLoopModel: 'claude-sonnet-4-6' },
+  options: { tools: [{ name: SKILL_TOOL_NAME }], engineModel: 'claude-sonnet-4-6' },
   getAppState: () => ({ mcp: { commands: [] } }),
 } as never
 const list = async (): Promise<ListingAttachment[]> =>

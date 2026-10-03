@@ -54,7 +54,7 @@ const ctx = {
   options: {
     commands: [],
     tools: pool,
-    mainLoopModel: model,
+    engineModel: model,
     thinkingConfig: { type: 'disabled' },
     mcpClients: [],
     mcpResources: {},

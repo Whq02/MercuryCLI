@@ -121,7 +121,7 @@ function makeContext(model: string, opts?: { thinking?: { type: string; budgetTo
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: model,
+      engineModel: model,
       maxThinkingTokens: 0,
       thinkingConfig: opts?.thinking ?? { type: 'disabled' as const },
       isNonInteractiveSession: true,

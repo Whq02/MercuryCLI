@@ -326,8 +326,8 @@ function leakViolations(lane: Lane, body: Body): string[] {
 }
 
 type Slice = {
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
 }
 
@@ -344,7 +344,7 @@ function makeCtx(model: string): {
     options: {
       commands: [],
       tools: [BashTool],
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -417,13 +417,13 @@ const ledger: Array<{ pair: string; turn: string; path: string; model: string }>
 
 async function drivePair(a: Lane, b: Lane): Promise<void> {
   section(`${a.key} → ${b.key} (mid-turn park) → back (idle)`)
-  let slice: Slice = { mainLoopModel: a.setting, mainLoopModelForSession: null, pendingModelSwitch: null }
+  let slice: Slice = { engineModel: a.setting, engineModelForSession: null, pendingModelSwitch: null }
   let history: Message[] = [createUserMessage({ content: 'T1 run the probe tool and report' }) as Message]
 
   let queuedKind = ''
   let queuedCross: boolean | undefined
   let switchesInsideTurn = 0
-  const t1 = await driveTurn(history, slice.mainLoopModel!, () => {
+  const t1 = await driveTurn(history, slice.engineModel!, () => {
     switchesInsideTurn++
     const settled = settleModelSelection(slice, b.setting, { turnActive: true })
     queuedKind = settled.kind
@@ -450,10 +450,10 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
   slice = { ...slice, ...boundary.patch } as Slice
   const rc = boundary.receipt
   check('the receipt is honest (previous=A, applied=B, boundary=turn-boundary, crossProvider)', rc.previous === a.setting && rc.applied === b.setting && rc.boundary === 'turn-boundary' && rc.resolution === 'applied' && rc.crossProvider === crossExpected(a, b), JSON.stringify(rc))
-  check('the pending slot cleared exactly-once', slice.pendingModelSwitch === null && slice.mainLoopModel === b.setting)
+  check('the pending slot cleared exactly-once', slice.pendingModelSwitch === null && slice.engineModel === b.setting)
 
   history = [...history, ...t1.settledMessages, createUserMessage({ content: 'T2 continue after the switch' }) as Message]
-  const t2 = await driveTurn(history, slice.mainLoopModel!, undefined)
+  const t2 = await driveTurn(history, slice.engineModel!, undefined)
   check(`T2 settled clean on ${b.key}`, t2.threw === undefined && t2.terminal.reason === 'completed' && t2.requests.length >= 1, `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)}`)
   const t2main = t2.requests.find(r => JSON.stringify(r.body).includes('T2 '))
   check(`T2 rode ${b.key}'s wire (${b.pathEnd} · ${b.wireModel})`, t2main !== undefined && t2main.path.endsWith(b.pathEnd) && t2main.body.model === b.wireModel, t2.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' '))
@@ -476,7 +476,7 @@ async function drivePair(a: Lane, b: Lane): Promise<void> {
   check("the idle pick applies NOW (kind 'applied', boundary 'idle')", idle.kind === 'applied' && idle.receipt?.boundary === 'idle' && idle.receipt.applied === a.setting && idle.receipt.crossProvider === crossExpected(b, a), JSON.stringify(idle))
   if (idle.kind === 'applied') slice = { ...slice, ...idle.patch } as Slice
   history = [...history, ...t2.settledMessages, createUserMessage({ content: 'T3 ride the idle switch back' }) as Message]
-  const t3 = await driveTurn(history, slice.mainLoopModel!, undefined)
+  const t3 = await driveTurn(history, slice.engineModel!, undefined)
   const t3main = t3.requests.find(r => JSON.stringify(r.body).includes('T3 '))
   check(`T3 rode ${a.key}'s wire again after the idle switch back`, t3.threw === undefined && t3main !== undefined && t3main.path.endsWith(a.pathEnd) && t3main.body.model === a.wireModel, `threw=${String(t3.threw)} ${t3.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' ')}`)
   if (t3main) {
@@ -505,9 +505,9 @@ section('rogue leg — a direct mid-turn slice write cannot re-model the flight'
   const a = LANES[0]!
   const b = LANES[1]!
   const history: Message[] = [createUserMessage({ content: 'T1 run the probe tool and report' }) as Message]
-  let rogueSlice: Slice = { mainLoopModel: a.setting, mainLoopModelForSession: null, pendingModelSwitch: null }
-  const t1 = await driveTurn(history, rogueSlice.mainLoopModel!, () => {
-    rogueSlice = { ...rogueSlice, mainLoopModel: b.setting }
+  let rogueSlice: Slice = { engineModel: a.setting, engineModelForSession: null, pendingModelSwitch: null }
+  const t1 = await driveTurn(history, rogueSlice.engineModel!, () => {
+    rogueSlice = { ...rogueSlice, engineModel: b.setting }
   })
   check('the rogue drive settled', t1.threw === undefined && t1.terminal.reason === 'completed', String(t1.threw))
   check('every round STILL rode the spawn lane (options snapshot law)', t1.requests.length >= 2 && t1.requests.every(r => r.path.endsWith(a.pathEnd) && r.body.model === a.wireModel), t1.requests.map(r => `${r.path}:${String(r.body.model)}`).join(' '))

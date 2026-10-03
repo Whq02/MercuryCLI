@@ -67,7 +67,7 @@ function makeCtx(tools: readonly unknown[], client: unknown): { ctx: Record<stri
     options: {
       commands: [],
       tools,
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       thinkingConfig: { type: 'disabled' },
       mcpClients: [client],
       mcpResources: {},

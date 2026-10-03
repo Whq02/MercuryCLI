@@ -206,7 +206,7 @@ check('the same guard refuses an inheriting call, naming the consent stamp among
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 let appState = getDefaultAppState()
 const toolContext = {
-  options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+  options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
   readFileState: new Map(),
   getAppState: () => appState,
   setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },

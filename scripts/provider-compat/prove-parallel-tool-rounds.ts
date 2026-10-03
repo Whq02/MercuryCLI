@@ -236,7 +236,7 @@ function makeCtx(model: string): Record<string, unknown> {
     options: {
       commands: [],
       tools: TOOLS,
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

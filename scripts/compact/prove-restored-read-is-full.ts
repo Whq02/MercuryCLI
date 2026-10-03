@@ -34,7 +34,7 @@ function makeCtx(): { readFileState: Map<string, Entry> } & Record<string, unkno
     options: {
       commands: [],
       tools: [],
-      mainLoopModel: 'claude-opus-5',
+      engineModel: 'claude-opus-5',
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

@@ -8,7 +8,7 @@ import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
 import { readLocalMachineTruth, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import {
   SETUP_EXEC_TIMEOUT_MS,
@@ -53,7 +53,7 @@ export interface ResolvedSetupIo {
 
 function defaultCurrentModel(): string | undefined {
   try {
-    return focusedSessionModelFacts()?.effective ?? getMainLoopModel()
+    return focusedSessionModelFacts()?.effective ?? getEngineModel()
   } catch {
     return undefined
   }

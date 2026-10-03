@@ -8,7 +8,7 @@ import {
   getTotalLinesRemoved,
   getTotalUnpricedTurns,
 } from '../cost-tracker.js'
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js'
+import { useEngineModel } from '../hooks/useEngineModel.js'
 import { useDisplayedSessionModel } from '../hooks/useDisplayedSessionModel.js'
 import { useProviderUsageOnShow } from '../hooks/useProviderUsageOnShow.js'
 import { hasConsoleBillingAccess } from '../utils/billing.js'

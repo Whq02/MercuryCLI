@@ -1,4 +1,4 @@
-import { subscribeMainLoopModelOverride } from '../../../bootstrap/state.js'
+import { subscribeEngineModelOverride } from '../../../bootstrap/state.js'
 import { renderGenericInstructions, resolveBehaviourContract } from '../../../prompt/behaviourContract.js'
 import type { Tools } from '../../../Tool.js'
 import type { Message } from '../../../types/message.js'
@@ -8,7 +8,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import { resolveWireRequestedEffort } from '../../../utils/effort.js'
 import type { CacheSafeParams } from '../../../utils/forkedAgent.js'
 import { getUserAgent } from '../../../utils/http.js'
-import { getMainLoopModel, getPublicModelDisplayName } from '../../../utils/model/model.js'
+import { getEngineModel, getPublicModelDisplayName } from '../../../utils/model/model.js'
 import { getApiFetch } from '../../../utils/proxy.js'
 import { asSystemPrompt } from '../../../utils/systemPromptType.js'
 import { rosterOwnerFromToolUseContext } from '../../run/resolveOwner.js'
@@ -391,7 +391,7 @@ export async function tick(): Promise<void> {
   state.ticking = true
   try {
     const clock = state.clock
-    const record = localRecordFor(getMainLoopModel())
+    const record = localRecordFor(getEngineModel())
     if (record === undefined || record.server !== 'ollama' || keyOf(record) !== clock.key) {
       stopClock('the model changed')
       return
@@ -423,7 +423,7 @@ export async function tick(): Promise<void> {
 async function settle(): Promise<void> {
   state.settleTimer = null
   if (state.context === null) return
-  const model = getMainLoopModel()
+  const model = getEngineModel()
   const record = await resolveRecord(model)
   if (state.settleTimer !== null || state.context === null) return
   if (record === undefined || record.server !== 'ollama') {
@@ -462,7 +462,7 @@ export function armLocalWarm(context: LocalWarmContextProvider, opts?: { live?: 
   state.context = context
   state.live = opts?.live ?? (() => true)
   state.io = opts?.io ?? {}
-  state.unsubscribe = subscribeMainLoopModelOverride(() => {
+  state.unsubscribe = subscribeEngineModelOverride(() => {
     state.liveWaits = 0
     scheduleSettle()
   })

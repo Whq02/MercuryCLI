@@ -7,7 +7,7 @@ import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import { isEnvTruthy } from '../envUtils.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { getMainLoopModel } from '../model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { sideQuery, type SideQueryOptions } from '../sideQuery.js'
 import { getAutoModeConfig } from '../settings/settings.js'
 import { getFsImplementation } from '../fsOperations.js'
@@ -629,7 +629,7 @@ export async function classifyFlowActionWithFallback(
 
 function getClassifierModelChain(): string[] {
   return classifierModelChain({
-    sessionModel: getMainLoopModel(),
+    sessionModel: getEngineModel(),
     anthropicUsable: usabilityForRoute('anthropic').usable,
     anthropicTier: CLASSIFIER_FALLBACK_MODELS,
   })

@@ -92,7 +92,7 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
     mcp: { clients: [], tools: [], commands: [], resources: {} },
     effortValue: 'high',
     verbose: false,
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
   }
   const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
   const context = {
@@ -105,7 +105,7 @@ console.log('\nI1 the session id and the transcript file survive the fold byte-i
       tools: [],
       mcpClients: [],
       commands: [],
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       maxThinkingTokens: 0,
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,

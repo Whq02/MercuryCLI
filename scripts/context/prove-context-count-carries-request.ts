@@ -50,7 +50,7 @@ const { ask } = await import('../../src/rows/turn.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { collectContextData } = await import('../../src/commands/context/context-noninteractive.ts')
-const { getMainLoopModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/utils/model/model.ts')
 const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.ts')
 const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/utils/mcpValidation.ts')
 
@@ -119,11 +119,11 @@ try {
 
   section('§2 /context counts the request the next turn sends: the same system bytes, the same tools bytes')
   const before = api.messageRequests().length
-  const model = getMainLoopModel()
+  const model = getEngineModel()
   const data = await collectContextData({
     messages: shared,
     getAppState: store.getAppState as never,
-    options: { mainLoopModel: model, tools: [tool] as never, agentDefinitions: { activeAgents: [], allAgents: [] } as never },
+    options: { engineModel: model, tools: [tool] as never, agentDefinitions: { activeAgents: [], allAgents: [] } as never },
   })
   const counts = (api.messageRequests() as Captured[]).slice(before).filter(r => r.path.includes('count_tokens'))
   const withSystem = counts.filter(r => r.body.system !== undefined)

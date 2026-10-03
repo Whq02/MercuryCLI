@@ -61,7 +61,7 @@ import {
   spawnSwitchKindOfEnv,
   spawnSwitchOnFromValue,
 } from '../services/switchboard/spawnSwitches.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { branchChip } from './mercury-ui/glyphs.js';
@@ -396,7 +396,7 @@ export function BootSettingsScreen({
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
   const [dirTail, setDirTail] = useState('');
   useEffect(() => gitTailProbe(setDirTail), []);
 

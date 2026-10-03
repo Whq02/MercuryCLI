@@ -411,7 +411,7 @@ section('4 · the launch-plan engine law (role→sandbox · denials · no floor)
     forkGateOn: false,
     forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
   }

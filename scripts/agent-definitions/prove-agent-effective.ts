@@ -220,7 +220,7 @@ const byName = (n: string) => result.activeAgents.find(a => a.agentType === n)
   const launchPlan = readFileSync('src/utils/crew/agentLaunchPlan.ts', 'utf-8')
   check(
     "the plan resolves the definition's model under the caller's parameter (the one ladder)",
-    /getAgentModel\(\s*definition\.model,\s*i\.mainLoopModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
+    /getAgentModel\(\s*definition\.model,\s*i\.engineModel,\s*isForkPath \? undefined : i\.modelParam,/.test(launchPlan),
   )
 }
 

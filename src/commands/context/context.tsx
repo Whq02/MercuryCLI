@@ -17,7 +17,7 @@ export async function call(
   const plan = await buildContextInspectionPlan({
     messages: context.messages,
     owner: ownerFromToolUseContext(context),
-    mainLoopModel: options.mainLoopModel,
+    engineModel: options.engineModel,
     effortValue: context.getAppState().effortValue,
     tools: options.tools,
     contentReplacementState: context.contentReplacementState,
@@ -25,7 +25,7 @@ export async function call(
   })
   const data = await analyzeContextUsage(
     plan.messages,
-    options.mainLoopModel,
+    options.engineModel,
     async () => context.getAppState().toolPermissionContext,
     options.tools,
     context.getAppState().agentDefinitions,

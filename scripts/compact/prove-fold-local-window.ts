@@ -127,7 +127,7 @@ function makeContext(isNonInteractiveSession: boolean): Record<string, unknown> 
     agentType: undefined,
     agentId: undefined,
     readFileState,
-    options: { tools: [], mcpClients: [], mainLoopModel: PERSISTED, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession, agentDefinitions: { activeAgents: [] } },
+    options: { tools: [], mcpClients: [], engineModel: PERSISTED, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession, agentDefinitions: { activeAgents: [] } },
   }
 }
 async function runFold(isNonInteractiveSession: boolean): Promise<{ error?: string; result?: unknown }> {

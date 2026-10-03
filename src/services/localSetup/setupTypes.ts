@@ -80,8 +80,8 @@ export interface ExecOptions {
 }
 
 export interface SessionModelSlice {
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
   lastModelTransition?: ModelTransitionReceipt | null
   foregroundTurnActive: boolean

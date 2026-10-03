@@ -9,7 +9,7 @@ import { getSessionId } from '../bootstrap/state.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { enterRootChat } from '../context/surfaceRoute.js';
 import { boardHomedSessionIds } from '../daemon/concourseSupervisor.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
   useSessionPickerModel,
@@ -485,7 +485,7 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
     const critterKey = getSessionCritterKey();

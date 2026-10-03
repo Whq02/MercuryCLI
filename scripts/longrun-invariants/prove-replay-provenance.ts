@@ -24,7 +24,7 @@ function section(t: string): void {
 type Frames = Array<Record<string, unknown>>
 function makeRig(opts: {
   runDir: string
-  mainLoopModel: string
+  engineModel: string
   snapshot?: unknown
   journal?: InstanceType<typeof LocalFileJournal>
   spawnText?: string
@@ -42,7 +42,7 @@ function makeRig(opts: {
         },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: opts.mainLoopModel },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: opts.engineModel },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: (f: unknown) => {
@@ -73,7 +73,7 @@ section('§A a replayed row shows what RAN, never the current default')
 const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
 {
   const journal1 = new LocalFileJournal(runDir)
-  const rig1 = makeRig({ runDir, mainLoopModel: 'claude-model-one', journal: journal1, snapshot: await journal1.load() })
+  const rig1 = makeRig({ runDir, engineModel: 'claude-model-one', journal: journal1, snapshot: await journal1.load() })
   const r1 = await rig1.hooks.agent('first job')
   const r2 = await rig1.hooks.agent('second job')
   check('run 1 executed live', String(r1).includes('live-answer') && String(r2).includes('live-answer'))
@@ -90,7 +90,7 @@ const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
   } as never)
 
   const journal2 = new LocalFileJournal(runDir)
-  const rig2 = makeRig({ runDir, mainLoopModel: 'claude-model-two', journal: journal2, snapshot: await journal2.load() })
+  const rig2 = makeRig({ runDir, engineModel: 'claude-model-two', journal: journal2, snapshot: await journal2.load() })
   const h1 = await rig2.hooks.agent('first job')
   const h2 = await rig2.hooks.agent('second job')
   check('both replays served from cache', String(h1).includes('live-answer') && String(h2).includes('live-answer'))
@@ -117,10 +117,10 @@ const runDir = mkdtempSync(join(tmpdir(), 'replay-prov-run-'))
 {
   const dir = mkdtempSync(join(tmpdir(), 'replay-prov-named-'))
   const j1 = new LocalFileJournal(dir)
-  const rigA = makeRig({ runDir: dir, mainLoopModel: 'claude-model-one', journal: j1, snapshot: await j1.load() })
+  const rigA = makeRig({ runDir: dir, engineModel: 'claude-model-one', journal: j1, snapshot: await j1.load() })
   await rigA.hooks.agent('named job', { model: 'claude-named' })
   const j2 = new LocalFileJournal(dir)
-  const rigB = makeRig({ runDir: dir, mainLoopModel: 'claude-model-two', journal: j2, snapshot: await j2.load() })
+  const rigB = makeRig({ runDir: dir, engineModel: 'claude-model-two', journal: j2, snapshot: await j2.load() })
   await rigB.hooks.agent('named job', { model: 'claude-named' })
   const cached = rigB.frames.find(f => f.cached === true)
   check('an explicit model replays as itself (keyed — faithful by construction)',

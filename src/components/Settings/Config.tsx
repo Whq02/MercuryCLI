@@ -52,7 +52,7 @@ import {
   permissionModeTitle,
   type PermissionMode,
 } from '../../utils/permissions/PermissionMode.js'
-import { getMainLoopModel, modelDisplayString } from '../../utils/model/model.js'
+import { getEngineModel, modelDisplayString } from '../../utils/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../services/providers/patience.js'
 import {
@@ -214,7 +214,7 @@ export function mainLoopPointerText(
   effective: string | null,
   reads?: { resolvedModel?: () => string; routeOf?: (model: string) => string },
 ): string {
-  const resolved = reads?.resolvedModel?.() ?? getMainLoopModel()
+  const resolved = reads?.resolvedModel?.() ?? getEngineModel()
   const model = effective ?? resolved
   const route = reads?.routeOf?.(model) ?? declaredRouteOf(model) ?? 'unrecognised'
   const providerLabel = CONFIG_PROVIDER_PRESENTATION[route]?.label ?? route
@@ -429,7 +429,7 @@ export function Config({
 
   const servedModel = useFocusedServedModel()
   const mainRoute = declaredRouteOf(
-    servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel(),
+    servedModel ?? appState.engineModelForSession ?? appState.engineModel ?? getEngineModel(),
   )
   const providerScoped = (item: SettingsItem, appliesTo: 'anthropic' | 'openrouter'): SettingsItem => {
     const applicability = configRowApplicability(appliesTo, mainRoute ?? 'unrecognised')
@@ -880,11 +880,11 @@ export function Config({
     kind: 'info',
     value: (
       <Text>
-        {mainLoopPointerText(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel)}
+        {mainLoopPointerText(servedModel ?? appState.engineModelForSession ?? appState.engineModel)}
       </Text>
     ),
   })
-  const localMain = mainRoute === 'local' ? localRecordFor(servedModel ?? appState.mainLoopModelForSession ?? appState.mainLoopModel ?? getMainLoopModel()) : undefined
+  const localMain = mainRoute === 'local' ? localRecordFor(servedModel ?? appState.engineModelForSession ?? appState.engineModel ?? getEngineModel()) : undefined
   const localWindowRow = localModelWindowRow(localMain, mainRoute ?? 'unrecognised', configStamp)
   items.push({
     id: 'localModelWindow',

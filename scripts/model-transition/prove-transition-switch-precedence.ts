@@ -32,7 +32,7 @@ const { settleModelSelection, settlePendingAtBoundary } = await import(
   '../../src/utils/model/modelTransition.ts'
 )
 const { getUserSpecifiedModelSetting } = await import('../../src/utils/model/model.ts')
-const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.ts')
+const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const {
   decideCapAction,
   decideCapReturn,
@@ -47,19 +47,19 @@ const {
 const { failoverMarkFor } = await import('../../src/components/mercury-ui/FailoverMark.tsx')
 
 type Slice = {
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
 }
 
 section('§1 effective = sessionPin ?? setting')
 {
-  const pinned: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: 'glm-5.2', pendingModelSwitch: null }
+  const pinned: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: 'glm-5.2', pendingModelSwitch: null }
   const noop = settleModelSelection(pinned, 'glm-5.2', { turnActive: false })
   check('picking the PIN is a no-op (the pin IS the effective model)', noop.kind === 'no-op')
   const away = settleModelSelection(pinned, 'gpt-5.6-sol', { turnActive: false })
   check("an idle pick away from the pin APPLIES with previous = the PIN (not the setting)", away.kind === 'applied' && away.receipt?.previous === 'glm-5.2' && away.receipt.applied === 'gpt-5.6-sol')
-  check('the apply RESOLVES the pin (mainLoopModelForSession cleared in the same patch)', away.kind === 'applied' && away.patch.mainLoopModelForSession === null && away.patch.mainLoopModel === 'gpt-5.6-sol')
+  check('the apply RESOLVES the pin (engineModelForSession cleared in the same patch)', away.kind === 'applied' && away.patch.engineModelForSession === null && away.patch.engineModel === 'gpt-5.6-sol')
   check('the pin-vs-setting cross-provider flag derives from the PIN side', away.kind === 'applied' && away.receipt?.crossProvider === true)
   const home = settleModelSelection(pinned, 'claude-sonnet-5', { turnActive: false })
   check('picking the SETTING while pinned elsewhere is a real transition (pin glm → setting claude)', home.kind === 'applied' && home.receipt?.previous === 'glm-5.2' && home.receipt.applied === 'claude-sonnet-5')
@@ -67,23 +67,23 @@ section('§1 effective = sessionPin ?? setting')
 
 section('§2 pin × pending switch')
 {
-  let slice: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: 'glm-5.2', pendingModelSwitch: null }
+  let slice: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: 'glm-5.2', pendingModelSwitch: null }
   const queued = settleModelSelection(slice, 'gpt-5.6-sol', { turnActive: true })
   check('a mid-turn pick while pinned PARKS', queued.kind === 'queued')
   if (queued.kind === 'queued') slice = { ...slice, ...queued.patch }
-  check('the park leaves the pin in place (the running turn keeps riding it)', slice.mainLoopModelForSession === 'glm-5.2' && slice.pendingModelSwitch?.setting === 'gpt-5.6-sol')
+  check('the park leaves the pin in place (the running turn keeps riding it)', slice.engineModelForSession === 'glm-5.2' && slice.pendingModelSwitch?.setting === 'gpt-5.6-sol')
   const boundary = settlePendingAtBoundary(slice)
   check("the boundary receipt's previous is the PIN", boundary !== null && boundary.receipt.previous === 'glm-5.2' && boundary.receipt.applied === 'gpt-5.6-sol' && boundary.receipt.boundary === 'turn-boundary')
   if (boundary) slice = { ...slice, ...boundary.patch } as Slice
-  check('the apply clears the pin AND the pending slot exactly-once', slice.mainLoopModelForSession === null && slice.pendingModelSwitch === null && slice.mainLoopModel === 'gpt-5.6-sol')
+  check('the apply clears the pin AND the pending slot exactly-once', slice.engineModelForSession === null && slice.pendingModelSwitch === null && slice.engineModel === 'gpt-5.6-sol')
   check('a second boundary settle is a no-op (nothing left to apply)', settlePendingAtBoundary(slice) === null)
 
-  let cancel: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } }
+  let cancel: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } }
   const cancelled = settleModelSelection(cancel, 'claude-sonnet-5', { turnActive: true })
   check("re-picking the current model CANCELS the parked switch ('cancelled-pending', requested names the dropped pick)", cancelled.kind === 'cancelled-pending' && cancelled.receipt?.resolution === 'cancelled-pending' && cancelled.receipt.requested === 'gpt-5.6-sol' && cancelled.receipt.applied === 'claude-sonnet-5')
   if (cancelled.kind === 'cancelled-pending') cancel = { ...cancel, ...cancelled.patch }
   check('the cancel clears the pending slot', cancel.pendingModelSwitch === null)
-  let replace: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } }
+  let replace: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } }
   const replaced = settleModelSelection(replace, 'glm-5.2', { turnActive: true })
   if (replaced.kind === 'queued') replace = { ...replace, ...replaced.patch }
   check('a newer mid-turn pick REPLACES the parked one (the slot holds ONE switch)', replaced.kind === 'queued' && replace.pendingModelSwitch?.setting === 'glm-5.2')
@@ -91,11 +91,11 @@ section('§2 pin × pending switch')
 
 section('§3 patch-key census — nothing beyond the transition slice moves')
 {
-  const ALLOWED = new Set(['mainLoopModel', 'mainLoopModelForSession', 'pendingModelSwitch', 'lastModelTransition'])
+  const ALLOWED = new Set(['engineModel', 'engineModelForSession', 'pendingModelSwitch', 'lastModelTransition'])
   const slices: Slice[] = [
-    { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: null },
-    { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: 'glm-5.2', pendingModelSwitch: null },
-    { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } },
+    { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: null },
+    { engineModel: 'claude-sonnet-5', engineModelForSession: 'glm-5.2', pendingModelSwitch: null },
+    { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: { setting: 'gpt-5.6-sol' } },
   ]
   const picks: Array<string | null> = ['gpt-5.6-sol', 'glm-5.2', 'claude-sonnet-5', null]
   let widest: string[] = []
@@ -116,14 +116,14 @@ section('§3 patch-key census — nothing beyond the transition slice moves')
 section('§4 setting layers: override > MERCURY_MODEL > saved')
 {
   delete process.env.MERCURY_MODEL
-  setMainLoopModelOverride(undefined as never)
+  setEngineModelOverride(undefined as never)
   const base = getUserSpecifiedModelSetting()
   check('a fresh scratch home has no user-specified setting (the default rung)', base === null, String(base))
   process.env.MERCURY_MODEL = 'glm-5.2'
   check('MERCURY_MODEL env speaks when no override exists', getUserSpecifiedModelSetting() === 'glm-5.2')
-  setMainLoopModelOverride('gpt-5.6-sol')
+  setEngineModelOverride('gpt-5.6-sol')
   check('the in-session override OUTRANKS the env', getUserSpecifiedModelSetting() === 'gpt-5.6-sol')
-  setMainLoopModelOverride(undefined as never)
+  setEngineModelOverride(undefined as never)
   delete process.env.MERCURY_MODEL
   check('clearing both returns the default rung', getUserSpecifiedModelSetting() === null)
 }
@@ -154,7 +154,7 @@ section('§5 cap-failover: posture × quota × candidates × return guard')
   )
   check('a GPT home ⇒ anthropic is an ordinary candidate', fromOpenai.candidates.length === 1 && fromOpenai.candidates[0]?.route === 'anthropic')
 
-  let slice: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: null }
+  let slice: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: null }
   const handoff = settleModelSelection(slice, 'gpt-5.6-sol', { turnActive: false })
   check('the accepted handoff is an ordinary applied settlement (cross-provider receipt)', handoff.kind === 'applied' && handoff.receipt?.crossProvider === true)
   if (handoff.kind === 'applied') slice = { ...slice, ...handoff.patch }

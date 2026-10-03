@@ -242,7 +242,7 @@ function startLoop(extras: Record<string, unknown> = {}): Loop {
     options: {
       commands: [],
       tools: [tool],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

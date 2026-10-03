@@ -66,7 +66,7 @@ export function getUsageLimitNoticeAttachment(
 ): Attachment[] {
   let facts: ReturnType<typeof providerLimitWarningFacts>
   try {
-    facts = providerLimitWarningFacts({ model: toolUseContext.options.mainLoopModel, ...(reads !== undefined ? { reads } : {}) })
+    facts = providerLimitWarningFacts({ model: toolUseContext.options.engineModel, ...(reads !== undefined ? { reads } : {}) })
   } catch {
     return []
   }

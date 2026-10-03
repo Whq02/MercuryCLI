@@ -8,7 +8,7 @@ import { readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { maybeResizeAndDownsampleImageBuffer } from '../../utils/imageResizer.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getMainLoopModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { getEngineModel, normalizeModelStringForAPI } from '../../utils/model/model.js'
 import { sleep } from '../../utils/sleep.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import type { OwnerKey } from '../../services/run/ownerKey.js'
@@ -599,7 +599,7 @@ async function takeScreenshot(
   let image = { width: capture.width, height: capture.height }
   let inlinePath: string | undefined
   let inlineMediaType: string | undefined
-  const model = context.options?.mainLoopModel ?? getMainLoopModel()
+  const model = context.options?.engineModel ?? getEngineModel()
   if (modelReceivesImageBlocks(model)) {
     try {
       const inlined = await readImageWithTokenBudget(file)
@@ -740,7 +740,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
     const posture = desktopPostureRefusal(context)
     if (posture !== null) return refuse(posture)
-    const model = context?.options?.mainLoopModel ?? getMainLoopModel()
+    const model = context?.options?.engineModel ?? getEngineModel()
     const route = await routeRefusal(model)
     if (route !== null) return refuse(route)
     const resolution = resolveDesktopDriver()
@@ -1035,7 +1035,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
     }
   },
   mapToolResultToToolResultBlockParam(output: Output, toolUseId: string) {
-    if (output.imagePath && modelReceivesImageBlocks(getMainLoopModel())) {
+    if (output.imagePath && modelReceivesImageBlocks(getEngineModel())) {
       try {
         const bytes = readFileSync(output.inlinePath ?? output.imagePath)
         const mediaType = (output.inlinePath ? (output.inlineMediaType ?? 'image/png') : 'image/png') as 'image/png'
@@ -1055,7 +1055,7 @@ Take a screenshot after acts that change the screen, act on what the latest one 
       }
     }
     const text =
-      output.imagePath && !modelReceivesImageBlocks(getMainLoopModel())
+      output.imagePath && !modelReceivesImageBlocks(getEngineModel())
         ? `${output.result}\n(image not inlined — this model takes no image input; open the file to view it)`
         : output.result
     return {

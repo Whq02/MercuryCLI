@@ -57,7 +57,7 @@ section('§A forward fence — model owners reference no instruction facet')
 section('§B reverse fence — profile resolution reads no model facet')
 {
   const src = readFileSync(join(ROOT, 'src/services/instructions/profile.ts'), 'utf8')
-  const hits = ['utils/model', 'callModelRouter', 'getMainLoopModel'].filter(f =>
+  const hits = ['utils/model', 'callModelRouter', 'getEngineModel'].filter(f =>
     src.includes(f),
   )
   check('profile.ts (the resolution owner) is model-free', hits.length === 0, hits.join(', '))
@@ -66,8 +66,8 @@ section('§B reverse fence — profile resolution reads no model facet')
     .split('\n')
     .filter(l => l.includes('utils/model') && l.includes('import'))
   check(
-    "engine.ts's only model import is the budget read (getMainLoopModel)",
-    modelImports.length === 1 && modelImports[0]!.includes('getMainLoopModel'),
+    "engine.ts's only model import is the budget read (getEngineModel)",
+    modelImports.length === 1 && modelImports[0]!.includes('getEngineModel'),
     modelImports.join(' · '),
   )
   check(
@@ -90,10 +90,10 @@ section('§C behavioral — model truth is byte-identical across every profile s
   const CAP_MODELS = ['claude-opus-5', 'claude-sonnet-5', 'gpt-5.2']
 
   const battery = (): unknown => ({
-    mainLoop: model.getMainLoopModel(),
+    mainLoop: model.getEngineModel(),
     best: model.getBestModel(),
     defaults: [
-      model.getDefaultMainLoopModel(),
+      model.getDefaultEngineModel(),
       model.getDefaultOpusModel(),
       model.getDefaultSonnetModel(),
       model.getDefaultHaikuModel(),

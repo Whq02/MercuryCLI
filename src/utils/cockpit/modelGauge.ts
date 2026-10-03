@@ -45,7 +45,7 @@ export function modelGauge(model: ModelName): Snapshot<{ data: ModelData }> {
     }
     return {
       state: 'live',
-      source: 'mainLoopModel · resolveContextWindow · providerUsability',
+      source: 'engineModel · resolveContextWindow · providerUsability',
       data: {
         name: renderModelName(model),
         model,

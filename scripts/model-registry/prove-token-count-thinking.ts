@@ -54,9 +54,9 @@ try {
   })
   process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
   ;(await import('../../src/utils/config.js')).enableConfigs()
-  const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
+  const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   const { countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.js')
-  const { getMainLoopModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
+  const { getEngineModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
   const { modelSupportsAdaptiveThinking } = await import('../../src/utils/thinking.js')
 
   const tools = [{ name: 'proof_tool', description: 'A count-only fixture tool.', input_schema: { type: 'object', properties: {} } }]
@@ -80,8 +80,8 @@ try {
     ['sonnet', adaptive],
   ]
   for (const [setting, expected] of models) {
-    setMainLoopModelOverride(setting)
-    const raw = getMainLoopModel()
+    setEngineModelOverride(setting)
+    const raw = getEngineModel()
     const wire = normalizeModelStringForAPI(raw)
     check(`${setting}: raw and wire ids agree at the thinking gate`, modelSupportsAdaptiveThinking(raw) === modelSupportsAdaptiveThinking(wire))
     for (const block of [
@@ -100,7 +100,7 @@ try {
     }
   }
 
-  setMainLoopModelOverride('claude-sonnet-5-5')
+  setEngineModelOverride('claude-sonnet-5-5')
   const before = seen.length
   const fallback = await countTokensViaHaikuFallback(history({ type: 'thinking', thinking: 'A short plan.', signature: 'fixture-signature' }), [])
   const hit = seen.at(-1)

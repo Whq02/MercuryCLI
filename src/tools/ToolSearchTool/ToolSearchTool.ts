@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { buildTool, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { declaredCapability } from '../../utils/capability/contract.js'
 import { compileToolCapabilityCard } from '../../utils/capability/manifest.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -255,7 +255,7 @@ async function runSearch(input: Input, context: ToolUseContext): Promise<Output>
   const { query, max_results = 5 } = input
   const allTools = context.options.tools ?? []
   const searchPermissionMode = context.getAppState().toolPermissionContext.mode
-  const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, context.options.mainLoopModel, searchPermissionMode, context.messages))
+  const deferredTools = allTools.filter(tool => isDeferredToolFor(tool, context.options.engineModel, searchPermissionMode, context.messages))
   maybeInvalidateCache(deferredTools)
 
   const selection = SELECT_FORM.exec(query)
@@ -329,10 +329,10 @@ export const ToolSearchTool = buildTool({
   isReadOnly: () => true,
   isConcurrencySafe: () => true,
   async description(): Promise<string> {
-    return getPrompt(deferralWireFormFor(getMainLoopModel()).form)
+    return getPrompt(deferralWireFormFor(getEngineModel()).form)
   },
   async prompt(options?: { model?: string }): Promise<string> {
-    return getPrompt(deferralWireFormFor(options?.model ?? getMainLoopModel()).form)
+    return getPrompt(deferralWireFormFor(options?.model ?? getEngineModel()).form)
   },
   async call(input: Input, context: ToolUseContext) {
     return { data: await runSearch(input, context) }

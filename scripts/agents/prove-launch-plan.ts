@@ -69,7 +69,7 @@ function base(over: Record<string, unknown> = {}): never {
     forkGateOn: false,
     forkAgent: FORK_STUB,
     defaultAgentType: 'mercury-crew',
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     backgroundTasksDisabled: false,
     forceAsync: false,
     ...over,
@@ -226,7 +226,7 @@ section('§6 — seam ratchets: the consumers consume the plan')
   const agentTool = src('tools', 'AgentTool', 'AgentTool.tsx')
   check('AgentTool resolves through buildAgentLaunchPlan', agentTool.includes('buildAgentLaunchPlan({'))
   check('AgentTool keeps NO alias-map copy (decode has ONE home)', !agentTool.includes('LEGACY_SUBAGENT_ALIASES'))
-  check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.mainLoopModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.mainLoopModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
+  check('AgentTool resolves the explicit model through the model owner before engine validation', agentTool.includes('getAgentModel(undefined, options.engineModel, input.model)') && agentTool.indexOf('getAgentModel(undefined, options.engineModel, input.model)') < agentTool.indexOf('resolveEngineDispatch(modelParam)'))
   const runner = src('utils', 'crew', 'inProcessRunner.ts')
   check('the runner consumes deriveRunnerAgentDefinition', runner.includes('deriveRunnerAgentDefinition({'))
   check('the runner keeps NO inline definition literal', !runner.includes("whenToUse: `In-process crewmate"))

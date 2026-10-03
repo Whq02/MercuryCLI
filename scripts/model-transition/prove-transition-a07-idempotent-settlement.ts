@@ -27,8 +27,8 @@ function section(t: string): void {
 
 type Slice = Parameters<typeof settleModelSelection>[0]
 const base = (over: Partial<Slice> = {}): Slice => ({
-  mainLoopModel: 'claude-opus-5',
-  mainLoopModelForSession: null,
+  engineModel: 'claude-opus-5',
+  engineModelForSession: null,
   pendingModelSwitch: null,
   ...over,
 })
@@ -47,7 +47,7 @@ section('§A repeat-confirm applies once — the original receipt stands')
     'the ORIGINAL receipt stands untouched',
     state.lastModelTransition === (first.kind === 'applied' ? first.receipt : null),
   )
-  check('the model applied exactly once', state.mainLoopModel === 'claude-sonnet-5')
+  check('the model applied exactly once', state.engineModel === 'claude-sonnet-5')
 }
 
 section('§B a queued switch settles exactly once at the boundary')
@@ -60,7 +60,7 @@ section('§B a queued switch settles exactly once at the boundary')
   const boundary = settlePendingAtBoundary(state, {})
   check('the boundary applies with ONE turn-boundary receipt', boundary !== null && boundary.receipt.resolution === 'applied' && boundary.receipt.boundary === 'turn-boundary' && boundary.receipt.crossProvider === true)
   state = apply(state, boundary?.patch ?? null)
-  check('applied + pending cleared in the same patch', state.mainLoopModel === 'gpt-5.2' && state.pendingModelSwitch === null)
+  check('applied + pending cleared in the same patch', state.engineModel === 'gpt-5.2' && state.pendingModelSwitch === null)
   const again = settlePendingAtBoundary(state, {})
   check('a second boundary pass finds NOTHING to apply', again === null)
 }
@@ -92,7 +92,7 @@ section('§D crash after apply — the applied patch is one atomic object')
   check(
     'model + pending-cleared + receipt move in ONE patch (no strandable half-state)',
     patch !== null &&
-      'mainLoopModel' in patch &&
+      'engineModel' in patch &&
       'pendingModelSwitch' in patch &&
       patch.pendingModelSwitch === null &&
       'lastModelTransition' in patch,

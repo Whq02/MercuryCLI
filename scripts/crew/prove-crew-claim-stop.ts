@@ -75,7 +75,7 @@ const editInput = { file_path: CLAIMED_ABS, old_string: 'alpha', new_string: 'be
 const fakeToolUseContext = {
   getAppState: () => getDefaultAppState(),
   messages: [],
-  options: { tools: [], mainLoopModel: 'proof', mcpClients: [] },
+  options: { tools: [], engineModel: 'proof', mcpClients: [] },
 } as unknown as import('../../src/Tool.js').ToolUseContext
 
 async function preToolDecision(ctx: ReturnType<typeof ctxOf> | null, toolName: string, input: Record<string, unknown>): Promise<{ behavior?: string; reason?: string; source?: string } | null> {

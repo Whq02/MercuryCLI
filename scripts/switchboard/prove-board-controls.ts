@@ -593,7 +593,7 @@ console.log('H — the session model picker follows the selected session facts')
     useCatalogueEpoch: () => {},
     getSdkBetas: () => [],
     nextBirthModel: () => 'fixture-model',
-    getMainLoopModel: () => 'fixture-model',
+    getEngineModel: () => 'fixture-model',
     modelSupportsEffort: () => true,
     modelSupportsMaxEffort: () => true,
     selectableEffortLevels: () => ['low', 'medium', 'high', 'xhigh', 'max'],

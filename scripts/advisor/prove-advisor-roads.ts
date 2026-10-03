@@ -234,7 +234,7 @@ function makeCtx(agentId?: string): Raw {
     options: {
       commands: [],
       tools: TOOLS,
-      mainLoopModel: AGENT_MODEL,
+      engineModel: AGENT_MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

@@ -505,7 +505,7 @@ export const AgentTool = buildTool({
       )
     }
 
-    const modelParam = input.model ? getAgentModel(undefined, options.mainLoopModel, input.model) : input.model
+    const modelParam = input.model ? getAgentModel(undefined, options.engineModel, input.model) : input.model
     const engineDispatch = await resolveEngineDispatch(modelParam)
     if (engineDispatch === null) {
       const unrecognised = unrecognisedModelWordRefusal(input.model)
@@ -573,7 +573,7 @@ export const AgentTool = buildTool({
       forkGateOn: isForkSubagentEnabled(),
       forkAgent: FORK_AGENT,
       defaultAgentType: DEFAULT_AGENT_TYPE,
-      mainLoopModel: options.mainLoopModel,
+      engineModel: options.engineModel,
       modelParam: engineDispatch ? undefined : (input.model as never),
       resolvedModel: modelParam || undefined,
       permissionMode: context.getAppState().toolPermissionContext
@@ -1132,7 +1132,7 @@ async function buildParentEffectiveSystemPrompt(
   const options = context.options
   const defaultSystemPrompt = await getSystemPrompt(
     options.tools,
-    options.mainLoopModel,
+    options.engineModel,
     options.mcpClients,
   )
   const effective = buildEffectiveSystemPrompt({

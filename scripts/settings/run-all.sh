@@ -33,7 +33,7 @@
 # gate-watch: src/services/localServer/** src/services/providers/catalogueOnDemand.ts
 # gate-watch: src/commands/localsetup/** src/components/LocalSetupDialog.tsx src/components/BootSaturnScreen.tsx src/components/HelpV2/commandDomains.ts src/components/MercuryModelPicker.tsx
 # gate-watch: src/utils/model/modelOptions.ts
-# gate-watch: src/components/DeckPane.tsx src/hooks/useDisplayedSessionModel.ts src/hooks/useMainLoopModel.ts src/hooks/useProviderUsageOnShow.ts src/services/advisor/index.ts
+# gate-watch: src/components/DeckPane.tsx src/hooks/useDisplayedSessionModel.ts src/hooks/useEngineModel.ts src/hooks/useProviderUsageOnShow.ts src/services/advisor/index.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: docs/SETTINGS.md docs/SESSIONS.md scripts/lib/fixtureApi.ts src/utils/sessionStorage/paths.ts src/utils/cleanup.ts
 set -u

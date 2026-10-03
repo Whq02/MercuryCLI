@@ -82,7 +82,7 @@ const mount = async (model = 'gpt-5.6-sol') => {
   stdout.on('data', chunk => { output += String(chunk) })
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), mainLoopModel: model }, () => {})
+  const store = createStore({ ...getDefaultAppState(), engineModel: model }, () => {})
   const picker = await call(() => {}, { messages: [] } as never, '')
   const instance = await render(React.createElement(AppStoreContext.Provider, { value: store }, picker), { stdout: stdout as never, stdin: stdin as never, patchConsole: false })
   await flush()

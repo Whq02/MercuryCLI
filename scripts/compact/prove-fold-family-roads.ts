@@ -128,7 +128,7 @@ function makeContext(model: string, opts?: { thinking?: { type: string } }): Ctx
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: model,
+      engineModel: model,
       maxThinkingTokens: 0,
       thinkingConfig: opts?.thinking ?? { type: 'disabled' as const },
       isNonInteractiveSession: true,
@@ -473,7 +473,7 @@ section("§8b the OpenAI road: the fold re-sends the session's LAST REQUEST's ro
     options: {
       commands: [],
       tools: pool,
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     )
     check(
       'no family identifier in the arming expression',
-      !/getMainLoopModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL|claude|gpt-|glm-/i.test(armLine),
+      !/getEngineModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL|claude|gpt-|glm-/i.test(armLine),
     )
   }
 
@@ -103,19 +103,19 @@ async function main(): Promise<void> {
       join(ROOT, 'src', 'utils', 'permissions', 'permissionSetup.ts'),
       'utf-8',
     )
-    const calls = setupSrc.match(/getMainLoopModel\(\)/g) ?? []
-    check('permissionSetup.ts calls getMainLoopModel exactly once', calls.length === 1, `${calls.length} call(s)`)
+    const calls = setupSrc.match(/getEngineModel\(\)/g) ?? []
+    check('permissionSetup.ts calls getEngineModel exactly once', calls.length === 1, `${calls.length} call(s)`)
     const flowGateStart = setupSrc.indexOf('export async function verifyAutoModeGateAccess')
     const nextExport = setupSrc.indexOf('\nexport ', flowGateStart + 1)
     const flowGateBody = setupSrc.slice(flowGateStart, nextExport === -1 ? undefined : nextExport)
-    check('that one call sits inside verifyAutoModeGateAccess (the flow/auto gate)', flowGateStart !== -1 && flowGateBody.includes('getMainLoopModel()'))
+    check('that one call sits inside verifyAutoModeGateAccess (the flow/auto gate)', flowGateStart !== -1 && flowGateBody.includes('getEngineModel()'))
     const validateStart = setupSrc.indexOf('function validateModeEntry')
     const validateEnd = setupSrc.indexOf('\nexport ', validateStart + 1)
     const validateBody = setupSrc.slice(validateStart, validateEnd === -1 ? undefined : validateEnd)
     check(
       'validateModeEntry (sovereign/flow arms) reads no model identity',
       validateStart !== -1 &&
-        !/getMainLoopModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
+        !/getEngineModel|getSmallFastModel|resolveCallModelRoute|classifyModelRoute|declaredRouteOf|MERCURY_MODEL/.test(validateBody),
     )
   }
 

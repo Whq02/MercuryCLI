@@ -85,7 +85,7 @@ async function runOnce(
     options: {
       commands: [],
       tools: [],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

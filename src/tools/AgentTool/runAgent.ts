@@ -591,7 +591,7 @@ export async function* runAgent(
 
   const resolvedAgentModel = getAgentModel(
     agentDefinition.model,
-    toolUseContext.options.mainLoopModel,
+    toolUseContext.options.engineModel,
     model as never,
   )
   const resolvedEffort = resolveAgentEffort({
@@ -939,7 +939,7 @@ export async function* runAgent(
         commands: [],
         debug: parentOptions.debug,
         verbose: parentOptions.verbose,
-        mainLoopModel: resolvedAgentModel,
+        engineModel: resolvedAgentModel,
         ...thinkingOverride,
         mcpClients: [...parentOptions.mcpClients, ...mcp.clients],
         mcpResources: parentOptions.mcpResources,

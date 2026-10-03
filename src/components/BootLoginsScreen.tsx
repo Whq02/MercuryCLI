@@ -82,7 +82,7 @@ import {
 } from '../services/providers/providerUsability.js';
 import type { ProviderFamilyPresence } from '../services/providers/providerUsage.js';
 import { mostRecentSignInFamily } from '../utils/model/computedDefault.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { renderModelChip } from '../utils/model/model.js';
 import { wrapPlain } from './BootHealthScreen.js';
@@ -1692,7 +1692,7 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
     const critterKey = getSessionCritterKey();

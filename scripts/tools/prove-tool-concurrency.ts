@@ -71,7 +71,7 @@ try {
     let appState = getDefaultAppState()
     const context = {
       abortController: new AbortController(),
-      options: { commands: [], tools: [tool], mainLoopModel: 'claude-fable-5-1', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+      options: { commands: [], tools: [tool], engineModel: 'claude-fable-5-1', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
       getAppState: () => appState,
       setAppState: (update: (prev: typeof appState) => typeof appState) => { appState = update(appState) },
       messages: [],

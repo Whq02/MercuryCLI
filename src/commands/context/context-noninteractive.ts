@@ -34,7 +34,7 @@ function skipToolNamesFor(tools: Tools): ReadonlySet<string> {
 export async function buildContextInspectionPlan(params: {
   messages: Message[]
   owner: OwnerKey
-  mainLoopModel: string
+  engineModel: string
   effortValue?: EffortValue
   tools: Tools
   contentReplacementState: ContentReplacementState | undefined
@@ -47,7 +47,7 @@ export async function buildContextInspectionPlan(params: {
       querySource: params.querySource ?? DEFAULT_QUERY_SOURCE,
       contentReplacementState: params.contentReplacementState,
       skipToolNames: skipToolNamesFor(params.tools),
-      harnessContextPolicy: harnessContextPolicyRequest(params.mainLoopModel, params.effortValue),
+      harnessContextPolicy: harnessContextPolicyRequest(params.engineModel, params.effortValue),
     },
     'inspect',
   )
@@ -60,7 +60,7 @@ export type CollectContextDataInput = {
   agentId?: string
   owner?: OwnerKey
   options: {
-    mainLoopModel: string
+    engineModel: string
     tools: Tools
     agentDefinitions: AgentDefinitionsResult
     customSystemPrompt?: string
@@ -75,7 +75,7 @@ export async function collectContextData(input: CollectContextDataInput): Promis
   const plan = await buildContextInspectionPlan({
     messages: input.messages,
     owner,
-    mainLoopModel: options.mainLoopModel,
+    engineModel: options.engineModel,
     effortValue: input.getAppState().effortValue,
     tools: options.tools,
     contentReplacementState: input.contentReplacementState,
@@ -94,7 +94,7 @@ export async function collectContextData(input: CollectContextDataInput): Promis
   } as Pick<ToolUseContext, 'options'>
   return analyzeContextUsage(
     plan.messages,
-    options.mainLoopModel,
+    options.engineModel,
     async () => input.getAppState().toolPermissionContext,
     options.tools,
     options.agentDefinitions,
@@ -226,7 +226,7 @@ export async function call(
     agentId: context.agentId,
     ...(context.owner !== undefined ? { owner: context.owner } : {}),
     options: {
-      mainLoopModel: context.options.mainLoopModel,
+      engineModel: context.options.engineModel,
       tools: context.options.tools,
       agentDefinitions: {
         activeAgents: context.options.agentDefinitions.activeAgents,

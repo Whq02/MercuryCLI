@@ -222,7 +222,7 @@ function buildRig(specs: LoopSpec[] = DEFAULT_SPECS, tasks: Record<string, TaskL
       options: {
         commands: [],
         tools,
-        mainLoopModel: MODEL,
+        engineModel: MODEL,
         thinkingConfig: { type: 'disabled' },
         mcpClients: [],
         mcpResources: {},

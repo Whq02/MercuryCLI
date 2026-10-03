@@ -155,7 +155,7 @@ section('§2 a keyless box: the session road answers each family\'s first record
     check(`'${word}': the picker door maps the word onto the row's own option`, picker.modelChoiceRow(word) === head, picker.modelChoiceRow(word))
     check(`'${word}': a sub-agent named the word runs the row`, agent.getAgentModel(undefined, 'claude-opus-5', word) === head && agent.getAgentModel(word, 'claude-opus-5') === head, agent.getAgentModel(undefined, 'claude-opus-5', word))
     process.env.MERCURY_MODEL = word
-    check(`'${word}': MERCURY_MODEL on the word is the main-loop model on the row, and the picker lists that row for its current mark`, model.getMainLoopModel() === head && getModelOptions().some(option => option.value === head), model.getMainLoopModel())
+    check(`'${word}': MERCURY_MODEL on the word is the main-loop model on the row, and the picker lists that row for its current mark`, model.getEngineModel() === head && getModelOptions().some(option => option.value === head), model.getEngineModel())
     delete process.env.MERCURY_MODEL
   }
 }

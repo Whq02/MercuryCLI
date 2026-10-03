@@ -1,5 +1,5 @@
 import { resolveModelCapabilities } from './model/capabilities.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 
 
 export const DOCUMENT_EXTENSIONS: Set<string> = new Set(['pdf'])
@@ -31,7 +31,7 @@ export function parsePDFPageRange(pages: string): { firstPage: number; lastPage:
 }
 
 export function isPDFSupported(model?: string): boolean {
-  return resolveModelCapabilities(model ?? getMainLoopModel()).media.pdf
+  return resolveModelCapabilities(model ?? getEngineModel()).media.pdf
 }
 
 export function isPDFExtension(ext: string): boolean {

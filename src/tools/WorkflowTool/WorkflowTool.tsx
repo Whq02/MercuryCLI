@@ -659,7 +659,7 @@ const WorkflowToolDef = {
       workflowName: meta.name,
       title: meta.title,
       phases: meta.phases as WorkflowPhase[] | undefined,
-      defaultModel: context.options.mainLoopModel,
+      defaultModel: context.options.engineModel,
       workflowRunId: runId,
       runDir,
       args: input.args,

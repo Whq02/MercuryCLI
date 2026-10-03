@@ -90,7 +90,7 @@ const member = (agentId: string, name: string): Record<string, unknown> => ({ ag
 await writeCrewFileAsync(CREW, { name: CREW, createdAt: Date.now(), leadAgentId: LEAD_ID, leadSessionId: String(getSessionId()), members: [member(LEAD_ID, LEAD), member(SEAT_ID, SEAT), member(SECOND_ID, SECOND_SEAT)] } as never)
 
 const context = {
-  options: { tools: [], commands: [], mainLoopModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
+  options: { tools: [], commands: [], engineModel: MODEL, mcpClients: [], mcpResources: {}, debug: false, verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [], allAgents: [], allowedAgentTypes: [] } },
   messages: [],
   abortController: new AbortController(),
   getAppState: () => state,

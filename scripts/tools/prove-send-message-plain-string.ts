@@ -39,7 +39,7 @@ type Verdict = { result: boolean; message?: string; errorCode?: number }
 const validate = (input: Record<string, unknown>): Promise<Verdict> => (SendMessageTool as { validateInput: (i: unknown) => Promise<Verdict> }).validateInput(input)
 const CREW = 'plain-string-fixture-crew'
 const makeContext = (): unknown => ({
-  options: { tools: [], commands: [], mcpClients: [], mainLoopModel: 'fixture-model' },
+  options: { tools: [], commands: [], mcpClients: [], engineModel: 'fixture-model' },
   abortController: new AbortController(),
   readFileState: new Map(),
   messages: [],

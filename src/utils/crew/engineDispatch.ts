@@ -29,7 +29,7 @@ import {
 import { huggingfaceLiveModel, refreshHuggingfaceCatalogue } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { isLocalModelId, localRecordFor, localWireId, LOCAL_MODEL_PREFIX } from '../../services/providers/local/localCatalogue.js'
 import { refreshLocalDiscovery } from '../../services/providers/local/localDiscovery.js'
-import { getMainLoopModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
+import { getEngineModel, parseUserSpecifiedModel, parseUserSpecifiedModelRaw } from '../model/model.js'
 import { bareFamilyWordOf } from '../model/bareFamilyWords.js'
 import { isModelAlias } from '../model/aliases.js'
 import { isModelFamilyWord, modelFamilyWords } from '../model/modelFamilies.js'
@@ -200,7 +200,7 @@ async function resolveGptExactModel(id: string): Promise<EngineDispatch> {
 }
 
 async function resolveHuggingfaceClassDispatch(): Promise<EngineDispatch> {
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   if (declaredRouteOf(main) === 'huggingface') {
     return { backend: 'huggingface', model: main, displayLabel: main.slice(HUGGINGFACE_MODEL_PREFIX.length) }
   }
@@ -228,7 +228,7 @@ async function resolveHuggingfaceExactModel(id: string): Promise<EngineDispatch>
 }
 
 async function resolveLocalClassDispatch(): Promise<EngineDispatch> {
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   if (declaredRouteOf(main) === 'local' && localRecordFor(main)) {
     return { backend: 'local', model: main, displayLabel: localWireId(main) }
   }
@@ -238,7 +238,7 @@ async function resolveLocalClassDispatch(): Promise<EngineDispatch> {
 }
 
 async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   if (declaredRouteOf(main) === 'gemini') {
     return { backend: 'gemini', model: main, displayLabel: main }
   }
@@ -282,7 +282,7 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
 }
 
 async function resolveOpenrouterClassDispatch(): Promise<EngineDispatch> {
-  const main = getMainLoopModel()
+  const main = getEngineModel()
   if (declaredRouteOf(main) === 'openrouter') {
     return { backend: 'openrouter', model: main, displayLabel: main.slice(OPENROUTER_MODEL_PREFIX.length) }
   }

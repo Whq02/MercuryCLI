@@ -197,7 +197,7 @@ function makeCtx(agentId?: string): { ctx: Record<string, unknown>; abortControl
     options: {
       commands: [],
       tools: TOOLS,
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

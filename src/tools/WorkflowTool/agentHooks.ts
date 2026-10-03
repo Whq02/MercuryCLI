@@ -51,7 +51,7 @@ import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthor
 import { observedFamilyWindow } from '../../services/capFailover.js'
 import { providerFamilyOfSetting } from '../../utils/model/modelTransition.js'
 import { getMarketingNameForModel } from '../../utils/model/model.js'
-import { subscribeMainLoopModelOverride } from '../../bootstrap/state.js'
+import { subscribeEngineModelOverride } from '../../bootstrap/state.js'
 import { agentWaitWords } from '../../tasks/LocalAgentTask/agentWait.js'
 import { pauseGateWords, requestParkFrame } from '../../run-core/pauseGate.js'
 import type { WorkflowControlJournalRow, WorkflowExecutionPause } from './runControl.js'
@@ -658,7 +658,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
       const phaseIndex = phaseTitle != null ? resolvePhase(phaseTitle) : undefined
       const stallMs = opts?.stallMs != null ? Number(opts.stallMs) : DEFAULT_STALL_MS
       const promptPreview = previewOf(prompt)
-      const mainLoopModel = contextView.options?.mainLoopModel
+      const engineModel = contextView.options?.engineModel
 
       let cacheKey: string | undefined
       if (journal) {
@@ -740,7 +740,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           label,
           phaseIndex,
           phaseTitle,
-          model: opts?.model ?? mainLoopModel,
+          model: opts?.model ?? engineModel,
           effort: opts?.effort != null ? String(opts.effort) : undefined,
           queuedAt,
           promptPreview,
@@ -840,7 +840,7 @@ export function makeWorkflowHooks(deps: WorkflowHookDeps): WorkflowHooks {
           ? String((agentDef as { agentType?: unknown }).agentType)
           : undefined,
       isolation: opts?.isolation === 'worktree' ? 'worktree' : undefined,
-      model: (opts?.model ?? contextView.options?.mainLoopModel) as string | undefined,
+      model: (opts?.model ?? contextView.options?.engineModel) as string | undefined,
       effort: opts?.effort != null ? String(opts.effort) : undefined,
       queuedAt,
       hasStructuredTool: structuredTool !== undefined,
@@ -1747,7 +1747,7 @@ function waitForCapLift(pause: CapPause, signal: AbortSignal | undefined): Promi
       return
     }
     signal?.addEventListener('abort', onAbort)
-    unsubscribe = subscribeMainLoopModelOverride(model => {
+    unsubscribe = subscribeEngineModelOverride(model => {
       const next = model === undefined || model === null ? undefined : String(model)
       if (next !== pause.model) settle({ kind: 'switched', model: next })
     })
@@ -1864,7 +1864,7 @@ interface HookContextView {
     mcp: { tools: unknown }
   }
   options?: {
-    mainLoopModel?: string
+    engineModel?: string
     agentDefinitions?: {
       activeAgents: Array<{
         agentType: string

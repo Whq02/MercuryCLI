@@ -84,7 +84,7 @@ function makeContext(model: string): Ctx {
     dynamicSkillDirTriggers: new Set<string>(),
     nestedMemoryAttachmentTriggers: new Set<string>(),
     abortController: new AbortController(),
-    options: { mainLoopModel: model, tools: [], commands: [], mcpClients: [], isNonInteractiveSession: true, verbose: false, agentDefinitions: { activeAgents: [] } },
+    options: { engineModel: model, tools: [], commands: [], mcpClients: [], isNonInteractiveSession: true, verbose: false, agentDefinitions: { activeAgents: [] } },
     getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
   } as never as Ctx
 }

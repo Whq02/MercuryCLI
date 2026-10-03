@@ -79,7 +79,7 @@ async function main(): Promise<void> {
       'getAnthropicClient',
       'services/api',
       'getSmallFastModel',
-      'getMainLoopModel',
+      'getEngineModel',
       'getDefaultHaikuModel',
       'resolveCallModelRoute',
   'classifyModelRoute',

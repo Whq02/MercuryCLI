@@ -65,7 +65,7 @@ const ctx: any = {
   setAppState,
   setAppStateForTasks: setAppState,
   options: {
-    mainLoopModel: 'claude-fable-5-1',
+    engineModel: 'claude-fable-5-1',
     mcpClients: [],
     mcpResources: {},
     tools: [],

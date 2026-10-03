@@ -4,7 +4,7 @@ import { existsSync } from 'fs'
 import { dirname, join } from 'path'
 import {
   isSessionPersistenceDisabled,
-  setMainLoopModelOverride,
+  setEngineModelOverride,
   switchSession,
 } from 'src/bootstrap/state.js'
 import { armProvisionalSessionReconcile } from 'src/utils/provisionalSessionReconcile.js'

@@ -146,7 +146,7 @@ section('§B operator skip settles the frame as skipped (executor seam)')
         },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: 'claude-opus-5' },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-5' },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: (f: unknown) => {

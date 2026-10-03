@@ -307,7 +307,7 @@ export const ReflectTool = buildTool({
     try {
       const { oneShotCompletion } = await import('../../services/eval/evalBridge.js')
       const answer = await oneShotCompletion({
-        model: context.options.mainLoopModel,
+        model: context.options.engineModel,
         system:
           'You synthesize an answer STRICTLY from the memory records provided. Every claim-bearing sentence cites its record like [seq 12] or [pending 1]. If the records do not answer the question, say exactly that (still citing what you checked). Never invent a record id.',
         prompt: `Question: ${input.query}${input.context ? `\nFraming: ${input.context}` : ''}\n\nMemory records:\n${sheet}`,

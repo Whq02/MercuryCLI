@@ -27,7 +27,7 @@ import {
 } from '../../utils/hooks.js'
 import { stripBOM } from '../../utils/jsonRead.js'
 import type { MemoryType } from '../../utils/memory/types.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { pathInWorkingPath } from '../../utils/permissions/filesystem.js'
 import { isSettingSourceEnabled } from '../../utils/settings/constants.js'
 import { adapterForProfile, hasPrimaryProjectFile } from './adapters/index.js'
@@ -62,7 +62,7 @@ export const MAX_INSTRUCTION_FILE_TOKEN_CONTEXT_RATIO = 0.05
 const CHARS_PER_TOKEN_ESTIMATE = 4
 
 export function getMaxMemoryCharacterCount(
-  model: string = getMainLoopModel(),
+  model: string = getEngineModel(),
 ): number {
   const limit = getContextWindowForModel(model, getSdkBetas())
   const contextTokens =

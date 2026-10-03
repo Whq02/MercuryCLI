@@ -47,7 +47,7 @@ section('§2 — launch composite on the wire · happy completion · abort-exit 
     prompt: 'Report one line and stop.',
     description: 'probe recon',
     charter,
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     sessionState: {},
   })
   const s = await launch({

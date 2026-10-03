@@ -472,7 +472,7 @@ section('§9 the harness effort fact is the owner\'s applied tier')
     ['src/components/mercury-ui/parity/HarnessView.tsx', 'harnessEffortFact(mainModel, effortValue)'],
     ['src/run-core/turn-machine.ts', 'refreshGovernorCeilings(iter.currentModel, iter.appState.effortValue)'],
     ['src/run-core/turn-machine.ts', 'toolUseContext.getAppState?.()?.effortValue'],
-    ['src/commands/context/context-noninteractive.ts', 'harnessContextPolicyRequest(params.mainLoopModel, params.effortValue)'],
+    ['src/commands/context/context-noninteractive.ts', 'harnessContextPolicyRequest(params.engineModel, params.effortValue)'],
     ['src/tools/AgentTool/AgentTool.tsx', 'harnessEffortFact('],
   ] as const
   for (const [file, needle] of boundaries) {

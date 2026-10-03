@@ -140,7 +140,7 @@ section('§4 — the two seams: the child answers from the one owner; the hook r
   const caseEnd = printSrc.indexOf("'schedule/roster': params => {", caseStart + 1)
   const answerer = printSrc.slice(caseStart, caseEnd)
   check('the session_facts answerer was found', caseStart !== -1 && caseEnd > caseStart)
-  check('the child answers limitWarning from the ONE owner (providerLimitWarning) on its own model', /limitWarning: providerLimitWarning\(\{ model: activeModel \?\? getMainLoopModel\(\) \}\)/.test(answerer))
+  check('the child answers limitWarning from the ONE owner (providerLimitWarning) on its own model', /limitWarning: providerLimitWarning\(\{ model: activeModel \?\? getEngineModel\(\) \}\)/.test(answerer))
   check('the child imports the owner, never a second grammar', printSrc.includes("import { providerLimitWarning } from '../services/providers/limitWarning.js'"))
   const hookSrc = readFileSync(join(REPO, 'src/hooks/notifs/useRateLimitWarningNotification.tsx'), 'utf8')
   check('the hook reads the FOCUSED connector', hookSrc.includes('useSessionConnector()'))

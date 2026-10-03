@@ -59,7 +59,7 @@ function makeRig(spec: FakeSpec): {
       }),
       options: {
         agentDefinitions: { activeAgents: [] },
-        mainLoopModel: 'claude-opus-5',
+        engineModel: 'claude-opus-5',
       },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
@@ -510,7 +510,7 @@ const ctx: any = {
   setAppState,
   setAppStateForTasks: setAppState,
   options: {
-    mainLoopModel: 'claude-sonnet-5',
+    engineModel: 'claude-sonnet-5',
     mcpClients: [],
     mcpResources: {},
     tools: [],

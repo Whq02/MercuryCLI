@@ -151,7 +151,7 @@ section('§B the real machine — frozen per attempt, refresh lands at the bound
     options: {
       commands: [],
       tools: turn1Tools,
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

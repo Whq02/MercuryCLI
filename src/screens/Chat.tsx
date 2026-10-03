@@ -84,7 +84,7 @@ import { GlobalKeybindingHandlers } from '../hooks/useGlobalKeybindings.js';
 import { useAgentsChange } from '../hooks/useAgentsChange.js';
 import { useApiKeyVerification } from '../hooks/useApiKeyVerification.js';
 import { useCoordinatorReceiptFold } from '../hooks/useCoordinatorReceiptFold.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useMergedCommands } from '../hooks/useMergedCommands.js';
 import { useMergedTools } from '../hooks/useMergedTools.js';
 import { useTurnEndPing } from '../hooks/useTurnEndPing.js';
@@ -600,7 +600,7 @@ export function Chat({
   const { controls: compactWork, focus: compactFocus } = useCompactWorkControls();
   const tokens = useMercuryTokens();
   const [themeName] = useTheme();
-  const mainLoopModel = useMainLoopModel();
+  const engineModel = useEngineModel();
 
   const [fullscreen] = useState(() => isFullscreenEnvEnabled());
   const [virtualScrollEnabled] = useState(() => resolveTerminalExperience().virtualScroll.effective);
@@ -629,7 +629,7 @@ export function Chat({
     let receipt = null as ReturnType<typeof settlePendingAtBoundary>;
     setAppState(prev => {
       const settled = settlePendingAtBoundary(
-        { mainLoopModel: prev.mainLoopModel, mainLoopModelForSession: prev.mainLoopModelForSession, pendingModelSwitch: prev.pendingModelSwitch },
+        { engineModel: prev.engineModel, engineModelForSession: prev.engineModelForSession, pendingModelSwitch: prev.pendingModelSwitch },
       );
       if (!settled) return prev;
       receipt = settled;
@@ -932,7 +932,7 @@ export function Chat({
         options: {
           commands: commandsRef.current,
           debug,
-          mainLoopModel: model,
+          engineModel: model,
           tools: mergedTools,
           verbose: state.verbose,
           mcpClients: [],
@@ -1607,8 +1607,8 @@ export function Chat({
 
   useAutoModeUnavailableNotification();
   useSettingsErrors();
-  useRateLimitWarningNotification(mainLoopModel);
-  useDeprecationWarningNotification(mainLoopModel);
+  useRateLimitWarningNotification(engineModel);
+  useDeprecationWarningNotification(engineModel);
   useLspInitializationNotification();
 
   const isWaitingForApproval = focusedInputDialog === 'tool-permission';
@@ -2597,7 +2597,7 @@ export function Chat({
     rows,
     tokens,
     themeName,
-    mainLoopModel,
+    engineModel,
     pendingModelSwitch,
     mcpState,
     toolPermissionContext,

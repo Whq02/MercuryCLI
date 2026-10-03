@@ -114,7 +114,7 @@ function makeCtx(shape: CtxShape = {}): { ctx: Record<string, unknown>; abortCon
     options: {
       commands: [],
       tools: shape.tools ?? TOOLS,
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

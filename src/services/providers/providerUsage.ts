@@ -10,7 +10,7 @@ import {
   isAnthropicOAuthSignInExpired,
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { modelPricingBasis } from '../../utils/modelCost.js'
 import { buildRouterModelSnapshot, type RouterModelSnapshot } from '../../utils/router/modelRegistry.js'
 import { resolveZaiDispatch } from '../../utils/router/providerDiscovery.js'
@@ -1191,7 +1191,7 @@ export function activeSourceUsage(opts?: {
   reads?: ActiveUsageReads
 }): ActiveSourceUsage {
   if (opts?.reads === undefined) {
-    const model = opts?.model ?? getMainLoopModel()
+    const model = opts?.model ?? getEngineModel()
     const now = Date.now()
     const epoch = getUsageCredentialEpoch()
     const record = getUsageRecordVersion()
@@ -1325,7 +1325,7 @@ function deriveActiveSourceUsage(opts?: {
   reads?: ActiveUsageReads
 }): ActiveSourceUsage {
   const reads = opts?.reads
-  const model = opts?.model ?? getMainLoopModel()
+  const model = opts?.model ?? getEngineModel()
   const provider = (reads?.route ?? ((m: string) => declaredRouteOf(m) ?? 'unrecognised'))(model)
   const view = usageForProvider(provider, reads)
   const binding = bindingWindowOf(view, model)

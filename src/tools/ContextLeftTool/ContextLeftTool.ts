@@ -155,6 +155,6 @@ export const ContextLeftTool = buildTool({
     }
   },
   async call(_input, context: ToolUseContext) {
-    return { data: contextLeftOutput(contextFillView(context.messages, context.options.mainLoopModel)) }
+    return { data: contextLeftOutput(contextFillView(context.messages, context.options.engineModel)) }
   },
 } satisfies ToolDef<InputSchema, ContextLeftOutput>)

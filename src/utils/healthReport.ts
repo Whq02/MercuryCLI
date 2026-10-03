@@ -70,7 +70,7 @@ import {
   getLspServerManager,
 } from '../services/lsp/manager.js'
 import { listCapabilityKills } from './permissions/capabilityGate.js'
-import { getMainLoopModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
+import { getEngineModel, parseUserSpecifiedModel, renderModelChip } from './model/model.js'
 import {
   describeFrontierDecision,
   frontierOperatorDecision,
@@ -504,7 +504,7 @@ const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string
 function routedAuthFamily(): string {
   try {
     const { declaredRouteOf } = require('../services/providers/routeLaw.js') as typeof import('../services/providers/routeLaw.js')
-    return declaredRouteOf(getMainLoopModel()) ?? 'anthropic'
+    return declaredRouteOf(getEngineModel()) ?? 'anthropic'
   } catch {
     return 'anthropic'
   }
@@ -743,7 +743,7 @@ function webSearchDoorCheck(): CheckSpec {
     run: () => {
       const { liveSearchDoorReads, resolveSearchDoorPlan, nativeSearchFamilyOf, searchDoorFact } =
         require('../services/search/searchDoor.js') as typeof import('../services/search/searchDoor.js')
-      const model = getMainLoopModel()
+      const model = getEngineModel()
       const plan = resolveSearchDoorPlan(liveSearchDoorReads())
       if (plan.doors.length === 0 && nativeSearchFamilyOf(model) === undefined) {
         return {
@@ -2292,7 +2292,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           id: 'model',
           label: 'Model pins',
           run: () => {
-            const session = getMainLoopModel()
+            const session = getEngineModel()
             let pin: string | undefined
             try {
               pin = getSettingsWithAllErrors().settings.engine?.model

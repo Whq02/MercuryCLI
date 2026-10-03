@@ -119,7 +119,7 @@ async function prepareSpawn(
   const crewmateName = uniqueName.replaceAll('@', '-')
   const crewmateId = formatAgentId(crewmateName, crewName)
   const color = assignCrewmateColor(crewmateId)
-  const model = resolveCrewmateModel(config.model, context.options.mainLoopModel ?? null)
+  const model = resolveCrewmateModel(config.model, context.options.engineModel ?? null)
   const promptPreview =
     config.prompt.length > DESCRIPTION_PROMPT_CHARS
       ? `${config.prompt.slice(0, DESCRIPTION_PROMPT_CHARS)}…`

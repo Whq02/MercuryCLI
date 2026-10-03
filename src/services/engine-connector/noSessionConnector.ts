@@ -1,5 +1,5 @@
 import type { Message } from '../../types/message.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { getCwd } from '../../utils/cwd.js'
 import type {
   AgentControlReceiptV1,
@@ -120,7 +120,7 @@ export class NoSessionConnector implements EngineConnectorV1 {
   }
   modelFacts(): ModelFactsV1 {
     const landing = landingWordsOf(bootBirthFacts())
-    const main = landing.model ?? getMainLoopModel()
+    const main = landing.model ?? getEngineModel()
     if (this.cachedModelFacts === null || this.cachedModelFacts.main !== main || (this.cachedModelFacts.effort ?? null) !== landing.effort) {
       this.cachedModelFacts = { effective: main, main, setting: null, sessionPin: null, ...(landing.effort !== null ? { effort: landing.effort } : {}), pendingSwitch: null }
     }

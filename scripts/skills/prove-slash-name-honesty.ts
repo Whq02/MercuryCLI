@@ -40,7 +40,7 @@ initBundledSkills()
 const roster: Command[] = [...getBundledSkills(), ...builtinCommands()].filter(command => isCommandEnabled(command))
 const samplesCommand = builtinCommands().find(command => command.name === 'samples')
 const makeContext = (commands: Command[]): unknown => ({
-  options: { commands, tools: [], mcpClients: [], mcpResources: {}, mainLoopModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },
+  options: { commands, tools: [], mcpClients: [], mcpResources: {}, engineModel: 'fixture-model', agentDefinitions: { activeAgents: [], allAgents: [] }, debug: false, verbose: false, isNonInteractiveSession: false },
   abortController: new AbortController(),
   readFileState: new Map(),
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [] }, sessionHooks: new Map() }),

@@ -54,7 +54,7 @@ for (const posture of ['off', 'offer', 'auto'] as const) {
 }
 
 const { getUsageLimitNoticeAttachment } = await import('../../src/utils/attachments/sessionContext.ts')
-const context = { options: { mainLoopModel: 'fable' } } as Parameters<typeof getUsageLimitNoticeAttachment>[0]
+const context = { options: { engineModel: 'fable' } } as Parameters<typeof getUsageLimitNoticeAttachment>[0]
 const messages: unknown[] = []
 for (const pct of [79, 80, 85, 90, 95]) {
   const notices = getUsageLimitNoticeAttachment(context, messages, reads(pct))

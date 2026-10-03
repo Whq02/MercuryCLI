@@ -3,7 +3,7 @@ import { basename } from 'node:path';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { leaveCurrentSurface } from '../context/surfaceRoute.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { enumerateKitCatalogueFresh } from '../services/kitMenu/kitCatalogue.js';
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js';
@@ -406,7 +406,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
     [coreAccent],
   );
   const wordGlow = useGreetingShimmer(rampStops, WORD_W);
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const menuM = useMemo(() => {
     const critterKey = getSessionCritterKey();

@@ -1,6 +1,6 @@
 import { SYNTHETIC_MODEL } from '../messages/factories.js'
 import {
-  getDefaultMainLoopModelSetting,
+  getDefaultEngineModelSetting,
   normalizeModelStringForAPI,
   parseUserSpecifiedModel,
 } from './model.js'
@@ -15,6 +15,6 @@ export function servedModelOfAssistantRow(row: {
 }
 
 export function billingSafeRetainedForm(servedModel: string): string {
-  const resolvedDefault = parseUserSpecifiedModel(getDefaultMainLoopModelSetting())
+  const resolvedDefault = parseUserSpecifiedModel(getDefaultEngineModelSetting())
   return servedModel === normalizeModelStringForAPI(resolvedDefault) ? resolvedDefault : servedModel
 }

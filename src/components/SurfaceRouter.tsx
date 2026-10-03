@@ -27,7 +27,7 @@ import { useElevatedSurface } from './mercury-ui/useElevatedSurface.js';
 import { useRegisterOverlay } from '../context/overlayContext.js';
 import { RouteSurfaceScopeContext } from '../keybindings/RouteSurfaceScope.js';
 import { KeybindingSetup } from '../keybindings/KeybindingProviderSetup.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { estateGroundBg } from '../utils/mercuryTokens.js';
 import { LiveTerminalSizeContext, TerminalSizeContext } from '../ink/components/TerminalSizeContext.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
@@ -129,7 +129,7 @@ function RouteSurfaceHost({
 }): React.ReactNode {
   const { columns, rows } = useTerminalSize();
   const elevatedRef = useElevatedSurface();
-  const model = useMainLoopModel();
+  const model = useEngineModel();
   const t = useMercuryTokens();
   const ground = estateGroundBg(t);
   const [exitChordArmed, setExitChordArmed] = useState(false);

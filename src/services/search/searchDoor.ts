@@ -2,7 +2,7 @@ import type { ToolUseContext } from '../../Tool.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { PROVIDER_SEARCH_TOOL_NAME } from '../../tools/WebSearchTool/prompt.js'
 import { AbortError } from '../../utils/errors.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import { braveSearch, resolveBraveSearchApiKey, type SearchKeySource } from './brave.js'
 import { keylessSearch } from './duckduckgo.js'
@@ -193,7 +193,7 @@ export async function performWebSearch(request: SearchRequest, io: WebSearchRunI
   const clock = io.clock ?? liveSearchClock
   const reads = io.reads ?? liveSearchDoorReads()
   const plan = resolveSearchDoorPlan(reads)
-  const mainModel = (io.context.options.mainLoopModel as string | undefined) || getMainLoopModel()
+  const mainModel = (io.context.options.engineModel as string | undefined) || getEngineModel()
   const hasKeyedDoor = plan.doors.some(door => door.kind === 'keyed')
   const report = (toolUseID: string, resultCount: number): void => {
     io.onProgress?.({ toolUseID, data: { type: 'search_results_received', resultCount, query: request.query } })

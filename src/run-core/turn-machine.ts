@@ -772,7 +772,7 @@ async function* streamModel(
           )
           iter.needsFollowUp = resetForRetry(iter).needsFollowUp
 
-          toolUseContext.options.mainLoopModel = run.fallbackModel
+          toolUseContext.options.engineModel = run.fallbackModel
 
 
           yield emit({
@@ -936,7 +936,7 @@ export async function* runEventCore(
       querySource === 'sdk' ||
       querySource.startsWith('agent:') ||
       querySource.startsWith('main_thread')
-    const pruneModel = toolUseContext.options.mainLoopModel
+    const pruneModel = toolUseContext.options.engineModel
     const proactivePrune = pendingOverflow === undefined
       ? await sizePruneRequest(messages, pruneModel, querySource)
       : undefined
@@ -960,14 +960,14 @@ export async function* runEventCore(
         microcompact: deps.microcompact,
         readFileState: toolUseContext.readFileState,
         calibrationKey: (() => {
-          const model = toolUseContext.options.mainLoopModel
+          const model = toolUseContext.options.engineModel
           return typeof model === 'string' && model
             ? calibrationKeyFor(declaredRouteOf(model) ?? 'unrecognised', model)
             : null
         })(),
         harnessContextPolicy: harnessContextPolicyRequest(
-          typeof toolUseContext.options.mainLoopModel === 'string'
-            ? toolUseContext.options.mainLoopModel
+          typeof toolUseContext.options.engineModel === 'string'
+            ? toolUseContext.options.engineModel
             : null,
           toolUseContext.getAppState?.()?.effortValue,
         ),
@@ -1132,13 +1132,13 @@ export async function* runEventCore(
     }
 
     const appState = toolUseContext.getAppState()
-    const currentModel = toolUseContext.options.mainLoopModel
+    const currentModel = toolUseContext.options.engineModel
     const justCompactedUnderLimit =
       compactionResult !== undefined &&
       (compactionResult.truePostCompactTokenCount === undefined ||
         calculateTokenWarningState(
           compactionResult.truePostCompactTokenCount,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
         ).level !== 'blocked')
     if (
       !justCompactedUnderLimit &&
@@ -1148,14 +1148,14 @@ export async function* runEventCore(
       const estimatedTokens =
         compactionResult?.truePostCompactTokenCount ??
         measuredRawTokenCount ??
-        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.mainLoopModel)
+        tokenCountWithEstimation(messagesForQuery, toolUseContext.options.engineModel)
       const { level } = calculateTokenWarningState(
         estimatedTokens,
-        toolUseContext.options.mainLoopModel,
+        toolUseContext.options.engineModel,
       )
       if (level === 'blocked') {
         if (overflowLadderArmed(querySource)) {
-          const blockingLimit = getBlockingLimit(toolUseContext.options.mainLoopModel)
+          const blockingLimit = getBlockingLimit(toolUseContext.options.engineModel)
           const signal = estimateOverflowSignal({
             family: declaredRouteOf(currentModel) ?? 'unknown',
             actualTokens: estimatedTokens,
@@ -1309,7 +1309,7 @@ export async function* runEventCore(
           ...messagesForQuery,
           ...assistantMessages.filter(m => m.isApiErrorMessage !== true),
         ]
-        const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.mainLoopModel)
+        const overflow = measureOverflow(overflowStamped, foldInput, toolUseContext.options.engineModel)
         const split = splitCarriedOperatorTail(foldInput)
         const pruneSaving =
           projectTimeBasedMicrocompact(foldInput, querySource, { pressure: true })?.tokensSaved ?? 0

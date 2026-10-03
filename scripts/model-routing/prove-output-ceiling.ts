@@ -264,7 +264,7 @@ section('§4 the compaction request follows: the cache-sharing fork sends no ove
     const appState = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const }, sessionHooks: new Map(), denialTracking: undefined, tasks: {}, mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'high' }
     const readFileState = new FileStateCache(READ_FILE_STATE_CACHE_SIZE, 25 * 1024 * 1024)
     const abort = new AbortController()
-    return { abortController: abort, getAppState: () => appState, setAppState: () => {}, messages: [], agentType: undefined, agentId: undefined, readFileState, options: { tools: [], mcpClients: [], mainLoopModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
+    return { abortController: abort, getAppState: () => appState, setAppState: () => {}, messages: [], agentType: undefined, agentId: undefined, readFileState, options: { tools: [], mcpClients: [], engineModel: model, maxThinkingTokens: 0, thinkingConfig: { type: 'disabled' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } }
   }
   const runFold = async (model: string, road: 'fork' | 'direct'): Promise<{ error?: Error; body?: { max_tokens?: number; model?: string }; lanes: string[] }> => {
     const ctx = makeContext(model)

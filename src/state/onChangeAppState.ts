@@ -3,7 +3,7 @@ import { updateSettingsForSource } from '../utils/settings/settings.js'
 import { notifyPermissionModeChanged } from '../utils/sessionState.js'
 import { auditModeChange } from '../utils/permissions/modeTransitions.js'
 import { noteRootSovereign } from '../utils/permissions/rootNotice.js'
-import { setMainLoopModelOverride } from '../bootstrap/state.js'
+import { setEngineModelOverride } from '../bootstrap/state.js'
 import { clearApiKeyHelperCache } from '../utils/auth.js'
 import { applyConfigEnvironmentVariables } from '../utils/managedEnv.js'
 import { logError } from '../utils/log.js'
@@ -24,13 +24,13 @@ export function onChangeAppState({
     notifyPermissionModeChanged(newMode)
   }
 
-  if (newState.mainLoopModel !== oldState.mainLoopModel) {
-    if (newState.mainLoopModel === null) {
+  if (newState.engineModel !== oldState.engineModel) {
+    if (newState.engineModel === null) {
       updateSettingsForSource('userSettings', { engine: { model: undefined } })
-      setMainLoopModelOverride(undefined)
+      setEngineModelOverride(undefined)
     } else {
-      updateSettingsForSource('userSettings', { engine: { model: newState.mainLoopModel } })
-      setMainLoopModelOverride(newState.mainLoopModel)
+      updateSettingsForSource('userSettings', { engine: { model: newState.engineModel } })
+      setEngineModelOverride(newState.engineModel)
     }
   }
 

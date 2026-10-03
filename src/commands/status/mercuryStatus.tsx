@@ -194,7 +194,7 @@ export async function call(_args: string, context: LocalJSXCommandContext): Prom
     gitSnapshot().catch(() => undefined),
   ])
   const messages = (context.messages ?? []) as Message[]
-  const { facts } = buildFacts(messages, context.options.mainLoopModel, {
+  const { facts } = buildFacts(messages, context.options.engineModel, {
     daemon: () => daemon === undefined ? 'unavailable' : daemon.controlReachable ? 'running' : daemon.supervisor ? 'unreachable' : 'not running',
     tasks: () => context.getAppState?.().tasks,
   })

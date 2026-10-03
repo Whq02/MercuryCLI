@@ -127,7 +127,7 @@ export async function runSideQuestion({
       ? {
           options: {
             ...cacheSafeParams.toolUseContext.options,
-            mainLoopModel: modelOverride,
+            engineModel: modelOverride,
           },
         }
       : {}),

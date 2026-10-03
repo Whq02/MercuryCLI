@@ -533,8 +533,8 @@
     "type:FoldCut",
     "type:PostCompactFit",
     "type:RecompactionInfo",
-    "withFoldStatus",
-    "withMainLoopModel"
+    "withEngineModel",
+    "withFoldStatus"
    ],
    "src/services/compact/autoCompact.ts": [
     "AUTOCOMPACT_BUFFER_TOKENS",

@@ -85,7 +85,7 @@ export async function runConsoleAsk({
     const [rawSystemPrompt, userContext, systemContext] = await Promise.all([
       getSystemPrompt(
         context.options.tools,
-        context.options.mainLoopModel,
+        context.options.engineModel,
         context.options.mcpClients,
       ),
       getUserContext(),
@@ -99,7 +99,7 @@ export async function runConsoleAsk({
       forkContextMessages,
     }
   }
-  const modelOverride = consoleModelOverride(context.options.mainLoopModel)
+  const modelOverride = consoleModelOverride(context.options.engineModel)
   const effort = subModelDispatchEffort('console', slot.model)
   if (effort.fallback !== undefined) logForDebugging(`console effort: ${effort.fallback}`)
   noteCritterRealActivity()

@@ -79,7 +79,7 @@ function makeCtx(agentId?: string): Record<string, unknown> {
     options: {
       commands: [],
       tools: [],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

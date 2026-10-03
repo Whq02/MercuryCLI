@@ -208,8 +208,8 @@ const builtIns = getBuiltInAgents()
 const agentDefinitions = { activeAgents: builtIns, allAgents: builtIns }
 
 type Slice = {
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
 }
 
@@ -223,7 +223,7 @@ function makeCtx(model: string): Record<string, unknown> {
     options: {
       commands: [],
       tools: [BashTool, AgentTool],
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -288,10 +288,10 @@ const isSub = (c: Captured, marker: string): boolean => {
 const modelOf = (c: Captured): string => String(c.body.model)
 
 section('T1 · parent claude — pick parks BEFORE the subagent runs; sub A rides claude')
-let slice: Slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: null }
+let slice: Slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: null }
 let history: Message[] = [createUserMessage({ content: 'T1 spawn the probe agent' }) as Message]
 let parked = ''
-const t1 = await driveTurn(history, slice.mainLoopModel!, () => {
+const t1 = await driveTurn(history, slice.engineModel!, () => {
   const settled = settleModelSelection(slice, 'gpt-5.6-sol', { turnActive: true })
   parked = settled.kind
   if (settled.kind === 'queued') slice = { ...slice, ...settled.patch }
@@ -310,7 +310,7 @@ if (b1) slice = { ...slice, ...b1.patch } as Slice
 
 section('T2 · parent gpt — the post-boundary spawn inherits the NEW model')
 history = [...history, ...t1.settled, createUserMessage({ content: 'T2 spawn the second probe agent' }) as Message]
-const t2 = await driveTurn(history, slice.mainLoopModel!, undefined)
+const t2 = await driveTurn(history, slice.engineModel!, undefined)
 check('T2 settled clean', t2.threw === undefined && t2.terminal.reason === 'completed', `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)}`)
 const subB = t2.requests.filter(c => isSub(c, 'SUBTASK-B'))
 const parentT2 = t2.requests.filter(c => !isSub(c, 'SUBTASK-B'))
@@ -330,9 +330,9 @@ check("sub B's result returned into the parent's follow-up round", parentT2.some
 
 section('BG · a background subagent in flight across an applied switch keeps its spawn model')
 {
-  slice = { mainLoopModel: 'claude-sonnet-5', mainLoopModelForSession: null, pendingModelSwitch: null }
+  slice = { engineModel: 'claude-sonnet-5', engineModelForSession: null, pendingModelSwitch: null }
   const bgHistory: Message[] = [createUserMessage({ content: 'T3 spawn the slow background probe' }) as Message]
-  const t3 = await driveTurn(bgHistory, slice.mainLoopModel!, undefined)
+  const t3 = await driveTurn(bgHistory, slice.engineModel!, undefined)
   const launched = t3.threw === undefined && t3.terminal.reason === 'completed'
   check('the background-launch turn settled while the sub still runs', launched, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)}`)
   if (launched) {

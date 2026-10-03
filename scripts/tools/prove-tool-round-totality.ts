@@ -62,7 +62,7 @@ function makeCtx(tools: readonly unknown[]): { ctx: Record<string, unknown>; abo
     options: {
       commands: [],
       tools,
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},

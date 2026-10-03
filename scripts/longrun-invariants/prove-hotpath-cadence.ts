@@ -84,7 +84,7 @@ section('C1 §end-to-end — phase-one exhaustion cannot unbound the collection'
   const ctx = {
     agentId: 'cadence-probe-agent',
     getAppState: () => ({ tasks: {} }),
-    options: { agentDefinitions: { activeAgents: [] }, tools: [], mainLoopModel: 'claude-opus-5' },
+    options: { agentDefinitions: { activeAgents: [] }, tools: [], engineModel: 'claude-opus-5' },
   } as never
   const queued = [{ value: 'queued operator note', mode: 'prompt' }] as never
   const t0 = Date.now()

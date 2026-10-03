@@ -15,9 +15,9 @@ export interface LaneWallReads {
 function liveLaneWallReads(): LaneWallReads {
   return {
     route: () => {
-      const { getMainLoopModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+      const { getEngineModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
       const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-      return declaredRouteOf(getMainLoopModel())
+      return declaredRouteOf(getEngineModel())
     },
     usability: () => {
       const { resolveProviderUsability } =

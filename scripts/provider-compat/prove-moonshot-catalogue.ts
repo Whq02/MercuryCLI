@@ -243,7 +243,7 @@ if (catalogue) {
   const printSource = readFileSync(join(import.meta.dir, '../../src/main.tsx'), 'utf8')
   const guardedRead = "const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()"
   check('the cockpit birth reads the list only when neither the record nor the door names a model', birthSource.includes(`if (facts.model === null && (req.model ?? null) === null) {\n    ${guardedRead}\n  }`))
-  const printSet = 'setInitialMainLoopModel(userSpecifiedModel ?? null)'
+  const printSet = 'setInitialEngineModel(userSpecifiedModel ?? null)'
   const printRead = "if (runMode) {\n    const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')\n    await readComputedDefaultCatalogue()\n  }"
   check('the print seat reads it after the explicit choices are set, through the same guarded owner', printSource.includes(printRead) && printSource.includes(printSet) && printSource.indexOf(printSet) < printSource.indexOf(printRead))
   console.log('the admission against the landed list')

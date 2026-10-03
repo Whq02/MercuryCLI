@@ -5,9 +5,9 @@ import { EMPTY_USAGE } from '../services/api/emptyUsage.js'
 import { readFile, stat } from 'node:fs/promises'
 import { liveSkillRootsOf, pruneSkillSessionHooks } from '../utils/hooks/sessionHooks.js'
 import {
-  getMainLoopModelOverride,
+  getEngineModelOverride,
   getSessionId,
-  setMainLoopModelOverride,
+  setEngineModelOverride,
   setMainThreadAgentType,
   getMainThreadAgentType,
   setSdkAgentProgressSummariesEnabled,
@@ -203,8 +203,8 @@ import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js
 import { isLocalShellTask } from '../tasks/LocalShellTask/guards.js'
 import { killTask } from '../tasks/LocalShellTask/killShellTasks.js'
 import {
-  getDefaultMainLoopModelSetting,
-  getMainLoopModel,
+  getDefaultEngineModelSetting,
+  getEngineModel,
   parseUserSpecifiedModel,
 } from '../utils/model/model.js'
 import {
@@ -621,10 +621,10 @@ export async function runHeadless(
     io.prependUserMessage(hookInitialMessage)
   }
 
-  if ((options.continue || options.resume) && !getMainLoopModelOverride()) {
+  if ((options.continue || options.resume) && !getEngineModelOverride()) {
     const recorded = restoreConversationModelFromMessages(messages)
     if (recorded && !options.userSpecifiedModel) {
-      setMainLoopModelOverride(recorded)
+      setEngineModelOverride(recorded)
     }
   }
 
@@ -1002,9 +1002,9 @@ export async function runHeadless(
   }
 
   const applySeatModel = async (model: string): Promise<void> => {
-    const previous = activeModel ?? getMainLoopModel()
+    const previous = activeModel ?? getEngineModel()
     activeModel = model
-    setMainLoopModelOverride(model)
+    setEngineModelOverride(model)
     notifySessionStateChanged('idle')
     if (model !== previous) await injectModelSwitchBreadcrumbs(model)
   }
@@ -1130,7 +1130,7 @@ export async function runHeadless(
           sessionRowFor = String(getSessionId())
           const facts = await sessionFactsOf(
             { cwd: getCwd(), tools: assembledTools, mcpClients: turnClients, commands: dedupedCommands, agents: activeAgents },
-            activeModel ?? getMainLoopModel(),
+            activeModel ?? getEngineModel(),
             state.toolPermissionContext.mode,
           )
           enqueueRow(sessionRow({ session_id: getSessionId() }, facts))
@@ -1558,7 +1558,7 @@ export async function runHeadless(
     },
     openTurnRow: messageIds => {
       if (currentTurnId === null) currentTurnId = randomUUID()
-      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? turnsRun }, { turnId: currentTurnId, messageIds, model: activeModel ?? getMainLoopModel() })
+      return turnStartedRow({ session_id: getSessionId(), turn: currentTurn ?? turnsRun }, { turnId: currentTurnId, messageIds, model: activeModel ?? getEngineModel() })
     },
     executeTurn: (command, batch, onMessage, initialNotices) =>
       executeTurn(command, batch, message => {
@@ -1886,7 +1886,7 @@ export async function runHeadless(
       const requested = params.model
       const resolved =
         requested === undefined || requested === 'default'
-          ? (getDefaultMainLoopModelSetting() ?? getMainLoopModel())
+          ? (getDefaultEngineModelSetting() ?? getEngineModel())
           : parseUserSpecifiedModel(requested)
       if (inFlightAbort !== null) {
         heldSeatModel = { requestId: ref.id, model: String(resolved) }
@@ -1950,7 +1950,7 @@ export async function runHeadless(
       const claimedModel = typeof params.model === 'string' && params.model !== '' ? params.model : undefined
       if (claimedModel !== undefined) {
         activeModel = parseUserSpecifiedModel(claimedModel)
-        setMainLoopModelOverride(claimedModel)
+        setEngineModelOverride(claimedModel)
         setFlagEnv('MERCURY_MODEL', claimedModel)
       }
       if (claimedEffort !== undefined) {
@@ -1998,8 +1998,8 @@ export async function runHeadless(
       const factsNow = Date.now()
       const answer: SessionFactsAnswerV1 = {
         model: {
-          effective: activeModel ?? getMainLoopModel(),
-          setting: getMainLoopModelOverride() ?? null,
+          effective: activeModel ?? getEngineModel(),
+          setting: getEngineModelOverride() ?? null,
         },
         usage: {
           totalCostUSD: getTotalCostUSD(),
@@ -2013,7 +2013,7 @@ export async function runHeadless(
           totalCacheCreationInputTokens: getTotalCacheCreationInputTokens(),
           hasUnknownModelCost: hasUnknownModelCost(),
           unpricedTurns: getTotalUnpricedTurns(),
-          limitWarning: providerLimitWarning({ model: activeModel ?? getMainLoopModel() }),
+          limitWarning: providerLimitWarning({ model: activeModel ?? getEngineModel() }),
           ...(() => {
             const observed = openaiObservedUsage()
             return observed.primary || observed.secondary ? { openaiObserved: observed } : {}
@@ -2035,7 +2035,7 @@ export async function runHeadless(
         mcp: mcpRosterEntriesOf(state.mcp.clients, []),
         permissionMode: state.toolPermissionContext.mode,
         ...((): { effortSent?: string | null } => {
-          const sent = effortSentOf(resolveEffortTruth(activeModel ?? getMainLoopModel(), state.effortValue))
+          const sent = effortSentOf(resolveEffortTruth(activeModel ?? getEngineModel(), state.effortValue))
           return sent === undefined ? {} : { effortSent: sent }
         })(),
         spawnSwitches: spawnSwitchFacts(),
@@ -2079,7 +2079,7 @@ export async function runHeadless(
           const edits = takePendingScheduleEdits()
           return edits.length > 0 ? { pendingScheduleEdits: edits } : {}
         })(),
-        streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getMainLoopModel())),
+        streamIdleTimeoutMs: streamIdleTimeoutMsForRoute(providerFamilyOfSetting(activeModel ?? getEngineModel())),
         fileCheckpoints: {
           capture: fileHistoryEnabled(),
           restorable: state.fileHistory.snapshots.map(snapshot => String(snapshot.messageId)),

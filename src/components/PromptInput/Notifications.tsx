@@ -31,7 +31,7 @@ import { sessionAccountFamily } from '../../utils/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'
@@ -120,7 +120,7 @@ function NotificationsColumn({
   const current = useAppState(
     (state: AppState) => state.notifications.current,
   )
-  const mainLoopModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
+  const engineModel = useSyncExternalStore(subscribeFocusedModel, getFocusedModel, getFocusedModel)
   const limits = useClaudeAiLimits()
 
   const addRef = useRef(addNotification)
@@ -177,19 +177,19 @@ function NotificationsColumn({
     try {
       return notLoggedInGateDecision(
         walletEntries(),
-        sessionAccountFamily(mainLoopModel ?? getMainLoopModel()),
+        sessionAccountFamily(engineModel ?? getEngineModel()),
       )
     } catch {
       return { state: 'not-logged-in' }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notAuthenticated, mainLoopModel, signInEpoch, catalogueEpoch])
+  }, [notAuthenticated, engineModel, signInEpoch, catalogueEpoch])
   const sessionBlocked = walletGate.state !== 'ok'
   const tokenUsage = tokenCountWithEstimation(messages)
   const showTokenCount = verbose && !sessionBlocked && !compact
 
   const editorConfigured = process.env.VISUAL ?? process.env.EDITOR
-  const warningLevel = calculateTokenWarningState(tokenUsage, mainLoopModel ?? '').level
+  const warningLevel = calculateTokenWarningState(tokenUsage, engineModel ?? '').level
   const editorHintLive =
     isInputWrapped &&
     warningLevel === 'ok' &&
@@ -259,7 +259,7 @@ function NotificationsColumn({
           {formatNumber(tokenUsage)} tokens
         </Text>
       ) : null}
-      <TokenWarning tokenUsage={tokenUsage} model={mainLoopModel ?? ''} />
+      <TokenWarning tokenUsage={tokenUsage} model={engineModel ?? ''} />
       <SandboxPromptFooterHint />
     </Box>
   )

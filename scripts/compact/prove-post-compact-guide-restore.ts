@@ -26,7 +26,7 @@ const composed = (await getInstructionFiles()).map(f => f.path)
 let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>) }
 const ctx = {
   abortController: new AbortController(),
-  options: { commands: [], tools: [], mainLoopModel: 'claude-opus-5', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+  options: { commands: [], tools: [], engineModel: 'claude-opus-5', thinkingConfig: { type: 'disabled' }, mcpClients: [], mcpResources: {}, isNonInteractiveSession: true, debug: false, verbose: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
   getAppState: () => appState,
   setAppState: (f: (prev: never) => never): void => { appState = f(appState as never) as unknown as Record<string, unknown> },
   messages: [],

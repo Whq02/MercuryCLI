@@ -19,7 +19,7 @@ import { getProjectDir } from '../utils/sessionStoragePortable.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { truncateToWidth } from './mercury-ui/glyphs.js';
-import { useMainLoopModel } from '../hooks/useMainLoopModel.js';
+import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
@@ -467,7 +467,7 @@ export function BootSplashScreen(): React.ReactNode {
     isCompact ? 0 : CARD_LABEL_W,
     `card:${selCleared ? -1 : list.selectedIndex}`,
   );
-  const mainModel = useMainLoopModel();
+  const mainModel = useEngineModel();
 
   const catalogueEpoch = useCatalogueEpoch();
   useEffect(() => {

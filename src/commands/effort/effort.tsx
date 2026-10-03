@@ -213,7 +213,7 @@ async function settleEffortResult(result: EffortCommandResult, context: LocalJSX
     applyEffortResult(result, context)
     return { text: result.message, seat: false }
   }
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   const level = toPersistableEffort(result.effortUpdate.value)
   if (level === undefined) {
     const word = focused.modelFacts().effort
@@ -255,7 +255,7 @@ function SessionSlider({
   context: LocalJSXCommandContext
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   return (
     <EffortApplyContext.Provider
       value={value => {
@@ -277,7 +277,7 @@ export async function call(
   args: string,
 ): Promise<React.ReactNode> {
   const trimmed = args.trim()
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
 
   if (HELP_TOKENS.has(trimmed.toLowerCase())) {
     onDone(helpText())

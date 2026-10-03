@@ -204,8 +204,8 @@ export function makeEvalBridgeServer(deps: EvalBridgeDeps): BridgeServer {
           const model =
             p.model ??
             (p.tier === 'fast'
-              ? smallFastModelFor(context.options.mainLoopModel)
-              : context.options.mainLoopModel)
+              ? smallFastModelFor(context.options.engineModel)
+              : context.options.engineModel)
           let prompt = p.prompt
           if (p.schema !== null && p.schema !== undefined) {
             prompt += `\n\nAnswer with exactly one JSON value matching this JSON Schema — no prose around it:\n${JSON.stringify(p.schema)}`

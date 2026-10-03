@@ -86,7 +86,7 @@ const count = (value: number): string => value.toLocaleString('en-US')
 async function answer(messages: Message[], model: string): Promise<import('../../src/tools/ContextLeftTool/ContextLeftTool.ts').ContextLeftOutput> {
   const context = {
     messages,
-    options: { mainLoopModel: model, tools: [], commands: [], mcpClients: [], verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
+    options: { engineModel: model, tools: [], commands: [], mcpClients: [], verbose: false, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } },
     abortController: new AbortController(),
     getAppState: () => ({}),
     setAppState: () => {},
@@ -193,7 +193,7 @@ section('§8 posture: read-only, concurrency-safe, permission-free, no parameter
   check('an explicit empty classifier projection (never blocked by the fail-closed guard)', subject.toAutoClassifierInput({}) === '')
   check('the description and prompt tell the model when to call and when not to', (await subject.description()).includes('context window') && (await subject.prompt()).includes('Do not call it every turn') && (await subject.prompt()).includes('unknown'))
   const source = readFileSync(join(ROOT, TOOL_FILE), 'utf8')
-  check('the tool reads messages and mainLoopModel off the tool-use context', /contextFillView\(context\.messages, context\.options\.mainLoopModel\)/.test(source))
+  check('the tool reads messages and engineModel off the tool-use context', /contextFillView\(context\.messages, context\.options\.engineModel\)/.test(source))
   check('no second derivation: the tool imports the one view and none of the token, window or compact owners', source.includes("from '../../utils/contextFill.js'") && !/utils\/tokens\.js|utils\/context\.js|services\/compact\/|model\/capabilities\.js/.test(source))
 }
 

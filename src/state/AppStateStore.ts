@@ -143,8 +143,8 @@ type AppStateImmutableHalf = {
   footerSelection: FooterItem | null
   bagelActive?: boolean
 
-  mainLoopModel: string | null
-  mainLoopModelForSession: string | null
+  engineModel: string | null
+  engineModelForSession: string | null
   pendingModelSwitch: { setting: string | null } | null
   lastModelTransition?: ModelTransitionReceipt | null
   foregroundTurnActive: boolean
@@ -262,8 +262,8 @@ export function getDefaultAppState(): AppState {
     isAssistantMode: computeAssistantMode(),
     footerSelection: null,
 
-    mainLoopModel: null,
-    mainLoopModelForSession: null,
+    engineModel: null,
+    engineModelForSession: null,
     pendingModelSwitch: null,
     lastModelTransition: null,
     foregroundTurnActive: false,

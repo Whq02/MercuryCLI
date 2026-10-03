@@ -209,7 +209,7 @@ async function mountModel(model: string, band: Band = { columns: 178, rows: 51 }
   stdout.resume()
   const input: string[] = []
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return input.shift() ?? null }, readableLength: 0, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } })
-  const store = createStore({ ...getDefaultAppState(), mainLoopModel: model, ...(band.pendingNext === undefined ? {} : { pendingModelSwitch: { setting: band.pendingNext } }) }, () => {})
+  const store = createStore({ ...getDefaultAppState(), engineModel: model, ...(band.pendingNext === undefined ? {} : { pendingModelSwitch: { setting: band.pendingNext } }) }, () => {})
   const picked: string[] = []
   const select = (id: string | undefined): void => { if (id !== undefined) picked.push(id) }
   const picker = band.surface === 'inline'

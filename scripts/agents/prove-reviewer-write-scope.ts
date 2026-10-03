@@ -89,7 +89,7 @@ try {
   let appState = getDefaultAppState()
   const shellContext = {
     ...context(),
-    options: { mainLoopModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
+    options: { engineModel: 'claude-sonnet-5', tools: [], commands: [], mcpClients: [], mcpResources: {} },
     getAppState: () => appState,
     setAppState: (update: (state: typeof appState) => typeof appState) => { appState = update(appState) },
     toolUseId: 'review-check',

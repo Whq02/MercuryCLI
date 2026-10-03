@@ -2,7 +2,7 @@ import { GENERIC_IMAGE_LIMITS, type ImageLimits } from '../constants/apiLimits.j
 import { imageDimensionsFromHeader } from '../tools/FileReadTool/imageProcessorJs.js'
 import { formatFileSize } from './format.js'
 import { imageLimitsForModel, patchCountOf } from './imageResizer.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 
 
 export type ImageRule = 'bytes' | 'patches' | 'request'
@@ -70,7 +70,7 @@ function dimensionsOfBase64(data: string): { width: number; height: number } | n
 
 function limitsForRequest(model: string | undefined): { limits: ImageLimits; family: string | undefined } {
   try {
-    const limits = imageLimitsForModel(model ?? getMainLoopModel())
+    const limits = imageLimitsForModel(model ?? getEngineModel())
     return { limits, family: limits.family === 'generic' ? undefined : limits.family }
   } catch {
     return { limits: GENERIC_IMAGE_LIMITS, family: undefined }

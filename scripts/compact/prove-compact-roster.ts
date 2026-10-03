@@ -236,7 +236,7 @@ section('§6 the direct lane — a real fold on an engine family carries the ros
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: 'gpt-5.5',
+      engineModel: 'gpt-5.5',
       maxThinkingTokens: 0,
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,

@@ -99,7 +99,7 @@ function makeContext(): Record<string, unknown> {
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       maxThinkingTokens: 0,
       thinkingConfig: { type: 'disabled' as const },
       isNonInteractiveSession: true,

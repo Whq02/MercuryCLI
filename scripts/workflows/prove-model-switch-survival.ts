@@ -46,7 +46,7 @@ const { enableConfigs } = await import('${REPO}/src/utils/config/globalConfig.js
 enableConfigs()
 const { WorkflowTool } = await import('${REPO}/src/tools/WorkflowTool/WorkflowTool.js')
 const { getDefaultAppState } = await import('${REPO}/src/state/AppStateStore.js')
-const { setMainLoopModelOverride, getSessionId } = await import('${REPO}/src/bootstrap/state.js')
+const { setEngineModelOverride, getSessionId } = await import('${REPO}/src/bootstrap/state.js')
 const { saveCustomTitle, saveAgentName, getTranscriptPath } = await import('${REPO}/src/utils/sessionStorage.js')
 const { getCommandQueueSnapshot } = await import('${REPO}/src/utils/messageQueueManager.js')
 const emit = (o: unknown) => console.log('@@' + JSON.stringify(o))
@@ -58,7 +58,7 @@ const ctx: any = {
   setAppState,
   setAppStateForTasks: setAppState,
   options: {
-    mainLoopModel: 'claude-opus-4-8',
+    engineModel: 'claude-opus-4-8',
     mcpClients: [],
     mcpResources: {},
     tools: [],
@@ -85,8 +85,8 @@ emit({ ev: 'launched', runId: d.runId })
 
 // ── mid-flight: the REAL /model switch seams, across provider family ────────
 await new Promise(r => setTimeout(r, 500))
-setAppState((prev: any) => ({ ...prev, mainLoopModel: 'glm-5.3' }))
-setMainLoopModelOverride('glm-5.3')
+setAppState((prev: any) => ({ ...prev, engineModel: 'glm-5.3' }))
+setEngineModelOverride('glm-5.3')
 // …and the REAL /rename seams.
 const sid = getSessionId() as any
 await saveCustomTitle(sid, 'renamed-mid-run', getTranscriptPath())
@@ -96,7 +96,7 @@ setAppState((prev: any) => ({
   standaloneAgentContext: { ...prev.standaloneAgentContext, name: 'renamed-mid-run' },
 }))
 const midFlight = {
-  mainLoopModel: state.mainLoopModel,
+  engineModel: state.engineModel,
   taskStatus: (Object.values(state.tasks ?? {})[0] as any)?.status,
 }
 emit({ ev: 'switched', ...midFlight })
@@ -171,7 +171,7 @@ const settled = lines.find(l => l.ev === 'settled') as
 
 section('§3 the switch really applied while the agent flew')
 check('child exited 0', status === 0, `status ${status}; stderr: ${errTail.slice(-300)}; ${out.slice(0, 200)}`)
-check('mid-flight state shows the FAMILY switch applied', switched?.mainLoopModel === 'glm-5.3', JSON.stringify(switched))
+check('mid-flight state shows the FAMILY switch applied', switched?.engineModel === 'glm-5.3', JSON.stringify(switched))
 check('the workflow was still RUNNING at the switch instant', switched?.taskStatus === 'running', JSON.stringify(switched))
 
 section('§1 the run survives to its own terminal state')

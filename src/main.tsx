@@ -5,11 +5,11 @@ import {
   getIsInteractive,
   getSessionId,
   setClientType,
-  setInitialMainLoopModel,
+  setInitialEngineModel,
   setSessionExtensions,
   setHeadlessOneShot,
   setIsInteractive,
-  setMainLoopModelOverride,
+  setEngineModelOverride,
   setMainThreadAgentType,
   setQuestionPreviewFormat,
   setSessionPersistenceDisabled,
@@ -92,7 +92,7 @@ import { logError } from './utils/log.js'
 import { createUserMessage } from './utils/messages/factories.js'
 import { getRecentActivity } from './utils/logoV2Utils.js'
 import { getModelDeprecationWarning } from './utils/model/deprecation.js'
-import { getDefaultMainLoopModelSetting, getMainLoopModel, getCanonicalName } from './utils/model/model.js'
+import { getDefaultEngineModelSetting, getEngineModel, getCanonicalName } from './utils/model/model.js'
 import {
   initializeToolPermissionContext,
   stripDangerousPermissionsForAutoMode,
@@ -1320,19 +1320,19 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   }
 
   let userSpecifiedModel = typedString(opts.model)
-  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultMainLoopModelSetting() ?? undefined
+  if (userSpecifiedModel === 'default') userSpecifiedModel = getDefaultEngineModelSetting() ?? undefined
   let fallbackModel = typedString(opts.backupModel)
-  if (fallbackModel === 'default') fallbackModel = getDefaultMainLoopModelSetting() ?? undefined
+  if (fallbackModel === 'default') fallbackModel = getDefaultEngineModelSetting() ?? undefined
   if (!userSpecifiedModel && mainThreadAgentDefinition?.model && mainThreadAgentDefinition.model !== 'inherit') {
     userSpecifiedModel = mainThreadAgentDefinition.model
   }
-  if (userSpecifiedModel) setMainLoopModelOverride(userSpecifiedModel)
-  setInitialMainLoopModel(userSpecifiedModel ?? null)
+  if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
+  setInitialEngineModel(userSpecifiedModel ?? null)
   if (runMode) {
     const { readComputedDefaultCatalogue } = await import('./utils/model/computedDefault.js')
     await readComputedDefaultCatalogue()
   }
-  const resolvedInitialModel = getMainLoopModel()
+  const resolvedInitialModel = getEngineModel()
 
   if (agentId && agentName && crewName && agentTypeOpt) {
     let rolePrompt: string | undefined
@@ -1750,7 +1750,7 @@ async function interactiveLaunch(args: {
     }
   })
   registerBackgroundNode('session-telemetry', async () => {
-    void getMainLoopModel()
+    void getEngineModel()
     const { ensureExtensionsLoaded } = await import('./extensions/boot.js')
     await ensureExtensionsLoaded().catch(() => {})
   })
@@ -2093,7 +2093,7 @@ async function runLaunch(args: {
 
   setHeadlessOneShot(args.inputFormat !== 'rows')
 
-  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getMainLoopModel())?.route !== 'local') {
+  if (mercuryLspEnabled() && qualifiedIdSpaceOf(getEngineModel())?.route !== 'local') {
     initializeLspServerManager()
     await waitForInitialization()
   }
@@ -2361,7 +2361,7 @@ export function startDeferredPrefetches(): void {
       const { getModelCapability } = (await import('./utils/model/capabilities.js')) as {
         getModelCapability?: (model: string) => unknown
       }
-      getModelCapability?.(getMainLoopModel())
+      getModelCapability?.(getEngineModel())
       settingsChangeDetector.initialize()
       skillChangeDetector.initialize()
     } catch (error) {

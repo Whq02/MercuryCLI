@@ -1263,7 +1263,7 @@ NOT this tool (refused by name): file creation (Write) · binary content · note
               : (changeSetRefusalCodeOfResult(op.result) ?? anchorPatchCodeOfResult(op.result) ?? 'failed')
         recordEditOutcome(
           ownerFromToolUseContext(context),
-          context.options.mainLoopModel,
+          context.options.engineModel,
           surface,
           outcome,
         )

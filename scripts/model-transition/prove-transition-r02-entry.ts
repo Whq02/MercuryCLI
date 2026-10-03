@@ -143,8 +143,8 @@ section('§D the typed credentialless fallback — the computed default')
   const model = readFileSync(join(ROOT, 'src/utils/model/model.ts'), 'utf8')
   check(
     'the wiring resolves the DEFAULT through the computed default only (operator picks untouched)',
-    /fromDefault \? getDefaultMainLoopModel\(\) : parseUserSpecifiedModel\(setting\)/.test(model) &&
-      /export function getDefaultMainLoopModelSetting\(\): string \{\s*return computedDefault\(\)\.setting/.test(model),
+    /fromDefault \? getDefaultEngineModel\(\) : parseUserSpecifiedModel\(setting\)/.test(model) &&
+      /export function getDefaultEngineModelSetting\(\): string \{\s*return computedDefault\(\)\.setting/.test(model),
   )
 }
 

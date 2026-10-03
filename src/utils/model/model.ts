@@ -1,6 +1,6 @@
 import {
-  getInitialMainLoopModel,
-  getMainLoopModelOverride,
+  getInitialEngineModel,
+  getEngineModelOverride,
 } from '../../bootstrap/state.js'
 import { getSettings_DEPRECATED } from '../settings/settings.js'
 import { logForDebugging } from '../debug.js'
@@ -83,12 +83,12 @@ export function getBestModel(): string {
   return parseUserSpecifiedModel(frontierOperatorDecision().setting)
 }
 
-export function getDefaultMainLoopModelSetting(): string {
+export function getDefaultEngineModelSetting(): string {
   return computedDefault().setting
 }
 
-export function getDefaultMainLoopModel(): string {
-  return parseUserSpecifiedModel(getDefaultMainLoopModelSetting())
+export function getDefaultEngineModel(): string {
+  return parseUserSpecifiedModel(getDefaultEngineModelSetting())
 }
 
 function providerNameOf(): (family: string) => string {
@@ -177,7 +177,7 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
 
 
 export function getUserSpecifiedModelSetting(): ModelSetting {
-  const override = getMainLoopModelOverride()
+  const override = getEngineModelOverride()
   let setting: ModelSetting
   if (override !== undefined) {
     setting = override
@@ -194,10 +194,10 @@ export function getUserSpecifiedModelSetting(): ModelSetting {
   return setting
 }
 
-export function getMainLoopModel(): string {
+export function getEngineModel(): string {
   const setting = getUserSpecifiedModelSetting()
   const fromDefault = setting === null
-  return fromDefault ? getDefaultMainLoopModel() : parseUserSpecifiedModel(setting)
+  return fromDefault ? getDefaultEngineModel() : parseUserSpecifiedModel(setting)
 }
 
 export function isNonCustomOpusModel(model: string): boolean {

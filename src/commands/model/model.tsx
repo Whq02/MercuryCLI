@@ -24,7 +24,7 @@ import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { validateModel } from '../../utils/model/validateModel.js'
 import { checkOpus1mAccess, checkSonnet1mAccess } from '../../utils/model/check1mAccess.js'
 import {
-  getDefaultMainLoopModel,
+  getDefaultEngineModel,
   isOpus1mMergeEnabled,
   parseUserSpecifiedModel,
   renderDefaultModelLabel,
@@ -52,7 +52,7 @@ function effortParenthetical(
   const requested = String(effortValue)
   const liveSetting = override ?? base
   const normalised =
-    liveSetting === null ? getDefaultMainLoopModel() : parseUserSpecifiedModel(liveSetting)
+    liveSetting === null ? getDefaultEngineModel() : parseUserSpecifiedModel(liveSetting)
   if (normalised) {
     const truth = resolveEffortTruth(normalised, effortValue)
     if (!truth.supportsEffort) {
@@ -83,8 +83,8 @@ function focusedSwitchSentence(receipt: ModelSwitchReceiptV1, target: ModelSetti
 }
 
 function ModelReadout({ onDone }: { onDone: LocalJSXCommandOnDone }): React.ReactNode {
-  const base = useAppState(state => state.mainLoopModel)
-  const override = useAppState(state => state.mainLoopModelForSession)
+  const base = useAppState(state => state.engineModel)
+  const override = useAppState(state => state.engineModelForSession)
   const effortValue = useAppState(state => state.effortValue)
   const ranRef = useRef(false)
   useEffect(() => {
@@ -124,8 +124,8 @@ function ModelSet({
   messages: Message[]
   onDone: LocalJSXCommandOnDone
 }): React.ReactNode {
-  const base = useAppState(state => state.mainLoopModel)
-  const override = useAppState(state => state.mainLoopModelForSession)
+  const base = useAppState(state => state.engineModel)
+  const override = useAppState(state => state.engineModelForSession)
   const pendingSwitch = useAppState(state => state.pendingModelSwitch)
   const turnRunning = useAppState(state => state.foregroundTurnActive)
   const setAppState = useSetAppState()
@@ -254,8 +254,8 @@ function ModelSet({
       }
       const probe = settleModelSelection(
         {
-          mainLoopModel: base,
-          mainLoopModelForSession: override,
+          engineModel: base,
+          engineModelForSession: override,
           pendingModelSwitch: pendingSwitch,
         },
         target,

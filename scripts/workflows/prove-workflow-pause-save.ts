@@ -243,7 +243,7 @@ const ctx: any = {
   getAppState: () => state,
   setAppState,
   setAppStateForTasks: setAppState,
-  options: { mainLoopModel: 'claude-opus-4-8', mcpClients: [], mcpResources: {}, tools: [], commands: [], debug: false, verbose: false, isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
+  options: { engineModel: 'claude-opus-4-8', mcpClients: [], mcpResources: {}, tools: [], commands: [], debug: false, verbose: false, isNonInteractiveSession: false, agentDefinitions: { activeAgents: [], allAgents: [] } },
   abortController: new AbortController(),
   toolUseId: 'pause-tool-use',
   readFileState: { readFileState: new Map(), clear: () => {} },

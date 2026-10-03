@@ -79,8 +79,8 @@ check('the 1M seat near its fold paints the ladder\'s own room', /Context left u
 
 section('W4 · the footer\'s model is the focused chat\'s — the band\'s owner')
 const footer = src('src/components/PromptInput/Notifications.tsx')
-check('the footer subscribes to the focused connector\'s model facts and hands the warning line their effective model', /const getFocusedModel = \(\): string => getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /const mainLoopModel = useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && /<TokenWarning tokenUsage=\{tokenUsage\} model=\{mainLoopModel \?\? ''\} \/>/.test(footer))
-check('…and never the screen\'s own mainLoopModel slot', !/state\.mainLoopModel/.test(footer))
+check('the footer subscribes to the focused connector\'s model facts and hands the warning line their effective model', /const getFocusedModel = \(\): string => getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(footer) && /const engineModel = useSyncExternalStore\(subscribeFocusedModel, getFocusedModel, getFocusedModel\)/.test(footer) && /<TokenWarning tokenUsage=\{tokenUsage\} model=\{engineModel \?\? ''\} \/>/.test(footer))
+check('…and never the screen\'s own engineModel slot', !/state\.engineModel/.test(footer))
 const frame = src('src/components/MercuryFrame.tsx')
 const repl = src('src/screens/Chat.tsx')
 check('the frame\'s band measures by the same fact: the focused chat\'s effective model (its session pin first)', /const windowModel = routeSurface \? model : \(sessionPinnedModel \?\? model\)/.test(frame) && /<MercuryFrame model=\{focusedEffectiveModel\} \/>/.test(repl) && /const getFocusedEffectiveModel = \(\): string => getFocusedSessionConnector\(\)\.modelFacts\(\)\.effective/.test(repl))

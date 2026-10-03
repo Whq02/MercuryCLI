@@ -6,7 +6,7 @@ import {
   resolveModelCapabilities,
   toolDeferralEnabled,
 } from './model/capabilities.js'
-import { getMainLoopModel } from './model/model.js'
+import { getEngineModel } from './model/model.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
 import { isCrewEnabled } from './crewEnabled.js'
@@ -168,7 +168,7 @@ export async function toolToAPISchema(
     return { ...JSON.parse(previous), ...(options.cacheControl !== undefined ? { cache_control: options.cacheControl } : {}) } as ApiToolUnion
   }
   const cache = getToolSchemaCache()
-  const promptModel = options.model ?? getMainLoopModel()
+  const promptModel = options.model ?? getEngineModel()
   const caps = resolveModelCapabilities(promptModel)
   const fingerprint = `${declaredRouteOf(promptModel) ?? 'unrecognised'}:${caps.media.pdf ? 'p' : ''}${caps.media.images ? 'i' : ''}:${deferralWireFormFor(promptModel).form}`
   const pool = options.tools.map(item => item.name).sort().join(',')

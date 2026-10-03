@@ -94,7 +94,7 @@ function seatStub(facts: Facts, mode = 'implement'): ReturnType<typeof focusedSl
   return Object.assign(Object.create(base), { modelFacts: () => facts, permissionMode: () => mode })
 }
 const value = (name: string): string | undefined => byName(name)?.currentValue?.()
-const screenLabel = model.renderModelName(model.getMainLoopModel())
+const screenLabel = model.renderModelName(model.getEngineModel())
 check('the screen\'s own default is the Fable row (the poison word)', screenLabel === 'Fable 5 (1M context)', screenLabel)
 
 focusedSlot._resetFocusedSessionConnectorForTesting()
@@ -127,13 +127,13 @@ focusedSlot._resetFocusedSessionConnectorForTesting()
 section('§3 THE CENSUS — each re-pointed surface reads the owner in source')
 const has = (rel: string, needle: string | RegExp): boolean => (typeof needle === 'string' ? src(rel).includes(needle) : needle.test(src(rel)))
 const censusRows: Array<[string, string, boolean]> = [
-  ['src/commands/model/index.ts', 'the value column reads focusedSessionModelFacts; no process-default or screen-slice read', has('src/commands/model/index.ts', 'focusedSessionModelFacts()') && !has('src/commands/model/index.ts', 'getMainLoopModel') && !has('src/commands/model/index.ts', 'mainLoopModelForSession')],
-  ['src/commands/effort/index.ts', "the seat's word through the stamped resolve (no env pin)", has('src/commands/effort/index.ts', 'resolveStampedEffortTruth(facts.effective') && !has('src/commands/effort/index.ts', 'getMainLoopModel')],
+  ['src/commands/model/index.ts', 'the value column reads focusedSessionModelFacts; no process-default or screen-slice read', has('src/commands/model/index.ts', 'focusedSessionModelFacts()') && !has('src/commands/model/index.ts', 'getEngineModel') && !has('src/commands/model/index.ts', 'engineModelForSession')],
+  ['src/commands/effort/index.ts', "the seat's word through the stamped resolve (no env pin)", has('src/commands/effort/index.ts', 'resolveStampedEffortTruth(facts.effective') && !has('src/commands/effort/index.ts', 'getEngineModel')],
   ['src/commands/authority/index.ts', "the seat's mode door", has('src/commands/authority/index.ts', 'getFocusedSessionConnector().permissionMode()')],
   ['src/commands/permissions/index.ts', "the seat's mode door", has('src/commands/permissions/index.ts', 'getFocusedSessionConnector().permissionMode()')],
   ['src/types/command.ts', 'the screen-scoped menu slice is gone; currentValue takes no argument', !has('src/types/command.ts', 'MenuLiveState') && has('src/types/command.ts', 'currentValue?: () => string | undefined')],
-  ['src/hooks/useTypeahead.tsx', 'the palette hands no app-state snapshot to the rows', !has('src/hooks/useTypeahead.tsx', 'mainLoopModelForSession') && has('src/hooks/useTypeahead.tsx', 'generateCommandSuggestions(input, commands)')],
-  ['src/commands/status/mercuryStatus.tsx', "the snapshot reads the served model and effort, never the screen default", has('src/commands/status/mercuryStatus.tsx', 'context.options.mainLoopModel') && has('src/commands/status/mercuryStatus.tsx', 'connector?.modelFacts()') && has('src/commands/status/mercuryStatus.tsx', 'modelFacts?.effortSent') && !has('src/commands/status/mercuryStatus.tsx', 'getMainLoopModel()')],
+  ['src/hooks/useTypeahead.tsx', 'the palette hands no app-state snapshot to the rows', !has('src/hooks/useTypeahead.tsx', 'engineModelForSession') && has('src/hooks/useTypeahead.tsx', 'generateCommandSuggestions(input, commands)')],
+  ['src/commands/status/mercuryStatus.tsx', "the snapshot reads the served model and effort, never the screen default", has('src/commands/status/mercuryStatus.tsx', 'context.options.engineModel') && has('src/commands/status/mercuryStatus.tsx', 'connector?.modelFacts()') && has('src/commands/status/mercuryStatus.tsx', 'modelFacts?.effortSent') && !has('src/commands/status/mercuryStatus.tsx', 'getEngineModel()')],
   ['src/commands/model/mercuryModel.tsx', 'the effort ladder, the window and the kept-model lines read the served model; the dead pin read is gone', has('src/commands/model/mercuryModel.tsx', 'const servedModel = focusedSeat !== null ? focusedSeat.effective') && has('src/commands/model/mercuryModel.tsx', 'contextFillView(messages, servedModel)') && !has('src/commands/model/mercuryModel.tsx', 'sessionPin ??')],
   ['src/components/mercury-ui/EffortChip.tsx', "the standing chip reads the seat's word first", has('src/components/mercury-ui/EffortChip.tsx', 'useFocusedServedEffort()')],
   ['src/components/DeckPane.tsx', "the deck's effort chip is fed the served model", has('src/components/DeckPane.tsx', 'useFocusedServedModel()')],

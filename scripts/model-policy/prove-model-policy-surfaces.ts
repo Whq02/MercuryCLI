@@ -27,8 +27,8 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
     return i >= 0 && j > i ? s.slice(i, j) : ''
   }
   check(
-    'getDefaultMainLoopModelSetting routes through the ONE computed default (the provider of the most recent sign-in)',
-    between(model, 'export function getDefaultMainLoopModelSetting', '\n}').includes('computedDefault()') &&
+    'getDefaultEngineModelSetting routes through the ONE computed default (the provider of the most recent sign-in)',
+    between(model, 'export function getDefaultEngineModelSetting', '\n}').includes('computedDefault()') &&
       !model.includes('applyDefaultProviderRung') &&
       !model.includes('credentiallessGptDefault'),
   )
@@ -131,7 +131,7 @@ console.log('\n§6 role-boundary repairs (recon findings)')
   const crewmate = src('src/utils/crew/crewmateModel.ts')
   check(
     'crewmate fallback follows the foreground default, never a fixed Opus row',
-    crewmate.includes('getDefaultMainLoopModel()') && !crewmate.includes('CLAUDE_OPUS_4_6_CONFIG'),
+    crewmate.includes('getDefaultEngineModel()') && !crewmate.includes('CLAUDE_OPUS_4_6_CONFIG'),
   )
   const caps = src('src/utils/model/capabilities.ts')
   check(

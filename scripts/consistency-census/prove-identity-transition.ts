@@ -70,8 +70,8 @@ const { settleModelSelection, settlePendingAtBoundary } = await import(
   '../../src/utils/model/modelTransition.ts'
 )
 const base = {
-  mainLoopModel: 'claude-opus-5' as string | null,
-  mainLoopModelForSession: null as string | null,
+  engineModel: 'claude-opus-5' as string | null,
+  engineModelForSession: null as string | null,
   pendingModelSwitch: null as { setting: string | null } | null,
 }
 
@@ -79,7 +79,7 @@ const g1 = settleModelSelection(base, MODEL_B, { turnActive: false })
 check(
   '§G1 idle apply patches model + mints an applied/idle receipt',
   g1.kind === 'applied' &&
-    g1.patch?.mainLoopModel === MODEL_B &&
+    g1.patch?.engineModel === MODEL_B &&
     g1.receipt?.resolution === 'applied' &&
     g1.receipt?.boundary === 'idle' &&
     g1.receipt?.previous === 'claude-opus-5',
@@ -112,11 +112,11 @@ check('§G4 plain no-op writes nothing', g4.kind === 'no-op' && g4.patch === nul
 const g5 = settlePendingAtBoundary({ ...base, pendingModelSwitch: { setting: MODEL_B } })
 check(
   '§G5 boundary settle applies the parked switch with a turn-boundary receipt',
-  g5 !== null && g5.patch.mainLoopModel === MODEL_B && g5.receipt.boundary === 'turn-boundary',
+  g5 !== null && g5.patch.engineModel === MODEL_B && g5.receipt.boundary === 'turn-boundary',
 )
 check('§G5 empty pending slot settles to null', settlePendingAtBoundary(base) === null)
 
-const afterG1 = { ...base, mainLoopModel: MODEL_B }
+const afterG1 = { ...base, engineModel: MODEL_B }
 const g7 = settleModelSelection(afterG1, 'claude-opus-5', { turnActive: false })
 check(
   '§G7 switch-back receipt chains (previous = the switched-to model)',
@@ -134,8 +134,8 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
 {
   const applied = settleModelSelection(base, MODEL_B, { turnActive: false })
   const ALLOWED = new Set([
-    'mainLoopModel',
-    'mainLoopModelForSession',
+    'engineModel',
+    'engineModelForSession',
     'pendingModelSwitch',
     'lastModelTransition',
   ])
@@ -150,7 +150,7 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
   )
   check(
     '§H2 child model pinned at spawn (runAgent resolvedAgentModel)',
-    /mainLoopModel: resolvedAgentModel/.test(runAgentSrc),
+    /engineModel: resolvedAgentModel/.test(runAgentSrc),
   )
 }
 
@@ -193,7 +193,7 @@ check('§G9 cross-provider switch flagged in the receipt', g9.kind === 'applied'
   )
   check(
     '§I4 the patch writes the ONE store field every UI surface reads',
-    settled.patch?.mainLoopModel === MODEL_B,
+    settled.patch?.engineModel === MODEL_B,
   )
 }
 

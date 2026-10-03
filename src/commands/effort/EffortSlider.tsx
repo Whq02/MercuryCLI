@@ -1,7 +1,7 @@
 
 import * as React from 'react'
 import { Box, Text, useAnimationFrame, useInput } from '../../ink.js'
-import { useMainLoopModel } from '../../hooks/useMainLoopModel.js'
+import { useEngineModel } from '../../hooks/useEngineModel.js'
 import { useFocusedSentEffort, useFocusedServedEffort, useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { focusedEffortLabelOf } from '../../components/mercury-ui/EffortChip.js'
 import { useAppState } from '../../state/AppState.js'
@@ -228,7 +228,7 @@ export function EffortSlider({
   initialEffortOverride?: EffortValue
 }): React.ReactNode {
   const servedModel = useFocusedServedModel()
-  const processModel = useMainLoopModel()
+  const processModel = useEngineModel()
   const model = modelOverride ?? servedModel ?? processModel
   const { accent } = useSessionAccent()
 

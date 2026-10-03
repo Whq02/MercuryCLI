@@ -11,7 +11,7 @@ process.env.OPENAI_API_KEY = 'fixture-openai-key'
 delete process.env.MERCURY_CAP_FAILOVER
 
 const { makeWorkflowHooks } = await import('../../src/tools/WorkflowTool/agentHooks.js')
-const { setMainLoopModelOverride } = await import('../../src/bootstrap/state.js')
+const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
 const { recordOpenaiUsageLimit, __resetOpenaiLimitStateForTest } = await import('../../src/services/providers/openai/openaiLimitState.js')
 
 let failures = 0
@@ -60,7 +60,7 @@ function makeHarness(script: Array<(call: SpawnCall) => unknown[]>, abortControl
         toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: 'claude-fable-5-1' },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-fable-5-1' },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: (frame: Frame) => {
@@ -90,7 +90,7 @@ console.log('============================================================')
 
 section('P1/P2 the pause on the Fable row, the switch to the GPT row resumes it')
 {
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
   const { hooks, calls, logs, lastAgentFrame } = makeHarness([
     () => [textEvent('half the work is done'), capEvent("Anthropic says this account's session limit is reached on Fable 5.1 · resets 4:06 pm")],
     () => [textEvent('finished on the new row')],
@@ -106,7 +106,7 @@ section('P1/P2 the pause on the Fable row, the switch to the GPT row resumes it'
   check('P1 the words say no reset is stated when the wire stated none (this process holds no Anthropic latch)', /no reset stated/.test(words), words)
   check('P1 the log names the pause', logs.some(l => l.includes('paused —') && l.includes('/model switches this agent')), logs.join(' | ').slice(0, 300))
 
-  setMainLoopModelOverride('gpt-5.6-sol')
+  setEngineModelOverride('gpt-5.6-sol')
   const late = await settledOf(pending, 5_000)
   check('P2 the switch lifted the pause and agent() resolved the resumed text', late.settled === true && late.value === 'finished on the new row', JSON.stringify(late))
   check('P2 exactly two spawns: the walled attempt and the resumed one', calls.length === 2, `calls=${calls.length}`)
@@ -119,7 +119,7 @@ section('P1/P2 the pause on the Fable row, the switch to the GPT row resumes it'
   check('P2 the log names the resume and the model', logs.some(l => /the model switched to gpt-5\.6-sol — resumed/.test(l)), logs.join(' | ').slice(0, 300))
   const done = lastAgentFrame()
   check("P2 the terminal frame is 'done' on the GPT badge", done?.state === 'done' && done?.model === 'gpt-5.6-sol', JSON.stringify(done))
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
 }
 
 section('P3 an OpenAI wall with a stated reset resumes on the same model when the reset passes')
@@ -147,7 +147,7 @@ section('P3 an OpenAI wall with a stated reset resumes on the same model when th
 
 section('P4 a two-agent fan-out: the capped one waits, the other settles; the switch settles the fan-out')
 {
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
   const { hooks, calls, agentFrames } = makeHarness([
     call => (call.prompt.startsWith('alpha') ? [capEvent('Anthropic says this account\'s session limit is reached on Fable 5.1')] : [textEvent('beta done')]),
     call => (call.prompt.startsWith('alpha') ? [textEvent('alpha done after the switch')] : [textEvent('beta done')]),
@@ -162,16 +162,16 @@ section('P4 a two-agent fan-out: the capped one waits, the other settles; the sw
   check('P4 the other family\'s agent settled while the capped one waits', betaDone && alphaWaiting, JSON.stringify(agentFrames().map(f => ({ label: f.label, state: f.state, waiting: f.waiting }))))
   const early = await settledOf(fanout, 300)
   check('P4 the fan-out is still open (the capped agent is part of it)', early.settled === false)
-  setMainLoopModelOverride('gpt-5.6-sol')
+  setEngineModelOverride('gpt-5.6-sol')
   const late = await settledOf(fanout, 5_000)
   check('P4 the switch settled the fan-out with both results', late.settled === true && JSON.stringify(late.value) === JSON.stringify(['alpha done after the switch', 'beta done']), JSON.stringify(late))
   check('P4 three spawns: alpha walled, beta, alpha resumed', calls.length === 3, `calls=${calls.length}`)
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
 }
 
 section('P5 the abort during a pause; a non-cap api error keeps the old road')
 {
-  setMainLoopModelOverride(undefined)
+  setEngineModelOverride(undefined)
   const abort = new AbortController()
   const { hooks } = makeHarness([() => [capEvent('Anthropic says this account\'s session limit is reached')]], abort)
   const pending = hooks.agent('doomed', { model: 'claude-fable-5-1' })

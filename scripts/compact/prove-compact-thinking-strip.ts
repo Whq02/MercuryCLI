@@ -120,7 +120,7 @@ function makeContext(): Record<string, unknown> {
     options: {
       tools: [],
       mcpClients: [],
-      mainLoopModel: 'claude-fable-5-1',
+      engineModel: 'claude-fable-5-1',
       maxThinkingTokens: 0,
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },

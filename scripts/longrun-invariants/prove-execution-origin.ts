@@ -43,7 +43,7 @@ section('§A runWithCwdOverride reaches a spawned agent (the descendants law)')
         },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: 'claude-opus-5' },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-5' },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: () => {},
@@ -89,7 +89,7 @@ const state: any = { tasks: {} }
 const ctx: any = {
   getAppState: () => state,
   setAppState: (fn: any) => { const next = typeof fn === 'function' ? fn(state) : fn; for (const k of Object.keys(next)) (state as any)[k] = (next as any)[k] },
-  options: { mainLoopModel: 'claude-opus-4-8' },
+  options: { engineModel: 'claude-opus-4-8' },
   abortController: new AbortController(),
   toolUseId: 'origin-tool-use',
 }

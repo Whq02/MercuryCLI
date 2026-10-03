@@ -47,7 +47,7 @@ import { extractDiscoveredToolNames, isToolSearchEnabled } from '../../utils/too
 import { sleep } from '../../utils/sleep.js'
 import { COMPACT_MAX_OUTPUT_TOKENS } from '../../utils/context.js'
 import { getModelMaxOutputTokens, servesPerMessageEffort, notePerMessageEffortRefused, refusesPerMessageEffortRow } from '../../utils/model/capabilities.js'
-import { getMainLoopModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE, getPromptTooLongTokenGap } from '../api/errors.js'
 import { type OverflowSignal, overflowGapTokens, overflowSignalOf } from '../api/overflowSignal.js'
 import { LOCAL_WINDOW_REMEDY, localFitRefusalFacts } from '../providers/local/localCatalogue.js'
@@ -713,7 +713,7 @@ async function summarizeViaCacheSharingFork(
 ): Promise<AssistantMessage | null> {
   const bound = armFoldBound(context.abortController.signal, 'fork', tokenCountWithEstimation(messages))
   const startedAt = Date.now()
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   try {
     context.setResponseLength?.(() => 0)
     const result = await runForkedAgent({
@@ -724,7 +724,7 @@ async function summarizeViaCacheSharingFork(
       forkLabel: 'compact',
       maxTurns: 1,
       skipCacheWrite: true,
-      effortMessage: foldEffortMessageFor(context.options.mainLoopModel),
+      effortMessage: foldEffortMessageFor(context.options.engineModel),
       onStreamEvent: event => {
         bound.content()
         const inner = event as { type?: string; delta?: { type?: string; text?: string } }
@@ -814,7 +814,7 @@ async function summarizeViaStreamingFallback(
 ): Promise<AssistantMessage> {
   const bound = armFoldBound(context.abortController.signal, 'direct', tokenCountWithEstimation(messages))
   const startedAt = Date.now()
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   try {
     const settled = await streamingFallbackAttempts(messages, cacheSafeParams, promptMessage, context, bound)
     recordFoldRoad(model, 'direct', startedAt, settled.isApiErrorMessage === true ? 'refused' : 'summary')
@@ -851,7 +851,7 @@ async function streamingFallbackAttempts(
   bound: FoldBound,
 ): Promise<AssistantMessage> {
   let attempts = 1
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   let streamingStarted = false
   let rowRefusalRetried = false
   for (let attempt = 1; attempt <= attempts; attempt++) {
@@ -986,7 +986,7 @@ async function runSummarization(
 ): Promise<AssistantMessage> {
   return withKeepAlive(context, async () => {
     if (
-      shouldRideCacheSharingFork(context.options.mainLoopModel, context.options.thinkingConfig)
+      shouldRideCacheSharingFork(context.options.engineModel, context.options.thinkingConfig)
     ) {
       const viaFork = await summarizeViaCacheSharingFork(messages, cacheSafeParams, promptMessage, context)
       if (viaFork !== null) return viaFork
@@ -1071,7 +1071,7 @@ async function assembleAttachments(
   const attachments: AttachmentMessage[] = [...files, ...asyncAgents]
   const skills = createSkillAttachmentIfNeeded(context.agentId, context.options.commands)
   if (skills !== null) attachments.push(skills)
-  const model = context.options.mainLoopModel
+  const model = context.options.engineModel
   const deltas = [
     ...getDeferredToolsDeltaAttachment(context.options.tools, model, preserved, {
       callSite,
@@ -1091,7 +1091,7 @@ async function assembleAttachments(
 async function runSessionStartHooks(context: ToolUseContext): Promise<HookResultMessage[]> {
   context.onCompactProgress?.({ type: 'hooks_start', hookType: 'session_start' })
   return processSessionStartHooks('compact', {
-    model: context.options.mainLoopModel,
+    model: context.options.engineModel,
     agentType: context.agentType ?? getMainThreadAgentType(),
   })
 }
@@ -1176,8 +1176,8 @@ export async function withFoldStatus<T, C extends ToolUseContext>(
 }
 
 
-export function withMainLoopModel<C extends ToolUseContext>(context: C, model: string): C {
-  return { ...context, options: { ...context.options, mainLoopModel: model } }
+export function withEngineModel<C extends ToolUseContext>(context: C, model: string): C {
+  return { ...context, options: { ...context.options, engineModel: model } }
 }
 
 export async function compactConversation(
@@ -1192,11 +1192,11 @@ export async function compactConversation(
   summaryModel?: string,
 ): Promise<CompactionResult> {
   const ceiling = recompactionInfo?.autoCompactThreshold
-  const summaryContext = summaryModel === undefined ? context : withMainLoopModel(context, summaryModel)
+  const summaryContext = summaryModel === undefined ? context : withEngineModel(context, summaryModel)
   const summaryCacheSafeParams =
     summaryModel === undefined
       ? cacheSafeParams
-      : { ...cacheSafeParams, toolUseContext: withMainLoopModel(cacheSafeParams.toolUseContext, summaryModel) }
+      : { ...cacheSafeParams, toolUseContext: withEngineModel(cacheSafeParams.toolUseContext, summaryModel) }
   const trigger = isAutoCompact ? 'auto' : 'manual'
   const boundaryTrigger: CompactMetadata['trigger'] = overflow !== undefined ? 'overflow' : trigger
   try {

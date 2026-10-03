@@ -203,7 +203,7 @@ async function main(): Promise<void> {
     const evalBridge = srcText('services', 'eval', 'evalBridge.ts')
     check(
       "evalBridge tier 'fast' rides smallFastModelFor(session model)",
-      evalBridge.includes('smallFastModelFor(context.options.mainLoopModel)'),
+      evalBridge.includes('smallFastModelFor(context.options.engineModel)'),
     )
     const streamCoreSeam = srcText('services', 'providers', 'anthropic', 'streamCore.ts')
     check(

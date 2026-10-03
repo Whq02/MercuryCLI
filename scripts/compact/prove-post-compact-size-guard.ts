@@ -187,7 +187,7 @@ function makeCtx(): Record<string, unknown> {
     options: {
       commands: [],
       tools: [makeTool('EchoTool')],
-      mainLoopModel: MODEL,
+      engineModel: MODEL,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -276,7 +276,7 @@ section('G6 wiring pins')
   check('the owner fits, then refuses when still over', /fitPostCompactUnderThreshold\(partial, ceiling\)[\s\S]{0,700}throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
   check('the refusal hands the read ledger back first', /for \(const \[path, state\] of ledgerBeforeFold\) context\.readFileState\.set\(path, state\)\s*throw new Error\(postCompactOverThresholdMessage/.test(compactSrc))
   const manual = readFileSync(join(ROOT, 'src/commands/compact/compact.ts'), 'utf8')
-  check('the manual /compact passes the auto-compact threshold as its ceiling', manual.includes('autoCompactThreshold: getAutoCompactThreshold(context.options.mainLoopModel)'))
+  check('the manual /compact passes the auto-compact threshold as its ceiling', manual.includes('autoCompactThreshold: getAutoCompactThreshold(context.options.engineModel)'))
   const swarm = readFileSync(join(ROOT, 'src/utils/crew/inProcessRunner.ts'), 'utf8')
   check('the swarm runner passes the threshold it compares against', swarm.includes('autoCompactThreshold: compactThreshold'))
   const notes = readFileSync(join(ROOT, 'src/services/compact/sessionMemoryCompact.ts'), 'utf8')

@@ -135,7 +135,7 @@ export async function getAttachments(
       Promise.resolve(
         getDeferredToolsDeltaAttachment(
           toolUseContext.options.tools,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
           messages,
           {
             callSite: isMainThread
@@ -160,7 +160,7 @@ export async function getAttachments(
         getMcpInstructionsDeltaAttachment(
           toolUseContext.options.mcpClients,
           toolUseContext.options.tools,
-          toolUseContext.options.mainLoopModel,
+          toolUseContext.options.engineModel,
           messages,
         ),
       ),

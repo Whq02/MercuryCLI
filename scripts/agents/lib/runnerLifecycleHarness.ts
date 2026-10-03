@@ -110,7 +110,7 @@ export function makeCtx(store: Store): Record<string, unknown> {
       commands: [],
       mcpClients: [],
       mcpResources: {},
-      mainLoopModel: 'claude-opus-4-8',
+      engineModel: 'claude-opus-4-8',
       maxThinkingTokens: 0,
       isNonInteractiveSession: true,
       agentDefinitions: { activeAgents: [] },

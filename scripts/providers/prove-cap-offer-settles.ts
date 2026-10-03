@@ -121,7 +121,7 @@ section('§B the target is the exact newest frontier MEMBER, never the collapsed
 section('§C confirm settles through the ONE owner; a no-op is a receipt, never a loop')
 {
   const applied = settleModelSelection(
-    { mainLoopModel: 'gpt-5.6-sol', mainLoopModelForSession: null, pendingModelSwitch: null },
+    { engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null },
     FABLE_51,
     { turnActive: false },
   )
@@ -131,14 +131,14 @@ section('§C confirm settles through the ONE owner; a no-op is a receipt, never 
   check('the settlement is a real cross-provider move', applied.kind === 'applied' && applied.receipt.crossProvider === true)
 
   const noop = settleModelSelection(
-    { mainLoopModel: FABLE_51, mainLoopModelForSession: null, pendingModelSwitch: null },
+    { engineModel: FABLE_51, engineModelForSession: null, pendingModelSwitch: null },
     FABLE_51,
     { turnActive: false },
   )
   check('a same-seat confirm is a typed no-op verdict (a receipt, not a loop)', noop.kind === 'no-op')
 
   const queued = settleModelSelection(
-    { mainLoopModel: 'gpt-5.6-sol', mainLoopModelForSession: null, pendingModelSwitch: null },
+    { engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null },
     FABLE_51,
     { turnActive: true },
   )
@@ -227,7 +227,7 @@ section('§F the offer lists every other signed-in family; at-cap lanes last and
   check("a family that reports no usage prints 'no usage read'", words.zai === 'no usage read')
   check('an at-cap family prints the cap and its reset', words.gemini === 'at its cap — usage window resets 5:47pm' && words.huggingface === 'at its cap — usage window', JSON.stringify(words))
   const chosen = set.listed[2] as (typeof set.listed)[number]
-  const landed = settleModelSelection({ mainLoopModel: 'gpt-5.6-sol', mainLoopModelForSession: null, pendingModelSwitch: null }, chosen.model, { turnActive: false })
+  const landed = settleModelSelection({ engineModel: 'gpt-5.6-sol', engineModelForSession: null, pendingModelSwitch: null }, chosen.model, { turnActive: false })
   check('confirming the highlighted row settles on THAT family, not the first', chosen.route === 'deepseek' && landed.kind === 'applied' && landed.receipt.applied === 'deepseek-chat-v3.4')
   cap.noteCapOfferAnswered('handoff', 'openai')
   cap.noteCapWindowObserved('openai', 'warning')

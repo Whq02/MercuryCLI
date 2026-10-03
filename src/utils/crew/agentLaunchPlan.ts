@@ -30,7 +30,7 @@ export type AgentLaunchPlanInput = {
   forkGateOn: boolean
   forkAgent: AgentDefinition
   defaultAgentType: string
-  mainLoopModel: string
+  engineModel: string
   modelParam?: ModelAlias
   resolvedModel?: string
   permissionMode?: PermissionMode
@@ -123,7 +123,7 @@ export function buildAgentLaunchPlan(i: AgentLaunchPlanInput): AgentLaunchPlan {
 
   const model = (!isForkPath ? i.resolvedModel : undefined) ?? getAgentModel(
     definition.model,
-    i.mainLoopModel,
+    i.engineModel,
     isForkPath ? undefined : i.modelParam,
   )
 

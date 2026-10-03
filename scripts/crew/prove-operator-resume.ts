@@ -55,7 +55,7 @@ const contextOf = (store: ReturnType<typeof makeStore>): ToolUseContext =>
     toolUseId: 'toolu_last_turn',
     getAppState: store.get,
     setAppState: store.set,
-    options: { mainLoopModel: 'claude-sonnet-5', agentDefinitions: { activeAgents: [] } },
+    options: { engineModel: 'claude-sonnet-5', agentDefinitions: { activeAgents: [] } },
     messages: [],
     abortController: new AbortController(),
   }) as never

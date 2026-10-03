@@ -128,7 +128,7 @@ function makeCtx(model: string): Record<string, unknown> {
     options: {
       commands: [],
       tools: [],
-      mainLoopModel: model,
+      engineModel: model,
       thinkingConfig: { type: 'disabled' },
       mcpClients: [],
       mcpResources: {},
@@ -296,7 +296,7 @@ section('W3b the manual /compact right after a switch: the summary rides the sou
   ctx.messages = messages
   const options = ctx.options as Record<string, unknown>
   let liveModel = SEATED
-  Object.defineProperty(options, 'mainLoopModel', { get: () => liveModel, enumerable: true, configurable: true })
+  Object.defineProperty(options, 'engineModel', { get: () => liveModel, enumerable: true, configurable: true })
   const { call } = await import('../../src/commands/compact/compact.ts')
   let outcome: string
   try {
@@ -318,7 +318,7 @@ section('W3b the manual /compact right after a switch: the summary rides the sou
   ctx2.messages = seed(SOURCE)
   const options2 = ctx2.options as Record<string, unknown>
   let flipping = SOURCE
-  Object.defineProperty(options2, 'mainLoopModel', {
+  Object.defineProperty(options2, 'engineModel', {
     get: () => {
       const now = flipping
       flipping = SEATED

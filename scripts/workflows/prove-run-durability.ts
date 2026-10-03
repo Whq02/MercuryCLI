@@ -122,7 +122,7 @@ const state: any = { tasks: {} }
 const ctx: any = {
   getAppState: () => state,
   setAppState: (fn: any) => { const next = typeof fn === 'function' ? fn(state) : fn; for (const k of Object.keys(next)) (state as any)[k] = (next as any)[k] },
-  options: { mainLoopModel: 'claude-opus-4-8' },
+  options: { engineModel: 'claude-opus-4-8' },
   abortController: new AbortController(),
   toolUseId: 'dur-tool-use',
 }
@@ -378,7 +378,7 @@ const state: any = {
 const ctx: any = {
   getAppState: () => state,
   setAppState: () => {},
-  options: { mainLoopModel: 'claude-opus-4-8' },
+  options: { engineModel: 'claude-opus-4-8' },
   abortController: new AbortController(),
   canUseTool: async () => ({ behavior: 'allow' }),
 }

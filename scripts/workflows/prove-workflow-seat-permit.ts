@@ -84,7 +84,7 @@ function makeHarness(abortController = new AbortController()) {
         toolPermissionContext: { mode: 'default', additionalWorkingDirectories: new Map(), alwaysAllowRules: {}, alwaysDenyRules: {} },
         mcp: { tools: [] },
       }),
-      options: { agentDefinitions: { activeAgents: [] }, mainLoopModel: 'claude-fable-5-1' },
+      options: { agentDefinitions: { activeAgents: [] }, engineModel: 'claude-fable-5-1' },
     },
     canUseTool: async () => ({ behavior: 'allow' }),
     emitProgress: (frame: Frame) => {
