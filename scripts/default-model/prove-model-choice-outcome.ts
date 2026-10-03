@@ -20,7 +20,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const settingsPath = join(proofHome, 'settings.json')
 const storedModel = (): unknown => {
   try {
-    return (JSON.parse(readFileSync(settingsPath, 'utf8')) as { model?: unknown }).model
+    return (JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: { model?: unknown } }).engine?.model
   } catch {
     return undefined
   }
@@ -62,7 +62,7 @@ section('§3 clearing the default: cleared once, then unchanged with nothing to 
 
 section('§4 a refused write: the outcome says refused and the sentence carries the reason')
 {
-  writeFileSync(settingsPath, '{ "model": "env-fixture-model", ')
+  writeFileSync(settingsPath, '{ "engine": { "model": "env-fixture-model" }, ')
   const refused = persistModelChoice('claude-fixture-three')
   check('the outcome is refused', outcomeOf(refused) === 'refused', JSON.stringify(refused))
   check('the sentence names the refusal', sentenceOf(refused).startsWith(' · not saved as your default: ') && sentenceOf(refused).includes('Invalid JSON'), JSON.stringify(refused))
