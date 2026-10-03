@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { join } from 'node:path'
+import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
-const { callMCPToolWithUrlElicitationRetry } = await import(join(SRC, 'services/mcp/client.ts'))
+const mcp = await import(join(SRC, 'services/mcp/client.ts'))
+const { callMCPToolWithUrlElicitationRetry } = mcp
 const { wireSafeMcpToolName } = await import(join(SRC, 'services/mcp/mcpStringUtils.ts'))
 
 let failures = 0
@@ -12,7 +14,8 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const SERVER = 'progress-srv'
-const sdkClient = { name: SERVER, config: { type: 'host' }, client: {} } as never
+const sdkClient = { type: 'connected', name: SERVER, config: inProcessServerConfig(SERVER), client: {}, capabilities: {}, cleanup: async () => {} } as never
+seatInProcessServer(mcp, sdkClient)
 
 type Call = { toolUseId: string | undefined; progress: Array<Record<string, unknown>> }
 

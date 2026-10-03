@@ -5,6 +5,7 @@
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { inProcessServerConfig, seatInProcessServer } from '../lib/mcpInProcess.ts'
 
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mcp-meta-key-'))
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
@@ -48,9 +49,10 @@ const connection = {
   name: 'meta-prover',
   client,
   capabilities: {},
-  config: { type: 'host', name: 'meta-prover', scope: 'session' } as never,
+  config: inProcessServerConfig('meta-prover'),
   cleanup: async () => {},
 }
+const unseat = seatInProcessServer(mcp, connection)
 
 const parentFor = (id: string) => ({ message: { content: [{ type: 'tool_use', id, name: 'echo', input: {} }] } })
 const withId = await mcp.callMCPToolWithUrlElicitationRetry({
@@ -71,6 +73,7 @@ check("the server's echo of the wire shows the same key", echoed.includes('"merc
 const source = readFileSync(join(REPO, 'src/services/mcp/client.ts'), 'utf8')
 check('the key is spelled once in the client, through the constant', (source.match(/mercury\/toolUseId/g) ?? []).length === 1 && /\[MCP_TOOL_USE_ID_META_KEY\]: toolUseId/.test(source))
 
+unseat()
 await client.close()
 await server.close()
 
