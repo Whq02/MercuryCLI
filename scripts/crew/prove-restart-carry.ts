@@ -192,7 +192,7 @@ section('S1-S2 the seat facts: a fresh incarnation across a seat delete and re-c
       workspaceKind: 'plain-folder',
     } as never
   }, dir)
-  const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+  const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
   const published = async (after: (facts: { runnerGeneration?: number } | null) => boolean): Promise<void> => {
     for (let i = 0; i < 100 && !after(readSessionFacts(sid, dir) as { runnerGeneration?: number } | null); i++) await new Promise(r => setTimeout(r, 20))
   }

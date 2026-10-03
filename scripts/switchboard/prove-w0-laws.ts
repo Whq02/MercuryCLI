@@ -170,65 +170,37 @@ check('refusal names the wait-until-visited law', refusal.allowed === false && r
 console.log('LAW 7 — the ask-wire (Q2):')
 check(
   'the spawn serves the runner door and the daemon holds its asks',
-  inv.argv[1] === 'runner' && !inv.argv.includes('--permission-channel') && inv.capabilities.holds_asks === true,
+  inv.argv[1] === 'runner' && !inv.argv.some(word => word.startsWith('--permission')) && inv.capabilities.holds_asks === true,
 )
 check('the respawn keeps the door', respawn.argv[1] === 'runner' && respawn.capabilities.holds_asks === true)
-const { onWorkerControlRequest, answerPermissionAsk, listPendingPermissionAsks } = await import(
+const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks } = await import(
   '../../src/daemon/permissionAsks.js'
 )
-type ControlFrame = {
-  type?: string
-  response?: {
-    request_id?: string
-    subtype?: string
-    response?: { behavior?: string; updated_input?: { command?: string }; message?: string }
-  }
-}
-onWorkerControlRequest(
-  'concourse-w1',
-  {
-    type: 'control_request',
-    request_id: 'req-allow-1',
-    request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'echo hi' } },
-  },
-  recDir,
-)
-onWorkerControlRequest(
-  'concourse-w1',
-  {
-    type: 'control_request',
-    request_id: 'req-deny-1',
-    request: { subtype: 'can_use_tool', tool_name: 'Write', input: { file_path: '/x' } },
-  },
-  recDir,
-)
-check('asks parked as pending', listPendingPermissionAsks().length === 2)
-const controlFrames: Array<{ short: string; frame: string }> = []
-const controlRoster = {
-  control: (short: string, frame: string) => (controlFrames.push({ short, frame }), true),
-}
-const allowRes = answerPermissionAsk('req-allow-1', true, controlRoster, 'operator')
+type Answer = import('../../src/runner/wire/methods.js').PermissionAnswer
+const allowHeld = holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-allow-1', tool_name: 'Bash', input: { command: 'echo hi' } }, recDir, 60_000, () => 'attached')
+const allowId = listPendingPermissionAsks().at(-1)?.requestId ?? ''
+const denyHeld = holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-deny-1', tool_name: 'Write', input: { file_path: '/x' } }, recDir, 60_000, () => 'attached')
+const denyId = listPendingPermissionAsks().at(-1)?.requestId ?? ''
+check('asks parked as pending', listPendingPermissionAsks().length === 2 && allowId !== denyId)
+const settled = (answer: Promise<Answer>): Promise<Answer | null> => Promise.race([answer, new Promise<null>(r => setTimeout(() => r(null), 1_000))])
+const allowRes = answerPermissionAsk(allowId, true, 'operator')
 check('allow answer applies', allowRes.outcome === 'applied')
-const allowFrame = JSON.parse(controlFrames[0]?.frame ?? '{}') as ControlFrame
+const allowAnswer = await settled(allowHeld.answer)
 check(
-  'allow frame echoes the ORIGINAL input (permission-tool contract)',
-  allowFrame.type === 'control_response' &&
-    allowFrame.response?.request_id === 'req-allow-1' &&
-    allowFrame.response?.subtype === 'success' &&
-    allowFrame.response?.response?.behavior === 'allow' &&
-    allowFrame.response?.response?.updated_input?.command === 'echo hi',
+  "the allow resolves the runner's request typed, with no edited input (the runner keeps its original — the permission contract)",
+  allowAnswer?.outcome === 'allow' && allowAnswer.input === undefined,
+  JSON.stringify(allowAnswer),
 )
-const denyRes = answerPermissionAsk('req-deny-1', false, controlRoster, 'operator')
-const denyFrame = JSON.parse(controlFrames[1]?.frame ?? '{}') as ControlFrame
+const denyRes = answerPermissionAsk(denyId, false, 'operator')
+const denyAnswer = await settled(denyHeld.answer)
 check(
   'deny answer carries a plain refusal',
-  denyRes.outcome === 'applied' &&
-    denyFrame.response?.response?.behavior === 'deny' &&
-    typeof denyFrame.response?.response?.message === 'string',
+  denyRes.outcome === 'applied' && denyAnswer?.outcome === 'deny' && typeof denyAnswer.message === 'string',
+  JSON.stringify(denyAnswer),
 )
 check(
   'answered ask is unknown on a second answer',
-  answerPermissionAsk('req-allow-1', true, controlRoster, 'operator').outcome === 'refused',
+  answerPermissionAsk(allowId, true, 'operator').outcome === 'refused',
 )
 
 console.log('WINDOW LAW — a window paints the view lane, never writes:')

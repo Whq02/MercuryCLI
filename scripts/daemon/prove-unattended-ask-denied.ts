@@ -55,14 +55,7 @@ const { supervisorStatePath } = await import('../../src/daemon/controlSocket.ts'
 const { isDenialResultText, UNANSWERED_ASK_REJECT_MESSAGE } = await import('../../src/utils/messages/rejectionText.ts')
 const obligations = await import('../../src/services/crew/obligations.ts')
 type Presence = 'attached' | 'absent' | 'unknown'
-const onAsk = asks.onWorkerControlRequest as unknown as (
-  short: string,
-  frame: Record<string, unknown>,
-  dir?: string,
-  channel?: { control(short: string, frame: string): boolean },
-  expiryMs?: number,
-  presence?: (dir?: string) => Presence,
-) => void
+type Answer = import('../../src/runner/wire/methods.ts').PermissionAnswer
 const presenceOf = (asks as { operatorClientPresence?: (dir?: string, now?: number) => Presence }).operatorClientPresence
 type PresenceTable = {
   noteClientPresence: (pid: number, kind: 'screen', now?: number) => void
@@ -96,17 +89,16 @@ const writeWorkers = (workers: Record<string, unknown>): void => {
   writeFileSync(concourseWorkersPath(pureDaemonDir), JSON.stringify({ version: 1, workers }))
 }
 writeWorkers({ 'concourse-w1': record('concourse-w1') })
-const sent: Array<{ short: string; frame: Record<string, unknown> }> = []
-const channel = { control: (short: string, frame: string) => (sent.push({ short, frame: JSON.parse(frame) as Record<string, unknown> }), true) }
-const askFrame = (id: string, tool: string): Record<string, unknown> => ({
-  type: 'control_request',
-  request_id: id,
-  request: { subtype: 'can_use_tool', tool_name: tool, input: { command: 'git push' } },
-})
-const framesFor = (id: string): Array<Record<string, unknown>> =>
-  sent.filter(s => (s.frame as { response?: { request_id?: string } }).response?.request_id === id).map(s => s.frame)
-const denyTextOf = (frame: Record<string, unknown> | undefined): string =>
-  String((frame as { response?: { response?: { message?: string } } } | undefined)?.response?.response?.message ?? '')
+const SESSION = 'sess-concourse-w1'
+const hold = (tag: string, tool: string, presence: Presence): { id: string | undefined; answer: Answer | null; settled: Promise<Answer> } => {
+  const h = asks.holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: `tu-${tag}`, tool_name: tool, input: { command: 'git push' } }, pureDaemonDir, 0, () => presence)
+  const entry = { id: asks.listPendingPermissionAsks().filter(a => a.workerId === 'concourse-w1').at(-1)?.requestId, answer: null as Answer | null, settled: h.answer }
+  void h.answer.then(a => {
+    entry.answer = a
+  })
+  return entry
+}
+const isAskRow = (o: { ref?: string; sessionId?: string }): boolean => (o.ref?.startsWith('permission:') ?? false) && o.sessionId === SESSION
 const parked = (id: string): boolean => asks.listPendingPermissionAsks().some(a => a.requestId === id)
 type ReceiptRow = { ref?: string; sessionId?: string; status?: string; revision?: number; createdAtMs?: number; settledAtMs?: number; settlement?: { by?: string }; question?: string }
 const rowWords = (o: ReceiptRow): string => `${o.ref ?? '?'} ${o.status ?? '?'} rev=${String(o.revision)} by=${j(o.settlement?.by ?? '')} created=${String(o.createdAtMs)} settled=${String(o.settledAtMs)}`
@@ -121,49 +113,52 @@ const committedRows = (): ReceiptRow[] => {
   }
 }
 
-section('A1 the pure road: no operator client attached — the ask is denied at once through the child\'s control channel and never parks')
+section('A1 the pure road: no operator client attached — the ask is denied at once on the runner\'s own request and never parks')
 {
   const commits: string[] = []
   const unsubscribe = obligations.subscribeObligations(() => {
-    const row = committedRows().find(o => o.ref === 'permission:req-nobody')
+    const row = committedRows().find(isAskRow)
     commits.push(row === undefined ? 'absent' : `${row.status ?? '?'}@rev${String(row.revision)}`)
   }, { scope: 'switchboard' })
   const t0 = Date.now()
-  onAsk('concourse-w1', askFrame('req-nobody', 'Bash'), pureDaemonDir, channel, 0, () => 'absent')
+  const nobody = hold('nobody', 'Bash', 'absent')
+  const answer = await Promise.race([nobody.settled, sleep(1_000).then(() => null)])
   const settledIn = Date.now() - t0
-  const frame = framesFor('req-nobody')[0]
-  const text = denyTextOf(frame)
-  check('red on the base: a deny control_response reached the child at once (nothing parked)', frame !== undefined && !parked('req-nobody'), `frames=${framesFor('req-nobody').length} parked=${parked('req-nobody')}`)
+  const text = answer?.outcome === 'deny' ? (answer.message ?? '') : ''
+  check("red on the base: a deny answer reached the runner's request at once (nothing parked)", answer !== null && nobody.id === undefined && asks.listPendingPermissionAsks().every(a => a.workerId !== 'concourse-w1'), `answer=${j(answer)} parked=${j(asks.listPendingPermissionAsks())}`)
   check('...settled under a second', settledIn < 1_000, `${settledIn}ms`)
-  check('...its behavior is deny', (frame as { response?: { response?: { behavior?: string } } } | undefined)?.response?.response?.behavior === 'deny', j(frame))
+  check('...its outcome is deny', answer?.outcome === 'deny', j(answer))
   check('...the words are the typed denial with the daemon\'s own cause', EXPECTED_LEAD('Bash').test(text), j(text))
   check('...one owner: byte-identical to UNANSWERED_ASK_REJECT_MESSAGE(tool, NO_CLIENT_ATTACHED_CAUSE) and to unattendedAskDenialMessage', denialOf !== undefined && CAUSE !== undefined && text === UNANSWERED_ASK_REJECT_MESSAGE('Bash', CAUSE) && text === denialOf('Bash'), denialOf === undefined ? 'no unattendedAskDenialMessage export (the base)' : j(text))
   check('...the classifier reads it as a denial (the crimson glyph, the stop guidance)', isDenialResultText(text), j(text))
   const receipt = await until(async () => {
     const rows = await obligations.listObligations({ scope: 'switchboard' } as never)
-    return (rows as Array<{ ref?: string; status?: string; settlement?: { by?: string } }>).some(o => o.ref === 'permission:req-nobody' && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
+    return (rows as Array<{ ref?: string; sessionId?: string; status?: string; settlement?: { by?: string } }>).some(o => isAskRow(o) && o.status === 'withdrawn' && /denied at once/.test(o.settlement?.by ?? ''))
   }, 5_000)
   check('...the receipt: the obligation for the ask is recorded and settled withdrawn by the daemon with the cause (never a silent disappearance)', receipt)
-  const openRows = (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.ref === 'permission:req-nobody')
+  const openRows = (await obligations.openObligations({ scope: 'switchboard' })).filter(o => isAskRow(o))
   check('...no open needs-you row is left for it', openRows.length === 0, openRows.map(rowWords).join(' | '))
   await until(() => commits.length > 0, 5_000)
   unsubscribe()
-  const receiptRow = (await obligations.listObligations({ scope: 'switchboard' } as never) as ReceiptRow[]).find(o => o.ref === 'permission:req-nobody')
+  const receiptRow = (await obligations.listObligations({ scope: 'switchboard' } as never) as ReceiptRow[]).find(o => isAskRow(o))
   check('red on the base: the receipt is born settled — no commit of the needs-you store ever carried the row OPEN (the base mints it open and withdraws it in a second commit)', commits.length > 0 && commits.every(c => !c.startsWith('open')), `commits seen=${j(commits)}`)
   check('red on the base: ...one commit, one revision: the settled receipt carries revision 1', receiptRow?.revision === 1 && receiptRow.status === 'withdrawn', receiptRow === undefined ? 'no receipt row' : rowWords(receiptRow))
 }
 
 section('A2 the parking law stands with a client attached, and when presence cannot be read')
 {
-  onAsk('concourse-w1', askFrame('req-someone', 'Bash'), pureDaemonDir, channel, 0, () => 'attached')
-  check('with a client attached the session\'s own ask parks as before (no frame, no clock)', parked('req-someone') && framesFor('req-someone').length === 0, `parked=${parked('req-someone')} frames=${framesFor('req-someone').length}`)
+  const someone = hold('someone', 'Bash', 'attached')
+  await sleep(20)
+  check('with a client attached the session\'s own ask parks as before (no answer, no clock)', someone.id !== undefined && parked(someone.id) && someone.answer === null, `parked=${j(asks.listPendingPermissionAsks())} answer=${j(someone.answer)}`)
   await sleep(120)
-  check('...and is still parked past a zero-clock wait', parked('req-someone'))
-  const answered = asks.answerPermissionAsk('req-someone', false, channel, 'operator')
-  check('...the operator\'s answer lands where the ask waits', answered.outcome === 'applied' && framesFor('req-someone').length === 1)
-  onAsk('concourse-w1', askFrame('req-unknown', 'Bash'), pureDaemonDir, channel, 0, () => 'unknown')
-  check('presence unknown (no daemon record to read) parks too — the daemon never denies on a fact it could not read', parked('req-unknown') && framesFor('req-unknown').length === 0)
-  asks.answerPermissionAsk('req-unknown', false, channel, 'operator')
+  check('...and is still parked past a zero-clock wait', someone.id !== undefined && parked(someone.id))
+  const answered = asks.answerPermissionAsk(someone.id ?? '', false, 'operator')
+  await sleep(20)
+  check('...the operator\'s answer lands where the ask waits', answered.outcome === 'applied' && someone.answer?.outcome === 'deny', j({ answered, answer: someone.answer }))
+  const unknown = hold('unknown', 'Bash', 'unknown')
+  await sleep(20)
+  check('presence unknown (no daemon record to read) parks too — the daemon never denies on a fact it could not read', unknown.id !== undefined && parked(unknown.id) && unknown.answer === null)
+  asks.answerPermissionAsk(unknown.id ?? '', false, 'operator')
 }
 
 section('A3 the production presence fact reads the daemon\'s own cockpit facts: the owner pid and the live focus/attach stamps')
@@ -356,7 +351,7 @@ async function expectDeniedAtOnce(label: string, world: SeatWorld, session: Sess
   check(`${label}: ...the receipt row is settled withdrawn by the daemon with the cause`, receipt)
   const receiptRow = await receiptRowFor(session.sessionId)
   check(`${label}: red on the base: ...born settled in one commit (revision 1) — the base mints the receipt OPEN and withdraws it in a second commit, an open needs-you row for as long as the second takes`, receiptRow?.revision === 1 && receiptRow.status === 'withdrawn', receiptRow === undefined ? 'no receipt row' : rowWords(receiptRow))
-  check(`${label}: ...the daemon log names it`, /denied at once — no operator client is attached to the switchboard — the child was told/.test(world.daemonLog()), world.daemonLog().split('\n').filter(l => /permission ask/.test(l)).slice(-2).join(' | ').slice(0, 300))
+  check(`${label}: ...the daemon log names it`, /permission ask [0-9a-f-]+ \([A-Za-z]+ for concourse-w\d+\) denied at once — no operator client is attached to the switchboard/.test(world.daemonLog()), world.daemonLog().split('\n').filter(l => /permission ask/.test(l)).slice(-2).join(' | ').slice(0, 300))
 }
 
 async function expectParked(label: string, world: SeatWorld, session: Session, requestsBefore: number): Promise<void> {

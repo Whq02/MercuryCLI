@@ -278,27 +278,20 @@ console.log('D — permission ids: stable from birth to answer, across repaint/r
       spawnedAt: 1, lastLiveAt: Date.now(), pid: process.pid,
     }
   }, recDir)
-  const frame = {
-    type: 'control_request',
-    request_id: 'req-stable-2',
-    request: { subtype: 'can_use_tool', tool_name: 'Bash', input: { command: 'echo stable' } },
-  }
-  asks.onWorkerControlRequest('concourse-w1', frame, recDir)
-  const before = asks.listPendingPermissionAsks().filter(a => a.requestId === 'req-stable-2').length
-  asks.onWorkerControlRequest('concourse-w1', frame, recDir)
-  const after = asks.listPendingPermissionAsks().filter(a => a.requestId === 'req-stable-2').length
-  check('D3 a duplicate control_request (the same minted id) parks nothing new — the id cannot fork', before === 1 && after === 1)
-  const frames: Array<{ short: string; frame: string }> = []
-  const roster = { control: (short: string, f: string) => (frames.push({ short, frame: f }), true) }
-  const answered = asks.answerPermissionAsk('req-stable-2', true, roster, 'operator')
-  const sent = JSON.parse(frames[0]?.frame ?? '{}') as { response?: { request_id?: string } }
+  const held = asks.holdWorkerAsk('concourse-w1', { kind: 'tool', tool_use_id: 'tu-stable-2', tool_name: 'Bash', input: { command: 'echo stable' } }, recDir, 60_000, () => 'attached')
+  const parkedIds = asks.listPendingPermissionAsks().filter(a => a.workerId === 'concourse-w1').map(a => a.requestId)
+  check('D3 one held request parks exactly ONE ask under a daemon-minted id — nothing forks', parkedIds.length === 1 && /^[0-9a-f-]{36}$/.test(parkedIds[0] ?? ''), JSON.stringify(parkedIds))
+  const stableId = parkedIds[0] ?? ''
+  const answered = asks.answerPermissionAsk(stableId, true, 'operator')
+  const landed = await Promise.race([held.answer, new Promise<null>(r => setTimeout(() => r(null), 1_000))])
   check(
-    'D4 the answer keys by the id ALONE and lands on THE ask (the response carries the same request_id)',
-    answered.outcome === 'applied' && sent.response?.request_id === 'req-stable-2',
+    "D4 the answer keys by the id ALONE and lands on THE ask (the runner's request resolves allow)",
+    answered.outcome === 'applied' && landed !== null && landed.outcome === 'allow',
+    JSON.stringify({ answered, landed }),
   )
   check(
     'D4 a second answer on the settled id REFUSES — a stale click can never re-target another ask',
-    asks.answerPermissionAsk('req-stable-2', true, roster, 'operator').outcome === 'refused',
+    asks.answerPermissionAsk(stableId, true, 'operator').outcome === 'refused',
   )
   const g1 = asks.mintGitInitAsk('/tmp/board-controls-folder')
   const g2 = asks.mintGitInitAsk('/tmp/board-controls-folder')
@@ -423,25 +416,25 @@ console.log('F — the ground note: composed at dispatch from the REAL isolation
     'F1 a read-only lease speaks the shared shape with its no-writes fact',
     readonly.includes('READ-ONLY') && readonly.includes('Write nothing here') && lines(readonly) >= 2 && lines(readonly) <= 4,
   )
-  const { buildConcoursePromptFrame } = await import('../../src/daemon/concourseDispatch.ts')
-  type Frame = { message?: { content?: unknown }; mode?: string }
-  const plain = JSON.parse(buildConcoursePromptFrame('do the task', undefined, shared)) as Frame
-  check('F2 a plain prompt OPENS with the note (top of the dispatched agent\'s prompt)', typeof plain.message?.content === 'string' && (plain.message.content as string).startsWith('[ground] ') && (plain.message.content as string).endsWith('do the task'))
-  const rich = JSON.parse(buildConcoursePromptFrame('ignored', { content: [{ type: 'image' }] }, fork)) as Frame
+  const { buildConcoursePromptRow } = await import('../../src/daemon/concourseDispatch.ts')
+  type Row = { type?: string; content?: unknown; command?: string }
+  const plain = (await buildConcoursePromptRow('do the task', undefined, shared)) as Row
+  check('F2 a plain prompt OPENS with the note (top of the dispatched agent\'s prompt)', typeof plain.content === 'string' && plain.content.startsWith('[ground] ') && plain.content.endsWith('do the task'))
+  const rich = (await buildConcoursePromptRow('ignored', { content: [{ type: 'text', text: 'see' }] }, fork)) as Row
   check(
     'F2 rich content leads with the note as its first text block',
-    Array.isArray(rich.message?.content) &&
-      (rich.message.content as Array<{ type?: string; text?: string }>)[0]?.type === 'text' &&
-      (rich.message.content as Array<{ type?: string; text?: string }>)[0]?.text?.startsWith('[ground]') === true,
+    Array.isArray(rich.content) &&
+      (rich.content as Array<{ type?: string; text?: string }>)[0]?.type === 'text' &&
+      (rich.content as Array<{ type?: string; text?: string }>)[0]?.text?.startsWith('[ground]') === true,
   )
-  const bash = JSON.parse(buildConcoursePromptFrame('ls -la', { mode: 'bash' }, shared)) as Frame
-  check('F2 a bash line is a COMMAND, not a prompt — the note never rides it', bash.message?.content === 'ls -la' && bash.mode === 'bash')
+  const bash = (await buildConcoursePromptRow('ls -la', { mode: 'bash' }, shared)) as Row
+  check('F2 a bash line is a COMMAND, not a prompt — the note never rides it', bash.type === 'shell' && bash.command === 'ls -la')
   const dispatchSrc = read('src/daemon/concourseDispatch.ts')
   check(
     'F3 the admit-leg delivery composes from the ADMITTED record — the REAL fact, never a guess from the request',
     dispatchSrc.includes('const admittedRec = readSessionWorkers(deps.dir)[admitted.runnerId]') &&
       dispatchSrc.includes('isolationAwarenessNote({') &&
-      dispatchSrc.includes('buildConcoursePromptFrame(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote)'),
+      dispatchSrc.includes('buildConcoursePromptRow(prompt, { ...promptExtrasOf(req), identity: req.clientMessageId }, groundNote)'),
   )
   check(
     'F3 the redirect leg composes NONE (an existing session was briefed at its birth)',
@@ -534,12 +527,12 @@ console.log('G — the git-offer No leg: deny proceeds lawfully; the copy tells 
   })())
   const asks = await import('../../src/daemon/permissionAsks.ts')
   const minted = asks.mintGitInitAsk(folder)
-  const denied = asks.answerPermissionAsk(minted.requestId, false, undefined, 'operator', {
+  const denied = asks.answerPermissionAsk(minted.requestId, false, 'operator', {
     onDenyProceed: () => [{ clientMessageId: 'cm-default-old', title: 'fix the parser' }],
   })
   check("G3 the deny receipt names what starts — 'in the folder as it is, alone'", denied.outcome === 'applied' && (denied.detail ?? '').includes('starting in the folder as it is, alone: fix the parser'))
   const minted2 = asks.mintGitInitAsk(folder)
-  const denied2 = asks.answerPermissionAsk(minted2.requestId, false, undefined, 'operator', { onDenyProceed: () => [] })
+  const denied2 = asks.answerPermissionAsk(minted2.requestId, false, 'operator', { onDenyProceed: () => [] })
   check('G3 a held folder speaks the queued truth', denied2.outcome === 'applied' && (denied2.detail ?? '').includes('stays queued until the folder frees or git lands'))
   const card = await import('../../src/components/concourse/GitOfferCard.tsx')
   check(

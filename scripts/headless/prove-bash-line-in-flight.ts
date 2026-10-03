@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type FixtureApi } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { INTERRUPT_MESSAGE } from '../../src/utils/messages/rejectionText.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -155,18 +155,26 @@ async function drive(): Promise<void> {
   const envelopes: Envelope[] = []
   let unparseable = 0
   const waiters: Array<{ pred: (e: Envelope) => boolean; res: (e: Envelope) => void }> = []
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: nodeBin!,
-    argv: [DIST, 'runner', '--model', 'claude-opus-4-8'],
+    dist: DIST,
+    argv: ['--model', 'claude-opus-4-8'],
     cwd,
     env,
-    onLine: line => {
-      lines.push(line)
-      const e = parseFrame(line) as Envelope | null
-      if (e === null) {
-        unparseable++
-        return
+    home,
+    raw: text => {
+      for (const line of text.split('\n')) {
+        if (line.trim() === '') continue
+        lines.push(line)
+        try {
+          JSON.parse(line)
+        } catch {
+          unparseable++
+        }
       }
+    },
+    onRow: row => {
+      const e = row as Envelope
       envelopes.push(e)
       for (let i = waiters.length - 1; i >= 0; i--) {
         if (waiters[i]!.pred(e)) {
@@ -176,18 +184,16 @@ async function drive(): Promise<void> {
       }
     },
   })
-  const child = door.child
+  const child = host.child
   const killer = setTimeout(() => child.kill('SIGKILL'), 120_000)
   let stderr = ''
   child.stderr!.on('data', d => (stderr += d))
   let exitedEarly = false
-  const exited = new Promise<{ exit: number | null }>(res =>
-    child.on('close', exit => {
-      clearTimeout(killer)
-      exitedEarly = true
-      res({ exit })
-    }),
-  )
+  const exited = host.exited.then(exit => {
+    clearTimeout(killer)
+    exitedEarly = true
+    return { exit }
+  })
 
   const waitFor = (pred: (e: Envelope) => boolean, label: string, timeoutMs = 60_000): Promise<Envelope | undefined> =>
     new Promise(res => {
@@ -205,18 +211,18 @@ async function drive(): Promise<void> {
         },
       })
     })
-  const send = (o: unknown): void => {
-    door.send(o as Record<string, unknown>)
+  const shell = (command: string): void => {
+    void host.request('queue/add', { type: 'shell', command, id: randomUUID() }).catch(() => undefined)
   }
   const resultCount = (): number => envelopes.filter(e => e.type === 'outcome').length
 
   section('§1 — initialize')
-  const initResp = await door.connection.initialized
+  const initResp = await host.initialize().catch(() => null)
   check('initialize is answered with the session id', initResp !== null && typeof initResp.session_id === 'string', j(initResp ?? {}).slice(0, 200))
 
   section('§2 — a bash-mode line runs as a shell in the session process; the runner lives on')
   const nonce = `bash-line-${randomUUID().slice(0, 8)}`
-  send({ type: 'user', message: { role: 'user', content: `echo ${nonce}` }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  shell(`echo ${nonce}`)
   const result1 = (await waitFor(e => e.type === 'outcome', 'the echo line outcome', TURN_MS)) as
     | (Envelope & { status?: string; session_id?: string })
     | undefined
@@ -258,22 +264,22 @@ async function drive(): Promise<void> {
     if (e) seenResults.add(e)
     return e
   }
-  send({ type: 'user', message: { role: 'user', content: 'true' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  shell('true')
   const resultTrue = await nextResult('the true line result', TURN_MS)
   check('a silent `true` line settles as a completed outcome', resultTrue?.status === 'completed', j({ status: resultTrue?.status }))
   const trueRow = await rowAfterInput(configDir, sessionId, 'true', TURN_MS / 6)
   const trueExit = exitOf(trueRow)
   check('`true` lands a row naming exit 0 and a duration', trueExit !== null && trueExit.code === 0 && trueExit.durationMs >= 0, quote(trueRow))
-  send({ type: 'user', message: { role: 'user', content: 'false' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  shell('false')
   const resultFalse = await nextResult('the false line result', TURN_MS)
   check('a failing `false` line settles as a completed outcome too — the shell path lands a row, never an error', resultFalse?.status === 'completed', j({ status: resultFalse?.status }))
   const falseRow = await rowAfterInput(configDir, sessionId, 'false', TURN_MS / 6)
   const falseExit = exitOf(falseRow)
   check('`false` lands a row naming exit 1', falseExit !== null && falseExit.code === 1, quote(falseRow))
 
-  section('§3 — a running shell keeps the turn open (busy over the wire); an interrupt frame ends it with the receipt')
+  section('§3 — a running shell keeps the turn open (busy over the wire); turn/interrupt ends it with the receipt')
   const resultsBefore = resultCount()
-  send({ type: 'user', message: { role: 'user', content: 'sleep 30' }, parent_tool_use_id: null, mode: 'bash', uuid: randomUUID() })
+  shell('sleep 30')
   await settle(1_500)
   check(
     'no result lands while the shell runs — the turn is OPEN for the shell’s duration (the seat’s busy edge)',
@@ -281,9 +287,8 @@ async function drive(): Promise<void> {
     `${resultCount() - resultsBefore} result(s) landed within 1.5s; exited=${exitedEarly}`,
   )
   const t0 = Date.now()
-  send({ type: 'control_request', request_id: 'req_int', request: { subtype: 'interrupt' } })
-  const intResp = await waitFor(e => e.type === 'control_response' && j(e).includes('req_int'), 'interrupt ack', 10_000)
-  check('the interrupt frame is acknowledged', !!intResp && j(intResp).includes('"success"'), j(intResp ?? {}).slice(0, 200))
+  const intResp = await host.request('turn/interrupt', { op_id: 'req_int' }, 10_000).then(result => ({ ok: true as const, result }), (error: unknown) => ({ ok: false as const, error: error instanceof Error ? error.message : String(error) }))
+  check('turn/interrupt is answered: the shell turn was there to interrupt', intResp.ok && intResp.result.interrupted === true, j(intResp).slice(0, 200))
   const result2 = (await nextResult('the interrupted shell outcome', 15_000)) as (Envelope & { status?: string }) | undefined
   const elapsedMs = Date.now() - t0
   check('the interrupt ENDS the shell turn promptly — an outcome within 10s, far under the 30s sleep', !!result2 && elapsedMs < 10_000, `${elapsedMs}ms`)
@@ -300,7 +305,7 @@ async function drive(): Promise<void> {
   )
 
   section('§4 — a prompt turn runs after the shell; the model never saw the shell lines; clean end')
-  send({ type: 'user', message: { role: 'user', content: 'after the shell' }, parent_tool_use_id: null, uuid: randomUUID() })
+  void host.prompt('after the shell', { id: randomUUID() }).catch(() => undefined)
   const result3 = (await nextResult('the post-shell prompt outcome', 60_000)) as (Envelope & { answer?: string; status?: string }) | undefined
   check(
     'a prompt turn after the shell runs to a completed outcome with the scripted text',
@@ -312,7 +317,7 @@ async function drive(): Promise<void> {
     'no failed outcome anywhere',
     !envelopes.some(e => e.type === 'outcome' && e.status === 'failed'),
   )
-  child.stdin!.end()
+  host.end()
   const { exit } = await exited
   check('stdin end → exit 0 (the last turn succeeded)', exit === 0, `exit=${exit} stderr=${stderr.slice(0, 300)}`)
   check('every stdout line is individually JSON-parseable', unparseable === 0, `${unparseable} unparseable of ${lines.length}`)

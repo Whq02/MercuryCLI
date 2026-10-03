@@ -73,8 +73,8 @@ function contentText(message: unknown): string {
       toolUseID: 't1',
       content: printer('session start flood '),
     }],
-    ['teammate_mailbox', {
-      type: 'teammate_mailbox',
+    ['crew_messages', {
+      type: 'crew_messages',
       messages: [
         { from: 'flooder', text: printer('mailbox flood '), timestamp: '2026-01-01T00:00:00Z' },
         { from: 'quiet', text: 'a normal short message', timestamp: '2026-01-01T00:00:01Z' },
@@ -94,7 +94,7 @@ function contentText(message: unknown): string {
   }
 
   const mailbox = M.normalizeAttachmentForAPI(seams[4]![1] as never)
-  check('teammate_mailbox: the quiet message survives whole',
+  check('crew_messages: the quiet message survives whole',
     mailbox.some(message => contentText(message).includes('a normal short message')))
 }
 

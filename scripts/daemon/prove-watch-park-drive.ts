@@ -3,7 +3,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { execSync } from 'node:child_process'
 import { appendFileSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep, user } from './dupline-world.ts'
+import { bootRunner, bound, carriersOf, childEnv, DIST, exportWorld, isSession, j, makeTally, removeWorld, type Runner, SCRATCH_ROOT, seedHome, sleep } from './dupline-world.ts'
 
 const { check, section, finish } = makeTally('prove-watch-park-drive')
 section("a persistent watch through the session's park: the watch ends with the runner, and the first turn after the resume is told so once, with the way to arm it again")
@@ -167,7 +167,7 @@ if (!existsSync(DIST)) {
   check('the built bundle is present (the drive boots the BUILT product)', false, DIST)
 } else {
   const runner = bootRunner({ cwd: CWD, env })
-  runner.send(user(ARM_ASK, 'u-arm'))
+  void runner.prompt(ARM_ASK, 'u-arm')
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   check('the headless session booted on the fixture', init !== null, runner.stderr().slice(-400))
   const sessionId = String((init as { session_id?: string } | null)?.session_id ?? '')
@@ -190,7 +190,7 @@ if (!existsSync(DIST)) {
   await sleep(500)
 
   const resumed = bootRunner({ cwd: CWD, env, extraArgv: ['--resume', sessionId] })
-  resumed.send(user(HELLO_ASK, 'u-hello'))
+  void resumed.prompt(HELLO_ASK, 'u-hello')
   const hello = await waitWire('the resumed turn', w => w.ask.trim() === HELLO_ASK, bound(60_000))
   check('the resumed session answers', hello !== null, resumed.stderr().slice(-400))
   const told = await waitWire('the turn that names the dead watch', w => w.ask.includes(DEAD_WORDS) && w.at > parkedAt, bound(30_000))
@@ -204,7 +204,7 @@ if (!existsSync(DIST)) {
   const exitAgain = await park(resumed)
   check('the resumed runner parks the same way', !exitAgain.late, j(exitAgain))
   const again = bootRunner({ cwd: CWD, env, extraArgv: ['--resume', sessionId] })
-  again.send(user(AGAIN_ASK, 'u-again'))
+  void again.prompt(AGAIN_ASK, 'u-again')
   const againTurn = await waitWire('the second resumed turn', w => w.ask.trim() === AGAIN_ASK, bound(60_000))
   await sleep(6_000)
   check('the second resume answers', againTurn !== null, again.stderr().slice(-400))

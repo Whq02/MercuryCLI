@@ -23,6 +23,10 @@ const { makeConcourseAdmitHandler, readSessionWorkers, buildConcourseWorkerSpec,
   '../../src/daemon/concourseSupervisor.ts'
 )
 const warm = await import('../../src/daemon/warmRunner.ts')
+const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+type StandInRunner = ReturnType<typeof standInRunner>
+type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
 
 let failures = 0
@@ -35,7 +39,8 @@ type Spec = ReturnType<typeof buildConcourseWorkerSpec>
 
 class FakeRoster {
   registered: Array<{ short: string; spec: Spec }> = []
-  controls: Array<{ short: string; frame: string }> = []
+  stands = new Map<string, StandInRunner>()
+  claims: Array<{ short: string; params: Record<string, unknown> }> = []
   killed: string[] = []
   patched: Array<{ short: string; patch: { model: string; effort: string; respawnExtraArgv: readonly string[] } }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
@@ -51,31 +56,31 @@ class FakeRoster {
   registerLongLived(short: string, spec: Spec): { ok: boolean; pid?: number; error?: string } {
     this.registered.push({ short, spec })
     this.present.set(short, { alive: true, ready: true })
+    const stand = standInRunner({
+      sessionId: null,
+      autoAnswer: {
+        'session/claim': (params: unknown) => {
+          const claim = params as Record<string, unknown>
+          this.claims.push({ short, params: claim })
+          if (this.dieOnClaim) setTimeout(() => this.present.set(short, { alive: false, ready: false }), 20)
+          if (this.answer === 'never') return LEAVE_PENDING
+          if (this.answer === 'error') throw new RpcError(RPC_REFUSED, 'scripted refusal', { kind: 'claim' })
+          return { session_id: String(claim.session_id) }
+        },
+      },
+    })
+    this.stands.set(short, stand)
     return { ok: true, pid: process.pid }
   }
-  control(short: string, frame: string): boolean {
-    this.controls.push({ short, frame })
-    const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string } }
-    if (this.dieOnClaim && parsed.request?.subtype === 'claim_session') {
-      setTimeout(() => this.present.set(short, { alive: false, ready: false }), 20)
-    }
-    if (this.answer !== 'never' && parsed.request?.subtype === 'claim_session' && typeof parsed.request_id === 'string') {
-      const requestId = parsed.request_id
-      const subtype = this.answer
-      queueMicrotask(() =>
-        warm.onWarmRunnerLine(
-          JSON.stringify({
-            type: 'control_response',
-            response: { subtype, request_id: requestId, ...(subtype === 'error' ? { error: 'scripted refusal' } : {}) },
-          }),
-        ),
-      )
-    }
-    return true
+  door(short: string): RunnerDoor | undefined {
+    const stand = this.stands.get(short)
+    return stand === undefined || stand.connection.closed ? undefined : stand.connection
   }
   kill(short: string): boolean {
     this.killed.push(short)
     this.present.delete(short)
+    this.stands.get(short)?.close('killed')
+    this.stands.delete(short)
     return true
   }
   patchSeatClaim(
@@ -125,7 +130,7 @@ console.log('\n── W3/W4/W11: the warm spawn ──')
   const spec = roster.registered[0]!.spec
   const argv = [...(spec.extraArgv ?? [])]
   check('W11 warm argv carries NO identity (--session-id/--resume/--title absent)', !argv.includes('--session-id') && !argv.includes('--resume') && !argv.includes('--title'))
-  check('W11 warm argv keeps the live tail (--partial); the ask wire is the door itself', argv.includes('--partial') && !argv.includes('--permission-channel'))
+  check('W11 the warm spec asks the live tail at initialize (partial rows); no argv names an ask wire — the door is the wire', spec.partialRows === true && !argv.includes('--partial') && !argv.some(word => word.startsWith('--permission')))
   check('W11 warm respawn argv re-warms identityless too', ![...(spec.respawnExtraArgv ?? [])].includes('--resume'))
   const cold = buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: '11111111-1111-4111-8111-111111111111', workspaceId: wsA, modelKey: spec.model, effort: 'high' })
   check('W11 the cold spec still pins --session-id (the warm arm changed nothing)', [...(cold.extraArgv ?? [])].includes('--session-id'))
@@ -149,18 +154,18 @@ console.log('\n── W1/W5/W8: claim-over-spawn ──')
   const rec = admitted.ok ? records[admitted.runnerId] : undefined
   check('W1 the record is an ordinary session record (workspace, model, effort, title)', rec !== undefined && rec.workspaceId === (admitted.ok ? admitted.workspaceId : '') && rec.effort === 'max' && rec.title === 'the first chat')
   check('W- the pool is empty after the claim', warm.warmRunnerCount() === 0)
-  const claimFrames = roster.controls.filter(c => c.frame.includes('claim_session'))
-  check('W5 exactly ONE claim control carried the whole identity', claimFrames.length === 1)
-  if (claimFrames.length === 1 && admitted.ok) {
-    const frame = JSON.parse(claimFrames[0]!.frame) as { request: Record<string, unknown> }
+  const claims = roster.claims
+  check('W5 exactly ONE session/claim request carried the whole identity', claims.length === 1)
+  if (claims.length === 1 && admitted.ok) {
+    const claim = claims[0]!.params
     check(
       'W5 the claim carries id + model + posture + effort',
-      frame.request.session_id === admitted.sessionId &&
-        typeof frame.request.model === 'string' &&
-        frame.request.permission_mode === 'flow' &&
-        frame.request.effort === 'max',
+      claim.session_id === admitted.sessionId &&
+        typeof claim.model === 'string' &&
+        claim.mode === 'flow' &&
+        claim.effort === 'max',
     )
-    check('W5 the record mints the model the claim applied', rec !== undefined && rec.modelKey === frame.request.model)
+    check('W5 the record mints the model the claim applied', rec !== undefined && rec.modelKey === claim.model)
   }
   check('W- the roster spec was patched to resume the claimed session', roster.patched.length === 1 && roster.patched[0]!.patch.respawnExtraArgv[0] === '--resume' && (admitted.ok ? roster.patched[0]!.patch.respawnExtraArgv[1] === admitted.sessionId : false))
   await new Promise(resolve => setTimeout(resolve, 25))
@@ -298,7 +303,7 @@ console.log('\n── W-bound: the seat reading ──')
 
 console.log('\n── W14: the settle reply on the tail ──')
 {
-  const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+  const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
   const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
   const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
   const tailDir = mkdtempSync(join(tmpdir(), 'warm-tail-'))
@@ -318,18 +323,18 @@ console.log('\n── W14: the settle reply on the tail ──')
       workspaceKind: 'plain-folder',
     } as never
   }, tailDir)
-  const seatRoster = { control: () => true, list: () => [], patchSeatModel: () => true }
-  const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+  const seatRoster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
+  const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
   const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
-  const outcome = (): string => row({ type: 'outcome', schema: 1, turn_id: 't-w14', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
-  onSeatLine('concourse-w7', row({ type: 'text', message_id: 'msg_w14a', block: 0, text: 'The settle reply paints at once.' }), seatRoster as never, tailDir)
+  const outcome = (): Record<string, unknown> => row({ type: 'outcome', schema: 1, turn_id: 't-w14', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+  onSeatRow('concourse-w7', row({ type: 'text', message_id: 'msg_w14a', block: 0, text: 'The settle reply paints at once.' }), seatRoster as never, tailDir)
   check('W14 the settle text reaches the tail projection at once', readSessionTail(sid, tailDir)?.text === 'The settle reply paints at once.')
-  onSeatLine('concourse-w7', outcome(), seatRoster as never, tailDir)
+  onSeatRow('concourse-w7', outcome(), seatRoster as never, tailDir)
   check('W14 the turn outcome clears the tail (the row owns the text)', readSessionTail(sid, tailDir)?.text === null)
-  onSeatLine('concourse-w7', row({ type: 'block_start', message_id: 'msg_w14b', block: 0, of: 'text' }), seatRoster as never, tailDir)
-  onSeatLine('concourse-w7', row({ type: 'text_delta', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
+  onSeatRow('concourse-w7', row({ type: 'block_start', message_id: 'msg_w14b', block: 0, of: 'text' }), seatRoster as never, tailDir)
+  onSeatRow('concourse-w7', row({ type: 'text_delta', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
   check('W14 a streamed delta rides the tail as before', readSessionTail(sid, tailDir)?.text === 'stream')
-  onSeatLine('concourse-w7', row({ type: 'text', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
+  onSeatRow('concourse-w7', row({ type: 'text', message_id: 'msg_w14b', block: 0, text: 'stream' }), seatRoster as never, tailDir)
   check('W14 a streamed turn\'s settled row never resurrects the cleared tail', readSessionTail(sid, tailDir)?.text === null)
 }
 
@@ -369,7 +374,7 @@ console.log('\n── W13: source pins ──')
   const sock = read('src/daemon/controlSocket.ts')
   check('W13 the client stamps auth on concourseWarm (the keyed tier)', /'concourseWarm',\s*\]\)/.test(sock) || /AUTH_STAMPED_OPS[\s\S]{0,4000}'concourseWarm'/.test(sock))
   const door = read('src/daemon/runnerConnection.ts')
-  check("W13 the daemon's door maps claim_session and set_effort to the runner's verbs", door.includes("claim_session: 'session/claim'") && door.includes("set_effort: 'session/set_effort'"))
+  check("W13 the daemon speaks the runner's verbs itself — the pool asks session/claim, the seat session/set_effort, and the door owns no subtype table", read('src/daemon/warmRunner.ts').includes("'session/claim'") && read('src/daemon/sessionSeat.ts').includes("'session/set_effort'") && !door.includes('claim_session'))
 }
 
 console.log('\n── W14: overlapping ensures, one child ──')
@@ -470,15 +475,15 @@ console.log('\n── WR: the restart reason travels to the resumed runner (item
   check('WR a spec with no reason carries no MERCURY_RUNNER_RESTART_REASON (no stray stamp)', (plainSpec.extraEnv as Record<string, string> | undefined)?.MERCURY_RUNNER_RESTART_REASON === undefined)
 
   warm.resetWarmRunnersForTesting()
-  roster.controls.length = 0
+  roster.claims.length = 0
   roster.answer = 'success'
   pinSeatCeiling(100)
   const wsR = canonicalWorkspaceId(mkdtempSync(join(tmpdir(), 'warm-ws-restart-')))
   const warmedR = await warm.ensureWarmRunner({ workspaceDir: wsR }, warmDeps)
   check('WR a runner warms for the reactivate claim', warmedR.state === 'warmed', warmedR.detail ?? '')
   const claimedR = await warm.claimWarmRunner({ workspaceId: wsR, sessionId: '22222222-2222-4222-8222-222222222222', modelKey: 'claude-opus-5', effort: 'high', permissionMode: 'flow', kit: deriveSessionKitForWorkspace(wsR), resume: true, restartReason: 'crash', answerDeadlineMs: 1_500 } as never, warmDeps)
-  const claimFrameR = roster.controls.map(c => c.frame).find(f => f.includes('claim_session'))
-  check('WR the warm claim lands and its claim_session control carries restart_reason', claimedR.claimed === true && claimFrameR !== undefined && (JSON.parse(claimFrameR!).request as { restart_reason?: string }).restart_reason === 'crash', claimFrameR ?? '(no claim frame)')
+  const claimR = roster.claims[0]?.params
+  check('WR the warm claim lands and its session/claim request carries restart_reason', claimedR.claimed === true && claimR !== undefined && claimR.restart_reason === 'crash', JSON.stringify(claimR ?? '(no claim)'))
 
   const rosterSrc = read('src/daemon/roster.ts')
   check('WR the roster stamps "crash" on the crash-respawn (MERCURY_RUNNER_RESTART_REASON on the respawn spec)', /crash-respawn'\)[\s\S]{0,220}flagPair\('MERCURY_RUNNER_RESTART_REASON', 'crash'\)/.test(rosterSrc))

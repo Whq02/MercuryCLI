@@ -2,23 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  bootRunner,
-  bound,
-  DIST,
-  NODE,
-  MODEL,
-  childEnv,
-  isSession,
-  isOutcome,
-  j,
-  makeTally,
-  removeWorld,
-  REPO,
-  SCRATCH_ROOT,
-  seedHome,
-  user,
-} from '../daemon/dupline-world.ts'
+import { bootRunner, bound, DIST, NODE, MODEL, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 import {
   answerText,
   answerTool,
@@ -163,7 +147,7 @@ if (import.meta.main) {
     const fixture = await startRereadFixture(notes, REREAD_ROUNDS, false)
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Write,Read'] })
-    runner.send(user(REREAD_ASK, '00000000-0000-4000-8000-000000000000'))
+    void runner.prompt(REREAD_ASK, '00000000-0000-4000-8000-000000000000')
     const init = await runner.waitFor('the session row', isSession, bound(90_000))
     const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
@@ -191,7 +175,7 @@ if (import.meta.main) {
     const fixture = await startCycleFixture(cwd)
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Bash,Grep'] })
-    runner.send(user(CYCLE_ASK, '00000000-0000-4000-8000-000000000002'))
+    void runner.prompt(CYCLE_ASK, '00000000-0000-4000-8000-000000000002')
     const init = await runner.waitFor('the session row', isSession, bound(90_000))
     const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))
@@ -221,7 +205,7 @@ if (import.meta.main) {
     const fixture = await startCycleFixture(cwd)
     const failedAtOpen = failed()
     const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Bash,Grep'] })
-    runner.send(user(CYCLE_ASK, '00000000-0000-4000-8000-000000000001'))
+    void runner.prompt(CYCLE_ASK, '00000000-0000-4000-8000-000000000001')
     const init = await runner.waitFor('the session row', isSession, bound(90_000))
     const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
     await runner.stop(bound(8_000))

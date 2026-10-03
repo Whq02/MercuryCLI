@@ -2,24 +2,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  bootRunner,
-  bound,
-  childEnv,
-  DIST,
-  exportWorld,
-  isOutcome,
-  isSession,
-  j,
-  makeTally,
-  removeWorld,
-  SCRATCH_ROOT,
-  seedHome,
-  sleep,
-  user,
-  type Frame,
-  type Runner,
-} from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, DIST, exportWorld, isOutcome, isSession, j, makeTally, removeWorld, SCRATCH_ROOT, seedHome, sleep, type Frame, type Runner } from '../daemon/dupline-world.ts'
+import { PeerDeadline } from '../../src/runner/wire/peer.ts'
 import {
   LEAD_ASK_HELD,
   LEAD_ASK_MATE,
@@ -55,7 +39,7 @@ async function openWorld(name: string): Promise<World> {
   delete env.MERCURY_DAEMON_PERMISSION_MODE
   delete env.MERCURY_SKIP_PERMISSIONS
   const runner = bootRunner({ cwd, env })
-  runner.send(user('hello there', U0))
+  void runner.prompt('hello there', U0)
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
@@ -74,19 +58,24 @@ async function closeWorld(w: World): Promise<void> {
   else console.log(`  [forensics] ${w.name} world kept: ${w.home}\n${w.runner.stderr().split('\n').slice(-12).join('\n')}`)
 }
 
-const answerTo = (id: string) => (f: Frame): boolean => f.type === 'control_response' && (f.response as { request_id?: string } | undefined)?.request_id === id
-const responseOf = (f: Frame | null): { subtype?: string; response?: Record<string, unknown>; error?: string } => (f?.response as { subtype?: string; response?: Record<string, unknown>; error?: string }) ?? {}
+type Answer = { subtype: 'success'; response: Record<string, unknown> } | { subtype: 'error'; error: string }
+const responseOf = (a: Answer | null): { subtype?: string; response?: Record<string, unknown>; error?: string } => a ?? {}
 
-async function control(w: World, request: Record<string, unknown>, timeoutMs: number): Promise<Frame | null> {
-  const id = `cs-${w.name}-${++w.seq}`
-  const before = w.runner.frames.length
-  w.runner.send({ type: 'control_request', request_id: id, request })
-  return w.runner.waitFor(`the answer to ${id}`, answerTo(id), timeoutMs, before)
+async function verb(w: World, method: 'agent/stop' | 'agent/resume', agentId: string, timeoutMs: number): Promise<Answer | null> {
+  w.seq += 1
+  return w.runner.request(method, { agent_id: agentId }, timeoutMs).then(
+    response => ({ subtype: 'success', response }) as Answer,
+    (error: unknown) => {
+      if (error instanceof PeerDeadline) return null
+      return { subtype: 'error', error: error instanceof Error ? error.message : String(error) } as Answer
+    },
+  )
 }
+const stopAgent = (w: World, agentId: string, timeoutMs: number): Promise<Answer | null> => verb(w, 'agent/stop', agentId, timeoutMs)
 
 async function facts(w: World): Promise<Row[]> {
-  const frame = await control(w, { subtype: 'session_facts' }, bound(15_000))
-  const work = responseOf(frame).response?.work
+  const answer = await w.runner.request('session/facts', {}, bound(15_000)).catch(() => ({}) as Record<string, unknown>)
+  const work = answer.work
   return Array.isArray(work) ? (work as Row[]) : []
 }
 
@@ -131,7 +120,7 @@ if (!existsSync(DIST)) {
   if (runs('mate')) {
     section('S1 the operator stops a named crewmate (the crew view\'s x x on its row): the runner ends it and says so')
     const w = await openWorld('mate')
-    w.runner.send(user(LEAD_ASK_MATE, U1))
+    void w.runner.prompt(LEAD_ASK_MATE, U1)
     const row = await waitRow(w, 'the crewmate row', r => r.kind === 'crewmate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
     check('S1 the crewmate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     if (row !== null) {
@@ -141,9 +130,9 @@ if (!existsSync(DIST)) {
       await sleep(1_000)
       const askedAtStop = hitsOf(w.fx, 'mate', 'mate-ack')
       const before = w.runner.frames.length
-      const reply = await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000))
+      const reply = await stopAgent(w, row.id, bound(15_000))
       const r = responseOf(reply)
-      check('S1 the runner answers the stop', reply !== null, 'no control_response within the bound')
+      check('S1 the runner answers the stop', reply !== null, 'no answer within the bound')
       const after = await facts(w)
       const same = after.find(x => x.id === row.id)
       const stillRunning = same !== undefined && same.status === 'running'
@@ -164,7 +153,7 @@ if (!existsSync(DIST)) {
     const w = await openWorld('sleeper')
     const stale = sleepPids()
     check('S2 no stray sleep child of this length runs on the box before the scene', stale.length === 0, j(stale))
-    w.runner.send(user(LEAD_ASK_SLEEPER, U2))
+    void w.runner.prompt(LEAD_ASK_SLEEPER, U2)
     const row = await waitRow(w, 'the sub-agent row', r => r.kind === 'agent' && r.name === SEAT_NAME && r.status === 'running', bound(60_000))
     check('S2 the sub-agent row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     const child = await waitSleepChild(true, bound(30_000))
@@ -172,9 +161,9 @@ if (!existsSync(DIST)) {
     if (row !== null) {
       const before = w.runner.frames.length
       const seatAcksBefore = hitsOf(w.fx, 'seat-ack')
-      const reply = await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000))
+      const reply = await stopAgent(w, row.id, bound(15_000))
       const r = responseOf(reply)
-      check('S2 the runner answers the stop', reply !== null, 'no control_response within the bound')
+      check('S2 the runner answers the stop', reply !== null, 'no answer within the bound')
       const gone = await waitSleepChild(false, bound(10_000))
       check('S2 the shell child is gone after the stop', gone.length === 0, j(gone))
       const settled = await waitRow(w, 'the settled row', x => x.id === row.id && x.status !== 'running', bound(8_000))
@@ -184,11 +173,11 @@ if (!existsSync(DIST)) {
       check('S2 the stop notice reaches the session\'s model with the reason', notice !== null && notice.status === 'stopped' && String(notice.summary ?? '').includes(STOP_WORDS), j(notice))
       await sleep(1_500)
       check('S2 the stopped seat never settled its turn with the model (no request after the stop)', hitsOf(w.fx, 'seat-ack') === seatAcksBefore, j(w.fx.hits.map(h => h.route)))
-      const afterStop = await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000))
+      const afterStop = await stopAgent(w, row.id, bound(15_000))
       const r2 = responseOf(afterStop)
       check('S3a a second stop of the settled row is refused with its status, never applied', r2.subtype === 'error' && /not running/.test(String(r2.error ?? '')), j(r2))
     }
-    const miss = await control(w, { subtype: 'stop_task', task_id: 'anope1234' }, bound(15_000))
+    const miss = await stopAgent(w, 'anope1234', bound(15_000))
     const rm = responseOf(miss)
     check('S3b a stop of an id the registry does not hold is refused with the words, never applied', rm.subtype === 'error' && /No task found with id anope1234|No running task with id anope1234/.test(String(rm.error ?? '')), j(rm))
     await closeWorld(w)
@@ -198,13 +187,13 @@ if (!existsSync(DIST)) {
     section('S4 the operator stops a sub-agent the chat\'s turn waits on: the seat ends, the turn goes on and settles')
     const w = await openWorld('held')
     const before = w.runner.frames.length
-    w.runner.send(user(LEAD_ASK_HELD, U3))
+    void w.runner.prompt(LEAD_ASK_HELD, U3)
     const row = await waitRow(w, 'the held sub-agent row', r => r.kind === 'agent' && r.name === SEAT_NAME && r.status === 'running', bound(60_000))
     check('S4 the held sub-agent row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     const child = await waitSleepChild(true, bound(30_000))
     check('S4 its shell child is alive before the stop', child.length > 0)
     if (row !== null) {
-      const reply = await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000))
+      const reply = await stopAgent(w, row.id, bound(15_000))
       const r = responseOf(reply)
       check('S4 the runner answers the stop', reply !== null && (r.subtype === 'success' || r.subtype === 'error'), j(r))
       const gone = await waitSleepChild(false, bound(10_000))
@@ -222,17 +211,17 @@ if (!existsSync(DIST)) {
   if (runs('resume')) {
     section('S5 the operator resumes a stopped named crewmate (the crew view\'s r on its row): the runner continues its transcript under a new row and says so')
     const w = await openWorld('resume')
-    w.runner.send(user(LEAD_ASK_MATE, U1))
+    void w.runner.prompt(LEAD_ASK_MATE, U1)
     const row = await waitRow(w, 'the crewmate row', r => r.kind === 'crewmate' && r.name === MATE_NAME && r.status === 'running', bound(60_000))
     check('S5 the crewmate row runs before the stop', row !== null, j(w.fx.hits.map(h => h.route)))
     if (row !== null) {
       const until = Date.now() + bound(20_000)
       while (hitsOf(w.fx, 'mate', 'mate-ack') === 0 && Date.now() < until) await sleep(200)
       const asksAtStop = hitsOf(w.fx, 'mate', 'mate-ack')
-      const stopped = responseOf(await control(w, { subtype: 'stop_task', task_id: row.id }, bound(15_000)))
+      const stopped = responseOf(await stopAgent(w, row.id, bound(15_000)))
       check('S5 the stop is applied', stopped.subtype === 'success', j(stopped))
       const before = w.runner.frames.length
-      const resumed = await control(w, { subtype: 'resume_task', task_id: row.id }, bound(30_000))
+      const resumed = await verb(w, 'agent/resume', row.id, bound(30_000))
       const rr = responseOf(resumed)
       check('S5 the runner answers the resume applied, naming a new row under the same agent id', rr.subtype === 'success' && typeof rr.response?.task_id === 'string' && rr.response.task_id !== row.id && rr.response.agent_id === (row as { agentId?: string }).agentId && String(rr.response.agent_id).startsWith(`${MATE_NAME}@`), j(rr))
       const again = await waitRow(w, 'the respawned crewmate row', x => x.kind === 'crewmate' && x.name === MATE_NAME && x.status === 'running' && x.id !== row.id, bound(30_000))

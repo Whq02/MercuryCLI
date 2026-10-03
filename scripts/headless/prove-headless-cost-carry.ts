@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, configKeyOf, isOutcome, makeTally, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, configKeyOf, isOutcome, makeTally } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-headless-cost-carry')
@@ -21,7 +21,7 @@ const port = Number(new URL(fixture.base).port)
 type Turn = { result: Record<string, unknown> | null; exitCode: number | null }
 async function runTurn(ask: string, extraArgv: string[] = []): Promise<Turn> {
   const runner = bootRunner({ cwd, env: childEnv(runHome, port), extraArgv })
-  runner.send(user(ask, randomUUID()))
+  void runner.prompt(ask, randomUUID())
   const result = await runner.waitFor('outcome', isOutcome, bound(90_000))
   await runner.stop(bound(5_000))
   return { result, exitCode: await runner.exited }

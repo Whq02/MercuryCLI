@@ -485,12 +485,8 @@ console.log('§M1 the burst cap has one truth')
   const refusedLast = outcomes[CAP]!
   check(`M1 the bridge accepts exactly the cap (${CAP}) and refuses the next TYPED at the source`, accepted === CAP && refusedLast.road === 'refused' && (refusedLast as { reason: string }).reason.includes(String(CAP)))
   const pending = bridge.takePendingScheduleEdits()
-  const frames: string[] = []
   const fixtureRoster = {
-    control: (_short: string, frame: string) => {
-      frames.push(frame)
-      return true
-    },
+    door: () => undefined,
     list: () => [{ short: 'concourse-m1', busy: false }],
     patchSeatModel: () => true,
     patchSeatEffort: () => true,
@@ -505,12 +501,7 @@ console.log('§M1 the burst cap has one truth')
     queue: [],
     pendingScheduleEdits: pending,
   }
-  seatMod.onSeatLine(
-    'concourse-m1',
-    JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: 'mercury-session-facts-concourse-m1-1', response: sessionFactsToWire(answer as never) } }),
-    fixtureRoster as never,
-    DAEMON_DIR,
-  )
+  seatMod.onFactsAnswer('concourse-m1', sessionFactsToWire(answer as never), fixtureRoster as never, DAEMON_DIR)
   const pausedCount = scheduleRows().filter(s => s.paused === true).length
   check(
     `M1 every bridge-ACCEPTED edit landed (${CAP} paused; none accepted-then-dropped)`,

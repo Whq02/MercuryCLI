@@ -2,20 +2,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { appendFileSync, existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  bootRunner,
-  bound,
-  childEnv,
-  isSession,
-  isOutcome,
-  j,
-  makeTally,
-  removeWorld,
-  REPO,
-  SCRATCH_ROOT,
-  seedHome,
-  user,
-} from '../daemon/dupline-world.ts'
+import { bootRunner, bound, childEnv, isSession, isOutcome, j, makeTally, removeWorld, REPO, SCRATCH_ROOT, seedHome } from '../daemon/dupline-world.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
@@ -202,7 +189,7 @@ if (import.meta.main) {
   const fixture = await startRereadFixture(notes)
   const failedAtOpen = failed()
   const runner = bootRunner({ cwd, env: childEnv(home, fixture.port), extraArgv: ['--allowed-tools', 'Write,Read'] })
-  runner.send(user(REREAD_ASK, '00000000-0000-4000-8000-000000000000'))
+  void runner.prompt(REREAD_ASK, '00000000-0000-4000-8000-000000000000')
   const init = await runner.waitFor('the init frame', isSession, bound(90_000))
   const result = await runner.waitFor('the turn result', isOutcome, bound(240_000))
   await runner.stop(bound(8_000))

@@ -5,7 +5,7 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'live-counter-home-'))
 
-const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 
@@ -33,12 +33,12 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 const { partialRowsOf, itemRowsOf, stepRow } = await import('../../src/rows/project.ts')
 const scope = { session_id: sid, turn: 1 }
-const stamp = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', ...o })
+const stamp = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', ...o })
 const feed = (lines: Array<Record<string, unknown>>): void => {
-  for (const line of lines) onSeatLine(SHORT, stamp(line), roster as never, dir)
+  for (const line of lines) onSeatRow(SHORT, stamp(line), roster as never, dir)
 }
 const ev = (messageId: string, event: Record<string, unknown>): void => feed(partialRowsOf(scope, messageId, event as never) as never)
 const tail = () => readSessionTail(sid, dir)

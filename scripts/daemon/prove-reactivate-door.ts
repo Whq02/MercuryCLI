@@ -19,6 +19,10 @@ enableConfigs()
 saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allowed: true, recommendedSeats: 8 } }))
 const sup = await import('../../src/daemon/concourseSupervisor.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
+const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+type StandInRunner = ReturnType<typeof standInRunner>
+type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
@@ -33,7 +37,8 @@ const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'ut
 
 class FakeRoster {
   registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
-  controls: Array<{ short: string; frame: string }> = []
+  stands = new Map<string, StandInRunner>()
+  claims: Array<{ short: string; params: Record<string, unknown> }> = []
   killed: string[] = []
   patched: Array<{ short: string; patch: { model: string; effort: string; respawnExtraArgv: readonly string[] } }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
@@ -50,28 +55,30 @@ class FakeRoster {
     if (this.refuseRegister) return { ok: false, error: 'scripted spawn refusal' }
     this.registered.push({ short, spec })
     this.present.set(short, { alive: true, ready: true })
+    const stand = standInRunner({
+      sessionId: null,
+      autoAnswer: {
+        'session/claim': (params: unknown) => {
+          const claim = params as Record<string, unknown>
+          this.claims.push({ short, params: claim })
+          if (this.answer === 'never') return LEAVE_PENDING
+          if (this.answer === 'error') throw new RpcError(RPC_REFUSED, 'scripted refusal', { kind: 'claim' })
+          return { session_id: String(claim.session_id) }
+        },
+      },
+    })
+    this.stands.set(short, stand)
     return { ok: true, pid: process.pid }
   }
-  control(short: string, frame: string): boolean {
-    this.controls.push({ short, frame })
-    const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string } }
-    if (this.answer !== 'never' && parsed.request?.subtype === 'claim_session' && typeof parsed.request_id === 'string') {
-      const requestId = parsed.request_id
-      const subtype = this.answer
-      queueMicrotask(() =>
-        warm.onWarmRunnerLine(
-          JSON.stringify({
-            type: 'control_response',
-            response: { subtype, request_id: requestId, ...(subtype === 'error' ? { error: 'scripted refusal' } : {}) },
-          }),
-        ),
-      )
-    }
-    return true
+  door(short: string): RunnerDoor | undefined {
+    const stand = this.stands.get(short)
+    return stand === undefined || stand.connection.closed ? undefined : stand.connection
   }
   kill(short: string): boolean {
     this.killed.push(short)
     this.present.delete(short)
+    this.stands.get(short)?.close('killed')
+    this.stands.delete(short)
     return true
   }
   patchSeatClaim(short: string, patch: { model: string; effort: string; respawnExtraArgv: readonly string[] }): StreamJsonChildSpec | null {
@@ -153,14 +160,14 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   check('R1 a warm runner stands for the workspace', warmed.state === 'warmed' && warmed.short !== undefined && warmed.short !== 'concourse-w1', JSON.stringify(warmed))
   const warmShort = warmed.short!
   const revisionBefore = revisionOf()
-  const controlsBefore = roster.controls.length
+  const claimsBefore = roster.claims.length
   const t0 = Date.now()
   const res = await admit({ workspaceDir: wsA, resumeSessionId: parkedSid })
   const felt = Date.now() - t0
   console.log(`  (the reactivate answered in ${felt}ms on the scripted claim — the receipt records the real daemon's number at the pool)`)
   check('R1 the resume is ADMITTED on the claimed short (no cold spawn)', res.ok && res.runnerId === warmShort && res.sessionId === parkedSid, JSON.stringify(res))
-  const claimFrame = roster.controls.slice(controlsBefore).map(c => JSON.parse(c.frame) as { request?: { subtype?: string; session_id?: string; resume?: boolean; model?: string } }).find(f => f.request?.subtype === 'claim_session')
-  check('R1 the claim frame carries the PARKED session id and `resume: true` (the runner loads the transcript)', claimFrame?.request?.session_id === parkedSid && claimFrame?.request?.resume === true && claimFrame?.request?.model === MODEL, JSON.stringify(claimFrame))
+  const claim = roster.claims.slice(claimsBefore)[0]?.params
+  check('R1 the session/claim request carries the PARKED session id and `resume: true` (the runner loads the transcript)', claim?.session_id === parkedSid && claim?.resume === true && claim?.model === MODEL, JSON.stringify(claim))
   const standing = recordsOf(parkedSid)
   const live = standing[0]
   check('R1 ONE record owns the session, keyed by the claimed short — the old short freed', standing.length === 1 && live?.runnerId === warmShort && sup.readSessionWorkers(dir)['concourse-w1'] === undefined, JSON.stringify(standing.map(r => r.runnerId)))
@@ -196,10 +203,10 @@ console.log('\n── R3: a live record is entered — nothing spawns, nothing c
   seedRecord({ runnerId: 'concourse-w4', sessionId: liveSid, workspaceId: wsId, pid: process.pid, lastDeliveryAt: now - 1000, lastTurnSettledAt: now - 5000, parkRequestedAt: now - 500, parkRequestedBy: 'operator:test' })
   roster.present.set('concourse-w4', { alive: true, ready: true })
   const registeredBefore = roster.registered.length
-  const controlsBefore = roster.controls.length
+  const claimsBefore = roster.claims.length
   const res = await admit({ workspaceDir: wsC, resumeSessionId: liveSid })
   check('R3 admitted on the live record (its own identity)', res.ok && res.runnerId === 'concourse-w4' && res.pid === process.pid, JSON.stringify(res))
-  check('R3 no spawn, no claim', roster.registered.length === registeredBefore && roster.controls.length === controlsBefore)
+  check('R3 no spawn, no claim', roster.registered.length === registeredBefore && roster.claims.length === claimsBefore)
   check('R3 a park requested mid-turn is WITHDRAWN (the operator came back before the turn settled)', recordsOf(liveSid)[0]?.parkRequestedAt === undefined && recordsOf(liveSid)[0]?.parkedAt === undefined)
 }
 

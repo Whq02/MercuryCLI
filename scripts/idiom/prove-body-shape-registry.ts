@@ -52,10 +52,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   invoked_skills: { good: { skills: [{ name: 'n', path: 'p', content: 'c' }] }, bad: [{ label: 'skills is text', field: 'skills', fields: { skills: 'n' } }] },
   relevant_memories: { good: { memories: [{ path: 'p', content: 'c', mtimeMs: 1 }] }, bad: [{ label: 'memories is null', field: 'memories', fields: { memories: null } }] },
   nested_memory: { good: { content: { path: 'p', content: 'c' } }, bad: [{ label: 'content is text', field: 'content', fields: { content: 'c' } }] },
-  selected_lines_in_ide: {
-    good: { ideName: 'x', lineStart: 1, lineEnd: 2, filename: 'f', content: 'text', displayPath: 'f' },
-    bad: [{ label: 'content is a list', field: 'content', fields: { ideName: 'x', lineStart: 1, lineEnd: 2, filename: 'f', content: ['t'], displayPath: 'f' } }],
-  },
   queued_command: {
     good: { prompt: 'hello' },
     bad: [
@@ -64,13 +60,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
     ],
   },
   crew_messages: {
-    good: { messages: [{ from: 'a', text: 't', timestamp: 'now' }] },
-    bad: [
-      { label: 'messages is text', field: 'messages', fields: { messages: 't' } },
-      { label: 'a message without its text', field: 'text', fields: { messages: [{ from: 'a' }] } },
-    ],
-  },
-  teammate_mailbox: {
     good: { messages: [{ from: 'a', text: 't', timestamp: 'now' }] },
     bad: [
       { label: 'messages is text', field: 'messages', fields: { messages: 't' } },
@@ -133,8 +122,6 @@ const ATTACHMENTS: Record<string, Fixture> = {
   edited_text_file: { good: { filename: 'a.ts', snippet: 's' }, bad: [{ label: 'snippet is missing', field: 'snippet', fields: { filename: 'a.ts' } }] },
   edited_image_file: { good: { filename: 'a.png', content: { type: 'image', file: { base64: '', type: 'image/png', originalSize: 1 } } }, bad: [{ label: 'content is text', field: 'content', fields: { filename: 'a.png', content: 'x' } }] },
   directory: { good: { path: 'd', content: '- a.ts', displayPath: 'd' }, bad: [{ label: 'content is a list', field: 'content', fields: { path: 'd', content: ['a.ts'], displayPath: 'd' } }] },
-  opened_file_in_ide: { good: { filename: 'a.ts' }, bad: [{ label: 'filename is a number', field: 'filename', fields: { filename: 5 } }] },
-  open_files_in_ide: { good: { filenames: ['a.ts', 'b.ts'] }, bad: [{ label: 'filenames is text', field: 'filenames', fields: { filenames: 'a.ts' } }] },
   contract_reminder: { good: { text: 't', status: 'draft', amendments: 0, ackOwed: true }, bad: [{ label: 'amendments is text', field: 'amendments', fields: { text: 't', status: 'draft', amendments: 'none', ackOwed: true } }] },
   dynamic_skill: { good: { skillDir: 'd', skillNames: ['s'], displayPath: 'd' }, bad: [{ label: 'skillNames is text', field: 'skillNames', fields: { skillDir: 'd', skillNames: 's', displayPath: 'd' } }] },
   skill_listing: {

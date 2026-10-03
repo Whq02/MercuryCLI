@@ -4,7 +4,7 @@ import { existsSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 import { createTurnDriver, type TurnDriverPorts } from '../../src/cli/headless/turnDriver.ts'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, user, sleep } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, removeWorld, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-turn-error-keeps-seat')
@@ -175,12 +175,12 @@ if (!existsSync(DIST)) {
   const runner = bootRunner({ cwd, env: childEnv(runHome, Number(new URL(fixture.base).port)) })
   runner.proc.stdin?.on('error', () => {})
 
-  const refused = await runner.door.send({ type: 'user', mode: 'bash', message: { role: 'user', content: [] }, uuid: randomUUID(), session_id: '' })
+  const refused = await runner.host.request('queue/add', { type: 'shell', command: '', id: randomUUID() }, bound(10_000)).then(() => null, (error: unknown) => (error instanceof Error ? error.message : String(error)))
   await sleep(300)
-  tally.check('a shell row with no command is refused at the door (queue/add answers invalid params), and no turn opens', refused === false && !runner.frames.some(isOutcome), runner.frames.map(labelOf).join(' · '))
+  tally.check('a shell row with no command is refused at the door (queue/add answers invalid params), and no turn opens', refused !== null && /invalid params|command/.test(refused) && !runner.frames.some(isOutcome), `${String(refused)} · ${runner.frames.map(labelOf).join(' · ')}`)
 
   const before = runner.frames.length
-  runner.send(user(NEXT_ASK, randomUUID()))
+  void runner.prompt(NEXT_ASK, randomUUID())
   const next = await Promise.race([
     runner.waitFor("the next message's outcome", f => isOutcome(f) && f.status === 'completed', bound(60_000), before),
     runner.exited.then(() => null),

@@ -6,6 +6,8 @@ import { createPeer, type Peer } from '../../src/runner/wire/peer.ts'
 import type { Capabilities, ElicitationRequestParams, InitializeResult, ParamsOf, PermissionRequestParams, ResultOf } from '../../src/runner/wire/methods.ts'
 import type { Frame } from './rows.ts'
 
+export type HostVerb = 'session/claim' | 'session/facts' | 'session/set_model' | 'session/set_effort' | 'session/set_mode' | 'session/set_spawn_switch' | 'session/set_kit' | 'session/rewind' | 'session/pause_gate' | 'session/quiesce' | 'queue/add' | 'queue/withdraw' | 'turn/interrupt' | 'agent/stop' | 'agent/resume' | 'shell/background' | 'schedule/roster'
+
 export type HostedRunner = {
   child: ChildProcess
   peer: Peer
@@ -16,7 +18,8 @@ export type HostedRunner = {
   stderr: () => string
   exited: Promise<number | null>
   initialize(capabilities?: Partial<Capabilities>, deadlineMs?: number): Promise<InitializeResult>
-  request<M extends 'session/claim' | 'session/facts' | 'session/set_model' | 'session/set_effort' | 'session/set_mode' | 'session/set_spawn_switch' | 'session/set_kit' | 'session/rewind' | 'session/pause_gate' | 'session/quiesce' | 'queue/add' | 'queue/withdraw' | 'turn/interrupt' | 'agent/stop' | 'agent/resume' | 'shell/background' | 'schedule/roster'>(method: M, params: ParamsOf<M>, deadlineMs?: number | null): Promise<ResultOf<M>>
+  request<M extends HostVerb>(method: M, params: ParamsOf<M>, deadlineMs?: number | null): Promise<ResultOf<M>>
+  send<M extends HostVerb>(method: M, params: ParamsOf<M>, deadlineMs?: number | null): { id: number; answer: Promise<ResultOf<M>> }
   prompt(content: string, extra?: Record<string, unknown>): Promise<ResultOf<'queue/add'>>
   waitFor(label: string, pred: (row: Frame) => boolean, timeoutMs?: number): Promise<Frame>
   waitForAsk(label: string, timeoutMs?: number): Promise<{ id: number; params: PermissionRequestParams }>
@@ -36,6 +39,8 @@ export type HostOptions = {
   env?: Record<string, string | undefined>
   argv?: string[]
   raw?: (line: string) => void
+  onRow?: (row: Frame) => void
+  onNotification?: (method: string, params: unknown) => void
 }
 
 export function scratchHome(prefix = 'runner-host-'): { home: string; cwd: string; env: Record<string, string> } {
@@ -83,13 +88,18 @@ export function hostRunner(opts: HostOptions): HostedRunner {
   peer.onNotification('row', params => {
     const row = params as Frame
     rows.push(row)
+    opts.onRow?.(row)
     for (let i = rowWaiters.length - 1; i >= 0; i--) {
       if (rowWaiters[i]!.pred(row)) rowWaiters.splice(i, 1)[0]!.resolve(row)
     }
   })
-  peer.onNotification('session/applied', params => notifications.push({ method: 'session/applied', params }))
-  peer.onNotification('elicitation/complete', params => notifications.push({ method: 'elicitation/complete', params }))
-  peer.onNotification('$/cancel_request', params => notifications.push({ method: '$/cancel_request', params }))
+  const noted = (method: string, params: unknown): void => {
+    notifications.push({ method, params })
+    opts.onNotification?.(method, params)
+  }
+  peer.onNotification('session/applied', params => noted('session/applied', params))
+  peer.onNotification('elicitation/complete', params => noted('elicitation/complete', params))
+  peer.onNotification('$/cancel_request', params => noted('$/cancel_request', params))
   peer.onRequest('permission/request', (params, ctx) => {
     const ask = { id: ctx.id, params }
     asks.push(ask)
@@ -124,6 +134,10 @@ export function hostRunner(opts: HostOptions): HostedRunner {
         { deadlineMs },
       ),
     request: (method, params, deadlineMs) => peer.request(method, params as never, deadlineMs === undefined ? {} : { deadlineMs }) as never,
+    send: (method, params, deadlineMs) => {
+      const sent = peer.send(method, params as never, deadlineMs === undefined ? {} : { deadlineMs })
+      return { id: Number(sent.id), answer: sent.answer as never }
+    },
     prompt: (content, extra = {}) => peer.request('queue/add', { type: 'prompt', content, ...extra } as never, { deadlineMs: 10_000 }),
     waitFor: (label, pred, timeoutMs = 60_000) =>
       new Promise<Frame>((resolve, reject) => {

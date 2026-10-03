@@ -563,7 +563,7 @@ function processCensus(home: string, rigPid = 0): { screens: number[]; daemons: 
         out.daemons.push(pid)
         continue
       }
-      if (cmd.includes(' -p ') && cmd.includes('--permission-channel')) {
+      if (/ runner( |$)/.test(cmd)) {
         const sid = /--(?:session-id|resume) ([0-9a-f-]{36})/.exec(cmd)
         out.runners.push({ pid, sessionId: sid?.[1] ?? '(claimless argv)' })
       }

@@ -3,7 +3,7 @@ import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'seat-agent-frames-home-')))
-const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { readSessionWorkers, updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 
@@ -36,45 +36,45 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 const published = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 60))
 const tail = () => readSessionTail(sid, dir)
 const activity = (): string => JSON.stringify(readSessionWorkers(dir)[SHORT]?.activity ?? null)
 let n = 0
-const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
-const settle = (text: string, parent?: string): string =>
+const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+const settle = (text: string, parent?: string): Record<string, unknown> =>
   row({ type: 'text', ...(parent !== undefined ? { parent_call_id: parent } : {}), message_id: `msg_${++n}`, block: 0, text })
 const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
 const result = row({ type: 'outcome', schema: 1, turn_id: 't-af', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
-const delta = (text: string): string => row({ type: 'text_delta', message_id: 'msg_stream', block: 0, text })
+const delta = (text: string): Record<string, unknown> => row({ type: 'text_delta', message_id: 'msg_stream', block: 0, text })
 
 section("§1 a background agent's tagged row on an idle seat paints nothing in the tail and stamps no activity")
 const idleActivity = activity()
-onSeatLine(SHORT, settle('the child finished after the handover', 'toolu_agent_1'), roster as never, dir)
+onSeatRow(SHORT, settle('the child finished after the handover', 'toolu_agent_1'), roster as never, dir)
 await published()
 check('the tail stays empty', (tail()?.text ?? null) === null && (tail()?.turnChars ?? 0) === 0, JSON.stringify(tail()))
 check('the activity record is untouched', activity() === idleActivity, `${idleActivity} → ${activity()}`)
 
 section("§2 control: the seat's own settle-class reply rides the tail and stamps activity, as today")
-onSeatLine(SHORT, settle('Settled whole.'), roster as never, dir)
+onSeatRow(SHORT, settle('Settled whole.'), roster as never, dir)
 await published()
 check('the tail carries the reply', tail()?.text === 'Settled whole.' && tail()?.turnChars === 'Settled whole.'.length, JSON.stringify(tail()))
 check('the activity record moved', activity() !== idleActivity, activity())
-onSeatLine(SHORT, result, roster as never, dir)
+onSeatRow(SHORT, result, roster as never, dir)
 check('the outcome clears the tail', (tail()?.text ?? null) === null, JSON.stringify(tail()))
 
 section("§3 a foreground helper's tagged row during a streaming turn leaves the tail and the activity as they were")
-onSeatLine(SHORT, row({ type: 'block_start', message_id: 'msg_stream', block: 0, of: 'text' }), roster as never, dir)
-onSeatLine(SHORT, delta('Hello, '), roster as never, dir)
+onSeatRow(SHORT, row({ type: 'block_start', message_id: 'msg_stream', block: 0, of: 'text' }), roster as never, dir)
+onSeatRow(SHORT, delta('Hello, '), roster as never, dir)
 await published()
 const streamedTail = JSON.stringify(tail())
 const streamedActivity = activity()
 await new Promise(resolve => setTimeout(resolve, 5))
-onSeatLine(SHORT, settle('a helper spoke', 'toolu_agent_2'), roster as never, dir)
+onSeatRow(SHORT, settle('a helper spoke', 'toolu_agent_2'), roster as never, dir)
 await published()
 check('the streamed tail stands unchanged, byte for byte', JSON.stringify(tail()) === streamedTail, `${streamedTail} → ${JSON.stringify(tail())}`)
 check('the activity record stands unchanged', activity() === streamedActivity, `${streamedActivity} → ${activity()}`)
-onSeatLine(SHORT, result, roster as never, dir)
+onSeatRow(SHORT, result, roster as never, dir)
 
 rmSync(dir, { recursive: true, force: true })
 rmSync(process.env.MERCURY_CONFIG_DIR, { recursive: true, force: true })

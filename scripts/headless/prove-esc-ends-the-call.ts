@@ -5,7 +5,7 @@ import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import http from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -194,7 +194,7 @@ if (!existsSync(DIST)) {
       }
     }
     try {
-      runner.send(user(PROBE, randomUUID()))
+      void runner.prompt(PROBE, randomUUID())
       const opened = await runner.waitFor("the open op's result", f => f.type === 'tool_result' && String(f.output ?? '').startsWith('open: '), bound(90_000))
       tally.check('the seat opened the probe page in a real browser', opened !== null, runner.frames.map(f => `${String(f.type)}${f.state ? ':' + String(f.state) : ''}`).join(' · ').slice(0, 300))
       const runnerPid = runner.proc.pid ?? 0
@@ -213,7 +213,7 @@ if (!existsSync(DIST)) {
       await sleep(1_000)
       const framesBefore = runner.frames.length
       const interruptedAt = Date.now()
-      runner.send({ type: 'control_request', request_id: `concourse-interrupt-${randomUUID().slice(0, 8)}`, request: { subtype: 'interrupt' } })
+      void runner.request('turn/interrupt', { op_id: `concourse-interrupt-${randomUUID().slice(0, 8)}` }).catch(() => undefined)
       const closeResult = await runner.waitFor("the close call's result", f => f.type === 'tool_result' && f.call_id === closeUseId, bound(8_000), framesBefore)
       const settledIn = Date.now() - interruptedAt
       const closeText = closeResult === null ? '' : String(closeResult.output ?? '')
@@ -226,7 +226,7 @@ if (!existsSync(DIST)) {
       const duplicates = runner.frames.filter(f => f.type === 'tool_result' && f.call_id === closeUseId).length
       tally.check('the late settle of the thawed close is never pushed as a second result', duplicates === 1, `${duplicates} result(s) for ${closeUseId}`)
       const before = runner.frames.length
-      runner.send(user(FOLLOW_UP, randomUUID()))
+      void runner.prompt(FOLLOW_UP, randomUUID())
       const follow = await runner.waitFor('the follow-up outcome', f => isOutcome(f) && fixture.requests.some(isFollowUp), bound(60_000), before)
       tally.check('the runner lives and answers the next message', follow !== null && follow.status === 'completed' && fixture.requests.some(isFollowUp), String(follow?.status))
       await runner.stop(bound(15_000))

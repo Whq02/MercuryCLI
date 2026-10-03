@@ -5,7 +5,8 @@ import { join } from 'node:path'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-work-poll-home-'))
 
-const { onSeatLine, SESSION_FACTS_REQUEST_PREFIX } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow, onFactsAnswer } = await import('../../src/daemon/sessionSeat.ts')
+const { standInRunner } = await import('../lib/seatDoor.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 
@@ -35,30 +36,23 @@ updateConcourseWorkers(workers => {
   } as never
 }, dir)
 
-const requests: string[] = []
-const roster = { control: (_short: string, frame: string) => { requests.push(frame); return true }, list: () => [], patchSeatModel: () => true }
-const feed = (line: string): void => onSeatLine(SHORT, line, roster as never, dir)
-const factsRequests = (): number => requests.filter(f => f.includes('"session_facts"')).length
-let seq = 0
-const answer = (work: unknown[]): string =>
-  JSON.stringify({
-    type: 'control_response',
-    response: {
-      subtype: 'success',
-      request_id: `${SESSION_FACTS_REQUEST_PREFIX}${SHORT}-${++seq}`,
-      response: sessionFactsToWire({
-        model: { effective: 'claude-opus-5' },
-        usage: { totalCostUSD: 0 },
-        skills: [],
-        mcp: [],
-        permissionMode: 'default',
-        workspace: { cwd: '/w', originalCwd: '/w', projectRoot: '/w', instructionRoots: [] },
-        queue: [],
-        work,
-        mission: [],
-      } as never),
-    },
-  })
+const stand = standInRunner()
+const roster = stand.roster()
+const feed = (row: Record<string, unknown>): void => onSeatRow(SHORT, row as never, roster as never, dir)
+const factsRequests = (): number => stand.requests.filter(r => r.method === 'session/facts').length
+const answer = (work: unknown[]): Record<string, unknown> =>
+  sessionFactsToWire({
+    model: { effective: 'claude-opus-5' },
+    usage: { totalCostUSD: 0 },
+    skills: [],
+    mcp: [],
+    permissionMode: 'default',
+    workspace: { cwd: '/w', originalCwd: '/w', projectRoot: '/w', instructionRoots: [] },
+    queue: [],
+    work,
+    mission: [],
+  } as never) as Record<string, unknown>
+const landed = (work: unknown[]): void => onFactsAnswer(SHORT, answer(work), roster as never, dir)
 const liveRow = { id: 'agent-live', kind: 'agent', name: 'scout', description: 'scout', status: 'running', startTime: Date.now() }
 const settledRow = { ...liveRow, status: 'completed', endTime: Date.now() }
 
@@ -66,7 +60,7 @@ console.log('the seat work poll — a settle reaches the facts even when an answ
 
 console.log('\nW1 an answer with live work arms the poll: a re-ask goes out within the cadence')
 {
-  feed(answer([liveRow]))
+  landed([liveRow])
   await settle(1300)
   check('one re-ask went out within 1.3 s of the answer', factsRequests() >= 1, `${factsRequests()} request(s)`)
 }
@@ -80,7 +74,7 @@ console.log('\nW2 NO answer comes back (the runner mid-fold): the cadence contin
 
 console.log('\nW3 an answer showing nothing live disarms the poll')
 {
-  feed(answer([settledRow]))
+  landed([settledRow])
   const at = factsRequests()
   await settle(1500)
   check('no re-ask after the roster settled', factsRequests() === at, `${factsRequests() - at} request(s) after the settle`)
@@ -89,10 +83,11 @@ console.log('\nW3 an answer showing nothing live disarms the poll')
 console.log("\nW4 the settle's own task row re-asks at once (the row road)")
 {
   const at = factsRequests()
-  feed(JSON.stringify({ type: 'task', seq: 1, timestamp: 't', session_id: 'work-poll', state: 'ended', task_id: 'agent-live', status: 'completed', summary: 'scout', output_file: '' }))
+  feed({ type: 'task', seq: 1, timestamp: 't', session_id: 'work-poll', state: 'ended', task_id: 'agent-live', status: 'completed', summary: 'scout', output_file: '' })
   await settle(400)
   check('an ended task row re-asked the facts', factsRequests() > at, `${factsRequests() - at} request(s)`)
 }
 
 console.log(failures === 0 ? '\n✅ the seat work poll holds' : `\n❌ ${failures} failure(s)`)
+stand.close()
 process.exit(failures === 0 ? 0 : 1)

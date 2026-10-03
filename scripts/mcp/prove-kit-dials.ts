@@ -144,7 +144,7 @@ section('§H the write re-point')
   const src = read('src/cli/print.ts')
   t('H1 print.ts carries no setMcpServerEnabled CALL (the disease is gone from the child)', !src.includes('setMcpServerEnabled(') && !/import[^\n]*setMcpServerEnabled/.test(src))
   t('H1b the kit_edit arm exists and rides the serialized MCP mutation lane', /'session\/set_kit': params =>/.test(src) && /'session\/set_kit': params =>[\s\S]{0,2400}serializeMcpChange/.test(src))
-  t('H1c the toggle arm dials the PROCESS KIT through the one edit road', /case 'mcp_toggle':[\s\S]{0,1800}applyProcessSessionKitEdit/.test(src))
+  t('H1c the toggle road dials the PROCESS KIT through the one edit road (the registry port, no child arm of its own)', /setEnabledOnDisk: \(name, enabled\) => \{\s*applyProcessSessionKitEdit\(/.test(read('src/services/mcp/registry/livePorts.ts')) && !src.includes('mcp_toggle'))
   t('H1d the reconcile clears the command memos (the per-cwd model-list memo included)', /'session\/set_kit': params =>[\s\S]{0,6200}clearCommandMemoizationCaches\(\)/.test(src))
   t('H1e the completion replay is guarded to the unresolved arm only', /sessionKitOf\(\)\?\.resolved === false/.test(src))
 }
@@ -186,49 +186,47 @@ section('§C the seat dial: idle forwards whole, busy parks honest, the beat dra
   }, DAEMON_DIR)
   let busy = false
   let channelUp = true
-  const frames: Array<{ short: string; frame: unknown }> = []
+  const { standInRunner } = await import('../lib/seatDoor.ts')
+  const stand = standInRunner({ autoAnswer: { 'session/facts': {}, 'session/set_kit': {} } })
   const roster = {
-    control: (short: string, frame: string): boolean => {
-      if (!channelUp) return false
-      frames.push({ short, frame: JSON.parse(frame) })
-      return true
-    },
-    list: () => [{ short: 'w-dial', busy }],
-    patchSeatModel: () => true,
-    patchSeatEffort: () => true,
+    ...stand.roster({ list: () => [{ short: 'w-dial', busy }] }),
+    door: () => (channelUp ? stand.connection : undefined),
   }
-  const kitFrames = (): Array<{ kit: unknown }> =>
-    frames
-      .map(f => (f.frame as { request?: { subtype?: string; kit?: unknown } }).request)
-      .filter((r): r is { subtype: string; kit: unknown } => r?.subtype === 'kit_edit')
+  const tick = (): Promise<void> => new Promise(r => setTimeout(r, 30))
+  const kitFrames = (): Array<{ kit: unknown }> => stand.requests.filter(r => r.method === 'session/set_kit').map(r => r.params as { kit: unknown })
   const recOf = (): { kit?: { mcp: string[]; resolved?: false; deltas?: { mcpOff: string[] } }; pendingKitEdits?: unknown[] } =>
     readSessionWorkers(DAEMON_DIR)['w-dial'] as never
 
   const c1 = seat.setSessionKitDial(SID, { mcp: [{ name: 'beta', on: false }] }, 'operator', roster as never, DAEMON_DIR)
+  await tick()
   t('C1a idle dial applies through the one writer', c1.outcome === 'applied' && deepEq(recOf().kit?.mcp, ['alpha']))
-  t('C1b ONE kit_edit forward, the record kit in the feed\'s spelling', kitFrames().length === 1 && deepEq(kitFrames()[0]!.kit, sessionKitToWire(recOf().kit as never)))
+  t('C1b ONE session/set_kit forward, the record kit in the wire\'s spelling', kitFrames().length === 1 && deepEq(kitFrames()[0]!.kit, sessionKitToWire(recOf().kit as never)))
   const framesBefore = kitFrames().length
   const c2 = seat.setSessionKitDial(SID, { mcp: [{ name: 'beta', on: false }] }, 'operator', roster as never, DAEMON_DIR)
+  await tick()
   t('C2 an identity dial answers noop and forwards nothing', c2.outcome === 'noop' && kitFrames().length === framesBefore)
   busy = true
   const c3 = seat.setSessionKitDial(SID, { mcp: [{ name: 'alpha', on: false }] }, 'agent-a', roster as never, DAEMON_DIR)
+  await tick()
   t('C3a a mid-turn dial queues with the honest line', c3.outcome === 'queued' && c3.detail === seat.KIT_DIAL_QUEUED_DETAIL)
   t('C3b the park is whole: record kit unmoved, the edit parked with its asker, no forward', deepEq(recOf().kit?.mcp, ['alpha']) && recOf().pendingKitEdits?.length === 1 && deepEq((recOf().pendingKitEdits![0] as { by: string }).by, 'agent-a') && kitFrames().length === framesBefore)
   busy = false
   seat.onSeatIdle('w-dial', roster as never, DAEMON_DIR)
+  await tick()
   t('C4 the idle edge applies the parked dial and forwards once', deepEq(recOf().kit?.mcp, []) && recOf().pendingKitEdits === undefined && kitFrames().length === framesBefore + 1 && deepEq(kitFrames().at(-1)!.kit, recOf().kit))
   busy = true
   seat.setSessionKitDial(SID, { skills: [{ name: 'ns:deploy', state: 'invocable' }] }, 'operator', roster as never, DAEMON_DIR)
   busy = false
   const beforeSpawnFrames = kitFrames().length
   seat.onSeatSpawned('w-dial', roster as never, DAEMON_DIR)
+  await tick()
   const recAfterSpawn = readSessionWorkers(DAEMON_DIR)['w-dial'] as { kit?: { invocable: string[] } ; pendingKitEdits?: unknown[] }
   t('C5 the seat respawn drains the parked dials and forwards', deepEq(recAfterSpawn.kit?.invocable, ['ns:deploy']) && recAfterSpawn.pendingKitEdits === undefined && kitFrames().length === beforeSpawnFrames + 1)
   const c6 = seat.setSessionKitDial('00000000-0000-4000-8000-000000000000', { mcp: [{ name: 'x', on: true }] }, 'operator', roster as never, DAEMON_DIR)
   t('C6 unknown session refuses typed', c6.outcome === 'refused' && /unknown-session/.test(c6.detail ?? ''))
   channelUp = false
   const c7 = seat.setSessionKitDial(SID, { mcp: [{ name: 'alpha', on: true }] }, 'operator', roster as never, DAEMON_DIR)
-  t('C7 no live channel: applied on the record, the detail names the deferred live half', c7.outcome === 'applied' && /no live control channel/.test(c7.detail ?? '') && deepEq(recOf().kit?.mcp, ['alpha']))
+  t('C7 no live door: applied on the record, the detail names the deferred live half', c7.outcome === 'applied' && /no live runner door/.test(c7.detail ?? '') && deepEq(recOf().kit?.mcp, ['alpha']))
   channelUp = true
   const rows = readSessionReceipts(getProjectDir(PROJECT), SID).filter(r => r.kind === 'kit-dial')
   t('C8 the sidecar carries the kit-dial rows with the asker and the dial words', rows.length >= 3 && rows.some(r => r.by === 'agent-a') && rows.every(r => typeof (r.details as { dials?: unknown } | undefined)?.dials === 'string'))
@@ -368,7 +366,7 @@ section('§D a dial never writes config/menu/sibling; a menu edit never reaches 
     const all = homeSnapshot()
     return Object.fromEntries(Object.entries(all).filter(([p]) => !p.includes('projects')))
   }
-  const roster = { control: () => true, list: () => [{ short: 'w-dial', busy: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
+  const roster = { door: () => undefined, list: () => [{ short: 'w-dial', busy: false }], patchSeatModel: () => true, patchSeatEffort: () => true }
   const sibBefore = JSON.stringify((readSessionWorkers(DAEMON_DIR)['w-pre'] as { kit?: unknown }).kit)
   const cfgBefore = configShot()
   const d1 = seat.setSessionKitDial(SID, { mcp: [{ name: 'isoprobe', on: true }] }, 'operator', roster as never, DAEMON_DIR)

@@ -16,7 +16,7 @@ const child = Object.assign(new EventEmitter(), {
   stderr: new PassThrough(),
 })
 const childModule = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnStreamJsonChild: () => ({ child }) }))
+mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnStreamJsonChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -29,15 +29,15 @@ function check(name: string, pass: boolean): void {
 try {
   const roster = new TaskRoster({ dir: scratch, breaker: {} as never, maxInflight: 3 })
   check('the fixture registers a live worker', roster.registerLongLived('worker', { cwd: scratch, model: 'fixture-model', effort: 'high', role: 'MERCURY_CONCOURSE_WORKER', agentId: 'fixture' } as never).ok)
-  check('live control is delivered', roster.control('worker', '{"type":"control_request"}'))
+  check('a live worker has a runner door', roster.door('worker') !== undefined)
   let escaped = false
   try { child.stdin.emit('error', Object.assign(new Error('write EPIPE'), { code: 'EPIPE' })) } catch { escaped = true }
   check('asynchronous stdin failure cannot escape and stop the daemon', !escaped)
   const handle = (roster as any).handles.get('worker')
   handle.entry.state = 'retiring'
   const buffered = child.stdin.readableLength
-  check('retiring workers refuse control', !roster.control('worker', '{"type":"control_request"}'))
-  check('retiring workers refuse messages', !await roster.reply('worker', 'new work'))
+  check('retiring workers have no door', roster.door('worker') === undefined)
+  check('retiring workers refuse deliveries', !await roster.reply('worker', { type: 'prompt', content: 'new work' }))
   check('retiring refusal writes no bytes', child.stdin.readableLength === buffered)
   handle.longLived.intentionalStop = true
   child.emit('exit', 0, null)

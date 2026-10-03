@@ -59,6 +59,8 @@ mock.module('../../src/daemon/headlessRun.ts', () => ({
 }))
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
 const supervisor = await import('../../src/daemon/longLivedSupervisor.ts')
+const { parseRow } = await import('../../src/rows/read.ts')
+const rowLine = (row: unknown): string => `${JSON.stringify({ jsonrpc: '2.0', method: 'row', params: row })}\n`
 const concourse = await import('../../src/daemon/concourseSupervisor.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -185,7 +187,7 @@ tally.section('§1 the outcome row names its error: the message first, then its 
     text(outcome('failed')) === 'the turn ended failed' && text(outcome('failed', { message: '', class: 'internal', detail: [] })) === 'the turn ended failed' && text(outcome('interrupted', { message: ' ', class: 'interrupt', detail: ['', ' '] })) === 'the turn ended interrupted',
   )
   tally.check('a completed outcome and a non-outcome row carry no error text', text(outcome('completed', undefined, { answer: 'done' })) === undefined && text({ type: 'text', text: 'hi' }) === undefined && text(null) === undefined)
-  tally.check('the line reader agrees', text(supervisor.parseRunnerLine(JSON.stringify(envelope))) === ENVELOPE_TEXT, String(text(supervisor.parseRunnerLine(JSON.stringify(envelope)))))
+  tally.check('the line reader agrees', text(parseRow(JSON.stringify(envelope))) === ENVELOPE_TEXT, String(text(parseRow(JSON.stringify(envelope)))))
 }
 
 tally.section('§2 the stderr tail: the last 4 KB, and its last non-empty line')
@@ -214,7 +216,7 @@ tally.section("§3 a runner that refuses and exits: the crash row names the erro
 {
   const short = 'concourse-w9001'
   const child = await seatOnFake(short)
-  child.stdout.write(`${JSON.stringify(envelope)}\n`)
+  child.stdout.write(rowLine(envelope))
   await sleep(20)
   exitAndClose(short, child)
   const row = await crashRowOf(short)
@@ -228,7 +230,7 @@ tally.section('§4 a runner older than the healthy-reset window: the reset no lo
 {
   const short = 'concourse-w9002'
   const child = await seatOnFake(short, { healthyResetMs: 1 })
-  child.stdout.write(`${JSON.stringify(outcome('failed', { message: 'API Error: 500 the fixture upstream failed', class: 'model' }))}\n`)
+  child.stdout.write(rowLine(outcome('failed', { message: 'API Error: 500 the fixture upstream failed', class: 'model' })))
   await sleep(20)
   exitAndClose(short, child)
   const row = await crashRowOf(short)
@@ -240,8 +242,8 @@ tally.section('§5 an error a later turn recovered from is not blamed for the cr
 {
   const short = 'concourse-w9003'
   const child = await seatOnFake(short)
-  child.stdout.write(`${JSON.stringify(outcome('failed', { message: 'API Error: 529 the fixture was overloaded', class: 'model' }))}\n`)
-  child.stdout.write(`${JSON.stringify(outcome('completed', undefined, { answer: 'done' }))}\n`)
+  child.stdout.write(rowLine(outcome('failed', { message: 'API Error: 529 the fixture was overloaded', class: 'model' })))
+  child.stdout.write(rowLine(outcome('completed', undefined, { answer: 'done' })))
   await sleep(20)
   exitAndClose(short, child)
   const row = await crashRowOf(short)
@@ -253,7 +255,7 @@ tally.section("§6 the row waits for the child's streams: what is read between '
   const short = 'concourse-w9004'
   const child = await seatOnFake(short)
   child.emit('exit', 1, null)
-  child.stdout.write(`${JSON.stringify(envelope)}\n`)
+  child.stdout.write(rowLine(envelope))
   child.stderr.write('Error: written as the process ended\n')
   await sleep(20)
   child.emit('close', 1, null)
@@ -264,7 +266,7 @@ tally.section("§6 the row waits for the child's streams: what is read between '
 {
   const short = 'concourse-w9005'
   const child = await seatOnFake(short)
-  child.stdout.write(`${JSON.stringify(envelope)}\n`)
+  child.stdout.write(rowLine(envelope))
   await sleep(20)
   const exitAt = Date.now()
   child.emit('exit', 1, null)

@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpath
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const distAt = process.argv.indexOf('--dist')
@@ -120,28 +120,37 @@ async function runSeat(tag: string, extraArgs: string[], channel: boolean, scrip
   let stderr = ''
   const asks: string[] = []
   let sawResult = false
-  const onLine = (line: string): void => {
-    stdout += `${line}\n`
-    const frame = parseFrame(line)
-    if (frame === null) return
-    if (frame.type === 'control_request') {
-      const request = frame.request as Record<string, unknown>
-      if (request.subtype === 'can_use_tool') {
-        asks.push(String(request.tool_name))
-        door?.send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: { behavior: 'allow', updated_input: request.input } } })
-      }
-    }
-    if (frame.type === 'outcome' && !sawResult) {
-      sawResult = true
-      child.stdin!.end()
-    }
-  }
-  const door = channel ? spawnRunnerDoor({ node: NODE, argv: [DIST, 'runner', '--model', MODEL, ...extraArgs], cwd: world.cwd, env: world.env, onLine }) : null
-  const child = door?.child ?? spawn(NODE, [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
+  const host = channel
+    ? hostRunner({
+        node: NODE,
+        dist: DIST,
+        argv: ['--model', MODEL, ...extraArgs],
+        cwd: world.cwd,
+        env: world.env as Record<string, string | undefined>,
+        home: world.configDir,
+        raw: text => {
+          stdout += text
+        },
+        onRow: frame => {
+          if (frame.type === 'outcome' && !sawResult) {
+            sawResult = true
+            host!.end()
+          }
+        },
+      })
+    : null
+  host?.onAsk(params => {
+    asks.push(params.kind === 'tool' ? params.tool_name : 'SandboxNetworkAccess')
+    return params.kind === 'tool' ? { outcome: 'allow', input: params.input } : { outcome: 'allow' }
+  })
+  const child = host?.child ?? spawn(NODE, [DIST, 'run', `probe refuse-list ${tag}`, '--model', MODEL, ...extraArgs], { cwd: world.cwd, env: world.env })
   const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  if (door === null) child.stdout!.on('data', chunk => (stdout += chunk))
+  if (host === null) child.stdout!.on('data', chunk => (stdout += chunk))
   child.stderr!.on('data', chunk => (stderr += chunk))
-  door?.send({ type: 'user', message: { role: 'user', content: `probe refuse-list ${tag}` } })
+  if (host !== null) {
+    void host.initialize().catch(() => undefined)
+    void host.prompt(`probe refuse-list ${tag}`).catch(() => undefined)
+  }
   const code = await new Promise<number | null>(resolveRun => child.on('close', value => { clearTimeout(killer); resolveRun(value) }))
   const ms = Date.now() - started
   const results = toolResults(fixture.messageRequests())
@@ -188,10 +197,10 @@ section('§1 the wards road with Bash pre-approved: a permission grant lifts not
 const granted = await runSeat('granted', ['--allowed-tools', 'Bash'], false)
 pinRefusals(granted, '§1')
 
-section('§2 the wards road over the stream-json permission channel: the client is never asked about either call')
+section('§2 the wards road over the runner door: the host is never asked about either call')
 const channel = await runSeat('channel', [], true)
 pinRefusals(channel, '§2')
-check('§2: zero can_use_tool asks reached the client for the two refused calls', channel.asks.filter(name => name === 'Bash').length === 0, channel.asks.join(','))
+check('§2: zero permission/request asks reached the host for the two refused calls', channel.asks.filter(name => name === 'Bash').length === 0, channel.asks.join(','))
 
 section('§3 MERCURY_WARDS=warn on a print seat with debug off: a benign line that trips a refuse-list pattern runs, and the warn hit is one warning row on the session record')
 const warned = await runSeat('warn', ['--allowed-tools', 'Bash'], false, warnTurns, { MERCURY_WARDS: 'warn' })

@@ -1,33 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  AGENT_TURN_ASK,
-  bootRunner,
-  bound,
-  briefly,
-  carrying,
-  childEnv,
-  describeRequests,
-  DIST,
-  exportWorld,
-  inMainFile,
-  isDrainedMainRow,
-  isSession,
-  isOutcome,
-  j,
-  LINE,
-  makeTally,
-  removeWorld,
-  REPO,
-  requestsOf,
-  SCRATCH_ROOT,
-  seedHome,
-  settledCarriers,
-  startFixture,
-  user,
-  waitWire,
-} from './dupline-world.ts'
+import { AGENT_TURN_ASK, bootRunner, bound, briefly, carrying, childEnv, describeRequests, DIST, exportWorld, inMainFile, isDrainedMainRow, isSession, isOutcome, j, LINE, makeTally, removeWorld, REPO, requestsOf, SCRATCH_ROOT, seedHome, settledCarriers, startFixture, waitWire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-agent-drain')
 
@@ -54,19 +28,19 @@ if (!existsSync(DIST)) {
   const UT = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
   const U1 = '11111111-1111-4111-8111-111111111111'
 
-  runner.send(user('hello there', U0))
+  void runner.prompt('hello there', U0)
   const init = await runner.waitFor('the session row', isSession, bound(40_000))
   const first = await runner.waitFor('the first turn', isOutcome, bound(40_000))
   check('the runner is up and the first turn answered', init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
   const sessionId = String(init?.session_id ?? '')
   const beforeAgent = runner.frames.length
-  runner.send(user(AGENT_TURN_ASK, UT))
+  void runner.prompt(AGENT_TURN_ASK, UT)
   const mainOpen = await waitWire(fx.wire, "the main thread's opening request", w => w.kind === 'request' && w.arm === 'agent' && w.step === 0, bound(30_000))
   check("the session's model was asked and answered with the Agent tool", mainOpen !== null)
   const subOpen = await waitWire(fx.wire, "the sub-agent's first request", w => w.kind === 'request' && w.arm === 'subwork' && w.step === 0, bound(40_000))
   check('the sub-agent opened its own conversation (its tool runs for ten seconds)', subOpen !== null)
   const T1 = new Date().toISOString()
-  runner.send(user(LINE, U1, T1))
+  void runner.prompt(LINE, U1, T1)
   const agentResult = await runner.waitFor("the agent turn's result", isOutcome, bound(90_000), beforeAgent)
   check("the turn ended with the session's own final text", agentResult !== null && String(agentResult.answer ?? '').startsWith(`done: ${AGENT_TURN_ASK}`), j(agentResult?.answer))
   const requests = requestsOf(fx.wire)

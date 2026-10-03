@@ -1,10 +1,10 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, NODE, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, NODE, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedFixture, type ScriptedRequest, type WireBlock } from '../lib/scriptedTurn.ts'
 
-export { DIST, NODE, SCRATCH_ROOT, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture, user }
+export { DIST, NODE, SCRATCH_ROOT, bound, childEnv, isOutcome, makeTally, seedScratchHome, sleep, startScriptedFixture }
 export type { Script, ScriptedFixture, ScriptedRequest, WireBlock }
 
 export type Turn = { result: Record<string, unknown> | null; stderr: string; exitCode: number | null; frames: unknown[] }
@@ -50,7 +50,7 @@ export async function runTurn(args: {
     env: { ...childEnv(args.runHome, port), ...(args.extraEnv ?? {}) },
     ...(args.extraArgv ? { extraArgv: args.extraArgv } : {}),
   })
-  runner.send(user(args.ask, randomUUID()))
+  void runner.prompt(args.ask, randomUUID())
   const result = await runner.waitFor('outcome', isOutcome, bound(args.timeoutMs ?? 90_000))
   await runner.stop(bound(5_000))
   return { result: result as Record<string, unknown> | null, stderr: runner.stderr(), exitCode: await runner.exited, frames: runner.frames }

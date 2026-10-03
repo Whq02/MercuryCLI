@@ -5,7 +5,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { runTurns } from '../lib/rows.ts'
+import { runTurns, type TurnRequest } from '../lib/rows.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sent-prefix-pure-'))
@@ -487,8 +487,8 @@ if (!existsSync(DIST)) {
         })
       })
     }
-    function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; controls?: Record<string, unknown>[] }>): Promise<RunResult> {
-      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, ...(t.before ? { before: t.before } : {}), controls: (t.controls ?? []).map(request => ({ request })) })) })
+    function runStreaming(arena: Arena, args: string[], turns: Array<{ prompt: string; before?: () => void; requests?: TurnRequest[] }>): Promise<RunResult> {
+      return runTurns({ node: nodeBin!, dist: DIST, args, cwd: arena.cwd, env: arena.env, timeoutMs: 90_000, turns: turns.map(t => ({ prompt: t.prompt, ...(t.before ? { before: t.before } : {}), requests: t.requests ?? [] })) })
     }
     type Body = { system?: unknown; tools?: unknown; messages?: unknown[]; model?: string; thinking?: { block_binding?: { prefix_mismatch_behavior?: string } } }
 
@@ -568,7 +568,7 @@ if (!existsSync(DIST)) {
       }
       return notices
     }
-    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read', '--format', 'rows']
+    const common = ['--model', 'claude-opus-4-8', '--allowed-tools', 'Read']
 
     section('mixed streaming and one-shot entry modes keep saved tool definitions')
     {
@@ -581,10 +581,10 @@ if (!existsSync(DIST)) {
       try {
         const arena = makeArena(fixture)
         const sid = 'c0ffee00-0000-4000-8000-00000000c112'
-        const args = ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
-        const first = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--session-id', sid], [{ prompt: 'Begin without tools.' }])
+        const args = ['--model', model, '--allowed-tools', 'Read']
+        const first = await runStreaming(arena, [...args, '--session-id', sid], [{ prompt: 'Begin without tools.' }])
         const resumed = await run(arena, ['run', 'Continue without tools.', ...args, '--resume', sid])
-        const returned = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
+        const returned = await runStreaming(arena, [...args, '--resume', sid], [{ prompt: 'Continue once more without tools.' }])
         check('all three entry-mode transitions settle successfully', first.exit === 0 && first.stdout.includes('MIXED-FIRST') && resumed.exit === 0 && resumed.stdout.includes('MIXED-RESUMED') && returned.exit === 0 && returned.stdout.includes('MIXED-RETURNED'), [first.stderr, resumed.stderr, returned.stderr].join('\n').slice(-600))
         const requests = fixture.messageRequests()
         check('every transition makes its expected request', requests.length === 3, String(requests.length))
@@ -618,25 +618,25 @@ if (!existsSync(DIST)) {
           ;(turns[i] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: file }
         }
         const sid = 'c0ffee00-0000-4000-8000-00000000c108'
-        const args = ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
-        const live = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--session-id', sid], [
+        const args = ['--model', model, '--allowed-tools', 'Read']
+        const live = await runStreaming(arena, [...args, '--session-id', sid], [
           { prompt: 'Read each file in order: ' + files.join(', ') },
           { prompt: 'Continue without tools.' },
           { prompt: 'Continue once more without tools.' },
         ])
         check('§11 the live conversation settles all three turns', live.exit === 0 && ['PRUNE-READY', 'PRUNE-APPLIED', 'PRUNE-NEXT'].every(text => live.stdout.includes(text)), live.stderr.slice(-300))
-        const resumed = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
+        const resumed = await runStreaming(arena, [...args, '--resume', sid], [{ prompt: 'Continue without tools.' }])
         check('§11 a new process resumes the cleared conversation', resumed.exit === 0 && resumed.stdout.includes('PRUNE-RESUMED'), resumed.stderr.slice(-300))
-        const forked = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', sid, '--fork'], [{ prompt: 'Fork and continue without tools.' }])
+        const forked = await runStreaming(arena, [...args, '--resume', sid, '--fork'], [{ prompt: 'Fork and continue without tools.' }])
         const envelopes = forked.stdout.split('\n').filter(line => line.startsWith('{')).flatMap(line => {
           try { return [JSON.parse(line)] } catch { return [] }
         })
         const forkId = envelopes.find(row => row.type === 'outcome')?.session_id
         check('§11 the fork keeps its own persistent identity', forked.exit === 0 && typeof forkId === 'string' && forkId !== sid && forked.stdout.includes('PRUNE-FORKED'), forked.stderr.slice(-300))
         if (typeof forkId === 'string' && forkId !== sid) {
-          const again = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
+          const again = await runStreaming(arena, [...args, '--resume', forkId], [{ prompt: 'Resume the fork without tools.' }])
           check('§11 the fork persists inherited replacements for its next resume', again.exit === 0 && again.stdout.includes('PRUNE-FORK-RESUMED'), again.stderr.slice(-300))
-          const continued = await runStreaming(arena, ['run', '--input', 'rows', ...args, '--continue'], [{ prompt: 'Continue without tools.' }])
+          const continued = await runStreaming(arena, [...args, '--continue'], [{ prompt: 'Continue without tools.' }])
           check('§11 continue restores the same replacement state', continued.exit === 0 && continued.stdout.includes('PRUNE-CONTINUED'), continued.stderr.slice(-300))
         }
         const requests = fixture.messageRequests()
@@ -671,7 +671,7 @@ if (!existsSync(DIST)) {
       ;(turns[0] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       ;(turns[2] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       const SID = 'c0ffee00-0000-4000-8000-00000000c0ff'
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', join(arena.home, 's2.debug.log')], [
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', join(arena.home, 's2.debug.log')], [
         { prompt: 'read @note.txt and tell me what it says' },
         { prompt: 'the note changed — read @note.txt again', before: () => writeFileSync(notePath, 'REWRITTEN bytes of the note, longer than before\n') },
         { prompt: 'anything else?' },
@@ -731,7 +731,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture, { MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '9' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f4'
       const debugFile = join(arena.home, 's4.debug.log')
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', debugFile], [
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [
         { prompt: 'hi big' },
         { prompt: 'hi after' },
       ])
@@ -755,7 +755,7 @@ if (!existsSync(DIST)) {
     const systemTextOf = (body: Body): string => (Array.isArray(body.system) ? (body.system as Array<{ text?: string }>).map(b => b.text ?? '').join('\n') : String(body.system ?? ''))
     const thinkingBlocksOf = (body: Body): number =>
       ((body.messages ?? []) as Array<{ content?: unknown }>).reduce((n, m) => n + (Array.isArray(m.content) ? (m.content as Block[]).filter(b => b.type === 'thinking').length : 0), 0)
-    const switchArgs = (model: string): string[] => ['--model', model, '--allowed-tools', 'Read', '--format', 'rows']
+    const switchArgs = (model: string): string[] => ['--model', model, '--allowed-tools', 'Read']
     {
       const turns: ScriptedTurn[] = [
         { kind: 'text', text: 'S5-OPUS-1', thinking: 'opus one', model: 'claude-opus-4-8' },
@@ -831,7 +831,7 @@ if (!existsSync(DIST)) {
       const fixture = await startFixtureApi(turns)
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f8'
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID], [
+      const r = await runStreaming(arena, [...common, '--session-id', SID], [
         { prompt: 'start a game' },
         { prompt: 'the project exists now — probe the Godot surface', before: () => writeFileSync(join(arena.cwd, 'project.godot'), godotProject) },
         { prompt: 'carry on' },
@@ -855,7 +855,7 @@ if (!existsSync(DIST)) {
       const arena = makeArena(fixture, { MERCURY_GODOT_TOOLS: '1' })
       writeFileSync(join(arena.cwd, 'project.godot'), godotProject)
       const SID = 'c0ffee00-0000-4000-8000-00000000c0f9'
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID], [
+      const r = await runStreaming(arena, [...common, '--session-id', SID], [
         { prompt: 'inspect the scene' },
         { prompt: 'the project file is gone', before: () => rmSync(join(arena.cwd, 'project.godot'), { force: true }) },
         { prompt: 'carry on' },
@@ -993,14 +993,14 @@ if (!existsSync(DIST)) {
       }))
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['--model', 'claude-fable-5-1', '--allowed-tools', 'ToolSearch,Read', '--mode', 'apollo', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'start the interview' },
           { prompt: 'find the fetch tool' },
           { prompt: 'and the browser tool' },
-          { prompt: 'carry on in flow', controls: [{ subtype: 'set_permission_mode', mode: 'flow' }] },
-          { prompt: 'keep going without sub-agents', controls: [{ subtype: 'spawn_switch', switch: 'subagents', on: false }] },
-          { prompt: 'and now at low effort', controls: [{ subtype: 'set_effort', effort: 'low' }] },
+          { prompt: 'carry on in flow', requests: [{ method: 'session/set_mode', params: { mode: 'flow' } }] },
+          { prompt: 'keep going without sub-agents', requests: [{ method: 'session/set_spawn_switch', params: { switch: 'subagents', on: false } }] },
+          { prompt: 'and now at low effort', requests: [{ method: 'session/set_effort', params: { effort: 'low' } }] },
           { prompt: 'after the fold' },
         ],
       )
@@ -1077,13 +1077,13 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 's8.debug.log')
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--allowed-tools', 'Read', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['--model', FABLE, '--allowed-tools', 'Read', '--session-id', SID, '--log-file', debugFile],
         [
           { prompt: 'first on fable' },
           { prompt: 'read the note' },
-          { prompt: 'now on opus', controls: [{ subtype: 'set_model', model: OPUS }] },
+          { prompt: 'now on opus', requests: [{ method: 'session/set_model', params: { model: OPUS } }] },
           { prompt: 'read it again on opus' },
-          { prompt: 'back on fable', controls: [{ subtype: 'set_model', model: FABLE }] },
+          { prompt: 'back on fable', requests: [{ method: 'session/set_model', params: { model: FABLE } }] },
           { prompt: 'still on fable' },
         ],
       )
@@ -1139,7 +1139,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, 's9.debug.log')
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['--model', FABLE, '--sovereign', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'launch the seat and carry on' }],
       )
       check('§9 the process exits 0 (the turn held for the seat, the fold ran, the notice turn landed)', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)
@@ -1209,7 +1209,7 @@ if (!existsSync(DIST)) {
       const debugFile = join(arena.home, `s10-${tag}.debug.log`)
       const r = await runStreaming(
         arena,
-        ['run', '--input', 'rows', '--model', FABLE, '--sovereign', '--format', 'rows', '--session-id', SID, '--log-file', debugFile],
+        ['--model', FABLE, '--sovereign', '--session-id', SID, '--log-file', debugFile],
         [{ prompt: 'dispatch three agents and carry on' }, { prompt: 'and now say noted' }],
       )
       check(`§10 ${tag}: the process exits 0`, r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 400)}`)

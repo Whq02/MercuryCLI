@@ -9,7 +9,7 @@ import type { QueuedCommand } from '../../src/types/textInputTypes.ts'
 
 const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts')
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
-const { onSeatLine, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow, onSeatSpawned } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { statusLine } = await import('../../src/components/SwitchboardTagBar.tsx')
@@ -110,29 +110,29 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
-const row = (o: Record<string, unknown>): string => JSON.stringify({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
-const waitingRow = (agents: number): string => row({ type: 'turn', state: 'waiting', turn_id: 't-aw', agents })
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
+const row = (o: Record<string, unknown>): Record<string, unknown> => ({ seq: 1, timestamp: 't', session_id: sid, turn: 1, ...o })
+const waitingRow = (agents: number): Record<string, unknown> => row({ type: 'turn', state: 'waiting', turn_id: 't-aw', agents })
 const USAGE = { input_tokens: 1, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 1 }
-const outcome = (): string => row({ type: 'outcome', schema: 1, turn_id: 't-aw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
+const outcome = (): Record<string, unknown> => row({ type: 'outcome', schema: 1, turn_id: 't-aw', status: 'completed', steps: 1, wall_ms: 1, usage: USAGE, models: [], denials: [] })
 const tail = () => readSessionTail(sid, dir) as { stateWord?: string; waitingOnAgents?: number } | null
 {
-  onSeatLine(SHORT, waitingRow(3), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(3), roster as never, dir)
   check("a turn row waiting on 3 ⇒ stateWord 'waiting-on-agents' with the count", tail()?.stateWord === 'waiting-on-agents' && tail()?.waitingOnAgents === 3, JSON.stringify(tail()))
-  onSeatLine(SHORT, waitingRow(1), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(1), roster as never, dir)
   check('the count moves with the runner (1)', tail()?.stateWord === 'waiting-on-agents' && tail()?.waitingOnAgents === 1, JSON.stringify(tail()))
-  onSeatLine(SHORT, waitingRow(0), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(0), roster as never, dir)
   check('a wait of zero clears the wait', tail()?.stateWord === undefined && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, waitingRow(2), roster as never, dir)
-  onSeatLine(SHORT, outcome(), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(2), roster as never, dir)
+  onSeatRow(SHORT, outcome(), roster as never, dir)
   check("the turn's outcome row clears it (the settle belt)", tail()?.stateWord === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, waitingRow(2), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(2), roster as never, dir)
   onSeatSpawned(SHORT, roster as never, dir)
   check('a respawn clears it (a child dead mid-wait never leaks the word)', tail()?.stateWord === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, row({ type: 'compaction', state: 'started', trigger: 'manual' }), roster as never, dir)
+  onSeatRow(SHORT, row({ type: 'compaction', state: 'started', trigger: 'manual' }), roster as never, dir)
   check("the fold's own word rides its own row ('compacting', no count)", tail()?.stateWord === 'compacting' && tail()?.waitingOnAgents === undefined, JSON.stringify(tail()))
-  onSeatLine(SHORT, row({ type: 'compaction', state: 'ended', trigger: 'manual' }), roster as never, dir)
-  onSeatLine(SHORT, waitingRow(0), roster as never, dir)
+  onSeatRow(SHORT, row({ type: 'compaction', state: 'ended', trigger: 'manual' }), roster as never, dir)
+  onSeatRow(SHORT, waitingRow(0), roster as never, dir)
   check('a zero count is no wait at all', tail()?.stateWord === undefined, JSON.stringify(tail()))
 }
 
@@ -207,7 +207,7 @@ console.log('\nA5 the wiring — runner to glass (structural)')
   check('the connector lifts the wait into the live phase and the second esc sends hard:true (the press carries its own operation id)', /this\.liveStateWord === 'waiting-on-agents'[\s\S]{0,80}\? 'waiting'/.test(connector) && /action: 'interrupt', sessionId: this\.record\.sessionId, by: 'operator', clientOpId: randomUUID\(\), \.\.\.\(hard \? \{ hard: true \} : \{\}\)/.test(connector))
   const main = read('src/daemon/main.ts')
   const interruptVerb = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent'"))
-  check("the daemon's interrupt verb only delivers: a second press re-sends the interrupt and never signals the runner (no kill, no timer, no cut in the verb — the stop verb is the operator's door)", interruptVerb.length > 0 && /roster\.control\(/.test(interruptVerb) && !/\.kill\(/.test(interruptVerb) && !/setTimeout\(/.test(interruptVerb) && !/hard === true && roster !== null/.test(main) && /'second interrupt' : 'interrupt'/.test(interruptVerb))
+  check("the daemon's interrupt verb only delivers: a second press re-sends the interrupt and never signals the runner (no kill, no timer, no cut in the verb — the stop verb is the operator's door)", interruptVerb.length > 0 && /\.request\('turn\/interrupt'/.test(interruptVerb) && !/\.kill\(/.test(interruptVerb) && !/setTimeout\(/.test(interruptVerb) && !/hard === true && roster !== null/.test(main) && /'second interrupt' : 'interrupt'/.test(interruptVerb))
   const server = read('src/daemon/controlServer.ts')
   check('the control server forwards the hard flag', /\.\.\.\(raw\.hard === true \? \{ hard: true \} : \{\}\)/.test(server))
   const repl = read('src/screens/REPL.tsx')

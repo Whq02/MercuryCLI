@@ -10,29 +10,7 @@ import {
   BG_SUB_SLEEP_SECONDS,
   doneText,
 } from './dupline-fixture-words.ts'
-import {
-  bootRunner,
-  bound,
-  carrying,
-  childEnv,
-  describeRequests,
-  DIST,
-  exportWorld,
-  isSession,
-  isOutcome,
-  j,
-  makeTally,
-  removeWorld,
-  requestsOf,
-  SCRATCH_ROOT,
-  seedHome,
-  startFixture,
-  user,
-  waitWire,
-  type Fixture,
-  type Runner,
-  type Wire,
-} from './dupline-world.ts'
+import { bootRunner, bound, carrying, childEnv, describeRequests, DIST, exportWorld, isSession, isOutcome, j, makeTally, removeWorld, requestsOf, SCRATCH_ROOT, seedHome, startFixture, waitWire, type Fixture, type Runner, type Wire } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-subagent-sleep')
 
@@ -47,7 +25,7 @@ async function openWorld(name: string): Promise<World> {
   seedHome(home, cwd)
   const fx = await startFixture(join(home, 'wire.jsonl'), 10, 6, 0)
   const runner = bootRunner({ cwd, env: childEnv(home, fx.port) })
-  runner.send(user('hello there', U0))
+  void runner.prompt('hello there', U0)
   const init = await runner.waitFor('the session row', isSession, bound(90_000))
   const first = await runner.waitFor('the first turn', isOutcome, bound(90_000))
   check(`${name}: the runner is up and the first turn answered`, init !== null && first !== null, runner.stderr().split('\n').slice(-5).join(' | '))
@@ -71,7 +49,7 @@ if (!existsSync(DIST)) {
   {
     const w = await openWorld('bg-sleep')
     const before = w.runner.frames.length
-    w.runner.send(user(BG_SLEEP_TURN_ASK, UT))
+    void w.runner.prompt(BG_SLEEP_TURN_ASK, UT)
     const opened = await waitWire(w.fx.wire, "the background sub-agent's first request", wireOf('subbgsleep', 0), bound(60_000))
     check('the background sub-agent opened its own conversation', opened !== null, j(opened))
     check('its pool carries the Sleep tool', opened !== null && opened.hasSleepTool === true, j(opened?.toolNames ?? opened))

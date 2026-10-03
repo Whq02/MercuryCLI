@@ -45,7 +45,7 @@ updateConcourseWorkers(workers => {
   } as never
 }, dir)
 const roster = {
-  control: () => true,
+  door: () => undefined,
   list: () => [{ short: SHORT, turnActive: false }],
   patchSeatModel: () => true,
   patchSeatEffort: () => true,
@@ -58,7 +58,6 @@ const holdClock = (at: number): void => {
 const freeClock = (): void => {
   Date.now = realNow
 }
-let factsSeq = 0
 const runnerFacts = (costUSD: number): void => {
   const answer = {
     model: { effective: 'claude-opus-5', setting: 'claude-opus-5' },
@@ -70,8 +69,7 @@ const runnerFacts = (costUSD: number): void => {
     workspace: { cwd, originalCwd: cwd, projectRoot: cwd, instructionRoots: [] },
     queue: [],
   }
-  factsSeq += 1
-  seat.onSeatLine(SHORT, JSON.stringify({ type: 'control_response', response: { subtype: 'success', request_id: `mercury-session-facts-${SHORT}-${factsSeq}`, response: sessionFactsToWire(answer as never) } }), roster as never, dir)
+  seat.onFactsAnswer(SHORT, sessionFactsToWire(answer as never), roster as never, dir)
 }
 
 section("S1 · two of the seat's own publications in one clock tick carry distinct stamps, the later one greater")

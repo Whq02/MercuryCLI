@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, childEnv, makeTally, sleep } from '../daemon/dupline-world.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture, type WireBlock } from '../lib/scriptedTurn.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { POLL_INTERVAL_MS } from '../../src/utils/task/framework.ts'
@@ -26,39 +26,37 @@ const WORDS_AGAIN = 'burst: and a second line, typed right after'
 const WORDS_ANSWERED = 'burst: words answered'
 
 type Frame = Record<string, unknown> & { atMs: number }
-type Runner = { frames: Frame[]; send: (frame: Record<string, unknown>) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
+type Runner = { frames: Frame[]; prompt: (content: string, id: string) => void; stop: (graceMs: number) => Promise<void>; stderr: () => string }
 type World = { holdSeconds?: number; secondHoldSeconds?: number; finalAnswerDelayMs?: number; operatorWordsAfterCompletions?: boolean }
 
 function boot(cwd: string, env: NodeJS.ProcessEnv): Runner {
   const frames: Frame[] = []
   let stderr = ''
-  const door = spawnRunnerDoor({
+  const host = hostRunner({
     node: NODE,
-    argv: [DIST, 'runner', '--model', MODEL, '--mode', 'sovereign', '--allowed-tools', 'Bash'],
+    dist: DIST,
+    argv: ['--model', MODEL, '--mode', 'sovereign', '--allowed-tools', 'Bash'],
     cwd,
-    env,
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame !== null) frames.push({ ...frame, atMs: Date.now() })
+    env: env as Record<string, string | undefined>,
+    home: env.MERCURY_CONFIG_DIR ?? cwd,
+    onRow: frame => {
+      frames.push({ ...frame, atMs: Date.now() })
     },
   })
-  const proc = door.child
+  const proc = host.child
   proc.stderr!.on('data', (chunk: Buffer) => {
     stderr += chunk.toString('utf8')
   })
-  const exited = new Promise<void>(resolve => proc.on('exit', () => resolve()))
+  void host.initialize().catch(() => undefined)
   return {
     frames,
     stderr: () => stderr,
-    send: frame => {
-      door.send(frame)
+    prompt: (content, id) => {
+      void host.prompt(content, { id }).catch(() => undefined)
     },
     stop: async graceMs => {
-      try {
-        proc.stdin!.end()
-      } catch {
-      }
-      await Promise.race([exited, sleep(graceMs)])
+      host.end()
+      await Promise.race([host.exited, sleep(graceMs)])
       try {
         proc.kill('SIGKILL')
       } catch {
@@ -120,7 +118,7 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
   const port = Number(new URL(fixture.base).port)
   const runner = boot(cwd, childEnv(runHome, port))
   const t0 = Date.now()
-  runner.send({ type: 'user', message: { role: 'user', content: LAUNCH_ASK }, uuid: randomUUID(), session_id: '' })
+  runner.prompt(LAUNCH_ASK, randomUUID())
   let wordsSentAt = Number.NaN
   const typedUuids = [randomUUID(), randomUUID()]
   if (operatorWords) {
@@ -128,8 +126,8 @@ async function scenario(label: string, count: number, sleepsSeconds: number[], w
     while (Date.now() < until && readdirSync(stamps).length < count) await sleep(50)
     await sleep(300)
     wordsSentAt = Date.now()
-    runner.send({ type: 'user', message: { role: 'user', content: WORDS }, uuid: typedUuids[0], session_id: '' })
-    runner.send({ type: 'user', message: { role: 'user', content: WORDS_AGAIN }, uuid: typedUuids[1], session_id: '' })
+    runner.prompt(WORDS, typedUuids[0]!)
+    runner.prompt(WORDS_AGAIN, typedUuids[1]!)
   }
   const expectedTurns = holdSeconds > 0 ? 1 : 2
   await untilQuiet(runner, expectedTurns, 6_000, vshotBudgetMs(60_000))

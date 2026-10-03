@@ -19,8 +19,9 @@ import { isCrewDaemon } from './daemonFeatureGates.js'
 import { installStampedDaemonLog, stampDaemonLogLine } from './daemonLogStamp.js'
 import { runTaskHeadless, buildHeadlessPrompt, getRunTimeoutMs, scrubSupervisorRoleEnv } from './headlessRun.js'
 import { CREW, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeRoster } from './crewSpawn.js'
-import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeFrame, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
-import { isTurnResultParsedFrame, parseStreamJsonFrame } from './longLivedSupervisor.js'
+import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeRow, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
+import { isOutcomeRow } from './longLivedSupervisor.js'
+import type { LooseRow } from '../rows/read.js'
 import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
 import { readCrewFileAsync } from '../utils/swarm/crewHelpers.js'
 import {
@@ -51,12 +52,13 @@ import {
   turnInFlightOf,
   workerPidAlive,
 } from './concourseSupervisor.js'
-import { answerPermissionAsk, onWorkerControlRequest } from './permissionAsks.js'
+import { answerPermissionAsk, holdWorkerAsk } from './permissionAsks.js'
 import { seatCeilingFactsAsync, serveHeldReadingFromBackground } from '../services/switchboard/capacityCheck.js'
 import {
   onSeatIdle,
   controlSessionAgent,
-  onSeatLine,
+  onSeatApplied,
+  onSeatRow,
   onSeatSpawned,
   refreshSessionFacts,
   requestSessionFacts,
@@ -76,7 +78,6 @@ import { sessionParkDrainMs, sweepIdleEmptyConcourseSessions } from './idleRetir
 import {
   claimWarmRunner,
   ensureWarmRunner,
-  onWarmRunnerLine,
   sweepIdleWarmRunners,
   warmRunnerCount,
   warmRunnerShorts,
@@ -89,7 +90,7 @@ import { deriveScheduleAccountForModel, liveFactsForSessionFire, readLiveAccount
 import { composeSignInView, refreshSignInReads } from './signInView.js'
 import { fileMoveStamp, startSaturnTicker } from './saturnTicker.js'
 import { makeSaturnBirthPort } from './saturnBirth.js'
-import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptFrame, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
+import { makeConcourseDispatchHandler, readConcourseControlOps, recordConcourseControlOp, buildConcoursePromptRow, failWorkingDispatchesForRunner, heldGitLaunchesFor, reconcileWorkingDispatches, replayGitBlockedDispatches, denyProceedLaunchesFor, replayDenyProceedDispatches } from './concourseDispatch.js'
 import { TaskRoster } from './roster.js'
 import {
   parseOwnerPid,
@@ -416,18 +417,15 @@ async function daemonRun(args: string[]): Promise<void> {
         dir,
         breaker,
         maxInflight: MAX_INFLIGHT,
-        onControlRequest: (short, frame) => {
-          try {
-            onWorkerControlRequest(short, frame, undefined, roster ?? undefined)
-          } catch (e) {
-            logForDebugging(`[daemon] onControlRequest(${short}) hook threw (ignored): ${e}`)
-          }
-        },
-        onChildLine: (short, line) => {
-          if (roster !== null && crewDrains.has(short)) onCrewSeatLine(short, line)
+        onAsk: (short, params) => holdWorkerAsk(short, params),
+        onRow: (short, row) => {
+          if (roster !== null && crewDrains.has(short)) onCrewSeatRow(short, row)
           if (!short.startsWith('concourse-w') || roster === null) return
-          onWarmRunnerLine(line)
-          onSeatLine(short, line, roster)
+          onSeatRow(short, row, roster)
+        },
+        onApplied: (short, params) => {
+          if (!short.startsWith('concourse-w') || roster === null) return
+          onSeatApplied(short, params, roster)
         },
         onChildRelaunched: short => {
           if (crewDrains.has(short)) liftCrewSeatPause(short)
@@ -519,21 +517,20 @@ async function daemonRun(args: string[]): Promise<void> {
         const r = roster
         if (!r || r.seatPause(short) === undefined) return
         liftCrewSeatPause(short)
-        const delivered = await r.reply(short, crewSeatResumeFrame(accountChanged))
+        const delivered = await r.reply(short, crewSeatResumeRow(accountChanged))
         if (delivered) logForDebugging(crewSeatResumedLine(short, accountChanged))
         else logForDebugging(`[daemon] crew seat @${short} was paused but is not live — nothing to resume`)
       }
-      const onCrewSeatLine = (short: string, line: string): void => {
+      const onCrewSeatRow = (short: string, frame: LooseRow): void => {
         const r = roster
         if (!r) return
-        const frame = parseStreamJsonFrame(line)
         const window = crewSeatWindowOf(frame)
         if (window !== null) {
           if (window.rejected) crewWindows.set(short, window)
           else crewWindows.delete(short)
           return
         }
-        if (!isTurnResultParsedFrame(frame)) return
+        if (!isOutcomeRow(frame)) return
         const pause = crewSeatPauseOf(frame, crewWindows.get(short), r.currentLongLivedModel(short) ?? 'the seat')
         crewWindows.delete(short)
         if (pause === null) return
@@ -744,7 +741,6 @@ async function daemonRun(args: string[]): Promise<void> {
             return answerPermissionAsk(
               requestId,
               allow === true,
-              roster ?? undefined,
               by,
               {
                 onGitReady: folder => {
@@ -778,7 +774,7 @@ async function daemonRun(args: string[]): Promise<void> {
                   return proceeding
                 },
               },
-              answer as Parameters<typeof answerPermissionAsk>[5],
+              answer as Parameters<typeof answerPermissionAsk>[4],
             )
           }
           if (action === 'park-all') {
@@ -883,21 +879,21 @@ async function daemonRun(args: string[]): Promise<void> {
               : { outcome: 'refused' as const, detail: out.reason }
           }
           if (action === 'interrupt') {
-            const delivered =
-              roster != null &&
-              roster.control(
-                rec.runnerId,
-                JSON.stringify({
-                  type: 'control_request',
-                  request_id: `concourse-interrupt-${clientOpId ?? `${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`}`,
-                  request: { subtype: 'interrupt', ...(hard === true ? { hard: true } : {}) },
-                }),
-              )
-            if (delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')
+            const door = roster?.door(rec.runnerId)
+            if (door === undefined) return settle({ outcome: 'refused' as const, detail: 'worker has no live runner door' })
+            const sent = door.send('turn/interrupt', { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
+            const interrupted = await Promise.race([
+              sent.answer.then(
+                answer => ({ delivered: true, interrupted: answer.interrupted }),
+                (error: unknown) => ({ delivered: false, interrupted: false, words: error instanceof Error ? error.message : String(error) }),
+              ),
+              new Promise<{ delivered: true; interrupted: null }>(resolve => setTimeout(() => resolve({ delivered: true, interrupted: null }), INTERRUPT_ANSWER_WINDOW_MS)),
+            ])
+            if (interrupted.delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')
             return settle(
-              delivered
-                ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` }
-                : { outcome: 'refused' as const, detail: 'worker has no live control channel' },
+              interrupted.delivered
+                ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}${interrupted.interrupted === false ? ' — no turn was running' : ''}` }
+                : { outcome: 'refused' as const, detail: `the interrupt did not reach the runner: ${'words' in interrupted ? interrupted.words : 'no answer'}` },
             )
           }
           if (action === 'stop-agent' || action === 'resume-agent') {
@@ -920,16 +916,7 @@ async function daemonRun(args: string[]): Promise<void> {
             return pauseSessionGate(sessionId, paused, roster)
           }
           if (action === 'stop') {
-            if (roster !== null) {
-              roster.control(
-                rec.runnerId,
-                JSON.stringify({
-                  type: 'control_request',
-                  request_id: `concourse-interrupt-stop-${Date.now().toString(36)}-${randomUUID().slice(0, 8)}`,
-                  request: { subtype: 'interrupt', hard: true },
-                }),
-              )
-            }
+            roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(() => {})
             const out = stopConcourseSession(sessionId, by, roster ?? undefined)
             if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')
             return out.outcome === 'refused'
@@ -965,14 +952,12 @@ async function daemonRun(args: string[]): Promise<void> {
                 ? grantConcourseWorkflows(sessionId, by)
                 : revokeConcourseWorkflows(sessionId, by)
             if (action === 'grant-workflows' && out.outcome === 'applied' && roster !== null) {
-              void Promise.resolve(
-                roster.reply(
-                  rec.runnerId,
-                  buildConcoursePromptFrame(
-                    '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (subagents and workflows) are available from your next turn. Automated notice; no reply needed.',
-                  ),
-                ),
-              ).catch(() => {})
+              const r = roster
+              void buildConcoursePromptRow(
+                '[switchboard notice] The workflows-allowed tag just landed on this session — delegation tools (subagents and workflows) are available from your next turn. Automated notice; no reply needed.',
+              )
+                .then(row => r.reply(rec.runnerId, row))
+                .catch(() => {})
             }
             return out.outcome === 'applied'
               ? { outcome: 'applied' as const, detail: `${action} ${rec.runnerId}` }
@@ -1531,7 +1516,7 @@ async function daemonRun(args: string[]): Promise<void> {
         for (const j of roster.list()) {
           if (!j.outcome) {
             recordSpawnExit({
-              kind: j.via === 'rows' ? 'long-lived' : 'headless',
+              kind: j.via === 'runner' ? 'long-lived' : 'headless',
               event: 'reap',
               id: j.short,
               pid: j.pid,
@@ -1671,6 +1656,7 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
+const INTERRUPT_ANSWER_WINDOW_MS = 750
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000

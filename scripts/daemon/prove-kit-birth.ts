@@ -31,6 +31,10 @@ const ENSURE_SKIP = AVAILABLE === undefined ? 'skipped — no dispatchable famil
 
 const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
+const { LEAVE_PENDING, standInRunner } = await import('../lib/seatDoor.ts')
+const { RpcError, RPC_REFUSED } = await import('../../src/runner/wire/errors.ts')
+type StandInRunner = ReturnType<typeof standInRunner>
+type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { deriveSessionKitForWorkspace, validateSessionKit } = await import('../../src/daemon/sessionKit.ts')
 const { setMcpServerEnabledForWorkspace } = await import('../../src/services/mcp/kitStore.ts')
 
@@ -49,7 +53,8 @@ type Kit = ReturnType<typeof deriveSessionKitForWorkspace>
 
 class FakeRoster {
   registered: Array<{ short: string; spec: Spec }> = []
-  controls: Array<{ short: string; frame: string }> = []
+  stands = new Map<string, StandInRunner>()
+  claims: Array<{ short: string; params: Record<string, unknown> }> = []
   killed: string[] = []
   patched: Array<{ short: string; patch: { model: string; effort: string; respawnExtraArgv: readonly string[] } }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
@@ -64,28 +69,30 @@ class FakeRoster {
   registerLongLived(short: string, spec: Spec): { ok: boolean; pid?: number; error?: string } {
     this.registered.push({ short, spec })
     this.present.set(short, { alive: true, ready: true })
+    const stand = standInRunner({
+      sessionId: null,
+      autoAnswer: {
+        'session/claim': (params: unknown) => {
+          const claim = params as Record<string, unknown>
+          this.claims.push({ short, params: claim })
+          if (this.answer === 'never') return LEAVE_PENDING
+          if (this.answer === 'error') throw new RpcError(RPC_REFUSED, 'scripted refusal', { kind: 'claim' })
+          return { session_id: String(claim.session_id) }
+        },
+      },
+    })
+    this.stands.set(short, stand)
     return { ok: true, pid: process.pid }
   }
-  control(short: string, frame: string): boolean {
-    this.controls.push({ short, frame })
-    const parsed = JSON.parse(frame) as { request_id?: string; request?: { subtype?: string } }
-    if (this.answer !== 'never' && parsed.request?.subtype === 'claim_session' && typeof parsed.request_id === 'string') {
-      const requestId = parsed.request_id
-      const subtype = this.answer
-      queueMicrotask(() =>
-        warm.onWarmRunnerLine(
-          JSON.stringify({
-            type: 'control_response',
-            response: { subtype, request_id: requestId, ...(subtype === 'error' ? { error: 'scripted refusal' } : {}) },
-          }),
-        ),
-      )
-    }
-    return true
+  door(short: string): RunnerDoor | undefined {
+    const stand = this.stands.get(short)
+    return stand === undefined || stand.connection.closed ? undefined : stand.connection
   }
   kill(short: string): boolean {
     this.killed.push(short)
     this.present.delete(short)
+    this.stands.get(short)?.close('killed')
+    this.stands.delete(short)
     return true
   }
   patchSeatClaim(
@@ -164,9 +171,9 @@ if (ENSURE_SKIP !== '') {
       { workspaceId: wsG, sessionId: '11111111-2222-4333-8444-555555555555', modelKey: MODEL, effort: 'high', permissionMode: 'flow', kit: booted, answerDeadlineMs: 1_500 },
       warmDeps,
     )
-    check('G4 an EQUAL-kit claim lands (the equality gate is the whole arithmetic)', hit.claimed === true && roster.controls.some(c => c.frame.includes('claim_session')))
+    check('G4 an EQUAL-kit claim lands (the equality gate is the whole arithmetic)', hit.claimed === true && roster.claims.length > 0)
     warm.resetWarmRunnersForTesting()
-    roster.controls.length = 0
+    roster.claims.length = 0
     roster.killed.length = 0
     const wsH = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-h-')))
     const ensured2 = await warm.ensureWarmRunner({ workspaceDir: wsH }, warmDeps)
@@ -177,7 +184,7 @@ if (ENSURE_SKIP !== '') {
       warmDeps,
     )
     check('G5 POISON armed: a MISMATCHED-kit claim DECLINES TYPED and retires the runner — never a whole-config (or wrong-kit) process under a kit-stamped record', miss.claimed === false && miss.claimed === false && miss.reason.includes('kit') && roster.killed.length === 1)
-    check('G5 the gate sits BEFORE the wire: no claim_session control ever reached the mismatched runner', !roster.controls.some(c => c.frame.includes('claim_session')))
+    check('G5 the gate sits BEFORE the wire: no session/claim ever reached the mismatched runner', !roster.claims.length > 0)
     check('G5 the pool is empty after the drift retire (the cold path owns the session)', warm.warmRunnerCount() === 0)
     warm.resetWarmRunnersForTesting()
   }
@@ -198,12 +205,12 @@ if (ENSURE_SKIP !== '') {
     const bootedKit = specKitOf(roster.registered[roster.registered.length - 1]!.spec)
     const admitted = await admit({ workspaceDir: wsI, modelKey: MODEL, bornBlank: true })
     const rec = admitted.ok ? readSessionWorkers(recordsDir)[admitted.runnerId] : undefined
-    check('G6 the derivation-road admit CLAIMS warm (menu untouched between warm and claim)', admitted.ok && roster.controls.some(c => c.frame.includes('claim_session')), admitted.ok ? '' : admitted.error)
+    check('G6 the derivation-road admit CLAIMS warm (menu untouched between warm and claim)', admitted.ok && roster.claims.length > 0, admitted.ok ? '' : admitted.error)
     check('G6 THE HEADLINE PIN: the claimed record wears EXACTLY the kit the process booted (record ≡ process — the poison this lane closes: a kit-stamped record over a whole-config warm process)', rec !== undefined && bootedKit !== null && deepEq(rec.kit, bootedKit))
     await new Promise(resolve => setTimeout(resolve, 25))
     check('G6 the post-claim rewarm carries the claimed kit (the pool re-arms wearing what births carry)', rewarms.length >= 1 && rewarms[0]!.kit !== undefined && deepEq(rewarms[0]!.kit, rec?.kit))
     rewarms.length = 0
-    roster.controls.length = 0
+    roster.claims.length = 0
     const wsJ = realpathSync(mkdtempSync(join(tmpdir(), 'kit-birth-ws-j-')))
     const ensured2 = await warm.ensureWarmRunner({ workspaceDir: wsJ }, warmDeps)
     check('G6 the pool warms for the mismatch admit', ensured2.state === 'warmed', ensured2.detail ?? ensured2.state)
@@ -213,7 +220,7 @@ if (ENSURE_SKIP !== '') {
     const coldSpec = roster.registered[roster.registered.length - 1]!
     check('G6 the carried-kit admit DECLINED warm and spawned COLD on its own short', cold.ok && coldRec !== undefined && coldSpec.short === (cold.ok ? cold.runnerId : ''), cold.ok ? '' : cold.error)
     check('G6 record ≡ process on the cold fallback: the record and the spawn spec wear the SAME carried kit', coldRec !== undefined && deepEq(coldRec.kit, SCREEN) && deepEq(specKitOf(coldSpec.spec), SCREEN))
-    check('G6 no claim control reached the mismatched runner (the gate preceded the wire)', !roster.controls.some(c => c.frame.includes('claim_session')))
+    check('G6 no claim control reached the mismatched runner (the gate preceded the wire)', !roster.claims.length > 0)
     await new Promise(resolve => setTimeout(resolve, 25))
     check('G6 the DECLINE-side rewarm carries the declined kit (one cold spawn is the whole price of a menu edit)', rewarms.length >= 1 && deepEq(rewarms[0]!.kit, SCREEN))
     warm.resetWarmRunnersForTesting()
@@ -252,8 +259,8 @@ if (ENSURE_SKIP !== '') {
     const bootedKit = specKitOf(roster.registered[roster.registered.length - 1]!.spec)
     const revived = await admit({ workspaceDir: wsK, resumeSessionId: parkedSid })
     const after = Object.values(readSessionWorkers(recordsDir)).find(r => r.sessionId === parkedSid && r.endedAt === undefined)
-    const resumeFrame = roster.controls.map(c => JSON.parse(c.frame) as { request?: Record<string, unknown> }).find(f => f.request?.subtype === 'claim_session')
-    check('G7 the reactivate took the WARM road (claim with resume:true)', revived.ok && resumeFrame !== undefined && resumeFrame.request?.resume === true, revived.ok ? '' : revived.error)
+    const resumeClaim = roster.claims[0]?.params
+    check('G7 the reactivate took the WARM road (session/claim with resume:true)', revived.ok && resumeClaim !== undefined && resumeClaim.resume === true, revived.ok ? '' : revived.error)
     check('G7 the re-stamp wears EXACTLY the booted kit (record ≡ process on the reactivate claim road; the parked kit is displaced, never reloaded)', after !== undefined && bootedKit !== null && deepEq(after.kit, bootedKit) && !deepEq(after.kit, OLD))
     check('G7 the derivation excluded the menu-off member on this road too', after?.kit !== undefined && !(after.kit.mcp ?? []).includes('alpha'))
     warm.resetWarmRunnersForTesting()

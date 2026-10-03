@@ -209,14 +209,14 @@ if (!existsSync(DIST)) {
       ;(turns[3] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: filePath, old_string: 'beta', new_string: 'gamma  ', replace_all: false }
       const SID = 'c0ffee00-0000-4000-8000-00000000dead'
       const debugFile = join(arena.home, 's2.debug.log')
-      const common = ['--model', MODEL, '--allowed-tools', 'Bash', 'Write', 'Read', 'Edit', '--format', 'rows']
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', debugFile], [
+      const common = ['--model', MODEL, '--allowed-tools', 'Bash', 'Write', 'Read', 'Edit']
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [
         'run the shell, write the file, read it, edit it',
         'one more shell round',
         'anything else?',
       ])
       check('§2 the three-turn process exits 0 and every turn answered', r.exit === 0 && ['S2-TURN-1-DONE', 'S2-TURN-2-DONE', 'S2-TURN-3-DONE'].every(t => r.stdout.includes(t)), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
-      const r2 = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--resume', SID, '--log-file', debugFile], ['and after the resume?'])
+      const r2 = await runStreaming(arena, [...common, '--resume', SID, '--log-file', debugFile], ['and after the resume?'])
       check('§2 the resumed process exits 0 and answered', r2.exit === 0 && r2.stdout.includes('S2-RESUMED-DONE'), `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
       const reqs = fixture.messageRequests()
       check('§2 nine message requests (five rounds, a two-round turn, a plain turn, the resumed turn)', reqs.length === 9, String(reqs.length))
@@ -252,8 +252,8 @@ if (!existsSync(DIST)) {
       for (const k of [1, 2, 3]) (turns[k] as Extract<ScriptedTurn, { kind: 'tool_use' }>).input = { file_path: notePath }
       const SID = 'c0ffee00-0000-4000-8000-00000000dea1'
       const debugFile = join(arena.home, 's3.debug.log')
-      const common = ['--model', MODEL, '--allowed-tools', 'Read', '--format', 'rows']
-      const r = await runStreaming(arena, ['run', '--input', 'rows', ...common, '--session-id', SID, '--log-file', debugFile], [
+      const common = ['--model', MODEL, '--allowed-tools', 'Read']
+      const r = await runStreaming(arena, [...common, '--session-id', SID, '--log-file', debugFile], [
         'begin without tools',
         'now read the note three times in a row',
         'and now?',

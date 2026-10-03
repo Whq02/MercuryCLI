@@ -1,34 +1,8 @@
-import { spawn, type ChildProcess } from 'node:child_process'
-import { RunnerConnection } from '../../src/daemon/runnerConnection.ts'
-import { runnerDoorArgv, type RunnerDoorCapabilities } from '../../src/daemon/headlessRun.ts'
+import type { InputRow, NoteRow, PromptRow, ShellRow } from '../../src/rows/vocabulary.ts'
+import type { ParamsOf, ResultOf } from '../../src/runner/wire/methods.ts'
+import { hostRunner, type HostedRunner } from './runnerHost.ts'
 
 export type Frame = Record<string, unknown>
-
-export type RunnerDoor = { send: (frame: Frame) => Promise<boolean>; connection: RunnerConnection; argv: string[] }
-
-export function attachRunnerDoor(child: ChildProcess, onLine: (line: string) => void, capabilities: RunnerDoorCapabilities, argv: string[] = []): RunnerDoor {
-  const connection = new RunnerConnection(child, capabilities, { onLine, onRow: () => {}, onAsk: () => {}, log: () => {} })
-  return {
-    connection,
-    argv,
-    send: frame => (frame.type === 'user' ? connection.deliver(frame) : Promise.resolve(connection.control(frame))),
-  }
-}
-
-export function spawnRunnerDoor(opts: {
-  node: string
-  argv: string[]
-  cwd: string
-  env: NodeJS.ProcessEnv
-  onLine: (line: string) => void
-  capabilities?: Partial<RunnerDoorCapabilities>
-}): RunnerDoor & { child: ChildProcess } {
-  const translated = runnerDoorArgv(opts.argv)
-  const child = spawn(opts.node, translated.argv, { cwd: opts.cwd, env: opts.env, stdio: ['pipe', 'pipe', 'pipe'] })
-  child.stdin!.on('error', () => {})
-  const door = attachRunnerDoor(child, opts.onLine, { ...translated.capabilities, ...(opts.capabilities ?? {}) }, translated.argv)
-  return { ...door, child }
-}
 
 export function parseFrame(line: string): Frame | null {
   const trimmed = line.trim()
@@ -92,39 +66,26 @@ export const isCompleted = (f: Frame | null | undefined): boolean => isOutcome(f
 export const outcomeError = (f: Frame | null | undefined): string | undefined => (isOutcome(f) ? ((f?.error as { message?: string } | undefined)?.message ?? undefined) : undefined)
 export const answerOf = (f: Frame | null | undefined): string => (isOutcome(f) && typeof f?.answer === 'string' ? f.answer : '')
 export const textOf = (frames: readonly Frame[]): string => frames.filter(f => isText(f) && isMainThread(f)).map(f => String(f.text ?? '')).join('')
-export const isControlRequest = (f: Frame | null | undefined): boolean => f?.type === 'control_request'
-export const isControlResponse = (f: Frame | null | undefined, requestId?: string): boolean =>
-  f?.type === 'control_response' && (requestId === undefined || (f.response as { request_id?: unknown } | undefined)?.request_id === requestId)
-export const isControlCancel = (f: Frame | null | undefined): boolean => f?.type === 'control_cancel_request'
 
 export const outcomeCount = (stdout: string): number => frameLines(stdout).filter(isOutcome).length
 export const hasOutcome = (stdout: string): boolean => frameLines(stdout).some(isOutcome)
 export const outcomeLines = (lines: readonly string[]): string[] => lines.filter(line => isOutcome(parseFrame(line)))
 export const lastOutcome = (frames: readonly Frame[]): Frame | undefined => frames.filter(isOutcome).at(-1)
-
-export const userRow = (content: unknown, extra: Frame = {}): Frame => ({ type: 'user', message: { role: 'user', content }, ...extra })
-export const controlRequestFrame = (requestId: string, request: Frame): Frame => ({ type: 'control_request', request_id: requestId, request })
-export const controlResponseFrame = (requestId: string, response: Frame, subtype: 'success' | 'error' = 'success'): Frame =>
-  subtype === 'success'
-    ? { type: 'control_response', response: { subtype, request_id: requestId, response } }
-    : { type: 'control_response', response: { subtype, request_id: requestId, error: String(response.error ?? '') } }
-
-export interface RunnerPort {
-  send: (frame: Frame) => void
-  waitFor: (label: string, test: (f: Frame) => boolean, timeoutMs: number) => Promise<Frame | null>
+export const completedAnswer = (stdout: string): string | undefined => {
+  const outcome = lastOutcome(frameLines(stdout))
+  return isCompleted(outcome) ? answerOf(outcome) : undefined
 }
+export const answeredWith = (stdout: string, marker: string): boolean => (completedAnswer(stdout) ?? '').includes(marker)
 
-let controlIds = 0
-export async function controlRequest(runner: RunnerPort, request: Frame, timeoutMs: number, requestId = `ctl-${++controlIds}`): Promise<Frame | null> {
-  runner.send(controlRequestFrame(requestId, request))
-  return runner.waitFor(`control ${String(request.subtype ?? '?')} ${requestId}`, f => isControlResponse(f, requestId), timeoutMs)
-}
-export function answerControl(runner: RunnerPort, requestId: string, response: Frame): void {
-  runner.send(controlResponseFrame(requestId, response))
-}
+type InputStamp = Pick<PromptRow, 'id' | 'priority' | 'sent_at' | 'origin'>
+export const promptRow = (content: PromptRow['content'], stamp: InputStamp = {}): PromptRow => ({ type: 'prompt', content, ...stamp })
+export const shellRow = (command: string, stamp: InputStamp = {}): ShellRow => ({ type: 'shell', command, ...stamp })
+export const noteRow = (to: string, content: string, id?: string): NoteRow => ({ type: 'note', to, content, ...(id !== undefined ? { id } : {}) })
+export const inputLine = (row: InputRow): string => `${JSON.stringify(row)}\n`
 
-export type Turn = { prompt: string; before?: () => void; controls?: Array<{ request: Frame; requestId?: string }> }
-export type TurnsRun = { exit: number | null; stdout: string; stderr: string; frames: Frame[] }
+export type TurnRequest<M extends Parameters<HostedRunner['request']>[0] = Parameters<HostedRunner['request']>[0]> = { method: M; params: ParamsOf<M> }
+export type Turn = { prompt: string; before?: () => void; requests?: TurnRequest[] }
+export type TurnsRun = { exit: number | null; stdout: string; stderr: string; frames: Frame[]; answers: Array<{ method: string; result?: unknown; error?: string }> }
 
 export function runTurns(opts: {
   node: string
@@ -138,19 +99,22 @@ export function runTurns(opts: {
 }): Promise<TurnsRun> {
   return new Promise(resolvePromise => {
     const frames: Frame[] = []
+    const answers: TurnsRun['answers'] = []
     let stdout = ''
-    let stderr = ''
     let sent = 0
     let resultsSeen = 0
-    const door = spawnRunnerDoor({
+    const host = hostRunner({
       node: opts.node,
-      argv: [opts.dist, ...opts.args],
+      dist: opts.dist,
+      argv: opts.args,
       cwd: opts.cwd,
-      env: opts.env,
-      onLine: line => {
-        stdout += `${line}\n`
-        const frame = parseFrame(line)
-        if (frame !== null) frames.push(frame)
+      env: opts.env as Record<string, string | undefined>,
+      home: opts.env.MERCURY_CONFIG_DIR ?? opts.cwd,
+      raw: text => {
+        stdout += text
+      },
+      onRow: frame => {
+        frames.push(frame)
         const results = frames.filter(isOutcome).length
         while (resultsSeen < results) {
           resultsSeen++
@@ -159,28 +123,31 @@ export function runTurns(opts: {
         }
       },
     })
-    const child = door.child
     const sendNext = (): void => {
       if (sent >= opts.turns.length) {
-        child.stdin!.end()
+        host.end()
         return
       }
       const raw = opts.turns[sent]!
       const turn: Turn = typeof raw === 'string' ? { prompt: raw } : raw
       sent++
       turn.before?.()
-      for (const [index, control] of (turn.controls ?? []).entries()) {
-        void door.send(controlRequestFrame(control.requestId ?? `ctl-${sent}-${index}`, control.request))
+      for (const request of turn.requests ?? []) {
+        void host.request(request.method, request.params as never).then(
+          result => answers.push({ method: request.method, result }),
+          (error: unknown) => answers.push({ method: request.method, error: error instanceof Error ? error.message : String(error) }),
+        )
       }
-      void door.send(userRow(turn.prompt))
+      void host.prompt(turn.prompt).catch(() => undefined)
     }
-    child.stderr!.on('data', d => (stderr += String(d)))
-    const killer = setTimeout(() => child.kill('SIGKILL'), opts.timeoutMs ?? 90_000)
-    child.on('close', exit => {
+    const killer = setTimeout(() => host.child.kill('SIGKILL'), opts.timeoutMs ?? 90_000)
+    void host.exited.then(exit => {
       clearTimeout(killer)
-      door.connection.close('the turns ended')
-      resolvePromise({ exit, stdout, stderr, frames })
+      host.peer.close('the turns ended')
+      resolvePromise({ exit, stdout, stderr: host.stderr(), frames, answers })
     })
-    child.on('spawn', () => sendNext())
+    void host.initialize({ partial_rows: opts.args.includes('--partial') }).then(() => sendNext(), () => sendNext())
   })
 }
+
+export type { ResultOf }

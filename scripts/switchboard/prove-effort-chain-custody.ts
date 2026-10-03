@@ -61,7 +61,7 @@ section('§1 — the daemon admit door: normalize, else refuse typed naming the 
 section('§2 — the set-effort verb door: same normalizer, same typed refusal')
 {
   const seat = await import('../../src/daemon/sessionSeat.ts')
-  const roster = { has: () => ({ present: false, alive: false }), control: () => false } as never
+  const roster = { has: () => ({ present: false, alive: false }), door: () => undefined } as never
   const junk = await seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'turbo', roster, join(scratch, 'daemon'))
   check('junk effort refuses at the door', junk.outcome === 'refused' && /the levels are/.test(junk.detail ?? ''), JSON.stringify(junk))
   const spoken = await seat.setSessionEffort('00000000-0000-0000-0000-000000000000', 'x high', roster, join(scratch, 'daemon'))

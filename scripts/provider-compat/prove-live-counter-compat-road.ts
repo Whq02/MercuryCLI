@@ -12,7 +12,7 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.MERCURY_HOME
 
-const { onSeatLine } = await import('../../src/daemon/sessionSeat.ts')
+const { onSeatRow } = await import('../../src/daemon/sessionSeat.ts')
 const { readSessionTail } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { updateConcourseWorkers } = await import('../../src/daemon/concourseSupervisor.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
@@ -48,10 +48,10 @@ updateConcourseWorkers(workers => {
     workspaceKind: 'plain-folder',
   } as never
 }, dir)
-const roster = { control: () => true, list: () => [], patchSeatModel: () => true }
+const roster = { door: () => undefined, list: () => [], patchSeatModel: () => true, patchSeatEffort: () => true }
 const tail = () => readSessionTail(sid, dir)
 const scope = { session_id: sid, turn: 1 }
-const feed = (frame: Record<string, unknown>): void => onSeatLine(SHORT, JSON.stringify({ seq: 1, timestamp: 't', ...frame }), roster as never, dir)
+const feed = (frame: Record<string, unknown>): void => onSeatRow(SHORT, { seq: 1, timestamp: 't', ...frame } as never, roster as never, dir)
 const feedAll = (rows: Array<Record<string, unknown>>): void => rows.forEach(feed)
 let streamMessageId = ''
 

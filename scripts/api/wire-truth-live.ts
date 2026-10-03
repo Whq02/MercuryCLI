@@ -97,7 +97,7 @@ async function runStreaming(args: string[], prompts: string[], debugFile: string
   return { exit: run.exit, stdout: run.stdout, stderr: run.stderr, rows: [] }
 }
 
-const common = ['run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--allowed-tools', 'ToolSearch,WebFetch']
+const common = ['--model', MODEL, '--allowed-tools', 'ToolSearch,WebFetch']
 const scratch = mkdtempSync(path.join(tmpdir(), 'wire-truth-live-logs-'))
 const debugA = path.join(scratch, 'a.debug.log')
 const debugB = path.join(scratch, 'b.debug.log')

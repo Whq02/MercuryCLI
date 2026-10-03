@@ -3,7 +3,8 @@ import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { apiRefusalOf, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor, type Frame } from '../lib/rows.ts'
+import type { Frame } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { closeWorld, crewMessagesTo, DIST, LEAD_GATE, LEAD_MODEL, makeTally, makeWorld, NODE, readJson, record, sleep, toolResultOf, treeOf, TURN_MS } from './crew-world.ts'
 
 if (process.env.MERCURY_CONFIG_DIR) process.env.TMPDIR = process.env.MERCURY_CONFIG_DIR
@@ -88,23 +89,25 @@ const frames: Frame[] = []
 let rowsOut = ''
 let leadErr = ''
 const refusals: string[] = []
-const door = spawnRunnerDoor({
+const host = hostRunner({
   node: NODE,
-  argv: [DIST, 'run', '--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', 'TaskStop', '--mode', 'sovereign', '--session-id', sessionId],
+  dist: DIST,
+  argv: ['--model', LEAD_MODEL, '--allowed-tools', 'Agent', 'Bash', 'SendMessage', 'TaskStop', '--mode', 'sovereign', '--session-id', sessionId],
   cwd: world.project,
-  env: world.env,
-  onLine: line => {
-    rowsOut += `${line}\n`
-    const frame = parseFrame(line)
-    if (frame !== null) frames.push(frame)
+  env: world.env as Record<string, string | undefined>,
+  home: world.env.MERCURY_CONFIG_DIR ?? world.project,
+  raw: text => {
+    rowsOut += text
   },
+  onRow: frame => frames.push(frame),
 })
-door.child.stderr!.on('data', (chunk: Buffer) => {
+host.child.stderr!.on('data', (chunk: Buffer) => {
   leadErr += chunk.toString('utf8')
 })
-const wire = door.connection.peer
+void host.initialize().catch(() => undefined)
+const wire = host.peer
 let leadDone = false
-const leadExited = new Promise<number | null>(resolveExit => door.child.on('close', code => {
+const leadExited = new Promise<number | null>(resolveExit => host.child.on('close', code => {
   leadDone = true
   resolveExit(code)
 }))
@@ -125,10 +128,10 @@ const session = {
     }
   },
   terminate: async (): Promise<number | null> => {
-    door.child.kill('SIGTERM')
+    host.child.kill('SIGTERM')
     const code = await Promise.race([leadExited, sleep(60_000).then(() => null)])
-    if (!leadDone) door.child.kill('SIGKILL')
-    door.connection.close('the proof ended')
+    if (!leadDone) host.child.kill('SIGKILL')
+    host.peer.close('the proof ended')
     return code
   },
 }

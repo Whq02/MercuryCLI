@@ -1,8 +1,10 @@
+import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { join } from 'node:path'
-import { PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isOutcome, user } from '../daemon/dupline-world.ts'
+import { DIST, MODEL, NODE, PROBE_KEY, bootRunner, bound, childEnv, configKeyOf, isOutcome, type AskHost } from '../daemon/dupline-world.ts'
+import { inputLine, parseFrame, promptRow } from './rows.ts'
 
 export type WireBlock = { type: 'text'; text: string } | { type: 'tool_use'; name: string; input: Record<string, unknown> }
 export type SeenResult = { toolUseId: string; text: string; isError: boolean }
@@ -209,11 +211,51 @@ export function seedScratchHome(runHome: string, cwd: string): void {
 
 export type ScriptedTurn = { result: Record<string, unknown> | null; stderr: string; exitCode: number | null }
 
-export async function runScriptedTurn(args: { runHome: string; cwd: string; base: string; ask: string; timeoutMs?: number; extraEnv?: Record<string, string>; extraArgv?: string[] }): Promise<ScriptedTurn> {
+function runHostlessTurn(args: { cwd: string; env: NodeJS.ProcessEnv; ask: string; timeoutMs: number; extraArgv: string[] }): Promise<ScriptedTurn> {
+  return new Promise(resolve => {
+    const child = spawn(NODE, [DIST, 'run', '--input', 'rows', '--format', 'rows', '--model', MODEL, '--mode', 'sovereign', ...args.extraArgv], { cwd: args.cwd, env: args.env, stdio: ['pipe', 'pipe', 'pipe'] })
+    let stdout = ''
+    let stderr = ''
+    let result: Record<string, unknown> | null = null
+    let settled = false
+    const finish = (exitCode: number | null): void => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      resolve({ result, stderr, exitCode })
+    }
+    const timer = setTimeout(() => {
+      console.log(`  [wait] outcome: nothing within ${args.timeoutMs} ms`)
+      child.kill('SIGKILL')
+    }, args.timeoutMs)
+    child.stdout!.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString('utf8')
+      const lines = stdout.split('\n')
+      stdout = lines.pop() ?? ''
+      for (const line of lines) {
+        const frame = parseFrame(line)
+        if (frame !== null && isOutcome(frame) && result === null) {
+          result = frame
+          child.stdin!.end()
+        }
+      }
+    })
+    child.stderr!.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString('utf8')
+    })
+    child.on('close', code => finish(code))
+    child.on('error', () => finish(null))
+    child.stdin!.write(inputLine(promptRow(args.ask, { id: randomUUID() })))
+  })
+}
+
+export async function runScriptedTurn(args: { runHome: string; cwd: string; base: string; ask: string; timeoutMs?: number; extraEnv?: Record<string, string>; extraArgv?: string[]; host?: AskHost }): Promise<ScriptedTurn> {
   seedScratchHome(args.runHome, args.cwd)
   const port = Number(new URL(args.base).port)
-  const runner = bootRunner({ cwd: args.cwd, env: { ...childEnv(args.runHome, port), ...(args.extraEnv ?? {}) }, ...(args.extraArgv ? { extraArgv: args.extraArgv } : {}) })
-  runner.send(user(args.ask, randomUUID()))
+  const env = { ...childEnv(args.runHome, port), ...(args.extraEnv ?? {}) }
+  if (args.host === undefined) return runHostlessTurn({ cwd: args.cwd, env, ask: args.ask, timeoutMs: bound(args.timeoutMs ?? 90_000), extraArgv: args.extraArgv ?? [] })
+  const runner = bootRunner({ cwd: args.cwd, env, ...(args.extraArgv ? { extraArgv: args.extraArgv } : {}), asks: args.host })
+  void runner.prompt(args.ask, randomUUID())
   const result = await runner.waitFor('outcome', isOutcome, bound(args.timeoutMs ?? 90_000))
   await runner.stop(bound(5_000))
   return { result, stderr: runner.stderr(), exitCode: await runner.exited }

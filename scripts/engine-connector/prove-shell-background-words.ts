@@ -21,7 +21,7 @@ const { registerShellRun, requestShellBackground, mainShellRunsNow, subscribeShe
 const { ACTION_GRAPH } = await import('../../src/keybindings/actionGraph.ts')
 const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings.ts')
 const { DAEMON_VERB_BORN_AT, MERCURY_DAEMON_PROTO, verbBornAt } = await import('../../src/daemon/protocol.ts')
-const { SDKControlBackgroundShellRequestSchema } = await import('../../src/entrypoints/sdk/controlSchemas.ts')
+const { METHODS } = await import('../../src/runner/wire/methods.ts')
 
 type Live = typeof IDLE_LIVE
 const live = (inFlight: boolean): Live => ({ ...IDLE_LIVE, inFlight, phase: inFlight ? 'tool' : 'idle', inProgressToolUseIDs: new Set(inFlight ? ['toolu_1'] : []) })
@@ -60,22 +60,22 @@ section('§3 the request registry — the main conversation\'s running commands 
   off()
 }
 
-section('§4 the wire — the key row, the runner\'s subtype, the daemon\'s verb at its own proto')
+section('§4 the wire — the key row, the runner\'s method, the daemon\'s verb at its own proto')
 check('chat:backgroundShell lives in the Chat context', ACTION_GRAPH['chat:backgroundShell']?.contexts.includes('Chat') === true)
 check('the /keys row and the palette entry read the frames\' words: background the command', ACTION_GRAPH['chat:backgroundShell']?.description === 'background the command', JSON.stringify(ACTION_GRAPH['chat:backgroundShell']?.description))
 const chat = Object.assign({}, ...(DEFAULT_BINDINGS as { context: string; bindings: Record<string, string> }[]).filter(b => b.context === 'Chat').map(b => b.bindings)) as Record<string, string>
 check('the default Chat binding is shift+b', chat['shift+b'] === 'chat:backgroundShell', JSON.stringify(chat['shift+b']))
-check('the runner accepts { subtype: background_shell }', SDKControlBackgroundShellRequestSchema().safeParse({ subtype: 'background_shell' }).success)
+check('the wire declares shell/background as a host request with no params and a positive taken count', METHODS['shell/background'].from === 'host' && METHODS['shell/background'].kind === 'request' && METHODS['shell/background'].params().safeParse({}).success && METHODS['shell/background'].result().safeParse({ taken: 1 }).success && !METHODS['shell/background'].result().safeParse({ taken: 0 }).success)
 check('the daemon verb sessionControl/background-shell is born at proto 11 and the wire is at least there', DAEMON_VERB_BORN_AT['sessionControl/background-shell'] === 11 && verbBornAt('sessionControl', 'background-shell') === 11 && MERCURY_DAEMON_PROTO >= 11)
 const server = read('src/daemon/controlServer.ts')
 check('the control server admits the action and names it in its refusal', server.includes("raw.action === 'background-shell'") && /requires \{ action: [^']*\|background-shell(\|[a-z-]+)*, sessionId, by \}/.test(server))
 const main = read('src/daemon/main.ts')
 check('the daemon relays the action to the seat verb', main.includes("if (action === 'background-shell')") && main.includes('return backgroundSessionShell(sessionId, roster)'))
 const seat = read('src/daemon/sessionSeat.ts')
-check('the seat delivers the runner\'s background_shell control request and awaits its word', seat.includes("request: { subtype: 'background_shell' }") && seat.includes('export function backgroundSessionShell('))
+check('the seat asks shell/background through the runner door and awaits its word', seat.includes("askSeat(roster, rec.runnerId, 'shell/background', {}, 'background-shell', deadlineMs)") && seat.includes('export async function backgroundSessionShell('))
 check('a runner older than the verb is refused in one sentence naming the key and the way out', seat.includes(`"this session's runner predates shift+B · /daemon restart, then reopen the session"`))
 const runner = read('src/cli/print.ts')
-check('the runner answers the subtype from the registry: applied with the count, or the typed refusal', runner.includes("case 'background_shell': {") && runner.includes("'shell/background': () => {") && runner.includes("throw refused('no shell command is running in the main conversation', 'no-shell')"))
+check('the runner answers the method from the registry: the count taken, or the typed refusal', runner.includes("'shell/background': () => {") && runner.includes("throw refused('no shell command is running in the main conversation', 'no-shell')") && !runner.includes("case 'background_shell'"))
 
 section('§5 the tool\'s road and its words')
 const tool = read('src/tools/BashTool/BashTool.tsx')

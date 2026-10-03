@@ -84,23 +84,23 @@ await fixture1.close()
     try { JSON.parse(l); return true } catch { return false }
   })
   check('every stdout line is JSON (no interactive surface bytes)', allJson, lines.find(l => { try { JSON.parse(l); return false } catch { return true } })?.slice(0, 120) ?? '')
-  const init = lines.map(l => JSON.parse(l) as Record<string, unknown>).find(o => o.type === 'system' && o.subtype === 'init')
-  check('the init envelope reports EXACTLY the requested per-client mode', (init as { permission_mode?: string } | undefined)?.permission_mode === 'implement', JSON.stringify(init ?? {}).slice(0, 200))
+  const init = lines.map(l => JSON.parse(l) as Record<string, unknown>).find(o => o.type === 'session')
+  check('the session row reports EXACTLY the requested per-client mode', (init as { mode?: string } | undefined)?.mode === 'implement', JSON.stringify(init ?? {}).slice(0, 200))
 
   const home2 = mkdtempSync(join(tmpdir(), 'idiom-e07b-'))
   const fixture2 = await freshFixture()
   const r2 = await runHeadless(fixture2.url, home2, join(home2, 'proj'), 'implement')
   await fixture2.close()
-  const init2 = r2.out.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } }).find(o => o.type === 'system' && o.subtype === 'init')
-  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { permission_mode?: string } | undefined)?.permission_mode === 'implement', JSON.stringify(init2 ?? {}).slice(0, 200))
+  const init2 = r2.out.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } }).find(o => o.type === 'session')
+  check('a different client resolves ITS OWN policy (per-client, deterministic)', (init2 as { mode?: string } | undefined)?.mode === 'implement', JSON.stringify(init2 ?? {}).slice(0, 200))
 }
 
-section('§E02 — one uuid across the SDK envelope and the durable record')
+section('§E02 — one message id across the text row and the durable record')
 {
   const lines = r1.out.split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) as Record<string, unknown> } catch { return {} } })
-  const sdkAssistant = lines.find(o => o.type === 'assistant')
-  const sdkUuid = (sdkAssistant as { uuid?: string } | undefined)?.uuid
-  check('the SDK assistant envelope carries a uuid', typeof sdkUuid === 'string' && sdkUuid!.length > 10, JSON.stringify(sdkAssistant ?? {}).slice(0, 160))
+  const textRow = lines.find(o => o.type === 'text' && o.parent_call_id === undefined)
+  const sdkUuid = (textRow as { message_id?: string } | undefined)?.message_id
+  check('the text row carries its message id', typeof sdkUuid === 'string' && sdkUuid!.length > 3, JSON.stringify(textRow ?? {}).slice(0, 160))
 
   const projectsDir = join(home1, '.mercury', 'projects')
   let transcript = ''
@@ -114,7 +114,7 @@ section('§E02 — one uuid across the SDK envelope and the durable record')
       else if (e.endsWith('.jsonl')) transcript += readFileSync(p, 'utf8')
     }
   }
-  check('the durable record carries the SAME uuid (store identity = SDK identity)', sdkUuid !== undefined && transcript.includes(`"${sdkUuid}"`), `uuid=${sdkUuid}`)
+  check('the durable record carries the SAME message id as its providerMessageId (store identity = row identity)', sdkUuid !== undefined && transcript.includes(`"providerMessageId":"${sdkUuid}"`), `id=${sdkUuid}`)
   check('the reply content is the settled one', transcript.includes('IDENTITY-REPLY-E02'))
 }
 
@@ -124,8 +124,8 @@ section('§E02 — the renderer/lifecycle seams key on the same uuid (source-pin
   check('the renderer memo compares message identity by uuid', messageTsx.includes('prev.message.uuid !== next.message.uuid'))
   const writer = readFileSync(join(ROOT, 'src/utils/sessionStorage/writer.ts'), 'utf8')
   check('the lifecycle verbs key on uuid (settle by uuid · remove by uuid)', writer.includes('settleState.set(entry.uuid') && writer.includes('removeMessageByUuid'))
-  const mappers = readFileSync(join(ROOT, 'src/utils/messages/mappers.ts'), 'utf8')
-  check('the SDK projection preserves the internal uuid', mappers.includes('uuid'))
+  const project = readFileSync(join(ROOT, 'src/rows/project.ts'), 'utf8')
+  check("the row projection carries the provider message id on every item row (text, reasoning, tool_call)", /type: 'text' as const, message_id: messageId/.test(project) && /type: 'tool_call' as const,\s*message_id: messageId/.test(project))
 }
 
 console.log(failures === 0 ? '\n ✅ IDENTITY + HEADLESS POLICY PROVEN' : `\n ❌ ${failures} FAILED`)

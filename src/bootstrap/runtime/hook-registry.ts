@@ -4,8 +4,7 @@ import type { ExtensionHookMatcher } from 'src/utils/settings/types.js'
 
 export type RegisteredHookMatcher = HookCallbackMatcher | ExtensionHookMatcher
 
-export class SdkInitOwner {
-  initJsonSchema: Record<string, unknown> | null = null
+export class HookRegistryOwner {
   registeredHooks: Partial<Record<HookEvent, RegisteredHookMatcher[]>> | null =
     null
 
@@ -39,10 +38,5 @@ export class SdkInitOwner {
     }
 
     this.registeredHooks = Object.keys(filtered).length > 0 ? filtered : null
-  }
-
-  resetSdkInitState(): void {
-    this.initJsonSchema = null
-    this.registeredHooks = null
   }
 }

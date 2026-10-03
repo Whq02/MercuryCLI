@@ -3,6 +3,7 @@ import { subscribeLiveMessagesFor, unreadLiveMessagesFor, markLiveMessagesReadWh
 import { dispatchDedup, type DispatchDedup } from './dispatchDedup.js'
 import { faultPoint } from '../substrate/durablePublish.js'
 import { logForDebugging } from '../utils/debug.js'
+import type { InputRow, PromptRow } from '../rows/vocabulary.js'
 
 export const DISPATCH_REPLAY_NOTE =
   '[replayed after an interruption — this dispatch may have been partially or fully ' +
@@ -39,10 +40,10 @@ export const DISPATCH_REPORT_BACK_FRAMING =
   'stop polishing, land what is verified, and report state honestly.\n' +
   '</system-reminder>'
 
-export function buildBackAgentUserFrame(
+export function buildBackAgentUserRow(
   env: BusEnvelope,
   frameOpts?: { replay?: boolean },
-): string {
+): PromptRow {
   let content = ''
   if (env.kind === 'dispatch') {
     const body = env.title ? `${env.title}\n\n${env.task}` : env.task
@@ -65,19 +66,19 @@ export function buildBackAgentUserFrame(
   } else if (env.kind === 'note') {
     content = `${env.broadcast ? OPERATOR_BROADCAST_LABEL : OPERATOR_NOTE_LABEL} ${env.text}`
   }
-  return JSON.stringify({ type: 'user', message: { role: 'user', content } })
+  return { type: 'prompt', content }
 }
 
-export function buildPlainBusFrame(from: string, text: string): string {
+export function buildPlainBusRow(from: string, text: string): PromptRow {
   const content =
     `[bus] plain message from ${from} (NOT a bus envelope — bus kinds must be sent as ` +
     `structured SendMessage objects, e.g. message:{type:"dispatch", task:"…"}; if this text ` +
     `contains a task/spec, act on it and report back with a structured progress envelope):\n\n${text}`
-  return JSON.stringify({ type: 'user', message: { role: 'user', content } })
+  return { type: 'prompt', content }
 }
 
 export type DispatchRoster = {
-  reply: (short: string, text: string) => Promise<boolean>
+  reply: (short: string, row: InputRow) => Promise<boolean>
 }
 
 export async function drainDispatches(
@@ -174,7 +175,7 @@ export async function drainDispatches(
     if (env && env.kind === 'control') {
       let ok = false
       try {
-        ok = await roster.reply(opts.short, buildBackAgentUserFrame(env))
+        ok = await roster.reply(opts.short, buildBackAgentUserRow(env))
       } catch (e) {
         logForDebugging(`[daemon] drain control deliver threw: ${e}`)
       }
@@ -189,7 +190,7 @@ export async function drainDispatches(
     if (env && env.kind === 'note') {
       let ok = false
       try {
-        ok = await roster.reply(opts.short, buildBackAgentUserFrame(env))
+        ok = await roster.reply(opts.short, buildBackAgentUserRow(env))
       } catch (e) {
         logForDebugging(`[daemon] drain note deliver threw: ${e}`)
       }
@@ -222,7 +223,7 @@ export async function drainDispatches(
       if (plainFrom.length > 0 && plainFrom !== opts.short) {
         let ok = false
         try {
-          ok = await roster.reply(opts.short, buildPlainBusFrame(plainFrom, m.text))
+          ok = await roster.reply(opts.short, buildPlainBusRow(plainFrom, m.text))
         } catch (e) {
           logForDebugging(`[daemon] plain-text deliver threw: ${e}`)
         }
@@ -273,7 +274,7 @@ export async function drainDispatches(
       }
       let ok = false
       try {
-        ok = await roster.reply(opts.short, buildBackAgentUserFrame(d.env, { replay }))
+        ok = await roster.reply(opts.short, buildBackAgentUserRow(d.env, { replay }))
       } catch (e) {
         logForDebugging(`[daemon] dispatch drain: reply threw: ${e}`)
       }

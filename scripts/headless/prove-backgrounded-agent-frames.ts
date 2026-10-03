@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep, user } from '../daemon/dupline-world.ts'
+import { DIST, SCRATCH_ROOT, bootRunner, bound, childEnv, isOutcome, makeTally, sleep } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type Script, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-backgrounded-agent-frames')
@@ -32,7 +32,7 @@ const fixture = await startScriptedFixture(script, { answerDelayMs: req => (isCh
 const port = Number(new URL(fixture.base).port)
 const runner = bootRunner({ cwd, env: childEnv(runHome, port) })
 const t0 = Date.now()
-runner.send(user(MAIN_ASK, randomUUID()))
+void runner.prompt(MAIN_ASK, randomUUID())
 
 tally.section("the parent calls the Agent tool in the foreground; the child's first request hangs at the wire")
 const launch = await runner.waitFor("the parent's Agent call", f => f.type === 'tool_call' && f.tool === 'Agent' && f.parent_call_id === undefined, bound(60_000))
@@ -44,9 +44,8 @@ tally.check("the child's request reached the wire", fixture.requests.some(isChil
 
 tally.section('the turn is interrupted under the child: the run is handed to the background, never killed')
 const before = runner.frames.length
-runner.send({ type: 'control_request', request_id: 'req_handover', request: { subtype: 'interrupt' } })
-const ack = await runner.waitFor('the interrupt ack', f => f.type === 'control_response', bound(30_000), before)
-tally.check('the interrupt was acknowledged', ack !== null)
+const ack = await runner.request('turn/interrupt', { op_id: 'req_handover' }, bound(30_000)).catch(() => null)
+tally.check('the interrupt was acknowledged', ack !== null && ack.interrupted === true, JSON.stringify(ack))
 const interrupted = await runner.waitFor("the interrupted turn's outcome", isOutcome, bound(30_000), before)
 tally.check('the interrupted turn settled with an outcome', interrupted !== null, String(interrupted?.status))
 const receiptFrame = runner.frames.find(f => f.type === 'tool_result' && f.call_id === agentToolUseId)
@@ -69,7 +68,7 @@ tally.check('the SDK bookend does not deliver the held notice to the model befor
 const NEXT_LINE = 'read the held result'
 const isNextLine = (req: ScriptedRequest): boolean => !isChild(req) && req.allTexts.some(text => text.includes(NEXT_LINE))
 const beforeNextLine = runner.frames.length
-runner.send(user(NEXT_LINE, randomUUID()))
+void runner.prompt(NEXT_LINE, randomUUID())
 const nextResult = await runner.waitFor('the next operator turn', f => isOutcome(f) && fixture.requests.some(isNextLine), bound(30_000), beforeNextLine)
 const nextRequest = fixture.requests.find(isNextLine)
 const nextTexts = nextRequest?.allTexts.join('\n') ?? ''

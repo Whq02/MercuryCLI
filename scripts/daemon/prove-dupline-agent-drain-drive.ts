@@ -4,30 +4,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureArgv0, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
-import {
-  AGENT_DESCRIPTION,
-  AGENT_TURN_ASK,
-  carriersOf,
-  childEnv,
-  CLOCK_TOLERANCE_MS,
-  DIST,
-  exportWorld,
-  inMainFile,
-  isDrainedMainRow,
-  j,
-  LINE,
-  makeTally,
-  MODEL,
-  NODE,
-  QUEUED_PLATE,
-  removeWorld,
-  REPO,
-  SCRATCH_ROOT,
-  seedHome,
-  startFixture,
-  WIN,
-  briefly,
-} from './dupline-world.ts'
+import { AGENT_DESCRIPTION, AGENT_TURN_ASK, carriersOf, childEnv, CLOCK_TOLERANCE_MS, DIST, exportWorld, inMainFile, isDrainedMainRow, j, LINE, makeTally, MODEL, NODE, QUEUED_PLATE, removeWorld, REPO, SCRATCH_ROOT, seedHome, startFixture, WIN, briefly } from './dupline-world.ts'
 
 const { check, section, finish, failed } = makeTally('prove-dupline-agent-drain-drive')
 
