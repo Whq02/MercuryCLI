@@ -1001,7 +1001,7 @@ section('P3 removeInterruptedMessage — the user+sentinel splice')
   )
 }
 
-section('P4 resolvePermissionModeTransition — apollo refused outside the terminal, bypass gated, an unknown word refused, success transition')
+section('P4 resolvePermissionModeTransition — apollo accepted on the runner door for any host, bypass gated, an unknown word refused, success transition')
 {
   const { resolvePermissionModeTransition } = controlMod
   const baseCtx = {
@@ -1014,8 +1014,8 @@ section('P4 resolvePermissionModeTransition — apollo refused outside the termi
 
   const apollo = resolvePermissionModeTransition('apollo' as never, baseCtx as never)
   check(
-    'apollo is refused in SDK/print mode (a refusal with its sentence)',
-    apollo.ok === false && /apollo/i.test(apollo.ok ? '' : apollo.error),
+    "apollo is accepted on the runner door whatever the host, and the context carries mode 'apollo'",
+    apollo.ok === true && (apollo.ok ? (apollo.context as { mode?: string }).mode : '') === 'apollo',
     JSON.stringify(apollo),
   )
 
