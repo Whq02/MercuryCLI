@@ -52,7 +52,7 @@ section('default posture (env unset) — the fix itself')
   const argv = buildArgv()
   check('long-lived argv carries --mode flow', hasPair(argv, 'flow'))
   check('no bypass flag by default', !argv.includes('--sovereign'))
-  check('argv still stream-json shaped', argv.includes('--input=rows'))
+  check('argv serves the runner door', argv[1] === 'runner' && !argv.includes('--input=rows'))
   check('argv still carries the floored --model', argv.includes('--model'))
   check('the stream-json feed is complete on its own: argv carries no --verbose', !argv.includes('--verbose'))
 }

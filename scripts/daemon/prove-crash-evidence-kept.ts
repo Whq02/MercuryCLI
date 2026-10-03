@@ -91,7 +91,7 @@ const outcome = (status: string, error?: Record<string, unknown>, extra: Record<
   steps: 0,
   wall_ms: 0,
   usage: USAGE,
-  models: [],
+  models: {},
   denials: [],
   ...(error !== undefined ? { error } : {}),
   ...extra,
@@ -311,7 +311,7 @@ const refusing = join(scratch, 'refusing-runner.mjs')
 writeFileSync(
   refusing,
   [
-    `const envelope = ${JSON.stringify(envelope)}`,
+    `const envelope = ${JSON.stringify({ jsonrpc: '2.0', method: 'row', params: envelope })}`,
     "setTimeout(() => process.stdout.write(JSON.stringify(envelope) + '\\n'), 300)",
     'setTimeout(() => process.exit(1), 2000)',
     '',

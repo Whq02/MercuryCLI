@@ -1,5 +1,6 @@
 
 export const SEAT_VERB_APPLIED_SUBTYPE = 'seat_verb_applied'
+export const SANDBOX_NETWORK_ACCESS_TOOL_NAME = 'SandboxNetworkAccess'
 
 export type SeatVerbAppliedFrame = {
   type: 'system'

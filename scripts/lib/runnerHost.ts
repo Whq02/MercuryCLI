@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { createPeer, type Peer } from '../../src/runner/wire/peer.ts'
-import type { Capabilities, InitializeResult, ParamsOf, PermissionRequestParams, ResultOf } from '../../src/runner/wire/methods.ts'
+import type { Capabilities, ElicitationRequestParams, InitializeResult, ParamsOf, PermissionRequestParams, ResultOf } from '../../src/runner/wire/methods.ts'
 import type { Frame } from './rows.ts'
 
 export type HostedRunner = {
@@ -12,6 +12,7 @@ export type HostedRunner = {
   rows: Frame[]
   notifications: Array<{ method: string; params: unknown }>
   asks: Array<{ id: number; params: PermissionRequestParams }>
+  withdrawn: Set<number>
   stderr: () => string
   exited: Promise<number | null>
   initialize(capabilities?: Partial<Capabilities>, deadlineMs?: number): Promise<InitializeResult>
@@ -21,6 +22,8 @@ export type HostedRunner = {
   waitForAsk(label: string, timeoutMs?: number): Promise<{ id: number; params: PermissionRequestParams }>
   answerAsk(id: number, answer: ResultOf<'permission/request'>): void
   onAsk(handler: (params: PermissionRequestParams, id: number) => ResultOf<'permission/request'> | Promise<ResultOf<'permission/request'>>): void
+  onElicitation(handler: (params: ElicitationRequestParams, id: number) => ResultOf<'elicitation/request'> | Promise<ResultOf<'elicitation/request'>>): void
+  elicitations: Array<{ id: number; params: ElicitationRequestParams }>
   end(): void
   stop(graceMs?: number): Promise<number | null>
 }
@@ -69,6 +72,8 @@ export function hostRunner(opts: HostOptions): HostedRunner {
   const rows: Frame[] = []
   const notifications: Array<{ method: string; params: unknown }> = []
   const asks: Array<{ id: number; params: PermissionRequestParams }> = []
+  const withdrawn = new Set<number>()
+  const elicitations: Array<{ id: number; params: ElicitationRequestParams }> = []
   const rowWaiters: Array<{ pred: (row: Frame) => boolean; resolve: (row: Frame) => void }> = []
   const askWaiters: Array<(ask: { id: number; params: PermissionRequestParams }) => void> = []
   let askHandler: ((params: PermissionRequestParams, id: number) => ResultOf<'permission/request'> | Promise<ResultOf<'permission/request'>>) | null = null
@@ -92,7 +97,14 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     if (askHandler !== null) return askHandler(params, ctx.id)
     return new Promise<ResultOf<'permission/request'>>(resolve => {
       pendingAsks.set(ctx.id, { resolve })
-      ctx.signal.addEventListener('abort', () => pendingAsks.delete(ctx.id), { once: true })
+      ctx.signal.addEventListener(
+        'abort',
+        () => {
+          pendingAsks.delete(ctx.id)
+          withdrawn.add(ctx.id)
+        },
+        { once: true },
+      )
     })
   })
   const exited = new Promise<number | null>(resolve => child.on('close', code => resolve(code)))
@@ -102,6 +114,7 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     rows,
     notifications,
     asks,
+    withdrawn,
     stderr: () => stderr,
     exited,
     initialize: (capabilities = {}, deadlineMs = 60_000) =>
@@ -146,6 +159,13 @@ export function hostRunner(opts: HostOptions): HostedRunner {
     onAsk: handler => {
       askHandler = handler
     },
+    onElicitation: handler => {
+      peer.onRequest('elicitation/request', (params, ctx) => {
+        elicitations.push({ id: ctx.id, params })
+        return handler(params, ctx.id)
+      })
+    },
+    elicitations,
     end: () => {
       try {
         child.stdin!.end()

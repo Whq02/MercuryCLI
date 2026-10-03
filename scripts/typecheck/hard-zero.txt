@@ -103,3 +103,4 @@ src/runner/wire/methods.ts
 src/runner/wire/peer.ts
 src/cli/headless/runnerAsks.ts
 src/cli/headless/runnerMethods.ts
+src/daemon/runnerConnection.ts

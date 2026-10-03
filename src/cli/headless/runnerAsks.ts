@@ -15,8 +15,9 @@ import { encodeDecisionReasonForWire } from '../../utils/permissions/decisionRea
 import { hasPermissionsToUseTool } from '../../utils/permissions/permissions.js'
 import { applyPermissionUpdates, persistPermissionUpdates } from '../../utils/permissions/PermissionUpdate.js'
 import { notifySessionStateChanged, type RequiresActionDetails } from '../../utils/sessionState.js'
+import { SANDBOX_NETWORK_ACCESS_TOOL_NAME } from '../../daemon/runnerFrames.js'
 
-export const SANDBOX_NETWORK_ACCESS_TOOL_NAME = 'SandboxNetworkAccess'
+export { SANDBOX_NETWORK_ACCESS_TOOL_NAME }
 
 export const PERMISSION_CHANNEL_CLOSED_CAUSE = 'the permission channel closed while the ask was pending'
 
