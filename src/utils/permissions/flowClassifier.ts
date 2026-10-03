@@ -16,7 +16,7 @@ import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import type { Message } from '../../types/message.js'
 import type { MessageParam, TextBlockParam } from '../../types/wire.js'
 import type { Tool, Tools, ToolPermissionContext } from '../../Tool.js'
-import type { YoloClassifierResult } from '../../types/permissions.js'
+import type { FlowClassifierResult } from '../../types/permissions.js'
 import { getMercuryTempDir } from './filesystem.js'
 import { extractToolUseBlock, readClassifierVerdict } from './classifierShared.js'
 import {
@@ -30,7 +30,7 @@ import {
   classifyOverRoutedTransport,
 } from './classifierRouted.js'
 
-export const YOLO_CLASSIFIER_TOOL_NAME = 'classify_result'
+export const FLOW_CLASSIFIER_TOOL_NAME = 'classify_result'
 
 export const CLASSIFIER_INSTRUCTIONS_ELEMENT = 'project_instructions'
 
@@ -127,7 +127,7 @@ export function buildDefaultExternalSystemPrompt(): string {
   return assembleSystemPrompt(buildPermissionsTemplate({}))
 }
 
-export async function buildYoloSystemPrompt(_context: ToolPermissionContext): Promise<string> {
+export async function buildFlowSystemPrompt(_context: ToolPermissionContext): Promise<string> {
   const settings = ((getAutoModeConfig() as { autoMode?: Partial<AutoModeRules> } | undefined)?.autoMode) ?? {}
   const permissionsTemplate = buildPermissionsTemplate({
     allow: settings.allow,
@@ -321,7 +321,7 @@ function unreadableVerdict(args: {
   action: TranscriptEntry
   systemPrompt: string
   transcript: string
-}): YoloClassifierResult {
+}): FlowClassifierResult {
   logForDebugging(args.evidence.logLine, { level: 'warn' })
   const dumpPath = writeErrorDump(args.evidence.dumpText, JSON.stringify(args.action), args.systemPrompt, args.transcript)
   return {
@@ -347,14 +347,14 @@ function isBlankPrompt(prompt: string): boolean {
   return prompt.trim() === ''
 }
 
-export async function classifyYoloAction(
+export async function classifyFlowAction(
   messages: Message[],
   action: TranscriptEntry,
   tools: Tools,
   context: ToolPermissionContext,
   signal: AbortSignal,
   modelOverride?: string,
-): Promise<YoloClassifierResult> {
+): Promise<FlowClassifierResult> {
   const model = modelOverride ?? getClassifierModel()
 
   const actionBlock = action.content[0]
@@ -363,16 +363,16 @@ export async function classifyYoloAction(
     const lookup: FailClosedLookup = { get: name => findTool(tools, name) }
     const failClosed = emptyProjectionFailClosedVerdict(action, lookup)
     if (failClosed) {
-      return { ...failClosed, model: getClassifierModel() } as unknown as YoloClassifierResult
+      return { ...failClosed, model: getClassifierModel() } as unknown as FlowClassifierResult
     }
     return {
       shouldBlock: false,
       reason: 'Tool declares no classifier-relevant input.',
       model,
-    } as unknown as YoloClassifierResult
+    } as unknown as FlowClassifierResult
   }
 
-  const systemPrompt = await buildYoloSystemPrompt(context)
+  const systemPrompt = await buildFlowSystemPrompt(context)
 
   if (!systemPrompt.trim()) {
     logError('auto-mode classifier prompt asset is absent from the build')
@@ -381,7 +381,7 @@ export async function classifyYoloAction(
       unavailable: true,
       reason: 'Classifier prompt missing from this build — blocking for safety.',
       model,
-    } as unknown as YoloClassifierResult
+    } as unknown as FlowClassifierResult
   }
 
   const transcript = buildTranscriptForClassifier(messages, tools)
@@ -412,7 +412,7 @@ export async function classifyYoloAction(
         ],
         maxTokens: 4096,
         tools: [classifierToolDefinition()],
-        toolChoice: { type: 'tool', name: YOLO_CLASSIFIER_TOOL_NAME },
+        toolChoice: { type: 'tool', name: FLOW_CLASSIFIER_TOOL_NAME },
         signal,
       }),
     )
@@ -420,13 +420,13 @@ export async function classifyYoloAction(
     lastClassifierRequestsStore = [{ model, systemPrompt, transcript }]
 
     if (signal.aborted) {
-      return { shouldBlock: true, unavailable: true, reason: 'Classifier request aborted.', model } as unknown as YoloClassifierResult
+      return { shouldBlock: true, unavailable: true, reason: 'Classifier request aborted.', model } as unknown as FlowClassifierResult
     }
 
     const content = (response as { content?: TranscriptBlock[] }).content ?? []
-    const toolUse = extractToolUseBlock(content as never, YOLO_CLASSIFIER_TOOL_NAME)
+    const toolUse = extractToolUseBlock(content as never, FLOW_CLASSIFIER_TOOL_NAME)
     if (!toolUse) {
-      const issues = [`no ${YOLO_CLASSIFIER_TOOL_NAME} tool-use block in the answer (blocks: ${content.map(block => block.type).join(', ') || 'none'})`]
+      const issues = [`no ${FLOW_CLASSIFIER_TOOL_NAME} tool-use block in the answer (blocks: ${content.map(block => block.type).join(', ') || 'none'})`]
       return unreadableVerdict({
         reason: 'The classifier answered without a tool-use block — blocking for safety.',
         model,
@@ -457,10 +457,10 @@ export async function classifyYoloAction(
       reason: read.data.reason,
       thinking: read.data.thinking,
       model,
-    } as unknown as YoloClassifierResult
+    } as unknown as FlowClassifierResult
   } catch (error) {
     if (signal.aborted) {
-      return { shouldBlock: true, unavailable: true, reason: 'Classifier request aborted.', model } as unknown as YoloClassifierResult
+      return { shouldBlock: true, unavailable: true, reason: 'Classifier request aborted.', model } as unknown as FlowClassifierResult
     }
     if (error instanceof Error && error.message.toLowerCase().includes('prompt is too long')) {
       return {
@@ -468,7 +468,7 @@ export async function classifyYoloAction(
         transcriptTooLong: true,
         reason: 'Classifier transcript exceeded the context window.',
         model,
-      } as unknown as YoloClassifierResult
+      } as unknown as FlowClassifierResult
     }
     const dumpPath = writeErrorDump(String(error), JSON.stringify(action), systemPrompt, transcript)
     return {
@@ -477,7 +477,7 @@ export async function classifyYoloAction(
       reason: 'Classifier unavailable — blocking for safety.',
       model,
       errorDumpPath: dumpPath,
-    } as unknown as YoloClassifierResult
+    } as unknown as FlowClassifierResult
   }
 }
 
@@ -505,7 +505,7 @@ export function buildInstructionPrefix(): string | undefined {
 
 function classifierToolDefinition() {
   return {
-    name: YOLO_CLASSIFIER_TOOL_NAME,
+    name: FLOW_CLASSIFIER_TOOL_NAME,
     description: 'Reports the security classification of the agent\'s action.',
     input_schema: {
       type: 'object',
@@ -585,19 +585,19 @@ export function classifierFallbackEnabled(): boolean {
 
 const baseModel = classifierBaseModel
 
-export async function classifyYoloActionWithFallback(
+export async function classifyFlowActionWithFallback(
   messages: Message[],
   action: TranscriptEntry,
   tools: Tools,
   context: ToolPermissionContext,
   signal: AbortSignal,
-): Promise<YoloClassifierResult> {
-  let primary = await classifyYoloAction(messages, action, tools, context, signal)
+): Promise<FlowClassifierResult> {
+  let primary = await classifyFlowAction(messages, action, tools, context, signal)
   if (!classifierFallbackEnabled()) return primary
 
   if (primary.retryable && !signal.aborted) {
     logForDebugging('classifier parse failure; re-asking the same model once')
-    const retry = await classifyYoloAction(
+    const retry = await classifyFlowAction(
       messages,
       action,
       tools,
@@ -618,7 +618,7 @@ export async function classifyYoloActionWithFallback(
   if (!primary.unavailable || primary.transcriptTooLong || signal.aborted) return primary
   for (const candidate of getClassifierModelChain()) {
     if (baseModel(candidate) === baseModel(primary.model)) continue
-    const next = await classifyYoloAction(messages, action, tools, context, signal, candidate)
+    const next = await classifyFlowAction(messages, action, tools, context, signal, candidate)
     if (next.transcriptTooLong || signal.aborted) return next
     if (!next.unavailable) return next
     primary = next

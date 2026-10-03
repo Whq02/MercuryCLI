@@ -19,11 +19,11 @@ export function getClassifierApproval(toolUseID: string): string | undefined {
   return undefined
 }
 
-export function setYoloClassifierApproval(toolUseID: string, reason: string): void {
+export function setFlowClassifierApproval(toolUseID: string, reason: string): void {
   return
 }
 
-export function getYoloClassifierApproval(toolUseID: string): string | undefined {
+export function getFlowClassifierApproval(toolUseID: string): string | undefined {
   return undefined
 }
 

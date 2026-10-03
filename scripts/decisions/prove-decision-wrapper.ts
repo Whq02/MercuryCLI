@@ -250,7 +250,7 @@ section('fast-path ports')
   )
   check(
     'implement port allow → mode-flow allow without the classifier',
-    r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'acceptEditsFastPath',
+    r.decision.behavior === 'allow' && r.wrapper.decidedBy === 'implementFastPath',
     j({ decision: r.decision, decidedBy: r.wrapper.decidedBy }),
   )
   checkSubsequenceLaw('acceptEdits fast-path', r.wrapper)

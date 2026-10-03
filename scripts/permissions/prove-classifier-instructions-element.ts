@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/permissions/yoloClassifier.ts src/utils/permissions/classifierRouted.ts
+// gate-watch: src/utils/permissions/flowClassifier.ts src/utils/permissions/classifierRouted.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { mkdtempSync, readFileSync } from 'node:fs'
@@ -26,7 +26,7 @@ function section(t: string): void {
 console.log("the auto-mode check wraps the project instructions in Mercury's element")
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const yolo = await import('../../src/utils/permissions/yoloClassifier.ts')
+const yolo = await import('../../src/utils/permissions/flowClassifier.ts')
 const state = await import('../../src/bootstrap/state.ts')
 const reader = await import('../api/read-instruction-heading.ts')
 
@@ -66,7 +66,7 @@ section('§2 both request roads carry the prefix as written')
   check('…and the reader finds the element in that request body', reader.reportRow({ body: options }).classifierTag === 'project_instructions')
   const routed = readFileSync(join(REPO, 'src/utils/permissions/classifierRouted.ts'), 'utf8')
   check('the routed road prepends the same prefix to its user prompt', /args\.instructionPrefix \? `\$\{args\.instructionPrefix\}\\n\\n` : ''/.test(routed))
-  const source = readFileSync(join(REPO, 'src/utils/permissions/yoloClassifier.ts'), 'utf8')
+  const source = readFileSync(join(REPO, 'src/utils/permissions/flowClassifier.ts'), 'utf8')
   check('the element is spelled once, through the constant', (source.match(/project_instructions/g) ?? []).length === 1 && /<\$\{CLASSIFIER_INSTRUCTIONS_ELEMENT\}>/.test(source))
   state.setCachedInstructionPrompt(null)
 }

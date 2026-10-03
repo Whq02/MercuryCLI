@@ -16,7 +16,7 @@ import type { MessageLookups } from '../../../utils/messages/lookups.js'
 import {
   deleteClassifierApproval,
   getClassifierApproval,
-  getYoloClassifierApproval,
+  getFlowClassifierApproval,
 } from '../../../utils/classifierApprovals.js'
 import { summarizeToolResult } from '../../../utils/toolResultSummary.js'
 import { logError } from '../../../utils/log.js'
@@ -51,7 +51,7 @@ export function UserToolSuccessMessage({
   const [themeName] = useTheme()
   useState(() => {
     const captured =
-      getClassifierApproval(toolUseID) ?? getYoloClassifierApproval(toolUseID)
+      getClassifierApproval(toolUseID) ?? getFlowClassifierApproval(toolUseID)
     deleteClassifierApproval(toolUseID)
     return captured ?? null
   })

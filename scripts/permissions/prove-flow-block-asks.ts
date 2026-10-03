@@ -169,13 +169,13 @@ section('no consent card: the block stays a DENY (headless agent · non-interact
 {
   const headless = await run(makeTool(), makeContext({ mode: 'flow', avoidPrompts: true }))
   check('prompt-less agent → deny', headless.decision.behavior === 'deny', j(headless.decision))
-  check('…with the no-card text (what was blocked, why, how the operator can allow it)', headless.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON), j(headless.decision.message))
+  check('…with the no-card text (what was blocked, why, how the operator can allow it)', headless.decision.message === texts.buildFlowRejectionMessage(BLOCK_REASON), j(headless.decision.message))
   check('…decidedBy classifier, note names the missing card', headless.wrapper.decidedBy === 'classifier' && noteOf(headless).includes('no consent card'), j(headless.wrapper))
   checkSubsequenceLaw('headless block', headless.wrapper)
 
   const print = await run(makeTool(), makeContext({ mode: 'flow', nonInteractive: true }))
   check('non-interactive run (print) → deny', print.decision.behavior === 'deny', j(print.decision))
-  check('…same no-card text', print.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON))
+  check('…same no-card text', print.decision.message === texts.buildFlowRejectionMessage(BLOCK_REASON))
 }
 
 section('the operator road: a print run with a permission channel PARKS a block as the ask; without one it denies')
@@ -192,10 +192,10 @@ section('the operator road: a print run with a permission channel PARKS a block 
   check('a print run with a named prompt tool: a block → ask', promptTool.decision.behavior === 'ask', j(promptTool.decision))
 
   const plain = await run(makeTool(), makeContext({ mode: 'flow', nonInteractive: true }))
-  check('a print run with NO channel: a block → deny with the no-card words (unchanged)', plain.decision.behavior === 'deny' && plain.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON), j(plain.decision))
+  check('a print run with NO channel: a block → deny with the no-card words (unchanged)', plain.decision.behavior === 'deny' && plain.decision.message === texts.buildFlowRejectionMessage(BLOCK_REASON), j(plain.decision))
 
   const promptless = await run(makeTool(), makeContext({ mode: 'flow', avoidPrompts: true, channel: 'stdio' }))
-  check('a prompt-less view with a channel: still the deny (it avoids prompts by law)', promptless.decision.behavior === 'deny' && promptless.decision.message === texts.buildYoloRejectionMessage(BLOCK_REASON), j(promptless.decision))
+  check('a prompt-less view with a channel: still the deny (it avoids prompts by law)', promptless.decision.behavior === 'deny' && promptless.decision.message === texts.buildFlowRejectionMessage(BLOCK_REASON), j(promptless.decision))
 
   const unreadableSeat = await run(
     makeTool(),
@@ -315,7 +315,7 @@ section('the ledger beside the card')
 section('the texts: what was blocked and why, never a workaround')
 {
   const samples: Array<[string, string]> = [
-    ['buildYoloRejectionMessage', texts.buildYoloRejectionMessage(BLOCK_REASON)],
+    ['buildFlowRejectionMessage', texts.buildFlowRejectionMessage(BLOCK_REASON)],
     ['buildFlowBlockDeclinedMessage', texts.buildFlowBlockDeclinedMessage(BLOCK_REASON)],
     ['AUTO_REJECT_MESSAGE', texts.AUTO_REJECT_MESSAGE('Bash')],
     ['DONT_ASK_REJECT_MESSAGE', texts.DONT_ASK_REJECT_MESSAGE('Bash')],
@@ -341,16 +341,16 @@ section('the texts: what was blocked and why, never a workaround')
   for (const [name, text] of samples.slice(0, 5)) {
     check(`${name}: says the action was not run`, /not run|has been denied/.test(text), j(text))
   }
-  for (const name of ['buildYoloRejectionMessage', 'AUTO_REJECT_MESSAGE', 'buildClassifierUnavailableMessage'] as const) {
+  for (const name of ['buildFlowRejectionMessage', 'AUTO_REJECT_MESSAGE', 'buildClassifierUnavailableMessage'] as const) {
     const text = samples.find(s => s[0] === name)![1]
     check(`${name}: names the missing consent card`, /consent card/.test(text), j(text))
   }
-  for (const name of ['buildYoloRejectionMessage', 'AUTO_REJECT_MESSAGE'] as const) {
+  for (const name of ['buildFlowRejectionMessage', 'AUTO_REJECT_MESSAGE'] as const) {
     const text = samples.find(s => s[0] === name)![1]
     check(`${name}: says how the operator can allow it`, /The operator can allow it/.test(text), j(text))
   }
   check('the declined-repeat text says the operator already declined it this turn', /declined it, so it was not asked again/.test(texts.buildFlowBlockDeclinedMessage('r')))
-  check('the block texts keep the classifier-denial prefix (the UI summary hook)', texts.isClassifierDenial(texts.buildYoloRejectionMessage('r')) && texts.isClassifierDenial(texts.buildFlowBlockDeclinedMessage('r')))
+  check('the block texts keep the classifier-denial prefix (the UI summary hook)', texts.isClassifierDenial(texts.buildFlowRejectionMessage('r')) && texts.isClassifierDenial(texts.buildFlowBlockDeclinedMessage('r')))
   for (const [name, text] of samples.slice(0, 4)) {
     check(`${name}: isDenialResultText`, texts.isDenialResultText(text), j(text))
   }

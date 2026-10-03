@@ -236,20 +236,20 @@
     "validateModeEntry",
     "verifyAutoModeGateAccess"
    ],
-   "src/utils/permissions/yoloClassifier.ts": [
+   "src/utils/permissions/flowClassifier.ts": [
     "CLASSIFIER_FALLBACK_MODELS",
     "CLASSIFIER_INSTRUCTIONS_ELEMENT",
+    "FLOW_CLASSIFIER_TOOL_NAME",
     "LATEST_REQUEST_LEAD",
-    "YOLO_CLASSIFIER_TOOL_NAME",
     "buildDefaultExternalSystemPrompt",
+    "buildFlowSystemPrompt",
     "buildInstructionPrefix",
     "buildTranscriptEntries",
     "buildTranscriptForClassifier",
-    "buildYoloSystemPrompt",
     "classifierFallbackEnabled",
     "classifierRequestOptions",
-    "classifyYoloAction",
-    "classifyYoloActionWithFallback",
+    "classifyFlowAction",
+    "classifyFlowActionWithFallback",
     "formatActionForClassifier",
     "getAutoModeClassifierErrorDumpPath",
     "getAutoModeClassifierTranscript",
@@ -324,6 +324,8 @@
     "type:ClassifierResult",
     "type:ClassifierUsage",
     "type:ExternalPermissionMode",
+    "type:FlowClassifierResult",
+    "type:FlowClassifierStageTelemetry",
     "type:InternalPermissionMode",
     "type:PendingClassifierCheck",
     "type:PermissionAllowDecision",
@@ -345,9 +347,7 @@
     "type:PermissionUpdateDestination",
     "type:RiskLevel",
     "type:ToolPermissionContext",
-    "type:ToolPermissionRulesBySource",
-    "type:YoloClassifierResult",
-    "type:YoloClassifierStageTelemetry"
+    "type:ToolPermissionRulesBySource"
    ]
   },
   "mcp": {

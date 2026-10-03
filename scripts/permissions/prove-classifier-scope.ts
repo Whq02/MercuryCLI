@@ -18,7 +18,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const yolo = await import('../../src/utils/permissions/yoloClassifier.ts')
+const yolo = await import('../../src/utils/permissions/flowClassifier.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

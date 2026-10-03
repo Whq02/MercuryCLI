@@ -14,15 +14,15 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 console.log('— §1 the wrapper + chain (source pins) —')
 
-const yolo = readFileSync('src/utils/permissions/yoloClassifier.ts', 'utf8')
+const yolo = readFileSync('src/utils/permissions/flowClassifier.ts', 'utf8')
 
-t('classifyYoloActionWithFallback exported', yolo.includes('export async function classifyYoloActionWithFallback('))
+t('classifyFlowActionWithFallback exported', yolo.includes('export async function classifyFlowActionWithFallback('))
 t('fallback chain declared', /CLASSIFIER_FALLBACK_MODELS = \[\s*'claude-sonnet-5',\s*'claude-opus-5',\s*\] as const/.test(yolo))
 t('chain is Haiku-free (the model rule)', !/haiku/i.test(yolo.slice(yolo.indexOf('CLASSIFIER_FALLBACK_MODELS'), yolo.indexOf('CLASSIFIER_FALLBACK_MODELS') + 400)))
 
 console.log('— retry conditions (fail-closed contract intact) —')
 const wrapper = yolo.slice(
-  yolo.indexOf('export async function classifyYoloActionWithFallback'),
+  yolo.indexOf('export async function classifyFlowActionWithFallback'),
   yolo.indexOf('function getClassifierModelChain'),
 )
 t('no retry unless unavailable', wrapper.includes('if (!primary.unavailable || primary.transcriptTooLong || signal.aborted)'))
@@ -31,7 +31,7 @@ t('abort/too-long during fallback returns immediately', wrapper.includes('if (ne
 t('exhausted chain returns the PRIMARY verdict (original fail-closed message)', /return primary\s*\}\s*$/m.test(wrapper))
 const routedSource = readFileSync('src/utils/permissions/classifierRouted.ts', 'utf8')
 t('same-model skip ignores the [1m]-style tag', routedSource.includes("m.replace(/\\[[^\\]]*\\]\\s*$/, '')"))
-t('yoloClassifier walks with the shared base-model law', yolo.includes('const baseModel = classifierBaseModel'))
+t('flowClassifier walks with the shared base-model law', yolo.includes('const baseModel = classifierBaseModel'))
 
 console.log('— the unreadable verdict: one same-model re-ask, then its own outcome —')
 const unreadableAt = yolo.indexOf('function unreadableVerdict(')
@@ -44,7 +44,7 @@ t('the no-tool-block branch routes through the owner', /if \(!toolUse\) \{[\s\S]
 t('the schema-miss branch routes through the owner', /if \(!read\.ok\) \{[\s\S]{0,200}return unreadableVerdict\(\{[\s\S]{0,120}reason: 'The classifier response did not parse — blocking for safety\.'/.test(yolo))
 t('exactly the owner sets retryable (the unavailable catch is NOT retryable)', (yolo.match(/retryable: true/g) ?? []).length === 1)
 t('wrapper gates the retry on retryable + not-aborted', wrapper.includes('if (primary.retryable && !signal.aborted)'))
-t('wrapper re-asks the SAME model', /const retry = await classifyYoloAction\([^)]*primary\.model,\s*\)/s.test(wrapper))
+t('wrapper re-asks the SAME model', /const retry = await classifyFlowAction\([^)]*primary\.model,\s*\)/s.test(wrapper))
 t('a second failure keeps the unreadable outcome (the retry stays one)', /if \(retry\.retryable\) \{[\s\S]{0,400}return retry\s*\}/.test(wrapper))
 t('a healthy/unavailable retry replaces primary (ladder fallthrough)', wrapper.includes('primary = retry'))
 t('parse retry sits BEHIND the flag gate (=0 restores immediate fail-close)', wrapper.indexOf('if (!classifierFallbackEnabled()) return primary') !== -1 && wrapper.indexOf('if (!classifierFallbackEnabled()) return primary') < wrapper.indexOf('primary.retryable'))
@@ -60,13 +60,13 @@ t('flag registered', reg.includes("env: 'MERCURY_CLASSIFIER_FALLBACK'"))
 console.log('— call sites route through the wrapper —')
 const wrapperBand = readFileSync('src/utils/permissions/decision/wrapper.ts', 'utf8')
 const perms = readFileSync('src/utils/permissions/permissions.ts', 'utf8')
-t('decision/wrapper.ts (the per-tool auto ask)', wrapperBand.includes('classifyYoloActionWithFallback(') && !/classifyYoloAction\(/.test(wrapperBand))
-t('permissions.ts facade carries no direct classifier call', !perms.includes('classifyYoloAction'))
+t('decision/wrapper.ts (the per-tool auto ask)', wrapperBand.includes('classifyFlowActionWithFallback(') && !/classifyFlowAction\(/.test(wrapperBand))
+t('permissions.ts facade carries no direct classifier call', !perms.includes('classifyFlowAction'))
 const agent = readFileSync('src/tools/AgentTool/agentToolUtils.ts', 'utf8')
-t('agentToolUtils.ts carries NO classifier call (handback review removed)', !agent.includes('classifyYoloAction'))
+t('agentToolUtils.ts carries NO classifier call (handback review removed)', !agent.includes('classifyFlowAction'))
 
 console.log('— the model override plumbs to the API attempt —')
-t('classifyYoloAction takes modelOverride', yolo.includes('modelOverride?: string,'))
+t('classifyFlowAction takes modelOverride', yolo.includes('modelOverride?: string,'))
 t('override wins over getClassifierModel()', yolo.includes('const model = modelOverride ?? getClassifierModel()'))
 
 console.log('— §2 the verdict reader at runtime —')
@@ -162,7 +162,7 @@ const port = (server.address() as { port: number }).port
 process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}`
 
 await import('../../src/utils/permissions/decision/wrapper.ts')
-const classifier = await import('../../src/utils/permissions/yoloClassifier.ts')
+const classifier = await import('../../src/utils/permissions/flowClassifier.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -172,8 +172,8 @@ const tools = [bashTool] as never
 const messages = [{ type: 'user', message: { role: 'user', content: [{ type: 'text', text: 'commit the probe' }] } }] as never
 const action = classifier.formatActionForClassifier('Bash', { command: 'git commit --allow-empty -m probe' })
 const context = { ...getEmptyToolPermissionContext(), mode: 'flow' } as never
-const classify = (): ReturnType<typeof classifier.classifyYoloActionWithFallback> =>
-  classifier.classifyYoloActionWithFallback(messages, action, tools, context, new AbortController().signal)
+const classify = (): ReturnType<typeof classifier.classifyFlowActionWithFallback> =>
+  classifier.classifyFlowActionWithFallback(messages, action, tools, context, new AbortController().signal)
 const MALFORMED = { thinking: 'The command writes a commit.', shouldBlock: 'maybe', reason: 'an unreadable verdict' }
 const WELL_FORMED = { thinking: 'The command writes a commit.', shouldBlock: true, reason: 'writes to the repository history' }
 

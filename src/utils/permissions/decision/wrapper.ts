@@ -39,7 +39,7 @@ import {
   buildClassifierUnavailableMessage,
   buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
-  buildYoloRejectionMessage,
+  buildFlowRejectionMessage,
   DONT_ASK_REJECT_MESSAGE,
 } from '../../messages.js'
 import {
@@ -67,10 +67,10 @@ import {
 } from '../PermissionUpdate.js'
 import type { PermissionUpdate } from '../PermissionUpdateSchema.js'
 import {
-  classifyYoloActionWithFallback,
+  classifyFlowActionWithFallback,
   formatActionForClassifier,
   type TranscriptEntry,
-} from '../yoloClassifier.js'
+} from '../flowClassifier.js'
 import { decideRuleBasedPermissions, decideToolPermission } from './engine.js'
 import type {
   DecisionTrace,
@@ -340,7 +340,7 @@ function hideDangerousAllowsFromView(context: ToolUseContext): {
 
 
 export type WrapperClassifierResult = Awaited<
-  ReturnType<typeof classifyYoloActionWithFallback>
+  ReturnType<typeof classifyFlowActionWithFallback>
 >
 
 export interface WrapperPorts {
@@ -390,7 +390,7 @@ export const defaultWrapperPorts: WrapperPorts = {
     return tool.checkPermissions(parsedInput, probeContext)
   },
   classify: (context, action, permissionContext, signal) =>
-    classifyYoloActionWithFallback(
+    classifyFlowActionWithFallback(
       context.messages,
       action,
       context.options.tools,
@@ -596,7 +596,7 @@ export async function decideToolPermissionWithModes(
               logForDebugging(
                 `Flow classifier skipped for ${tool.name}: implement mode would allow this outright`,
               )
-              return decide('acceptEditsFastPath', {
+              return decide('implementFastPath', {
                 behavior: 'allow',
                 updatedInput: acceptEditsVerdict.updatedInput ?? input,
                 decisionReason: {
@@ -610,12 +610,12 @@ export async function decideToolPermissionWithModes(
               throw e
             }
           }
-          recordPass('acceptEditsFastPath')
+          recordPass('implementFastPath')
         } else {
-          recordPass('acceptEditsFastPath', 'skipped — danger filter outage')
+          recordPass('implementFastPath', 'skipped — danger filter outage')
         }
       } else {
-        recordPass('acceptEditsFastPath')
+        recordPass('implementFastPath')
       }
 
       if (
@@ -792,7 +792,7 @@ export async function decideToolPermissionWithModes(
                 classifier: 'auto-mode',
                 reason: classifierResult.reason,
               },
-              message: buildYoloRejectionMessage(classifierResult.reason),
+              message: buildFlowRejectionMessage(classifierResult.reason),
             },
             'blocked — no consent card in this session',
           )

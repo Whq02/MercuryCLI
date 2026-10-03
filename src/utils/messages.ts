@@ -4,7 +4,7 @@ export {
   buildClassifierUnavailableMessage,
   buildClassifierUnreadableMessage,
   buildFlowBlockDeclinedMessage,
-  buildYoloRejectionMessage,
+  buildFlowRejectionMessage,
   CANCEL_MESSAGE,
   DENIAL_WORKAROUND_GUIDANCE,
   DONT_ASK_REJECT_MESSAGE,

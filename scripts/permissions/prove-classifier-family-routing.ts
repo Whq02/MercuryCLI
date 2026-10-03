@@ -196,11 +196,11 @@ chatStatus = 200
 
 server.close()
 
-console.log('— §3 wiring pins (yoloClassifier drives both seams) —')
+console.log('— §3 wiring pins (flowClassifier drives both seams) —')
 
-const yolo = readFileSync('src/utils/permissions/yoloClassifier.ts', 'utf8')
+const yolo = readFileSync('src/utils/permissions/flowClassifier.ts', 'utf8')
 const classifyBand = yolo.slice(
-  yolo.indexOf('export async function classifyYoloAction('),
+  yolo.indexOf('export async function classifyFlowAction('),
   yolo.indexOf('function projectAction'),
 )
 t(
@@ -219,14 +219,14 @@ t(
     !setupSource.includes('jsonlTranscript') &&
     !/^\s*model\?: string$/m.test(setupSource) &&
     !yolo.includes('twoStageClassifier') &&
-    !yolo.includes('classifyYoloActionTwoStage') &&
+    !yolo.includes('classifyFlowActionTwoStage') &&
     !yolo.includes('jsonlTranscript') &&
     !yolo.includes('configuredModel') &&
     !yolo.includes("stage: 'fast'") &&
     !yolo.includes("stage: 'thinking'"),
 )
 {
-  const { buildTranscriptForClassifier, LATEST_REQUEST_LEAD } = await import('../../src/utils/permissions/yoloClassifier.ts')
+  const { buildTranscriptForClassifier, LATEST_REQUEST_LEAD } = await import('../../src/utils/permissions/flowClassifier.ts')
   const transcript = buildTranscriptForClassifier(
     [
       { type: 'user', uuid: '00000000-0000-4000-a000-000000000001', timestamp: new Date().toISOString(), message: { role: 'user', content: 'tidy the repo' } },

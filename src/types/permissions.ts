@@ -190,14 +190,14 @@ export type ClassifierUsage = {
   cacheCreationInputTokens: number
 }
 
-export type YoloClassifierStageTelemetry = {
+export type FlowClassifierStageTelemetry = {
   usage?: ClassifierUsage
   durationMs?: number
   requestId?: string
   messageId?: string
 }
 
-export type YoloClassifierResult = {
+export type FlowClassifierResult = {
   shouldBlock: boolean
   reason: string
   model: string
@@ -212,8 +212,8 @@ export type YoloClassifierResult = {
   promptComponentLengths?: Record<string, number>
   errorDumpPath?: string
   stage?: 'fast' | 'thinking'
-  fastStage?: YoloClassifierStageTelemetry
-  thinkingStage?: YoloClassifierStageTelemetry
+  fastStage?: FlowClassifierStageTelemetry
+  thinkingStage?: FlowClassifierStageTelemetry
 }
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'

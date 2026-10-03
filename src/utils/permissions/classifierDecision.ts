@@ -14,9 +14,9 @@ import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import { TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/constants.js'
 import { WORKFLOW_TOOL_NAME } from '../../tools/WorkflowTool/constants.js'
-import { YOLO_CLASSIFIER_TOOL_NAME } from './yoloClassifier.js'
+import { FLOW_CLASSIFIER_TOOL_NAME } from './flowClassifier.js'
 
-const SAFE_YOLO_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
+const SAFE_FLOW_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   FILE_READ_TOOL_NAME,
   GREP_TOOL_NAME,
   GLOB_TOOL_NAME,
@@ -33,9 +33,9 @@ const SAFE_YOLO_ALLOWLISTED_TOOLS: ReadonlySet<string> = new Set([
   SEND_MESSAGE_TOOL_NAME,
   WORKFLOW_TOOL_NAME,
   SLEEP_TOOL_NAME,
-  YOLO_CLASSIFIER_TOOL_NAME,
+  FLOW_CLASSIFIER_TOOL_NAME,
 ])
 
 export function isAutoModeAllowlistedTool(toolName: string, _input?: unknown): boolean {
-  return SAFE_YOLO_ALLOWLISTED_TOOLS.has(toolName)
+  return SAFE_FLOW_ALLOWLISTED_TOOLS.has(toolName)
 }

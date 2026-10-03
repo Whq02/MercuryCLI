@@ -24,7 +24,7 @@ type ClassifierSource =
   | 'auto_mode'
   | 'auto_mode_critique'
   | 'bash_classifier'
-  | 'yolo_classifier'
+  | 'flow_classifier'
   | 'agent_classifier'
   | 'permission_explainer'
   | 'model_validation'

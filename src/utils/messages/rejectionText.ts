@@ -86,7 +86,7 @@ export function isClassifierDenial(content: string): boolean {
   return content.startsWith(AUTO_MODE_REJECTION_PREFIX)
 }
 
-export function buildYoloRejectionMessage(reason: string): string {
+export function buildFlowRejectionMessage(reason: string): string {
   return (
     `${AUTO_MODE_REJECTION_PREFIX}${reason}. ` +
     `Flow's safety check blocked this action, and this session cannot show the operator a consent card, so it was not run. ` +

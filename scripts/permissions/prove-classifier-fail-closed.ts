@@ -103,10 +103,10 @@ section('dist: the wired guard ships in dist/mercury.mjs (string literals surviv
   }
 }
 
-section('source: classifyYoloAction wires the verdict into the empty-projection branch')
+section('source: classifyFlowAction wires the verdict into the empty-projection branch')
 {
-  const yc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'permissions', 'yoloClassifier.ts'), 'utf-8')
-  check('yoloClassifier imports the verdict', yc.includes("emptyProjectionFailClosedVerdict") && yc.includes("from './classifierFailClosed.js'"))
+  const yc = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'permissions', 'flowClassifier.ts'), 'utf-8')
+  check('flowClassifier imports the verdict', yc.includes("emptyProjectionFailClosedVerdict") && yc.includes("from './classifierFailClosed.js'"))
   check('the verdict is called in the actionCompact === "" branch', /actionCompact === ''[\s\S]*emptyProjectionFailClosedVerdict\(action, lookup\)/.test(yc))
   check('a non-null verdict short-circuits to the block return', yc.includes('if (failClosed)') && /return \{ \.\.\.failClosed, model: getClassifierModel\(\) \}/.test(yc))
 }

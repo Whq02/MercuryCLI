@@ -253,8 +253,8 @@ add('isClassifierDenial', 'yes', () =>
   M.isClassifierDenial(M.AUTO_REJECT_MESSAGE + ' extra'),
 );
 add('isClassifierDenial', 'no', () => M.isClassifierDenial('benign words'));
-add('buildYoloRejectionMessage', 'basic', () =>
-  M.buildYoloRejectionMessage('Bash', 'rm -rf /' as never),
+add('buildFlowRejectionMessage', 'basic', () =>
+  M.buildFlowRejectionMessage('Bash', 'rm -rf /' as never),
 );
 add('buildFlowBlockDeclinedMessage', 'basic', () =>
   M.buildFlowBlockDeclinedMessage('rm -rf /'),
