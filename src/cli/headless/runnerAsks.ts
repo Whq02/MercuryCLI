@@ -149,6 +149,7 @@ export function createHostCanUseTool(channel: AskChannel, onPermissionPrompt?: (
         kind: 'tool',
         tool_use_id: toolUseID,
         tool_name: tool.name,
+        title: describeToolAction(tool as Tool, input),
         input,
         ...(askResult.suggestions !== undefined && askResult.suggestions.length > 0 ? { suggestions: askResult.suggestions } : {}),
         ...(askResult.blockedPath !== undefined ? { blocked_path: askResult.blockedPath } : {}),

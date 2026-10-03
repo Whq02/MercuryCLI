@@ -9,7 +9,6 @@ import { type Message } from 'src/types/message.js'
 import { findLastCompactBoundaryIndex } from 'src/utils/messages/systemMessages.js'
 import { flushSessionStorage, recordTranscript } from 'src/utils/sessionStorage.js'
 import { type AppState } from 'src/state/AppStateStore.js'
-import { flagEnv } from 'src/substrate/flagRegistry.js'
 import { PERMISSION_MODES, type PermissionMode as InternalPermissionMode } from 'src/types/permissions.js'
 import { fileHistoryCanRestore, fileHistoryEnabled, fileHistoryRestore, type RestoreDriftOracle } from 'src/utils/fileHistory.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from 'src/utils/permissions/modeTransitions.js'
@@ -167,13 +166,6 @@ function decidePermissionModeTransition(
 ): { ok: true; context: ToolPermissionContext } | { ok: false; error: string } {
   if (!(PERMISSION_MODES as readonly string[]).includes(mode)) {
     return { ok: false, error: `'${String(mode)}' is not a permission mode; the modes are ${PERMISSION_MODES.join(', ')}` }
-  }
-  if (mode === 'apollo' && flagEnv('MERCURY_CONCOURSE_WORKER') !== '1') {
-    return {
-      ok: false,
-      error:
-        'Cannot set permission mode to apollo in SDK/print mode — the Apollo pre-flight interview is interactive-only; run it in the terminal UI',
-    }
   }
   if (mode === 'sovereign') {
     if (isBypassPermissionsModeDisabled()) {

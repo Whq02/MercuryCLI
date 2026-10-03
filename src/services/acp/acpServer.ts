@@ -52,6 +52,7 @@ import { isAutoModeGateEnabled, isBypassPermissionsModeDisabled } from '../../ut
 import { PERMISSION_MODES as MODE_WORDS, type PermissionMode } from '../../types/permissions.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
 import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer } from '../../runner/wire/methods.js'
+import { questionFormOf } from './questionForm.js'
 
 const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
   default: 'ask before consequential tools',
@@ -101,7 +102,7 @@ async function readSavedMode(cwd: string, sessionId: string): Promise<string | u
 const TASK_PLAN_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
 export function permissionAskWire(
-  ask: { toolUseId?: string; toolName: string; input: unknown; suggestions?: unknown[] },
+  ask: { toolUseId?: string; toolName: string; input: unknown; suggestions?: unknown[]; title?: string; description?: string },
   requestId: string | number,
   acpSessionId: string,
 ): {
@@ -113,7 +114,7 @@ export function permissionAskWire(
     sessionId: acpSessionId,
     toolCall: {
       toolCallId: ask.toolUseId || `ask-${requestId}`,
-      title: ask.toolName,
+      title: ask.title || ask.description || ask.toolName,
       status: 'pending',
       rawInput: ask.input,
     },
@@ -726,6 +727,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const sessions = new Map<string, AcpSessionState>()
   let transportClosed = false
   let clientElicitation = false
+  let clientFormElicitation = false
+  let clientUrlElicitation = false
   const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }
 
   const attachSession = (
@@ -881,9 +884,16 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         },
         onPermissionAsk: async (requestId, ask, withdrawn) => {
           try {
+            if (ask.tool_name === 'AskUserQuestion') {
+              if (!clientFormElicitation) return { outcome: 'deny', message: 'This editor cannot present question forms; the questions were not answered.' }
+              const form = questionFormOf(ask, acpSessionId)
+              if (!form) return { outcome: 'deny', message: 'The question form is invalid; the questions were not answered.' }
+              const result = await ctx.request(methods.client.elicitation.create, form.request, { cancellationSignal: withdrawn })
+              return form.answer(result)
+            }
             const result = await ctx.request(
               methods.client.session.requestPermission,
-              permissionAskWire({ toolUseId: ask.tool_use_id, toolName: ask.tool_name, input: ask.input, ...(ask.suggestions !== undefined ? { suggestions: ask.suggestions } : {}) }, requestId, acpSessionId),
+              permissionAskWire({ toolUseId: ask.tool_use_id, toolName: ask.tool_name, input: ask.input, title: ask.title, description: ask.description, ...(ask.suggestions !== undefined ? { suggestions: ask.suggestions } : {}) }, requestId, acpSessionId),
               { cancellationSignal: withdrawn },
             )
             return permissionAnswerOf(result, ask)
@@ -904,6 +914,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           }
         },
         onElicitation: async (params, withdrawn) => {
+          if (params.mode === 'url' ? !clientUrlElicitation : !clientFormElicitation) return { action: 'cancel' }
           try {
             const result = await ctx.request(methods.client.elicitation.create, elicitationWire(params, acpSessionId) as never, { cancellationSignal: withdrawn })
             return elicitationAnswerOf(result)
@@ -995,8 +1006,10 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
 
   const app = agent({ name: 'mercury' })
     .onRequest('initialize', ctx => {
-      const caps = (ctx.params as { clientCapabilities?: { elicitation?: unknown } } | undefined)?.clientCapabilities
-      clientElicitation = caps?.elicitation !== undefined && caps.elicitation !== null
+      const caps = ctx.params.clientCapabilities?.elicitation
+      clientFormElicitation = caps?.form !== undefined && caps.form !== null
+      clientUrlElicitation = caps?.url !== undefined && caps.url !== null
+      clientElicitation = clientFormElicitation || clientUrlElicitation
       return {
         protocolVersion: PROTOCOL_VERSION,
         agentCapabilities: {
