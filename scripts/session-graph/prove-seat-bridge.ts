@@ -35,17 +35,9 @@ function fixtureChild(fx: Record<string, unknown>): NdjsonChildLike {
       } catch {
         return
       }
-      const isControlInit =
-        msg.type === 'control_request' &&
-        (msg.request as { subtype?: string })?.subtype === 'initialize'
-      const isRpcInit = msg.method === 'initialize'
-      if (isControlInit || isRpcInit) {
+      if (msg.method === 'initialize') {
         const reply = JSON.parse(JSON.stringify(handshake.receive)) as Record<string, unknown>
-        if (isControlInit) {
-          ;(reply.response as Record<string, unknown>).request_id = msg.request_id
-        } else {
-          reply.id = msg.id
-        }
+        reply.id = msg.id
         setTimeout(() => {
           for (const l of [...lineListeners]) l(JSON.stringify(reply))
         }, 5)
