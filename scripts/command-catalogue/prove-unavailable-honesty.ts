@@ -1,11 +1,12 @@
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { isOutcome, outcomeErrorText, parseRow } from '../../src/rows/read.ts'
 
 const repo = path.resolve(import.meta.dir, '../..')
 const dist = path.join(repo, 'dist/mercury.mjs')
@@ -40,6 +41,23 @@ writeFileSync(
   }),
 )
 
+const COUNT_FIXTURE = [
+  "const { createServer } = require('node:http')",
+  "const server = createServer((req, res) => {",
+  "  req.resume()",
+  "  req.on('end', () => {",
+  "    if (req.method === 'POST' && String(req.url).includes('/count_tokens')) { res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ input_tokens: 1200 })); return }",
+  "    res.writeHead(404, { 'content-type': 'application/json' }); res.end(JSON.stringify({ type: 'error', error: { type: 'not_found_error', message: 'the count fixture serves count_tokens only' } }))",
+  "  })",
+  "})",
+  "server.listen(0, '127.0.0.1', () => process.stdout.write(`${server.address().port}\\n`))",
+].join('\n')
+const counter = spawn('node', ['-e', COUNT_FIXTURE], { stdio: ['ignore', 'pipe', 'inherit'] })
+const COUNT_BASE = await new Promise<string>((resolve, reject) => {
+  counter.stdout.once('data', chunk => resolve(`http://127.0.0.1:${String(chunk).trim()}`))
+  counter.once('exit', code => reject(new Error(`the count fixture ended before listening (exit ${String(code)})`)))
+})
+
 function drive(prompt: string): { result: string; ok: boolean; refused: boolean; raw: string } {
   const res = spawnSync('node', [dist, 'run', prompt, '--format', 'json'], {
     encoding: 'utf-8',
@@ -50,16 +68,16 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
       MERCURY_CONFIG_DIR: RUN_HOME,
       NODE_ENV: 'test',
       ANTHROPIC_API_KEY: PROBE_KEY,
+      ANTHROPIC_BASE_URL: COUNT_BASE,
     },
   })
-  const raw = res.stdout ?? ''
-  try {
-    const outcome = JSON.parse(raw.slice(raw.indexOf('{'))) as { type?: string; status?: string; answer?: string; error?: { message?: string } }
-    const refused = res.status === 1 && outcome.type === 'outcome' && outcome.status === 'refused'
-    return { result: refused ? outcome.error?.message ?? '' : outcome.answer ?? '', ok: res.status === 0, refused, raw }
-  } catch {
-    return { result: '', ok: false, refused: false, raw: `${raw}\n${res.stderr ?? ''}` }
-  }
+  const stdout = res.stdout ?? ''
+  const raw = `${stdout}\n${res.error ? `spawn: ${res.error.message}\n` : ''}${(res.stderr ?? '').split('\n').slice(-6).join('\n')}`
+  const row = parseRow(stdout.split('\n').find(line => line.startsWith('{')) ?? '')
+  if (row === null || !isOutcome(row)) return { result: '', ok: false, refused: false, raw }
+  const refused = res.status === 1 && row.status === 'refused'
+  const completed = res.status === 0 && row.status === 'completed'
+  return { result: refused ? outcomeErrorText(row) ?? '' : completed ? String(row.answer ?? '') : '', ok: completed, refused, raw }
 }
 
 {
@@ -85,11 +103,11 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 }
 
 {
-  const { result } = drive('/context')
+  const { result, raw } = drive('/context')
   check(
     'control: /context serves its headless breakdown (the pair twin still answers)',
     result.length > 0 && !result.includes('Unknown skill') && !result.includes('is an interactive surface'),
-    result.slice(0, 160),
+    result.slice(0, 160) || raw.slice(-400),
   )
 }
 
@@ -102,6 +120,7 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
   )
 }
 
+counter.kill()
 rmSync(RUN_HOME, { recursive: true, force: true })
 
 if (failures > 0) {
