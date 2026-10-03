@@ -12,7 +12,7 @@ const { AGENT_STOP_SETTLE_MS, notRunningWords, stopAgentByOperator, unsettledWor
 const { AGENT_STOP_BY_OPERATOR, registerAsyncAgent } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.js')
 const { AGENT_VERB_ANSWER_DEADLINE_MS } = await import('../../src/daemon/sessionSeat.js')
 const { registerWorkflowTask } = await import('../../src/tasks/LocalWorkflowTask/LocalWorkflowTask.js')
-const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.js')
+const { spawnInProcessCrewmate } = await import('../../src/utils/crew/spawnInProcess.js')
 const { resolveStopTargetId } = await import('../../src/tasks/stopTask.js')
 const { bareMissWords } = await import('../../src/tasks/stopTask.js')
 

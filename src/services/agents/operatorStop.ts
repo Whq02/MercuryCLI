@@ -5,7 +5,7 @@ import { isInProcessCrewmateTask } from '../../tasks/InProcessCrewmateTask/types
 import { AGENT_STOP_BY_OPERATOR, enqueueAgentReceiptRow, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { isLocalWorkflowTask, killWorkflowTask } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { StopTaskError, stopTask, taskNotFoundWords } from '../../tasks/stopTask.js'
-import { killInProcessCrewmate } from '../../utils/swarm/spawnInProcess.js'
+import { killInProcessCrewmate } from '../../utils/crew/spawnInProcess.js'
 
 export const AGENT_STOP_SETTLE_MS = 3_000
 const SETTLE_TICK_MS = 50

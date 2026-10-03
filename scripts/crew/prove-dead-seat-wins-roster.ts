@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = scratch
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
-const th = await import('../../src/utils/swarm/crewHelpers.ts')
+const th = await import('../../src/utils/crew/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
 
 const CREW = 'dead-seat'
@@ -55,11 +55,11 @@ console.log('============================================================')
 
 section('the seam: the runner writes the live flag through the roster lane and removes a failed seat by the same lane')
 {
-  const helpers = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'crewHelpers.ts'), 'utf8')
+  const helpers = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'crew', 'crewHelpers.ts'), 'utf8')
   const removalAt = helpers.indexOf('export async function removeMemberByAgentId(')
   const removalBody = removalAt === -1 ? '' : helpers.slice(removalAt, helpers.indexOf('\n}\n', removalAt))
   check('removeMemberByAgentId is the lane\'s (async, serialised behind the flag writes), never the sync lock whose backoff spins the event loop the lane needs', removalAt !== -1 && removalBody.includes('withLockedCrewFile(') && !removalBody.includes('withLockedCrewFileSync('), removalAt === -1 ? 'no async removeMemberByAgentId' : removalBody.split('\n')[1] ?? '')
-  const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'), 'utf8')
+  const runner = readFileSync(join(import.meta.dir, '..', '..', 'src', 'utils', 'crew', 'inProcessRunner.ts'), 'utf8')
   const failedAt = runner.indexOf("if (wasRunning && status === 'failed') {")
   const failedBlock = failedAt === -1 ? '' : runner.slice(failedAt, failedAt + 400)
   check('the failed terminalisation removes the member through that road and keeps the refusal of a rejected write on the debug log', failedAt !== -1 && failedBlock.includes('removeMemberByAgentId(identity.crewName, identity.agentId)') && failedBlock.includes('.catch('), failedBlock.split('\n').slice(0, 3).join(' | '))

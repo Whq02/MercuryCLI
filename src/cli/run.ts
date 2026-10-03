@@ -267,8 +267,8 @@ import { filterToolsByDenyRules, getAllBaseTools, getTools } from '../tools.js'
 import { getCrewName, isCrewLead, isCrewmate } from '../utils/crewmate.js'
 import { acknowledgeLiveDelivery, subscribeLiveMessagesFor, prepareLiveDelivery, wasLiveDeliveryHandled, type LiveDelivery, type LiveCommsMessageV1 } from '../services/crew/liveComms.js'
 import { formatCrewmateMessages, isShutdownApproved, resolveShutdownApprovedVictim } from '../services/crew/liveMessages.js'
-import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
-import { removeCrewmateFromCrewFile } from '../utils/swarm/crewHelpers.js'
+import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
+import { removeCrewmateFromCrewFile } from '../utils/crew/crewHelpers.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { expandPath } from '../utils/path.js'
 import { getCwd } from '../utils/cwd.js'
@@ -610,10 +610,10 @@ export async function runHeadless(
   }
 
   try {
-    const { initializeSwarmSession } = await import('../utils/swarm/crewmateInit.js')
-    initializeSwarmSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ crewName?: string; agentName?: string }>)
+    const { initializeCrewSession } = await import('../utils/crew/crewmateInit.js')
+    initializeCrewSession(setAppState, String(getSessionId()), messages as ReadonlyArray<{ crewName?: string; agentName?: string }>)
   } catch (error) {
-    logForDebugging(`[session-runner] swarm init failed (non-blocking): ${error}`)
+    logForDebugging(`[session-runner] crew init failed (non-blocking): ${error}`)
   }
 
   const hookInitialMessage = takeInitialUserMessage()
@@ -1417,10 +1417,10 @@ export async function runHeadless(
         }
       }
       const current = getAppState()
-      const swarmRemains =
+      const crewRemains =
         Boolean(Object.keys(current.crewContext?.crewmates ?? {}).length) ||
         getRunningTasks(current).some(task => task.type === 'in_process_crewmate')
-      if (swarmRemains) {
+      if (crewRemains) {
         injectCrewShutdownPrompt()
         return 'reenter'
       }

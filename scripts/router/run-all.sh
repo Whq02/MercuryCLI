@@ -3,7 +3,7 @@
 # gate-watch: src/daemon/dispatchDrain*
 # gate-watch: src/substrate/routerRunStore* src/tools/SendMessageTool/SendMessageTool*
 # gate-watch: src/utils/model/** src/utils/router/**
-# gate-watch: src/utils/swarm/busEnvelopes* src/services/crew/liveComms* src/services/crew/liveMessages*
+# gate-watch: src/utils/crew/busEnvelopes* src/services/crew/liveComms* src/services/crew/liveMessages*
 # gate-watch: src/services/providers/openai/gptPins.ts src/services/providers/openai/openaiCatalogue.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

@@ -9,10 +9,10 @@ const home = mkdtempSync(join(tmpdir(), 'parent-family-'))
 process.env.MERCURY_CONFIG_DIR = home
 process.env.OPENAI_API_KEY = 'fixture-openai-key'
 const { getAgentModel } = await import('../../src/utils/model/agent.js')
-const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.js')
+const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.js')
 const { refreshProviderDiscovery } = await import('../../src/utils/router/providerDiscovery.js')
 const { refreshOpenaiCatalogue } = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { buildAgentLaunchPlan } = await import('../../src/utils/swarm/agentLaunchPlan.js')
+const { buildAgentLaunchPlan } = await import('../../src/utils/crew/agentLaunchPlan.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 await refreshProviderDiscovery('openai', { force: true })
 await refreshOpenaiCatalogue('api-key', { force: true, fetchImpl: (async () => new Response(JSON.stringify({ models: ['gpt-5.6-sol', 'gpt-5.6-terra'].map((id, i) => ({ slug: id, display_name: id, priority: i + 1, supported_reasoning_levels: ['high'], supported_in_api: true, visibility: 'public' })) }), { headers: { 'content-type': 'application/json' } })) as typeof fetch })

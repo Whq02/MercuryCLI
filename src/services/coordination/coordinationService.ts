@@ -9,17 +9,17 @@ import {
   type LiveCommsTaskV1,
   type LiveTaskStatus,
 } from '../crew/liveComms.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { MAIN_THREAD_AGENT } from '../notices/unreadLedger.js'
-import { listIncomingHandoffs } from '../../utils/swarm/handoff.js'
-import { claimLease, listLeases, releaseLease, sweepExpiredLeases } from '../../utils/swarm/leaseGlob.js'
-import { getRoomHealth } from '../../utils/swarm/roomHealth.js'
+import { listIncomingHandoffs } from '../../utils/crew/handoff.js'
+import { claimLease, listLeases, releaseLease, sweepExpiredLeases } from '../../utils/crew/leaseGlob.js'
+import { getRoomHealth } from '../../utils/crew/roomHealth.js'
 import {
   checkBroadcastAllowed,
   checkBroadcastFairness,
   listOpenQuestions,
-} from '../../utils/swarm/sendMessageGovernance.js'
-import { crewRosterExists, readCrewFileAsync } from '../../utils/swarm/crewHelpers.js'
+} from '../../utils/crew/sendMessageGovernance.js'
+import { crewRosterExists, readCrewFileAsync } from '../../utils/crew/crewHelpers.js'
 import { getAgentStatuses, listTasks, type AgentStatus } from '../../utils/tasks.js'
 import { getCrewmateColor, isCrewmate, resolveCoordAgentId, resolveLeadAwareCrewName } from '../../utils/crewmate.js'
 import { unreadLiveMessagesFor, sendLiveMessage } from '../crew/liveComms.js'

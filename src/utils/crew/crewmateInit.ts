@@ -2,7 +2,7 @@ import { isAbsolute } from 'node:path'
 
 import type { AppState } from '../../state/AppState.js'
 import type { PermissionUpdate } from '../../types/permissions.js'
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { logForDebugging } from '../debug.js'
 import { addFunctionHook } from '../hooks/sessionHooks.js'
 import { applyPermissionUpdate } from '../permissions/PermissionUpdate.js'
@@ -12,18 +12,18 @@ import { createIdleNotification, getLastPeerDmSummary } from '../../services/cre
 import { CREW_LEAD_NAME } from './constants.js'
 import { readCrewFile, setMemberActive } from './crewHelpers.js'
 
-export function initializeSwarmSession(
+export function initializeCrewSession(
   setAppState: (updater: (prevState: AppState) => AppState) => void,
   sessionId: string,
   initialMessages: ReadonlyArray<{ crewName?: string; agentName?: string }> | undefined,
 ): void {
-  if (!isAgentSwarmsEnabled()) return
+  if (!isCrewEnabled()) return
   const first = initialMessages?.[0]
   if (first?.crewName && first?.agentName) {
     const crewFile = readCrewFile(first.crewName)
     const member = crewFile?.members.find(m => m.name === first.agentName)
     if (!member) {
-      logForDebugging(`swarm init: no member "${first.agentName}" in crew "${first.crewName}"`)
+      logForDebugging(`crew init: no member "${first.agentName}" in crew "${first.crewName}"`)
       return
     }
     initializeCrewmateHooks(setAppState, sessionId, {

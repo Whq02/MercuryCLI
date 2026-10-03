@@ -33,7 +33,7 @@
 # gate-watch: src/utils/healthReport.ts src/utils/messages/factories.ts src/utils/messages.ts src/utils/permissions/**
 # gate-watch: src/utils/platform.ts src/utils/sandbox/sandbox-adapter.ts src/utils/sessionStoragePortable.ts
 # gate-watch: src/utils/settings/** src/utils/subprocessEnv.ts src/utils/suggestions/directoryCompletion.ts
-# gate-watch: src/utils/swarm/agentLaunchPlan.ts src/utils/swarm/crewmateInit.ts
+# gate-watch: src/utils/crew/agentLaunchPlan.ts src/utils/crew/crewmateInit.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/services/crew/liveMessages.ts src/utils/conversationRecovery.ts
 # gate-watch: src/daemon/controlSocket.ts src/daemon/protocol.ts src/services/engine-connector/seatProjections.ts
 # gate-watch: src/components/agents/studio/StudioEditor.tsx src/components/agents/studio/AgentStudio.tsx src/components/BootAgentsScreen.tsx

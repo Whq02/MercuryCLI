@@ -48,7 +48,7 @@ function classification(file: string, table: string, owner: string, body: string
   if (table === 'GLM_STATIC_CATALOGUE') {
     const permitted: Record<string, string[]> = {
       'src/utils/router/providers/zai.ts': ['describeZaiProvider', 'listZaiModels'],
-      'src/utils/swarm/engineDispatch.ts': ['resolveEngineDispatch'],
+      'src/utils/crew/engineDispatch.ts': ['resolveEngineDispatch'],
       'src/utils/model/bareFamilyWords.ts': ['glmHeadRow'],
       'src/utils/model/modelOptions.ts': ['keyLanePins'],
       'src/utils/model/capabilities.ts': ['resolveContextWindow'],
@@ -58,7 +58,7 @@ function classification(file: string, table: string, owner: string, body: string
   if (file === 'src/services/providers/openai/gptPins.ts' && owner === 'gptDisplayPin') return 'display/price metadata by id'
   if (file === 'src/utils/model/providerFrontier.ts' && ['providerFrontierFact', 'providerLightFact', 'providerSmallFastFact'].includes(owner)) return `existing OpenAI chooser obligation: ${openaiOwner}`
   if (file === 'src/utils/router/providers/openai.ts' && owner === 'staticPinCatalogue') return 'display projection; admission reads the live catalogue'
-  if (file === 'src/utils/swarm/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
+  if (file === 'src/utils/crew/engineDispatch.ts' && owner === 'resolveGptExactModel' && body.includes('await refreshOpenaiCatalogue') && body.includes('evaluateGptCandidate')) return 'exact-id fallback behind live admission'
   if (file === 'src/utils/model/modelOptions.ts' && owner === 'getQualifiedGptOptions' && body.includes('getGptSeatAvailability') && body.includes('evaluateGptCandidate')) return 'unavailable display rows behind live qualification'
   if (file === 'src/utils/model/providerFrontier.ts' && owner === 'openaiSmallFastChoice' && body.includes('for (const raw of served)') && body.includes('pins.find(candidate => candidate.id === identity.canonicalId)') && onlyReads(body, 'pins', ['pins: readonly GptDisplayPin[] = GPT_DISPLAY_PINS', 'pins.find(candidate => candidate.id === identity.canonicalId)'])) return 'price facts keyed by a served id; the live list supplies every id'
   if (file === 'src/utils/model/modelOptions.ts' && owner === 'gptCatalogueRefusalWords' && body.includes('evaluateGptCandidate(modelId, availability.sourceKind)') && body.includes('if (evaluated.ok) return undefined') && onlyReads(body, 'GPT_DISPLAY_PINS', ['GPT_DISPLAY_PINS.find(pin => pin.id === canonical)'])) return 'display name for an id already refused against the landed list'
@@ -119,7 +119,7 @@ for (const path of files(SRC)) {
   visit(ast)
 }
 const options = readFileSync(join(SRC, 'utils/model/modelOptions.ts'), 'utf8')
-const dispatch = readFileSync(join(SRC, 'utils/swarm/engineDispatch.ts'), 'utf8')
+const dispatch = readFileSync(join(SRC, 'utils/crew/engineDispatch.ts'), 'utf8')
 const adapter = readFileSync(join(SRC, 'utils/router/providers/moonshot.ts'), 'utf8')
 const familyWords = readFileSync(join(SRC, 'utils/model/bareFamilyWords.ts'), 'utf8')
 check('Moonshot picker reads the live-backed row owner', options.includes('moonshotCatalogueRows().rows') && !options.includes('KIMI_DISPLAY_PINS'))

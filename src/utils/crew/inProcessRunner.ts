@@ -24,7 +24,7 @@ import {
   usageWindowPauseOf,
 } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { pauseLineWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
-import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from '../crew/crewAccountChange.js'
+import { CREW_ACCOUNT_RESUME_NOTE, crewAccountResumeSummary, subscribeCrewAccountChange } from './crewAccountChange.js'
 import type { AppState } from '../../state/AppState.js'
 import type { Message } from '../../types/message.js'
 import type { PermissionDecision, PermissionMode } from '../../types/permissions.js'
@@ -33,7 +33,7 @@ import {
   processMailboxPermissionResponse,
   registerPermissionCallback,
   unregisterPermissionCallback,
-} from '../../hooks/useSwarmPermissionPoller.js'
+} from '../../hooks/useCrewPermissionPoller.js'
 import { runWithAgentContext, type CrewmateAgentContext } from '../agentContext.js'
 import { createChildAbortController } from '../abortController.js'
 import { runWithCwdOverride } from '../cwd.js'

@@ -5,7 +5,7 @@ import { crewStoreRoot } from '../../services/crew/identity.js'
 import { defineStore } from '../../substrate/fileStore.js'
 import { logForDebugging } from '../debug.js'
 import { getCrewsDir } from '../envUtils.js'
-import { CREW_LEAD_NAME } from '../swarm/constants.js'
+import { CREW_LEAD_NAME } from './constants.js'
 
 export const CREW_RECORD_SCHEMA = 1 as const
 

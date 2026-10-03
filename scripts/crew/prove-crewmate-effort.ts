@@ -61,7 +61,7 @@ tally.section('§2 the spawn seam: the crewmate arm forwards the call\'s effort 
   tally.check('the in-process strategy hands the word to the runner as effortOverride', /effortOverride: (?:config|prepared)\.effort/.test(inProcess), inProcess.replace(/\s+/g, ' ').slice(0, 400))
   tally.check('the in-process strategy hands the runner the transcript agent id the spawn minted', /transcriptAgentId/.test(inProcess), inProcess.replace(/\s+/g, ' ').slice(0, 400))
   tally.check('no pane child command remains (the one strategy is in-process)', !/function childCommand\(/.test(spawn))
-  const runnerSource = src('src/utils/swarm/inProcessRunner.ts')
+  const runnerSource = src('src/utils/crew/inProcessRunner.ts')
   const run = slice(runnerSource, 'for await (const message of runAgent({', 1200)
   tally.check('the runner hands runAgent the effortOverride so the one ladder resolves it', /effortOverride/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))
   tally.check('the runner hands runAgent one stable agent id for the crewmate\'s whole life (override.agentId)', /agentId: config\.transcriptAgentId/.test(run), run.replace(/\s+/g, ' ').slice(0, 400))

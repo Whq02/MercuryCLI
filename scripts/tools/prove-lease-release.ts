@@ -26,7 +26,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const ROOT = join(import.meta.dir, '..', '..')
-const L = await import('../../src/utils/swarm/leaseGlob.js')
+const L = await import('../../src/utils/crew/leaseGlob.js')
 
 console.log('============================================================')
 console.log(' lease release + sweep — wired (HB-0081)')
@@ -54,7 +54,7 @@ check('sweepExpiredLeases removes the expired record from disk', removed === 1)
 check('the store no longer carries the stale lease', (await L.listLeases(t2, { nowMs: future })).length === 0)
 
 section('source: the two call sites are wired (no longer 0-caller dead code)')
-const spawn = readFileSync(join(ROOT, 'src', 'utils', 'swarm', 'spawnInProcess.ts'), 'utf-8')
+const spawn = readFileSync(join(ROOT, 'src', 'utils', 'crew', 'spawnInProcess.ts'), 'utf-8')
 check('spawnInProcess cleanup calls releaseAllForAgent(crewName, config.name) — the crewmate name the claim is filed under', /await releaseAllForAgent\(config\.crewName, config\.name\)/.test(spawn))
 const service = readFileSync(join(ROOT, 'src', 'services', 'coordination', 'coordinationService.ts'), 'utf-8')
 check('lease_list opportunistically calls sweepExpiredLeases(ctx.crew)', /await sweepExpiredLeases\(ctx\.crew\)\.catch/.test(service))

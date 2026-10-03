@@ -1,4 +1,4 @@
-import { busEnvelopesEnabled } from '../../utils/swarm/busEnvelopes.js'
+import { busEnvelopesEnabled } from '../../utils/crew/busEnvelopes.js'
 import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 import { SEND_MESSAGE_TOOL_NAME } from './constants.js'
 

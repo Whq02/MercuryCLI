@@ -11,7 +11,7 @@ import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
 import { rearmMissionFromCard } from './hooks/missionHook.js'
 import { migrateOrphanedMissionCard } from '../services/mission/missionCard.js'
 import { billingSafeRetainedForm, servedModelOfAssistantRow } from './model/retainedModel.js'
-import { initializeCrewmateContextFromSession } from './swarm/reconnection.js'
+import { initializeCrewmateContextFromSession } from './crew/reconnection.js'
 import { isTaskToolsEnabled } from './tasks.js'
 import type { ContentReplacementRecord } from './toolResultStorage.js'
 

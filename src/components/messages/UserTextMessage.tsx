@@ -11,7 +11,7 @@ import {
   CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../../constants/xml.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import {
   turnCutOfText,
   turnCutWhy,
@@ -127,7 +127,7 @@ export function UserTextMessage({
   }
 
   if (
-    isAgentSwarmsEnabled() &&
+    isCrewEnabled() &&
     head.startsWith(`<${CREWMATE_MESSAGE_TAG}`)
   ) {
     return (

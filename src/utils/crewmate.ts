@@ -2,7 +2,7 @@ import type { AppState } from '../state/AppStateStore.js'
 import { isInProcessCrewmateTask } from '../tasks/InProcessCrewmateTask/types.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getAgentContext, isSubagentContext } from './agentContext.js'
-import { CREW_LEAD_NAME } from './swarm/constants.js'
+import { CREW_LEAD_NAME } from './crew/constants.js'
 import { getCrewmateContext } from './crewmateContext.js'
 import { isCrewRole } from './workerRole.js'
 

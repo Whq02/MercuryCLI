@@ -9,7 +9,7 @@ import {
   collectReplIdsInto,
 } from '../utils/sessionStorage/chain.js'
 import { isChainParticipant } from '../utils/sessionStorage/paths.js'
-import { isAgentSwarmsEnabled } from '../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../utils/crewEnabled.js'
 import { getAgentName, getCrewName } from '../utils/crewmate.js'
 
 const FLUSH_MAX_LATENCY_MS = 5000
@@ -80,7 +80,7 @@ export function useLogMessages(messages: Message[], ignore?: boolean): void {
     }
 
     const replIds = replIdsRef.current
-    const crewInfo = isAgentSwarmsEnabled()
+    const crewInfo = isCrewEnabled()
       ? { crewName: getCrewName(), agentName: getAgentName() }
       : undefined
     const hint = incremental ? parentHintRef.current : undefined

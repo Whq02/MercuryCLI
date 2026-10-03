@@ -4,10 +4,10 @@ import {
   globMatchesFile,
   globsOverlap,
   relScope,
-} from '../../src/utils/swarm/leaseGlob.js'
-import { getCurrentLeaseAgentId } from '../../src/utils/swarm/leaseGuard.js'
+} from '../../src/utils/crew/leaseGlob.js'
+import { getCurrentLeaseAgentId } from '../../src/utils/crew/leaseGuard.js'
 import { resolveCoordAgentId } from '../../src/utils/crewmate.js'
-import { CREW_LEAD_NAME } from '../../src/utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../src/utils/crew/constants.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -67,7 +67,7 @@ section('#7 audit-r1 — the guard needs no crew; the lead cannot fail open past
 {
   const { readFileSync } = await import('node:fs')
   const here = new URL('.', import.meta.url).pathname
-  const lg = readFileSync(here + '../../src/utils/swarm/leaseGuard.ts', 'utf8')
+  const lg = readFileSync(here + '../../src/utils/crew/leaseGuard.ts', 'utf8')
   const { readdirSync } = await import('node:fs')
   const hk = readFileSync(here + '../../src/utils/hooks.ts', 'utf8') + readdirSync(here + '../../src/utils/hooks').filter(f => f.endsWith('.ts')).map(f => readFileSync(here + '../../src/utils/hooks/' + f, 'utf8')).join('\n')
   check('checkLeaseGuard resolves the crewmate holder and never reads a crew name', /resolveClaimHolder\(\)/.test(lg) && !/getCrewName\(/.test(lg))

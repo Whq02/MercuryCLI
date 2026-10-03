@@ -35,7 +35,7 @@ import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
 import { workflowOwnedAgentWords, workflowOwningAgent } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import { generateRequestId } from '../../utils/agentId.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { gracefulShutdownSync } from '../../utils/gracefulShutdown.js'
@@ -54,12 +54,12 @@ import {
   type ControlEnvelope,
   type DispatchEnvelope,
   type ProgressEnvelope,
-} from '../../utils/swarm/busEnvelopes.js'
+} from '../../utils/crew/busEnvelopes.js'
 import { isCrewRole } from '../../utils/workerRole.js'
 import { semanticBoolean } from '../../utils/semanticBoolean.js'
 import { routerStoreWriters } from '../../substrate/routerRunStore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import {
   answerQuestion,
   canDirect,
@@ -68,9 +68,9 @@ import {
   openQuestion,
   resolveDirectActor,
   type CrewFileWithGovernance,
-} from '../../utils/swarm/sendMessageGovernance.js'
-import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/swarm/handoff.js'
-import { crewmateStopped, readCrewFileAsync, type CrewFile } from '../../utils/swarm/crewHelpers.js'
+} from '../../utils/crew/sendMessageGovernance.js'
+import { HANDOFF_STATUSES, recordHandoff, type EvidenceRef } from '../../utils/crew/handoff.js'
+import { crewmateStopped, readCrewFileAsync, type CrewFile } from '../../utils/crew/crewHelpers.js'
 import { assignCrewmateColor } from '../../utils/crew/crewmateColors.js'
 import {
   getAgentId,
@@ -1243,7 +1243,7 @@ export const SendMessageTool = buildTool({
   get outputSchema(): OutputSchema {
     return outputSchema()
   },
-  isEnabled: () => isAgentSwarmsEnabled(),
+  isEnabled: () => isCrewEnabled(),
   isReadOnly: (input: Input) => typeof input?.message === 'string',
   async description() {
     return DESCRIPTION

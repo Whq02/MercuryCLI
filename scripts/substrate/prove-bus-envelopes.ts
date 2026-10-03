@@ -19,7 +19,7 @@ import {
   parseBusEnvelope,
   resolveNoteSender,
   serializeBusEnvelope,
-} from '../../src/utils/swarm/busEnvelopes.js'
+} from '../../src/utils/crew/busEnvelopes.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -3,7 +3,7 @@ import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { isCoordinationServerEnabled } from '../../services/mcp/coordinationServer.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { isMercurySubstrateProfileOn } from '../config.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from '../envUtils.js'
 import { truncateToWidth } from '../truncate.js'
@@ -28,7 +28,7 @@ export type SubstrateData = {
 
 function buildSections(): { sections: SubstrateSection[]; activeKills: string[] } {
   const substrate = isMercurySubstrateProfileOn()
-  const swarms = isAgentSwarmsEnabled()
+  const crew = isCrewEnabled()
 
   const kills = listCapabilityKills()
   const activeKills: string[] = []
@@ -78,9 +78,9 @@ function buildSections(): { sections: SubstrateSection[]; activeKills: string[] 
   const coordination: SubstrateSection = {
     title: 'Coordination',
     rows: [
-      { name: 'File leases + lease-guard', on: swarms, hint: crewHint },
-      { name: 'LiveComms', on: swarms, hint: crewHint },
-      { name: 'SendMessage governance', on: swarms, hint: crewHint },
+      { name: 'File leases + lease-guard', on: crew, hint: crewHint },
+      { name: 'LiveComms', on: crew, hint: crewHint },
+      { name: 'SendMessage governance', on: crew, hint: crewHint },
       { name: 'Coordination MCP server (mercury)', on: isCoordinationServerEnabled(), hint: isCoordinationServerEnabled() ? 'live (opt out =0) · mcp__mercury__* coord verbs' : 'MERCURY_COORDINATION_MCP=0 set' },
     ],
   }

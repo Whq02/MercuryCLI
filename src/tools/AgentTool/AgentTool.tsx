@@ -44,7 +44,7 @@ import {
   runWithAgentContext,
   type SubagentContext,
 } from '../../utils/agentContext.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getCwd, runWithCwdOverride } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -55,12 +55,12 @@ import type { CanUseToolFn } from '../../hooks/useCanUseTool.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'
 import {
   buildAgentLaunchPlan,
-} from '../../utils/swarm/agentLaunchPlan.js'
+} from '../../utils/crew/agentLaunchPlan.js'
 import { getAgentModel } from '../../utils/model/agent.js'
 import {
   resolveEngineDispatch,
   unrecognisedModelWordRefusal,
-} from '../../utils/swarm/engineDispatch.js'
+} from '../../utils/crew/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../services/providers/primaryBackend.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'
 import {
@@ -380,7 +380,7 @@ function continuationHint(agentId: string, name?: string): string {
 export const SUBAGENT_BRIEFING_LEAD =
   'delegates to a separate sub-agent with this briefing (its rules bind that sub-agent alone, never this session):'
 
-function isCrewmateSpawn(input: AgentToolInput, crewName = isAgentSwarmsEnabled() ? (input.crew_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
+function isCrewmateSpawn(input: AgentToolInput, crewName = isCrewEnabled() ? (input.crew_name ?? getCrewName()) : undefined): input is AgentToolInput & { name: string } {
   return Boolean(crewName && input.name)
 }
 
@@ -478,7 +478,7 @@ export const AgentTool = buildTool({
     const startTime = Date.now()
     const options = context.options
 
-    if (input.crew_name && !isAgentSwarmsEnabled()) {
+    if (input.crew_name && !isCrewEnabled()) {
       throw new Error(
         'The crew_name parameter requires agent crews, which are not available in this session.',
       )
@@ -489,7 +489,7 @@ export const AgentTool = buildTool({
       throw new Error(authority.reason)
     }
 
-    const crewName = isAgentSwarmsEnabled()
+    const crewName = isCrewEnabled()
       ? (input.crew_name ?? getCrewName())
       : undefined
 

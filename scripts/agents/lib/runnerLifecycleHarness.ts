@@ -24,9 +24,9 @@ bootstrap.setOriginalCwd(projDir)
 bootstrap.setProjectRoot(projDir)
 
 export const { spawnInProcessCrewmate, killInProcessCrewmate } = await import(
-  '../../../src/utils/swarm/spawnInProcess.ts'
+  '../../../src/utils/crew/spawnInProcess.ts'
 )
-export const { runInProcessCrewmate } = await import('../../../src/utils/swarm/inProcessRunner.ts')
+export const { runInProcessCrewmate } = await import('../../../src/utils/crew/inProcessRunner.ts')
 export const { drainRows } = await import('../../../src/utils/sdkEventQueue.ts')
 export const { liveMessagesFor, sendLiveMessage } = await import('../../../src/services/crew/liveComms.ts')
 export const { isIdleNotification } = await import('../../../src/services/crew/liveMessages.ts')
@@ -38,8 +38,8 @@ export const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } =
   '../../../src/utils/fileStateCache.ts'
 )
 export const { getBuiltInAgents } = await import('../../../src/tools/AgentTool/builtInAgents.ts')
-export const { resolveCrewmateRole } = await import('../../../src/utils/swarm/roleResolver.ts')
-export const { deriveCrewCharter } = await import('../../../src/utils/swarm/crewCharter.ts')
+export const { resolveCrewmateRole } = await import('../../../src/utils/crew/roleResolver.ts')
+export const { deriveCrewCharter } = await import('../../../src/utils/crew/crewCharter.ts')
 export const { ERROR_MESSAGE_USER_ABORT } = await import('../../../src/services/compact/compact.ts')
 
 

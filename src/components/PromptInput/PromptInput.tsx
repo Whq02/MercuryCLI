@@ -111,7 +111,7 @@ import { maybeTruncateMessageForInput } from './inputPaste.js'
 import { normalizePastedInput } from '../../input-core/composer-document.js'
 import { useMaybeTruncateInput } from './useMaybeTruncateInput.js'
 import { usePromptInputPlaceholder } from './usePromptInputPlaceholder.js'
-import { useSwarmBanner } from './useSwarmBanner.js'
+import { useCrewBanner } from './useCrewBanner.js'
 import { isVimModeEnabled } from './utils.js'
 import HistorySearchInput from './HistorySearchInput.js'
 import { PromptInputFooter } from './PromptInputFooter.js'
@@ -141,7 +141,7 @@ import { injectUserMessageToCrewmate } from '../../tasks/InProcessCrewmateTask/I
 import { appendMessageToLocalAgent, isLocalAgentTask, queueOperatorMessage } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getTheme, type Theme } from '../../utils/theme.js'
 import { useFocusedTranscript } from '../../hooks/useFocusedTranscript.js'
 import { useTheme } from '../design-system/ThemeProvider.js'
@@ -162,7 +162,7 @@ import {
   cyclePermissionMode,
   getNextPermissionMode,
 } from '../../utils/permissions/getNextPermissionMode.js'
-import { syncCrewmateMode } from '../../utils/swarm/crewHelpers.js'
+import { syncCrewmateMode } from '../../utils/crew/crewHelpers.js'
 import { parseDirectMemberMessage, sendDirectMemberMessage } from '../../utils/directMemberMessage.js'
 import { getEffortNotificationText } from '../EffortIndicator.js'
 import { isDefaultMode } from '../../utils/permissions/PermissionMode.js'
@@ -1448,7 +1448,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         })
       }
 
-      if (isAgentSwarmsEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
+      if (isCrewEnabled() && crewContext !== undefined && submitted.startsWith('@')) {
         const parsed = parseDirectMemberMessage(submitted)
         if (parsed !== null) {
           const result = await sendDirectMemberMessage(
@@ -1731,7 +1731,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
   const cyclePermission = useCallback((): void => {
     const fresh = appStateStore.getState() as AppState
     if (
-      isAgentSwarmsEnabled() &&
+      isCrewEnabled() &&
       fresh.viewingAgentTaskId !== undefined &&
       fresh.tasks[fresh.viewingAgentTaskId] !== undefined &&
       isInProcessCrewmateTask(fresh.tasks[fresh.viewingAgentTaskId])
@@ -2253,7 +2253,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
         spans.push({ start: position.start, end: position.end, color: 'suggestion', priority: 5 })
       }
     }
-    if (isAgentSwarmsEnabled() && crewContext !== undefined) {
+    if (isCrewEnabled() && crewContext !== undefined) {
       const memberPattern = /(^|\s)@([\w-]+)/g
       for (const match of displayedValue.matchAll(memberPattern)) {
         const name = match[2] as string
@@ -2306,7 +2306,7 @@ function PromptInputInner(props: PromptInputProps): React.ReactNode {
     cockpitActive,
     compact: isCompact,
   })
-  const banner = useSwarmBanner()
+  const banner = useCrewBanner()
   const borderStyle = isCompact ? compactBudget?.composerBorderRows === 2 ? 'round' : undefined : composerBorderStyle(rows)
   const nonDefaultModeColor = !isDefaultMode(toolPermissionContext.mode)
     ? ('permission' as keyof Theme)

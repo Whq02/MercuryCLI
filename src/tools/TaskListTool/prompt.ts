@@ -1,4 +1,4 @@
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { TASK_GET_TOOL_NAME } from '../TaskGetTool/constants.js'
 import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 
@@ -6,7 +6,7 @@ import { TASK_UPDATE_TOOL_NAME } from '../TaskUpdateTool/constants.js'
 export const DESCRIPTION = 'Read the whole task list at a glance.'
 
 export function getPrompt(): string {
-  const crewSection = isAgentSwarmsEnabled()
+  const crewSection = isCrewEnabled()
     ? `
 
 ## Crewmate workflow

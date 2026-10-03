@@ -13,7 +13,7 @@ import {
   type CrewClaimHolder,
   type CrewClaimHolderKind,
   type Lease,
-} from '../../utils/swarm/leaseGlob.js'
+} from '../../utils/crew/leaseGlob.js'
 
 export type { CrewClaimHolder, CrewClaimHolderKind }
 export { resolveClaimHolder, DEFAULT_LEASE_TTL_MS }

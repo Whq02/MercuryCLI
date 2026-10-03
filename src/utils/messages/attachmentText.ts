@@ -18,7 +18,7 @@ import { TASK_CREATE_TOOL_NAME } from '../../tools/TaskCreateTool/constants.js'
 import { TASK_STOP_TOOL_NAME } from '../../tools/TaskStopTool/prompt.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../tools/TaskUpdateTool/constants.js'
 import type { MessageOrigin, UserMessage } from '../../types/message.js'
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { type Attachment, memoryHeader } from '../attachments.js'
 import { stoppedContinuationMessage } from '../attachments/stoppedContinuation.js'
 import { isCrewMessagesAttachment } from '../attachments/types.js'
@@ -75,7 +75,7 @@ function getAutoModeSparseInstructions(): UserMessage[] {
 export function normalizeAttachmentForAPI(
   attachment: Attachment,
 ): UserMessage[] {
-  if (isAgentSwarmsEnabled()) {
+  if (isCrewEnabled()) {
     if (isCrewMessagesAttachment(attachment)) {
       const boundedMessages = attachment.messages.map(message => ({
         ...message,
@@ -123,7 +123,7 @@ The crew config lists your crewmates' names. Check the task list periodically; c
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/crew_context are handled above the switch (their literals stay inside the isAgentSwarmsEnabled() guard); retired types fall through to the legacy sink below
+  // eslint-disable-next-line @typescript-eslint/switch-exhaustiveness-check -- crew_messages/crew_context are handled above the switch (their literals stay inside the isCrewEnabled() guard); retired types fall through to the legacy sink below
   switch (attachment.type) {
     case 'directory': {
       return wrapMessagesInSystemReminder([

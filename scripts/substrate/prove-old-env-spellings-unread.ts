@@ -21,7 +21,7 @@ function runWith(env: Record<string, string | undefined>, body: string): Record<
     process.env.MERCURY_CREDENTIAL_STORE = 'file'
     const reg = await import(${JSON.stringify(join(SRC, 'substrate/flagRegistry.ts'))})
     const envUtils = await import(${JSON.stringify(join(SRC, 'utils/envUtils.ts'))})
-    const swarms = await import(${JSON.stringify(join(SRC, 'utils/agentSwarmsEnabled.ts'))})
+    const swarms = await import(${JSON.stringify(join(SRC, 'utils/crewEnabled.ts'))})
     const spec = (name) => reg.getFlagSpec(name)
     const read = (name) => { try { return reg.flagEnv(name) ?? null } catch (e) { return 'THROWS: ' + String(e.message ?? e) } }
     const spellings = (name) => { try { return reg.flagSpellings(name) } catch (e) { return 'THROWS: ' + String(e.message ?? e) } }
@@ -42,7 +42,7 @@ const facts = `
     home: read(${JSON.stringify(CURRENT.home)}),
     homeDir: envUtils.getCrewsDir(),
     surfaces: read(${JSON.stringify(CURRENT.surfaces)}),
-    crewOn: swarms.isAgentSwarmsEnabled(),
+    crewOn: swarms.isCrewEnabled(),
   }))
 `
 

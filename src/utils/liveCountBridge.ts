@@ -3,8 +3,8 @@ import { getCrewName } from './crewmate.js'
 import {
   computeAgentHealth,
   type AgentHealth,
-} from './swarm/roomHealth.js'
-import { listLeases, type Lease } from './swarm/leaseGlob.js'
+} from './crew/roomHealth.js'
+import { listLeases, type Lease } from './crew/leaseGlob.js'
 import { getAgentStatuses, type AgentStatus } from './tasks.js'
 
 export const SESSION_POLL_MS = 2000

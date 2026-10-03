@@ -1,6 +1,6 @@
 
 import { getCrewName } from './crewmate.js'
-import { readCrewFile } from './swarm/crewHelpers.js'
+import { readCrewFile } from './crew/crewHelpers.js'
 
 export interface CommandSeat {
   room: string

@@ -82,7 +82,7 @@ if (catalogue) {
   const absent = await c.qualifyMoonshotModel('kimi-k3')
   check('a missing typed id refuses with the shared account-labelled sentence', absent.kind === 'refused' && absent.message === "model 'kimi-k3' is not offered by the Moonshot API key (stored, auth-scoped) live catalogue. The catalogue offers: kimi-fixture-next, kimi-k2.6.", JSON.stringify(absent))
   check('an untyped served id is admitted', (await c.qualifyMoonshotModel('kimi-fixture-next')).kind === 'ok')
-  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.ts')
+  const { resolveEngineDispatch, unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
   check('the specialist alias resolves the newest live row', (await resolveEngineDispatch('kimi'))?.model === 'kimi-fixture-next')
   check('a served untyped specialist id is admitted', (await resolveEngineDispatch('kimi-fixture-next'))?.model === 'kimi-fixture-next')
   const deadSpecialist = await resolveEngineDispatch('kimi-k3').then(() => '', error => String(error))

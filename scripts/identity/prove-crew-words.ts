@@ -51,7 +51,7 @@ const ALLOW: Row[] = [
   { path: 'src/tools/TeamDeleteTool/', fragment: null, why: 'the delete step leaves with the team system' },
   { path: 'src/tools/TeamBriefTool/', fragment: null, why: 'the brief becomes live communication under its own name' },
   { path: 'src/tools/shared/spawnMultiAgent.ts', fragment: null, why: "the team spawn road's own errors; the crew's one start road replaces it" },
-  { path: 'src/utils/swarm/', fragment: null, why: "the team system's own road — roster, mailbox, charter, panes, governance — rebuilt by the crew and renamed last" },
+  { path: 'src/utils/crew/', fragment: null, why: "the team system's own road — roster, mailbox, charter, panes, governance — rebuilt by the crew and renamed last" },
   { path: 'src/utils/messages/attachmentText.ts', fragment: null, why: 'attachment text is the model\'s' },
   { path: 'src/utils/cockpit/runtimePosture.ts', fragment: null, why: "the runtime-posture block is the model's system prompt" },
   { path: 'src/utils/cockpit/harnessMap.ts', fragment: 'mercury://<kind>/<id>', why: 'the ref kinds it lists are the wire' },

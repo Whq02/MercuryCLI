@@ -22,7 +22,7 @@ console.log('============================================================')
 delete process.env.MERCURY_EFFORT_LEVEL
 delete process.env.MERCURY_WORKFLOW_ROUTING
 
-const resolver = await import('../../src/utils/swarm/roleResolver.js')
+const resolver = await import('../../src/utils/crew/roleResolver.js')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.js')
 const { ONE_SHOT_BUILTIN_AGENT_TYPES } = await import('../../src/tools/AgentTool/constants.js')
 
@@ -74,23 +74,23 @@ section('§2 — every preparation path consumes the resolver')
   const boot = src('main.tsx')
   check('the pane-child boot resolves through the shared resolver', boot.includes('findRoleDefinition(agentTypeOpt') && boot.includes('getRoleSystemPrompt(roleDefinition)'))
   check('the built-in-skipped-at-boot gap is gone', !boot.includes('skipping custom prompt (not supported)'))
-  const runner = src('utils', 'swarm', 'inProcessRunner.ts')
+  const runner = src('utils', 'crew', 'inProcessRunner.ts')
   check('the runner composes the role prompt via the resolver helper', runner.includes('getRoleSystemPrompt(agentDefinition, {'))
   check('the runner composes charter + role packet after the role contract', runner.includes('formatCharterForContext(role.charter)') && runner.includes('formatRolePacketForContext(role.rolePacket)'))
 }
 
 section('§3 — canonical role identity')
 {
-  const launchPlan = src('utils', 'swarm', 'agentLaunchPlan.ts')
+  const launchPlan = src('utils', 'crew', 'agentLaunchPlan.ts')
   check('runner identity: canonical agentType, display name only as last resort', launchPlan.includes('i.role?.agentType ?? i.agentDefinition?.agentType ?? i.displayName'))
-  check('the runner consumes the shared definition product', src('utils', 'swarm', 'inProcessRunner.ts').includes('deriveRunnerAgentDefinition({'))
+  check('the runner consumes the shared definition product', src('utils', 'crew', 'inProcessRunner.ts').includes('deriveRunnerAgentDefinition({'))
   const spawn = src('tools', 'shared', 'spawnMultiAgent.ts')
   check('the in-process crewmate is registered under the CANONICAL agent type', spawn.includes('agentType: canonicalAgentType ?? crewmateName'))
 }
 
 section('§7 — one shared doctrine: role discipline + the handoff packet')
 {
-  const { buildCrewmateAddendum } = await import('../../src/utils/swarm/crewmatePromptAddendum.js')
+  const { buildCrewmateAddendum } = await import('../../src/utils/crew/crewmatePromptAddendum.js')
   const addendum = buildCrewmateAddendum()
   for (const line of [
     'Outcome: what changed or what was learned',

@@ -1,7 +1,7 @@
 import { writeFileSync } from 'node:fs'
 import { getSessionId } from '../../../src/bootstrap/state.ts'
 import { sessionCrewName } from '../../../src/utils/crew/crewBirth.ts'
-import { appendCrewMember } from '../../../src/utils/swarm/crewHelpers.ts'
+import { appendCrewMember } from '../../../src/utils/crew/crewHelpers.ts'
 
 const out = process.env.RELIA_OUT
 if (!out) throw new Error('RELIA_OUT required')

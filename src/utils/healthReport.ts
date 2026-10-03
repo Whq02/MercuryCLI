@@ -117,7 +117,7 @@ import { getBuiltInAgents } from '../tools/AgentTool/builtInAgents.js'
 import {
   findRoleDefinition,
   getRoleSystemPrompt,
-} from './swarm/roleResolver.js'
+} from './crew/roleResolver.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../services/providers/idSpaces.js'
 
 export async function computeWorkingTreeSha(cwdDir: string): Promise<string | null> {
@@ -3312,7 +3312,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
           label: 'Operation journals',
           run: async () => {
             const { listJournalOperations } = await import('../substrate/operationJournal.js')
-            const { crewJournalDir } = await import('./swarm/crewOperations.js')
+            const { crewJournalDir } = await import('./crew/crewOperations.js')
             const alive = (pid: number): boolean => {
               try {
                 process.kill(pid, 0)

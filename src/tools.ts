@@ -3,7 +3,7 @@ import { isEnvTruthy } from './utils/envUtils.js'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { getDenyRuleForTool } from './utils/permissions/permissions.js'
 import { searchToolsAvailability } from './utils/ripgrep.js'
-import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from './utils/crewEnabled.js'
 import { isTaskToolsEnabled } from './utils/tasks.js'
 import { isWorktreeModeEnabled } from './utils/worktreeModeEnabled.js'
 import { vulcanToolCatalogEnabled } from './utils/vulcan/vulcanGates.js'
@@ -206,7 +206,7 @@ export function getAllBaseTools(): Tools {
     ...(isWorktreeModeEnabled() ? [EnterWorktreeTool, ExitWorktreeTool] : []),
     ...(checkpointRewindEnabled() ? [CheckpointTool, RewindTool] : []),
     sendMessage,
-    ...(isAgentSwarmsEnabled() && liveComms
+    ...(isCrewEnabled() && liveComms
       ? [liveComms, ...(artifactsList ? [artifactsList] : [])]
       : []),
     WORKFLOW_TOOL,

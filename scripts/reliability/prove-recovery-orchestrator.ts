@@ -33,7 +33,7 @@ process.env.MERCURY_DAEMON_DIR = daemon
 delete process.env.MERCURY_TASK_LIST_ID
 
 const orch = await import('../../src/substrate/recoveryOrchestrator.ts')
-const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
+const helpers = await import('../../src/utils/crew/crewHelpers.ts')
 const { getTaskListId } = await import('../../src/utils/tasks.ts')
 const { getLeadCrewFallback } = await import('../../src/utils/crewmate.ts')
 const { listJournalOperations } = await import('../../src/substrate/operationJournal.ts')

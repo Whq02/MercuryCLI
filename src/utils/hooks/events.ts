@@ -32,7 +32,7 @@ import type {
   PromptResponse,
 } from '../../types/hooks.js'
 import type { AggregatedHookResult, HookBlockingError } from './types.js'
-import { checkLeaseGuard } from '../swarm/leaseGuard.js'
+import { checkLeaseGuard } from '../crew/leaseGuard.js'
 import { executeHooks } from './engine.js'
 import { executeHooksOutsideREPL } from './outsideRepl.js'
 import { hasHookForEvent } from './matching.js'

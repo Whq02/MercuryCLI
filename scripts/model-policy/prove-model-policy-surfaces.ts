@@ -128,7 +128,7 @@ console.log('\n§4 picker: pin row + fallback row + dedup law')
 
 console.log('\n§6 role-boundary repairs (recon findings)')
 {
-  const crewmate = src('src/utils/swarm/crewmateModel.ts')
+  const crewmate = src('src/utils/crew/crewmateModel.ts')
   check(
     'crewmate fallback follows the foreground default, never a fixed Opus row',
     crewmate.includes('getDefaultMainLoopModel()') && !crewmate.includes('CLAUDE_OPUS_4_6_CONFIG'),

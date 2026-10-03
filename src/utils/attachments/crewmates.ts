@@ -2,10 +2,10 @@
 import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { getViewedCrewmateTask } from '../../state/selectors.js'
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { logForDebugging } from '../debug.js'
 import { getMercuryHome } from '../envUtils.js'
-import { removeCrewmateFromCrewFile } from '../swarm/crewHelpers.js'
+import { removeCrewmateFromCrewFile } from '../crew/crewHelpers.js'
 import { unassignCrewmateTasks } from '../tasks.js'
 import {
   getAgentId,
@@ -21,7 +21,7 @@ import type { Attachment } from './types.js'
 export async function getCrewmateMailboxAttachments(
   toolUseContext: ToolUseContext,
 ): Promise<Attachment[]> {
-  if (!isAgentSwarmsEnabled()) {
+  if (!isCrewEnabled()) {
     return []
   }
   {
@@ -42,18 +42,18 @@ export async function getCrewmateMailboxAttachments(
   }
 
   logForDebugging(
-    `[SwarmMailbox] getCrewmateMailboxAttachments called: envAgentName=${envAgentName}, isCrewLead=${crewLeadStatus}, resolved agentName=${agentName}, crewName=${crewName}`,
+    `[CrewMailbox] getCrewmateMailboxAttachments called: envAgentName=${envAgentName}, isCrewLead=${crewLeadStatus}, resolved agentName=${agentName}, crewName=${crewName}`,
   )
 
   if (!agentName) {
     logForDebugging(
-      `[SwarmMailbox] Not checking inbox - not in a swarm or crew lead`,
+      `[CrewMailbox] Not checking inbox - not in a crew or crew lead`,
     )
     return []
   }
 
   logForDebugging(
-    `[SwarmMailbox] Checking inbox for agent="${agentName}" crew="${crewName || 'default'}"`,
+    `[CrewMailbox] Checking inbox for agent="${agentName}" crew="${crewName || 'default'}"`,
   )
 
   const allUnreadMessages = await unreadLiveMessagesFor(crewName, agentName!)
@@ -69,7 +69,7 @@ export async function getCrewmateMailboxAttachments(
       ? []
       : appState.inbox.messages.filter(m => m.status === 'pending')
   logForDebugging(
-    `[SwarmMailbox] Found ${pendingInboxMessages.length} pending message(s) in AppState.inbox`,
+    `[CrewMailbox] Found ${pendingInboxMessages.length} pending message(s) in AppState.inbox`,
   )
 
   const seen = new Set<string>()
@@ -112,17 +112,17 @@ export async function getCrewmateMailboxAttachments(
       return latestIdleByAgent.get(agent) === i
     })
     logForDebugging(
-      `[SwarmMailbox] Collapsed ${beforeCount - allMessages.length} duplicate idle notification(s)`,
+      `[CrewMailbox] Collapsed ${beforeCount - allMessages.length} duplicate idle notification(s)`,
     )
   }
 
   if (allMessages.length === 0) {
-    logForDebugging(`[SwarmMailbox] No messages to deliver, returning empty`)
+    logForDebugging(`[CrewMailbox] No messages to deliver, returning empty`)
     return []
   }
 
   logForDebugging(
-    `[SwarmMailbox] Returning ${allMessages.length} message(s) as attachment for "${agentName}" (${unreadMessages.length} from file, ${pendingInboxMessages.length} from AppState, after dedup)`,
+    `[CrewMailbox] Returning ${allMessages.length} message(s) as attachment for "${agentName}" (${unreadMessages.length} from file, ${pendingInboxMessages.length} from AppState, after dedup)`,
   )
 
   const attachment: Attachment[] = [
@@ -151,12 +151,12 @@ export async function getCrewmateMailboxAttachments(
         const crewmateToRemove = resolveShutdownApprovedVictim(m.from, shutdownApproval!)
         if (!crewmateToRemove) {
           logForDebugging(
-            `[SwarmMailbox] Ignoring shutdown_approved: in-body from "${shutdownApproval!.from}" != verified sender "${m.from}"`,
+            `[CrewMailbox] Ignoring shutdown_approved: in-body from "${shutdownApproval!.from}" != verified sender "${m.from}"`,
           )
           continue
         }
         logForDebugging(
-          `[SwarmMailbox] Processing shutdown_approved from ${crewmateToRemove}`,
+          `[CrewMailbox] Processing shutdown_approved from ${crewmateToRemove}`,
         )
 
         const crewmateId = appState.crewContext?.crewmates
@@ -171,7 +171,7 @@ export async function getCrewmateMailboxAttachments(
             name: crewmateToRemove!,
           })
           logForDebugging(
-            `[SwarmMailbox] Removed ${crewmateToRemove} from crew file`,
+            `[CrewMailbox] Removed ${crewmateToRemove} from crew file`,
           )
 
           await unassignCrewmateTasks(

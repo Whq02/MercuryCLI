@@ -46,7 +46,7 @@ import {
   type LocalWorkflowTaskState,
 } from '../../tasks/LocalWorkflowTask/LocalWorkflowTask.js'
 import type { TaskState } from '../../tasks/types.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'

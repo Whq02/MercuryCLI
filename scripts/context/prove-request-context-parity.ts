@@ -222,7 +222,7 @@ async function main(): Promise<void> {
     check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity)
     const ts = await import('typescript')
     const { readFileSync } = await import('node:fs')
-    const source = ts.createSourceFile('inProcessRunner.ts', readFileSync(new URL('../../src/utils/swarm/inProcessRunner.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true)
+    const source = ts.createSourceFile('inProcessRunner.ts', readFileSync(new URL('../../src/utils/crew/inProcessRunner.ts', import.meta.url), 'utf8'), ts.ScriptTarget.Latest, true)
     let initial: import('typescript').Expression | undefined
     let resetState: import('typescript').Expression | undefined
     const visit = (node: import('typescript').Node): void => {

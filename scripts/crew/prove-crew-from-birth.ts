@@ -59,7 +59,7 @@ if (birth !== null) {
   tally.check('the founding roster carries the lead alone, led by this session', roster.name === sid && roster.leadSessionId === sid && roster.leadAgentId === `crew-lead@${sid}` && roster.members.length === 1 && roster.members[0]!.name === 'crew-lead' && roster.members[0]!.cwd === '/tmp/somewhere', JSON.stringify(roster))
   const state = await import('../../src/bootstrap/state.ts')
   const ownSid = String(state.getSessionId())
-  const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
+  const helpers = await import('../../src/utils/crew/crewHelpers.ts')
   const ownCrew = birth.sessionCrewName(ownSid)
   const ownPath = helpers.getCrewFilePath(ownCrew)
   tally.check('before the first join the crew has no roster file (nothing is written at birth)', !existsSync(ownPath), ownPath)

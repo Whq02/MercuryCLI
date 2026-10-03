@@ -40,7 +40,7 @@ section("§1 3.2 · the Stop-hook family census — zero unclassified pushers")
     'src/utils/hooks/hookHelpers.ts': 'contract-gate',
     'src/utils/hooks/missionHook.ts': 'latch-claiming',
     'src/utils/hooks/forcedReadHook.ts': 'latch-claiming',
-    'src/utils/swarm/crewmateInit.ts': 'observer',
+    'src/utils/crew/crewmateInit.ts': 'observer',
   }
   const stopHookReturnsOnlyTrue = (text: string): boolean => {
     const arm = text.slice(text.indexOf("'Stop'"))

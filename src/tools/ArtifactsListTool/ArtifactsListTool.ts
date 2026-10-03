@@ -1,7 +1,7 @@
 import { z } from 'zod/v4'
 import { buildTool, type ToolDef } from '../../Tool.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { getCwd } from '../../utils/cwd.js'
 import {
   getArtifact,
@@ -83,7 +83,7 @@ export const ArtifactsListTool = buildTool({
     return 'ArtifactsList'
   },
   isEnabled() {
-    return isAgentSwarmsEnabled()
+    return isCrewEnabled()
   },
   isConcurrencySafe() {
     return true

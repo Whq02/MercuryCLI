@@ -45,7 +45,7 @@ const MANIFEST: ImpactManifest = {
     ui: ['src/components/**'],
     flux: ['src/components/**'],
     pulse: ['src/components/**'],
-    bus: ['src/utils/swarm/**'],
+    bus: ['src/utils/crew/**'],
     mission: ['src/utils/hooks/**'],
     smoke: ['src/**'],
   },
@@ -139,7 +139,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 {
   const pool = estimatePooledWallS(MANIFEST.suites, EST)
   check('the fixture pool estimate is the pty tail + the exclusive (1300s)', pool === 1300, `${pool}`)
-  const p = planSlice(input({ changedPaths: ['src/utils/swarm/bus.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/utils/crew/bus.ts'] }))
   check(
     `a small slice (bus+smoke ≈ 200s vs pool ≈ ${pool}s) RUNS`,
     p.kind === 'run' && p.suites.join(',') === 'bus,smoke'.split(',').sort().join(','),
@@ -148,7 +148,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 }
 {
   const p = planSlice(
-    input({ changedPaths: ['src/components/x.tsx', 'src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'] }),
+    input({ changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'] }),
   )
   check('a near-pool-wall slice REFUSES (not-faster)', p.kind === 'refuse' && p.reason === 'not-faster', p.kind)
   check(
@@ -164,7 +164,7 @@ section('§2 the NOT-FASTER refusal law (both directions)')
 {
   const p = planSlice(
     input({
-      changedPaths: ['src/components/x.tsx', 'src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'],
+      changedPaths: ['src/components/x.tsx', 'src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'],
       clearlyUnderRatio: 0.999,
     }),
   )
@@ -226,7 +226,7 @@ section('§4 fail-closed: UNCLASSIFIED escalates (and outranks the hub)')
 
 section('§5 anchor absent ⇒ refuse naming the pool')
 {
-  const p = planSlice(input({ anchor: null, changedPaths: ['src/utils/swarm/bus.ts'] }))
+  const p = planSlice(input({ anchor: null, changedPaths: ['src/utils/crew/bus.ts'] }))
   check('no anchor refuses', p.kind === 'refuse' && p.reason === 'anchor-absent', p.kind)
   check(
     'the anchor refusal names "run the full pool"',
@@ -236,7 +236,7 @@ section('§5 anchor absent ⇒ refuse naming the pool')
 
 section('§6 the plan hands the selector set (sorted) to the lanes')
 {
-  const p = planSlice(input({ changedPaths: ['src/utils/swarm/bus.ts', 'src/utils/hooks/h.ts'] }))
+  const p = planSlice(input({ changedPaths: ['src/utils/crew/bus.ts', 'src/utils/hooks/h.ts'] }))
   check(
     'plan.suites is exactly the sorted selection set',
     p.kind === 'run' &&

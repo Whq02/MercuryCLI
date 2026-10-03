@@ -202,7 +202,7 @@ section('§4 the Agent tool: haiku is a dispatch word like any other, and the wo
   check("the model description says an exact id names its model exactly", /an exact id names its model exactly/.test(description), description.slice(0, 200))
   check('the schema admits an exact gemini or openrouter id (the dispatch grammar validates it)', schema.safeParse({ description: 'test', prompt: 'test', model: 'gemini-2.5-pro' }).success === true && schema.safeParse({ description: 'test', prompt: 'test', model: 'openrouter/qwen/qwen3-coder' }).success === true)
   check('the schema text enumerates no per-boot id list', !description.includes('gpt-5.6-sol') && !description.includes('glm-5.2'))
-  const { unrecognisedModelWordRefusal } = await import('../../src/utils/swarm/engineDispatch.ts')
+  const { unrecognisedModelWordRefusal } = await import('../../src/utils/crew/engineDispatch.ts')
   check("the dispatch grammar refuses a word no family declares, naming it", (unrecognisedModelWordRefusal('banana') ?? '').includes("'banana'") && unrecognisedModelWordRefusal('haiku') === null && unrecognisedModelWordRefusal('gemini-2.5-pro') === null)
   const config = src('components', 'Settings', 'Config.tsx')
   check('the /config sub-agent default row is a picker door, not an alias walk', !config.includes('AGENT_DISPATCH_MODELS') && /id: 'agentsDefaultModel',[\s\S]{0,400}kind: 'managed-enum'/.test(config))

@@ -112,8 +112,8 @@ import { ensureKeychainPrefetchCompleted, startKeychainPrefetch } from './utils/
 import { getLastSessionLog, getLogByIndex, searchSessionsByCustomTitle, fetchLogs, sessionIdExists } from './utils/sessionStorage.js'
 import { getSessionIdFromLog } from './utils/sessionStorage/logs.js'
 import { armProvisionalSessionReconcile } from './utils/provisionalSessionReconcile.js'
-import { computeInitialCrewContext } from './utils/swarm/reconnection.js'
-import { findRoleDefinition, getRoleSystemPrompt } from './utils/swarm/roleResolver.js'
+import { computeInitialCrewContext } from './utils/crew/reconnection.js'
+import { findRoleDefinition, getRoleSystemPrompt } from './utils/crew/roleResolver.js'
 import { getTipToShowOnSpinner } from './services/tips/tipScheduler.js'
 import { getSlashCommandToolSkills } from './commands.js'
 import { countFilesRoundedRg } from './utils/ripgrep.js'
@@ -1147,8 +1147,8 @@ async function defaultAction(inputPromptArg: string | undefined, opts: RootOptio
   const agentColor = typedString(opts.seatColor)
   const parentSessionId = typedString(opts.parent)
   const agentTypeOpt = typedString(opts.role)
-  const { isAgentSwarmsEnabled } = await import('./utils/agentSwarmsEnabled.js')
-  if (isAgentSwarmsEnabled()) {
+  const { isCrewEnabled } = await import('./utils/crewEnabled.js')
+  if (isCrewEnabled()) {
     const identityCount = [agentId, agentName, crewName].filter(Boolean).length
     if (identityCount > 0 && identityCount < 3) {
       failCli('--seat-id, --seat and --crew must be provided together')

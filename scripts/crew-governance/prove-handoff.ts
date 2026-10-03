@@ -14,7 +14,7 @@ const {
   listIncomingHandoffs,
   listAllOpenHandoffs,
   HANDOFF_STATUSES,
-} = await import('../../src/utils/swarm/handoff.js')
+} = await import('../../src/utils/crew/handoff.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

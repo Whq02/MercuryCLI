@@ -5,10 +5,10 @@ import type { ContentBlockParam } from '../types/wire.js'
 import type { PermissionUpdate } from '../types/permissions.js'
 import { getAgentName, getCrewName } from '../utils/crewmate.js'
 import {
-  isSwarmWorker,
+  isCrewmateWorker,
   pollForResponse,
   removeWorkerResponse,
-} from '../utils/swarm/permissionSync.js'
+} from '../utils/crew/permissionSync.js'
 import { logForDebugging } from '../utils/debug.js'
 
 const POLL_MS = 500
@@ -108,11 +108,11 @@ export function clearAllPendingCallbacks(): void {
   sandboxCallbacks.clear()
 }
 
-export function useSwarmPermissionPoller(): void {
+export function useCrewPermissionPoller(): void {
   const inFlightRef = useRef(false)
   useEffect(() => {
     const poll = async (): Promise<void> => {
-      if (!isSwarmWorker()) return
+      if (!isCrewmateWorker()) return
       if (inFlightRef.current) return
       if (permissionCallbacks.size === 0 && sandboxCallbacks.size === 0) return
       inFlightRef.current = true
@@ -139,7 +139,7 @@ export function useSwarmPermissionPoller(): void {
           }
         }
       } catch (error) {
-        logForDebugging(`swarm permission poll failed: ${error}`)
+        logForDebugging(`crew permission poll failed: ${error}`)
       } finally {
         inFlightRef.current = false
       }

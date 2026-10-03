@@ -20,8 +20,8 @@ import { jsonParse, jsonStringify } from './slowOperations.js'
 import { listLiveCommsTasks, subscribeLiveCommsTasks, type LiveCommsTaskV1 } from '../services/crew/liveTasks.js'
 import { getCrewName } from './crewmate.js'
 import { getCrewmateContext, isInProcessCrewmate } from './crewmateContext.js'
-import { CREW_LEAD_NAME } from './swarm/constants.js'
-import { crewmateStopped, readCrewFileAsync } from './swarm/crewHelpers.js'
+import { CREW_LEAD_NAME } from './crew/constants.js'
+import { crewmateStopped, readCrewFileAsync } from './crew/crewHelpers.js'
 
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const

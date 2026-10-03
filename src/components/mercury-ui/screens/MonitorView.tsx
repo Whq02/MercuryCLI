@@ -8,8 +8,8 @@ import {
 } from '../../../cost-tracker.js'
 import { pokeTelemetry, useTelemetry } from '../../../state/telemetryBus.js'
 import type { Task } from '../../../utils/tasks.js'
-import type { AgentHealth } from '../../../utils/swarm/roomHealth.js'
-import { DEFAULT_LEASE_TTL_MS, type Lease } from '../../../utils/swarm/leaseGlob.js'
+import type { AgentHealth } from '../../../utils/crew/roomHealth.js'
+import { DEFAULT_LEASE_TTL_MS, type Lease } from '../../../utils/crew/leaseGlob.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'
 import { useMercuryTokens } from '../useMercuryTokens.js'
 import {

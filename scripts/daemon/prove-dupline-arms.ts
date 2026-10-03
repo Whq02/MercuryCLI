@@ -38,7 +38,7 @@ section('S the doors a sub-agent could nest or fork through are shut at their ow
   const denySet = tools.slice(tools.indexOf('export const ALL_AGENT_DISALLOWED_TOOLS'), tools.indexOf('export const CUSTOM_AGENT_DISALLOWED_TOOLS'))
   check('every sub-agent loses the Agent tool and the Workflow tool (the one deny set)', denySet.includes('AGENT_TOOL_NAME,') && denySet.includes('WORKFLOW_TOOL_NAME,'))
   check('the fork road is shut: the gate answers false', src('tools/AgentTool/forkSubagent.ts').includes('export function isForkSubagentEnabled(): boolean {\n  return false\n}'))
-  check('with the gate shut a launch that names no type takes the default type, never the fork', src('utils/swarm/agentLaunchPlan.ts').includes("requestedType ?? (i.forkGateOn ? undefined : i.defaultAgentType)"))
+  check('with the gate shut a launch that names no type takes the default type, never the fork', src('utils/crew/agentLaunchPlan.ts').includes("requestedType ?? (i.forkGateOn ? undefined : i.defaultAgentType)"))
   const hooks = src('tools/WorkflowTool/agentHooks.ts')
   check("a workflow's agent queries under its own source label and its own agent id", hooks.includes('querySource: getQuerySourceForAgent(') && hooks.includes('agentId: args.agentId,'))
 }

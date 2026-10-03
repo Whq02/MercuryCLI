@@ -213,7 +213,7 @@ console.log('§3 the old opt-in words on the command line enable nothing')
 {
   process.env.MERCURY_CREWMATES = '0'
   process.argv.push('--agent-teams', '--agent-crews')
-  check('with the crew surfaces off, the old words in argv turn nothing on', (await import('../../src/utils/agentSwarmsEnabled.ts')).isAgentSwarmsEnabled() === false)
+  check('with the crew surfaces off, the old words in argv turn nothing on', (await import('../../src/utils/crewEnabled.ts')).isCrewEnabled() === false)
   delete process.env.MERCURY_CREWMATES
   check('the command table declares neither word', !src('src/main.tsx').includes('--agent-crews') && !src('src/main.tsx').includes('--agent-teams'))
 }
@@ -234,8 +234,8 @@ console.log('§4 an agent sidecar written under the old keys reads as written �
 console.log('§5 a roster saved in the old folder, under the old lead name, is not a crew Mercury knows')
 {
   const envUtils = await import('../../src/utils/envUtils.ts')
-  const helpers = await import('../../src/utils/swarm/crewHelpers.ts')
-  const constants = await import('../../src/utils/swarm/constants.ts')
+  const helpers = await import('../../src/utils/crew/crewHelpers.ts')
+  const constants = await import('../../src/utils/crew/constants.ts')
   const oldDir = join(HOME, 'teams', 'oldcrew')
   mkdirSync(oldDir, { recursive: true })
   writeFileSync(join(oldDir, 'config.json'), JSON.stringify({
@@ -294,7 +294,7 @@ console.log('§8 the command line knows one crew spelling')
 
 console.log('§9 the journal knows the crew kinds alone')
 {
-  const ops = await optional('src/utils/swarm/crewOperations.ts')
+  const ops = await optional('src/utils/crew/crewOperations.ts')
   const handlers = ops !== null && typeof ops.crewJournalRecoveryHandlers === 'function' ? (ops.crewJournalRecoveryHandlers as () => Record<string, unknown>)() : {}
   check('the crew kinds have handlers and the old kinds have none', 'crew-create' in handlers && 'crew-delete' in handlers && !('team-create' in handlers) && !('team-delete' in handlers), Object.keys(handlers).join(','))
   check('the journal dispatch reads the kind as written', src('src/substrate/operationJournal.ts').includes('handlers[op.kind]') && !src('src/substrate/operationJournal.ts').includes('readRetiredJournalKind'))

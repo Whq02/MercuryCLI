@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
-import { isAgentSwarmsEnabled } from './agentSwarmsEnabled.js'
+import { isCrewEnabled } from './crewEnabled.js'
 
 
 type InvocationEdge = {
@@ -44,7 +44,7 @@ export function isSubagentContext(context: AgentContext | undefined): context is
 }
 
 export function isCrewmateAgentContext(context: AgentContext | undefined): context is CrewmateAgentContext {
-  if (!isAgentSwarmsEnabled()) return false
+  if (!isCrewEnabled()) return false
   return context !== undefined && context.agentType === 'crewmate'
 }
 

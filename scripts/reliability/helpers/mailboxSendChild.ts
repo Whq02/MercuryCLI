@@ -1,5 +1,5 @@
 import { sendLiveMessage } from '../../../src/services/crew/liveComms.ts'
-import { BUS_PROTOCOL_TYPE } from '../../../src/utils/swarm/busEnvelopes.ts'
+import { BUS_PROTOCOL_TYPE } from '../../../src/utils/crew/busEnvelopes.ts'
 
 const crewName = process.env.RELIA_CREWNAME
 const requestId = process.env.RELIA_REQ

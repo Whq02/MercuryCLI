@@ -32,7 +32,7 @@ const { DERIVED_SUMMARY_MAX_CHARS, derivedMessageSummary, plainMessageSummary } 
 const { getPrompt } = await import('../../src/tools/SendMessageTool/prompt.ts')
 const { liveMessagesFor } = await import('../../src/services/crew/liveComms.ts')
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.ts')
-const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.ts')
+const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Verdict = { result: boolean; message?: string; errorCode?: number }

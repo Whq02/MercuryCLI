@@ -147,7 +147,7 @@ const { buildLocalExtras } = await import('../../src/services/providers/openaico
 const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
 const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
-const { resolveEngineDispatch } = await import('../../src/utils/swarm/engineDispatch.ts')
+const { resolveEngineDispatch } = await import('../../src/utils/crew/engineDispatch.ts')
 
 section('1 · the probe set + one bounded discovery pass')
 {

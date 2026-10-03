@@ -22,8 +22,8 @@ import { CREW, crewEnabled, crewMemberModel, makeCrewSpawnHandler, makeCrewWakeR
 import { crewSeatPausedLine, crewSeatPauseOf, crewSeatResumedLine, crewSeatResumeRow, crewSeatWindowOf, type CrewSeatWindow } from './crewSeatPause.js'
 import { isOutcomeRow } from './longLivedSupervisor.js'
 import type { LooseRow } from '../rows/read.js'
-import { CREW_LEAD_NAME } from '../utils/swarm/constants.js'
-import { readCrewFileAsync } from '../utils/swarm/crewHelpers.js'
+import { CREW_LEAD_NAME } from '../utils/crew/constants.js'
+import { readCrewFileAsync } from '../utils/crew/crewHelpers.js'
 import {
   concourseWorkersPath,
   listConcourseWorkers,

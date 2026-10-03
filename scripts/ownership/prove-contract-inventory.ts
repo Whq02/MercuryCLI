@@ -86,10 +86,10 @@ const MODULES: Record<string, string[]> = {
   ],
   agents: [
     'src/tools/AgentTool/AgentTool.tsx',
-    'src/utils/swarm/inProcessRunner.ts',
-    'src/utils/swarm/roleResolver.ts',
-    'src/utils/swarm/crewCharter.ts',
-    'src/utils/swarm/handoff.ts',
+    'src/utils/crew/inProcessRunner.ts',
+    'src/utils/crew/roleResolver.ts',
+    'src/utils/crew/crewCharter.ts',
+    'src/utils/crew/handoff.ts',
   ],
   turnEngine: [
     'src/query.ts',

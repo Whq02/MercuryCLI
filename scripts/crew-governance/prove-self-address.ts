@@ -9,7 +9,7 @@ process.env.MERCURY_CONFIG_DIR = TMP
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.js')
-const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.js')
 const { createCrewmateContext, runWithCrewmateContext } = await import(
   '../../src/utils/crewmateContext.js'
 )

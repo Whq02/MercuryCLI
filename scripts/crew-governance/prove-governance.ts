@@ -19,8 +19,8 @@ const {
   answerQuestion,
   listOpenQuestions,
   DEFAULT_ROLE_LADDER,
-} = await import('../../src/utils/swarm/sendMessageGovernance.js')
-const { CREW_LEAD_NAME } = await import('../../src/utils/swarm/constants.js')
+} = await import('../../src/utils/crew/sendMessageGovernance.js')
+const { CREW_LEAD_NAME } = await import('../../src/utils/crew/constants.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -118,7 +118,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2: after roster append, before AppState — roster/UI disagree',
     ],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
+    source: ['src/utils/crew/crewHelpers.ts:353', 'src/tools/shared/spawnMultiAgent.ts'],
   },
   {
     id: 'task-outcome-envelope',
@@ -343,7 +343,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     recovery: 'TTL-bounded (30m) so lost updates self-heal; a damaged store is quarantined + ledgered (Slice 2) and the guard still fails OPEN (allow) by doctrine.',
     interruptionWindows: ['W1: kernel windows (W2/W3 closed); a dropped store fails OPEN (allow) by design'],
     failureClass: ['FC5-corrupt-store-empty-overwrite'],
-    source: ['src/utils/swarm/leaseGlob.ts'],
+    source: ['src/utils/crew/leaseGlob.ts'],
   },
   {
     id: 'store-prompt-drafts',
@@ -382,7 +382,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
     recovery: 'single-record atomic through the shared durable primitive (Slice 1); sync twin can degrade to UNLOCKED best-effort on lock exhaustion (documented).',
     interruptionWindows: ['W1 (bounded): crash between tmp write and rename — orphan swept on next publish/boot'],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:240', 'src/utils/swarm/crewHelpers.ts:304'],
+    source: ['src/utils/crew/crewHelpers.ts:240', 'src/utils/crew/crewHelpers.ts:304'],
   },
   {
     id: 'lifecycle-startup-sweeps',
@@ -463,7 +463,7 @@ export const DURABLE_OPERATION_MATRIX: readonly DurableOperationRow[] = [
       'W2: exit between run flush and owner disposal — benign (resume reconciles)',
     ],
     failureClass: ['FC1-crewcreate-partial'],
-    source: ['src/utils/swarm/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
+    source: ['src/utils/crew/crewHelpers.ts:773', 'src/services/run/ownerLifecycle.ts'],
   },
   {
     id: 'store-interview-sessions',

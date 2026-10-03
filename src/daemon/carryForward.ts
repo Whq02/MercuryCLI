@@ -1,5 +1,5 @@
 
-import { buildNote, type NoteEnvelope } from '../utils/swarm/busEnvelopes.js'
+import { buildNote, type NoteEnvelope } from '../utils/crew/busEnvelopes.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 
 export function carryForwardEnabled(): boolean {

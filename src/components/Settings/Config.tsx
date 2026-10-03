@@ -42,7 +42,7 @@ import {
   setSessionInstructionProfile,
   isInstructionProfile,
 } from '../../services/instructions/profile.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { isFullscreenActive } from '../../utils/fullscreen.js'
 import inkInstances from '../../ink/instances.js'
 import { stripFacts } from '../../context/surfaceRoute.js'
@@ -1002,7 +1002,7 @@ export function Config({
       },
     })
   }
-  if (isAgentSwarmsEnabled()) {
+  if (isCrewEnabled()) {
     items.push({
       id: 'defaultCrewmateModel',
       label: 'Default crewmate model',

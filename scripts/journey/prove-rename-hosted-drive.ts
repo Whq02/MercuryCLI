@@ -96,7 +96,7 @@ async function capture(cols: number, rows: number): Promise<Record<string, Grid>
 }
 
 function bannerLaws(): void {
-  const source = readFileSync(join(REPO, 'src/components/PromptInput/useSwarmBanner.ts'), 'utf8')
+  const source = readFileSync(join(REPO, 'src/components/PromptInput/useCrewBanner.ts'), 'utf8')
   const body = new Bun.Transpiler({ loader: 'ts' }).transformSync(source.replace(/^import[\s\S]*?from ['"][^'"]+['"];?\n/gm, '')).replaceAll('export ', '')
   const run = (state: Record<string, unknown>, cockpit: boolean): unknown => {
     const bindings = {
@@ -109,7 +109,7 @@ function bannerLaws(): void {
       AGENT_COLORS, AGENT_COLOR_TO_THEME_COLOR,
       getAgentColor: () => AGENT_COLOR_TO_THEME_COLOR.green,
     }
-    return new Function(...Object.keys(bindings), `${body}\nreturn useSwarmBanner()`)(...Object.values(bindings))
+    return new Function(...Object.keys(bindings), `${body}\nreturn useCrewBanner()`)(...Object.values(bindings))
   }
   const renamed = { standaloneAgentContext: { name: 'roomie', color: 'blue' } }
   check('a renamed cockpit has no destination banner', run(renamed, true) === null)

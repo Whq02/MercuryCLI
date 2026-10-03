@@ -11,7 +11,7 @@ import {
   deriveCrewmatePhase,
   lastActionWasLeadHandoff,
   crewmatePhaseLabel,
-} from '../../utils/swarm/crewPhases.js'
+} from '../../utils/crew/crewPhases.js'
 import { GLYPH } from '../mercury-ui/glyphs.js'
 import {
   deriveAgentLifecycle,

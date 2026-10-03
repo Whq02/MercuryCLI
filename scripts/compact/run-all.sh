@@ -27,7 +27,7 @@
 # gate-watch: src/tools/FileReadTool/prompt.ts src/tools/ToolSearchTool/ToolSearchTool.ts src/utils/*
 # gate-watch: src/utils/attachments/* src/utils/cockpit/contextGauge.ts src/utils/cockpit/helmConsole.ts
 # gate-watch: src/utils/config/globalConfig.ts src/utils/messages/* src/utils/model/capabilities.ts
-# gate-watch: src/utils/sessionStorage/paths.ts src/utils/swarm/inProcessRunner.ts
+# gate-watch: src/utils/sessionStorage/paths.ts src/utils/crew/inProcessRunner.ts
 # gate-watch: src/utils/task/diskOutput.ts
 # gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts
 # gate-watch: src/utils/processUserInput/processSlashCommand.tsx src/utils/sessionStorage/chain.ts

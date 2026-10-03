@@ -15,7 +15,7 @@ import { Client } from '@modelcontextprotocol/client'
 import { createCoordinationServer } from '../../src/services/mcp/coordinationServer.js'
 import { createLinkedTransportPair } from '../../src/services/mcp/InProcessTransport.js'
 import { clearDynamicCrewContext, setDynamicCrewContext } from '../../src/utils/crewmate.js'
-import { writeCrewFileAsync, type CrewFile } from '../../src/utils/swarm/crewHelpers.js'
+import { writeCrewFileAsync, type CrewFile } from '../../src/utils/crew/crewHelpers.js'
 
 type AnyTool = { call: (input: unknown, context: unknown) => Promise<{ data: unknown }> }
 const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'

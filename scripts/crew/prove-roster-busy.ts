@@ -55,12 +55,12 @@ mock.module('../../src/tools/AgentTool/runAgent.ts', () => ({ ...runAgentModule,
 
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getSessionId } = await import('../../src/bootstrap/state.ts')
-const { spawnInProcessCrewmate } = await import('../../src/utils/swarm/spawnInProcess.ts')
-const { runInProcessCrewmate } = await import('../../src/utils/swarm/inProcessRunner.ts')
+const { spawnInProcessCrewmate } = await import('../../src/utils/crew/spawnInProcess.ts')
+const { runInProcessCrewmate } = await import('../../src/utils/crew/inProcessRunner.ts')
 const { isInProcessCrewmateTask } = await import('../../src/tasks/InProcessCrewmateTask/types.ts')
-const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/swarm/crewHelpers.ts')
+const { writeCrewFileAsync, readCrewFileAsync, getCrewFilePath } = await import('../../src/utils/crew/crewHelpers.ts')
 const { getAgentStatuses } = await import('../../src/utils/tasks.ts')
-const { getRoomHealth } = await import('../../src/utils/swarm/roomHealth.ts')
+const { getRoomHealth } = await import('../../src/utils/crew/roomHealth.ts')
 const { crewBrief } = await import('../../src/services/coordination/coordinationService.ts')
 const { formatAgentId } = await import('../../src/utils/agentId.ts')
 type AppState = import('../../src/state/AppState.tsx').AppState

@@ -330,7 +330,7 @@ const MAX_CREW_MEMBERS = 16
 
 export async function appendCrewMember(crewName: string, member: CrewMember): Promise<void> {
   await withLockedCrewFile(crewName, async current => {
-    const roster = current ?? (await import('../crew/crewBirth.js')).foundingRosterFor(crewName)
+    const roster = current ?? (await import('./crewBirth.js')).foundingRosterFor(crewName)
     if (roster === null) {
       throw new Error(`Crew "${crewName}" does not exist`)
     }

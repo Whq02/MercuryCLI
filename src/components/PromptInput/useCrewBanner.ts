@@ -24,7 +24,7 @@ function themeColorOf(
   return fallback
 }
 
-export function useSwarmBanner(): { text: string; bgColor: keyof Theme } | null {
+export function useCrewBanner(): { text: string; bgColor: keyof Theme } | null {
   const cockpit = useContext(CockpitActiveContext)
   const store = useAppStateStore()
   const crewContext = useAppState((state: AppState) => state.crewContext)

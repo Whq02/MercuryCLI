@@ -1,20 +1,20 @@
 
-import { registerPermissionCallback } from '../../../hooks/useSwarmPermissionPoller.js'
+import { registerPermissionCallback } from '../../useCrewPermissionPoller.js'
 import type {
   PendingClassifierCheck,
   PermissionDecision,
   PermissionUpdate,
 } from '../../../types/permissions.js'
-import { isAgentSwarmsEnabled } from '../../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../../utils/crewEnabled.js'
 import { logError } from '../../../utils/log.js'
 import {
   createPermissionRequest,
-  isSwarmWorker,
+  isCrewmateWorker,
   sendPermissionRequestViaMailbox,
-} from '../../../utils/swarm/permissionSync.js'
+} from '../../../utils/crew/permissionSync.js'
 import { createResolveOnce, type PermissionContext } from '../PermissionContext.js'
 
-export type SwarmWorkerPermissionParams = {
+export type CrewmatePermissionParams = {
   ctx: PermissionContext
   description: string
   pendingClassifierCheck?: PendingClassifierCheck
@@ -22,11 +22,11 @@ export type SwarmWorkerPermissionParams = {
   suggestions: PermissionUpdate[] | undefined
 }
 
-export async function handleSwarmWorkerPermission(
-  params: SwarmWorkerPermissionParams,
+export async function handleCrewmatePermission(
+  params: CrewmatePermissionParams,
 ): Promise<PermissionDecision | null> {
   const { ctx, description, suggestions } = params
-  if (!isAgentSwarmsEnabled() || !isSwarmWorker()) return null
+  if (!isCrewEnabled() || !isCrewmateWorker()) return null
 
 
   try {

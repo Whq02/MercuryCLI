@@ -619,7 +619,7 @@
     "type:AgentToolOutput",
     "type:Progress"
    ],
-   "src/utils/swarm/inProcessRunner.ts": [
+   "src/utils/crew/inProcessRunner.ts": [
     "cancelCrewmatePauseResume",
     "crewmatePausedWords",
     "runInProcessCrewmate",
@@ -628,7 +628,7 @@
     "type:InProcessRunnerConfig",
     "type:InProcessRunnerResult"
    ],
-   "src/utils/swarm/roleResolver.ts": [
+   "src/utils/crew/roleResolver.ts": [
     "deriveRolePacket",
     "findRoleDefinition",
     "getRoleSystemPrompt",
@@ -636,7 +636,7 @@
     "type:CrewmateRoleRecord",
     "type:ResolvedCrewmateRole"
    ],
-   "src/utils/swarm/crewCharter.ts": [
+   "src/utils/crew/crewCharter.ts": [
     "CREW_CHARTER_VERSION",
     "deriveCrewCharter",
     "formatCharterForContext",
@@ -646,7 +646,7 @@
     "type:CrewRolePacket",
     "type:DeriveCharterInputs"
    ],
-   "src/utils/swarm/handoff.ts": [
+   "src/utils/crew/handoff.ts": [
     "HANDOFF_STATUSES",
     "isSuccessClaim",
     "listAllOpenHandoffs",

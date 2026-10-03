@@ -6,7 +6,7 @@ import { isCrewMessagesAttachment, type Attachment } from '../../utils/attachmen
 import { stoppedContinuationMessage } from '../../utils/attachments/stoppedContinuation.js'
 import { formatFileSize } from '../../utils/format.js'
 import { plural } from '../../utils/stringUtils.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { isIdleNotification, isShutdownApproved } from '../../services/crew/liveMessages.js'
 import { toInkColor } from '../../utils/ink.js'
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
@@ -88,7 +88,7 @@ export function AttachmentMessage({
 }): React.ReactNode {
   const selectedBg = useSelectedMessageBg()
   if (isCrewMessagesAttachment(attachment)) {
-    if (!isAgentSwarmsEnabled()) return null
+    if (!isCrewEnabled()) return null
     const surviving = attachment.messages.filter(message => {
       if (isIdleNotification(message.text)) return false
       if (isShutdownApproved(message.text)) return false
@@ -432,7 +432,7 @@ export function AttachmentMessage({
 
     case 'task_status': {
       const isCrewmate =
-        isAgentSwarmsEnabled() &&
+        isCrewEnabled() &&
         (attachment.taskType as string) === 'in_process_crewmate'
       if (isCrewmate) {
         const color = toInkColor(undefined)

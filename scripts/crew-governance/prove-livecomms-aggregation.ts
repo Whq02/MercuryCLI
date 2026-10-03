@@ -12,9 +12,9 @@ const { LiveCommsTool } = await import('../../src/tools/LiveCommsTool/LiveCommsT
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
 const { createTask } = await import('../../src/utils/tasks.js')
 const { sendLiveMessage } = await import('../../src/services/crew/liveComms.js')
-const { openQuestion } = await import('../../src/utils/swarm/sendMessageGovernance.js')
-const { recordHandoff } = await import('../../src/utils/swarm/handoff.js')
-const { claimLease } = await import('../../src/utils/swarm/leaseGlob.js')
+const { openQuestion } = await import('../../src/utils/crew/sendMessageGovernance.js')
+const { recordHandoff } = await import('../../src/utils/crew/handoff.js')
+const { claimLease } = await import('../../src/utils/crew/leaseGlob.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

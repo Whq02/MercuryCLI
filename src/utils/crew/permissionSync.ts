@@ -17,7 +17,7 @@ import { CREW_LEAD_NAME } from './constants.js'
 import { readCrewFileAsync, sanitizeName } from './crewHelpers.js'
 
 
-export const SwarmPermissionRequestSchema = lazySchema(() =>
+export const CrewPermissionRequestSchema = lazySchema(() =>
   z.object({
     id: z.string(),
     workerId: z.string(),
@@ -39,7 +39,7 @@ export const SwarmPermissionRequestSchema = lazySchema(() =>
   }),
 )
 
-export type SwarmPermissionRequest = z.infer<ReturnType<typeof SwarmPermissionRequestSchema>>
+export type CrewPermissionRequest = z.infer<ReturnType<typeof CrewPermissionRequestSchema>>
 
 export type PermissionResolution = {
   decision: 'approved' | 'rejected'
@@ -98,7 +98,7 @@ export function createPermissionRequest(params: {
   workerName?: string
   workerColor?: string
   crewName?: string
-}): SwarmPermissionRequest {
+}): CrewPermissionRequest {
   const crewName = params.crewName ?? getCrewName()
   if (!crewName) {
     throw new Error('Cannot create a permission request: no crew name could be determined')
@@ -145,8 +145,8 @@ async function withPendingLock<R>(crewName: string, fn: () => Promise<R>): Promi
 }
 
 export async function writePermissionRequest(
-  request: SwarmPermissionRequest,
-): Promise<SwarmPermissionRequest> {
+  request: CrewPermissionRequest,
+): Promise<CrewPermissionRequest> {
   try {
     await ensurePermissionDirs(request.crewName)
     await withPendingLock(request.crewName, async () => {
@@ -164,7 +164,7 @@ export async function writePermissionRequest(
 
 export const submitPermissionRequest = writePermissionRequest
 
-export async function readPendingPermissions(crewName?: string): Promise<SwarmPermissionRequest[]> {
+export async function readPendingPermissions(crewName?: string): Promise<CrewPermissionRequest[]> {
   const crew = resolveCrew(crewName)
   if (!crew) {
     logForDebugging('permission sync: no crew — pending read answers empty')
@@ -179,12 +179,12 @@ export async function readPendingPermissions(crewName?: string): Promise<SwarmPe
     }
     return []
   }
-  const requests: SwarmPermissionRequest[] = []
+  const requests: CrewPermissionRequest[] = []
   for (const entry of entries) {
     if (!entry.endsWith('.json') || entry === '.lock') continue
     try {
       const raw = await readFile(join(getPendingDir(crew), entry), 'utf-8')
-      const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(raw))
+      const parsed = CrewPermissionRequestSchema().safeParse(JSON.parse(raw))
       if (!parsed.success) {
         logForDebugging(`permission sync: dropping invalid pending record ${entry}`)
         continue
@@ -200,12 +200,12 @@ export async function readPendingPermissions(crewName?: string): Promise<SwarmPe
 export async function readResolvedPermission(
   requestId: string,
   crewName?: string,
-): Promise<SwarmPermissionRequest | null> {
+): Promise<CrewPermissionRequest | null> {
   const crew = resolveCrew(crewName)
   if (!crew) return null
   try {
     const raw = await readFile(join(getResolvedDir(crew), `${requestId}.json`), 'utf-8')
-    const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(raw))
+    const parsed = CrewPermissionRequestSchema().safeParse(JSON.parse(raw))
     if (!parsed.success) {
       logForDebugging(`permission sync: resolved record ${requestId} is invalid`)
       return null
@@ -230,9 +230,9 @@ export async function resolvePermission(
     await ensurePermissionDirs(crew)
     return await withPendingLock(crew, async () => {
       const pendingPath = join(getPendingDir(crew), `${requestId}.json`)
-      let pending: SwarmPermissionRequest
+      let pending: CrewPermissionRequest
       try {
-        const parsed = SwarmPermissionRequestSchema().safeParse(
+        const parsed = CrewPermissionRequestSchema().safeParse(
           JSON.parse(await readFile(pendingPath, 'utf-8')),
         )
         if (!parsed.success) return false
@@ -240,7 +240,7 @@ export async function resolvePermission(
       } catch {
         return false
       }
-      const resolved: SwarmPermissionRequest = {
+      const resolved: CrewPermissionRequest = {
         ...pending,
         status: resolution.decision,
         resolvedBy: resolution.resolvedBy,
@@ -290,7 +290,7 @@ export async function cleanupOldResolutions(crewName?: string, maxAgeMs = 3_600_
     const path = join(getResolvedDir(crew), entry)
     let shouldDelete = false
     try {
-      const parsed = SwarmPermissionRequestSchema().safeParse(JSON.parse(await readFile(path, 'utf-8')))
+      const parsed = CrewPermissionRequestSchema().safeParse(JSON.parse(await readFile(path, 'utf-8')))
       if (!parsed.success) {
         shouldDelete = true
       } else {
@@ -345,7 +345,7 @@ export function isCrewLeader(crewName?: string): boolean {
   return agentId === undefined || agentId === CREW_LEAD_NAME
 }
 
-export function isSwarmWorker(): boolean {
+export function isCrewmateWorker(): boolean {
   const crew = getCrewName()
   const agentId = getAgentId()
   return Boolean(crew) && agentId !== undefined && !isCrewLeader()
@@ -364,7 +364,7 @@ export async function getLeaderName(crewName?: string): Promise<string | null> {
 
 
 export async function sendPermissionRequestViaMailbox(
-  request: SwarmPermissionRequest,
+  request: CrewPermissionRequest,
 ): Promise<boolean> {
   try {
     const leaderName = await getLeaderName(request.crewName)

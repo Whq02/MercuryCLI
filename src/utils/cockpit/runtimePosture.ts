@@ -1,5 +1,5 @@
 
-import { isAgentSwarmsEnabled } from '../agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../crewEnabled.js'
 import { listCapabilityKills } from '../permissions/capabilityGate.js'
 import { isMcpPolicyActive, describeMcpPolicy } from '../../services/mcp/toolPolicy.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -139,7 +139,7 @@ export function getRuntimePostureSection(): string | null {
   )
 
   lines.push(
-    isAgentSwarmsEnabled()
+    isCrewEnabled()
       ? '- Crew tooling available: file leases guard concurrent edits (a lease denial is coordination, not an error); LiveComms carries the crew\'s live state.'
       : '- Crew tooling: off for this process.',
   )

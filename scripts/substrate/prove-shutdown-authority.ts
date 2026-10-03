@@ -4,7 +4,7 @@ import {
   resolveShutdownApprovedVictim,
   resolveShutdownRequestSender,
 } from '../../src/services/crew/liveMessages.js'
-import { canAnswerCloseQuestion, canDirect, resolveDirectActor } from '../../src/utils/swarm/sendMessageGovernance.js'
+import { canAnswerCloseQuestion, canDirect, resolveDirectActor } from '../../src/utils/crew/sendMessageGovernance.js'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 

@@ -8,10 +8,10 @@ build.ts
 src/utils/healthFix.ts
 src/utils/permissions/capabilityGate.ts
 src/daemon/protocol.ts
-src/utils/swarm/leaseGuard.ts
+src/utils/crew/leaseGuard.ts
 #
 # Graduates here once cleaned (currently carry strict errors — see baseline):
-#   src/utils/swarm/leaseGlob.ts        (1)
+#   src/utils/crew/leaseGlob.ts        (1)
 #   src/components/FullscreenLayout.tsx (10)
 #   src/screens/REPL.tsx                (143)
 src/utils/messages.ts

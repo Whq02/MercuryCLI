@@ -326,7 +326,7 @@ src/utils/suggestions/directoryCompletion.ts :: directoryCache :: ttl-bounded
 src/utils/suggestions/directoryCompletion.ts :: pathCache :: ttl-bounded
 src/utils/suggestions/shellHistoryCompletion.ts :: corpusCache :: ttl-bounded
 src/utils/suggestions/slackChannelSuggestions.ts :: responseCache :: keyed-by-truth
-src/utils/swarm/backends/detection.ts :: insideITerm2Memo :: static-for-process
+src/utils/crew/backends/detection.ts :: insideITerm2Memo :: static-for-process
 src/utils/systemTheme.ts :: cachedSystemTheme :: static-for-process
 src/utils/task/diskOutput.ts :: memoizedTasksDir :: static-for-process
 src/utils/toolSchemaCache.ts :: toolSchemaCache :: keyed-by-truth

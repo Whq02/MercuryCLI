@@ -46,7 +46,7 @@ section('§A the derivation: child threshold ≠ parent threshold when windows d
 section('§B the runner wires the threshold to the effective crewmate model')
 {
   const src = readFileSync(
-    join(import.meta.dir, '..', '..', 'src', 'utils', 'swarm', 'inProcessRunner.ts'),
+    join(import.meta.dir, '..', '..', 'src', 'utils', 'crew', 'inProcessRunner.ts'),
     'utf8',
   )
   check(

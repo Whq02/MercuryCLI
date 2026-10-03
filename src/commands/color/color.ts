@@ -7,7 +7,7 @@ import type {
 } from '../../types/command.js'
 import { saveAgentColor } from '../../utils/sessionStorage.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
-import { isSwarmWorker } from '../../utils/swarm/permissionSync.js'
+import { isCrewmateWorker } from '../../utils/crew/permissionSync.js'
 
 const RESET_SENTINEL = 'default'
 
@@ -27,7 +27,7 @@ export async function call(
     return null
   }
 
-  if (isSwarmWorker()) {
+  if (isCrewmateWorker()) {
     return done('Crewmate colours are assigned by the lead — /color is unavailable in a crewmate session.')
   }
 

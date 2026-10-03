@@ -1,4 +1,4 @@
-import { recoverCrewJournal } from '../../../src/utils/swarm/crewOperations.ts'
+import { recoverCrewJournal } from '../../../src/utils/crew/crewOperations.ts'
 
 const summary = await recoverCrewJournal()
 console.log(JSON.stringify(summary))

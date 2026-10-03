@@ -26,20 +26,20 @@ const read = (relative: string): string => (existsSync(src(relative)) ? readFile
 
 section('the pane road is gone from the tree: its files, its backend, its setting rows, its spawn options')
 for (const file of [
-  'utils/swarm/crewmateLayoutManager.ts',
-  'utils/swarm/It2SetupPrompt.tsx',
-  'utils/swarm/backends/PaneBackendExecutor.ts',
-  'utils/swarm/backends/crewmateModeSnapshot.ts',
-  'utils/swarm/backends/TmuxBackend.ts',
-  'utils/swarm/backends/ITermBackend.ts',
-  'utils/swarm/backends/it2Setup.ts',
-  'utils/swarm/backends/registry.ts',
-  'utils/swarm/backends/InProcessBackend.ts',
+  'utils/crew/crewmateLayoutManager.ts',
+  'utils/crew/It2SetupPrompt.tsx',
+  'utils/crew/backends/PaneBackendExecutor.ts',
+  'utils/crew/backends/crewmateModeSnapshot.ts',
+  'utils/crew/backends/TmuxBackend.ts',
+  'utils/crew/backends/ITermBackend.ts',
+  'utils/crew/backends/it2Setup.ts',
+  'utils/crew/backends/registry.ts',
+  'utils/crew/backends/InProcessBackend.ts',
 ]) {
   check(`${file} is deleted`, !existsSync(src(file)))
 }
 const spawnSource = read('tools/shared/spawnMultiAgent.ts')
-check('the spawn road has one strategy: in-process (no split pane, no separate window, no backend detection)', spawnSource !== '' && !/spawnSplitPane|spawnSeparateWindow|detectAndGetBackend|createCrewmatePaneInSwarmView|sendCommandToPane|use_splitpane/.test(spawnSource))
+check('the spawn road has one strategy: in-process (no split pane, no separate window, no backend detection)', spawnSource !== '' && !/spawnSplitPane|spawnSeparateWindow|detectAndGetBackend|createCrewmatePaneInCrewView|sendCommandToPane|use_splitpane/.test(spawnSource))
 check('the crewmate spawn config carries no pane option', !/use_splitpane\?: boolean/.test(spawnSource))
 const main = read('main.tsx')
 check('the CLI has no --crewmate-mode option', !/--crewmate-mode/.test(main) && !/setCliCrewmateModeOverride/.test(main))
@@ -51,7 +51,7 @@ const setup = read('setup.ts')
 check('the boot captures no crewmate mode snapshot', !/captureCrewmateModeSnapshot/.test(setup))
 const agentTool = read('tools/AgentTool/AgentTool.tsx')
 check('the Agent tool names no pane option', !/splitpane|tmux/i.test(agentTool))
-const helpers = read('utils/swarm/crewHelpers.ts')
+const helpers = read('utils/crew/crewHelpers.ts')
 check('the crew helpers kill no panes', !/killPane|isPaneBackend/.test(helpers))
 const registryRows = readFileSync(join(ROOT, 'src/substrate/flagRegistry.ts'), 'utf8')
 check('no flag row names the crewmate mode', !/CREWMATE_MODE/.test(registryRows))

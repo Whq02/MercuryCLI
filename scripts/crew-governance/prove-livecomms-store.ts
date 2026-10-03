@@ -19,7 +19,7 @@ type AnyTool = {
 const toolHome = 'src/tools/LiveCommsTool/LiveCommsTool.js'
 const tool = (await import('../../src/tools/LiveCommsTool/LiveCommsTool.js')).LiveCommsTool as unknown as AnyTool
 const { setDynamicCrewContext } = await import('../../src/utils/crewmate.js')
-const { writeCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
+const { writeCrewFileAsync } = await import('../../src/utils/crew/crewHelpers.js')
 const { liveMessagesFor } = await import('../../src/services/crew/liveComms.js')
 
 let failures = 0

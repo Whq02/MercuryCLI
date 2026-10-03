@@ -1,7 +1,7 @@
 import type { SetAppState, Task } from '../../Task.js'
 import { isTerminalTaskStatus } from '../../Task.js'
 import { createUserMessage } from '../../utils/messages.js'
-import { killInProcessCrewmate } from '../../utils/swarm/spawnInProcess.js'
+import { killInProcessCrewmate } from '../../utils/crew/spawnInProcess.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { updateTaskState } from '../../utils/task/framework.js'
 import type { InProcessCrewmateTaskState } from '../InProcessCrewmateTask/types.js'

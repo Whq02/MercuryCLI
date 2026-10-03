@@ -3,7 +3,7 @@
 import {
   buildHandoffSummary,
   renderHandoffSummary,
-} from '../../src/utils/swarm/handoffSummary.js'
+} from '../../src/utils/crew/handoffSummary.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

@@ -20,7 +20,7 @@ console.log(' dispatch drain (inbox → worker stdin) — proof')
 console.log('============================================================')
 
 const drainMod = (await import('../../src/daemon/dispatchDrain.js')) as typeof import('../../src/daemon/dispatchDrain.js')
-const bus = (await import('../../src/utils/swarm/busEnvelopes.js')) as typeof import('../../src/utils/swarm/busEnvelopes.js')
+const bus = (await import('../../src/utils/crew/busEnvelopes.js')) as typeof import('../../src/utils/crew/busEnvelopes.js')
 
 const CREW = 'crew'
 const WORKER = 'scout'

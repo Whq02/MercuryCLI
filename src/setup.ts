@@ -9,7 +9,7 @@ import {
 import { getCommands } from './commands.js'
 import { MERCURY_VERSION } from './constants/product.js'
 import type { SessionId } from './types/ids.js'
-import { isAgentSwarmsEnabled } from './utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from './utils/crewEnabled.js'
 import { checkAndRestoreTerminalBackup } from './utils/appleTerminalBackup.js'
 import {
   checkHasTrustDialogAccepted,
@@ -87,7 +87,7 @@ export async function setup(
   }
 
   if (getIsInteractive()) {
-    if (isAgentSwarmsEnabled()) {
+    if (isCrewEnabled()) {
       reportBackupRestore(
         await checkAndRestoreITerm2Backup(),
         'iTerm2',

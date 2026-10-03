@@ -21,7 +21,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 const { stopAgentByOperator } = await import('../../src/services/agents/operatorStop.js')
 const { operatorResumeWords, respawnCrewmateByOperator, crewmateRespawnConfig, crewmateRespawnWords } = await import('../../src/services/agents/operatorResume.js')
-const { spawnInProcessCrewmate, unwindCrewmateSpawn } = await import('../../src/utils/swarm/spawnInProcess.js')
+const { spawnInProcessCrewmate, unwindCrewmateSpawn } = await import('../../src/utils/crew/spawnInProcess.js')
 const { getCommandQueueSnapshot, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
 const { drainRows } = await import('../../src/utils/sdkEventQueue.js')
 const { spawnCrewmate } = await import('../../src/tools/shared/spawnMultiAgent.js')
@@ -137,7 +137,7 @@ section('the spawn road: a crew word that names nothing names the session\'s cre
   drainRows()
   const { sessionCrewName } = await import('../../src/utils/crew/crewBirth.js')
   const { getSessionId } = await import('../../src/bootstrap/state.js')
-  const { readCrewFile } = await import('../../src/utils/swarm/crewHelpers.js')
+  const { readCrewFile } = await import('../../src/utils/crew/crewHelpers.js')
   const crew = sessionCrewName(String(getSessionId()))
   let thrown: unknown = null
   try {

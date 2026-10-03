@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { buildTool, type ToolUseContext } from '../../Tool.js'
 import { executeTaskCompletedHooks, getTaskCompletedHookMessage } from '../../utils/hooks.js'
-import { isAgentSwarmsEnabled } from '../../utils/agentSwarmsEnabled.js'
+import { isCrewEnabled } from '../../utils/crewEnabled.js'
 import { logForDebugging } from '../../utils/debug.js'
 import {
   blockTask,
@@ -18,7 +18,7 @@ import {
 } from '../../utils/tasks.js'
 import { getAgentName, getCrewName, getCrewmateColor, isCrewmate } from '../../utils/crewmate.js'
 import { sendLiveMessage } from '../../services/crew/liveComms.js'
-import { CREW_LEAD_NAME } from '../../utils/swarm/constants.js'
+import { CREW_LEAD_NAME } from '../../utils/crew/constants.js'
 import { TASK_LIST_TOOL_NAME } from '../TaskListTool/constants.js'
 import { DESCRIPTION, getPrompt, getVerificationNudgeNote, TASK_UPDATE_TOOL_NAME } from './prompt.js'
 
@@ -92,7 +92,7 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
   stage('owner', input.owner)
 
   if (
-    isAgentSwarmsEnabled() &&
+    isCrewEnabled() &&
     input.status === 'in_progress' &&
     input.owner === undefined &&
     !task.owner
@@ -165,7 +165,7 @@ async function runUpdate(input: Input, context: ToolUseContext): Promise<Output>
     }
   }
 
-  if (updates.owner && isAgentSwarmsEnabled()) {
+  if (updates.owner && isCrewEnabled()) {
     const sender = getAgentName() || CREW_LEAD_NAME
     await sendLiveMessage(taskListId, {
       to: updates.owner,
@@ -259,7 +259,7 @@ export const TaskUpdateTool = buildTool({
       }
     }
     let text = `Updated task ${output.taskId} (${output.updatedFields.join(', ')})`
-    if (output.statusChange?.to === 'completed' && isCrewmate() && isAgentSwarmsEnabled()) {
+    if (output.statusChange?.to === 'completed' && isCrewmate() && isCrewEnabled()) {
       text += `\nCall ${TASK_LIST_TOOL_NAME} now to find your next available task or see whether your work unblocked others.`
     }
     if (output.verificationNudgeNeeded) {
