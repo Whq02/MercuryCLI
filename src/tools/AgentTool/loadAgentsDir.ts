@@ -26,14 +26,12 @@ import { PERMISSION_MODES, type PermissionMode } from '../../utils/permissions/P
 import { clearExtensionAgentCache, getExtensionAgents } from '../../extensions/load/agents.js'
 import { HooksSchema } from '../../utils/settings/types.js'
 import type { HooksSettings } from '../../utils/settings/types.js'
-import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '../FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '../FileWriteTool/prompt.js'
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import { getBuiltInAgents } from './builtInAgents.js'
 import { setAgentColor, type AgentColorName } from './agentColorManager.js'
 import {
   loadAgentMemoryPrompt,
+  withMemoryVerbs,
   type AgentMemoryScope,
 } from './agentMemory.js'
 
@@ -200,24 +198,6 @@ export function filterAgentsByMcpRequirements(
 }
 
 
-const MEMORY_TOOL_NAMES = [
-  FILE_WRITE_TOOL_NAME,
-  FILE_EDIT_TOOL_NAME,
-  FILE_READ_TOOL_NAME,
-]
-
-function withMemoryTools(
-  tools: string[] | undefined,
-  memory: AgentMemoryScope | undefined,
-): string[] | undefined {
-  if (!memory || !isAutoMemoryEnabled() || tools === undefined) return tools
-  const merged = [...tools]
-  for (const name of MEMORY_TOOL_NAMES) {
-    if (!merged.includes(name)) merged.push(name)
-  }
-  return merged
-}
-
 function makeSystemPromptClosure(
   agentType: string,
   prompt: string,
@@ -306,7 +286,7 @@ export function parseAgentFromMarkdown(
     const filename = basenameWithoutMarkdownExtension(filePath)
     const prompt = document.body.trim()
     const memory = fields.memory
-    const tools = withMemoryTools(fields.tools, memory)
+    const tools = withMemoryVerbs(fields.tools, memory)
 
     const definition: CustomAgentDefinition = {
       agentType: fields.name,
@@ -379,13 +359,10 @@ function rebuildRawDocument(
 }
 
 export const STANDING_RULE_KEY = 'standingRule'
-export const STANDING_RULE_RETIRED_KEY = 'criticalSystemReminder_EXPERIMENTAL'
 
 export function readStandingRule(record: Record<string, unknown>): string | undefined {
   const current = record[STANDING_RULE_KEY]
   if (typeof current === 'string' && current.trim()) return current
-  const retired = record[STANDING_RULE_RETIRED_KEY]
-  if (typeof retired === 'string' && retired.trim()) return retired
   return undefined
 }
 
@@ -417,7 +394,6 @@ const jsonAgentSchema = z.object({
   skills: z.array(z.string()).optional(),
   initialPrompt: z.string().optional(),
   standingRule: z.string().optional(),
-  criticalSystemReminder_EXPERIMENTAL: z.string().optional(),
   memory: z.enum(['user', 'project', 'local']).optional(),
   background: z.boolean().optional(),
   isolation: z.literal('worktree').optional(),
@@ -437,7 +413,7 @@ export function parseAgentFromJson(
   }
   const fields = parsed.data
   const memory = fields.memory as AgentMemoryScope | undefined
-  const tools = withMemoryTools(fields.tools, memory)
+  const tools = withMemoryVerbs(fields.tools, memory)
   const result: CustomAgentDefinition = {
     agentType: name,
     whenToUse: fields.description,

@@ -4,7 +4,7 @@ export const REFLECT_TOOL_NAME = 'Reflect'
 export const CORRECT_TOOL_NAME = 'Correct'
 
 export const RETAIN_DESCRIPTION =
-  'Store durable facts into project memory; a rule the user asks to remember is pinned in their words. Per-item outcomes — a failed store is reported, never swallowed.'
+  'Store durable facts into project memory; a rule the user asks Mercury to remember about how to work with them is pinned in their words and on the shelf at once (a project convention about the code goes to the instruction file instead). Per-item outcomes — a failed store is reported, never swallowed.'
 export const RECALL_DESCRIPTION =
   'Search project memory: topic documents AND still-unconsolidated observations, with stable ids and provenance signatures. Read a full record by id.'
 export const REFLECT_DESCRIPTION =
@@ -17,7 +17,7 @@ export const RETAIN_PROMPT = `Store one or more durable facts into project memor
 - Each item is ONE self-contained fact (content), with optional context (where it came from) and topic (routing hint).
 - The response reports a PER-ITEM outcome: stored (with its id), already-staged (this session), or refused with the reason. A refusal means the fact was NOT stored — surface it, never assume success.
 - Facts stage as pending observations and consolidate into topic pages automatically; they are recallable seconds after storing, labeled pending until consolidation.
-- When the user asks you to remember a rule or a preference ("remember: …", "always …", "from now on …"), store their words AS SAID with pin: true — it joins the pinned rules loaded into every session, marked as asked for by the user, and is never reworded, merged or dropped by Mercury. Never pin on your own judgement.
+- When the user asks you to remember a rule or a preference about how to work with them ("remember: …", "always …", "from now on …", "keep this as a rule"), store their words AS SAID with pin: true — it is on the pinned shelf at once, loaded into every session, marked as asked for by the user, and never reworded, merged or dropped by Mercury. This is the door for a remembered rule; a project convention about the code (how it is built, run or tested, what not to touch) goes to the instruction file, never here. Never pin on your own judgement.
 - When the user says the new rule replaces a pinned one ("instead of …", "that replaces the old rule"), pass replaces: "seq:<n>" naming that rule from the pinned shelf: the new rule takes its place and the old one is kept as history. Two rules that merely share words are not a conflict — both stay. A rule marked asked for by the user is never replaced by you: tell the user to change it in /memory.
 - Use for: decisions made, facts discovered, constraints learned, outcomes worth keeping across sessions. Not for: secrets, transcripts, or anything the repo already records.`
 

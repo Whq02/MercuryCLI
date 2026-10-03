@@ -39,6 +39,7 @@ import { BASH_TOOL_NAME } from '../tools/BashTool/toolName.js'
 import { DEBUG_TOOL_NAME } from '../tools/DebugTool/prompt.js'
 import { LSP_TOOL_NAME } from '../tools/LSPTool/prompt.js'
 import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/prompt.js'
+import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { SKILL_TOOL_NAME } from '../tools/SkillTool/constants.js'
 import { TASK_CREATE_TOOL_NAME } from '../tools/TaskCreateTool/constants.js'
 import { hasEmbeddedSearchTools } from '../utils/embeddedTools.js'
@@ -245,10 +246,12 @@ ${shared} Measure twice, cut once.`
 
 function instructionEstateSection(toolNames: ReadonlySet<string>): string {
   const hasRecord = toolNames.has(RECORD_CONVENTION_TOOL_NAME)
+  const hasRetain = toolNames.has(RETAIN_TOOL_NAME)
   const items: Array<string | string[]> = [
     'MERCURY.md is the project\'s standing instruction file — the ENTRY Mercury loads every session, together with whatever it explicitly @imports. A thin MERCURY.md pointing at a fuller guide is a healthy shape, not a gap.',
     'Durable project-local working state that is not instructions — handoff notes, plans, working specs — lives in `.mercury/`, created organically on first use, never on a bare boot. Whether that directory is checked in or gitignored is the user\'s call, not yours.',
-    `When the user states a durable project instruction, correction, or convention mid-session ("always use bun here", "never touch the vendored dir"), record it in the instruction estate${hasRecord ? ` with the ${RECORD_CONVENTION_TOOL_NAME} tool` : ''} and say you did. No magic word arms this — the statement itself does. One-off task details are never enshrined.`,
+    `When the user states a durable project convention or correction mid-session — how this project is built, run or tested, what not to touch ("always use bun here", "never touch the vendored dir") — record it in the instruction estate${hasRecord ? ` with the ${RECORD_CONVENTION_TOOL_NAME} tool` : ''} and say you did. No magic word arms this — the statement itself does. One-off task details are never enshrined.`,
+    `The other door: a rule the user asks you to REMEMBER about how to work with them — a preference or a standing order to Mercury ("remember: …", "from now on, always …", "keep this as a rule") — is pinned memory${hasRetain ? ` (${RETAIN_TOOL_NAME} with pin)` : ''}: kept in their words, marked as asked for by the user, loaded into every session, and never written into the instruction file. A project convention binds everyone who works in this project; a remembered rule is the user's own.`,
     `Merge, never duplicate: when a stated convention refines an existing rule, update that rule${hasRecord ? ` (the tool's \`replaces\` field)` : ''} instead of appending a near-copy.`,
     `The pointer law: when MERCURY.md explicitly imports a guide, a new convention lands in the pointed guide, never stacked into the pointer file${hasRecord ? ` — ${RECORD_CONVENTION_TOOL_NAME} follows the pointer for you` : ''}.`,
     "Scope follows the user's words: a project-shared truth goes to the shared instruction estate; a private lesson about your own working method goes to your own memory (a fact saved for future sessions, never an instruction file). Name the choice when you record.",

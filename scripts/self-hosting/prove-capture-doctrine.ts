@@ -21,7 +21,7 @@ enableConfigs()
 const { getSystemPrompt } = await import('${repo}/src/constants/prompts.js')
 const withTools = process.argv[process.argv.length - 1] === 'with-tools'
 const tools = withTools
-  ? [{ name: 'RecordConvention' }, { name: 'Bash' }]
+  ? [{ name: 'RecordConvention' }, { name: 'Retain' }, { name: 'Bash' }]
   : [{ name: 'Bash' }]
 const sections = await getSystemPrompt(tools, 'claude-fable-5')
 console.log(JSON.stringify({ prompt: sections.join('\\n\\n') }))
@@ -100,6 +100,22 @@ check(
   'the private-memory sentence names memory itself, no file name and no tool spelling',
 )
 
+console.log('assembled prompt — the two doors: a project convention is the instruction file, a remembered rule is pinned memory')
+check(
+  prompt.includes('When the user states a durable project convention or correction mid-session — how this project is built, run or tested, what not to touch'),
+  'the convention door names what a project convention is',
+)
+check(
+  prompt.includes('a rule the user asks you to REMEMBER about how to work with them') &&
+    prompt.includes('is pinned memory (Retain with pin): kept in their words, marked as asked for by the user, loaded into every session, and never written into the instruction file'),
+  'the pinned door names the remembered rule, tool-spelled when Retain rides the roster',
+)
+check(
+  prompt.includes("A project convention binds everyone who works in this project; a remembered rule is the user's own."),
+  'the two doors are told apart by whom the rule binds',
+)
+check(!prompt.includes('states a durable project instruction, correction, or convention'), 'no sentence routes every standing instruction to the instruction file')
+
 console.log('assembled prompt — narration: one rule, once; the old sentences gone')
 const once = (needle: string): boolean => prompt.split(needle).length === 2
 check(
@@ -146,6 +162,11 @@ check(
   'capture sentence intact, no tool spelling',
 )
 check(!bare.includes('RecordConvention'), 'no phantom tool name on a bare roster')
+const bareEstate = bare.slice(bare.indexOf('# The project instruction estate'), bare.indexOf('\n# ', bare.indexOf('# The project instruction estate') + 1))
+check(
+  bareEstate.includes('is pinned memory: kept in their words, marked as asked for by the user') && !bareEstate.includes('Retain'),
+  'the pinned door stands on a bare roster without the tool spelling',
+)
 check(
   bare.includes('goes to your own memory (a fact saved for future sessions, never an instruction file)'),
   'the private-memory sentence reads the same on a bare roster',

@@ -62,6 +62,7 @@ import { NUL_PATH_MESSAGE, expandPath, hasNulByte } from '../../utils/path.js'
 import { plural } from '../../utils/stringUtils.js'
 import { checkWritePermissionForTool, matchingRuleForInput } from '../../utils/permissions/filesystem.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'
+import { memoryWriteRefusal } from '../../utils/memoryFileDetection.js'
 import { readFileInRange } from '../../utils/readFileInRange.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { validateInputForSettingsFileEdit } from '../../utils/settings/validateEditTool.js'
@@ -786,6 +787,10 @@ export const FileEditTool = buildTool({
         message: ruleSentence(`Editing ${input.file_path}`, 'deny', editDeny),
         errorCode: 2,
       }
+    }
+    const memoryRefusal = memoryWriteRefusal(expandedPath)
+    if (memoryRefusal) {
+      return { result: false as const, message: memoryRefusal, errorCode: 2 }
     }
 
     if (input.file_path.startsWith('\\\\') || input.file_path.startsWith('//')) {

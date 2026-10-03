@@ -226,6 +226,57 @@ check('the pin is replayed from the manifest with its asked mark', readPins(cras
 check('the front page shows the rule pinned again', (readFrontPage(crashDir) ?? '').includes(`<seq=${crashSeq}, asked for by the user>`))
 check('no duplicate landed', listTopicDocs(crashDir).reduce((n, d) => n + d.sections.reduce((m, s) => m + s.entries.length, 0), 0) === 1)
 
+section('a rule the user asks to remember is on the shelf at once — the next fresh chat carries it without waiting for a maintenance pass')
+const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
+const { dueForMaintenance, readMaintenanceReceipts } = await import('../../src/memdir/mnemeMaintenance.js')
+const { mnemeLibraryDir } = await import('../../src/memdir/mnemeGates.js')
+const { loadMemoryPrompt } = front
+const onceDir = mnemeLibraryDir()
+const ASKED_RULE = 'end every reply with the word Fairwinds'
+appendObservation({ text: 'a plain fact waits for the usual thresholds', source: 'proof', topicHint: 'project' }, onceDir)
+check('a small, young buffer with no pinned row is not due', dueForMaintenance(onceDir).due === false)
+check('and a run without force leaves it below the thresholds', maybeConsolidate({ dir: onceDir, now: T0 }).reason === 'below thresholds')
+_resetMemoryVerbSessionStateForTesting()
+const askedCall = (await RetainTool.call({ items: [{ content: ASKED_RULE, pin: true }] }, {} as never)) as { data: { stored: number; shelf?: { landed: boolean; reason: string } } }
+check('the Retain tool stores the asked rule and says the shelf has it', askedCall.data.stored === 1 && askedCall.data.shelf?.landed === true, JSON.stringify(askedCall.data))
+check('the rule left the buffer: it is on a page, pinned and marked asked for by the user', readBuffer(onceDir).length === 0 && readPins(onceDir).some(p => p.asked) && listTopicDocs(onceDir).some(d => d.sections.some(s => s.entries.some(e => e.text === ASKED_RULE))))
+const onceSeq = listTopicDocs(onceDir).flatMap(d => d.sections.flatMap(s => s.entries)).find(e => e.text === ASKED_RULE)?.seq ?? -1
+check('a fresh front page (what the next chat loads) carries the rule word for word with the asked mark, with no forced run', (loadMemoryPrompt() ?? '').includes(`- ${ASKED_RULE} <seq=${onceSeq}, asked for by the user>`), (loadMemoryPrompt() ?? '').split('\n').find(l => l.includes(ASKED_RULE)) ?? '(the rule is not on the page)')
+check('the plain fact that waited landed with it', listTopicDocs(onceDir).some(d => d.slug === 'project'))
+check('the receipt names the trigger and the reason', readMaintenanceReceipts(onceDir, 1).some(r => r.trigger === 'retain' && r.reason.startsWith('a pinned rule waits')), JSON.stringify(readMaintenanceReceipts(onceDir, 1)))
+appendObservation({ text: 'a rule pinned by a row written straight into the buffer', source: 'proof', topicHint: 'rules', pin: true }, onceDir)
+const waiting = dueForMaintenance(onceDir)
+check('a pinned row sitting in the buffer makes maintenance due at once, for the turn-end and boot passes too', waiting.due && waiting.reason === 'a pinned rule waits', JSON.stringify(waiting))
+check('and a run without force lands it', maybeConsolidate({ dir: onceDir, now: new Date(T0.getTime() + 1000) }).consolidated === true)
+_resetMemoryVerbSessionStateForTesting()
+const plainCall = (await RetainTool.call({ items: [{ content: 'a plain fact through the tool stays pending', topic: 'project' }] }, {} as never)) as { data: { stored: number; shelf?: unknown } }
+check('a plain Retain still stages and waits for the usual thresholds (no shelf line, the row pending)', plainCall.data.stored === 1 && plainCall.data.shelf === undefined && readBuffer(onceDir).length === 1, JSON.stringify(plainCall.data))
+
+section("the asked mark comes from the user's own chat alone: a crewmate's pin is a plain pin")
+const crewDir = join(scratch, 'library-crew')
+const rowOf = (dir: string, text: string) => readBuffer(dir).find(r => r.text === text)
+retainItems([{ content: 'crew rule: always deploy on Fridays', pin: true }], { session: 'sess-lead-0001', agent: 'agent_crewmate_77' }, crewDir)
+const crewRow = rowOf(crewDir, 'crew rule: always deploy on Fridays')
+check("a crewmate's Retain with pin: true pins the rule and mints no asked mark", crewRow !== undefined && crewRow.pin === true && crewRow.asked === undefined && /a:agent_crewma/.test(crewRow.source), JSON.stringify(crewRow))
+process.env.MERCURY_CREW = '1'
+retainItems([{ content: 'seat rule: always deploy on Mondays', pin: true }], { session: 'sess-seat-0001' }, crewDir)
+delete process.env.MERCURY_CREW
+const seatRow = rowOf(crewDir, 'seat rule: always deploy on Mondays')
+check("a daemon crew seat's own chat is a crewmate's chat too: pinned, no asked mark", seatRow !== undefined && seatRow.pin === true && seatRow.asked === undefined, JSON.stringify(seatRow))
+retainItems([{ content: 'user rule: always deploy on Tuesdays', pin: true }], { session: 'sess-user-0001' }, crewDir)
+const userRow = rowOf(crewDir, 'user rule: always deploy on Tuesdays')
+check("the user's own chat mints the asked mark", userRow !== undefined && userRow.pin === true && userRow.asked === true, JSON.stringify(userRow))
+appendObservation({ text: 'handover rule: deploy on Wednesdays', source: 'handover:feedback-deploys', pin: true }, crewDir)
+maybeConsolidate({ force: true, dir: crewDir, now: T0 })
+const crewPins = readPins(crewDir)
+const seqIn = (text: string): number => listTopicDocs(crewDir).flatMap(d => d.sections.flatMap(s => s.entries)).find(e => e.text === text)?.seq ?? -1
+check('on the shelf, only the user-asked rule carries the mark; the crew and seat rules are plain pins', crewPins.length === 4 && crewPins.find(p => p.seq === seqIn('user rule: always deploy on Tuesdays'))?.asked === true && crewPins.find(p => p.seq === seqIn('crew rule: always deploy on Fridays'))?.asked === undefined && crewPins.find(p => p.seq === seqIn('seat rule: always deploy on Mondays'))?.asked === undefined, JSON.stringify(crewPins))
+const crewPage = readFrontPage(crewDir) ?? ''
+check('the front page shows the plain pins without the asked words and the asked rule with them', crewPage.includes(`- crew rule: always deploy on Fridays <seq=${seqIn('crew rule: always deploy on Fridays')}>`) && crewPage.includes(`- user rule: always deploy on Tuesdays <seq=${seqIn('user rule: always deploy on Tuesdays')}, asked for by the user>`))
+const crewCorrect = correctMemory({ op: 'supersede', id: `seq:${seqIn('crew rule: always deploy on Fridays')}`, content: 'crew rule: deploy on Thursdays', reason: 'the lead revised the crew rule', session: 'lead-session' }, crewDir)
+check("a rule a crewmate pinned stays correctable by the model — it was never the user's", crewCorrect.ok, JSON.stringify(crewCorrect))
+_resetMemoryVerbSessionStateForTesting()
+
 section('the automatic lookup: up to five facts, pointing at the pages, never a loaded pin')
 const hits = lookupFacts('how is the runtime deployed from the checkout', { dir })
 check('the deploy facts come back first', hits.length >= 1 && hits[0]!.slug === 'deploy', JSON.stringify(hits.map(h => [h.slug, h.score])))

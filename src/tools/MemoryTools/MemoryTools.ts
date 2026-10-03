@@ -15,6 +15,7 @@ import {
   type RecallResult,
   type RetainItemOutcome,
 } from '../../memdir/memoryVerbs.js'
+import { runDueMaintenance } from '../../memdir/mnemeMaintenance.js'
 import {
   CORRECT_DESCRIPTION,
   CORRECT_PROMPT,
@@ -54,7 +55,7 @@ const retainSchema = lazySchema(() =>
           content: z.string().describe('One self-contained durable fact.'),
           context: z.string().optional().describe('Where the fact came from (provenance note).'),
           topic: z.string().optional().describe('Topic routing hint (slugified).'),
-          pin: z.boolean().optional().describe('Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user.'),
+          pin: z.boolean().optional().describe("Only when the user asked to remember this as a standing rule or preference: pins it, in their words, marked as asked for by the user. The asked mark comes from the user's own chat alone — a crewmate's pin is a plain pin."),
           replaces: z.string().optional().describe('Only when the user said this rule replaces a pinned one: that rule as seq:<n> (from the pinned shelf). The new rule takes its place and the old one becomes history. Refused for a rule marked asked for by the user — only the user changes those, in /memory.'),
         }),
       )
@@ -68,6 +69,14 @@ export interface RetainOutput {
   outcomes: RetainItemOutcome[]
   stored: number
   refused: number
+  shelf?: { landed: boolean; reason: string }
+}
+
+function pinnedItemStored(items: Array<{ pin?: boolean; replaces?: string }>, outcomes: RetainItemOutcome[]): boolean {
+  return outcomes.some(outcome => {
+    const item = items[outcome.index]
+    return outcome.status === 'stored' && (item?.pin === true || (item?.replaces ?? '').trim() !== '')
+  })
 }
 
 export const RetainTool = buildTool({
@@ -103,7 +112,9 @@ export const RetainTool = buildTool({
     })
     const stored = outcomes.filter(o => o.status === 'stored').length
     const refused = outcomes.filter(o => o.status === 'refused').length
-    return { data: { outcomes, stored, refused } }
+    if (!pinnedItemStored(input.items, outcomes)) return { data: { outcomes, stored, refused } }
+    const landed = await runDueMaintenance('retain')
+    return { data: { outcomes, stored, refused, shelf: { landed: landed.consolidated === true, reason: landed.reason } } }
   },
   mapToolResultToToolResultBlockParam(output: RetainOutput, toolUseID) {
     const lines = output.outcomes.map(outcome =>
@@ -111,6 +122,13 @@ export const RetainTool = buildTool({
         ? `- item ${outcome.index}: REFUSED — ${outcome.reason} (the fact was NOT stored)`
         : `- item ${outcome.index}: ${outcome.status} → ${outcome.id}`,
     )
+    if (output.shelf) {
+      lines.push(
+        output.shelf.landed
+          ? '- the pinned rule is on the shelf now and loads into every session from the next chat on'
+          : `- the pinned rule lands on the shelf at the next maintenance pass (${output.shelf.reason})`,
+      )
+    }
     return {
       tool_use_id: toolUseID,
       type: 'tool_result',

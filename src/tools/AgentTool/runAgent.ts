@@ -418,6 +418,7 @@ async function buildAgentSystemPrompt(
   const doctrine = buildSubagentMercurySections({
     agentDefinition: definition,
     toolUseContext,
+    toolNames: enabledToolNames,
   })
   return enhanceSystemPromptWithEnvDetails(
     [...doctrine, ownPrompt],

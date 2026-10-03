@@ -1,10 +1,7 @@
 import { isAutoMemoryEnabled } from '../../memdir/paths.js'
 import type { AgentColorName } from '../../tools/AgentTool/agentColorManager.js'
-import { loadAgentMemoryPrompt, type AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
+import { loadAgentMemoryPrompt, withMemoryVerbs, type AgentMemoryScope } from '../../tools/AgentTool/agentMemory.js'
 import type { AgentDefinition, ExtensionAgentDefinition } from '../../tools/AgentTool/loadAgentsDir.js'
-import { FILE_EDIT_TOOL_NAME } from '../../tools/FileEditTool/constants.js'
-import { FILE_READ_TOOL_NAME } from '../../tools/FileReadTool/prompt.js'
-import { FILE_WRITE_TOOL_NAME } from '../../tools/FileWriteTool/prompt.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { EFFORT_LEVELS, parseEffortValue } from '../../utils/effort.js'
 import { coerceDescriptionToString, parsePositiveIntFromFrontmatter } from '../../utils/frontmatterParser.js'
@@ -59,12 +56,7 @@ function buildAgent(ext: ActiveExtension, agent: ResolvedAgent): ExtensionAgentD
     maxTurns = parsePositiveIntFromFrontmatter(rawMaxTurns)
     if (maxTurns === undefined) logForDebugging(`extension agent ${agentType}: maxTurns must be a positive integer — dropped`)
   }
-  let effectiveTools = tools
-  if (isAutoMemoryEnabled() && memory !== undefined && effectiveTools) {
-    for (const toolName of [FILE_WRITE_TOOL_NAME, FILE_EDIT_TOOL_NAME, FILE_READ_TOOL_NAME]) {
-      if (!effectiveTools.includes(toolName)) effectiveTools = [...effectiveTools, toolName]
-    }
-  }
+  const effectiveTools = withMemoryVerbs(tools, memory)
   const promptBase = substituteOptionsInContent(substituteRootAndData(agent.body.trim(), ext.root, ext.entry.id), ext.options, ext.manifest.needs?.options)
   const memoryScope = memory
   return {

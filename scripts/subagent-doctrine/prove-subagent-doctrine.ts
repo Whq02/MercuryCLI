@@ -86,6 +86,24 @@ process.env.MERCURY_BARE = '1'
 check('memory off: no front page in the doctrine', !join(buildSubagentMercurySections({ agentDefinition: GP })).includes('# Memory'))
 delete process.env.MERCURY_BARE
 
+section('(e1) memory front page — the verb sentence rides only with a reader that has the verbs')
+{
+  const { MEMORY_WRITE_VERBS_SENTENCE } = await import('../../src/memdir/mnemeFrontPage.js')
+  const memoryOf = (sections: string[]): string => sections.find(s => s.startsWith('# Memory')) ?? ''
+  const crew = memoryOf(buildSubagentMercurySections({ agentDefinition: GP }))
+  const scout = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-scout' } }))
+  check('the crew front page names Retain and Correct', crew.includes(MEMORY_WRITE_VERBS_SENTENCE))
+  check("the scout's front page carries the index and the pinned shelf", scout.includes('## Index') && scout.includes('## Pinned'))
+  check("the scout's front page names no verb it cannot call (Retain, Correct)", !scout.includes('Retain') && !scout.includes('Correct') && !scout.includes(MEMORY_WRITE_VERBS_SENTENCE), scout.split('\n')[1]?.slice(0, 200))
+  check("the scout's page still names Recall, which it has", scout.includes('Recall'))
+  check('the two pages differ only by the verb sentence and the empty-index words', crew.replace(` ${MEMORY_WRITE_VERBS_SENTENCE}`, '').replace('(nothing saved yet — Retain saves the first fact)', '(nothing saved yet)') === scout)
+  const reader = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'quiet-reader' }, toolNames: new Set(['Read', 'Grep']) }))
+  const writer = memoryOf(buildSubagentMercurySections({ agentDefinition: { agentType: 'remembering' }, toolNames: new Set(['Read', 'Grep', 'Retain', 'Recall', 'Reflect', 'Correct']) }))
+  check('a custom agent whose tools lack Retain gets the reading page', !reader.includes('Retain') && reader.includes('## Pinned'))
+  check('a custom agent granted the memory verbs gets the full page', writer.includes(MEMORY_WRITE_VERBS_SENTENCE))
+  check('with no tool list given (the fork path) the full page stands', memoryOf(buildSubagentMercurySections({ agentDefinition: GP })).includes(MEMORY_WRITE_VERBS_SENTENCE))
+}
+
 section('(e2) API-currency: doctrine line for ALL agents + env-block currency note')
 {
   const CURRENCY_MARK = 'provider-apis'

@@ -14,7 +14,7 @@ import {
   runDueMaintenance,
 } from '../../memdir/mnemeMaintenance.js'
 import { readDocLines } from '../../memdir/mnemeRetrieval.js'
-import { liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus } from '../../memdir/mnemeFrontPage.js'
+import { indexLines, liveEntryIndex, pinnedLine, pinnedView, readPinnedStatus, type IndexLine } from '../../memdir/mnemeFrontPage.js'
 import { handoverDue, handoverIfDue, readHandoverReceipt, renderHandoverReceipt } from '../../memdir/mnemeHandover.js'
 import { listTopicDocs } from '../../memdir/mnemeLibrary.js'
 import type { MnemeEntry } from '../../memdir/mnemeTopicDocs.js'
@@ -82,6 +82,30 @@ export function pinnedListHeading(status: { pinned: number; used: number; limit:
     : `${fill} · loaded word for word every session · u on a rule unpins it`
 }
 
+export function topicsRowWords(count: number): string {
+  if (count === 0) return 'topics: none yet — the first fact Mercury saves opens one'
+  return `topics: ${count} page${count === 1 ? '' : 's'} in the index the model reads — ↵ list them`
+}
+
+export function topicsListHeading(count: number): string {
+  return `${count} topic${count === 1 ? '' : 's'} on the index, as the model reads ${count === 1 ? 'it' : 'them'} · ↵ opens the page`
+}
+
+export function topicRef(row: IndexLine): MemoryRef {
+  const slug = row.slugs[0] ?? row.key
+  return {
+    refId: `mneme-topic:${slug}`,
+    kind: 'mneme-topic',
+    store: 'mneme',
+    scope: 'project',
+    status: 'current',
+    summary: row.line.slice(2),
+    why: `${row.facts} fact${row.facts === 1 ? '' : 's'} on ${row.slugs.length} page${row.slugs.length === 1 ? '' : 's'}`,
+    deref: `Recall read:"doc:${slug}"`,
+    tier: 1,
+  }
+}
+
 export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: string }): { label: string; ref: MemoryRef } {
   const size = pinnedLine(row.entry, row.pin).length + 1
   return {
@@ -105,7 +129,7 @@ export function pinnedRuleRow(row: { pin: PinRecord; entry: MnemeEntry; slug: st
 export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void; onOpenFiles?: () => void }): React.ReactNode {
   const accent = useSessionAccent().accent
   const [query, setQuery] = React.useState('')
-  const [view, setView] = React.useState<'overview' | 'pinned'>('overview')
+  const [view, setView] = React.useState<'overview' | 'pinned' | 'topics'>('overview')
   const [detail, setDetail] = React.useState<MemoryRef | null>(null)
   const detailLines = React.useMemo(() => (detail ? refDetail(detail) : []), [detail])
   const [correcting, setCorrecting] = React.useState<{ seq: number; buffer: string } | null>(null)
@@ -129,6 +153,12 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       for (const seq of shelf.missing) rows.push({ id: `pin-${seq}`, kind: 'action', label: `seq ${seq} — pinned, but no page holds it any more; u unpins`, run: () => {} })
       return rows
     }
+    if (view === 'topics') {
+      const index = indexLines(listTopicDocs())
+      const rows: CentreRow[] = [{ id: 'index', kind: 'info', label: topicsListHeading(index.length) }]
+      for (const row of index) rows.push({ id: `topic-${row.key}`, kind: 'ref', label: row.line.slice(2), ref: topicRef(row) })
+      return rows
+    }
     const rows: CentreRow[] = []
     const st = mnemeStatus()
     rows.push({
@@ -141,6 +171,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
     if (st.enabled) {
       const shelfStatus = readPinnedStatus()
       rows.push({ id: 'pinned', kind: shelfStatus && shelfStatus.pinned > 0 ? 'action' : 'info', label: pinnedShelfWords(shelfStatus), run: () => {} })
+      rows.push({ id: 'topics', kind: st.topicCount > 0 ? 'action' : 'info', label: topicsRowWords(st.topicCount), run: () => {} })
       const intake = readHandoverReceipt()
       if (intake) {
         const [first, pages] = renderHandoverReceipt(intake)
@@ -177,12 +208,13 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
       else if (detail) setDetail(null)
       else if (query) {
         setQuery('')
-      } else if (view === 'pinned') setView('overview')
+      } else if (view === 'pinned' || view === 'topics') setView('overview')
       else onClose()
     },
     onPrimary: row => {
       if (row.kind === 'ref' && row.ref) setDetail(row.ref)
       else if (row.id === 'pinned' && row.kind === 'action') setView('pinned')
+      else if (row.id === 'topics' && row.kind === 'action') setView('topics')
       else if (row.id === 'maintenance') runMaintenance()
       else if (row.id === 'intake' && row.kind === 'action') runIntake()
       else if (row.id === 'files' && onOpenFiles) onOpenFiles()
@@ -327,7 +359,9 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
         ? '↑↓ move · ↵ inspect · esc clear'
         : view === 'pinned'
           ? '↑↓ move · ↵ inspect · u unpin · /config raises the limit · esc back'
-          : 'type to search · ↑↓ move · ↵ act · esc close'
+          : view === 'topics'
+            ? '↑↓ move · ↵ open the page · esc back'
+            : 'type to search · ↑↓ move · ↵ act · esc close'
 
   return (
     <CommandCenter view="memory" subtitle="memory centre" onClose={onClose} captureInput={false} footer={footer}>
@@ -371,7 +405,7 @@ export function MemoryCentreView({ onClose, onOpenFiles }: { onClose: () => void
           </Box>
         ) : (
           <Box flexDirection="column">
-            <SectionHeader count={view === 'pinned' && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : 'Memory'}</SectionHeader>
+            <SectionHeader count={(view === 'pinned' || view === 'topics') && !query ? Math.max(0, list.length - 1) : list.length}>{query ? 'Matches' : view === 'pinned' ? 'Pinned rules' : view === 'topics' ? 'Topics' : 'Memory'}</SectionHeader>
             {above > 0 ? <Text color={FAINT}>{`  +${above} above`}</Text> : null}
             {visible.map((row, i) => {
               const active = i === clampedSel

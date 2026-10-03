@@ -35,7 +35,7 @@ export function renderRetainResult(output?: RetainOutput): React.ReactNode {
         ) : (
           <Text color="success">{output.stored} stored</Text>
         )}
-        <Text dimColor> (pending until consolidation)</Text>
+        <Text dimColor>{output.shelf ? (output.shelf.landed ? ' (pinned rule on the shelf)' : ' (pinned rule waits for the next maintenance pass)') : ' (pending until consolidation)'}</Text>
       </Text>
     </MessageResponse>
   )

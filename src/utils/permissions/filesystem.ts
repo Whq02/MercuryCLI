@@ -397,13 +397,6 @@ function isAutoMemory(path: string): boolean {
     return false
   }
 }
-function autoMemoryOverridden(): boolean {
-  try {
-    return (require('../../memdir/paths.js') as { hasAutoMemPathOverride(): boolean }).hasAutoMemPathOverride()
-  } catch {
-    return false
-  }
-}
 
 function editableInternalCategory(path: string): string | null {
   const folded = normalizeCaseForComparison(path)
@@ -412,7 +405,6 @@ function editableInternalCategory(path: string): string | null {
     return 'preview launch config'
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
-  if (!autoMemoryOverridden() && isAutoMemory(path)) return 'auto-memory directory'
   return null
 }
 

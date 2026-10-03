@@ -7,6 +7,7 @@ import { getLspDoctrineLine } from '../services/lsp/mercuryLsp.js'
 import { getRuntimePostureDoctrineLine } from '../utils/cockpit/runtimePosture.js'
 import { getVulcanDoctrineLine } from '../utils/vulcan/vulcanGates.js'
 import { loadMemoryPrompt } from '../memdir/mnemeFrontPage.js'
+import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'
@@ -43,17 +44,24 @@ export function agentFanoutCap(): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null
 }
 
-function safeMemoryPrompt(): string | null {
+function safeMemoryPrompt(verbs: 'all' | 'read'): string | null {
   try {
-    return loadMemoryPrompt()
+    return loadMemoryPrompt({ verbs })
   } catch {
     return null
   }
 }
 
+export function memoryVerbsFor(agentDefinition: Pick<AgentDefinition, 'agentType'>, toolNames?: ReadonlySet<string>): 'all' | 'read' {
+  if (agentDefinition.agentType === MERCURY_SCOUT_AGENT.agentType) return 'read'
+  if (toolNames !== undefined && !toolNames.has(RETAIN_TOOL_NAME)) return 'read'
+  return 'all'
+}
+
 export function buildSubagentMercurySections(args: {
   agentDefinition: Pick<AgentDefinition, 'agentType'>
   toolUseContext?: Pick<ToolUseContext, 'options'>
+  toolNames?: ReadonlySet<string>
 }): string[] {
 
   const { agentDefinition } = args
@@ -73,7 +81,7 @@ export function buildSubagentMercurySections(args: {
   const envelopeDoctrine =
     changeTransactionEnabled() && !exempt ? ENVELOPE_DOCTRINE : null
 
-  const memory = safeMemoryPrompt()
+  const memory = safeMemoryPrompt(memoryVerbsFor(agentDefinition, args.toolNames))
 
   return [
     floor,
