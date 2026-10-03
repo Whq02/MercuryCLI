@@ -14,11 +14,6 @@
   ],
   "rows": [
     {
-      "file": "src/components/mercury-ui/index.ts",
-      "class": "superseded-unreachable",
-      "reason": "The UI kit's intended one-import surface with ZERO consumers anywhere (src and scripts import component files directly). Retire-or-adopt decision at; nothing in the product promises the barrel itself."
-    },
-    {
       "file": "src/constants/legalNotice.ts",
       "class": "metadata-or-generated",
       "reason": "The notice-slot owner: build.ts imports it dynamically at stamp time (stampNoticeOnSource/hasCurrentNoticeStamp) and the notices generator + prove-notice-stamp.ts consume CURRENT_NOTICE_SLOTS. A build-time owner is correctly outside the runtime import graph."
@@ -177,16 +172,6 @@
       "file": "src/utils/terminalPanel.ts",
       "class": "proof-or-fixture-only",
       "reason": "The built-in terminal panel (tmux + direct-shell fallback behind the alternate screen), deliberately rewritten as one of S32's 22 manifest files; its current consumer is scripts/ui/prove-s32-acceptance.ts (checks 63-64 pin fallback + cleanup discipline on this source). The awaited consumer is the panel's keybinding/command mount, which no rewrite lane has landed yet — mounting is a product-surface decision, not a remount."
-    },
-    {
-      "file": "src/utils/undercover.ts",
-      "class": "archive",
-      "reason": "Attribution-suppression mode, inert by in-file ruling: 'Documented intent, kept for a future re-enablement' — every entry point returns its constant, and constants/prompts.ts records the fold to always-emit. The file IS the documented intent; deleting it erases the recorded re-enablement contract."
-    },
-    {
-      "file": "src/utils/crewDiscovery.ts",
-      "class": "superseded-unreachable",
-      "reason": "The crew roster's per-member status projection; its one reader was the crews dialog, removed because the crew view lists the same crewmates. No user is left; the code-level rename of the crew system, or a later queue row, decides its fate."
     }
   ]
 }
