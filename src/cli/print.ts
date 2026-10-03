@@ -68,8 +68,8 @@ import { jevStatus } from '../services/jev/jevStatus.js'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { asAgentId } from '../types/ids.js'
 import { ask, sessionFactsOf } from '../rows/turn.js'
-import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope } from '../rows/project.js'
-import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow } from '../rows/vocabulary.js'
+import { commandOutputRow, compactionClearedRow, compactionRow, heartbeatRow, missionUpdatedRow, modeRow, noticeRow, outcomeRow, rateLimitRow, samplesUpdatedRow, sessionRow, taskRow, turnStartedRow, turnWaitingRow, waitRow, type RowDraft, type RowScope, type Unstamped } from '../rows/project.js'
+import { exitCodeOf, OUTCOME_SENTENCES, type CompactionRow, type InputRow, type OutcomeRow, type Row } from '../rows/vocabulary.js'
 import { isOutcome, turnOpened } from '../rows/read.js'
 import type { FoldStatusV1 } from '../services/compact/foldStatus.js'
 import type { RequestWaitV1 } from '../services/providers/streamIdleBudget.js'
@@ -92,7 +92,7 @@ import {
   type PromptValue,
   type TurnDriver,
 } from './headless/turnDriver.js'
-import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine, type WireLine } from './structuredIO.js'
+import { emptyInputRow, INPUT_REFUSED_CODE, isBrokenPipeError, isRowLine, StructuredIO, type OutboundLine } from './structuredIO.js'
 import { createRuleOnlyAsks, createRunnerAsks, type AskHost } from './headless/runnerAsks.js'
 import { bindRunnerMethods, checkProtocol, DEFAULT_CAPABILITIES, initializeResultOf, type RequestRef, type RunnerArms } from './headless/runnerMethods.js'
 import { createPeer, type Peer } from '../runner/wire/peer.js'
@@ -115,7 +115,6 @@ import { isMcpCatalogueMember } from '../services/mcp/membership.js'
 import { applyProcessSessionKitEdit, completeProcessSessionKit, sessionKitOf, setProcessSessionKit } from '../services/mcp/sessionKitPin.js'
 import { kitDialCandidates, kitEditMcpDelta, dropMcpServerFromAppState } from '../services/mcp/kitDial.js'
 import { validateSessionKit } from '../daemon/sessionKit.js'
-import { seatVerbAppliedFrame } from '../daemon/runnerFrames.js'
 import { sampleRowsOf } from '../services/samples/facts.js'
 import { subscribeSampleChanges } from '../services/samples/store.js'
 import {
@@ -243,7 +242,7 @@ import { applySettingsChange } from '../utils/settings/applySettingsChange.js'
 import { getSettingsSnapshot, settingsRevision } from '../utils/settings/snapshot.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { armRunnerAgentFreshness } from './agentFreshness.js'
-import { installStreamJsonStdoutGuard } from '../utils/streamJsonStdoutGuard.js'
+import { installWireStdoutGuard } from '../utils/wireStdoutGuard.js'
 import { getRunningTasks, POLL_INTERVAL_MS } from '../utils/task/framework.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, AGENT_RESUME_NOTE, enqueueAgentReceiptRow, isLocalAgentTask, queueOperatorMessage } from '../tasks/LocalAgentTask/LocalAgentTask.js'
 import { stopAgentByOperator } from '../services/agents/operatorStop.js'
@@ -467,17 +466,29 @@ export async function runHeadless(
   let sessionRowFor: string | null = null
   const liveScope = (): RowScope => ({ session_id: getSessionId(), ...(currentTurn !== null ? { turn: currentTurn } : {}) })
   const enqueueRow = (row: RowDraft): void => io.outbound.enqueue(row)
-  let openFold: CompactionRow['trigger'] | null = null
-  const foldRow = (fold: FoldStatusV1 | null): RowDraft => {
+  let openFold: { trigger: CompactionRow['trigger']; landing: boolean } | null = null
+  const foldRow = (fold: FoldStatusV1 | null): RowDraft | null => {
+    if (fold !== null && fold.exit !== undefined) {
+      if (fold.exit === 'landed') {
+        openFold = { trigger: fold.trigger, landing: true }
+        return null
+      }
+      openFold = null
+      return compactionRow(liveScope(), fold)
+    }
+    if (openFold !== null) return fold === null || fold.stage === null ? null : compactionRow(liveScope(), fold)
     const row = compactionRow(liveScope(), fold)
-    openFold = row.state === 'ended' ? null : row.trigger
+    openFold = { trigger: row.trigger, landing: false }
     return row
+  }
+  const foldLanded = (row: OutboundLine): void => {
+    if (isRowLine(row) && row.type === 'compaction' && (row as Unstamped<CompactionRow>).state === 'ended') openFold = null
   }
   const statusRowOf = (status: unknown): RowDraft | null => {
     if (status === 'compacting') return foldRow(null)
     if (status === null) {
-      if (openFold === null) return null
-      const row = compactionClearedRow(liveScope(), openFold)
+      if (openFold === null || openFold.landing) return null
+      const row = compactionClearedRow(liveScope(), openFold.trigger)
       openFold = null
       return row
     }
@@ -518,7 +529,7 @@ export async function runHeadless(
     })
   }
   if (options.outputFormat === 'rows') {
-    installStreamJsonStdoutGuard()
+    installWireStdoutGuard()
   }
   notePrintPhase('invocation_resolution')
 
@@ -811,9 +822,9 @@ export async function runHeadless(
   asks.setOnControlRequestSent(() => hostAsks?.noteParked())
   asks.setOnControlRequestResolved(() => hostAsks?.noteSettled())
   let deferredModelBreadcrumb: string | null = null
-  let heldSeatModel: { requestId: string | number; model: string } | null = null
-  let heldSeatEffort: { requestId: string | number; effort: string } | null = null
-  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: string | number }> = []
+  let heldSeatModel: { requestId: number; model: string } | null = null
+  let heldSeatEffort: { requestId: number; effort: string } | null = null
+  let deferredSpawnSwitches: Array<{ kind: 'subagents' | 'workflows'; on: boolean; requestId: number }> = []
   let deferredAdvisorQuiet: AdvisorQuiet[] = []
   const landAdvisorQuiet = (quiet: AdvisorQuiet): void => {
     const row = createAdvisorQuietMessage(quiet)
@@ -942,14 +953,7 @@ export async function runHeadless(
           message: `MCP server ${serverName} completed elicitation ${elicitationId}`,
           notificationType: 'elicitation_complete',
         }).catch(() => {})
-        io.outbound.enqueue({
-          type: 'system',
-          subtype: 'elicitation_complete',
-          mcp_server_name: serverName,
-          elicitation_id: elicitationId,
-          uuid: randomUUID(),
-          session_id: getSessionId(),
-        })
+        io.outbound.enqueue({ method: 'elicitation/complete', params: { server: serverName, elicitation_id: elicitationId } })
       },
     )
   }
@@ -1184,9 +1188,6 @@ export async function runHeadless(
               params.elicitationId,
             ),
           agents: activeAgents,
-          ...(command.orphanedPermission
-            ? { orphanedPermission: command.orphanedPermission }
-            : {}),
           setSDKStatus: (status: unknown) => {
             const row = statusRowOf(status)
             if (row !== null) enqueueRow(row)
@@ -1207,13 +1208,13 @@ export async function runHeadless(
         const held = heldSeatModel
         heldSeatModel = null
         await applySeatModel(held.model)
-        io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), String(held.requestId), { verb: 'set_model', model: held.model }, randomUUID()))
+        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
       }
       if (heldSeatEffort !== null) {
         const held = heldSeatEffort
         heldSeatEffort = null
         applySeatEffort(held.effort)
-        io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), String(held.requestId), { verb: 'set_effort', effort: held.effort }, randomUUID()))
+        io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
       }
       holdQueuedWordsForTurnEnd(false)
       if (deferredModelBreadcrumb !== null) {
@@ -1226,7 +1227,7 @@ export async function runHeadless(
         deferredSpawnSwitches = []
         for (const toggle of toggles) {
           landSpawnSwitch(toggle.kind, toggle.on)
-          io.outbound.enqueue(seatVerbAppliedFrame(getSessionId(), String(toggle.requestId), { verb: 'spawn_switch', switch: toggle.kind, on: toggle.on }, randomUUID()))
+          io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
         }
       }
       if (deferredAdvisorQuiet.length > 0) {
@@ -1447,7 +1448,7 @@ export async function runHeadless(
 
   let lastOutcome: OutcomeRow | null = null
   let lastOutcomeWritten: Promise<unknown> = Promise.resolve()
-  const writeLine = (message: OutboundLine): Promise<WireLine | null> => {
+  const writeLine = (message: OutboundLine): Promise<Row | null> => {
     if (peer === null) return io.write(message)
     if (io.stdoutPipeBroken) return Promise.resolve(null)
     if (isRowLine(message)) {
@@ -1455,25 +1456,13 @@ export async function runHeadless(
       peer.notify('row', row as never)
       return peer.flush().then(() => row)
     }
-    const frame = message as { type: string; subtype?: string; request_id?: string; verb?: string; model?: string; effort?: string; switch?: 'subagents' | 'workflows'; on?: boolean; mcp_server_name?: string; elicitation_id?: string }
-    if (frame.type === 'system' && frame.subtype === 'seat_verb_applied') {
-      peer.notify('session/applied', {
-        request_id: Number(frame.request_id),
-        verb: frame.verb === 'spawn_switch' ? 'set_spawn_switch' : (frame.verb as 'set_model' | 'set_effort'),
-        ...(frame.model !== undefined ? { model: frame.model } : {}),
-        ...(frame.effort !== undefined ? { effort: frame.effort } : {}),
-        ...(frame.switch !== undefined ? { switch: frame.switch } : {}),
-        ...(frame.on !== undefined ? { on: frame.on } : {}),
-      })
-      return peer.flush().then(() => message as WireLine)
-    }
-    if (frame.type === 'system' && frame.subtype === 'elicitation_complete') {
-      if (capabilities.elicitation) peer.notify('elicitation/complete', { server: String(frame.mcp_server_name), elicitation_id: String(frame.elicitation_id) })
-      return peer.flush().then(() => message as WireLine)
-    }
-    return Promise.resolve(null)
+    if (message.method === 'elicitation/complete') {
+      if (capabilities.elicitation) peer.notify(message.method, message.params)
+    } else peer.notify(message.method, message.params)
+    return peer.flush().then(() => null)
   }
   const routeOutbound = (message: OutboundLine): void => {
+    foldLanded(message)
     if (options.outputFormat === 'rows') {
       const written = writeLine(message)
       if (isOutcome(message as never)) {

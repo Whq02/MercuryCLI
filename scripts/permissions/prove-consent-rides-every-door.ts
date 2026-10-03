@@ -35,7 +35,7 @@ saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allow
 const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.ts')
 const facts = await import('../../src/services/switchboard/bootBirthFacts.ts')
 const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
-const { buildStreamJsonInvocation, headlessPermissionArgv } = await import('../../src/daemon/headlessRun.ts')
+const { buildRunnerInvocation, headlessPermissionArgv } = await import('../../src/daemon/headlessRun.ts')
 const { deriveSessionKitForWorkspace } = await import('../../src/daemon/sessionKit.ts')
 const warm = await import('../../src/daemon/warmRunner.ts')
 const { standInRunner } = await import('../lib/seatDoor.ts')
@@ -78,7 +78,7 @@ section('§2 the birth-facts record carries the consent; the carry never spells 
 section('§3 the seat spec carries the consent into the runner argv')
 {
   const argvOf = (extra: { permissionMode?: 'default' | 'sovereign' | 'flow'; bypassConsent?: true; warm?: true }): string[] =>
-    buildStreamJsonInvocation(
+    buildRunnerInvocation(
       buildConcourseWorkerSpec({
         runnerId: 'concourse-w9',
         ...(extra.warm ? { warm: true } : { sessionId: '00000000-0000-4000-8000-000000000001' }),
@@ -177,14 +177,14 @@ section("§5 the warm pool's consent gate (the kit gate's twin) on the real poli
   const a = await warm.ensureWarmRunner({ workspaceDir: wsA, bypassConsent: true }, deps)
   const specA = roster.registered.at(-1)?.spec
   check('(a) a consented ensure warms a runner', a.state === 'warmed', a.detail ?? '')
-  check('(a) …whose spec carries the consent and whose argv carries the allow flag', specA?.allowBypass === true && buildStreamJsonInvocation(specA!).argv.includes(ALLOW))
+  check('(a) …whose spec carries the consent and whose argv carries the allow flag', specA?.allowBypass === true && buildRunnerInvocation(specA!).argv.includes(ALLOW))
   const b = await claim(wsA, false, 'default')
   check('(b) an UNCONSENTED claim on the consented runner declines, naming the consent', b.claimed === false && /consent/i.test(b.claimed === false ? b.reason : ''), b.claimed === false ? b.reason : 'claimed')
   check('(b) …and the runner retires (never serves an unconsented birth)', roster.killed.length === 1 && warm.warmRunnerCount() === 0)
   const wsB = ws()
   const cEnsure = await warm.ensureWarmRunner({ workspaceDir: wsB }, deps)
   const specB = roster.registered.at(-1)?.spec
-  check('(c) an unconsented ensure warms a runner without the station', cEnsure.state === 'warmed' && specB?.allowBypass === undefined && !buildStreamJsonInvocation(specB!).argv.includes(ALLOW))
+  check('(c) an unconsented ensure warms a runner without the station', cEnsure.state === 'warmed' && specB?.allowBypass === undefined && !buildRunnerInvocation(specB!).argv.includes(ALLOW))
   const c = await claim(wsB, true, 'sovereign')
   check('(c) a CONSENTED sovereign claim on it declines (the runner could only refuse the posture)', c.claimed === false && /consent/i.test(c.claimed === false ? c.reason : ''), c.claimed === false ? c.reason : 'claimed')
   check('(c) …and that runner retires too', roster.killed.length === 2)
@@ -223,7 +223,7 @@ section('§6 the doors spread the one carry; the dispatch door never does')
 
 section('§7 the floors: crew seats, cron one-shots and the runner claim door')
 {
-  const crew = buildStreamJsonInvocation({ model: 'claude-opus-5', effort: 'max', appendSystemPrompt: 'pack', role: 'MERCURY_CREW', agentName: 'scout', agentId: 'scout-1', permissionMode: 'flow' }).argv
+  const crew = buildRunnerInvocation({ model: 'claude-opus-5', effort: 'max', appendSystemPrompt: 'pack', role: 'MERCURY_CREW', agentName: 'scout', agentId: 'scout-1', permissionMode: 'flow' }).argv
   check('a crew seat (no consent on its spec) carries no bypass word', !crew.includes(ALLOW) && !crew.includes(SKIP))
   const headless = src('daemon', 'headlessRun.ts')
   check('the cron one-shot threads the posture alone (no consent argument)', headless.includes('...headlessPermissionArgv(getHeadlessPermissionMode(spec.permissionMode)),'))

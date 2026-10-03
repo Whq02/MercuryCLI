@@ -486,15 +486,6 @@ export class Peer {
   }
 
   private onNotificationLine(method: string, params: unknown): void {
-    if (method === 'row') {
-      try {
-        rowOf(params)
-      } catch (error) {
-        if (!(error instanceof RowSchemaMismatch)) throw error
-        this.failProtocol(refused(error.message, 'protocol', { row: error.rowType, schema: error.schema }))
-        return
-      }
-    }
     if (method === '$/cancel_request') {
       const check = checkParams('$/cancel_request', params)
       if (!check.ok) return
@@ -519,6 +510,15 @@ export class Peer {
     if (spec === undefined || spec.kind !== 'notification' || !this.serves(spec)) {
       this.log(`runner wire: notification ${method} is not one this side reads`)
       return
+    }
+    if (method === 'row') {
+      try {
+        rowOf(params)
+      } catch (error) {
+        if (!(error instanceof RowSchemaMismatch)) throw error
+        this.failProtocol(refused(error.message, 'protocol', { row: error.rowType, schema: error.schema }))
+        return
+      }
     }
     const handler = this.notificationHandlers.get(method)
     if (handler === undefined) return

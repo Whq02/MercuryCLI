@@ -4,6 +4,7 @@ import { ndjsonSafeStringify } from './ndjsonSafeStringify.js'
 import { createRowStamper, type RowDraft } from '../rows/project.js'
 import { InputRowSchema, type InputRow, type Row } from '../rows/vocabulary.js'
 import { MAX_LINE_BYTES } from '../runner/wire/errors.js'
+import type { ParamsOf } from '../runner/wire/methods.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { stripBOM } from '../utils/jsonRead.js'
@@ -27,12 +28,11 @@ export function isBrokenPipeError(error: unknown): boolean {
 
 export const INPUT_REFUSED_CODE = 'input_refused'
 
-export type TransitionalLine = { type: 'system'; subtype: 'seat_verb_applied' | 'elicitation_complete'; [key: string]: unknown }
-export type OutboundLine = RowDraft | TransitionalLine
-export type WireLine = Row | TransitionalLine
+export type OutboundNotification = { [M in 'session/applied' | 'elicitation/complete']: { method: M; params: ParamsOf<M> } }['session/applied' | 'elicitation/complete']
+export type OutboundLine = RowDraft | OutboundNotification
 
 export function isRowLine(line: OutboundLine): line is RowDraft {
-  return (line as { type: string }).type !== 'system'
+  return !('method' in line)
 }
 
 export function emptyInputRow(row: InputRow): string | null {
@@ -152,10 +152,10 @@ export class StructuredIO {
     }
   }
 
-  write(message: OutboundLine): Promise<WireLine | null> {
+  write(message: OutboundLine): Promise<Row | null> {
     return new Promise((resolve, reject) => {
-      if (this.stdoutPipeBroken) return resolve(null)
-      const line: WireLine = isRowLine(message) ? this.rows.stamp(message as never) : (message as TransitionalLine)
+      if (this.stdoutPipeBroken || !isRowLine(message)) return resolve(null)
+      const line: Row = this.rows.stamp(message as never)
       process.stdout.write(`${ndjsonSafeStringify(line)}\n`, error => {
         if (error) {
           if (isBrokenPipeError(error)) {

@@ -21,13 +21,13 @@ Object.assign(process.env, { HOME: home, MERCURY_CONFIG_DIR: home, MERCURY_DAEMO
 delete process.env.MERCURY_DAEMON_PERMISSION_MODE
 const executable = Object.getOwnPropertyDescriptor(process, 'execPath')!
 Object.defineProperty(process, 'execPath', { ...executable, value: execFileSync('node', ['-p', 'process.execPath'], { encoding: 'utf8' }).trim() })
-const { spawnStreamJsonChild, runTaskHeadless } = await import('../../src/daemon/headlessRun.ts')
+const { spawnRunnerChild, runTaskHeadless } = await import('../../src/daemon/headlessRun.ts')
 const savedArgv = process.argv[1]
 process.argv[1] = dist
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
 try {
-  const { child, argv } = spawnStreamJsonChild({ model: 'claude-sonnet-5', effort: 'high', appendSystemPrompt: 'Answer the fixture prompt.', role: 'MERCURY_CONCOURSE_WORKER', agentName: 'worker', agentId: 'worker', plainIdentity: true, permissionMode: 'flow', allowBypass: true, cwd: home, extraArgv: ['--session-id', randomUUID()] })
+  const { child, argv } = spawnRunnerChild({ model: 'claude-sonnet-5', effort: 'high', appendSystemPrompt: 'Answer the fixture prompt.', role: 'MERCURY_CONCOURSE_WORKER', agentName: 'worker', agentId: 'worker', plainIdentity: true, permissionMode: 'flow', allowBypass: true, cwd: home, extraArgv: ['--session-id', randomUUID()] })
   check('the daemon worker starts through the runner door with its mode and availability', argv[1] === 'runner' && !argv.some(word => word.startsWith('--input') || word.startsWith('--format') || word.startsWith('--permission')) && argv[argv.indexOf('--mode') + 1] === 'flow' && argv.includes('--allow-sovereign'), JSON.stringify(argv))
   let out = '', err = ''
   child.stdout!.on('data', data => { out += data })

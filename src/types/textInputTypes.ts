@@ -2,16 +2,11 @@ import type * as React from 'react'
 import type { UUID } from 'crypto'
 import type { Key } from '../ink.js'
 import type { InputEvent } from '../ink/events/input-event.js'
-import type { AssistantMessage, MessageOrigin } from './message.js'
+import type { MessageOrigin } from './message.js'
 import type { ContentBlockParam } from './wire.js'
 import type { PastedContent } from '../utils/config.js'
 import type { ImageDimensions } from '../utils/imageResizer.js'
 import type { TextHighlight } from '../utils/textHighlighting.js'
-import type { PermissionUpdate } from './permissions.js'
-
-export type PermissionResult =
-  | { behavior: 'allow'; updated_input?: Record<string, unknown>; updated_permissions?: PermissionUpdate[]; tool_use_id?: string }
-  | { behavior: 'deny'; message?: string; interrupt?: boolean; tool_use_id?: string }
 
 export type InlineGhostText = {
   text: string
@@ -97,7 +92,6 @@ export type VimInputState = TextInputState & {
 export type PromptInputMode =
   | 'bash'
   | 'prompt'
-  | 'orphaned-permission'
   | 'task-notification'
 
 export type EditablePromptInputMode = Exclude<
@@ -107,18 +101,12 @@ export type EditablePromptInputMode = Exclude<
 
 export type QueuePriority = 'now' | 'next' | 'later'
 
-export type OrphanedPermission = {
-  permissionResult: PermissionResult
-  assistantMessage: AssistantMessage
-}
-
 export type QueuedCommand = {
   value: string | ContentBlockParam[]
   mode: PromptInputMode
   priority?: QueuePriority
   queueId?: string
   uuid?: UUID
-  orphanedPermission?: OrphanedPermission
   pastedContents?: Record<number, PastedContent>
   preExpansionValue?: string
   skipSlashCommands?: boolean

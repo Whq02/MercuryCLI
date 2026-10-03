@@ -2,7 +2,7 @@ import { RUNNER_PROTOCOL, methodsFrom, type Capabilities, type HostNotificationN
 import { refused } from '../../runner/wire/errors.js'
 import type { Peer } from '../../runner/wire/peer.js'
 
-export type RequestRef = { id: number | string }
+export type RequestRef = { id: number }
 
 export type Arm<M extends HostRequestName> = (params: ParamsOf<M>, ref: RequestRef, signal: AbortSignal) => Promise<ResultOf<M>> | ResultOf<M>
 export type NotificationArm<M extends HostNotificationName> = (params: ParamsOf<M>) => void | Promise<void>

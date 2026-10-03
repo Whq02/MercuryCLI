@@ -128,7 +128,7 @@ await connector.attach()
 
 const resultIndex = frames.findIndex(isOutcome)
 check('the capture carries the outcome row (the settle to replay)', resultIndex > 0)
-for (const line of lines.slice(0, resultIndex)) seatMod.onSeatRow(SHORT, line, roster as never)
+for (const row of frames.slice(0, resultIndex)) if (row !== null) seatMod.onSeatRow(SHORT, row as never, roster as never)
 await sleep(800)
 const filled = getEphemeralProgressFrame('toolu_chatty_bash_1') as { data?: { type?: string; output?: string } } | undefined
 check('THE STORE FILLS from the real wire bytes', filled?.data?.type === 'bash_progress' && /^chatty line \d$/.test(filled?.data?.output ?? ''), JSON.stringify(filled?.data))
@@ -163,7 +163,7 @@ check('THE STORE FILLS from the real wire bytes', filled?.data?.type === 'bash_p
   check('THE ROW PAINTS THE TAIL — the captured line under the running header', /chatty line \d/.test(row), JSON.stringify(row))
 }
 
-for (const line of lines.slice(resultIndex)) seatMod.onSeatRow(SHORT, line, roster as never)
+for (const row of frames.slice(resultIndex)) if (row !== null) seatMod.onSeatRow(SHORT, row as never, roster as never)
 await sleep(800)
 check('the captured outcome row clears seat → projection → store (clear-on-settle on real bytes)', getEphemeralProgressFrame('toolu_chatty_bash_1') === undefined)
 connector.detach()

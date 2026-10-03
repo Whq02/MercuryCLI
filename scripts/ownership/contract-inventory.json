@@ -40,8 +40,7 @@
     "isBrokenPipeError",
     "isRowLine",
     "type:OutboundLine",
-    "type:TransitionalLine",
-    "type:WireLine"
+    "type:OutboundNotification"
    ]
   },
   "settings": {
@@ -280,7 +279,6 @@
     "permissionModeSchema",
     "permissionModeSymbol",
     "permissionModeTitle",
-    "toExternalPermissionMode",
     "type:ExternalPermissionMode",
     "type:PermissionMode"
    ],

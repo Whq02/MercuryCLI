@@ -20,7 +20,7 @@ import {
   effectiveSeatCeiling,
   readSessionWorkers,
 } from './concourseSupervisor.js'
-import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { RunnerChildSpec } from './headlessRun.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import type { RunnerDoor } from './runnerConnection.js'
@@ -81,13 +81,13 @@ export function resetWarmRunnersForTesting(): void {
 export interface WarmRosterPort {
   has(short: string): { alive: boolean; present: boolean; ready: boolean }
   list(): ReadonlyArray<{ short: string; outcome?: unknown }>
-  registerLongLived(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string }
+  registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string }
   door(short: string): RunnerDoor | undefined
   kill(short: string): boolean
   patchSeatClaim(
     short: string,
     patch: { model: string; effort: string; respawnExtraArgv: readonly string[] },
-  ): StreamJsonChildSpec | null
+  ): RunnerChildSpec | null
 }
 
 export interface WarmRunnerDeps {
@@ -323,7 +323,7 @@ async function ensureWarmRunnerFlight(
 }
 
 export type WarmClaimOutcome =
-  | { claimed: true; short: string; pid?: number; spec: StreamJsonChildSpec }
+  | { claimed: true; short: string; pid?: number; spec: RunnerChildSpec }
   | { claimed: false; reason: string }
 
 export async function claimWarmRunner(

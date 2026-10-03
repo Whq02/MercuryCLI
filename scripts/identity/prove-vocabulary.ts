@@ -90,6 +90,7 @@ const RETIRED: Array<[string, RegExp, string[]]> = [
   ['sdk-result-error-word', new RegExp(J('(?<!hook_)error_during', '_execution')), [J('error_during', '_execution')]],
   ['sdk-wire-words', new RegExp('(?<![\\w-])(?:--)?' + J('(?:permission-', 'channel|permission-prompt', '-tool|stream-', 'json|replay-user', '-messages)') + '(?![\\w-])'), [J('permission-', 'channel'), J('permission-prompt', '-tool'), J('stream-', 'json'), J('replay-user', '-messages')]],
   ['sdk-home', new RegExp(J('entrypoints/', 'sdk|agentSdk', 'Types|\\bSDK[A-Z]\\w*', 'Message\\b|\\bSDKControl', '\\w*')), [J('entrypoints/', 'sdk'), J('agentSdk', 'Types'), 'SDK']],
+  ['sdk-wire-names', new RegExp(J('[Ss]tream', 'Json')), [J('tream', 'Json')]],
   ['sdk-init-names', new RegExp(J('(?<![\\w$])(?:SdkInit', 'Owner|resetSdkInit', 'State|[gs]etInitJson', 'Schema|initJson', 'Schema)(?![\\w$])|sdk-', 'init\\.')), [J('SdkInit', ''), J('InitJson', 'Schema'), J('initJson', 'Schema'), J('sdk-', 'init')]],
   ['control-frames', asName(J('(?:control_', 'request|control_', 'response|control_cancel', '_request|can_use', '_tool|set_permission', '_mode)')), [J('control_', 'req'), J('control_', 'resp'), J('control_', 'cancel'), J('can_use', '_tool'), J('set_permission', '_mode')]],
   ['activity-stream-arms', new RegExp(J('stream-(?:file-', 'change|command|check|question|work-', 'item|generic-', 'tool|tool-', 'result|message|session-', 'lifecycle)(?![\\w-])|explodeActivity', 'Inputs')), [J('stream-', ''), J('explodeActivity', '')]],
@@ -212,9 +213,6 @@ const ALLOW: Array<[string, string, string]> = [
   ['scripts/headless/prove-runner-wire-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/headless/prove-structuredio-laws.ts', 'control-frames', 'feeds the retired frame it proves refused'],
   ['scripts/daemon/prove-seat-door-direct.ts', 'control-frames', 'names the words it proves absent from the daemon'],
-  ['scripts/headless/prove-headless-ask-refusals.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
-  ['scripts/headless/prove-headless-ask-unanswered.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
-  ['scripts/headless/prove-parked-ask-liveness.ts', 'control-frames', 'FIX-T3-ASKS moves this proof onto the hosted runner (its comms, 13:24) — drop this row with that move'],
 ]
 function allowed(path: string, rule: string): boolean {
   for (const [prefix, rules] of ALLOW) {
@@ -460,6 +458,8 @@ console.log('============================================================')
     ['sdk-result-error-word', "subtype === '" + J('error_during', '_execution') + "'"],
     ['sdk-wire-words', 'mercury run --format ' + J('stream-', 'json')],
     ['sdk-wire-words', J('--permission-', 'channel') + ' stdio'],
+    ['sdk-wire-names', 'const spec: ' + J('Stream', 'JsonChildSpec') + ' = x'],
+    ['sdk-wire-names', 'import { guard } from "./' + J('stream', 'JsonStdoutGuard') + '.js"'],
     ['sdk-home', "import type { Row } from '../" + J('entrypoints/', 'sdk') + "/types.js'"],
     ['sdk-home', 'const frame: ' + J('SDKAssistant', 'Message') + ' = x'],
     ['sdk-init-names', 'import { ' + J('SdkInit', 'Owner') + " } from './runtime/" + J('sdk-', 'init') + ".js'"],

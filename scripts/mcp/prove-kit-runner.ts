@@ -375,16 +375,16 @@ section('§I the inline agent-def door (poison: the byte-identical cache-hit tea
 section('§N non-session insulation (poison: a kit env appearing on a warm/crew/utility spec)')
 {
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseSupervisor.ts')
-  const { buildStreamJsonInvocation } = await import('../../src/daemon/headlessRun.ts')
+  const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
   const { buildCrewSpec } = await import('../../src/daemon/crewSpawn.ts')
   const base = { runnerId: 'w-ins', sessionId: '33333333-4444-4555-8666-777777777777', workspaceId: PROJECT, modelKey: 'test-model' }
 
   process.env.MERCURY_SESSION_KIT = JSON.stringify({ schema: 1, mcp: ['stray'], skills: [], invocable: [] })
-  const workerEnv = buildStreamJsonInvocation(buildConcourseWorkerSpec({ ...base, kit: K_RESOLVED as never })).env
+  const workerEnv = buildRunnerInvocation(buildConcourseWorkerSpec({ ...base, kit: K_RESOLVED as never })).env
   t("N1 a SESSION worker's child env carries ITS SPEC's stamp — never the spawning process's stray (the strip runs before the overlay; the deliberate stamp lands)", workerEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
-  const warmEnv = buildStreamJsonInvocation(buildConcourseWorkerSpec({ runnerId: 'w-ins-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true, kit: K_RESOLVED as never })).env
+  const warmEnv = buildRunnerInvocation(buildConcourseWorkerSpec({ runnerId: 'w-ins-warm', workspaceId: PROJECT, modelKey: 'test-model', warm: true, kit: K_RESOLVED as never })).env
   t("N2 POISON armed: a WARM child env carries ITS SPEC's kit and never the stray beside it (the ensure's stamp is the only speaker; a spec-less warm build still stamps nothing — K10)", warmEnv.MERCURY_SESSION_KIT === JSON.stringify(K_RESOLVED))
-  const crewEnv = buildStreamJsonInvocation(buildCrewSpec('helper', 'fable', PROJECT)).env
+  const crewEnv = buildRunnerInvocation(buildCrewSpec('helper', 'fable', PROJECT)).env
   t('N3 POISON armed: a CREW crewmate (a non-session child) never inherits a kit spelling — the kit narrows only the session it was stamped on', !('MERCURY_SESSION_KIT' in crewEnv))
   delete process.env.MERCURY_SESSION_KIT
 

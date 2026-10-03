@@ -11,7 +11,7 @@ import {
 import { resolveCrewStart, type CrewStartPlanV1 } from '../utils/crew/crewStart.js'
 import { resolveWorkerReconAllow } from './workerRecon.js'
 import { isolationAwarenessNote } from './isolationNote.js'
-import type { StreamJsonChildSpec } from './headlessRun.js'
+import type { RunnerChildSpec } from './headlessRun.js'
 import type { LongLivedSupervisorConfig } from './longLivedSupervisor.js'
 import type { WorkerModelValidation } from '../services/concourse/workerModels.js'
 
@@ -156,7 +156,7 @@ export interface CrewRosterPort {
   list(): ReadonlyArray<{ short: string; outcome?: unknown }>
   registerLongLived(
     short: string,
-    spec: StreamJsonChildSpec,
+    spec: RunnerChildSpec,
     opts?: Partial<LongLivedSupervisorConfig>,
     start?: { cwd: string; worktree?: string },
   ): { ok: boolean; pid?: number; error?: string }
@@ -166,7 +166,7 @@ export interface CrewRosterPort {
 export interface CrewSpawnDeps {
   roster: () => CrewRosterPort | undefined
   dir: string
-  onSpawned: (name: string, spec: StreamJsonChildSpec, pid: number | undefined) => void
+  onSpawned: (name: string, spec: RunnerChildSpec, pid: number | undefined) => void
 }
 
 export type CrewSeatStart = { cwd?: string; worktree?: { at?: string } }
@@ -278,7 +278,7 @@ export function buildCrewSpec(
   name: string,
   seat: { model: string; effort: 'high' },
   dir: string,
-): StreamJsonChildSpec {
+): RunnerChildSpec {
   return {
     model: seat.model,
     effort: seat.effort,

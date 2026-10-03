@@ -575,6 +575,21 @@ section('W17 cancellation crosses the initialize barrier')
   retry.host.end()
 }
 
+section('W18 a notification the side does not read is logged and ignored before its params are judged: a row to the runner is never a protocol failure')
+{
+  const w = world()
+  const problems: unknown[] = []
+  const strict = new Peer({ input: w.toRunner, output: new PassThrough(), side: 'runner', log: l => w.runnerLog.push(l), onProtocolError: error => problems.push(error) })
+  w.runner.close('the strict runner takes the input')
+  w.raw(j({ jsonrpc: '2.0', method: 'row', params: { type: 'outcome', schema: 2, session_id: 's' } }) + '\n')
+  w.raw(j({ jsonrpc: '2.0', method: 'row', params: { type: 'session', schema: 2, session_id: 's' } }) + '\n')
+  await settle(20)
+  check('a schema-2 row sent to the runner side leaves the runner open — hosts send no rows, so none is judged', !strict.closed && problems.length === 0, j({ closed: strict.closed, problems: problems.length }))
+  check('…and the line is logged as a notification this side does not read', w.runnerLog.filter(l => l.includes('notification row is not one this side reads')).length === 2, j(w.runnerLog))
+  strict.end()
+  w.host.end()
+}
+
 section('M the method table is the one source')
 {
   const names = methods.METHOD_NAMES

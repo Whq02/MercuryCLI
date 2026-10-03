@@ -17,8 +17,8 @@ const seat = await import('../../src/daemon/sessionSeat.ts')
 const { permissionModeOf } = await import('../../src/services/engine-connector/daemonConnector.ts')
 const { getNextPermissionMode } = await import('../../src/utils/permissions/getNextPermissionMode.ts')
 const { resolvePermissionModeTransition } = await import('../../src/cli/headless/controlHandlers.ts')
-const { buildStreamJsonInvocation, getHeadlessPermissionMode } = await import('../../src/daemon/headlessRun.ts')
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+const { buildRunnerInvocation, getHeadlessPermissionMode } = await import('../../src/daemon/headlessRun.ts')
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
 import type { PermissionMode } from '../../src/types/permissions.ts'
 import type { ToolPermissionContext } from '../../src/Tool.ts'
@@ -39,8 +39,8 @@ const ALLOW = '--allow-sovereign'
 
 section('§1 the record stamps the posture and consent the runner was booted with')
 {
-  const spec = (permissionMode: string, allowBypass?: true): Pick<StreamJsonChildSpec, 'permissionMode' | 'allowBypass'> =>
-    ({ permissionMode: permissionMode as StreamJsonChildSpec['permissionMode'], ...(allowBypass === true ? { allowBypass: true as const } : {}) })
+  const spec = (permissionMode: string, allowBypass?: true): Pick<RunnerChildSpec, 'permissionMode' | 'allowBypass'> =>
+    ({ permissionMode: permissionMode as RunnerChildSpec['permissionMode'], ...(allowBypass === true ? { allowBypass: true as const } : {}) })
   const sov = supervisor.spawnPostureOf(spec('sovereign', true))
   check('a sovereign spec with the consent stamps {sovereign, bypassConsent:true}', sov.permissionMode === 'sovereign' && sov.bypassConsent === true, JSON.stringify(sov))
   const def = supervisor.spawnPostureOf(spec('default'))
@@ -49,7 +49,7 @@ section('§1 the record stamps the posture and consent the runner was booted wit
   check("an apollo seat stamps 'apollo' (the cockpit-attached seat's own mode)", apollo.permissionMode === 'apollo', JSON.stringify(apollo))
   process.env.MERCURY_DAEMON_PERMISSION_MODE = 'implement'
   const env = supervisor.spawnPostureOf(spec('sovereign'))
-  const argv = buildStreamJsonInvocation({ ...baseSpec('w-env'), permissionMode: 'sovereign' }).argv
+  const argv = buildRunnerInvocation({ ...baseSpec('w-env'), permissionMode: 'sovereign' }).argv
   delete process.env.MERCURY_DAEMON_PERMISSION_MODE
   check('the daemon posture env wins in the stamp exactly as it wins in the argv (record ≡ process)', env.permissionMode === 'implement' && argv.includes('implement') && !argv.includes(SKIP), `stamp=${env.permissionMode} argv=${argv.filter(a => /permission|dangerously|implement/.test(a)).join(' ')}`)
   const rec = { permissionMode: 'sovereign', bypassConsent: true } as unknown as ConcourseWorkerRecordV1
@@ -57,7 +57,7 @@ section('§1 the record stamps the posture and consent the runner was booted wit
   check('a restamp without consent DROPS the record\'s old consent (never a station the runner lost)', rec.permissionMode === 'default' && rec.bypassConsent === undefined, JSON.stringify(rec))
 }
 
-function baseSpec(short: string): StreamJsonChildSpec {
+function baseSpec(short: string): RunnerChildSpec {
   return supervisor.buildConcourseWorkerSpec({
     runnerId: short,
     sessionId: '00000000-0000-4000-8000-000000000001',
@@ -94,7 +94,7 @@ section("§4 every revive road boots the record's posture and consent; the react
   const sid = '00000000-0000-4000-8000-0000000000aa'
   const short = 'concourse-w7'
   class FakeRoster {
-    registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
+    registered: Array<{ short: string; spec: RunnerChildSpec }> = []
     killed: string[] = []
     present = new Set<string>()
     has(s: string): { present: boolean } {
@@ -105,7 +105,7 @@ section("§4 every revive road boots the record's posture and consent; the react
       this.present.delete(s)
       return true
     }
-    registerLongLived(s: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } {
+    registerLongLived(s: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } {
       this.registered.push({ short: s, spec })
       this.present.add(s)
       return { ok: true, pid: 4_000_000 }
@@ -133,8 +133,8 @@ section("§4 every revive road boots the record's posture and consent; the react
       writeFileSync(transcript, `${JSON.stringify({ type: 'user', uuid: `${sid}-u1`, message: { role: 'user', content: 'seeded turn' } })}\n`)
     }, dir)
   }
-  const lastSpec = (): StreamJsonChildSpec | undefined => roster.registered.at(-1)?.spec
-  const argvOf = (spec: StreamJsonChildSpec | undefined): string[] => (spec ? buildStreamJsonInvocation(spec).argv : [])
+  const lastSpec = (): RunnerChildSpec | undefined => roster.registered.at(-1)?.spec
+  const argvOf = (spec: RunnerChildSpec | undefined): string[] => (spec ? buildRunnerInvocation(spec).argv : [])
   const recordNow = (): ConcourseWorkerRecordV1 | undefined => supervisor.readSessionWorkers(dir)[short]
 
   seed({ permissionMode: 'sovereign', bypassConsent: true })

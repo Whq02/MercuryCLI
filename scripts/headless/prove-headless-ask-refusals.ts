@@ -3,8 +3,9 @@ import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
+import type { PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -106,41 +107,31 @@ async function runOneShot(tag: string, turns: ScriptedTurn[], extraArgs: string[
   return { ...captured, ...result }
 }
 
-async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (request: Record<string, unknown>) => Record<string, unknown>): Promise<Captured & { code: number | null; asks: Array<Record<string, unknown>> }> {
+async function runHosted(tag: string, turns: ScriptedTurn[], answer: (ask: PermissionRequestParams) => PermissionAnswer): Promise<Captured & { code: number | null; asks: PermissionRequestParams[]; stderr: string }> {
   const fixture = await startFixtureApi(turns)
   const world = makeWorld(tag, fixture.url)
-  const asks: Array<Record<string, unknown>> = []
-  let sawResult = false
-  const door = spawnRunnerDoor({
-    node: NODE,
-    argv: [DIST, 'runner', '--model', MODEL],
-    cwd: world.cwd,
-    env: world.env,
-    onLine: line => {
-      const frame = parseFrame(line)
-      if (frame === null) return
-      if (frame.type === 'control_request') {
-        const request = frame.request as Record<string, unknown>
-        if (request.subtype === 'can_use_tool') {
-          asks.push(request)
-          door.send({ type: 'control_response', response: { subtype: 'success', request_id: frame.request_id, response: answer(request) } })
-        }
-      }
-      if (frame.type === 'outcome' && !sawResult) {
-        sawResult = true
-        child.stdin!.end()
-      }
-    },
+  const asks: PermissionRequestParams[] = []
+  const host = hostRunner({ dist: DIST, node: NODE, cwd: world.cwd, home: world.home, env: world.env, argv: ['--model', MODEL] })
+  host.onAsk(params => {
+    asks.push(params)
+    return answer(params)
   })
-  const child = door.child
-  const killer = setTimeout(() => child.kill('SIGKILL'), 90_000)
-  child.stderr!.on('data', () => {})
-  door.send({ type: 'user', message: { role: 'user', content: `probe ${tag}` } })
-  const code = await new Promise<number | null>(resolveRun => child.on('close', value => { clearTimeout(killer); resolveRun(value) }))
+  const killer = setTimeout(() => host.child.kill('SIGKILL'), 90_000)
+  try {
+    await host.initialize()
+    await host.prompt(`probe ${tag}`)
+    await host.waitFor('the outcome', row => row.type === 'outcome', 90_000)
+  } catch (error) {
+    console.log(`  [door] ${error instanceof Error ? error.message : String(error)}`)
+  }
+  host.end()
+  const code = await host.exited
+  clearTimeout(killer)
+  host.peer.close('the probe ended')
   const captured = capture(fixture.messageRequests())
   await fixture.close()
   rmSync(world.home, { recursive: true, force: true })
-  return { ...captured, code, asks }
+  return { ...captured, code, asks, stderr: host.stderr() }
 }
 
 const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door/
@@ -174,8 +165,8 @@ section('§3 pre-approved, the same headless run reaches the browser itself and 
 
 section('§4 the runner door: the same asks reach the host and its answer stands')
 {
-  const run = await runStdioChannel('stdio-ask', [askQuestion, done], () => ({ behavior: 'deny', message: 'the client declined the question' }))
-  check('the question tool asked through the door', run.asks.some(ask => ask.tool_name === 'AskUserQuestion'), run.asks.map(ask => String(ask.tool_name)).join(','))
+  const run = await runHosted('hosted-ask', [askQuestion, done], () => ({ outcome: 'deny', message: 'the client declined the question' }))
+  check('the question tool asked through the door', run.asks.some(ask => ask.kind === 'tool' && ask.tool_name === 'AskUserQuestion'), `${run.asks.map(ask => (ask.kind === 'tool' ? ask.tool_name : ask.kind)).join(',')} · exit ${String(run.code)} · ${run.stderr.slice(0, 300)}`)
   const row = run.results[0]
   check('the client answer is what the model reads (no headless auto-deny note)', row !== undefined && row.is_error === true && !OPERATOR_LINE.test(row.text) && !RECIPE_LINE.test(row.text), row?.text.slice(0, 300))
   check('the posture line names the host', /with a host that holds the asks/.test(run.system) && !/no host to answer/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')

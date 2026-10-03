@@ -2,8 +2,9 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
-import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, sleep, user, type Frame } from '../daemon/dupline-world.ts'
-import { parseFrame, spawnRunnerDoor } from '../lib/rows.ts'
+import type { PermissionAnswer, PermissionRequestParams } from '../../src/runner/wire/methods.ts'
+import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally, sleep, type Frame } from '../daemon/dupline-world.ts'
+import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedFixture } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-parked-ask-liveness')
@@ -33,9 +34,15 @@ const CLIENT_AWAY_WORDS = "the operator's client was not there to answer"
 const QUESTION = { questions: [{ question: 'Which way?', header: 'Way', options: [{ label: 'left', description: 'go left' }, { label: 'right', description: 'go right' }], multiSelect: false }] }
 const j = (v: unknown): string => JSON.stringify(v)
 
+type Ask = { id: number; params: PermissionRequestParams }
 type Seat = {
   frames: Array<{ frame: Frame; at: number }>
-  send: (frame: Frame) => void
+  initialize: () => Promise<boolean>
+  prompt: (text: string) => void
+  waitForAsk: (label: string, timeoutMs: number) => Promise<Ask | null>
+  answer: (id: number, answer: PermissionAnswer) => void
+  interrupt: () => Promise<{ interrupted: boolean } | null>
+  withdrawn: () => number[]
   endInput: () => void
   waitFor: (label: string, test: (f: Frame) => boolean, timeoutMs: number, after?: number) => Promise<Frame | null>
   exited: Promise<number | null>
@@ -48,33 +55,28 @@ type Seat = {
 function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
   const frames: Array<{ frame: Frame; at: number }> = []
   const waiters: Array<{ test: (f: Frame) => boolean; resolve: (f: Frame) => void }> = []
-  let stderrText = ''
   let alive = true
   let exitCode: number | null = null
-  const door = spawnRunnerDoor({
+  const note = (frame: Frame): void => {
+    frames.push({ frame, at: Date.now() })
+    for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
+  }
+  const host = hostRunner({
     node: NODE,
-    argv: [DIST, 'runner', '--mode', 'default', '--model', MODEL],
+    dist: DIST,
+    argv: ['--mode', 'default', '--model', MODEL],
     cwd: args.cwd,
-    env: args.env,
-    capabilities: { holds_asks: false },
-    onLine: line => {
-      const frame = parseFrame(line) as Frame | null
-      if (frame === null) return
-      frames.push({ frame, at: Date.now() })
-      for (let i = waiters.length - 1; i >= 0; i--) if (waiters[i]!.test(frame)) waiters.splice(i, 1)[0]!.resolve(frame)
-    },
+    env: args.env as Record<string, string | undefined>,
+    home: args.env.MERCURY_CONFIG_DIR ?? args.cwd,
+    onRow: note,
   })
-  const proc = door.child
-  proc.stderr!.on('data', (chunk: Buffer) => {
-    stderrText += chunk.toString('utf8')
+  const proc = host.child
+  const exited = host.exited.then(code => {
+    alive = false
+    exitCode = code
+    host.peer.close('the seat exited')
+    return code
   })
-  const exited = new Promise<number | null>(resolve =>
-    proc.on('exit', code => {
-      alive = false
-      exitCode = code
-      resolve(code)
-    }),
-  )
   const waitFor = (label: string, test: (f: Frame) => boolean, timeoutMs: number, after = 0): Promise<Frame | null> => {
     const seen = frames.slice(after).find(entry => test(entry.frame))
     if (seen !== undefined) return Promise.resolve(seen.frame)
@@ -101,26 +103,33 @@ function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
   seatsToReap.push(kill)
   return {
     frames,
-    send: frame => {
+    initialize: () => host.initialize({ holds_asks: false }, bound(60_000)).then(() => true, () => false),
+    prompt: text => {
       if (!alive) return
-      door.send(frame)
+      void host.prompt(text, { id: randomUUID() }).catch(() => undefined)
     },
-    endInput: () => {
-      try {
-        proc.stdin!.end()
-      } catch {
-      }
-    },
+    waitForAsk: (label, timeoutMs) =>
+      host.waitForAsk(label, timeoutMs).then(
+        ask => {
+          note({ type: 'permission/request', id: ask.id, ...ask.params })
+          return ask
+        },
+        () => {
+          console.log(`  [wait] ${label}: nothing within ${timeoutMs} ms`)
+          return null
+        },
+      ),
+    answer: (id, answer) => host.answerAsk(id, answer),
+    interrupt: () => host.request('turn/interrupt', {}, bound(10_000)).then(result => result, () => null),
+    withdrawn: () => [...host.withdrawn],
+    endInput: () => host.end(),
     waitFor,
     exited,
     exitCode: () => exitCode,
     alive: () => alive,
-    stderr: () => stderrText,
+    stderr: () => host.stderr(),
     stop: async graceMs => {
-      try {
-        proc.stdin!.end()
-      } catch {
-      }
+      host.end()
       const code = await Promise.race([exited, sleep(graceMs).then(() => null)])
       kill()
       return code
@@ -130,11 +139,12 @@ function bootSeat(args: { cwd: string; env: NodeJS.ProcessEnv }): Seat {
 
 const isInit = (f: Frame): boolean => f.type === 'session'
 const isResult = (f: Frame): boolean => f.type === 'outcome'
-const isAsk = (f: Frame): boolean => f.type === 'control_request' && (f.request as { subtype?: unknown } | undefined)?.subtype === 'can_use_tool'
-const askOf = (f: Frame): { requestId: string; toolName: string; toolUseId: string } => {
-  const request = (f.request ?? {}) as { tool_name?: unknown; tool_use_id?: unknown }
-  return { requestId: String(f.request_id ?? ''), toolName: String(request.tool_name ?? ''), toolUseId: String(request.tool_use_id ?? '') }
-}
+const isAsk = (f: Frame): boolean => f.type === 'permission/request'
+const askOf = (ask: Ask): { id: number; toolName: string; toolUseId: string } => ({
+  id: ask.id,
+  toolName: ask.params.kind === 'tool' ? ask.params.tool_name : ask.params.kind,
+  toolUseId: ask.params.kind === 'tool' ? ask.params.tool_use_id : '',
+})
 type ToolResult = { toolUseId: string; text: string; isError: boolean }
 function toolResultsOf(f: Frame): ToolResult[] {
   if (f.type !== 'tool_result') return []
@@ -142,7 +152,7 @@ function toolResultsOf(f: Frame): ToolResult[] {
 }
 const CUT_WORDS = /Request cut off|no-progress timeout|provider went quiet|unattended turn: no progress/
 const cutWordsOf = (f: Frame): string | null => {
-  if (f.type === 'control_request' || f.type === 'control_response') return null
+  if (isAsk(f)) return null
   const text = j(f)
   const hit = CUT_WORDS.exec(text)
   if (hit === null) return null
@@ -162,10 +172,10 @@ function timeline(seat: Seat, t0: number, toolUseId: string): string[] {
   for (const { frame, at } of seat.frames) {
     if (at < t0 - 50) continue
     const stamp = `${((at - t0) / 1000).toFixed(2)}s`
-    if (isAsk(frame)) rows.push(`${stamp} control_request can_use_tool ${askOf(frame).toolName}`)
+    if (isAsk(frame)) rows.push(`${stamp} permission/request ${String(frame.tool_name ?? frame.kind ?? '')}`)
     for (const r of toolResultsOf(frame)) if (r.toolUseId === toolUseId) rows.push(`${stamp} tool_result${r.isError ? ' (error)' : ''}: ${j(r.text.slice(0, 200))}`)
     const cut = cutWordsOf(frame)
-    if (cut !== null) rows.push(`${stamp} ${frame.type}${frame.subtype ? '/' + String(frame.subtype) : ''} carries the cut words: ${j(cut)}`)
+    if (cut !== null) rows.push(`${stamp} ${String(frame.type)}${frame.state ? '/' + String(frame.state) : ''} carries the cut words: ${j(cut)}`)
     if (isResult(frame)) rows.push(`${stamp} outcome ${String(frame.status)} answer=${j(String(frame.answer ?? '').slice(0, 160))}${errorsOf(frame) ? ' error=' + j(errorsOf(frame).slice(0, 200)) : ''}`)
   }
   return rows
@@ -188,16 +198,17 @@ function script(req: { allTexts: string[]; step: number }): Array<{ type: 'text'
   return [{ type: 'text', text: DONE }]
 }
 
-async function openSeat(key: string, idleMinutes: string): Promise<{ seat: Seat; fixture: ScriptedFixture; ask: Frame | null; t0: number }> {
+async function openSeat(key: string, idleMinutes: string): Promise<{ seat: Seat; fixture: ScriptedFixture; ask: Ask | null; t0: number }> {
   const w = world(key)
   const fixture = await startScriptedFixture(script)
   const seat = bootSeat({ cwd: w.cwd, env: { ...childEnv(w.home, Number(new URL(fixture.base).port)), MERCURY_HEADLESS_IDLE_MINUTES: idleMinutes } })
-  seat.send(user(ASK, randomUUID()))
-  const init = await seat.waitFor('system/init', isInit, bound(60_000))
-  tally.check(`${key}: the seat booted in default mode with the stdio ask road`, init !== null && init.mode === 'default', init === null ? `stderr ${j(seat.stderr().slice(-300))}` : `mode ${String(init.mode)}`)
-  const ask = await seat.waitFor('the can_use_tool ask', isAsk, bound(60_000))
+  const ready = await seat.initialize()
+  seat.prompt(ASK)
+  const init = await seat.waitFor('the session row', isInit, bound(60_000))
+  tally.check(`${key}: the seat booted in default mode on the runner door`, ready && init !== null && init.mode === 'default', init === null ? `initialized ${ready} stderr ${j(seat.stderr().slice(-300))}` : `mode ${String(init.mode)}`)
+  const ask = await seat.waitForAsk('the permission/request ask', bound(60_000))
   const t0 = Date.now()
-  tally.check(`${key}: the question left the seat as a can_use_tool ask parked with the host`, ask !== null && askOf(ask).toolName === 'AskUserQuestion', ask === null ? `frames ${j(seat.frames.map(e => e.frame.type))} stderr ${j(seat.stderr().slice(-300))}` : j(askOf(ask)))
+  tally.check(`${key}: the question left the seat as a permission/request parked with the host`, ask !== null && askOf(ask).toolName === 'AskUserQuestion', ask === null ? `frames ${j(seat.frames.map(e => e.frame.type))} stderr ${j(seat.stderr().slice(-300))}` : j(askOf(ask)))
   return { seat, fixture, ask, t0 }
 }
 
@@ -222,8 +233,9 @@ tally.section(`L1 — an ask parked with a silent host: at the unattended limit 
     tally.check('L1: nothing the seat wrote blames the provider (no cut, no no-progress words)', !seat.frames.slice(mark).some(e => cutWordsOf(e.frame) !== null), j(seat.frames.slice(mark).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
     tally.check('L1: the NEXT provider request was issued and consumed, carrying the denial (the fixture saw request 2)', fixture.requests.length === 2 && second !== undefined && second.results.some(r => r.isError && r.text.includes(CLIENT_AWAY_WORDS)), `${fixture.requests.length} request(s) · request 2 results ${j(second?.results ?? null).slice(0, 300)}`)
     tally.check("L1: the turn ended with the model's own text, never the timer's words", result !== null && result.status === 'completed' && result.answer === DONE, result === null ? 'no outcome' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 200)} ${errorsOf(result).slice(0, 200)}`)
+    tally.check('L1: the ask was withdrawn from the host on the wire ($/cancel_request for its id)', seat.withdrawn().includes(ask.id), j(seat.withdrawn()))
     const again = seat.frames.length
-    seat.send(user(AGAIN, randomUUID()))
+    seat.prompt(AGAIN)
     const next = await seat.waitFor('the next turn after the unanswered ask', isResult, bound(30_000), again)
     tally.check('L1: the seat kept its turn and answers the next prompt (never lost to a cut)', next !== null && next.answer === STILL, next === null ? `no outcome; alive ${seat.alive()} exit ${seat.exitCode()}` : j(String(next.answer ?? '')).slice(0, 120))
     const code = await seat.stop(bound(10_000))
@@ -239,17 +251,17 @@ tally.section("L4 — the host answers before the limit: the host's deny wins, t
 {
   const { seat, fixture, ask, t0 } = await openSeat('answered', LIMIT_MINUTES)
   if (ask !== null) {
-    const { requestId, toolUseId } = askOf(ask)
+    const { id, toolUseId } = askOf(ask)
     await sleep(1_500)
     const before = seat.frames.length
-    seat.send({ type: 'control_response', response: { subtype: 'success', request_id: requestId, response: { behavior: 'deny', message: HOST_DENY } } })
+    seat.answer(id, { outcome: 'deny', message: HOST_DENY })
     const result = await seat.waitFor('the result after the host answered', isResult, bound(30_000), before)
     const toolError = seat.frames.slice(before).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
     tally.check("L4: the host's own deny settled as the tool's error result", toolError !== undefined && toolError.isError && toolError.text.includes(HOST_DENY) && !toolError.text.includes(CLIENT_AWAY_WORDS), j(toolError ?? null))
-    tally.check("L4: the turn carried on to the model's own text", result !== null && result.status === 'completed' && result.answer === DONE && fixture.requests.length === 2, result === null ? 'no result' : `${String(result.subtype)} ${j(String(result.result ?? '')).slice(0, 120)} · ${fixture.requests.length} request(s)`)
+    tally.check("L4: the turn carried on to the model's own text", result !== null && result.status === 'completed' && result.answer === DONE && fixture.requests.length === 2, result === null ? 'no result' : `${String(result.status)} ${j(String(result.answer ?? '')).slice(0, 120)} · ${fixture.requests.length} request(s)`)
     await sleep(LIMIT_MS + 1_000)
-    const late = seat.frames.slice(before).filter(e => j(e.frame).includes(CLIENT_AWAY_WORDS) || (e.frame.type === 'control_cancel_request'))
-    tally.check('L4: past the limit nothing else settled the answered ask (no unanswered denial, no withdrawal on the wire)', late.length === 0 && seat.alive(), j(late.map(e => e.frame)).slice(0, 300))
+    const late = seat.frames.slice(before).filter(e => j(e.frame).includes(CLIENT_AWAY_WORDS))
+    tally.check('L4: past the limit nothing else settled the answered ask (no unanswered denial, no withdrawal on the wire)', late.length === 0 && !seat.withdrawn().includes(id) && seat.alive(), `${j(late.map(e => e.frame)).slice(0, 300)} withdrawn ${j(seat.withdrawn())}`)
     const code = await seat.stop(bound(10_000))
     tally.check('L4: the seat exits 0 when the host closes the stream', code === 0, `exit ${code}`)
     evidence(fixture, seat, t0, toolUseId)
@@ -267,17 +279,19 @@ tally.section("L2 — the host's interrupt while the ask is parked ends the turn
     await sleep(1_500)
     const before = seat.frames.length
     const sentAt = Date.now()
-    seat.send({ type: 'control_request', request_id: `stop-${randomUUID()}`, request: { subtype: 'interrupt' } })
+    const interrupt = seat.interrupt()
     const result = await seat.waitFor('the result after the interrupt', isResult, bound(10_000), before)
     const endedMs = Date.now() - sentAt
     const toolError = seat.frames.slice(before).flatMap(e => toolResultsOf(e.frame)).find(r => r.toolUseId === toolUseId)
     tally.check(`L2: the turn ended within a moment of the interrupt (${endedMs} ms)`, result !== null && endedMs < bound(3_000), result === null ? 'no result' : `${endedMs} ms`)
+    const answered = await interrupt
+    tally.check('L2: turn/interrupt was answered — a turn was there to interrupt', answered !== null && answered.interrupted === true, j(answered))
     tally.check("L2: the aborted ask settled as the tool's error with the abort's own words", toolError !== undefined && toolError.isError && toolError.text.includes(ABORT_TEXT), j(toolError ?? null))
     await sleep(1_000)
     tally.check('L2: no provider request followed the abort on its own — the tool error is the final result of the turn', fixture.requests.length === 1 && seat.alive(), `${fixture.requests.length} request(s) · alive ${seat.alive()}`)
-    tally.check("L2: the cut reads as the operator's interruption, not a provider timeout", result !== null && !seat.frames.slice(before).some(e => /provider went quiet|no-progress timeout/.test(j(e.frame)) && e.frame.type !== 'control_request'), j(seat.frames.slice(before).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
+    tally.check("L2: the cut reads as the operator's interruption, not a provider timeout", result !== null && !seat.frames.slice(before).some(e => /provider went quiet|no-progress timeout/.test(j(e.frame)) && !isAsk(e.frame)), j(seat.frames.slice(before).map(e => cutWordsOf(e.frame)).filter(Boolean)).slice(0, 300))
     const again = seat.frames.length
-    seat.send(user(AGAIN, randomUUID()))
+    seat.prompt(AGAIN)
     const next = await seat.waitFor('the next turn after the interrupt', isResult, bound(30_000), again)
     tally.check('L2: the seat is alive after the interrupt and answers the next prompt', next !== null && next.answer === STILL, next === null ? 'no outcome' : j(String(next.answer ?? '')).slice(0, 120))
     const code = await seat.stop(bound(10_000))

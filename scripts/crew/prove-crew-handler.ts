@@ -15,7 +15,7 @@ setStamp(true)
 
 const cs = (await import('../../src/daemon/crewSpawn.js')) as typeof import('../../src/daemon/crewSpawn.js')
 const { readCrewFileAsync } = await import('../../src/utils/swarm/crewHelpers.js')
-type ChildSpec = import('../../src/daemon/headlessRun.js').StreamJsonChildSpec
+type ChildSpec = import('../../src/daemon/headlessRun.js').RunnerChildSpec
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

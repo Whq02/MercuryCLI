@@ -16,7 +16,7 @@ const child = Object.assign(new EventEmitter(), {
   stderr: new PassThrough(),
 })
 const childModule = await import('../../src/daemon/headlessRun.ts')
-mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnStreamJsonChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
+mock.module('../../src/daemon/headlessRun.ts', () => ({ ...childModule, spawnRunnerChild: () => ({ child, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }) }))
 const { TaskRoster } = await import('../../src/daemon/roster.ts')
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

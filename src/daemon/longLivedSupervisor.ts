@@ -66,14 +66,14 @@ export function workerIsIdle(
   return lastDeliveredAt === undefined || now - lastDeliveredAt > idleMs
 }
 
-export type StreamJsonUsage = {
+export type RowUsage = {
   input_tokens: number
   cache_creation_input_tokens: number
   cache_read_input_tokens: number
   output_tokens: number
 }
 
-export function occupancyOfRow(row: LooseRow | null): StreamJsonUsage | null {
+export function occupancyOfRow(row: LooseRow | null): RowUsage | null {
   if (!mainThreadStep(row)) return null
   const usage = (row as { usage?: Record<string, unknown> }).usage
   if (!usage || typeof usage !== 'object') return null

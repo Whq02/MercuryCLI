@@ -7,7 +7,7 @@ enableConfigs()
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { checker, scratchRoot } from '../engine-durability/harness.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const t = checker()
 const root = scratchRoot('boot-profiles')
@@ -72,7 +72,7 @@ t.section('§4 — at the supervisor seam: immutable + resume-retained')
   const roster = {
     has: (short: string) => ({ present: liveShorts.has(short) }),
     list: () => [...liveShorts].map(short => ({ short })),
-    registerLongLived: (short: string, _spec: StreamJsonChildSpec) => {
+    registerLongLived: (short: string, _spec: RunnerChildSpec) => {
       liveShorts.add(short)
       return { ok: true, pid: nextPid++ }
     },

@@ -30,7 +30,7 @@ const { makeConcourseAdmitHandler, readSessionWorkers, concourseTranscriptPath }
 const { ensureWorkerWorktree, workerWorktreeRoot } = await import('../../src/daemon/concourseWorktrees.ts')
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -61,7 +61,7 @@ function mercuryBranches(ws: string): string[] {
 }
 
 class FakeRoster {
-  registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
+  registered: Array<{ short: string; spec: RunnerChildSpec }> = []
   present = new Map<string, { alive: boolean; ready: boolean }>()
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
     const p = this.present.get(short)
@@ -73,7 +73,7 @@ class FakeRoster {
   kill(_short: string): boolean {
     return true
   }
-  registerLongLived(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } {
+  registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } {
     this.registered.push({ short, spec })
     this.present.set(short, { alive: true, ready: true })
     return { ok: true, pid: 40_000 + this.registered.length }
@@ -81,8 +81,8 @@ class FakeRoster {
 }
 const roster = new FakeRoster()
 const admit = makeConcourseAdmitHandler({ roster: () => roster, dir: recordsDir })
-const specOf = (runnerId: string): StreamJsonChildSpec | undefined => roster.registered.findLast(r => r.short === runnerId)?.spec
-const argvOf = (spec: StreamJsonChildSpec | undefined): string[] => [...(spec?.extraArgv ?? [])]
+const specOf = (runnerId: string): RunnerChildSpec | undefined => roster.registered.findLast(r => r.short === runnerId)?.spec
+const argvOf = (spec: RunnerChildSpec | undefined): string[] => [...(spec?.extraArgv ?? [])]
 
 const resolvedModel = await validateWorkerModelChoice(undefined, 'session')
 if (!resolvedModel.ok) {

@@ -26,7 +26,7 @@ type RunnerDoor = import('../../src/daemon/runnerConnection.ts').RunnerDoor
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')
 const snapshot = await import('../../src/services/concourse/concourseSnapshot.ts')
 import type { ConcourseWorkerRecordV1 } from '../../src/daemon/concourseSupervisor.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -36,7 +36,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const read = (rel: string): string => readFileSync(join(process.cwd(), rel), 'utf8')
 
 class FakeRoster {
-  registered: Array<{ short: string; spec: StreamJsonChildSpec }> = []
+  registered: Array<{ short: string; spec: RunnerChildSpec }> = []
   stands = new Map<string, StandInRunner>()
   claims: Array<{ short: string; params: Record<string, unknown> }> = []
   killed: string[] = []
@@ -51,7 +51,7 @@ class FakeRoster {
   list(): Array<{ short: string; outcome?: string }> {
     return [...this.present.keys()].map(short => ({ short }))
   }
-  registerLongLived(short: string, spec: StreamJsonChildSpec): { ok: boolean; pid?: number; error?: string } {
+  registerLongLived(short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } {
     if (this.refuseRegister) return { ok: false, error: 'scripted spawn refusal' }
     this.registered.push({ short, spec })
     this.present.set(short, { alive: true, ready: true })
@@ -81,7 +81,7 @@ class FakeRoster {
     this.stands.delete(short)
     return true
   }
-  patchSeatClaim(short: string, patch: { model: string; effort: string; respawnExtraArgv: readonly string[] }): StreamJsonChildSpec | null {
+  patchSeatClaim(short: string, patch: { model: string; effort: string; respawnExtraArgv: readonly string[] }): RunnerChildSpec | null {
     this.patched.push({ short, patch })
     const reg = this.registered.find(r => r.short === short)
     if (!reg) return null

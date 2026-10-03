@@ -3,7 +3,6 @@ import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import {
   EXTERNAL_PERMISSION_MODES,
   PERMISSION_MODES,
-  type ExternalPermissionMode,
   type PermissionMode,
 } from '../../types/permissions.js'
 
@@ -26,16 +25,15 @@ type ModeConfig = {
   title: string
   symbol: string
   color: ModeColorKey
-  external: ExternalPermissionMode
 }
 
 const MODE_CONFIG: Partial<Record<PermissionMode, ModeConfig>> = {
-  default: { title: 'Default', symbol: GLYPH.modeDefault, color: 'text', external: 'default' },
-  apollo: { title: 'Apollo Mode', symbol: GLYPH.modeApollo, color: 'permission', external: 'default' },
-  implement: { title: 'Implement Mode', symbol: GLYPH.modeImplement, color: 'autoAccept', external: 'implement' },
-  sovereign: { title: 'Sovereign Mode', symbol: GLYPH.modeSovereign, color: 'error', external: 'sovereign' },
-  dontAsk: { title: "Don't Ask", symbol: GLYPH.modeDontAsk, color: 'error', external: 'dontAsk' },
-  flow: { title: 'Flow', symbol: GLYPH.modeFlow, color: 'success', external: 'default' },
+  default: { title: 'Default', symbol: GLYPH.modeDefault, color: 'text' },
+  apollo: { title: 'Apollo Mode', symbol: GLYPH.modeApollo, color: 'permission' },
+  implement: { title: 'Implement Mode', symbol: GLYPH.modeImplement, color: 'autoAccept' },
+  sovereign: { title: 'Sovereign Mode', symbol: GLYPH.modeSovereign, color: 'error' },
+  dontAsk: { title: "Don't Ask", symbol: GLYPH.modeDontAsk, color: 'error' },
+  flow: { title: 'Flow', symbol: GLYPH.modeFlow, color: 'success' },
 }
 
 function configFor(mode: PermissionMode): ModeConfig {
@@ -52,10 +50,6 @@ export function externalPermissionModeSchema() {
 
 export function modeBypassesPermissions(mode: PermissionMode): boolean {
   return mode === 'sovereign'
-}
-
-export function toExternalPermissionMode(mode: PermissionMode): ExternalPermissionMode {
-  return configFor(mode).external
 }
 
 export function permissionModeFromString(str: string): PermissionMode {

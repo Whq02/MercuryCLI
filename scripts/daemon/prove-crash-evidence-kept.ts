@@ -6,7 +6,7 @@ import { PassThrough } from 'node:stream'
 import type { ChildProcess } from 'node:child_process'
 import { mock } from 'bun:test'
 import { SCRATCH_ROOT, makeTally, sleep } from './dupline-world.ts'
-import type { StreamJsonChildSpec } from '../../src/daemon/headlessRun.ts'
+import type { RunnerChildSpec } from '../../src/daemon/headlessRun.ts'
 
 const tally = makeTally('prove-crash-evidence-kept')
 const scratch = mkdtempSync(join(SCRATCH_ROOT, 'crash-evidence-'))
@@ -37,14 +37,14 @@ process.stderr.write = ((chunk: string | Uint8Array): boolean => {
 }) as typeof process.stderr.write
 
 const realChildren = await import('../../src/daemon/headlessRun.ts')
-const realSpawn = realChildren.spawnStreamJsonChild
+const realSpawn = realChildren.spawnRunnerChild
 type FakeChild = EventEmitter & { pid: number; stdin: PassThrough; stdout: PassThrough; stderr: PassThrough; kill: () => boolean }
 const FAKE_PID = 2_147_483_001
 const fakes: FakeChild[] = []
 let realFixture: string | null = null
 mock.module('../../src/daemon/headlessRun.ts', () => ({
   ...realChildren,
-  spawnStreamJsonChild: (spec: StreamJsonChildSpec, opts?: { respawn?: boolean }) => {
+  spawnRunnerChild: (spec: RunnerChildSpec, opts?: { respawn?: boolean }) => {
     const fake = fakes.shift()
     if (fake !== undefined) return { child: fake, argv: [], env: {} }
     if (realFixture === null) throw new Error('no fixture runner is armed for this spawn')
@@ -69,7 +69,7 @@ saveGlobalConfig(c => ({ ...c, switchboardCapacity: { askedAt: Date.now(), allow
 const roster = new TaskRoster({ dir: scratch, breaker: {} as never, maxInflight: 3 })
 type SeatView = { child?: ChildProcess; longLived?: { stderrTail?: Buffer } }
 const seatOf = (short: string): SeatView | undefined => (roster as unknown as { handles: Map<string, SeatView> }).handles.get(short)
-const specOf = (short: string): StreamJsonChildSpec => ({
+const specOf = (short: string): RunnerChildSpec => ({
   cwd: scratch,
   model: 'fixture-model',
   effort: 'high',

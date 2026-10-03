@@ -355,7 +355,6 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
           if (
             command.mode !== 'prompt' &&
             command.mode !== 'bash' &&
-            command.mode !== 'orphaned-permission' &&
             command.mode !== 'task-notification'
           ) {
             throw new Error(

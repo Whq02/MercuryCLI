@@ -19,8 +19,9 @@ Each step falls through when its mode is unavailable: from apollo the carousel
 lands on flow when the live flow gate allows it, else on sovereign when bypass is
 available on the context, else on default.
 
-Presentation: title "Apollo Mode", seal `◇`, its own tint. Externally the mode
-projects as `default`: Apollo is never a bypass posture.
+Presentation: title "Apollo Mode", seal `◇`, its own tint. Apollo is never a
+bypass posture: the interview's spec files are its only writes; every other
+write is refused in the mode's own words.
 
 Apollo works in the terminal and through the runner door; an ACP editor answers its interview through form elicitation. `mercury run` cannot answer an interview and does not offer Apollo.
 

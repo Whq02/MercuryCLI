@@ -16,7 +16,7 @@ import type { Tools, ToolUseContext } from '../Tool.js'
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../tools/SyntheticOutputTool/constants.js'
 import type { AssistantMessage, CompactMetadata, Message, MessageOrigin, ProgressMessage } from '../types/message.js'
 import type { ApiStreamEvent, ContentBlockParam } from '../types/wire.js'
-import type { BatchedPrompt, OrphanedPermission, QueuedCommand } from '../types/textInputTypes.js'
+import type { BatchedPrompt, QueuedCommand } from '../types/textInputTypes.js'
 import type { MCPProgress, ShellProgress } from '../types/tools.js'
 import { createAttachmentMessage } from '../utils/attachments/orchestrator.js'
 import { getQueuedCommandAttachments } from '../utils/attachments/queuedCommands.js'
@@ -44,7 +44,6 @@ import { notePrintPhase } from '../utils/printPhases.js'
 import { processUserInput } from '../utils/processUserInput/processUserInput.js'
 import { getSlashCommandToolSkills } from '../commands.js'
 import { ensureExtensionsLoaded } from '../extensions/boot.js'
-import { handleOrphanedPermission } from '../utils/queryHelpers.js'
 import { fetchSystemPromptParts } from '../utils/queryContext.js'
 import { assertSingleRole } from '../utils/workerRole.js'
 import { flushSessionStorage, recordTranscript } from '../utils/sessionStorage.js'
@@ -116,7 +115,6 @@ export type ConversationConfig = {
   onToolRoundSettled?: (messages: readonly Message[]) => void
   setSDKStatus?: ToolUseContext['setSDKStatus']
   abortController?: AbortController
-  orphanedPermission?: OrphanedPermission
 }
 
 export type TurnOptions = {
@@ -253,7 +251,6 @@ export class Conversation {
   private accumulatedUsage: NonNullableUsage = { ...EMPTY_USAGE }
   private readonly streamFoldedIds = new Set<string>()
   private readonly settledUsageById = new Map<string, NonNullableUsage>()
-  private orphanedPermissionHandled = false
   private turnOrdinal = 0
   private recordCursor = 0
   private recordChain: Promise<string | null> = Promise.resolve(null)
@@ -523,19 +520,6 @@ export class Conversation {
         return rows
       }
       return rows
-    }
-
-    if (config.orphanedPermission && !this.orphanedPermissionHandled) {
-      this.orphanedPermissionHandled = true
-      for await (const settled of handleOrphanedPermission(config.orphanedPermission, config.tools, this.mutableMessages, toolUseContext as Parameters<typeof handleOrphanedPermission>[3])) {
-        if (settled.type === 'user') {
-          for (const block of Array.isArray(settled.message.content) ? settled.message.content : []) {
-            const typed = block as { type?: string; tool_use_id?: string; is_error?: boolean }
-            if (typed.type === 'tool_result' && typeof typed.tool_use_id === 'string') toolOutcomes.set(typed.tool_use_id, typed.is_error === true ? 'error' : 'ok')
-          }
-        }
-        for (const row of rowsOfMessage(settled, undefined)) yield row
-      }
     }
 
     const syntheticCallsBeforeTurn = this.countSyntheticOutputCalls()
