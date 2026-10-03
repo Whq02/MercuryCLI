@@ -4,7 +4,6 @@ import wrapText from '../../../ink/wrap-text.js'
 import { FAINT, IVORY } from '../../mercuryPalette.js'
 
 export type StatusFact = { k: string; v: string; tone?: string; note?: string; noteTone?: string; bold?: boolean }
-export type StatusMcp = { tone: string; count: string; label: string }
 
 export function SettingsStatusView({
   onClose,

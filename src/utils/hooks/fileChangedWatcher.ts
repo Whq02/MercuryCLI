@@ -18,9 +18,6 @@ let dynamicWatchPaths: string[] = []
 let dynamicWatchPathsSorted: string[] = []
 let notifier: ((text: string, isError: boolean) => void) | null = null
 
-export function setEnvHookNotifier(callback: ((text: string, isError: boolean) => void) | null): void {
-  notifier = callback
-}
 
 function notify(text: string, isError: boolean): void {
   notifier?.(text, isError)
@@ -167,8 +164,4 @@ async function disposeFileChangedWatcher(): Promise<void> {
   dynamicWatchPaths = []
   dynamicWatchPathsSorted = []
   notifier = null
-}
-
-export function resetFileChangedWatcherForTesting(): void {
-  void disposeFileChangedWatcher()
 }

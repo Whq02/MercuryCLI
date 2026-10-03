@@ -10,7 +10,6 @@ import { PopupGutter, popupWidth } from './PopupGutter.js'
 import { ModalContext } from '../context/modalContext.js'
 
 export const CREW_POPUP_WIDTH = 124
-export const CREW_POPUP_MIN_WIDTH = 60
 
 export type CrewPopupGeometry = { left: number; top: number; width: number; rows: number }
 

@@ -48,11 +48,6 @@ export function boundChords(): Set<string> {
   return taken
 }
 
-export function isChordTaken(chord: string): boolean {
-  const key = canonical(chord)
-  if (!key) return true
-  return boundChords().has(key)
-}
 
 export function getExtensionKeybindingBlocks(): KeybindingBlock[] {
   const taken = boundChords()

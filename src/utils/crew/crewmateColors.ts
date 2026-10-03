@@ -15,8 +15,3 @@ export function assignCrewmateColor(crewmateId: string): AgentColorName {
 export function getCrewmateColor(crewmateId: string): AgentColorName | undefined {
   return colorAssignments.get(crewmateId)
 }
-
-export function clearCrewmateColors(): void {
-  colorAssignments.clear()
-  rotationIndex = 0
-}

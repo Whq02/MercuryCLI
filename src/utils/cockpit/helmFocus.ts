@@ -32,9 +32,6 @@ let telemetryAvailable = true
 export function setHelmTelemetryAvailable(on: boolean): void {
   telemetryAvailable = on
 }
-export function isHelmTelemetryAvailable(): boolean {
-  return telemetryAvailable
-}
 
 let promptEmpty = true
 const promptEmptyListeners = new Set<() => void>()

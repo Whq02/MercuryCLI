@@ -376,9 +376,6 @@ export function isOpus1mMergeEnabled(): boolean {
   return false
 }
 
-export function isLegacyModelRemapEnabled(): boolean {
-  return true
-}
 
 export function getDefaultModelDescription(): string {
   return describeComputedDefaultRow(computedDefault(), providerNameOf()).slice('Default '.length)

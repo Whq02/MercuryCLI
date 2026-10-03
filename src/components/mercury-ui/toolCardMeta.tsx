@@ -8,9 +8,6 @@ export function toolCardCountColor(): string | undefined {
   return 'text'
 }
 
-export function toolCardMetaColor(): string | undefined {
-  return 'inactive'
-}
 
 export function ToolCardMarker(): React.ReactNode {
   return <Text color="success">{BLACK_CIRCLE} </Text>

@@ -21,9 +21,6 @@ export function armPermissionFocus(): () => void {
   }
 }
 
-export function isPermissionFocusActive(): boolean {
-  return mounted > 0
-}
 
 export function refuseGestureWhileModal(what: string): boolean {
   if (mounted <= 0) return false
@@ -31,9 +28,4 @@ export function refuseGestureWhileModal(what: string): boolean {
     `${what} waits — answer the open question first (esc dismisses it)`,
   )
   return true
-}
-
-export function __permissionFocusResetForTest(): void {
-  mounted = 0
-  notifier = null
 }

@@ -201,12 +201,6 @@ export function safeResolvePath(
   }
 }
 
-export function isDuplicatePath(fsImpl: FsOperations, filePath: string, loadedPaths: Set<string>): boolean {
-  const { resolvedPath } = safeResolvePath(fsImpl, filePath)
-  if (loadedPaths.has(resolvedPath)) return true
-  loadedPaths.add(resolvedPath)
-  return false
-}
 
 export function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: string): string | undefined {
   const tail: string[] = []
@@ -360,46 +354,5 @@ export function tailFileSync(path: string, maxBytes: number): ReadFileRangeResul
     return { content: flatString(buffer.subarray(0, read)), bytesRead: read, bytesTotal: size }
   } finally {
     fs.closeSync(fd)
-  }
-}
-
-const REVERSE_CHUNK_BYTES = 4096
-
-export async function* readLinesReverse(path: string): AsyncGenerator<string, void, undefined> {
-  const handle = await fs.promises.open(path, 'r')
-  try {
-    const { size } = await handle.stat()
-    let position = size
-    let remainder: Buffer = Buffer.alloc(0)
-    while (position > 0) {
-      const chunkSize = Math.min(REVERSE_CHUNK_BYTES, position)
-      position -= chunkSize
-      const chunk = Buffer.alloc(chunkSize)
-      let read = 0
-      while (read < chunkSize) {
-        const { bytesRead } = await handle.read(chunk, read, chunkSize - read, position + read)
-        if (bytesRead === 0) break
-        read += bytesRead
-      }
-      const combined = Buffer.concat([chunk.subarray(0, read), remainder])
-      const firstNewline = combined.indexOf(0x0a)
-      if (firstNewline === -1) {
-        remainder = combined
-        continue
-      }
-      remainder = combined.subarray(0, firstNewline)
-      const decoded = combined.subarray(firstNewline + 1).toString('utf8')
-      const lines = decoded.split('\n')
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i] as string
-        if (line.length > 0) yield line
-      }
-    }
-    if (remainder.length > 0) {
-      const line = remainder.toString('utf8')
-      if (line.length > 0) yield line
-    }
-  } finally {
-    await handle.close()
   }
 }

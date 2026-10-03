@@ -66,9 +66,6 @@ export function registerHookEventHandler(newHandler: HookEventHandler | null): v
   for (const event of backlog) newHandler(event)
 }
 
-export function setAllHookEventsEnabled(enabled: boolean): void {
-  allHookEventsEnabled = enabled
-}
 
 export function emitHookStarted(hookId: string, hookName: string, hookEvent: string): void {
   if (!shouldEmit(hookEvent)) return
@@ -135,10 +132,4 @@ export function startHookProgressInterval(params: {
   }, params.intervalMs ?? 1000)
   timer.unref?.()
   return () => clearInterval(timer)
-}
-
-export function clearHookEventState(): void {
-  handler = null
-  queued = []
-  allHookEventsEnabled = false
 }

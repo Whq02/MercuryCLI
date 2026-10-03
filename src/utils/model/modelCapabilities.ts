@@ -14,7 +14,3 @@ export function getModelCapability(model: string): ModelCapability | undefined {
   if (!isModelCapabilitiesEligible()) return undefined
   return undefined
 }
-
-export async function refreshModelCapabilities(): Promise<void> {
-  if (!isModelCapabilitiesEligible()) return
-}

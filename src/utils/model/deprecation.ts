@@ -1,4 +1,3 @@
-import { binaryName } from '../config.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 
 type DeprecationEntry = {
@@ -56,33 +55,4 @@ export function getModelDeprecationWarning(id: string | null | undefined): strin
   const date = found.date as string
   const tense = isDateInPast(date) ? 'was retired' : 'will be retired'
   return `${WARNING_MARKER} ${found.entry.name} ${tense} on ${date}. Switch to a newer model.`
-}
-
-export function getModelDeprecationAction(
-  id: string | null | undefined,
-): { message: string; action: string } | null {
-  if (!id) return null
-  const found = findDeprecation(id)
-  if (found === null) return null
-  const command = `${binaryName()} /model`
-  if (found.entry.replacement !== undefined) {
-    return {
-      message: `${found.entry.name} now runs as ${found.entry.replacement}.`,
-      action: `Run ${command} to change it.`,
-    }
-  }
-  const date = found.date as string
-  const tense = isDateInPast(date) ? 'was retired' : 'retires'
-  return {
-    message: `${found.entry.name} ${tense} ${date}.`,
-    action: `Run ${command} to switch.`,
-  }
-}
-
-export function isModelRetired(id: string | null | undefined): boolean {
-  if (!id) return false
-  const found = findDeprecation(id)
-  if (found === null) return false
-  if (found.entry.replacement !== undefined) return true
-  return found.date !== null && isDateInPast(found.date)
 }

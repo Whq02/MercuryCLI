@@ -10,9 +10,6 @@ export type ClassifierResult = {
 
 export type ClassifierBehavior = 'deny' | 'ask' | 'allow'
 
-export function createPromptRuleContent(description: string): string {
-  return `${PROMPT_PREFIX} ${description.trim()}`
-}
 
 export function isClassifierPermissionsEnabled(): boolean {
   return false
@@ -22,9 +19,6 @@ export function getBashPromptDenyDescriptions(_context?: unknown): string[] {
   return []
 }
 export function getBashPromptAskDescriptions(_context?: unknown): string[] {
-  return []
-}
-export function getBashPromptAllowDescriptions(_context?: unknown): string[] {
   return []
 }
 

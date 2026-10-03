@@ -131,30 +131,6 @@ export function ipInCidr(host: string, cidr: string): boolean {
   return true
 }
 
-export function shouldBypassProxyWithCidr(url: string, noProxy: string | undefined): boolean {
-  if (shouldBypassProxy(url, noProxy)) return true
-  if (!noProxy) return false
-  let host: string
-  try {
-    host = new URL(url).hostname.replace(/^\[|\]$/g, '').toLowerCase()
-  } catch {
-    return false
-  }
-  if (parseIp(host) === null) return false
-  const entries = noProxy
-    .split(/[\s,]+/)
-    .map(entry => entry.trim().toLowerCase())
-    .filter(entry => entry !== '')
-  for (const entry of entries) {
-    if (entry.includes('/')) {
-      if (ipInCidr(host, entry)) return true
-      continue
-    }
-    if (parseIp(entry) !== null && ipInCidr(host, entry)) return true
-  }
-  return false
-}
-
 
 export type TransportKnobs = {
   connectTimeoutMs: number

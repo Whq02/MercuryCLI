@@ -39,14 +39,3 @@ export function loadExtensionHooks(): { hookCount: number; extensionCount: numbe
   registerHookCallbacks(record as Registered)
   return { hookCount, extensionCount }
 }
-
-export function registeredExtensionHooks(): Array<{ event: string; matcher: ExtensionHookMatcher }> {
-  const out: Array<{ event: string; matcher: ExtensionHookMatcher }> = []
-  const registered = getRegisteredHooks() ?? {}
-  for (const [event, matchers] of Object.entries(registered)) {
-    for (const matcher of matchers ?? []) {
-      if ('extensionRoot' in matcher) out.push({ event, matcher: matcher as ExtensionHookMatcher })
-    }
-  }
-  return out
-}

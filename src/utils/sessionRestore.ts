@@ -5,7 +5,6 @@ import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import type { AgentDefinition, AgentDefinitionsResult } from '../tools/AgentTool/loadAgentsDir.js'
 import type { PersistedWorktreeSession } from '../types/logs.js'
 import type { AssistantMessage, Message } from '../types/message.js'
-import type { AttributionState } from './commitAttribution.js'
 import { logForDebugging } from './debug.js'
 import type { FileHistorySnapshot } from './fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from './fileHistory.js'
@@ -98,10 +97,6 @@ function adoptedSessionIdOf(result: Pick<ResumedConversationLog, 'messages' | 's
   return String(result.sessionId ?? fromMessages?.sessionId ?? getSessionId())
 }
 
-export function computeRestoredAttributionState(result: ResumedConversationLog): AttributionState | undefined {
-  void result
-  return undefined
-}
 
 export function computeStandaloneAgentContext(
   agentName: string | undefined,

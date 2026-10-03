@@ -1,7 +1,7 @@
 
 import React from 'react'
 import { Box, Text } from '../../ink.js'
-import { isShutdownApproved, isShutdownRejected, isShutdownRequest, type ShutdownRejectedMessage, type ShutdownRequestMessage } from '../../services/crew/liveMessages.js'
+import { isShutdownRejected, isShutdownRequest, type ShutdownRejectedMessage, type ShutdownRequestMessage } from '../../services/crew/liveMessages.js'
 
 export function ShutdownRequestDisplay({
   request,
@@ -42,17 +42,5 @@ export function tryRenderShutdownMessage(
   if (request) return <ShutdownRequestDisplay request={request} />
   const rejected = isShutdownRejected(content)
   if (rejected) return <ShutdownRejectedDisplay rejected={rejected} />
-  return null
-}
-
-export function getShutdownMessageSummary(content: string): string | null {
-  const request = isShutdownRequest(content)
-  if (request) {
-    return `[shutdown] requested by @${request.from}${request.reason ? ` — ${request.reason}` : ''}`
-  }
-  const rejected = isShutdownRejected(content)
-  if (rejected) return `[shutdown] declined by @${rejected.from}`
-  const approved = isShutdownApproved(content)
-  if (approved) return `[shutdown] @${approved.from} is exiting`
   return null
 }

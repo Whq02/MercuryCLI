@@ -20,21 +20,6 @@ export function slowLogging(
   return NOOP_DISPOSABLE
 }
 
-export function callerFrame(stack: string | undefined): string {
-  if (!stack) return ''
-  for (const line of stack.split('\n')) {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('at ')) continue
-    if (trimmed.includes('slowOperations')) continue
-    const m = /\(?([^()\s]+):(\d+):\d+\)?$/.exec(trimmed)
-    if (m) {
-      const file = m[1]!
-      const base = file.split(/[\\/]/).pop() ?? file
-      return `${base}:${m[2]}`
-    }
-  }
-  return ''
-}
 
 export function jsonStringify(
   value: unknown,

@@ -41,9 +41,3 @@ export function tryRenderTaskAssignmentMessage(
     <TaskAssignmentDisplay assignment={assignment} senderName={senderName} />
   )
 }
-
-export function getTaskAssignmentSummary(content: string): string | null {
-  const assignment = isTaskAssignment(content)
-  if (!assignment) return null
-  return `[task] #${assignment.taskId} ${assignment.subject} — assigned by ${assignment.assignedBy}`
-}

@@ -207,6 +207,5 @@ export class FileIndex {
   }
 }
 
-export type FileIndexType = FileIndex
 
 export default FileIndex

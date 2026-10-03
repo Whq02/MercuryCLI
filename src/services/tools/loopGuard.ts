@@ -16,7 +16,6 @@ export const CYCLE_WINDOW = 25
 export const CYCLE_MAX_LENGTH = 5
 export const CYCLE_REPEATS = 5
 export const ARGUMENT_PREVIEW_CHARS = 160
-export const LOOP_GUARD_NAME = 'Loop guard'
 export const LOOP_GUARD_STOP_SETTING = 'turns.loopGuard'
 export const HEADLESS_FAILED_CALL_LIMIT = 8
 
@@ -510,8 +509,4 @@ export function closeRound(owner: OwnerKey, roundID: string, complete = true): L
 export function observeToolCall(owner: OwnerKey, observation: LoopGuardObservation): LoopGuardVerdict {
   recordToolCall(owner, observation)
   return closeRound(owner, observation.roundID)
-}
-
-export function _resetLoopGuardForTesting(): void {
-  store.clearAllForShutdown()
 }

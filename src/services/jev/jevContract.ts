@@ -42,7 +42,6 @@ export interface JevScoreQuestion {
 }
 
 export type JevQuestion = JevNoulQuestion | JevChoiceQuestion | JevScoreQuestion
-export type JevQuestionType = JevQuestion['type']
 
 export interface JevRequest {
   model: string

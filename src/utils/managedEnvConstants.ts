@@ -42,7 +42,3 @@ export const SAFE_ENV_VARS: Set<string> = new Set(
     'MERCURY_BUILTIN_RIPGREP',
   ].map(name => name.toUpperCase()),
 )
-
-export const DANGEROUS_SHELL_SETTINGS: readonly string[] = [
-  'credentials.keyCommand',
-]

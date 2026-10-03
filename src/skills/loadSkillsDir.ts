@@ -776,9 +776,6 @@ export function activateConditionalSkillsForPaths(
   return activated
 }
 
-export function getConditionalSkillCount(): number {
-  return pendingConditional.size
-}
 
 export function clearDynamicSkills(): void {
   dynamicSkills.clear()

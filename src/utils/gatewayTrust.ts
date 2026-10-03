@@ -81,50 +81,6 @@ function pinnedFingerprints(store: SecureStorageData | null): Record<string, str
   return store?.gatewayTrust ?? {}
 }
 
-export async function pinGatewayTrust(
-  gatewayUrl: string,
-): Promise<string | null> {
-  try {
-    const { hostname, fingerprint } =
-      await probeGatewayTlsFingerprint(gatewayUrl)
-    const storage = getSecureStorage()
-    const data = (await storage.readAsync()) ?? {}
-    const next: SecureStorageData = {
-      ...data,
-      gatewayTrust: { ...pinnedFingerprints(data), [hostname]: fingerprint },
-    }
-    const result = storage.update(next)
-    if (result.success) {
-      return fingerprint
-    }
-    logForDebugging(`[gateway] failed to persist trust pin for ${hostname}`, {
-      level: 'warn',
-    })
-    return null
-  } catch (err) {
-    logForDebugging(
-      `[gateway] could not pin trust for ${gatewayUrl} (${errorMessage(err)})`,
-      { level: 'warn' },
-    )
-    return null
-  }
-}
-
-export async function verifyGatewayTrust(
-  gatewayUrl: string,
-): Promise<'ok' | 'untrusted' | 'mismatch' | 'unverified'> {
-  const host = new URL(gatewayUrl).hostname
-  const storage = getSecureStorage()
-  const data = await storage.readAsync()
-  const pinned = pinnedFingerprints(data)[host]
-  if (!pinned) return 'untrusted'
-  try {
-    const probe = await probeGatewayTlsFingerprint(gatewayUrl)
-    return probe.fingerprint === pinned ? 'ok' : 'mismatch'
-  } catch {
-    return 'unverified'
-  }
-}
 
 export async function restoreGatewayAuth(): Promise<void> {
   try {

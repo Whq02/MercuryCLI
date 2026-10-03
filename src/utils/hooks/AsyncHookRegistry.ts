@@ -85,9 +85,6 @@ export function registerPendingAsyncHook(params: {
   )
 }
 
-export function getPendingAsyncHooks(): PendingAsyncHook[] {
-  return [...registry.values()].filter(entry => !entry.responseAttachmentSent)
-}
 
 function finalizeEntry(
   processId: string,
@@ -236,10 +233,5 @@ export async function finalizePendingAsyncHooks(): Promise<void> {
       }
     }),
   )
-  registry.clear()
-}
-
-export function clearAllAsyncHooks(): void {
-  for (const entry of registry.values()) entry.stopProgressInterval()
   registry.clear()
 }

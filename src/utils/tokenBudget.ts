@@ -1,30 +1,9 @@
 
-const UNIT_MULTIPLIERS: Record<string, number> = {
-  k: 1_000,
-  m: 1_000_000,
-  b: 1_000_000_000,
-}
 
 const START_SHORTHAND = /^\s*\+(\d+(?:\.\d+)?)\s*([kmb])\b/i
 const END_SHORTHAND = /\s\+(\d+(?:\.\d+)?)\s*([kmb])\s*[.!?]?\s*$/i
 const VERBOSE_SOURCE = String.raw`\b(?:use|spend)\s+(\d+(?:\.\d+)?)\s*([kmb])\s*tokens?\b`
-const VERBOSE = new RegExp(VERBOSE_SOURCE, 'i')
 
-function budgetFromMatch(match: RegExpMatchArray): number {
-  const amount = parseFloat(match[1] as string)
-  const unit = (match[2] as string).toLowerCase()
-  return amount * (UNIT_MULTIPLIERS[unit] as number)
-}
-
-export function parseTokenBudget(text: string): number | null {
-  const start = text.match(START_SHORTHAND)
-  if (start) return budgetFromMatch(start)
-  const end = text.match(END_SHORTHAND)
-  if (end) return budgetFromMatch(end)
-  const verbose = text.match(VERBOSE)
-  if (verbose) return budgetFromMatch(verbose)
-  return null
-}
 
 export function findTokenBudgetPositions(text: string): Array<{ start: number; end: number }> {
   const positions: Array<{ start: number; end: number }> = []

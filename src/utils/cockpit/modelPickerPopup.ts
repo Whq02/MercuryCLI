@@ -23,9 +23,6 @@ export function modelPickerPopupClaimed(): boolean {
   return claimed
 }
 
-export function modelPickerPopupVersion(): number {
-  return version
-}
 
 export function subscribeModelPickerPopup(listener: () => void): () => void {
   listeners.add(listener)

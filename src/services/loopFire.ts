@@ -223,11 +223,6 @@ export function resolveLoopFileFire(prompt: string): string | null {
   return resolveLoopFileWith(prompt, moduleChain, readLoopFile())
 }
 
-export function resolveLoopDefaultFire(prompt: string): string {
-  return (
-    resolveAutonomousLoopFire(prompt) ?? resolveLoopFileFire(prompt) ?? prompt
-  )
-}
 
 export function resolveLoopFireForWorkspace(
   prompt: string,

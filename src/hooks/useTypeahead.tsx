@@ -86,16 +86,6 @@ const CHANNEL_FETCH_DEBOUNCE_MS = 150
 const RESUME_TITLE_LIMIT = 10
 const THINKING_HINT_KEY = 'thinking-toggle-hint'
 
-export const SUGGESTION_TYPES = [
-  'none',
-  'command',
-  'file',
-  'directory',
-  'custom-title',
-  'shell',
-  'agent',
-  'slack-channel',
-] as const
 
 export type SuggestionsState = {
   suggestions: Suggestion[]

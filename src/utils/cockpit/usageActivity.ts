@@ -33,7 +33,3 @@ export function usageActivityBins(
   }
   return { perBin, pulses: count, totalUSD: total }
 }
-
-export function resetUsageActivityForTest(): void {
-  pulses.length = 0
-}

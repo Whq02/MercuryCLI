@@ -184,24 +184,6 @@ export function hookSourceDescriptionDisplayString(source: HookSource): string {
   }
 }
 
-export function hookSourceHeaderDisplayString(source: HookSource): string {
-  switch (source) {
-    case 'userSettings':
-      return 'User Settings'
-    case 'projectSettings':
-      return 'Project Settings'
-    case 'localSettings':
-      return 'Local Settings'
-    case 'extensionHook':
-      return 'Extension Hooks'
-    case 'sessionHook':
-      return 'Session Hooks'
-    case 'builtinHook':
-      return 'Built-in Hooks'
-    default:
-      return source
-  }
-}
 
 export function hookSourceInlineDisplayString(source: HookSource): string {
   switch (source) {

@@ -69,9 +69,3 @@ export async function toArray<A>(gen: AsyncGenerator<A, unknown, unknown>): Prom
   }
   return values
 }
-
-export async function* fromArray<T>(values: T[]): AsyncGenerator<T, void, unknown> {
-  for (const value of values) {
-    yield value
-  }
-}

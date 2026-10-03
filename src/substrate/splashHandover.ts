@@ -7,9 +7,6 @@ import { getMercuryHome } from '../utils/envUtils.js'
 const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
 let pendingKitManagerDeepLink = false
-export function armKitManagerDeepLink(): void {
-  pendingKitManagerDeepLink = true
-}
 export function consumeKitManagerDeepLink(): boolean {
   const armed = pendingKitManagerDeepLink
   pendingKitManagerDeepLink = false

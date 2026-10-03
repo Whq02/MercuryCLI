@@ -22,7 +22,6 @@ export const FORK_GLYPH = '⑂'
 
 export const DIAMOND_OPEN = '◇'
 export const DIAMOND_FILLED = '◆'
-export const REFERENCE_MARK = '※'
 export const FLAG_ICON = '⚑'
 
 export const BLOCKQUOTE_BAR = '▎'

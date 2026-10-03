@@ -91,7 +91,3 @@ export function isGeneratedFile(filePath: string): boolean {
 
   return GENERATED_NAME_PATTERNS.some(pattern => pattern.test(fileName))
 }
-
-export function filterGeneratedFiles(files: string[]): string[] {
-  return files.filter(file => !isGeneratedFile(file))
-}
