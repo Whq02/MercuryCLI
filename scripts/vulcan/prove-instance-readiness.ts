@@ -37,26 +37,26 @@ for (const file of VULCAN_ADDON_FILES) {
 
 const healthFile = join(ROOT, 'src/utils/healthReport.ts')
 const healthSource = ts.createSourceFile(healthFile, readFileSync(healthFile, 'utf8'), ts.ScriptTarget.Latest, true)
-let doctorCode = ''
+let healthCode = ''
 function visit(node: ts.Node): void {
   if (ts.isObjectLiteralExpression(node)) {
     const id = node.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText(healthSource) === 'id')
     if (id && ts.isPropertyAssignment(id) && ts.isStringLiteral(id.initializer) && id.initializer.text === 'vulcan') {
       const run = node.properties.find(p => ts.isPropertyAssignment(p) && p.name.getText(healthSource) === 'run')
-      if (run && ts.isPropertyAssignment(run)) doctorCode = run.initializer.getText(healthSource)
+      if (run && ts.isPropertyAssignment(run)) healthCode = run.initializer.getText(healthSource)
     }
   }
   ts.forEachChild(node, visit)
 }
 visit(healthSource)
-if (!doctorCode) throw new Error('doctor Godot row was not found')
-doctorCode = doctorCode.replace(/import\((['"])(\.[^'"]+)\1\)/g, (_match, _quote, specifier) => {
+if (!healthCode) throw new Error('health Godot row was not found')
+healthCode = healthCode.replace(/import\((['"])(\.[^'"]+)\1\)/g, (_match, _quote, specifier) => {
   let file = resolve(dirname(healthFile), specifier)
   if (!existsSync(file)) file = file.replace(/\.js$/, '.ts')
   return `import(${JSON.stringify(pathToFileURL(file).href)})`
 })
-const compiled = new Bun.Transpiler({ loader: 'ts' }).transformSync(`const run = ${doctorCode}`)
-const doctorRow = new Function(`${compiled}; return run`)() as () => Promise<{ status: string; evidence: string; fix?: string }>
+const compiled = new Bun.Transpiler({ loader: 'ts' }).transformSync(`const run = ${healthCode}`)
+const healthRow = new Function(`${compiled}; return run`)() as () => Promise<{ status: string; evidence: string; fix?: string }>
 let failures = 0
 function check(label: string, value: unknown, detail: unknown = ''): void {
   if (!value) failures++
@@ -116,21 +116,21 @@ async function instance(role: 'agent-editor' | 'operator-editor' | 'headless-wor
 }
 async function collect() {
   return runWithCwdOverride(project, async () => {
-    const doctor = await doctorRow()
+    const health = await healthRow()
     const providers = await godotProviderInventory(project, { census: { ok: true, processes: [] } })
     const ide = await buildGodotIdeSession(owner, project)
-    return { doctor, provider: providers.find(row => row.id === 'vulcan')!, ide, providers }
+    return { health, provider: providers.find(row => row.id === 'vulcan')!, ide, providers }
   })
 }
 
 try {
   const empty = await collect()
-  check('a live loopback listener with no instance descriptor never makes an editor ready', empty.doctor.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty)
+  check('a live loopback listener with no instance descriptor never makes an editor ready', empty.health.status !== 'ok' && empty.provider.state === 'not-answering' && empty.ide.vulcan.state === 'unreachable', empty)
   const editor = await instance('agent-editor')
   try {
     const ready = await collect()
     const expected = `project ${project} · addon installed · addon enabled · bridge up :${editor.port} · engine workers 2 (MERCURY_GODOT_WORKERS)`
-    check('doctor keeps its exact row words and uses the discovered port', ready.doctor.status === 'ok' && ready.doctor.evidence === expected, ready.doctor)
+    check('health keeps its exact row words and uses the discovered port', ready.health.status === 'ok' && ready.health.evidence === expected, ready.health)
     check('provider readiness names the same discovered endpoint', ready.provider.state === 'ready' && ready.provider.endpoint === `127.0.0.1:${editor.port}` && ready.provider.source === 'mercury_vulcan editor addon', ready.provider)
     check('IDE readiness keeps its exact words and uses the discovered port', ready.ide.vulcan.state === 'reachable' && ready.ide.vulcan.port === editor.port && ready.ide.vulcan.detail === `editor answering on 127.0.0.1:${editor.port}`, ready.ide.vulcan)
     check('IDE editor truth uses the same discovered client', ready.ide.editor.state === 'ok' && editor.ops.includes('editor_errors') && editor.ops.includes('scene_current') && editor.ops.includes('runtime_status'), ready.ide.editor)
@@ -141,25 +141,25 @@ try {
     try {
       const before = editor.ops.length + second.ops.length
       const ambiguous = await collect()
-      check('ambiguous agent editors are not reported ready or queried', ambiguous.doctor.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && editor.ops.length + second.ops.length === before)
+      check('ambiguous agent editors are not reported ready or queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && editor.ops.length + second.ops.length === before)
     } finally { await second.close() }
     resetVulcanClientForTest()
     editor.reject()
     const refused = await collect()
-    check('a TCP listener without a valid handshake is not ready', refused.doctor.status !== 'ok' && refused.provider.state === 'not-answering' && refused.ide.vulcan.state === 'unreachable')
+    check('a TCP listener without a valid handshake is not ready', refused.health.status !== 'ok' && refused.provider.state === 'not-answering' && refused.ide.vulcan.state === 'unreachable')
   } finally { resetVulcanClientForTest(); await editor.close() }
   const operator = await instance('operator-editor')
   const worker = await instance('headless-worker')
   try {
     const operatorRows = await collect()
     const expectedOperator = `project ${project} · addon installed · addon enabled · bridge up :${operator.port} · engine workers 2 (MERCURY_GODOT_WORKERS)`
-    check('a hand-started editor that answers when named reads as ready on the doctor, provider and IDE rows', operatorRows.doctor.status === 'ok' && operatorRows.doctor.evidence === expectedOperator && operatorRows.provider.state === 'ready' && operatorRows.provider.endpoint === `127.0.0.1:${operator.port}` && operatorRows.ide.vulcan.state === 'reachable' && operatorRows.ide.vulcan.port === operator.port, operatorRows.doctor)
+    check('a hand-started editor that answers when named reads as ready on /health, provider and IDE rows', operatorRows.health.status === 'ok' && operatorRows.health.evidence === expectedOperator && operatorRows.provider.state === 'ready' && operatorRows.provider.endpoint === `127.0.0.1:${operator.port}` && operatorRows.ide.vulcan.state === 'reachable' && operatorRows.ide.vulcan.port === operator.port, operatorRows.health)
     check('the operator editor is reported through read-only calls and never operated on; a runtime worker is never a readiness target', operator.ops.length > 0 && operator.ops.every(op => op === 'ping' || vulcanOp(op)?.cls === 'read') && worker.count() === 0, operator.ops)
     const agent = await instance('agent-editor')
     try {
       const before = operator.ops.length + agent.ops.length
       const ambiguous = await collect()
-      check('an operator editor beside an agent editor is ambiguous: not ready, both named, neither queried', ambiguous.doctor.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && ambiguous.doctor.evidence.includes(operator.id) && ambiguous.doctor.evidence.includes(agent.id) && !/unbridged/.test(ambiguous.doctor.evidence) && operator.ops.length + agent.ops.length === before, ambiguous.doctor)
+      check('an operator editor beside an agent editor is ambiguous: not ready, both named, neither queried', ambiguous.health.status !== 'ok' && ambiguous.provider.state === 'not-answering' && ambiguous.ide.vulcan.state === 'unreachable' && ambiguous.health.evidence.includes(operator.id) && ambiguous.health.evidence.includes(agent.id) && !/unbridged/.test(ambiguous.health.evidence) && operator.ops.length + agent.ops.length === before, ambiguous.health)
     } finally { await agent.close() }
     resetVulcanClientForTest()
   } finally { resetVulcanClientForTest(); await operator.close(); await worker.close() }

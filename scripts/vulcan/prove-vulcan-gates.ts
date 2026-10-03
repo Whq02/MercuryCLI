@@ -172,7 +172,7 @@ section('§6 · flag registry rows')
   check('LITE opt-in/infra row', getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.kind === 'opt-in' && getFlagSpec('MERCURY_GODOT_TOOLS_LITE')?.tier === 'infra')
 }
 
-section('§7 · behavioral seams — harness map, doctrine, boot menu, doctor, prompt splice')
+section('§7 · behavioral seams — harness map, doctrine, boot menu, health, prompt splice')
 {
   restoreEnv()
   const { computeHarnessMapLines, resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.js')
@@ -198,8 +198,8 @@ section('§7 · behavioral seams — harness map, doctrine, boot menu, doctor, p
   check('boot menu: Godot lanes row moved to miscellaneous', lanesRow?.group === 'miscellaneous')
 
   const repo = path.join(import.meta.dir, '..', '..')
-  const doctorSrc = readFileSync(path.join(repo, 'src/utils/healthReport.ts'), 'utf8')
-  check("doctor: the 'vulcan' check is wired", doctorSrc.includes("id: 'vulcan'") && doctorSrc.includes('vulcanInstallStatus'))
+  const healthSrc = readFileSync(path.join(repo, 'src/utils/healthReport.ts'), 'utf8')
+  check("health: the 'vulcan' check is wired", healthSrc.includes("id: 'vulcan'") && healthSrc.includes('vulcanInstallStatus'))
   const promptsSrc = readFileSync(path.join(repo, 'src/constants/prompts.ts'), 'utf8')
   check('prompt: getVulcanSection spliced into modeSections', promptsSrc.includes('getVulcanSection()'))
   const harnessSrc = readFileSync(path.join(repo, 'src/utils/cockpit/harnessMap.ts'), 'utf8')

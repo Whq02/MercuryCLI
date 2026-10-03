@@ -16,7 +16,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('============================================================')
-console.log(' Godot portability doctor (seamark SM-G / SM-12) — proof')
+console.log(' Godot portability health (seamark SM-G / SM-12) — proof')
 console.log('============================================================')
 
 const scratch = mkdtempSync(join(tmpdir(), 'portab-'))
@@ -63,5 +63,5 @@ try {
   rmSync(scratch, { recursive: true, force: true })
 }
 
-console.log(failures === 0 ? '\n ✅ ALL PORTABILITY-DOCTOR PROOFS PASS' : `\n ❌ ${failures} FAILED`)
+console.log(failures === 0 ? '\n ✅ ALL PORTABILITY-HEALTH PROOFS PASS' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)
