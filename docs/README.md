@@ -1,158 +1,70 @@
 # Mercury documentation
 
-Mercury is a terminal harness for software development: sessions, a chat, a
-board and a headless CLI over one built artifact. This page is the index;
-every page under `docs/` is listed here, by task.
+Mercury is a terminal harness for software development. This catalogue lists
+the guides by task; each page describes the installed product.
 
 ## Getting started
 
-1. [The README](../README.md): what Mercury is, who it is for, the
-   install (one command per channel: the curl and PowerShell one-liners,
-   Homebrew, npm, mise), the requirements, the first run, the daily loop,
-   providers and models, the headless verbs, every slash command, and the
-   licence in plain words.
-2. [AGENTS.md](../AGENTS.md): build, run and check a fresh checkout in one
-   screen. [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md)
-   is the step-by-step Windows install, every step with its check;
-   [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md) is the
-   ten-minute look over a Windows terminal after an update: the rows whose
-   marks must read as text, and what to report when one draws as a picture.
-3. The first run: [TRUST.md](TRUST.md) is the workspace-trust question the
-   first boot asks, and [SESSIONS.md](SESSIONS.md) is the Boot face, the
-   chat, the strip and the concourse board you land in.
+- [The README](../README.md): installation, the first run, providers, daily work and command reference.
+- [AGENTS.md](../AGENTS.md): build, run and check a source checkout.
+- [INSTALL-WINDOWS-FROM-SOURCE.md](INSTALL-WINDOWS-FROM-SOURCE.md): build Mercury on Windows, with a check after each step.
+- [WINDOWS-GLYPH-FIELD-CHECK.md](WINDOWS-GLYPH-FIELD-CHECK.md): check a Windows terminal's text marks and report a rendering problem.
+- [SESSIONS.md](SESSIONS.md): the Boot face, chat, Session Concourse, saved conversations and the flags that shape a launch.
+- [SETTINGS.md](SETTINGS.md): settings files, their precedence and the grouped keys for models, permissions, memory, tools and appearance.
+- [TRUST.md](TRUST.md): trusting a workspace, permission rules, managed policy and release signatures.
 
-Keyboard interaction lives in-product: `/keys` shows the effective key map
-and `/keybindings` edits your keybindings file.
+Keyboard interaction lives in the product: `/keys` shows the effective key
+map and `/keybindings` opens your keybindings file.
 
-## Direction
+## Working in a session
 
-The session is the unit and every screen is a view; the reasoning, and the
-solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
+- [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md): read anchors, atomic file edits, change receipts and recovery.
+- [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): AstSearch and AstEdit patterns across the packaged language grammars.
+- [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): compiler-backed navigation, diagnostics and previewed refactors through LSP.
+- [WORKSHOP.md](WORKSHOP.md): persistent JavaScript, TypeScript and Python cells with the `mercury.*` tool bridge.
+- [EVAL.md](EVAL.md): retained Python and JavaScript runtimes, cell helpers and what survives a failed cell.
+- [SAMPLES.md](SAMPLES.md): pages drawn on request, versioned per session and opened in your browser for comments.
+- [DEBUGGER.md](DEBUGGER.md): launch, attach, breakpoints and test debugging through Debug Adapter Protocol adapters.
+- [APOLLO-MODE.md](APOLLO-MODE.md): the specification interview and review that lead into a prototype build.
+- [MNEME.md](MNEME.md): Mercury's project memory, topic pages, pinned rules and the memory centre.
+- [VOICE.md](VOICE.md): hold-to-talk dictation, capture backends, transcriber selection and audio privacy.
+- [COMPUTER-USE.md](COMPUTER-USE.md): screen and input tools, application consent, desktop ownership and platform requirements.
 
-## Operator guide, by task
+## Loading, extending and delegating
 
-### Working in a session
-
-- [SESSIONS.md](SESSIONS.md): sessions, born on Enter, never lost, resumable
-  from anywhere. The Boot face, the strip that walks only the screens that
-  exist, the focused chat, the concourse board as the resume screen of the
-  project you are in, the folder that becomes a project at its first chat,
-  closing and bringing back, `--chat` and `--concourse-off`, and the
-  commands that never reach the model.
-- [CHANGE-TRANSACTIONS.md](CHANGE-TRANSACTIONS.md): the change-transaction
-  layer over file edits, with read anchors and exactly-once records.
-- [STRUCTURAL-PATTERNS.md](STRUCTURAL-PATTERNS.md): the structural pattern
-  grammar and the AstSearch / AstEdit tools over the packaged grammars.
-- [LANGUAGE-SERVICE.md](LANGUAGE-SERVICE.md): the LSP tool — code
-  intelligence from the language servers, and the refactors that ride the
-  compiler's knowledge: rename a symbol, move a declaration or a file with
-  every import rewritten, code actions by kind, each previewed as data and
-  applied through the edit road.
-- [WORKSHOP.md](WORKSHOP.md): persistent code cells, JS/TS/Python state
-  across calls, honest state-loss reporting, and the mercury.* bridge.
-- [EVAL.md](EVAL.md): the Eval tool — one code cell per call in a retained
-  Python or JavaScript runtime, what persists across cells and after a
-  failed cell, the JavaScript kernel's ES-module environment, and the
-  helpers inside a cell.
-- [SAMPLES.md](SAMPLES.md): samples — a page the model draws when you ask
-  to see something, kept and versioned under the session, opened in your
-  browser from its row or `/samples`, the marks you leave on it coming back
-  into the session, the page file when no port can be bound, and the switch
-  that turns it on (off by default).
-- [DEBUGGER.md](DEBUGGER.md): the debugger over the Debug Adapter Protocol,
-  launch and attach, the adapter table, child-session trees, and
-  one-gesture test-debug.
-- [APOLLO-MODE.md](APOLLO-MODE.md): the Apollo permission mode, the
-  pre-flight interview that writes the spec and builds a prototype from it.
-- [VOICE.md](VOICE.md): voice input — `/speak on`, hold space to dictate,
-  release to stop, the capture backends, the on-device transcriber and its
-  one-time model download, the cloud sign-ins, and the privacy line (on
-  this machine nothing leaves it; to a cloud family only after you stop).
-- [COMPUTER-USE.md](COMPUTER-USE.md): computer use — the Computer tool that
-  sees the screen and drives the mouse and keyboard, the switch that turns
-  it off, the asks per application and the allowlist, the stop key, what is
-  kept, and the install on each platform.
-
-### Loading, extending and delegating
-
-- [KIT.md](KIT.md): MCPs & Skills, what the next session loads: the
-  per-repository record and its menu, session kits, presets, and the
-  in-session dials.
-- [EXTENSIONS.md](EXTENSIONS.md): extensions, the manifest, sources,
-  approval, health, the maker's loop and policy boundaries, liveness, and
-  validation.
-- [CREW.md](CREW.md): the crew — crewmates and agent sessions, starting them,
-  stop and resume, live communication, file claims, roles, boards, and the
-  coordinator behind the concourse.
-- [SATURN.md](SATURN.md): Saturn scheduling, schedules as session facts, the
-  daemon fire engine, the `/saturn` board and the birth form, accounts and
-  held fires, and the catch-up window.
-
-### Providers and models
-
-- [ENGINES.md](ENGINES.md): the provider families, the routing law, the
-  main loop, the native in-process endpoints, and web search on every model.
-- [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup`, the local model set-up
-  inside Mercury when no local server answers — find or install Ollama,
-  start it, pull `qwen3.5:9b`, set the window from this machine's memory,
-  pick the model and prove a reply, every step asking before it runs.
-- [ADVISOR.md](ADVISOR.md): the advisor, a second model of any family that
-  reads a chat every few minutes and writes the working model one note as a
-  muted `[advisor]` row — turned on per chat with `/advise`, with the
-  settings in `/config`, the `AskAdvisor` tool, its own memory and its own
-  compaction clock, and its spend on `/usage`.
-
-### Trust, health and the runtime
-
-- [TRUST.md](TRUST.md): workspace trust, what a grant is, when Mercury asks,
-  what stays closed until trust, and what managed policy changes.
+- [KIT.md](KIT.md): the MCPs & Skills menu, per-repository choices, presets and a running session's dials.
+- [EXTENSIONS.md](EXTENSIONS.md): extension manifests, sources, contributions, approval and the maker's commands.
+- [CREW.md](CREW.md): the two built-in agents, custom definitions, crewmates, messages, file claims and work boards.
+- [SATURN.md](SATURN.md): schedules that send a prompt or start a session, the scheduler board and held or late fires.
 - [HOOKS.md](HOOKS.md): hooks, where they are declared, the four kinds, the
   events with their input fields, what a hook answers, and the policy knobs.
-- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` and the doctor,
-  evidence-backed checks, the verdict, the fix engine, the JSON certificate,
-  and the on-disk artifacts.
-- [DURABILITY.md](DURABILITY.md): the atomic-publish floor, the operation
-  journal, boot reconciliation, store quarantine, and the deadline and
-  watchdog ceilings.
-- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): how the built product boots,
-  where deployed copies live, how updates land, and how a broken boot
-  recovers.
-- [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal capability profiles,
-  what a host must offer and what is reported when it does not.
 
-### Editors and tools
+## Providers and models
 
-- [VULCAN-GODOT-TOOLS.md](VULCAN-GODOT-TOOLS.md): the `Godot` tool — the
-  editor bridge in brief, a bridge per instance with runtime queries and
-  file leases, and the engine job service: Mercury's own headless Godot
-  workers in parallel, each on a frozen copy of the project, the suites
-  manifest, the compile and proof-drift gate in seconds, captures, frame
-  statistics and settled profiles with the engine's own profiler, results
-  as data, and `mercury godot run|check|capture|frames|profile|tour|jobs|cancel|result`.
-- [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor bridge, the `Unity`
-  tool, the in-repo C# package, the loopback protocol, the reload law.
-- [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender bridge, the `Blender`
-  tool, the in-repo Python add-on, the no-reload law, python_run's contract.
-- [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): the Aseprite batch door, the
-  `Aseprite` tool, the resolution law, exports and sprite sheets,
-  run-script's contract.
+- [ENGINES.md](ENGINES.md): model routing, provider accounts, local servers, web search, usage and model switches.
+- [LOCAL-SETUP.md](LOCAL-SETUP.md): `/localsetup` finds or installs Ollama, asks which model, sets its window and checks a reply.
+- [ADVISOR.md](ADVISOR.md): a second model's notes for the working chat, the per-chat switch, model choice, interval and spend.
 
-## Reference and architecture
+## Health and the runtime
 
-- [COMPATIBILITY.md](COMPATIBILITY.md): the live interop surfaces, honored
-  external environment spellings, the User-Agent identity, MCP, claude.ai
-  connectors, and credential migration.
-- Capabilities: what the harness can do on this machine is what `mercury
-  doctor` reports; every capability's switch and default lives in the flag
-  registry (`src/substrate/flagRegistry.ts`).
-- [BUILD-NOTES.md](../BUILD-NOTES.md): building and packaging the artifact,
-  the vendored payloads, the manifest, and the launchers.
-- [templates/extension-source-README.md](templates/extension-source-README.md):
-  the README an extension source starts from (`mercury extensions scaffold
-  --source` writes it).
-- Inventories render on demand to untracked paths, never into the tree: the
-  flag table from `src/substrate/flagRegistry.ts`, the durable-operation
-  matrix, the state-lifecycle manifest, and the reachability manifest.
+- [HEALTH-CERTIFICATE.md](HEALTH-CERTIFICATE.md): `/health` and the doctor, evidence-backed checks, fixes and the JSON certificate.
+- [DURABILITY.md](DURABILITY.md): atomic publication, operation journals, boot recovery and connection watchdogs.
+- [TERMINAL-RUNTIME.md](TERMINAL-RUNTIME.md): launchers, runtime locations, installs, updates and the shell engine.
+- [TERMINAL-PROFILE.md](TERMINAL-PROFILE.md): terminal requirements, capability detection, input decoding, ping and motion controls.
+- [COMPATIBILITY.md](COMPATIBILITY.md): instruction files, configuration, external service identifiers, MCP and release platforms.
+
+## Creative tools
+
+- [VULCAN-GODOT-TOOLS.md](VULCAN-GODOT-TOOLS.md): Godot editor operations, frozen engine jobs, captures, profiling and file leases.
+- [UNITY-BRIDGE.md](UNITY-BRIDGE.md): the Unity editor package, play and scene operations, tests and reconnects after a reload.
+- [BLENDER-BRIDGE.md](BLENDER-BRIDGE.md): the Blender add-on, scene and render operations, and Python execution inside Blender.
+- [ASEPRITE-BRIDGE.md](ASEPRITE-BRIDGE.md): Aseprite batch operations, sprite exports, sheets and Lua scripts.
+
+## Reference
+
+- [BUILD-NOTES.md](../BUILD-NOTES.md): building and packaging the artifact, its vendored payloads and launchers.
+- [CONTRIBUTING.md](../CONTRIBUTING.md): issues, pull-request policy, checks and generated-file conventions.
+- [templates/extension-source-README.md](templates/extension-source-README.md): the source README template written by `mercury extensions scaffold --source`.
 - Releases: [releases/README.md](releases/README.md) keeps one page per
   tag — its state, the verdict it stands on, what shipped, its known gaps
   and the queue for the next one ([1.0.0-beta.26](releases/1.0.0-beta.26.md)
@@ -161,5 +73,7 @@ solo journey it protects, are in [SESSIONS.md](SESSIONS.md).
   notes themselves ride each release: `/update-notes` shows the running
   release's notes in the chat, with the earlier releases behind the
   transcript key, and a headless run prints every release.
-- Generated sections are regenerated from their sources, never hand-edited
-  ([CONTRIBUTING.md](../CONTRIBUTING.md), Conventions).
+
+The capability switches and their defaults live in
+`src/substrate/flagRegistry.ts`. Inventories render on demand to untracked
+paths; generated sections are refreshed by their generators.

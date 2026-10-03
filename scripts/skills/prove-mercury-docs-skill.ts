@@ -54,6 +54,24 @@ for (const rel of expected) if (pages[rel] === readFileSync(join(ROOT, rel), 'ut
 check('every carried page is the tree\'s page, byte for byte', identical === expected.length, `${identical} of ${expected.length}`)
 check('no release page, template or media file rides along', !Object.keys(pages).some(k => k.includes('releases/') || k.includes('templates/') || k.includes('media/')))
 check('the Saturn page the scheduling question needs is carried and names /saturn, CronCreate and the /loop skill', typeof pages['docs/SATURN.md'] === 'string' && /`\/saturn`/.test(pages['docs/SATURN.md']) && /CronCreate/.test(pages['docs/SATURN.md']) && /`\/loop`/.test(pages['docs/SATURN.md']))
+const index = pages['docs/README.md'] ?? ''
+const pageLinks = [...index.matchAll(/\]\(([^)]+\.md)\)/g)].map(match => match[1]!)
+const guideNames = expected.filter(path => path.startsWith('docs/') && path !== 'docs/README.md').map(path => path.slice(5))
+check('the catalogue lists each shipped guide exactly once', guideNames.every(name => pageLinks.filter(link => link === name).length === 1), guideNames.filter(name => pageLinks.filter(link => link === name).length !== 1).join(', '))
+check('every local catalogue link names a page on disk', pageLinks.every(link => existsSync(join(ROOT, 'docs', link))), pageLinks.filter(link => !existsSync(join(ROOT, 'docs', link))).join(', '))
+const settingsText = pages['docs/SETTINGS.md'] ?? ''
+const { SettingsSchema } = await import('../../src/utils/settings/types.ts')
+const settingsShape = SettingsSchema().shape
+const coveredKeys = Object.entries(settingsShape).flatMap(([group, schema]) => {
+  const object = 'unwrap' in schema ? schema.unwrap() : schema
+  if ('shape' in object) return Object.keys(object.shape).map(key => `${group}.${key}`)
+  return [group]
+}).filter(key => key !== 'credentials.proxyCommand')
+check('the settings guide covers each usable grouped key', coveredKeys.every(key => settingsText.includes(key)), coveredKeys.filter(key => !settingsText.includes(key)).join(', '))
+const settingsExamples = [...settingsText.matchAll(/```json\n([\s\S]*?)\n```/g)].map(match => JSON.parse(match[1]!))
+check('the settings guide carries a valid complete JSON example', settingsExamples.length > 0 && settingsExamples.every(example => SettingsSchema().safeParse(example).success))
+check('the settings guide names all four custom patience fields', ['streamIdleSeconds', 'quietStreamIdleSeconds', 'fallbackCeilingSeconds', 'recoveryBudgetMinutes'].every(key => settingsText.includes(`patience.${key}`)))
+check('the guide distinguishes the project guide from the personal layer', settingsText.includes('MERCURY.local.md') && settingsText.includes('personal layer') && settingsText.includes('AGENTS.md'))
 
 section('§3 the prompt — the base directory, the guidance, the map, the question')
 const text = await promptText(docs!, 'how do i schedule a prompt in mercury')
