@@ -131,7 +131,7 @@ console.log('\nC7 the status covers the WHOLE fold — the entries stamp first, 
   check('a plain throw exits as a failure, never a cancel', caughtFailure instanceof Error && failed.length === 2 && compactingOf(failed[1])?.exit === 'failed')
   const auto: unknown[] = []
   await withFoldStatus({ setSDKStatus: (word: unknown) => auto.push(word), abortController: new AbortController() } as never, async () => 'auto', { trigger: 'auto', sessionMemory: false, microcompaction: false })
-  check('the automatic road stamps its record and clears with null (the turn goes on)', auto.length === 2 && compactingOf(auto[0])?.trigger === 'auto' && auto[1] === null)
+  check('the automatic road stamps its record, its landed exit, and clears with null (the turn goes on)', auto.length === 3 && compactingOf(auto[0])?.trigger === 'auto' && compactingOf(auto[1])?.exit === 'landed' && auto[2] === null)
   const bare = await withFoldStatus({} as never, async () => 'no status door', { trigger: 'manual', sessionMemory: false, microcompaction: true })
   check('a context with no status door folds unstamped and unharmed', bare === 'no status door')
   const read = (rel: string): string => readFileSync(join(import.meta.dir, '..', '..', rel), 'utf8')
