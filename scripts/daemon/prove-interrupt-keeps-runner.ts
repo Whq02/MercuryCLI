@@ -202,7 +202,7 @@ tally.section("§3 the source: the daemon's interrupt verb delivers and never si
   const verbAt = main.indexOf("if (action === 'interrupt') {")
   const verbEnd = main.indexOf("if (action === 'stop-agent'", verbAt)
   const verb = verbAt !== -1 && verbEnd !== -1 ? main.slice(verbAt, verbEnd) : ''
-  tally.check("the interrupt verb asks turn/interrupt through the worker's door", verb.includes('roster?.door(rec.runnerId)') && verb.includes(".request('turn/interrupt', {"), verb === '' ? 'the verb block was not found' : verb.slice(0, 200))
+  tally.check("the interrupt verb asks turn/interrupt through the worker's door", verb.includes('roster?.door(rec.runnerId)') && verb.includes(".send('turn/interrupt', {"), verb === '' ? 'the verb block was not found' : verb.slice(0, 200))
   tally.check('…and holds no kill and no timer (the incident runtime cut the runner a second after the second press here)', verb !== '' && !/\bkill\(/.test(verb) && !verb.includes('setTimeout('), verb.split('\n').filter(l => /kill\(|setTimeout\(/.test(l)).join(' | '))
   tally.check("the verb's second press is a re-delivery in its own receipt", verb.includes("'second interrupt'"))
   const roster = read('src', 'daemon', 'roster.ts')

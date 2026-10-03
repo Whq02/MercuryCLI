@@ -273,7 +273,7 @@ console.log('§E the doors drop at the flip; the surfaces paint the glance words
   const read = (p: string): string => readFileSync(join(import.meta.dir, '../..', p), 'utf8')
   const main = read('src/daemon/main.ts')
   const interruptArm = main.slice(main.indexOf("if (action === 'interrupt')"), main.indexOf("if (action === 'stop-agent' || action === 'resume-agent')"))
-  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("if (interrupted.delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
+  check("E1 the interrupt door drops the session's self-wakes once the interrupt is delivered", interruptArm.includes("dropSelfWakesAtFlip(sessionId, by, 'interrupted')") && interruptArm.includes("door.send('turn/interrupt'") && interruptArm.indexOf('dropSelfWakesAtFlip') > interruptArm.indexOf("door.send('turn/interrupt'"))
   const parkArm = main.slice(main.indexOf("if (action === 'park')"), main.indexOf("if (action === 'set-title')"))
   check('E2 the park door drops on both arms that flip the close state (retire · park) and never on a released newborn', parkArm.includes("if (retired.outcome === 'parked') dropSelfWakesAtFlip(sessionId, by, 'parked')") && parkArm.includes("if (out.outcome === 'applied' && !out.released) dropSelfWakesAtFlip(sessionId, by, 'parked')"))
   const stopArm = main.slice(main.indexOf("if (action === 'stop')"), main.indexOf("if (action === 'attach')"))

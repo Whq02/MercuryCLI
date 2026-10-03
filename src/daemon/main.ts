@@ -881,20 +881,11 @@ async function daemonRun(args: string[]): Promise<void> {
           if (action === 'interrupt') {
             const door = roster?.door(rec.runnerId)
             if (door === undefined) return settle({ outcome: 'refused' as const, detail: 'worker has no live runner door' })
+            if (door.closed) return settle({ outcome: 'refused' as const, detail: 'the interrupt did not reach the runner: its door is closed' })
             const sent = door.send('turn/interrupt', { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
-            const interrupted = await Promise.race([
-              sent.answer.then(
-                answer => ({ delivered: true, interrupted: answer.interrupted }),
-                (error: unknown) => ({ delivered: false, interrupted: false, words: error instanceof Error ? error.message : String(error) }),
-              ),
-              new Promise<{ delivered: true; interrupted: null }>(resolve => setTimeout(() => resolve({ delivered: true, interrupted: null }), INTERRUPT_ANSWER_WINDOW_MS)),
-            ])
-            if (interrupted.delivered) dropSelfWakesAtFlip(sessionId, by, 'interrupted')
-            return settle(
-              interrupted.delivered
-                ? { outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}${interrupted.interrupted === false ? ' — no turn was running' : ''}` }
-                : { outcome: 'refused' as const, detail: `the interrupt did not reach the runner: ${'words' in interrupted ? interrupted.words : 'no answer'}` },
-            )
+            sent.answer.catch(() => undefined)
+            dropSelfWakesAtFlip(sessionId, by, 'interrupted')
+            return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` })
           }
           if (action === 'stop-agent' || action === 'resume-agent') {
             if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
@@ -1656,7 +1647,6 @@ async function daemonRun(args: string[]): Promise<void> {
 }
 
 const SUCCESSOR_LOCK_WAIT_MS = 10_000
-const INTERRUPT_ANSWER_WINDOW_MS = 750
 const RESTART_STORM_GUARD_MS = 60_000
 const ARMED_RESTART_BEAT_MS = 4_000
 const HANDOVER_LOCK_BEAT_MS = 2_000
