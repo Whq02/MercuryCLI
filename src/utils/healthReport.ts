@@ -3199,7 +3199,7 @@ export async function runHealthReport(opts?: RunHealthReportOptions): Promise<He
               installed.length > 0
                 ? `extension installed: ${installed.map(i => `${i.editor} ${i.version}`).join(', ')}`
                 : 'extension NOT installed in any VS Code-family editor',
-              'acp: mercury acp --stdio',
+              'acp: mercury acp',
             ].join(' · ')
             if (installed.length > 0) return { status: 'ok' as const, evidence }
             return {

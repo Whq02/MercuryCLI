@@ -123,7 +123,7 @@ const api = await startFixtureApi([
 const acp = await import('@agentclientprotocol/sdk')
 
 function spawnServer(): ChildProcess {
-  const child = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp', '--stdio'], {
+  const child = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: projDir,
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {
@@ -479,7 +479,7 @@ section('(5e) TRUE cross-process parity — TUI-side durable writes, the ACP pro
   const local = runRevision(owner)
   check('TUI side made two durable writes (local revision 2)', local === 2, String(local))
 
-  const parityServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp', '--stdio'], {
+  const parityServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: process.cwd(),
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {
@@ -633,7 +633,7 @@ section('(6) cancel interrupts a hanging turn (dedicated server + fixture)')
     { kind: 'hang', deltas: ['about to hang'] },
     { kind: 'hang', deltas: ['about to hang again'] },
   ])
-  const hangServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp', '--stdio'], {
+  const hangServer = spawn((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'acp'], {
     cwd: projDir,
     stdio: ['pipe', 'pipe', 'inherit'],
     env: {

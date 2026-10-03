@@ -1,16 +1,20 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
+import { MERCURY_VERSION } from '../../constants/product.js'
+import type { LooseRow } from '../../rows/read.js'
+import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer, PermissionRequestParams } from '../../runner/wire/methods.js'
+import { createPeer, PeerClosed, type Peer } from '../../runner/wire/peer.js'
 import { flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
-import { parseRunnerLine } from '../../daemon/longLivedSupervisor.js'
-import type { LooseRow } from '../../rows/read.js'
 
 export interface TurnEndDetail {
   status: string
   stopReason?: string
   errors: string[]
 }
+
+export type ToolAsk = Extract<PermissionRequestParams, { kind: 'tool' }>
 
 export interface ChildEventHandlers {
   onInit: (mercurySessionId: string) => void
@@ -26,15 +30,10 @@ export interface ChildEventHandlers {
     model: string,
     turnCostUsd?: number,
   ) => void
-  onPermissionAsk: (
-    requestId: string,
-    ask: {
-      toolName: string
-      toolUseId: string
-      input: Record<string, unknown>
-      description?: string
-    },
-  ) => void
+  onPermissionAsk: (requestId: number, ask: ToolAsk, withdrawn: AbortSignal) => Promise<PermissionAnswer>
+  onNetworkAsk?: (host: string, withdrawn: AbortSignal) => Promise<boolean>
+  onElicitation?: (params: ElicitationRequestParams, withdrawn: AbortSignal) => Promise<ElicitationAnswer>
+  onElicitationComplete?: (server: string, elicitationId: string) => void
   onExit: (code: number | null) => void
 }
 
@@ -44,13 +43,15 @@ export interface SpawnChildOptions {
   resumeSessionId?: string
   model?: string
   permissionMode?: string
+  allowSovereign?: boolean
   effort?: string
   entry?: { node: string; script: string }
   env?: Record<string, string>
   mcpConfig?: string
+  elicitation?: boolean
 }
 
-let controlSeq = 0
+export const INITIALIZE_DEADLINE_MS = 120_000
 
 export function toolResultText(content: unknown): string | undefined {
   if (typeof content === 'string') return content
@@ -61,15 +62,34 @@ export function toolResultText(content: unknown): string | undefined {
   return texts.length > 0 ? texts.join('\n') : undefined
 }
 
+export function inputBlocksOf(blocks: ReadonlyArray<Record<string, unknown>>): Array<{ type: 'text'; text: string } | { type: 'image'; media_type: string; data: string }> {
+  const out: Array<{ type: 'text'; text: string } | { type: 'image'; media_type: string; data: string }> = []
+  for (const block of blocks) {
+    if (block.type === 'text' && typeof block.text === 'string') {
+      out.push({ type: 'text', text: block.text })
+      continue
+    }
+    if (block.type === 'image') {
+      const source = block.source as { media_type?: unknown; data?: unknown } | undefined
+      const mediaType = source?.media_type ?? block.media_type
+      const data = source?.data ?? block.data
+      if (typeof mediaType === 'string' && typeof data === 'string') out.push({ type: 'image', media_type: mediaType, data })
+    }
+  }
+  return out.length > 0 ? out : [{ type: 'text', text: '' }]
+}
+
 export class MercuryChildSession {
   readonly child: ChildProcess
   readonly cwd: string
+  readonly peer: Peer
+  readonly initialized: Promise<string | null>
   mercurySessionId: string | null = null
-  private buffer = ''
   private readonly handlers: ChildEventHandlers
   private closedByUs = false
-  private discardingOversizedLine = false
-  private static readonly MAX_LINE_BUFFER_BYTES = 32 * 1024 * 1024
+  private dead = false
+  private lastRoundTripUsage: Record<string, unknown> | null = null
+  private lastRoundTripModel = ''
 
   constructor(opts: SpawnChildOptions, handlers: ChildEventHandlers) {
     this.handlers = handlers
@@ -78,12 +98,9 @@ export class MercuryChildSession {
     const script = opts.entry?.script ?? selfScriptPath()
     const argv = [
       script,
-      'run',
-      '--input=rows',
-      '--format=rows',
-      '--permission-channel',
-      'stdio',
+      'runner',
       ...(opts.permissionMode ? ['--mode', opts.permissionMode] : []),
+      ...(opts.allowSovereign === true ? ['--allow-sovereign'] : []),
       ...(opts.model ? ['--model', opts.model] : []),
       ...(opts.resumeSessionId ? ['--resume', opts.resumeSessionId] : []),
       ...(opts.sessionId && !opts.resumeSessionId ? ['--session-id', opts.sessionId] : []),
@@ -103,8 +120,6 @@ export class MercuryChildSession {
       stdio: ['pipe', 'pipe', 'inherit'],
       env,
     })
-    this.child.stdout?.setEncoding('utf8')
-    this.child.stdout?.on('data', (chunk: string) => this.onData(chunk))
     this.child.on('exit', code => {
       this.dead = true
       if (!this.closedByUs) this.handlers.onExit(code)
@@ -117,52 +132,48 @@ export class MercuryChildSession {
     this.child.stdin?.on('error', err => {
       logForDebugging(`[acp] child stdin error (write after death?): ${err}`)
     })
-  }
-
-  private dead = false
-  private lastRoundTripUsage: Record<string, unknown> | null = null
-  private lastRoundTripModel = ''
-  private readonly controlWaiters = new Map<string, (ok: boolean) => void>()
-
-  private writeFrame(frame: string): boolean {
-    if (this.dead || this.closedByUs) return false
-    try {
-      this.child.stdin?.write(frame + '\n')
-      return true
-    } catch (e) {
-      logForDebugging(`[acp] frame write failed: ${e}`)
-      return false
-    }
-  }
-
-  private onData(chunk: string): void {
-    this.buffer += chunk
-    let idx = this.buffer.indexOf('\n')
-    while (idx !== -1) {
-      const line = this.buffer.slice(0, idx).trim()
-      this.buffer = this.buffer.slice(idx + 1)
-      if (this.discardingOversizedLine) {
-        this.discardingOversizedLine = false
-        logForDebugging(
-          `[acp] dropped an oversized stdout line (> ${MercuryChildSession.MAX_LINE_BUFFER_BYTES} bytes buffered) — resynced at the next newline`,
-        )
-      } else if (line !== '') {
-        this.onLine(line)
+    this.peer = createPeer({
+      input: this.child.stdout!,
+      output: this.child.stdin!,
+      side: 'host',
+      log: line => logForDebugging(`[acp] ${line}`),
+    })
+    this.peer.onNotification('row', row => this.onRow(row as LooseRow))
+    this.peer.onNotification('elicitation/complete', params => this.handlers.onElicitationComplete?.(params.server, params.elicitation_id))
+    this.peer.onRequest('permission/request', (params, ctx) => {
+      if (params.kind === 'network') {
+        const ask = this.handlers.onNetworkAsk
+        if (ask === undefined) return { outcome: 'deny', message: 'the editor cannot answer a network ask' }
+        return ask(params.host, ctx.signal).then(allowed => (allowed ? { outcome: 'allow' as const } : { outcome: 'deny' as const, message: 'denied by the ACP client' }))
       }
-      idx = this.buffer.indexOf('\n')
-    }
-    if (!this.discardingOversizedLine && this.buffer.length > MercuryChildSession.MAX_LINE_BUFFER_BYTES) {
-      this.discardingOversizedLine = true
-      this.buffer = ''
-    } else if (this.discardingOversizedLine) {
-      this.buffer = ''
-    }
-  }
-
-  private onLine(line: string): void {
-    const row = parseRunnerLine(line)
-    if (row === null) return
-    this.onRow(row)
+      return this.handlers.onPermissionAsk(ctx.id, params, ctx.signal)
+    })
+    this.peer.onRequest('elicitation/request', (params, ctx) => {
+      const ask = this.handlers.onElicitation
+      if (ask === undefined) return { action: 'cancel' }
+      return ask(params, ctx.signal)
+    })
+    this.initialized = this.peer
+      .request(
+        'initialize',
+        {
+          protocol: 1,
+          host: { name: 'mercury-acp', version: MERCURY_VERSION },
+          capabilities: { holds_asks: true, elicitation: opts.elicitation === true, partial_rows: false },
+        },
+        { deadlineMs: INITIALIZE_DEADLINE_MS },
+      )
+      .then(result => {
+        if (typeof result.session_id === 'string' && !this.mercurySessionId) {
+          this.mercurySessionId = result.session_id
+          this.handlers.onInit(result.session_id)
+        }
+        return result.session_id
+      })
+      .catch((error: unknown) => {
+        logForDebugging(`[acp] the runner did not answer initialize: ${error instanceof Error ? error.message : String(error)}`)
+        return null
+      })
   }
 
   private onRow(row: LooseRow): void {
@@ -237,100 +248,40 @@ export class MercuryChildSession {
         })
         return
       }
-      case 'control_request': {
-        const requestId = String(row.request_id ?? '')
-        const request = row.request as Record<string, unknown> | undefined
-        if (request?.subtype === 'can_use_tool') {
-          this.handlers.onPermissionAsk(requestId, {
-            toolName: String(request.tool_name ?? 'tool'),
-            toolUseId: String(request.tool_use_id ?? ''),
-            input: (request.input as Record<string, unknown>) ?? {},
-            ...(typeof request.description === 'string' && { description: request.description }),
-          })
-        }
-        return
-      }
-      case 'control_response': {
-        const response = row.response as { subtype?: unknown; request_id?: unknown; response?: unknown; error?: unknown } | undefined
-        const requestId = String(response?.request_id ?? '')
-        const waiter = this.controlWaiters.get(requestId)
-        if (waiter) {
-          this.controlWaiters.delete(requestId)
-          waiter(response?.subtype === 'success')
-        }
-        return
-      }
       default:
         return
     }
   }
 
-  writeUserPrompt(content: Array<Record<string, unknown>>): void {
-    const delivered = this.writeFrame(
-      JSON.stringify({ type: 'user', message: { role: 'user', content } }),
-    )
-    if (!delivered) {
-      throw new Error(
-        `the session child is ${this.dead ? 'dead' : this.closedByUs ? 'closed' : 'unwritable'} — prompt not delivered`,
-      )
+  async writeUserPrompt(content: Array<Record<string, unknown>>): Promise<void> {
+    if (this.dead || this.closedByUs) {
+      throw new Error(`the session child is ${this.dead ? 'dead' : 'closed'} — prompt not delivered`)
+    }
+    await this.initialized
+    try {
+      const answer = await this.peer.request('queue/add', { type: 'prompt', content: inputBlocksOf(content) }, { deadlineMs: 30_000 })
+      if (answer.accepted === false) throw new Error(`the session refused the prompt (${answer.reason})`)
+    } catch (error) {
+      if (error instanceof PeerClosed) throw new Error('the session child is unwritable — prompt not delivered')
+      throw error
     }
   }
 
-  answerPermission(
-    requestId: string,
-    allow: boolean,
-    opts?: { updatedInput?: Record<string, unknown>; message?: string },
-  ): void {
-    const frame = JSON.stringify({
-      type: 'control_response',
-      response: {
-        subtype: 'success',
-        request_id: requestId,
-        response: allow
-          ?
-            { behavior: 'allow', updated_input: opts?.updatedInput ?? {} }
-          : { behavior: 'deny', message: opts?.message ?? 'denied by the ACP client' },
-      },
-    })
-    this.writeFrame(frame)
-  }
-
-  sendControl(request: Record<string, unknown>): string {
-    const requestId = `acp-${++controlSeq}`
-    this.writeFrame(JSON.stringify({ type: 'control_request', request_id: requestId, request }))
-    return requestId
-  }
-
-  sendControlAcked(request: Record<string, unknown>, timeoutMs = 5000): Promise<boolean> {
-    if (this.dead || this.closedByUs) return Promise.resolve(false)
-    const requestId = this.sendControl(request)
-    return new Promise<boolean>(resolve => {
-      const timer = setTimeout(() => {
-        this.controlWaiters.delete(requestId)
-        resolve(false)
-      }, timeoutMs)
-      timer.unref?.()
-      this.controlWaiters.set(requestId, ok => {
-        clearTimeout(timer)
-        resolve(ok)
-      })
-    })
-  }
-
   interrupt(): void {
-    this.sendControl({ subtype: 'interrupt' })
+    void this.peer.request('turn/interrupt', {}).catch((error: unknown) => {
+      logForDebugging(`[acp] interrupt not answered: ${error instanceof Error ? error.message : String(error)}`)
+    })
   }
 
-  setPermissionMode(mode: string): Promise<boolean> {
-    return this.sendControlAcked({ subtype: 'set_permission_mode', mode })
-  }
-
-  setModel(model: string): void {
-    this.sendControl({ subtype: 'set_model', model })
+  async setPermissionMode(mode: string): Promise<void> {
+    if (this.dead || this.closedByUs) throw new Error('the session child is gone — the mode was not changed')
+    await this.initialized
+    await this.peer.request('session/set_mode', { mode })
   }
 
   close(graceMs = 1_500): Promise<void> {
     this.closedByUs = true
+    this.peer.close('the session was closed')
     try {
       this.child.stdin?.end()
     } catch {

@@ -100,7 +100,7 @@ async function untilTrue(cond: () => boolean, ms: number): Promise<boolean> {
 
 section('(1) the server starts through the runtime pointer')
 const node = process.execPath.includes('bun') ? 'node' : process.execPath
-const server = spawn(node, [pointerScript, 'acp', '--stdio'], {
+const server = spawn(node, [pointerScript, 'acp'], {
   cwd: projDir,
   stdio: ['pipe', 'pipe', 'inherit'],
   env: {

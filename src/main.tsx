@@ -956,7 +956,7 @@ async function registerSubcommands(program: CommanderCommand): Promise<void> {
 
   for (const [name, usage] of [
     ['daemon [subcommand]', `Usage: ${cliName} daemon <run|status|stop>`],
-    ['acp', `Usage: ${cliName} acp [--stdio]`],
+    ['acp', `Usage: ${cliName} acp`],
   ] as const) {
     program
       .command(name)

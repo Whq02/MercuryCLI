@@ -166,7 +166,7 @@ async function ensureClient(context) {
   if (client) return client
   const parts = mercuryPath().split(' ').filter(Boolean)
   const command = parts[0]
-  const args = [...parts.slice(1), 'acp', '--stdio']
+  const args = [...parts.slice(1), 'acp']
   log(`acp: starting ${command} ${args.join(' ')} in ${workspaceCwd()}`)
   const started = new AcpClient(command, args, workspaceCwd(), handleAgentMessage, (code, lastLine) => {
     client = null

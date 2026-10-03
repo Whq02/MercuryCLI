@@ -6,6 +6,7 @@ import {
   ndJsonStream,
   methods,
   PROTOCOL_VERSION,
+  RequestError,
 } from '@agentclientprotocol/sdk'
 import type {
   AgentContext,
@@ -45,15 +46,30 @@ import type { RelationState } from '../../services/attention/relations.js'
 import { listTasks, getTasksDir, type TaskStatus } from '../../utils/tasks.js'
 import { existsSync, readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { MercuryChildSession, toolResultText, type TurnEndDetail } from './childSession.js'
+import { MercuryChildSession, toolResultText, type ToolAsk, type TurnEndDetail } from './childSession.js'
 import { selfScriptPath } from '../../daemon/daemonBuild.js'
-import { isAutoModeGateEnabled } from '../../utils/permissions/permissionSetup.js'
+import { isAutoModeGateEnabled, isBypassPermissionsModeDisabled } from '../../utils/permissions/permissionSetup.js'
+import { PERMISSION_MODES as MODE_WORDS, type PermissionMode } from '../../types/permissions.js'
+import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js'
+import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer } from '../../runner/wire/methods.js'
 
-const PERMISSION_MODES = [
-  { id: 'default', name: 'Default', description: 'ask before consequential tools' },
-  { id: 'implement', name: 'Implement Mode', description: 'file edits pre-approved' },
-  { id: 'flow', name: 'Flow', description: 'the safer autonomous mode' },
-] as const
+const MODE_DESCRIPTIONS: Record<PermissionMode, string> = {
+  default: 'ask before consequential tools',
+  dontAsk: 'skip the prompts and deny instead',
+  implement: 'file edits pre-approved',
+  sovereign: 'every tool call auto-approved — asks for your consent first',
+  flow: 'the safer autonomous mode',
+  bubble: 'ask before consequential tools',
+  apollo: 'the pre-flight interview before the work',
+}
+
+function refuse(sentence: string): never {
+  throw new RequestError(-32602, sentence)
+}
+
+function permissionModesOffered(): ReadonlyArray<{ id: PermissionMode; name: string; description: string }> {
+  return MODE_WORDS.filter(mode => mode !== 'sovereign' || !isBypassPermissionsModeDisabled()).map(mode => ({ id: mode, name: permissionModeTitle(mode), description: MODE_DESCRIPTIONS[mode] }))
+}
 
 function savedModePath(cwd: string, sessionId: string): string {
   return join(getProjectDir(cwd), `${encodeURIComponent(sessionId)}.acp.json`)
@@ -85,13 +101,13 @@ async function readSavedMode(cwd: string, sessionId: string): Promise<string | u
 const TASK_PLAN_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
 export function permissionAskWire(
-  ask: { toolUseId?: string; toolName: string; input: unknown },
+  ask: { toolUseId?: string; toolName: string; input: unknown; suggestions?: unknown[] },
   requestId: string | number,
   acpSessionId: string,
 ): {
   sessionId: string
   toolCall: { toolCallId: string; title: string; status: 'pending'; rawInput: unknown }
-  options: { optionId: string; name: string; kind: 'allow_once' | 'reject_once' }[]
+  options: { optionId: string; name: string; kind: 'allow_once' | 'allow_always' | 'reject_once' }[]
 } {
   return {
     sessionId: acpSessionId,
@@ -103,6 +119,7 @@ export function permissionAskWire(
     },
     options: [
       { optionId: 'allow', name: `Allow ${ask.toolName}`, kind: 'allow_once' },
+      ...(ask.suggestions !== undefined && ask.suggestions.length > 0 ? [{ optionId: 'allow_always', name: `Always allow ${ask.toolName}`, kind: 'allow_always' as const }] : []),
       { optionId: 'deny', name: 'Deny', kind: 'reject_once' },
     ],
   }
@@ -110,7 +127,28 @@ export function permissionAskWire(
 
 export function permissionAllowedOf(result: unknown): boolean {
   const o = (result as { outcome?: { outcome?: unknown; optionId?: unknown } } | null)?.outcome
-  return o?.outcome === 'selected' && o?.optionId === 'allow'
+  return o?.outcome === 'selected' && (o?.optionId === 'allow' || o?.optionId === 'allow_always')
+}
+
+export function permissionAnswerOf(result: unknown, ask: Pick<ToolAsk, 'suggestions'>): PermissionAnswer {
+  const o = (result as { outcome?: { outcome?: unknown; optionId?: unknown } } | null)?.outcome
+  if (!permissionAllowedOf(result)) return { outcome: 'deny', message: 'denied by the ACP client' }
+  if (o?.optionId === 'allow_always' && ask.suggestions !== undefined && ask.suggestions.length > 0) return { outcome: 'allow', rules: ask.suggestions }
+  return { outcome: 'allow' }
+}
+
+export function elicitationWire(params: ElicitationRequestParams, acpSessionId: string): Record<string, unknown> {
+  if (params.mode === 'url') {
+    return { sessionId: acpSessionId, mode: 'url', message: params.message, url: params.url ?? '', elicitationId: params.elicitation_id ?? '' }
+  }
+  return { sessionId: acpSessionId, mode: 'form', message: params.message, requestedSchema: params.schema ?? { type: 'object', properties: {} } }
+}
+
+export function elicitationAnswerOf(result: unknown): ElicitationAnswer {
+  const r = result as { action?: unknown; content?: unknown } | null
+  if (r?.action === 'accept') return { action: 'accept', ...(r.content !== null && typeof r.content === 'object' ? { content: r.content as Record<string, unknown> } : {}) }
+  if (r?.action === 'decline') return { action: 'decline' }
+  return { action: 'cancel' }
 }
 
 
@@ -687,6 +725,7 @@ export interface AcpServerOptions {
 export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   const sessions = new Map<string, AcpSessionState>()
   let transportClosed = false
+  let clientElicitation = false
   const entry = opts.entry ?? { node: process.execPath, script: selfScriptPath() }
 
   const attachSession = (
@@ -741,6 +780,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           ? { resumeSessionId: args.resumeSessionId }
           : { sessionId: acpSessionId }),
         permissionMode: args.modeId ?? 'default',
+        allowSovereign: !isBypassPermissionsModeDisabled(),
+        elicitation: clientElicitation,
         entry,
         ...(mcp !== null && { mcpConfig: mcp.json }),
       },
@@ -838,19 +879,40 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
             state.cancelled = false
           }
         },
-        onPermissionAsk: (requestId, ask) => {
-          void (async () => {
-            try {
-              const result = await ctx.request(
-                methods.client.session.requestPermission,
-                permissionAskWire(ask, requestId, acpSessionId),
-              )
-              const allowed = permissionAllowedOf(result)
-              child.answerPermission(requestId, allowed, { updatedInput: ask.input })
-            } catch (e) {
-              child.answerPermission(requestId, false, { message: `permission channel failed: ${e}` })
-            }
-          })()
+        onPermissionAsk: async (requestId, ask, withdrawn) => {
+          try {
+            const result = await ctx.request(
+              methods.client.session.requestPermission,
+              permissionAskWire({ toolUseId: ask.tool_use_id, toolName: ask.tool_name, input: ask.input, ...(ask.suggestions !== undefined ? { suggestions: ask.suggestions } : {}) }, requestId, acpSessionId),
+              { cancellationSignal: withdrawn },
+            )
+            return permissionAnswerOf(result, ask)
+          } catch (e) {
+            return { outcome: 'deny', message: `permission channel failed: ${e}` }
+          }
+        },
+        onNetworkAsk: async (host, withdrawn) => {
+          try {
+            const result = await ctx.request(
+              methods.client.session.requestPermission,
+              permissionAskWire({ toolName: `network access to ${host}`, input: { host } }, `network-${host}`, acpSessionId),
+              { cancellationSignal: withdrawn },
+            )
+            return permissionAllowedOf(result)
+          } catch {
+            return false
+          }
+        },
+        onElicitation: async (params, withdrawn) => {
+          try {
+            const result = await ctx.request(methods.client.elicitation.create, elicitationWire(params, acpSessionId) as never, { cancellationSignal: withdrawn })
+            return elicitationAnswerOf(result)
+          } catch {
+            return { action: 'cancel' }
+          }
+        },
+        onElicitationComplete: (_server, elicitationId) => {
+          void ctx.notify(methods.client.elicitation.complete, { sessionId: acpSessionId, elicitationId })
         },
         onExit: code => {
           if (state.turnResolve) {
@@ -874,7 +936,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
 
   const modesFor = (modeId: string) => ({
     currentModeId: modeId,
-    availableModes: PERMISSION_MODES.map(m => ({
+    availableModes: permissionModesOffered().map(m => ({
       id: m.id,
       name: m.name,
       description: m.description,
@@ -889,7 +951,7 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       category: 'mode' as const,
       type: 'select' as const,
       currentValue: modeId,
-      options: PERMISSION_MODES.map(m => ({
+      options: permissionModesOffered().map(m => ({
         value: m.id,
         name: m.name,
         description: m.description,
@@ -910,12 +972,17 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
 
   const setSessionMode = (ctx: AgentContext, sessionId: string, state: AcpSessionState, modeId: string): Promise<void> => {
     const change = state.modeChanges.catch(() => {}).then(async () => {
-      if (!(await state.child.setPermissionMode(modeId))) {
-        throw new Error(`the session did not confirm mode '${modeId}' — state unchanged`)
+      if (modeId === 'sovereign') {
+        const consent = await ctx.request(
+          methods.client.session.requestPermission,
+          permissionAskWire({ toolName: 'Sovereign Mode', input: { mode: 'sovereign', effect: 'every tool call auto-approved for this session' } }, 'sovereign-consent', sessionId),
+        )
+        if (!permissionAllowedOf(consent)) refuse('Sovereign Mode needs your consent — the request was declined')
       }
+      await state.child.setPermissionMode(modeId).catch((error: unknown) => refuse(error instanceof Error ? error.message : String(error)))
       state.modeId = modeId
       notifyModeChanged(ctx, sessionId, modeId)
-      await savedModeStore(state.modePath).write({ permissionMode: modeId })
+      await savedModeStore(state.modePath).write({ permissionMode: modeId === 'sovereign' ? 'default' : modeId })
     })
     state.modeChanges = change
     return change
@@ -927,17 +994,21 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
   }>>()
 
   const app = agent({ name: 'mercury' })
-    .onRequest('initialize', () => ({
-      protocolVersion: PROTOCOL_VERSION,
-      agentCapabilities: {
-        loadSession: true,
-        promptCapabilities: { image: true, audio: false, embeddedContext: true },
-        mcpCapabilities: { http: true, sse: true },
-        sessionCapabilities: { list: {} },
-      },
-      authMethods: [],
-      agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
-    }))
+    .onRequest('initialize', ctx => {
+      const caps = (ctx.params as { clientCapabilities?: { elicitation?: unknown } } | undefined)?.clientCapabilities
+      clientElicitation = caps?.elicitation !== undefined && caps.elicitation !== null
+      return {
+        protocolVersion: PROTOCOL_VERSION,
+        agentCapabilities: {
+          loadSession: true,
+          promptCapabilities: { image: true, audio: false, embeddedContext: true },
+          mcpCapabilities: { http: true, sse: true },
+          sessionCapabilities: { list: {} },
+        },
+        authMethods: [],
+        agentInfo: { name: 'mercury', title: 'Mercury', version: MERCURY_VERSION },
+      }
+    })
     .onRequest('session/new', ctx => {
       const sessionId = randomUUID()
       attachSession(ctx.client, {
@@ -977,8 +1048,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
           }
         }
         modeId = modeId ?? 'default'
-        if (!PERMISSION_MODES.some(mode => mode.id === modeId) || (modeId === 'flow' && !isAutoModeGateEnabled())) {
-          process.stderr.write(`[acp] saved permission mode '${modeId}' is unavailable here — resuming in the default mode\n`)
+        if (!permissionModesOffered().some(mode => mode.id === modeId) || (modeId === 'flow' && !isAutoModeGateEnabled()) || modeId === 'sovereign') {
+          process.stderr.write(`[acp] saved permission mode '${modeId}' is not resumed here — resuming in the default mode\n`)
           modeId = 'default'
         }
         attachSession(ctx.client, {
@@ -1047,14 +1118,13 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         detail: TurnEndDetail | undefined
       }>(resolve => {
         state.turnResolve = (outcome, detail) => resolve({ outcome, detail })
-        try {
-          state.child.writeUserPrompt(blocks)
-        } catch (e) {
+        state.child.writeUserPrompt(blocks).catch((e: unknown) => {
+          if (state.turnResolve === null) return
           const why = e instanceof Error ? e.message : String(e)
           process.stderr.write(`[acp] session/prompt failed to reach the child: ${why}\n`)
           state.turnResolve = null
           resolve({ outcome: 'error', detail: { status: 'prompt_undelivered', errors: [why] } })
-        }
+        })
       })
       const verdict = stopReasonOf(settled.outcome, settled.detail)
       if ('error' in verdict) throw new Error(verdict.error)
@@ -1064,8 +1134,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
       const state = sessions.get(ctx.params.sessionId)
       if (!state) throw new Error(`unknown session '${ctx.params.sessionId}'`)
       const modeId = ctx.params.modeId
-      if (!PERMISSION_MODES.some(m => m.id === modeId)) {
-        throw new Error(`unknown mode '${modeId}' — modes: ${PERMISSION_MODES.map(m => m.id).join(', ')}`)
+      if (!permissionModesOffered().some(m => m.id === modeId)) {
+        refuse(`unknown mode '${modeId}' — modes: ${permissionModesOffered().map(m => m.id).join(', ')}`)
       }
       await setSessionMode(ctx.client, ctx.params.sessionId, state, modeId)
       return {}
@@ -1077,10 +1147,8 @@ export async function runAcpServer(opts: AcpServerOptions = {}): Promise<void> {
         throw new Error(`unknown config option '${ctx.params.configId}' — options: permission-mode`)
       }
       const value = ctx.params.value
-      if (typeof value !== 'string' || !PERMISSION_MODES.some(m => m.id === value)) {
-        throw new Error(
-          `unknown permission-mode value '${String(value)}' — values: ${PERMISSION_MODES.map(m => m.id).join(', ')}`,
-        )
+      if (typeof value !== 'string' || !permissionModesOffered().some(m => m.id === value)) {
+        refuse(`unknown permission-mode value '${String(value)}' — values: ${permissionModesOffered().map(m => m.id).join(', ')}`)
       }
       await setSessionMode(ctx.client, ctx.params.sessionId, state, value)
       return { configOptions: configOptionsFor(value) }

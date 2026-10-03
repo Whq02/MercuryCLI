@@ -1,7 +1,7 @@
 {
   "name": "mercury-vscode",
   "displayName": "Mercury",
-  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp --stdio). A thin bridge: no second agent runtime.",
+  "description": "Mercury in VS Code — sessions, agents, artifacts and reviews over the Agent Client Protocol (mercury acp). A thin bridge: no second agent runtime.",
   "version": "0.1.0",
   "publisher": "mercury",
   "license": "SEE LICENSE IN LICENSE.txt",
@@ -69,7 +69,7 @@
     "viewsWelcome": [
       {
         "view": "mercurySessions",
-        "contents": "No Mercury session in this window yet.\n[New Session](command:mercury.newSession)\n[Open in Mercury Terminal](command:mercury.openTerminal)\nThe bridge runs `mercury acp --stdio` from the `mercury.path` setting."
+        "contents": "No Mercury session in this window yet.\n[New Session](command:mercury.newSession)\n[Open in Mercury Terminal](command:mercury.openTerminal)\nThe bridge runs `mercury acp` from the `mercury.path` setting."
       }
     ],
     "commands": [
@@ -142,7 +142,7 @@
         "mercury.path": {
           "type": "string",
           "default": "mercury",
-          "description": "The Mercury launcher (or `node /path/to/mercury.mjs`). The bridge runs `<path> acp --stdio`; Open in Mercury Terminal runs `<path>`."
+          "description": "The Mercury launcher (or `node /path/to/mercury.mjs`). The bridge runs `<path> acp`; Open in Mercury Terminal runs `<path>`."
         },
         "mercury.liveContext": {
           "type": "boolean",

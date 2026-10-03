@@ -164,13 +164,15 @@ async function main(): Promise<void> {
   }
   if (args[0] === 'acp') {
     profileCheckpoint('route_acp')
-    if (!args.includes('--stdio')) {
+    const extra = args.slice(1)
+    if (extra.length > 0) {
       const { writeSync } = await import('node:fs')
+      const help = extra[0] === '-h' || extra[0] === '--help'
       try {
-        writeSync(2, 'Usage: mercury acp --stdio\n')
+        writeSync(help ? 1 : 2, help ? 'Usage: mercury acp\n\nServe an editor over the Agent Client Protocol on stdio.\n' : `error: unknown option '${extra[0]}'\n`)
       } catch {
       }
-      process.exit(2)
+      process.exit(help ? 0 : 2)
     }
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
