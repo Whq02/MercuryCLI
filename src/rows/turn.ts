@@ -60,6 +60,7 @@ import { getCwd } from '../utils/cwd.js'
 import {
   commandOutputRow,
   commandOutputTextOf,
+  shellOutputTextOf,
   compactionEndedRow,
   itemRowsOf,
   modelUsageRows,
@@ -631,11 +632,16 @@ export class Conversation {
     notePrintPhase('assembly')
 
     if (!inputResult.shouldQuery) {
+      let commandAnswer = ''
       for (const message of inputResult.messages) {
         if (message.type === 'user') {
           const text = messageTextContent(message)
           const isCompactSummary = (message as { isCompactSummary?: boolean }).isCompactSummary === true
-          if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
+          const shellOutput = text !== null && options?.mode === 'bash' ? shellOutputTextOf(text) : null
+          if (shellOutput !== null) {
+            commandAnswer = shellOutput
+            yield commandOutputRow(scope, shellOutput, typeof prompt === 'string' ? prompt : undefined)
+          } else if (text !== null && isLocalCommandOutputText(text) && !isCompactSummary) {
             yield commandOutputRow(scope, commandOutputTextOf(text), typeof prompt === 'string' ? prompt.split(/\s+/)[0] : undefined)
           }
         } else if (message.type === 'system' && (message as { subtype?: string }).subtype === 'local_command') {
@@ -652,11 +658,17 @@ export class Conversation {
         await this.recordDelta(turnMessages)
         if (eagerFlush) await flushSessionStorage()
       }
+      if (options?.mode === 'bash' && this.abortController.signal.aborted) {
+        const cut = turnCutOf(this.abortController.signal.reason)
+        const ended = statusOfTerminal({ reason: 'aborted_tools' }, cut.kind)
+        yield closeTurn(ended.status, { error: { message: ended.status === 'interrupted' ? OUTCOME_SENTENCES.interrupted({}) : cut.kind === 'idle-timeout' ? 'The turn was aborted after a no-progress timeout' : `The turn was cut: ${cut.detail ?? 'the run was aborted'}`, class: ended.errorClass ?? 'interrupt' } })
+        return
+      }
       const refused = inputResult.commandRefused === true || inputResult.hookBlocked === true
       yield closeTurn(refused ? 'refused' : 'completed', {
         ...(refused
           ? { error: { message: inputResult.resultText ?? 'The request was refused', class: inputResult.hookBlocked === true ? 'hook' : 'command' } }
-          : { answer: inputResult.resultText ?? '' }),
+          : { answer: inputResult.resultText ?? commandAnswer }),
       })
       return
     }

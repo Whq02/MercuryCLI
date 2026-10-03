@@ -1056,11 +1056,7 @@ export async function runHeadless(
 
   const isMainThreadCommand = (command: QueuedCommand): boolean =>
     command.agentId === undefined
-  const takeMainThread = (): QueuedCommand | undefined => {
-    const next = peek()
-    if (next && isMainThreadCommand(next)) return dequeue()
-    return undefined
-  }
+  const takeMainThread = (): QueuedCommand | undefined => dequeue(isMainThreadCommand)
 
   const taskNotificationPayloads = (command: QueuedCommand): string[] => {
     const texts =
@@ -1557,10 +1553,7 @@ export async function runHeadless(
   const driver: TurnDriver = createTurnDriver({
     dequeue: takeMainThread,
     dequeueCommand: command => dequeue(queued => queued === command),
-    peek: () => {
-      const next = peek()
-      return next && isMainThreadCommand(next) ? next : undefined
-    },
+    peek: () => peek(isMainThreadCommand),
     notifyLifecycle: notifyCommandLifecycle,
     enqueueOutput: message => io.outbound.enqueue(message),
     writeDirect: async message => {
