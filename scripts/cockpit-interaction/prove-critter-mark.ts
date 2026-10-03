@@ -133,7 +133,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors with the octopus mark
         MERCURY_BOOT_PREFLIGHT: '0',
         MERCURY_LIVE_GLYPHS: '0',
         MERCURY_CRITTER: 'octopus',
-        MERCURY_HEALTH_STATE_DIR: join(scratch, 'doctor'),
+        MERCURY_HEALTH_STATE_DIR: join(scratch, 'health'),
         MERCURY_DAEMON_DIR: join(scratch, 'daemon'),
       },
       encoding: 'utf8',
