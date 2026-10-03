@@ -54,8 +54,9 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
   })
   const raw = res.stdout ?? ''
   try {
-    const envelope = JSON.parse(raw.slice(raw.indexOf('{'))) as { result?: string; is_error?: boolean }
-    return { result: envelope.result ?? '', ok: res.status === 0, refused: res.status === 1 && envelope.is_error === true, raw }
+    const outcome = JSON.parse(raw.slice(raw.indexOf('{'))) as { type?: string; status?: string; answer?: string; error?: { message?: string } }
+    const refused = res.status === 1 && outcome.type === 'outcome' && outcome.status === 'refused'
+    return { result: refused ? outcome.error?.message ?? '' : outcome.answer ?? '', ok: res.status === 0, refused, raw }
   } catch {
     return { result: '', ok: false, refused: false, raw: `${raw}\n${res.stderr ?? ''}` }
   }
@@ -63,7 +64,7 @@ function drive(prompt: string): { result: string; ok: boolean; refused: boolean;
 
 {
   const { result, refused } = drive('/critter')
-  check('run /critter answers the refusal envelope (exit 1, is_error — the command did not run)', refused)
+  check('run /critter answers a refused outcome (exit 1, status refused — the command did not run)', refused)
   check(
     '/critter (local-jsx) answers the interactive-surface reason',
     result.includes('/critter command is an interactive surface'),
