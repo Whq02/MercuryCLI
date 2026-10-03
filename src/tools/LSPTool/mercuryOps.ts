@@ -18,7 +18,7 @@ import {
   subscribeLSPDiagnosticPublish,
 } from '../../services/lsp/LSPDiagnosticRegistry.js'
 import { builtinImplementationInfo } from '../../services/lsp/builtinServers.js'
-import { remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
+import { oneLine, remedyForLanguageServer, serverTitle, startFailureCause, unclaimedCause } from '../../services/lsp/failureWords.js'
 import { isLspStartFailure, type LSPServerInstance } from '../../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../../services/lsp/LSPServerManager.js'
 import {
@@ -1964,7 +1964,7 @@ async function opWorkspaceDiagnostics(env: OpEnv): Promise<MercuryLspOpOutput> {
       effect: {
         outcome: 'failed',
         changedPaths: [],
-        evidence: 'no claimed files',
+        evidence: oneLine(reasons[0] ?? 'no claimed files'),
         details: { skipped: skipped.length },
       },
     }
