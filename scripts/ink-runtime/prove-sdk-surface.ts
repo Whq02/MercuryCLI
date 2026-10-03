@@ -1,72 +1,68 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const SDK = join(ROOT, 'src', 'entrypoints', 'sdk')
+const HOMES = [join(ROOT, 'src', 'rows'), join(ROOT, 'src', 'runner', 'wire')]
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
+const rel = (path: string): string => path.slice(ROOT.length + 1)
+const strip = (src: string): string => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '')
+const resolves = (fromFile: string, spec: string): boolean => {
+  const base = join(dirname(fromFile), spec.replace(/\.js$/, ''))
+  return ['.ts', '.tsx', '.d.ts', '/index.ts'].some(ext => existsSync(base + ext))
+}
 
-console.log('bedrock sdk surface — no misleading stubs')
+console.log('the machine surface — the row vocabulary and the runner wire')
 
-for (const name of readdirSync(SDK).sort()) {
-  const src = readFileSync(join(SDK, name), 'utf8')
-  const stripped = src
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .replace(/^\s*\/\/.*$/gm, '')
+const modules: string[] = []
+for (const home of HOMES) {
+  const present = existsSync(home) && statSync(home).isDirectory()
+  check(`${rel(home)} exists`, present)
+  if (!present) continue
+  const files = readdirSync(home).filter(name => name.endsWith('.ts')).sort()
+  check(`${rel(home)} carries modules`, files.length > 0)
+  modules.push(...files.map(name => join(home, name)))
+}
+for (const name of ['src/rows/vocabulary.ts', 'src/rows/read.ts', 'src/rows/project.ts', 'src/rows/turn.ts', 'src/runner/wire/methods.ts', 'src/runner/wire/peer.ts', 'src/runner/wire/errors.ts']) {
+  check(`${name} is present`, existsSync(join(ROOT, name)))
+}
+
+for (const file of modules) {
+  const src = readFileSync(file, 'utf8')
+  const stripped = strip(src)
   const hasRealExport =
-    /export\s+(type|interface|const|function|class|enum|declare)\s+\w/.test(stripped) ||
+    /export\s+(type|interface|const|function|class|enum|declare|async)\s+\w/.test(stripped) ||
     /export\s+\{\s*\w/.test(stripped) ||
     /export\s+\*\s+from/.test(stripped)
-  check(`${name}: exports real bindings`, hasRealExport, 'empty exported module')
-  check(
-    `${name}: no \`= any\` type alias`,
-    !/export\s+type\s+\w+\s*=\s*any\b/.test(stripped),
-    'a misleading any-stub',
-  )
+  check(`${rel(file)}: exports real bindings`, hasRealExport, 'empty exported module')
+  check(`${rel(file)}: no \`= any\` type alias`, !/export\s+type\s+\w+\s*=\s*any\b/.test(stripped), 'a misleading any-stub')
+  const specs = [...stripped.matchAll(/from\s+['"](\.[^'"]+)['"]/g)].map(m => m[1]!)
+  const unresolved = specs.filter(spec => !resolves(file, spec))
+  check(`${rel(file)}: every relative import resolves`, unresolved.length === 0, unresolved.join(', '))
+  check(`${rel(file)}: no 'not implemented' stub throws`, !/throw new Error\((?:'|")[^'"]*not implemented/i.test(stripped))
+  check(`${rel(file)}: no provider package import`, !/from\s+['"]@anthropic-ai\//.test(stripped) && !/from\s+['"]openai['"]/.test(stripped), 'a provider package leaks through the machine surface')
 }
 
 {
-  const entry = readFileSync(join(ROOT, 'src', 'entrypoints', 'agentSdkTypes.ts'), 'utf8')
-  const specs = [...entry.matchAll(/from\s+['"](\.[^'"]+)['"]/g)].map(m => m[1]!)
-  for (const spec of specs) {
-    const base = join(ROOT, 'src', 'entrypoints', spec.replace(/\.js$/, ''))
-    const exists = ['.ts', '.tsx', '.d.ts'].some(ext => {
-      try {
-        readFileSync(base + ext)
-        return true
-      } catch {
-        return false
-      }
-    })
-    check(`agentSdkTypes target resolves: ${spec}`, exists)
-  }
+  const vocabulary = readFileSync(join(ROOT, 'src', 'rows', 'vocabulary.ts'), 'utf8')
+  const methods = readFileSync(join(ROOT, 'src', 'runner', 'wire', 'methods.ts'), 'utf8')
+  check('ROWS_SCHEMA is declared as the literal 1', /export const ROWS_SCHEMA = 1\b/.test(vocabulary))
+  check('the session row and the outcome row carry the schema literal', /schema: z\.literal\(ROWS_SCHEMA\)/.test(vocabulary))
+  check('RUNNER_PROTOCOL is declared as the literal 1', /export const RUNNER_PROTOCOL = 1\b/.test(methods))
+  check('the initialize handshake carries a protocol number both ways', (methods.match(/protocol: z\.number\(\)\.int\(\)/g) ?? []).length === 2, String((methods.match(/protocol: z\.number\(\)\.int\(\)/g) ?? []).length))
+  const runnerMethods = readFileSync(join(ROOT, 'src', 'cli', 'headless', 'runnerMethods.ts'), 'utf8')
+  check("the runner answers its protocol and refuses a host asking for another", runnerMethods.includes('protocol: RUNNER_PROTOCOL') && runnerMethods.includes('if (params.protocol !== RUNNER_PROTOCOL) {'))
 }
 
 {
-  const files = [
-    join(ROOT, 'src', 'entrypoints', 'agentSdkTypes.ts'),
-    ...readdirSync(SDK).map(n => join(SDK, n)),
-  ]
-  for (const f of files) {
-    const src = readFileSync(f, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '')
-    const fnBodies = [...src.matchAll(/export\s+(?:async\s+)?(?:function|class)\s+(\w+)[\s\S]{0,400}?\{([\s\S]{0,300}?)\}/g)]
-    const throwing = fnBodies.filter(m => /throw new Error\((?:'|")[^'"]*not implemented/i.test(m[2]!))
-    check(
-      `${f.slice(ROOT.length + 1)}: zero throwing runtime exports`,
-      throwing.length === 0,
-      throwing.map(m => m[1]).join(', '),
-    )
-    check(
-      `${f.slice(ROOT.length + 1)}: no 'not implemented' stub throws`,
-      !/throw new Error\((?:'|")[^'"]*not implemented/i.test(src),
-    )
+  const project = strip(readFileSync(join(ROOT, 'src', 'rows', 'project.ts'), 'utf8'))
+  for (const name of ['sessionRow', 'turnStartedRow', 'turnWaitingRow', 'itemRowsOf', 'toolResultRowsOf', 'toolUpdateRow', 'stepRow', 'outcomeRow', 'compactionRow', 'compactionClearedRow', 'partialRowsOf']) {
+    check(`src/rows/project.ts exports the ${name} projector`, new RegExp(`export function ${name}\\b`).test(project))
   }
 }
 
@@ -83,7 +79,7 @@ for (const name of readdirSync(SDK).sort()) {
 }
 
 if (failures > 0) {
-  console.log(`\nbedrock sdk surface: RED (${failures} failure${failures === 1 ? '' : 's'})`)
+  console.log(`\nthe machine surface: RED (${failures} failure${failures === 1 ? '' : 's'})`)
   process.exit(1)
 }
-console.log('\nbedrock sdk surface: green')
+console.log('\nthe machine surface: green')

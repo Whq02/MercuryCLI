@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { execSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -104,26 +104,26 @@ section('§E sdkErrors.ts is the zero-dependency identity leaf')
   check('sdkErrors.ts imports/re-exports ONLY from the SDK', nonSdk.length === 0, nonSdk.join(' | '))
 }
 
-section('§F the versioned SDK contract + the named compat projection (E03/E04)')
+section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')
 {
-  const core = readFileSync(join(ROOT, 'src/entrypoints/sdk/coreTypes.ts'), 'utf8')
+  for (const home of ['src/rows', 'src/runner/wire']) check(`${home} exists`, existsSync(join(ROOT, home)) && statSync(join(ROOT, home)).isDirectory())
+  const vocabulary = readFileSync(join(ROOT, 'src/rows/vocabulary.ts'), 'utf8')
+  const methods = readFileSync(join(ROOT, 'src/runner/wire/methods.ts'), 'utf8')
+  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', /export const ROWS_SCHEMA = \d+/.test(vocabulary))
+  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', /export const RUNNER_PROTOCOL = \d+/.test(methods))
+  const project = readFileSync(join(ROOT, 'src/rows/project.ts'), 'utf8')
+  const read = readFileSync(join(ROOT, 'src/rows/read.ts'), 'utf8')
   check(
-    'the Mercury SDK contract is VERSIONED (MERCURY_SDK_CONTRACT_VERSION exported)',
-    /export const MERCURY_SDK_CONTRACT_VERSION = \d+/.test(core),
-  )
-  const mappers = readFileSync(join(ROOT, 'src/utils/messages/mappers.ts'), 'utf8')
-  check(
-    'the Mercury stream yield is a NAMED projection (mappers.ts exports both directions)',
-    mappers.includes('export function toSDKMessages(messages: Message[]): SDKMessage[]') &&
-      mappers.includes('export function toInternalMessages(messages: readonly DeepImmutable<SDKMessage>[]): Message[]'),
+    'the row stream is a NAMED projection both ways (project.ts emits the rows, read.ts parses them)',
+    /export function itemRowsOf\(/.test(project) && /export function outcomeRow\(/.test(project) && /export function parseRow\(/.test(read),
   )
   const sdkHits = execSync(
-    `grep -rln "from '@anthropic-ai/sdk" src/entrypoints/sdk --include='*.ts' || true`,
+    `grep -rln "from '@anthropic-ai/sdk" src/rows src/runner/wire --include='*.ts' || true`,
     { cwd: ROOT, encoding: 'utf8' },
   )
     .split('\n')
     .filter(Boolean)
-  check('the public SDK entrypoint imports no provider SDK (Mercury-native default)', sdkHits.length === 0, sdkHits.join(', '))
+  check('the machine surface imports no provider SDK (Mercury-native)', sdkHits.length === 0, sdkHits.join(', '))
 }
 
 console.log(failures === 0 ? '\n ✅ IMPORT FENCE HOLDS' : `\n ❌ ${failures} FENCE BREAK(S)`)
