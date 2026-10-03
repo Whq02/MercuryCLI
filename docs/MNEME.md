@@ -1,11 +1,11 @@
 # Mneme — Mercury's memory
 
-Mneme is Mercury's memory. It is on in every session, one library per
-project, and it keeps what a session learns in **topic pages**: plain
-markdown files, one page per topic, each fact on its own line with the time
-and the source it was captured from. Nothing is hidden in a database; every
-page is readable and hand-editable in the project's memory folder under the
-Mercury config home.
+Mneme is Mercury's memory, on by default, with one library per project.
+It keeps what a session learns in **topic pages**: plain markdown files,
+one page per topic, each fact on its own line with its time and source.
+The pages are readable in the project's memory folder under the Mercury
+config home. Mercury changes them through its memory tools; use `/memory`
+to correct, pin or unpin a record.
 
 ## What the model gets
 
@@ -24,17 +24,18 @@ Three things are in front of the model without anyone asking:
   you just said are attached before the model answers, each pointing at the
   page it lives on.
 
-The front page and the pinned shelf change only when consolidation runs, so
-the prompt the model sees stays the same from turn to turn and the provider's
-prompt cache holds.
+Mercury publishes the front page when the library or its pinned rules change.
+Between those changes the same page loads into each chat, preserving the
+provider's prompt cache.
 
 ## The four verbs
 
 The model works its memory through four tools:
 
-- **Retain** saves a fact for future sessions. It lands first in a small
-  staging buffer and is findable at once; consolidation files it on its topic
-  page.
+- **Retain** saves a fact for future sessions. It is findable in the staging
+  buffer at once; consolidation files it on its topic page. A pinned rule
+  also triggers maintenance immediately. The result says whether it reached
+  the shelf or is waiting for the next maintenance pass.
 - **Recall** searches the pages (and the staging buffer) and reads a whole
   page or one record by its id.
 - **Reflect** answers a question over what was recalled, citing the records
@@ -66,33 +67,20 @@ says so — how much is pinned, the limit, that all of it is loaded, and where
 to trim. The line never appears in a crewmate's chat or in `mercury run`
 output. Crewmates and sub-agents receive the front page with the pinned rules.
 
-A pinned rule is replaced only when the newer rule names it: you say the new
-rule replaces the old one (the model passes the old rule's id with the new
-rule), or you correct the rule yourself in the memory centre. The newer rule
-then takes the older one's place on the shelf and the older text is kept as
-history. Rules that merely share words are not a conflict — both stay. A rule
-you asked for is yours alone: the model's Correct refuses it, consolidation
-leaves it as said, and only you change or unpin it in `/memory`.
-
-## Existing notes
-
-The first time this version opens a project that has memory notes from
-before, Mercury hands each note to Mneme once, on its own, through Retain:
-rulings and preferences go to the pinned shelf, project facts and references
-to topic pages, long notes as numbered parts so nothing is dropped for size.
-A marker in the library records that the intake ran, so it never runs twice,
-and a receipt — shown in the memory centre and kept as `handover.json` in the
-library — says how many notes it took and where they landed. The old files
-stay on disk untouched and are not read again.
+A rule you asked for is yours alone: the model cannot correct, replace or
+unpin it. Consolidation leaves it as said; you change or unpin it in
+`/memory`. For another pinned rule, a replacement names that rule's id and
+keeps the earlier text as history. Rules that merely share words are not a
+conflict — both stay.
 
 ## The memory centre
 
 `/memory` is the front door. Type to search facts and rules; open one to see
 why it matched and the page it lives on; press `c` to correct it (the old
 fact moves to history), `x` to retire it, `p` to pin it word for word or `u`
-to unpin it. The overview shows how many facts and topics the library holds,
-how full the pinned shelf is, the intake receipt, the state of maintenance
-and its recent receipts. `/memory stats` prints the same numbers;
+to unpin it. The overview lists the topics and opens each page. It shows how
+many facts the library holds, how full the pinned shelf is, the state of
+maintenance and its recent receipts. `/memory stats` prints the same numbers;
 `/memory enqueue` runs maintenance now. `/health` carries a memory row with
 the front page's size and the shelf's fill.
 
@@ -102,11 +90,10 @@ The library lives at `<config home>/projects/<project>/memory/library/`:
 
 - `topic-<slug>.md` — one topic page; `archive-<slug>.md` — its archive;
 - `current.jsonl` — the staging buffer of facts not yet consolidated;
-- `front-page.md` and `pinned-status.json` — what the model is given, written
-  at consolidation;
+- `front-page.md` and `pinned-status.json` — the published index and pinned
+  shelf, with the shelf's fill;
 - `pins.json` — the pinned rules; `usage.json` — when each fact was last used;
-- `library.json` — the sequence counter; `maintenance.jsonl` — the receipts;
-- `handover.json` — the intake receipt, once it has run.
+- `library.json` — the sequence counter; `maintenance.jsonl` — the receipts.
 
 Memory is off when `memory.enabled` is `false` in settings; then nothing
 is loaded, saved or looked up, and the four tools leave the roster.

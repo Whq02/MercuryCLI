@@ -33,9 +33,10 @@ creates it.
 
 Two different things: the **host** and the **shell**. Windows Terminal is the
 host — the full interface is designed for it (the VS Code integrated terminal
-also qualifies); a standalone PowerShell 7 console window shows a
+also qualifies). A host that does not meet the profile shows a
 terminal-check card first, and its first row — `1`, Continue anyway —
-continues with a reduced presentation.
+starts the full interface. The card names what is missing; continuing does
+not select a reduced presentation.
 PowerShell 7 (`pwsh`) is the shell to run inside that host. Not `cmd.exe`,
 not the old blue "Windows PowerShell 5". Every command below is PowerShell.
 
@@ -340,7 +341,7 @@ window, so a console-less one is reported as needing the forced stop, and a
 stop whose receipt is lost is reported as unknown. Nothing here ends a process
 on its own; the doctor's action decides, on request.
 
-Start Mercury (needs the 100-column window from step 1):
+Start Mercury in an interactive terminal; a small window uses the compact layout:
 
 ```powershell
 node dist\mercury.mjs

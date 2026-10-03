@@ -84,7 +84,7 @@ session's own record and facts are read they take over, the same words
 standing. A word the birth did not resolve stays unpainted until the
 session's record names it.
 
-The boot's own options ride into the sessions it opens: `-n <name>` titles
+The boot's own options ride into the sessions it opens: `--title <name>` titles
 the first session you open (one-shot; later ones name themselves — below),
 and `--effort`, the permission mode and the runner-side options apply to
 every session this screen births.
@@ -155,9 +155,7 @@ empty and idle for 10m" — until you release it), but a session born through
 New Session that has not received your first message is excluded from that
 judgment: without limit by default, or for the
 `MERCURY_SESSION_NEWBORN_GRACE_MINUTES` you set, and the first message ends
-the grace either way (the `MERCURY_CONCOURSE_…` spellings of both knobs are
-accepted aliases until 2026-12-01, read only while the `MERCURY_SESSION_…`
-ones are unset). A session born this way, never messaged, that the daemon finds
+the grace either way. A session born this way, never messaged, that the daemon finds
 dead at its next reconcile is released quietly rather than painted NEEDS YOU
 — there is nothing to bring back.
 
@@ -546,10 +544,8 @@ An interactive boot sweeps the rest: a record whose transcript no longer
 exists goes, and so does one older than `MERCURY_PREFIX_RECORD_RETENTION_DAYS`
 (thirty days unset); a live session's record is never touched.
 
-A thinking drop after a long idle is named the same way as any other, by the
-part of the request that moved. Mercury no longer asks the server to clear
-reasoning older than the last turn once a session has sat idle for an hour, so
-such a drop is never attributed to an idle clear.
+A thinking drop after a long idle is named by the part of the request that
+moved. Idle time alone does not ask the server to clear earlier reasoning.
 
 A sub-agent keeps the same kind of record on its own transcript: one brought
 back after its run ended (a message sent to it, the crew view's resume) sends
@@ -612,9 +608,9 @@ no chat open" otherwise, and in a `--chat` boot it also offers `m to select
 model-default`: `m` opens the model picker over the face and the pick is
 saved as the default a new session starts on, while the Boot Menu stays on
 its own card row. The setting `engine.sessionDefaults` in `settings.json` (absent
-reads as on) switches this off: with it `false`, the face and the board read
-as they did before, `m menu` included. `/concourse` still opens the plain
-live view of your sessions there.
+reads as on) switches the model-default shortcut off when set to `false`.
+The Boot Menu remains available from its row. `/concourse` still opens the
+plain live view of your sessions there.
 
 ## `mercury --concourse-off`
 

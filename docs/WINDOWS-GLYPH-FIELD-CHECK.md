@@ -10,7 +10,7 @@ with its colour emoji font, including the ones that are plain text symbols
 on every other host (a warning triangle, an asterisk, a check mark, an
 information sign, a small triangle). macOS draws those as text, so a screen
 that reads as plain text on a Mac can read as a row of colour pictures on
-Windows. Mercury now paints none of those characters: every mark is a
+Windows. Mercury paints its status marks as text: each is a
 geometric text glyph (`✻ ✓ ✕ ▲ ○ ◐ ● ⊛ › ⌄ ← → ⇄ ↳`). If you see a colour
 picture anywhere inside Mercury, that is a bug; report it with the steps
 below.

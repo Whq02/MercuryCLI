@@ -43,7 +43,7 @@ check('README links the root guide', readme.includes('AGENTS.md'))
 check('README compatibility section points at the seam map', readme.includes('docs/COMPATIBILITY.md'))
 
 const map = readFileSync(join(ROOT, 'docs/README.md'), 'utf8')
-for (const subject of ['Getting started', 'Operator guide', 'Keyboard', 'Capabilities', 'Architecture', 'Providers', 'Sessions', 'Extensions', 'Saturn', 'Kit', 'Releases', 'Direction']) {
+for (const subject of ['Getting started', 'Working in a session', 'Keyboard', 'Health and the runtime', 'Reference', 'Providers', 'Sessions', 'Extensions', 'Saturn', 'Kit', 'Releases', 'Creative tools', 'Settings', 'Mneme']) {
   check(`docs map routes: ${subject}`, new RegExp(subject, 'i').test(map))
 }
 

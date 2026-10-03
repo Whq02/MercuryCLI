@@ -5,10 +5,9 @@ a cadence and writes it one short note — what it may be missing, a course
 correction, what to verify before going on. It advises the model, not you:
 its notes land in the agent's context as muted rows marked `[advisor]`,
 greyed like the `[Saturn]` rows, and are never addressed to the operator.
-The agent can also ask it a question between notes. It is Anthropic's advisor
-tool generalised to any model, any provider, local included, on the main
-chat, with a memory of its own. Crewmates and workflow workers never get an
-advisor.
+The agent can also ask it a question between notes. The advisor can use any
+model and provider, local included, with a memory of its own. It serves the
+main chat; crewmates and workflow workers never get an advisor.
 
 It is off by default, and each chat turns its own on.
 
@@ -69,9 +68,9 @@ something new to read. The note lands in the agent's context as a row with
 the advisor's provenance:
 
 ```
-10:00:04 [advisor] · claude-opus-4-8 · every 10 minutes
-  You have not run the pin on the base yet.
-  Run it on 89017923b before you edit, and keep what it prints.
+10:00:04 [advisor] · claude-opus-5-5 · every 10 minutes
+  The parser change has not been checked against an empty input.
+  Add that case and run the tests before changing another file.
 ```
 
 The note lands inside the agent's next turn, at its next boundary — beside

@@ -9,7 +9,7 @@ communication carries its messages, tasks, file claims and who is busy.
 
 ## The crew view
 
-`/crewmates` is the Crew view (`/crewmates` still opens it, as the old name):
+`/crewmates` opens the Crew view:
 the focused session's sub-agents live — name, model, status, tokens,
 elapsed — and the named, long-lived crewmates the daemon keeps for the
 repository, one color-coded chat each, side by side. It is the one roster
@@ -152,7 +152,7 @@ same failure lines beside the per-agent rows.
 
 ## Live communication
 
-SendMessage carries every message between agents, as it always has: a plain
+SendMessage carries messages between agents: a plain
 message, a question and its answer, a shutdown request, the
 dispatch, escalate, progress and control envelopes, a handoff — addressed by
 name, by id, to `*` for everyone or to `main` for the lead, delivered at the
@@ -180,9 +180,8 @@ every session carries: `mcp__mercury__lease_claim`,
 `mcp__mercury__lease_take`. The list a lease verb takes is called `paths` on
 every one of them: repo-relative file paths, and for a crew claim a path may
 be a glob, a pattern ending in `/**` that covers a folder and everything
-beneath it. A claim or a release sent with the older word `globs` is read as
-the same list, and a claim sent with neither is refused with words that name
-both. A crew claim renews the caller's lease and replaces its set; claiming
+beneath it. `globs` also accepts the path list. A claim sent with neither
+field is refused with words that name both. A crew claim renews the caller's lease and replaces its set; claiming
 an empty set releases it. `lease_take` and a `lease_release` with a list act
 on exact project files; a `lease_release` with no list drops the caller's
 crew claim. A second crewmate that tries to edit a claimed file is stopped
@@ -230,8 +229,8 @@ restart never mints a duplicate.
 
 ## Boards
 
-`/crew` opens the crew board on `/runs` (`/tasks` still opens the same board)
-— the crewmates, their phases and handoffs. `/crewmates` is the Crew view:
+`/runs` opens the work board (`/tasks` opens the same board), including
+workflow runs and background shells. `/crewmates` is the Crew view:
 the session's sub-agents live, and the named crewmates' chats; each sub-agent
 row carries the count of notices delivered to it that no turn of its own has
 read yet ([SESSIONS.md](SESSIONS.md), "A notice an agent has not read"). A
@@ -247,11 +246,11 @@ boundary and never after a full timer. `/crew` shows the directory with
 presence and external seat attach/detach. `/sessions` manages this project's
 sessions, including crewmate chats.
 
-## Older transcripts
+## Saved conversations
 
-A transcript written by an earlier build still displays: its crewmate rows,
-its brief rows, its mailbox rows and its old row kinds render as they did, and
-the saved settings of an earlier build still read.
+A saved conversation reopens with its recorded crewmate messages and work.
+An unknown stored agent type opens as `mercury-crew`; the two built-in types
+and your custom definitions are the choices for a fresh launch.
 
 ## The concourse
 

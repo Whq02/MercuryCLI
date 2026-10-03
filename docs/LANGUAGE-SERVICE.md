@@ -22,6 +22,16 @@ Python servers; the server processes start lazily when needed.
 tool set and do not start this discovery. A server found after a
 conversation's first request joins at the next compaction or `/clear`.
 
+## Diagnostics and failures
+
+A diagnostics result says whether a server checked the files. A server that
+failed to start, did not answer or cannot claim the file is not a clean
+report: the result names the cause and what to fix. After three failures of
+the same operation with the same arguments, Mercury refuses that call for
+the session. A server that repeatedly fails is held back too. Resolve the
+reported setup problem before asking for the operation again; a failed
+check is not evidence that the project has no diagnostics.
+
 ## Two calls, always: the dry run, then the apply
 
 Every write operation is a dry run until `apply: true` is passed.

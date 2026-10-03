@@ -2,10 +2,11 @@
 
 Computer use is the Computer tool: the model takes a screenshot of your
 screen, decides, then clicks, types, presses keys, scrolls or drags in the
-application in front, and sees a fresh screenshot after every act. Nothing
-runs without your consent: the first act in each application asks you by
-the application's name. It is on by default on a machine that has the
-desktop driver, and the rest of Mercury does not depend on it.
+application in front, and sees a fresh screenshot after every act. Mercury
+checks the application's identity and your permission rules, grants and
+access setting before acting. When approval is needed, it asks by the
+application's name. It is on by default when the desktop driver is available;
+the rest of Mercury does not depend on it.
 
 ## Turning it off
 
@@ -90,9 +91,8 @@ terminal running Mercury is never typed into, an application that moved in
 front between the check and the act is not driven, and one session drives
 at a time. The row is saved where the Boot Menu keeps its other choices and
 reaches new sessions; `MERCURY_COMPUTER_ACCESS=asks`, `=permissive` or
-`=full` in the environment sets it for one session, and any other value —
-a `sovereign` saved by an earlier build among them — is refused as a
-diagnostic note and the default applies. `mercury doctor` and `/health`
+`=full` in the environment sets it for one session. Any other value produces
+a diagnostic note and the default applies. `mercury doctor` and `/health`
 name the access beside the switch: `computer use on · access asks`,
 `access permissive`, `access full (by sovereign mode)` or `access full
 (saved)`.
