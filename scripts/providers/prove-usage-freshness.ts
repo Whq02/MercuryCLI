@@ -136,11 +136,11 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   const view = owner.usageForProvider('anthropic')
   const failedWords = `usage endpoint answered HTTP 500 (${host})`
   check('the owner\'s view carries both spellings and the last figure still stands (5h 66%)', view.readerNote?.startsWith(`${failedWords} · retry`) === true && view.readerNoteCompact === 'read failed · HTTP 500' && Math.round(view.windows[0]?.usedPct ?? -1) === 66, JSON.stringify({ note: view.readerNote, compact: view.readerNoteCompact, pct: view.windows[0]?.usedPct }))
-  check('the doctor\'s summary carries the note', owner.usageSummaryWords(view, NOW).includes(failedWords), owner.usageSummaryWords(view, NOW))
+  check('/health\'s summary carries the note', owner.usageSummaryWords(view, NOW).includes(failedWords), owner.usageSummaryWords(view, NOW))
   const recordPath = reader.usageReaderRecordPath()
   const record = (): Record<string, unknown> => JSON.parse(readFileSync(recordPath, 'utf8')) as Record<string, unknown>
   const first = existsSync(recordPath) ? (record().families as Record<string, Record<string, unknown>>).anthropic : undefined
-  check("the doctor's record was written ONCE with the status and the host", first?.status === 500 && first?.host === host && first?.recoveredAtMs === undefined, existsSync(recordPath) ? readFileSync(recordPath, 'utf8') : 'absent')
+  check("/health's record was written ONCE with the status and the host", first?.status === 500 && first?.host === host && first?.recoveredAtMs === undefined, existsSync(recordPath) ? readFileSync(recordPath, 'utf8') : 'absent')
   NOW += 2 * ttl
   status = await reader.refreshAnthropicUsage({ reason: 'open', now: clock })
   check('a meter shown inside the backoff asks nothing (no silent retry loop)', status.requests === 5 && api.usageRequests.length === 5)
@@ -160,10 +160,10 @@ section('§2 the cadence: TTL-bounded · single-flight · a turn asks ahead · t
   check('the note is gone from the owner\'s view', owner.usageForProvider('anthropic').readerNote === undefined)
   check('…and the change signal fired for the recovery too', signals > signalsBefore)
   const recovered = (record().families as Record<string, Record<string, unknown>>).anthropic
-  check("the doctor's record carries the recovery", typeof recovered?.recoveredAtMs === 'number' && recovered.status === 500, JSON.stringify(recovered))
+  check("/health's record carries the recovery", typeof recovered?.recoveredAtMs === 'number' && recovered.status === 500, JSON.stringify(recovered))
   const words = reader.usageReaderRecordWords()
-  check("the doctor's words: 'last usage read failure: HTTP 500 from host at HH:MM · recovered HH:MM'", new RegExp(`^last usage read failure: HTTP 500 from ${host.replace('.', '\\.')} at \\d{2}:\\d{2} · recovered \\d{2}:\\d{2}$`).test(words ?? ''), words)
-  check('…and the owner\'s summary carries it for a doctor in another process', owner.usageSummaryWords(owner.usageForProvider('anthropic'), NOW).includes(words!), owner.usageSummaryWords(owner.usageForProvider('anthropic'), NOW))
+  check("/health's words: 'last usage read failure: HTTP 500 from host at HH:MM · recovered HH:MM'", new RegExp(`^last usage read failure: HTTP 500 from ${host.replace('.', '\\.')} at \\d{2}:\\d{2} · recovered \\d{2}:\\d{2}$`).test(words ?? ''), words)
+  check('…and the owner\'s summary carries it for a health check in another process', owner.usageSummaryWords(owner.usageForProvider('anthropic'), NOW).includes(words!), owner.usageSummaryWords(owner.usageForProvider('anthropic'), NOW))
   unsubscribe()
 
   api.usage.mode = 'hang'
@@ -414,7 +414,7 @@ section('§5 the account behind the family moves: a sign-in or a removal forgets
   view = fiveHour()
   check(`B's sign-in refetched at once — inside A's old cadence — and the meter paints B's figure (5h ${view.pct}%) with its own age`, view.state === 'live' && view.pct === 77 && (view.at ?? 0) >= tB && reader.anthropicUsageReadStatus().requests === asksBefore + 2, JSON.stringify({ view, status: reader.anthropicUsageReadStatus() }))
   check("…with B's bearer on the wire, and A's number never painted after the removal", bearers.at(-1) === 'Bearer fixture-token-B' && Math.round(owner.anthropicWindowViews()[1]?.usedPct ?? -1) === 12, bearers.join(','))
-  check('the doctor\'s summary is B\'s (Claude Max · 5h 77%)', owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()).startsWith('Claude Max · 5h 77%'), owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()))
+  check('/health\'s summary is B\'s (Claude Max · 5h 77%)', owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()).startsWith('Claude Max · 5h 77%'), owner.usageSummaryWords(owner.usageForProvider('anthropic'), Date.now()))
 
   api.usage.mode = 'hang'
   NOW = Date.now()

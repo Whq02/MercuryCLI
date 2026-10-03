@@ -208,7 +208,7 @@ section('§3 a refused grant (invalid_grant): one honest line, the dead sign-in 
   note = reader.anthropicUsageReaderNote(NOW)
   check('a second ask spends NO grant on a dead sign-in — one refresh per read, never a loop', fixture.grants.length === 2 && fixture.usage.length === 2 && status.failure?.refresh === 'refused' && note !== undefined && !note.includes('retry'), `grants=${fixture.grants.length} · note=${note ?? 'none'}`)
   const record = reader.readUsageReaderRecord()
-  check("the doctor's record names the refused grant", record?.kind === 'token' && (record.detail ?? '').includes('refused') && (reader.usageReaderRecordWords() ?? '').includes('refused'), JSON.stringify(record))
+  check("/health's record names the refused grant", record?.kind === 'token' && (record.detail ?? '').includes('refused') && (reader.usageReaderRecordWords() ?? '').includes('refused'), JSON.stringify(record))
   fixture.mode = 'grant'
 }
 
@@ -229,7 +229,7 @@ section('§4 a grant the token endpoint did not answer: the line says so with th
   status = await reader.refreshAnthropicUsage({ reason: 'operator', now: clock })
   note = reader.anthropicUsageReaderNote(NOW)
   check("the operator's retry makes ONE more grant and the read lands with the renewed bearer — the note clears", fixture.grants.length === 4 && fixture.usage.length === 3 && fixture.usage[2]?.bearer === 'Bearer fixture-access-renewed-2' && status.failure === undefined && note === undefined, JSON.stringify({ grants: fixture.grants.length, usage: fixture.usage, note }))
-  check("the doctor's record shows the episode recovered", reader.readUsageReaderRecord()?.recoveredAtMs !== undefined, JSON.stringify(reader.readUsageReaderRecord()))
+  check("/health's record shows the episode recovered", reader.readUsageReaderRecord()?.recoveredAtMs !== undefined, JSON.stringify(reader.readUsageReaderRecord()))
 }
 
 section('§5 the reader owns the renewal on its one road (source)')

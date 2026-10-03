@@ -92,9 +92,9 @@ section('§1 the per-model pools ride the active-source view, and every renderer
   const tab = src('src/components/Settings/Usage.tsx')
   check('the tab reads the pools through the owner\'s pool view, titled by label', tab.includes('anthropicPoolWindowViews()') && tab.includes('`Current week (${w.label})`'))
   check('the tab decodes the fetch response nowhere (one owner, one decode)', !tab.includes('data.seven_day_') && !tab.includes('data.five_hour'))
-  const doctor = src('src/utils/healthReport.ts')
-  check('the doctor mounts one usage row per signed-in family from the owner', doctor.includes('id: `usage-${presence.id}`') && doctor.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))'))
-  check('…in the AUTH section after the credential rows', doctor.includes('...providerAuthChecks(), ...providerUsageChecks()'))
+  const health = src('src/utils/healthReport.ts')
+  check('/health mounts one usage row per signed-in family from the owner', health.includes('id: `usage-${presence.id}`') && health.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))'))
+  check('…in the AUTH section after the credential rows', health.includes('...providerAuthChecks(), ...providerUsageChecks()'))
 }
 
 section('§2 the binding window is the model\'s own: its family\'s pool, the shared pair, never another family\'s week')
@@ -358,7 +358,7 @@ section('§7 one vocabulary: the feed + freshness words live in one module; no s
   check('an engine summary speaks the same words as the first-party one', words.includes('endpoint-fed · read 5 s ago') && words.includes('credits: 7.50 remaining under the key cap'), words)
 }
 
-section("§8 the doctor's usage row is the owner's summary — windows, pools, feed + age, credits")
+section("§8 /health's usage row is the owner's summary — windows, pools, feed + age, credits")
 {
   const view = owner.activeSourceUsage({ model: 'claude-fable-5-1', reads: subscriptionReads() })
   const words = owner.usageSummaryWords(view, NOW)
@@ -488,7 +488,7 @@ section('§9 the carry words: a reached window says what carries the requests fr
   check("a window at 100% without a wall (OpenAI on credits): '100% · on credits · 62,500 left' · '100% · on credits 62.5k'", owner.usageReachedWords(gptFull, NOW) === '100% · on credits · 62,500 left' && owner.usageReachedWords(gptFull, NOW, 'compact') === '100% · on credits 62.5k', owner.usageReachedWords(gptFull, NOW))
   check('a window short of 100% with no wall has no reached words', owner.usageReachedWords({ ...gptFull, windows: [wk(99)] }, NOW) === undefined)
   const gptSummary = owner.usageSummaryWords(gptFull, NOW)
-  check("the doctor's summary carries them after the window and credits lines", gptSummary.includes('wk 100%') && gptSummary.endsWith(' · 100% · on credits · 62,500 left'), gptSummary)
+  check("/health's summary carries them after the window and credits lines", gptSummary.includes('wk 100%') && gptSummary.endsWith(' · 100% · on credits · 62,500 left'), gptSummary)
   const offWalled = owner.usageSummaryWords({ ...off, limited: { resetsAtMs: NOW + 30 * MIN } }, NOW)
   check("…and a walled Claude subscription with extra usage off says nothing carries", offWalled.includes(' · limit reached · resets ') && offWalled.endsWith(' (in 30m) · extra usage off — nothing carries requests until the reset'), offWalled)
   const gptFullReads = { route: () => 'openai', activeEntry: () => ({ ...gptEntry }), openaiObserved: () => ({ primary: { usedPct: 100, windowMinutes: 10080, resetsAtMs: NOW + 6 * 24 * HOUR, observedAtMs: NOW - 5_000, source: 'endpoint' }, credits: { hasCredits: true, unlimited: false, balance: '62500', observedAtMs: NOW - 5_000, source: 'endpoint' } }), openaiLimited: () => ({ state: 'clear' }), spend: () => spend } as Reads
@@ -543,8 +543,8 @@ section('§9 the carry words: a reached window says what carries the requests fr
   check('the OpenAI wall row carries them after the wire\'s words', openaiWall.includes("usageCarryWords(usageForProvider('openai').carry)") && openaiWall.includes('— ${outcome.fault.message}${carryClause}. GPT work on this source pauses'))
   const strip = src('src/services/providers/limitWarning.ts')
   check('the strip warning appends them only at 100%', strip.includes('if (facts === null || facts.pct < 100) return facts') && strip.includes('text: `${facts.view.text} · ${carry}`'))
-  const doctor = src('src/utils/healthReport.ts')
-  check('the doctor row rides the summary words (which now carry them) and the standing refusal words', doctor.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))') && doctor.includes('standingWindowWords(presence.id)'))
+  const health = src('src/utils/healthReport.ts')
+  check('the health row rides the summary words (which now carry them) and the standing refusal words', health.includes('owner.usageSummaryWords(owner.usageForProvider(presence.id))') && health.includes('standingWindowWords(presence.id)'))
 }
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-usage-truth-meters${failures ? ` (${failures} failure(s))` : ''}`)

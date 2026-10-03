@@ -213,9 +213,9 @@ section('§7 the roads read the one classification')
   check("the notice's sign-in arm reads it with the estate's observed fact", errorsSrc.includes("signInExpired: isAnthropicOAuthSignInExpired() }) === 'sign-in'"))
   const usabilitySrc = src('src/services/providers/providerUsability.ts')
   check('the dispatch gate reads the observed sign-in through the wall owner', usabilitySrc.includes("observedCredentialWall('anthropic') === 'sign-in'") && usabilitySrc.includes('anthropicSignInWords('))
-  const doctorSrc = src('src/utils/healthReport.ts')
-  check("the doctor's auth row speaks the sign-in answer's line", doctorSrc.includes('anthropicSignInWords()'))
-  check("the doctor's usage row carries the standing window verdict", doctorSrc.includes('standingAnthropicRefusal()'))
+  const healthSrc = src('src/utils/healthReport.ts')
+  check("/health's auth row speaks the sign-in answer's line", healthSrc.includes('anthropicSignInWords()'))
+  check("/health's usage row carries the standing window verdict", healthSrc.includes('standingAnthropicRefusal()'))
 }
 
 limits.__setAnthropicOwnerResolverForTest(null)
