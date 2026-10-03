@@ -409,24 +409,6 @@ function promptExtrasOf(req: Pick<ConcourseDispatchRequest, 'mode' | 'priority' 
   }
 }
 
-function emitStarted(rec: ConcourseDispatchRecordV1, runnerId: string, sessionId: string): void {
-  void import('../services/notificationPolicy.js')
-    .then(policy =>
-      policy.journalConcourseSignal({
-        kind: 'started',
-        targetId: runnerId,
-        revision: rec.stateRevision,
-        title: 'session started',
-        detail: `worker ${runnerId} took the prompt`,
-        deepLink: { sessionId },
-        obligationBacked: false,
-      }),
-    )
-    .catch(err => {
-      logForDebugging(`[concourse/dispatch] started-signal journal failed for ${rec.clientMessageId}: ${err}`)
-    })
-}
-
 function advance(
   rec: ConcourseDispatchRecordV1,
   to: ConcourseSessionState,
@@ -695,7 +677,6 @@ export function makeConcourseDispatchHandler(
     )
     if (delivered) {
       advance(rec, 'working', { deliveredAt: Date.now() })
-      emitStarted(rec, targetRec.runnerId, target)
     } else {
       advance(rec, 'failed', { reason: 'instruction delivery failed (stdin unavailable)' })
     }
@@ -910,7 +891,6 @@ export function makeConcourseDispatchHandler(
     )
     if (delivered) {
       advance(rec, 'working', { deliveredAt: Date.now() })
-      emitStarted(rec, admitted.runnerId, admitted.sessionId)
     } else {
       advance(rec, 'failed', { reason: 'worker start delivery failed (stdin unavailable)' })
     }

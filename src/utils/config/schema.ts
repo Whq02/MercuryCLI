@@ -161,13 +161,6 @@ export type GlobalConfig = {
   mcpServers?: Record<string, McpServerConfig>
   kitPresets?: Record<string, { mcpOff: string[]; skillStates: Record<string, 'off' | 'invocable'>; extensionsOff: string[] }>
   claudeAiMcpEverConnected?: string[]
-  concourseHostSignals?: {
-    started?: boolean
-    needsYou?: boolean
-    readyToReview?: boolean
-    settled?: boolean
-    detailedPreview?: boolean
-  }
   concourseCoordinator?: {
     mode?: 'off' | 'rules-only' | 'agent-assisted'
     assistModel?: string

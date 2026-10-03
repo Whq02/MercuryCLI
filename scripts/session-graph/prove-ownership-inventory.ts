@@ -58,8 +58,6 @@ const INVENTORY: Record<string, string[]> = {
   'resolveObligation': ['src/components/concourse/ConcourseRoute.tsx'],
   'obligationOf': ['src/components/concourse/ConcourseRoute.tsx'],
   'subscribeObligations': ['src/services/crew/obligationsBridge.ts'],
-  'noteObligationEmission': ['src/services/notificationPolicy.ts'],
-  'acknowledgeObligation': ['src/services/notificationPolicy.ts'],
   'formatCrewmateMessages': ['src/cli/print.ts', 'src/utils/messages/attachmentText.ts', 'src/utils/swarm/inProcessRunner.ts'],
   'createIdleNotification': ['src/utils/swarm/crewmateInit.ts', 'src/utils/swarm/inProcessRunner.ts'],
   'isIdleNotification': ['src/components/messages/AttachmentMessage.tsx', 'src/utils/attachments/crewmates.ts'],

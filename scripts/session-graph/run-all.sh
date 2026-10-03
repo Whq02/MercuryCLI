@@ -9,7 +9,7 @@
 # gate-watch: src/components/concourse/ConcourseRoute.tsx src/components/prompts-panel/PromptsPanel.tsx
 # gate-watch: src/components/prompts-panel/rows.ts src/ink/stringWidth.ts
 # gate-watch: src/keybindings/defaultBindings.ts src/services/concourse/concourseSnapshot.ts
-# gate-watch: src/services/crew/** src/services/notificationPolicy.ts src/services/resources/adapters/crew.ts
+# gate-watch: src/services/crew/** src/services/resources/adapters/crew.ts
 # gate-watch: src/daemon/permissionAsks.ts src/daemon/controlServer.ts src/daemon/dispatchDrain.ts
 # gate-watch: src/services/resources/registry.ts src/utils/cockpit/helmConsole.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx

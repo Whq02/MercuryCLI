@@ -100,26 +100,6 @@ t.section('§6 — redirect moves the OWNER only; stale targets reject')
   t.check('a settled target rejects with its standing status', settled.redirected === false && settled.status === 'resolved', JSON.stringify(settled))
 }
 
-t.section('§7 — per-destination emission/ack state (monotonic per revision)')
-{
-  const row = await obl.upsertObligation({ ref: 'obl-notify', sessionId: 'sess-b', question: 'notify me?', owner: 'op' })
-  const e1 = await obl.noteObligationEmission(row.obligationId, 'host', row.revision)
-  const e2 = await obl.noteObligationEmission(row.obligationId, 'host', row.revision)
-  t.check('one emission per (destination, revision) — the second note refuses', e1 === true && e2 === false, JSON.stringify({ e1, e2 }))
-  const ack = await obl.acknowledgeObligation(row.obligationId, 'host', row.revision)
-  const ackAgain = await obl.acknowledgeObligation(row.obligationId, 'host', row.revision)
-  t.check('acknowledgement is monotonic too', ack === true && ackAgain === false, JSON.stringify({ ack, ackAgain }))
-  const after = await obl.obligationOf(row.obligationId)
-  t.check(
-    'the row carries emission AND ack state per destination (emission ≠ delivery — no delivered field anywhere)',
-    after?.notifications['host']?.emittedRevision === row.revision &&
-      after.notifications['host']?.acknowledgedRevision === row.revision &&
-      !JSON.stringify(after.notifications).includes('delivered'),
-    JSON.stringify(after?.notifications),
-  )
-  await obl.resolveObligation(row.obligationId, { kind: 'resolved' })
-}
-
 t.section('§8 — oldest-first ordering + the per-principal filter')
 {
   const first = await obl.upsertObligation({ ref: 'obl-o1', sessionId: 'sess-c', question: 'first?', owner: 'op' })

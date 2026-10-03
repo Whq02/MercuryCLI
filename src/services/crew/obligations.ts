@@ -365,66 +365,6 @@ export async function redirectObligation(
   })
 }
 
-export async function noteObligationEmission(
-  obligationId: string,
-  destination: string,
-  revision: number,
-  opts?: { dir?: string; scope?: ObligationStoreScope },
-): Promise<boolean> {
-  const store = obligationStore(opts?.dir, opts?.scope)
-  return store.update<boolean>(current => {
-    const row = current.obligations[obligationId]
-    if (!row) return { next: current, result: false }
-    const prev = row.notifications[destination]
-    if (prev && prev.emittedRevision >= revision) return { next: current, result: false }
-    const updated: ObligationV1 = {
-      ...row,
-      notifications: {
-        ...row.notifications,
-        [destination]: {
-          emittedRevision: revision,
-          emittedAtMs: Date.now(),
-          ...(prev?.acknowledgedRevision !== undefined
-            ? { acknowledgedRevision: prev.acknowledgedRevision, acknowledgedAtMs: prev.acknowledgedAtMs! }
-            : {}),
-        },
-      },
-    }
-    return {
-      next: { ...current, obligations: { ...current.obligations, [obligationId]: updated } },
-      result: true,
-    }
-  })
-}
-
-export async function acknowledgeObligation(
-  obligationId: string,
-  destination: string,
-  revision: number,
-  opts?: { dir?: string; scope?: ObligationStoreScope },
-): Promise<boolean> {
-  const store = obligationStore(opts?.dir, opts?.scope)
-  return store.update<boolean>(current => {
-    const row = current.obligations[obligationId]
-    if (!row) return { next: current, result: false }
-    const prev = row.notifications[destination] ?? { emittedRevision: 0, emittedAtMs: 0 }
-    if (prev.acknowledgedRevision !== undefined && prev.acknowledgedRevision >= revision) {
-      return { next: current, result: false }
-    }
-    const updated: ObligationV1 = {
-      ...row,
-      notifications: {
-        ...row.notifications,
-        [destination]: { ...prev, acknowledgedRevision: revision, acknowledgedAtMs: Date.now() },
-      },
-    }
-    return {
-      next: { ...current, obligations: { ...current.obligations, [obligationId]: updated } },
-      result: true,
-    }
-  })
-}
-
 export async function listObligations(opts?: { dir?: string; scope?: ObligationStoreScope }): Promise<ObligationV1[]> {
   const file = await obligationStore(opts?.dir, opts?.scope).read()
   return Object.values(file.obligations).sort((a, b) => a.createdOrdinal - b.createdOrdinal)
