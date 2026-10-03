@@ -54,7 +54,7 @@ for (const file of modules) {
   check('ROWS_SCHEMA is declared as the literal 1', /export const ROWS_SCHEMA = 1\b/.test(vocabulary))
   check('the session row and the outcome row carry the schema literal', /schema: z\.literal\(ROWS_SCHEMA\)/.test(vocabulary))
   check('RUNNER_PROTOCOL is declared as the literal 1', /export const RUNNER_PROTOCOL = 1\b/.test(methods))
-  check('the initialize handshake carries a protocol number both ways', (methods.match(/protocol: z\.number\(\)\.int\(\)/g) ?? []).length === 2, String((methods.match(/protocol: z\.number\(\)\.int\(\)/g) ?? []).length))
+  check('the initialize handshake carries the one protocol literal both ways', (methods.match(/protocol: z\.literal\(RUNNER_PROTOCOL\)/g) ?? []).length === 2, String((methods.match(/protocol: z\.literal\(RUNNER_PROTOCOL\)/g) ?? []).length))
   const runnerMethods = readFileSync(join(ROOT, 'src', 'cli', 'headless', 'runnerMethods.ts'), 'utf8')
   check("the runner answers its protocol and refuses a host asking for another", runnerMethods.includes('protocol: RUNNER_PROTOCOL') && runnerMethods.includes('if (params.protocol !== RUNNER_PROTOCOL) {'))
 }

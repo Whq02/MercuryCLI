@@ -78,7 +78,7 @@ add('getContextEfficiencyAttachment', 'fold-dead', () =>
 )
 
 add('CREW_MESSAGES_KIND', 'value', () => A.CREW_MESSAGES_KIND)
-const KIND_SAMPLES = [A.CREW_MESSAGES_KIND, 'crew_context', 'queued_command', 'teammate_mailbox']
+const KIND_SAMPLES = [A.CREW_MESSAGES_KIND, 'crew_context', 'queued_command', 'no_such_kind']
 add('isCrewMessagesAttachment', 'samples', () => KIND_SAMPLES.map(type => A.isCrewMessagesAttachment({ type })))
 
 const SKIPPED: Record<string, string> = {
