@@ -17,7 +17,7 @@
 # gate-watch: src/utils/messages/attachmentText.ts
 # gate-watch: src/utils/sessionStorage/paths.ts src/types/permissions.ts src/types/ids.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts src/utils/permissions/autoModeState.ts
-# gate-watch: src/rows/* src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs
+# gate-watch: src/rows/* src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs src/tools/AskUserQuestionTool/**
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 

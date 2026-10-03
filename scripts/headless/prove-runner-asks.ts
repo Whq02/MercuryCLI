@@ -12,7 +12,9 @@ delete process.env.MERCURY_BARE
 
 import { z } from 'zod/v4'
 
-const { createRunnerAsks, PERMISSION_CHANNEL_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME } = await import('../../src/cli/headless/runnerAsks.ts')
+const { createRunnerAsks, unansweredAskCause, DOOR_CLOSED_CAUSE, SANDBOX_NETWORK_ACCESS_TOOL_NAME } = await import('../../src/cli/headless/runnerAsks.ts')
+const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
+const { UNANSWERED_ASK_REJECT_MESSAGE, isDenialResultText, turnCutOf } = await import('../../src/utils/messages/rejectionText.ts')
 const { createPeer } = await import('../../src/runner/wire/peer.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { addSessionHook } = await import('../../src/utils/hooks/sessionHooks.ts')
@@ -144,7 +146,7 @@ const TOOL = {
   checkPermissions: async () => ({ behavior: 'ask', message: 'plain ask' }),
 }
 const ASSISTANT = { message: { id: 'msg_asks' } } as never
-type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; decisionReason?: { type?: string; hookName?: string } }
+type Decision = { behavior: string; message?: string; updatedInput?: Record<string, unknown>; decisionReason?: { type?: string; hookName?: string; permissionPromptToolName?: string } }
 const callCanUseTool = (h: Harness, input: Record<string, unknown> = { probe: 'original' }): Promise<Decision> =>
   h.asks.createCanUseTool()(TOOL as never, input, h.ctx as never, ASSISTANT, 'toolu_asks') as never
 const hookJson = (decision: Record<string, unknown>): string => j({ hookSpecificOutput: { hookEventName: 'PermissionRequest', decision } })
@@ -243,37 +245,62 @@ section('R6 — a host deny with stop aborts the parent turn controller')
   h.closeHost()
 }
 
-section('R7 — a parent abort mid-race withdraws the ask and fails CLOSED')
-{
+section('R7 — parent cuts preserve the typed cause and withdraw the ask')
+for (const [name, reason, cause] of [
+  ['deadline', new DeadlineExceededError('unattended turn', 20 * 60_000, 20 * 60_000 + 40_000, 46796), "nobody answered within 20m, the turn's no-progress limit"],
+  ['stalled', 'stalled', "nobody answered before the turn's no-progress timeout"],
+  ['interrupt', 'interrupt', undefined],
+  ['bare abort', undefined, undefined],
+] as const) {
   const h = makeHarness()
   h.addHook(`sleep 2; echo '{}'`)
   const p = callCanUseTool(h)
   const ask = await h.waitAsk()
-  ;(h.ctx.abortController as AbortController).abort()
+  const cutAt = Date.now()
+  const parent = h.ctx.abortController as AbortController
+  parent.abort(reason)
   const d = await p
-  check("the band fails CLOSED: deny 'Tool permission request failed…'", d.behavior === 'deny' && (d.message ?? '').startsWith('Tool permission request failed'), j(d))
+  check(`${name}: the ask settles immediately after the cut`, Date.now() - cutAt < 1000)
+  check(`${name}: the cause preserves idle versus operator cuts`, unansweredAskCause(parent.signal.reason) === cause && turnCutOf(parent.signal.reason).kind === (cause ? 'idle-timeout' : 'operator'))
+  if (cause !== undefined) {
+    check(`${name}: the exact denial comes from its one builder`, d.behavior === 'deny' && d.message === UNANSWERED_ASK_REJECT_MESSAGE(TOOL.name, cause), j(d))
+    check(`${name}: the denial classifier recognizes the result`, isDenialResultText(d.message ?? ''))
+    check(`${name}: the host-answer decision reason carries the tool identity`, d.decisionReason?.type === 'permissionPromptTool' && d.decisionReason.permissionPromptToolName === TOOL.name, j(d))
+  } else {
+    check(`${name}: the operator cut keeps its exact fail-closed answer`, d.behavior === 'deny' && d.message === 'Tool permission request failed: aborted', j(d))
+    check(`${name}: an operator cut is not described as an unanswered ask`, !isDenialResultText(d.message ?? '') && d.decisionReason?.type === 'other', j(d))
+  }
   await settle(50)
-  check('the pending ask is withdrawn on the wire', h.withdrawn.has(ask.id), j([...h.withdrawn]))
-  check('no ask stays parked', h.asks.parkedAsks() === 0)
+  check(`${name}: the pending ask is withdrawn on the wire`, h.withdrawn.has(ask.id), j([...h.withdrawn]))
+  check(`${name}: no ask or request stays pending`, h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
   h.closeHost()
 }
 
-section("R8 — the runner's own clock: denyPendingPermissionRequests settles a parked ask with the cause and withdraws it")
+section('R8 — settling held asks preserves the parent controller and is idempotent')
 {
   const h = makeHarness()
   h.addHook(`sleep 2; echo '{}'`)
   const p = callCanUseTool(h)
   const ask = await h.waitAsk()
+  const parent = h.ctx.abortController as AbortController
+  const reason = parent.signal.reason
   check('one ask is parked', h.asks.parkedAsks() === 1)
-  const settled = h.asks.denyPendingPermissionRequests('nobody answered within 20 minutes, the turn\'s no-progress limit')
+  const cause = 'the caller chose to settle the unanswered ask'
+  const settled = h.asks.denyPendingPermissionRequests(cause)
   const d = await p
-  check('the settle count is one and the decision is the typed deny naming the tool and the cause', settled === 1 && d.behavior === 'deny' && (d.message ?? '').includes('AskProbeTool') && (d.message ?? '').includes('nobody answered within 20 minutes'), j(d))
+  check('the settle count is one and the exact denial carries the caller cause', settled === 1 && d.behavior === 'deny' && d.message === UNANSWERED_ASK_REJECT_MESSAGE(TOOL.name, cause), j(d))
+  check('the result is classified as a denial with the host-answer reason', isDenialResultText(d.message ?? '') && d.decisionReason?.type === 'permissionPromptTool' && d.decisionReason.permissionPromptToolName === TOOL.name)
+  check('the parent controller and its reason are untouched', !parent.signal.aborted && parent.signal.reason === reason)
+  check('a second settlement returns zero with nothing pending', h.asks.denyPendingPermissionRequests('again') === 0 && h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
   await settle(50)
   check('the host sees the settled ask withdrawn ($/cancel_request)', h.withdrawn.has(ask.id), j([...h.withdrawn]))
+  h.answer(ask.id, { outcome: 'allow', input: { late: true } })
+  await settle(20)
+  check('a late allow cannot change the denial or the parent', d.behavior === 'deny' && !parent.signal.aborted && h.asks.denyPendingPermissionRequests('late') === 0)
   h.closeHost()
 }
 
-section('R9 — the host closes while an ask is parked: the ask settles as a deny with the channel-closed cause')
+section('R9 — the host closes the door while an ask is parked: the ask settles as a deny naming the closed door')
 {
   const h = makeHarness()
   h.addHook(`sleep 2; echo '{}'`)
@@ -281,8 +308,9 @@ section('R9 — the host closes while an ask is parked: the ask settles as a den
   await h.waitAsk()
   h.closeHost()
   const d = await p
-  check('the parked ask is denied with the channel-closed cause', d.behavior === 'deny' && (d.message ?? '').includes(PERMISSION_CHANNEL_CLOSED_CAUSE), j(d))
-  check('the runner peer is closed and nothing stays parked', h.runnerClosed() && h.asks.parkedAsks() === 0)
+  check('the parked ask is denied with the exact door-closed cause, in the words of the host and the runner door', d.behavior === 'deny' && d.message === UNANSWERED_ASK_REJECT_MESSAGE(TOOL.name, DOOR_CLOSED_CAUSE) && DOOR_CLOSED_CAUSE === 'the host closed the runner door while the ask was pending', j(d))
+  check('the closed door is a classified denial with the host-answer reason', isDenialResultText(d.message ?? '') && d.decisionReason?.type === 'permissionPromptTool' && d.decisionReason.permissionPromptToolName === TOOL.name)
+  check('the runner peer is closed and nothing stays pending', h.runnerClosed() && h.asks.parkedAsks() === 0 && h.asks.pendingControlRequestCount() === 0)
 }
 
 section('N1 — the network ask rides permission/request {kind: network, host}; allow → true, deny → false, a closed door → false')
@@ -310,7 +338,7 @@ section('N1 — the network ask rides permission/request {kind: network, host}; 
   h.closeHost()
   await settle(20)
   check('a closed door → false (fail closed)', (await sandboxAsk({ host: 'late.example' })) === false)
-  check('the synthetic tool name the old envelope used for the network ask is kept for the rows door', SANDBOX_NETWORK_ACCESS_TOOL_NAME === 'SandboxNetworkAccess')
+  check('network permission receipts identify SandboxNetworkAccess', SANDBOX_NETWORK_ACCESS_TOOL_NAME === 'SandboxNetworkAccess')
 }
 
 section('E1 — elicitation: answered cancel at once when the host declared none; forwarded as elicitation/request when it did')

@@ -22,8 +22,7 @@ available on the context, else on default.
 Presentation: title "Apollo Mode", seal `◇`, its own tint. Externally the mode
 projects as `default`: Apollo is never a bypass posture.
 
-Apollo is interactive-only. A hosted session refuses a switch to `apollo`
-— the interview needs a terminal UI.
+Apollo works in the terminal and through the runner door; an ACP editor answers its interview through form elicitation. `mercury run` cannot answer an interview and does not offer Apollo.
 
 ## The appendix
 

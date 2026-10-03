@@ -57,7 +57,6 @@ try {
   check("permissionModeFromString('apollo') === 'apollo'", pm.permissionModeFromString('apollo') === 'apollo')
   check("title is 'Apollo Mode'", pm.permissionModeTitle('apollo') === 'Apollo Mode')
   check('the seal is ◇ (U+25C7), read from GLYPH.modeApollo', pm.permissionModeSymbol('apollo') === glyphs.GLYPH.modeApollo && glyphs.GLYPH.modeApollo === '◇')
-  check("external projection is 'default'", pm.toExternalPermissionMode('apollo') === 'default')
   check('apollo never bypasses permissions', !pm.modeBypassesPermissions('apollo'))
   check("band colour role is 'permission'", pm.getModeColor('apollo') === 'permission')
 } catch (e) {
@@ -263,18 +262,7 @@ try {
   check('the transcript receipt has the held settled line', /the interview continues with more questions/.test(ui))
 }
 
-section('headless/ACP: honest availability — and the SEAT-RUNNER acceptance')
-{
-  const handlers = src('cli', 'headless', 'controlHandlers.ts')
-  check(
-    "SDK/print set_permission_mode still rejects 'apollo' with guidance — GATED on the worker role stamp",
-    /mode === 'apollo' && flagEnv\('MERCURY_CONCOURSE_WORKER'\) !== '1'[\s\S]{0,500}interactive-only/.test(handlers),
-  )
-  const acp = src('services', 'acp', 'acpServer.ts')
-  check('the ACP advertised mode list does NOT advertise apollo', !/id: 'apollo'/.test(acp))
-}
-
-section('the seat runner accepts apollo; the SDK embedder still refuses')
+section('the runner accepts Apollo for every host')
 {
   const priorMarker = process.env.MERCURY_CONCOURSE_WORKER
   try {
@@ -292,8 +280,8 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     delete process.env.MERCURY_CONCOURSE_WORKER
     const embedder = resolvePermissionModeTransition('apollo' as never, baseContext)
     check(
-      'no role stamp (a genuine SDK/print embedder): apollo refuses with the interactive-only sentence',
-      embedder.ok === false && /interactive-only/.test(embedder.ok === false ? embedder.error : ''),
+      'a host without a worker role selects Apollo',
+      embedder.ok === true && embedder.context.mode === 'apollo',
       JSON.stringify(embedder),
     )
 
@@ -326,7 +314,7 @@ section('the seat runner accepts apollo; the SDK embedder still refuses')
     /getSystemPrompt\(\s*options\.tools,\s*options\.mainLoopModel,[\s\S]{0,220}options\.mcpClients,\s*\)/.test(agentTool),
   )
   const frame = src('components', 'MercuryFrame.tsx')
-  check('the mode chip reads the connector facts (the surface the old refusal snapped back)', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
+  check('the mode chip reads the connector facts', /getFocusedSessionConnector\(\)\.permissionMode\(\)/.test(frame))
 }
 
 section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list")

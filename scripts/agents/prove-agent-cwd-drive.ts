@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { DIST, SCRATCH_ROOT, makeTally } from '../daemon/dupline-world.ts'
-import { runScriptedTurn, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
+import { DIST, MODEL, NODE, SCRATCH_ROOT, bound, childEnv, makeTally } from '../daemon/dupline-world.ts'
+import { LineReader, lastOutcome, type Frame } from '../lib/rows.ts'
+import { runScriptedTurn, seedScratchHome, startScriptedFixture, type ScriptedTurn, type SeenResult } from '../lib/scriptedTurn.ts'
 
 const tally = makeTally('prove-agent-cwd-drive')
 const KEEP = process.argv.includes('--keep')
@@ -22,6 +23,23 @@ const pollRounds = (budgetMs: number, stepMs = 200): number => Math.ceil(budgetM
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }
 const git = (cwd: string, ...args: string[]): string => execFileSync('git', args, { cwd, encoding: 'utf8', env: gitEnv }).trim()
 const authoredStatus = (cwd: string): string => git(cwd, 'status', '--porcelain', '-uall').split('\n').filter(line => line !== '' && !line.slice(3).startsWith('.mercury/')).join('\n')
+const runHostlessTurn = (args: { runHome: string; cwd: string; base: string; ask: string; timeoutMs: number; extraArgv: string[] }): Promise<ScriptedTurn> => {
+  seedScratchHome(args.runHome, args.cwd)
+  return new Promise(resolve => {
+    const frames: Frame[] = []
+    const reader = new LineReader()
+    let stderr = ''
+    const child = spawn(NODE, [DIST, 'run', args.ask, '--format', 'rows', '--model', MODEL, ...args.extraArgv], { cwd: args.cwd, env: childEnv(args.runHome, Number(new URL(args.base).port)), stdio: ['ignore', 'pipe', 'pipe'] })
+    child.stdout.on('data', (chunk: Buffer) => frames.push(...reader.feed(chunk)))
+    child.stderr.on('data', (chunk: Buffer) => (stderr += chunk.toString('utf8')))
+    const killer = setTimeout(() => child.kill('SIGKILL'), bound(args.timeoutMs))
+    child.on('close', code => {
+      clearTimeout(killer)
+      frames.push(...reader.flush())
+      resolve({ result: lastOutcome(frames) ?? null, exitCode: code, stderr })
+    })
+  })
+}
 const show = (label: string, r: SeenResult | undefined, turn: ScriptedTurn): void => {
   console.log(`\n── ${label} ──`)
   if (!r) {
@@ -133,17 +151,19 @@ const askFixture = await startScriptedFixture(req => {
 })
 let askTurn: ScriptedTurn = { result: null, exitCode: null, stderr: '' }
 try {
-  askTurn = await runScriptedTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--mode', 'default', '--allowed-tools', 'Bash'] })
+  askTurn = await runHostlessTurn({ runHome: join(scratch, 'home-ask'), cwd: work, base: askFixture.base, ask: ASK, timeoutMs: TURN_MS, extraArgv: ['--mode', 'default', '--allowed-tools', 'Bash'] })
 } finally {
   await askFixture.close()
 }
-show('a seat that asks: the launch into the named directory', seen.askedLane, askTurn)
-show('a seat that asks, with no operator to answer: the launch outside the trusted workspace', seen.askedOutside, askTurn)
-console.log(`\npwd seen by the helpers of the asking seat: ${JSON.stringify(pwdsAsked)}`)
-tally.section('a seat that asks: the question with nobody to answer it keeps the helper unlaunched')
+show('a run with no host, in a mode that asks: the launch into the named directory', seen.askedLane, askTurn)
+show('a run with no host, in a mode that asks: the launch outside the trusted workspace', seen.askedOutside, askTurn)
+console.log(`\npwd seen by the helpers of the run with no host: ${JSON.stringify(pwdsAsked)}`)
+tally.section('a run with no host (mercury run), in a mode that asks: the question nobody can answer keeps the helper unlaunched')
 tally.check('a trusted directory launches with no question', seen.askedLane !== undefined && !seen.askedLane.isError && pwdsAsked[0] === lane, `${seen.askedLane?.text.slice(0, 200)} pwd=${pwdsAsked[0] ?? '(none)'}`)
 tally.check('the outside launch is an ordinary question the headless seat cannot answer', seen.askedOutside !== undefined && seen.askedOutside.isError && /outside this session's starting folder/.test(seen.askedOutside.text) && /cannot ask for approval/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
+tally.check('the refusal is the hostless posture, never the denial of an ask a host left unanswered', seen.askedOutside !== undefined && !/was not there to answer/.test(seen.askedOutside.text), seen.askedOutside?.text.slice(0, 300))
 tally.check('the refused launch ran no helper', pwdsAsked.length === 1, JSON.stringify(pwdsAsked))
+tally.check('the run settled its turn at once and exited 0: nothing waited for a host', askTurn.result !== null && askTurn.exitCode === 0, `exit ${askTurn.exitCode ?? '?'}: ${askTurn.stderr.slice(-300)}`)
 
 const repo = join(scratch, 'repo')
 mkdirSync(repo)

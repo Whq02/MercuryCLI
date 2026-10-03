@@ -126,6 +126,14 @@ try {
   const unknown = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'frobnicate' }))
   check('an unknown word is refused and the refusal lists the modes', unknown.includes("unknown mode 'frobnicate'") && unknown.includes('sovereign') && unknown.includes('apollo'), unknown)
 
+  for (const modeId of offered.filter(mode => mode !== 'sovereign')) {
+    const selected = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId }))
+    check(`every offered mode is selectable: ${modeId}`, selected === '', selected)
+    const configuredMode = await errorOf(h.agent.request('session/set_config_option', { sessionId: sid, configId: 'permission-mode', value: modeId }))
+    check(`every offered mode is configurable: ${modeId}`, configuredMode === '', configuredMode)
+  }
+  await h.agent.request('session/set_mode', { sessionId: sid, modeId: 'default' })
+
   section('§2 Sovereign over ACP: the user\'s consent is asked on the editor\'s own card; declined stays out, allowed lands and is never saved')
   consent = 'deny'
   const declined = await errorOf(h.agent.request('session/set_mode', { sessionId: sid, modeId: 'sovereign' }))

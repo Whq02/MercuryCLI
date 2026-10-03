@@ -3,7 +3,7 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 import { spawn, type ChildProcess } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Readable, Writable } from 'node:stream'
@@ -45,7 +45,7 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 const configHome = mkdtempSync(join(tmpdir(), 'acp-withdrawn-config-'))
-const projDir = mkdtempSync(join(tmpdir(), 'acp-withdrawn-proj-'))
+const projDir = realpathSync(mkdtempSync(join(tmpdir(), 'acp-withdrawn-proj-')))
 const daemonDir = mkdtempSync(join(tmpdir(), 'acp-withdrawn-daemon-'))
 process.env.MERCURY_CONFIG_DIR = configHome
 const servers: ChildProcess[] = []

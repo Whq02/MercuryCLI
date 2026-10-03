@@ -6,7 +6,7 @@
 # gate-watch: scripts/engine-durability/harness.ts scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts src/commands/console/console.tsx
 # gate-watch: src/components/CustomSelect/* src/components/mercury-ui/glyphs.ts
-# gate-watch: src/input-core/composer-document.ts src/services/acp/acpServer.ts src/services/interview/*
+# gate-watch: src/input-core/composer-document.ts src/services/acp/** src/services/interview/*
 # gate-watch: src/substrate/flagRegistry.ts src/substrate/storeRecovery.ts src/utils/*
 # gate-watch: src/utils/messages/rejectionText.ts
 # gate-watch: src/rows/* src/runner/wire/*

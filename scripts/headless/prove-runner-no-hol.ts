@@ -102,7 +102,7 @@ if (DOOR === 'wire') {
     send(controlRequestFrame('interrupt-1', { subtype: 'interrupt' }))
     await waitFor(f => isControlResponse(f, 'interrupt-1'), 30_000)
     const interruptMs = Date.now() - interruptAsked
-    check(`the interrupt is answered in ${interruptMs} ms while the facts answer is held`, interruptMs < BOUND_MS, `the old envelope's serial loop holds every later line behind the facts answer`)
+    check(`the interrupt is answered in ${interruptMs} ms while the facts answer is held`, interruptMs < BOUND_MS, `the interrupt must not wait behind the facts answer`)
   } catch (error) {
     check('the rows door served the proof', false, error instanceof Error ? error.message : String(error))
   }
