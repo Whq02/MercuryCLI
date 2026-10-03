@@ -694,7 +694,7 @@ async function runTransactionBody(args: {
     const headlessAskNote =
       decision.behavior === 'ask' && cannotPrompt
         ? asksTheOperator
-          ? `\n\nThis session runs headless with no permission channel, so no operator can answer ${tool.name} — the request was auto-denied and nothing was asked. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a client that connects a permission channel (--permission-prompt-tool, or the rows control channel) can answer such asks.`
+          ? `\n\nThis session runs headless with no host, so no operator can answer ${tool.name} — the request was auto-denied and nothing was asked. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door (mercury runner) can answer such asks.`
           : `\n\nThis session runs headless and cannot ask for approval, so the request was auto-denied — it was not run. To allow it, pre-approve the tool at launch with --allowed-tools (for example --allowed-tools "${tool.name}"), or start in a permission mode that does not stop here with --mode. (Interactive-only shortcuts such as the "!" prefix do not apply to a headless run.)`
         : ''
     const composed = `${baseComposed}${headlessAskNote}`

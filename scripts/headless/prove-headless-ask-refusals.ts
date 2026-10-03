@@ -143,7 +143,7 @@ async function runStdioChannel(tag: string, turns: ScriptedTurn[], answer: (requ
   return { ...captured, code, asks }
 }
 
-const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a client that connects a permission channel/
+const OPERATOR_LINE = /no operator can answer AskUserQuestion — the request was auto-denied and nothing was asked\. Choose the most reasonable option yourself, state the assumption in your reply, and continue; a host on the runner door/
 const RECIPE_LINE = /pre-approve the tool at launch with --allowed-tools/
 
 section('§1 a headless run with no permission channel: the question tool is refused with the way out, never the pre-approve recipe')
@@ -153,7 +153,7 @@ section('§1 a headless run with no permission channel: the question tool is ref
   check('the question call came back as an error result', row !== undefined && row.is_error === true, JSON.stringify(row?.text.slice(0, 200)))
   check('…naming that no operator can answer and what to do instead', row !== undefined && OPERATOR_LINE.test(row.text), row?.text.slice(0, 400))
   check('…and never the --allowed-tools recipe (it cannot give the tool an operator)', row !== undefined && !RECIPE_LINE.test(row.text), row?.text.slice(0, 400))
-  check('the system prompt posture says no question can reach the operator', /no permission channel/.test(run.system) && /no question can reach the operator/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
+  check('the system prompt posture says no question can reach the operator', /no host to answer an ask/.test(run.system) && /no question can reach the operator/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
   check('the guidance section carries no "use AskUserQuestion to ask" hint', !/use AskUserQuestion to ask rather than guessing/.test(run.system))
   check('the tool stays offered (a connected client could answer it)', run.tools.includes('AskUserQuestion'), run.tools.join(','))
 }
@@ -178,7 +178,7 @@ section('§4 the SDK permission channel: the same asks reach the client and its 
   check('the question tool asked over the channel', run.asks.some(ask => ask.tool_name === 'AskUserQuestion'), run.asks.map(ask => String(ask.tool_name)).join(','))
   const row = run.results[0]
   check('the client answer is what the model reads (no headless auto-deny note)', row !== undefined && row.is_error === true && !OPERATOR_LINE.test(row.text) && !RECIPE_LINE.test(row.text), row?.text.slice(0, 300))
-  check('the posture line names the channel', /with a permission channel/.test(run.system) && !/no permission channel/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
+  check('the posture line names the host', /with a host that holds the asks/.test(run.system) && !/no host to answer/.test(run.system), run.system.match(/- Session:[^\n]{0,200}/)?.[0] ?? 'no posture line')
   check('the guidance keeps the AskUserQuestion hint (a client can answer)', /use AskUserQuestion to ask rather than guessing/.test(run.system))
 }
 

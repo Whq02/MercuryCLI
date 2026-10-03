@@ -108,7 +108,7 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('…and says a rule-allowed call runs without the channel', /without the channel/.test(bareLine), bareLine)
   check('…one line, no line break inside (the posture block is one bullet per fact)', bareLine.startsWith('- ') && !bareLine.includes('\n'), bareLine)
   check('…labelled at boot (the rules can change mid-session; the live surface is the card)', /at boot/.test(bareLine), bareLine)
-  check('the session line itself is what it was (the channel words stand)', /with a permission channel/.test(sessionLine(bare)) && /answers allow or deny/.test(sessionLine(bare)) && /Permission mode for this run: flow/.test(sessionLine(bare)), sessionLine(bare))
+  check('the session line itself is what it was (the host words stand)', /with a host that holds the asks/.test(sessionLine(bare)) && /answers allow or deny/.test(sessionLine(bare)) && /Permission mode for this run: flow/.test(sessionLine(bare)), sessionLine(bare))
 
   const allowed = postureFor('sdk', 'flow', contextOf('flow', { allow: [PUSH_RULE] }))
   const allowedLine = needsLine(allowed)
@@ -143,9 +143,9 @@ section('§1 the boot posture of a seat with a permission channel says which cal
   check('memoized: a second call returns the identical string', posture.getRuntimePostureSection() === first)
 
   const unstamped = postureFor('sdk', 'flow', undefined)
-  check('never a guess: with no boot rules stamped, the seat says nothing about what its rules pre-authorise', needsLine(unstamped) === '' && /with a permission channel/.test(sessionLine(unstamped)), needsLine(unstamped))
+  check('never a guess: with no boot rules stamped, the seat says nothing about what its rules pre-authorise', needsLine(unstamped) === '' && /with a host that holds the asks/.test(sessionLine(unstamped)), needsLine(unstamped))
   const noChannel = postureFor('none', 'flow', contextOf('flow'))
-  check('a headless run with NO channel keeps its own words (asks are denied; no operator line — there is no operator to be present)', /no permission channel/.test(sessionLine(noChannel)) && /DENIED automatically/.test(sessionLine(noChannel)) && needsLine(noChannel) === '', `${sessionLine(noChannel)}\n${needsLine(noChannel)}`)
+  check('a headless run with NO host keeps its own words (asks are denied; no operator line — there is no operator to be present)', /no host to answer an ask/.test(sessionLine(noChannel)) && /DENIED automatically/.test(sessionLine(noChannel)) && needsLine(noChannel) === '', `${sessionLine(noChannel)}\n${needsLine(noChannel)}`)
   const interactive = postureFor('sdk', undefined, contextOf('flow'))
   check('an interactive session keeps its own words (no operator line)', /Session: interactive/.test(sessionLine(interactive)) && needsLine(interactive) === '', sessionLine(interactive))
   const doctrine = posture.getRuntimePostureDoctrineLine() ?? ''
@@ -179,7 +179,7 @@ async function decide(context: Record<string, unknown>, command: string, mode: M
     setAppState: () => {},
     messages: [],
     agentType: undefined,
-    options: { isNonInteractiveSession: true, tools: [], permissionChannel: 'stdio' },
+    options: { isNonInteractiveSession: true, tools: [], hostHoldsAsks: true },
     localDenialTracking: createDenialTrackingState(),
   }
   const outcome = await decideToolPermissionWithModes(bashTool as never, { command }, seat as never, { message: { id: 'msg_seat_push' } } as never, 'toolu_seat_push', ports)

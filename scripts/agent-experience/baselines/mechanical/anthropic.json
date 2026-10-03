@@ -6,11 +6,11 @@
     "backend": "anthropic-messages",
     "dialect": "anthropic",
     "mechanical": true,
-    "tree": "48261144e",
+    "tree": "5dd13dd84",
     "fold": "unlabelled",
-    "when": "2026-10-03T00:28:50.860Z",
-    "promptChars": 23221,
-    "promptTokensEst": 5805,
+    "when": "2026-10-03T05:06:42.087Z",
+    "promptChars": 23217,
+    "promptTokensEst": 5804,
     "toolCount": 55,
     "toolNames": [
       "Agent",
@@ -69,7 +69,7 @@
       "mcp__mercury__coord_say",
       "mcp__mercury__render_tui"
     ],
-    "toolSchemaChars": 196486,
+    "toolSchemaChars": 197292,
     "notes": [
       "browser task unmeasured: no browser to launch — no managed browser — your installed apps are never driven; /browser install downloads Chrome for Testing once with your consent"
     ]
@@ -107,8 +107,8 @@
       "probes": 1,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 2620,
-      "toolResultTokensEst": 655,
+      "toolResultChars": 2617,
+      "toolResultTokensEst": 654,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
@@ -117,35 +117,22 @@
       "errors": [
         {
           "tool": "Bash",
-          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.354208ms)\n✔ median of an odd-length list (0.068125ms)\n✖ median of an even-length list averages the middle pair (0.400666ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54.298625\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.400666ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-2eiB2p/anthropic/tasks",
+          "text": "<tool_use_error>Shell command failed (exit code 1)\n✔ mean of a list (0.355791ms)\n✔ median of an odd-length list (0.070333ms)\n✖ median of an even-length list averages the middle pair (0.405417ms)\nℹ tests 3\nℹ suites 0\nℹ pass 2\nℹ fail 1\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 51.874459\n\n✖ failing tests:\n\ntest at test/stats.test.js:13:1\n✖ median of an even-length list averages the middle pair (0.405417ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n  \n  3 !== 2.5\n  \n      at TestContext.<anonymous> (file:///private/tmp/mw/mercury-ax-bench-fZ9mIs/anthropic/tasks",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1818,
+      "wallMs": 1861,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 40,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 25,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 25
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "add-test",
@@ -187,30 +174,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1497,
+      "wallMs": 1490,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 32,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 20,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 20
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "anchored-edit",
@@ -254,35 +228,22 @@
       "errors": [
         {
           "tool": "Edit",
-          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-2eiB2p/anthropic/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
+          "text": "<tool_use_error>Read the file before editing it — the edit needs a prior read of the current content (a Read of the lines it touches, or expected_anchor from a full Read of the file as it stands). Read ownership/coverage check failed: neither a recorded Read nor the current owner's ledger covers all addressed lines. No lines of /private/tmp/mw/mercury-ax-bench-fZ9mIs/anthropic/tasks/anchored-edit/project/README.md were read this session; the old_string was not found in the current content, so the lines the edit touches are unknown — a Read of the file shows what stands.</tool_use_error>",
           "namesFix": true,
           "probe": true
         }
       ],
-      "wallMs": 1137,
+      "wallMs": 1121,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 32,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 20,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 20
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "search-symbol",
@@ -320,30 +281,17 @@
           "probe": true
         }
       ],
-      "wallMs": 1444,
+      "wallMs": 1349,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 24,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 15,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 15
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "shell-pipeline",
@@ -375,30 +323,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1100,
+      "wallMs": 1141,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 16,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 10,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "use-skill",
@@ -414,7 +349,7 @@
       "stderrTail": "",
       "success": true,
       "oracle": "provider-apis loaded: true; answer names responses: true",
-      "turns": 4,
+      "turns": 3,
       "toolCalls": 2,
       "wasted": 1,
       "probes": 1,
@@ -423,7 +358,7 @@
       "toolResultChars": 196,
       "toolResultTokensEst": 49,
       "imageChars": 0,
-      "injectedTokensEst": 543,
+      "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
       "asks": 0,
       "denials": 0,
@@ -435,30 +370,17 @@
           "probe": true
         }
       ],
-      "wallMs": 1011,
+      "wallMs": 1027,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 24,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 15,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 15
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "delegate-agent",
@@ -488,30 +410,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1044,
+      "wallMs": 1053,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 16,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 10,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "ide-diagnostics",
@@ -541,30 +450,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1701,
+      "wallMs": 1380,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 16,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 10,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "browser-page",
@@ -612,7 +508,7 @@
       "stderrTail": "",
       "success": true,
       "oracle": "docs skill invoked: true; the shipped pages reached the model: true; relayed: true; no web fetch: true",
-      "turns": 3,
+      "turns": 2,
       "toolCalls": 1,
       "wasted": 0,
       "probes": 0,
@@ -621,7 +517,7 @@
       "toolResultChars": 29,
       "toolResultTokensEst": 7,
       "imageChars": 0,
-      "injectedTokensEst": 2225,
+      "injectedTokensEst": 0,
       "subagentResultTokensEst": 0,
       "asks": 0,
       "denials": 0,
@@ -629,27 +525,14 @@
       "wallMs": 985,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 16,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 10,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "two-seats",
@@ -665,44 +548,31 @@
       "stderrTail": "",
       "success": true,
       "oracle": "agent calls: 2; one parallel round: true; both seats answered with their facts: true; merged: true",
-      "turns": 3,
+      "turns": 2,
       "toolCalls": 2,
       "wasted": 0,
       "probes": 0,
       "unexpectedErrors": 0,
       "duplicates": 0,
-      "toolResultChars": 910,
-      "toolResultTokensEst": 228,
+      "toolResultChars": 908,
+      "toolResultTokensEst": 227,
       "imageChars": 0,
       "injectedTokensEst": 0,
       "subagentResultTokensEst": 295,
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 1196,
+      "wallMs": 1000,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 16,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 10,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 10
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "structural-rename",
@@ -741,30 +611,17 @@
           "probe": true
         }
       ],
-      "wallMs": 1824,
+      "wallMs": 1655,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 48,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 30,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 30
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "resume-a",
@@ -789,30 +646,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 922,
+      "wallMs": 863,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 8,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 5,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5
       },
-      "costUsd": 0
+      "costUsd": null
     },
     {
       "task": "resume-b",
@@ -837,30 +681,17 @@
       "asks": 0,
       "denials": 0,
       "errors": [],
-      "wallMs": 889,
+      "wallMs": 865,
       "exitCode": 0,
       "timedOut": false,
-      "resultSubtype": "success",
+      "resultSubtype": "completed",
       "usage": {
         "input_tokens": 8,
-        "cache_creation_input_tokens": 0,
-        "cache_read_input_tokens": 0,
-        "output_tokens": 5,
-        "server_tool_use": {
-          "web_search_requests": 0,
-          "web_fetch_requests": 0
-        },
-        "service_tier": "standard",
-        "cache_creation": {
-          "ephemeral_1h_input_tokens": 0,
-          "ephemeral_5m_input_tokens": 0
-        },
-        "inference_geo": "",
-        "iterations": null,
-        "speed": "standard",
-        "output_tokens_details": null
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5
       },
-      "costUsd": 0
+      "costUsd": null
     }
   ]
 }
