@@ -12,7 +12,7 @@ const N = {
   bootstrapFacade: new RegExp(['bootstrap', 'state'].join('/')),
   costTracker: new RegExp(['cost', 'tracker'].join('-')),
   cwdOwner: new RegExp(['utils', 'cwd'].join('/')),
-  modelResolution: new RegExp('\\b(?:get|use)' + 'MainLoop' + 'Model\\b'),
+  modelResolution: new RegExp('\\b(?:get|use)EngineModel\\b'),
   queueModule: new RegExp(['input-core', 'command-queue'].join('/')),
   transcriptWriter: new RegExp(['sessionStorage', 'writer'].join('/')),
   accountOwners: new RegExp(
@@ -148,7 +148,7 @@ for (const rel of PURE_FACE) {
   )
 }
 
-const REPL_EXPECTED: Record<NeedleName, number> = {
+const CHAT_EXPECTED: Record<NeedleName, number> = {
   bootstrapFacade: 1,
   costTracker: 0,
   cwdOwner: 1,
@@ -165,9 +165,9 @@ const REPL_EXPECTED: Record<NeedleName, number> = {
   for (const hit of hits) counts[hit.needle]++
   for (const needle of Object.keys(N) as NeedleName[]) {
     check(
-      `Chat residue pinned: ${needle} = ${REPL_EXPECTED[needle]}`,
-      counts[needle] === REPL_EXPECTED[needle],
-      counts[needle] === REPL_EXPECTED[needle]
+      `Chat residue pinned: ${needle} = ${CHAT_EXPECTED[needle]}`,
+      counts[needle] === CHAT_EXPECTED[needle],
+      counts[needle] === CHAT_EXPECTED[needle]
         ? ''
         : `got ${counts[needle]} — a new direct read is a deliberate, prover-updating act`,
     )
