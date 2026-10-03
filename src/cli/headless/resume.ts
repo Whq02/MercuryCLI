@@ -130,10 +130,10 @@ export async function loadInitialMessages(
       if (!parsedSessionId) {
         const given = typeof options.resume === 'string' ? options.resume : ''
         emitLoadError(
-          `--resume in print mode needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither (${binaryName()} run --resume <session-id>)`,
+          `${binaryName()} run --resume needs a session id (a UUID) or a .jsonl transcript path: ${JSON.stringify(given)} is neither`,
           options.outputFormat,
         )
-        gracefulShutdownSync(1)
+        gracefulShutdownSync(2)
         return { messages: [] }
       }
 

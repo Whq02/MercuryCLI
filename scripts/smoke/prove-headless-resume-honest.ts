@@ -37,10 +37,10 @@ section('§1 FC-038 — the empty resume target')
 {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'resume-honest-a-')))
   const run = await runMercury(home, ['run', '--resume', '', 'probe'])
-  check('--resume "" REFUSES (nonzero exit)', run.rc !== 0, `rc=${run.rc}`)
+  check('--resume "" REFUSES (exit 2, a usage error)', run.rc === 2, `rc=${run.rc}`)
   check(
     'with the usage sentence, not a fresh session',
-    /--resume in print mode needs a session id/.test(run.err + run.out),
+    /mercury run --resume needs a session id/.test(run.err + run.out),
     JSON.stringify((run.err + run.out).slice(0, 160)),
   )
   rmSync(home, { recursive: true, force: true })
